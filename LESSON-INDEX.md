@@ -12,6 +12,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 
 - `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents close the learning loop and preserve resumable durable state without asking the owner to remind them.
 - `templates/CURRENT-STATE.md` — reusable recovery checkpoint for long-running or multi-session work.
+- `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root `AGENTS.md` bootstrap for project repositories; points workers back to this index while embedding the minimum durable-continuity invariant locally.
 
 ## Promotion rule
 
