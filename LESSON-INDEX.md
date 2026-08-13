@@ -2,9 +2,10 @@
 
 Use this file as the entry point for cross-project lesson retrieval.
 
-## Current required pattern
+## Current required patterns
 
 1. `patterns/durable-chat-learning.md` — repository-first durability, lesson closeout, semantic dispositions, exact-hash provenance, CI/weekly orphan audits, stale-bundle safety, and universal promotion.
+2. `patterns/github-first-agent-bootstrap.md` — keep agent/project UI state minimal, fetch current canonical state from GitHub, separate canonical project state from specialist evidence, and never let stale bundles overwrite newer Git state.
 
 ## Reusable policy template
 
