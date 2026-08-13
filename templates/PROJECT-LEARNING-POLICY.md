@@ -4,9 +4,21 @@ Use/adapt this block in project instructions when the project should preserve tr
 
 ## Canonical learning state
 
-GitHub is the canonical durable store for project lessons. Chat context and model memory are not sufficient persistence.
+GitHub is the canonical durable store for project lessons and project continuity. Chat context and model memory are not sufficient persistence.
 
 At the start of substantive work, read the project's current lesson index first. Follow its current read order, authority rules, and branch/evidence routing rather than relying on remembered file names.
+
+## Durable current-state checkpoint
+
+Treat conversation/context as disposable working RAM, the repository as durable project memory, Git history as the audit/rollback trail, and a concise current-state file as the recovery entry point.
+
+For long-running, multi-step, autonomous, or multi-session work, maintain one obvious current recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable file referenced by the project bootstrap/index.
+
+Record the current goal, important decisions and owner constraints, completed work that must not be repeated, current step, remaining work, blockers, relevant artifacts/tests/branches/commits, and the next safe resume action. Update it at meaningful durable boundaries, after consequential decisions or blockers, before handoff, and before claiming multi-step work complete.
+
+After interruption, a fresh thread, context compaction, or a model switch, inspect the repository and recent relevant commits/artifacts, reconcile the checkpoint with actual Git state, identify exactly what survived, repair stale checkpoint data, and resume from the latest verified durable boundary without repeating completed work.
+
+A stale checkpoint never outranks newer owner instructions or verified repository state. A robust project should be resumable by a fresh competent worker with repository access but no old transcript.
 
 ## Learning closeout gate
 
@@ -17,8 +29,9 @@ Before reporting any substantive implementation, debugging, editorial, research,
 3. give a reason for every non-promoted substantive finding;
 4. update the project's current lesson summary/index for every promoted local lesson;
 5. if a lesson is genuinely transferable across projects, promote the generalized rule with provenance into `u-dont-existDOTcom/universal-dev-architecture`;
-6. run the repository lesson-integrity check/audit;
-7. verify it passes before claiming completion.
+6. update the current-state checkpoint/final state when the work is long-running or multi-step;
+7. run the repository lesson-integrity check/audit;
+8. verify it passes before claiming completion.
 
 Do not ask the owner to remind you to do this.
 
