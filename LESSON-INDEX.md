@@ -11,6 +11,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 ## Reusable policy template
 
 - `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents close the learning loop and preserve resumable durable state without asking the owner to remind them.
+- `templates/CURRENT-STATE.md` — reusable recovery checkpoint for long-running or multi-session work.
 
 ## Promotion rule
 
