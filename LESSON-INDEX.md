@@ -8,6 +8,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 2. `patterns/github-first-agent-bootstrap.md` — keep agent/project UI state minimal, fetch current canonical state from GitHub, separate canonical project state from specialist evidence, and never let stale bundles overwrite newer Git state.
 3. `patterns/context-compaction-resilience.md` — treat conversation as disposable working RAM, Git as durable project memory/audit history, maintain one concise current-state recovery checkpoint for long-running work, and reconcile that checkpoint against actual repository state after interruption, context compaction, model switch, or a fresh thread.
 4. `patterns/codex-github-operating-system.md` — risk-adjusted repository/hosted governance, exact executable commands, hermetic verification, transactional updates, condition-based readiness, privacy-safe diagnostics, stage-specific recovery, and pull-request/branch controls.
+5. `patterns/paid-workflow-safety.md` — gate paid, privileged, or irreversible GitHub Actions behind a fail-closed registration topology, deterministic secret-free validation, environment-file injection defenses, late credential/secret boundaries, and exact archival provenance.
 
 ## Reusable policy template
 

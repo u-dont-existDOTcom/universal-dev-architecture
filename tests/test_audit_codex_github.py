@@ -271,6 +271,15 @@ jobs:
                 "on: [push, pull_request_target]",
                 "on: {push: {}, pull_request_target: {}}",
                 "on:\n  - push\n  - pull_request_target",
+                "on:\n- push\n- pull_request_target",
+                "on:\n  - push\n  -\n    pull_request_target",
+                "on: &events\n  - push\n  - pull_request_target",
+                "x-events: &events\n  - push\n  - pull_request_target\non: *events",
+                "on: >-\n  pull_request_target",
+                'on: "pull_request_\\u0074arget"',
+                "? on\n: pull_request_target",
+                "on: [\n  push,\n  pull_request_target\n]",
+                "on: {\n  push: {},\n  pull_request_target: {}\n}",
             )
         ):
             with self.subTest(event=event):
@@ -295,6 +304,410 @@ jobs:
                 findings = audit_repository(self.root)
                 self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
                 (self.root / f".github/workflows/review-{index}.yml").unlink()
+
+    def test_pull_request_target_root_flow_workflow_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """{name: Unsafe, on: pull_request_target,
+permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
+steps: [{"uses": actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+        self.assertNotIn("actions.ref.unpinned", self.codes(findings))
+        self.assertNotIn("actions.ref.unresolved", self.codes(findings))
+
+    def test_document_marker_before_root_flow_workflow_is_audited(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """---
+{name: Unsafe, on: pull_request_target,
+permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
+steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_quoted_checkout_key_with_privileged_trigger_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe quoted checkout
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - "uses" : actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_mixed_case_checkout_owner_and_repository_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe mixed-case checkout
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Actions/Checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_explicit_uses_key_inside_step_is_an_action_reference(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe explicit action key
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        ? uses
+        : actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertNotIn("actions.ref.unresolved", codes)
+        self.assertNotIn("actions.ref.unpinned", codes)
+
+    def test_aliased_action_key_fails_closed_inside_step(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe aliased action key
+on: pull_request_target
+permissions:
+  contents: read
+x-key: &use-key uses
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        *use-key: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertIn("actions.ref.unresolved", codes)
+
+    def test_flow_aliased_action_key_fails_closed_inside_step(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe flow aliased action key
+on: pull_request_target
+permissions:
+  contents: read
+x-key: &use-key uses
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps: [{*use-key: actions/checkout@0123456789abcdef0123456789abcdef01234567}]
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertIn("actions.ref.unresolved", codes)
+
+    def test_quoted_and_flow_unpinned_actions_are_reported(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/ci.yml",
+            """name: Unpinned syntax variants
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: [{"uses": owner/flow-action@v1}]
+  quoted:
+    runs-on: ubuntu-latest
+    steps:
+      - 'uses' : owner/quoted-action@v2
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        unpinned = [
+            item
+            for item in findings
+            if item["code"] == "actions.ref.unpinned"
+        ]
+        self.assertEqual(2, len(unpinned), unpinned)
+
+    def test_escaped_uses_key_is_an_action_reference(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/ci.yml",
+            """name: Escaped action key
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - "\\u0075ses": owner/action@v1
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.ref.unpinned", self.codes(findings))
+
+    def test_aliased_action_is_unresolved_and_may_hide_checkout(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe alias
+on: pull_request_target
+permissions:
+  contents: read
+env:
+  CHECKOUT_ACTION: &checkout actions/checkout@0123456789abcdef0123456789abcdef01234567
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: *checkout
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+        self.assertIn("actions.ref.unresolved", self.codes(findings))
+
+    def test_non_action_uses_mappings_are_ignored(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Safe uses inputs
+on: pull_request_target
+permissions:
+  contents: read
+env:
+  uses: harmless
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      uses: harmless
+    steps:
+      - name: Pinned non-checkout action
+        uses: owner/action@0123456789abcdef0123456789abcdef01234567
+        with: {uses: harmless}
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertNotIn("actions.pull-request-target.checkout", codes)
+        self.assertNotIn("actions.ref.unresolved", codes)
+        self.assertNotIn("actions.ref.unpinned", codes)
+
+    def test_job_level_reusable_workflow_is_an_action_reference(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/caller.yml",
+            """name: Reusable workflow caller
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: owner/repository/.github/workflows/reusable.yml@v1
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.ref.unpinned", self.codes(findings))
+
+    def test_indentationless_step_sequence_is_audited(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/ci.yml",
+            """name: Indentationless steps
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Unpinned action
+      uses: owner/action@v1
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.ref.unpinned", self.codes(findings))
+
+    def test_aliased_steps_node_is_unresolved_and_may_hide_checkout(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe aliased steps
+on: pull_request_target
+permissions:
+  contents: read
+x-steps: &review-steps
+  - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps: *review-steps
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertIn("actions.ref.unresolved", codes)
+
+    def test_pull_request_target_text_in_flow_filter_is_not_an_event(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/safe.yml",
+            """name: Safe branch filter
+on: {push: {branches: [pull_request_target]}}
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertNotIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_public_high_risk_research_reports_disabled_branch_rules(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="research",
+            visibility="public",
+            risk="high",
+            github_controls={
+                "default_branch_rules": "disabled",
+                "secret_scanning": "verified",
+                "push_protection": "verified",
+                "code_scanning": "not_applicable",
+            },
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn(
+            "github-control.default-branch-rules.disabled", self.codes(findings)
+        )
 
     def test_portable_workflow_policy_ignores_its_own_scanner_text(self) -> None:
         template = Path("templates/WORKFLOW-POLICY.yml").read_text(encoding="utf-8")

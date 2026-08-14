@@ -79,18 +79,14 @@ IGNORED_WALK_DIRS = {
 }
 
 FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
-USES_RE = re.compile(
-    r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
-)
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
-YAML_KEY_RE = re.compile(
-    r"^( *)(?:\"([^\"]+)\"|'([^']+)'|([A-Za-z0-9_-]+))\s*:\s*(.*?)\s*$"
+ON_TRIGGER_LINE_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
 )
 BLOCK_SCALAR_RE = re.compile(
     r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
 )
-CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
 
 
 def finding(
@@ -462,26 +458,110 @@ def _workflow_structure(text: str) -> str:
     return "\n".join(structural)
 
 
-def _scalar_value(value: str) -> str:
-    normalized = re.sub(r"\s+#.*$", "", value).strip()
+def _yaml_code(line: str) -> str:
+    if line.lstrip().startswith("#"):
+        return ""
+    return line.split("#", 1)[0].rstrip()
+
+
+def _yaml_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def _flow_balance(value: str) -> int:
+    balance = 0
+    quote: str | None = None
+    escaped = False
+    for character in value:
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character in "[{":
+            balance += 1
+        elif character in "]}":
+            balance -= 1
+    return balance
+
+
+def _normalized_scalar(value: str) -> str | None:
+    scalar = value.strip()
+    if "\\" in scalar:
+        return None
     if (
-        len(normalized) >= 2
-        and normalized[0] == normalized[-1]
-        and normalized[0] in {'"', "'"}
+        len(scalar) >= 2
+        and scalar[0] == scalar[-1]
+        and scalar[0] in {'"', "'"}
     ):
-        return normalized[1:-1]
-    return normalized
+        return scalar[1:-1]
+    return scalar
 
 
-def _flow_mapping_keys(value: str) -> list[str]:
-    if not (value.startswith("{") and value.endswith("}")):
-        return []
-    keys: list[str] = []
+def _normalized_key(value: str) -> str | None:
+    key = value.strip()
+    if len(key) >= 2 and key[0] == key[-1] == '"':
+        try:
+            decoded = json.loads(key)
+        except json.JSONDecodeError:
+            return None
+        return decoded if isinstance(decoded, str) else None
+    if len(key) >= 2 and key[0] == key[-1] == "'":
+        return key[1:-1].replace("''", "'")
+    if "\\" in key:
+        return None
+    return key
+
+
+def _yaml_key_is_unresolved(key: str) -> bool:
+    return key.startswith(("*", "&", "!", "|", ">", "?", ":", "$"))
+
+
+def _flow_parts(value: str) -> list[str] | None:
+    if len(value) < 2 or value[0] not in "[{" or value[-1] not in "]}":
+        return None
+    parts: list[str] = []
     depth = 0
     quote: str | None = None
     escaped = False
-    entry_start = 1
-    expecting_key = True
+    start = 1
+    for index, character in enumerate(value[1:-1], start=1):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character in "[{":
+            depth += 1
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                return None
+        elif character == "," and depth == 0:
+            parts.append(value[start:index].strip())
+            start = index + 1
+    if quote is not None or depth != 0:
+        return None
+    final = value[start:-1].strip()
+    if final:
+        parts.append(final)
+    return parts
+
+
+def _top_level_colon(value: str) -> int | None:
+    depth = 0
+    quote: str | None = None
+    escaped = False
     for index, character in enumerate(value):
         if quote is not None:
             if escaped:
@@ -493,61 +573,449 @@ def _flow_mapping_keys(value: str) -> list[str]:
             continue
         if character in {'"', "'"}:
             quote = character
-        elif character in "{[":
+        elif character in "[{":
             depth += 1
-        elif character in "}]":
+        elif character in "]}":
             depth -= 1
-        elif character == ":" and depth == 1 and expecting_key:
-            keys.append(_scalar_value(value[entry_start:index]))
-            expecting_key = False
-        elif character == "," and depth == 1:
-            entry_start = index + 1
-            expecting_key = True
-    return keys
+        elif character == ":" and depth == 0:
+            return index
+    return None
 
 
-def _event_scalar_includes(value: str, event: str) -> bool:
-    scalar = _scalar_value(value)
-    if scalar.startswith("{"):
-        return event in _flow_mapping_keys(scalar)
-    if scalar.startswith("[") and scalar.endswith("]"):
-        return event in {
-            _scalar_value(item) for item in scalar[1:-1].split(",")
-        }
-    return scalar == event
-
-
-def _workflow_has_event(structure: str, event: str) -> bool:
-    on_indent: int | None = None
-    for line in structure.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        indent = len(line) - len(line.lstrip(" "))
-        if on_indent is not None and indent > on_indent:
-            list_item = re.match(r"^\s*-\s*(.*?)\s*$", line)
-            if list_item is not None and _event_scalar_includes(
-                list_item.group(1), event
-            ):
+def _flow_uses_pull_request_target(value: str) -> bool | None:
+    parts = _flow_parts(value)
+    if parts is None:
+        return None
+    if value.startswith("["):
+        for part in parts:
+            event = _normalized_scalar(part)
+            if event is None or event.startswith(("*", "!", "&", "|", ">", "?", ":")):
+                return None
+            if event == "pull_request_target":
                 return True
-        match = YAML_KEY_RE.match(line)
-        if match is None:
-            if on_indent is not None and indent <= on_indent:
-                on_indent = None
-            continue
-        key = match.group(2) or match.group(3) or match.group(4)
-        value = match.group(5)
-        if on_indent is not None and indent <= on_indent and not (
-            indent == 0 and key == "on"
-        ):
-            on_indent = None
-        if indent == 0 and key == "on":
-            if _scalar_value(value) == "":
-                on_indent = 0
-            elif _event_scalar_includes(value, event):
-                return True
-        elif on_indent is not None and indent > on_indent and key == event:
+        return False
+
+    for part in parts:
+        colon = _top_level_colon(part)
+        if colon is None:
+            return None
+        event = _normalized_scalar(part[:colon])
+        if event is None or event.startswith(("*", "!", "&", "|", ">", "?", ":")):
+            return None
+        if event == "pull_request_target":
             return True
     return False
+
+
+def _action_scalar(value: str) -> str:
+    scalar = value.strip()
+    if (
+        len(scalar) >= 2
+        and scalar[0] == scalar[-1]
+        and scalar[0] in {'"', "'"}
+    ):
+        return scalar[1:-1]
+    return scalar
+
+
+def _flow_mapping_items(value: str) -> list[tuple[str, str]] | None:
+    if not value.startswith("{"):
+        return None
+    parts = _flow_parts(value)
+    if parts is None:
+        return None
+    items: list[tuple[str, str]] = []
+    for part in parts:
+        colon = _top_level_colon(part)
+        if colon is None:
+            return None
+        key_source = part[:colon].strip()
+        if key_source.startswith("?") and (
+            len(key_source) == 1 or key_source[1].isspace()
+        ):
+            key_source = key_source[1:].lstrip(" \t")
+        key = _normalized_key(key_source)
+        if key is None:
+            key = ":unresolved-yaml-key"
+        items.append((key, part[colon + 1 :].strip()))
+    return items
+
+
+def _flow_step_uses_values(value: str) -> list[str]:
+    value = value.strip()
+    if value.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+        return [value]
+    parts = _flow_parts(value)
+    if parts is None:
+        return []
+    if value.startswith("["):
+        values: list[str] = []
+        for part in parts:
+            if part.startswith("{"):
+                values.extend(_flow_step_uses_values(part))
+            elif part.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+                values.append(part)
+        return values
+
+    items = _flow_mapping_items(value)
+    if items is None:
+        return []
+    values: list[str] = []
+    for key, raw in items:
+        if key == "uses":
+            values.append(_action_scalar(raw))
+        elif _yaml_key_is_unresolved(key):
+            values.append(key)
+    return values
+
+
+def _flow_job_uses_values(value: str) -> list[str]:
+    items = _flow_mapping_items(value)
+    if items is None:
+        return []
+    values: list[str] = []
+    for key, raw in items:
+        if key == "uses":
+            values.append(_action_scalar(raw))
+        elif _yaml_key_is_unresolved(key):
+            values.append(key)
+        elif key == "<<" and raw.startswith(("*", "&", "!", "$")):
+            values.append(raw)
+        elif key == "steps":
+            values.extend(_flow_step_uses_values(raw))
+    return values
+
+
+def _flow_jobs_uses_values(value: str) -> list[str]:
+    items = _flow_mapping_items(value)
+    if items is None:
+        return []
+    values: list[str] = []
+    for _job, raw in items:
+        if raw.startswith("{"):
+            values.extend(_flow_job_uses_values(raw))
+        elif raw.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+            values.append(raw)
+    return values
+
+
+def _block_mapping_entry(line: str) -> tuple[int, bool, str, str] | None:
+    indent = _yaml_indent(line)
+    content = line.lstrip(" \t")
+    sequence_item = False
+    if content.startswith("-") and (
+        len(content) == 1 or content[1].isspace()
+    ):
+        sequence_item = True
+        content = content[1:].lstrip(" \t")
+    colon = _top_level_colon(content)
+    if colon is None:
+        return None
+    key = _normalized_key(content[:colon])
+    if key is None:
+        key = ":unresolved-yaml-key"
+    if not key:
+        return None
+    return indent, sequence_item, key, content[colon + 1 :].strip()
+
+
+def _explicit_mapping_entry(
+    lines: list[str], index: int
+) -> tuple[int, bool, str, str, int] | None:
+    line = _yaml_code(lines[index])
+    indent = _yaml_indent(line)
+    content = line.lstrip(" \t")
+    sequence_item = False
+    if content.startswith("-") and (
+        len(content) == 1 or content[1].isspace()
+    ):
+        sequence_item = True
+        content = content[1:].lstrip(" \t")
+    if not content.startswith("?") or (
+        len(content) > 1 and not content[1].isspace()
+    ):
+        return None
+
+    explicit = content[1:].lstrip(" \t")
+    colon = _top_level_colon(explicit)
+    if colon is not None:
+        key = _normalized_key(explicit[:colon])
+        if not key:
+            return None
+        return indent, sequence_item, key, explicit[colon + 1 :].strip(), index
+
+    key = _normalized_key(explicit)
+    if not key:
+        return None
+    value_indent = indent + 2 if sequence_item else indent
+    lookahead = index + 1
+    while lookahead < len(lines):
+        value_line = _yaml_code(lines[lookahead])
+        if not value_line.strip():
+            lookahead += 1
+            continue
+        value_content = value_line.lstrip(" \t")
+        if _yaml_indent(value_line) == value_indent and value_content.startswith(":"):
+            return (
+                indent,
+                sequence_item,
+                key,
+                value_content[1:].lstrip(" \t"),
+                lookahead,
+            )
+        break
+    return indent, sequence_item, key, "", index
+
+
+def _collect_flow_value(
+    lines: list[str], index: int, initial: str
+) -> tuple[str, int]:
+    value = initial.strip()
+    end = index
+    if not value.startswith(("[", "{")):
+        return value, end
+    while _flow_balance(value) > 0 and end + 1 < len(lines):
+        end += 1
+        value += "\n" + _yaml_code(lines[end]).strip()
+    return value, end
+
+
+def _uses_values(structure: str) -> list[str]:
+    """Return action references only from step and reusable-job `uses` nodes."""
+
+    lines = structure.splitlines()
+    code = "\n".join(
+        code_line
+        for line in lines
+        if (code_line := _yaml_code(line)).strip() not in {"---", "..."}
+    ).strip()
+    if code.startswith("{") and _flow_balance(code) == 0:
+        root_items = _flow_mapping_items(code)
+        if root_items is None:
+            return []
+        values: list[str] = []
+        for key, raw in root_items:
+            if key == "jobs":
+                values.extend(_flow_jobs_uses_values(raw))
+            elif _yaml_key_is_unresolved(key):
+                values.append(key)
+        return values
+
+    values: list[str] = []
+    stack: list[tuple[int, str]] = []
+    index = 0
+    while index < len(lines):
+        line = _yaml_code(lines[index])
+        if not line.strip():
+            index += 1
+            continue
+        indent = _yaml_indent(line)
+        stripped = line.lstrip(" \t")
+        sequence_line = stripped.startswith("-") and (
+            len(stripped) == 1 or stripped[1].isspace()
+        )
+        while stack and stack[-1][0] >= indent:
+            if sequence_line and stack[-1] == (indent, "steps"):
+                break
+            stack.pop()
+        parent = [key for _level, key in stack]
+
+        explicit_entry = _explicit_mapping_entry(lines, index)
+        if explicit_entry is None:
+            entry = _block_mapping_entry(line)
+            value_index = index
+        else:
+            entry = explicit_entry[:4]
+            value_index = explicit_entry[4]
+        if entry is None:
+            if (
+                sequence_line
+                and len(stripped) > 1
+                and len(parent) == 3
+                and parent[0] == "jobs"
+                and parent[2] == "steps"
+            ):
+                flow, end = _collect_flow_value(
+                    lines, index, stripped[1:].lstrip(" \t")
+                )
+                values.extend(_flow_step_uses_values(flow))
+                index = end + 1
+                continue
+            index += 1
+            continue
+
+        _indent, sequence_item, key, raw = entry
+        direct_job = len(parent) == 2 and parent[0] == "jobs"
+        direct_step_item = (
+            len(parent) == 3
+            and parent[0] == "jobs"
+            and parent[2] == "steps"
+            and sequence_item
+        ) or (
+            len(parent) == 4
+            and parent[0] == "jobs"
+            and parent[2:] == ["steps", "[]"]
+            and not sequence_item
+        )
+
+        flow, end = _collect_flow_value(lines, value_index, raw)
+        if key == "uses" and (direct_job or direct_step_item):
+            values.append(_action_scalar(flow))
+        elif _yaml_key_is_unresolved(key) and (
+            direct_job or direct_step_item or not parent
+        ):
+            values.append(key)
+        elif key == "<<" and (direct_job or direct_step_item) and flow.startswith(
+            ("*", "&", "!", "$")
+        ):
+            values.append(flow)
+        elif key == "jobs" and not parent and flow.startswith("{"):
+            values.extend(_flow_jobs_uses_values(flow))
+        elif len(parent) == 1 and parent[0] == "jobs":
+            if flow.startswith("{"):
+                values.extend(_flow_job_uses_values(flow))
+            elif flow.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+                values.append(flow)
+        elif key == "steps" and direct_job:
+            values.extend(_flow_step_uses_values(flow))
+
+        if sequence_item:
+            stack.append((indent, "[]"))
+            stack.append((indent + 2, key))
+        else:
+            stack.append((indent, key))
+        index = end + 1
+    return values
+
+
+def _uses_value_is_unresolved(value: str) -> bool:
+    return "\\" in value or value.startswith(("*", "&", "!", "|", ">", "?", ":", "$"))
+
+
+def _uses_value_may_be_checkout(value: str) -> bool:
+    if value.startswith("./") or value.startswith("docker://"):
+        return False
+    if _uses_value_is_unresolved(value):
+        return True
+    action, separator, _ref = value.rpartition("@")
+    if not separator:
+        return True
+    return action.lower() == "actions/checkout"
+
+
+def _uses_pull_request_target(structure: str) -> bool:
+    """Recognize common trigger forms and fail closed on unresolved root syntax."""
+
+    lines = structure.splitlines()
+    root_indents = [
+        _yaml_indent(code)
+        for line in lines
+        if (code := _yaml_code(line)).strip()
+        and code.strip() not in {"---", "..."}
+    ]
+    if not root_indents:
+        return True
+    root_indent = min(root_indents)
+    saw_trigger_node = False
+
+    for index, line in enumerate(lines):
+        code = _yaml_code(line)
+        match = ON_TRIGGER_LINE_RE.match(code)
+        if match is None or _yaml_indent(code) != root_indent:
+            continue
+        saw_trigger_node = True
+        base_indent = _yaml_indent(code)
+        value = match.group("value").strip()
+        while value.startswith(("&", "!")):
+            node_property = value.split(None, 1)
+            value = node_property[1].lstrip() if len(node_property) == 2 else ""
+
+        # Resolving aliases, escaped scalars, and block scalars requires more
+        # YAML semantics than this standard-library audit claims to implement.
+        if value.startswith(("*", "|", ">")):
+            return True
+        if value:
+            if value.startswith(("[", "{")):
+                balance = _flow_balance(value)
+                flow = value
+                for continuation in lines[index + 1 :]:
+                    if balance <= 0:
+                        break
+                    continuation_code = _yaml_code(continuation)
+                    flow += "\n" + continuation_code
+                    balance += _flow_balance(continuation_code)
+                if balance != 0:
+                    return True
+                result = _flow_uses_pull_request_target(flow)
+                if result is None or result:
+                    return True
+                continue
+            event = _normalized_scalar(value)
+            if event is None:
+                return True
+            if event == "pull_request_target":
+                return True
+            continue
+
+        direct_child_indent: int | None = None
+        sequence_indent: int | None = None
+        children = lines[index + 1 :]
+        for child_index, child in enumerate(children):
+            child_code = _yaml_code(child)
+            if not child_code.strip():
+                continue
+            indent = _yaml_indent(child_code)
+            stripped = child_code.strip()
+            if direct_child_indent is None and sequence_indent is None:
+                if stripped.startswith("-") and indent >= base_indent:
+                    sequence_indent = indent
+                elif indent > base_indent:
+                    direct_child_indent = indent
+                else:
+                    break
+
+            if sequence_indent is not None:
+                if indent < sequence_indent:
+                    break
+                if indent != sequence_indent:
+                    continue
+                if not stripped.startswith("-"):
+                    break
+                event = stripped[1:].strip()
+                if not event:
+                    for nested in children[child_index + 1 :]:
+                        nested_code = _yaml_code(nested)
+                        if not nested_code.strip():
+                            continue
+                        if _yaml_indent(nested_code) <= sequence_indent:
+                            break
+                        event = nested_code.strip()
+                        break
+                if "\\" in event or "*" in event or event.startswith(
+                    ("?", ":", "!", "&", "|", ">")
+                ):
+                    return True
+                event = event.split(":", 1)[0].strip().strip("\"'")
+                if event == "pull_request_target":
+                    return True
+                continue
+
+            if indent <= base_indent:
+                break
+            if indent != direct_child_indent:
+                continue
+            event = stripped
+            if "\\" in event or "*" in event or event.startswith(
+                ("?", ":", "!", "&", "|", ">")
+            ):
+                return True
+            event = event.split(":", 1)[0].strip().strip("\"'")
+            if event == "pull_request_target":
+                return True
+
+    # Root flow mappings, explicit keys, and other unresolved root forms are
+    # not proven safe by this dependency-free parser.
+    return not saw_trigger_node
 
 
 def _audit_workflows(
@@ -571,6 +1039,10 @@ def _audit_workflows(
             continue
 
         structure = _workflow_structure(text)
+        code_structure = "\n".join(
+            _yaml_code(line) for line in structure.splitlines()
+        )
+        uses_values = _uses_values(code_structure)
 
         if not TOP_LEVEL_PERMISSIONS_RE.search(structure):
             findings.append(
@@ -593,8 +1065,8 @@ def _audit_workflows(
                 )
             )
 
-        if _workflow_has_event(structure, "pull_request_target") and CHECKOUT_RE.search(
-            structure
+        if _uses_pull_request_target(structure) and any(
+            _uses_value_may_be_checkout(value) for value in uses_values
         ):
             findings.append(
                 finding(
@@ -606,8 +1078,31 @@ def _audit_workflows(
                 )
             )
 
-        for action, ref in USES_RE.findall(structure):
-            if action.startswith("./") or action.startswith("docker://"):
+        for value in uses_values:
+            if value.startswith("./") or value.startswith("docker://"):
+                continue
+            if _uses_value_is_unresolved(value):
+                findings.append(
+                    finding(
+                        "warning",
+                        "actions.ref.unresolved",
+                        f"Action reference `{value}` cannot be resolved statically.",
+                        relative,
+                        "Use a direct remote action reference pinned to a reviewed full commit SHA.",
+                    )
+                )
+                continue
+            action, separator, ref = value.rpartition("@")
+            if not separator:
+                findings.append(
+                    finding(
+                        "warning",
+                        "actions.ref.unresolved",
+                        f"Action reference `{value}` has no statically verifiable ref.",
+                        relative,
+                        "Use a direct remote action reference pinned to a reviewed full commit SHA.",
+                    )
+                )
                 continue
             if not FULL_SHA_RE.fullmatch(ref):
                 findings.append(
@@ -764,7 +1259,11 @@ def _audit_public_and_risk_controls(
     controls = profile.get("github_controls")
     controls = controls if isinstance(controls, dict) else {}
     controls_to_check: list[tuple[str, str]] = []
-    if profile.get("active") and kind == "software":
+    if profile.get("active") and (
+        kind == "software"
+        or visibility == "public"
+        or risk in {"high", "critical"}
+    ):
         controls_to_check.append(("default_branch_rules", "default-branch ruleset"))
     if visibility == "public" or risk in {"high", "critical"}:
         controls_to_check.extend(
