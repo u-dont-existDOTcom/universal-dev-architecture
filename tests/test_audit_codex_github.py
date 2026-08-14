@@ -245,6 +245,9 @@ jobs:
             "aliased-event-node": (
                 "x-events: &events\n  - push\n  - pull_request_target\non: *events"
             ),
+            "block-scalar": "on: >-\n  pull_request_target",
+            "escaped-scalar": 'on: "pull_request_\\u0074arget"',
+            "explicit-key": "? on\n: pull_request_target",
             "sequence": "on: [push, pull_request_target]",
             "map": "on: {push: {}, pull_request_target: {}}",
             "multiline-sequence": "on: [\n  push,\n  pull_request_target\n]",
@@ -268,6 +271,21 @@ jobs:
                 self.assertIn(
                     "actions.pull-request-target.checkout", self.codes(findings)
                 )
+
+    def test_pull_request_target_root_flow_workflow_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        self.write(
+            ".github/workflows/review.yml",
+            """{name: Unsafe, on: pull_request_target,
+permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
+steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
 
     def test_public_high_risk_research_reports_disabled_branch_rules(self) -> None:
         self.add_minimal_repository_files()
