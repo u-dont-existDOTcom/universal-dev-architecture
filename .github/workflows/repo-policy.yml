@@ -1,0 +1,11 @@
+name: Repository policy
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  repo-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - run: test -f AGENTS.md && test -f docs/INDEX.md && test -f patterns/codex-github-operating-standard.md
