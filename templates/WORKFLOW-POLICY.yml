@@ -29,8 +29,16 @@ jobs:
 
           workflow_dir = Path(".github/workflows")
           errors: list[tuple[Path, str]] = []
-          uses_pattern = re.compile(
-              r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
+          uses_value_pattern = re.compile(
+              r"""(?mx)
+              (?:^[ \t]*-?[ \t]*|[\[\{,][ \t]*)
+              (?:[\"']uses[\"']|uses)[ \t]*:[ \t]*
+              (?:
+                  "(?P<double>(?:\\.|[^"])*)"
+                | '(?P<single>[^']*)'
+                | (?P<plain>[^,\]\}\s#]+)
+              )
+              """
           )
           full_sha = re.compile(r"^[0-9a-fA-F]{40}$")
           block_scalar = re.compile(
@@ -38,10 +46,6 @@ jobs:
           )
           on_trigger_line = re.compile(
               r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
-          )
-          checkout_pattern = re.compile(
-              r"(?m)(?:^\s*-?\s*(?:[\"']uses[\"']|uses)\s*:\s*[\"']?actions/checkout@|"
-              r"[\[\{,]\s*(?:[\"']uses[\"']|uses)\s*:\s*[\"']?actions/checkout@)"
           )
 
           def workflow_structure(text: str) -> str:
@@ -187,6 +191,32 @@ jobs:
                       return True
               return False
 
+          def uses_values(structure: str) -> list[str]:
+              values: list[str] = []
+              for match in uses_value_pattern.finditer(structure):
+                  value = match.group("double")
+                  if value is None:
+                      value = match.group("single")
+                  if value is None:
+                      value = match.group("plain")
+                  values.append(value)
+              return values
+
+          def uses_value_is_unresolved(value: str) -> bool:
+              return "\\" in value or value.startswith(
+                  ("*", "&", "!", "|", ">", "?", ":", "$")
+              )
+
+          def uses_value_may_be_checkout(value: str) -> bool:
+              if value.startswith("./") or value.startswith("docker://"):
+                  return False
+              if uses_value_is_unresolved(value):
+                  return True
+              action, separator, _ref = value.rpartition("@")
+              if not separator:
+                  return True
+              return action == "actions/checkout"
+
           def uses_pull_request_target(structure: str) -> bool:
               lines = structure.splitlines()
               root_indents = [
@@ -296,6 +326,10 @@ jobs:
           for path in sorted(workflow_dir.glob("*.y*ml")):
               text = path.read_text(encoding="utf-8")
               structure = workflow_structure(text)
+              code_structure = "\n".join(
+                  yaml_code(line) for line in structure.splitlines()
+              )
+              action_values = uses_values(code_structure)
 
               if not re.search(r"(?m)^permissions\s*:", structure):
                   errors.append(
@@ -307,8 +341,8 @@ jobs:
               ):
                   errors.append((path, "permissions: write-all is forbidden"))
 
-              if checkout_pattern.search(structure) and uses_pull_request_target(
-                  structure
+              if uses_pull_request_target(structure) and any(
+                  uses_value_may_be_checkout(value) for value in action_values
               ):
                   errors.append(
                       (
@@ -317,8 +351,25 @@ jobs:
                       )
                   )
 
-              for action, ref in uses_pattern.findall(structure):
-                  if action.startswith("./") or action.startswith("docker://"):
+              for value in action_values:
+                  if value.startswith("./") or value.startswith("docker://"):
+                      continue
+                  if uses_value_is_unresolved(value):
+                      errors.append(
+                          (
+                              path,
+                              f"action reference {value} cannot be resolved statically",
+                          )
+                      )
+                      continue
+                  action, separator, ref = value.rpartition("@")
+                  if not separator:
+                      errors.append(
+                          (
+                              path,
+                              f"action reference {value} has no statically verifiable ref",
+                          )
+                      )
                       continue
                   if not full_sha.fullmatch(ref):
                       errors.append(

@@ -322,6 +322,8 @@ steps: [{"uses": actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
         findings = audit_repository(self.root)
 
         self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+        self.assertNotIn("actions.ref.unpinned", self.codes(findings))
+        self.assertNotIn("actions.ref.unresolved", self.codes(findings))
 
     def test_quoted_checkout_key_with_privileged_trigger_is_an_error(self) -> None:
         self.add_minimal_repository_files()
@@ -346,6 +348,65 @@ jobs:
         findings = audit_repository(self.root)
 
         self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_quoted_and_flow_unpinned_actions_are_reported(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/ci.yml",
+            """name: Unpinned syntax variants
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: [{"uses": owner/flow-action@v1}]
+  quoted:
+    runs-on: ubuntu-latest
+    steps:
+      - 'uses' : owner/quoted-action@v2
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        unpinned = [
+            item
+            for item in findings
+            if item["code"] == "actions.ref.unpinned"
+        ]
+        self.assertEqual(2, len(unpinned), unpinned)
+
+    def test_aliased_action_is_unresolved_and_may_hide_checkout(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe alias
+on: pull_request_target
+permissions:
+  contents: read
+env:
+  CHECKOUT_ACTION: &checkout actions/checkout@0123456789abcdef0123456789abcdef01234567
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: *checkout
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+        self.assertIn("actions.ref.unresolved", self.codes(findings))
 
     def test_pull_request_target_text_in_flow_filter_is_not_an_event(self) -> None:
         self.add_minimal_repository_files()

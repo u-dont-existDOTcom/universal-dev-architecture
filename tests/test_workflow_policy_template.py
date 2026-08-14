@@ -116,6 +116,49 @@ jobs:
 
         self.assertEqual(0, result.returncode, result.stdout)
 
+    def test_quoted_flow_unpinned_action_is_rejected(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unpinned flow action
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: [{"uses": owner/action@v1}]
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn("owner/action@v1", result.stdout)
+
+    def test_aliased_action_is_unresolved_and_may_hide_checkout(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unsafe alias
+on: pull_request_target
+permissions:
+  contents: read
+env:
+  CHECKOUT_ACTION: &checkout actions/checkout@0123456789abcdef0123456789abcdef01234567
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: *checkout
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+        self.assertIn("cannot be resolved statically", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

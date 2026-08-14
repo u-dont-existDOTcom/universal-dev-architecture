@@ -79,8 +79,16 @@ IGNORED_WALK_DIRS = {
 }
 
 FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
-USES_RE = re.compile(
-    r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
+USES_VALUE_RE = re.compile(
+    r"""(?mx)
+    (?:^[ \t]*-?[ \t]*|[\[\{,][ \t]*)
+    (?:[\"']uses[\"']|uses)[ \t]*:[ \t]*
+    (?:
+        "(?P<double>(?:\\.|[^"])*)"
+      | '(?P<single>[^']*)'
+      | (?P<plain>[^,\]\}\s#]+)
+    )
+    """
 )
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
@@ -89,10 +97,6 @@ ON_TRIGGER_LINE_RE = re.compile(
 )
 BLOCK_SCALAR_RE = re.compile(
     r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
-)
-CHECKOUT_RE = re.compile(
-    r"(?m)(?:^\s*-?\s*(?:[\"']uses[\"']|uses)\s*:\s*[\"']?actions/checkout@|"
-    r"[\[\{,]\s*(?:[\"']uses[\"']|uses)\s*:\s*[\"']?actions/checkout@)"
 )
 
 
@@ -595,6 +599,33 @@ def _flow_uses_pull_request_target(value: str) -> bool | None:
     return False
 
 
+def _uses_values(structure: str) -> list[str]:
+    values: list[str] = []
+    for match in USES_VALUE_RE.finditer(structure):
+        value = match.group("double")
+        if value is None:
+            value = match.group("single")
+        if value is None:
+            value = match.group("plain")
+        values.append(value)
+    return values
+
+
+def _uses_value_is_unresolved(value: str) -> bool:
+    return "\\" in value or value.startswith(("*", "&", "!", "|", ">", "?", ":", "$"))
+
+
+def _uses_value_may_be_checkout(value: str) -> bool:
+    if value.startswith("./") or value.startswith("docker://"):
+        return False
+    if _uses_value_is_unresolved(value):
+        return True
+    action, separator, _ref = value.rpartition("@")
+    if not separator:
+        return True
+    return action == "actions/checkout"
+
+
 def _uses_pull_request_target(structure: str) -> bool:
     """Recognize common trigger forms and fail closed on unresolved root syntax."""
 
@@ -731,6 +762,10 @@ def _audit_workflows(
             continue
 
         structure = _workflow_structure(text)
+        code_structure = "\n".join(
+            _yaml_code(line) for line in structure.splitlines()
+        )
+        uses_values = _uses_values(code_structure)
 
         if not TOP_LEVEL_PERMISSIONS_RE.search(structure):
             findings.append(
@@ -753,7 +788,9 @@ def _audit_workflows(
                 )
             )
 
-        if CHECKOUT_RE.search(structure) and _uses_pull_request_target(structure):
+        if _uses_pull_request_target(structure) and any(
+            _uses_value_may_be_checkout(value) for value in uses_values
+        ):
             findings.append(
                 finding(
                     "error",
@@ -764,8 +801,31 @@ def _audit_workflows(
                 )
             )
 
-        for action, ref in USES_RE.findall(structure):
-            if action.startswith("./") or action.startswith("docker://"):
+        for value in uses_values:
+            if value.startswith("./") or value.startswith("docker://"):
+                continue
+            if _uses_value_is_unresolved(value):
+                findings.append(
+                    finding(
+                        "warning",
+                        "actions.ref.unresolved",
+                        f"Action reference `{value}` cannot be resolved statically.",
+                        relative,
+                        "Use a direct remote action reference pinned to a reviewed full commit SHA.",
+                    )
+                )
+                continue
+            action, separator, ref = value.rpartition("@")
+            if not separator:
+                findings.append(
+                    finding(
+                        "warning",
+                        "actions.ref.unresolved",
+                        f"Action reference `{value}` has no statically verifiable ref.",
+                        relative,
+                        "Use a direct remote action reference pinned to a reviewed full commit SHA.",
+                    )
+                )
                 continue
             if not FULL_SHA_RE.fullmatch(ref):
                 findings.append(
