@@ -10,7 +10,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Verified baseline: `main@c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
+- Verified code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
 - Active change: none; PR #5 is merged
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
@@ -39,7 +39,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Current checkpoint
 
-- Canonical head: `main@c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
+- Canonical code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
 - Merged change: PR #5, final reviewed head `b0319df0ebd0d349e56ce91ad30b617d3a9ef233`
 - Exact gates: 53/53 code-head tests pass; audit passes with 0 errors and three truthful hosted-control warnings; final PR-head and merge-head GitHub suites all succeeded. Local Python compile and `git diff --check` also pass.
 - Current step: no repository-local step remains for the Pangram lesson promotion.
