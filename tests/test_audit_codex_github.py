@@ -241,6 +241,10 @@ jobs:
             "block-sequence": "on:\n  - push\n  - pull_request_target",
             "indentationless-block-sequence": "on:\n- push\n- pull_request_target",
             "split-block-sequence-item": "on:\n  - push\n  -\n    pull_request_target",
+            "anchored-block-sequence": "on: &events\n  - push\n  - pull_request_target",
+            "aliased-event-node": (
+                "x-events: &events\n  - push\n  - pull_request_target\non: *events"
+            ),
             "sequence": "on: [push, pull_request_target]",
             "map": "on: {push: {}, pull_request_target: {}}",
             "multiline-sequence": "on: [\n  push,\n  pull_request_target\n]",
