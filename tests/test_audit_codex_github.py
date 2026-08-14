@@ -238,8 +238,11 @@ jobs:
         self.add_minimal_repository_files()
         self.write_profile()
         for label, trigger in {
+            "block-sequence": "on:\n  - push\n  - pull_request_target",
             "sequence": "on: [push, pull_request_target]",
             "map": "on: {push: {}, pull_request_target: {}}",
+            "multiline-sequence": "on: [\n  push,\n  pull_request_target\n]",
+            "multiline-map": "on: {\n  push: {},\n  pull_request_target: {}\n}",
         }.items():
             with self.subTest(label=label):
                 self.write(
