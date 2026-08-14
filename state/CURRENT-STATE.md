@@ -10,8 +10,8 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Reconciled baseline: `main@81265fd3592ee842bfe30c7d73a5c1f3dc01b2d0`
-- Active change: draft PR #5, branch `codex/fix-audit-python312-regex-2026-08-14`
+- Verified baseline: `main@c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
+- Active change: none; PR #5 is merged
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
 - Repository profile and commands: `.github/codex-repository.json`
@@ -34,19 +34,19 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Independent review found action-reference bypasses in quoted/inline `uses` values and aliases, followed by a false positive because the first repair treated harmless `env`/`with` mappings named `uses` as actions. Further review caught mixed-case `Actions/Checkout`, an explicit `? uses` key inside an existing step, and alias/property-bearing action keys. The final extractor is scoped to real step action and direct reusable-job nodes, normalizes the checkout owner/repository comparison, and covers block/flow explicit or unresolved keys, flow maps, quoted/escaped keys, aliases, indentationless steps, and document-marked root flows; non-action mappings are ignored.
 - Code-bearing remediation head `606dfdb1c9669ccecd5d1884714a9ea8bb551343` is verified by Universal architecture tests run `31782740305` (53/53 tests and audit 0 errors/3 truthful hosted warnings) and Repository policy run `31782740316` (success).
 - Independent remediation re-review is clean at evidence checkpoint `ef1c28f8241a060db0715358b93f176061813536`; its Universal architecture tests run `31782816489` and Repository policy run `31782816484` both succeeded.
+- Merged PR #5 as `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`; its tree exactly equals the final reviewed head tree, and merge-head runs `31783054806` (Universal architecture tests) and `31783054783` (Repository policy) both succeeded.
+- Recorded the universal promotion receipt in Pangram audit issue #17 and closed superseded universal draft PR #7 without deleting its branch or rewriting history.
 
 ## Current checkpoint
 
-- Task branch: `codex/fix-audit-python312-regex-2026-08-14`
-- Reconciled base: `main@81265fd3592ee842bfe30c7d73a5c1f3dc01b2d0`
-- Exact code-bearing gates: 53/53 unit tests pass; audit passes with 0 errors and three truthful hosted-control warnings; both GitHub suites succeeded at `606dfdb1c9669ccecd5d1884714a9ea8bb551343`. Local Python compile and `git diff --check` also pass.
-- Current step: refresh PR #5's durable description, mark it ready, and merge only its exact green head. If PR #5 is already merged when this checkpoint is read, verify the merge tree and any emitted post-merge checks instead of repeating the merge.
+- Canonical head: `main@c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
+- Merged change: PR #5, final reviewed head `b0319df0ebd0d349e56ce91ad30b617d3a9ef233`
+- Exact gates: 53/53 code-head tests pass; audit passes with 0 errors and three truthful hosted-control warnings; final PR-head and merge-head GitHub suites all succeeded. Local Python compile and `git diff --check` also pass.
+- Current step: no repository-local step remains for the Pangram lesson promotion.
 
 ## Remaining
 
-- Update PR #5's durable description and mark the independently reviewed change ready.
-- Squash-merge PR #5, verify the exact merge tree and any emitted post-merge checks, and record absence rather than inventing a merge-head run if GitHub emits none.
-- Record the final universal PR/merge in the originating Pangram evidence.
+- No repository-local promotion work remains. Future work should begin from current `main` and a new owner-directed goal.
 
 ## Blockers / unresolved
 
@@ -69,7 +69,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Next safe action
 
-Inspect PR #5. If it remains open at the reviewed head, refresh its description, mark it ready, and merge it; if it is already merged, verify the merge tree and any emitted post-merge checks, then record the universal promotion in the originating Pangram evidence.
+For future work, inspect current `main`, open pull requests, hosted-control issue state, and newer owner instructions before creating a new branch. Do not repeat the completed Inner Signal or Pangram promotions.
 
 ## Recovery rule
 
