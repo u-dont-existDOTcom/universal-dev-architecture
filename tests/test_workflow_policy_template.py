@@ -51,6 +51,9 @@ class WorkflowPolicyTemplateTests(unittest.TestCase):
             "aliased-event-node": (
                 "x-events: &events\n  - push\n  - pull_request_target\non: *events"
             ),
+            "block-scalar": "on: >-\n  pull_request_target",
+            "escaped-scalar": 'on: "pull_request_\\u0074arget"',
+            "explicit-key": "? on\n: pull_request_target",
             "flow-sequence": "on: [push, pull_request_target]",
             "flow-map": "on: {push: {}, pull_request_target: {}}",
             "multiline-flow-sequence": "on: [\n  push,\n  pull_request_target\n]",
@@ -78,6 +81,22 @@ jobs:
                     "pull_request_target must not check out or execute untrusted pull-request code",
                     result.stdout,
                 )
+
+    def test_root_flow_workflow_with_pull_request_target_is_rejected(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """{name: Unsafe, on: pull_request_target,
+permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
+steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
 
 
 if __name__ == "__main__":
