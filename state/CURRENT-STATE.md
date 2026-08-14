@@ -22,9 +22,10 @@ Updated: 2026-08-14
 
 ## Current checkpoint
 
-- Current step: complete the canonical best-practices pattern, templates, source registry, and repository-by-repository audit/remediation.
-- Last verified durable boundary: audit tests and implementation committed to `main`; execution verification still required.
-- Working-tree status: GitHub-hosted edits only; no claimed local dirty state.
+- Current step: execute `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md` on branch `codex/github-compliance-2026-08-14`.
+- Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
+- Last verified durable boundary: the mapping-form `pull_request_target` regression failed with the recovered import error, the regex was minimally repaired, and the focused test plus all 15 unit tests passed locally.
+- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 1 changes await commit.
 
 ## Remaining
 

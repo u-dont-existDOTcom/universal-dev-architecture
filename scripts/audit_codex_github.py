@@ -85,8 +85,9 @@ USES_RE = re.compile(
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
 PULL_REQUEST_TARGET_RE = re.compile(
-    r"(?m)^\s*(?:on\s*:\s*)?pull_request_target\s*:\s*(?:#.*)?$|"
-    r"(?m)^\s*on\s*:\s*pull_request_target\s*(?:#.*)?$"
+    r"^\s*(?:on\s*:\s*)?pull_request_target\s*:\s*(?:#.*)?$|"
+    r"^\s*on\s*:\s*pull_request_target\s*(?:#.*)?$",
+    re.MULTILINE,
 )
 CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
 

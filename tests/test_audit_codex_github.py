@@ -234,6 +234,34 @@ jobs:
             self.severities(findings, "actions.pull-request-target.checkout"),
         )
 
+    def test_pull_request_target_mapping_with_checkout_is_an_error(self) -> None:
+        """Catch a privileged mapping-form event that checks out PR-controlled code."""
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe review
+on:
+  pull_request_target:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+        findings = audit_repository(self.root)
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+        self.assertEqual(
+            {"error"},
+            self.severities(findings, "actions.pull-request-target.checkout"),
+        )
+
     def test_write_all_permissions_are_an_error(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(
