@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "repository_kind": "policy",
+  "active": true,
+  "long_running": true,
+  "visibility": "private",
+  "risk": "high",
+  "commands": {
+    "test": "python3 -m unittest discover -s tests -v",
+    "audit": "python3 scripts/audit_codex_github.py --root . --fail-on error"
+  },
+  "current_state": "state/CURRENT-STATE.md",
+  "github_controls": {
+    "default_branch_rules": "unverified",
+    "secret_scanning": "unverified",
+    "push_protection": "unverified",
+    "code_scanning": "not_applicable"
+  }
+}
