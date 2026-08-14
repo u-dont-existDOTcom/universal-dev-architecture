@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -233,6 +235,142 @@ jobs:
             {"error"},
             self.severities(findings, "actions.pull-request-target.checkout"),
         )
+
+    def test_pull_request_target_text_inside_script_is_not_an_event(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/policy.yml",
+            """name: Safe policy
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+      - run: |
+          if "pull_request_target" in workflow_text:
+              print("inspect only")
+          on: pull_request_target
+          uses: actions/checkout@v4
+""",
+        )
+        findings = audit_repository(self.root)
+        self.assertNotIn("actions.pull-request-target.checkout", self.codes(findings))
+        self.assertNotIn("actions.ref.unpinned", self.codes(findings))
+
+    def test_pull_request_target_flow_forms_with_checkout_are_errors(self) -> None:
+        for index, event in enumerate(
+            (
+                "on: [push, pull_request_target]",
+                "on: {push: {}, pull_request_target: {}}",
+                "on:\n  - push\n  - pull_request_target",
+            )
+        ):
+            with self.subTest(event=event):
+                self.add_minimal_repository_files()
+                self.write_profile(
+                    repository_kind="software",
+                    commands={"test": "python -m unittest"},
+                )
+                self.write(
+                    f".github/workflows/review-{index}.yml",
+                    f"""name: Unsafe flow review
+{event}
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+                )
+                findings = audit_repository(self.root)
+                self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+                (self.root / f".github/workflows/review-{index}.yml").unlink()
+
+    def test_portable_workflow_policy_ignores_its_own_scanner_text(self) -> None:
+        template = Path("templates/WORKFLOW-POLICY.yml").read_text(encoding="utf-8")
+        marker = "          python3 - <<'PY'\n"
+        self.assertIn(marker, template)
+        embedded = template.split(marker, 1)[1].rsplit("\n          PY", 1)[0]
+        script = textwrap.dedent(embedded)
+        self.write(".github/workflows/policy.yml", template)
+        self.write(
+            ".github/workflows/safe-job-name.yml",
+            """name: Safe job name
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  pull_request_target:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        safe = subprocess.run(
+            ["python3", "-c", script],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(0, safe.returncode, safe.stdout + safe.stderr)
+
+        self.write(
+            ".github/workflows/unsafe.yml",
+            """name: Unsafe
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+        unsafe = subprocess.run(
+            ["python3", "-c", script],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(1, unsafe.returncode, unsafe.stdout + unsafe.stderr)
+
+        self.write(
+            ".github/workflows/unsafe.yml",
+            """name: Unsafe block list
+on:
+  - push
+  - pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+        unsafe_list = subprocess.run(
+            ["python3", "-c", script],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(1, unsafe_list.returncode, unsafe_list.stdout + unsafe_list.stderr)
 
     def test_write_all_permissions_are_an_error(self) -> None:
         self.add_minimal_repository_files()

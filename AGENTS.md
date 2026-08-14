@@ -6,7 +6,7 @@
 2. `LESSON-INDEX.md`
 3. `docs/INDEX.md`
 4. The relevant current pattern
-5. `CURRENT-STATE.md`, tests, artifacts, and Git history
+5. `state/CURRENT-STATE.md`, tests, artifacts, and Git history
 
 Project-specific current requirements win on genuine conflict.
 

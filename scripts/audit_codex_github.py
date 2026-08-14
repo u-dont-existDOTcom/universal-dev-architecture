@@ -84,9 +84,11 @@ USES_RE = re.compile(
 )
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
-PULL_REQUEST_TARGET_RE = re.compile(
-    r"(?m)^\s*(?:on\s*:\s*)?pull_request_target\s*:\s*(?:#.*)?$|"
-    r"(?m)^\s*on\s*:\s*pull_request_target\s*(?:#.*)?$"
+YAML_KEY_RE = re.compile(
+    r"^( *)(?:\"([^\"]+)\"|'([^']+)'|([A-Za-z0-9_-]+))\s*:\s*(.*?)\s*$"
+)
+BLOCK_SCALAR_RE = re.compile(
+    r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
 )
 CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
 
@@ -441,6 +443,113 @@ def _workflow_files(root: Path) -> list[Path]:
     )
 
 
+def _workflow_structure(text: str) -> str:
+    """Remove block-scalar bodies while retaining physical workflow keys."""
+
+    structural: list[str] = []
+    block_indent: int | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip(" "))
+        if block_indent is not None:
+            if not stripped or indent > block_indent:
+                structural.append("")
+                continue
+            block_indent = None
+        structural.append(line)
+        if BLOCK_SCALAR_RE.search(line):
+            block_indent = indent
+    return "\n".join(structural)
+
+
+def _scalar_value(value: str) -> str:
+    normalized = re.sub(r"\s+#.*$", "", value).strip()
+    if (
+        len(normalized) >= 2
+        and normalized[0] == normalized[-1]
+        and normalized[0] in {'"', "'"}
+    ):
+        return normalized[1:-1]
+    return normalized
+
+
+def _flow_mapping_keys(value: str) -> list[str]:
+    if not (value.startswith("{") and value.endswith("}")):
+        return []
+    keys: list[str] = []
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    entry_start = 1
+    expecting_key = True
+    for index, character in enumerate(value):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character in "{[":
+            depth += 1
+        elif character in "}]":
+            depth -= 1
+        elif character == ":" and depth == 1 and expecting_key:
+            keys.append(_scalar_value(value[entry_start:index]))
+            expecting_key = False
+        elif character == "," and depth == 1:
+            entry_start = index + 1
+            expecting_key = True
+    return keys
+
+
+def _event_scalar_includes(value: str, event: str) -> bool:
+    scalar = _scalar_value(value)
+    if scalar.startswith("{"):
+        return event in _flow_mapping_keys(scalar)
+    if scalar.startswith("[") and scalar.endswith("]"):
+        return event in {
+            _scalar_value(item) for item in scalar[1:-1].split(",")
+        }
+    return scalar == event
+
+
+def _workflow_has_event(structure: str, event: str) -> bool:
+    on_indent: int | None = None
+    for line in structure.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if on_indent is not None and indent > on_indent:
+            list_item = re.match(r"^\s*-\s*(.*?)\s*$", line)
+            if list_item is not None and _event_scalar_includes(
+                list_item.group(1), event
+            ):
+                return True
+        match = YAML_KEY_RE.match(line)
+        if match is None:
+            if on_indent is not None and indent <= on_indent:
+                on_indent = None
+            continue
+        key = match.group(2) or match.group(3) or match.group(4)
+        value = match.group(5)
+        if on_indent is not None and indent <= on_indent and not (
+            indent == 0 and key == "on"
+        ):
+            on_indent = None
+        if indent == 0 and key == "on":
+            if _scalar_value(value) == "":
+                on_indent = 0
+            elif _event_scalar_includes(value, event):
+                return True
+        elif on_indent is not None and indent > on_indent and key == event:
+            return True
+    return False
+
+
 def _audit_workflows(
     root: Path,
     workflows: Iterable[Path],
@@ -461,7 +570,9 @@ def _audit_workflows(
             )
             continue
 
-        if not TOP_LEVEL_PERMISSIONS_RE.search(text):
+        structure = _workflow_structure(text)
+
+        if not TOP_LEVEL_PERMISSIONS_RE.search(structure):
             findings.append(
                 finding(
                     "warning",
@@ -472,7 +583,7 @@ def _audit_workflows(
                 )
             )
 
-        if WRITE_ALL_RE.search(text):
+        if WRITE_ALL_RE.search(structure):
             findings.append(
                 finding(
                     "error",
@@ -482,7 +593,9 @@ def _audit_workflows(
                 )
             )
 
-        if PULL_REQUEST_TARGET_RE.search(text) and CHECKOUT_RE.search(text):
+        if _workflow_has_event(structure, "pull_request_target") and CHECKOUT_RE.search(
+            structure
+        ):
             findings.append(
                 finding(
                     "error",
@@ -493,7 +606,7 @@ def _audit_workflows(
                 )
             )
 
-        for action, ref in USES_RE.findall(text):
+        for action, ref in USES_RE.findall(structure):
             if action.startswith("./") or action.startswith("docker://"):
                 continue
             if not FULL_SHA_RE.fullmatch(ref):

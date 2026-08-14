@@ -148,6 +148,26 @@ Record exact commands and results in the PR or durable report. Never claim a gat
 
 When a gate cannot run, state exactly why, what was run instead, and the residual risk. Do not silently downgrade verification.
 
+### Hermetic generated-output checks
+
+A complete verification command must not leave the repository dirtier than it found it. For gates that intentionally regenerate tracked outputs:
+
+- snapshot the caller's complete tracked and untracked status before the gate;
+- restore only the explicitly declared generated outputs, including on failure;
+- compare the final status with the original status and fail on any additional path drift;
+- preserve unrelated pre-existing owner changes byte-for-byte;
+- leave unexpected output available for diagnosis and report paths rather than file contents.
+
+Test successful restoration, unexpected tracked/untracked output, pre-existing dirty state, and cleanup after a failing nested command. A green suite with unexplained generated drift is not a valid package or release result.
+
+### Transactional updates and recovery-critical runtimes
+
+Software that updates or installs itself should validate an exact detached candidate in disposable state before private/runtime data is overlaid. Remove credentials and external automation from candidate children, verify declared preserved bytes, perform an atomic swap, retain the prior verified runtime, record the exact installed commit, and exercise rollback plus retry. Never validate an untrusted development ref and then install different bytes from a release ref.
+
+Readiness must be condition-based. A process-start or promotion-attempt marker proves only that a transition began; it does not prove health. Hold or observe the transition deterministically, require the owning process to remain live, and poll the public health/status condition before dependent assertions. Fixed sleeps and larger timeouts do not repair a missing readiness condition.
+
+Long-running multi-stage work should persist stage-specific attempts and completed outputs. Recovery resumes the first missing or stale stage, preserves already verified work, and never broadens a provider/model/policy role merely because a later stage failed. Diagnostics should be newly constructed from an allowlist of bounded state and error codes. Exclude credentials, user content, prompts, model output/reasoning, raw logs, host identity, absolute paths, and hashes derived from excluded content.
+
 ---
 
 ## 6. Pull requests and default-branch governance
@@ -283,6 +303,8 @@ Use `.github/codex-repository.json` and `scripts/audit_codex_github.py` from thi
 The audit cannot prove hosted settings merely from files. Rulesets, secret scanning, push protection, code scanning, App permissions, and repository Actions defaults require GitHub API/settings verification.
 
 Run the audit locally and in CI. Treat errors as completion blockers; disposition warnings rather than ignoring them indefinitely.
+
+Audit the audit itself on every supported runtime. Import/compile the tool before trusting its findings, and use causal fixtures for both prohibited syntax and harmless appearances of the same token inside comments or block scripts. Workflow policy detectors should inspect physical YAML event/action/permission structure rather than unanchored substrings; otherwise their own implementation text can trigger false findings.
 
 ---
 
