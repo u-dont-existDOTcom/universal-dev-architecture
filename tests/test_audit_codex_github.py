@@ -266,14 +266,25 @@ jobs:
         self.assertNotIn("actions.ref.unpinned", self.codes(findings))
 
     def test_pull_request_target_flow_forms_with_checkout_are_errors(self) -> None:
-        for index, event in enumerate(
-            (
-                "on: [push, pull_request_target]",
-                "on: {push: {}, pull_request_target: {}}",
-                "on:\n  - push\n  - pull_request_target",
-            )
-        ):
-            with self.subTest(event=event):
+        triggers = {
+            "block-map": "on:\n  pull_request_target:",
+            "block-sequence": "on:\n  - push\n  - pull_request_target",
+            "indentationless-block-sequence": "on:\n- push\n- pull_request_target",
+            "split-block-sequence-item": "on:\n  - push\n  -\n    pull_request_target",
+            "anchored-block-sequence": "on: &events\n  - push\n  - pull_request_target",
+            "aliased-event-node": (
+                "x-events: &events\n  - push\n  - pull_request_target\non: *events"
+            ),
+            "block-scalar": "on: >-\n  pull_request_target",
+            "escaped-scalar": 'on: "pull_request_\\u0074arget"',
+            "explicit-key": "? on\n: pull_request_target",
+            "flow-sequence": "on: [push, pull_request_target]",
+            "flow-map": "on: {push: {}, pull_request_target: {}}",
+            "multiline-flow-sequence": "on: [\n  push,\n  pull_request_target\n]",
+            "multiline-flow-map": "on: {\n  push: {},\n  pull_request_target: {}\n}",
+        }
+        for index, (label, event) in enumerate(triggers.items()):
+            with self.subTest(label=label):
                 self.add_minimal_repository_files()
                 self.write_profile(
                     repository_kind="software",
@@ -295,6 +306,21 @@ jobs:
                 findings = audit_repository(self.root)
                 self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
                 (self.root / f".github/workflows/review-{index}.yml").unlink()
+
+    def test_pull_request_target_root_flow_workflow_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        self.write(
+            ".github/workflows/review.yml",
+            """{name: Unsafe, on: pull_request_target,
+permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
+steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
 
     def test_portable_workflow_policy_ignores_its_own_scanner_text(self) -> None:
         template = Path("templates/WORKFLOW-POLICY.yml").read_text(encoding="utf-8")
