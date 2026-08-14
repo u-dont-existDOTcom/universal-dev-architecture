@@ -179,6 +179,54 @@ jobs:
             result.stdout,
         )
 
+    def test_aliased_action_key_fails_closed_inside_step(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unsafe aliased action key
+on: pull_request_target
+permissions:
+  contents: read
+x-key: &use-key uses
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        *use-key: actions/checkout@0123456789abcdef0123456789abcdef01234567
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+        self.assertIn("cannot be resolved statically", result.stdout)
+
+    def test_flow_aliased_action_key_fails_closed_inside_step(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unsafe flow aliased action key
+on: pull_request_target
+permissions:
+  contents: read
+x-key: &use-key uses
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps: [{*use-key: actions/checkout@0123456789abcdef0123456789abcdef01234567}]
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+        self.assertIn("cannot be resolved statically", result.stdout)
+
     def test_quoted_flow_unpinned_action_is_rejected(self) -> None:
         result = self.run_policy(
             {

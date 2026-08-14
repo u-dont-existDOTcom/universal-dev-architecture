@@ -109,6 +109,11 @@ jobs:
                   return None
               return key
 
+          def yaml_key_is_unresolved(key: str) -> bool:
+              return key.startswith(
+                  ("*", "&", "!", "|", ">", "?", ":", "$")
+              )
+
           def flow_parts(value: str) -> list[str] | None:
               if len(value) < 2 or value[0] not in "[{" or value[-1] not in "]}":
                   return None
@@ -224,10 +229,8 @@ jobs:
                   ):
                       key_source = key_source[1:].lstrip(" \t")
                   key = normalized_key(key_source)
-                  if key is None or key.startswith(
-                      ("*", "!", "&", "|", ">", "?", ":")
-                  ):
-                      return None
+                  if key is None:
+                      key = ":unresolved-yaml-key"
                   items.append((key, part[colon + 1 :].strip()))
               return items
 
@@ -254,9 +257,13 @@ jobs:
               items = flow_mapping_items(value)
               if items is None:
                   return []
-              return [
-                  action_scalar(raw) for key, raw in items if key == "uses"
-              ]
+              values: list[str] = []
+              for key, raw in items:
+                  if key == "uses":
+                      values.append(action_scalar(raw))
+                  elif yaml_key_is_unresolved(key):
+                      values.append(key)
+              return values
 
           def flow_job_uses_values(value: str) -> list[str]:
               items = flow_mapping_items(value)
@@ -266,6 +273,8 @@ jobs:
               for key, raw in items:
                   if key == "uses":
                       values.append(action_scalar(raw))
+                  elif yaml_key_is_unresolved(key):
+                      values.append(key)
                   elif key == "<<" and raw.startswith(
                       ("*", "&", "!", "$")
                   ):
@@ -303,9 +312,9 @@ jobs:
               if colon is None:
                   return None
               key = normalized_key(content[:colon])
-              if not key or key.startswith(
-                  ("*", "!", "&", "|", ">", "?", ":")
-              ):
+              if key is None:
+                  key = ":unresolved-yaml-key"
+              if not key:
                   return None
               return (
                   indent,
@@ -400,6 +409,8 @@ jobs:
                   for key, raw in root_items:
                       if key == "jobs":
                           values.extend(flow_jobs_uses_values(raw))
+                      elif yaml_key_is_unresolved(key):
+                          values.append(key)
                   return values
 
               values: list[str] = []
@@ -462,6 +473,10 @@ jobs:
                   flow, end = collect_flow_value(lines, value_index, raw)
                   if key == "uses" and (direct_job or direct_step_item):
                       values.append(action_scalar(flow))
+                  elif yaml_key_is_unresolved(key) and (
+                      direct_job or direct_step_item or not parent
+                  ):
+                      values.append(key)
                   elif (
                       key == "<<"
                       and (direct_job or direct_step_item)

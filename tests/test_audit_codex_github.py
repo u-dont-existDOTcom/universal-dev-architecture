@@ -421,6 +421,60 @@ jobs:
         self.assertNotIn("actions.ref.unresolved", codes)
         self.assertNotIn("actions.ref.unpinned", codes)
 
+    def test_aliased_action_key_fails_closed_inside_step(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe aliased action key
+on: pull_request_target
+permissions:
+  contents: read
+x-key: &use-key uses
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        *use-key: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertIn("actions.ref.unresolved", codes)
+
+    def test_flow_aliased_action_key_fails_closed_inside_step(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe flow aliased action key
+on: pull_request_target
+permissions:
+  contents: read
+x-key: &use-key uses
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps: [{*use-key: actions/checkout@0123456789abcdef0123456789abcdef01234567}]
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertIn("actions.ref.unresolved", codes)
+
     def test_quoted_and_flow_unpinned_actions_are_reported(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(

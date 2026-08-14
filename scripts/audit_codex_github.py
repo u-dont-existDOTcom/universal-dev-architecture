@@ -518,6 +518,10 @@ def _normalized_key(value: str) -> str | None:
     return key
 
 
+def _yaml_key_is_unresolved(key: str) -> bool:
+    return key.startswith(("*", "&", "!", "|", ">", "?", ":", "$"))
+
+
 def _flow_parts(value: str) -> list[str] | None:
     if len(value) < 2 or value[0] not in "[{" or value[-1] not in "]}":
         return None
@@ -631,8 +635,8 @@ def _flow_mapping_items(value: str) -> list[tuple[str, str]] | None:
         ):
             key_source = key_source[1:].lstrip(" \t")
         key = _normalized_key(key_source)
-        if key is None or key.startswith(("*", "!", "&", "|", ">", "?", ":")):
-            return None
+        if key is None:
+            key = ":unresolved-yaml-key"
         items.append((key, part[colon + 1 :].strip()))
     return items
 
@@ -656,7 +660,13 @@ def _flow_step_uses_values(value: str) -> list[str]:
     items = _flow_mapping_items(value)
     if items is None:
         return []
-    return [_action_scalar(raw) for key, raw in items if key == "uses"]
+    values: list[str] = []
+    for key, raw in items:
+        if key == "uses":
+            values.append(_action_scalar(raw))
+        elif _yaml_key_is_unresolved(key):
+            values.append(key)
+    return values
 
 
 def _flow_job_uses_values(value: str) -> list[str]:
@@ -667,6 +677,8 @@ def _flow_job_uses_values(value: str) -> list[str]:
     for key, raw in items:
         if key == "uses":
             values.append(_action_scalar(raw))
+        elif _yaml_key_is_unresolved(key):
+            values.append(key)
         elif key == "<<" and raw.startswith(("*", "&", "!", "$")):
             values.append(raw)
         elif key == "steps":
@@ -700,7 +712,9 @@ def _block_mapping_entry(line: str) -> tuple[int, bool, str, str] | None:
     if colon is None:
         return None
     key = _normalized_key(content[:colon])
-    if not key or key.startswith(("*", "!", "&", "|", ">", "?", ":")):
+    if key is None:
+        key = ":unresolved-yaml-key"
+    if not key:
         return None
     return indent, sequence_item, key, content[colon + 1 :].strip()
 
@@ -783,6 +797,8 @@ def _uses_values(structure: str) -> list[str]:
         for key, raw in root_items:
             if key == "jobs":
                 values.extend(_flow_jobs_uses_values(raw))
+            elif _yaml_key_is_unresolved(key):
+                values.append(key)
         return values
 
     values: list[str] = []
@@ -845,6 +861,10 @@ def _uses_values(structure: str) -> list[str]:
         flow, end = _collect_flow_value(lines, value_index, raw)
         if key == "uses" and (direct_job or direct_step_item):
             values.append(_action_scalar(flow))
+        elif _yaml_key_is_unresolved(key) and (
+            direct_job or direct_step_item or not parent
+        ):
+            values.append(key)
         elif key == "<<" and (direct_job or direct_step_item) and flow.startswith(
             ("*", "&", "!", "$")
         ):
