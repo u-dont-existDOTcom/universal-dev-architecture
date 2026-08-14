@@ -234,6 +234,52 @@ jobs:
             self.severities(findings, "actions.pull-request-target.checkout"),
         )
 
+    def test_pull_request_target_flow_forms_with_checkout_are_errors(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        for label, trigger in {
+            "sequence": "on: [push, pull_request_target]",
+            "map": "on: {push: {}, pull_request_target: {}}",
+        }.items():
+            with self.subTest(label=label):
+                self.write(
+                    ".github/workflows/review.yml",
+                    f"""name: Unsafe review
+{trigger}
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+                )
+                findings = audit_repository(self.root)
+                self.assertIn(
+                    "actions.pull-request-target.checkout", self.codes(findings)
+                )
+
+    def test_public_high_risk_research_reports_disabled_branch_rules(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="research",
+            visibility="public",
+            risk="high",
+            github_controls={
+                "default_branch_rules": "disabled",
+                "secret_scanning": "verified",
+                "push_protection": "verified",
+                "code_scanning": "not_applicable",
+            },
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn(
+            "github-control.default-branch-rules.disabled", self.codes(findings)
+        )
+
     def test_write_all_permissions_are_an_error(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(
