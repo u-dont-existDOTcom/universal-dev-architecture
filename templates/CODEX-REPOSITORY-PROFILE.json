@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "repository_kind": "software",
+  "active": true,
+  "long_running": true,
+  "visibility": "private",
+  "risk": "normal",
+  "commands": {
+    "bootstrap": "<ONE IDEMPOTENT INSTALL/BOOTSTRAP COMMAND>",
+    "test": "<ONE AUTHORITATIVE FULL TEST COMMAND>",
+    "test_focused": "<FOCUSED TEST COMMAND OR REMOVE FIELD>",
+    "lint": "<LINT/FORMAT CHECK OR REMOVE FIELD>",
+    "typecheck": "<TYPECHECK OR REMOVE FIELD>",
+    "build": "<BUILD/PACKAGE OR REMOVE FIELD>",
+    "audit": "python3 scripts/audit_codex_github.py --root . --fail-on error"
+  },
+  "current_state": "state/CURRENT-STATE.md",
+  "github_controls": {
+    "default_branch_rules": "unverified",
+    "secret_scanning": "unverified",
+    "push_protection": "unverified",
+    "code_scanning": "unverified"
+  }
+}
