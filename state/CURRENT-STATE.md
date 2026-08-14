@@ -31,25 +31,48 @@ Updated: 2026-08-14
   archive assertion. The red/green structural PEM fix is committed as
   `4b8247c`; the suite is now 34 tests and still catches complete plausible PEM
   blocks without printing matches.
+- AskRigor's transferable exact-byte authority, access-truth, bounded-live,
+  public-MCP, and scanner lessons are promoted at commit `7870cd2`; PR #4 head
+  `7870cd2e649c8a09b0b09f96e0411c546e5f1782` passed `Universal repository
+  compliance` run `31775698854`, job `94690572217`.
+- AskRigor PR #7 head `9d9dc78294abbed06cf3acabe9e764ece0f57be8`
+  was independently re-fetched; deterministic run `31776458050` and workflow
+  policy run `31776458058` both succeeded. Hosted blockers remain in issue #6.
+- AskRigor-lessons PR #3 head
+  `dd9305a39c50251fa8858ecbf45aedb16a407f64` was independently re-fetched;
+  lesson-integrity run `31777936617`, job `94697224159`, succeeded. Its sole
+  lesson remains provisional/unverified and hosted blockers remain in issue #2.
+- The reusable lesson-incubator design is promoted with exact AskRigor-lessons
+  source hashes, tests, limits, anti-patterns, and supersession rules in
+  `audits/2026-08-14-askrigor-lessons-transferable-design.md`.
+- The fleet ledger now distinguishes the three independently audited blocked
+  candidates from five repositories that remain historical `WRITE ISSUED` / `GAP`.
 - Current official OpenAI and GitHub source-registry targets were checked on 2026-08-14.
 - Hosted inspection directly verified one admin collaborator and zero environments. Other settings remain separated below.
 
 ## Current checkpoint
 
-- Current step: preserve AskRigor's tested transferable controls and refresh the
-  existing compliance PR before returning to the AskRigor repository PR.
+- Current step: verify and publish the final AskRigor-lessons promotion/fleet
+  reconciliation to existing universal PR #4, then capture its new exact-head
+  CI without advancing any repository from its evidence-backed `BLOCKED` state.
 - Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: structure-aware PEM detection commit `4b8247c`.
-- Current candidate: the AskRigor transferable-control lesson records exact
-  source ref/path/hash provenance, scope, limits, tests, and supersession.
-- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; lesson/index/state/report changes await final verification and commit.
+- Last verified durable boundary: AskRigor lesson promotion and green PR head
+  `7870cd2e649c8a09b0b09f96e0411c546e5f1782`.
+- Current candidate: AskRigor-lessons transferable-design promotion, explicit
+  policy baseline, and direct GitHub-evidence fleet reconciliation.
+- Working-tree status: isolated sibling worktree at
+  `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`;
+  the final update awaits local gates, commit/push, and replacement PR CI.
 
 ## Remaining
 
-- Commit and push the verified AskRigor lesson follow-up to existing PR #4 and
-  inspect its new final-head CI.
-- Finish AskRigor on its own branch/PR, then re-fetch final evidence before
-  changing its fleet-ledger classification.
+- Run both canonical universal gates, metadata/YAML/shell/diff checks, review the
+  complete final diff, commit/push to PR #4, and capture the exact replacement
+  `Deterministic repository audit` run.
+- Keep universal, AskRigor, and AskRigor-lessons PRs unmerged while their exact
+  hardening issues record applicable hosted blockers.
+- Five additional fleet repositories remain `WRITE ISSUED` / `GAP`; they
+  require their own repository-specific workers before any status advancement.
 
 ## Blockers / unresolved
 
@@ -71,9 +94,8 @@ Updated: 2026-08-14
 
 ## Next safe action
 
-- Verify and publish the AskRigor lesson follow-up to existing PR #4, then
-  continue the AskRigor compliance candidate without changing fleet status from
-  worker prose alone.
+- Run final universal verification, publish only the scoped promotion/ledger
+  update to PR #4, inspect its exact-head CI, and update the PR with that run.
 
 ## Recovery rule
 

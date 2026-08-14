@@ -26,6 +26,11 @@ Use this file as the entry point for cross-project lesson retrieval.
   authority, truthful partial-access states, bounded opt-in live validation,
   public read-only service safety, and structure-aware secret detection,
   promoted from AskRigor with source hashes, tests, and explicit limits.
+- `audits/2026-08-14-askrigor-lessons-transferable-design.md` —
+  non-authoritative lesson ledgers, immutable byte provenance, executable
+  dispositions/supersession, explicit freshness ownership, and bounded
+  sensitive-evidence intake, promoted from AskRigor-lessons with exact source
+  hashes, tests, limits, and anti-patterns.
 
 ## Promotion rule
 

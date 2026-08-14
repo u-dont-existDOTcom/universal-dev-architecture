@@ -318,6 +318,8 @@ Required:
 - separate repository-visible and hosted-control evidence;
 - review of downstream compatibility and cross-project blast radius before merge.
 
+For a lesson, policy-incubator, or evidence-derived guidance repository, also require one canonical machine-readable ledger when multiple records must be reconciled; an explicit boundary between source authority and lesson integrity; immutable source ref/path/hash plus originating incident/test provenance; scope, limits, counterexamples, verification, review, and reciprocal acyclic supersession data; and an explicit owner for upstream freshness checks. Hermetic CI may verify checkable local Git objects but must not fetch private evidence or claim that a structurally valid lesson is substantively true, current, or activated.
+
 ### Research or content repository
 
 Required:

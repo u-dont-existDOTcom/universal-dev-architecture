@@ -4,7 +4,7 @@ Date: 2026-08-14
 Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
-Final implementation commit before this evidence update: `4b8247cb335d2f4c0ff8470e7101863bf44325be`
+Final implementation commit before this evidence update: `7870cd2e649c8a09b0b09f96e0411c546e5f1782`
 
 The exact published PR-head SHA and its workflow run are recorded in the pull request and final worker report. A document inside a Git commit cannot truthfully contain the SHA of the commit that contains it, so this file records the exact final implementation boundary and does not invent self-referential publication evidence.
 
@@ -32,6 +32,10 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
 - `audits/2026-08-14-askrigor-transferable-controls.md` — promotes tested
   AskRigor lessons with exact source hashes, scope, limits, anti-patterns, and
   supersession rules; AskRigor-specific protocol policy remains local.
+- `audits/2026-08-14-askrigor-lessons-transferable-design.md` — promotes the
+  tested lesson-incubator architecture: non-authoritative ledgers, historical
+  byte provenance, explicit freshness ownership, executable dispositions and
+  supersession, and bounded sensitive-evidence intake.
 - `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`, `docs/exec-plans/README.md`, `docs/exec-plans/superseded/2026-08-13-codex-github-operating-baseline.md` — preserve the executed plan and superseded provenance without a contradictory active plan.
 
 ## Exact verification evidence
@@ -50,6 +54,10 @@ Against the final implementation candidate:
 - AskRigor portable-audit regression — PASS: a standalone private-key marker in
   a negative archive assertion is not classified as a credential, while a
   complete plausible PEM block remains an error.
+- Final fleet reconciliation — PASS against direct GitHub App evidence for the
+  exact open PR heads, workflow runs/jobs, and hardening issues of universal,
+  AskRigor, and AskRigor-lessons. The ledger preserves five other repositories
+  as `WRITE ISSUED` / `GAP` rather than trusting earlier connector requests.
 
 The canonical commands remain exactly:
 
@@ -63,6 +71,10 @@ The canonical commands remain exactly:
 - The workflow uses `contents: read`, a reviewed full-SHA checkout pin, a ten-minute timeout, and branch/ref-aware cancel-in-progress concurrency.
 - Ordinary PR CI makes no hosted writes. `Weekly repository drift` grants `issues: write` only to its separate bounded reconciliation job and closes only an issue carrying its own workflow-management marker.
 - Exact final-head run ID/link/conclusion must be taken from the published PR, not inferred from local execution.
+- The independently verified pre-reconciliation PR head
+  `7870cd2e649c8a09b0b09f96e0411c546e5f1782` passed run `31775698854`, job
+  `Deterministic repository audit` (`94690572217`). This final self-update needs
+  a replacement exact-head run after publication; the PR is the durable record.
 
 ## Hosted GitHub controls
 
@@ -90,6 +102,14 @@ No fake independent approval rule is proposed for the sole maintainer. The stabl
   bounded-live-validation, public-MCP, and scanner-precision lessons are
   promoted in `audits/2026-08-14-askrigor-transferable-controls.md` with explicit
   limits. AskRigor-specific health/research policy remains project-local.
+- AskRigor-lessons' transferable non-authoritative ledger, immutable
+  provenance, freshness-ownership, supersession, and sensitive-intake design is
+  promoted in `audits/2026-08-14-askrigor-lessons-transferable-design.md` from
+  exact source commit/path/hash and green CI evidence. Its community-comparator
+  content remains project-local, provisional, and unverified.
+- The fleet ledger is reconciled from exact repository/CI/issue evidence for
+  universal PR #4, AskRigor PR #7, and AskRigor-lessons PR #3. All remain
+  `BLOCKED`; five other repositories remain `WRITE ISSUED` / `GAP`.
 - Merge is not authorized until the published final-head check is green; even then, hosted main governance remains the issue #3 blocker.
 
 `BLOCKED`
