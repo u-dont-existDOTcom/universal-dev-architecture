@@ -56,12 +56,12 @@ jobs:
 
           def _yaml_code(line: str) -> str:
               return line.split("#", 1)[0].rstrip()
-          
-          
+
+
           def _yaml_indent(line: str) -> int:
               return len(line) - len(line.lstrip(" \t"))
-          
-          
+
+
           def _flow_balance(value: str) -> int:
               return (
                   value.count("[")
@@ -69,11 +69,11 @@ jobs:
                   - value.count("]")
                   - value.count("}")
               )
-          
-          
+
+
           def _workflow_has_event(structure: str, event_name: str) -> bool:
               """Detect an event or fail closed on unsupported root trigger syntax."""
-          
+
               lines = structure.splitlines()
               root_indents = [
                   _yaml_indent(code)
@@ -91,7 +91,7 @@ jobs:
               event_token = re.compile(
                   rf"(?<![\w-])[\"']?{re.escape(event_name)}[\"']?(?![\w-])"
               )
-          
+
               for index, line in enumerate(lines):
                   code = _yaml_code(line)
                   match = on_trigger_line.match(code)
@@ -122,7 +122,7 @@ jobs:
                               if balance <= 0:
                                   break
                       continue
-          
+
                   direct_child_indent: int | None = None
                   sequence_indent: int | None = None
                   children = lines[index + 1 :]
@@ -139,7 +139,7 @@ jobs:
                               direct_child_indent = indent
                           else:
                               break
-          
+
                       if sequence_indent is not None:
                           if indent < sequence_indent:
                               break
@@ -165,7 +165,7 @@ jobs:
                           if event == event_name:
                               return True
                           continue
-          
+
                       if indent <= base_indent:
                           break
                       if indent != direct_child_indent:
@@ -178,7 +178,7 @@ jobs:
                       event = event.split(":", 1)[0].strip().strip("\"'")
                       if event == event_name:
                           return True
-          
+
               return not saw_trigger_node
 
           for path in sorted(workflow_dir.glob("*.y*ml")):
