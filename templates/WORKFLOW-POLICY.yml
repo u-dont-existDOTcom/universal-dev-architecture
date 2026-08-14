@@ -33,6 +33,11 @@ jobs:
               r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
           )
           full_sha = re.compile(r"^[0-9a-fA-F]{40}$")
+          pull_request_target_pattern = re.compile(
+              r"^\s*(?:on\s*:\s*)?pull_request_target\s*:\s*(?:#.*)?$|"
+              r"^\s*on\s*:\s*pull_request_target\s*(?:#.*)?$",
+              re.MULTILINE,
+          )
 
           for path in sorted(workflow_dir.glob("*.y*ml")):
               text = path.read_text(encoding="utf-8")
@@ -47,7 +52,7 @@ jobs:
               ):
                   errors.append((path, "permissions: write-all is forbidden"))
 
-              if "pull_request_target" in text and re.search(
+              if pull_request_target_pattern.search(text) and re.search(
                   r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@", text
               ):
                   errors.append(
