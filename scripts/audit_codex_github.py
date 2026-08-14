@@ -90,7 +90,7 @@ YAML_KEY_RE = re.compile(
 BLOCK_SCALAR_RE = re.compile(
     r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
 )
-CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
+CHECKOUT_RE = re.compile(r"actions/checkout@")
 
 
 def finding(
@@ -443,6 +443,23 @@ def _workflow_files(root: Path) -> list[Path]:
     )
 
 
+def _yaml_code(line: str) -> str:
+    return line.split("#", 1)[0].rstrip()
+
+
+def _yaml_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def _flow_balance(value: str) -> int:
+    return (
+        value.count("[")
+        + value.count("{")
+        - value.count("]")
+        - value.count("}")
+    )
+
+
 def _workflow_structure(text: str) -> str:
     """Remove block-scalar bodies while retaining physical workflow keys."""
 
@@ -517,37 +534,115 @@ def _event_scalar_includes(value: str, event: str) -> bool:
     return scalar == event
 
 
-def _workflow_has_event(structure: str, event: str) -> bool:
-    on_indent: int | None = None
-    for line in structure.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
+def _workflow_has_event(structure: str, event_name: str) -> bool:
+    """Detect an event or fail closed on unsupported root trigger syntax."""
+
+    lines = structure.splitlines()
+    root_indents = [
+        _yaml_indent(code)
+        for line in lines
+        if (code := _yaml_code(line)).strip()
+        and code.strip() not in {"---", "..."}
+    ]
+    if not root_indents:
+        return False
+    root_indent = min(root_indents)
+    saw_trigger_node = False
+    on_trigger_line = re.compile(
+        r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
+    )
+    event_token = re.compile(
+        rf"(?<![\w-])[\"']?{re.escape(event_name)}[\"']?(?![\w-])"
+    )
+
+    for index, line in enumerate(lines):
+        code = _yaml_code(line)
+        match = on_trigger_line.match(code)
+        if match is None or _yaml_indent(code) != root_indent:
             continue
-        indent = len(line) - len(line.lstrip(" "))
-        if on_indent is not None and indent > on_indent:
-            list_item = re.match(r"^\s*-\s*(.*?)\s*$", line)
-            if list_item is not None and _event_scalar_includes(
-                list_item.group(1), event
+        saw_trigger_node = True
+        base_indent = _yaml_indent(code)
+        value = match.group("value").strip()
+        while value.startswith(("&", "!")):
+            node_property = value.split(None, 1)
+            value = node_property[1].lstrip() if len(node_property) == 2 else ""
+        if value.startswith("*"):
+            return True
+        if value.startswith(("|", ">")) or "\\" in value:
+            return True
+        if event_token.search(value):
+            return True
+        if value:
+            if value.startswith(("[", "{")) and _flow_balance(value) > 0:
+                balance = _flow_balance(value)
+                for continuation in lines[index + 1 :]:
+                    continuation_code = _yaml_code(continuation)
+                    if "\\" in continuation_code or "*" in continuation_code:
+                        return True
+                    if event_token.search(continuation_code):
+                        return True
+                    balance += _flow_balance(continuation_code)
+                    if balance <= 0:
+                        break
+            continue
+
+        direct_child_indent: int | None = None
+        sequence_indent: int | None = None
+        children = lines[index + 1 :]
+        for child_index, child in enumerate(children):
+            child_code = _yaml_code(child)
+            if not child_code.strip():
+                continue
+            indent = _yaml_indent(child_code)
+            stripped = child_code.strip()
+            if direct_child_indent is None and sequence_indent is None:
+                if stripped.startswith("-") and indent >= base_indent:
+                    sequence_indent = indent
+                elif indent > base_indent:
+                    direct_child_indent = indent
+                else:
+                    break
+
+            if sequence_indent is not None:
+                if indent < sequence_indent:
+                    break
+                if indent != sequence_indent:
+                    continue
+                if not stripped.startswith("-"):
+                    break
+                event = stripped[1:].strip()
+                if not event:
+                    for nested in children[child_index + 1 :]:
+                        nested_code = _yaml_code(nested)
+                        if not nested_code.strip():
+                            continue
+                        if _yaml_indent(nested_code) <= sequence_indent:
+                            break
+                        event = nested_code.strip()
+                        break
+                if "\\" in event or "*" in event or event.startswith(
+                    ("?", ":", "!", "&", "|", ">")
+                ):
+                    return True
+                event = event.split(":", 1)[0].strip().strip("\"'")
+                if event == event_name:
+                    return True
+                continue
+
+            if indent <= base_indent:
+                break
+            if indent != direct_child_indent:
+                continue
+            event = stripped
+            if "\\" in event or "*" in event or event.startswith(
+                ("?", ":", "!", "&", "|", ">")
             ):
                 return True
-        match = YAML_KEY_RE.match(line)
-        if match is None:
-            if on_indent is not None and indent <= on_indent:
-                on_indent = None
-            continue
-        key = match.group(2) or match.group(3) or match.group(4)
-        value = match.group(5)
-        if on_indent is not None and indent <= on_indent and not (
-            indent == 0 and key == "on"
-        ):
-            on_indent = None
-        if indent == 0 and key == "on":
-            if _scalar_value(value) == "":
-                on_indent = 0
-            elif _event_scalar_includes(value, event):
+            event = event.split(":", 1)[0].strip().strip("\"'")
+            if event == event_name:
                 return True
-        elif on_indent is not None and indent > on_indent and key == event:
-            return True
-    return False
+
+    return not saw_trigger_node
 
 
 def _audit_workflows(
