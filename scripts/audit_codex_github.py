@@ -625,7 +625,12 @@ def _flow_mapping_items(value: str) -> list[tuple[str, str]] | None:
         colon = _top_level_colon(part)
         if colon is None:
             return None
-        key = _normalized_key(part[:colon])
+        key_source = part[:colon].strip()
+        if key_source.startswith("?") and (
+            len(key_source) == 1 or key_source[1].isspace()
+        ):
+            key_source = key_source[1:].lstrip(" \t")
+        key = _normalized_key(key_source)
         if key is None or key.startswith(("*", "!", "&", "|", ">", "?", ":")):
             return None
         items.append((key, part[colon + 1 :].strip()))
@@ -700,6 +705,54 @@ def _block_mapping_entry(line: str) -> tuple[int, bool, str, str] | None:
     return indent, sequence_item, key, content[colon + 1 :].strip()
 
 
+def _explicit_mapping_entry(
+    lines: list[str], index: int
+) -> tuple[int, bool, str, str, int] | None:
+    line = _yaml_code(lines[index])
+    indent = _yaml_indent(line)
+    content = line.lstrip(" \t")
+    sequence_item = False
+    if content.startswith("-") and (
+        len(content) == 1 or content[1].isspace()
+    ):
+        sequence_item = True
+        content = content[1:].lstrip(" \t")
+    if not content.startswith("?") or (
+        len(content) > 1 and not content[1].isspace()
+    ):
+        return None
+
+    explicit = content[1:].lstrip(" \t")
+    colon = _top_level_colon(explicit)
+    if colon is not None:
+        key = _normalized_key(explicit[:colon])
+        if not key:
+            return None
+        return indent, sequence_item, key, explicit[colon + 1 :].strip(), index
+
+    key = _normalized_key(explicit)
+    if not key:
+        return None
+    value_indent = indent + 2 if sequence_item else indent
+    lookahead = index + 1
+    while lookahead < len(lines):
+        value_line = _yaml_code(lines[lookahead])
+        if not value_line.strip():
+            lookahead += 1
+            continue
+        value_content = value_line.lstrip(" \t")
+        if _yaml_indent(value_line) == value_indent and value_content.startswith(":"):
+            return (
+                indent,
+                sequence_item,
+                key,
+                value_content[1:].lstrip(" \t"),
+                lookahead,
+            )
+        break
+    return indent, sequence_item, key, "", index
+
+
 def _collect_flow_value(
     lines: list[str], index: int, initial: str
 ) -> tuple[str, int]:
@@ -751,7 +804,13 @@ def _uses_values(structure: str) -> list[str]:
             stack.pop()
         parent = [key for _level, key in stack]
 
-        entry = _block_mapping_entry(line)
+        explicit_entry = _explicit_mapping_entry(lines, index)
+        if explicit_entry is None:
+            entry = _block_mapping_entry(line)
+            value_index = index
+        else:
+            entry = explicit_entry[:4]
+            value_index = explicit_entry[4]
         if entry is None:
             if (
                 sequence_line
@@ -783,7 +842,7 @@ def _uses_values(structure: str) -> list[str]:
             and not sequence_item
         )
 
-        flow, end = _collect_flow_value(lines, index, raw)
+        flow, end = _collect_flow_value(lines, value_index, raw)
         if key == "uses" and (direct_job or direct_step_item):
             values.append(_action_scalar(flow))
         elif key == "<<" and (direct_job or direct_step_item) and flow.startswith(
@@ -821,7 +880,7 @@ def _uses_value_may_be_checkout(value: str) -> bool:
     action, separator, _ref = value.rpartition("@")
     if not separator:
         return True
-    return action == "actions/checkout"
+    return action.lower() == "actions/checkout"
 
 
 def _uses_pull_request_target(structure: str) -> bool:

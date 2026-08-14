@@ -133,6 +133,52 @@ jobs:
 
         self.assertEqual(0, result.returncode, result.stdout)
 
+    def test_mixed_case_checkout_owner_and_repository_is_rejected(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unsafe mixed-case checkout
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Actions/Checkout@0123456789abcdef0123456789abcdef01234567
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+
+    def test_explicit_uses_key_inside_step_is_rejected(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unsafe explicit action key
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        ? uses
+        : actions/checkout@0123456789abcdef0123456789abcdef01234567
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+
     def test_quoted_flow_unpinned_action_is_rejected(self) -> None:
         result = self.run_policy(
             {

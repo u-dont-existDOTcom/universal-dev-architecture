@@ -368,6 +368,59 @@ jobs:
 
         self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
 
+    def test_mixed_case_checkout_owner_and_repository_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe mixed-case checkout
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Actions/Checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_explicit_uses_key_inside_step_is_an_action_reference(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe explicit action key
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        ? uses
+        : actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+        codes = self.codes(findings)
+
+        self.assertIn("actions.pull-request-target.checkout", codes)
+        self.assertNotIn("actions.ref.unresolved", codes)
+        self.assertNotIn("actions.ref.unpinned", codes)
+
     def test_quoted_and_flow_unpinned_actions_are_reported(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(

@@ -218,7 +218,12 @@ jobs:
                   colon = top_level_colon(part)
                   if colon is None:
                       return None
-                  key = normalized_key(part[:colon])
+                  key_source = part[:colon].strip()
+                  if key_source.startswith("?") and (
+                      len(key_source) == 1 or key_source[1].isspace()
+                  ):
+                      key_source = key_source[1:].lstrip(" \t")
+                  key = normalized_key(key_source)
                   if key is None or key.startswith(
                       ("*", "!", "&", "|", ">", "?", ":")
                   ):
@@ -309,6 +314,62 @@ jobs:
                   content[colon + 1 :].strip(),
               )
 
+          def explicit_mapping_entry(
+              lines: list[str], index: int
+          ) -> tuple[int, bool, str, str, int] | None:
+              line = yaml_code(lines[index])
+              indent = yaml_indent(line)
+              content = line.lstrip(" \t")
+              sequence_item = False
+              if content.startswith("-") and (
+                  len(content) == 1 or content[1].isspace()
+              ):
+                  sequence_item = True
+                  content = content[1:].lstrip(" \t")
+              if not content.startswith("?") or (
+                  len(content) > 1 and not content[1].isspace()
+              ):
+                  return None
+
+              explicit = content[1:].lstrip(" \t")
+              colon = top_level_colon(explicit)
+              if colon is not None:
+                  key = normalized_key(explicit[:colon])
+                  if not key:
+                      return None
+                  return (
+                      indent,
+                      sequence_item,
+                      key,
+                      explicit[colon + 1 :].strip(),
+                      index,
+                  )
+
+              key = normalized_key(explicit)
+              if not key:
+                  return None
+              value_indent = indent + 2 if sequence_item else indent
+              lookahead = index + 1
+              while lookahead < len(lines):
+                  value_line = yaml_code(lines[lookahead])
+                  if not value_line.strip():
+                      lookahead += 1
+                      continue
+                  value_content = value_line.lstrip(" \t")
+                  if (
+                      yaml_indent(value_line) == value_indent
+                      and value_content.startswith(":")
+                  ):
+                      return (
+                          indent,
+                          sequence_item,
+                          key,
+                          value_content[1:].lstrip(" \t"),
+                          lookahead,
+                      )
+                  break
+              return indent, sequence_item, key, "", index
+
           def collect_flow_value(
               lines: list[str], index: int, initial: str
           ) -> tuple[str, int]:
@@ -360,7 +421,13 @@ jobs:
                       stack.pop()
                   parent = [key for _level, key in stack]
 
-                  entry = block_mapping_entry(line)
+                  explicit_entry = explicit_mapping_entry(lines, index)
+                  if explicit_entry is None:
+                      entry = block_mapping_entry(line)
+                      value_index = index
+                  else:
+                      entry = explicit_entry[:4]
+                      value_index = explicit_entry[4]
                   if entry is None:
                       if (
                           sequence_line
@@ -392,7 +459,7 @@ jobs:
                       and not sequence_item
                   )
 
-                  flow, end = collect_flow_value(lines, index, raw)
+                  flow, end = collect_flow_value(lines, value_index, raw)
                   if key == "uses" and (direct_job or direct_step_item):
                       values.append(action_scalar(flow))
                   elif (
@@ -434,7 +501,7 @@ jobs:
               action, separator, _ref = value.rpartition("@")
               if not separator:
                   return True
-              return action == "actions/checkout"
+              return action.lower() == "actions/checkout"
 
           def uses_pull_request_target(structure: str) -> bool:
               lines = structure.splitlines()
