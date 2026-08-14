@@ -75,11 +75,11 @@ The canonical commands remain exactly:
 - The workflow uses `contents: read`, a reviewed full-SHA checkout pin, a ten-minute timeout, and branch/ref-aware cancel-in-progress concurrency.
 - Ordinary PR CI makes no hosted writes. `Weekly repository drift` grants `issues: write` only to its separate bounded reconciliation job and closes only an issue carrying its own workflow-management marker.
 - Exact final-head run ID/link/conclusion must be taken from the published PR, not inferred from local execution.
-- The independently verified earlier PR head
-  `7870cd2e649c8a09b0b09f96e0411c546e5f1782` passed run `31775698854`, job
-  `Deterministic repository audit` (`94690572217`). The current main-integration
-  candidate needs a replacement exact-head run after publication; the PR is the
-  durable record.
+- The independently verified integrated PR head
+  `1d1e6d03a92bbcec65bdc02ea6490af6e640eda8` passed run `31848203559`, job
+  `Deterministic repository audit` (`94918801742`). The final fleet-ledger
+  commit needs its own replacement exact-head run after publication; the PR is
+  the durable record.
 
 ## Hosted GitHub controls
 
@@ -113,7 +113,8 @@ No fake independent approval rule is proposed for the sole maintainer. The stabl
   exact source commit/path/hash and green CI evidence. Its community-comparator
   content remains project-local, provisional, and unverified.
 - The fleet ledger is reconciled from exact repository/CI/issue evidence for
-  universal PR #4, AskRigor PR #7, and AskRigor-lessons PR #3. All remain
+  universal PR #4 at pre-final-ledger head `1d1e6d03...`, AskRigor PR #7 at
+  `1fbfb9c7...`, and AskRigor-lessons PR #3 at `469aa629...`. All remain
   `BLOCKED`; five other repositories remain `WRITE ISSUED` / `GAP`.
 - Merge is not authorized until the published final-head check is green; even then, hosted main governance remains the issue #3 blocker.
 

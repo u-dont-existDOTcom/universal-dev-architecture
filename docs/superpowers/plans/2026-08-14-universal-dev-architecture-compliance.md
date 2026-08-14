@@ -254,11 +254,11 @@ Run `python3 -m unittest discover -s tests -v`, `python3 scripts/audit_codex_git
 
 Inspect `git status`, `git diff --stat`, and the complete diff for accidental churn, debug files, generated output, secret values, semantic weakening, and stale claims.
 
-- [ ] **Step 3: Commit and push the durable branch**
+- [x] **Step 3: Commit and push the durable branch**
 
 Use coherent commits, push `codex/github-compliance-2026-08-14`, and open one focused PR against `main` containing exact evidence and residual hosted-control limitations.
 
-- [ ] **Step 4: Inspect final-head CI**
+- [x] **Step 4: Inspect final-head CI**
 
 Use GitHub workflow/check APIs to capture workflow names, run IDs/links, conclusions, and final head SHA. Repair failures on the same branch and rerun all local gates before updating the PR.
 
@@ -266,11 +266,11 @@ Use GitHub workflow/check APIs to capture workflow names, run IDs/links, conclus
 
 Attempt only additive, non-weakening controls supported by the plan and current API scope. If rules/protection/scanning/Actions defaults remain plan- or permission-blocked, create or update one `Codex + GitHub hardening audit` issue with the exact remaining action and impact.
 
-- [ ] **Step 6: Merge only if policy permits**
+- [x] **Step 6: Merge only if policy permits**
 
 If required checks are green and no applicable executable requirement remains, squash-merge through GitHub and verify `main` contains the result. Otherwise leave the single PR ready to merge and record the exact blocker.
 
-- [ ] **Step 7: Record terminal evidence**
+- [x] **Step 7: Record terminal evidence**
 
 Write branch/final SHA, changed files and purposes, exact commands/results, CI IDs/links, hosted-control states, residual risk, canonical current-state path, lesson disposition, and merge result using exactly one of `COMPLIANT`, `COMPLIANT_WITH_DECLARED_EXCEPTIONS`, `BLOCKED`, or `NOT_COMPLIANT`.
 
@@ -279,26 +279,33 @@ Write branch/final SHA, changed files and purposes, exact commands/results, CI I
 ### Task 7: Reconcile the fleet ledger after AskRigor completes
 
 **Files:**
-- Modify later in a non-overlapping follow-up branch: `audits/2026-08-14-implementation-status.md`
-- Modify later if a transferable finding exists: `LESSON-INDEX.md`
-- Modify later if a transferable finding exists: `audits/2026-08-14-codex-github-lesson-closeout.md`
+- Modify in the existing single compliance PR because hosted blockers prevent the initial PR from merging: `audits/2026-08-14-implementation-status.md`
+- Modify if a transferable finding exists: `LESSON-INDEX.md`
+- Modify if a transferable finding exists: `audits/2026-08-14-codex-github-lesson-closeout.md`
 
 **Interfaces:**
-- Consumes: merged AskRigor commit/PR, final-head command and CI evidence, hosted-setting API results, and its project-local lesson dispositions.
+- Consumes: the finalized AskRigor compliance PR head and merge state, current
+  canonical AskRigor commit, final-head command and CI evidence, hosted-setting
+  API results, and project-local lesson dispositions.
 - Produces: evidence-based fleet status; never copies worker prose as proof.
 
-- [ ] **Step 1: Re-fetch AskRigor evidence after its own compliance PR**
+- [x] **Step 1: Re-fetch AskRigor evidence after its compliance head is finalized**
 
-Verify the merge commit, changed files, exact final commands, workflow runs/checks, hosted-control responses, open audit issue, and terminal status directly from GitHub and the repository.
+Verify the merge state, changed files, exact final commands, workflow runs/checks,
+hosted-control responses, open audit issue, and terminal status directly from
+GitHub and the repository. Do not treat an unmerged PR as a merge.
 
-- [ ] **Step 2: Update only proven fleet claims**
+- [x] **Step 2: Update only proven fleet claims**
 
 Mark each AskRigor control with repository-visible, CI-verified, hosted-verified, unverified, disabled, not-applicable, or blocked evidence. Preserve all other repositories’ existing uncertainty unless independently rechecked.
 
-- [ ] **Step 3: Promote only transferable lessons**
+- [x] **Step 3: Promote only transferable lessons**
 
 Record source repository, commit/path/hash, rationale, tests, scope limits, and supersession data for any promoted AskRigor lesson; otherwise record `project-specific` or `no-new-lesson`.
 
-- [ ] **Step 4: Use a separate focused PR**
+- [x] **Step 4: Preserve one focused PR**
 
-Open this follow-up only after the initial universal PR is merged, so there is no overlapping PR chain.
+Because applicable hosted governance blocks the initial universal PR from
+merging, reconcile the final fleet evidence in that existing PR rather than
+creating an overlapping PR chain. This is a task-plan supersession, not a claim
+that the hosted blocker has been resolved.

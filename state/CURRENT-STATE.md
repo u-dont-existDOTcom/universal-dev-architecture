@@ -12,6 +12,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Canonical branch: `main`
 - Active compliance branch: `codex/github-compliance-2026-08-14`
 - Recovery branch before the current integration: `recovery/universal-compliance-pre-main-e37f34b`
+- Recovery branch before final fleet reconciliation: `recovery/universal-pre-final-fleet-1d1e6d0`
 - Main integrated into the current candidate: `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
 - Universal entry point: `LESSON-INDEX.md`
 - Current Codex/GitHub policy: `patterns/codex-github-operating-system.md`
@@ -26,6 +27,8 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - The current candidate semantically integrates both lines of work. The robust structure-aware workflow parser remains authoritative while the compliance branch's timeout, concurrency, scoped-write, secret-content, unsafe-filename, profile, and instruction-budget checks are retained.
 - Root compatibility state points only to this canonical checkpoint. The superseded operating-standard file remains provenance, not a competing current entry point.
 - AskRigor PR #8 was merged as `f8e7ca1e10c096e050207828eeb9eb7957d7ef6f` after exact-head checks and bounded live Action acceptance; the synthetic lesson issue was safely closed. The separate AskRigor compliance PR and AskRigor-lessons compliance PR remain subject to their own current reconciliation and hosted-control evidence.
+- AskRigor compliance PR #7 is reconciled at `1fbfb9c7b67afc5866e55f56de57fdf58508f599`; deterministic run `31849152200` / job `94921467390` and workflow-policy run `31849152180` / job `94921467289` succeeded. Its approved live smoke passed two public-provider tests with three credential-gated skips.
+- AskRigor-lessons PR #3 is reconciled at `469aa62938a638145b1b848b9199710767e868aa`; run `31849634303` / job `Lesson integrity` (`94922840626`) succeeded. Its sole lesson remains provisional/unverified because originating incident/test provenance is absent.
 - Official OpenAI and GitHub registry links were reviewed on 2026-08-14. Repository files do not assert hosted settings without API evidence.
 
 ## Current checkpoint
@@ -34,14 +37,14 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - The semantic merge of `origin/main` at `9e4f0d8` is resolved against recovery branch `recovery/universal-compliance-pre-main-e37f34b`.
 - Documentation resolves to one authority chain; audit/test integration retains both non-overlapping control sets and the newer structure-aware parser.
 - Final local evidence on the resolved tree: 80/80 unit tests pass; self-audit passes with 0 errors and 3 truthful hosted-control warnings; JSON, YAML, scheduled-shell syntax, and diff checks pass.
-- Merge commit SHA, push, and replacement pull-request CI are pending this integration candidate.
+- Integrated candidate `1d1e6d03a92bbcec65bdc02ea6490af6e640eda8` passed exact-head run `31848203559`, job `Deterministic repository audit` (`94918801742`).
+- Only the final fleet-ledger evidence refresh and its replacement exact-head CI remain before repository-visible closeout.
 - Terminal status remains `BLOCKED` until hosted governance is directly verified or an owner-approved visibility/plan decision makes it available.
 
 ## Remaining
 
-- Finish the semantic merge, run the full unit suite and self-audit plus syntax/metadata/diff checks, review the final diff, and commit the merge with a recorded rollback point.
-- Push the exact verified candidate to PR #4, capture its unique check names and run IDs, and update the PR/report/checkpoint with final evidence.
-- Reconcile the fleet implementation ledger from repository/CI evidence after the AskRigor and AskRigor-lessons compliance branches are updated.
+- Run the full unit suite and self-audit plus syntax/metadata/diff checks on the final fleet-ledger tree, review the final diff, and commit from recovery ref `recovery/universal-pre-final-fleet-1d1e6d0`.
+- Push the exact verified candidate to PR #4, capture its replacement check/run ID, and update the PR and issue with final evidence.
 - Keep PR #4 unmerged while applicable hosted controls remain inaccessible, disabled, or plan-limited.
 
 ## Blockers / unresolved
@@ -68,7 +71,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Next safe action
 
-Commit the resolved and verified semantic merge, then publish that exact commit to PR #4 without merging the blocked high-risk governance change.
+Verify and publish the final fleet-ledger commit to PR #4, record its exact-head CI, and leave the blocked high-risk governance change unmerged.
 
 ## Recovery rule
 
