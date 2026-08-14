@@ -129,6 +129,17 @@ For active code repositories:
 
 Long autonomous work should commit or checkpoint at verified durable boundaries. Commit frequency is for recovery and review, not an excuse to preserve broken intermediate states on the protected default branch.
 
+### Choose coordination without an owner execution-mode decision
+
+When multiple safe in-scope execution approaches achieve the same outcome, automatically choose the better-coordinated approach without asking the owner to select an execution mode. Better coordination means:
+
+- isolated workspaces for concurrent writers;
+- a durable plan and recovery ledger for multi-step work;
+- delegation plus independent review when safely separable; and
+- serialize shared mutable state, including the exact generated output or integration command that writes it.
+
+Standing grant: delegation, subagents, and parallel investigation are permitted when they improve coordination without conflicting writes, and only as paired delegation plus independent review when safely separable. Shared mutable writes are serialized. This does not broaden task authority and does not replace substantive owner decisions, including meaningful product, policy, safety, access, spending, publication, or irreversible-data choices.
+
 ---
 
 ## 5. Verification is part of implementation

@@ -10,8 +10,8 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Verified code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
-- Active change: PR #9 promotes the Joel Articles editorial-authority/lossless-editing lesson; its pattern/test code-bearing head is verified and the canonical checkpoint is being refreshed before final review/merge.
+- Verified code-bearing baseline: PR #9 merge `dacab0268bc01eccac09453ffec8960565bd67e5`
+- Active change: `agent/universal-coordination-rule` has completed the local implementation, independent review repair, and final local verification for Joel's standing cross-project coordination rule; publication remains pending.
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
 - Repository profile and commands: `.github/codex-repository.json`
@@ -42,22 +42,25 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Current checkpoint
 
-- Prior canonical code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
-- Active promotion: PR #9, code-bearing head/tree `8da52dc977e0670ec606ca7c07d10b2a58507985` / `13677b238000a7ac480bbcf0e9b5133f1063ab09`
-- Exact gates: Universal architecture tests `31786060272` / job `94722107249` succeeded with 57/57 tests and audit 0 errors/3 truthful hosted warnings; Repository policy `31786060351` / job `94722107873` succeeded.
-- Independent review verified all Joel merge/run/blob provenance and the bounded lesson. Its sole Important finding was this stale checkpoint, now repaired without changing the promoted pattern or tests.
-- Current step: verify this evidence-only checkpoint head, complete exact-head re-review, mark PR #9 ready, and merge if checks remain green.
+- Canonical baseline: `main` at `dacab0268bc01eccac09453ffec8960565bd67e5` (PR #9 merge).
+- Active branch: `agent/universal-coordination-rule`; no unrelated local changes.
+- Implementation/review: both Important review findings are repaired. The detailed projections now express an affirmative standing grant for delegation, subagents, and parallel investigation only when coordination improves without conflicting writes, paired independent review remains required when safely separable, and shared mutable writes are serialized.
+- RED evidence: `python3 -m unittest tests.test_universal_coordination_rule -v` failed first because required projections were absent, then for a detached delegation/review permission, and finally for the missing affirmative, condition-bound standing grant.
+- GREEN/final local evidence: the focused command passed 3/3; `python3 -m unittest discover -s tests -v` passed 60/60; `python3 scripts/audit_codex_github.py --root . --fail-on error` passed with 0 errors and 3 truthful hosted-control warnings; final diff check passed.
+- Publication state: remote branch `agent/universal-coordination-rule` and its draft PR are absent. The first managed push approval timed out before execution; its one retry hung without output and was terminated. No credential workaround was attempted.
+- Current step: push `agent/universal-coordination-rule`, then create its draft PR to `main`; do not rerun local gates or create another local commit unless publication changes the branch.
 
 ## Remaining
 
-- Close the PR #9 checkpoint/review/merge sequence. If PR #9 is already merged when recovering, verify its exact merge head and do not repeat the promotion.
-- After that conditional closeout, no repository-local promotion work remains; future work should begin from current `main` and a new owner-directed goal.
+- Push the verified local branch and create the focused universal coordination-rule draft PR.
+- Do not alter unrelated open PRs #4/#2 or hardening issue #3.
 
 ## Blockers / unresolved
 
 - The dependency-free workflow detector is intentionally conservative rather than a full YAML parser. Ambiguous root trigger forms paired with checkout fail closed; repositories needing uncommon safe syntax should add an exact fixture or use a reviewed parser.
 - Hosted control mutation remains provisional and plan/permission dependent; repository files cannot prove hosted enforcement.
 - Default-branch rules, secret scanning, and push protection remain truthfully unverified in the repository profile.
+- Publication is blocked only pending a successful normal `git push`; no remote branch or PR exists after the timed-out/hung managed attempts.
 
 ## Evidence / artifacts
 
@@ -74,11 +77,12 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Editorial authority pattern: `patterns/editorial-authority-and-lossless-editing.md`
 - Editorial authority regression: `tests/test_editorial_authority_pattern.py`
 - Joel origin merge: `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db`; exact source artifact Git blobs are listed in the pattern.
+- Coordination rule: `AGENTS.md`, `patterns/codex-github-operating-system.md`, `templates/AGENTS-CODEX.md`, `audits/2026-08-14-universal-coordination-rule.md`, and `tests/test_universal_coordination_rule.py`.
 
 ## Next safe action
 
-Inspect PR #9 at the verified code-bearing baseline. If its evidence-only checkpoint run and re-review are green, mark ready and merge. If PR #9 is already merged, verify the merge-head suites and continue from current `main`; do not repeat the Joel, Inner Signal, or Pangram promotions.
+Run `git push -u origin agent/universal-coordination-rule`; after it succeeds, create a draft pull request from that branch to `main` without merging. Do not rerun local gates or create another local commit before that publication step.
 
 ## Recovery rule
 
-After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the last verified commit; do not repeat Joel, Inner Signal, or Pangram project work, and do not import their project-specific content.
+After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the last verified commit; do not repeat Joel, Inner Signal, or Pangram project work, alter unrelated PRs #4/#2 or issue #3, or import project-specific content.
