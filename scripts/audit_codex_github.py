@@ -84,12 +84,42 @@ USES_RE = re.compile(
 )
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
-PULL_REQUEST_TARGET_RE = re.compile(
-    r"^\s*(?:on\s*:\s*)?pull_request_target\s*:\s*(?:#.*)?$|"
-    r"^\s*on\s*:\s*pull_request_target\s*(?:#.*)?$",
-    re.MULTILINE,
+ON_TRIGGER_LINE_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
+)
+PULL_REQUEST_TARGET_TOKEN_RE = re.compile(
+    r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
+)
+PULL_REQUEST_TARGET_CHILD_RE = re.compile(
+    r"^[ \t]+[\"']?pull_request_target[\"']?[ \t]*:"
 )
 CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
+
+
+def _uses_pull_request_target(text: str) -> bool:
+    """Recognize scalar, block-map, and flow-style GitHub trigger forms."""
+
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        match = ON_TRIGGER_LINE_RE.match(line)
+        if match is None:
+            continue
+        base_indent = len(match.group("indent").expandtabs(8))
+        value = match.group("value").split("#", 1)[0].strip()
+        if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
+            return True
+        if value:
+            continue
+        for child in lines[index + 1 :]:
+            code = child.split("#", 1)[0].rstrip()
+            if not code.strip():
+                continue
+            indent = len(code) - len(code.lstrip(" \t"))
+            if indent <= base_indent:
+                break
+            if PULL_REQUEST_TARGET_CHILD_RE.match(code):
+                return True
+    return False
 
 
 def finding(
@@ -483,7 +513,7 @@ def _audit_workflows(
                 )
             )
 
-        if PULL_REQUEST_TARGET_RE.search(text) and CHECKOUT_RE.search(text):
+        if _uses_pull_request_target(text) and CHECKOUT_RE.search(text):
             findings.append(
                 finding(
                     "error",
@@ -652,7 +682,11 @@ def _audit_public_and_risk_controls(
     controls = profile.get("github_controls")
     controls = controls if isinstance(controls, dict) else {}
     controls_to_check: list[tuple[str, str]] = []
-    if profile.get("active") and kind == "software":
+    if profile.get("active") and (
+        kind == "software"
+        or visibility == "public"
+        or risk in {"high", "critical"}
+    ):
         controls_to_check.append(("default_branch_rules", "default-branch ruleset"))
     if visibility == "public" or risk in {"high", "critical"}:
         controls_to_check.extend(
