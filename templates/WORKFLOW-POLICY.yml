@@ -67,6 +67,13 @@ jobs:
                       continue
                   base_indent = yaml_indent(code)
                   value = match.group("value").strip()
+                  while value.startswith(("&", "!")):
+                      node_property = value.split(None, 1)
+                      value = node_property[1].lstrip() if len(node_property) == 2 else ""
+                  # Resolving arbitrary aliases requires a YAML parser. Fail closed
+                  # when an aliased trigger node is paired with checkout.
+                  if value.startswith("*"):
+                      return True
                   if pull_request_target_token.search(value):
                       return True
                   if value:
