@@ -36,13 +36,7 @@ jobs:
           block_scalar = re.compile(
               r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
           )
-          pull_request_target = re.compile(
-              r"^[\"']?on[\"']?\s*:\s*[\"']?pull_request_target[\"']?\s*(?:#.*)?$|"
-              r"^[\"']?on[\"']?\s*:\s*\[[^\]\n]*[\"']?pull_request_target[\"']?[^\]\n]*\]\s*(?:#.*)?$|"
-              r"^[\"']?on[\"']?\s*:\s*\{[^\n}]*[\"']?pull_request_target[\"']?\s*:|"
-              r"^[\"']?on[\"']?\s*:\s*(?:#.*)?\n(?:(?:[ \t]+.*|[ \t]*)\n)*?^[ \t]+(?:-\s*)?[\"']?pull_request_target[\"']?\s*(?::|(?:#.*)?$)",
-              re.MULTILINE,
-          )
+
 
           def workflow_structure(text: str) -> str:
               structural: list[str] = []
@@ -60,6 +54,133 @@ jobs:
                       block_indent = indent
               return "\n".join(structural)
 
+          def _yaml_code(line: str) -> str:
+              return line.split("#", 1)[0].rstrip()
+          
+          
+          def _yaml_indent(line: str) -> int:
+              return len(line) - len(line.lstrip(" \t"))
+          
+          
+          def _flow_balance(value: str) -> int:
+              return (
+                  value.count("[")
+                  + value.count("{")
+                  - value.count("]")
+                  - value.count("}")
+              )
+          
+          
+          def _workflow_has_event(structure: str, event_name: str) -> bool:
+              """Detect an event or fail closed on unsupported root trigger syntax."""
+          
+              lines = structure.splitlines()
+              root_indents = [
+                  _yaml_indent(code)
+                  for line in lines
+                  if (code := _yaml_code(line)).strip()
+                  and code.strip() not in {"---", "..."}
+              ]
+              if not root_indents:
+                  return False
+              root_indent = min(root_indents)
+              saw_trigger_node = False
+              on_trigger_line = re.compile(
+                  r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
+              )
+              event_token = re.compile(
+                  rf"(?<![\w-])[\"']?{re.escape(event_name)}[\"']?(?![\w-])"
+              )
+          
+              for index, line in enumerate(lines):
+                  code = _yaml_code(line)
+                  match = on_trigger_line.match(code)
+                  if match is None or _yaml_indent(code) != root_indent:
+                      continue
+                  saw_trigger_node = True
+                  base_indent = _yaml_indent(code)
+                  value = match.group("value").strip()
+                  while value.startswith(("&", "!")):
+                      node_property = value.split(None, 1)
+                      value = node_property[1].lstrip() if len(node_property) == 2 else ""
+                  if value.startswith("*"):
+                      return True
+                  if value.startswith(("|", ">")) or "\\" in value:
+                      return True
+                  if event_token.search(value):
+                      return True
+                  if value:
+                      if value.startswith(("[", "{")) and _flow_balance(value) > 0:
+                          balance = _flow_balance(value)
+                          for continuation in lines[index + 1 :]:
+                              continuation_code = _yaml_code(continuation)
+                              if "\\" in continuation_code or "*" in continuation_code:
+                                  return True
+                              if event_token.search(continuation_code):
+                                  return True
+                              balance += _flow_balance(continuation_code)
+                              if balance <= 0:
+                                  break
+                      continue
+          
+                  direct_child_indent: int | None = None
+                  sequence_indent: int | None = None
+                  children = lines[index + 1 :]
+                  for child_index, child in enumerate(children):
+                      child_code = _yaml_code(child)
+                      if not child_code.strip():
+                          continue
+                      indent = _yaml_indent(child_code)
+                      stripped = child_code.strip()
+                      if direct_child_indent is None and sequence_indent is None:
+                          if stripped.startswith("-") and indent >= base_indent:
+                              sequence_indent = indent
+                          elif indent > base_indent:
+                              direct_child_indent = indent
+                          else:
+                              break
+          
+                      if sequence_indent is not None:
+                          if indent < sequence_indent:
+                              break
+                          if indent != sequence_indent:
+                              continue
+                          if not stripped.startswith("-"):
+                              break
+                          event = stripped[1:].strip()
+                          if not event:
+                              for nested in children[child_index + 1 :]:
+                                  nested_code = _yaml_code(nested)
+                                  if not nested_code.strip():
+                                      continue
+                                  if _yaml_indent(nested_code) <= sequence_indent:
+                                      break
+                                  event = nested_code.strip()
+                                  break
+                          if "\\" in event or "*" in event or event.startswith(
+                              ("?", ":", "!", "&", "|", ">")
+                          ):
+                              return True
+                          event = event.split(":", 1)[0].strip().strip("\"'")
+                          if event == event_name:
+                              return True
+                          continue
+          
+                      if indent <= base_indent:
+                          break
+                      if indent != direct_child_indent:
+                          continue
+                      event = stripped
+                      if "\\" in event or "*" in event or event.startswith(
+                          ("?", ":", "!", "&", "|", ">")
+                      ):
+                          return True
+                      event = event.split(":", 1)[0].strip().strip("\"'")
+                      if event == event_name:
+                          return True
+          
+              return not saw_trigger_node
+
           for path in sorted(workflow_dir.glob("*.y*ml")):
               text = path.read_text(encoding="utf-8")
               structure = workflow_structure(text)
@@ -74,9 +195,7 @@ jobs:
               ):
                   errors.append((path, "permissions: write-all is forbidden"))
 
-              if pull_request_target.search(structure) and re.search(
-                  r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@", structure
-              ):
+              if _workflow_has_event(structure, "pull_request_target") and "actions/checkout@" in structure:
                   errors.append(
                       (
                           path,
