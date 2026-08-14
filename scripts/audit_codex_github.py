@@ -90,7 +90,7 @@ ON_TRIGGER_LINE_RE = re.compile(
 PULL_REQUEST_TARGET_TOKEN_RE = re.compile(
     r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
 )
-CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
+CHECKOUT_RE = re.compile(r"actions/checkout@")
 
 
 def _yaml_code(line: str) -> str:
@@ -118,12 +118,14 @@ def _uses_pull_request_target(text: str) -> bool:
     if not root_indents:
         return False
     root_indent = min(root_indents)
+    saw_trigger_node = False
 
     for index, line in enumerate(lines):
         code = _yaml_code(line)
         match = ON_TRIGGER_LINE_RE.match(code)
         if match is None or _yaml_indent(code) != root_indent:
             continue
+        saw_trigger_node = True
         base_indent = _yaml_indent(code)
         value = match.group("value").strip()
         while value.startswith(("&", "!")):
@@ -133,6 +135,8 @@ def _uses_pull_request_target(text: str) -> bool:
         # an aliased trigger node is paired with checkout in the caller.
         if value.startswith("*"):
             return True
+        if value.startswith(("|", ">")) or "\" in value:
+            return True
         if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
             return True
         if value:
@@ -140,6 +144,8 @@ def _uses_pull_request_target(text: str) -> bool:
                 balance = _flow_balance(value)
                 for continuation in lines[index + 1 :]:
                     continuation_code = _yaml_code(continuation)
+                    if "\" in continuation_code or "*" in continuation_code:
+                        return True
                     if PULL_REQUEST_TARGET_TOKEN_RE.search(continuation_code):
                         return True
                     balance += _flow_balance(continuation_code)
@@ -181,6 +187,10 @@ def _uses_pull_request_target(text: str) -> bool:
                             break
                         event = nested_code.strip()
                         break
+                if "\" in event or "*" in event or event.startswith(
+                    ("?", ":", "!", "&", "|", ">")
+                ):
+                    return True
                 event = event.split(":", 1)[0].strip().strip("\"'")
                 if event == "pull_request_target":
                     return True
@@ -191,10 +201,17 @@ def _uses_pull_request_target(text: str) -> bool:
             if indent != direct_child_indent:
                 continue
             event = stripped
+            if "\" in event or "*" in event or event.startswith(
+                ("?", ":", "!", "&", "|", ">")
+            ):
+                return True
             event = event.split(":", 1)[0].strip().strip("\"'")
             if event == "pull_request_target":
                 return True
-    return False
+    # A checkout workflow whose trigger node is expressed in an unsupported
+    # root form (for example an explicit key or root flow map) is not proven
+    # safe by this dependency-free parser, so the caller must fail closed.
+    return not saw_trigger_node
 
 
 def finding(
