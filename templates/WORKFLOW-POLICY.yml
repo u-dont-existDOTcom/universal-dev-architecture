@@ -82,20 +82,49 @@ jobs:
                       continue
 
                   direct_child_indent: int | None = None
-                  for child in lines[index + 1:]:
+                  sequence_indent: int | None = None
+                  children = lines[index + 1:]
+                  for child_index, child in enumerate(children):
                       child_code = yaml_code(child)
                       if not child_code.strip():
                           continue
                       indent = yaml_indent(child_code)
+                      stripped = child_code.strip()
+                      if direct_child_indent is None and sequence_indent is None:
+                          if stripped.startswith("-") and indent >= base_indent:
+                              sequence_indent = indent
+                          elif indent > base_indent:
+                              direct_child_indent = indent
+                          else:
+                              break
+
+                      if sequence_indent is not None:
+                          if indent < sequence_indent:
+                              break
+                          if indent != sequence_indent:
+                              continue
+                          if not stripped.startswith("-"):
+                              break
+                          event = stripped[1:].strip()
+                          if not event:
+                              for nested in children[child_index + 1:]:
+                                  nested_code = yaml_code(nested)
+                                  if not nested_code.strip():
+                                      continue
+                                  if yaml_indent(nested_code) <= sequence_indent:
+                                      break
+                                  event = nested_code.strip()
+                                  break
+                          event = event.split(":", 1)[0].strip().strip("\"'")
+                          if event == "pull_request_target":
+                              return True
+                          continue
+
                       if indent <= base_indent:
                           break
-                      if direct_child_indent is None:
-                          direct_child_indent = indent
                       if indent != direct_child_indent:
                           continue
-                      event = child_code.strip()
-                      if event.startswith("-"):
-                          event = event[1:].strip()
+                      event = stripped
                       event = event.split(":", 1)[0].strip().strip("\"'")
                       if event == "pull_request_target":
                           return True
