@@ -239,6 +239,8 @@ jobs:
         self.write_profile()
         for label, trigger in {
             "block-sequence": "on:\n  - push\n  - pull_request_target",
+            "indentationless-block-sequence": "on:\n- push\n- pull_request_target",
+            "split-block-sequence-item": "on:\n  - push\n  -\n    pull_request_target",
             "sequence": "on: [push, pull_request_target]",
             "map": "on: {push: {}, pull_request_target: {}}",
             "multiline-sequence": "on: [\n  push,\n  pull_request_target\n]",
