@@ -18,7 +18,7 @@ Run both exact commands declared in `.github/codex-repository.json`:
 - `python3 -m unittest discover -s tests -v`
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`
 
-Use the uniquely named `Universal repository compliance / repository-compliance` GitHub Actions check. Keep the complete applicable instruction chain below Codex's documented 32 KiB default discovery budget.
+Use the uniquely named `Universal repository compliance / Deterministic repository audit` GitHub Actions check. Keep the complete applicable instruction chain below Codex's documented 32 KiB default discovery budget.
 
 ## Workflow
 

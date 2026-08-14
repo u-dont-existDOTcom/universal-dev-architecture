@@ -25,6 +25,8 @@ Updated: 2026-08-14
 - Audit expansion for exact commands, hosted-claim evidence, instruction budgets, workflow permissions/timeouts/concurrency, unsafe filenames, and risk posture is committed as `5d599a0`; all 30 tests passed before that commit.
 - Policy authority, source-registry links, repository classification guidance, hosted evidence, and canonical state routing are reconciled in `c32b5eb`.
 - Versioned compliance-worker, mandate-generation, and final-fleet-auditor architecture is committed as `883ed04`.
+- CI consolidation and idempotent drift reporting are committed as `f6f129f`.
+- High-confidence committed-secret content detection and three red/green regressions are committed as `ff26e6e`; the suite is now 33 tests.
 - Current official OpenAI and GitHub source-registry targets were checked on 2026-08-14.
 - Hosted inspection directly verified one admin collaborator and zero environments. Other settings remain separated below.
 
@@ -32,14 +34,13 @@ Updated: 2026-08-14
 
 - Current step: execute `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md` on branch `codex/github-compliance-2026-08-14`.
 - Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: Task 4 commit `883ed04`.
-- Current candidate: Task 5 consolidates the deterministic PR gate, removes the obsolete duplicate `.codex` workflow, groups pinned-Action dependency updates, makes weekly drift reporting idempotent with job-scoped issue permission, and expands PR evidence requirements. YAML parsing, all 30 unit tests, the repository audit with zero errors and two truthful hosted-control warnings, and `git diff --check` pass.
-- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 5 awaits commit.
+- Last verified durable boundary: secret-content audit commit `ff26e6e`.
+- Current candidate: Task 6 adds the final universal compliance report and updates state/ledger evidence. Fresh final-candidate verification passes: 33 unit tests, repository audit with zero errors/two truthful hosted warnings, metadata JSON, workflow/dependency YAML, scheduled-drift shell syntax, and `git diff --check`.
+- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; final report/state changes are verified and await commit.
 
 ## Remaining
 
-- Commit the verified Task 5 CI/drift candidate.
-- Run final local gates, open one universal PR, inspect final-head CI, and merge only if policy permits.
+- Commit the verified report/state, open one universal PR, inspect final-head CI, and merge only if policy permits.
 - Audit/remediate AskRigor on its own branch/PR, then re-fetch its evidence before updating this repository's fleet ledger in a non-overlapping follow-up.
 
 ## Blockers / unresolved
@@ -48,6 +49,7 @@ Updated: 2026-08-14
 - `PLAN-LIMITED`: rulesets returned `403` with GitHub's instruction to upgrade to Pro or make the private repository public.
 - `DISABLED`: code-scanning endpoint explicitly reported that code scanning is not enabled. Enabling it may also require a private-repository plan/security entitlement not available to this integration.
 - The local `gh` credential is invalid, so it cannot provide the missing administration scope. SSH Git transport remains functional but cannot inspect or mutate hosted settings.
+- Hardening issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) contains the precise plan/access/settings actions and must remain open until direct hosted evidence exists.
 
 ## Evidence / artifacts
 
@@ -56,11 +58,12 @@ Updated: 2026-08-14
 - Tests: `tests/test_audit_codex_github.py`
 - Audit implementation: `scripts/audit_codex_github.py`
 - Repository profile: `.github/codex-repository.json`
-- Hosted evidence: `.github/codex-repository.json` and the final compliance report to be added in Task 6.
+- Hosted evidence: `.github/codex-repository.json`, hardening issue #3, and the final compliance report.
+- Final universal report: `audits/2026-08-14-universal-compliance-report.md`.
 
 ## Next safe action
 
-- Commit the verified Task 5 candidate, then run fresh final-candidate verification and complete the repository report.
+- Review the complete branch diff, commit the verified report/state, and publish the single compliance PR.
 
 ## Recovery rule
 

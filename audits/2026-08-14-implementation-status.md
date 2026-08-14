@@ -25,6 +25,8 @@ This ledger deliberately does not convert a successful write request, a recommen
 - Commit `5d599a0` expands the standard-library audit through red/green tests. All 30 unit tests passed immediately before that commit.
 - Commit `c32b5eb` reconciles the canonical policy, source registry, risk-adjusted classifications, current-state route, and hosted-control evidence.
 - Commit `883ed04` preserves versioned repository-worker, mandate-generation, and independent final-fleet-auditor templates with semantic lesson closeout.
+- Commit `f6f129f` consolidates ordinary CI, removes the obsolete duplicate policy workflow, and adds bounded idempotent weekly issue reconciliation.
+- Commit `ff26e6e` adds red/green audit coverage for high-confidence secret material committed under ordinary filenames without exposing matched values; the suite is now 33 tests.
 - Current OpenAI Learn and GitHub Docs registry targets were opened from primary sources on 2026-08-14. The recorded interpretation now distinguishes the 32 KiB combined instruction chain and GitHub's unique required-check-name warning.
 
 ### Hosted GitHub evidence
@@ -42,9 +44,9 @@ This ledger deliberately does not convert a successful write request, a recommen
 - Canonical indexes/state and the compliance-worker architecture are reconciled. The current candidate consolidates ordinary CI as `Universal repository compliance / Deterministic repository audit` and replaces the contradictory `.codex` policy workflow.
 - The scheduled `Weekly repository drift` workflow keeps validation read-only and grants `issues: write` only to a separate bounded reconciliation job. It suppresses duplicate exact-title issues and closes only an issue carrying its own management marker, so a human-owned hosted-control issue is not incorrectly closed by a file audit.
 - The superseded `.github/workflows/repo-policy.yml` is removed because its `.codex/repository-policy.json` authority was obsolete and its remaining checks are covered by the canonical audit.
-- Run both declared gates against the final branch commit and inspect the final diff.
+- Both declared gates pass against the final report candidate: 33 unit tests and repository audit with zero errors/two truthful hosted warnings. Complete-branch diff review remains before publication.
 - Open one focused PR, capture final-head workflow run IDs/links and conclusions, and merge only if policy permits.
-- Create one durable hardening issue for controls that remain plan/permission blocked.
+- Hardening issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) now durably records controls that remain plan/permission blocked.
 
 ## Cross-repository rollout
 

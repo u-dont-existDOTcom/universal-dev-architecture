@@ -56,7 +56,7 @@ A universal pattern never overrides a project's explicit current requirement.
 
 ## Audit boundary
 
-The portable audit detects repository-visible failures such as missing instructions/profiles/state, missing software verification commands or CI, unsafe workflow permissions, floating Action references, dangerous privileged pull-request execution, and likely committed secret filenames.
+The portable audit detects repository-visible failures such as missing instructions/profiles/state, missing software verification commands or CI, unsafe workflow permissions, floating Action references, dangerous privileged pull-request execution, likely committed secret filenames/material, and unsafe cross-platform paths.
 
 It cannot prove hosted settings such as rulesets, branch protection, secret scanning, push protection, code scanning, GitHub App permissions, or repository Actions defaults. Those must be checked through GitHub and recorded as verified only after inspection.
 
