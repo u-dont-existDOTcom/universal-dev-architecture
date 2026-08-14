@@ -859,7 +859,9 @@ def _audit_public_and_risk_controls(
     controls = profile.get("github_controls")
     controls = controls if isinstance(controls, dict) else {}
     controls_to_check: list[tuple[str, str]] = []
-    if profile.get("active") and kind == "software":
+    if profile.get("active") and (
+        kind == "software" or visibility == "public" or risk in {"high", "critical"}
+    ):
         controls_to_check.append(("default_branch_rules", "default-branch ruleset"))
     if visibility == "public" or risk in {"high", "critical"}:
         controls_to_check.extend(
