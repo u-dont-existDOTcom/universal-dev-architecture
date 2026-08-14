@@ -1,0 +1,12 @@
+# Default owner
+* @u-dont-existDOTcom
+
+# Sensitive policy, automation, and instruction paths
+/.github/ @u-dont-existDOTcom
+/AGENTS.md @u-dont-existDOTcom
+/LESSON-INDEX.md @u-dont-existDOTcom
+/patterns/ @u-dont-existDOTcom
+/templates/ @u-dont-existDOTcom
+/scripts/ @u-dont-existDOTcom
+/tests/ @u-dont-existDOTcom
+/state/ @u-dont-existDOTcom
