@@ -40,11 +40,19 @@ class WorkflowPolicyTemplateTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("workflow policy passed", result.stdout)
 
-    def test_actual_pull_request_target_checkout_is_rejected(self) -> None:
-        result = self.run_policy(
-            {
-                "unsafe.yml": """name: Unsafe
-on: pull_request_target
+    def test_pull_request_target_checkout_forms_are_rejected(self) -> None:
+        triggers = {
+            "scalar": "on: pull_request_target",
+            "block-map": "on:\n  pull_request_target:",
+            "flow-sequence": "on: [push, pull_request_target]",
+            "flow-map": "on: {push: {}, pull_request_target: {}}",
+        }
+        for label, trigger in triggers.items():
+            with self.subTest(label=label):
+                result = self.run_policy(
+                    {
+                        "unsafe.yml": f"""name: Unsafe
+{trigger}
 permissions:
   contents: read
 jobs:
@@ -53,14 +61,14 @@ jobs:
     steps:
       - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
 """
-            }
-        )
+                    }
+                )
 
-        self.assertEqual(1, result.returncode)
-        self.assertIn(
-            "pull_request_target must not check out or execute untrusted pull-request code",
-            result.stdout,
-        )
+                self.assertEqual(1, result.returncode, result.stdout)
+                self.assertIn(
+                    "pull_request_target must not check out or execute untrusted pull-request code",
+                    result.stdout,
+                )
 
 
 if __name__ == "__main__":
