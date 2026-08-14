@@ -11,7 +11,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
 - Verified code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
-- Active change: none; PR #5 is merged
+- Active change: PR #9 promotes the Joel Articles editorial-authority/lossless-editing lesson; its pattern/test code-bearing head is verified and the canonical checkpoint is being refreshed before final review/merge.
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
 - Repository profile and commands: `.github/codex-repository.json`
@@ -36,17 +36,22 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Independent remediation re-review is clean at evidence checkpoint `ef1c28f8241a060db0715358b93f176061813536`; its Universal architecture tests run `31782816489` and Repository policy run `31782816484` both succeeded.
 - Merged PR #5 as `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`; its tree exactly equals the final reviewed head tree, and merge-head runs `31783054806` (Universal architecture tests) and `31783054783` (Repository policy) both succeeded.
 - Recorded the universal promotion receipt in Pangram audit issue #17 and closed superseded universal draft PR #7 without deleting its branch or rewriting history.
+- Added and indexed `patterns/editorial-authority-and-lossless-editing.md` with exact Joel Articles merge/path/blob provenance, bounded project-local exclusions, and causal route/content/limits regression coverage.
+- Joel origin merge `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db` and origin code head `dcde124ef2f983c5027d85481f9aa33b2c353d9b` are verified by origin runs `31785689319` and `31785508088`; the promoted pattern copies no article prose, fact packet, helper, detector threshold, license/privacy decision, or publication action.
+- PR #9 code-bearing head `8da52dc977e0670ec606ca7c07d10b2a58507985` is verified by Universal architecture tests run `31786060272` (57/57 tests; audit 0 errors/3 truthful hosted warnings) and Repository policy run `31786060351` (success).
 
 ## Current checkpoint
 
-- Canonical code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
-- Merged change: PR #5, final reviewed head `b0319df0ebd0d349e56ce91ad30b617d3a9ef233`
-- Exact gates: 53/53 code-head tests pass; audit passes with 0 errors and three truthful hosted-control warnings; final PR-head and merge-head GitHub suites all succeeded. Local Python compile and `git diff --check` also pass.
-- Current step: no repository-local step remains for the Pangram lesson promotion.
+- Prior canonical code-bearing baseline: PR #5 merge `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`
+- Active promotion: PR #9, code-bearing head/tree `8da52dc977e0670ec606ca7c07d10b2a58507985` / `13677b238000a7ac480bbcf0e9b5133f1063ab09`
+- Exact gates: Universal architecture tests `31786060272` / job `94722107249` succeeded with 57/57 tests and audit 0 errors/3 truthful hosted warnings; Repository policy `31786060351` / job `94722107873` succeeded.
+- Independent review verified all Joel merge/run/blob provenance and the bounded lesson. Its sole Important finding was this stale checkpoint, now repaired without changing the promoted pattern or tests.
+- Current step: verify this evidence-only checkpoint head, complete exact-head re-review, mark PR #9 ready, and merge if checks remain green.
 
 ## Remaining
 
-- No repository-local promotion work remains. Future work should begin from current `main` and a new owner-directed goal.
+- Close the PR #9 checkpoint/review/merge sequence. If PR #9 is already merged when recovering, verify its exact merge head and do not repeat the promotion.
+- After that conditional closeout, no repository-local promotion work remains; future work should begin from current `main` and a new owner-directed goal.
 
 ## Blockers / unresolved
 
@@ -66,11 +71,14 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Paid-workflow regression: `tests/test_paid_workflow_pattern.py`
 - Portable parser regression: `tests/test_workflow_policy_template.py`
 - Pangram origin merges: `8bf49ac0132c2fa55429d78d4ab79997081413a3`, `81b5cd017e3be088c0638e527ce25f5df6a2f4e8`, and `c8147df0831a3a38589a3df7b17f5d76d899b8f4`
+- Editorial authority pattern: `patterns/editorial-authority-and-lossless-editing.md`
+- Editorial authority regression: `tests/test_editorial_authority_pattern.py`
+- Joel origin merge: `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db`; exact source artifact Git blobs are listed in the pattern.
 
 ## Next safe action
 
-For future work, inspect current `main`, open pull requests, hosted-control issue state, and newer owner instructions before creating a new branch. Do not repeat the completed Inner Signal or Pangram promotions.
+Inspect PR #9 at the verified code-bearing baseline. If its evidence-only checkpoint run and re-review are green, mark ready and merge. If PR #9 is already merged, verify the merge-head suites and continue from current `main`; do not repeat the Joel, Inner Signal, or Pangram promotions.
 
 ## Recovery rule
 
-After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the last verified commit; do not repeat Inner Signal or Pangram project work, and do not import their project-specific content.
+After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the last verified commit; do not repeat Joel, Inner Signal, or Pangram project work, and do not import their project-specific content.
