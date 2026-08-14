@@ -20,6 +20,13 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/COMPLIANCE-WORKER-METADATA.json` — versioned entry point for the repository worker, final fleet auditor, and mandate-generation guide.
 - `audits/2026-08-14-compliance-worker-architecture.md` — promoted lesson with provenance, limits, anti-patterns, verification, and supersession rules.
 
+## Promoted tested implementation lessons
+
+- `audits/2026-08-14-askrigor-transferable-controls.md` — exact-byte
+  authority, truthful partial-access states, bounded opt-in live validation,
+  public read-only service safety, and structure-aware secret detection,
+  promoted from AskRigor with source hashes, tests, and explicit limits.
+
 ## Promotion rule
 
 Project-local evidence stays in the project repository. Promote a lesson here only when it is transferable beyond one project. Preserve the originating repository, source artifact, date/commit, rationale, and limits.

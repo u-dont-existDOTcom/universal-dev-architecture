@@ -27,21 +27,29 @@ Updated: 2026-08-14
 - Versioned compliance-worker, mandate-generation, and final-fleet-auditor architecture is committed as `883ed04`.
 - CI consolidation and idempotent drift reporting are committed as `f6f129f`.
 - High-confidence committed-secret content detection and three red/green regressions are committed as `ff26e6e`; the suite is now 33 tests.
+- AskRigor exposed a portable-audit false positive on a negative private-key
+  archive assertion. The red/green structural PEM fix is committed as
+  `4b8247c`; the suite is now 34 tests and still catches complete plausible PEM
+  blocks without printing matches.
 - Current official OpenAI and GitHub source-registry targets were checked on 2026-08-14.
 - Hosted inspection directly verified one admin collaborator and zero environments. Other settings remain separated below.
 
 ## Current checkpoint
 
-- Current step: execute `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md` on branch `codex/github-compliance-2026-08-14`.
+- Current step: preserve AskRigor's tested transferable controls and refresh the
+  existing compliance PR before returning to the AskRigor repository PR.
 - Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: secret-content audit commit `ff26e6e`.
-- Current candidate: Task 6 adds the final universal compliance report and updates state/ledger evidence. Fresh final-candidate verification passes: 33 unit tests, repository audit with zero errors/two truthful hosted warnings, metadata JSON, workflow/dependency YAML, scheduled-drift shell syntax, and `git diff --check`.
-- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; final report/state changes are verified and await commit.
+- Last verified durable boundary: structure-aware PEM detection commit `4b8247c`.
+- Current candidate: the AskRigor transferable-control lesson records exact
+  source ref/path/hash provenance, scope, limits, tests, and supersession.
+- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; lesson/index/state/report changes await final verification and commit.
 
 ## Remaining
 
-- Commit the verified report/state, open one universal PR, inspect final-head CI, and merge only if policy permits.
-- Audit/remediate AskRigor on its own branch/PR, then re-fetch its evidence before updating this repository's fleet ledger in a non-overlapping follow-up.
+- Commit and push the verified AskRigor lesson follow-up to existing PR #4 and
+  inspect its new final-head CI.
+- Finish AskRigor on its own branch/PR, then re-fetch final evidence before
+  changing its fleet-ledger classification.
 
 ## Blockers / unresolved
 
@@ -63,7 +71,9 @@ Updated: 2026-08-14
 
 ## Next safe action
 
-- Review the complete branch diff, commit the verified report/state, and publish the single compliance PR.
+- Verify and publish the AskRigor lesson follow-up to existing PR #4, then
+  continue the AskRigor compliance candidate without changing fleet status from
+  worker prose alone.
 
 ## Recovery rule
 

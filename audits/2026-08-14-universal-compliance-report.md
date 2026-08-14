@@ -4,7 +4,7 @@ Date: 2026-08-14
 Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
-Final implementation commit before this evidence document: `ff26e6e404164a53018086433231c29f11ad3430`
+Final implementation commit before this evidence update: `4b8247cb335d2f4c0ff8470e7101863bf44325be`
 
 The exact published PR-head SHA and its workflow run are recorded in the pull request and final worker report. A document inside a Git commit cannot truthfully contain the SHA of the commit that contains it, so this file records the exact final implementation boundary and does not invent self-referential publication evidence.
 
@@ -29,6 +29,9 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
 - `.github/workflows/repo-policy.yml` — removed because it enforced the deleted `.codex` profile and duplicated the canonical audit.
 - `templates/REPOSITORY-COMPLIANCE-WORKER.md`, `templates/FINAL-FLEET-AUDITOR.md`, `templates/REPOSITORY-COMPLIANCE-MANDATE-GUIDE.md`, `templates/COMPLIANCE-WORKER-METADATA.json`, `templates/README.md` — preserve the versioned worker architecture without stale repository facts.
 - `audits/2026-08-14-compliance-worker-architecture.md`, `audits/2026-08-14-implementation-status.md`, `audits/2026-08-14-universal-compliance-report.md` — preserve semantic lesson closeout, evidence-separated fleet status, and this final repository report.
+- `audits/2026-08-14-askrigor-transferable-controls.md` — promotes tested
+  AskRigor lessons with exact source hashes, scope, limits, anti-patterns, and
+  supersession rules; AskRigor-specific protocol policy remains local.
 - `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`, `docs/exec-plans/README.md`, `docs/exec-plans/superseded/2026-08-13-codex-github-operating-baseline.md` — preserve the executed plan and superseded provenance without a contradictory active plan.
 
 ## Exact verification evidence
@@ -37,13 +40,16 @@ Recovered `main` failed both declared commands before test discovery with Python
 
 Against the final implementation candidate:
 
-- `python3 -m unittest discover -s tests -v` — PASS, 33 tests.
+- `python3 -m unittest discover -s tests -v` — PASS, 34 tests.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error` — PASS, 0 errors; two expected warnings for unverified secret scanning and push protection.
 - `python3 -m json.tool templates/COMPLIANCE-WORKER-METADATA.json` — PASS.
 - `python3 -c 'import yaml, sys; [yaml.safe_load(open(path, encoding="utf-8")) for path in sys.argv[1:]]; print("YAML syntax OK")' .github/workflows/universal-architecture-tests.yml .github/workflows/weekly-codex-github-audit.yml .github/dependabot.yml` — PASS (`YAML syntax OK`).
 - `sed -n '/^          set -euo pipefail$/,/^          fi$/p' .github/workflows/weekly-codex-github-audit.yml | sed 's/^          //' | bash -n` — PASS.
 - `git diff --check` — PASS.
 - Audit tracked-file review — PASS for high-confidence private-key/provider-token content, likely secret filenames, and unsafe cross-platform filenames; matched values are never printed.
+- AskRigor portable-audit regression — PASS: a standalone private-key marker in
+  a negative archive assertion is not classified as a credential, while a
+  complete plausible PEM block remains an error.
 
 The canonical commands remain exactly:
 
@@ -80,7 +86,10 @@ No fake independent approval rule is proposed for the sole maintainer. The stabl
 
 - Disposition: `promoted` for the reusable repository-worker/final-auditor architecture, with provenance, limits, anti-patterns, tests, and supersession in `audits/2026-08-14-compliance-worker-architecture.md`.
 - The policy/audit findings are incorporated into the canonical standard and tested locally.
-- AskRigor-specific protocol-byte, partial-access, bounded-live-validation, and public-MCP lessons remain for the subsequent AskRigor worker and a non-overlapping universal follow-up.
+- AskRigor's transferable protocol-byte, partial-access,
+  bounded-live-validation, public-MCP, and scanner-precision lessons are
+  promoted in `audits/2026-08-14-askrigor-transferable-controls.md` with explicit
+  limits. AskRigor-specific health/research policy remains project-local.
 - Merge is not authorized until the published final-head check is green; even then, hosted main governance remains the issue #3 blocker.
 
 `BLOCKED`
