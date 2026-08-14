@@ -39,30 +39,65 @@ jobs:
           pull_request_target_token = re.compile(
               r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
           )
-          pull_request_target_child = re.compile(
-              r"^[ \t]+[\"']?pull_request_target[\"']?[ \t]*:"
-          )
+          def yaml_code(line: str) -> str:
+              return line.split("#", 1)[0].rstrip()
+
+          def yaml_indent(line: str) -> int:
+              return len(line) - len(line.lstrip(" \t"))
+
+          def flow_balance(value: str) -> int:
+              return value.count("[") + value.count("{") - value.count("]") - value.count("}")
 
           def uses_pull_request_target(text: str) -> bool:
               lines = text.splitlines()
+              root_indents = [
+                  yaml_indent(code)
+                  for line in lines
+                  if (code := yaml_code(line)).strip()
+                  and code.strip() not in {"---", "..."}
+              ]
+              if not root_indents:
+                  return False
+              root_indent = min(root_indents)
+
               for index, line in enumerate(lines):
-                  match = on_trigger_line.match(line)
-                  if match is None:
+                  code = yaml_code(line)
+                  match = on_trigger_line.match(code)
+                  if match is None or yaml_indent(code) != root_indent:
                       continue
-                  base_indent = len(match.group("indent").expandtabs(8))
-                  value = match.group("value").split("#", 1)[0].strip()
+                  base_indent = yaml_indent(code)
+                  value = match.group("value").strip()
                   if pull_request_target_token.search(value):
                       return True
                   if value:
+                      if value.startswith(("[", "{")) and flow_balance(value) > 0:
+                          balance = flow_balance(value)
+                          for continuation in lines[index + 1:]:
+                              continuation_code = yaml_code(continuation)
+                              if pull_request_target_token.search(continuation_code):
+                                  return True
+                              balance += flow_balance(continuation_code)
+                              if balance <= 0:
+                                  break
                       continue
+
+                  direct_child_indent: int | None = None
                   for child in lines[index + 1:]:
-                      code = child.split("#", 1)[0].rstrip()
-                      if not code.strip():
+                      child_code = yaml_code(child)
+                      if not child_code.strip():
                           continue
-                      indent = len(code) - len(code.lstrip(" \t"))
+                      indent = yaml_indent(child_code)
                       if indent <= base_indent:
                           break
-                      if pull_request_target_child.match(code):
+                      if direct_child_indent is None:
+                          direct_child_indent = indent
+                      if indent != direct_child_indent:
+                          continue
+                      event = child_code.strip()
+                      if event.startswith("-"):
+                          event = event[1:].strip()
+                      event = event.split(":", 1)[0].strip().strip("\"'")
+                      if event == "pull_request_target":
                           return True
               return False
 
