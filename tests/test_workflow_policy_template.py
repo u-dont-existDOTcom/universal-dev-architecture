@@ -43,9 +43,12 @@ class WorkflowPolicyTemplateTests(unittest.TestCase):
     def test_pull_request_target_checkout_forms_are_rejected(self) -> None:
         triggers = {
             "scalar": "on: pull_request_target",
-            "block-map": "on:\n  pull_request_target:",\n            "block-sequence": "on:\n  - push\n  - pull_request_target",
+            "block-map": "on:\n  pull_request_target:",
+            "block-sequence": "on:\n  - push\n  - pull_request_target",
             "flow-sequence": "on: [push, pull_request_target]",
-            "flow-map": "on: {push: {}, pull_request_target: {}}",\n            "multiline-flow-sequence": "on: [\n  push,\n  pull_request_target\n]",\n            "multiline-flow-map": "on: {\n  push: {},\n  pull_request_target: {}\n}",
+            "flow-map": "on: {push: {}, pull_request_target: {}}",
+            "multiline-flow-sequence": "on: [\n  push,\n  pull_request_target\n]",
+            "multiline-flow-map": "on: {\n  push: {},\n  pull_request_target: {}\n}",
         }
         for label, trigger in triggers.items():
             with self.subTest(label=label):
