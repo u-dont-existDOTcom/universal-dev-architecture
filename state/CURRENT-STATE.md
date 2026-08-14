@@ -24,8 +24,8 @@ Updated: 2026-08-14
 
 - Current step: execute `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md` on branch `codex/github-compliance-2026-08-14`.
 - Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: the mapping-form `pull_request_target` regression failed with the recovered import error, the regex was minimally repaired, and the focused test plus all 15 unit tests passed locally.
-- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 1 changes await commit.
+- Last verified durable boundary: Task 1 was committed as `c1c96cb`; Task 2 red/green regressions now cover exact commands, hosted-claim evidence, instruction-chain size/decoding, broad workflow permissions, job timeouts, mutation concurrency, reusable-workflow pins, unsafe filenames, and risk-adjusted security posture. All 30 unit tests pass.
+- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 2 awaits commit. The self-audit correctly fails on the repository's missing high-risk `SECURITY.md` and reports two hosted secret controls as unverified warnings; Task 3 addresses the file error without changing the hosted-proof boundary.
 
 ## Remaining
 
