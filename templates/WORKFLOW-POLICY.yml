@@ -23,32 +23,627 @@ jobs:
           python3 - <<'PY'
           from __future__ import annotations
 
+          import json
           import re
           import sys
           from pathlib import Path
 
           workflow_dir = Path(".github/workflows")
           errors: list[tuple[Path, str]] = []
-          uses_pattern = re.compile(
-              r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
-          )
           full_sha = re.compile(r"^[0-9a-fA-F]{40}$")
+          block_scalar = re.compile(
+              r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
+          )
+          on_trigger_line = re.compile(
+              r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
+          )
+
+          def workflow_structure(text: str) -> str:
+              structural: list[str] = []
+              block_indent: int | None = None
+              for line in text.splitlines():
+                  stripped = line.strip()
+                  indent = len(line) - len(line.lstrip(" "))
+                  if block_indent is not None:
+                      if not stripped or indent > block_indent:
+                          structural.append("")
+                          continue
+                      block_indent = None
+                  structural.append(line)
+                  if block_scalar.search(line):
+                      block_indent = indent
+              return "\n".join(structural)
+
+          def yaml_code(line: str) -> str:
+              if line.lstrip().startswith("#"):
+                  return ""
+              return line.split("#", 1)[0].rstrip()
+
+          def yaml_indent(line: str) -> int:
+              return len(line) - len(line.lstrip(" \t"))
+
+          def flow_balance(value: str) -> int:
+              balance = 0
+              quote: str | None = None
+              escaped = False
+              for character in value:
+                  if quote is not None:
+                      if escaped:
+                          escaped = False
+                      elif character == "\\":
+                          escaped = True
+                      elif character == quote:
+                          quote = None
+                      continue
+                  if character in {'"', "'"}:
+                      quote = character
+                  elif character in "[{":
+                      balance += 1
+                  elif character in "]}":
+                      balance -= 1
+              return balance
+
+          def normalized_scalar(value: str) -> str | None:
+              scalar = value.strip()
+              if "\\" in scalar:
+                  return None
+              if (
+                  len(scalar) >= 2
+                  and scalar[0] == scalar[-1]
+                  and scalar[0] in {'"', "'"}
+              ):
+                  return scalar[1:-1]
+              return scalar
+
+          def normalized_key(value: str) -> str | None:
+              key = value.strip()
+              if len(key) >= 2 and key[0] == key[-1] == '"':
+                  try:
+                      decoded = json.loads(key)
+                  except json.JSONDecodeError:
+                      return None
+                  return decoded if isinstance(decoded, str) else None
+              if len(key) >= 2 and key[0] == key[-1] == "'":
+                  return key[1:-1].replace("''", "'")
+              if "\\" in key:
+                  return None
+              return key
+
+          def yaml_key_is_unresolved(key: str) -> bool:
+              return key.startswith(
+                  ("*", "&", "!", "|", ">", "?", ":", "$")
+              )
+
+          def flow_parts(value: str) -> list[str] | None:
+              if len(value) < 2 or value[0] not in "[{" or value[-1] not in "]}":
+                  return None
+              parts: list[str] = []
+              depth = 0
+              quote: str | None = None
+              escaped = False
+              start = 1
+              for index, character in enumerate(value[1:-1], start=1):
+                  if quote is not None:
+                      if escaped:
+                          escaped = False
+                      elif character == "\\":
+                          escaped = True
+                      elif character == quote:
+                          quote = None
+                      continue
+                  if character in {'"', "'"}:
+                      quote = character
+                  elif character in "[{":
+                      depth += 1
+                  elif character in "]}":
+                      depth -= 1
+                      if depth < 0:
+                          return None
+                  elif character == "," and depth == 0:
+                      parts.append(value[start:index].strip())
+                      start = index + 1
+              if quote is not None or depth != 0:
+                  return None
+              final = value[start:-1].strip()
+              if final:
+                  parts.append(final)
+              return parts
+
+          def top_level_colon(value: str) -> int | None:
+              depth = 0
+              quote: str | None = None
+              escaped = False
+              for index, character in enumerate(value):
+                  if quote is not None:
+                      if escaped:
+                          escaped = False
+                      elif character == "\\":
+                          escaped = True
+                      elif character == quote:
+                          quote = None
+                      continue
+                  if character in {'"', "'"}:
+                      quote = character
+                  elif character in "[{":
+                      depth += 1
+                  elif character in "]}":
+                      depth -= 1
+                  elif character == ":" and depth == 0:
+                      return index
+              return None
+
+          def flow_uses_pull_request_target(value: str) -> bool | None:
+              parts = flow_parts(value)
+              if parts is None:
+                  return None
+              if value.startswith("["):
+                  for part in parts:
+                      event = normalized_scalar(part)
+                      if event is None or event.startswith(
+                          ("*", "!", "&", "|", ">", "?", ":")
+                      ):
+                          return None
+                      if event == "pull_request_target":
+                          return True
+                  return False
+
+              for part in parts:
+                  colon = top_level_colon(part)
+                  if colon is None:
+                      return None
+                  event = normalized_scalar(part[:colon])
+                  if event is None or event.startswith(
+                      ("*", "!", "&", "|", ">", "?", ":")
+                  ):
+                      return None
+                  if event == "pull_request_target":
+                      return True
+              return False
+
+          def action_scalar(value: str) -> str:
+              scalar = value.strip()
+              if (
+                  len(scalar) >= 2
+                  and scalar[0] == scalar[-1]
+                  and scalar[0] in {'"', "'"}
+              ):
+                  return scalar[1:-1]
+              return scalar
+
+          def flow_mapping_items(
+              value: str,
+          ) -> list[tuple[str, str]] | None:
+              if not value.startswith("{"):
+                  return None
+              parts = flow_parts(value)
+              if parts is None:
+                  return None
+              items: list[tuple[str, str]] = []
+              for part in parts:
+                  colon = top_level_colon(part)
+                  if colon is None:
+                      return None
+                  key_source = part[:colon].strip()
+                  if key_source.startswith("?") and (
+                      len(key_source) == 1 or key_source[1].isspace()
+                  ):
+                      key_source = key_source[1:].lstrip(" \t")
+                  key = normalized_key(key_source)
+                  if key is None:
+                      key = ":unresolved-yaml-key"
+                  items.append((key, part[colon + 1 :].strip()))
+              return items
+
+          def flow_step_uses_values(value: str) -> list[str]:
+              value = value.strip()
+              if value.startswith(
+                  ("*", "&", "!", "|", ">", "?", ":", "$")
+              ):
+                  return [value]
+              parts = flow_parts(value)
+              if parts is None:
+                  return []
+              if value.startswith("["):
+                  values: list[str] = []
+                  for part in parts:
+                      if part.startswith("{"):
+                          values.extend(flow_step_uses_values(part))
+                      elif part.startswith(
+                          ("*", "&", "!", "|", ">", "?", ":", "$")
+                      ):
+                          values.append(part)
+                  return values
+
+              items = flow_mapping_items(value)
+              if items is None:
+                  return []
+              values: list[str] = []
+              for key, raw in items:
+                  if key == "uses":
+                      values.append(action_scalar(raw))
+                  elif yaml_key_is_unresolved(key):
+                      values.append(key)
+              return values
+
+          def flow_job_uses_values(value: str) -> list[str]:
+              items = flow_mapping_items(value)
+              if items is None:
+                  return []
+              values: list[str] = []
+              for key, raw in items:
+                  if key == "uses":
+                      values.append(action_scalar(raw))
+                  elif yaml_key_is_unresolved(key):
+                      values.append(key)
+                  elif key == "<<" and raw.startswith(
+                      ("*", "&", "!", "$")
+                  ):
+                      values.append(raw)
+                  elif key == "steps":
+                      values.extend(flow_step_uses_values(raw))
+              return values
+
+          def flow_jobs_uses_values(value: str) -> list[str]:
+              items = flow_mapping_items(value)
+              if items is None:
+                  return []
+              values: list[str] = []
+              for _job, raw in items:
+                  if raw.startswith("{"):
+                      values.extend(flow_job_uses_values(raw))
+                  elif raw.startswith(
+                      ("*", "&", "!", "|", ">", "?", ":", "$")
+                  ):
+                      values.append(raw)
+              return values
+
+          def block_mapping_entry(
+              line: str,
+          ) -> tuple[int, bool, str, str] | None:
+              indent = yaml_indent(line)
+              content = line.lstrip(" \t")
+              sequence_item = False
+              if content.startswith("-") and (
+                  len(content) == 1 or content[1].isspace()
+              ):
+                  sequence_item = True
+                  content = content[1:].lstrip(" \t")
+              colon = top_level_colon(content)
+              if colon is None:
+                  return None
+              key = normalized_key(content[:colon])
+              if key is None:
+                  key = ":unresolved-yaml-key"
+              if not key:
+                  return None
+              return (
+                  indent,
+                  sequence_item,
+                  key,
+                  content[colon + 1 :].strip(),
+              )
+
+          def explicit_mapping_entry(
+              lines: list[str], index: int
+          ) -> tuple[int, bool, str, str, int] | None:
+              line = yaml_code(lines[index])
+              indent = yaml_indent(line)
+              content = line.lstrip(" \t")
+              sequence_item = False
+              if content.startswith("-") and (
+                  len(content) == 1 or content[1].isspace()
+              ):
+                  sequence_item = True
+                  content = content[1:].lstrip(" \t")
+              if not content.startswith("?") or (
+                  len(content) > 1 and not content[1].isspace()
+              ):
+                  return None
+
+              explicit = content[1:].lstrip(" \t")
+              colon = top_level_colon(explicit)
+              if colon is not None:
+                  key = normalized_key(explicit[:colon])
+                  if not key:
+                      return None
+                  return (
+                      indent,
+                      sequence_item,
+                      key,
+                      explicit[colon + 1 :].strip(),
+                      index,
+                  )
+
+              key = normalized_key(explicit)
+              if not key:
+                  return None
+              value_indent = indent + 2 if sequence_item else indent
+              lookahead = index + 1
+              while lookahead < len(lines):
+                  value_line = yaml_code(lines[lookahead])
+                  if not value_line.strip():
+                      lookahead += 1
+                      continue
+                  value_content = value_line.lstrip(" \t")
+                  if (
+                      yaml_indent(value_line) == value_indent
+                      and value_content.startswith(":")
+                  ):
+                      return (
+                          indent,
+                          sequence_item,
+                          key,
+                          value_content[1:].lstrip(" \t"),
+                          lookahead,
+                      )
+                  break
+              return indent, sequence_item, key, "", index
+
+          def collect_flow_value(
+              lines: list[str], index: int, initial: str
+          ) -> tuple[str, int]:
+              value = initial.strip()
+              end = index
+              if not value.startswith(("[", "{")):
+                  return value, end
+              while flow_balance(value) > 0 and end + 1 < len(lines):
+                  end += 1
+                  value += "\n" + yaml_code(lines[end]).strip()
+              return value, end
+
+          def uses_values(structure: str) -> list[str]:
+              """Find action references only in steps and reusable jobs."""
+
+              lines = structure.splitlines()
+              code = "\n".join(
+                  code_line
+                  for line in lines
+                  if (code_line := yaml_code(line)).strip()
+                  not in {"---", "..."}
+              ).strip()
+              if code.startswith("{") and flow_balance(code) == 0:
+                  root_items = flow_mapping_items(code)
+                  if root_items is None:
+                      return []
+                  values: list[str] = []
+                  for key, raw in root_items:
+                      if key == "jobs":
+                          values.extend(flow_jobs_uses_values(raw))
+                      elif yaml_key_is_unresolved(key):
+                          values.append(key)
+                  return values
+
+              values: list[str] = []
+              stack: list[tuple[int, str]] = []
+              index = 0
+              while index < len(lines):
+                  line = yaml_code(lines[index])
+                  if not line.strip():
+                      index += 1
+                      continue
+                  indent = yaml_indent(line)
+                  stripped = line.lstrip(" \t")
+                  sequence_line = stripped.startswith("-") and (
+                      len(stripped) == 1 or stripped[1].isspace()
+                  )
+                  while stack and stack[-1][0] >= indent:
+                      if sequence_line and stack[-1] == (indent, "steps"):
+                          break
+                      stack.pop()
+                  parent = [key for _level, key in stack]
+
+                  explicit_entry = explicit_mapping_entry(lines, index)
+                  if explicit_entry is None:
+                      entry = block_mapping_entry(line)
+                      value_index = index
+                  else:
+                      entry = explicit_entry[:4]
+                      value_index = explicit_entry[4]
+                  if entry is None:
+                      if (
+                          sequence_line
+                          and len(stripped) > 1
+                          and len(parent) == 3
+                          and parent[0] == "jobs"
+                          and parent[2] == "steps"
+                      ):
+                          flow, end = collect_flow_value(
+                              lines, index, stripped[1:].lstrip(" \t")
+                          )
+                          values.extend(flow_step_uses_values(flow))
+                          index = end + 1
+                          continue
+                      index += 1
+                      continue
+
+                  _indent, sequence_item, key, raw = entry
+                  direct_job = len(parent) == 2 and parent[0] == "jobs"
+                  direct_step_item = (
+                      len(parent) == 3
+                      and parent[0] == "jobs"
+                      and parent[2] == "steps"
+                      and sequence_item
+                  ) or (
+                      len(parent) == 4
+                      and parent[0] == "jobs"
+                      and parent[2:] == ["steps", "[]"]
+                      and not sequence_item
+                  )
+
+                  flow, end = collect_flow_value(lines, value_index, raw)
+                  if key == "uses" and (direct_job or direct_step_item):
+                      values.append(action_scalar(flow))
+                  elif yaml_key_is_unresolved(key) and (
+                      direct_job or direct_step_item or not parent
+                  ):
+                      values.append(key)
+                  elif (
+                      key == "<<"
+                      and (direct_job or direct_step_item)
+                      and flow.startswith(("*", "&", "!", "$"))
+                  ):
+                      values.append(flow)
+                  elif key == "jobs" and not parent and flow.startswith("{"):
+                      values.extend(flow_jobs_uses_values(flow))
+                  elif len(parent) == 1 and parent[0] == "jobs":
+                      if flow.startswith("{"):
+                          values.extend(flow_job_uses_values(flow))
+                      elif flow.startswith(
+                          ("*", "&", "!", "|", ">", "?", ":", "$")
+                      ):
+                          values.append(flow)
+                  elif key == "steps" and direct_job:
+                      values.extend(flow_step_uses_values(flow))
+
+                  if sequence_item:
+                      stack.append((indent, "[]"))
+                      stack.append((indent + 2, key))
+                  else:
+                      stack.append((indent, key))
+                  index = end + 1
+              return values
+
+          def uses_value_is_unresolved(value: str) -> bool:
+              return "\\" in value or value.startswith(
+                  ("*", "&", "!", "|", ">", "?", ":", "$")
+              )
+
+          def uses_value_may_be_checkout(value: str) -> bool:
+              if value.startswith("./") or value.startswith("docker://"):
+                  return False
+              if uses_value_is_unresolved(value):
+                  return True
+              action, separator, _ref = value.rpartition("@")
+              if not separator:
+                  return True
+              return action.lower() == "actions/checkout"
+
+          def uses_pull_request_target(structure: str) -> bool:
+              lines = structure.splitlines()
+              root_indents = [
+                  yaml_indent(code)
+                  for line in lines
+                  if (code := yaml_code(line)).strip()
+                  and code.strip() not in {"---", "..."}
+              ]
+              if not root_indents:
+                  return True
+              root_indent = min(root_indents)
+              saw_trigger_node = False
+
+              for index, line in enumerate(lines):
+                  code = yaml_code(line)
+                  match = on_trigger_line.match(code)
+                  if match is None or yaml_indent(code) != root_indent:
+                      continue
+                  saw_trigger_node = True
+                  base_indent = yaml_indent(code)
+                  value = match.group("value").strip()
+                  while value.startswith(("&", "!")):
+                      node_property = value.split(None, 1)
+                      value = node_property[1].lstrip() if len(node_property) == 2 else ""
+                  if value.startswith(("*", "|", ">")):
+                      return True
+                  if value:
+                      if value.startswith(("[", "{")):
+                          balance = flow_balance(value)
+                          flow = value
+                          for continuation in lines[index + 1:]:
+                              if balance <= 0:
+                                  break
+                              continuation_code = yaml_code(continuation)
+                              flow += "\n" + continuation_code
+                              balance += flow_balance(continuation_code)
+                          if balance != 0:
+                              return True
+                          result = flow_uses_pull_request_target(flow)
+                          if result is None or result:
+                              return True
+                          continue
+                      event = normalized_scalar(value)
+                      if event is None:
+                          return True
+                      if event == "pull_request_target":
+                          return True
+                      continue
+
+                  direct_child_indent: int | None = None
+                  sequence_indent: int | None = None
+                  children = lines[index + 1:]
+                  for child_index, child in enumerate(children):
+                      child_code = yaml_code(child)
+                      if not child_code.strip():
+                          continue
+                      indent = yaml_indent(child_code)
+                      stripped = child_code.strip()
+                      if direct_child_indent is None and sequence_indent is None:
+                          if stripped.startswith("-") and indent >= base_indent:
+                              sequence_indent = indent
+                          elif indent > base_indent:
+                              direct_child_indent = indent
+                          else:
+                              break
+
+                      if sequence_indent is not None:
+                          if indent < sequence_indent:
+                              break
+                          if indent != sequence_indent:
+                              continue
+                          if not stripped.startswith("-"):
+                              break
+                          event = stripped[1:].strip()
+                          if not event:
+                              for nested in children[child_index + 1:]:
+                                  nested_code = yaml_code(nested)
+                                  if not nested_code.strip():
+                                      continue
+                                  if yaml_indent(nested_code) <= sequence_indent:
+                                      break
+                                  event = nested_code.strip()
+                                  break
+                          if "\\" in event or "*" in event or event.startswith(
+                              ("?", ":", "!", "&", "|", ">")
+                          ):
+                              return True
+                          event = event.split(":", 1)[0].strip().strip("\"'")
+                          if event == "pull_request_target":
+                              return True
+                          continue
+
+                      if indent <= base_indent:
+                          break
+                      if indent != direct_child_indent:
+                          continue
+                      event = stripped
+                      if "\\" in event or "*" in event or event.startswith(
+                          ("?", ":", "!", "&", "|", ">")
+                      ):
+                          return True
+                      event = event.split(":", 1)[0].strip().strip("\"'")
+                      if event == "pull_request_target":
+                          return True
+              return not saw_trigger_node
 
           for path in sorted(workflow_dir.glob("*.y*ml")):
               text = path.read_text(encoding="utf-8")
+              structure = workflow_structure(text)
+              code_structure = "\n".join(
+                  yaml_code(line) for line in structure.splitlines()
+              )
+              action_values = uses_values(code_structure)
 
-              if not re.search(r"(?m)^permissions\s*:", text):
+              if not re.search(r"(?m)^permissions\s*:", structure):
                   errors.append(
                       (path, "missing explicit top-level permissions")
                   )
 
               if re.search(
-                  r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$", text
+                  r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$", structure
               ):
                   errors.append((path, "permissions: write-all is forbidden"))
 
-              if "pull_request_target" in text and re.search(
-                  r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@", text
+              if uses_pull_request_target(structure) and any(
+                  uses_value_may_be_checkout(value) for value in action_values
               ):
                   errors.append(
                       (
@@ -57,8 +652,25 @@ jobs:
                       )
                   )
 
-              for action, ref in uses_pattern.findall(text):
-                  if action.startswith("./") or action.startswith("docker://"):
+              for value in action_values:
+                  if value.startswith("./") or value.startswith("docker://"):
+                      continue
+                  if uses_value_is_unresolved(value):
+                      errors.append(
+                          (
+                              path,
+                              f"action reference {value} cannot be resolved statically",
+                          )
+                      )
+                      continue
+                  action, separator, ref = value.rpartition("@")
+                  if not separator:
+                      errors.append(
+                          (
+                              path,
+                              f"action reference {value} has no statically verifiable ref",
+                          )
+                      )
                       continue
                   if not full_sha.fullmatch(ref):
                       errors.append(

@@ -43,6 +43,8 @@ When a required command fails, diagnose from repository state and logs, apply a 
 - Do not hand-edit generated files when a canonical generator exists.
 - Record consequential decisions, rejected approaches worth avoiding, and unresolved risk in durable project files rather than only in chat.
 
+When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: use isolated workspaces, a durable plan and recovery ledger, delegation plus independent review when safely separable, and serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
+
 ## Security and data integrity
 
 - Never commit, print, or place secrets in instructions, prompts, logs, reports, or current-state files.

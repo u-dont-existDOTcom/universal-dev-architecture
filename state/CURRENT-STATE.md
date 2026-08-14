@@ -4,99 +4,72 @@ Updated: 2026-08-14
 
 ## Goal
 
-- Establish and roll out a source-grounded, risk-adjusted Codex + GitHub operating system across Joel's repositories.
+Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating system across repositories, with executable audits, durable recovery, and exact lesson provenance.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Active task branch: `codex/github-compliance-2026-08-14`
-- Recovered baseline commit: `d1948c504687503f771c02dc4140f99bc66d2e0d`
+- Active compliance branch: `codex/github-compliance-2026-08-14`
+- Recovery branch before the current integration: `recovery/universal-compliance-pre-main-e37f34b`
+- Main integrated into the current candidate: `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
 - Universal entry point: `LESSON-INDEX.md`
 - Current Codex/GitHub policy: `patterns/codex-github-operating-system.md`
-- Current owner requirement: important project state and reusable working architectures must survive chat/context loss in GitHub.
+- Repository profile and exact commands: `.github/codex-repository.json`
+- Current owner/project requirements outrank universal defaults on genuine conflict.
 
 ## Completed
 
-- Repository-first learning and context-compaction resilience patterns exist.
-- The original Codex/GitHub pattern, templates, audit, CI, and lesson closeout landed on `main`; their execution and hosted claims still required reconciliation.
-- The current compliance plan is committed as `c83b99e`.
-- The Python 3.12 audit import repair and regression are committed as `c1c96cb`.
-- Audit expansion for exact commands, hosted-claim evidence, instruction budgets, workflow permissions/timeouts/concurrency, unsafe filenames, and risk posture is committed as `5d599a0`; all 30 tests passed before that commit.
-- Policy authority, source-registry links, repository classification guidance, hosted evidence, and canonical state routing are reconciled in `c32b5eb`.
-- Versioned compliance-worker, mandate-generation, and final-fleet-auditor architecture is committed as `883ed04`.
-- CI consolidation and idempotent drift reporting are committed as `f6f129f`.
-- High-confidence committed-secret content detection and three red/green regressions are committed as `ff26e6e`; the suite is now 33 tests.
-- AskRigor exposed a portable-audit false positive on a negative private-key
-  archive assertion. The red/green structural PEM fix is committed as
-  `4b8247c`; the suite is now 34 tests and still catches complete plausible PEM
-  blocks without printing matches.
-- AskRigor's transferable exact-byte authority, access-truth, bounded-live,
-  public-MCP, and scanner lessons are promoted at commit `7870cd2`; PR #4 head
-  `7870cd2e649c8a09b0b09f96e0411c546e5f1782` passed `Universal repository
-  compliance` run `31775698854`, job `94690572217`.
-- AskRigor PR #7 head `9d9dc78294abbed06cf3acabe9e764ece0f57be8`
-  was independently re-fetched; deterministic run `31776458050` and workflow
-  policy run `31776458058` both succeeded. Hosted blockers remain in issue #6.
-- AskRigor-lessons PR #3 head
-  `dd9305a39c50251fa8858ecbf45aedb16a407f64` was independently re-fetched;
-  lesson-integrity run `31777936617`, job `94697224159`, succeeded. Its sole
-  lesson remains provisional/unverified and hosted blockers remain in issue #2.
-- The reusable lesson-incubator design is promoted with exact AskRigor-lessons
-  source hashes, tests, limits, anti-patterns, and supersession rules in
-  `audits/2026-08-14-askrigor-lessons-transferable-design.md`.
-- The fleet ledger now distinguishes the three independently audited blocked
-  candidates from five repositories that remain historical `WRITE ISSUED` / `GAP`.
-- Current official OpenAI and GitHub source-registry targets were checked on 2026-08-14.
-- Hosted inspection directly verified one admin collaborator and zero environments. Other settings remain separated below.
+- Repository-first learning, context-compaction resilience, GitHub bootstrap, the Codex/GitHub operating pattern, templates, executable audit, least-privilege CI, drift reporting, and durable worker/fleet-auditor templates exist.
+- Compliance commits `c83b99e` through `e37f34b` repair Python 3.12 compatibility; add exact-command, profile, current-state, instruction-budget, workflow, unsafe-filename, secret-content, risk-posture, and hosted-claim checks; reconcile the policy authority chain; preserve worker architecture; consolidate CI; and promote the tested AskRigor and AskRigor-lessons lessons with exact provenance and limits.
+- Main commits through `9e4f0d8` add the structure-aware workflow parser and causal regressions, Inner Signal transfer lessons, paid-workflow safety, editorial authority/lossless editing, and the owner-approved universal coordination rule.
+- The current candidate semantically integrates both lines of work. The robust structure-aware workflow parser remains authoritative while the compliance branch's timeout, concurrency, scoped-write, secret-content, unsafe-filename, profile, and instruction-budget checks are retained.
+- Root compatibility state points only to this canonical checkpoint. The superseded operating-standard file remains provenance, not a competing current entry point.
+- AskRigor PR #8 was merged as `f8e7ca1e10c096e050207828eeb9eb7957d7ef6f` after exact-head checks and bounded live Action acceptance; the synthetic lesson issue was safely closed. The separate AskRigor compliance PR and AskRigor-lessons compliance PR remain subject to their own current reconciliation and hosted-control evidence.
+- Official OpenAI and GitHub registry links were reviewed on 2026-08-14. Repository files do not assert hosted settings without API evidence.
 
 ## Current checkpoint
 
-- Current step: verify and publish the final AskRigor-lessons promotion/fleet
-  reconciliation to existing universal PR #4, then capture its new exact-head
-  CI without advancing any repository from its evidence-backed `BLOCKED` state.
-- Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: AskRigor lesson promotion and green PR head
-  `7870cd2e649c8a09b0b09f96e0411c546e5f1782`.
-- Current candidate: AskRigor-lessons transferable-design promotion, explicit
-  policy baseline, and direct GitHub-evidence fleet reconciliation.
-- Working-tree status: isolated sibling worktree at
-  `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`;
-  the final update awaits local gates, commit/push, and replacement PR CI.
+- Pull request: #4, `codex/github-compliance-2026-08-14` into `main`.
+- The semantic merge of `origin/main` at `9e4f0d8` is resolved against recovery branch `recovery/universal-compliance-pre-main-e37f34b`.
+- Documentation resolves to one authority chain; audit/test integration retains both non-overlapping control sets and the newer structure-aware parser.
+- Final local evidence on the resolved tree: 80/80 unit tests pass; self-audit passes with 0 errors and 3 truthful hosted-control warnings; JSON, YAML, scheduled-shell syntax, and diff checks pass.
+- Merge commit SHA, push, and replacement pull-request CI are pending this integration candidate.
+- Terminal status remains `BLOCKED` until hosted governance is directly verified or an owner-approved visibility/plan decision makes it available.
 
 ## Remaining
 
-- Run both canonical universal gates, metadata/YAML/shell/diff checks, review the
-  complete final diff, commit/push to PR #4, and capture the exact replacement
-  `Deterministic repository audit` run.
-- Keep universal, AskRigor, and AskRigor-lessons PRs unmerged while their exact
-  hardening issues record applicable hosted blockers.
-- Five additional fleet repositories remain `WRITE ISSUED` / `GAP`; they
-  require their own repository-specific workers before any status advancement.
+- Finish the semantic merge, run the full unit suite and self-audit plus syntax/metadata/diff checks, review the final diff, and commit the merge with a recorded rollback point.
+- Push the exact verified candidate to PR #4, capture its unique check names and run IDs, and update the PR/report/checkpoint with final evidence.
+- Reconcile the fleet implementation ledger from repository/CI evidence after the AskRigor and AskRigor-lessons compliance branches are updated.
+- Keep PR #4 unmerged while applicable hosted controls remain inaccessible, disabled, or plan-limited.
 
 ## Blockers / unresolved
 
-- `UNVERIFIED`: branch protection, Actions defaults, secret scanning, push protection, vulnerability alerts, and private vulnerability reporting. Their REST endpoints returned integration-scope `403` or `404`; repository files cannot resolve them.
-- `PLAN-LIMITED`: rulesets returned `403` with GitHub's instruction to upgrade to Pro or make the private repository public.
-- `DISABLED`: code-scanning endpoint explicitly reported that code scanning is not enabled. Enabling it may also require a private-repository plan/security entitlement not available to this integration.
-- The local `gh` credential is invalid, so it cannot provide the missing administration scope. SSH Git transport remains functional but cannot inspect or mutate hosted settings.
-- Hardening issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) contains the precise plan/access/settings actions and must remain open until direct hosted evidence exists.
+- `UNVERIFIED`: branch protection, Actions defaults, secret scanning, push protection, vulnerability alerts, and private vulnerability reporting. Prior REST inspection returned integration-scope `403` or `404`; committed files cannot resolve this.
+- `PLAN-LIMITED`: private-repository rulesets returned `403` with GitHub's instruction to upgrade to Pro or make the repository public.
+- `DISABLED`: the code-scanning endpoint explicitly reported that code scanning is not enabled; private enablement may require an unavailable plan/security entitlement.
+- The available local `gh` credential did not provide the missing administrative scope. SSH Git transport cannot inspect hosted settings.
+- Hardening issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) records the precise remaining hosted actions and must remain open.
+- Repository visibility is an owner decision. Public visibility would expose the full repository and history for reading/forking while GitHub write access remains permission-controlled; GitHub Pro preserves privacy while enabling private-repository governance features. No visibility change is authorized by this checkpoint.
 
 ## Evidence / artifacts
 
-- Current plan: `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`
-- Historical rollout plan: `docs/plans/2026-08-14-codex-github-best-practices-audit.md`
-- Tests: `tests/test_audit_codex_github.py`
+- Current implementation plan: `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`
 - Audit implementation: `scripts/audit_codex_github.py`
+- Audit regressions: `tests/test_audit_codex_github.py`
 - Repository profile: `.github/codex-repository.json`
-- Hosted evidence: `.github/codex-repository.json`, hardening issue #3, and the final compliance report.
-- Final universal report: `audits/2026-08-14-universal-compliance-report.md`.
+- Operating policy: `patterns/codex-github-operating-system.md`
+- Compliance architecture: `templates/COMPLIANCE-WORKER-METADATA.json` and `audits/2026-08-14-compliance-worker-architecture.md`
+- Project lesson promotions: `audits/2026-08-14-askrigor-transferable-controls.md`, `audits/2026-08-14-askrigor-lessons-transferable-design.md`, and `audits/2026-08-14-inner-signal-compliance-lessons.md`
+- Additional current patterns: `patterns/paid-workflow-safety.md` and `patterns/editorial-authority-and-lossless-editing.md`
+- Final repository report: `audits/2026-08-14-universal-compliance-report.md`
+- Hosted-control evidence: `.github/codex-repository.json`, hardening issue #3, and pull-request CI evidence.
 
 ## Next safe action
 
-- Run final universal verification, publish only the scoped promotion/ledger
-  update to PR #4, inspect its exact-head CI, and update the PR with that run.
+Commit the resolved and verified semantic merge, then publish that exact commit to PR #4 without merging the blocked high-risk governance change.
 
 ## Recovery rule
 
-On a fresh thread, interruption, context compaction, or model switch, inspect actual repository state and recent commits before trusting this file. Reconcile any mismatch, identify exactly what survived, update stale entries, and resume from the latest verified durable boundary without repeating completed work.
+After interruption, inspect Git/merge state, this checkpoint, `LESSON-INDEX.md`, the operating-system pattern, open pull requests/checks, hardening issue #3, and newer owner instructions. Preserve both the recovery branch and unrelated work; never infer hosted enforcement from repository files.

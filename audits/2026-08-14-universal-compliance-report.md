@@ -4,7 +4,8 @@ Date: 2026-08-14
 Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
-Final implementation commit before this evidence update: `7870cd2e649c8a09b0b09f96e0411c546e5f1782`
+Compliance line before main integration: `e37f34b2abced55ba1af7138bd44a2a1795d3a92`
+Integrated main boundary: `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
 
 The exact published PR-head SHA and its workflow run are recorded in the pull request and final worker report. A document inside a Git commit cannot truthfully contain the SHA of the commit that contains it, so this file records the exact final implementation boundary and does not invent self-referential publication evidence.
 
@@ -44,8 +45,8 @@ Recovered `main` failed both declared commands before test discovery with Python
 
 Against the final implementation candidate:
 
-- `python3 -m unittest discover -s tests -v` — PASS, 34 tests.
-- `python3 scripts/audit_codex_github.py --root . --fail-on error` — PASS, 0 errors; two expected warnings for unverified secret scanning and push protection.
+- `python3 -m unittest discover -s tests -v` — PASS, 80 tests after semantic integration with current `main`.
+- `python3 scripts/audit_codex_github.py --root . --fail-on error` — PASS, 0 errors; three expected warnings for unverified default-branch rules, secret scanning, and push protection.
 - `python3 -m json.tool templates/COMPLIANCE-WORKER-METADATA.json` — PASS.
 - `python3 -c 'import yaml, sys; [yaml.safe_load(open(path, encoding="utf-8")) for path in sys.argv[1:]]; print("YAML syntax OK")' .github/workflows/universal-architecture-tests.yml .github/workflows/weekly-codex-github-audit.yml .github/dependabot.yml` — PASS (`YAML syntax OK`).
 - `sed -n '/^          set -euo pipefail$/,/^          fi$/p' .github/workflows/weekly-codex-github-audit.yml | sed 's/^          //' | bash -n` — PASS.
@@ -54,6 +55,9 @@ Against the final implementation candidate:
 - AskRigor portable-audit regression — PASS: a standalone private-key marker in
   a negative archive assertion is not classified as a credential, while a
   complete plausible PEM block remains an error.
+- Current-main workflow regressions — PASS: block-scalar scanner text is ignored;
+  mapping/list/flow/alias/escaped trigger and action forms fail closed; harmless
+  non-action `uses` mappings do not create false findings.
 - Final fleet reconciliation — PASS against direct GitHub App evidence for the
   exact open PR heads, workflow runs/jobs, and hardening issues of universal,
   AskRigor, and AskRigor-lessons. The ledger preserves five other repositories
@@ -71,10 +75,11 @@ The canonical commands remain exactly:
 - The workflow uses `contents: read`, a reviewed full-SHA checkout pin, a ten-minute timeout, and branch/ref-aware cancel-in-progress concurrency.
 - Ordinary PR CI makes no hosted writes. `Weekly repository drift` grants `issues: write` only to its separate bounded reconciliation job and closes only an issue carrying its own workflow-management marker.
 - Exact final-head run ID/link/conclusion must be taken from the published PR, not inferred from local execution.
-- The independently verified pre-reconciliation PR head
+- The independently verified earlier PR head
   `7870cd2e649c8a09b0b09f96e0411c546e5f1782` passed run `31775698854`, job
-  `Deterministic repository audit` (`94690572217`). This final self-update needs
-  a replacement exact-head run after publication; the PR is the durable record.
+  `Deterministic repository audit` (`94690572217`). The current main-integration
+  candidate needs a replacement exact-head run after publication; the PR is the
+  durable record.
 
 ## Hosted GitHub controls
 

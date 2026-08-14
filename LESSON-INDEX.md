@@ -4,10 +4,12 @@ Use this file as the entry point for cross-project lesson retrieval.
 
 ## Current required patterns
 
-1. `patterns/codex-github-operating-system.md` — risk-adjusted repository profiles, exact commands, persistent instructions, isolated work, deterministic verification, least-privilege GitHub automation, hosted-control proof boundaries, durable recovery, and semantic lesson closeout.
+1. `patterns/codex-github-operating-system.md` — risk-adjusted repository and hosted governance, exact executable commands, hermetic verification, transactional updates, condition-based readiness, privacy-safe diagnostics, stage-specific recovery, durable lesson closeout, and pull-request/branch controls.
 2. `patterns/durable-chat-learning.md` — repository-first durability, lesson closeout, semantic dispositions, exact-hash provenance, CI/weekly orphan audits, stale-bundle safety, and universal promotion.
 3. `patterns/github-first-agent-bootstrap.md` — keep agent/project UI state minimal, fetch current canonical state from GitHub, separate canonical project state from specialist evidence, and never let stale bundles overwrite newer Git state.
 4. `patterns/context-compaction-resilience.md` — treat conversation as disposable working RAM, Git as durable project memory/audit history, maintain one concise current-state recovery checkpoint for long-running work, and reconcile that checkpoint against actual repository state after interruption, context compaction, model switch, or a fresh thread.
+5. `patterns/paid-workflow-safety.md` — gate paid, privileged, or irreversible GitHub Actions behind a fail-closed registration topology, deterministic secret-free validation, environment-file injection defenses, late credential/secret boundaries, and exact archival provenance.
+6. `patterns/editorial-authority-and-lossless-editing.md` — establish complete article-local authority before editing, preserve exact owner locks and protected functions, require reversible deletion and consolidation, keep citation/detector evidence subordinate to meaning, and bind publication provenance.
 
 ## Reusable policy template
 
