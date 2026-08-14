@@ -45,6 +45,8 @@ class WorkflowPolicyTemplateTests(unittest.TestCase):
             "scalar": "on: pull_request_target",
             "block-map": "on:\n  pull_request_target:",
             "block-sequence": "on:\n  - push\n  - pull_request_target",
+            "indentationless-block-sequence": "on:\n- push\n- pull_request_target",
+            "split-block-sequence-item": "on:\n  - push\n  -\n    pull_request_target",
             "flow-sequence": "on: [push, pull_request_target]",
             "flow-map": "on: {push: {}, pull_request_target: {}}",
             "multiline-flow-sequence": "on: [\n  push,\n  pull_request_target\n]",
