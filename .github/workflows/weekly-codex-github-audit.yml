@@ -1,4 +1,4 @@
-name: Weekly Codex and GitHub baseline audit
+name: Weekly repository drift
 
 on:
   schedule:
@@ -9,11 +9,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: weekly-codex-github-audit
+  group: weekly-repository-drift
   cancel-in-progress: false
 
 jobs:
-  audit:
+  drift-audit:
+    name: Deterministic drift audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -25,3 +26,52 @@ jobs:
 
       - name: Run repository audit
         run: python3 scripts/audit_codex_github.py --root . --fail-on error
+
+  drift-issue:
+    name: Reconcile actionable drift issue
+    needs: drift-audit
+    if: ${{ always() }}
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create or close the workflow-managed issue
+        env:
+          AUDIT_RESULT: ${{ needs.drift-audit.result }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issue_title="Codex + GitHub hardening audit"
+          issue_marker="<!-- managed-by: weekly-codex-github-audit -->"
+          existing_number="$(
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --limit 100 \
+              --json number,title \
+              --jq 'map(select(.title == "Codex + GitHub hardening audit"))[0].number // ""'
+          )"
+          managed_number="$(
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --limit 100 \
+              --json body,number,title \
+              --jq 'map(select(.title == "Codex + GitHub hardening audit" and (.body | contains("<!-- managed-by: weekly-codex-github-audit -->"))))[0].number // ""'
+          )"
+
+          if [[ "$AUDIT_RESULT" == "failure" && -z "$existing_number" ]]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$issue_title" \
+              --body "${issue_marker}
+
+          The scheduled deterministic repository audit failed. Inspect run https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}, remediate the repository-visible finding on one focused branch, and close this issue only after the final-head audit passes. Raw logs and credentials must not be copied into the issue."
+          elif [[ "$AUDIT_RESULT" == "success" && -n "$managed_number" ]]; then
+            gh issue close "$managed_number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --comment "The scheduled deterministic audit passed in https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. Closing the workflow-managed drift issue."
+          fi

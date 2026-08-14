@@ -23,6 +23,8 @@ This ledger deliberately does not convert a successful write request, a recommen
 - Current work is isolated on `codex/github-compliance-2026-08-14` under `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`.
 - Commit `c1c96cb` repairs the Python 3.12 import defect with a red/green privileged-event regression.
 - Commit `5d599a0` expands the standard-library audit through red/green tests. All 30 unit tests passed immediately before that commit.
+- Commit `c32b5eb` reconciles the canonical policy, source registry, risk-adjusted classifications, current-state route, and hosted-control evidence.
+- Commit `883ed04` preserves versioned repository-worker, mandate-generation, and independent final-fleet-auditor templates with semantic lesson closeout.
 - Current OpenAI Learn and GitHub Docs registry targets were opened from primary sources on 2026-08-14. The recorded interpretation now distinguishes the 32 KiB combined instruction chain and GitHub's unique required-check-name warning.
 
 ### Hosted GitHub evidence
@@ -37,7 +39,9 @@ This ledger deliberately does not convert a successful write request, a recommen
 
 ### Current completion boundary
 
-- Reconcile canonical indexes/state, add the compliance-worker templates, consolidate CI, and make scheduled drift reporting idempotent.
+- Canonical indexes/state and the compliance-worker architecture are reconciled. The current candidate consolidates ordinary CI as `Universal repository compliance / Deterministic repository audit` and replaces the contradictory `.codex` policy workflow.
+- The scheduled `Weekly repository drift` workflow keeps validation read-only and grants `issues: write` only to a separate bounded reconciliation job. It suppresses duplicate exact-title issues and closes only an issue carrying its own management marker, so a human-owned hosted-control issue is not incorrectly closed by a file audit.
+- The superseded `.github/workflows/repo-policy.yml` is removed because its `.codex/repository-policy.json` authority was obsolete and its remaining checks are covered by the canonical audit.
 - Run both declared gates against the final branch commit and inspect the final diff.
 - Open one focused PR, capture final-head workflow run IDs/links and conclusions, and merge only if policy permits.
 - Create one durable hardening issue for controls that remain plan/permission blocked.

@@ -1,4 +1,4 @@
-name: Universal architecture tests
+name: Universal repository compliance
 
 on:
   push:
@@ -8,8 +8,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: universal-repository-compliance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  repository-compliance:
+    name: Deterministic repository audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

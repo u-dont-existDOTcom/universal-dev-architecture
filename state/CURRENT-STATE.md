@@ -24,6 +24,7 @@ Updated: 2026-08-14
 - The Python 3.12 audit import repair and regression are committed as `c1c96cb`.
 - Audit expansion for exact commands, hosted-claim evidence, instruction budgets, workflow permissions/timeouts/concurrency, unsafe filenames, and risk posture is committed as `5d599a0`; all 30 tests passed before that commit.
 - Policy authority, source-registry links, repository classification guidance, hosted evidence, and canonical state routing are reconciled in `c32b5eb`.
+- Versioned compliance-worker, mandate-generation, and final-fleet-auditor architecture is committed as `883ed04`.
 - Current official OpenAI and GitHub source-registry targets were checked on 2026-08-14.
 - Hosted inspection directly verified one admin collaborator and zero environments. Other settings remain separated below.
 
@@ -31,14 +32,13 @@ Updated: 2026-08-14
 
 - Current step: execute `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md` on branch `codex/github-compliance-2026-08-14`.
 - Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: Task 3 commit `c32b5eb`.
-- Current candidate: Task 4 adds versioned repository-worker, final-fleet-auditor, and mandate-generation templates plus semantic lesson closeout. Metadata JSON validation, all 30 unit tests, the repository audit with zero errors and two truthful hosted-control warnings, and `git diff --check` pass.
-- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 4 awaits commit.
+- Last verified durable boundary: Task 4 commit `883ed04`.
+- Current candidate: Task 5 consolidates the deterministic PR gate, removes the obsolete duplicate `.codex` workflow, groups pinned-Action dependency updates, makes weekly drift reporting idempotent with job-scoped issue permission, and expands PR evidence requirements. YAML parsing, all 30 unit tests, the repository audit with zero errors and two truthful hosted-control warnings, and `git diff --check` pass.
+- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 5 awaits commit.
 
 ## Remaining
 
-- Commit the verified Task 4 reusable compliance-worker architecture.
-- Consolidate CI and make scheduled drift reporting idempotent.
+- Commit the verified Task 5 CI/drift candidate.
 - Run final local gates, open one universal PR, inspect final-head CI, and merge only if policy permits.
 - Audit/remediate AskRigor on its own branch/PR, then re-fetch its evidence before updating this repository's fleet ledger in a non-overlapping follow-up.
 
@@ -60,7 +60,7 @@ Updated: 2026-08-14
 
 ## Next safe action
 
-- Commit the verified Task 4 candidate, then consolidate deterministic CI and idempotent scheduled drift reporting.
+- Commit the verified Task 5 candidate, then run fresh final-candidate verification and complete the repository report.
 
 ## Recovery rule
 
