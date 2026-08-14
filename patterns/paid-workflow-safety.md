@@ -147,3 +147,4 @@ A fail-closed default-branch stub prevents accidental execution in its reviewed 
 Static policy checks catch known shapes, not every YAML semantic or shell-injection possibility. Prefer a real YAML parser when dependencies and schema control permit it, keep adversarial regressions for valid trigger forms, and fail closed on constructs the checker cannot safely resolve.
 
 Review official sources before major revisions because GitHub event registration, environment-file syntax, runner behavior, and security controls can change.
+

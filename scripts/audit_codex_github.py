@@ -87,131 +87,16 @@ WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
 ON_TRIGGER_LINE_RE = re.compile(
     r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
 )
+BLOCK_SCALAR_RE = re.compile(
+    r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
+)
 PULL_REQUEST_TARGET_TOKEN_RE = re.compile(
     r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
 )
-CHECKOUT_RE = re.compile(r"actions/checkout@")
-
-
-def _yaml_code(line: str) -> str:
-    return line.split("#", 1)[0].rstrip()
-
-
-def _yaml_indent(line: str) -> int:
-    return len(line) - len(line.lstrip(" \t"))
-
-
-def _flow_balance(value: str) -> int:
-    return value.count("[") + value.count("{") - value.count("]") - value.count("}")
-
-
-def _uses_pull_request_target(text: str) -> bool:
-    """Recognize scalar, block, and inline or multiline flow event forms."""
-
-    lines = text.splitlines()
-    root_indents = [
-        _yaml_indent(code)
-        for line in lines
-        if (code := _yaml_code(line)).strip()
-        and code.strip() not in {"---", "..."}
-    ]
-    if not root_indents:
-        return False
-    root_indent = min(root_indents)
-    saw_trigger_node = False
-
-    for index, line in enumerate(lines):
-        code = _yaml_code(line)
-        match = ON_TRIGGER_LINE_RE.match(code)
-        if match is None or _yaml_indent(code) != root_indent:
-            continue
-        saw_trigger_node = True
-        base_indent = _yaml_indent(code)
-        value = match.group("value").strip()
-        while value.startswith(("&", "!")):
-            node_property = value.split(None, 1)
-            value = node_property[1].lstrip() if len(node_property) == 2 else ""
-        # Resolving arbitrary aliases requires a YAML parser. Fail closed when
-        # an aliased trigger node is paired with checkout in the caller.
-        if value.startswith("*"):
-            return True
-        if value.startswith(("|", ">")) or "\" in value:
-            return True
-        if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
-            return True
-        if value:
-            if value.startswith(("[", "{")) and _flow_balance(value) > 0:
-                balance = _flow_balance(value)
-                for continuation in lines[index + 1 :]:
-                    continuation_code = _yaml_code(continuation)
-                    if "\" in continuation_code or "*" in continuation_code:
-                        return True
-                    if PULL_REQUEST_TARGET_TOKEN_RE.search(continuation_code):
-                        return True
-                    balance += _flow_balance(continuation_code)
-                    if balance <= 0:
-                        break
-            continue
-
-        direct_child_indent: int | None = None
-        sequence_indent: int | None = None
-        children = lines[index + 1 :]
-        for child_index, child in enumerate(children):
-            child_code = _yaml_code(child)
-            if not child_code.strip():
-                continue
-            indent = _yaml_indent(child_code)
-            stripped = child_code.strip()
-            if direct_child_indent is None and sequence_indent is None:
-                if stripped.startswith("-") and indent >= base_indent:
-                    sequence_indent = indent
-                elif indent > base_indent:
-                    direct_child_indent = indent
-                else:
-                    break
-
-            if sequence_indent is not None:
-                if indent < sequence_indent:
-                    break
-                if indent != sequence_indent:
-                    continue
-                if not stripped.startswith("-"):
-                    break
-                event = stripped[1:].strip()
-                if not event:
-                    for nested in children[child_index + 1 :]:
-                        nested_code = _yaml_code(nested)
-                        if not nested_code.strip():
-                            continue
-                        if _yaml_indent(nested_code) <= sequence_indent:
-                            break
-                        event = nested_code.strip()
-                        break
-                if "\" in event or "*" in event or event.startswith(
-                    ("?", ":", "!", "&", "|", ">")
-                ):
-                    return True
-                event = event.split(":", 1)[0].strip().strip("\"'")
-                if event == "pull_request_target":
-                    return True
-                continue
-
-            if indent <= base_indent:
-                break
-            if indent != direct_child_indent:
-                continue
-            event = stripped
-            if "\" in event or "*" in event or event.startswith(
-                ("?", ":", "!", "&", "|", ">")
-            ):
-                return True
-            event = event.split(":", 1)[0].strip().strip("\"'")
-            if event == "pull_request_target":
-                return True
-    # A checkout workflow whose trigger node is expressed in an unsupported
-    # root form (for example an explicit key or root flow map) is not proven
-    # safe by this dependency-free parser, so the caller must fail closed.
-    return not saw_trigger_node
+CHECKOUT_RE = re.compile(
+    r"(?m)(?:^\s*-?\s*uses:\s*[\"']?actions/checkout@|"
+    r"[\[\{,]\s*uses:\s*[\"']?actions/checkout@)"
+)
 
 
 def finding(
@@ -564,6 +449,147 @@ def _workflow_files(root: Path) -> list[Path]:
     )
 
 
+def _workflow_structure(text: str) -> str:
+    """Remove block-scalar bodies while retaining physical workflow keys."""
+
+    structural: list[str] = []
+    block_indent: int | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip(" "))
+        if block_indent is not None:
+            if not stripped or indent > block_indent:
+                structural.append("")
+                continue
+            block_indent = None
+        structural.append(line)
+        if BLOCK_SCALAR_RE.search(line):
+            block_indent = indent
+    return "\n".join(structural)
+
+
+def _yaml_code(line: str) -> str:
+    if line.lstrip().startswith("#"):
+        return ""
+    return line.split("#", 1)[0].rstrip()
+
+
+def _yaml_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def _flow_balance(value: str) -> int:
+    return value.count("[") + value.count("{") - value.count("]") - value.count("}")
+
+
+def _uses_pull_request_target(structure: str) -> bool:
+    """Recognize common trigger forms and fail closed on unresolved root syntax."""
+
+    lines = structure.splitlines()
+    root_indents = [
+        _yaml_indent(code)
+        for line in lines
+        if (code := _yaml_code(line)).strip()
+        and code.strip() not in {"---", "..."}
+    ]
+    if not root_indents:
+        return True
+    root_indent = min(root_indents)
+    saw_trigger_node = False
+
+    for index, line in enumerate(lines):
+        code = _yaml_code(line)
+        match = ON_TRIGGER_LINE_RE.match(code)
+        if match is None or _yaml_indent(code) != root_indent:
+            continue
+        saw_trigger_node = True
+        base_indent = _yaml_indent(code)
+        value = match.group("value").strip()
+        while value.startswith(("&", "!")):
+            node_property = value.split(None, 1)
+            value = node_property[1].lstrip() if len(node_property) == 2 else ""
+
+        # Resolving aliases, escaped scalars, and block scalars requires more
+        # YAML semantics than this standard-library audit claims to implement.
+        if value.startswith(("*", "|", ">")) or "\\" in value:
+            return True
+        if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
+            return True
+        if value:
+            if value.startswith(("[", "{")) and _flow_balance(value) > 0:
+                balance = _flow_balance(value)
+                for continuation in lines[index + 1 :]:
+                    continuation_code = _yaml_code(continuation)
+                    if "\\" in continuation_code or "*" in continuation_code:
+                        return True
+                    if PULL_REQUEST_TARGET_TOKEN_RE.search(continuation_code):
+                        return True
+                    balance += _flow_balance(continuation_code)
+                    if balance <= 0:
+                        break
+            continue
+
+        direct_child_indent: int | None = None
+        sequence_indent: int | None = None
+        children = lines[index + 1 :]
+        for child_index, child in enumerate(children):
+            child_code = _yaml_code(child)
+            if not child_code.strip():
+                continue
+            indent = _yaml_indent(child_code)
+            stripped = child_code.strip()
+            if direct_child_indent is None and sequence_indent is None:
+                if stripped.startswith("-") and indent >= base_indent:
+                    sequence_indent = indent
+                elif indent > base_indent:
+                    direct_child_indent = indent
+                else:
+                    break
+
+            if sequence_indent is not None:
+                if indent < sequence_indent:
+                    break
+                if indent != sequence_indent:
+                    continue
+                if not stripped.startswith("-"):
+                    break
+                event = stripped[1:].strip()
+                if not event:
+                    for nested in children[child_index + 1 :]:
+                        nested_code = _yaml_code(nested)
+                        if not nested_code.strip():
+                            continue
+                        if _yaml_indent(nested_code) <= sequence_indent:
+                            break
+                        event = nested_code.strip()
+                        break
+                if "\\" in event or "*" in event or event.startswith(
+                    ("?", ":", "!", "&", "|", ">")
+                ):
+                    return True
+                event = event.split(":", 1)[0].strip().strip("\"'")
+                if event == "pull_request_target":
+                    return True
+                continue
+
+            if indent <= base_indent:
+                break
+            if indent != direct_child_indent:
+                continue
+            event = stripped
+            if "\\" in event or "*" in event or event.startswith(
+                ("?", ":", "!", "&", "|", ">")
+            ):
+                return True
+            event = event.split(":", 1)[0].strip().strip("\"'")
+            if event == "pull_request_target":
+                return True
+
+    # Root flow mappings, explicit keys, and other unresolved root forms are
+    # not proven safe by this dependency-free parser.
+    return not saw_trigger_node
+
+
 def _audit_workflows(
     root: Path,
     workflows: Iterable[Path],
@@ -584,7 +610,9 @@ def _audit_workflows(
             )
             continue
 
-        if not TOP_LEVEL_PERMISSIONS_RE.search(text):
+        structure = _workflow_structure(text)
+
+        if not TOP_LEVEL_PERMISSIONS_RE.search(structure):
             findings.append(
                 finding(
                     "warning",
@@ -595,7 +623,7 @@ def _audit_workflows(
                 )
             )
 
-        if WRITE_ALL_RE.search(text):
+        if WRITE_ALL_RE.search(structure):
             findings.append(
                 finding(
                     "error",
@@ -605,7 +633,7 @@ def _audit_workflows(
                 )
             )
 
-        if _uses_pull_request_target(text) and CHECKOUT_RE.search(text):
+        if CHECKOUT_RE.search(structure) and _uses_pull_request_target(structure):
             findings.append(
                 finding(
                     "error",
@@ -616,7 +644,7 @@ def _audit_workflows(
                 )
             )
 
-        for action, ref in USES_RE.findall(text):
+        for action, ref in USES_RE.findall(structure):
             if action.startswith("./") or action.startswith("docker://"):
                 continue
             if not FULL_SHA_RE.fullmatch(ref):
