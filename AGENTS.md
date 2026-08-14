@@ -1,15 +1,32 @@
-# Universal Project Bootstrap
+# Universal development architecture
 
-Before substantive work, load the current cross-project guidance from this repository, starting with `LESSON-INDEX.md`. Follow only the task-relevant current patterns/templates. Do not rely on remembered lesson lists from prior chats.
+## Authority
 
-Authority order: current owner/project requirements; verified current project state/evidence; current universal guidance; older summaries, stale checkpoints, and remembered chat context.
+1. Current owner and task requirements
+2. `LESSON-INDEX.md`
+3. `docs/INDEX.md`
+4. The relevant current pattern
+5. `CURRENT-STATE.md`, tests, artifacts, and Git history
 
-Treat conversation/context as disposable working memory, the repository as durable project memory, and Git history as the audit trail.
+Project-specific current requirements win on genuine conflict.
 
-For long-running, multi-step, autonomous, or multi-session work, maintain one obvious current-state checkpoint (`CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an existing equivalent). Keep it sufficient for a fresh worker to recover the goal, active decisions/constraints, completed work, current step, remaining work, blockers, relevant evidence/tests/branches/commits, and next safe action without the old transcript.
+## Validation
 
-Update the checkpoint at meaningful durable boundaries. After interruption, a fresh thread, context compaction, or model switch, inspect actual repository state and recent relevant commits/artifacts first; reconcile the checkpoint, identify exactly what survived, repair stale entries, and resume from the latest verified durable boundary without repeating completed work.
+Use the `repo-policy` GitHub Actions check. Keep this file concise and below Codex's default instruction budget.
 
-Never let stale checkpoint/chat state outrank newer owner instructions or verified repository state.
+## Workflow
 
-For substantive work, follow the current lesson-closeout pattern. Preserve project-specific evidence locally and promote genuinely transferable lessons to this universal repository with provenance and limits.
+Use a task branch or worktree and a pull request for substantive changes. Track complex work in `docs/exec-plans/active/`, update `CURRENT-STATE.md` at durable boundaries, run applicable checks, review the final diff, and complete lesson closeout before reporting completion.
+
+## Branch roles
+
+- `main`: canonical universal guidance
+- task branches: proposed changes
+
+## Code review rules
+
+- Require transfer rationale and limits before promoting a project-specific finding as universal.
+- Do not claim a control is active without mechanical evidence.
+- Preserve provenance, supersession, and explicit blockers.
+
+Treat chat as disposable working memory. A fresh worker must be able to recover from the repository alone.
