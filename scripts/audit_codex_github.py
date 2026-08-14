@@ -90,34 +90,73 @@ ON_TRIGGER_LINE_RE = re.compile(
 PULL_REQUEST_TARGET_TOKEN_RE = re.compile(
     r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
 )
-PULL_REQUEST_TARGET_CHILD_RE = re.compile(
-    r"^[ \t]+[\"']?pull_request_target[\"']?[ \t]*:"
-)
 CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
 
 
+def _yaml_code(line: str) -> str:
+    return line.split("#", 1)[0].rstrip()
+
+
+def _yaml_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def _flow_balance(value: str) -> int:
+    return value.count("[") + value.count("{") - value.count("]") - value.count("}")
+
+
 def _uses_pull_request_target(text: str) -> bool:
-    """Recognize scalar, block-map, and flow-style GitHub trigger forms."""
+    """Recognize scalar, block, and inline or multiline flow event forms."""
 
     lines = text.splitlines()
+    root_indents = [
+        _yaml_indent(code)
+        for line in lines
+        if (code := _yaml_code(line)).strip()
+        and code.strip() not in {"---", "..."}
+    ]
+    if not root_indents:
+        return False
+    root_indent = min(root_indents)
+
     for index, line in enumerate(lines):
-        match = ON_TRIGGER_LINE_RE.match(line)
-        if match is None:
+        code = _yaml_code(line)
+        match = ON_TRIGGER_LINE_RE.match(code)
+        if match is None or _yaml_indent(code) != root_indent:
             continue
-        base_indent = len(match.group("indent").expandtabs(8))
-        value = match.group("value").split("#", 1)[0].strip()
+        base_indent = _yaml_indent(code)
+        value = match.group("value").strip()
         if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
             return True
         if value:
+            if value.startswith(("[", "{")) and _flow_balance(value) > 0:
+                balance = _flow_balance(value)
+                for continuation in lines[index + 1 :]:
+                    continuation_code = _yaml_code(continuation)
+                    if PULL_REQUEST_TARGET_TOKEN_RE.search(continuation_code):
+                        return True
+                    balance += _flow_balance(continuation_code)
+                    if balance <= 0:
+                        break
             continue
+
+        direct_child_indent: int | None = None
         for child in lines[index + 1 :]:
-            code = child.split("#", 1)[0].rstrip()
-            if not code.strip():
+            child_code = _yaml_code(child)
+            if not child_code.strip():
                 continue
-            indent = len(code) - len(code.lstrip(" \t"))
+            indent = _yaml_indent(child_code)
             if indent <= base_indent:
                 break
-            if PULL_REQUEST_TARGET_CHILD_RE.match(code):
+            if direct_child_indent is None:
+                direct_child_indent = indent
+            if indent != direct_child_indent:
+                continue
+            event = child_code.strip()
+            if event.startswith("-"):
+                event = event[1:].strip()
+            event = event.split(":", 1)[0].strip().strip("\"'")
+            if event == "pull_request_target":
                 return True
     return False
 
