@@ -315,13 +315,61 @@ jobs:
             ".github/workflows/review.yml",
             """{name: Unsafe, on: pull_request_target,
 permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
-steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+steps: [{"uses": actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
 """,
         )
 
         findings = audit_repository(self.root)
 
         self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_quoted_checkout_key_with_privileged_trigger_is_an_error(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/review.yml",
+            """name: Unsafe quoted checkout
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - "uses" : actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
+
+    def test_pull_request_target_text_in_flow_filter_is_not_an_event(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="software",
+            commands={"test": "python -m unittest"},
+        )
+        self.write(
+            ".github/workflows/safe.yml",
+            """name: Safe branch filter
+on: {push: {branches: [pull_request_target]}}
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+""",
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertNotIn("actions.pull-request-target.checkout", self.codes(findings))
 
     def test_public_high_risk_research_reports_disabled_branch_rules(self) -> None:
         self.add_minimal_repository_files()

@@ -90,12 +90,9 @@ ON_TRIGGER_LINE_RE = re.compile(
 BLOCK_SCALAR_RE = re.compile(
     r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
 )
-PULL_REQUEST_TARGET_TOKEN_RE = re.compile(
-    r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
-)
 CHECKOUT_RE = re.compile(
-    r"(?m)(?:^\s*-?\s*uses:\s*[\"']?actions/checkout@|"
-    r"[\[\{,]\s*uses:\s*[\"']?actions/checkout@)"
+    r"(?m)(?:^\s*-?\s*(?:[\"']uses[\"']|uses)\s*:\s*[\"']?actions/checkout@|"
+    r"[\[\{,]\s*(?:[\"']uses[\"']|uses)\s*:\s*[\"']?actions/checkout@)"
 )
 
 
@@ -479,7 +476,123 @@ def _yaml_indent(line: str) -> int:
 
 
 def _flow_balance(value: str) -> int:
-    return value.count("[") + value.count("{") - value.count("]") - value.count("}")
+    balance = 0
+    quote: str | None = None
+    escaped = False
+    for character in value:
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character in "[{":
+            balance += 1
+        elif character in "]}":
+            balance -= 1
+    return balance
+
+
+def _normalized_scalar(value: str) -> str | None:
+    scalar = value.strip()
+    if "\\" in scalar:
+        return None
+    if (
+        len(scalar) >= 2
+        and scalar[0] == scalar[-1]
+        and scalar[0] in {'"', "'"}
+    ):
+        return scalar[1:-1]
+    return scalar
+
+
+def _flow_parts(value: str) -> list[str] | None:
+    if len(value) < 2 or value[0] not in "[{" or value[-1] not in "]}":
+        return None
+    parts: list[str] = []
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    start = 1
+    for index, character in enumerate(value[1:-1], start=1):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character in "[{":
+            depth += 1
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                return None
+        elif character == "," and depth == 0:
+            parts.append(value[start:index].strip())
+            start = index + 1
+    if quote is not None or depth != 0:
+        return None
+    final = value[start:-1].strip()
+    if final:
+        parts.append(final)
+    return parts
+
+
+def _top_level_colon(value: str) -> int | None:
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, character in enumerate(value):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character in "[{":
+            depth += 1
+        elif character in "]}":
+            depth -= 1
+        elif character == ":" and depth == 0:
+            return index
+    return None
+
+
+def _flow_uses_pull_request_target(value: str) -> bool | None:
+    parts = _flow_parts(value)
+    if parts is None:
+        return None
+    if value.startswith("["):
+        for part in parts:
+            event = _normalized_scalar(part)
+            if event is None or event.startswith(("*", "!", "&", "|", ">", "?", ":")):
+                return None
+            if event == "pull_request_target":
+                return True
+        return False
+
+    for part in parts:
+        colon = _top_level_colon(part)
+        if colon is None:
+            return None
+        event = _normalized_scalar(part[:colon])
+        if event is None or event.startswith(("*", "!", "&", "|", ">", "?", ":")):
+            return None
+        if event == "pull_request_target":
+            return True
+    return False
 
 
 def _uses_pull_request_target(structure: str) -> bool:
@@ -511,22 +624,29 @@ def _uses_pull_request_target(structure: str) -> bool:
 
         # Resolving aliases, escaped scalars, and block scalars requires more
         # YAML semantics than this standard-library audit claims to implement.
-        if value.startswith(("*", "|", ">")) or "\\" in value:
-            return True
-        if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
+        if value.startswith(("*", "|", ">")):
             return True
         if value:
-            if value.startswith(("[", "{")) and _flow_balance(value) > 0:
+            if value.startswith(("[", "{")):
                 balance = _flow_balance(value)
+                flow = value
                 for continuation in lines[index + 1 :]:
-                    continuation_code = _yaml_code(continuation)
-                    if "\\" in continuation_code or "*" in continuation_code:
-                        return True
-                    if PULL_REQUEST_TARGET_TOKEN_RE.search(continuation_code):
-                        return True
-                    balance += _flow_balance(continuation_code)
                     if balance <= 0:
                         break
+                    continuation_code = _yaml_code(continuation)
+                    flow += "\n" + continuation_code
+                    balance += _flow_balance(continuation_code)
+                if balance != 0:
+                    return True
+                result = _flow_uses_pull_request_target(flow)
+                if result is None or result:
+                    return True
+                continue
+            event = _normalized_scalar(value)
+            if event is None:
+                return True
+            if event == "pull_request_target":
+                return True
             continue
 
         direct_child_indent: int | None = None

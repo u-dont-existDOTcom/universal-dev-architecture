@@ -87,7 +87,7 @@ jobs:
             {
                 "unsafe.yml": """{name: Unsafe, on: pull_request_target,
 permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
-steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+steps: [{"uses": actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
 """
             }
         )
@@ -98,7 +98,24 @@ steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
             result.stdout,
         )
 
+    def test_flow_filter_value_is_not_a_privileged_event(self) -> None:
+        result = self.run_policy(
+            {
+                "safe.yml": """name: Safe branch filter
+on: {push: {branches: [pull_request_target]}}
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - "uses" : actions/checkout@0123456789abcdef0123456789abcdef01234567
+"""
+            }
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
-
