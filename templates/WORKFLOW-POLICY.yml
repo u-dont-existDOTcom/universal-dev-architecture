@@ -33,22 +33,49 @@ jobs:
               r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
           )
           full_sha = re.compile(r"^[0-9a-fA-F]{40}$")
+          block_scalar = re.compile(
+              r":\s*[>|](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?\s*(?:#.*)?$"
+          )
+          pull_request_target = re.compile(
+              r"^[\"']?on[\"']?\s*:\s*[\"']?pull_request_target[\"']?\s*(?:#.*)?$|"
+              r"^[\"']?on[\"']?\s*:\s*\[[^\]\n]*[\"']?pull_request_target[\"']?[^\]\n]*\]\s*(?:#.*)?$|"
+              r"^[\"']?on[\"']?\s*:\s*\{[^\n}]*[\"']?pull_request_target[\"']?\s*:|"
+              r"^[\"']?on[\"']?\s*:\s*(?:#.*)?\n(?:(?:[ \t]+.*|[ \t]*)\n)*?^[ \t]+(?:-\s*)?[\"']?pull_request_target[\"']?\s*(?::|(?:#.*)?$)",
+              re.MULTILINE,
+          )
+
+          def workflow_structure(text: str) -> str:
+              structural: list[str] = []
+              block_indent: int | None = None
+              for line in text.splitlines():
+                  stripped = line.strip()
+                  indent = len(line) - len(line.lstrip(" "))
+                  if block_indent is not None:
+                      if not stripped or indent > block_indent:
+                          structural.append("")
+                          continue
+                      block_indent = None
+                  structural.append(line)
+                  if block_scalar.search(line):
+                      block_indent = indent
+              return "\n".join(structural)
 
           for path in sorted(workflow_dir.glob("*.y*ml")):
               text = path.read_text(encoding="utf-8")
+              structure = workflow_structure(text)
 
-              if not re.search(r"(?m)^permissions\s*:", text):
+              if not re.search(r"(?m)^permissions\s*:", structure):
                   errors.append(
                       (path, "missing explicit top-level permissions")
                   )
 
               if re.search(
-                  r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$", text
+                  r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$", structure
               ):
                   errors.append((path, "permissions: write-all is forbidden"))
 
-              if "pull_request_target" in text and re.search(
-                  r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@", text
+              if pull_request_target.search(structure) and re.search(
+                  r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@", structure
               ):
                   errors.append(
                       (
@@ -57,7 +84,7 @@ jobs:
                       )
                   )
 
-              for action, ref in uses_pattern.findall(text):
+              for action, ref in uses_pattern.findall(structure):
                   if action.startswith("./") or action.startswith("docker://"):
                       continue
                   if not full_sha.fullmatch(ref):

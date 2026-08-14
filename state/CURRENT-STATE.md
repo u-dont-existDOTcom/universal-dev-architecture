@@ -4,53 +4,60 @@ Updated: 2026-08-14
 
 ## Goal
 
-- Establish and roll out a source-grounded, risk-adjusted Codex + GitHub operating system across Joel's repositories.
+Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating system across repositories, with executable audits and durable lesson provenance.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
-- Branch: `main`
-- Universal entry point: `LESSON-INDEX.md`
-- Current owner requirement: important project state and reusable working architectures must survive chat/context loss in GitHub.
+- Canonical branch: `main`
+- Lesson entry point: `LESSON-INDEX.md`
+- Current operating pattern: `patterns/codex-github-operating-system.md`
+- Repository profile and commands: `.github/codex-repository.json`
+- Current owner/project requirements outrank universal defaults on genuine conflict.
 
 ## Completed
 
-- Repository-first learning and context-compaction resilience patterns exist.
-- A dated implementation plan for the Codex/GitHub audit exists.
-- Tests defining the repository audit behavior were added before the implementation.
-- A standard-library repository audit implementation and universal repository profile were added.
+- Published repository-first learning, context-compaction, Codex/GitHub operating, templates, repository audit, scheduled drift audit, and connected-repository rollout evidence.
+- Recorded the prior rollout’s promoted, project-specific, provisional, and no-new-lesson dispositions.
+- Reproduced the Python 3.12 audit import failure caused by a repeated inline regex flag.
+- Added causal workflow-policy tests for real mapping/scalar/list/flow `pull_request_target`, block-script impersonation, scanner self-text, and safe job-name collision.
+- Replaced raw-text workflow inspection with block-scalar-aware structural detection in the audit and portable template.
+- Promoted Inner Signal lessons on hermetic generated-output verification, transactional updates, condition-based readiness, privacy-safe diagnostics, and stage-specific recovery with exact commit/path/hash provenance and limits.
+- Routed root instructions and documentation to this sole profile-declared checkpoint; the root compatibility file is explicitly superseded.
 
 ## Current checkpoint
 
-- Current step: complete the canonical best-practices pattern, templates, source registry, and repository-by-repository audit/remediation.
-- Last verified durable boundary: audit tests and implementation committed to `main`; execution verification still required.
-- Working-tree status: GitHub-hosted edits only; no claimed local dirty state.
+- Task branch: `codex/inner-signal-audit-fix-2026-08-14`
+- Base: `origin/main` at `d1948c504687503f771c02dc4140f99bc66d2e0d`
+- Focused audit tests: 17/17 pass on Python 3.12.
+- Current step: run the complete universal test and audit gates, review the final diff, commit, open one PR, and verify final-head checks.
 
 ## Remaining
 
-- Run and verify audit tests.
-- Add the canonical Codex/GitHub operating pattern and reusable templates.
-- Update `LESSON-INDEX.md`.
-- Audit all connected project repositories and apply safe, non-destructive corrections.
-- Verify GitHub-hosted rules/security settings where connector access permits.
-- Record unresolved external controls precisely.
+- Run `python3 -m unittest discover -s tests -v`.
+- Run `python3 scripts/audit_codex_github.py --root . --fail-on error`.
+- Review the final diff for false positives, detection bypasses, stale routing, unrelated changes, and secret/private data.
+- Commit, push, open one focused PR, inspect required checks, and merge if repository policy permits.
+- Record the universal PR/commit in the originating Inner Signal compliance report.
 
 ## Blockers / unresolved
 
-- GitHub-hosted rulesets, secret scanning, push protection, and code-scanning settings cannot be inferred from repository files; each must be verified through GitHub APIs/settings.
-- Repository-specific build/test commands must never be invented when absent or unclear.
+- The structural workflow detector intentionally supports common GitHub workflow YAML forms without becoming a full YAML parser; anchors, aliases, generated syntax, or unusual scalars need repository-specific fixtures or a reviewed parser.
+- Hosted control mutation remains provisional and plan/permission dependent; repository files cannot prove hosted enforcement.
 
 ## Evidence / artifacts
 
-- Plan: `docs/plans/2026-08-14-codex-github-best-practices-audit.md`
-- Tests: `tests/test_audit_codex_github.py`
 - Audit implementation: `scripts/audit_codex_github.py`
-- Repository profile: `.github/codex-repository.json`
+- Audit regressions: `tests/test_audit_codex_github.py`
+- Portable policy template: `templates/WORKFLOW-POLICY.yml`
+- Promoted pattern: `patterns/codex-github-operating-system.md`
+- Lesson closeout: `audits/2026-08-14-inner-signal-compliance-lessons.md`
+- Originating repository evidence is listed by exact commit/path/SHA-256 in that closeout.
 
 ## Next safe action
 
-- Run `python3 -m unittest discover -s tests -v`, repair any failures, then run `python3 scripts/audit_codex_github.py --root . --fail-on error`.
+Run the complete universal test/audit gates, fix any causal failure without weakening detection, then commit and publish the isolated universal PR.
 
 ## Recovery rule
 
-On a fresh thread, interruption, context compaction, or model switch, inspect actual repository state and recent commits before trusting this file. Reconcile any mismatch, identify exactly what survived, update stale entries, and resume from the latest verified durable boundary without repeating completed work.
+After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the last verified commit; do not repeat Inner Signal product work or import its therapy-specific content.

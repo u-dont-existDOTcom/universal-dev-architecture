@@ -1,27 +1,5 @@
-# Current state
+# Superseded current-state path
 
-## Goal
+This compatibility file is retained because older checks and links require the root path. The sole canonical checkpoint is `state/CURRENT-STATE.md` as declared by `.github/codex-repository.json`.
 
-Establish the canonical Codex + GitHub operating baseline and apply it accurately to every active project.
-
-## Completed
-
-- Current official OpenAI and GitHub guidance audited.
-- Canonical operating standard written.
-- Root agent map and documentation index added on the active PR branch.
-
-## Remaining
-
-- Add reusable project templates and the repository-policy workflow.
-- Open and verify the universal baseline PR.
-- Apply repository-specific changes to AskRigor, Pangram Humanization Lab, and Inner Signal.
-- Apply GitHub-side branch/settings controls where account permissions and plan support them.
-
-## Known blockers
-
-- Pangram currently has an Action that writes directly to `main`; normal branch protection must wait for that path to be redesigned.
-- The connected GitHub app lacks repository-administration scope, so branch protection and default workflow-token settings require authenticated local `gh` execution.
-
-## Next safe action
-
-Complete and validate the universal baseline PR, then proceed repository by repository without repeating completed work.
+Do not resume from this file. Reconcile `state/CURRENT-STATE.md` against Git and current owner instructions.
