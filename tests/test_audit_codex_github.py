@@ -322,6 +322,26 @@ steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
 
         self.assertIn("actions.pull-request-target.checkout", self.codes(findings))
 
+    def test_public_high_risk_research_reports_disabled_branch_rules(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(
+            repository_kind="research",
+            visibility="public",
+            risk="high",
+            github_controls={
+                "default_branch_rules": "disabled",
+                "secret_scanning": "verified",
+                "push_protection": "verified",
+                "code_scanning": "not_applicable",
+            },
+        )
+
+        findings = audit_repository(self.root)
+
+        self.assertIn(
+            "github-control.default-branch-rules.disabled", self.codes(findings)
+        )
+
     def test_portable_workflow_policy_ignores_its_own_scanner_text(self) -> None:
         template = Path("templates/WORKFLOW-POLICY.yml").read_text(encoding="utf-8")
         marker = "          python3 - <<'PY'\n"
