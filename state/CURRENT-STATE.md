@@ -31,20 +31,21 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Applied default-branch-rule findings to active public or high/critical-risk repositories, including research and content repositories.
 - Added and indexed `patterns/paid-workflow-safety.md` with exact Pangram commit/blob provenance, limits, official GitHub sources, and regression coverage.
 - Test-first promotion evidence: `695dd7a5c9bbd6babe791fbe3026d558e6b30411`; run `31779472972` failed only for the intentionally absent pattern/index route while policy run `31779473079` passed.
+- Independent review found two action-reference bypasses: quoted/inline `uses` values evaded pinning, and an aliased action could hide checkout. Both are repaired in the audit and portable template; unresolved aliases now fail closed at the privileged boundary and receive an explicit `actions.ref.unresolved` finding.
+- Code-bearing remediation head `6c06e2243c415e6eb41ef68444a4be09c9a060d6` is verified by Universal architecture tests run `31781035072` (33/33 tests and audit 0 errors/3 truthful hosted warnings) and Repository policy run `31781035061` (success).
 
 ## Current checkpoint
 
 - Task branch: `codex/fix-audit-python312-regex-2026-08-14`
 - Reconciled base: `main@81265fd3592ee842bfe30c7d73a5c1f3dc01b2d0`
-- Local reconciliation gates: 26/26 unit tests pass on Python 3.12; audit passes with 0 errors and three truthful hosted-control warnings; Python compile and `git diff --check` pass.
-- Current step: publish the resolved merge tree to PR #5, verify exact-head GitHub checks, independently review the final diff, and merge if clean.
+- Exact code-bearing gates: 33/33 unit tests pass; audit passes with 0 errors and three truthful hosted-control warnings; both GitHub suites succeeded at `6c06e2243c415e6eb41ef68444a4be09c9a060d6`. Local Python compile and `git diff --check` also pass.
+- Current step: complete independent re-review of the remediation, mark PR #5 ready, and merge if no actionable finding remains.
 
 ## Remaining
 
-- Publish the resolved two-parent reconciliation commit without force-updating or discarding the prior PR #5/PR #6 histories.
-- Verify `python3 -m unittest discover -s tests -v` and `python3 scripts/audit_codex_github.py --root . --fail-on error` on the exact GitHub head.
-- Review the final diff for false positives, bypasses, provenance errors, stale routing, unrelated changes, and secret/private data.
-- Update PR #5's durable description, mark it ready, and merge only after exact-head checks and independent review are clean.
+- Complete independent re-review of the action-reference remediation and this forward-stable state checkpoint.
+- Update PR #5's durable description and mark it ready only if no actionable finding remains.
+- Squash-merge PR #5, verify the exact merge tree and any emitted post-merge checks, and record absence rather than inventing a merge-head run if GitHub emits none.
 - Record the final universal PR/merge in the originating Pangram evidence.
 
 ## Blockers / unresolved
@@ -68,7 +69,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Next safe action
 
-Publish the resolved PR #5 merge tree, wait for both exact-head checks, then request independent review.
+Wait for independent remediation re-review. If it is clean, mark PR #5 ready and merge; otherwise repair the exact finding test-first.
 
 ## Recovery rule
 
