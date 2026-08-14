@@ -93,6 +93,31 @@ PULL_REQUEST_TARGET_RE = re.compile(
 CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
 CONCURRENCY_RE = re.compile(r"(?m)^concurrency\s*:")
 PERMISSION_WRITE_RE = re.compile(r"^[A-Za-z0-9_-]+\s*:\s*write\s*(?:#.*)?$")
+MAX_SECRET_SCAN_BYTES = 1024 * 1024
+SECRET_CONTENT_PATTERNS = (
+    (
+        "private-key material",
+        re.compile(re.escape("-----BEGIN " + "PRIVATE KEY-----")),
+    ),
+    (
+        "private-key material",
+        re.compile(re.escape("-----BEGIN " + "RSA PRIVATE KEY-----")),
+    ),
+    (
+        "GitHub provider token",
+        re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,255}(?![A-Za-z0-9])"),
+    ),
+    (
+        "OpenAI provider token",
+        re.compile(
+            r"(?<![A-Za-z0-9_-])sk-(?:proj-)?[A-Za-z0-9_-]{20,255}(?![A-Za-z0-9_-])"
+        ),
+    ),
+    (
+        "AWS access-key identifier",
+        re.compile(r"(?<![A-Z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}(?![A-Z0-9])"),
+    ),
+)
 
 
 def finding(
@@ -974,6 +999,33 @@ def _audit_secret_filenames(
             )
 
 
+def _audit_secret_contents(
+    root: Path, files: set[str], findings: list[dict[str, object]]
+) -> None:
+    for relative in sorted(files):
+        path = root / relative
+        try:
+            if not path.is_file() or path.stat().st_size > MAX_SECRET_SCAN_BYTES:
+                continue
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        for category, pattern in SECRET_CONTENT_PATTERNS:
+            if not pattern.search(content):
+                continue
+            findings.append(
+                finding(
+                    "error",
+                    "secrets.likely-content",
+                    f"Repository text contains likely {category}; the matched value is intentionally omitted.",
+                    relative,
+                    "Remove the secret from Git history, rotate it, and retain only an unmistakably redacted example.",
+                )
+            )
+            break
+
+
 def _audit_unsafe_filenames(
     files: set[str], findings: list[dict[str, object]]
 ) -> None:
@@ -1026,6 +1078,7 @@ def audit_repository(
     _audit_foundation(root_path, files, findings)
     profile = _load_profile(root_path, profile_relative, findings)
     _audit_secret_filenames(files, findings)
+    _audit_secret_contents(root_path, files, findings)
     _audit_unsafe_filenames(files, findings)
 
     workflows = _workflow_files(root_path)

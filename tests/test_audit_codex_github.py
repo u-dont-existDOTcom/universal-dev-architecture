@@ -514,6 +514,38 @@ jobs:
             {"error"}, self.severities(findings, "secrets.likely-file")
         )
 
+    def test_private_key_content_in_ordinary_file_is_an_error(self) -> None:
+        """Catch high-confidence private-key material hidden by a safe filename."""
+        self.add_minimal_repository_files()
+        self.write_profile()
+        private_key_header = "-----BEGIN " + "PRIVATE KEY-----"
+        self.write("docs/notes.txt", private_key_header + "\nredacted\n")
+        findings = audit_repository(self.root)
+        self.assertIn("secrets.likely-content", self.codes(findings))
+        self.assertEqual(
+            {"error"}, self.severities(findings, "secrets.likely-content")
+        )
+
+    def test_provider_token_content_in_ordinary_file_is_an_error(self) -> None:
+        """Catch a high-confidence provider-token shape without exposing it."""
+        self.add_minimal_repository_files()
+        self.write_profile()
+        github_token = "gh" + "p_" + ("a" * 36)
+        self.write("config/settings.ini", "token=" + github_token + "\n")
+        findings = audit_repository(self.root)
+        matches = [
+            item for item in findings if item["code"] == "secrets.likely-content"
+        ]
+        self.assertEqual(["config/settings.ini"], [item["path"] for item in matches])
+        self.assertNotIn(github_token, str(matches))
+
+    def test_redacted_secret_examples_are_allowed(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        self.write("docs/example.md", "OPENAI_API_KEY=sk-REDACTED\n")
+        findings = audit_repository(self.root)
+        self.assertNotIn("secrets.likely-content", self.codes(findings))
+
     def test_unsafe_cross_platform_filenames_are_errors(self) -> None:
         """Catch names that are ambiguous in shells, archives, or Windows checkouts."""
         self.add_minimal_repository_files()
