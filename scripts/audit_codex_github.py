@@ -126,6 +126,13 @@ def _uses_pull_request_target(text: str) -> bool:
             continue
         base_indent = _yaml_indent(code)
         value = match.group("value").strip()
+        while value.startswith(("&", "!")):
+            node_property = value.split(None, 1)
+            value = node_property[1].lstrip() if len(node_property) == 2 else ""
+        # Resolving arbitrary aliases requires a YAML parser. Fail closed when
+        # an aliased trigger node is paired with checkout in the caller.
+        if value.startswith("*"):
+            return True
         if PULL_REQUEST_TARGET_TOKEN_RE.search(value):
             return True
         if value:
