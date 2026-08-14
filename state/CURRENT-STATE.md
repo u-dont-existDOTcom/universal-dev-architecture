@@ -31,19 +31,19 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Applied default-branch-rule findings to active public or high/critical-risk repositories, including research and content repositories.
 - Added and indexed `patterns/paid-workflow-safety.md` with exact Pangram commit/blob provenance, limits, official GitHub sources, and regression coverage.
 - Test-first promotion evidence: `695dd7a5c9bbd6babe791fbe3026d558e6b30411`; run `31779472972` failed only for the intentionally absent pattern/index route while policy run `31779473079` passed.
-- Independent review found action-reference bypasses in quoted/inline `uses` values and aliases, followed by a false positive because the first repair treated harmless `env`/`with` mappings named `uses` as actions. Further review caught mixed-case `Actions/Checkout` and an explicit `? uses` key inside an existing step. The final extractor is scoped to real step action and direct reusable-job nodes, normalizes the checkout owner/repository comparison, and covers block/flow explicit keys, flow maps, quoted/escaped keys, aliases, indentationless steps, and document-marked root flows; non-action mappings are ignored.
-- Code-bearing remediation head `a2538150fb9e9f37d558c1a5535ca61af86c8c64` is verified by Universal architecture tests run `31782343977` (49/49 tests and audit 0 errors/3 truthful hosted warnings) and Repository policy run `31782344023` (success).
+- Independent review found action-reference bypasses in quoted/inline `uses` values and aliases, followed by a false positive because the first repair treated harmless `env`/`with` mappings named `uses` as actions. Further review caught mixed-case `Actions/Checkout`, an explicit `? uses` key inside an existing step, and alias/property-bearing action keys. The final extractor is scoped to real step action and direct reusable-job nodes, normalizes the checkout owner/repository comparison, and covers block/flow explicit or unresolved keys, flow maps, quoted/escaped keys, aliases, indentationless steps, and document-marked root flows; non-action mappings are ignored.
+- Code-bearing remediation head `606dfdb1c9669ccecd5d1884714a9ea8bb551343` is verified by Universal architecture tests run `31782740305` (53/53 tests and audit 0 errors/3 truthful hosted warnings) and Repository policy run `31782740316` (success).
 
 ## Current checkpoint
 
 - Task branch: `codex/fix-audit-python312-regex-2026-08-14`
 - Reconciled base: `main@81265fd3592ee842bfe30c7d73a5c1f3dc01b2d0`
-- Exact code-bearing gates: 49/49 unit tests pass; audit passes with 0 errors and three truthful hosted-control warnings; both GitHub suites succeeded at `a2538150fb9e9f37d558c1a5535ca61af86c8c64`. Local Python compile and `git diff --check` also pass.
-- Current step: publish this refreshed evidence checkpoint, complete independent re-review of the checkout-case and explicit-key repairs, then mark PR #5 ready and merge if no actionable finding remains.
+- Exact code-bearing gates: 53/53 unit tests pass; audit passes with 0 errors and three truthful hosted-control warnings; both GitHub suites succeeded at `606dfdb1c9669ccecd5d1884714a9ea8bb551343`. Local Python compile and `git diff --check` also pass.
+- Current step: publish this refreshed evidence checkpoint, complete independent re-review of the action-key-alias repair, then mark PR #5 ready and merge if no actionable finding remains.
 
 ## Remaining
 
-- Complete independent re-review of the checkout-case and explicit-key remediation and this forward-stable state checkpoint.
+- Complete independent re-review of the action-key-alias remediation and this forward-stable state checkpoint.
 - Update PR #5's durable description and mark it ready only if no actionable finding remains.
 - Squash-merge PR #5, verify the exact merge tree and any emitted post-merge checks, and record absence rather than inventing a merge-head run if GitHub emits none.
 - Record the final universal PR/merge in the originating Pangram evidence.
