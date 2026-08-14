@@ -33,11 +33,38 @@ jobs:
               r"(?m)^\s*-?\s*uses:\s*[\"']?([^@\s\"']+)@([^\s#\"']+)"
           )
           full_sha = re.compile(r"^[0-9a-fA-F]{40}$")
-          pull_request_target_pattern = re.compile(
-              r"^\s*(?:on\s*:\s*)?pull_request_target\s*:\s*(?:#.*)?$|"
-              r"^\s*on\s*:\s*pull_request_target\s*(?:#.*)?$",
-              re.MULTILINE,
+          on_trigger_line = re.compile(
+              r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
           )
+          pull_request_target_token = re.compile(
+              r"(?<![\w-])[\"']?pull_request_target[\"']?(?![\w-])"
+          )
+          pull_request_target_child = re.compile(
+              r"^[ \t]+[\"']?pull_request_target[\"']?[ \t]*:"
+          )
+
+          def uses_pull_request_target(text: str) -> bool:
+              lines = text.splitlines()
+              for index, line in enumerate(lines):
+                  match = on_trigger_line.match(line)
+                  if match is None:
+                      continue
+                  base_indent = len(match.group("indent").expandtabs(8))
+                  value = match.group("value").split("#", 1)[0].strip()
+                  if pull_request_target_token.search(value):
+                      return True
+                  if value:
+                      continue
+                  for child in lines[index + 1:]:
+                      code = child.split("#", 1)[0].rstrip()
+                      if not code.strip():
+                          continue
+                      indent = len(code) - len(code.lstrip(" \t"))
+                      if indent <= base_indent:
+                          break
+                      if pull_request_target_child.match(code):
+                          return True
+              return False
 
           for path in sorted(workflow_dir.glob("*.y*ml")):
               text = path.read_text(encoding="utf-8")
@@ -52,7 +79,7 @@ jobs:
               ):
                   errors.append((path, "permissions: write-all is forbidden"))
 
-              if pull_request_target_pattern.search(text) and re.search(
+              if uses_pull_request_target(text) and re.search(
                   r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@", text
               ):
                   errors.append(
