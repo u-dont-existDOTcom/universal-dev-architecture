@@ -79,17 +79,6 @@ IGNORED_WALK_DIRS = {
 }
 
 FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
-USES_VALUE_RE = re.compile(
-    r"""(?mx)
-    (?:^[ \t]*-?[ \t]*|[\[\{,][ \t]*)
-    (?:[\"']uses[\"']|uses)[ \t]*:[ \t]*
-    (?:
-        "(?P<double>(?:\\.|[^"])*)"
-      | '(?P<single>[^']*)'
-      | (?P<plain>[^,\]\}\s#]+)
-    )
-    """
-)
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
 ON_TRIGGER_LINE_RE = re.compile(
@@ -514,6 +503,21 @@ def _normalized_scalar(value: str) -> str | None:
     return scalar
 
 
+def _normalized_key(value: str) -> str | None:
+    key = value.strip()
+    if len(key) >= 2 and key[0] == key[-1] == '"':
+        try:
+            decoded = json.loads(key)
+        except json.JSONDecodeError:
+            return None
+        return decoded if isinstance(decoded, str) else None
+    if len(key) >= 2 and key[0] == key[-1] == "'":
+        return key[1:-1].replace("''", "'")
+    if "\\" in key:
+        return None
+    return key
+
+
 def _flow_parts(value: str) -> list[str] | None:
     if len(value) < 2 or value[0] not in "[{" or value[-1] not in "]}":
         return None
@@ -599,15 +603,209 @@ def _flow_uses_pull_request_target(value: str) -> bool | None:
     return False
 
 
-def _uses_values(structure: str) -> list[str]:
+def _action_scalar(value: str) -> str:
+    scalar = value.strip()
+    if (
+        len(scalar) >= 2
+        and scalar[0] == scalar[-1]
+        and scalar[0] in {'"', "'"}
+    ):
+        return scalar[1:-1]
+    return scalar
+
+
+def _flow_mapping_items(value: str) -> list[tuple[str, str]] | None:
+    if not value.startswith("{"):
+        return None
+    parts = _flow_parts(value)
+    if parts is None:
+        return None
+    items: list[tuple[str, str]] = []
+    for part in parts:
+        colon = _top_level_colon(part)
+        if colon is None:
+            return None
+        key = _normalized_key(part[:colon])
+        if key is None or key.startswith(("*", "!", "&", "|", ">", "?", ":")):
+            return None
+        items.append((key, part[colon + 1 :].strip()))
+    return items
+
+
+def _flow_step_uses_values(value: str) -> list[str]:
+    value = value.strip()
+    if value.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+        return [value]
+    parts = _flow_parts(value)
+    if parts is None:
+        return []
+    if value.startswith("["):
+        values: list[str] = []
+        for part in parts:
+            if part.startswith("{"):
+                values.extend(_flow_step_uses_values(part))
+            elif part.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+                values.append(part)
+        return values
+
+    items = _flow_mapping_items(value)
+    if items is None:
+        return []
+    return [_action_scalar(raw) for key, raw in items if key == "uses"]
+
+
+def _flow_job_uses_values(value: str) -> list[str]:
+    items = _flow_mapping_items(value)
+    if items is None:
+        return []
     values: list[str] = []
-    for match in USES_VALUE_RE.finditer(structure):
-        value = match.group("double")
-        if value is None:
-            value = match.group("single")
-        if value is None:
-            value = match.group("plain")
-        values.append(value)
+    for key, raw in items:
+        if key == "uses":
+            values.append(_action_scalar(raw))
+        elif key == "<<" and raw.startswith(("*", "&", "!", "$")):
+            values.append(raw)
+        elif key == "steps":
+            values.extend(_flow_step_uses_values(raw))
+    return values
+
+
+def _flow_jobs_uses_values(value: str) -> list[str]:
+    items = _flow_mapping_items(value)
+    if items is None:
+        return []
+    values: list[str] = []
+    for _job, raw in items:
+        if raw.startswith("{"):
+            values.extend(_flow_job_uses_values(raw))
+        elif raw.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+            values.append(raw)
+    return values
+
+
+def _block_mapping_entry(line: str) -> tuple[int, bool, str, str] | None:
+    indent = _yaml_indent(line)
+    content = line.lstrip(" \t")
+    sequence_item = False
+    if content.startswith("-") and (
+        len(content) == 1 or content[1].isspace()
+    ):
+        sequence_item = True
+        content = content[1:].lstrip(" \t")
+    colon = _top_level_colon(content)
+    if colon is None:
+        return None
+    key = _normalized_key(content[:colon])
+    if not key or key.startswith(("*", "!", "&", "|", ">", "?", ":")):
+        return None
+    return indent, sequence_item, key, content[colon + 1 :].strip()
+
+
+def _collect_flow_value(
+    lines: list[str], index: int, initial: str
+) -> tuple[str, int]:
+    value = initial.strip()
+    end = index
+    if not value.startswith(("[", "{")):
+        return value, end
+    while _flow_balance(value) > 0 and end + 1 < len(lines):
+        end += 1
+        value += "\n" + _yaml_code(lines[end]).strip()
+    return value, end
+
+
+def _uses_values(structure: str) -> list[str]:
+    """Return action references only from step and reusable-job `uses` nodes."""
+
+    lines = structure.splitlines()
+    code = "\n".join(
+        code_line
+        for line in lines
+        if (code_line := _yaml_code(line)).strip() not in {"---", "..."}
+    ).strip()
+    if code.startswith("{") and _flow_balance(code) == 0:
+        root_items = _flow_mapping_items(code)
+        if root_items is None:
+            return []
+        values: list[str] = []
+        for key, raw in root_items:
+            if key == "jobs":
+                values.extend(_flow_jobs_uses_values(raw))
+        return values
+
+    values: list[str] = []
+    stack: list[tuple[int, str]] = []
+    index = 0
+    while index < len(lines):
+        line = _yaml_code(lines[index])
+        if not line.strip():
+            index += 1
+            continue
+        indent = _yaml_indent(line)
+        stripped = line.lstrip(" \t")
+        sequence_line = stripped.startswith("-") and (
+            len(stripped) == 1 or stripped[1].isspace()
+        )
+        while stack and stack[-1][0] >= indent:
+            if sequence_line and stack[-1] == (indent, "steps"):
+                break
+            stack.pop()
+        parent = [key for _level, key in stack]
+
+        entry = _block_mapping_entry(line)
+        if entry is None:
+            if (
+                sequence_line
+                and len(stripped) > 1
+                and len(parent) == 3
+                and parent[0] == "jobs"
+                and parent[2] == "steps"
+            ):
+                flow, end = _collect_flow_value(
+                    lines, index, stripped[1:].lstrip(" \t")
+                )
+                values.extend(_flow_step_uses_values(flow))
+                index = end + 1
+                continue
+            index += 1
+            continue
+
+        _indent, sequence_item, key, raw = entry
+        direct_job = len(parent) == 2 and parent[0] == "jobs"
+        direct_step_item = (
+            len(parent) == 3
+            and parent[0] == "jobs"
+            and parent[2] == "steps"
+            and sequence_item
+        ) or (
+            len(parent) == 4
+            and parent[0] == "jobs"
+            and parent[2:] == ["steps", "[]"]
+            and not sequence_item
+        )
+
+        flow, end = _collect_flow_value(lines, index, raw)
+        if key == "uses" and (direct_job or direct_step_item):
+            values.append(_action_scalar(flow))
+        elif key == "<<" and (direct_job or direct_step_item) and flow.startswith(
+            ("*", "&", "!", "$")
+        ):
+            values.append(flow)
+        elif key == "jobs" and not parent and flow.startswith("{"):
+            values.extend(_flow_jobs_uses_values(flow))
+        elif len(parent) == 1 and parent[0] == "jobs":
+            if flow.startswith("{"):
+                values.extend(_flow_job_uses_values(flow))
+            elif flow.startswith(("*", "&", "!", "|", ">", "?", ":", "$")):
+                values.append(flow)
+        elif key == "steps" and direct_job:
+            values.extend(_flow_step_uses_values(flow))
+
+        if sequence_item:
+            stack.append((indent, "[]"))
+            stack.append((indent + 2, key))
+        else:
+            stack.append((indent, key))
+        index = end + 1
     return values
 
 

@@ -98,6 +98,23 @@ steps: [{"uses": actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
             result.stdout,
         )
 
+    def test_document_marker_before_root_flow_workflow_is_rejected(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """---
+{name: Unsafe, on: pull_request_target,
+permissions: {contents: read}, jobs: {unsafe: {runs-on: ubuntu-latest,
+steps: [{uses: actions/checkout@0123456789abcdef0123456789abcdef01234567}]}}}
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+
     def test_flow_filter_value_is_not_a_privileged_event(self) -> None:
         result = self.run_policy(
             {
@@ -134,6 +151,25 @@ jobs:
         self.assertEqual(1, result.returncode, result.stdout)
         self.assertIn("owner/action@v1", result.stdout)
 
+    def test_escaped_uses_key_is_rejected_when_unpinned(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Escaped action key
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - "\\u0075ses": owner/action@v1
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn("owner/action@v1", result.stdout)
+
     def test_aliased_action_is_unresolved_and_may_hide_checkout(self) -> None:
         result = self.run_policy(
             {
@@ -148,6 +184,91 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: *checkout
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn(
+            "pull_request_target must not check out or execute untrusted pull-request code",
+            result.stdout,
+        )
+        self.assertIn("cannot be resolved statically", result.stdout)
+
+    def test_non_action_uses_mappings_are_ignored(self) -> None:
+        result = self.run_policy(
+            {
+                "safe.yml": """name: Safe uses inputs
+on: pull_request_target
+permissions:
+  contents: read
+env:
+  uses: harmless
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      uses: harmless
+    steps:
+      - name: Pinned non-checkout action
+        uses: owner/action@0123456789abcdef0123456789abcdef01234567
+        with: {uses: harmless}
+"""
+            }
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout)
+
+    def test_job_level_reusable_workflow_is_rejected_when_unpinned(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Reusable workflow caller
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: owner/repository/.github/workflows/reusable.yml@v1
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn("owner/repository/.github/workflows/reusable.yml@v1", result.stdout)
+
+    def test_indentationless_step_sequence_is_rejected_when_unpinned(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Indentationless steps
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Unpinned action
+      uses: owner/action@v1
+"""
+            }
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn("owner/action@v1", result.stdout)
+
+    def test_aliased_steps_node_is_unresolved_and_may_hide_checkout(self) -> None:
+        result = self.run_policy(
+            {
+                "unsafe.yml": """name: Unsafe aliased steps
+on: pull_request_target
+permissions:
+  contents: read
+x-steps: &review-steps
+  - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps: *review-steps
 """
             }
         )
