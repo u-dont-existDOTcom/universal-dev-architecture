@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "architecture_version": "1.0.0",
+  "reviewed_at": "2026-08-14",
+  "canonical_pattern": "patterns/codex-github-operating-system.md",
+  "profile_schema_version": 1,
+  "templates": [
+    {
+      "path": "templates/REPOSITORY-COMPLIANCE-WORKER.md",
+      "role": "repository-specific implementation and evidence contract"
+    },
+    {
+      "path": "templates/FINAL-FLEET-AUDITOR.md",
+      "role": "direct-evidence fleet reconciliation after repository work"
+    },
+    {
+      "path": "templates/REPOSITORY-COMPLIANCE-MANDATE-GUIDE.md",
+      "role": "generation and validation of repository-specific mandates"
+    }
+  ],
+  "provenance": {
+    "source_plan": "docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md",
+    "source_plan_commit": "c83b99e",
+    "lesson_closeout": "audits/2026-08-14-compliance-worker-architecture.md"
+  },
+  "supersedes": [],
+  "next_review_due": "2026-11-14"
+}

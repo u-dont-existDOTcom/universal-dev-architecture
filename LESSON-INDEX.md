@@ -15,6 +15,11 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/CURRENT-STATE.md` — reusable recovery checkpoint for long-running or multi-session work.
 - `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root `AGENTS.md` bootstrap for project repositories; points workers back to this index while embedding the minimum durable-continuity invariant locally.
 
+## Repository compliance worker architecture
+
+- `templates/COMPLIANCE-WORKER-METADATA.json` — versioned entry point for the repository worker, final fleet auditor, and mandate-generation guide.
+- `audits/2026-08-14-compliance-worker-architecture.md` — promoted lesson with provenance, limits, anti-patterns, verification, and supersession rules.
+
 ## Promotion rule
 
 Project-local evidence stays in the project repository. Promote a lesson here only when it is transferable beyond one project. Preserve the originating repository, source artifact, date/commit, rationale, and limits.

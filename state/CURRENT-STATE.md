@@ -23,6 +23,7 @@ Updated: 2026-08-14
 - The current compliance plan is committed as `c83b99e`.
 - The Python 3.12 audit import repair and regression are committed as `c1c96cb`.
 - Audit expansion for exact commands, hosted-claim evidence, instruction budgets, workflow permissions/timeouts/concurrency, unsafe filenames, and risk posture is committed as `5d599a0`; all 30 tests passed before that commit.
+- Policy authority, source-registry links, repository classification guidance, hosted evidence, and canonical state routing are reconciled in `c32b5eb`.
 - Current official OpenAI and GitHub source-registry targets were checked on 2026-08-14.
 - Hosted inspection directly verified one admin collaborator and zero environments. Other settings remain separated below.
 
@@ -30,13 +31,13 @@ Updated: 2026-08-14
 
 - Current step: execute `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md` on branch `codex/github-compliance-2026-08-14`.
 - Recovered baseline: `main` at `d1948c504687503f771c02dc4140f99bc66d2e0d` was clean, but both declared gates failed before running tests because `PULL_REQUEST_TARGET_RE` raised `re.error: global flags not at the start` on Python 3.12.
-- Last verified durable boundary: Task 2 commit `5d599a0`; the staged Task 3 candidate passes JSON validation, all 30 unit tests, and the repository audit with zero errors and two truthful hosted-control warnings.
-- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 3 awaits commit.
+- Last verified durable boundary: Task 3 commit `c32b5eb`.
+- Current candidate: Task 4 adds versioned repository-worker, final-fleet-auditor, and mandate-generation templates plus semantic lesson closeout. Metadata JSON validation, all 30 unit tests, the repository audit with zero errors and two truthful hosted-control warnings, and `git diff --check` pass.
+- Working-tree status: isolated sibling worktree at `/home/joel/universal-dev-architecture-worktrees/codex-github-compliance-2026-08-14`; Task 4 awaits commit.
 
 ## Remaining
 
-- Commit Task 3 policy/index/state reconciliation.
-- Add/version the reusable compliance-worker and final fleet-auditor architecture.
+- Commit the verified Task 4 reusable compliance-worker architecture.
 - Consolidate CI and make scheduled drift reporting idempotent.
 - Run final local gates, open one universal PR, inspect final-head CI, and merge only if policy permits.
 - Audit/remediate AskRigor on its own branch/PR, then re-fetch its evidence before updating this repository's fleet ledger in a non-overlapping follow-up.
@@ -59,7 +60,7 @@ Updated: 2026-08-14
 
 ## Next safe action
 
-- Commit the verified Task 3 candidate, then create and index the reusable compliance-worker architecture from Task 4.
+- Commit the verified Task 4 candidate, then consolidate deterministic CI and idempotent scheduled drift reporting.
 
 ## Recovery rule
 
