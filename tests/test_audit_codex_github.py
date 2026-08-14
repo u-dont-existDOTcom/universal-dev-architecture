@@ -519,12 +519,28 @@ jobs:
         self.add_minimal_repository_files()
         self.write_profile()
         private_key_header = "-----BEGIN " + "PRIVATE KEY-----"
-        self.write("docs/notes.txt", private_key_header + "\nredacted\n")
+        private_key_footer = "-----END " + "PRIVATE KEY-----"
+        self.write(
+            "docs/notes.txt",
+            private_key_header + "\n" + ("A" * 64) + "\n" + private_key_footer + "\n",
+        )
         findings = audit_repository(self.root)
         self.assertIn("secrets.likely-content", self.codes(findings))
         self.assertEqual(
             {"error"}, self.severities(findings, "secrets.likely-content")
         )
+
+    def test_negative_private_key_assertion_is_not_a_secret(self) -> None:
+        """Do not flag a guard that rejects the standalone PEM header marker."""
+        self.add_minimal_repository_files()
+        self.write_profile()
+        private_key_header = "-----BEGIN " + "PRIVATE KEY-----"
+        self.write(
+            "tests/release.test.ts",
+            'expect(file).not.toContain("' + private_key_header + '");\n',
+        )
+        findings = audit_repository(self.root)
+        self.assertNotIn("secrets.likely-content", self.codes(findings))
 
     def test_provider_token_content_in_ordinary_file_is_an_error(self) -> None:
         """Catch a high-confidence provider-token shape without exposing it."""

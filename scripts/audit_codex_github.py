@@ -94,14 +94,16 @@ CHECKOUT_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*[\"']?actions/checkout@")
 CONCURRENCY_RE = re.compile(r"(?m)^concurrency\s*:")
 PERMISSION_WRITE_RE = re.compile(r"^[A-Za-z0-9_-]+\s*:\s*write\s*(?:#.*)?$")
 MAX_SECRET_SCAN_BYTES = 1024 * 1024
+PRIVATE_KEY_PEM_RE = re.compile(
+    r"-----BEGIN (?P<label>(?:(?:RSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY)-----"
+    r"\r?\n(?=[A-Za-z0-9+/=\r\n]{32,}-----END )"
+    r"(?:[A-Za-z0-9+/]+={0,2}\r?\n)+"
+    r"-----END (?P=label)-----"
+)
 SECRET_CONTENT_PATTERNS = (
     (
         "private-key material",
-        re.compile(re.escape("-----BEGIN " + "PRIVATE KEY-----")),
-    ),
-    (
-        "private-key material",
-        re.compile(re.escape("-----BEGIN " + "RSA PRIVATE KEY-----")),
+        PRIVATE_KEY_PEM_RE,
     ),
     (
         "GitHub provider token",
