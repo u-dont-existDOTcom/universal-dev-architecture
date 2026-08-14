@@ -8,6 +8,14 @@ GitHub is the canonical durable store for project lessons and project continuity
 
 At the start of substantive work, read the project's current lesson index first. Follow its current read order, authority rules, and branch/evidence routing rather than relying on remembered file names.
 
+## Codex and GitHub operating baseline
+
+Classify the repository with `.github/codex-repository.json` and apply the risk-adjusted requirements in `patterns/codex-github-operating-system.md`. The root `AGENTS.md` must name the real authority/index files and exact commands rather than copying a stale universal snapshot.
+
+For active software work, use isolated task branches/worktrees, pull requests, deterministic CI, explicit least-privilege workflow permissions, immutable remote Action references, and a protected default branch. Do not claim hosted GitHub controls are enabled unless settings/API evidence verifies them.
+
+Run `scripts/audit_codex_github.py` or the project-approved equivalent as a completion gate. Repository-visible audit success does not prove rulesets, secret scanning, push protection, code scanning, GitHub App permissions, or Actions defaults; verify those separately.
+
 ## Durable current-state checkpoint
 
 Treat conversation/context as disposable working RAM, the repository as durable project memory, Git history as the audit/rollback trail, and a concise current-state file as the recovery entry point.
@@ -30,8 +38,9 @@ Before reporting any substantive implementation, debugging, editorial, research,
 4. update the project's current lesson summary/index for every promoted local lesson;
 5. if a lesson is genuinely transferable across projects, promote the generalized rule with provenance into `u-dont-existDOTcom/universal-dev-architecture`;
 6. update the current-state checkpoint/final state when the work is long-running or multi-step;
-7. run the repository lesson-integrity check/audit;
-8. verify it passes before claiming completion.
+7. run the repository's exact implementation/research/editorial verification gates;
+8. run the repository audit and lesson-integrity check/audit;
+9. verify all required gates pass before claiming completion.
 
 Do not ask the owner to remind you to do this.
 
@@ -47,4 +56,4 @@ Existing canonical Git state outranks generated/install snapshots. Never blindly
 
 ## Backstop
 
-Repositories with substantial ongoing work should enforce the closeout invariant in CI on push/PR and run a periodic orphan audit that surfaces undispositioned findings automatically.
+Repositories with substantial ongoing work should enforce both the work-verification and lesson-closeout invariants in CI on push/PR and run a periodic orphan audit that surfaces undispositioned findings automatically.
