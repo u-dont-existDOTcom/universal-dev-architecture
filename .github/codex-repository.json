@@ -14,6 +14,58 @@
     "default_branch_rules": "unverified",
     "secret_scanning": "unverified",
     "push_protection": "unverified",
-    "code_scanning": "not_applicable"
+    "code_scanning": "disabled",
+    "actions_default_permissions": "unverified",
+    "vulnerability_alerts": "unverified",
+    "private_vulnerability_reporting": "unverified",
+    "collaborators": "verified",
+    "environments": "verified"
+  },
+  "github_control_evidence": {
+    "default_branch_rules": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "UNVERIFIED: rulesets returned 403 plan limitation for a private repository; branch protection returned 403 integration-scope denial"
+    },
+    "secret_scanning": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "UNVERIFIED: secret-scanning alerts endpoint returned 403 integration-scope denial"
+    },
+    "push_protection": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "UNVERIFIED: available API scope could not inspect push-protection state"
+    },
+    "code_scanning": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "DISABLED: code-scanning alerts endpoint reported that code scanning is not enabled"
+    },
+    "actions_default_permissions": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "UNVERIFIED: Actions default-workflow-permissions endpoint returned 403 integration-scope denial"
+    },
+    "vulnerability_alerts": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "UNVERIFIED: vulnerability-alert and automated-security-fix endpoints returned 403 integration-scope denial"
+    },
+    "private_vulnerability_reporting": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST via connected GitHub App",
+      "result": "UNVERIFIED: private-vulnerability-reporting endpoint returned 404"
+    },
+    "collaborators": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST GET collaborators via connected GitHub App",
+      "result": "VERIFIED: sole collaborator u-dont-existDOTcom has admin role"
+    },
+    "environments": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST GET environments via connected GitHub App",
+      "result": "VERIFIED: zero repository environments"
+    }
   }
 }

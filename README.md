@@ -14,6 +14,10 @@ For Codex + GitHub work, the canonical current pattern is:
 
 - `patterns/codex-github-operating-system.md`
 
+The canonical recovery checkpoint is:
+
+- `state/CURRENT-STATE.md`
+
 Reusable files are indexed in:
 
 - `templates/README.md`
@@ -55,3 +59,5 @@ A universal pattern never overrides a project's explicit current requirement.
 The portable audit detects repository-visible failures such as missing instructions/profiles/state, missing software verification commands or CI, unsafe workflow permissions, floating Action references, dangerous privileged pull-request execution, and likely committed secret filenames.
 
 It cannot prove hosted settings such as rulesets, branch protection, secret scanning, push protection, code scanning, GitHub App permissions, or repository Actions defaults. Those must be checked through GitHub and recorded as verified only after inspection.
+
+`patterns/codex-github-operating-standard.md` and root `CURRENT-STATE.md` remain compatibility/provenance pointers only. They are not competing current authorities.

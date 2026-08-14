@@ -14,29 +14,33 @@ This ledger deliberately does not convert a successful write request, a recommen
 
 ## Universal architecture
 
-### Write operations issued
+### Recovered repository evidence
 
-- Canonical pattern: `patterns/codex-github-operating-system.md`
-- Source registry and review date inside the canonical pattern
-- Implementation plan: `docs/plans/2026-08-14-codex-github-best-practices-audit.md`
-- Repository-visible audit: `scripts/audit_codex_github.py`
-- Audit tests: `tests/test_audit_codex_github.py`
-- Repository profile: `.github/codex-repository.json`
-- Recovery state: `state/CURRENT-STATE.md`
-- Root/scoped instructions: `AGENTS.md`, `.github/AGENTS.md`, `state/AGENTS.md`
-- CI: `.github/workflows/universal-architecture-tests.yml`
-- Scheduled audit: `.github/workflows/weekly-codex-github-audit.yml`
-- CODEOWNERS, PR template, Actions Dependabot, and `.gitignore`
-- Templates for root/scoped instructions, profile, task contract, recovery state, PR evidence, workflow policy, and learning policy
-- Updated README and lesson index
+- `main` was fetched cleanly at `d1948c504687503f771c02dc4140f99bc66d2e0d`.
+- No open pull request or open issue titled `Codex + GitHub hardening audit` existed at recovery.
+- Three old remote compliance branches were 24 commits behind `main`, had no open PR, and were preserved as superseded alternatives rather than reused.
+- The two profile-declared gates both failed at import on the recovered commit because `PULL_REQUEST_TARGET_RE` used a second inline regex flag after an alternation.
+- Current work is isolated on `codex/github-compliance-2026-08-14` under `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`.
+- Commit `c1c96cb` repairs the Python 3.12 import defect with a red/green privileged-event regression.
+- Commit `5d599a0` expands the standard-library audit through red/green tests. All 30 unit tests passed immediately before that commit.
+- Current OpenAI Learn and GitHub Docs registry targets were opened from primary sources on 2026-08-14. The recorded interpretation now distinguishes the 32 KiB combined instruction chain and GitHub's unique required-check-name warning.
 
-### Verification still required
+### Hosted GitHub evidence
 
-- Re-fetch every changed canonical file.
-- Run `python3 -m unittest discover -s tests -v` against the resulting commit.
-- Run `python3 scripts/audit_codex_github.py --root . --fail-on error` against the resulting commit.
-- Inspect the resulting Actions workflow runs.
-- Verify the default-branch ruleset, Actions default token permission, secret scanning, push protection, installed Apps/collaborators, and any repository security settings through GitHub.
+- `HOSTED-VERIFIED`: repository is private; default branch is `main`; the sole collaborator is `u-dont-existDOTcom` with admin; zero environments exist.
+- `PLAN-LIMITED`: rulesets endpoint returned `403` with “Upgrade to GitHub Pro or make this repository public.”
+- `UNVERIFIED` because of integration-scope `403`: branch protection, Actions policy/default token permission, secret scanning, push protection, vulnerability alerts/security updates, and webhooks.
+- `DISABLED`: code-scanning endpoint explicitly reported that code scanning is not enabled.
+- `UNVERIFIED`: private-vulnerability-reporting endpoint returned `404`.
+- Latest `main` commit had no connector-visible status or PR workflow run evidence; no CI success is claimed.
+- Local `gh` authentication is invalid. SSH Git transport works but cannot inspect hosted settings.
+
+### Current completion boundary
+
+- Reconcile canonical indexes/state, add the compliance-worker templates, consolidate CI, and make scheduled drift reporting idempotent.
+- Run both declared gates against the final branch commit and inspect the final diff.
+- Open one focused PR, capture final-head workflow run IDs/links and conclusions, and merge only if policy permits.
+- Create one durable hardening issue for controls that remain plan/permission blocked.
 
 ## Cross-repository rollout
 

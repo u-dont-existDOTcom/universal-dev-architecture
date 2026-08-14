@@ -1,9 +1,0 @@
-{
-  "profile": "knowledge",
-  "public": false,
-  "long_running": true,
-  "require_exec_plans": true,
-  "require_pr_template": true,
-  "require_dependabot": true,
-  "exceptions": {}
-}
