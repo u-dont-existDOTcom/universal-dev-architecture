@@ -1,6 +1,6 @@
 # Universal Repository Compliance Report
 
-Date: 2026-08-14
+Date: 2026-08-15
 Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
@@ -12,8 +12,8 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
 ## Repository classification and authority
 
 - Kind: active, long-running `policy` repository.
-- Visibility: public (owner-authorized 2026-08-15; hosted transition must be
-  verified separately).
+- Visibility: public; the owner authorized the transition on 2026-08-15 and the
+  resulting hosted controls were verified separately through GitHub's API.
 - Risk: high because its operating standard, audit, and reusable mandates affect every downstream repository.
 - Canonical universal entry point: `LESSON-INDEX.md`.
 - Canonical current standard: `patterns/codex-github-operating-system.md`.
@@ -51,7 +51,7 @@ Recovered `main` failed both declared commands before test discovery with Python
 Against the final implementation candidate:
 
 - `python3 -m unittest discover -s tests -v` — PASS, 83 tests after semantic integration with current `main`.
-- `python3 scripts/audit_codex_github.py --root . --fail-on error` — PASS, 0 errors; three expected warnings for unverified default-branch rules, secret scanning, and push protection.
+- `python3 scripts/audit_codex_github.py --root . --fail-on error` — PASS, 0 errors and 0 warnings after the hosted evidence refresh.
 - `python3 -m json.tool templates/COMPLIANCE-WORKER-METADATA.json` — PASS.
 - `python3 -c 'import yaml, sys; [yaml.safe_load(open(path, encoding="utf-8")) for path in sys.argv[1:]]; print("YAML syntax OK")' .github/workflows/universal-architecture-tests.yml .github/workflows/weekly-codex-github-audit.yml .github/dependabot.yml` — PASS (`YAML syntax OK`).
 - `sed -n '/^          set -euo pipefail$/,/^          fi$/p' .github/workflows/weekly-codex-github-audit.yml | sed 's/^          //' | bash -n` — PASS.
@@ -80,35 +80,45 @@ The canonical commands remain exactly:
 - The workflow uses `contents: read`, a reviewed full-SHA checkout pin, a ten-minute timeout, and branch/ref-aware cancel-in-progress concurrency.
 - Ordinary PR CI makes no hosted writes. `Weekly repository drift` grants `issues: write` only to its separate bounded reconciliation job and closes only an issue carrying its own workflow-management marker.
 - Exact final-head run ID/link/conclusion must be taken from the published PR, not inferred from local execution.
-- The independently verified integrated PR head
-  `1d1e6d03a92bbcec65bdc02ea6490af6e640eda8` passed run `31848203559`, job
-  `Deterministic repository audit` (`94918801742`). The final fleet-ledger
-  commit needs its own replacement exact-head run after publication; the PR is
-  the durable record.
+- Integrated PR head `e434f84af8398aa4d47fb034b4430082c230415d`
+  passed run `31857250098`, job `Deterministic repository audit`
+  (`94944261385`). The final fleet/evidence commit receives its own replacement
+  exact-head run after publication; PR #4 is the durable external record.
 
 ## Hosted GitHub controls
 
-The following is the last pre-transition hosted observation, refreshed through
-the connected GitHub App/REST API on 2026-08-14:
+Authenticated GitHub REST verification on 2026-08-15 established:
 
-- `HOSTED_VERIFIED`: private repository, default branch `main`, one collaborator (`u-dont-existDOTcom`) with admin, zero environments, auto-merge disabled.
-- `PLAN_LIMITED`: rulesets returned HTTP 403 with GitHub's instruction to upgrade to GitHub Pro or make the repository public.
-- `UNVERIFIED` (HTTP 403 integration-scope denial): classic branch protection, Actions policy/default token permission, secret scanning, push protection, vulnerability alerts, Dependabot security updates, and webhooks.
-- `DISABLED`: code-scanning endpoint explicitly states code scanning is not enabled.
-- `UNVERIFIED` (HTTP 404): private vulnerability reporting.
+- Public visibility, default branch `main`, sole admin owner, zero environments,
+  and auto-merge disabled.
+- Active ruleset `20882387` targets the default branch, requires pull requests
+  and strict `Deterministic repository audit`, prevents deletion and
+  non-fast-forward updates, requires review-thread resolution, requires zero
+  approvals, and gives only the sole owner an always bypass.
+- Actions are enabled with `allowed_actions: selected` and mandatory full-SHA
+  pinning. The only allowed remote Action is the exact checkout SHA used by the
+  workflows; broad GitHub-owned and verified-creator allowances are false.
+  Default workflow tokens are read-only and cannot approve pull requests.
+- Secret scanning and push protection are enabled with zero open secret alerts.
+  Vulnerability alerts and unpaused Dependabot security updates are enabled
+  with zero open Dependabot alerts. Private vulnerability reporting is enabled.
+- CodeQL default setup is configured for Actions and Python; setup run
+  [31862468675](https://github.com/u-dont-existDOTcom/universal-dev-architecture/actions/runs/31862468675)
+  succeeded with zero open code-scanning alerts.
 
-Repository files do not prove these hosted controls. The exact remaining actions are durable in [hardening issue #3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3).
+These are hosted API results, not inferences from repository files. Hardening
+issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3)
+is closed only after the final PR head/check are recorded there.
 
 ## Residual risk and owner boundary
 
 The owner selected public visibility on 2026-08-15 after a reachable-history
-sensitive-content audit. This permits public-plan governance without granting
-write access; `LICENSE.md` grants no broader reuse rights. Main-branch PR
-enforcement, required-check enforcement, force-push/deletion prevention,
-hosted scanning, private reporting, and Actions defaults still require direct
-post-transition configuration and verification.
-
-No fake independent approval rule is proposed for the sole maintainer. The stable deterministic check must succeed on the final PR head before it can be made required.
+sensitive-content audit. Public visibility does not grant write access, and
+`LICENSE.md` grants no broader reuse rights. The sole-maintainer bypass avoids
+an impossible independent-approval rule while ordinary main updates remain
+PR- and exact-check-gated. Five repositories outside this task remain `GAP` in
+the fleet ledger; that fleet uncertainty does not weaken this repository's own
+verified controls.
 
 ## Lesson closeout and merge boundary
 
@@ -128,6 +138,8 @@ No fake independent approval rule is proposed for the sole maintainer. The stabl
   AskRigor-lessons PR #3 at `1bc0ded8...` (run `31856941754`). Universal PR #4
   receives its replacement exact-head run after this current-main integration;
   five other repositories remain `WRITE ISSUED` / `GAP`.
-- Merge is not authorized until the published final-head check is green; even then, hosted main governance remains the issue #3 blocker.
+- PR #4 may merge after its final published head passes the required check and
+  the fleet ledger cites actual downstream merge evidence; no hosted-control
+  blocker remains.
 
-`BLOCKED`
+`COMPLIANT`

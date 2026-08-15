@@ -17,5 +17,6 @@ Do not include live credentials, private keys, secret values, sensitive user mat
 
 The owner will acknowledge a report, assess cross-project impact, preserve evidence without copying secrets, and coordinate any required downstream remediation. Do not disclose a vulnerability publicly until affected repositories and credentials have been secured.
 
-GitHub private vulnerability reporting is not claimed as enabled until its
-hosted state is verified in `.github/codex-repository.json`.
+GitHub private vulnerability reporting was verified enabled through the
+repository API on 2026-08-15; `.github/codex-repository.json` records the dated
+hosted evidence.
