@@ -10,6 +10,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 4. `patterns/codex-github-operating-system.md` — risk-adjusted repository/hosted governance, continuous next-step advancement after owner input (continue automatically until the stated goal is complete or a genuine boundary requires a pause), exact executable commands, hermetic verification, transactional updates, condition-based readiness, privacy-safe diagnostics, stage-specific recovery, and pull-request/branch controls.
 5. `patterns/paid-workflow-safety.md` — gate paid, privileged, or irreversible GitHub Actions behind a fail-closed registration topology, deterministic secret-free validation, environment-file injection defenses, late credential/secret boundaries, and exact archival provenance.
 6. `patterns/editorial-authority-and-lossless-editing.md` — establish complete article-local authority before editing, preserve exact owner locks and protected functions, require reversible deletion and consolidation, keep citation/detector evidence subordinate to meaning, and bind publication provenance.
+7. `patterns/source-interpretation-provenance.md` — keep exact source wording/provenance separate from later interpretations, repair downstream dependents when a paraphrase was misattributed, and do not force a project-level origin idea to govern a narrower local task without verifying that dependency.
 
 ## Reusable policy template
 
