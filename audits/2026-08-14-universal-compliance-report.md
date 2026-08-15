@@ -12,7 +12,8 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
 ## Repository classification and authority
 
 - Kind: active, long-running `policy` repository.
-- Visibility: private.
+- Visibility: public (owner-authorized 2026-08-15; hosted transition must be
+  verified separately).
 - Risk: high because its operating standard, audit, and reusable mandates affect every downstream repository.
 - Canonical universal entry point: `LESSON-INDEX.md`.
 - Canonical current standard: `patterns/codex-github-operating-system.md`.
@@ -23,7 +24,11 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
 
 - `AGENTS.md`, `README.md`, `LESSON-INDEX.md`, `docs/INDEX.md`, `CURRENT-STATE.md`, `state/CURRENT-STATE.md` — route workers to one current policy and one recovery checkpoint.
 - `patterns/codex-github-operating-system.md`, `patterns/codex-github-operating-standard.md` — reconcile current primary sources, risk-adjusted repository kinds, hosted/file proof separation, and supersession.
-- `.github/codex-repository.json`, `SECURITY.md`, `.github/pull_request_template.md` — record truthful classification/commands/hosted evidence, private reporting, and exact PR evidence requirements.
+- `.github/codex-repository.json`, `SECURITY.md`, `LICENSE.md`,
+  `CONTRIBUTING.md`, and `.github/pull_request_template.md` — record truthful
+  classification/commands/hosted evidence, private security reporting, an
+  explicit no-public-reuse posture, contribution boundaries, and exact PR
+  evidence requirements.
 - `.codex/repository-policy.json` — removed as a contradictory obsolete profile; provenance remains in Git history and the state/ledger.
 - `scripts/audit_codex_github.py`, `tests/test_audit_codex_github.py` — restore Python 3.12 execution and enforce profile, instruction, workflow, secret, filename, risk, and hosted-claim invariants with regression tests.
 - `.github/workflows/universal-architecture-tests.yml`, `.github/workflows/weekly-codex-github-audit.yml`, `.github/dependabot.yml` — provide one stable deterministic check, least-privilege/idempotent scheduled drift reporting, and bounded grouped pinned-Action updates.
@@ -83,7 +88,8 @@ The canonical commands remain exactly:
 
 ## Hosted GitHub controls
 
-Refreshed through the connected GitHub App/REST API on 2026-08-14:
+The following is the last pre-transition hosted observation, refreshed through
+the connected GitHub App/REST API on 2026-08-14:
 
 - `HOSTED_VERIFIED`: private repository, default branch `main`, one collaborator (`u-dont-existDOTcom`) with admin, zero environments, auto-merge disabled.
 - `PLAN_LIMITED`: rulesets returned HTTP 403 with GitHub's instruction to upgrade to GitHub Pro or make the repository public.
@@ -95,7 +101,12 @@ Repository files do not prove these hosted controls. The exact remaining actions
 
 ## Residual risk and owner boundary
 
-Main-branch PR enforcement, required-check enforcement, force-push/deletion prevention, hosted scanning, and Actions defaults cannot be verified or configured with the current plan/integration scope. The remaining owner decision is whether to provide a plan and narrowly scoped administrator access that support private-repository governance, or explicitly accept the resulting high-risk exception. Public visibility is not assumed as a workaround.
+The owner selected public visibility on 2026-08-15 after a reachable-history
+sensitive-content audit. This permits public-plan governance without granting
+write access; `LICENSE.md` grants no broader reuse rights. Main-branch PR
+enforcement, required-check enforcement, force-push/deletion prevention,
+hosted scanning, private reporting, and Actions defaults still require direct
+post-transition configuration and verification.
 
 No fake independent approval rule is proposed for the sole maintainer. The stable deterministic check must succeed on the final PR head before it can be made required.
 

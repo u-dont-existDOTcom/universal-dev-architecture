@@ -6,7 +6,10 @@ Security reports are accepted for the current `main` branch, repository automati
 
 ## Private reporting
 
-This repository is private and currently has one administrator. Report a vulnerability through an issue in this private repository so the report remains visible only to authorized collaborators. If the issue system is unavailable, contact the repository owner through an already authenticated private channel.
+Do not open a public issue for a vulnerability. Use GitHub's private
+vulnerability-reporting flow from the repository Security tab when available.
+If that flow is unavailable, contact the repository owner through an already
+authenticated private channel.
 
 Do not include live credentials, private keys, secret values, sensitive user material, or unnecessary raw logs. If a credential may have been exposed, rotate or revoke it before discussing remediation.
 
@@ -14,4 +17,5 @@ Do not include live credentials, private keys, secret values, sensitive user mat
 
 The owner will acknowledge a report, assess cross-project impact, preserve evidence without copying secrets, and coordinate any required downstream remediation. Do not disclose a vulnerability publicly until affected repositories and credentials have been secured.
 
-GitHub private vulnerability reporting is not claimed as enabled; its hosted state remains unverified in `.github/codex-repository.json`.
+GitHub private vulnerability reporting is not claimed as enabled until its
+hosted state is verified in `.github/codex-repository.json`.

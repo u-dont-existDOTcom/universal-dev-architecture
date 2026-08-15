@@ -2,6 +2,10 @@
 
 Canonical cross-project store for reusable development, Codex/GitHub, and agent-workflow lessons.
 
+This public repository is owner-maintained. Public visibility permits reading
+but does not grant write access or a public reuse license; see `LICENSE.md` and
+`CONTRIBUTING.md`.
+
 ## Purpose
 
 Project repositories keep their own exact evidence, incident notes, experiments, local decisions, current state, and project-specific instructions. This repository receives only lessons and operating patterns that are genuinely transferable across projects.

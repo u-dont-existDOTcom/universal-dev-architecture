@@ -3,7 +3,7 @@
   "repository_kind": "policy",
   "active": true,
   "long_running": true,
-  "visibility": "private",
+  "visibility": "public",
   "risk": "high",
   "commands": {
     "test": "python3 -m unittest discover -s tests -v",
