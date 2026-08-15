@@ -5,7 +5,7 @@ Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
 Compliance line before main integration: `e37f34b2abced55ba1af7138bd44a2a1795d3a92`
-Integrated main boundary: `385fb1201c68dd12552c9d21f14857bd0cdad6cd`
+Integrated main boundary: `b699b31cd9720adcde7e4392a475fcfefc3026a0`
 
 The exact published PR-head SHA and its workflow run are recorded in the pull request and final worker report. A document inside a Git commit cannot truthfully contain the SHA of the commit that contains it, so this file records the exact final implementation boundary and does not invent self-referential publication evidence.
 
@@ -45,6 +45,10 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
 - `patterns/source-interpretation-provenance.md` and its `LESSON-INDEX.md`
   route — retain current `main`'s independently completed lesson separating
   exact source wording from retrospective interpretation.
+- `patterns/conversational-prose-speakability.md` and its `LESSON-INDEX.md`
+  route — retain current `main`'s independently completed speakability lesson;
+  the index merge preserves the compliance operating system as entry 1 and the
+  newer lesson as entry 8 without semantic loss.
 - `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`, `docs/exec-plans/README.md`, `docs/exec-plans/superseded/2026-08-13-codex-github-operating-baseline.md` — preserve the executed plan and superseded provenance without a contradictory active plan.
 
 ## Exact verification evidence

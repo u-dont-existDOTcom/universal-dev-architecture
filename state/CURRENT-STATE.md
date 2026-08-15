@@ -13,12 +13,13 @@ lesson provenance, and directly verified hosted governance.
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
 - Active compliance branch: `codex/github-compliance-2026-08-14`
-- Current `main` integrated into the candidate: `385fb1201c68dd12552c9d21f14857bd0cdad6cd`
+- Current `main` integrated into the candidate: `b699b31cd9720adcde7e4392a475fcfefc3026a0`
 - Recovery refs: `recovery/universal-compliance-pre-main-e37f34b`,
   `recovery/universal-pre-final-fleet-1d1e6d0`,
   `recovery/universal-pre-public-c37f012`, and
   `recovery/universal-pre-main-9de3671-394e419`, and
-  `recovery/universal-pre-main-385fb12-1c53752`
+  `recovery/universal-pre-main-385fb12-1c53752`, and
+  `recovery/universal-pre-main-b699b31-774fd0d`
 - Universal entry point: `LESSON-INDEX.md`
 - Current Codex/GitHub policy: `patterns/codex-github-operating-system.md`
 - Repository profile and exact commands: `.github/codex-repository.json`
@@ -78,23 +79,26 @@ lesson provenance, and directly verified hosted governance.
 ## Current checkpoint
 
 - Pull request: #4, `codex/github-compliance-2026-08-14` into `main`.
-- Current `main` through `385fb12` has been merged locally into the compliance
-  candidate. Rollback refs preserve both pre-integration boundaries. The first
+- Current `main` through `b699b31` has been merged locally into the compliance
+  candidate. Rollback refs preserve every pre-integration boundary. The first
   integration resolved the lesson-index/state conflicts semantically; the
-  latest source-provenance lesson merged without conflict.
-- Integrated head `e434f84af8398aa4d47fb034b4430082c230415d` passed 83/83
-  unit tests, the self-audit with zero errors, JSON/YAML, scheduled-shell
-  syntax, diff, and sensitive-history review. Exact-head workflow run
-  `31857250098`, job `94944261385`, succeeded before the hosted evidence
-  refresh; the final evidence commit requires its own replacement run.
+  source-provenance lesson merged without conflict. The later conversational
+  prose lesson required only an index-order conflict resolution: the mandated
+  operating-system entry remains first, current `main`'s `actual Git state`
+  wording is retained, and the new lesson is indexed as item 8.
+- The final integrated tree passes 83/83 unit tests, the self-audit with zero
+  findings, JSON/YAML validation, scheduled-shell syntax, and diff review.
+  Integrated head `e434f84af8398aa4d47fb034b4430082c230415d`
+  previously passed exact-head workflow run `31857250098`, job `94944261385`;
+  PR #4 is the durable source for the replacement run on the published final
+  evidence head.
 
 ## Remaining
 
-- Reconcile the fleet ledger with the actual AskRigor and AskRigor-lessons merge
-  commits and merged-main checks.
-- Re-run the declared gates on this final integrated/evidence tree, publish PR #4's final
-  head, require its replacement exact-head check, update/close issue #3, and
-  merge only after every completion gate is green.
+- Publish PR #4's final evidence head, require its replacement exact-head check,
+  and merge only after every completion gate is green. Record the resulting
+  run and merge in PR #4 and issue #3; those external records can truthfully
+  identify the commit that contains this checkpoint.
 
 ## Blockers / unresolved
 
@@ -131,9 +135,10 @@ lesson provenance, and directly verified hosted governance.
 
 ## Next safe action
 
-Finish the two downstream compliance PRs, reconcile their actual merge commits
-into the fleet ledger, run/publish the final universal evidence head, and merge
-PR #4 only after its required check succeeds.
+Inspect PR #4. If it is still open, verify its exact-head required check before
+merging. If it is merged, verify protected `main`, the merged-main checks, and
+issue #3's closeout evidence. Do not reconstruct publication state from this
+self-referential in-commit checkpoint.
 
 ## Recovery rule
 
