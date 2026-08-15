@@ -12,6 +12,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 6. `patterns/editorial-authority-and-lossless-editing.md` — establish complete article-local authority before editing, preserve exact owner locks and protected functions, require reversible deletion and consolidation, keep citation/detector evidence subordinate to meaning, and bind publication provenance.
 7. `patterns/source-interpretation-provenance.md` — keep exact source wording/provenance separate from later interpretations, repair downstream dependents when a paraphrase was misattributed, and do not force a project-level origin idea to govern a narrower local task without verifying that dependency.
 8. `patterns/conversational-prose-speakability.md` — for conversational writing, preserve the connective relations a person would actually say aloud, avoid artificial staccato created by hiding conjunctions behind hard stops, prefer active/experiencer-centered phrasing when natural, and audit accidental local word repetition without mechanically banning fragments, passives, or repeated words.
+9. `patterns/external-evaluation-reproducibility.md` — treat historical pass/green labels as evidence history rather than current controls unless the exact boundary and evaluator provenance reproduce; if the unchanged control itself changes result, stop causal attribution, preserve the discrepancy, and establish a new current baseline instead of rewriting to reconcile stale evaluation history.
 
 ## Reusable policy template
 
