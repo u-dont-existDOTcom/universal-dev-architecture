@@ -22,6 +22,6 @@ This rule does not broaden scope or authority and does not turn a genuine owner 
 - Lesson route: `LESSON-INDEX.md`
 - Causal regression: `tests/test_universal_next_step_rule.py`
 
-Test-first evidence is exact: at test-only head `9d6687ed7ba3334efc333b77bd6c1c0817573979`, Universal architecture tests run `31856407051` / job `94941896599` failed because the projections and audit were absent (63 tests ran; 31 assertion failures and 2 missing-file errors), while Repository policy run `31856407065` succeeded. The code-bearing head must pass both exact PR checks before review or merge.
+Test-first evidence is exact: at test-only head `9d6687ed7ba3334efc333b77bd6c1c0817573979`, Universal architecture tests run `31856407051` / job `94941896599` failed because the projections and audit were absent (63 tests ran; 31 assertion failures and 2 missing-file errors), while Repository policy run `31856407065` succeeded. Code-bearing head/tree `3dfe834b718520457833a19953c4f7b573ec25f1` / `350c3b879a673436661a1e046d9e1bc51e778b86` then passed Universal architecture tests run `31856554150` / job `94942298836` with 63/63 tests and audit summary 0 errors, 3 truthful hosted-control warnings, and 0 informational findings; Repository policy run `31856554153` / job `94942299028` also succeeded. The final evidence-only head must retain green checks before review or merge.
 
 The regression is a documentation-contract check. It can prevent accidental removal of the rule and its boundaries, but it cannot prove that an unobserved worker will apply the rule correctly.

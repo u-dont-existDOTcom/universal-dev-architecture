@@ -11,7 +11,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
 - Verified code-bearing baseline: PR #10 merge `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
-- Active change: draft PR #11 on `agent/universal-next-step-continuation-rule` promotes Joel's universal next-step continuation rule. Causal RED is verified; the code-bearing implementation is published and exact-head checks are pending.
+- Active change: draft PR #11 on `agent/universal-next-step-continuation-rule` promotes Joel's universal next-step continuation rule. Causal RED and exact code-bearing GREEN are verified; this evidence-only checkpoint is pending exact-head checks.
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
 - Repository profile and commands: `.github/codex-repository.json`
@@ -41,19 +41,21 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - PR #9 code-bearing head `8da52dc977e0670ec606ca7c07d10b2a58507985` is verified by Universal architecture tests run `31786060272` (57/57 tests; audit 0 errors/3 truthful hosted warnings) and Repository policy run `31786060351` (success).
 - Merged universal coordination-rule PR #10 as `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`; it is the current canonical `main` baseline.
 - Recorded Joel's cross-project next-step rule test-first in draft PR #11: owner answers and corrections advance unfinished work instead of ending in an acknowledgment-only turn, without broadening authority or bypassing real pause boundaries.
+- Verified PR #11 code-bearing head/tree `3dfe834b718520457833a19953c4f7b573ec25f1` / `350c3b879a673436661a1e046d9e1bc51e778b86`: Universal architecture tests run `31856554150` / job `94942298836` passed 63/63 with audit 0 errors/3 truthful warnings; Repository policy run `31856554153` / job `94942299028` succeeded.
 
 ## Current checkpoint
 
 - Canonical baseline: `main` at `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be` (PR #10 merge).
 - Active branch/PR: `agent/universal-next-step-continuation-rule` / draft PR #11; unrelated PRs #4 and #2 and issue #3 are untouched.
 - RED evidence: test-only head `9d6687ed7ba3334efc333b77bd6c1c0817573979`; Universal architecture tests run `31856407051` / job `94941896599` failed causally with 63 tests, 31 assertion failures, and 2 missing-audit errors. Repository policy run `31856407065` succeeded.
-- Code-bearing scope: root agreement, operating pattern, reusable template, lesson index, provenance audit, causal regression, and this checkpoint.
-- Current step: wait for both exact code-bearing PR checks. If green, bind their head/run evidence in a forward-stable checkpoint, inspect the complete diff, and continue the review/merge sequence.
+- GREEN code-bearing evidence: head/tree `3dfe834b718520457833a19953c4f7b573ec25f1` / `350c3b879a673436661a1e046d9e1bc51e778b86`; Universal architecture tests run `31856554150` / job `94942298836` passed 63/63 with audit 0 errors, 3 truthful hosted-control warnings, and 0 informational findings. Repository policy run `31856554153` / job `94942299028` succeeded.
+- Evidence-only delta: the provenance audit and this checkpoint bind the exact code-bearing evidence; no operational rule or test changed.
+- Current step: verify both checks on this evidence-only head, inspect the complete diff, then mark PR #11 ready and merge if all gates remain green.
 
 ## Remaining
 
-- Verify the exact PR #11 code-bearing head with Universal architecture tests and Repository policy.
-- Bind the exact green code-bearing evidence, perform a complete diff review, verify the evidence-only head, mark PR #11 ready, and merge if all gates remain green.
+- Verify Universal architecture tests and Repository policy on the final evidence-only PR #11 head.
+- Inspect the complete base-to-head diff, mark PR #11 ready, and merge if all gates remain green; then verify the exact merge head.
 - Do not alter unrelated open PRs #4/#2 or hardening issue #3.
 
 ## Blockers / unresolved
@@ -82,7 +84,7 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Next safe action
 
-Wait for both exact-head PR #11 checks. If they pass, record the code-bearing head/run/job evidence, review the full diff, verify the final evidence-only head, then mark ready and merge. If PR #11 has already merged during recovery, verify the exact merge head and do not repeat the promotion.
+Wait for both exact checks on the final evidence-only PR #11 head. If they pass and the complete diff remains scoped, mark ready and merge with an expected-head guard, then verify the exact merge head. If PR #11 has already merged during recovery, verify that merge head and do not repeat the promotion.
 
 ## Recovery rule
 
