@@ -1,6 +1,6 @@
 # Codex + GitHub Best-Practices Rollout Status
 
-Date: 2026-08-14
+Date: 2026-08-15
 
 ## Meaning of status labels
 
@@ -16,20 +16,30 @@ No successful write request, worker report, CODEOWNERS file, workflow YAML, or p
 
 ## Independently reconciled compliance candidates
 
-The final fleet reconciliation re-fetched open PRs, exact-head workflow runs/jobs, and exact-title hardening issues through the connected GitHub App on 2026-08-14.
+The final fleet reconciliation re-fetched repositories, exact PR heads and
+merge commits, workflow runs/jobs, rulesets, Actions/security settings, alert
+counts, and hardening issues through authenticated GitHub REST on 2026-08-15.
 
 | Repository | Repository-visible candidate | Exact-head CI | Hosted boundary | Terminal status |
 | --- | --- | --- | --- | --- |
-| universal-dev-architecture | PR [#4](https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/4); independently verified pre-final-ledger head `1d1e6d03a92bbcec65bdc02ea6490af6e640eda8`; this final ledger update produces a newer head whose exact run belongs in the PR | `Universal repository compliance` run [31848203559](https://github.com/u-dont-existDOTcom/universal-dev-architecture/actions/runs/31848203559), `Deterministic repository audit` job `94918801742`: success at `1d1e6d0...` | private plan-limited rulesets; admin/security endpoints inaccessible; code scanning disabled; issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) | `BLOCKED` |
-| AskRigor | PR [#7](https://github.com/u-dont-existDOTcom/AskRigor/pull/7), head `1c9ed25b681544bc4041ad2f37b6f9fbf1848eb5` | deterministic run [31856944544](https://github.com/u-dont-existDOTcom/AskRigor/actions/runs/31856944544), job `94943407140`: success; workflow-policy run [31856944538](https://github.com/u-dont-existDOTcom/AskRigor/actions/runs/31856944538), job `94943407431`: success | public rulesets empty before the authorized hosted hardening; private reporting disabled; issue [#6](https://github.com/u-dont-existDOTcom/AskRigor/issues/6) | `BLOCKED` pending hosted configuration |
-| AskRigor-lessons | PR [#3](https://github.com/u-dont-existDOTcom/AskRigor-lessons/pull/3), head `1bc0ded8bf025ecf81e3340939fb7a08b1912d14` | `AskRigor lesson integrity` run [31856941754](https://github.com/u-dont-existDOTcom/AskRigor-lessons/actions/runs/31856941754), `Lesson integrity` job `94943397517`: success | owner-authorized public transition pending; hosted governance/security controls require post-transition verification; issue [#2](https://github.com/u-dont-existDOTcom/AskRigor-lessons/issues/2) | `BLOCKED` pending hosted configuration |
+| universal-dev-architecture | PR [#4](https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/4); current-main boundary `385fb120...`; verified pre-final-ledger head `1c53752c...`; this ledger update creates the final external PR head | Run [31863152348](https://github.com/u-dont-existDOTcom/universal-dev-architecture/actions/runs/31863152348), `Deterministic repository audit` job `94959848417`: success at `1c53752c...`; the final replacement run belongs in PR #4 | Public; active ruleset `20882387`; selected exact-SHA Actions/read-only defaults; secret/push/dependency/private-reporting/CodeQL enabled; zero alerts; issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) ready to close after final-head merge evidence | `COMPLIANT` candidate; final required run/merge pending |
+| AskRigor | PR [#7](https://github.com/u-dont-existDOTcom/AskRigor/pull/7), final head `43e5b9442c5456bcfaba9b76194bf6474f74346d`; merged as `9134e22784e4d26dcf3c6d24a299bb5f783455ad` | Runs [31863157368](https://github.com/u-dont-existDOTcom/AskRigor/actions/runs/31863157368) / job `94959860545`, [31863157376](https://github.com/u-dont-existDOTcom/AskRigor/actions/runs/31863157376) / job `94959860566`, and CodeQL `31863154078`: success; merged-main gates also succeeded | Public; active ruleset `20882388`; selected exact-SHA Actions/read-only defaults; secret/push/dependency/private-reporting/CodeQL enabled; zero open alerts; issue #6 closed | `COMPLIANT` / merged |
+| AskRigor-lessons | PR [#3](https://github.com/u-dont-existDOTcom/AskRigor-lessons/pull/3), final head `c99a02492efa34d23bb836791aef00e08ce535ff`; merged as `8e894ea73b1d589444fd5a059c517177eb4eb5d8` | Run [31863369692](https://github.com/u-dont-existDOTcom/AskRigor-lessons/actions/runs/31863369692), `Lesson integrity` job `94960380007`, and CodeQL `31863367948`: success; merged-main integrity/CodeQL also succeeded | Public; active ruleset `20882389`; selected exact-SHA Actions/read-only defaults; secret/push/dependency/private-reporting/CodeQL enabled; zero alerts | `COMPLIANT_WITH_DECLARED_EXCEPTIONS` / merged |
 
 ### Evidence-backed interpretation
 
-- Universal repository-visible tests/audit, worker/final-auditor architecture, primary-source registry, immutable Action pins, and scheduled bounded drift issue reconciliation are implemented. Head `1d1e6d0...` is locally and CI verified; the newest self-referential final-ledger head must receive a replacement green `Deterministic repository audit` run after publication.
-- AskRigor's exact bootstrap/deterministic/site/deployment commands, authority chain, complete-protocol byte/hash behavior, source-access truth states, public MCP boundary, release distinction, scoped AGPL boundary, and final CI are verified on PR #7 at `1c9ed25b...`. The explicitly authorized opt-in provider smoke passed two public-provider tests with three credential-gated skips. The bounded paid Action acceptance was completed and merged through PR #8, then reconciled into PR #7's release evidence; it does not substitute for hosted-control evidence.
-- AskRigor-lessons now has one canonical ledger/schema, dependency-free integrity/workflow policy tests, exact source-byte provenance, safe intake/closeout, authority/freshness boundaries, and final CI on PR #3. Its sole lesson remains provisional/unverified because its originating AskRigor incident/experiment/test was not preserved.
-- None of the three candidates is merged or called compliant. Applicable hosted governance remains unverified, unavailable, disabled, or plan-limited.
+- Universal repository-visible tests/audit, worker/final-auditor architecture,
+  source registry, immutable Action enforcement, bounded drift reporting, current
+  `main`, and all hosted controls are integrated. The self-referential final
+  ledger head receives its replacement required run and merge evidence in PR #4.
+- AskRigor's exact commands, authority/protocol hashes, source-access states,
+  MCP/release boundaries, scoped AGPL, CodeQL repair, required checks, hosted
+  controls, and merged-main alert closure are verified. The separate public
+  submission gates remain blocked without affecting repository compliance.
+- AskRigor-lessons has one canonical ledger/schema, dependency-free integrity
+  policy, current AskRigor byte evidence, safe intake/closeout, and verified
+  hosted controls. Its sole lesson remains inactive/provisional because its
+  originating incident/test was not preserved; that is the declared exception.
 
 ## Historical connector bootstrap not yet independently audited
 
@@ -49,18 +59,17 @@ Existing root instructions in mature repositories were not destructively replace
 
 ### universal-dev-architecture
 
-- Publish this final fleet update, capture the exact new PR head and replacement successful `Deterministic repository audit` run, and retain them in PR #4.
-- Verify/configure main PR enforcement, required check, force-push/deletion prevention, solo-maintainer bypass, Actions defaults, scanning, alerts, and private reporting through an authenticated admin/security context and supported private plan—or record an explicit owner-accepted exception.
+- Publish this final fleet/current-main integration, capture the exact PR head
+  and replacement `Deterministic repository audit` run in PR #4, merge, verify
+  protected `main`, and close issue #3.
 
 ### AskRigor
 
-- Verify/configure `main` with pull requests and stable required `Deterministic verification`, no force push/deletion, and usable solo-maintainer bypass.
-- Verify Actions defaults and enable/verify vulnerability alerts, security updates, code/secret scanning, push protection, and private vulnerability reporting where supported.
-- Owner decision: public reuse license. The candidate preserves the current no-license-grant posture.
+- No repository-baseline gap remains. V0.1.0 public submission stays separately
+  blocked by its existing product/release gates.
 
 ### AskRigor-lessons
 
-- Verify/configure `main` with pull requests and stable required `Lesson integrity`, no force push/deletion, and usable solo-maintainer bypass; verify Actions/security controls where supported.
 - Supply exact originating AskRigor incident/experiment/test plus substantive verification before changing `askrigor.community-narrative-comparator.v1` from provisional/unverified.
 
 ### Repositories not independently audited in this run
@@ -77,4 +86,9 @@ For active canonical branches, require pull requests, unique deterministic check
 
 ## Completion boundary
 
-The three mandated repository candidates are repository-visible and exact-head CI-verified at the revisions named above, subject only to the universal self-update run required after publishing this ledger. They remain `BLOCKED`, not compliant, because applicable hosted controls are not verified/effective. Five additional fleet repositories retain `WRITE ISSUED`/`GAP` status because no independent final repository/CI/hosted audit was performed in this run.
+AskRigor is merged and `COMPLIANT`. AskRigor-lessons is merged and
+`COMPLIANT_WITH_DECLARED_EXCEPTIONS` for its inactive lesson's unavailable
+historical origin evidence. Universal is repository/hosted compliant and awaits
+only the self-referential final-ledger head's required run/merge evidence in PR
+#4. Five additional fleet repositories retain `WRITE ISSUED`/`GAP` because no
+independent final repository/CI/hosted audit was performed in this run.

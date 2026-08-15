@@ -13,11 +13,12 @@ lesson provenance, and directly verified hosted governance.
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
 - Active compliance branch: `codex/github-compliance-2026-08-14`
-- Current `main` integrated into the candidate: `9de36712e9250b79092b2ecd12cda5e005760d83`
+- Current `main` integrated into the candidate: `385fb1201c68dd12552c9d21f14857bd0cdad6cd`
 - Recovery refs: `recovery/universal-compliance-pre-main-e37f34b`,
   `recovery/universal-pre-final-fleet-1d1e6d0`,
   `recovery/universal-pre-public-c37f012`, and
-  `recovery/universal-pre-main-9de3671-394e419`
+  `recovery/universal-pre-main-9de3671-394e419`, and
+  `recovery/universal-pre-main-385fb12-1c53752`
 - Universal entry point: `LESSON-INDEX.md`
 - Current Codex/GitHub policy: `patterns/codex-github-operating-system.md`
 - Repository profile and exact commands: `.github/codex-repository.json`
@@ -49,13 +50,16 @@ lesson provenance, and directly verified hosted governance.
   `f8e7ca1e10c096e050207828eeb9eb7957d7ef6f` after exact-head checks and
   bounded live Action acceptance; the synthetic lesson issue was safely closed.
 - AskRigor compliance PR #7 is published at
-  `1c9ed25b681544bc4041ad2f37b6f9fbf1848eb5`; runs `31856944544` / job
-  `94943407140` and `31856944538` / job `94943407431` succeeded.
-- AskRigor-lessons PR #3 is published at
-  `1bc0ded8bf025ecf81e3340939fb7a08b1912d14`; run `31856941754` / job
-  `94943397517` succeeded. Its sole lesson remains provisional/unverified
-  because originating incident/test provenance is absent.
-- Official OpenAI and GitHub registry links were reviewed on 2026-08-14.
+  final head `43e5b9442c5456bcfaba9b76194bf6474f74346d` and merged as
+  `9134e22784e4d26dcf3c6d24a299bb5f783455ad`; exact-head deterministic,
+  workflow-policy, and CodeQL runs succeeded, issue #6 closed, and merged-main
+  CodeQL closed the fixed alert.
+- AskRigor-lessons PR #3 final head
+  `c99a02492efa34d23bb836791aef00e08ce535ff` merged as
+  `8e894ea73b1d589444fd5a059c517177eb4eb5d8`; exact-head and merged-main
+  integrity/CodeQL gates succeeded. Its sole lesson remains
+  provisional/unverified because originating incident/test provenance is absent.
+- Official OpenAI and GitHub registry links were reviewed on 2026-08-15.
   Repository files do not assert hosted settings without API evidence.
 - The owner authorized public visibility on 2026-08-15 after a reachable
   remote-history audit found no sensitive filenames, private-key material, or
@@ -74,10 +78,10 @@ lesson provenance, and directly verified hosted governance.
 ## Current checkpoint
 
 - Pull request: #4, `codex/github-compliance-2026-08-14` into `main`.
-- Current `main` through `9de3671` has been merged locally into the compliance
-  candidate from rollback ref
-  `recovery/universal-pre-main-9de3671-394e419`; the only conflicts were the
-  lesson index and this checkpoint, resolved by preserving both policy lines.
+- Current `main` through `385fb12` has been merged locally into the compliance
+  candidate. Rollback refs preserve both pre-integration boundaries. The first
+  integration resolved the lesson-index/state conflicts semantically; the
+  latest source-provenance lesson merged without conflict.
 - Integrated head `e434f84af8398aa4d47fb034b4430082c230415d` passed 83/83
   unit tests, the self-audit with zero errors, JSON/YAML, scheduled-shell
   syntax, diff, and sensitive-history review. Exact-head workflow run
@@ -86,9 +90,9 @@ lesson provenance, and directly verified hosted governance.
 
 ## Remaining
 
-- Reconcile the fleet ledger after the AskRigor and AskRigor-lessons compliance
-  pull requests reach their final merge state.
-- Re-run the declared gates on the final evidence tree, publish PR #4's final
+- Reconcile the fleet ledger with the actual AskRigor and AskRigor-lessons merge
+  commits and merged-main checks.
+- Re-run the declared gates on this final integrated/evidence tree, publish PR #4's final
   head, require its replacement exact-head check, update/close issue #3, and
   merge only after every completion gate is green.
 

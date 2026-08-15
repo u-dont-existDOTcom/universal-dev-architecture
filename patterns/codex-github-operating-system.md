@@ -1,6 +1,6 @@
 # Codex + GitHub Operating System
 
-Reviewed against official OpenAI and GitHub guidance: 2026-08-14
+Reviewed against official OpenAI and GitHub guidance: 2026-08-15
 
 ## Purpose
 
@@ -450,16 +450,19 @@ These are the primary sources reviewed for this pattern. Recheck them before a m
 
 - Repository best practices: `https://docs.github.com/en/repositories/creating-and-managing-repositories/best-practices-for-repositories`
 - Rulesets: `https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets`
+- Rulesets REST API: `https://docs.github.com/en/rest/repos/rules`
 - Protected branches: `https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches`
 - CODEOWNERS: `https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners`
 - Actions security hardening: `https://docs.github.com/en/actions/reference/security/secure-use`
 - GitHub token permissions: `https://docs.github.com/en/actions/tutorials/authenticate-with-github_token`
+- GitHub Actions permissions REST API: `https://docs.github.com/en/rest/actions/permissions?apiVersion=2026-03-10`
 - OIDC: `https://docs.github.com/en/actions/concepts/security/openid-connect`
 - Dependabot configuration: `https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference`
 - Dependency review: `https://docs.github.com/en/code-security/concepts/supply-chain-security/dependency-review`
 - Secret-scanning push protection: `https://docs.github.com/en/code-security/concepts/secret-security/push-protection`
 - Code scanning setup: `https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/configure-code-scanning/configure-code-scanning`
 - Security policy: `https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/add-security-policy`
+- Private vulnerability reporting: `https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository`
 - Pull-request templates: `https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository`
 
 ## Review cadence
@@ -475,3 +478,17 @@ These are the primary sources reviewed for this pattern. Recheck them before a m
 - Added GitHub's explicit warning that required-check job names must be unique across workflows to avoid ambiguous merge gates.
 - Updated redirected GitHub Actions, Dependabot, dependency-review, secret-scanning, code-scanning, and security-policy links to their current primary targets.
 - Retained the existing risk-adjusted and solo-maintainer interpretations; the reviewed sources did not justify weaker workflow permissions, fabricated independent approval, or file-based claims about hosted controls.
+
+## 2026-08-15 source-review disposition
+
+- Re-opened every registered OpenAI and GitHub primary source; all resolved to
+  current official documentation without requiring a policy reinterpretation.
+- Added the official GitHub REST references used to verify repository rulesets,
+  selected-only Action allowlists with full-SHA enforcement, and private
+  vulnerability reporting.
+- GitHub's current public-repository guidance continues to recommend Dependabot
+  alerts, secret scanning, push protection, code scanning, a security policy,
+  private vulnerability reporting, and protected pull-request branches.
+- Retained the risk-adjusted repository-kind and solo-maintainer rules. The
+  source review did not justify broad Actions allowances, fake independent
+  approval, or inferring hosted settings from committed files.

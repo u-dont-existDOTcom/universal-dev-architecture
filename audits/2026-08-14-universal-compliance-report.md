@@ -5,7 +5,7 @@ Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
 Compliance line before main integration: `e37f34b2abced55ba1af7138bd44a2a1795d3a92`
-Integrated main boundary: `9de36712e9250b79092b2ecd12cda5e005760d83`
+Integrated main boundary: `385fb1201c68dd12552c9d21f14857bd0cdad6cd`
 
 The exact published PR-head SHA and its workflow run are recorded in the pull request and final worker report. A document inside a Git commit cannot truthfully contain the SHA of the commit that contains it, so this file records the exact final implementation boundary and does not invent self-referential publication evidence.
 
@@ -42,6 +42,9 @@ The exact published PR-head SHA and its workflow run are recorded in the pull re
   tested lesson-incubator architecture: non-authoritative ledgers, historical
   byte provenance, explicit freshness ownership, executable dispositions and
   supersession, and bounded sensitive-evidence intake.
+- `patterns/source-interpretation-provenance.md` and its `LESSON-INDEX.md`
+  route — retain current `main`'s independently completed lesson separating
+  exact source wording from retrospective interpretation.
 - `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`, `docs/exec-plans/README.md`, `docs/exec-plans/superseded/2026-08-13-codex-github-operating-baseline.md` — preserve the executed plan and superseded provenance without a contradictory active plan.
 
 ## Exact verification evidence
@@ -133,11 +136,13 @@ verified controls.
   promoted in `audits/2026-08-14-askrigor-lessons-transferable-design.md` from
   exact source commit/path/hash and green CI evidence. Its community-comparator
   content remains project-local, provisional, and unverified.
-- The fleet ledger is reconciled from exact repository/CI/issue evidence for
-  AskRigor PR #7 at `1c9ed25b...` (runs `31856944544` and `31856944538`) and
-  AskRigor-lessons PR #3 at `1bc0ded8...` (run `31856941754`). Universal PR #4
-  receives its replacement exact-head run after this current-main integration;
-  five other repositories remain `WRITE ISSUED` / `GAP`.
+- The fleet ledger is reconciled from exact repository/CI/issue evidence:
+  AskRigor PR #7 final head `43e5b944...` merged as `9134e227...`, and
+  AskRigor-lessons PR #3 final head `c99a024...` merged as `8e894ea...`.
+  Required and CodeQL checks passed on the exact heads and merged `main`
+  commits. Universal PR #4 receives its replacement exact-head run after this
+  current-main integration; five other repositories remain `WRITE ISSUED` /
+  `GAP`.
 - PR #4 may merge after its final published head passes the required check and
   the fleet ledger cites actual downstream merge evidence; no hosted-control
   blocker remains.
