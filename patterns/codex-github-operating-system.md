@@ -269,6 +269,40 @@ Apply controls according to visibility and risk:
 
 If a secret is committed, deleting the file in a later commit is insufficient: rotate/revoke the credential and remove it from history where appropriate.
 
+### Public visibility transitions
+
+Changing an existing repository from private to public is an irreversible
+disclosure boundary, not an ordinary reversible settings change. A later
+switch back to private can change future access. However, public copies cannot be retracted
+from clones, forks, caches, mirrors, indexes, or other systems outside the
+repository owner's control.
+
+Before the mutation, require a fail-closed pre-disclosure audit covering
+secrets, private or regulated data, ownership, and licensing. Audit
+all reachable refs and retained hosted surfaces, including issues, pull
+requests, comments, reviews, workflow logs, and artifacts. Prepare the audit implementation,
+public license/contribution/security posture, and visibility-gated analysis in
+a private pull request. Merge that reviewed candidate while the repository is
+still private, then repeat the complete local and authenticated hosted audit
+from a clean detached checkout of the exact merged default-branch commit.
+Missing, truncated, malformed, inaccessible, or unexpectedly changed audit
+surfaces leave the repository private.
+
+After an authorized visibility mutation, immediately require exact repository
+identity and visibility readback. Enable and read back the applicable public
+security controls, run the real hosted analysis against the exact public
+default-branch commit, disposition its findings, and protect the authoritative
+branches only with check names that have actually succeeded. Record the
+transition and hosted-control evidence through a post-transition protected evidence pull request.
+Do not edit protected authority branches directly to make documentation catch
+up.
+
+Scanners and bounded inventories reduce disclosure risk; they do not prove
+the absence of secrets or private data. Hosted-surface evidence is complete
+only to the extent supported by authenticated enumeration, retention, and API
+access. Preserve those limitations in the transition record rather than
+describing the public switch as rolled back or risk-free.
+
 ---
 
 ## 9. Use Codex review as an additional control, not the only control
