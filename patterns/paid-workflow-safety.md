@@ -104,8 +104,9 @@ Zero `workflow_dispatch` runs supports a claim that no Actions dispatch occurred
 
 ## Origin evidence
 
-Originating repository: `u-dont-existDOTcom/pangram-humanization-lab`  
-Promotion date: 2026-08-14  
+Originating repository: `u-dont-existDOTcom/pangram-humanization-lab`
+
+Promotion date: 2026-08-14
 Rationale: consolidation of fourteen historic executable evidence workflows exposed three transferable gaps: privileged-trigger parsing across valid YAML forms, default-branch registration for a non-default manual paid implementation, and environment-file output injection.
 
 ### Main-branch repository hardening
@@ -147,4 +148,3 @@ A fail-closed default-branch stub prevents accidental execution in its reviewed 
 Static policy checks catch known shapes, not every YAML semantic or shell-injection possibility. Prefer a real YAML parser when dependencies and schema control permit it, keep adversarial regressions for valid trigger forms, and fail closed on constructs the checker cannot safely resolve.
 
 Review official sources before major revisions because GitHub event registration, environment-file syntax, runner behavior, and security controls can change.
-

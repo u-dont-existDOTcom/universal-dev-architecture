@@ -13,6 +13,13 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `PULL_REQUEST_TEMPLATE.md` — exact verification, risk, diff audit, continuity, and lesson closeout.
 - `PROJECT-LEARNING-POLICY.md` — learning dispositions, provenance, promotion, and CI/orphan-audit policy.
 
+## Compliance worker architecture
+
+- `REPOSITORY-COMPLIANCE-WORKER.md` — generic risk-adjusted worker contract; generate repository facts before execution.
+- `FINAL-FLEET-AUDITOR.md` — direct-evidence fleet reconciliation that never accepts worker prose as proof.
+- `REPOSITORY-COMPLIANCE-MANDATE-GUIDE.md` — how to classify a repository and generate a specific mandate without stale facts.
+- `COMPLIANCE-WORKER-METADATA.json` — architecture version, review date, compatibility, provenance, and review cadence.
+
 ## Adaptation rules
 
 - Replace every placeholder with a verified repository fact or remove the field.
@@ -23,3 +30,4 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - Public or high/critical-risk repositories need additional security, ownership, licensing, and contribution decisions.
 - Artifact repositories must record source commit, generator, version, checksums, and validation and must prohibit hand edits.
 - Research/content repositories require provenance, claim/evidence status, owner-authority, privacy, and loss-prevention controls instead of irrelevant software ceremony.
+- Generated compliance mandates must record the worker architecture version and remove all template markers before use.

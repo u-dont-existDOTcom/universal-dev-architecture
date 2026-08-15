@@ -4,5 +4,6 @@ Complex, multi-session work is tracked here so a fresh worker can recover intent
 
 - Active plans: `active/`
 - Completed plans: `completed/`
+- Superseded plans retained for provenance: `superseded/`
 
-Move a plan to completed only after final verification and closeout are recorded. Current project requirements and verified repository state outrank a stale plan.
+Move a plan to completed only after final verification and closeout are recorded. Move an overtaken plan to superseded with an explicit pointer to its replacement. Current project requirements and verified repository state outrank a stale plan.

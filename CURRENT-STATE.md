@@ -1,5 +1,5 @@
-# Superseded current-state path
+# Current-state compatibility pointer
 
-This compatibility file is retained because older checks and links require the root path. The sole canonical checkpoint is `state/CURRENT-STATE.md` as declared by `.github/codex-repository.json`.
+The sole canonical recovery checkpoint is `state/CURRENT-STATE.md`.
 
-Do not resume from this file. Reconcile `state/CURRENT-STATE.md` against Git and current owner instructions.
+This root file is retained so older links do not become silent dead ends. Do not record a second status here or use this pointer to override the canonical checkpoint, current owner instructions, Git state, tests, or exact repository evidence.

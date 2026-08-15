@@ -1,6 +1,6 @@
 # Codex + GitHub Operating System
 
-Reviewed against official OpenAI and GitHub guidance: 2026-08-14
+Reviewed against official OpenAI and GitHub guidance: 2026-08-15
 
 ## Purpose
 
@@ -62,6 +62,8 @@ Do not use `AGENTS.md` as:
 - a copied snapshot of universal instructions that will go stale.
 
 The root file should point to canonical indexes and exact commands. Long explanations belong in linked repository documents. Temporary override files should not become an undocumented second source of truth.
+
+Codex currently discovers at most 32 KiB by default across the complete applicable root-to-working-directory instruction chain. Treat that as a combined-chain limit, not a per-file allowance. A shorter warning threshold for the root file is reasonable because nested instructions and system-owned guidance also consume context.
 
 ### Test instruction discovery
 
@@ -197,6 +199,8 @@ Prefer a GitHub ruleset protecting the default branch. Normally require:
 - branch up to date or merge queue when concurrency makes this necessary;
 - force pushes and branch deletion blocked;
 - bypass limited to explicit emergency/maintenance actors.
+
+Required status-check job names must be unique across workflows. GitHub documents that duplicate job names can make required-check results ambiguous and block merging. Establish and observe the final check name before adding it to a rule.
 
 For a solo repository, requiring an independent approval can make every PR impossible to merge. Keep the PR and status-check requirement, but require approving reviews only when an actual independent reviewer exists or the risk warrants a deliberate second person. Do not pretend self-review is independent review.
 
@@ -339,6 +343,20 @@ Required:
 - Dependabot/security controls appropriate to visibility/risk;
 - PR verification evidence.
 
+### Active policy or control-plane repository
+
+Required:
+
+- one canonical policy/index entry point and explicit supersession links for retained provenance;
+- exact deterministic test and policy-audit commands;
+- regression tests for machine-enforced policy behavior;
+- primary-source registry with a recorded review date;
+- high-consequence ownership and security-reporting posture;
+- separate repository-visible and hosted-control evidence;
+- review of downstream compatibility and cross-project blast radius before merge.
+
+For a lesson, policy-incubator, or evidence-derived guidance repository, also require one canonical machine-readable ledger when multiple records must be reconciled; an explicit boundary between source authority and lesson integrity; immutable source ref/path/hash plus originating incident/test provenance; scope, limits, counterexamples, verification, review, and reciprocal acyclic supersession data; and an explicit owner for upstream freshness checks. Hermetic CI may verify checkable local Git objects but must not fetch private evidence or claim that a structurally valid lesson is substantively true, current, or activated.
+
 ### Research or content repository
 
 Required:
@@ -352,13 +370,33 @@ Required:
 
 Do not require a software build pipeline when there is no software.
 
-### Artifact or archive repository
+### Active artifact repository
 
 Required:
 
-- README explaining whether files are generated, canonical, or archival;
-- `AGENTS.md` preventing accidental edits to generated/canonical artifacts;
+- README and instructions identifying the canonical source, generator, source commit, version, and checksums;
+- deterministic integrity or provenance validation;
+- explicit release/publishing authority and rollback;
+- prohibition on unexplained hand edits to generated outputs;
+- current-state checkpoint when work spans sessions.
+
+### Inactive artifact repository
+
+Required:
+
+- README and instructions declaring inactive/incubator status;
+- source/version/generator/checksum fields recorded as unknown rather than invented;
+- no publishing or software CI claims until deliberate activation;
+- an activation gate that reclassifies the profile and adds real validation.
+
+### Archive repository
+
+Required:
+
+- README explaining archival scope, authority, and whether files are immutable;
+- `AGENTS.md` preventing accidental edits or false activation;
 - provenance/version/hash policy where integrity matters;
+- inactive profile and no fabricated build, release, or dependency controls.
 - profile marking inactive or `long_running: false` when appropriate.
 
 ### Public or high/critical-risk repository
@@ -401,26 +439,30 @@ These are the primary sources reviewed for this pattern. Recheck them before a m
 
 ### OpenAI
 
-- Codex instruction files / `AGENTS.md`: `https://developers.openai.com/codex/guides/agents-md/`
-- Codex cloud environments: `https://developers.openai.com/codex/cloud/environments/`
-- Codex cloud internet access: `https://developers.openai.com/codex/cloud/internet-access/`
-- Codex GitHub integration: `https://developers.openai.com/codex/integrations/github/`
-- Codex code review: `https://developers.openai.com/codex/guides/code-review/`
+- Codex instruction files / `AGENTS.md`: `https://learn.chatgpt.com/docs/agent-configuration/agents-md`
+- Codex cloud environments: `https://learn.chatgpt.com/docs/environments/cloud-environment`
+- Codex worktrees: `https://learn.chatgpt.com/docs/environments/git-worktrees`
+- Codex cloud internet access: `https://learn.chatgpt.com/docs/cloud/internet-access`
+- Codex GitHub integration: `https://learn.chatgpt.com/docs/third-party/github`
+- Codex code review: `https://learn.chatgpt.com/docs/code-review`
 
 ### GitHub
 
 - Repository best practices: `https://docs.github.com/en/repositories/creating-and-managing-repositories/best-practices-for-repositories`
 - Rulesets: `https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets`
+- Rulesets REST API: `https://docs.github.com/en/rest/repos/rules`
 - Protected branches: `https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches`
 - CODEOWNERS: `https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners`
-- Actions security hardening: `https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions`
-- GitHub token permissions: `https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication`
-- OIDC: `https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect`
-- Dependabot configuration: `https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file`
-- Dependency review: `https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review`
-- Secret-scanning push protection: `https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection`
-- Code scanning default setup: `https://docs.github.com/en/code-security/code-scanning/enabling-code-scanning/configuring-default-setup-for-code-scanning`
-- Security policy: `https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository`
+- Actions security hardening: `https://docs.github.com/en/actions/reference/security/secure-use`
+- GitHub token permissions: `https://docs.github.com/en/actions/tutorials/authenticate-with-github_token`
+- GitHub Actions permissions REST API: `https://docs.github.com/en/rest/actions/permissions?apiVersion=2026-03-10`
+- OIDC: `https://docs.github.com/en/actions/concepts/security/openid-connect`
+- Dependabot configuration: `https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference`
+- Dependency review: `https://docs.github.com/en/code-security/concepts/supply-chain-security/dependency-review`
+- Secret-scanning push protection: `https://docs.github.com/en/code-security/concepts/secret-security/push-protection`
+- Code scanning setup: `https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/configure-code-scanning/configure-code-scanning`
+- Security policy: `https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/add-security-policy`
+- Private vulnerability reporting: `https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository`
 - Pull-request templates: `https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository`
 
 ## Review cadence
@@ -428,3 +470,25 @@ These are the primary sources reviewed for this pattern. Recheck them before a m
 - Recheck OpenAI Codex documentation before changing instruction-discovery, environment, or GitHub-integration policy.
 - Recheck GitHub security guidance before changing Actions, rulesets, token permissions, or scanning controls.
 - Perform a formal source review at least quarterly while these products are changing rapidly, and record the date and disposition in the universal lesson system.
+
+## 2026-08-14 source-review disposition
+
+- Updated OpenAI links from legacy developer-document routes to their current OpenAI Learn targets; the former code-review URL no longer resolved directly.
+- Clarified that OpenAI's documented 32 KiB default applies to the combined applicable instruction chain, not independently to each `AGENTS.md` file.
+- Added GitHub's explicit warning that required-check job names must be unique across workflows to avoid ambiguous merge gates.
+- Updated redirected GitHub Actions, Dependabot, dependency-review, secret-scanning, code-scanning, and security-policy links to their current primary targets.
+- Retained the existing risk-adjusted and solo-maintainer interpretations; the reviewed sources did not justify weaker workflow permissions, fabricated independent approval, or file-based claims about hosted controls.
+
+## 2026-08-15 source-review disposition
+
+- Re-opened every registered OpenAI and GitHub primary source; all resolved to
+  current official documentation without requiring a policy reinterpretation.
+- Added the official GitHub REST references used to verify repository rulesets,
+  selected-only Action allowlists with full-SHA enforcement, and private
+  vulnerability reporting.
+- GitHub's current public-repository guidance continues to recommend Dependabot
+  alerts, secret scanning, push protection, code scanning, a security policy,
+  private vulnerability reporting, and protected pull-request branches.
+- Retained the risk-adjusted repository-kind and solo-maintainer rules. The
+  source review did not justify broad Actions allowances, fake independent
+  approval, or inferring hosted settings from committed files.

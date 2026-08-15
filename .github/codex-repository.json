@@ -3,7 +3,7 @@
   "repository_kind": "policy",
   "active": true,
   "long_running": true,
-  "visibility": "private",
+  "visibility": "public",
   "risk": "high",
   "commands": {
     "test": "python3 -m unittest discover -s tests -v",
@@ -11,9 +11,73 @@
   },
   "current_state": "state/CURRENT-STATE.md",
   "github_controls": {
-    "default_branch_rules": "unverified",
-    "secret_scanning": "unverified",
-    "push_protection": "unverified",
-    "code_scanning": "not_applicable"
+    "default_branch_rules": "verified",
+    "actions_policy": "verified",
+    "actions_default_permissions": "verified",
+    "secret_scanning": "verified",
+    "push_protection": "verified",
+    "code_scanning": "verified",
+    "vulnerability_alerts": "verified",
+    "dependabot_security_updates": "verified",
+    "private_vulnerability_reporting": "verified",
+    "collaborators": "verified",
+    "environments": "verified"
+  },
+  "github_control_evidence": {
+    "default_branch_rules": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: active repository ruleset 20882387 targets the default branch; requires pull requests and strict Deterministic repository audit, blocks deletion and non-fast-forward updates, requires review-thread resolution, requires zero approvals for the solo maintainer, and grants only user 248168938 an always bypass"
+    },
+    "actions_policy": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: Actions enabled with allowed_actions selected and sha_pinning_required true; only actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 is allowed; all GitHub-owned and verified-creator Actions are otherwise disabled"
+    },
+    "secret_scanning": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: secret scanning enabled; alert summary returned zero open alerts"
+    },
+    "push_protection": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: secret-scanning push protection enabled"
+    },
+    "code_scanning": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: CodeQL default setup configured for Actions and Python; setup run 31862468675 succeeded; zero open alerts"
+    },
+    "actions_default_permissions": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: default_workflow_permissions read; Actions cannot approve pull-request reviews"
+    },
+    "vulnerability_alerts": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: vulnerability-alert enablement GET succeeded; zero open Dependabot alerts"
+    },
+    "dependabot_security_updates": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: automated security fixes enabled and not paused"
+    },
+    "private_vulnerability_reporting": {
+      "checked_at": "2026-08-15",
+      "method": "GitHub REST via authenticated GitHub CLI",
+      "result": "VERIFIED: enabled true"
+    },
+    "collaborators": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST GET collaborators via connected GitHub App",
+      "result": "VERIFIED: sole collaborator u-dont-existDOTcom has admin role"
+    },
+    "environments": {
+      "checked_at": "2026-08-14",
+      "method": "GitHub REST GET environments via connected GitHub App",
+      "result": "VERIFIED: zero repository environments"
+    }
   }
 }

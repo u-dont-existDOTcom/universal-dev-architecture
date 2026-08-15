@@ -19,6 +19,7 @@ from typing import Any, Iterable
 
 PROFILE_DEFAULT = ".github/codex-repository.json"
 AGENTS_SOFT_LIMIT_BYTES = 24 * 1024
+AGENTS_DISCOVERY_LIMIT_BYTES = 32 * 1024
 
 REPOSITORY_KINDS = {
     "software",
@@ -81,6 +82,23 @@ IGNORED_WALK_DIRS = {
 FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"(?m)^permissions\s*:")
 WRITE_ALL_RE = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\s*(?:#.*)?$")
+CONCURRENCY_RE = re.compile(r"(?m)^concurrency\s*:")
+PERMISSION_WRITE_RE = re.compile(r"^[A-Za-z0-9_-]+\s*:\s*write\s*(?:#.*)?$")
+MAX_SECRET_SCAN_BYTES = 1024 * 1024
+PRIVATE_KEY_PEM_RE = re.compile(
+    r"-----BEGIN (?P<label>(?:(?:RSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY)-----"
+    r"\r?\n(?=[A-Za-z0-9+/=\r\n]{32,}-----END )"
+    r"(?:[A-Za-z0-9+/]+={0,2}\r?\n)+"
+    r"-----END (?P=label)-----"
+)
+CREDENTIAL_LEAK_PATTERNS = (
+    PRIVATE_KEY_PEM_RE,
+    re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,255}(?![A-Za-z0-9])"),
+    re.compile(
+        r"(?<![A-Za-z0-9_-])sk-(?:proj-)?[A-Za-z0-9_-]{20,255}(?![A-Za-z0-9_-])"
+    ),
+    re.compile(r"(?<![A-Z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}(?![A-Z0-9])"),
+)
 ON_TRIGGER_LINE_RE = re.compile(
     r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
 )
@@ -263,6 +281,19 @@ def _load_profile(
                 profile_relative,
             )
         )
+    else:
+        for name, command in commands.items():
+            if not isinstance(name, str) or not name.strip() or not isinstance(
+                command, str
+            ) or not command.strip():
+                findings.append(
+                    finding(
+                        "error",
+                        "repo.profile.command-value",
+                        "Every command entry must have a nonempty string name and exact nonempty string command.",
+                        profile_relative,
+                    )
+                )
 
     controls = profile.get("github_controls")
     if controls is not None and not isinstance(controls, dict):
@@ -286,12 +317,40 @@ def _load_profile(
                     )
                 )
 
+        evidence = profile.get("github_control_evidence")
+        evidence = evidence if isinstance(evidence, dict) else {}
+        for name, state in controls.items():
+            if state not in {"verified", "enabled"}:
+                continue
+            record = evidence.get(name)
+            complete = isinstance(record, dict) and all(
+                isinstance(record.get(field), str) and record[field].strip()
+                for field in ("checked_at", "method", "result")
+            )
+            if not complete:
+                findings.append(
+                    finding(
+                        "error",
+                        "github-control.evidence.missing",
+                        f"GitHub control `{name}` claims `{state}` without dated independent API/settings evidence.",
+                        profile_relative,
+                        "Record checked_at, method, and result from a GitHub API/settings check, or mark the control unverified.",
+                    )
+                )
+
     return profile
 
 
 def _audit_foundation(
     root: Path, files: set[str], findings: list[dict[str, object]]
 ) -> None:
+    instruction_names = {"AGENTS.md", "AGENTS.override.md"}
+    instruction_files = sorted(
+        relative
+        for relative in files
+        if Path(relative).name in instruction_names
+    )
+    instruction_sizes: dict[str, int] = {}
     agents = root / "AGENTS.md"
     if not agents.is_file():
         findings.append(
@@ -306,6 +365,7 @@ def _audit_foundation(
         try:
             content = agents.read_text(encoding="utf-8")
             size = len(content.encode("utf-8"))
+            instruction_sizes["AGENTS.md"] = size
             if size > AGENTS_SOFT_LIMIT_BYTES:
                 findings.append(
                     finding(
@@ -335,6 +395,57 @@ def _audit_foundation(
                     "codex.agents.unreadable",
                     f"`AGENTS.md` is not readable UTF-8: {exc}",
                     "AGENTS.md",
+                )
+            )
+
+    for relative in instruction_files:
+        if relative == "AGENTS.md":
+            continue
+        path = root / relative
+        try:
+            instruction_sizes[relative] = len(
+                path.read_text(encoding="utf-8").encode("utf-8")
+            )
+        except (OSError, UnicodeError) as exc:
+            findings.append(
+                finding(
+                    "error",
+                    "codex.agents.unreadable",
+                    f"Instruction file is not readable UTF-8: {exc}",
+                    relative,
+                )
+            )
+
+    instruction_set = set(instruction_files)
+    target_directories = {Path(relative).parent for relative in instruction_files}
+    for target in sorted(target_directories, key=lambda path: path.as_posix()):
+        directories = [Path(".")]
+        current = Path(".")
+        for part in target.parts:
+            if part == ".":
+                continue
+            current /= part
+            directories.append(current)
+
+        chain: list[str] = []
+        for directory in directories:
+            prefix = "" if directory == Path(".") else directory.as_posix() + "/"
+            override = prefix + "AGENTS.override.md"
+            standard = prefix + "AGENTS.md"
+            if override in instruction_set:
+                chain.append(override)
+            elif standard in instruction_set:
+                chain.append(standard)
+
+        chain_size = sum(instruction_sizes.get(relative, 0) for relative in chain)
+        if chain_size > AGENTS_DISCOVERY_LIMIT_BYTES:
+            findings.append(
+                finding(
+                    "error",
+                    "codex.agents.chain-oversized",
+                    f"Applicable instruction chain is {chain_size} bytes, exceeding Codex's documented 32 KiB default discovery limit.",
+                    target.as_posix(),
+                    "Shorten root guidance or move task-specific detail outside the discovered instruction chain.",
                 )
             )
 
@@ -437,6 +548,80 @@ def _workflow_files(root: Path) -> list[Path]:
         for path in workflow_dir.iterdir()
         if path.is_file() and path.suffix.lower() in {".yml", ".yaml"}
     )
+
+
+def _workflow_job_blocks(text: str) -> list[tuple[str, list[str]]]:
+    lines = text.splitlines()
+    jobs_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if line.strip() == "jobs:" and not line.startswith((" ", "\t"))
+        ),
+        None,
+    )
+    if jobs_index is None:
+        return []
+
+    starts: list[tuple[int, str]] = []
+    for index in range(jobs_index + 1, len(lines)):
+        line = lines[index]
+        if (
+            line
+            and not line.startswith((" ", "\t"))
+            and not line.lstrip().startswith("#")
+        ):
+            break
+        match = re.match(r"^  ([A-Za-z0-9_-]+):\s*(?:#.*)?$", line)
+        if match:
+            starts.append((index, match.group(1)))
+
+    blocks: list[tuple[str, list[str]]] = []
+    for position, (start, name) in enumerate(starts):
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+        for index in range(start + 1, end):
+            line = lines[index]
+            if (
+                line
+                and not line.startswith((" ", "\t"))
+                and not line.lstrip().startswith("#")
+            ):
+                end = index
+                break
+        blocks.append((name, lines[start + 1 : end]))
+    return blocks
+
+
+def _top_level_permissions_have_write(text: str) -> bool:
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if not re.match(r"^permissions\s*:", line):
+            continue
+        inline = line.split(":", 1)[1].strip().lower()
+        if inline and (inline == "write-all" or re.search(r"\bwrite\b", inline)):
+            return True
+        for nested in lines[index + 1 :]:
+            if nested and not nested.startswith((" ", "\t")):
+                break
+            if PERMISSION_WRITE_RE.fullmatch(nested.strip()):
+                return True
+        return False
+    return False
+
+
+def _job_has_write_permission(block: list[str]) -> bool:
+    for index, line in enumerate(block):
+        if not re.match(r"^    permissions\s*:", line):
+            continue
+        inline = line.split(":", 1)[1].strip().lower()
+        if inline and (inline == "write-all" or re.search(r"\bwrite\b", inline)):
+            return True
+        for nested in block[index + 1 :]:
+            if nested and len(nested) - len(nested.lstrip(" ")) <= 4:
+                break
+            if PERMISSION_WRITE_RE.fullmatch(nested.strip()):
+                return True
+    return False
 
 
 def _workflow_structure(text: str) -> str:
@@ -1065,6 +1250,48 @@ def _audit_workflows(
                 )
             )
 
+        top_level_write = _top_level_permissions_have_write(structure)
+        if top_level_write:
+            findings.append(
+                finding(
+                    "error",
+                    "actions.permissions.top-level-write",
+                    "Workflow grants write permission at top level, so every job inherits a broader token than necessary.",
+                    relative,
+                    "Keep top-level permissions read-only and grant write only on the smallest job that mutates state.",
+                )
+            )
+
+        job_blocks = _workflow_job_blocks(structure)
+        job_level_write = False
+        for job_name, block in job_blocks:
+            block_text = "\n".join(block)
+            reusable_call = bool(
+                re.search(r"(?m)^    uses:\s*[^\s]+@[^\s#]+", block_text)
+            ) and not re.search(r"(?m)^    runs-on\s*:", block_text)
+            if not reusable_call and not re.search(
+                r"(?m)^    timeout-minutes\s*:", block_text
+            ):
+                findings.append(
+                    finding(
+                        "error",
+                        "actions.job.timeout-missing",
+                        f"Workflow job `{job_name}` has no timeout-minutes bound.",
+                        relative,
+                    )
+                )
+            job_level_write = job_level_write or _job_has_write_permission(block)
+
+        if (top_level_write or job_level_write) and not CONCURRENCY_RE.search(structure):
+            findings.append(
+                finding(
+                    "error",
+                    "actions.concurrency.missing",
+                    "Write-capable workflow has no concurrency control to prevent overlapping state mutation.",
+                    relative,
+                )
+            )
+
         if _uses_pull_request_target(structure) and any(
             _uses_value_may_be_checkout(value) for value in uses_values
         ):
@@ -1143,7 +1370,7 @@ def _audit_software(
     if not isinstance(bootstrap, str) or not bootstrap.strip():
         findings.append(
             finding(
-                "warning",
+                "error",
                 "software.command.bootstrap.missing",
                 "Software repository profile does not provide one reproducible bootstrap/install command.",
                 PROFILE_DEFAULT,
@@ -1198,6 +1425,28 @@ def _audit_software(
         )
 
 
+def _audit_policy(
+    profile: dict[str, Any], findings: list[dict[str, object]]
+) -> None:
+    if profile.get("repository_kind") != "policy" or not profile.get("active"):
+        return
+
+    commands = profile.get("commands")
+    commands = commands if isinstance(commands, dict) else {}
+    for name in ("test", "audit"):
+        command = commands.get(name)
+        if isinstance(command, str) and command.strip():
+            continue
+        findings.append(
+            finding(
+                "error",
+                f"policy.command.{name}.missing",
+                f"Active policy repository profile does not provide one exact `{name}` command.",
+                PROFILE_DEFAULT,
+            )
+        )
+
+
 def _audit_public_and_risk_controls(
     files: set[str],
     profile: dict[str, Any],
@@ -1209,12 +1458,12 @@ def _audit_public_and_risk_controls(
     lower_files = {name.lower() for name in files}
 
     security_present = "security.md" in lower_files or ".github/security.md" in lower_files
-    if visibility == "public" and not security_present:
+    if (visibility == "public" or risk in {"high", "critical"}) and not security_present:
         findings.append(
             finding(
                 "error" if risk in {"high", "critical"} else "warning",
                 "security.policy.missing",
-                "Public repository has no security policy describing private vulnerability reporting.",
+                "Public or high-risk repository has no security policy describing private vulnerability reporting.",
                 "SECURITY.md",
             )
         )
@@ -1351,6 +1600,66 @@ def _audit_secret_filenames(
             )
 
 
+def _audit_secret_contents(
+    root: Path, files: set[str], findings: list[dict[str, object]]
+) -> None:
+    for relative in sorted(files):
+        path = root / relative
+        try:
+            if not path.is_file() or path.stat().st_size > MAX_SECRET_SCAN_BYTES:
+                continue
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        for pattern in CREDENTIAL_LEAK_PATTERNS:
+            if not pattern.search(content):
+                continue
+            findings.append(
+                finding(
+                    "error",
+                    "secrets.likely-content",
+                    "Repository text contains likely credential material; the matched "
+                    "value and detector category are intentionally omitted.",
+                    relative,
+                    "Remove the secret from Git history, rotate it, and retain only an unmistakably redacted example.",
+                )
+            )
+            break
+
+
+def _audit_unsafe_filenames(
+    files: set[str], findings: list[dict[str, object]]
+) -> None:
+    for relative in sorted(files):
+        unsafe_reason = ""
+        for segment in Path(relative).parts:
+            if segment.startswith("-"):
+                unsafe_reason = "path segment begins with a shell option marker"
+            elif "\\" in segment:
+                unsafe_reason = "path contains a backslash that is ambiguous across platforms"
+            elif segment.endswith((" ", ".")):
+                unsafe_reason = "path segment has a trailing space or dot"
+            elif any(
+                ord(character) < 32 or ord(character) == 127
+                for character in segment
+            ):
+                unsafe_reason = "path contains an ASCII control character"
+            if unsafe_reason:
+                break
+
+        if unsafe_reason:
+            findings.append(
+                finding(
+                    "error",
+                    "repo.filename.unsafe",
+                    f"Repository filename is unsafe: {unsafe_reason}.",
+                    relative,
+                    "Rename the path to a portable, non-option-like filename before packaging or automation consumes it.",
+                )
+            )
+
+
 def audit_repository(
     root: Path | str,
     profile_relative: str = PROFILE_DEFAULT,
@@ -1371,6 +1680,8 @@ def audit_repository(
     _audit_foundation(root_path, files, findings)
     profile = _load_profile(root_path, profile_relative, findings)
     _audit_secret_filenames(files, findings)
+    _audit_secret_contents(root_path, files, findings)
+    _audit_unsafe_filenames(files, findings)
 
     workflows = _workflow_files(root_path)
     _audit_workflows(root_path, workflows, findings)
@@ -1378,6 +1689,7 @@ def audit_repository(
     if profile is not None:
         _audit_current_state(root_path, profile, findings)
         _audit_software(root_path, files, profile, workflows, findings)
+        _audit_policy(profile, findings)
         _audit_public_and_risk_controls(files, profile, findings)
 
     severity_order = {"error": 0, "warning": 1, "info": 2}

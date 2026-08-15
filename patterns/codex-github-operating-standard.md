@@ -1,5 +1,7 @@
 # Codex + GitHub Operating Standard
 
+> **Superseded as current policy on 2026-08-14.** This document is retained as provenance for the earlier rollout. Use `patterns/codex-github-operating-system.md` for all current requirements and interpretations.
+
 **Canonical revision:** 2026-08-13
 
 ## Purpose

@@ -1,5 +1,7 @@
 # Codex + GitHub operating baseline plan
 
+Status: superseded as the active execution plan on 2026-08-14 by `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`. Retained here as rollout provenance.
+
 ## Goal
 
 Create one reusable operating standard, verify every current repository against it, and apply repository-specific controls without inventing commands or breaking existing automation.
@@ -12,12 +14,9 @@ Create one reusable operating standard, verify every current repository against 
 
 ## Remaining
 
-- Add and verify the universal repository-policy workflow.
-- Open, inspect, and merge the universal pull request.
-- Upgrade AskRigor, Pangram Humanization Lab, and Inner Signal through separate pull requests.
-- Classify the remaining knowledge/incubator repositories without adding fake software CI.
-- Apply GitHub-side settings and branch controls through authenticated local `gh` where available.
-- Record blocked controls truthfully and complete lesson closeout.
+- Reconcile and verify the landed implementation through the current compliance plan.
+- Keep each project upgrade in a separate non-overlapping pull request.
+- Record plan- or permission-gated hosted controls without converting them into repository-visible success claims.
 
 ## Constraints
 

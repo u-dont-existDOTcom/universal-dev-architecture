@@ -4,88 +4,145 @@ Updated: 2026-08-15
 
 ## Goal
 
-Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating system across repositories, with executable audits and durable lesson provenance.
+Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating
+system across repositories, with executable audits, durable recovery, exact
+lesson provenance, and directly verified hosted governance.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Verified code-bearing baseline: PR #11 merge `5e8ab185a4bf052313698ea5348031e344fcd930`
-- Active change: no code change. A state-only closeout records PR #11's exact merge evidence; before that closeout merges it is the remaining repository-local action, and after it merges no active change remains.
-- Lesson entry point: `LESSON-INDEX.md`
-- Current operating pattern: `patterns/codex-github-operating-system.md`
-- Repository profile and commands: `.github/codex-repository.json`
-- Current owner/project requirements outrank universal defaults on genuine conflict.
+- Active compliance branch: `codex/github-compliance-2026-08-14`
+- Current `main` integrated into the candidate: `b699b31cd9720adcde7e4392a475fcfefc3026a0`
+- Recovery refs: `recovery/universal-compliance-pre-main-e37f34b`,
+  `recovery/universal-pre-final-fleet-1d1e6d0`,
+  `recovery/universal-pre-public-c37f012`, and
+  `recovery/universal-pre-main-9de3671-394e419`, and
+  `recovery/universal-pre-main-385fb12-1c53752`, and
+  `recovery/universal-pre-main-b699b31-774fd0d`
+- Universal entry point: `LESSON-INDEX.md`
+- Current Codex/GitHub policy: `patterns/codex-github-operating-system.md`
+- Repository profile and exact commands: `.github/codex-repository.json`
+- Current owner/project requirements outrank universal defaults on genuine
+  conflict.
 
 ## Completed
 
-- Published repository-first learning, context-compaction, Codex/GitHub operating, templates, repository audit, scheduled drift audit, and connected-repository rollout evidence.
-- Recorded the prior rollout’s promoted, project-specific, provisional, and no-new-lesson dispositions.
-- Reproduced the Python 3.12 audit import failure caused by a repeated inline regex flag.
-- Added causal workflow-policy tests for real mapping/scalar/list/flow `pull_request_target`, block-script impersonation, scanner self-text, and safe job-name collision.
-- Replaced raw-text workflow inspection with block-scalar-aware structural detection in the audit and portable template.
-- Promoted Inner Signal lessons on hermetic generated-output verification, transactional updates, condition-based readiness, privacy-safe diagnostics, and stage-specific recovery with exact commit/path/hash provenance and limits.
-- Routed root instructions and documentation to this sole profile-declared checkpoint; the root compatibility file is explicitly superseded.
-- Merged Inner Signal promotion PR #6 as `81265fd3592ee842bfe30c7d73a5c1f3dc01b2d0`, then reconciled PR #5 on top without overwriting either line of work.
-- Extended the constrained workflow parser and portable template to fail closed on indentationless/split sequences, anchors and aliases, escaped and block scalars, multiline flows, explicit keys, and root-flow workflows when checkout is present.
-- Applied default-branch-rule findings to active public or high/critical-risk repositories, including research and content repositories.
-- Added and indexed `patterns/paid-workflow-safety.md` with exact Pangram commit/blob provenance, limits, official GitHub sources, and regression coverage.
-- Test-first promotion evidence: `695dd7a5c9bbd6babe791fbe3026d558e6b30411`; run `31779472972` failed only for the intentionally absent pattern/index route while policy run `31779473079` passed.
-- Independent review found action-reference bypasses in quoted/inline `uses` values and aliases, followed by a false positive because the first repair treated harmless `env`/`with` mappings named `uses` as actions. Further review caught mixed-case `Actions/Checkout`, an explicit `? uses` key inside an existing step, and alias/property-bearing action keys. The final extractor is scoped to real step action and direct reusable-job nodes, normalizes the checkout owner/repository comparison, and covers block/flow explicit or unresolved keys, flow maps, quoted/escaped keys, aliases, indentationless steps, and document-marked root flows; non-action mappings are ignored.
-- Code-bearing remediation head `606dfdb1c9669ccecd5d1884714a9ea8bb551343` is verified by Universal architecture tests run `31782740305` (53/53 tests and audit 0 errors/3 truthful hosted warnings) and Repository policy run `31782740316` (success).
-- Independent remediation re-review is clean at evidence checkpoint `ef1c28f8241a060db0715358b93f176061813536`; its Universal architecture tests run `31782816489` and Repository policy run `31782816484` both succeeded.
-- Merged PR #5 as `c77f37b1eb8c91a0ee0f07b84cb94fa4f7a7c4c5`; its tree exactly equals the final reviewed head tree, and merge-head runs `31783054806` (Universal architecture tests) and `31783054783` (Repository policy) both succeeded.
-- Recorded the universal promotion receipt in Pangram audit issue #17 and closed superseded universal draft PR #7 without deleting its branch or rewriting history.
-- Added and indexed `patterns/editorial-authority-and-lossless-editing.md` with exact Joel Articles merge/path/blob provenance, bounded project-local exclusions, and causal route/content/limits regression coverage.
-- Joel origin merge `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db` and origin code head `dcde124ef2f983c5027d85481f9aa33b2c353d9b` are verified by origin runs `31785689319` and `31785508088`; the promoted pattern copies no article prose, fact packet, helper, detector threshold, license/privacy decision, or publication action.
-- PR #9 code-bearing head `8da52dc977e0670ec606ca7c07d10b2a58507985` is verified by Universal architecture tests run `31786060272` (57/57 tests; audit 0 errors/3 truthful hosted warnings) and Repository policy run `31786060351` (success).
-- Merged universal coordination-rule PR #10 as `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`; it is the current canonical `main` baseline.
-- Recorded Joel's cross-project next-step rule test-first through PR #11: owner answers and corrections advance unfinished work instead of ending in an acknowledgment-only turn, without broadening authority or bypassing real pause boundaries.
-- Verified PR #11 code-bearing head/tree `3dfe834b718520457833a19953c4f7b573ec25f1` / `350c3b879a673436661a1e046d9e1bc51e778b86`: Universal architecture tests run `31856554150` / job `94942298836` passed 63/63 with audit 0 errors/3 truthful warnings; Repository policy run `31856554153` / job `94942299028` succeeded.
-- Merged next-step continuation PR #11 as `5e8ab185a4bf052313698ea5348031e344fcd930`; merge tree `5051d9f424a0e614f45d6506270ae7dfd10902ff` exactly equals the reviewed final-head tree. Merge-head Universal architecture tests run `31856690969` / job `94942680272` and Repository policy run `31856691275` / job `94942681121` both succeeded.
+- Repository-first learning, context-compaction resilience, GitHub bootstrap,
+  the Codex/GitHub operating pattern, templates, executable audit,
+  least-privilege CI, drift reporting, and durable worker/fleet-auditor
+  templates exist.
+- Compliance commits `c83b99e` through `e37f34b` repair Python 3.12
+  compatibility and add exact-command, profile, state, instruction-budget,
+  workflow, unsafe-filename, secret-content, risk-posture, and hosted-claim
+  checks with regression coverage.
+- The current candidate retains `main`'s structure-aware workflow parser,
+  Inner Signal lessons, paid-workflow safety, editorial authority/lossless
+  editing, universal coordination, and continuous next-step advancement after
+  owner input.
+- PR #11 merged the tested next-step rule as
+  `5e8ab185a4bf052313698ea5348031e344fcd930`; merge-head runs
+  `31856690969` / job `94942680272` and `31856691275` / job `94942681121`
+  succeeded. PR #12 completed its state-only closeout as current `main`
+  `9de36712e9250b79092b2ecd12cda5e005760d83`.
+- Root compatibility state points only to this checkpoint, and the superseded
+  operating-standard file remains provenance rather than a competing authority.
+- AskRigor PR #8 merged as
+  `f8e7ca1e10c096e050207828eeb9eb7957d7ef6f` after exact-head checks and
+  bounded live Action acceptance; the synthetic lesson issue was safely closed.
+- AskRigor compliance PR #7 is published at
+  final head `43e5b9442c5456bcfaba9b76194bf6474f74346d` and merged as
+  `9134e22784e4d26dcf3c6d24a299bb5f783455ad`; exact-head deterministic,
+  workflow-policy, and CodeQL runs succeeded, issue #6 closed, and merged-main
+  CodeQL closed the fixed alert.
+- AskRigor-lessons PR #3 final head
+  `c99a02492efa34d23bb836791aef00e08ce535ff` merged as
+  `8e894ea73b1d589444fd5a059c517177eb4eb5d8`; exact-head and merged-main
+  integrity/CodeQL gates succeeded. Its sole lesson remains
+  provisional/unverified because originating incident/test provenance is absent.
+- Official OpenAI and GitHub registry links were reviewed on 2026-08-15.
+  Repository files do not assert hosted settings without API evidence.
+- The owner authorized public visibility on 2026-08-15 after a reachable
+  remote-history audit found no sensitive filenames, private-key material, or
+  provider-token material. `LICENSE.md` deliberately grants no public reuse
+  rights, and public visibility does not grant GitHub write access.
+- Hosted public-repository governance is directly verified: active ruleset
+  `20882387` requires pull requests and strict `Deterministic repository
+  audit`, blocks deletion/force pushes, and retains the sole owner as the only
+  bypass without requiring fake independent approval.
+- Actions are limited to the repository's exact SHA-pinned checkout Action;
+  default workflow tokens are read-only and cannot approve pull requests.
+  Secret scanning, push protection, vulnerability alerts, Dependabot security
+  updates, private vulnerability reporting, and CodeQL are enabled. CodeQL
+  setup run `31862468675` succeeded for Actions/Python with zero open alerts.
 
 ## Current checkpoint
 
-- Canonical code-bearing baseline: PR #11 squash merge `5e8ab185a4bf052313698ea5348031e344fcd930`; tree `5051d9f424a0e614f45d6506270ae7dfd10902ff` exactly matches reviewed PR head `29df569c84b12444e1c55a8f95d2a220916c9bdb`.
-- Merge verification: Universal architecture tests run `31856690969` / job `94942680272` succeeded; Repository policy run `31856691275` / job `94942681121` succeeded.
-- Test-first chain remains bound in PR #11 and the provenance audit: causal RED at `9d6687ed7ba3334efc333b77bd6c1c0817573979`, exact code-bearing GREEN at `3dfe834b718520457833a19953c4f7b573ec25f1`, and green final PR head `29df569c84b12444e1c55a8f95d2a220916c9bdb`.
-- Closeout scope: this branch changes only `state/CURRENT-STATE.md`; no rule, test, audit, unrelated PR, issue, or hosted control changes.
-- Current step: if the state-only closeout PR is open, verify its exact checks and one-file diff, then merge. If it is already merged, the promotion is complete and no repository-local action remains.
+- Pull request: #4, `codex/github-compliance-2026-08-14` into `main`.
+- Current `main` through `b699b31` has been merged locally into the compliance
+  candidate. Rollback refs preserve every pre-integration boundary. The first
+  integration resolved the lesson-index/state conflicts semantically; the
+  source-provenance lesson merged without conflict. The later conversational
+  prose lesson required only an index-order conflict resolution: the mandated
+  operating-system entry remains first, current `main`'s `actual Git state`
+  wording is retained, and the new lesson is indexed as item 8.
+- The final integrated tree passes 83/83 unit tests, the self-audit with zero
+  findings, JSON/YAML validation, scheduled-shell syntax, and diff review.
+  Integrated head `e434f84af8398aa4d47fb034b4430082c230415d`
+  previously passed exact-head workflow run `31857250098`, job `94944261385`;
+  PR #4 is the durable source for the replacement run on the published final
+  evidence head.
 
 ## Remaining
 
-- If the state-only closeout PR is still open, verify both exact-head checks, inspect its one-file diff, and merge with an expected-head guard.
-- After that conditional closeout, no repository-local promotion work remains; future work begins from current `main` and a new owner-directed goal.
-- Do not alter unrelated open PRs #4/#2 or hardening issue #3.
+- Publish PR #4's final evidence head, require its replacement exact-head check,
+  and merge only after every completion gate is green. Record the resulting
+  run and merge in PR #4 and issue #3; those external records can truthfully
+  identify the commit that contains this checkpoint.
 
 ## Blockers / unresolved
 
-- The dependency-free workflow detector is intentionally conservative rather than a full YAML parser. Ambiguous root trigger forms paired with checkout fail closed; repositories needing uncommon safe syntax should add an exact fixture or use a reviewed parser.
-- Hosted control mutation remains provisional and plan/permission dependent; repository files cannot prove hosted enforcement.
-- Default-branch rules, secret scanning, and push protection remain truthfully unverified in the repository profile.
+- No applicable repository-control blocker remains. Historical private-plan
+  `403` results are superseded by the dated public-repository API evidence in
+  `.github/codex-repository.json`.
+- Hardening issue
+  [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3)
+  is ready for exact final-head evidence and closure.
+- Repository visibility is resolved: public. Readers may view/fork the history
+  under GitHub's platform terms, but they cannot modify the canonical repository
+  without write permission; `LICENSE.md` grants no broader reuse rights.
 
 ## Evidence / artifacts
 
-- Audit implementation: `scripts/audit_codex_github.py`
-- Audit regressions: `tests/test_audit_codex_github.py`
-- Portable policy template: `templates/WORKFLOW-POLICY.yml`
-- Promoted pattern: `patterns/codex-github-operating-system.md`
-- Lesson closeout: `audits/2026-08-14-inner-signal-compliance-lessons.md`
-- Originating repository evidence is listed by exact commit/path/SHA-256 in that closeout.
-- Paid-workflow pattern: `patterns/paid-workflow-safety.md`
-- Paid-workflow regression: `tests/test_paid_workflow_pattern.py`
-- Portable parser regression: `tests/test_workflow_policy_template.py`
-- Pangram origin merges: `8bf49ac0132c2fa55429d78d4ab79997081413a3`, `81b5cd017e3be088c0638e527ce25f5df6a2f4e8`, and `c8147df0831a3a38589a3df7b17f5d76d899b8f4`
-- Editorial authority pattern: `patterns/editorial-authority-and-lossless-editing.md`
-- Editorial authority regression: `tests/test_editorial_authority_pattern.py`
-- Joel origin merge: `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db`; exact source artifact Git blobs are listed in the pattern.
-- Coordination rule: `AGENTS.md`, `patterns/codex-github-operating-system.md`, `templates/AGENTS-CODEX.md`, `audits/2026-08-14-universal-coordination-rule.md`, and `tests/test_universal_coordination_rule.py`.
-- Next-step continuation rule: `AGENTS.md`, `LESSON-INDEX.md`, `patterns/codex-github-operating-system.md`, `templates/AGENTS-CODEX.md`, `audits/2026-08-15-universal-next-step-continuation-rule.md`, and `tests/test_universal_next_step_rule.py`.
+- Current implementation plan:
+  `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`
+- Audit implementation and regressions: `scripts/audit_codex_github.py` and
+  `tests/test_audit_codex_github.py`
+- Repository profile: `.github/codex-repository.json`
+- Operating policy: `patterns/codex-github-operating-system.md`
+- Compliance architecture: `templates/COMPLIANCE-WORKER-METADATA.json` and
+  `audits/2026-08-14-compliance-worker-architecture.md`
+- Project lesson promotions:
+  `audits/2026-08-14-askrigor-transferable-controls.md`,
+  `audits/2026-08-14-askrigor-lessons-transferable-design.md`, and
+  `audits/2026-08-14-inner-signal-compliance-lessons.md`
+- Current patterns: `patterns/paid-workflow-safety.md`,
+  `patterns/editorial-authority-and-lossless-editing.md`, and the next-step
+  continuation rule recorded in
+  `audits/2026-08-15-universal-next-step-continuation-rule.md`
+- Final report: `audits/2026-08-14-universal-compliance-report.md`
+- Hosted evidence: `.github/codex-repository.json`, issue #3, and PR CI.
 
 ## Next safe action
 
-If the state-only closeout PR is open, verify both exact checks and the one-file diff, then merge. If it is already merged, begin only the next owner-directed goal from current `main`; do not repeat the next-step promotion.
+Inspect PR #4. If it is still open, verify its exact-head required check before
+merging. If it is merged, verify protected `main`, the merged-main checks, and
+issue #3's closeout evidence. Do not reconstruct publication state from this
+self-referential in-commit checkpoint.
 
 ## Recovery rule
 
-After interruption, inspect current `main`, this checkpoint, the lesson index, open PR/checks, and newer owner instructions. Treat PR #11's code-bearing merge and exact merge-head checks as complete. Only finish an open state-only closeout; otherwise do not repeat Joel, Inner Signal, Pangram, coordination-rule, or next-step-rule work, alter unrelated PRs #4/#2 or issue #3, or import project-specific content.
+After interruption, inspect the Git/merge state, this checkpoint,
+`LESSON-INDEX.md`, the operating-system pattern, PR #4/checks, issue #3, and
+newer owner instructions. Treat PR #11/#12 as complete, preserve every recovery
+ref and unrelated branch, and never infer hosted enforcement from files.

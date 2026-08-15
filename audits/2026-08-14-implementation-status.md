@@ -1,114 +1,94 @@
 # Codex + GitHub Best-Practices Rollout Status
 
-Date: 2026-08-14
+Date: 2026-08-15
 
 ## Meaning of status labels
 
-- `WRITE ISSUED` — a GitHub connector create/update request was issued; re-fetch or commit/workflow evidence is still required before calling it verified.
-- `REPOSITORY-VISIBLE` — a file can be verified from Git content.
-- `CI-VERIFIED` — the relevant workflow completed successfully against the recorded commit.
-- `HOSTED-VERIFIED` — a GitHub setting was inspected through GitHub/API and its state recorded.
-- `GAP` — required information/control remains absent, unknown, or intentionally unresolved.
+- `WRITE ISSUED` — an earlier connector write request exists; it is not verified repository or CI evidence.
+- `REPOSITORY-VISIBLE` — exact content/ref was inspected from GitHub or an authenticated Git object.
+- `CI-VERIFIED` — the named workflow/job completed successfully against the exact recorded commit.
+- `HOSTED-VERIFIED` — the setting was inspected through GitHub/API and its state recorded.
+- `PLAN-LIMITED` — GitHub reported that the private-repository plan does not provide the control.
+- `UNVERIFIED` — access was denied/unavailable or no independent settings evidence exists.
+- `GAP` — applicable work/evidence remains absent, unknown, or deliberately unresolved.
 
-This ledger deliberately does not convert a successful write request, a recommendation, or an expected workflow run into a verification claim.
+No successful write request, worker report, CODEOWNERS file, workflow YAML, or profile claim is converted into hosted or CI evidence.
 
-## Universal architecture
+## Independently reconciled compliance candidates
 
-### Write operations issued
+The final fleet reconciliation re-fetched repositories, exact PR heads and
+merge commits, workflow runs/jobs, rulesets, Actions/security settings, alert
+counts, and hardening issues through authenticated GitHub REST on 2026-08-15.
 
-- Canonical pattern: `patterns/codex-github-operating-system.md`
-- Source registry and review date inside the canonical pattern
-- Implementation plan: `docs/plans/2026-08-14-codex-github-best-practices-audit.md`
-- Repository-visible audit: `scripts/audit_codex_github.py`
-- Audit tests: `tests/test_audit_codex_github.py`
-- Repository profile: `.github/codex-repository.json`
-- Recovery state: `state/CURRENT-STATE.md`
-- Root/scoped instructions: `AGENTS.md`, `.github/AGENTS.md`, `state/AGENTS.md`
-- CI: `.github/workflows/universal-architecture-tests.yml`
-- Scheduled audit: `.github/workflows/weekly-codex-github-audit.yml`
-- CODEOWNERS, PR template, Actions Dependabot, and `.gitignore`
-- Templates for root/scoped instructions, profile, task contract, recovery state, PR evidence, workflow policy, and learning policy
-- Updated README and lesson index
+| Repository | Repository-visible candidate | Exact-head CI | Hosted boundary | Terminal status |
+| --- | --- | --- | --- | --- |
+| universal-dev-architecture | PR [#4](https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/4); current-main boundary `b699b31c...`; verified pre-final-ledger head `1c53752c...`; this ledger update creates the final external PR head | Run [31863152348](https://github.com/u-dont-existDOTcom/universal-dev-architecture/actions/runs/31863152348), `Deterministic repository audit` job `94959848417`: success at `1c53752c...`; the final replacement run belongs in PR #4 | Public; active ruleset `20882387`; selected exact-SHA Actions/read-only defaults; secret/push/dependency/private-reporting/CodeQL enabled; zero alerts; issue [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3) ready to close after final-head merge evidence | `COMPLIANT` candidate; final required run/merge pending |
+| AskRigor | PR [#7](https://github.com/u-dont-existDOTcom/AskRigor/pull/7), final head `43e5b9442c5456bcfaba9b76194bf6474f74346d`; merged as `9134e22784e4d26dcf3c6d24a299bb5f783455ad` | Runs [31863157368](https://github.com/u-dont-existDOTcom/AskRigor/actions/runs/31863157368) / job `94959860545`, [31863157376](https://github.com/u-dont-existDOTcom/AskRigor/actions/runs/31863157376) / job `94959860566`, and CodeQL `31863154078`: success; merged-main gates also succeeded | Public; active ruleset `20882388`; selected exact-SHA Actions/read-only defaults; secret/push/dependency/private-reporting/CodeQL enabled; zero open alerts; issue #6 closed | `COMPLIANT` / merged |
+| AskRigor-lessons | PR [#3](https://github.com/u-dont-existDOTcom/AskRigor-lessons/pull/3), final head `c99a02492efa34d23bb836791aef00e08ce535ff`; merged as `8e894ea73b1d589444fd5a059c517177eb4eb5d8` | Run [31863369692](https://github.com/u-dont-existDOTcom/AskRigor-lessons/actions/runs/31863369692), `Lesson integrity` job `94960380007`, and CodeQL `31863367948`: success; merged-main integrity/CodeQL also succeeded | Public; active ruleset `20882389`; selected exact-SHA Actions/read-only defaults; secret/push/dependency/private-reporting/CodeQL enabled; zero alerts | `COMPLIANT_WITH_DECLARED_EXCEPTIONS` / merged |
 
-### Verification still required
+### Evidence-backed interpretation
 
-- Re-fetch every changed canonical file.
-- Run `python3 -m unittest discover -s tests -v` against the resulting commit.
-- Run `python3 scripts/audit_codex_github.py --root . --fail-on error` against the resulting commit.
-- Inspect the resulting Actions workflow runs.
-- Verify the default-branch ruleset, Actions default token permission, secret scanning, push protection, installed Apps/collaborators, and any repository security settings through GitHub.
+- Universal repository-visible tests/audit, worker/final-auditor architecture,
+  source registry, immutable Action enforcement, bounded drift reporting, current
+  `main`, and all hosted controls are integrated. The self-referential final
+  ledger head receives its replacement required run and merge evidence in PR #4.
+- AskRigor's exact commands, authority/protocol hashes, source-access states,
+  MCP/release boundaries, scoped AGPL, CodeQL repair, required checks, hosted
+  controls, and merged-main alert closure are verified. The separate public
+  submission gates remain blocked without affecting repository compliance.
+- AskRigor-lessons has one canonical ledger/schema, dependency-free integrity
+  policy, current AskRigor byte evidence, safe intake/closeout, and verified
+  hosted controls. Its sole lesson remains inactive/provisional because its
+  originating incident/test was not preserved; that is the declared exception.
 
-## Cross-repository rollout
+## Historical connector bootstrap not yet independently audited
 
-Connector write requests were issued for the following repository-visible controls:
+Earlier connector write requests exist for the following repositories. Their rows remain historical evidence only; this compliance run did not execute repository-specific final gates or reclassify them from worker prose.
 
-| Repository | Profile | Recovery state | Scoped AGENTS | CODEOWNERS | PR template | Dependabot | Workflow policy |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| AskRigor | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED |
-| pangram-humanization-lab | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED |
-| innerSignalGraph | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED |
-| communities | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED |
-| AskRigor-lessons | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED |
-| joel-articles | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED |
-| innerSignalArtifact | WRITE ISSUED | NOT APPLICABLE while inactive | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | WRITE ISSUED | NOT APPLICABLE while inactive |
+| Repository | Historical repository writes | Current evidence state |
+| --- | --- | --- |
+| pangram-humanization-lab | profile, recovery state, scoped instructions, CODEOWNERS, PR template, Dependabot, workflow policy | `WRITE ISSUED` / `GAP` |
+| innerSignalGraph | profile, recovery state, scoped instructions, CODEOWNERS, PR template, Dependabot, workflow policy | `WRITE ISSUED` / `GAP` |
+| communities | profile, recovery state, scoped instructions, CODEOWNERS, PR template, Dependabot, workflow policy | `WRITE ISSUED` / `GAP` |
+| joel-articles | profile, recovery state, scoped instructions, CODEOWNERS, PR template, Dependabot, workflow policy | `WRITE ISSUED` / `GAP` |
+| innerSignalArtifact | profile, scoped instructions, CODEOWNERS, PR template, Dependabot; state/workflow were recorded not applicable while inactive | `WRITE ISSUED` / `GAP` |
 
-Additional root README/AGENTS write requests were issued for sparse/new repositories where authority and role needed to be established. Existing root instructions in mature repositories were not destructively replaced without first obtaining their current content and SHA.
+Existing root instructions in mature repositories were not destructively replaced during the bootstrap. No row above is a compliance claim.
 
-## Explicit unresolved gaps
+## Remaining repository-specific gaps
+
+### universal-dev-architecture
+
+- Publish this final fleet/current-main integration, capture the exact PR head
+  and replacement `Deterministic repository audit` run in PR #4, merge, verify
+  protected `main`, and close issue #3.
 
 ### AskRigor
 
-- Exact canonical test, lint, typecheck, build/package, protocol-integrity, and live-validation commands.
-- Current root/nested instruction hierarchy audit.
-- Existing workflow remediation after the workflow-policy result.
-- Branch rules, Actions permissions defaults, CODEOWNERS enforcement, secret scanning, push protection, CodeQL, dependency review, security-reporting route, and release environment/settings verification.
-
-### pangram-humanization-lab
-
-- Exact current bootstrap/test/detector/repository-audit commands and preferred canonical current-state path.
-- Reconciliation with the existing lesson-integrity workflows and required check names.
-- Existing workflow remediation and hosted settings verification.
-
-### innerSignalGraph
-
-- Single current source/authority entry point.
-- Exact bootstrap/test/build/package commands.
-- Deterministic, live-model, adversarial, and psychological-safety evaluation gates.
-- Existing workflow remediation and hosted settings verification.
-
-### communities
-
-- Current repository tree/source index, exact research-validation commands, retrieval/provenance architecture, license/copyright decision, and public contribution/security choices.
-- Hosted settings verification.
+- No repository-baseline gap remains. V0.1.0 public submission stays separately
+  blocked by its existing product/release gates.
 
 ### AskRigor-lessons
 
-- Authority/lesson index, machine-readable provenance and dispositions, protocol applicability/supersession rules, update-check relationship, and lesson-integrity tests.
-- Hosted settings verification.
+- Supply exact originating AskRigor incident/experiment/test plus substantive verification before changing `askrigor.community-narrative-comparator.v1` from provisional/unverified.
 
-### joel-articles
+### Repositories not independently audited in this run
 
-- Canonical article index/current-master routing, exact editorial/citation/detector/publication commands, license/copyright decision, and current owner-lock representation.
-- Hosted settings verification.
+- pangram-humanization-lab: exact current commands/current-state route, lesson-integrity workflow reconciliation, and hosted settings.
+- innerSignalGraph: current source/authority entry point, exact commands, deterministic/live/adversarial/psychological-safety gates, workflows, and hosted settings.
+- communities: current source index, exact research validation, retrieval/provenance, license/copyright/contribution/security posture, and hosted settings.
+- joel-articles: canonical article/master routing, exact editorial/citation/detector/publication commands, license/copyright, owner lock, and hosted settings.
+- innerSignalArtifact: inactive until source/version/generator/checksum/release verification and deliberate activation; hosted publishing controls become applicable on activation.
 
-### innerSignalArtifact
+## Solo-maintainer governance rule
 
-- Remains inactive until canonical source/version/generator/checksum/release verification exists.
-- Hosted settings and publishing controls become applicable only when activation is deliberate.
-
-## Ruleset recommendation for solo-owned active repositories
-
-Use a default-branch ruleset that normally requires:
-
-- pull requests;
-- required deterministic status checks;
-- resolved review conversations;
-- no force pushes or branch deletion;
-- branch freshness or merge queue only where concurrency requires it;
-- narrowly scoped emergency bypass.
-
-Do **not** require an independent approving review where no independent reviewer exists and then normalize bypassing the rule. Add required approving/code-owner review when a real independent reviewer is available or the change class requires one.
+For active canonical branches, require pull requests, unique deterministic checks, no force pushes/deletion, and a narrowly scoped emergency/solo-maintainer bypass. Do not require independent approval where no independent reviewer exists and then normalize bypassing the rule.
 
 ## Completion boundary
 
-The architecture and file-level remediation plan are substantial, but the rollout is not fully compliant until repository contents are re-fetched, exact commands are recorded, CI results are inspected, findings are repaired, and hosted GitHub settings are verified. Any final report must preserve that distinction.
+AskRigor is merged and `COMPLIANT`. AskRigor-lessons is merged and
+`COMPLIANT_WITH_DECLARED_EXCEPTIONS` for its inactive lesson's unavailable
+historical origin evidence. Universal is repository/hosted compliant and awaits
+only the self-referential final-ledger head's required run/merge evidence in PR
+#4. Five additional fleet repositories retain `WRITE ISSUED`/`GAP` because no
+independent final repository/CI/hosted audit was performed in this run.
