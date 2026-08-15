@@ -91,25 +91,13 @@ PRIVATE_KEY_PEM_RE = re.compile(
     r"(?:[A-Za-z0-9+/]+={0,2}\r?\n)+"
     r"-----END (?P=label)-----"
 )
-SECRET_CONTENT_PATTERNS = (
-    (
-        "private-key material",
-        PRIVATE_KEY_PEM_RE,
+CREDENTIAL_LEAK_PATTERNS = (
+    PRIVATE_KEY_PEM_RE,
+    re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,255}(?![A-Za-z0-9])"),
+    re.compile(
+        r"(?<![A-Za-z0-9_-])sk-(?:proj-)?[A-Za-z0-9_-]{20,255}(?![A-Za-z0-9_-])"
     ),
-    (
-        "GitHub provider token",
-        re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,255}(?![A-Za-z0-9])"),
-    ),
-    (
-        "OpenAI provider token",
-        re.compile(
-            r"(?<![A-Za-z0-9_-])sk-(?:proj-)?[A-Za-z0-9_-]{20,255}(?![A-Za-z0-9_-])"
-        ),
-    ),
-    (
-        "AWS access-key identifier",
-        re.compile(r"(?<![A-Z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}(?![A-Z0-9])"),
-    ),
+    re.compile(r"(?<![A-Z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}(?![A-Z0-9])"),
 )
 ON_TRIGGER_LINE_RE = re.compile(
     r"^(?P<indent>[ \t]*)(?P<quote>[\"']?)on(?P=quote)[ \t]*:[ \t]*(?P<value>[^\r\n]*)$"
@@ -1624,14 +1612,15 @@ def _audit_secret_contents(
         except (OSError, UnicodeDecodeError):
             continue
 
-        for category, pattern in SECRET_CONTENT_PATTERNS:
+        for pattern in CREDENTIAL_LEAK_PATTERNS:
             if not pattern.search(content):
                 continue
             findings.append(
                 finding(
                     "error",
                     "secrets.likely-content",
-                    f"Repository text contains likely {category}; the matched value is intentionally omitted.",
+                    "Repository text contains likely credential material; the matched "
+                    "value and detector category are intentionally omitted.",
                     relative,
                     "Remove the secret from Git history, rotate it, and retain only an unmistakably redacted example.",
                 )

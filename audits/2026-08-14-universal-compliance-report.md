@@ -70,6 +70,11 @@ Against the final implementation candidate:
 - Current-main workflow regressions — PASS: block-scalar scanner text is ignored;
   mapping/list/flow/alias/escaped trigger and action forms fail closed; harmless
   non-action `uses` mappings do not create false findings.
+- CodeQL output-boundary regression — RED on the old detector-specific finding
+  message, then GREEN after credential-content findings were changed to one
+  fixed message that omits both the matched value and detector category. The
+  audit still identifies the affected path and returns an error without
+  propagating detector metadata into printed output.
 - Final fleet reconciliation — PASS against direct GitHub App evidence for the
   exact open PR heads, workflow runs/jobs, and hardening issues of universal,
   AskRigor, and AskRigor-lessons. The ledger preserves five other repositories
@@ -131,6 +136,10 @@ verified controls.
 
 - Disposition: `promoted` for the reusable repository-worker/final-auditor architecture, with provenance, limits, anti-patterns, tests, and supersession in `audits/2026-08-14-compliance-worker-architecture.md`.
 - The policy/audit findings are incorporated into the canonical standard and tested locally.
+- Disposition: `promoted` into the universal audit for the fixed-message
+  credential-finding boundary; detector-specific labels must not flow into
+  logs, while paths and actionable remediation remain available. The focused
+  regression and CodeQL are the executable guards.
 - AskRigor's transferable protocol-byte, partial-access,
   bounded-live-validation, public-MCP, and scanner-precision lessons are
   promoted in `audits/2026-08-14-askrigor-transferable-controls.md` with explicit

@@ -1104,6 +1104,13 @@ jobs:
             item for item in findings if item["code"] == "secrets.likely-content"
         ]
         self.assertEqual(["config/settings.ini"], [item["path"] for item in matches])
+        self.assertEqual(
+            [
+                "Repository text contains likely credential material; the matched "
+                "value and detector category are intentionally omitted."
+            ],
+            [item["message"] for item in matches],
+        )
         self.assertNotIn(github_token, str(matches))
 
     def test_redacted_secret_examples_are_allowed(self) -> None:
