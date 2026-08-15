@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-08-14
+Updated: 2026-08-15
 
 ## Goal
 
@@ -10,8 +10,8 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Verified code-bearing baseline: PR #9 merge `dacab0268bc01eccac09453ffec8960565bd67e5`
-- Active change: `agent/universal-coordination-rule` has completed the local implementation, independent review repair, and final local verification for Joel's standing cross-project coordination rule; publication remains pending.
+- Verified code-bearing baseline: PR #10 merge `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
+- Active change: draft PR #11 on `agent/universal-next-step-continuation-rule` promotes Joel's universal next-step continuation rule. Causal RED is verified; the code-bearing implementation is published and exact-head checks are pending.
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
 - Repository profile and commands: `.github/codex-repository.json`
@@ -39,20 +39,21 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Added and indexed `patterns/editorial-authority-and-lossless-editing.md` with exact Joel Articles merge/path/blob provenance, bounded project-local exclusions, and causal route/content/limits regression coverage.
 - Joel origin merge `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db` and origin code head `dcde124ef2f983c5027d85481f9aa33b2c353d9b` are verified by origin runs `31785689319` and `31785508088`; the promoted pattern copies no article prose, fact packet, helper, detector threshold, license/privacy decision, or publication action.
 - PR #9 code-bearing head `8da52dc977e0670ec606ca7c07d10b2a58507985` is verified by Universal architecture tests run `31786060272` (57/57 tests; audit 0 errors/3 truthful hosted warnings) and Repository policy run `31786060351` (success).
+- Merged universal coordination-rule PR #10 as `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`; it is the current canonical `main` baseline.
+- Recorded Joel's cross-project next-step rule test-first in draft PR #11: owner answers and corrections advance unfinished work instead of ending in an acknowledgment-only turn, without broadening authority or bypassing real pause boundaries.
 
 ## Current checkpoint
 
-- Canonical baseline: `main` at `dacab0268bc01eccac09453ffec8960565bd67e5` (PR #9 merge).
-- Active branch: `agent/universal-coordination-rule`; no unrelated local changes.
-- Implementation/review: both Important review findings are repaired. The detailed projections now express an affirmative standing grant for delegation, subagents, and parallel investigation only when coordination improves without conflicting writes, paired independent review remains required when safely separable, and shared mutable writes are serialized.
-- RED evidence: `python3 -m unittest tests.test_universal_coordination_rule -v` failed first because required projections were absent, then for a detached delegation/review permission, and finally for the missing affirmative, condition-bound standing grant.
-- GREEN/final local evidence: the focused command passed 3/3; `python3 -m unittest discover -s tests -v` passed 60/60; `python3 scripts/audit_codex_github.py --root . --fail-on error` passed with 0 errors and 3 truthful hosted-control warnings; final diff check passed.
-- Publication state: remote branch `agent/universal-coordination-rule` and its draft PR are absent. The first managed push approval timed out before execution; its one retry hung without output and was terminated. No credential workaround was attempted.
-- Current step: push `agent/universal-coordination-rule`, then create its draft PR to `main`; do not rerun local gates or create another local commit unless publication changes the branch.
+- Canonical baseline: `main` at `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be` (PR #10 merge).
+- Active branch/PR: `agent/universal-next-step-continuation-rule` / draft PR #11; unrelated PRs #4 and #2 and issue #3 are untouched.
+- RED evidence: test-only head `9d6687ed7ba3334efc333b77bd6c1c0817573979`; Universal architecture tests run `31856407051` / job `94941896599` failed causally with 63 tests, 31 assertion failures, and 2 missing-audit errors. Repository policy run `31856407065` succeeded.
+- Code-bearing scope: root agreement, operating pattern, reusable template, lesson index, provenance audit, causal regression, and this checkpoint.
+- Current step: wait for both exact code-bearing PR checks. If green, bind their head/run evidence in a forward-stable checkpoint, inspect the complete diff, and continue the review/merge sequence.
 
 ## Remaining
 
-- Push the verified local branch and create the focused universal coordination-rule draft PR.
+- Verify the exact PR #11 code-bearing head with Universal architecture tests and Repository policy.
+- Bind the exact green code-bearing evidence, perform a complete diff review, verify the evidence-only head, mark PR #11 ready, and merge if all gates remain green.
 - Do not alter unrelated open PRs #4/#2 or hardening issue #3.
 
 ## Blockers / unresolved
@@ -60,7 +61,6 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - The dependency-free workflow detector is intentionally conservative rather than a full YAML parser. Ambiguous root trigger forms paired with checkout fail closed; repositories needing uncommon safe syntax should add an exact fixture or use a reviewed parser.
 - Hosted control mutation remains provisional and plan/permission dependent; repository files cannot prove hosted enforcement.
 - Default-branch rules, secret scanning, and push protection remain truthfully unverified in the repository profile.
-- Publication is blocked only pending a successful normal `git push`; no remote branch or PR exists after the timed-out/hung managed attempts.
 
 ## Evidence / artifacts
 
@@ -78,11 +78,12 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Editorial authority regression: `tests/test_editorial_authority_pattern.py`
 - Joel origin merge: `c0d73ba6e983a4d93ceec1799ad4ac7f526b61db`; exact source artifact Git blobs are listed in the pattern.
 - Coordination rule: `AGENTS.md`, `patterns/codex-github-operating-system.md`, `templates/AGENTS-CODEX.md`, `audits/2026-08-14-universal-coordination-rule.md`, and `tests/test_universal_coordination_rule.py`.
+- Next-step continuation rule: `AGENTS.md`, `LESSON-INDEX.md`, `patterns/codex-github-operating-system.md`, `templates/AGENTS-CODEX.md`, `audits/2026-08-15-universal-next-step-continuation-rule.md`, and `tests/test_universal_next_step_rule.py`.
 
 ## Next safe action
 
-Run `git push -u origin agent/universal-coordination-rule`; after it succeeds, create a draft pull request from that branch to `main` without merging. Do not rerun local gates or create another local commit before that publication step.
+Wait for both exact-head PR #11 checks. If they pass, record the code-bearing head/run/job evidence, review the full diff, verify the final evidence-only head, then mark ready and merge. If PR #11 has already merged during recovery, verify the exact merge head and do not repeat the promotion.
 
 ## Recovery rule
 
-After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the last verified commit; do not repeat Joel, Inner Signal, or Pangram project work, alter unrelated PRs #4/#2 or issue #3, or import project-specific content.
+After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the latest verified durable boundary. Do not repeat the Joel, Inner Signal, Pangram, coordination-rule, or next-step-rule work; do not alter unrelated PRs #4/#2 or issue #3; and do not import project-specific content.
