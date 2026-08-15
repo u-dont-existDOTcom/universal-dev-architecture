@@ -10,8 +10,8 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Verified code-bearing baseline: PR #10 merge `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
-- Active change: draft PR #11 on `agent/universal-next-step-continuation-rule` promotes Joel's universal next-step continuation rule. Causal RED and exact code-bearing GREEN are verified; this evidence-only checkpoint is pending exact-head checks.
+- Verified code-bearing baseline: PR #11 merge `5e8ab185a4bf052313698ea5348031e344fcd930`
+- Active change: no code change. A state-only closeout records PR #11's exact merge evidence; before that closeout merges it is the remaining repository-local action, and after it merges no active change remains.
 - Lesson entry point: `LESSON-INDEX.md`
 - Current operating pattern: `patterns/codex-github-operating-system.md`
 - Repository profile and commands: `.github/codex-repository.json`
@@ -42,20 +42,20 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 - Merged universal coordination-rule PR #10 as `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`; it is the current canonical `main` baseline.
 - Recorded Joel's cross-project next-step rule test-first in draft PR #11: owner answers and corrections advance unfinished work instead of ending in an acknowledgment-only turn, without broadening authority or bypassing real pause boundaries.
 - Verified PR #11 code-bearing head/tree `3dfe834b718520457833a19953c4f7b573ec25f1` / `350c3b879a673436661a1e046d9e1bc51e778b86`: Universal architecture tests run `31856554150` / job `94942298836` passed 63/63 with audit 0 errors/3 truthful warnings; Repository policy run `31856554153` / job `94942299028` succeeded.
+- Merged next-step continuation PR #11 as `5e8ab185a4bf052313698ea5348031e344fcd930`; merge tree `5051d9f424a0e614f45d6506270ae7dfd10902ff` exactly equals the reviewed final-head tree. Merge-head Universal architecture tests run `31856690969` / job `94942680272` and Repository policy run `31856691275` / job `94942681121` both succeeded.
 
 ## Current checkpoint
 
-- Canonical baseline: `main` at `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be` (PR #10 merge).
-- Active branch/PR: `agent/universal-next-step-continuation-rule` / draft PR #11; unrelated PRs #4 and #2 and issue #3 are untouched.
-- RED evidence: test-only head `9d6687ed7ba3334efc333b77bd6c1c0817573979`; Universal architecture tests run `31856407051` / job `94941896599` failed causally with 63 tests, 31 assertion failures, and 2 missing-audit errors. Repository policy run `31856407065` succeeded.
-- GREEN code-bearing evidence: head/tree `3dfe834b718520457833a19953c4f7b573ec25f1` / `350c3b879a673436661a1e046d9e1bc51e778b86`; Universal architecture tests run `31856554150` / job `94942298836` passed 63/63 with audit 0 errors, 3 truthful hosted-control warnings, and 0 informational findings. Repository policy run `31856554153` / job `94942299028` succeeded.
-- Evidence-only delta: the provenance audit and this checkpoint bind the exact code-bearing evidence; no operational rule or test changed.
-- Current step: verify both checks on this evidence-only head, inspect the complete diff, then mark PR #11 ready and merge if all gates remain green.
+- Canonical code-bearing baseline: PR #11 squash merge `5e8ab185a4bf052313698ea5348031e344fcd930`; tree `5051d9f424a0e614f45d6506270ae7dfd10902ff` exactly matches reviewed PR head `29df569c84b12444e1c55a8f95d2a220916c9bdb`.
+- Merge verification: Universal architecture tests run `31856690969` / job `94942680272` succeeded; Repository policy run `31856691275` / job `94942681121` succeeded.
+- Test-first chain remains bound in PR #11 and the provenance audit: causal RED at `9d6687ed7ba3334efc333b77bd6c1c0817573979`, exact code-bearing GREEN at `3dfe834b718520457833a19953c4f7b573ec25f1`, and green final PR head `29df569c84b12444e1c55a8f95d2a220916c9bdb`.
+- Closeout scope: this branch changes only `state/CURRENT-STATE.md`; no rule, test, audit, unrelated PR, issue, or hosted control changes.
+- Current step: if the state-only closeout PR is open, verify its exact checks and one-file diff, then merge. If it is already merged, the promotion is complete and no repository-local action remains.
 
 ## Remaining
 
-- Verify Universal architecture tests and Repository policy on the final evidence-only PR #11 head.
-- Inspect the complete base-to-head diff, mark PR #11 ready, and merge if all gates remain green; then verify the exact merge head.
+- If the state-only closeout PR is still open, verify both exact-head checks, inspect its one-file diff, and merge with an expected-head guard.
+- After that conditional closeout, no repository-local promotion work remains; future work begins from current `main` and a new owner-directed goal.
 - Do not alter unrelated open PRs #4/#2 or hardening issue #3.
 
 ## Blockers / unresolved
@@ -84,8 +84,8 @@ Maintain and apply a source-grounded, risk-adjusted Codex + GitHub operating sys
 
 ## Next safe action
 
-Wait for both exact checks on the final evidence-only PR #11 head. If they pass and the complete diff remains scoped, mark ready and merge with an expected-head guard, then verify the exact merge head. If PR #11 has already merged during recovery, verify that merge head and do not repeat the promotion.
+If the state-only closeout PR is open, verify both exact checks and the one-file diff, then merge. If it is already merged, begin only the next owner-directed goal from current `main`; do not repeat the next-step promotion.
 
 ## Recovery rule
 
-After interruption, inspect Git state, this checkpoint, the lesson index, current pattern, open PR/checks, and newer owner instructions. Resume from the latest verified durable boundary. Do not repeat the Joel, Inner Signal, Pangram, coordination-rule, or next-step-rule work; do not alter unrelated PRs #4/#2 or issue #3; and do not import project-specific content.
+After interruption, inspect current `main`, this checkpoint, the lesson index, open PR/checks, and newer owner instructions. Treat PR #11's code-bearing merge and exact merge-head checks as complete. Only finish an open state-only closeout; otherwise do not repeat Joel, Inner Signal, Pangram, coordination-rule, or next-step-rule work, alter unrelated PRs #4/#2 or issue #3, or import project-specific content.
