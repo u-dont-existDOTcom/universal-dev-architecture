@@ -5,7 +5,7 @@ Repository: `u-dont-existDOTcom/universal-dev-architecture`
 Branch: `codex/github-compliance-2026-08-14`
 Recovered base: `d1948c504687503f771c02dc4140f99bc66d2e0d`
 Compliance line before main integration: `e37f34b2abced55ba1af7138bd44a2a1795d3a92`
-Integrated main boundary: `9e4f0d8d42bd4f2d227175edab7a8e6e4a1595be`
+Integrated main boundary: `9de36712e9250b79092b2ecd12cda5e005760d83`
 
 The exact published PR-head SHA and its workflow run are recorded in the pull request and final worker report. A document inside a Git commit cannot truthfully contain the SHA of the commit that contains it, so this file records the exact final implementation boundary and does not invent self-referential publication evidence.
 
@@ -50,7 +50,7 @@ Recovered `main` failed both declared commands before test discovery with Python
 
 Against the final implementation candidate:
 
-- `python3 -m unittest discover -s tests -v` — PASS, 80 tests after semantic integration with current `main`.
+- `python3 -m unittest discover -s tests -v` — PASS, 83 tests after semantic integration with current `main`.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error` — PASS, 0 errors; three expected warnings for unverified default-branch rules, secret scanning, and push protection.
 - `python3 -m json.tool templates/COMPLIANCE-WORKER-METADATA.json` — PASS.
 - `python3 -c 'import yaml, sys; [yaml.safe_load(open(path, encoding="utf-8")) for path in sys.argv[1:]]; print("YAML syntax OK")' .github/workflows/universal-architecture-tests.yml .github/workflows/weekly-codex-github-audit.yml .github/dependabot.yml` — PASS (`YAML syntax OK`).
@@ -124,9 +124,10 @@ No fake independent approval rule is proposed for the sole maintainer. The stabl
   exact source commit/path/hash and green CI evidence. Its community-comparator
   content remains project-local, provisional, and unverified.
 - The fleet ledger is reconciled from exact repository/CI/issue evidence for
-  universal PR #4 at pre-final-ledger head `1d1e6d03...`, AskRigor PR #7 at
-  `1fbfb9c7...`, and AskRigor-lessons PR #3 at `469aa629...`. All remain
-  `BLOCKED`; five other repositories remain `WRITE ISSUED` / `GAP`.
+  AskRigor PR #7 at `1c9ed25b...` (runs `31856944544` and `31856944538`) and
+  AskRigor-lessons PR #3 at `1bc0ded8...` (run `31856941754`). Universal PR #4
+  receives its replacement exact-head run after this current-main integration;
+  five other repositories remain `WRITE ISSUED` / `GAP`.
 - Merge is not authorized until the published final-head check is green; even then, hosted main governance remains the issue #3 blocker.
 
 `BLOCKED`

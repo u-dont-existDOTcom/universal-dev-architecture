@@ -142,6 +142,10 @@ When multiple safe in-scope execution approaches achieve the same outcome, autom
 
 Standing grant: delegation, subagents, and parallel investigation are permitted when they improve coordination without conflicting writes, and only as paired delegation plus independent review when safely separable. Shared mutable writes are serialized. This does not broaden task authority and does not replace substantive owner decisions, including meaningful product, policy, safety, access, spending, publication, or irreversible-data choices.
 
+### Continue after owner input
+
+An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
+
 ---
 
 ## 5. Verification is part of implementation
