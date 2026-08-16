@@ -12,8 +12,9 @@ lesson provenance, and directly verified hosted governance.
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Active compliance branch: `codex/github-compliance-2026-08-14`
-- Current `main` integrated into the candidate: `b699b31cd9720adcde7e4392a475fcfefc3026a0`
+- Recovered canonical `main`: `634f61fd5cfc7d891af37b2477668d36bae427be`
+- Active lesson branch while unpublished:
+  `agent/public-visibility-transition-pattern`
 - Recovery refs: `recovery/universal-compliance-pre-main-e37f34b`,
   `recovery/universal-pre-final-fleet-1d1e6d0`,
   `recovery/universal-pre-public-c37f012`, and
@@ -75,30 +76,46 @@ lesson provenance, and directly verified hosted governance.
   Secret scanning, push protection, vulnerability alerts, Dependabot security
   updates, private vulnerability reporting, and CodeQL are enabled. CodeQL
   setup run `31862468675` succeeded for Actions/Python with zero open alerts.
+- Compliance PR #4 final head
+  `8472b43f73489999fbbe8fec98a61b199676491f` merged as
+  `dfbb97b58db733ee1e5568a5c78d703a8c92e03c`. Its exact-head and
+  merged-main deterministic/CodeQL checks succeeded, hardening issue #3 is
+  closed, and later current-main commit `7b5516856dd3873d4a46eaa69ebd7dd42f7958ac`
+  also passed deterministic and Actions/Python CodeQL checks.
 
 ## Current checkpoint
 
-- Pull request: #4, `codex/github-compliance-2026-08-14` into `main`.
-- Current `main` through `b699b31` has been merged locally into the compliance
-  candidate. Rollback refs preserve every pre-integration boundary. The first
-  integration resolved the lesson-index/state conflicts semantically; the
-  source-provenance lesson merged without conflict. The later conversational
-  prose lesson required only an index-order conflict resolution: the mandated
-  operating-system entry remains first, current `main`'s `actual Git state`
-  wording is retained, and the new lesson is indexed as item 8.
-- The final integrated tree passes 83/83 unit tests, the self-audit with zero
-  findings, JSON/YAML validation, scheduled-shell syntax, and diff review.
-  Integrated head `e434f84af8398aa4d47fb034b4430082c230415d`
-  previously passed exact-head workflow run `31857250098`, job `94944261385`;
-  PR #4 is the durable source for the replacement run on the published final
-  evidence head.
+- Inner Signal's tested public-visibility sequence is promoted on the active
+  lesson branch through a bounded `Public visibility transitions` section,
+  exact provenance audit, lesson-index route, and causal policy regression.
+- The source report's current public-`main` bytes, preparation PR #6, private
+  fail-closed repair PR #7, public CodeQL repair PR #8, scanner and Action pins,
+  deterministic counts, hosted visibility readback timestamp, its
+  independently unverified server-instant limit, and supersession boundary are
+  recorded in
+  `audits/2026-08-14-inner-signal-publication-transition.md`.
+- The causal policy test was observed RED 0/2 for the missing section/audit and
+  GREEN 2/2 after the minimal guidance and evidence record. The complete
+  repository suite initially passed 85/85. Independent review then found that
+  hashes derived from raw session records breached the source privacy
+  boundary; a causal regression was observed RED 0/1 and GREEN 1/1 after those
+  hashes were removed. Scoped re-review then found the same excluded digests
+  preserved as test fixtures; a structural allowlist regression was observed
+  RED 0/1 and GREEN 1/1 without retaining those values. The unpublished branch
+  was rebuilt from `origin/main` so its publishable history excludes both
+  privacy defects. The final suite passes 87/87 and the declared audit reports
+  zero findings. Final scoped re-review and protected-PR publication remain
+  pending at this in-commit boundary.
 
 ## Remaining
 
-- Publish PR #4's final evidence head, require its replacement exact-head check,
-  and merge only after every completion gate is green. Record the resulting
-  run and merge in PR #4 and issue #3; those external records can truthfully
-  identify the commit that contains this checkpoint.
+- If this lesson commit is not reachable from `origin/main`, run the complete
+  declared tests/audit, obtain independent review, publish one focused pull
+  request, require its exact-head checks, and merge only when green.
+- If the lesson commit is already reachable from `origin/main`, Task 8 has no
+  remaining repository edit; verify the merge tree and hosted check evidence,
+  then preserve that external receipt in the originating project's second
+  evidence pull request.
 
 ## Blockers / unresolved
 
@@ -107,7 +124,7 @@ lesson provenance, and directly verified hosted governance.
   `.github/codex-repository.json`.
 - Hardening issue
   [#3](https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/3)
-  is ready for exact final-head evidence and closure.
+  is closed; PR #4 is its exact merge/check receipt.
 - Repository visibility is resolved: public. Readers may view/fork the history
   under GitHub's platform terms, but they cannot modify the canonical repository
   without write permission; `LICENSE.md` grants no broader reuse rights.
@@ -126,6 +143,9 @@ lesson provenance, and directly verified hosted governance.
   `audits/2026-08-14-askrigor-transferable-controls.md`,
   `audits/2026-08-14-askrigor-lessons-transferable-design.md`, and
   `audits/2026-08-14-inner-signal-compliance-lessons.md`
+- Public-transition promotion and regression:
+  `audits/2026-08-14-inner-signal-publication-transition.md` and
+  `tests/test_public_visibility_transition_pattern.py`
 - Current patterns: `patterns/paid-workflow-safety.md`,
   `patterns/editorial-authority-and-lossless-editing.md`, and the next-step
   continuation rule recorded in
@@ -135,14 +155,17 @@ lesson provenance, and directly verified hosted governance.
 
 ## Next safe action
 
-Inspect PR #4. If it is still open, verify its exact-head required check before
-merging. If it is merged, verify protected `main`, the merged-main checks, and
-issue #3's closeout evidence. Do not reconstruct publication state from this
-self-referential in-commit checkpoint.
+Reconcile the public-transition lesson commit against `origin/main`. If absent,
+resume at full gates and independent review before publishing the one focused
+PR. If present, verify its merge tree and exact-head/merged-main checks, then
+return the universal receipt to Inner Signal's protected evidence PR. Do not
+reconstruct hosted transition state from this self-referential in-commit
+checkpoint.
 
 ## Recovery rule
 
 After interruption, inspect the Git/merge state, this checkpoint,
-`LESSON-INDEX.md`, the operating-system pattern, PR #4/checks, issue #3, and
-newer owner instructions. Treat PR #11/#12 as complete, preserve every recovery
-ref and unrelated branch, and never infer hosted enforcement from files.
+`LESSON-INDEX.md`, the operating-system pattern, the public-transition audit,
+the current lesson PR/checks when one exists, and newer owner instructions.
+Treat PR #4 and PR #11/#12 as complete, preserve every recovery ref and
+unrelated branch, and never infer hosted enforcement from files.
