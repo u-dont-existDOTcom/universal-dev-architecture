@@ -12,8 +12,8 @@ lesson provenance, and directly verified hosted governance.
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Verified `main` boundary before this maintenance closeout:
-  `6c2dff349f7b5ae9065ee32566dd2ce57acdc46e`
+- Final verified maintenance boundary on `main`:
+  `67418bea3dcf024dae1dbc7ff6558430730ac595`
 - No unresolved compliance or lesson branch remains authoritative; inspect
   current Git and GitHub state before reusing any historical task branch.
 - Recovery refs: `recovery/universal-compliance-pre-main-e37f34b`,
@@ -103,6 +103,11 @@ lesson provenance, and directly verified hosted governance.
   reviewed SHAs were allowed during PR validation, then authenticated API
   readback confirmed only the v7.0.1 SHA remains allowed, with broad
   GitHub-owned and verified-creator allowances disabled.
+- Maintenance PR #14 final head
+  `2299c084e46a9ebf2abdfd94c338e510f9dab30c` merged as
+  `67418bea3dcf024dae1dbc7ff6558430730ac595`. Exact-head deterministic run
+  `31922026424` and CodeQL run `31922025782`, plus merged-main deterministic
+  run `31922110416` and CodeQL run `31922110407`, succeeded.
 
 ## Current checkpoint
 
@@ -170,13 +175,13 @@ lesson provenance, and directly verified hosted governance.
 For a new task, start from current protected `main`, read `LESSON-INDEX.md` and
 the applicable current pattern, and use a focused branch. For maintenance,
 review the next Dependabot or weekly drift result only when it appears; do not
-reopen completed PRs #2, #4, or #13.
+reopen completed PRs #2, #4, #13, or #14.
 
 ## Recovery rule
 
 After interruption, inspect the Git/merge state, this checkpoint,
 `LESSON-INDEX.md`, the operating-system pattern, the public-transition audit,
 the external-evaluation pattern, current open PR/check state, and newer owner
-instructions. Treat PRs #2, #4, #11, #12, and #13 as complete, preserve every
-recovery ref and unrelated branch, and never infer hosted enforcement from
-files.
+instructions. Treat PRs #2, #4, #11, #12, #13, and #14 as complete, preserve
+every recovery ref and unrelated branch, and never infer hosted enforcement
+from files.
