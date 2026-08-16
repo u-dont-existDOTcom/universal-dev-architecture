@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-08-15
+Updated: 2026-08-16
 
 ## Goal
 
@@ -12,9 +12,10 @@ lesson provenance, and directly verified hosted governance.
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Recovered canonical `main`: `634f61fd5cfc7d891af37b2477668d36bae427be`
-- Active lesson branch while unpublished:
-  `agent/public-visibility-transition-pattern`
+- Verified `main` boundary before this maintenance closeout:
+  `6c2dff349f7b5ae9065ee32566dd2ce57acdc46e`
+- No unresolved compliance or lesson branch remains authoritative; inspect
+  current Git and GitHub state before reusing any historical task branch.
 - Recovery refs: `recovery/universal-compliance-pre-main-e37f34b`,
   `recovery/universal-pre-final-fleet-1d1e6d0`,
   `recovery/universal-pre-public-c37f012`, and
@@ -82,40 +83,51 @@ lesson provenance, and directly verified hosted governance.
   merged-main deterministic/CodeQL checks succeeded, hardening issue #3 is
   closed, and later current-main commit `7b5516856dd3873d4a46eaa69ebd7dd42f7958ac`
   also passed deterministic and Actions/Python CodeQL checks.
+- Public-visibility transition PR #13 final head
+  `fde98ae8465cbe58f2fcad8bd167d9319a47b15c` merged as
+  `996d67ae9f8f44b0865cea6d88d169dbbadbbf41`. Exact-head deterministic run
+  `31866987772` and CodeQL run `31866986996`, plus merged-main deterministic
+  run `31867049940` and CodeQL run `31867049400`, succeeded.
+- The external-evaluation reproducibility pattern and index are current through
+  `f0c22df8844976bfff36cda09f494fa311aa2142` and
+  `6c55dac2d4bcb71df3a1fd2e3f9d10728f760ca7`; deterministic and CodeQL runs
+  `31871042102` and `31871041988` passed on the latter exact commit.
+- Dependabot PR #2 updated `actions/checkout` from signed immutable v4.2.2 to
+  signed immutable v7.0.1 commit
+  `3d3c42e5aac5ba805825da76410c181273ba90b1`. Its exact head
+  `cd00d80ff3e6b82858049731be23e5e3b778b0b9` passed deterministic run
+  `31921666592` and CodeQL run `31921664845`, then merged as
+  `6c2dff349f7b5ae9065ee32566dd2ce57acdc46e`. Post-merge deterministic run
+  `31921716522` and CodeQL run `31921716274` succeeded.
+- The selected-Action policy was updated transactionally: only the old and new
+  reviewed SHAs were allowed during PR validation, then authenticated API
+  readback confirmed only the v7.0.1 SHA remains allowed, with broad
+  GitHub-owned and verified-creator allowances disabled.
 
 ## Current checkpoint
 
-- Inner Signal's tested public-visibility sequence is promoted on the active
-  lesson branch through a bounded `Public visibility transitions` section,
-  exact provenance audit, lesson-index route, and causal policy regression.
-- The source report's current public-`main` bytes, preparation PR #6, private
-  fail-closed repair PR #7, public CodeQL repair PR #8, scanner and Action pins,
-  deterministic counts, hosted visibility readback timestamp, its
-  independently unverified server-instant limit, and supersession boundary are
-  recorded in
-  `audits/2026-08-14-inner-signal-publication-transition.md`.
-- The causal policy test was observed RED 0/2 for the missing section/audit and
-  GREEN 2/2 after the minimal guidance and evidence record. The complete
-  repository suite initially passed 85/85. Independent review then found that
-  hashes derived from raw session records breached the source privacy
-  boundary; a causal regression was observed RED 0/1 and GREEN 1/1 after those
-  hashes were removed. Scoped re-review then found the same excluded digests
-  preserved as test fixtures; a structural allowlist regression was observed
-  RED 0/1 and GREEN 1/1 without retaining those values. The unpublished branch
-  was rebuilt from `origin/main` so its publishable history excludes both
-  privacy defects. The final suite passes 87/87 and the declared audit reports
-  zero findings. Final scoped re-review and protected-PR publication remain
-  pending at this in-commit boundary.
+- The universal policy/control-plane baseline, public-transition promotion,
+  external-evaluation reproducibility pattern, and checkout v7.0.1 dependency
+  update are merged on protected `main` with exact successful deterministic and
+  CodeQL receipts.
+- The reusable workflow-policy template and both repository checkout jobs use
+  the same v7.0.1 immutable pin. The read-only repository jobs explicitly set
+  `persist-credentials: false`; no job permissions, triggers, or verification
+  commands were broadened.
+- `.github/codex-repository.json` records the separately authenticated hosted
+  Action policy. The repository files remain evidence records, not proof of
+  hosted settings.
+- The complete declared unit suite and self-audit are the final repository gate
+  for any future change. The weekly drift workflow remains the durable
+  actionable detector.
 
 ## Remaining
 
-- If this lesson commit is not reachable from `origin/main`, run the complete
-  declared tests/audit, obtain independent review, publish one focused pull
-  request, require its exact-head checks, and merge only when green.
-- If the lesson commit is already reachable from `origin/main`, Task 8 has no
-  remaining repository edit; verify the merge tree and hosted check evidence,
-  then preserve that external receipt in the originating project's second
-  evidence pull request.
+- No known repository-compliance, lesson-publication, dependency-update, or
+  hosted-governance task remains from the 2026-08-14/15 hardening sequence.
+- Continue normal reviewed Dependabot handling and weekly drift reconciliation.
+- Recheck the official OpenAI/GitHub source registry by the documented quarterly
+  cadence or earlier when a material platform behavior changes.
 
 ## Blockers / unresolved
 
@@ -155,17 +167,16 @@ lesson provenance, and directly verified hosted governance.
 
 ## Next safe action
 
-Reconcile the public-transition lesson commit against `origin/main`. If absent,
-resume at full gates and independent review before publishing the one focused
-PR. If present, verify its merge tree and exact-head/merged-main checks, then
-return the universal receipt to Inner Signal's protected evidence PR. Do not
-reconstruct hosted transition state from this self-referential in-commit
-checkpoint.
+For a new task, start from current protected `main`, read `LESSON-INDEX.md` and
+the applicable current pattern, and use a focused branch. For maintenance,
+review the next Dependabot or weekly drift result only when it appears; do not
+reopen completed PRs #2, #4, or #13.
 
 ## Recovery rule
 
 After interruption, inspect the Git/merge state, this checkpoint,
 `LESSON-INDEX.md`, the operating-system pattern, the public-transition audit,
-the current lesson PR/checks when one exists, and newer owner instructions.
-Treat PR #4 and PR #11/#12 as complete, preserve every recovery ref and
-unrelated branch, and never infer hosted enforcement from files.
+the external-evaluation pattern, current open PR/check state, and newer owner
+instructions. Treat PRs #2, #4, #11, #12, and #13 as complete, preserve every
+recovery ref and unrelated branch, and never infer hosted enforcement from
+files.

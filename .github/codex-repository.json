@@ -30,9 +30,9 @@
       "result": "VERIFIED: active repository ruleset 20882387 targets the default branch; requires pull requests and strict Deterministic repository audit, blocks deletion and non-fast-forward updates, requires review-thread resolution, requires zero approvals for the solo maintainer, and grants only user 248168938 an always bypass"
     },
     "actions_policy": {
-      "checked_at": "2026-08-15",
+      "checked_at": "2026-08-16",
       "method": "GitHub REST via authenticated GitHub CLI",
-      "result": "VERIFIED: Actions enabled with allowed_actions selected and sha_pinning_required true; only actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 is allowed; all GitHub-owned and verified-creator Actions are otherwise disabled"
+      "result": "VERIFIED: Actions enabled with allowed_actions selected and sha_pinning_required true; only actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 is allowed; all GitHub-owned and verified-creator Actions are otherwise disabled"
     },
     "secret_scanning": {
       "checked_at": "2026-08-15",
