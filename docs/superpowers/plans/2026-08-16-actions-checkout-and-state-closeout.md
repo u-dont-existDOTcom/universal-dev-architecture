@@ -178,14 +178,14 @@ template/profile/state closeout through one focused follow-up PR.
   Expected: all tests pass, the audit reports no errors, and `git diff --check`
   is clean.
 
-- [ ] **Step 6: Commit and publish one focused closeout PR**
+- [x] **Step 6: Commit and publish one focused closeout PR**
 
   Commit the template/profile/state/plan changes, push
   `codex/maintenance-closeout-2026-08-16`, open one PR with exact verification
   evidence, wait for protected checks, and merge only if the exact head remains
   clean and green.
 
-- [ ] **Step 7: Verify final `main` and lesson disposition**
+- [x] **Step 7: Verify final `main` and lesson disposition**
 
   Confirm post-merge deterministic and CodeQL runs on the exact final commit.
   Record the maintenance finding as `no-new-lesson`: immutable Action
