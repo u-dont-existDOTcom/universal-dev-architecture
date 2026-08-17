@@ -15,6 +15,7 @@ from scripts.codex_plugin_benchmark.fixtures import (
     verify_all_fixtures,
 )
 from scripts.codex_plugin_benchmark.inventory import collect_inventory
+from scripts.codex_plugin_benchmark.runner import TrialSpec, build_codex_argv, run_trial
 
 
 class HarnessFoundationTests(unittest.TestCase):
@@ -256,6 +257,76 @@ class ConditionTests(unittest.TestCase):
         self.assertEqual(validation["missing_enabled"], [])
         self.assertEqual(validation["unexpected_disabled"], ["cloudflare"])
         self.assertFalse(validation["valid"])
+
+
+class RunnerTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.fake_codex = self.root / "fake-codex"
+        self.fake_codex.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, pathlib, sys\n"
+            "args = sys.argv[1:]\n"
+            "message = pathlib.Path(args[args.index('-o') + 1])\n"
+            "_ = sys.stdin.read()\n"
+            "print(json.dumps({'type': 'turn.completed', 'usage': {'input_tokens': 12, 'output_tokens': 3}}))\n"
+            "message.write_text('fake complete\\n', encoding='utf-8')\n",
+            encoding="utf-8",
+        )
+        self.fake_codex.chmod(0o755)
+        self.codex_root = self.root / "codex"
+        self.codex_root.mkdir()
+
+    def spec(self, *, executable: Path | None = None) -> TrialSpec:
+        return TrialSpec(
+            task_id="task-a",
+            condition_id="b0",
+            repetition=1,
+            output_root=self.root / "results",
+            codex_root=self.codex_root,
+            codex_executable=str(executable or self.fake_codex),
+            timeout_s=20,
+        )
+
+    def test_runner_waits_for_terminal_and_preserves_raw_evidence(self):
+        record = run_trial(self.spec())
+
+        self.assertEqual(record.status, "completed")
+        self.assertEqual(record.codex_exit_code, 0)
+        self.assertTrue(record.events_path.is_file())
+        self.assertTrue(record.metadata_path.is_file())
+        self.assertEqual(record.last_message_path.read_text(encoding="utf-8"), "fake complete\n")
+        metadata = json.loads(record.metadata_path.read_text(encoding="utf-8"))
+        self.assertTrue(metadata["terminal"])
+        self.assertFalse(metadata["used_process_jobs"])
+
+    def test_runner_preserves_nonzero_exit_as_infrastructure_failure(self):
+        failing = self.root / "failing-codex"
+        failing.write_text("#!/bin/sh\nexit 7\n", encoding="utf-8")
+        failing.chmod(0o755)
+
+        record = run_trial(self.spec(executable=failing))
+
+        self.assertEqual(record.status, "infrastructure-failed")
+        self.assertEqual(record.codex_exit_code, 7)
+        self.assertTrue(record.events_path.exists())
+
+    def test_codex_argv_uses_isolation_without_process_jobs_or_codex_home(self):
+        spec = self.spec()
+        trial_root = self.root / "trial"
+        trial_root.mkdir()
+        condition = build_condition("b0", trial_root, self.codex_root)
+
+        argv = build_codex_argv(spec, condition, trial_root, self.root / "last.txt")
+        encoded = " ".join(argv)
+
+        self.assertIn("--ignore-user-config", argv)
+        self.assertIn("--ignore-rules", argv)
+        self.assertIn("--ephemeral", argv)
+        self.assertNotIn("process-jobs", encoded)
+        self.assertNotIn("CODEX_HOME", spec.environment_overrides)
 
 
 if __name__ == "__main__":

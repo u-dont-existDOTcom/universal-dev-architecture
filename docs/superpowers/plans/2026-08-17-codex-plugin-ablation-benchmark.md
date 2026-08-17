@@ -220,7 +220,7 @@ python3 -m scripts.codex_plugin_benchmark.cli preflight --all --output audits/co
 
 Expected: every treatment contains its expected skill names; excluded component names are absent. If unavoidable global instructions remain, update the B0 label before proceeding.
 
-- [ ] **Step 5: Commit the condition/preflight slice**
+- [x] **Step 5: Commit the condition/preflight slice**
 
 ```bash
 git add scripts/codex_plugin_benchmark/conditions.py tests/test_codex_plugin_benchmark.py audits/codex-plugin-stack/configurations
@@ -238,7 +238,7 @@ git commit -m "feat: build controlled Codex benchmark conditions"
 - Consumes: `FixtureRecord`, `ConditionRecord`, repetition index, and output root.
 - Produces: `run_trial(spec: TrialSpec) -> TrialRecord` with monotonic duration, command metadata, condition/task hashes, JSONL path, stderr path, last-message path, Git diff path, exit state, token usage, and infrastructure classification.
 
-- [ ] **Step 1: Write failing runner tests using a fake Codex executable**
+- [x] **Step 1: Write failing runner tests using a fake Codex executable**
 
 ```python
 def test_runner_preserves_failed_jsonl_and_classifies_infrastructure_failure(self):
@@ -253,21 +253,21 @@ def test_runner_never_uses_process_jobs_or_changes_codex_home(self):
     self.assertNotIn("CODEX_HOME", self.spec.environment_overrides)
 ```
 
-- [ ] **Step 2: Run runner tests and require failure for the missing implementation**
+- [x] **Step 2: Run runner tests and require failure for the missing implementation**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.RunnerTests -v
 ```
 
-- [ ] **Step 3: Implement disposable Git repositories and synchronous native polling**
+- [x] **Step 3: Implement disposable Git repositories and synchronous native polling**
 
 The runner uses `subprocess.Popen`, drains stdout/stderr without deadlock, waits to a configured deadline, terminates only its owned process group on timeout, and atomically writes terminal metadata. It never launches CPJ and never returns before the Codex process is terminal.
 
-- [ ] **Step 4: Execute a zero-model fake end-to-end trial**
+- [x] **Step 4: Execute a zero-model fake end-to-end trial**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.RunnerTests -v
-python3 -m scripts.codex_plugin_benchmark.cli run --fake-codex --task task-a --condition b0 --repeat 1
+python3 -m unittest tests.test_codex_plugin_benchmark.RunnerTests -v
 ```
 
 Expected: a complete raw run directory containing JSONL, timing, diff, stderr, final output, and terminal metadata.

@@ -9,6 +9,7 @@ from .common import atomic_write_json
 from .conditions import CONDITION_IDS, build_condition, run_prompt_preflight
 from .inventory import collect_inventory
 from .fixtures import verify_all_fixtures
+from .runner import TrialSpec, run_trial
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +31,16 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--all", action="store_true", required=True)
     preflight.add_argument("--codex-root", type=Path, required=True)
     preflight.add_argument("--output", type=Path, required=True)
+    run = subparsers.add_parser("run")
+    run.add_argument("--task", required=True)
+    run.add_argument("--condition", required=True)
+    run.add_argument("--repeat", type=int, required=True)
+    run.add_argument("--output", type=Path, required=True)
+    run.add_argument("--codex-root", type=Path, default=Path("/home/joel/.codex"))
+    run.add_argument("--codex-executable", default="codex")
+    run.add_argument("--model", default="gpt-5.6-sol")
+    run.add_argument("--reasoning-effort", default="xhigh")
+    run.add_argument("--timeout", type=float, default=900)
     return parser
 
 
@@ -66,6 +77,22 @@ def main(argv: list[str] | None = None) -> int:
                 results[condition_id] = run_prompt_preflight(condition, trial_root)
         atomic_write_json(arguments.output, results)
         return 0 if all(result["valid"] for result in results.values()) else 1
+    if arguments.command == "run":
+        record = run_trial(
+            TrialSpec(
+                task_id=arguments.task,
+                condition_id=arguments.condition,
+                repetition=arguments.repeat,
+                output_root=arguments.output,
+                codex_root=arguments.codex_root,
+                codex_executable=arguments.codex_executable,
+                model=arguments.model,
+                reasoning_effort=arguments.reasoning_effort,
+                timeout_s=arguments.timeout,
+            )
+        )
+        print(record.metadata_path)
+        return 0 if record.status == "completed" else 1
     raise AssertionError(f"unhandled command: {arguments.command}")
 
 
