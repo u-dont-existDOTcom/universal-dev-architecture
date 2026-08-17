@@ -100,7 +100,7 @@ def compare_conditions(
 
 def render_benchmark_table(records: Sequence[ScoredTrial]) -> str:
     lines = [
-        "| Task | Configuration | Success | Quality | Verification | Time (s) | Overhead | Human intervention | Notes |",
+        "| Task | Configuration | Success | Engineering-quality proxy | Verification | Time (s) | Overhead | Human intervention | Notes |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for record in sorted(records, key=lambda item: (item.task_id, item.condition_id, item.repetition)):

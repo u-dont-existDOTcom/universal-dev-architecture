@@ -10,7 +10,15 @@ These rules separate what may remain installed from what is allowed to influence
 - Add a failing regression test when practical; characterization or static evidence is acceptable when it is the more reliable proof.
 - Use one independent review only for material risk, broad changes, or an explicit review request.
 
-## Codex Security
+## Replacement for the global automatic-coordination agreement
+
+Use this narrower instruction in the global `AGENTS.md`:
+
+> Codex may use plans, isolated worktrees, subagents, and independent review without asking when direct evidence shows they are proportionate to the task. Default to one agent and no durable plan artifact for small or tightly coupled work. Delegate only two or more genuinely independent surfaces, keep one integration owner, serialize shared mutable state, and maintain at most one recovery ledger. Do not ask the owner to choose an execution mode or approve an implementation design when the stated requirements already determine safe behavior. Poll owned long-running processes to a terminal result. This permission does not broaden scope or authorize consequential external actions.
+
+## Codex Security formal pipeline (uncertain, specialized)
+
+The `fix-finding` skill did not improve the final outcome in two tasks and should not be part of the default implementation path. The formal scan/tool pipeline produced distinct canonical artifacts in one role-relevant trial but no correctness lift, so it remains optional rather than empirically retained.
 
 Activate only for one of these explicit cases:
 
@@ -24,10 +32,10 @@ During activation:
 - Security alone owns scan-worker orchestration; do not compose it with Coordinator or Superpowers coordination;
 - establish a wall-time, worker, and output-artifact budget before a deep scan;
 - require a terminal result or an explicit timed-out classification—never treat detached/waiting activity as completion;
-- let Security define the security invariant and bypass cases, while native implementation owns the patch;
+- treat Security's invariant, finding, and bypass artifacts as inputs; native implementation and portability review own the patch;
 - require separate approval before writing external tickets/advisories or changing persistent configuration.
 
-Do not activate it for ordinary code review, routine implementation, or every security-sensitive code change. A normal change can receive native adversarial reasoning without the formal scan pipeline.
+Do not activate it for ordinary code review, routine implementation, every security-sensitive code change, or merely to use `fix-finding`. A normal change receives native adversarial reasoning without the formal scan pipeline.
 
 ## Coordinator
 
@@ -47,11 +55,14 @@ Prefer native `git`, `gh`, and the repository's GitHub rules. Activate a connect
 
 The global host-boundary authentication instruction remains authoritative over plugin auth advice. A sandbox-only failure is not a logout.
 
-## Plugin Management and templates
+## Plugin Management
 
 - Plugin Management: explicit plugin permission, dependency, connection, or removal administration only.
-- Default Templates: explicit creation of a named document, spreadsheet, or presentation artifact only.
-- Neither belongs in the ordinary coding prompt surface.
+- It does not belong in the ordinary coding prompt surface.
+
+## System-managed review agent
+
+Do not remove or auto-enable `review-agent` based on this audit. It is configured for explicit delegated read-only review and disallows implicit invocation. Its marginal value was not measured. Native review remains the default; use the system role only when an agent explicitly delegates that bounded review task, and avoid a duplicate second review layer.
 
 ## Research and domain apps
 
@@ -74,4 +85,4 @@ Disable `web-perf` until Chrome DevTools MCP is installed and its runtime is ver
 - GitHub publish workflows.
 - Turnstile deployment.
 - Any external tracker/advisory write.
-- Removed Process Jobs and Empire components.
+- Removed Process Jobs, Empire, and Default Templates. The non-implicit system-managed review agent remains unclassified pending a role-relevant evaluation.

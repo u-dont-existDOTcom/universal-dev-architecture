@@ -18,7 +18,7 @@ The CLI exposes no sampling seed, and a model alias can change server-side. The 
 
 ## Security termination contract
 
-Codex Security produced a materially stronger TOCTOU-resistant fix, but its trial failed to terminate within 900 seconds. The current stack lacks a reliable bounded scan/reviewer fan-in contract that preserves findings and exits cleanly.
+The Security skill-only Task F run surfaced a useful TOCTOU idea but produced a Linux-only patch, had an unverifiable reviewer path, and failed to terminate within 900 seconds. The actual formal Task I scan terminated but took 848.5 seconds and did not improve the final outcome over native. The stack lacks a portable, bounded scan/reviewer fan-in contract that preserves distinct findings and exits at a predictable cost.
 
 ## Browser performance dependency
 

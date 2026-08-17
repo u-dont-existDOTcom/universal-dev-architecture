@@ -20,7 +20,7 @@ class TrialSpec:
     condition_id: str
     repetition: int
     output_root: Path
-    codex_root: Path = Path("/home/joel/.codex")
+    codex_root: Path = Path.home() / ".codex"
     codex_executable: str = "codex"
     model: str = "gpt-5.6-sol"
     reasoning_effort: str = "xhigh"
@@ -208,6 +208,10 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
                 "condition_label": condition.label,
                 "condition_sha256": condition.content_sha256,
                 "fixture_sha256": fixture.content_sha256,
+                "oracle_sha256": fixture.oracle_sha256,
+                "visible_command_sha256": fixture.visible_command_sha256,
+                "hidden_command_sha256": fixture.hidden_command_sha256,
+                "evaluation_contract_sha256": fixture.evaluation_contract_sha256,
                 "repetition": spec.repetition,
                 "model": spec.model,
                 "reasoning_effort": spec.reasoning_effort,

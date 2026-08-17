@@ -22,6 +22,12 @@ def _read_json(path: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _public_codex_path(path: Path) -> str:
+    value = path.as_posix()
+    marker = "/.codex/"
+    return "${CODEX_AUDIT_ROOT}/" + value.split(marker, 1)[1] if marker in value else value
+
+
 def _skill_metadata(path: Path) -> dict[str, Any]:
     name = path.parent.name
     description = ""
@@ -42,7 +48,7 @@ def _skill_metadata(path: Path) -> dict[str, Any]:
     return {
         "name": name,
         "description": description,
-        "path": str(path.parent),
+        "path": _public_codex_path(path.parent),
         "sha256": sha256_path(path),
     }
 
@@ -71,7 +77,7 @@ def _plugin_metadata(manifest_path: Path) -> dict[str, Any]:
         "name": str(manifest.get("name") or root.parent.name),
         "version": str(manifest.get("version") or root.name),
         "description": str(manifest.get("description") or ""),
-        "root": str(root),
+        "root": _public_codex_path(root),
         "manifest_sha256": sha256_path(manifest_path),
         "install_state": "installed" if receipt.is_file() else "cached-unverified",
         "receipt_present": receipt.is_file(),
@@ -126,7 +132,7 @@ def collect_inventory(codex_root: Path) -> dict[str, Any]:
     auth_present = (codex_root / "auth.json").is_file()
     return {
         "schema_version": SCHEMA_VERSION,
-        "codex_root": str(codex_root),
+        "codex_root": "${CODEX_AUDIT_ROOT}",
         "auth": {
             "configured": auth_present,
             "mode": "configured-unread" if auth_present else "not-configured",

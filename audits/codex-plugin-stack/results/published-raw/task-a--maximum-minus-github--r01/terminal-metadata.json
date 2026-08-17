@@ -1,0 +1,23 @@
+{
+  "agent_wall_seconds": 161.44239990398637,
+  "codex_exit_code": 0,
+  "condition_id": "maximum-minus-github",
+  "condition_label": "maximum skill surface minus GitHub workflow skills",
+  "condition_sha256": "4e3298d9f26d53a7cb3458a325ac63474a293742bae3d548e53174f6117829d7",
+  "evaluation_contract_sha256": "2af72ac7f4699190bf5a82c2f3191a63c7e95e6266e5db7d1c7210beda90e011",
+  "fixture_sha256": "b995d3e9c72eb4121da5aef7a005c162766c9189fe4649b560cda6b0a96d7d98",
+  "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+  "model": "gpt-5.6-sol",
+  "oracle_sha256": "22e310054553cbb332f9aab7734a8e6e02eda87c79cb148d0da5d4005672f84f",
+  "reasoning_effort": "xhigh",
+  "repetition": 1,
+  "run_id": "task-a--maximum-minus-github--r01",
+  "schema_version": 1,
+  "status": "completed",
+  "task_id": "task-a",
+  "terminal": true,
+  "timed_out": false,
+  "used_process_jobs": false,
+  "visible_command_sha256": "b95c49e64cb00a0e90be3676ae7844ccaa16b1bd9274dcbedf726f82a6b510f2",
+  "wall_seconds": 161.6253906560014
+}

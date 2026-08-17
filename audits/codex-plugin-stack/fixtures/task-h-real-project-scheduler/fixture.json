@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task_id": "task-h",
+  "class": "real-project-multi-component-feature",
+  "source_commit": "f3a34581f756bff726a1f9a38acb6bdab8f5d059",
+  "source_repository": "u-dont-existDOTcom/universal-dev-architecture",
+  "source_tree_files": 146,
+  "source_tree_lines_approx": 24000,
+  "strip_instruction_paths": [".github/AGENTS.md", "state/AGENTS.md"],
+  "verification_timeout_s": 120,
+  "visible_command": ["python3", "-m", "unittest", "discover", "-s", "tests", "-v"],
+  "hidden_command": ["python3", "-m", "unittest", "discover", "-s", ".benchmark-oracle", "-v"]
+}

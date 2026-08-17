@@ -2,7 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from scripts.codex_plugin_benchmark import cli, scheduler
 from scripts.codex_plugin_benchmark.common import atomic_write_json, sha256_path
 from scripts.codex_plugin_benchmark.conditions import (
     build_condition,
@@ -11,12 +14,24 @@ from scripts.codex_plugin_benchmark.conditions import (
 )
 from scripts.codex_plugin_benchmark.fixtures import (
     ALL_TASK_IDS,
+    _content_hash,
     materialize_fixture,
     verify_all_fixtures,
 )
+from scripts.codex_plugin_benchmark.finalize_report import (
+    _current_records,
+    _delta,
+    _replace_section,
+    render_decision_table,
+)
 from scripts.codex_plugin_benchmark.inventory import collect_inventory
+from scripts.codex_plugin_benchmark.publish_results import publish_results
 from scripts.codex_plugin_benchmark.runner import TrialSpec, build_codex_argv, run_trial
-from scripts.codex_plugin_benchmark.scorer import rank_trials, score_trial
+from scripts.codex_plugin_benchmark.scorer import (
+    _terminal_message_claims_completion,
+    rank_trials,
+    score_trial,
+)
 
 
 class HarnessFoundationTests(unittest.TestCase):
@@ -122,8 +137,8 @@ class FixtureTests(unittest.TestCase):
         for task_id in ALL_TASK_IDS:
             with self.subTest(task_id=task_id):
                 record = materialize_fixture(task_id, self.root / task_id, include_oracle=True)
-                visible = record.run_visible_tests(timeout_s=15)
-                hidden = record.run_hidden_tests(timeout_s=15)
+                visible = record.run_visible_tests(timeout_s=record.verification_timeout_s)
+                hidden = record.run_hidden_tests(timeout_s=record.verification_timeout_s)
                 self.assertEqual(visible.returncode, 0, visible.stderr)
                 self.assertNotEqual(hidden.returncode, 0, "seed unexpectedly satisfies hidden oracle")
 
@@ -134,6 +149,19 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(left.content_sha256, right.content_sha256)
         self.assertFalse((left.root / ".benchmark-oracle").exists())
         self.assertTrue((right.root / ".benchmark-oracle" / "hidden.test.mjs").is_file())
+
+    def test_fixture_hash_covers_execution_definition(self):
+        prompt = self.root / "prompt.md"
+        prompt.write_text("same prompt\n", encoding="utf-8")
+
+        first = _content_hash(
+            "seed-tree", prompt, {"visible_command": ["python3", "-m", "unittest"]}
+        )
+        second = _content_hash(
+            "seed-tree", prompt, {"visible_command": ["python3", "-m", "pytest"]}
+        )
+
+        self.assertNotEqual(first, second)
 
     def test_unknown_fixture_is_rejected_without_creating_destination(self):
         destination = self.root / "unknown"
@@ -155,6 +183,10 @@ class FixtureTests(unittest.TestCase):
         for result in first.values():
             self.assertEqual(result["visible_test_exit_code"], 0)
             self.assertNotEqual(result["seed_oracle_exit_code"], 0)
+            self.assertEqual(len(result["oracle_sha256"]), 64)
+            self.assertEqual(len(result["visible_command_sha256"]), 64)
+            self.assertEqual(len(result["hidden_command_sha256"]), 64)
+            self.assertEqual(len(result["evaluation_contract_sha256"]), 64)
 
 
 class ConditionTests(unittest.TestCase):
@@ -294,6 +326,27 @@ class ConditionTests(unittest.TestCase):
         self.assertEqual(validation["unexpected_disabled"], ["cloudflare"])
         self.assertFalse(validation["valid"])
 
+    def test_manifest_separates_prompt_routing_hash_from_skill_body_hash(self):
+        condition = build_condition("guardrails", self.trial_root, self.codex_root)
+        before = condition.to_dict()
+        target = next(item.path for item in condition.skill_overrides if item.enabled)
+
+        target.write_text(
+            "---\nname: code-work\ndescription: materially changed body\n---\n",
+            encoding="utf-8",
+        )
+        after = condition.to_dict()
+
+        self.assertEqual(before["content_sha256"], after["content_sha256"])
+        before_hashes = {
+            item["path"]: item["skill_sha256"] for item in before["skill_overrides"]
+        }
+        after_hashes = {
+            item["path"]: item["skill_sha256"] for item in after["skill_overrides"]
+        }
+        self.assertNotEqual(before_hashes, after_hashes)
+        self.assertIn("prompt routing", before["content_hash_scope"])
+
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
@@ -365,6 +418,174 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn("CODEX_HOME", spec.environment_overrides)
 
 
+class SchedulerTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.output = self.root / "raw"
+        self.schedule = self.root / "schedule.json"
+
+    def write_schedule(self, trials):
+        self.schedule.write_text(json.dumps({"trials": trials}), encoding="utf-8")
+
+    def run_schedule(self):
+        return scheduler.run_schedule(
+            self.schedule,
+            self.output,
+            self.root / "codex",
+            "model-x",
+            "high",
+            123.0,
+        )
+
+    def test_rejects_malformed_schedule_before_model_invocation(self):
+        invalid = [
+            {},
+            {"trials": "bad"},
+            {"trials": [{}]},
+            {"trials": [{"task_id": "task-a", "condition_id": "b0", "repetition": 0}]},
+            {"trials": [{"task_id": "task-a", "condition_id": "b0", "repetition": True}]},
+        ]
+        for index, value in enumerate(invalid):
+            with self.subTest(index=index):
+                self.schedule.write_text(json.dumps(value), encoding="utf-8")
+                with patch.object(scheduler, "run_trial") as run_trial:
+                    with self.assertRaises((TypeError, ValueError)):
+                        self.run_schedule()
+                    run_trial.assert_not_called()
+
+    def test_preserves_incomplete_evidence_redacts_errors_and_continues(self):
+        self.write_schedule(
+            [
+                {"task_id": "task-a", "condition_id": "b0", "repetition": 1},
+                {"task_id": "task-b", "condition_id": "guardrails", "repetition": 2},
+                {"task_id": "task-c", "condition_id": "coordinator", "repetition": 3},
+                {"task_id": "task-d", "condition_id": "b0", "repetition": 4},
+            ]
+        )
+        terminal = self.output / "task-a--b0--r01"
+        terminal.mkdir(parents=True)
+        (terminal / "metadata.json").write_text('{"terminal": true}', encoding="utf-8")
+        incomplete = self.output / "task-b--guardrails--r02"
+        incomplete.mkdir(parents=True)
+        (incomplete / "sentinel.txt").write_text("preserve", encoding="utf-8")
+        seen = []
+
+        def fake_run(spec):
+            seen.append(spec)
+            if spec.task_id == "task-c":
+                raise RuntimeError("failed token=BENCHMARK_SENTINEL secret=SECOND")
+            return SimpleNamespace(status="completed")
+
+        with patch.object(scheduler, "run_trial", side_effect=fake_run):
+            ledger = self.run_schedule()
+
+        self.assertEqual(
+            [entry["state"] for entry in ledger],
+            ["skipped-existing-terminal", "completed", "runner-exception", "completed"],
+        )
+        self.assertEqual([spec.task_id for spec in seen], ["task-b", "task-c", "task-d"])
+        self.assertFalse(incomplete.exists())
+        preserved = list((self.output / "excluded").glob("task-b--guardrails--r02*"))
+        self.assertEqual(len(preserved), 1)
+        self.assertEqual(
+            (preserved[0] / "sentinel.txt").read_text(encoding="utf-8"), "preserve"
+        )
+        encoded = json.dumps(ledger)
+        self.assertNotIn("BENCHMARK_SENTINEL", encoded)
+        self.assertNotIn("SECOND", encoded)
+        self.assertIn("token=[REDACTED]", encoded)
+        persisted = json.loads(
+            (self.output / "schedule-ledger-schedule.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(persisted, ledger)
+
+    def test_cli_returns_nonzero_after_any_schedule_failure(self):
+        arguments = [
+            "run-schedule",
+            "--schedule",
+            str(self.schedule),
+            "--output",
+            str(self.output),
+        ]
+        with patch.object(
+            cli,
+            "run_schedule",
+            return_value=[{"state": "completed"}, {"state": "runner-exception"}],
+        ):
+            self.assertEqual(cli.main(arguments), 1)
+        with patch.object(
+            cli,
+            "run_schedule",
+            return_value=[{"state": "completed"}, {"state": "skipped-existing-terminal"}],
+        ):
+            self.assertEqual(cli.main(arguments), 0)
+
+
+class PublicationTests(unittest.TestCase):
+    def test_publication_allowlists_events_and_schedule_ledger_fields(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            raw = root / "raw"
+            run = raw / "task-a--b0--r01"
+            run.mkdir(parents=True)
+            atomic_write_json(
+                run / "metadata.json",
+                {
+                    "run_id": run.name,
+                    "task_id": "task-a",
+                    "condition_id": "b0",
+                    "terminal": True,
+                    "workspace": "/home/private/workspace",
+                },
+            )
+            (run / "events.jsonl").write_text(
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "sed -n '1,999p' /private/SKILL.md",
+                            "aggregated_output": "secret full skill body",
+                            "exit_code": 0,
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            atomic_write_json(
+                raw / "schedule-ledger-screening.json",
+                [
+                    {
+                        "run_id": run.name,
+                        "schedule_index": 1,
+                        "state": "runner-exception",
+                        "error_type": "RuntimeError",
+                        "error": "secret prompt /home/private",
+                        "traceback": "raw model output",
+                    }
+                ],
+            )
+            normalized = root / "normalized.json"
+            atomic_write_json(normalized, [{"run_id": run.name, "success": False}])
+            output = root / "published"
+
+            self.assertEqual(publish_results(raw, normalized, output), 1)
+
+            encoded = "\n".join(
+                path.read_text(encoding="utf-8")
+                for path in output.rglob("*.json")
+            )
+            self.assertNotIn("secret full skill body", encoded)
+            self.assertNotIn("secret prompt", encoded)
+            self.assertNotIn("raw model output", encoded)
+            self.assertNotIn("/home/private", encoded)
+            self.assertIn('"command_class": "inspection"', encoded)
+            self.assertIn('"error_type": "RuntimeError"', encoded)
+
+
 class ScorerTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -425,6 +646,15 @@ class ScorerTests(unittest.TestCase):
         self.assertGreater(score.workflow_overhead_artifact_count, 0)
         self.assertEqual(score.false_completion_claims, 1)
         self.assertFalse(score.success)
+
+    def test_completion_claim_ignores_description_of_one_passing_baseline_test(self):
+        self.assertFalse(
+            _terminal_message_claims_completion(
+                "I found a clean pipeline with one passing integration test. Does this design look right?"
+            )
+        )
+        self.assertTrue(_terminal_message_claims_completion("Implemented the requested refactor."))
+        self.assertTrue(_terminal_message_claims_completion("All tests passed."))
 
     def test_preserved_workspace_is_scored_after_infrastructure_timeout(self):
         run = self.make_run("timed-out-but-correct", correct=True, verified=True, overhead=False)
@@ -526,6 +756,118 @@ class ScorerTests(unittest.TestCase):
         rescored = score_trial(run_dir)
 
         self.assertEqual(rescored.user_question_count, 1)
+
+
+class ReportFinalizationTests(unittest.TestCase):
+    def test_delta_pairs_by_task_before_taking_the_median(self):
+        treatment = [
+            SimpleNamespace(task_id="a", wall_seconds=20),
+            SimpleNamespace(task_id="b", wall_seconds=40),
+        ]
+        baseline = [
+            SimpleNamespace(task_id="a", wall_seconds=10),
+            SimpleNamespace(task_id="a", wall_seconds=1000),
+            SimpleNamespace(task_id="b", wall_seconds=20),
+        ]
+
+        self.assertEqual(_delta(treatment, baseline, "wall_seconds"), "-232.5")
+
+    def test_current_records_excludes_superseded_condition_hash(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            configurations = Path(temporary)
+            (configurations / "maximum.json").write_text(
+                json.dumps(
+                    {
+                        "condition_id": "maximum",
+                        "content_sha256": "current",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current = SimpleNamespace(condition_id="maximum", condition_sha256="current")
+            historical = SimpleNamespace(condition_id="maximum", condition_sha256="historical")
+            unrelated = SimpleNamespace(condition_id="b0", condition_sha256="native")
+
+            filtered = _current_records([current, historical, unrelated], configurations)
+
+            self.assertEqual(filtered, [current])
+
+    def test_current_records_excludes_unknown_condition_ids(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            configurations = Path(temporary)
+            (configurations / "b0.json").write_text(
+                json.dumps({"condition_id": "b0", "content_sha256": "current"}),
+                encoding="utf-8",
+            )
+            current = SimpleNamespace(condition_id="b0", condition_sha256="current")
+            orphaned = SimpleNamespace(
+                condition_id="renamed-or-deleted", condition_sha256="historical"
+            )
+
+            filtered = _current_records([current, orphaned], configurations)
+
+            self.assertEqual(filtered, [current])
+
+    def test_current_records_accepts_only_versioned_equivalent_legacy_hashes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            configurations = Path(temporary)
+            (configurations / "guardrails.json").write_text(
+                json.dumps(
+                    {
+                        "condition_id": "guardrails",
+                        "content_sha256": "current",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (configurations / "evidence-equivalence.json").write_text(
+                json.dumps(
+                    {
+                        "accepted_condition_hashes": {
+                            "guardrails": ["legacy-equivalent"]
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            current = SimpleNamespace(condition_id="guardrails", condition_sha256="current")
+            equivalent = SimpleNamespace(
+                condition_id="guardrails", condition_sha256="legacy-equivalent"
+            )
+            stale = SimpleNamespace(condition_id="guardrails", condition_sha256="stale")
+
+            filtered = _current_records([current, equivalent, stale], configurations)
+
+            self.assertEqual(filtered, [current, equivalent])
+
+    def test_replace_section_is_repeatable(self):
+        initial = "before\n<!-- TABLE -->\nafter\n"
+
+        first = _replace_section(initial, "TABLE", "one")
+        second = _replace_section(first, "TABLE", "two")
+
+        self.assertIn("<!-- BEGIN TABLE -->\ntwo\n<!-- END TABLE -->", second)
+        self.assertNotIn("one", second)
+
+    def test_decision_table_has_required_columns_and_escapes_pipes(self):
+        rendered = render_decision_table(
+            [
+                {
+                    "component": "Example | component",
+                    "decision": "REMOVE",
+                    "empirical_improvement": "none",
+                    "unique_capability": "none",
+                    "redundancy": "native",
+                    "harm_overhead": "context",
+                    "consequence_of_removal": "none",
+                    "confidence": 0.9,
+                }
+            ]
+        )
+
+        self.assertIn("Empirical improvement", rendered)
+        self.assertIn("Example \\| component", rendered)
+        self.assertIn("90%", rendered)
 
 
 if __name__ == "__main__":

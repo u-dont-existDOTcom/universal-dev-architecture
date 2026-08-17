@@ -13,8 +13,12 @@ Updated: 2026-08-17
 - Recovery ledger: `docs/exec-plans/active/2026-08-17-codex-plugin-ablation-benchmark.md`.
 - Owner removed Codex Process Jobs after evidence showed its hard release boundary and global hook conflicted with result-gating work. Do not reinstall it. Use native process polling and retain the pre-removal evidence in the final audit.
 - Empire remains operationally dead; do not configure credentials or spend on external routing.
-- Current step: exact condition isolation after completing the redacted inventory and deterministic representative fixtures.
-- Required completion: all requested matrices/tables/activation rules/workflow/gaps, adaptive empirical trials, repository gates, final commit, and updated PR.
+- Current step: 45 current/effective model trials are terminal and normalized; final report corrections and repository gates are complete, and the local commit remains. The real-project Task H fixture is ready, but the host boundary requires a fresh owner confirmation before nested model execution.
+- Empirical result: original native B0 passed 8/8; concise-repository B1 passed 3/3; current maximum passed 5/7. Remove Superpowers and Engineering Guardrails as harmful, remove/replace Coordinator and GitHub workflow routing from the default path, remove Security's `fix-finding` methodology from the default path, keep the formal Security tool pipeline uncertain/specialized, and do not restore Process Jobs or Empire.
+- Final report: `audits/codex-plugin-stack/reports/final-report.md`; reproducibility entry point: `audits/codex-plugin-stack/README.md`.
+- Publication boundary: the existing draft is PR #17, but the public-repository host gate requires fresh owner confirmation before raw benchmark evidence and the report may be pushed.
+- Verified local boundary: 126 unit tests passed in 100.376 seconds; the deterministic repository audit, benchmark-integrity checks, and `git diff --check` passed.
+- Required completion: local commit, Task H trials only after the required model-run confirmation, and PR update only after the required public-artifact confirmation. Independent review is complete and integrated.
 
 ## Prior canonical repository state
 

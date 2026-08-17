@@ -5,7 +5,7 @@
     "mode_source": "auth-file-presence",
     "secret_values_read": false
   },
-  "codex_root": "/home/joel/.codex",
+  "codex_root": "${CODEX_AUDIT_ROOT}",
   "config": {
     "present": true,
     "readable": true,
@@ -33,7 +33,7 @@
       "mcp_declared": false,
       "name": "dev-6a82627a9dec8191a00a3ea5644fb740",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/created-by-me-remote/dev-6a82627a9dec8191a00a3ea5644fb740/1.0.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/created-by-me-remote/dev-6a82627a9dec8191a00a3ea5644fb740/1.0.0",
       "skills": [],
       "version": "1.0.0"
     },
@@ -46,7 +46,7 @@
       "mcp_declared": false,
       "name": "dev-6a82638d0cf881918c742c8218ed7143",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/created-by-me-remote/dev-6a82638d0cf881918c742c8218ed7143/1.0.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/created-by-me-remote/dev-6a82638d0cf881918c742c8218ed7143/1.0.0",
       "skills": [],
       "version": "1.0.0"
     },
@@ -59,7 +59,7 @@
       "mcp_declared": false,
       "name": "dev-6a8263c9c6c08191908c12c06ae68680",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/created-by-me-remote/dev-6a8263c9c6c08191908c12c06ae68680/1.0.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/created-by-me-remote/dev-6a8263c9c6c08191908c12c06ae68680/1.0.0",
       "skills": [],
       "version": "1.0.0"
     },
@@ -72,7 +72,7 @@
       "mcp_declared": false,
       "name": "app-69439d715a7c8191aed9e2f6649e105f",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/app-69439d715a7c8191aed9e2f6649e105f/2.0.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/app-69439d715a7c8191aed9e2f6649e105f/2.0.0",
       "skills": [],
       "version": "2.0.0"
     },
@@ -85,7 +85,7 @@
       "mcp_declared": false,
       "name": "app-69fe0bf66c8481919c513d799406436e",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/app-69fe0bf66c8481919c513d799406436e/3.0.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/app-69fe0bf66c8481919c513d799406436e/3.0.0",
       "skills": [],
       "version": "3.0.0"
     },
@@ -101,12 +101,12 @@
       "mcp_declared": false,
       "name": "codex-coordinator",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0",
       "skills": [
         {
           "description": "Keeps parallel Codex tasks in one shared Git checkout inside clear, visible boundaries. Uses a small local active-claim board and an optional user-invoked, goal-scoped Coordinator; it does not create background management, a heartbeat, scheduler, transcript store, or mandatory pull-request workflow.",
           "name": "codex-coordinator",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/skills/codex-coordinator",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/skills/codex-coordinator",
           "sha256": "00724054da472442bdf65c965a6f9243dc226c04cda03bdd3f1a7f7c5b662964"
         }
       ],
@@ -121,18 +121,18 @@
       "mcp_declared": false,
       "name": "codex-engineering-guardrails",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1",
       "skills": [
         {
           "description": "Independently review, test, diagnose, and verify software against explicit requirements, repository standards, and material risks using traceable fresh evidence. Use when Codex is asked to review code or a diff, inspect a pull request, diagnose a failing check without changing code, run or assess tests, validate a bug fix or feature, audit code quality, identify coverage gaps, judge release readiness, or report whether an implementation is correct. Default to read-only source inspection and existing checks; create or change tests only when explicitly requested, and do not modify production code unless the user separately authorizes a fix.",
           "name": "code-verification",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-verification",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-verification",
           "sha256": "4aab85003f547ac6e1ee12e3ceb3f89d5744af56f3b22a3643e545007474fc87"
         },
         {
           "description": "Implement, modify, refactor, debug, and maintain software with strict scope control, repository-aware planning, root-cause analysis, incremental test-backed changes, adaptive parallelism, and fresh verification evidence. Use when Codex is asked to write or change production code, fix a defect, implement a feature, refactor a component, perform a migration, or complete another coding task that authorizes source changes. Use code-verification instead when the primary request is read-only review, testing, diagnosis, audit, or validation.",
           "name": "code-work",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-work",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-work",
           "sha256": "a3727efa825ff26a2ce67ff60379ad0e3a4bfcfc498c3632514fd662e7a0f3a6"
         }
       ],
@@ -147,84 +147,84 @@
       "mcp_declared": true,
       "name": "codex-security",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19",
       "skills": [
         {
           "description": "Use when Codex is already in the attack-path-analysis phase of a security scan or the user explicitly asks to trace a security finding from source to sink and calibrate severity. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
           "name": "attack-path-analysis",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/attack-path-analysis",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/attack-path-analysis",
           "sha256": "c7499785278fcfb7905b3082175bcf267fad7c9ab1e91ed4af9757a92e618fe5"
         },
         {
           "description": "Use when the user asks for a deep, exhaustive, multi-pass, or variance-reducing repository-wide or scoped-path Codex Security scan. Run repeated independent discovery with the Codex Security deep-scan tool, then synthesize one canonical validation threat model and run validation, attack-path analysis, canonical JSON completion, and generated reporting once. Do not use for PRs, commits, branch diffs, or working-tree diffs.",
           "name": "deep-security-scan",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/deep-security-scan",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/deep-security-scan",
           "sha256": "07760d765dade8cfbc44e5ddf5d14911fc842cca11ba157809b555ec7c0a88df"
         },
         {
           "description": "Define, review, or update SECURITY.md guidance for a repository or component. Use when the user wants to clarify what Codex Security should review, what is out of scope, which security properties must hold, or whether existing guidance still matches the code.",
           "name": "define-security-policy",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/define-security-policy",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/define-security-policy",
           "sha256": "286f549d7d5b017e13e38031494723b5870949e3f82ac85b6a9c32d4718433bf"
         },
         {
           "description": "Use when Codex is already in the finding-discovery phase of a security scan or the user explicitly asks to discover candidate security findings in a repository or code change. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
           "name": "finding-discovery",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/finding-discovery",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/finding-discovery",
           "sha256": "938b73329188aa124770fcdf7cf7916e2941c8fdbf20acd9df96bc1a80185fe7"
         },
         {
           "description": "Use when the user explicitly asks to fix and verify a validated or plausible security finding. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
           "name": "fix-finding",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/fix-finding",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/fix-finding",
           "sha256": "0e3ac8898a43b08c415c380fe59e8a052c17fb8264af945a66ce6b14121fd601"
         },
         {
           "description": "Develop evidence-backed structural and architectural security hardening proposals from vulnerability disclosures, supplied findings, incident or assessment documents, source code, or a completed Codex Security scan. Use when a user asks for systemic improvements, alternatives beyond per-finding patches, before-and-after security architecture views, engineering tradeoff analysis, or an implementation-ready plan for a selected hardening option. Also use automatically after a Codex Security scan with reportable findings when the top-level scan workflow requests final-report hardening guidance.",
           "name": "propose-security-hardening",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/propose-security-hardening",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/propose-security-hardening",
           "sha256": "b9d2c81ecb99e6eb4ad6424dbd297a935feb66c2658692d48caf4d9840eaf306"
         },
         {
           "description": "Review a pull request, commit, branch diff, or working-tree patch for security vulnerabilities.",
           "name": "security-diff-scan",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-diff-scan",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-diff-scan",
           "sha256": "b5005fc7a759d3d0f72f772fee7862b990e16e55f2e6f67740dbfc4173bb3216"
         },
         {
           "description": "Use for a standard, single-pass security audit of an entire repository or a scoped path, package, folder, or submodule with no diff to review. This is the default repository scan. Do not use for PR, commit, branch, or working-tree diffs, or for deep, multi-pass scans.",
           "name": "security-scan",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-scan",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-scan",
           "sha256": "5dcd941f3dc0362edf14675256e987cfe7e71f47ec8982616133101b744bc98d"
         },
         {
           "description": "Use when Codex is already in the threat-modeling phase of a security scan, the user explicitly invokes $threat-model, or the user explicitly asks to create, update, or persist a repository threat model. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
           "name": "threat-model",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/threat-model",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/threat-model",
           "sha256": "0fe044993d1a08c4aefbc9d431f6f18115f62b3dbc2e818258af01ec8924a246"
         },
         {
           "description": "Track validated Codex Security findings in Linear, Jira, GitHub issues, or draft GitHub security advisories. Use it for one finding or an explicitly selected batch of up to 25 findings tracked as Linear, Jira, or GitHub issues. Includes duplicate checks, exact previews, approval-gated writes, and readback. Do not use it for scans or fixes.",
           "name": "track-findings",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/track-findings",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/track-findings",
           "sha256": "cb6e7625bc7c10fbc7b94d99918667c9e942bacb56d871e837a6939d20f4fd8c"
         },
         {
           "description": "Use when the user supplies or imports existing security findings, vulnerability reports, or security/vulnerability Jira/Linear tickets from scanners, advisories, GitHub, Atlassian Rovo, Linear, or similar backlog sources and wants static repo-impact triage. Do not use for discovery, duplicate-bug triage, validation, or fixes.",
           "name": "triage-finding",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/triage-finding",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/triage-finding",
           "sha256": "4c3499bad13a290bcf9678e996807ca6e613557d427d9efa87f104421e33008f"
         },
         {
           "description": "Use when Codex is already in the validation phase of a security scan or the user explicitly asks to determine whether one or more candidate security findings are valid. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
           "name": "validation",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/validation",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/validation",
           "sha256": "f92138ea9ad6a76a533b95212694f76f399666efb30568567f7e0d0dfdd28783"
         },
         {
           "description": "Turn vulnerability notes, disclosure reports, PoCs, source code, or Codex Security findings into self-contained, sceptically validated, natural-sounding vulnerability reports. Use for one vulnerability or a disclosure campaign; a Codex Security scan is optional.",
           "name": "vulnerability-writeup",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/vulnerability-writeup",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/vulnerability-writeup",
           "sha256": "46ccff479884f6e2c9a38d9f84d168161959667357db53673134ffe71df6b219"
         }
       ],
@@ -239,30 +239,30 @@
       "mcp_declared": false,
       "name": "github",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae",
       "skills": [
         {
           "description": "Address actionable GitHub pull request review feedback. Use when the user wants to inspect unresolved review threads, requested changes, or inline review comments on a PR, then implement selected fixes. Use the GitHub app for PR metadata and flat comment reads, and use the bundled GraphQL script via `gh` whenever thread-level state, resolution status, or inline review context matters.",
           "name": "gh-address-comments",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-address-comments",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-address-comments",
           "sha256": "c1ebc337357402f7faabafe712e0c463981a65f736453efe52abd305bcb74769"
         },
         {
           "description": "Use when a user asks to debug or fix failing GitHub PR checks that run in GitHub Actions. Use the GitHub app from this plugin for PR metadata and patch context, and use `gh` for Actions check and log inspection before implementing any approved fix.",
           "name": "gh-fix-ci",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-fix-ci",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-fix-ci",
           "sha256": "7621a3560d788fb221d25f9753233fe0c393c5cfe63167c88b11f027c277b1f8"
         },
         {
           "description": "Triage and orient GitHub repository, pull request, and issue work through the connected GitHub app. Use when the user asks for general GitHub help, wants PR or issue summaries, or needs repository context before choosing a more specific GitHub workflow.",
           "name": "github",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/github",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/github",
           "sha256": "81dbdd90934fe86a79ddc4790fd211e5fca866302a74090ad153395f56f2bd42"
         },
         {
           "description": "Publish local changes to GitHub by confirming scope, committing intentionally, pushing the branch, and opening a draft PR through the GitHub app from this plugin, with `gh` used only as a fallback where connector coverage is insufficient.",
           "name": "yeet",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/yeet",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/yeet",
           "sha256": "e93c6ea769ba673d30749a981cd8ad75b687f454e3c8e2e45e7cfcbd412df12c"
         }
       ],
@@ -277,126 +277,126 @@
       "mcp_declared": false,
       "name": "openai-templates",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1",
       "skills": [
         {
           "description": "Create a spreadsheet using the Analytics Dashboard template and its retained reference file. Use when the user selects or names Analytics Dashboard. Monitor acquisition, engagement, retention, revenue, and conversion funnel KPIs with charts.",
           "name": "artifact-template-analytics-dashboard",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard",
           "sha256": "cf5360fd8b197673bb237c52c603c97fa319c875c3dfa2cd8efff52d4422f513"
         },
         {
           "description": "Create a presentation using the Business Review template and its retained reference file. Use when the user selects or names Business Review. Review business performance, KPIs, segment results, strategic priorities, decisions, and outlook.",
           "name": "artifact-template-business-review",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review",
           "sha256": "27721fc1d67d1b41949caa75ac8f94f81952ff124406878af6524047929e60d2"
         },
         {
           "description": "Create a document using the Design Report template and its retained reference file. Use when the user selects or names Design Report. Produce design reports with an executive summary, key findings, implications, recommendations, and appendix.",
           "name": "artifact-template-design-report",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report",
           "sha256": "563722f53854e606f8a9f87e37e72d7ef70a22d46d5836b8e4d6abfb1b79e9e0"
         },
         {
           "description": "Create a document using the Experiment Analysis template and its retained reference file. Use when the user selects or names Experiment Analysis. Analyze experiments with hypotheses, methodology, results, interpretation, limitations, and next steps.",
           "name": "artifact-template-experiment-analysis",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis",
           "sha256": "0b05effc47df0a14f8e0c3e3597e6722224747435546385d38a2cae279bd20b9"
         },
         {
           "description": "Create a spreadsheet using the Financial Budget template and its retained reference file. Use when the user selects or names Financial Budget. Model actuals, budget and scenario forecasts, variances, cash runway, and departmental plans.",
           "name": "artifact-template-financial-budget",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget",
           "sha256": "c0b6b7a62a15597aaf2b1ec679e21da48f533b756127f0aef957cdfe9f3da738"
         },
         {
           "description": "Create a document using the Investment Committee Memo template and its retained reference file. Use when the user selects or names Investment Committee Memo. Prepare investment committee memos with the thesis, transaction details, financial analysis, risks, and recommendation.",
           "name": "artifact-template-investment-committee-memo",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo",
           "sha256": "68abd08cfe5e073e3c446a3f675f44c5bf98f57434dba679e8acd8a763379a8b"
         },
         {
           "description": "Create a document using the Legal Memorandum template and its retained reference file. Use when the user selects or names Legal Memorandum. Draft legal memoranda with the issue, brief answer, relevant facts, analysis, and conclusion.",
           "name": "artifact-template-legal-memorandum",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum",
           "sha256": "51fb9d21baf6119c4ccb1903638a6bac0e859210de63460fffa7025d52e997e0"
         },
         {
           "description": "Create a presentation using the Market Trends Report template and its retained reference file. Use when the user selects or names Market Trends Report. Communicate market or industry trends, supporting evidence, implications, and recommended responses.",
           "name": "artifact-template-market-trends-report",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report",
           "sha256": "d58d019b89cb6f292ac3ab991d561489eef477ff53ce05fb024a0c936f5af26a"
         },
         {
           "description": "Create a document using the Minimal Letterhead template and its retained reference file. Use when the user selects or names Minimal Letterhead. Write professional business letters with sender, recipient, message, and signature fields in a minimal letterhead layout.",
           "name": "artifact-template-minimal-letterhead",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead",
           "sha256": "880ef094d4d0c89a7bde5ce9bbe4086625c186651e9e6efc8ba8bdd7cc77f9d5"
         },
         {
           "description": "Create a spreadsheet using the Operating Calendar template and its retained reference file. Use when the user selects or names Operating Calendar. Plan annual and monthly operating milestones, campaigns, launches, deadlines, and recurring events.",
           "name": "artifact-template-operating-calendar",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar",
           "sha256": "33bb660791a0b9a21628a42c34934932220203b6aabd84e98cb1b45327d0384c"
         },
         {
           "description": "Create a presentation using the Operating Review template and its retained reference file. Use when the user selects or names Operating Review. Run weekly operating reviews with scorecards, functional updates, risks, decisions, and action items.",
           "name": "artifact-template-operating-review",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review",
           "sha256": "6d63c5cd025ffe936e7bab5db3023672bbaec26af55c2bb8b057d38c202c9c32"
         },
         {
           "description": "Create a presentation using the Project Kickoff template and its retained reference file. Use when the user selects or names Project Kickoff. Align teams on project goals, scope, roles, milestones, risks, and the working model.",
           "name": "artifact-template-project-kickoff",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff",
           "sha256": "aa893ebd89e7c8d1db4261d01cc2b1add35d78d00785871ccaaa5fc8db783ec9"
         },
         {
           "description": "Create a spreadsheet using the Project Tracker template and its retained reference file. Use when the user selects or names Project Tracker. Manage workstreams, tasks, owners, status, priority, dates, launch pulse, and a Gantt schedule.",
           "name": "artifact-template-project-tracker",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker",
           "sha256": "d97d5be20189b7f53dd269b6e1c5f694eaf53e5a72f6559fcb1578911b7cda82"
         },
         {
           "description": "Create a spreadsheet using the Sales Pipeline template and its retained reference file. Use when the user selects or names Sales Pipeline. Track opportunities, stages, owners, deal sizes, probabilities, forecasts, next steps, and risks.",
           "name": "artifact-template-sales-pipeline",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline",
           "sha256": "15cfeeedf440021f16ed3f3ad8c7c1ef6d48898b9447741e223d2fb41cfc9800"
         },
         {
           "description": "Create a presentation using the Simple Dark Mode template and its retained reference file. Use when the user selects or names Simple Dark Mode. Create clean dark-mode presentations with bold typography, simple sections, charts, and imagery.",
           "name": "artifact-template-simple-dark-mode",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode",
           "sha256": "b7c8d0c05f75878b9bc21e56a57c41ec1aa29700aca0a24822be0f9f1bd53207"
         },
         {
           "description": "Create a presentation using the Simple Light Mode template and its retained reference file. Use when the user selects or names Simple Light Mode. Create clean light-mode presentations with spacious typography, simple sections, charts, and imagery.",
           "name": "artifact-template-simple-light-mode",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode",
           "sha256": "7c68430c6cf57b55b457d4735dbd1a46b889bef135a32222902dd0848b6e1752"
         },
         {
           "description": "Create a document using the Strategy Memorandum template and its retained reference file. Use when the user selects or names Strategy Memorandum. Present strategic context, choices, rationale, risks, milestones, and a clear recommendation.",
           "name": "artifact-template-strategy-memorandum",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum",
           "sha256": "51d7882ac94e8e57b323394825728c33925af878806e37277217c2dc12a912e5"
         },
         {
           "description": "Create a document using the System Design template and its retained reference file. Use when the user selects or names System Design. Document system architecture, requirements, components, data flows, APIs, tradeoffs, and operational considerations.",
           "name": "artifact-template-system-design",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design",
           "sha256": "87f7b7ed1b0d8410f5e5971cd7f7db9a4165e2f37069e97e52dbfb469b75a57c"
         },
         {
           "description": "Create a presentation using the Team Alignment template and its retained reference file. Use when the user selects or names Team Alignment. Facilitate team offsites and planning with context, goals, priorities, decisions, and action items.",
           "name": "artifact-template-team-alignment",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment",
           "sha256": "26d7cafdcd1899a937b325c5d02ac57c162d45002153be33a934d35f81eb6110"
         },
         {
           "description": "Create a spreadsheet using the Three-Statement Forecast template and its retained reference file. Use when the user selects or names Three-Statement Forecast. Build an integrated income statement, balance sheet, and cash flow forecast with assumptions, checks, and an executive summary.",
           "name": "artifact-template-three-statement-forecast",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast",
           "sha256": "74f4a5cccec0107b861548b157e04c51d9b58ec13a990c86394b4c529b8ecf41"
         }
       ],
@@ -411,12 +411,12 @@
       "mcp_declared": false,
       "name": "plugin-management",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/plugin-management/0.1.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/plugin-management/0.1.0",
       "skills": [
         {
           "description": "Discover and suggest relevant plugins, inspect app permissions and dependencies, and manage plugin connections or removal. Use when the user asks about plugins or when a task would materially benefit from an external app, account, service, or data source that available tools cannot access.",
           "name": "plugin-management",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/plugin-management/0.1.0/skills/plugin-management",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/plugin-management/0.1.0/skills/plugin-management",
           "sha256": "653841cc21205269f08b0ce135891e1518dac616a766bcfb0b57d788d3f68b10"
         }
       ],
@@ -431,90 +431,90 @@
       "mcp_declared": false,
       "name": "superpowers",
       "receipt_present": false,
-      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0",
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0",
       "skills": [
         {
           "description": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.",
           "name": "brainstorming",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/brainstorming",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/brainstorming",
           "sha256": "4a54a4858b99807f3155ed1614b2f116e35ea5c1b788e793f565dd837fd3891f"
         },
         {
           "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
           "name": "dispatching-parallel-agents",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/dispatching-parallel-agents",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/dispatching-parallel-agents",
           "sha256": "1968923066f3b707eb01d1992cdf4c42284c3855f70253b9cd5000ff45fca13c"
         },
         {
           "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
           "name": "executing-plans",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/executing-plans",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/executing-plans",
           "sha256": "c4c3d8b628c51114cd165fb8246fe02744cd8be180032328391252e653028d9b"
         },
         {
           "description": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work",
           "name": "finishing-a-development-branch",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/finishing-a-development-branch",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/finishing-a-development-branch",
           "sha256": "d0ac8360ed9d59121776ef95c84bcb38e9747de0d7ae7e227dca81e437593b9b"
         },
         {
           "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
           "name": "receiving-code-review",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/receiving-code-review",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/receiving-code-review",
           "sha256": "091df1629510af1b92fc4abd6f96732ebedb4cb2c0f3457e8f2740b0504a2438"
         },
         {
           "description": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
           "name": "requesting-code-review",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/requesting-code-review",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/requesting-code-review",
           "sha256": "d71cc01ba56d2325cf8af5f7c11837819b63ecd57de0bfdb812f7f3ff7751df8"
         },
         {
           "description": "Use when executing implementation plans with independent tasks in the current session",
           "name": "subagent-driven-development",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/subagent-driven-development",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/subagent-driven-development",
           "sha256": "349a08ad8b59b19b86c13a7d2f34a1a38719bf88257004a863eefefa8d9f9e40"
         },
         {
           "description": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
           "name": "systematic-debugging",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/systematic-debugging",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/systematic-debugging",
           "sha256": "808fc5717aa88ad65efff312b11c186294d3e6ee301afb584e2f86599b137787"
         },
         {
           "description": "Use when implementing any feature or bugfix, before writing implementation code",
           "name": "test-driven-development",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/test-driven-development",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/test-driven-development",
           "sha256": "bf1b8216e523851a411e91d429a7c1c2a173e79d88957bc78e348218d50edd54"
         },
         {
           "description": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback",
           "name": "using-git-worktrees",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-git-worktrees",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-git-worktrees",
           "sha256": "8cfb86f121269e8f7f12361e6795c4f6738828340e28964c9229d365666c9edd"
         },
         {
           "description": "Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before ANY response including clarifying questions",
           "name": "using-superpowers",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-superpowers",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-superpowers",
           "sha256": "55379fe7c1c473a02c61961c822996bff30e1320d6921d9062509bc508482c05"
         },
         {
           "description": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
           "name": "verification-before-completion",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/verification-before-completion",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/verification-before-completion",
           "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
         },
         {
           "description": "Use when you have a spec or requirements for a multi-step task, before touching code",
           "name": "writing-plans",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-plans",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-plans",
           "sha256": "72190c88b2b5a67a96b91d66aa72b9161913e10e8769da3f28a226f4cc7b99d0"
         },
         {
           "description": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
           "name": "writing-skills",
-          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-skills",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-skills",
           "sha256": "d34db5c8aed6a4e0440132bd0613aace70a693ec7819d5637ad77481d8e10d1b"
         }
       ],
@@ -526,103 +526,103 @@
     {
       "description": "Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.",
       "name": "imagegen",
-      "path": "/home/joel/.codex/skills/.system/imagegen",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/imagegen",
       "sha256": "59981d23519222bcecf1be48bb37730bbc50539ceb0e35ad09fcef98a3df19d3"
     },
     {
       "description": "Use for Codex models/pricing, scheduled tasks, skills, settings, setup, troubleshooting, customization, automations, and self-knowledge—including 'you,' 'your,' 'this app,' or 'this coding agent' when they refer to Codex—and for OpenAI APIs/products and ChatGPT Work. Also use for model choice/migration, prompting, SDKs, Responses, Realtime, agents, evals, and Chat/Work/Codex comparisons. Do not use for generic app/software tasks that merely mention Codex.",
       "name": "openai-docs",
-      "path": "/home/joel/.codex/skills/.system/openai-docs",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/openai-docs",
       "sha256": "7cb8fa1b2a0c635b5c61ffe1da7b8594a7ea0fce5b71e8d523e2025d88b2a05e"
     },
     {
       "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
       "name": "plugin-creator",
-      "path": "/home/joel/.codex/skills/.system/plugin-creator",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/plugin-creator",
       "sha256": "8fd56316b2c49cbdc657a5d197967a233018e1fada65b00a5dd030dce6499a6e"
     },
     {
       "description": "Perform a read-only, defect-first review of a specified code change and return every actionable finding. Use when another agent delegates review of uncommitted changes, a base-branch diff, a commit, or custom review instructions.",
       "name": "review-agent",
-      "path": "/home/joel/.codex/skills/.system/review-agent",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/review-agent",
       "sha256": "07079efd0dc76f05fade424e5dfb048dce1de2df7626e1a4f56292a4f3f92228"
     },
     {
       "description": "Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Codex's capabilities with specialized knowledge, workflows, or tool integrations.",
       "name": "skill-creator",
-      "path": "/home/joel/.codex/skills/.system/skill-creator",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/skill-creator",
       "sha256": "da44c88f6b3845a8fa8c60792ec9a722110a55a9793c279757b48fefb11f819c"
     },
     {
       "description": "Install Codex skills into $CODEX_HOME/skills from a curated list or a GitHub repo path. Use when a user asks to list installable skills, install a curated skill, or install a skill from another repo (including private repos).",
       "name": "skill-installer",
-      "path": "/home/joel/.codex/skills/.system/skill-installer",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/skill-installer",
       "sha256": "d68b77e5bbb34dedab89d134da52855f140fc4b4299b80104f534e3b9e98f8ee"
     },
     {
       "description": "Build AI agents on Cloudflare Workers using the Agents SDK. Load when creating stateful agents, durable workflows, real-time WebSocket apps, scheduled tasks, MCP servers, chat applications, voice agents, or browser automation. Covers Agent class, state management, callable RPC, Workflows, durable execution, queues, retries, observability, and React hooks. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.",
       "name": "agents-sdk",
-      "path": "/home/joel/.codex/skills/agents-sdk",
+      "path": "${CODEX_AUDIT_ROOT}/skills/agents-sdk",
       "sha256": "a05244d3cfb23330daff956ec28a990241f5dbbe489cd7fd6489c8f76bb60877"
     },
     {
       "description": "Comprehensive Cloudflare platform skill covering Workers, Pages, storage (KV, D1, R2), AI (Workers AI, Vectorize, Agents SDK), feature flags (Flagship), networking (Tunnel, Spectrum), security (WAF, DDoS), and infrastructure-as-code (Terraform, Pulumi). Use for any Cloudflare development task. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.",
       "name": "cloudflare",
-      "path": "/home/joel/.codex/skills/cloudflare",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare",
       "sha256": "89bcccbb0b6dc77bec5e348f54a5ed8f1943d6ce56c33231a71fd2cd6bb05714"
     },
     {
       "description": "Send and receive transactional emails with Cloudflare Email Service (Email Sending + Email Routing). Use when building email sending (Workers binding or REST API), email routing, Agents SDK email handling, or integrating email into any app — Workers, Node.js, Python, Go, etc. Also use for email deliverability, SPF/DKIM/DMARC, wrangler email setup, MCP email tools, or when a coding agent needs to send emails. Even for simple requests like \"add email to my Worker\" — this skill has critical config details.",
       "name": "cloudflare-email-service",
-      "path": "/home/joel/.codex/skills/cloudflare-email-service",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare-email-service",
       "sha256": "a62531900a08f9f6c352061d42e8b10a35009f5e1c6f91bbf18752feedad5a79"
     },
     {
       "description": "Guides Cloudflare One Zero Trust and SASE work across Access, Gateway, WARP, Tunnel, Cloudflare WAN, DLP, CASB, device posture, and identity. Use when designing, configuring, troubleshooting, or reviewing Cloudflare One deployments. Retrieval-first: use current Cloudflare docs/API schemas instead of embedded product docs.",
       "name": "cloudflare-one",
-      "path": "/home/joel/.codex/skills/cloudflare-one",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare-one",
       "sha256": "605336f84979367b6235a57da8ea43e4f3b856a97efd2c95d9e7f90e41bf17ec"
     },
     {
       "description": "Plans migrations from Zscaler ZIA/ZPA, Palo Alto, legacy VPN, SWG, or SASE stacks to Cloudflare One. Use for migration assessments, policy mapping, rollout plans, and parity/gap analysis.",
       "name": "cloudflare-one-migrations",
-      "path": "/home/joel/.codex/skills/cloudflare-one-migrations",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare-one-migrations",
       "sha256": "50ed246b92a3f82c7afac864201093269fad8de24e4ce7ea18929103a26adad8"
     },
     {
       "description": "Create and review Cloudflare Durable Objects. Use when building stateful coordination (chat rooms, multiplayer games, booking systems), implementing RPC methods, SQLite storage, alarms, WebSockets, or reviewing DO code for best practices. Covers Workers integration, wrangler config, and testing with Vitest. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.",
       "name": "durable-objects",
-      "path": "/home/joel/.codex/skills/durable-objects",
+      "path": "${CODEX_AUDIT_ROOT}/skills/durable-objects",
       "sha256": "cd6797cb18f3ae8f721dfd2e5cb27b73a0aa8636683f1a38163dab2fd51a8dfb"
     },
     {
       "description": "Build sandboxed applications for secure code execution. Load when building AI code execution, code interpreters, CI/CD systems, interactive dev environments, or executing untrusted code. Covers Sandbox SDK lifecycle, commands, files, code interpreter, and preview URLs. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.",
       "name": "sandbox-sdk",
-      "path": "/home/joel/.codex/skills/sandbox-sdk",
+      "path": "${CODEX_AUDIT_ROOT}/skills/sandbox-sdk",
       "sha256": "0f3501e6510921401be3f54bcb24d2a432a1b5c63af8f719eded3a087ad88ea9"
     },
     {
       "description": "Set up Cloudflare Turnstile end-to-end in a project — scan the codebase, create the widget via the Cloudflare API, deploy the managed siteverify Worker, write the frontend snippets, validate, and persist the skill. Load this when a user asks to add Turnstile, set up CAPTCHA, protect a form from bots, or fix a Turnstile integration. Mirrors developers.cloudflare.com/turnstile/spin.",
       "name": "turnstile-spin",
-      "path": "/home/joel/.codex/skills/turnstile-spin",
+      "path": "${CODEX_AUDIT_ROOT}/skills/turnstile-spin",
       "sha256": "29e762d6c2be595910b219ba204490b35eba309a926fb3228c2ae52d5a2203be"
     },
     {
       "description": "Analyzes web performance using Chrome DevTools MCP. Measures Core Web Vitals (LCP, INP, CLS) and supplementary metrics (FCP, TBT, Speed Index), identifies render-blocking resources, network dependency chains, layout shifts, caching issues, and accessibility gaps. Use when asked to audit, profile, debug, or optimize page load performance, Lighthouse scores, or site speed. Biases towards retrieval from current documentation over pre-trained knowledge.",
       "name": "web-perf",
-      "path": "/home/joel/.codex/skills/web-perf",
+      "path": "${CODEX_AUDIT_ROOT}/skills/web-perf",
       "sha256": "94c5cb37766676a8321a82861d2ac1072d3dd0ef612f0c946792014ad48fb0c2"
     },
     {
       "description": "Reviews and authors Cloudflare Workers code against production best practices. Load when writing new Workers, reviewing Worker code, configuring wrangler.jsonc, or checking for common Workers anti-patterns (streaming, floating promises, global state, secrets, bindings, observability). Biases towards retrieval from Cloudflare docs over pre-trained knowledge.",
       "name": "workers-best-practices",
-      "path": "/home/joel/.codex/skills/workers-best-practices",
+      "path": "${CODEX_AUDIT_ROOT}/skills/workers-best-practices",
       "sha256": "099432ff265ff6080327ef0b392c118b835d2a5bda98a7de07e1afd115ed6458"
     },
     {
       "description": "Cloudflare Workers CLI for deploying, developing, and managing Workers, KV, R2, D1, Vectorize, Hyperdrive, Workers AI, Containers, Queues, Workflows, Pipelines, and Secrets Store. Load before running wrangler commands to ensure correct syntax and best practices. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.",
       "name": "wrangler",
-      "path": "/home/joel/.codex/skills/wrangler",
+      "path": "${CODEX_AUDIT_ROOT}/skills/wrangler",
       "sha256": "42abe11ba6c0cb0c135deed1d591d844838fe0b61fc8c6d675a832435508a61b"
     }
   ]

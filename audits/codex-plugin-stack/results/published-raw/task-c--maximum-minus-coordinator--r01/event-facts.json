@@ -1,0 +1,160 @@
+[
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "turn.completed",
+    "input_tokens": 190142,
+    "output_tokens": 3131
+  }
+]

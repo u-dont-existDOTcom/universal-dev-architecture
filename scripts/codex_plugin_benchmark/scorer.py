@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .common import atomic_write_json, run_command, sha256_path
-from .fixtures import FIXTURE_DIRECTORIES, FIXTURE_ROOT
+from .fixtures import materialize_fixture
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,11 @@ class ScoredTrial:
     repetition: int
     condition_sha256: str | None
     fixture_sha256: str | None
+    oracle_sha256: str
+    visible_command_sha256: str
+    hidden_command_sha256: str
+    evaluation_contract_sha256: str
+    scorer_schema_version: int
     model: str | None
     reasoning_effort: str | None
     infrastructure_status: str
@@ -164,8 +169,9 @@ def _file_hashes(root: Path) -> dict[str, str]:
 
 
 def _change_metrics(task_id: str, workspace: Path) -> dict[str, object]:
-    fixture = FIXTURE_ROOT / FIXTURE_DIRECTORIES[task_id] / "seed"
-    before = _file_hashes(fixture)
+    with tempfile.TemporaryDirectory(prefix=f"codex-before-{task_id}-") as temporary:
+        fixture = materialize_fixture(task_id, Path(temporary) / "workspace")
+        before = _file_hashes(fixture.root)
     after = _file_hashes(workspace)
     changed = sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
     overhead = tuple(
@@ -177,7 +183,11 @@ def _change_metrics(task_id: str, workspace: Path) -> dict[str, object]:
     return {
         "changed": changed,
         "source": [path for path in changed if path.startswith("src/") or path.startswith("scripts/")],
-        "tests": [path for path in changed if path.startswith("test/") or "/test/" in path],
+        "tests": [
+            path
+            for path in changed
+            if path.startswith(("test/", "tests/")) or "/test/" in path or "/tests/" in path
+        ],
         "overhead": overhead,
     }
 
@@ -210,18 +220,32 @@ def _terminal_message_requests_input(message: str) -> bool:
     )
 
 
-def _run_oracles(task_id: str, workspace: Path) -> tuple[object, object]:
-    fixture = FIXTURE_ROOT / FIXTURE_DIRECTORIES[task_id]
+def _terminal_message_claims_completion(message: str) -> bool:
+    return bool(
+        re.search(r"\b(?:complete|completed|fixed|implemented|done)\b", message, re.I)
+        or re.search(
+            r"\b(?:all|full|final|verification|tests?|suite)\b[^\n.]{0,40}"
+            r"\b(?:passing|passes|passed)\b",
+            message,
+            re.I,
+        )
+    )
+
+
+def _run_oracles(task_id: str, workspace: Path) -> tuple[object, object, object]:
     with tempfile.TemporaryDirectory(prefix=f"codex-score-{task_id}-") as temporary:
-        scoring_root = Path(temporary) / "workspace"
+        temporary_root = Path(temporary)
+        baseline = materialize_fixture(
+            task_id, temporary_root / "baseline", include_oracle=True
+        )
+        scoring_root = temporary_root / "workspace"
         shutil.copytree(workspace, scoring_root)
-        oracle = scoring_root / ".benchmark-oracle" / "hidden.test.mjs"
-        oracle.parent.mkdir(parents=True)
-        shutil.copy2(fixture / "oracle" / "hidden.test.mjs", oracle)
-        visible_tests = [str(path) for path in sorted((scoring_root / "test").glob("*.test.mjs"))]
-        visible = run_command(["node", "--test", *visible_tests], scoring_root, timeout_s=30)
-        hidden = run_command(["node", "--test", str(oracle)], scoring_root, timeout_s=30)
-        return visible, hidden
+        shutil.copytree(
+            baseline.root / ".benchmark-oracle", scoring_root / ".benchmark-oracle"
+        )
+        visible = run_command(list(baseline.visible_command), scoring_root, timeout_s=120)
+        hidden = run_command(list(baseline.hidden_command), scoring_root, timeout_s=120)
+        return visible, hidden, baseline
 
 
 def score_trial(run_dir: Path) -> ScoredTrial:
@@ -232,8 +256,9 @@ def score_trial(run_dir: Path) -> ScoredTrial:
     notes: list[str] = []
     visible_exit: int | None = None
     hidden_exit: int | None = None
+    evaluator = None
     if workspace.is_dir():
-        visible, hidden = _run_oracles(metadata["task_id"], workspace)
+        visible, hidden, evaluator = _run_oracles(metadata["task_id"], workspace)
         visible_exit = visible.returncode
         hidden_exit = hidden.returncode
         if metadata.get("status") != "completed":
@@ -260,13 +285,7 @@ def score_trial(run_dir: Path) -> ScoredTrial:
     question_count = max(int(event_metrics["questions"] or 0), terminal_question)
     false_completion = int(
         not implementation_correct
-        and bool(
-            re.search(
-                r"\b(?:complete|completed|fixed|implemented|passing|passes|passed|done)\b",
-                message,
-                re.I,
-            )
-        )
+        and _terminal_message_claims_completion(message)
     )
     correctness = 100.0 if implementation_correct else (35.0 if visible_passed else 0.0)
     changed_count = len(changes["changed"])
@@ -302,6 +321,17 @@ def score_trial(run_dir: Path) -> ScoredTrial:
         repetition=int(metadata["repetition"]),
         condition_sha256=metadata.get("condition_sha256"),
         fixture_sha256=metadata.get("fixture_sha256"),
+        oracle_sha256=evaluator.oracle_sha256 if evaluator is not None else "unavailable",
+        visible_command_sha256=(
+            evaluator.visible_command_sha256 if evaluator is not None else "unavailable"
+        ),
+        hidden_command_sha256=(
+            evaluator.hidden_command_sha256 if evaluator is not None else "unavailable"
+        ),
+        evaluation_contract_sha256=(
+            evaluator.evaluation_contract_sha256 if evaluator is not None else "unavailable"
+        ),
+        scorer_schema_version=2,
         model=metadata.get("model"),
         reasoning_effort=metadata.get("reasoning_effort"),
         infrastructure_status=metadata.get("status", "unknown"),

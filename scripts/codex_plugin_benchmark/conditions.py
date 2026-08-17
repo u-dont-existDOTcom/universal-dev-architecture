@@ -5,7 +5,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from .common import run_command
+from .common import run_command, sha256_path
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 REMOVED_PLUGINS = frozenset({"codex-process-jobs", "empire-llm-codex"})
@@ -26,6 +29,7 @@ CONDITION_IDS = (
     "superpowers-coordination",
     "coordinator-plus-superpowers",
     "security",
+    "security-full",
     "github",
     "maximum",
     "maximum-minus-guardrails",
@@ -86,16 +90,25 @@ class ConditionRecord:
     content_sha256: str
 
     def to_dict(self) -> dict[str, object]:
+        def public_path(path: Path) -> str:
+            value = path.as_posix()
+            marker = "/.codex/"
+            return "${CODEX_AUDIT_ROOT}/" + value.split(marker, 1)[1] if marker in value else value
+
+        inventory_root = REPOSITORY_ROOT / "audits" / "codex-plugin-stack" / "inventory"
+        effective_stack = inventory_root / "effective-stack.json"
+        runtime_surface = inventory_root / "runtime-tool-surface.json"
         return {
             "schema_version": 1,
             "condition_id": self.condition_id,
             "label": self.label,
             "skill_overrides": [
                 {
-                    "path": str(item.path),
+                    "path": public_path(item.path),
                     "name": item.name,
                     "plugin": item.plugin,
                     "enabled": item.enabled,
+                    "skill_sha256": sha256_path(item.path),
                 }
                 for item in self.skill_overrides
             ],
@@ -104,6 +117,15 @@ class ConditionRecord:
             "repository_instruction_sha256": self.repository_instruction_sha256,
             "residual_context_label": self.residual_context_label,
             "content_sha256": self.content_sha256,
+            "content_hash_scope": "prompt routing: skill paths/enabled flags, feature flags, project-doc budget, and controlled repository-instruction hash",
+            "effective_surface_evidence": {
+                "effective_stack_sha256": (
+                    sha256_path(effective_stack) if effective_stack.is_file() else None
+                ),
+                "runtime_tool_surface_sha256": (
+                    sha256_path(runtime_surface) if runtime_surface.is_file() else None
+                ),
+            },
         }
 
 
@@ -158,7 +180,7 @@ def _selected(condition_id: str, name: str, plugin: str | None) -> bool:
         return plugin == "codex-coordinator" or (
             plugin == "superpowers" and name in SUPERPOWERS_COORDINATION
         )
-    if condition_id == "security":
+    if condition_id in {"security", "security-full"}:
         return plugin == "codex-security"
     if condition_id == "github":
         return plugin == "github"
@@ -179,7 +201,7 @@ def _selected(condition_id: str, name: str, plugin: str | None) -> bool:
 def build_condition(
     condition_id: str,
     trial_root: Path,
-    codex_root: Path = Path("/home/joel/.codex"),
+    codex_root: Path = Path.home() / ".codex",
 ) -> ConditionRecord:
     if condition_id not in CONDITION_IDS:
         raise ValueError(f"unknown condition: {condition_id}")
@@ -210,7 +232,7 @@ def build_condition(
             link.symlink_to(item.path.parent, target_is_directory=True)
     maximum_family = condition_id == "maximum" or condition_id.startswith("maximum-minus-")
     features = {
-        "plugins": maximum_family,
+        "plugins": maximum_family or condition_id == "security-full",
         "apps": maximum_family,
         "hooks": maximum_family and condition_id != "maximum-minus-coordinator",
         "recommended_plugins": False,
@@ -232,6 +254,7 @@ def build_condition(
         "superpowers-coordination": "native plus Superpowers coordination",
         "coordinator-plus-superpowers": "native plus Coordinator and Superpowers coordination",
         "security": "native plus Codex Security skill surface",
+        "security-full": "native plus Codex Security skills and plugin tool surface",
         "github": "native plus GitHub skill surface",
         "maximum": "maximum discovered stack excluding owner-removed Process Jobs",
         "maximum-minus-guardrails": "maximum skill surface minus Engineering Guardrails",

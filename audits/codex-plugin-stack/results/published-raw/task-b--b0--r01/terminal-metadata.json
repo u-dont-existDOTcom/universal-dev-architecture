@@ -1,0 +1,22 @@
+{
+  "codex_exit_code": 0,
+  "condition_id": "b0",
+  "condition_label": "native Codex plus unavoidable system/developer instructions",
+  "condition_sha256": "4dac820dff44c12ff712df4979529a8fbd3aa722fbce73864020d7c435564c71",
+  "evaluation_contract_sha256": "4ce0b185187cb96dc2a881be4546fcfd9eb2e80c5853b2c271d30ff6bf6baea7",
+  "fixture_sha256": "6d49b615a2b8a320a35980025b9502bbf4319e36ca6ac94f73fdcd23d72e3de6",
+  "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+  "model": "gpt-5.6-sol",
+  "oracle_sha256": "e8b2d8fe4e42eedfa11b00290dd0096d1e49c55dc75edba55083f1aa6a21866c",
+  "reasoning_effort": "xhigh",
+  "repetition": 1,
+  "run_id": "task-b--b0--r01",
+  "schema_version": 1,
+  "status": "completed",
+  "task_id": "task-b",
+  "terminal": true,
+  "timed_out": false,
+  "used_process_jobs": false,
+  "visible_command_sha256": "f28f9f17b446c97a5a49e737e4d97f8354b84e1dc8f52abf0da51c6b714a8318",
+  "wall_seconds": 128.30467996999505
+}

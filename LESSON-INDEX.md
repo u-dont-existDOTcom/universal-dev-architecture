@@ -29,6 +29,13 @@ Use this file as the entry point for cross-project lesson retrieval.
 
 ## Promoted tested implementation lessons
 
+- `audits/codex-plugin-stack/reports/final-report.md` — empirical Codex
+  component ablation: establish native and repository-instruction baselines,
+  score outcome and cost rather than invocation, keep one primary workflow
+  owner per stage, remove general methodology that adds gates or ceremony,
+  and activate genuinely distinct security/domain capabilities only on narrow
+  triggers. The bundle preserves sanitized-raw/normalized trials, current/historical
+  condition hashes, crash exclusions, reproduction commands, and limits.
 - `audits/2026-08-14-askrigor-transferable-controls.md` — exact-byte
   authority, truthful partial-access states, bounded opt-in live validation,
   public read-only service safety, and structure-aware secret detection,

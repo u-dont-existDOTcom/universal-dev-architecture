@@ -1,0 +1,110 @@
+{
+  "task-a": {
+    "content_sha256": "e89b02652fbf72ec7d8c69a21778d2d0b9dfb7bd4b2f9dc77b02a827bab8fde9",
+    "evaluation_contract_sha256": "2af72ac7f4699190bf5a82c2f3191a63c7e95e6266e5db7d1c7210beda90e011",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "22e310054553cbb332f9aab7734a8e6e02eda87c79cb148d0da5d4005672f84f",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.22419152400107123,
+    "valid": true,
+    "visible_command_sha256": "b95c49e64cb00a0e90be3676ae7844ccaa16b1bd9274dcbedf726f82a6b510f2",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.8307489010039717
+  },
+  "task-b": {
+    "content_sha256": "b713613f37008085f66ae6404562b20a9621374b4d82047c1a49c6898d3d0994",
+    "evaluation_contract_sha256": "4ce0b185187cb96dc2a881be4546fcfd9eb2e80c5853b2c271d30ff6bf6baea7",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "e8b2d8fe4e42eedfa11b00290dd0096d1e49c55dc75edba55083f1aa6a21866c",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.24809470999753103,
+    "valid": true,
+    "visible_command_sha256": "f28f9f17b446c97a5a49e737e4d97f8354b84e1dc8f52abf0da51c6b714a8318",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.3125749670143705
+  },
+  "task-c": {
+    "content_sha256": "65efbeec3c520342e544d40559b1d1d18a7309e0f880d57b9cbdd7bcd9a272ee",
+    "evaluation_contract_sha256": "20cb4f13903841c5f41533eff0f31a60ca28722d9ab82d0e1e3a3e6da7b90f1d",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "123b294714177452cd400535f207ccbe4c7174563bd68a20f014fa309b7bb504",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.2059691920003388,
+    "valid": true,
+    "visible_command_sha256": "8d8ae883905406cf3c3c0b959514f605cd5c26af9cc9bddfb78ab8d8f634f372",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.238241603015922
+  },
+  "task-d": {
+    "content_sha256": "ec5a159b582d770b684c435afa51f6d5c467b61554cf8f6817e7761dbd738393",
+    "evaluation_contract_sha256": "601a41b8a22bfc7067bc6ed2a9b044909cc1c39cd2251d8ce1bd4923b4448849",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "6b219a713be6f0deaa893c06bba7dbaeca2e7b9f783666ba9a14eabbe074bd08",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.29731022601481527,
+    "valid": true,
+    "visible_command_sha256": "272cd27374409ac89254c3b8b91edf6d4917209d5d94ae84bcc70f23b443802a",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.4071595880086534
+  },
+  "task-e": {
+    "content_sha256": "370deba6193d5bb8b815335813b32107c764a588077dd14720021b868089bc32",
+    "evaluation_contract_sha256": "c4d112c4cd96dc061d26316fc182fd0b9be582079d2b8b7e960ef1c2dd803368",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "de26d84785ccdb261ecbc26c4f8f8921625d73bd3710ec0650eca53c3cb3ebeb",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.16112931800307706,
+    "valid": true,
+    "visible_command_sha256": "b0f8e9e208bf490425ac4043188af8b28f9f77db8931105861a0cb78571ad5b3",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.17186570400372148
+  },
+  "task-f": {
+    "content_sha256": "900e484e1d52d09f95260e7edac98db29aa5622ae583e5e3ba97cd5347cf39fe",
+    "evaluation_contract_sha256": "0e317bd5628f030072c9ca68b7cb9d521a900557216374b970fdf32e450fc9cb",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "8c7605910c86d393e7f81a8fe216200ca134063aaa9d6de4417eb24558d0e265",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.1593412049987819,
+    "valid": true,
+    "visible_command_sha256": "70bf45075d514596e7214b9fb3d75a9980961fe0e6524242dd90ef0c1590afaf",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.17078707800828852
+  },
+  "task-g": {
+    "content_sha256": "f2c4d03883331226580f7d2716ca6998a096ae24add1a7db7919d60c8d899af7",
+    "evaluation_contract_sha256": "6bc3e94e8e5cec43929a82c89705f39700bee6ed7e9d2480e44914c536422cfe",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "131d653c7b923b77909cd67baf82b7a86a956fb4d5fab5ba9408888117955772",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.1647437869978603,
+    "valid": true,
+    "visible_command_sha256": "e7b03b5b5a2b25b322505dbf9edfad9f89ffe7629efdd8ee9dcd170af7c4499a",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.15615749399876222
+  },
+  "task-h": {
+    "content_sha256": "fb9387e74c4275fb5504789427c329e12f1604fa0a55519e9793c9c4e0670503",
+    "evaluation_contract_sha256": "874c5eeddc400f3d4dc0976e6354d7d0f032ee1afcb3b592a6fee8650df66697",
+    "hidden_command_sha256": "c189cc46a5216a5207e0e2f265720a7cbe123b390893aef3915077fe1039caac",
+    "oracle_sha256": "5215e089b3a2ccb096f853fda349287401d00febde3e3ed4ac523c7d78daca38",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.25209480500780046,
+    "valid": true,
+    "visible_command_sha256": "0bef5ea2dad234a4b82ccb6304e695f54ae090a1f8fa224875219648fb57a2bf",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 19.240615688002435
+  },
+  "task-i": {
+    "content_sha256": "07e5a5e10c175e1de784fdc04aeb0545f789b368a5643b9048067dde41978f66",
+    "evaluation_contract_sha256": "0e317bd5628f030072c9ca68b7cb9d521a900557216374b970fdf32e450fc9cb",
+    "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+    "oracle_sha256": "8c7605910c86d393e7f81a8fe216200ca134063aaa9d6de4417eb24558d0e265",
+    "seed_oracle_exit_code": 1,
+    "seed_oracle_wall_seconds": 0.16816279300837778,
+    "valid": true,
+    "visible_command_sha256": "70bf45075d514596e7214b9fb3d75a9980961fe0e6524242dd90ef0c1590afaf",
+    "visible_test_exit_code": 0,
+    "visible_test_wall_seconds": 0.8529260879731737
+  }
+}

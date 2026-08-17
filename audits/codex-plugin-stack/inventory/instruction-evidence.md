@@ -11,7 +11,7 @@ The audit read the installed files, not marketplace descriptions. Paths are the 
 - `references/recovery.md:3-20`: silence/age is not proof that another owner is stale.
 - `.codex-plugin/plugin.json` and `hooks/hooks.json`: SessionStart and Stop hooks, five-second hook timeouts, no background manager or polling loop.
 
-Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/`.
+Installed root: `${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/`.
 
 ## Engineering Guardrails 1.1.1
 
@@ -21,7 +21,7 @@ Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/codex-coo
 - `skills/code-verification/SKILL.md:10-19`: review/diagnosis is read-only by default.
 - `skills/code-verification/SKILL.md:68-126`: risk-proportionate checks and evidence-backed release judgment.
 
-Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/`.
+Installed root: `${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/`.
 
 ## Superpowers 6.2.0
 
@@ -34,7 +34,7 @@ Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/codex-eng
 - `skills/verification-before-completion/SKILL.md:14-48,100-114`: fresh same-message verification before completion.
 - `skills/finishing-a-development-branch/SKILL.md:53-126`: fixed merge/push/keep menu and cleanup workflow.
 
-Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/`.
+Installed root: `${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/`.
 
 ## Codex Security 0.1.19
 
@@ -45,7 +45,7 @@ Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/superpowe
 - `skills/track-findings`: external Linear/Jira/GitHub/advisory writes with preview/approval/readback gates.
 - `.mcp.json` and bundled runtime: one proprietary local MCP server; tool surface recorded in `runtime-tool-surface.json`.
 
-Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/`.
+Installed root: `${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/`.
 
 ## GitHub 0.1.8
 
@@ -54,7 +54,7 @@ Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/codex-sec
 - `skills/yeet/SKILL.md`: owns scope confirmation, checks, commit, push, and draft PR; permits missing dependency/tool installation.
 - Auth instructions in several skills treat failed sandbox `gh auth status` as logout, conflicting with the host's keyring/D-Bus agreement.
 
-Installed root: `/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/`.
+Installed root: `${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/`.
 
 ## Removed Process Jobs 0.3.0
 
@@ -62,7 +62,7 @@ Before removal, the audit read all six skills, hooks, scripts, and manifest. Its
 
 ## Persistent instructions
 
-- `/home/joel/.codex/AGENTS.md`: reversible merge authority, automatic coordination preference, and the GitHub keyring execution-boundary rule.
+- `${CODEX_AUDIT_ROOT}/AGENTS.md`: reversible merge authority, automatic coordination preference, and the GitHub keyring execution-boundary rule.
 - repository `AGENTS.md`: authority ordering, exact verification commands, isolated task workspace, one durable plan/state, safe continuation, and lesson closeout.
 - `.github/AGENTS.md`: least privilege, pinned Actions, untrusted-code isolation, evidence for hosted controls.
 - `state/AGENTS.md`: concise evidence-backed recovery state, not a transcript.

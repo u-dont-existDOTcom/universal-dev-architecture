@@ -1,0 +1,255 @@
+[
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "docs/superpowers/plans/2026-08-17-parser-cache-key.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      ".superpowers/sdd/2026-08-17-parser-cache-key/progress.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      ".superpowers/sdd/2026-08-17-parser-cache-key/review-uncommitted-task-1.diff"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      ".superpowers/sdd/2026-08-17-parser-cache-key/fix-round-1.diff"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      ".superpowers/sdd/2026-08-17-parser-cache-key/progress.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "turn.completed",
+    "input_tokens": 1576617,
+    "output_tokens": 12823
+  }
+]

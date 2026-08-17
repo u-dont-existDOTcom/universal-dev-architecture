@@ -1,0 +1,23 @@
+{
+  "agent_wall_seconds": 586.9892780740047,
+  "codex_exit_code": 0,
+  "condition_id": "maximum-minus-guardrails",
+  "condition_label": "maximum skill surface minus Engineering Guardrails",
+  "condition_sha256": "f3c0afbc4eaa1d335fe3c86447c06edbec498d1c972464da6c6ee35f4574ecdf",
+  "evaluation_contract_sha256": "601a41b8a22bfc7067bc6ed2a9b044909cc1c39cd2251d8ce1bd4923b4448849",
+  "fixture_sha256": "1ab80dcc49d0ca6eaa03874c4d3bb7ea7291ab1ac9571599cc2909e2757584e0",
+  "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+  "model": "gpt-5.6-sol",
+  "oracle_sha256": "6b219a713be6f0deaa893c06bba7dbaeca2e7b9f783666ba9a14eabbe074bd08",
+  "reasoning_effort": "xhigh",
+  "repetition": 1,
+  "run_id": "task-d--maximum-minus-guardrails--r01",
+  "schema_version": 1,
+  "status": "completed",
+  "task_id": "task-d",
+  "terminal": true,
+  "timed_out": false,
+  "used_process_jobs": false,
+  "visible_command_sha256": "272cd27374409ac89254c3b8b91edf6d4917209d5d94ae84bcc70f23b443802a",
+  "wall_seconds": 587.1141766689834
+}

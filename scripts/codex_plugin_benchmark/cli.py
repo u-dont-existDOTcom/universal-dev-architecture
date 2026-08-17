@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-import traceback
 from pathlib import Path
 
 from .common import atomic_write_json
@@ -11,6 +10,7 @@ from .conditions import CONDITION_IDS, build_condition, run_prompt_preflight
 from .inventory import collect_inventory
 from .fixtures import verify_all_fixtures
 from .runner import TrialSpec, run_trial
+from .scheduler import run_schedule
 from .scorer import score_all
 
 
@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--condition", required=True)
     run.add_argument("--repeat", type=int, required=True)
     run.add_argument("--output", type=Path, required=True)
-    run.add_argument("--codex-root", type=Path, default=Path("/home/joel/.codex"))
+    run.add_argument("--codex-root", type=Path, default=Path.home() / ".codex")
     run.add_argument("--codex-executable", default="codex")
     run.add_argument("--model", default="gpt-5.6-sol")
     run.add_argument("--reasoning-effort", default="xhigh")
@@ -49,7 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     schedule = subparsers.add_parser("run-schedule")
     schedule.add_argument("--schedule", type=Path, required=True)
     schedule.add_argument("--output", type=Path, required=True)
-    schedule.add_argument("--codex-root", type=Path, default=Path("/home/joel/.codex"))
+    schedule.add_argument("--codex-root", type=Path, default=Path.home() / ".codex")
     schedule.add_argument("--model", default="gpt-5.6-sol")
     schedule.add_argument("--reasoning-effort", default="xhigh")
     schedule.add_argument("--timeout", type=float, default=900)
@@ -110,52 +110,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"scored {len(records)} trials")
         return 0
     if arguments.command == "run-schedule":
-        schedule_value = json.loads(arguments.schedule.read_text(encoding="utf-8"))
-        trials = schedule_value["trials"]
-        ledger_path = arguments.output / f"schedule-ledger-{arguments.schedule.stem}.json"
-        ledger: list[dict[str, object]] = []
-        for index, trial in enumerate(trials, start=1):
-            spec = TrialSpec(
-                task_id=trial["task_id"],
-                condition_id=trial["condition_id"],
-                repetition=int(trial["repetition"]),
-                output_root=arguments.output,
-                codex_root=arguments.codex_root,
-                model=arguments.model,
-                reasoning_effort=arguments.reasoning_effort,
-                timeout_s=arguments.timeout,
-            )
-            existing = arguments.output / spec.run_id / "metadata.json"
-            if existing.is_file():
-                metadata = json.loads(existing.read_text(encoding="utf-8"))
-                state = "skipped-existing-terminal" if metadata.get("terminal") else "excluded-incomplete"
-                ledger.append({"run_id": spec.run_id, "schedule_index": index, "state": state})
-                atomic_write_json(ledger_path, ledger)
-                print(f"[{index}/{len(trials)}] {spec.run_id}: {state}", flush=True)
-                continue
-            print(f"[{index}/{len(trials)}] {spec.run_id}: starting", flush=True)
-            try:
-                record = run_trial(spec)
-                state = record.status
-            except Exception as error:
-                state = "runner-exception"
-                ledger.append(
-                    {
-                        "run_id": spec.run_id,
-                        "schedule_index": index,
-                        "state": state,
-                        "error_type": type(error).__name__,
-                        "error": str(error),
-                        "traceback": traceback.format_exc()[-8000:],
-                    }
-                )
-                atomic_write_json(ledger_path, ledger)
-                print(f"[{index}/{len(trials)}] {spec.run_id}: {state}", flush=True)
-                continue
-            ledger.append({"run_id": spec.run_id, "schedule_index": index, "state": state})
-            atomic_write_json(ledger_path, ledger)
-            print(f"[{index}/{len(trials)}] {spec.run_id}: {state}", flush=True)
-        return 0
+        ledger = run_schedule(
+            arguments.schedule,
+            arguments.output,
+            arguments.codex_root,
+            arguments.model,
+            arguments.reasoning_effort,
+            arguments.timeout,
+        )
+        successful = {"completed", "skipped-existing-terminal"}
+        return 0 if all(entry["state"] in successful for entry in ledger) else 1
     raise AssertionError(f"unhandled command: {arguments.command}")
 
 

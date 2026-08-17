@@ -73,7 +73,7 @@ These schemas include consequential external writes. They do not imply connectio
 | `.github/AGENTS.md` | Least privilege, pinned Actions, untrusted-code isolation, hosted-evidence discipline | Keep for GitHub files. |
 | `state/AGENTS.md` | Concise evidence-backed recovery state | Keep; it prevents chat from becoming the only memory. |
 
-No `/home/joel/AGENTS.md` file exists. The global agreements are loaded from `~/.codex/AGENTS.md` and were also supplied to this session by the host.
+No home-directory `AGENTS.md` file exists. The global agreements are loaded from the Codex configuration-root `AGENTS.md` and were also supplied to this session by the host.
 
 ## GitHub repository workflow/tooling
 
