@@ -28,6 +28,10 @@ When multiple safe in-scope execution approaches achieve the same outcome, choos
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
 
+## Universal lesson routing
+
+Before substantive work, start with `LESSON-INDEX.md` and treat the index as the router: open only the current patterns or templates whose described trigger materially matches the task. Do not preload the complete lesson, audit, pattern, or template corpus; the index is the routing and supersession authority, not an instruction to load every historical document. Current owner requirements and verified project-specific truth remain authoritative on genuine conflict.
+
 ## Codex stack selection
 
 Use the empirical stack audit, not plugin availability, to choose agent workflow components. Before enabling an optional workflow, coordination, security, GitHub, or domain component, read `audits/codex-plugin-stack/activation-rules.md`; use `audits/codex-plugin-stack/reports/final-report.md` for the supporting evidence and limits.

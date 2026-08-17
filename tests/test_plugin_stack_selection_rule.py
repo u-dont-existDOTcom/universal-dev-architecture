@@ -44,6 +44,23 @@ class PluginStackSelectionRuleTests(unittest.TestCase):
         self.assertIn("audits/codex-plugin-stack/reports/final-report.md", bootstrap)
         self.assertIn("do not infer benefit from installation or successful invocation", bootstrap)
 
+    def test_root_and_portable_bootstrap_route_universal_lessons_without_preloading(self) -> None:
+        documents = (
+            ROOT / "AGENTS.md",
+            ROOT / "templates" / "AGENTS-UNIVERSAL-BOOTSTRAP.md",
+        )
+
+        for document in documents:
+            text = document.read_text(encoding="utf-8")
+            normalized = text.lower()
+            with self.subTest(document=document):
+                self.assertIn("LESSON-INDEX.md", text)
+                self.assertIn("router", normalized)
+                self.assertIn(
+                    "do not preload the complete lesson, audit, pattern, or template corpus",
+                    normalized,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
