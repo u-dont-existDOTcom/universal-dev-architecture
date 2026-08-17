@@ -1,12 +1,17 @@
 {
   "schema_version": 1,
-  "purpose": "Close required native-plus-repository, GitHub idle-surface, current maximum, and long-running comparisons after screening.",
+  "purpose": "Close native-plus-repository, current maximum, long-running, GitHub idle-surface, and full-stack-minus-component comparisons after screening.",
   "trials": [
     {"task_id": "task-a", "condition_id": "b1", "repetition": 1},
     {"task_id": "task-c", "condition_id": "b1", "repetition": 1},
     {"task_id": "task-f", "condition_id": "b1", "repetition": 1},
     {"task_id": "task-e", "condition_id": "maximum", "repetition": 2},
     {"task_id": "task-a", "condition_id": "github", "repetition": 1},
-    {"task_id": "task-g", "condition_id": "maximum", "repetition": 1}
+    {"task_id": "task-g", "condition_id": "maximum", "repetition": 1},
+    {"task_id": "task-d", "condition_id": "maximum-minus-guardrails", "repetition": 1},
+    {"task_id": "task-d", "condition_id": "maximum-minus-superpowers", "repetition": 1},
+    {"task_id": "task-c", "condition_id": "maximum-minus-coordinator", "repetition": 1},
+    {"task_id": "task-f", "condition_id": "maximum-minus-security", "repetition": 1},
+    {"task_id": "task-a", "condition_id": "maximum-minus-github", "repetition": 1}
   ]
 }

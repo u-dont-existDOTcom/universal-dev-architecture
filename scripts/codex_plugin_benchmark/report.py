@@ -104,18 +104,35 @@ def render_benchmark_table(records: Sequence[ScoredTrial]) -> str:
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for record in sorted(records, key=lambda item: (item.task_id, item.condition_id, item.repetition)):
+        outcome = "yes" if record.success else "no"
+        if record.implementation_correct and not record.success:
+            outcome = "no (implementation correct; run failed)"
+        overhead_parts = [
+            f"{record.tool_calls if record.tool_calls is not None else 'n/a'} calls",
+            f"{record.input_tokens if record.input_tokens is not None else 'n/a'} input tokens",
+            f"{record.changed_file_count} files",
+        ]
+        if record.workflow_overhead_artifact_count:
+            overhead_parts.append(f"{record.workflow_overhead_artifact_count} workflow artifacts")
+        if record.collaboration_wait_count:
+            overhead_parts.append(f"{record.collaboration_wait_count} waits")
+        if record.failed_command_count:
+            overhead_parts.append(f"{record.failed_command_count} failed commands")
+        notes = list(record.notes)
+        if record.false_completion_claims:
+            notes.append(f"{record.false_completion_claims} false completion claim")
         lines.append(
             "| {task} | {condition} r{repeat} | {success} | {quality:.1f} | {verification:.1f} | {wall} | {overhead} | {questions} | {notes} |".format(
                 task=record.task_id,
                 condition=record.condition_id,
                 repeat=record.repetition,
-                success="yes" if record.success else "no",
+                success=outcome,
                 quality=record.engineering_quality_score,
                 verification=record.verification_score,
                 wall=f"{record.wall_seconds:.1f}" if record.wall_seconds is not None else "n/a",
-                overhead=record.workflow_overhead_artifact_count,
+                overhead="; ".join(overhead_parts),
                 questions=record.user_question_count,
-                notes="; ".join(record.notes).replace("|", "\\|") or "—",
+                notes="; ".join(notes).replace("|", "\\|") or "—",
             )
         )
     return "\n".join(lines) + "\n"

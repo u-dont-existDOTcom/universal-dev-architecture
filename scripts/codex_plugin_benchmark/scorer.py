@@ -18,6 +18,10 @@ class ScoredTrial:
     task_id: str
     condition_id: str
     repetition: int
+    condition_sha256: str | None
+    fixture_sha256: str | None
+    model: str | None
+    reasoning_effort: str | None
     infrastructure_status: str
     success: bool
     implementation_correct: bool
@@ -32,6 +36,7 @@ class ScoredTrial:
     agent_wall_seconds: float | None
     tool_calls: int | None
     test_command_count: int
+    failed_command_count: int
     input_tokens: int | None
     output_tokens: int | None
     changed_file_count: int
@@ -46,6 +51,7 @@ class ScoredTrial:
     workflow_overhead_artifact_count: int
     workflow_overhead_artifacts: tuple[str, ...]
     false_completion_claims: int
+    last_message_present: bool
     visible_test_exit_code: int | None
     hidden_test_exit_code: int | None
     notes: tuple[str, ...]
@@ -75,6 +81,7 @@ def _events(path: Path) -> tuple[list[dict[str, object]], int]:
 def _event_metrics(events: list[dict[str, object]]) -> dict[str, int | None]:
     tool_calls = 0
     test_commands = 0
+    failed_commands = 0
     subagents = 0
     collaboration_waits = 0
     unattributed_collaboration_waits = 0
@@ -97,6 +104,13 @@ def _event_metrics(events: list[dict[str, object]]) -> dict[str, int | None]:
         }:
             tool_calls += 1
         command = item.get("command", "") if isinstance(item, dict) else ""
+        if (
+            completed_item
+            and item_type == "command_execution"
+            and isinstance(item.get("exit_code"), int)
+            and item.get("exit_code") != 0
+        ):
+            failed_commands += 1
         if (
             completed_item
             and item_type == "command_execution"
@@ -131,6 +145,7 @@ def _event_metrics(events: list[dict[str, object]]) -> dict[str, int | None]:
     return {
         "tool_calls": tool_calls if events else None,
         "test_commands": test_commands,
+        "failed_commands": failed_commands,
         "subagents": subagents,
         "collaboration_waits": collaboration_waits,
         "unattributed_collaboration_waits": unattributed_collaboration_waits,
@@ -186,11 +201,10 @@ def _terminal_message_requests_input(message: str) -> bool:
         return False
     return bool(
         re.search(
-            r"\b(?:should\s+i|would\s+you|could\s+you|can\s+you|do\s+you\s+want|"
-            r"how\s+should|what\s+should|which\s+(?:option|approach|behavior)|"
-            r"may\s+i)\b",
+            r"(?:^|\n)[^\n?]*\b(?:should|would|could|can|may|do|does|did|is|are|"
+            r"what|which|how|when|where|who|why)\b[^\n?]*\?",
             message,
-            re.I,
+            re.I | re.M,
         )
         or message.rstrip().endswith("?")
     )
@@ -234,22 +248,32 @@ def score_trial(run_dir: Path) -> ScoredTrial:
         "changed": [], "source": [], "tests": [], "overhead": ()
     }
     added, deleted = _diff_lines(run_dir / "changes.diff")
+    last_message_present = (run_dir / "last-message.txt").is_file()
     message = (
         (run_dir / "last-message.txt").read_text(encoding="utf-8", errors="replace")
-        if (run_dir / "last-message.txt").is_file()
+        if last_message_present
         else ""
     )
+    if not last_message_present:
+        notes.append("final message unavailable")
     terminal_question = int(_terminal_message_requests_input(message))
     question_count = max(int(event_metrics["questions"] or 0), terminal_question)
     false_completion = int(
-        not success and bool(re.search(r"\b(?:complete|completed|fixed|passing|passes)\b", message, re.I))
+        not implementation_correct
+        and bool(
+            re.search(
+                r"\b(?:complete|completed|fixed|implemented|passing|passes|passed|done)\b",
+                message,
+                re.I,
+            )
+        )
     )
     correctness = 100.0 if implementation_correct else (35.0 if visible_passed else 0.0)
     changed_count = len(changes["changed"])
     test_count = len(changes["tests"])
     overhead_count = len(changes["overhead"])
     engineering = 55.0
-    engineering += 20.0 if test_count else 0.0
+    engineering += 20.0 if test_count or metadata["task_id"] == "task-g" else 0.0
     engineering += 15.0 if changed_count <= 5 else max(0.0, 15.0 - (changed_count - 5) * 3)
     engineering -= min(30.0, overhead_count * 10.0)
     if not implementation_correct:
@@ -276,6 +300,10 @@ def score_trial(run_dir: Path) -> ScoredTrial:
         task_id=metadata["task_id"],
         condition_id=metadata["condition_id"],
         repetition=int(metadata["repetition"]),
+        condition_sha256=metadata.get("condition_sha256"),
+        fixture_sha256=metadata.get("fixture_sha256"),
+        model=metadata.get("model"),
+        reasoning_effort=metadata.get("reasoning_effort"),
         infrastructure_status=metadata.get("status", "unknown"),
         success=success,
         implementation_correct=implementation_correct,
@@ -290,6 +318,7 @@ def score_trial(run_dir: Path) -> ScoredTrial:
         agent_wall_seconds=metadata.get("agent_wall_seconds"),
         tool_calls=event_metrics["tool_calls"],
         test_command_count=int(event_metrics["test_commands"] or 0),
+        failed_command_count=int(event_metrics["failed_commands"] or 0),
         input_tokens=event_metrics["input_tokens"],
         output_tokens=event_metrics["output_tokens"],
         changed_file_count=changed_count,
@@ -306,6 +335,7 @@ def score_trial(run_dir: Path) -> ScoredTrial:
         workflow_overhead_artifact_count=overhead_count,
         workflow_overhead_artifacts=tuple(changes["overhead"]),
         false_completion_claims=false_completion,
+        last_message_present=last_message_present,
         visible_test_exit_code=visible_exit,
         hidden_test_exit_code=hidden_exit,
         notes=tuple(notes),

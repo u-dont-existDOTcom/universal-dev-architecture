@@ -6,6 +6,7 @@ This directory is the reproducible evidence bundle for the 2026-08-17 Codex plug
 
 - `inventory/effective-stack.json`: redacted post-removal live cache/skill snapshot.
 - `inventory/effective-stack-pre-removal.json`: frozen snapshot containing Process Jobs and Empire for removal provenance.
+- `inventory/effective-stack-summary.md` and `runtime-tool-surface.json`: human-readable package/instruction inventory and all 293 callable schema counts.
 - `fixtures/`: Tasks A-G, visible tests, and withheld outcome oracles.
 - `configurations/`: exact ablation manifests, prompt-surface preflight, and trial schedules.
 - `results/raw/`: per-run metadata, JSONL, stderr, diff, Git status, last message, and final workspace.
@@ -28,6 +29,8 @@ No production repository, global plugin installation, authentication file, conne
 - whole-harness monotonic wall time, token usage when the CLI emits a terminal usage event, completed tool calls, test commands, changed files/lines, user-input gates, waits, and workflow artifacts
 
 The original measurements record whole-harness wall time (fixture setup through snapshot), not pure inference time. New runner versions also write `agent_wall_seconds`; old evidence cannot be reconstructed. JSONL does not reliably expose subagent creation, so an absent spawn count is `null`, not zero.
+
+B0 and maximum use the same unavoidable system/developer base; maximum adds the discovered optional skill/app/hook surface. B1 and minimal-finalist add one controlled, hashed repository `AGENTS.md`. Maximum does not add that fixture instruction, so its causal contrast with B0 remains internally consistent rather than mixing optional-stack and repository-instruction effects.
 
 ## Reproduce deterministic layers
 
@@ -76,7 +79,7 @@ python3 -m scripts.codex_plugin_benchmark.cli score \
   --output audits/codex-plugin-stack/results/normalized
 ```
 
-`run-schedule` updates `schedule-ledger.json` after every trial and skips terminal metadata on resume. A 2026-08-17 terminal crash demonstrated this recovery path. Nonterminal residue and immediate read-only-sandbox initialization failures were moved intact to `results/excluded/session-crash-readonly-20260817/` before the host-boundary resume.
+`run-schedule` updates `schedule-ledger-<schedule>.json` after every trial and skips terminal metadata on resume. A 2026-08-17 terminal crash demonstrated this recovery path. The interrupted nonterminal trial is preserved under `results/excluded/session-crash-interrupted-20260817/`; the subsequent immediate read-only-sandbox initialization failures are preserved under `results/excluded/session-crash-readonly-20260817/`. Neither class is scored as a model outcome.
 
 ## Interpretation rules
 

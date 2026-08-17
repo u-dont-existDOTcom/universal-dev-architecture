@@ -9,6 +9,13 @@ from .common import run_command
 
 
 REMOVED_PLUGINS = frozenset({"codex-process-jobs", "empire-llm-codex"})
+CONTROLLED_REPOSITORY_INSTRUCTIONS = """# Benchmark repository working agreement
+
+- Follow the task contract and keep changes narrowly scoped.
+- Preserve existing public behavior unless the task explicitly changes it.
+- Add or adjust tests for the requested behavior and run `npm test` before completion.
+- Base completion claims on fresh command evidence and inspect the final diff.
+"""
 CONDITION_IDS = (
     "b0",
     "b1",
@@ -21,6 +28,11 @@ CONDITION_IDS = (
     "security",
     "github",
     "maximum",
+    "maximum-minus-guardrails",
+    "maximum-minus-superpowers",
+    "maximum-minus-coordinator",
+    "maximum-minus-security",
+    "maximum-minus-github",
     "minimal-finalist",
 )
 
@@ -69,6 +81,7 @@ class ConditionRecord:
     enabled_skill_paths: tuple[Path, ...]
     features: dict[str, bool]
     project_doc_max_bytes: int
+    repository_instruction_sha256: str | None
     residual_context_label: str
     content_sha256: str
 
@@ -88,6 +101,7 @@ class ConditionRecord:
             ],
             "features": self.features,
             "project_doc_max_bytes": self.project_doc_max_bytes,
+            "repository_instruction_sha256": self.repository_instruction_sha256,
             "residual_context_label": self.residual_context_label,
             "content_sha256": self.content_sha256,
         }
@@ -150,6 +164,15 @@ def _selected(condition_id: str, name: str, plugin: str | None) -> bool:
         return plugin == "github"
     if condition_id == "maximum":
         return True
+    maximum_minus = {
+        "maximum-minus-guardrails": "codex-engineering-guardrails",
+        "maximum-minus-superpowers": "superpowers",
+        "maximum-minus-coordinator": "codex-coordinator",
+        "maximum-minus-security": "codex-security",
+        "maximum-minus-github": "github",
+    }
+    if condition_id in maximum_minus:
+        return plugin != maximum_minus[condition_id]
     raise ValueError(f"unknown condition: {condition_id}")
 
 
@@ -166,6 +189,13 @@ def build_condition(
         for path, name, plugin in discovered
     )
     skill_links = trial_root / ".agents" / "skills"
+    repository_instruction_sha256: str | None = None
+    if condition_id in {"b1", "minimal-finalist"}:
+        repository_instructions = trial_root / "AGENTS.md"
+        repository_instructions.write_text(CONTROLLED_REPOSITORY_INSTRUCTIONS, encoding="utf-8")
+        repository_instruction_sha256 = hashlib.sha256(
+            CONTROLLED_REPOSITORY_INSTRUCTIONS.encode("utf-8")
+        ).hexdigest()
     for item in overrides:
         if not item.enabled or item.plugin in {None, "__standalone__", "__system__"}:
             continue
@@ -178,17 +208,20 @@ def build_condition(
                 raise FileExistsError(f"skill activation link has unexpected target: {link}")
         else:
             link.symlink_to(item.path.parent, target_is_directory=True)
+    maximum_family = condition_id == "maximum" or condition_id.startswith("maximum-minus-")
     features = {
-        "plugins": condition_id == "maximum",
-        "apps": condition_id == "maximum",
-        "hooks": condition_id == "maximum",
+        "plugins": maximum_family,
+        "apps": maximum_family,
+        "hooks": maximum_family and condition_id != "maximum-minus-coordinator",
         "recommended_plugins": False,
         "browser_use": False,
         "browser_use_external": False,
         "computer_use": False,
         "in_app_browser": False,
     }
-    project_doc_max_bytes = 32768 if condition_id in {"b1", "maximum", "minimal-finalist"} else 0
+    project_doc_max_bytes = (
+        32768 if condition_id in {"b1", "minimal-finalist"} or maximum_family else 0
+    )
     labels = {
         "b0": "native Codex plus unavoidable system/developer instructions",
         "b1": "native Codex plus repository instructions",
@@ -201,6 +234,11 @@ def build_condition(
         "security": "native plus Codex Security skill surface",
         "github": "native plus GitHub skill surface",
         "maximum": "maximum discovered stack excluding owner-removed Process Jobs",
+        "maximum-minus-guardrails": "maximum skill surface minus Engineering Guardrails",
+        "maximum-minus-superpowers": "maximum skill surface minus Superpowers",
+        "maximum-minus-coordinator": "maximum skill surface minus Coordinator and lifecycle hooks",
+        "maximum-minus-security": "maximum skill surface minus Codex Security skills",
+        "maximum-minus-github": "maximum skill surface minus GitHub workflow skills",
         "minimal-finalist": "finalist minimal stack: native Codex plus repository instructions",
     }
     payload = {
@@ -209,6 +247,8 @@ def build_condition(
         "features": features,
         "project_doc_max_bytes": project_doc_max_bytes,
     }
+    if repository_instruction_sha256 is not None:
+        payload["repository_instruction_sha256"] = repository_instruction_sha256
     content_sha256 = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -219,6 +259,7 @@ def build_condition(
         enabled_skill_paths=tuple(item.path.parent for item in overrides if item.enabled),
         features=features,
         project_doc_max_bytes=project_doc_max_bytes,
+        repository_instruction_sha256=repository_instruction_sha256,
         residual_context_label=(
             "system and developer instructions remain outside per-run ablation controls"
         ),
@@ -337,6 +378,14 @@ def run_prompt_preflight(
         preflight.update({"valid": False, "parse_error": str(error)})
         return preflight
     validation = validate_prompt_surface(rendered, record)
+    rendered_text = "\n".join(_text_blocks(rendered))
+    repository_instructions_present = "# Benchmark repository working agreement" in rendered_text
+    expected_repository_instructions = record.repository_instruction_sha256 is not None
+    validation["repository_instructions_present"] = repository_instructions_present
+    validation["expected_repository_instructions"] = expected_repository_instructions
+    validation["valid"] = bool(validation["valid"]) and (
+        repository_instructions_present == expected_repository_instructions
+    )
     preflight.update(validation)
     preflight["rendered_prompt_sha256"] = hashlib.sha256(result.stdout.encode("utf-8")).hexdigest()
     return preflight

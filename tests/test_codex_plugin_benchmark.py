@@ -229,7 +229,35 @@ class ConditionTests(unittest.TestCase):
 
         self.assertEqual(condition.enabled_skill_paths, ())
         self.assertEqual(condition.project_doc_max_bytes, 32768)
+        self.assertIsNotNone(condition.repository_instruction_sha256)
+        self.assertIn(
+            "Benchmark repository working agreement",
+            (self.trial_root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
         self.assertFalse(condition.features["plugins"])
+
+    def test_maximum_minus_conditions_remove_only_target_skill_surface(self):
+        cases = {
+            "maximum-minus-guardrails": "codex-engineering-guardrails",
+            "maximum-minus-superpowers": "superpowers",
+            "maximum-minus-coordinator": "codex-coordinator",
+            "maximum-minus-security": "codex-security",
+            "maximum-minus-github": "github",
+        }
+        for condition_id, removed_plugin in cases.items():
+            with self.subTest(condition_id=condition_id):
+                trial_root = self.root / condition_id
+                trial_root.mkdir()
+                condition = build_condition(condition_id, trial_root, self.codex_root)
+                enabled_plugins = {
+                    item.plugin for item in condition.skill_overrides if item.enabled
+                }
+                self.assertNotIn(removed_plugin, enabled_plugins)
+                self.assertTrue(condition.features["plugins"])
+        coordinator_minus = build_condition(
+            "maximum-minus-coordinator", self.root / "coordinator-hooks", self.codex_root
+        )
+        self.assertFalse(coordinator_minus.features["hooks"])
 
     def test_codex_overrides_encode_every_skill_and_surface_control(self):
         condition = build_condition("guardrails", self.trial_root, self.codex_root)
@@ -467,6 +495,31 @@ class ScorerTests(unittest.TestCase):
         run_dir = self.root / run.run_id
         (run_dir / "last-message.txt").write_text(
             "How should invalid input behave?\n\n1. Reject it.\n2. Ignore it.\n",
+            encoding="utf-8",
+        )
+
+        rescored = score_trial(run_dir)
+
+        self.assertEqual(rescored.user_question_count, 1)
+
+    def test_question_followed_by_recommendation_is_measured(self):
+        run = self.make_run("recommended-question", correct=False, verified=False, overhead=False)
+        run_dir = self.root / run.run_id
+        (run_dir / "last-message.txt").write_text(
+            "Should the fix preserve existing behavior? My recommendation is yes.\n",
+            encoding="utf-8",
+        )
+
+        rescored = score_trial(run_dir)
+
+        self.assertEqual(rescored.user_question_count, 1)
+
+    def test_question_after_introductory_clause_is_measured(self):
+        run = self.make_run("prefixed-question", correct=False, verified=False, overhead=False)
+        run_dir = self.root / run.run_id
+        (run_dir / "last-message.txt").write_text(
+            "One detail needs confirmation: should validation remain in the service?\n\n"
+            "That is my recommendation.\n",
             encoding="utf-8",
         )
 

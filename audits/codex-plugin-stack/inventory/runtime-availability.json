@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-17",
+  "components": [
+    {"component": "Codex Browser Recorder", "state": "not installed", "effective_capability": false, "note": "Marketplace/catalog presence is not a callable capability."},
+    {"component": "OpenAI Record and Replay", "state": "unavailable on Linux host", "effective_capability": false, "note": "Requires a supported product/OS surface."},
+    {"component": "web-perf", "state": "skill installed; required Chrome DevTools MCP absent", "effective_capability": false, "note": "Disable until dependency is verified."},
+    {"component": "Empire", "state": "absent from post-removal live cache; operationally dead in frozen snapshot", "effective_capability": false, "note": "No usable credentials, budget, or configured provider during audit."},
+    {"component": "Process Jobs", "state": "removed by owner during audit", "effective_capability": false, "note": "Pre-removal behavior and hook timing preserved separately."},
+    {"component": "Parallels", "state": "cached app integration", "effective_capability": "authorization unverified", "note": "General retrieval overlaps native web/search."},
+    {"component": "Exa", "state": "cached app integration", "effective_capability": "authorization unverified", "note": "Semantic search overlaps native web/search; no ordinary coding benefit demonstrated."},
+    {"component": "Nansen", "state": "cached app integration", "effective_capability": "authorization unverified", "note": "Unique on-chain/crypto data if connected; specialized only."},
+    {"component": "SciSpace", "state": "cached app integration", "effective_capability": "authorization unverified", "note": "Structured academic discovery and triage if connected; specialized only."},
+    {"component": "Wolfram", "state": "cached app integration", "effective_capability": "authorization unverified", "note": "Exact computation and curated data if connected; specialized only."},
+    {"component": "Default Templates", "state": "20 skill files cached but unavailable in controlled prompt preflight", "effective_capability": "conditional", "note": "Named artifact templates only; no coding-workflow role."},
+    {"component": "Codex Security MCP", "state": "plugin-bundled local MCP plus GitHub app dependency", "effective_capability": true, "note": "Formal scan capability; proprietary runtime and external-connector boundaries apply."},
+    {"component": "GitHub app", "state": "89 callable schemas", "effective_capability": "authorization not inferred", "note": "Structured repository, PR, issue, review, Actions, and publication surface."},
+    {"component": "Linear app", "state": "59 callable schemas", "effective_capability": "authorization not inferred", "note": "External workflow state and writes; explicit task trigger only."},
+    {"component": "Atlassian Rovo app", "state": "31 callable schemas", "effective_capability": "authorization not inferred", "note": "Jira and Confluence context/writes; explicit task trigger only."},
+    {"component": "Sites app", "state": "22 callable schemas", "effective_capability": "authorization not inferred", "note": "Deployment and configuration writes require explicit external-state authority."},
+    {"component": "Codex Document Control", "state": "3 callable schemas", "effective_capability": "authorization not inferred", "note": "Document-session administration, not an engineering methodology."},
+    {"component": "Safety Settings", "state": "5 callable schemas", "effective_capability": "authorization not inferred", "note": "Product safety administration, not a development component."},
+    {"component": "Hotline", "state": "1 callable schema", "effective_capability": "authorization not inferred", "note": "Local hotline lookup, not a development component."},
+    {"component": "standalone MCP configuration", "state": "none declared in ~/.codex/config.toml", "effective_capability": false, "note": "Plugin/app integrations are inventoried separately."}
+  ]
+}

@@ -92,7 +92,7 @@ def _snapshot_workspace(source: Path, destination: Path) -> None:
     shutil.copytree(
         source,
         destination,
-        ignore=shutil.ignore_patterns(".git", ".agents", ".benchmark-oracle"),
+        ignore=shutil.ignore_patterns(".git", ".agents", ".benchmark-oracle", "AGENTS.md"),
     )
 
 
@@ -149,7 +149,7 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
         )
         condition = build_condition(spec.condition_id, trial_root, spec.codex_root)
         exclude = trial_root / ".git" / "info" / "exclude"
-        exclude.write_text(".agents/\n.benchmark-oracle/\n", encoding="utf-8")
+        exclude.write_text(".agents/\n.benchmark-oracle/\n/AGENTS.md\n", encoding="utf-8")
         prompt = fixture.prompt_path.read_text(encoding="utf-8")
         argv = build_codex_argv(spec, condition, trial_root, last_message_path)
         environment = os.environ.copy()

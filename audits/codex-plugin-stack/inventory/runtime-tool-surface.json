@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-17",
+  "callable_schema_count": 293,
+  "mcp_tool_count": 280,
+  "non_mcp_function_count": 13,
+  "mcp_servers": [
+    {"server": "codex_apps", "tool_count": 261, "authorization": "not inferred from schema visibility"},
+    {"server": "codex_security", "tool_count": 19, "authorization": "local plugin runtime with external app dependencies where applicable"}
+  ],
+  "app_tool_groups": [
+    {"group": "atlassian_rovo", "tool_count": 31, "role": "Jira and Confluence read/write/search"},
+    {"group": "codex_document_control", "tool_count": 3, "role": "document-session control"},
+    {"group": "exa_mcp_search", "tool_count": 2, "role": "web search and fetch"},
+    {"group": "github", "tool_count": 89, "role": "repository, PR, issue, review, Actions, and publication data/actions"},
+    {"group": "hotline", "tool_count": 1, "role": "local hotline lookup"},
+    {"group": "linear", "tool_count": 59, "role": "issues, projects, initiatives, releases, comments, documents, and attachments"},
+    {"group": "nansen", "tool_count": 38, "role": "on-chain and crypto intelligence"},
+    {"group": "parallels", "tool_count": 2, "role": "general retrieval"},
+    {"group": "plugin_management", "tool_count": 4, "role": "permissions, dependencies, updates, and removal"},
+    {"group": "safety_settings", "tool_count": 5, "role": "parental-control and trusted-contact settings"},
+    {"group": "scispace", "tool_count": 2, "role": "academic research"},
+    {"group": "sites", "tool_count": 22, "role": "site creation, deployment, logs, domains, environment, and database"},
+    {"group": "wolfram", "tool_count": 3, "role": "Wolfram computation and data"}
+  ],
+  "limits": [
+    "A callable schema does not prove a connected or authorized account.",
+    "Tool count does not measure usefulness and receives no positive score by itself.",
+    "External write-capable tools remain approval- and task-authority-gated."
+  ]
+}

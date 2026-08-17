@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "component": "codex-process-jobs",
+  "version": "0.3.0",
+  "current_state": "removed by owner during audit; not reinstalled",
+  "instruction_behavior": {
+    "ordinary_start_policy": "detach the command, release the turn, and perform at most one wait instead of polling the assigning task to terminal",
+    "unique_capability": "durable cross-client job identity, logs, status, rerun, result, and cancellation",
+    "native_replacement": "owned PTY process plus polling to terminal for same-turn work",
+    "observed_user_harm": "unfinished assigned work was returned to the user instead of being monitored to completion"
+  },
+  "hook_measurement": {
+    "sample_size_each": 50,
+    "host_noop_hook_total_seconds": 7.57,
+    "empty_node_total_seconds": 4.37,
+    "estimated_marginal_seconds_per_hook_invocation": 0.064,
+    "sandbox_failure_seconds_per_invocation_approx": 0.31,
+    "hook_events": ["PostToolUse", "Stop", "UserPromptSubmit"]
+  },
+  "benchmark_disposition": {
+    "live_task_g_plugin_trial": "not run after owner removal",
+    "reason": "the audit must not reinstall a component the owner removed",
+    "native_task_g": "executed in the controlled schedule",
+    "decision": "REMOVE — HARMFUL"
+  }
+}

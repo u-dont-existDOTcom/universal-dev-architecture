@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.command == "run-schedule":
         schedule_value = json.loads(arguments.schedule.read_text(encoding="utf-8"))
         trials = schedule_value["trials"]
-        ledger_path = arguments.output / "schedule-ledger.json"
+        ledger_path = arguments.output / f"schedule-ledger-{arguments.schedule.stem}.json"
         ledger: list[dict[str, object]] = []
         for index, trial in enumerate(trials, start=1):
             spec = TrialSpec(
