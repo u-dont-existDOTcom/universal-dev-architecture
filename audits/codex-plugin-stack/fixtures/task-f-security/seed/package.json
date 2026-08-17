@@ -1,0 +1,1 @@
+{"name":"task-f-files","private":true,"type":"module","scripts":{"test":"node --test"}}

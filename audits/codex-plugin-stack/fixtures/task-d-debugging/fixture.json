@@ -1,0 +1,1 @@
+{"schema_version":1,"task_id":"task-d","class":"difficult-debugging","visible_test":"node --test test/*.test.mjs","oracle":"oracle/hidden.test.mjs"}

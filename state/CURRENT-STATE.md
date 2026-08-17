@@ -13,7 +13,7 @@ Updated: 2026-08-17
 - Recovery ledger: `docs/exec-plans/active/2026-08-17-codex-plugin-ablation-benchmark.md`.
 - Owner removed Codex Process Jobs after evidence showed its hard release boundary and global hook conflicted with result-gating work. Do not reinstall it. Use native process polling and retain the pre-removal evidence in the final audit.
 - Empire remains operationally dead; do not configure credentials or spend on external routing.
-- Current step: implement Task 1, then freeze redacted inventory and representative fixtures before any model trial.
+- Current step: exact condition isolation after completing the redacted inventory and deterministic representative fixtures.
 - Required completion: all requested matrices/tables/activation rules/workflow/gaps, adaptive empirical trials, repository gates, final commit, and updated PR.
 
 ## Prior canonical repository state

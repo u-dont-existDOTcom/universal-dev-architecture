@@ -109,7 +109,7 @@ python3 -m json.tool audits/codex-plugin-stack/inventory/effective-stack.json >/
 
 Expected: tests pass, JSON parses, and the record contains metadata rather than credential values.
 
-- [ ] **Step 5: Commit the recoverable inventory slice**
+- [x] **Step 5: Commit the recoverable inventory slice**
 
 ```bash
 git add scripts/codex_plugin_benchmark tests/test_codex_plugin_benchmark.py audits/codex-plugin-stack/inventory
@@ -133,7 +133,7 @@ git commit -m "feat: inventory the effective Codex stack"
 - Consumes: `sha256_path` and a fixture identifier `task-a` through `task-g`.
 - Produces: `materialize_fixture(task_id: str, destination: Path) -> FixtureRecord` where `FixtureRecord` contains `task_id`, `prompt_path`, `visible_test_argv`, `hidden_test_argv`, `content_sha256`, and `expected_baseline_status`.
 
-- [ ] **Step 1: Write failing fixture integrity and oracle-sensitivity tests**
+- [x] **Step 1: Write failing fixture integrity and oracle-sensitivity tests**
 
 ```python
 def test_every_fixture_has_clean_visible_baseline_and_failing_hidden_oracle(self):
@@ -148,17 +148,17 @@ def test_fixture_hash_is_repeatable(self):
     self.assertEqual(left.content_sha256, right.content_sha256)
 ```
 
-- [ ] **Step 2: Run the fixture tests and require failure because no fixtures exist**
+- [x] **Step 2: Run the fixture tests and require failure because no fixtures exist**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.FixtureTests -v
 ```
 
-- [ ] **Step 3: Implement the seven Node-standard-library fixtures**
+- [x] **Step 3: Implement the seven Node-standard-library fixtures**
 
 Each task stores `seed/`, `oracle/hidden.test.mjs`, `prompt.md`, and `fixture.json`. The hidden oracle must fail against the seed for the intended missing behavior while the visible suite passes. Task G uses a configurable duration with a production default above 60 seconds and a test override below one second.
 
-- [ ] **Step 4: Run every visible baseline and oracle-sensitivity test twice**
+- [x] **Step 4: Run every visible baseline and oracle-sensitivity test twice**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.FixtureTests -v

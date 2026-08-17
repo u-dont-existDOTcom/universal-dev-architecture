@@ -39,6 +39,7 @@ The executable task sequence and file-level test cycles are authoritative in `do
 | 2026-08-17 | Read-only stack/plugin/feasibility inventories completed through three agents. | Agent reports retained in active task context; canonical structured inventory still planned. | Convert evidence into versioned JSON and matrices. |
 | 2026-08-17 | Process Jobs runtime/policy/hook inspected and owner removed plugin. | Installed v0.3.0 source evidence and measured hook overhead. | Record removed-state evidence; no reinstall. |
 | 2026-08-17 | Harness foundations and redacted inventory implemented test-first. | Four focused tests; first real run exposed and then regression-tested dynamic config-table path leakage. | Commit Task 1 and build frozen fixtures. |
+| 2026-08-17 | Seven representative fixtures frozen and oracle-tested. | Visible seeds pass, withheld oracles fail, and two independent materializations produced identical hashes for tasks A-G. | Commit Task 2 and implement exact condition isolation. |
 
 ## Completion
 

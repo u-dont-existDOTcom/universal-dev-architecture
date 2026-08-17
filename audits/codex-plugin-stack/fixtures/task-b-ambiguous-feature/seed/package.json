@@ -1,0 +1,1 @@
+{"name":"task-b-registry","private":true,"type":"module","scripts":{"test":"node --test"}}
