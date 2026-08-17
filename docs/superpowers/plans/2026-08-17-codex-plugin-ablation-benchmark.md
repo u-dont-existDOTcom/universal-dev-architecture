@@ -51,7 +51,7 @@
 - Produces: `sha256_path(path: Path) -> str`, `atomic_write_json(path: Path, value: object) -> None`, `run_command(argv: list[str], cwd: Path, timeout_s: float | None) -> CommandResult`, `collect_inventory(codex_root: Path) -> dict[str, object]`.
 - Consumes: only Python standard library and paths explicitly supplied by the caller.
 
-- [ ] **Step 1: Write failing foundation and redaction tests**
+- [x] **Step 1: Write failing foundation and redaction tests**
 
 ```python
 def test_inventory_never_serializes_secret_values(self):
@@ -68,7 +68,7 @@ def test_atomic_write_and_hash_are_stable(self):
     self.assertEqual(first, sha256_path(self.output))
 ```
 
-- [ ] **Step 2: Run the focused tests and require the missing-module failure**
+- [x] **Step 2: Run the focused tests and require the missing-module failure**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.HarnessFoundationTests -v
@@ -76,7 +76,7 @@ python3 -m unittest tests.test_codex_plugin_benchmark.HarnessFoundationTests -v
 
 Expected: import failure for `scripts.codex_plugin_benchmark`.
 
-- [ ] **Step 3: Implement deterministic helpers and inventory collection**
+- [x] **Step 3: Implement deterministic helpers and inventory collection**
 
 ```python
 @dataclass(frozen=True)
@@ -99,7 +99,7 @@ def collect_inventory(codex_root: Path) -> dict[str, object]:
     }
 ```
 
-- [ ] **Step 4: Run foundation tests, generate the inventory, and inspect it for secrets**
+- [x] **Step 4: Run foundation tests, generate the inventory, and inspect it for secrets**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.HarnessFoundationTests -v

@@ -38,6 +38,7 @@ The executable task sequence and file-level test cycles are authoritative in `do
 | 2026-08-17 | Approved experimental design, isolated worktree, clean baseline, draft publication. | `730a3a4`; PR #17; 87 tests and deterministic audit passed. | Implement harness Task 1. |
 | 2026-08-17 | Read-only stack/plugin/feasibility inventories completed through three agents. | Agent reports retained in active task context; canonical structured inventory still planned. | Convert evidence into versioned JSON and matrices. |
 | 2026-08-17 | Process Jobs runtime/policy/hook inspected and owner removed plugin. | Installed v0.3.0 source evidence and measured hook overhead. | Record removed-state evidence; no reinstall. |
+| 2026-08-17 | Harness foundations and redacted inventory implemented test-first. | Four focused tests; first real run exposed and then regression-tested dynamic config-table path leakage. | Commit Task 1 and build frozen fixtures. |
 
 ## Completion
 
