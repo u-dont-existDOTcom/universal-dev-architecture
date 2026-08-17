@@ -131,9 +131,9 @@ For active code repositories:
 
 Long autonomous work should commit or checkpoint at verified durable boundaries. Commit frequency is for recovery and review, not an excuse to preserve broken intermediate states on the protected default branch.
 
-### Choose coordination without an owner execution-mode decision
+### Choose proportionate coordination without an owner execution-mode decision
 
-When multiple safe in-scope execution approaches achieve the same outcome, automatically choose the better-coordinated approach without asking the owner to select an execution mode. Better coordination means:
+When multiple safe in-scope execution approaches achieve the same outcome, automatically choose the proportionate, better-coordinated approach without asking the owner to select an execution mode. Default small or tightly coupled work to one agent and no durable plan artifact. Add the following only when concrete task size, separability, concurrency, recovery need, or risk makes their expected benefit exceed their coordination cost:
 
 - isolated workspaces for concurrent writers;
 - a durable plan and recovery ledger for multi-step work;
@@ -141,6 +141,10 @@ When multiple safe in-scope execution approaches achieve the same outcome, autom
 - serialize shared mutable state, including the exact generated output or integration command that writes it.
 
 Standing grant: delegation, subagents, and parallel investigation are permitted when they improve coordination without conflicting writes, and only as paired delegation plus independent review when safely separable. Shared mutable writes are serialized. This does not broaden task authority and does not replace substantive owner decisions, including meaningful product, policy, safety, access, spending, publication, or irreversible-data choices.
+
+### Select the Codex stack from evidence
+
+Use `audits/codex-plugin-stack/activation-rules.md` before enabling an optional workflow, coordination, security, GitHub, or domain component; use `audits/codex-plugin-stack/reports/final-report.md` for the supporting evidence and limits. The ordinary default is native Codex plus concise owner/repository instructions and exact repository checks, with no optional general workflow plugin. Do not automatically reinstall or reactivate components classified `REMOVE` or `REMOVE — HARMFUL`; leave uncertain and specialized components inactive until a task satisfies their exact trigger. Rebenchmark after a material model or plugin change instead of inferring value from availability or successful invocation.
 
 ### Continue after owner input
 
