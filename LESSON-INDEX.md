@@ -16,12 +16,13 @@ Use this file as the entry point for cross-project lesson retrieval.
 10. `patterns/living-mermaid-workflow-maps.md` — when a workflow spans multiple consequential gates, repositories, providers, artifacts, or feedback loops, maintain one canonical source-controlled Mermaid architecture map plus focused drill-downs; keep it indexed, update it with material topology changes, and treat it as a visual control surface over—not a replacement for—canonical prose/evidence state.
 11. `patterns/chatgpt-developer-mcp-chat-lifecycle.md` — treat developer-MCP execution capability as conversation-lifecycle-bound: chats created before MCP registration may remain non-executable even when `@` invocation exposes tool schemas; validate in a fresh post-registration chat before debugging a working server, and do not misattribute this symptom to Project membership without independent evidence.
 12. `patterns/whole-argument-reconstruction.md` — before critiquing, fact-checking, editing, summarizing, or transforming a long source, reconstruct the complete claim across its definitions, qualifications, examples, and callbacks; preserve operative grammar and modality, distinguish true behavior labels from fuller contextual explanations, diagnose setup/placement before declaring an omission, and carry selective-feedback proposals forward without silently losing them.
+13. `patterns/canonical-design-os-bootstrap.md` — for design-domain work, recover the live `u-dont-existDOTcom/design` repository and load its current `skills/design/SKILL.md`; treat it as the specialist design architecture below owner/project truth and universal development rules, never reconstruct it from stale chat memory, and use it only when UI/UX, visual, interaction, long-form reading, design-system, or design-audit concerns materially affect the task.
 
 ## Reusable policy template
 
 - `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents close the learning loop and preserve resumable durable state without asking the owner to remind them.
 - `templates/CURRENT-STATE.md` — reusable recovery checkpoint for long-running or multi-session work.
-- `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root `AGENTS.md` bootstrap for project repositories; points workers back to this index while embedding the minimum durable-continuity invariant locally.
+- `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root `AGENTS.md` bootstrap for project repositories; points workers back to this index while embedding the minimum durable-continuity invariant locally and routes design-domain work to the canonical design OS.
 
 ## Repository compliance worker architecture
 
