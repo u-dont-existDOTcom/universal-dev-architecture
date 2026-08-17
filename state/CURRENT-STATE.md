@@ -1,6 +1,22 @@
 # Current State
 
-Updated: 2026-08-16
+Updated: 2026-08-17
+
+## Active branch task
+
+- Goal: finish the Codex plugin/skill/tool capability-ablation benchmark and publish the smallest empirically effective stack.
+- Worktree: `/home/joel/universal-dev-architecture-worktrees/plugin-stack-ablation-audit-2026-08-17`.
+- Branch: `codex/plugin-stack-ablation-audit-20260817`.
+- Baseline: fresh `origin/main` at `df1c75ce1066d4ea97194ee92e6b8e4b9715ba38`.
+- Durable design: `docs/superpowers/specs/2026-08-17-codex-plugin-ablation-benchmark-design.md`, committed as `730a3a479f0c83812a4e4f95ed95b10343d90387` and published in draft PR #17.
+- Implementation plan: `docs/superpowers/plans/2026-08-17-codex-plugin-ablation-benchmark.md`.
+- Recovery ledger: `docs/exec-plans/active/2026-08-17-codex-plugin-ablation-benchmark.md`.
+- Owner removed Codex Process Jobs after evidence showed its hard release boundary and global hook conflicted with result-gating work. Do not reinstall it. Use native process polling and retain the pre-removal evidence in the final audit.
+- Empire remains operationally dead; do not configure credentials or spend on external routing.
+- Current step: implement Task 1, then freeze redacted inventory and representative fixtures before any model trial.
+- Required completion: all requested matrices/tables/activation rules/workflow/gaps, adaptive empirical trials, repository gates, final commit, and updated PR.
+
+## Prior canonical repository state
 
 ## Goal
 
