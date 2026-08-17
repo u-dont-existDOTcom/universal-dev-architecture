@@ -7,6 +7,7 @@ import statistics
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from .conditions import effective_surface_sha256
 from .report import render_benchmark_table
 from .scorer import ScoredTrial
 
@@ -44,26 +45,30 @@ def _current_records(
     """
     if configurations_dir is None:
         return list(records)
-    accepted: dict[str, set[str]] = {}
+    accepted: dict[str, tuple[set[str], str]] = {}
     for path in configurations_dir.glob("*.json"):
         value = json.loads(path.read_text(encoding="utf-8"))
         condition_id = value.get("condition_id")
         content_sha256 = value.get("content_sha256")
         if isinstance(condition_id, str) and isinstance(content_sha256, str):
-            accepted[condition_id] = {content_sha256}
+            surface_sha256 = value.get("effective_surface_sha256")
+            if not isinstance(surface_sha256, str):
+                surface_sha256 = effective_surface_sha256(value)
+            accepted[condition_id] = ({content_sha256}, surface_sha256)
     equivalence_path = configurations_dir / "evidence-equivalence.json"
     if equivalence_path.is_file():
         equivalence = json.loads(equivalence_path.read_text(encoding="utf-8"))
         for condition_id, hashes in equivalence.get("accepted_condition_hashes", {}).items():
             if condition_id in accepted and isinstance(hashes, list):
-                accepted[condition_id].update(
+                accepted[condition_id][0].update(
                     value for value in hashes if isinstance(value, str)
                 )
     return [
         record
         for record in records
         if record.condition_id in accepted
-        and record.condition_sha256 in accepted[record.condition_id]
+        and record.condition_sha256 in accepted[record.condition_id][0]
+        and record.effective_surface_sha256 == accepted[record.condition_id][1]
     ]
 
 
@@ -72,14 +77,25 @@ def _summary(records: Sequence[ScoredTrial]) -> str:
         return "not measured"
     successes = sum(record.success for record in records)
     implementation = sum(record.implementation_correct for record in records)
-    wall = _median(records, "wall_seconds")
-    tokens = _median(records, "input_tokens")
-    calls = _median(records, "tool_calls")
+    total = len(records)
+
+    def measured(field: str, formatter: str, label: str) -> str:
+        values = [
+            float(value)
+            for record in records
+            if (value := getattr(record, field)) is not None
+        ]
+        if not values:
+            return f"{label} unavailable (0/{total} measured)"
+        rendered = format(statistics.median(values), formatter)
+        coverage = f" ({len(values)}/{total} measured)" if len(values) != total else ""
+        return f"{rendered}{label}{coverage}"
+
     return (
-        f"{successes}/{len(records)} end-to-end; {implementation}/{len(records)} correct workspaces; "
-        f"median {wall:.1f}s, {tokens:.0f} input tokens, {calls:.1f} calls"
-        if wall is not None and tokens is not None and calls is not None
-        else f"{successes}/{len(records)} end-to-end; {implementation}/{len(records)} correct workspaces"
+        f"{successes}/{total} end-to-end; {implementation}/{total} correct workspaces; median "
+        f"{measured('wall_seconds', '.1f', 's')}, "
+        f"{measured('input_tokens', '.0f', ' input tokens')}, "
+        f"{measured('tool_calls', '.1f', ' calls')}"
     )
 
 
@@ -102,10 +118,14 @@ def _delta(treatment: Sequence[ScoredTrial], baseline: Sequence[ScoredTrial], fi
         record.task_id for record in baseline
     }
     for task_id in common_tasks:
-        left = _median([record for record in treatment if record.task_id == task_id], field)
-        right = _median([record for record in baseline if record.task_id == task_id], field)
-        if left is not None and right is not None:
-            paired_deltas.append(left - right)
+        left_records = [record for record in treatment if record.task_id == task_id]
+        right_records = [record for record in baseline if record.task_id == task_id]
+        if any(getattr(record, field) is None for record in left_records + right_records):
+            return "n/a (incomplete)"
+        left = _median(left_records, field)
+        right = _median(right_records, field)
+        assert left is not None and right is not None
+        paired_deltas.append(left - right)
     if not paired_deltas:
         return "n/a"
     return f"{statistics.median(paired_deltas):+.1f}"
@@ -113,11 +133,11 @@ def _delta(treatment: Sequence[ScoredTrial], baseline: Sequence[ScoredTrial], fi
 
 def render_ablation_table(records: Sequence[ScoredTrial]) -> str:
     rows = [
-        ("Engineering Guardrails", "guardrails", "b0", "No correctness win; one additional hidden failure.", "High"),
+        ("Engineering Guardrails", "guardrails", "b0", "Task H workspace was correct but timed out while native returned; no net correctness win and Task E regressed.", "High"),
         ("Superpowers engineering", "superpowers-engineering", "b0", "No repeatable benefit; successful B produced the same behavior.", "High"),
         ("Guardrails + Superpowers", "guardrails-plus-superpowers", "guardrails", "Adding Superpowers preserved the same 3/4 correctness and added substantial cost; no marginal gain.", "High"),
-        ("Coordinator", "coordinator", "b0", "No outcome gain on multi-component Task C.", "High"),
-        ("Superpowers coordination", "superpowers-coordination", "b0", "None; zero-file failure on Task C.", "High"),
+        ("Coordinator", "coordinator", "b0", "Same correctness on C/H after prompt-aligned adjudication; added cost on C but one substantially faster H run. Unique board remained off, so marginal value is uncertain.", "Medium-low; one run per task"),
+        ("Superpowers coordination", "superpowers-coordination", "b0", "Task H workspace was correct but timed out after repeated review gates while native returned; Task C was a zero-file failure.", "High for default-path harm; same-task variance remains limited"),
         ("Coordinator + Superpowers vs native", "coordinator-plus-superpowers", "b0", "None; zero-file failure on Task C.", "High"),
         ("Adding Superpowers to Coordinator", "coordinator-plus-superpowers", "coordinator", "Lost Task C correctness; no synergy.", "High"),
         ("Adding Coordinator to Superpowers coordination", "coordinator-plus-superpowers", "superpowers-coordination", "No correctness gain; added cost.", "Medium"),

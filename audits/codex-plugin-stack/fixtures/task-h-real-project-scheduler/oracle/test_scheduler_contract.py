@@ -87,7 +87,11 @@ class SchedulerContractTests(unittest.TestCase):
         self.assertEqual(seen[0].reasoning_effort, "high")
         self.assertEqual(seen[0].timeout_s, 123.0)
         self.assertFalse(incomplete.exists())
-        preserved = list((self.output / "excluded").glob("task-b--guardrails--r02*"))
+        preserved = [
+            candidate
+            for candidate in (self.output / "excluded").rglob("task-b--guardrails--r02*")
+            if (candidate / "sentinel.txt").is_file()
+        ]
         self.assertEqual(len(preserved), 1)
         self.assertEqual((preserved[0] / "sentinel.txt").read_text(encoding="utf-8"), "preserve me")
         self.assertEqual(ledger[2]["error_type"], "RuntimeError")

@@ -176,7 +176,7 @@ def publish_results(raw_root: Path, normalized_path: Path, output_root: Path) ->
     atomic_write_json(
         output_root / "publication-manifest.json",
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "published_trial_count": published,
             "excluded_content": [
                 "agent messages and reasoning",
@@ -188,6 +188,7 @@ def publish_results(raw_root: Path, normalized_path: Path, output_root: Path) ->
                 "installed skill bodies",
             ],
             "source_retention": "Verbatim raw evidence is retained outside the public repository.",
+            "evaluator_identity": "terminal-metadata preserves trial-time evaluator hashes; scored-result preserves both trial-time and current adjudicated evaluator identities and flags any change",
         },
     )
     return published

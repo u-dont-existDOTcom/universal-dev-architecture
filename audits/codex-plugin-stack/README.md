@@ -8,8 +8,8 @@ This directory is the reproducible evidence bundle for the 2026-08-17 Codex plug
 
 - `inventory/effective-stack.json`: redacted post-removal live cache/skill snapshot.
 - `inventory/effective-stack-pre-removal.json`: frozen snapshot containing Process Jobs and Empire for removal provenance.
-- `inventory/effective-stack-summary.md` and `runtime-tool-surface.json`: human-readable package/instruction inventory and all 293 callable schema counts.
-- `fixtures/`: Tasks A-G, visible tests, and withheld outcome oracles.
+- `inventory/effective-stack-summary.md` and `runtime-tool-surface.json`: human-readable package/instruction inventory and all 293 session-frozen callable schema counts; a new session is required to observe the final post-removal tool schema.
+- `fixtures/`: Tasks A-I, visible tests, and withheld outcome oracles, including the real-project Task H source-commit fixture.
 - `configurations/`: exact ablation manifests, prompt-surface preflight, trial schedules, and the narrowly justified legacy-hash equivalence manifest.
 - `results/published-raw/`: allowlisted per-run terminal metadata, ordered event categories, evaluator hashes, and scores; no model text, command output, absolute paths, or installed skill bodies.
 - `results/normalized/`: deterministic oracle and cost scores.
@@ -29,7 +29,8 @@ No production repository, global plugin installation, authentication file, conne
 - `workspace-write`, approval policy `never`, ephemeral JSONL session
 - no network or package dependency in fixtures
 - prompt-routing condition and agent-facing fixture hashes in every terminal metadata record
-- separate skill-content, effective-stack, runtime-tool-surface, oracle, command, and evaluator-contract identities in public manifests/results
+- enforced effective-surface identity covering enabled skill bodies plus frozen plugin/app/hook and runtime-tool evidence when relevant
+- separate trial-time and current adjudicated oracle/command/evaluator identities in public results, with any evaluator correction flagged
 - correctness scored after termination with a withheld oracle
 - whole-harness monotonic wall time, token usage when the CLI emits a terminal usage event, completed tool calls, test commands, changed files/lines, user-input gates, waits, and workflow artifacts
 
@@ -76,23 +77,27 @@ PRIVATE_CODEX_AUDIT_RAW=/private/path/to/plugin-audit-raw
 python3 -m scripts.codex_plugin_benchmark.cli run-schedule \
   --schedule audits/codex-plugin-stack/configurations/screening.json \
   --output "${PRIVATE_CODEX_AUDIT_RAW}" \
+  --codex-root "${CODEX_AUDIT_ROOT}" \
   --timeout 900
 
 python3 -m scripts.codex_plugin_benchmark.cli run-schedule \
   --schedule audits/codex-plugin-stack/configurations/supplemental.json \
   --output "${PRIVATE_CODEX_AUDIT_RAW}" \
+  --codex-root "${CODEX_AUDIT_ROOT}" \
   --timeout 900
 
 python3 -m scripts.codex_plugin_benchmark.cli run-schedule \
   --schedule audits/codex-plugin-stack/configurations/formal-security.json \
   --output "${PRIVATE_CODEX_AUDIT_RAW}" \
+  --codex-root "${CODEX_AUDIT_ROOT}" \
   --timeout 900
 
 # Role-relevant real-project trials are deliberately separate because they
-# incur additional model cost. Run only under the applicable owner/spend gate.
+# incur additional model cost. The published audit ran them under explicit owner authority.
 python3 -m scripts.codex_plugin_benchmark.cli run-schedule \
   --schedule audits/codex-plugin-stack/configurations/real-project.json \
   --output "${PRIVATE_CODEX_AUDIT_RAW}" \
+  --codex-root "${CODEX_AUDIT_ROOT}" \
   --timeout 1200
 
 python3 -m scripts.codex_plugin_benchmark.cli score \
@@ -111,11 +116,11 @@ python3 -m scripts.codex_plugin_benchmark.finalize_report \
   --configurations audits/codex-plugin-stack/configurations
 ```
 
-`run-schedule` updates `schedule-ledger-<schedule>.json` after every trial and skips terminal metadata on resume. A 2026-08-17 terminal crash demonstrated this recovery path. One interrupted nonterminal trial and fifteen immediate read-only-sandbox initialization failures are classified in `results/excluded/`; their verbatim evidence remains in the private raw store. Neither class is scored as a model outcome.
+`run-schedule` updates `schedule-ledger-<schedule>.json` after every trial and skips terminal metadata on resume. A 2026-08-17 terminal crash demonstrated this recovery path. Two interrupted nonterminal trials and fifteen immediate read-only-sandbox initialization failures are classified in `results/excluded/`; their verbatim evidence remains in the private raw store. Neither class is scored as a model outcome.
 
-The public repository never stores verbatim JSONL, raw logs, model messages, command output, final workspaces, diffs, host identity, absolute paths, or cached plugin bodies. `publish_results` derives the allowlisted public evidence layer; normalized evaluator results remain independently reproducible from a private raw run.
+The public repository never stores verbatim JSONL, raw logs, model messages, command output, final workspaces, diffs, host identity, absolute paths, or cached plugin bodies. `publish_results` derives the allowlisted public evidence layer; normalized evaluator results remain independently reproducible from a private raw run. Terminal metadata preserves the trial-time evaluator hashes, while scored results additionally preserve the adjudicated evaluator and an explicit changed-contract flag.
 
-Task H is a real 146-file historical snapshot materialized from commit `f3a34581f756bff726a1f9a38acb6bdab8f5d059`. Rerunning it requires a non-shallow clone that contains that commit. Scoped instruction files are stripped; the root agreement remains only to satisfy the repository's own full test suite, while every scheduled Task H condition sets the project-document budget to zero. Production state is never used or changed. The committed 2026-08-17 results do not include Task H model outcomes because the host boundary required a fresh owner confirmation for that additional model spend.
+Task H is a real 146-file historical snapshot materialized from commit `f3a34581f756bff726a1f9a38acb6bdab8f5d059`. Rerunning it requires a non-shallow clone that contains that commit. Scoped instruction files are stripped; the root agreement is restored only inside the disposable evaluator because the repository's full suite tests that agreement, while every scheduled Task H condition sets the project-document budget to zero. Production state is never used or changed. Four terminal Task H results are published: B0 and Coordinator returned correctly, while Guardrails and Superpowers reached the 1,200-second infrastructure limit with correct preserved workspaces. Adversarial review corrected a trial-time hidden direct-child assumption to match the prompt's recursive incomplete-evidence relocation requirement; both evaluator hashes remain public. A supervisor crash also exercised ledger recovery: three terminal trials were skipped and one interrupted Superpowers attempt was relocated intact before retry.
 
 ## Interpretation rules
 
@@ -125,4 +130,4 @@ Task H is a real 146-file historical snapshot materialized from commit `f3a34581
 - Components without a causal coding path receive availability/uniqueness assessment rather than a toy coding score.
 - Close important comparisons expand adaptively; clear failures and extremely expensive specialized roles are not repeated merely to increase sample size.
 - Current-state and pre-removal configurations are separated by recorded hashes. Hashes are strict by default; `configurations/evidence-equivalence.json` allowlists only older conditions whose enabled surface was unchanged when a disabled catalog entry disappeared. A pre-removal maximum-stack Task E run is retained as historical evidence, excluded as a material surface change, and rerun under the post-removal maximum condition.
-- Condition `content_sha256` is a prompt-routing hash, not a complete plugin binary/server identity. Manifests separately record each skill-body hash and frozen effective-stack/runtime-tool-surface hashes. Server-side connector drift remains possible.
+- Condition `content_sha256` remains a prompt-routing hash. `effective_surface_sha256` separately hashes enabled skill paths/bodies and, when plugins/apps/hooks are live, the frozen effective-stack/runtime-tool evidence. Final report aggregation requires both identities, preventing same-path plugin updates from silently mixing old and new trials. Server-side connector drift outside the frozen schema remains possible.

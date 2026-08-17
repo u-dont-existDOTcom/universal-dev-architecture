@@ -90,147 +90,6 @@
       "version": "3.0.0"
     },
     {
-      "app_declared": false,
-      "description": "Coordinate parallel Codex tasks in one shared checkout with a small active-only boundary board.",
-      "hook_events": [
-        "SessionStart",
-        "Stop"
-      ],
-      "install_state": "cached-unverified",
-      "manifest_sha256": "14b95332a58d17d9b6aa6343b3ce9275fb6e22fbb75c45441ddd54605c3e589d",
-      "mcp_declared": false,
-      "name": "codex-coordinator",
-      "receipt_present": false,
-      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0",
-      "skills": [
-        {
-          "description": "Keeps parallel Codex tasks in one shared Git checkout inside clear, visible boundaries. Uses a small local active-claim board and an optional user-invoked, goal-scoped Coordinator; it does not create background management, a heartbeat, scheduler, transcript store, or mandatory pull-request workflow.",
-          "name": "codex-coordinator",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/skills/codex-coordinator",
-          "sha256": "00724054da472442bdf65c965a6f9243dc226c04cda03bdd3f1a7f7c5b662964"
-        }
-      ],
-      "version": "0.4.0"
-    },
-    {
-      "app_declared": false,
-      "description": "Skills-only bundle for scoped software implementation and independent code verification in Codex.",
-      "hook_events": [],
-      "install_state": "cached-unverified",
-      "manifest_sha256": "6810f755a6592221324d5d177709752ccc1b0237b53511755b7add6133533dec",
-      "mcp_declared": false,
-      "name": "codex-engineering-guardrails",
-      "receipt_present": false,
-      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1",
-      "skills": [
-        {
-          "description": "Independently review, test, diagnose, and verify software against explicit requirements, repository standards, and material risks using traceable fresh evidence. Use when Codex is asked to review code or a diff, inspect a pull request, diagnose a failing check without changing code, run or assess tests, validate a bug fix or feature, audit code quality, identify coverage gaps, judge release readiness, or report whether an implementation is correct. Default to read-only source inspection and existing checks; create or change tests only when explicitly requested, and do not modify production code unless the user separately authorizes a fix.",
-          "name": "code-verification",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-verification",
-          "sha256": "4aab85003f547ac6e1ee12e3ceb3f89d5744af56f3b22a3643e545007474fc87"
-        },
-        {
-          "description": "Implement, modify, refactor, debug, and maintain software with strict scope control, repository-aware planning, root-cause analysis, incremental test-backed changes, adaptive parallelism, and fresh verification evidence. Use when Codex is asked to write or change production code, fix a defect, implement a feature, refactor a component, perform a migration, or complete another coding task that authorizes source changes. Use code-verification instead when the primary request is read-only review, testing, diagnosis, audit, or validation.",
-          "name": "code-work",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-work",
-          "sha256": "a3727efa825ff26a2ce67ff60379ad0e3a4bfcfc498c3632514fd662e7a0f3a6"
-        }
-      ],
-      "version": "1.1.1"
-    },
-    {
-      "app_declared": true,
-      "description": "Codex Security workflows for security scans, analysis, and investigation.",
-      "hook_events": [],
-      "install_state": "cached-unverified",
-      "manifest_sha256": "408a5d02094723179dc826e3ea21888ece1efbbec83308a467b75c3c1255fce7",
-      "mcp_declared": true,
-      "name": "codex-security",
-      "receipt_present": false,
-      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19",
-      "skills": [
-        {
-          "description": "Use when Codex is already in the attack-path-analysis phase of a security scan or the user explicitly asks to trace a security finding from source to sink and calibrate severity. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
-          "name": "attack-path-analysis",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/attack-path-analysis",
-          "sha256": "c7499785278fcfb7905b3082175bcf267fad7c9ab1e91ed4af9757a92e618fe5"
-        },
-        {
-          "description": "Use when the user asks for a deep, exhaustive, multi-pass, or variance-reducing repository-wide or scoped-path Codex Security scan. Run repeated independent discovery with the Codex Security deep-scan tool, then synthesize one canonical validation threat model and run validation, attack-path analysis, canonical JSON completion, and generated reporting once. Do not use for PRs, commits, branch diffs, or working-tree diffs.",
-          "name": "deep-security-scan",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/deep-security-scan",
-          "sha256": "07760d765dade8cfbc44e5ddf5d14911fc842cca11ba157809b555ec7c0a88df"
-        },
-        {
-          "description": "Define, review, or update SECURITY.md guidance for a repository or component. Use when the user wants to clarify what Codex Security should review, what is out of scope, which security properties must hold, or whether existing guidance still matches the code.",
-          "name": "define-security-policy",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/define-security-policy",
-          "sha256": "286f549d7d5b017e13e38031494723b5870949e3f82ac85b6a9c32d4718433bf"
-        },
-        {
-          "description": "Use when Codex is already in the finding-discovery phase of a security scan or the user explicitly asks to discover candidate security findings in a repository or code change. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
-          "name": "finding-discovery",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/finding-discovery",
-          "sha256": "938b73329188aa124770fcdf7cf7916e2941c8fdbf20acd9df96bc1a80185fe7"
-        },
-        {
-          "description": "Use when the user explicitly asks to fix and verify a validated or plausible security finding. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
-          "name": "fix-finding",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/fix-finding",
-          "sha256": "0e3ac8898a43b08c415c380fe59e8a052c17fb8264af945a66ce6b14121fd601"
-        },
-        {
-          "description": "Develop evidence-backed structural and architectural security hardening proposals from vulnerability disclosures, supplied findings, incident or assessment documents, source code, or a completed Codex Security scan. Use when a user asks for systemic improvements, alternatives beyond per-finding patches, before-and-after security architecture views, engineering tradeoff analysis, or an implementation-ready plan for a selected hardening option. Also use automatically after a Codex Security scan with reportable findings when the top-level scan workflow requests final-report hardening guidance.",
-          "name": "propose-security-hardening",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/propose-security-hardening",
-          "sha256": "b9d2c81ecb99e6eb4ad6424dbd297a935feb66c2658692d48caf4d9840eaf306"
-        },
-        {
-          "description": "Review a pull request, commit, branch diff, or working-tree patch for security vulnerabilities.",
-          "name": "security-diff-scan",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-diff-scan",
-          "sha256": "b5005fc7a759d3d0f72f772fee7862b990e16e55f2e6f67740dbfc4173bb3216"
-        },
-        {
-          "description": "Use for a standard, single-pass security audit of an entire repository or a scoped path, package, folder, or submodule with no diff to review. This is the default repository scan. Do not use for PR, commit, branch, or working-tree diffs, or for deep, multi-pass scans.",
-          "name": "security-scan",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-scan",
-          "sha256": "5dcd941f3dc0362edf14675256e987cfe7e71f47ec8982616133101b744bc98d"
-        },
-        {
-          "description": "Use when Codex is already in the threat-modeling phase of a security scan, the user explicitly invokes $threat-model, or the user explicitly asks to create, update, or persist a repository threat model. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
-          "name": "threat-model",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/threat-model",
-          "sha256": "0fe044993d1a08c4aefbc9d431f6f18115f62b3dbc2e818258af01ec8924a246"
-        },
-        {
-          "description": "Track validated Codex Security findings in Linear, Jira, GitHub issues, or draft GitHub security advisories. Use it for one finding or an explicitly selected batch of up to 25 findings tracked as Linear, Jira, or GitHub issues. Includes duplicate checks, exact previews, approval-gated writes, and readback. Do not use it for scans or fixes.",
-          "name": "track-findings",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/track-findings",
-          "sha256": "cb6e7625bc7c10fbc7b94d99918667c9e942bacb56d871e837a6939d20f4fd8c"
-        },
-        {
-          "description": "Use when the user supplies or imports existing security findings, vulnerability reports, or security/vulnerability Jira/Linear tickets from scanners, advisories, GitHub, Atlassian Rovo, Linear, or similar backlog sources and wants static repo-impact triage. Do not use for discovery, duplicate-bug triage, validation, or fixes.",
-          "name": "triage-finding",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/triage-finding",
-          "sha256": "4c3499bad13a290bcf9678e996807ca6e613557d427d9efa87f104421e33008f"
-        },
-        {
-          "description": "Use when Codex is already in the validation phase of a security scan or the user explicitly asks to determine whether one or more candidate security findings are valid. Do not use as the primary trigger for full PR, commit, branch, patch, or repository scans.",
-          "name": "validation",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/validation",
-          "sha256": "f92138ea9ad6a76a533b95212694f76f399666efb30568567f7e0d0dfdd28783"
-        },
-        {
-          "description": "Turn vulnerability notes, disclosure reports, PoCs, source code, or Codex Security findings into self-contained, sceptically validated, natural-sounding vulnerability reports. Use for one vulnerability or a disclosure campaign; a Codex Security scan is optional.",
-          "name": "vulnerability-writeup",
-          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/vulnerability-writeup",
-          "sha256": "46ccff479884f6e2c9a38d9f84d168161959667357db53673134ffe71df6b219"
-        }
-      ],
-      "version": "0.1.19"
-    },
-    {
       "app_declared": true,
       "description": "Inspect repositories, triage pull requests and issues, debug CI, and publish changes through a hybrid GitHub connector and CLI workflow.",
       "hook_events": [],
@@ -519,6 +378,26 @@
         }
       ],
       "version": "6.2.0"
+    },
+    {
+      "app_declared": false,
+      "description": "Familiar Duda, Squarespace, and Elementor visual editing for local websites, with precise Codex code handoff.",
+      "hook_events": [],
+      "install_state": "cached-unverified",
+      "manifest_sha256": "926d154702d22b3422e6c0a3381e72e795d146f3e500c3b04a64394ac19fc957",
+      "mcp_declared": false,
+      "name": "visual-truth",
+      "receipt_present": false,
+      "root": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/visual-truth/1.3.0",
+      "skills": [
+        {
+          "description": "Add and operate the Visual Truth development editor in compatible React websites and web apps. Use when the user asks to visually select, drag, resize, reposition, restyle, or edit live page elements; wants a Duda, Squarespace, Elementor, or general WYSIWYG workflow in Codex; wants exact desktop, iPad, and phone previews; or supplies a Visual Truth change brief that must be translated into durable source code.",
+          "name": "visual-truth",
+          "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/visual-truth/1.3.0/skills/visual-truth",
+          "sha256": "879e6d1caa74063e1791682923e884e2512f99b427df2e2c6ef786722a77e909"
+        }
+      ],
+      "version": "1.3.0"
     }
   ],
   "schema_version": 1,

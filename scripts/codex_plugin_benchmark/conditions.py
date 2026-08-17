@@ -69,6 +69,42 @@ SUPERPOWERS_COORDINATION = frozenset(
 )
 
 
+def effective_surface_sha256(manifest: dict[str, object]) -> str:
+    """Hash the behaviorally enabled condition surface, not only routing flags."""
+    overrides = manifest.get("skill_overrides")
+    enabled_skills = []
+    if isinstance(overrides, list):
+        for item in overrides:
+            if not isinstance(item, dict) or item.get("enabled") is not True:
+                continue
+            enabled_skills.append(
+                {
+                    key: item.get(key)
+                    for key in ("path", "name", "plugin", "skill_sha256")
+                }
+            )
+    enabled_skills.sort(key=lambda item: str(item.get("path")))
+    features = manifest.get("features") if isinstance(manifest.get("features"), dict) else {}
+    assert isinstance(features, dict)
+    external_surface_enabled = any(
+        features.get(name) is True for name in ("plugins", "apps", "hooks")
+    )
+    evidence = manifest.get("effective_surface_evidence")
+    external_evidence = evidence if external_surface_enabled and isinstance(evidence, dict) else {}
+    payload = {
+        "condition_id": manifest.get("condition_id"),
+        "enabled_skills": enabled_skills,
+        "features": features,
+        "project_doc_max_bytes": manifest.get("project_doc_max_bytes"),
+        "repository_instruction_sha256": manifest.get("repository_instruction_sha256"),
+        "residual_context_label": manifest.get("residual_context_label"),
+        "external_surface_evidence": external_evidence,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
 @dataclass(frozen=True)
 class SkillOverride:
     path: Path
@@ -98,7 +134,7 @@ class ConditionRecord:
         inventory_root = REPOSITORY_ROOT / "audits" / "codex-plugin-stack" / "inventory"
         effective_stack = inventory_root / "effective-stack.json"
         runtime_surface = inventory_root / "runtime-tool-surface.json"
-        return {
+        manifest = {
             "schema_version": 1,
             "condition_id": self.condition_id,
             "label": self.label,
@@ -127,6 +163,8 @@ class ConditionRecord:
                 ),
             },
         }
+        manifest["effective_surface_sha256"] = effective_surface_sha256(manifest)
+        return manifest
 
 
 def _frontmatter_name(path: Path) -> str:

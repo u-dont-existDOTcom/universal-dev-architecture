@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import json
 import re
 import shutil
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .common import atomic_write_json, run_command, sha256_path
+from .conditions import effective_surface_sha256
 from .fixtures import materialize_fixture
 
 
@@ -24,6 +26,10 @@ class ScoredTrial:
     visible_command_sha256: str
     hidden_command_sha256: str
     evaluation_contract_sha256: str
+    trial_oracle_sha256: str | None
+    trial_evaluation_contract_sha256: str | None
+    evaluator_contract_changed_since_trial: bool
+    effective_surface_sha256: str
     scorer_schema_version: int
     model: str | None
     reasoning_effort: str | None
@@ -160,50 +166,92 @@ def _event_metrics(events: list[dict[str, object]]) -> dict[str, int | None]:
     }
 
 
+_GENERATED_CACHE_PARTS = {
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+}
+_GENERATED_CACHE_SUFFIXES = {".pyc", ".pyo"}
+
+
+def _is_generated_cache(relative_path: str) -> bool:
+    path = Path(relative_path)
+    return bool(
+        _GENERATED_CACHE_PARTS.intersection(path.parts)
+        or path.suffix.lower() in _GENERATED_CACHE_SUFFIXES
+        or path.name in {".coverage", ".DS_Store"}
+    )
+
+
 def _file_hashes(root: Path) -> dict[str, str]:
     return {
         path.relative_to(root).as_posix(): sha256_path(path)
         for path in sorted(root.rglob("*"))
-        if path.is_file() and ".benchmark-oracle" not in path.parts
+        if path.is_file()
+        and ".benchmark-oracle" not in path.parts
+        and ".agents" not in path.parts
+        and path.relative_to(root).as_posix() != "AGENTS.md"
+        and not _is_generated_cache(path.relative_to(root).as_posix())
     }
+
+
+def _text_line_delta(before: Path, after: Path) -> tuple[int, int]:
+    before_bytes = before.read_bytes() if before.is_file() else b""
+    after_bytes = after.read_bytes() if after.is_file() else b""
+    if b"\0" in before_bytes or b"\0" in after_bytes:
+        return 0, 0
+    before_lines = before_bytes.decode("utf-8", errors="replace").splitlines()
+    after_lines = after_bytes.decode("utf-8", errors="replace").splitlines()
+    added = deleted = 0
+    for line in difflib.ndiff(before_lines, after_lines):
+        if line.startswith("+ "):
+            added += 1
+        elif line.startswith("- "):
+            deleted += 1
+    return added, deleted
 
 
 def _change_metrics(task_id: str, workspace: Path) -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix=f"codex-before-{task_id}-") as temporary:
         fixture = materialize_fixture(task_id, Path(temporary) / "workspace")
         before = _file_hashes(fixture.root)
-    after = _file_hashes(workspace)
-    changed = sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
-    overhead = tuple(
-        path
-        for path in changed
-        if path.startswith(("docs/", ".superpowers/", "plans/", "handoff/"))
-        or Path(path).name.lower() in {"handoff.md", "plan.md", "implementation-plan.md", "agents.md"}
-    )
-    return {
-        "changed": changed,
-        "source": [path for path in changed if path.startswith("src/") or path.startswith("scripts/")],
-        "tests": [
+        after = _file_hashes(workspace)
+        changed = sorted(
+            path for path in set(before) | set(after) if before.get(path) != after.get(path)
+        )
+        added = deleted = 0
+        for relative_path in changed:
+            line_added, line_deleted = _text_line_delta(
+                fixture.root / relative_path, workspace / relative_path
+            )
+            added += line_added
+            deleted += line_deleted
+        overhead = tuple(
             path
             for path in changed
-            if path.startswith(("test/", "tests/")) or "/test/" in path or "/tests/" in path
-        ],
-        "overhead": overhead,
-    }
-
-
-def _diff_lines(path: Path) -> tuple[int, int]:
-    if not path.is_file():
-        return 0, 0
-    added = deleted = 0
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith("+++") or line.startswith("---"):
-            continue
-        if line.startswith("+"):
-            added += 1
-        elif line.startswith("-"):
-            deleted += 1
-    return added, deleted
+            if path.startswith(("docs/", ".superpowers/", "plans/", "handoff/"))
+            or Path(path).name.lower()
+            in {"handoff.md", "plan.md", "implementation-plan.md", "agents.md"}
+        )
+        return {
+            "changed": changed,
+            "source": [
+                path
+                for path in changed
+                if path.startswith("src/") or path.startswith("scripts/")
+            ],
+            "tests": [
+                path
+                for path in changed
+                if path.startswith(("test/", "tests/"))
+                or "/test/" in path
+                or "/tests/" in path
+            ],
+            "overhead": overhead,
+            "added": added,
+            "deleted": deleted,
+        }
 
 
 def _terminal_message_requests_input(message: str) -> bool:
@@ -240,12 +288,44 @@ def _run_oracles(task_id: str, workspace: Path) -> tuple[object, object, object]
         )
         scoring_root = temporary_root / "workspace"
         shutil.copytree(workspace, scoring_root)
+        fixture_agreement = baseline.root / "AGENTS.md"
+        if fixture_agreement.is_file():
+            shutil.copy2(fixture_agreement, scoring_root / "AGENTS.md")
         shutil.copytree(
             baseline.root / ".benchmark-oracle", scoring_root / ".benchmark-oracle"
         )
         visible = run_command(list(baseline.visible_command), scoring_root, timeout_s=120)
         hidden = run_command(list(baseline.hidden_command), scoring_root, timeout_s=120)
         return visible, hidden, baseline
+
+
+def _surface_identity(metadata: dict[str, object]) -> str:
+    stored = metadata.get("effective_surface_sha256")
+    if isinstance(stored, str):
+        return stored
+    configurations = (
+        Path(__file__).resolve().parents[2]
+        / "audits"
+        / "codex-plugin-stack"
+        / "configurations"
+    )
+    identities_path = configurations / "surface-identities.json"
+    if identities_path.is_file():
+        identities = json.loads(identities_path.read_text(encoding="utf-8"))
+        for item in identities.get("identities", []):
+            if (
+                isinstance(item, dict)
+                and item.get("condition_id") == metadata.get("condition_id")
+                and item.get("condition_sha256") == metadata.get("condition_sha256")
+                and isinstance(item.get("effective_surface_sha256"), str)
+            ):
+                return item["effective_surface_sha256"]
+    manifest_path = configurations / f"{metadata.get('condition_id')}.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("content_sha256") == metadata.get("condition_sha256"):
+            return effective_surface_sha256(manifest)
+    return "unavailable"
 
 
 def score_trial(run_dir: Path) -> ScoredTrial:
@@ -270,9 +350,10 @@ def score_trial(run_dir: Path) -> ScoredTrial:
     implementation_correct = visible_passed and hidden_passed
     success = implementation_correct and metadata.get("status") == "completed"
     changes = _change_metrics(metadata["task_id"], workspace) if workspace.is_dir() else {
-        "changed": [], "source": [], "tests": [], "overhead": ()
+        "changed": [], "source": [], "tests": [], "overhead": (), "added": 0, "deleted": 0
     }
-    added, deleted = _diff_lines(run_dir / "changes.diff")
+    added = int(changes["added"])
+    deleted = int(changes["deleted"])
     last_message_present = (run_dir / "last-message.txt").is_file()
     message = (
         (run_dir / "last-message.txt").read_text(encoding="utf-8", errors="replace")
@@ -331,7 +412,24 @@ def score_trial(run_dir: Path) -> ScoredTrial:
         evaluation_contract_sha256=(
             evaluator.evaluation_contract_sha256 if evaluator is not None else "unavailable"
         ),
-        scorer_schema_version=2,
+        trial_oracle_sha256=(
+            metadata.get("oracle_sha256")
+            if isinstance(metadata.get("oracle_sha256"), str)
+            else None
+        ),
+        trial_evaluation_contract_sha256=(
+            metadata.get("evaluation_contract_sha256")
+            if isinstance(metadata.get("evaluation_contract_sha256"), str)
+            else None
+        ),
+        evaluator_contract_changed_since_trial=bool(
+            evaluator is not None
+            and isinstance(metadata.get("evaluation_contract_sha256"), str)
+            and metadata.get("evaluation_contract_sha256")
+            != evaluator.evaluation_contract_sha256
+        ),
+        effective_surface_sha256=_surface_identity(metadata),
+        scorer_schema_version=4,
         model=metadata.get("model"),
         reasoning_effort=metadata.get("reasoning_effort"),
         infrastructure_status=metadata.get("status", "unknown"),

@@ -6,6 +6,7 @@
     "effective_stack_sha256": "96cfc2b046128cee09e3903de8561f0b6d4c3735990d8a695b1e3645a7d42fcf",
     "runtime_tool_surface_sha256": "678bb03cbe7818b9be65f0e4680e5c51764a3772a83cd1310926e75ea02f3746"
   },
+  "effective_surface_sha256": "f8275e2d24fb31a78e35999413f301f30f9b2393278fc861b3fca8317107cd67",
   "features": {
     "apps": false,
     "browser_use": false,

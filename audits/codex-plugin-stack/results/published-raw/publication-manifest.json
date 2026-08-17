@@ -1,4 +1,5 @@
 {
+  "evaluator_identity": "terminal-metadata preserves trial-time evaluator hashes; scored-result preserves both trial-time and current adjudicated evaluator identities and flags any change",
   "excluded_content": [
     "agent messages and reasoning",
     "command text and command output",
@@ -8,7 +9,7 @@
     "absolute paths and host identity",
     "installed skill bodies"
   ],
-  "published_trial_count": 46,
-  "schema_version": 1,
+  "published_trial_count": 50,
+  "schema_version": 2,
   "source_retention": "Verbatim raw evidence is retained outside the public repository."
 }

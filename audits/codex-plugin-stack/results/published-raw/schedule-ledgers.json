@@ -22,6 +22,31 @@
   {
     "entries": [
       {
+        "run_id": "task-h--b0--r01",
+        "schedule_index": 1,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-h--coordinator--r01",
+        "schedule_index": 2,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-h--guardrails--r01",
+        "schedule_index": 3,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-h--superpowers-coordination--r01",
+        "schedule_index": 4,
+        "state": "infrastructure-failed"
+      }
+    ],
+    "schedule": "real-project"
+  },
+  {
+    "entries": [
+      {
         "run_id": "task-b--guardrails--r01",
         "schedule_index": 1,
         "state": "skipped-existing-terminal"

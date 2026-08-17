@@ -10,11 +10,13 @@ These rules separate what may remain installed from what is allowed to influence
 - Add a failing regression test when practical; characterization or static evidence is acceptable when it is the more reliable proof.
 - Use one independent review only for material risk, broad changes, or an explicit review request.
 
-## Replacement for the global automatic-coordination agreement
+## Global coordination and completion agreements
 
-Use this narrower instruction in the global `AGENTS.md`:
+The global `AGENTS.md` now uses this proportional rule:
 
 > Codex may use plans, isolated worktrees, subagents, and independent review without asking when direct evidence shows they are proportionate to the task. Default to one agent and no durable plan artifact for small or tightly coupled work. Delegate only two or more genuinely independent surfaces, keep one integration owner, serialize shared mutable state, and maintain at most one recovery ledger. Do not ask the owner to choose an execution mode or approve an implementation design when the stated requirements already determine safe behavior. Poll owned long-running processes to a terminal result. This permission does not broaden scope or authorize consequential external actions.
+
+The companion continuous-completion rule is authoritative: continue routine safe work through verification and handoff, ask only about material tradeoffs, missing authority, consequential actions, or irreducible ambiguity, and prefer complete verified work over time-saving shortcuts unless the extra work is tangential or unnecessary.
 
 ## Codex Security formal pipeline (uncertain, specialized)
 
@@ -29,7 +31,7 @@ Activate only for one of these explicit cases:
 
 During activation:
 
-- Security alone owns scan-worker orchestration; do not compose it with Coordinator or Superpowers coordination;
+- Security alone owns scan-worker orchestration; do not compose it with Coordinator or another task-graph system;
 - establish a wall-time, worker, and output-artifact budget before a deep scan;
 - require a terminal result or an explicit timed-out classification—never treat detached/waiting activity as completion;
 - treat Security's invariant, finding, and bypass artifacts as inputs; native implementation and portability review own the patch;
@@ -39,7 +41,9 @@ Do not activate it for ordinary code review, routine implementation, every secur
 
 ## Coordinator
 
-The evidence does not justify default activation. If it remains installed during an evaluation period, activate it only when all conditions hold:
+The evidence does not justify installation or default activation. If it is already available or deliberately reevaluated, consider its lightweight treatment only for a substantial multi-component or recovery-sensitive task where bounded ownership/recovery guidance is plausibly valuable and the expected benefit exceeds its hook/context cost. One faster Task H run is not enough reason to reinstall it.
+
+Activate its unique shared-checkout claim board only when all conditions hold:
 
 - the owner explicitly wants multiple durable Codex windows rather than parent-local subagents;
 - there are two or three substantial independent verticals;
@@ -47,7 +51,7 @@ The evidence does not justify default activation. If it remains installed during
 - exact task/thread identifiers are available;
 - the active-claim board supplies value that Git worktrees and the repository plan cannot.
 
-Select the worktree before coordination starts. Do not create a Superpowers task graph, second progress ledger, or new worktree after claims begin. Release all claims before branch integration.
+Select the worktree before coordination starts. Do not create another task graph, second progress ledger, or new worktree after claims begin. Release all claims before branch integration. Task H supports only the conditional treatment; it did not exercise the board, so do not claim empirical board value.
 
 ## GitHub
 
@@ -59,6 +63,10 @@ The global host-boundary authentication instruction remains authoritative over p
 
 - Plugin Management: explicit plugin permission, dependency, connection, or removal administration only.
 - It does not belong in the ordinary coding prompt surface.
+
+## Visual Truth
+
+Install or activate only for an explicit compatible React visual/WYSIWYG editing request. Keep it out of ordinary coding sessions, do not deploy its development editor without explicit authority, and set `VISUAL_TRUTH_ANALYTICS=0` when anonymous install telemetry is not wanted. Its outcome value is unbenchmarked.
 
 ## System-managed review agent
 
@@ -81,7 +89,7 @@ Disable `web-perf` until Chrome DevTools MCP is installed and its runtime is ver
 
 - Superpowers global bootstrap, brainstorming, planning, TDD, SDD, review, verification, worktree, and branch-finishing workflows.
 - Codex Security deep scan.
-- Coordinator.
+- Coordinator's active shared-checkout claim board; the lightweight treatment is conditional, never global.
 - GitHub publish workflows.
 - Turnstile deployment.
 - Any external tracker/advisory write.

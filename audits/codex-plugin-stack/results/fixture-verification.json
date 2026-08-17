@@ -5,11 +5,11 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "22e310054553cbb332f9aab7734a8e6e02eda87c79cb148d0da5d4005672f84f",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.22419152400107123,
+    "seed_oracle_wall_seconds": 0.1327149060089141,
     "valid": true,
     "visible_command_sha256": "b95c49e64cb00a0e90be3676ae7844ccaa16b1bd9274dcbedf726f82a6b510f2",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.8307489010039717
+    "visible_test_wall_seconds": 0.1514466489898041
   },
   "task-b": {
     "content_sha256": "b713613f37008085f66ae6404562b20a9621374b4d82047c1a49c6898d3d0994",
@@ -17,11 +17,11 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "e8b2d8fe4e42eedfa11b00290dd0096d1e49c55dc75edba55083f1aa6a21866c",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.24809470999753103,
+    "seed_oracle_wall_seconds": 0.23010199901182204,
     "valid": true,
     "visible_command_sha256": "f28f9f17b446c97a5a49e737e4d97f8354b84e1dc8f52abf0da51c6b714a8318",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.3125749670143705
+    "visible_test_wall_seconds": 0.15098292601760477
   },
   "task-c": {
     "content_sha256": "65efbeec3c520342e544d40559b1d1d18a7309e0f880d57b9cbdd7bcd9a272ee",
@@ -29,11 +29,11 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "123b294714177452cd400535f207ccbe4c7174563bd68a20f014fa309b7bb504",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.2059691920003388,
+    "seed_oracle_wall_seconds": 0.14627445000223815,
     "valid": true,
     "visible_command_sha256": "8d8ae883905406cf3c3c0b959514f605cd5c26af9cc9bddfb78ab8d8f634f372",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.238241603015922
+    "visible_test_wall_seconds": 0.1945916359545663
   },
   "task-d": {
     "content_sha256": "ec5a159b582d770b684c435afa51f6d5c467b61554cf8f6817e7761dbd738393",
@@ -41,11 +41,11 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "6b219a713be6f0deaa893c06bba7dbaeca2e7b9f783666ba9a14eabbe074bd08",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.29731022601481527,
+    "seed_oracle_wall_seconds": 0.17230954999104142,
     "valid": true,
     "visible_command_sha256": "272cd27374409ac89254c3b8b91edf6d4917209d5d94ae84bcc70f23b443802a",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.4071595880086534
+    "visible_test_wall_seconds": 0.1595056300284341
   },
   "task-e": {
     "content_sha256": "370deba6193d5bb8b815335813b32107c764a588077dd14720021b868089bc32",
@@ -53,11 +53,11 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "de26d84785ccdb261ecbc26c4f8f8921625d73bd3710ec0650eca53c3cb3ebeb",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.16112931800307706,
+    "seed_oracle_wall_seconds": 0.15465629595564678,
     "valid": true,
     "visible_command_sha256": "b0f8e9e208bf490425ac4043188af8b28f9f77db8931105861a0cb78571ad5b3",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.17186570400372148
+    "visible_test_wall_seconds": 0.14426728896796703
   },
   "task-f": {
     "content_sha256": "900e484e1d52d09f95260e7edac98db29aa5622ae583e5e3ba97cd5347cf39fe",
@@ -65,11 +65,11 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "8c7605910c86d393e7f81a8fe216200ca134063aaa9d6de4417eb24558d0e265",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.1593412049987819,
+    "seed_oracle_wall_seconds": 0.14378302899422124,
     "valid": true,
     "visible_command_sha256": "70bf45075d514596e7214b9fb3d75a9980961fe0e6524242dd90ef0c1590afaf",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.17078707800828852
+    "visible_test_wall_seconds": 0.149737615021877
   },
   "task-g": {
     "content_sha256": "f2c4d03883331226580f7d2716ca6998a096ae24add1a7db7919d60c8d899af7",
@@ -77,23 +77,23 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "131d653c7b923b77909cd67baf82b7a86a956fb4d5fab5ba9408888117955772",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.1647437869978603,
+    "seed_oracle_wall_seconds": 0.1390503619913943,
     "valid": true,
     "visible_command_sha256": "e7b03b5b5a2b25b322505dbf9edfad9f89ffe7629efdd8ee9dcd170af7c4499a",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.15615749399876222
+    "visible_test_wall_seconds": 0.150345943053253
   },
   "task-h": {
     "content_sha256": "fb9387e74c4275fb5504789427c329e12f1604fa0a55519e9793c9c4e0670503",
-    "evaluation_contract_sha256": "874c5eeddc400f3d4dc0976e6354d7d0f032ee1afcb3b592a6fee8650df66697",
+    "evaluation_contract_sha256": "f058fd386ed770d11f7907f081ed4cfa4456a843a6b3ab1c32df81609fec8481",
     "hidden_command_sha256": "c189cc46a5216a5207e0e2f265720a7cbe123b390893aef3915077fe1039caac",
-    "oracle_sha256": "5215e089b3a2ccb096f853fda349287401d00febde3e3ed4ac523c7d78daca38",
+    "oracle_sha256": "f300ded806fd3c7f68e1d06ca6085504d51df2ffac4aecfae2bdbdff8c7eb140",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.25209480500780046,
+    "seed_oracle_wall_seconds": 0.1623525670147501,
     "valid": true,
     "visible_command_sha256": "0bef5ea2dad234a4b82ccb6304e695f54ae090a1f8fa224875219648fb57a2bf",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 19.240615688002435
+    "visible_test_wall_seconds": 10.634443728020415
   },
   "task-i": {
     "content_sha256": "07e5a5e10c175e1de784fdc04aeb0545f789b368a5643b9048067dde41978f66",
@@ -101,10 +101,10 @@
     "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
     "oracle_sha256": "8c7605910c86d393e7f81a8fe216200ca134063aaa9d6de4417eb24558d0e265",
     "seed_oracle_exit_code": 1,
-    "seed_oracle_wall_seconds": 0.16816279300837778,
+    "seed_oracle_wall_seconds": 0.15530389704508707,
     "valid": true,
     "visible_command_sha256": "70bf45075d514596e7214b9fb3d75a9980961fe0e6524242dd90ef0c1590afaf",
     "visible_test_exit_code": 0,
-    "visible_test_wall_seconds": 0.8529260879731737
+    "visible_test_wall_seconds": 0.1338417929946445
   }
 }

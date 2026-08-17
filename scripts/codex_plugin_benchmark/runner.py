@@ -207,6 +207,7 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
                 "condition_id": spec.condition_id,
                 "condition_label": condition.label,
                 "condition_sha256": condition.content_sha256,
+                "effective_surface_sha256": condition.to_dict()["effective_surface_sha256"],
                 "fixture_sha256": fixture.content_sha256,
                 "oracle_sha256": fixture.oracle_sha256,
                 "visible_command_sha256": fixture.visible_command_sha256,

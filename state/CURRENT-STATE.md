@@ -5,20 +5,21 @@ Updated: 2026-08-17
 ## Active branch task
 
 - Goal: finish the Codex plugin/skill/tool capability-ablation benchmark and publish the smallest empirically effective stack.
-- Worktree: `/home/joel/universal-dev-architecture-worktrees/plugin-stack-ablation-audit-2026-08-17`.
+- Worktree: dedicated isolated audit worktree (local absolute path deliberately omitted from public state).
 - Branch: `codex/plugin-stack-ablation-audit-20260817`.
 - Baseline: fresh `origin/main` at `df1c75ce1066d4ea97194ee92e6b8e4b9715ba38`.
 - Durable design: `docs/superpowers/specs/2026-08-17-codex-plugin-ablation-benchmark-design.md`, committed as `730a3a479f0c83812a4e4f95ed95b10343d90387` and published in draft PR #17.
 - Implementation plan: `docs/superpowers/plans/2026-08-17-codex-plugin-ablation-benchmark.md`.
 - Recovery ledger: `docs/exec-plans/active/2026-08-17-codex-plugin-ablation-benchmark.md`.
-- Owner removed Codex Process Jobs after evidence showed its hard release boundary and global hook conflicted with result-gating work. Do not reinstall it. Use native process polling and retain the pre-removal evidence in the final audit.
+- Owner removed Codex Process Jobs after evidence showed its hard release boundary and global hook conflicted with result-gating work. The owner later removed Superpowers after its Task H treatment was frozen. Do not reinstall either component. Use native process polling and retain only sanitized historical evidence in the public audit.
 - Empire remains operationally dead; do not configure credentials or spend on external routing.
-- Current step: 45 current/effective model trials are terminal and normalized; final report corrections and repository gates are complete, and the local commit remains. The real-project Task H fixture is ready, but the host boundary requires a fresh owner confirmation before nested model execution.
-- Empirical result: original native B0 passed 8/8; concise-repository B1 passed 3/3; current maximum passed 5/7. Remove Superpowers and Engineering Guardrails as harmful, remove/replace Coordinator and GitHub workflow routing from the default path, remove Security's `fix-finding` methodology from the default path, keep the formal Security tool pipeline uncertain/specialized, and do not restore Process Jobs or Empire.
+- Current step: 50 terminal records are normalized and sanitized; 49 current/equivalent records drive the report and one materially different historical maximum trial is excluded from current aggregation. Final review, commit, PR #17 push, and publication of the companion `codex-plugin-fix` lessons branch remain.
+- Empirical result: native B0 passed all eight A-G baselines and Tasks H/I, while concise-repository B1 passed 3/3 and current maximum passed 5/7. Adversarial review found Task H's original hidden direct-child check stricter than the prompt's recursive relocation contract; after versioned evaluator correction, native and Coordinator both pass C/H. Coordinator cost more on C and less in one H run, so it is uncertain/conditional and outside the minimal stack. Guardrails and Superpowers produced correct Task H workspaces but timed out at 1,200 seconds. Remove both as harmful, remove GitHub workflow instructions from the default path, remove Security's `fix-finding` methodology from the default path, keep the formal Security tool pipeline uncertain/specialized, and do not restore Process Jobs or Empire.
 - Final report: `audits/codex-plugin-stack/reports/final-report.md`; reproducibility entry point: `audits/codex-plugin-stack/README.md`.
-- Publication boundary: the existing draft is PR #17, but the public-repository host gate requires fresh owner confirmation before raw benchmark evidence and the report may be pushed.
-- Verified local boundary: 126 unit tests passed in 100.376 seconds; the deterministic repository audit, benchmark-integrity checks, and `git diff --check` passed.
-- Required completion: local commit, Task H trials only after the required model-run confirmation, and PR update only after the required public-artifact confirmation. Independent review is complete and integrated.
+- Publication boundary: the owner explicitly authorized Task H and sanitized publication to PR #17 plus the public `codex-plugin-fix` repository. Verbatim JSONL, logs, model/command output, workspaces, diffs, host paths/identity, and cached installed instructions remain private.
+- Owner instruction architecture: global coordination is now proportional (one agent/no durable artifact for small work), and the continuous-autonomous-completion rule requires routine safe work to continue, material tradeoff questions to include pros/cons and a recommendation, and completeness to win over time-saving shortcuts unless work is tangential or unnecessary. Both changes occurred after controlled trials and receive no invented causal credit.
+- Verified local boundary: all fixtures preflighted deterministically; 130 unit tests passed in 57.727 seconds; the deterministic repository audit and `git diff --check` passed; 50 sanitized records were regenerated and scanned; the clean companion lessons worktree passed its three structural/sanitization tests before final lesson synchronization.
+- Required completion: integrate any final adversarial-review findings, commit and push the audit branch to PR #17, commit and publish the isolated `codex-plugin-fix` lessons branch without touching the unrelated dirty `feat/codexresume` worktree, then verify remote heads and links.
 
 ## Prior canonical repository state
 

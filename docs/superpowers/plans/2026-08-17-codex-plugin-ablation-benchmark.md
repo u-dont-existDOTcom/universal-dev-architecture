@@ -103,7 +103,8 @@ def collect_inventory(codex_root: Path) -> dict[str, object]:
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.HarnessFoundationTests -v
-python3 -m scripts.codex_plugin_benchmark.cli inventory --codex-root /home/joel/.codex --output audits/codex-plugin-stack/inventory/effective-stack.json
+CODEX_AUDIT_ROOT=/absolute/path/to/.codex
+python3 -m scripts.codex_plugin_benchmark.cli inventory --codex-root "${CODEX_AUDIT_ROOT}" --output audits/codex-plugin-stack/inventory/effective-stack.json
 python3 -m json.tool audits/codex-plugin-stack/inventory/effective-stack.json >/dev/null
 ```
 
@@ -210,7 +211,7 @@ python3 -m unittest tests.test_codex_plugin_benchmark.ConditionTests -v
 
 - [x] **Step 3: Implement exact skill-path overrides and configuration manifests**
 
-Use documented `skills.config = [{path = "/home/joel/.codex/skills/cloudflare", enabled = false}]` shape for each discovered ambient path, `--ignore-user-config`, `--ignore-rules`, `project_doc_max_bytes=0`, and repeatable feature disables. Treatments expose exact installed skill directories through fixture-local `.agents/skills` links. Do not copy or paraphrase skill instructions.
+Use the documented `skills.config = [{path = "${CODEX_AUDIT_ROOT}/skills/cloudflare", enabled = false}]` shape for each discovered ambient path, `--ignore-user-config`, `--ignore-rules`, `project_doc_max_bytes=0`, and repeatable feature disables. Treatments expose exact installed skill directories through fixture-local `.agents/skills` links. Do not copy or paraphrase skill instructions.
 
 - [x] **Step 4: Run `codex debug prompt-input` for every condition before any model trial**
 
