@@ -10,6 +10,7 @@ from .conditions import CONDITION_IDS, build_condition, run_prompt_preflight
 from .inventory import collect_inventory
 from .fixtures import verify_all_fixtures
 from .runner import TrialSpec, run_trial
+from .scorer import score_all
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--model", default="gpt-5.6-sol")
     run.add_argument("--reasoning-effort", default="xhigh")
     run.add_argument("--timeout", type=float, default=900)
+    score = subparsers.add_parser("score")
+    score.add_argument("--raw", type=Path, required=True)
+    score.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -93,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(record.metadata_path)
         return 0 if record.status == "completed" else 1
+    if arguments.command == "score":
+        records = score_all(arguments.raw, arguments.output)
+        print(f"scored {len(records)} trials")
+        return 0
     raise AssertionError(f"unhandled command: {arguments.command}")
 
 

@@ -16,6 +16,7 @@ from scripts.codex_plugin_benchmark.fixtures import (
 )
 from scripts.codex_plugin_benchmark.inventory import collect_inventory
 from scripts.codex_plugin_benchmark.runner import TrialSpec, build_codex_argv, run_trial
+from scripts.codex_plugin_benchmark.scorer import rank_trials, score_trial
 
 
 class HarnessFoundationTests(unittest.TestCase):
@@ -327,6 +328,68 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("--ephemeral", argv)
         self.assertNotIn("process-jobs", encoded)
         self.assertNotIn("CODEX_HOME", spec.environment_overrides)
+
+
+class ScorerTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+
+    def make_run(self, name: str, *, correct: bool, verified: bool, overhead: bool):
+        run = self.root / name
+        workspace = run / "final-workspace"
+        run.mkdir()
+        materialize_fixture("task-a", workspace)
+        if correct:
+            (workspace / "src" / "pages.mjs").write_text(
+                "export function normalizePage(page, totalPages) {\n"
+                "  if (!Number.isInteger(totalPages) || totalPages < 1) throw new RangeError('bad');\n"
+                "  const numeric = Number(page);\n"
+                "  if (!Number.isFinite(numeric) || numeric <= 0) return 1;\n"
+                "  return Math.min(totalPages, Math.max(1, numeric));\n"
+                "}\n",
+                encoding="utf-8",
+            )
+        if overhead:
+            (workspace / "docs").mkdir()
+            (workspace / "docs" / "handoff.md").write_text("ceremony\n", encoding="utf-8")
+        atomic_write_json(
+            run / "metadata.json",
+            {
+                "run_id": name,
+                "task_id": "task-a",
+                "condition_id": "b0",
+                "repetition": 1,
+                "status": "completed",
+                "terminal": True,
+                "wall_seconds": 1 if not correct else 5,
+            },
+        )
+        event = (
+            {"type": "item.completed", "item": {"type": "command_execution", "command": "node --test"}}
+            if verified
+            else {"type": "turn.completed", "usage": {"input_tokens": 10, "output_tokens": 2}}
+        )
+        (run / "events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+        (run / "last-message.txt").write_text("Fixed and complete.\n", encoding="utf-8")
+        (run / "changes.diff").write_text("", encoding="utf-8")
+        return score_trial(run)
+
+    def test_material_hidden_failure_cannot_win_on_efficiency(self):
+        fast_but_wrong = self.make_run("fast-wrong", correct=False, verified=False, overhead=False)
+        slower_correct = self.make_run("slow-correct", correct=True, verified=True, overhead=False)
+
+        winner = rank_trials([fast_but_wrong, slower_correct])[0]
+
+        self.assertEqual(winner.run_id, "slow-correct")
+
+    def test_unnecessary_artifacts_and_false_completion_are_costs(self):
+        score = self.make_run("wrong-overhead", correct=False, verified=False, overhead=True)
+
+        self.assertGreater(score.workflow_overhead_artifact_count, 0)
+        self.assertEqual(score.false_completion_claims, 1)
+        self.assertFalse(score.success)
 
 
 if __name__ == "__main__":

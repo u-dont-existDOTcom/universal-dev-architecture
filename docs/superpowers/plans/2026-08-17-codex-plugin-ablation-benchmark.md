@@ -272,7 +272,7 @@ python3 -m unittest tests.test_codex_plugin_benchmark.RunnerTests -v
 
 Expected: a complete raw run directory containing JSONL, timing, diff, stderr, final output, and terminal metadata.
 
-- [ ] **Step 5: Commit the runner slice**
+- [x] **Step 5: Commit the runner slice**
 
 ```bash
 git add scripts/codex_plugin_benchmark/runner.py tests/test_codex_plugin_benchmark.py audits/codex-plugin-stack/results/raw
@@ -291,7 +291,7 @@ git commit -m "feat: run isolated Codex benchmark trials"
 - Consumes: raw `TrialRecord`, frozen fixture oracle, captured diff, and event JSONL.
 - Produces: `score_trial(run_dir: Path) -> ScoredTrial`, `compare_conditions(records: Sequence[ScoredTrial]) -> list[MarginalComparison]`, and `render_benchmark_tables(records) -> str`.
 
-- [ ] **Step 1: Write failing scorer tests for correctness dominance and harm accounting**
+- [x] **Step 1: Write failing scorer tests for correctness dominance and harm accounting**
 
 ```python
 def test_material_hidden_failure_cannot_win_on_efficiency(self):
@@ -304,17 +304,17 @@ def test_unnecessary_artifacts_and_false_completion_are_costs(self):
     self.assertEqual(score.verification.false_completion_claims, 1)
 ```
 
-- [ ] **Step 2: Run scorer tests and require failure for missing score types**
+- [x] **Step 2: Run scorer tests and require failure for missing score types**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.ScorerTests -v
 ```
 
-- [ ] **Step 3: Implement withheld checks, process metrics, and verdict thresholds**
+- [x] **Step 3: Implement withheld checks, process metrics, and verdict thresholds**
 
 The scorer injects only the selected fixture's oracle after the trial, runs visible and hidden suites, parses tool and token counts from supported JSONL events, records unmeasurable fields as `null`, and never invents a zero. Marginal comparisons keep correctness, quality, verification, autonomy, efficiency, overhead, and robustness as separate axes.
 
-- [ ] **Step 4: Score synthetic pass/fail fixtures and verify stable normalized JSON**
+- [x] **Step 4: Score synthetic pass/fail fixtures and verify stable normalized JSON**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.ScorerTests -v
