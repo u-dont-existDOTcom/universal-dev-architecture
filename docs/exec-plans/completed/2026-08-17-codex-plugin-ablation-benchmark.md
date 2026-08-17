@@ -63,6 +63,10 @@ The executable task sequence and file-level test cycles are authoritative in `do
 
 ## Completion
 
-Record final commit, updated PR URL/head, exact checks, empirical limits, retained gaps, and lesson disposition here before moving this file to `docs/exec-plans/completed/`.
+Completed locally on 2026-08-17. The verified evidence commit is `257ca17f54a53a38bb2869b99137d5c78991d336`; this closeout and path transition are in its immediate successor. The publication target is [PR #17](https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/17) on branch `codex/plugin-stack-ablation-audit-20260817`.
+
+Final gates: deterministic fixture preflight passed; `python3 -m unittest discover -s tests -v` passed 130 tests in 57.727 seconds; `python3 scripts/audit_codex_github.py --root . --fail-on error` passed; `git diff --check` passed; the independent release review found no remaining factual, causal, coverage, or publication-safety blocker. Fifty sanitized terminal records are published, 49 current/equivalent records drive decisions, and one superseded historical surface is excluded.
+
+Retained limits: most treatment/task pairs have one run; Task H has one run per condition; Coordinator's unique active claim board and the GitHub connector role remain unmeasured; remote model and connector behavior cannot be frozen; specialized/domain surfaces remain uncertain rather than presumed beneficial. Verbatim evidence remains in the private local evidence store and is not part of the public repository.
 
 **Lesson disposition:** `promoted`. The transferable rule is to benchmark native and repository-instruction baselines, score outcomes and costs rather than invocation, keep one primary workflow owner per stage, remove methodology that adds gates or ceremony without lift, and trigger unique security/domain capabilities narrowly. Exact component verdicts remain version/host/model-specific and must be rerun after material changes.
