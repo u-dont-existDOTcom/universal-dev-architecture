@@ -173,6 +173,22 @@ class FixtureTests(unittest.TestCase):
 
         self.assertFalse(destination.exists())
 
+    def test_source_commit_fixtures_keep_full_history_in_ci(self):
+        repository_root = Path(__file__).resolve().parents[1]
+        fixture_root = repository_root / "audits" / "codex-plugin-stack" / "fixtures"
+        definitions = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in fixture_root.glob("*/fixture.json")
+        ]
+        self.assertTrue(any("source_commit" in definition for definition in definitions))
+
+        for relative in (
+            ".github/workflows/universal-architecture-tests.yml",
+            ".github/workflows/weekly-codex-github-audit.yml",
+        ):
+            workflow = (repository_root / relative).read_text(encoding="utf-8")
+            self.assertIn("fetch-depth: 0", workflow, relative)
+
     def test_verify_all_reports_stable_hashes_and_oracle_sensitivity(self):
         first = verify_all_fixtures(self.root / "first")
         second = verify_all_fixtures(self.root / "second")
