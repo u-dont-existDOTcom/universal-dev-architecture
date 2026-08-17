@@ -1,0 +1,530 @@
+{
+  "condition_id": "superpowers-coordination",
+  "content_sha256": "0dd48dd4f4c746301e09172f209c3dbe100e8b2fb4efc4546eb6524b9c76581d",
+  "features": {
+    "apps": false,
+    "browser_use": false,
+    "browser_use_external": false,
+    "computer_use": false,
+    "hooks": false,
+    "in_app_browser": false,
+    "plugins": false,
+    "recommended_plugins": false
+  },
+  "label": "native plus Superpowers coordination",
+  "project_doc_max_bytes": 0,
+  "residual_context_label": "system and developer instructions remain outside per-run ablation controls",
+  "schema_version": 1,
+  "skill_overrides": [
+    {
+      "enabled": false,
+      "name": "codex-coordinator",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/skills/codex-coordinator/SKILL.md",
+      "plugin": "codex-coordinator"
+    },
+    {
+      "enabled": false,
+      "name": "code-verification",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-verification/SKILL.md",
+      "plugin": "codex-engineering-guardrails"
+    },
+    {
+      "enabled": false,
+      "name": "code-work",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-work/SKILL.md",
+      "plugin": "codex-engineering-guardrails"
+    },
+    {
+      "enabled": false,
+      "name": "cancel",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/cancel/SKILL.md",
+      "plugin": "codex-process-jobs"
+    },
+    {
+      "enabled": false,
+      "name": "rerun",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/rerun/SKILL.md",
+      "plugin": "codex-process-jobs"
+    },
+    {
+      "enabled": false,
+      "name": "result",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/result/SKILL.md",
+      "plugin": "codex-process-jobs"
+    },
+    {
+      "enabled": false,
+      "name": "start",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/start/SKILL.md",
+      "plugin": "codex-process-jobs"
+    },
+    {
+      "enabled": false,
+      "name": "status",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/status/SKILL.md",
+      "plugin": "codex-process-jobs"
+    },
+    {
+      "enabled": false,
+      "name": "tail",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/tail/SKILL.md",
+      "plugin": "codex-process-jobs"
+    },
+    {
+      "enabled": false,
+      "name": "attack-path-analysis",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/attack-path-analysis/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "deep-security-scan",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/deep-security-scan/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "define-security-policy",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/define-security-policy/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "finding-discovery",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/finding-discovery/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "fix-finding",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/fix-finding/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "propose-security-hardening",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/propose-security-hardening/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "security-diff-scan",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-diff-scan/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "security-scan",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-scan/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "threat-model",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/threat-model/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "track-findings",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/track-findings/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "triage-finding",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/triage-finding/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "validation",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/validation/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "vulnerability-writeup",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/vulnerability-writeup/SKILL.md",
+      "plugin": "codex-security"
+    },
+    {
+      "enabled": false,
+      "name": "empire-cost-policy",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-cost-policy/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "empire-handoff",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-handoff/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "empire-image",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-image/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "empire-readiness",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-readiness/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "empire-review",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-review/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "empire-settings",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-settings/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "empire-video",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-video/SKILL.md",
+      "plugin": "empire-llm-codex"
+    },
+    {
+      "enabled": false,
+      "name": "gh-address-comments",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-address-comments/SKILL.md",
+      "plugin": "github"
+    },
+    {
+      "enabled": false,
+      "name": "gh-fix-ci",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-fix-ci/SKILL.md",
+      "plugin": "github"
+    },
+    {
+      "enabled": false,
+      "name": "github",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/github/SKILL.md",
+      "plugin": "github"
+    },
+    {
+      "enabled": false,
+      "name": "yeet",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/yeet/SKILL.md",
+      "plugin": "github"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-analytics-dashboard",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-business-review",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-design-report",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-experiment-analysis",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-financial-budget",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-investment-committee-memo",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-legal-memorandum",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-market-trends-report",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-minimal-letterhead",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-operating-calendar",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-operating-review",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-project-kickoff",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-project-tracker",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-sales-pipeline",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-simple-dark-mode",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-simple-light-mode",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-strategy-memorandum",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-system-design",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-team-alignment",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "artifact-template-three-statement-forecast",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast/SKILL.md",
+      "plugin": "openai-templates"
+    },
+    {
+      "enabled": false,
+      "name": "plugin-management",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/plugin-management/0.1.0/skills/plugin-management/SKILL.md",
+      "plugin": "plugin-management"
+    },
+    {
+      "enabled": true,
+      "name": "brainstorming",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/brainstorming/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "dispatching-parallel-agents",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/dispatching-parallel-agents/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "executing-plans",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/executing-plans/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "finishing-a-development-branch",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/finishing-a-development-branch/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": false,
+      "name": "receiving-code-review",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/receiving-code-review/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "requesting-code-review",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/requesting-code-review/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "subagent-driven-development",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/subagent-driven-development/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": false,
+      "name": "systematic-debugging",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/systematic-debugging/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": false,
+      "name": "test-driven-development",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/test-driven-development/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "using-git-worktrees",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-git-worktrees/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "using-superpowers",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-superpowers/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "verification-before-completion",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/verification-before-completion/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": true,
+      "name": "writing-plans",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-plans/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": false,
+      "name": "writing-skills",
+      "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-skills/SKILL.md",
+      "plugin": "superpowers"
+    },
+    {
+      "enabled": false,
+      "name": "imagegen",
+      "path": "/home/joel/.codex/skills/.system/imagegen/SKILL.md",
+      "plugin": "__system__"
+    },
+    {
+      "enabled": false,
+      "name": "openai-docs",
+      "path": "/home/joel/.codex/skills/.system/openai-docs/SKILL.md",
+      "plugin": "__system__"
+    },
+    {
+      "enabled": false,
+      "name": "plugin-creator",
+      "path": "/home/joel/.codex/skills/.system/plugin-creator/SKILL.md",
+      "plugin": "__system__"
+    },
+    {
+      "enabled": false,
+      "name": "review-agent",
+      "path": "/home/joel/.codex/skills/.system/review-agent/SKILL.md",
+      "plugin": "__system__"
+    },
+    {
+      "enabled": false,
+      "name": "skill-creator",
+      "path": "/home/joel/.codex/skills/.system/skill-creator/SKILL.md",
+      "plugin": "__system__"
+    },
+    {
+      "enabled": false,
+      "name": "skill-installer",
+      "path": "/home/joel/.codex/skills/.system/skill-installer/SKILL.md",
+      "plugin": "__system__"
+    },
+    {
+      "enabled": false,
+      "name": "agents-sdk",
+      "path": "/home/joel/.codex/skills/agents-sdk/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "cloudflare",
+      "path": "/home/joel/.codex/skills/cloudflare/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "cloudflare-email-service",
+      "path": "/home/joel/.codex/skills/cloudflare-email-service/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "cloudflare-one",
+      "path": "/home/joel/.codex/skills/cloudflare-one/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "cloudflare-one-migrations",
+      "path": "/home/joel/.codex/skills/cloudflare-one-migrations/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "durable-objects",
+      "path": "/home/joel/.codex/skills/durable-objects/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "sandbox-sdk",
+      "path": "/home/joel/.codex/skills/sandbox-sdk/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "turnstile-spin",
+      "path": "/home/joel/.codex/skills/turnstile-spin/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "web-perf",
+      "path": "/home/joel/.codex/skills/web-perf/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "workers-best-practices",
+      "path": "/home/joel/.codex/skills/workers-best-practices/SKILL.md",
+      "plugin": "__standalone__"
+    },
+    {
+      "enabled": false,
+      "name": "wrangler",
+      "path": "/home/joel/.codex/skills/wrangler/SKILL.md",
+      "plugin": "__standalone__"
+    }
+  ]
+}

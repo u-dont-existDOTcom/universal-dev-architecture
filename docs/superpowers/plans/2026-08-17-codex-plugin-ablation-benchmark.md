@@ -168,7 +168,7 @@ python3 -m scripts.codex_plugin_benchmark.cli fixtures verify --all
 
 Expected: identical fixture hashes; visible baselines pass; hidden oracles detect the seeded defects.
 
-- [ ] **Step 5: Commit the fixture slice**
+- [x] **Step 5: Commit the fixture slice**
 
 ```bash
 git add scripts/codex_plugin_benchmark/fixtures.py tests/test_codex_plugin_benchmark.py audits/codex-plugin-stack/fixtures
@@ -187,7 +187,7 @@ git commit -m "test: add representative Codex benchmark fixtures"
 - Produces: `build_condition(condition_id: str, trial_root: Path) -> ConditionRecord`, `codex_overrides(record: ConditionRecord) -> list[str]`, and `validate_prompt_surface(rendered: object, record: ConditionRecord) -> list[str]`.
 - Condition IDs include `b0`, `b1`, `guardrails`, `superpowers-engineering`, `guardrails-plus-superpowers`, `coordinator`, `superpowers-coordination`, `coordinator-plus-superpowers`, `maximum`, `security`, `github`, and the measured finalist.
 
-- [ ] **Step 1: Write failing condition isolation tests**
+- [x] **Step 1: Write failing condition isolation tests**
 
 ```python
 def test_b0_disables_every_ambient_skill_and_optional_surface(self):
@@ -202,17 +202,17 @@ def test_guardrails_exposes_only_exact_guardrail_skills(self):
     self.assertEqual({p.name for p in condition.enabled_skill_paths}, {"code-work", "code-verification"})
 ```
 
-- [ ] **Step 2: Run condition tests and require failure for missing builder**
+- [x] **Step 2: Run condition tests and require failure for missing builder**
 
 ```bash
 python3 -m unittest tests.test_codex_plugin_benchmark.ConditionTests -v
 ```
 
-- [ ] **Step 3: Implement exact skill-path overrides and configuration manifests**
+- [x] **Step 3: Implement exact skill-path overrides and configuration manifests**
 
 Use documented `skills.config = [{path = "/home/joel/.codex/skills/cloudflare", enabled = false}]` shape for each discovered ambient path, `--ignore-user-config`, `--ignore-rules`, `project_doc_max_bytes=0`, and repeatable feature disables. Treatments expose exact installed skill directories through fixture-local `.agents/skills` links. Do not copy or paraphrase skill instructions.
 
-- [ ] **Step 4: Run `codex debug prompt-input` for every condition before any model trial**
+- [x] **Step 4: Run `codex debug prompt-input` for every condition before any model trial**
 
 ```bash
 python3 -m scripts.codex_plugin_benchmark.cli preflight --all --output audits/codex-plugin-stack/configurations/preflight.json

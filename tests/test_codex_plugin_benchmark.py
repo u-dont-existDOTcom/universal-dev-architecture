@@ -4,6 +4,11 @@ import unittest
 from pathlib import Path
 
 from scripts.codex_plugin_benchmark.common import atomic_write_json, sha256_path
+from scripts.codex_plugin_benchmark.conditions import (
+    build_condition,
+    codex_overrides,
+    validate_prompt_surface,
+)
 from scripts.codex_plugin_benchmark.fixtures import (
     ALL_TASK_IDS,
     materialize_fixture,
@@ -148,6 +153,109 @@ class FixtureTests(unittest.TestCase):
         for result in first.values():
             self.assertEqual(result["visible_test_exit_code"], 0)
             self.assertNotEqual(result["seed_oracle_exit_code"], 0)
+
+
+class ConditionTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.codex_root = self.root / "codex"
+        self.trial_root = self.root / "trial"
+        self.trial_root.mkdir()
+        for plugin, skills in {
+            "codex-engineering-guardrails": ("code-work", "code-verification"),
+            "superpowers": (
+                "using-superpowers",
+                "test-driven-development",
+                "systematic-debugging",
+                "verification-before-completion",
+                "dispatching-parallel-agents",
+            ),
+            "codex-coordinator": ("codex-coordinator",),
+            "codex-process-jobs": ("start", "status"),
+            "codex-security": ("security-scan", "fix-finding"),
+        }.items():
+            for skill in skills:
+                path = (
+                    self.codex_root
+                    / "plugins"
+                    / "cache"
+                    / "source"
+                    / plugin
+                    / "1.0.0"
+                    / "skills"
+                    / skill
+                    / "SKILL.md"
+                )
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(f"---\nname: {skill}\ndescription: test\n---\n", encoding="utf-8")
+        standalone = self.codex_root / "skills" / "cloudflare" / "SKILL.md"
+        standalone.parent.mkdir(parents=True)
+        standalone.write_text("---\nname: cloudflare\ndescription: test\n---\n", encoding="utf-8")
+
+    def test_b0_disables_every_ambient_skill_and_optional_surface(self):
+        condition = build_condition("b0", self.trial_root, self.codex_root)
+
+        self.assertEqual(condition.enabled_skill_paths, ())
+        self.assertTrue(condition.skill_overrides)
+        self.assertTrue(all(not item.enabled for item in condition.skill_overrides))
+        self.assertFalse(condition.features["plugins"])
+        self.assertFalse(condition.features["apps"])
+        self.assertFalse(condition.features["hooks"])
+        self.assertEqual(condition.project_doc_max_bytes, 0)
+
+    def test_guardrails_exposes_only_exact_guardrail_skills(self):
+        condition = build_condition("guardrails", self.trial_root, self.codex_root)
+
+        self.assertEqual(
+            {path.name for path in condition.enabled_skill_paths},
+            {"code-work", "code-verification"},
+        )
+
+    def test_maximum_excludes_owner_removed_process_jobs(self):
+        condition = build_condition("maximum", self.trial_root, self.codex_root)
+        enabled = {path.name for path in condition.enabled_skill_paths}
+
+        self.assertIn("cloudflare", enabled)
+        self.assertIn("security-scan", enabled)
+        self.assertNotIn("start", enabled)
+        self.assertNotIn("status", enabled)
+
+    def test_codex_overrides_encode_every_skill_and_surface_control(self):
+        condition = build_condition("guardrails", self.trial_root, self.codex_root)
+        overrides = codex_overrides(condition)
+        encoded = " ".join(overrides)
+
+        self.assertIn("features.plugins=false", encoded)
+        self.assertIn("project_doc_max_bytes=0", encoded)
+        self.assertIn("skills.config=", encoded)
+        self.assertIn("code-work", encoded)
+        self.assertIn("cloudflare", encoded)
+
+    def test_prompt_surface_validation_detects_missing_and_leaked_skills(self):
+        condition = build_condition("guardrails", self.trial_root, self.codex_root)
+        rendered = [
+            {
+                "role": "developer",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "<skills_instructions>\n### Available skills\n"
+                            "- code-work: test\n- code-verification: test\n"
+                            "- cloudflare: leaked\n</skills_instructions>"
+                        ),
+                    }
+                ],
+            }
+        ]
+
+        validation = validate_prompt_surface(rendered, condition)
+
+        self.assertEqual(validation["missing_enabled"], [])
+        self.assertEqual(validation["unexpected_disabled"], ["cloudflare"])
+        self.assertFalse(validation["valid"])
 
 
 if __name__ == "__main__":

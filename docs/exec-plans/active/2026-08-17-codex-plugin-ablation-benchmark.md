@@ -40,6 +40,7 @@ The executable task sequence and file-level test cycles are authoritative in `do
 | 2026-08-17 | Process Jobs runtime/policy/hook inspected and owner removed plugin. | Installed v0.3.0 source evidence and measured hook overhead. | Record removed-state evidence; no reinstall. |
 | 2026-08-17 | Harness foundations and redacted inventory implemented test-first. | Four focused tests; first real run exposed and then regression-tested dynamic config-table path leakage. | Commit Task 1 and build frozen fixtures. |
 | 2026-08-17 | Seven representative fixtures frozen and oracle-tested. | Visible seeds pass, withheld oracles fail, and two independent materializations produced identical hashes for tasks A-G. | Commit Task 2 and implement exact condition isolation. |
+| 2026-08-17 | Twelve controlled prompt surfaces preflighted. | B0/B1 expose zero optional skills; all selected treatment skills render; maximum exposes 58 skills and records 20 app-dependent templates plus the hidden review-agent as unavailable rather than silently crediting them. | Commit Task 3 and build the synchronous trial runner. |
 
 ## Completion
 
