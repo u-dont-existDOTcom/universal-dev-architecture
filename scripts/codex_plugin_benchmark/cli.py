@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+import traceback
 from pathlib import Path
 
 from .common import atomic_write_json
@@ -45,6 +46,13 @@ def build_parser() -> argparse.ArgumentParser:
     score = subparsers.add_parser("score")
     score.add_argument("--raw", type=Path, required=True)
     score.add_argument("--output", type=Path, required=True)
+    schedule = subparsers.add_parser("run-schedule")
+    schedule.add_argument("--schedule", type=Path, required=True)
+    schedule.add_argument("--output", type=Path, required=True)
+    schedule.add_argument("--codex-root", type=Path, default=Path("/home/joel/.codex"))
+    schedule.add_argument("--model", default="gpt-5.6-sol")
+    schedule.add_argument("--reasoning-effort", default="xhigh")
+    schedule.add_argument("--timeout", type=float, default=900)
     return parser
 
 
@@ -100,6 +108,53 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.command == "score":
         records = score_all(arguments.raw, arguments.output)
         print(f"scored {len(records)} trials")
+        return 0
+    if arguments.command == "run-schedule":
+        schedule_value = json.loads(arguments.schedule.read_text(encoding="utf-8"))
+        trials = schedule_value["trials"]
+        ledger_path = arguments.output / "schedule-ledger.json"
+        ledger: list[dict[str, object]] = []
+        for index, trial in enumerate(trials, start=1):
+            spec = TrialSpec(
+                task_id=trial["task_id"],
+                condition_id=trial["condition_id"],
+                repetition=int(trial["repetition"]),
+                output_root=arguments.output,
+                codex_root=arguments.codex_root,
+                model=arguments.model,
+                reasoning_effort=arguments.reasoning_effort,
+                timeout_s=arguments.timeout,
+            )
+            existing = arguments.output / spec.run_id / "metadata.json"
+            if existing.is_file():
+                metadata = json.loads(existing.read_text(encoding="utf-8"))
+                state = "skipped-existing-terminal" if metadata.get("terminal") else "excluded-incomplete"
+                ledger.append({"run_id": spec.run_id, "schedule_index": index, "state": state})
+                atomic_write_json(ledger_path, ledger)
+                print(f"[{index}/{len(trials)}] {spec.run_id}: {state}", flush=True)
+                continue
+            print(f"[{index}/{len(trials)}] {spec.run_id}: starting", flush=True)
+            try:
+                record = run_trial(spec)
+                state = record.status
+            except Exception as error:
+                state = "runner-exception"
+                ledger.append(
+                    {
+                        "run_id": spec.run_id,
+                        "schedule_index": index,
+                        "state": state,
+                        "error_type": type(error).__name__,
+                        "error": str(error),
+                        "traceback": traceback.format_exc()[-8000:],
+                    }
+                )
+                atomic_write_json(ledger_path, ledger)
+                print(f"[{index}/{len(trials)}] {spec.run_id}: {state}", flush=True)
+                continue
+            ledger.append({"run_id": spec.run_id, "schedule_index": index, "state": state})
+            atomic_write_json(ledger_path, ledger)
+            print(f"[{index}/{len(trials)}] {spec.run_id}: {state}", flush=True)
         return 0
     raise AssertionError(f"unhandled command: {arguments.command}")
 

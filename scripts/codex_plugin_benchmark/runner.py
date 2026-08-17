@@ -97,7 +97,7 @@ def _snapshot_workspace(source: Path, destination: Path) -> None:
 
 
 def run_trial(spec: TrialSpec) -> TrialRecord:
-    run_dir = spec.output_root / spec.run_id
+    run_dir = (spec.output_root / spec.run_id).resolve()
     run_dir.mkdir(parents=True, exist_ok=False)
     events_path = run_dir / "events.jsonl"
     stderr_path = run_dir / "stderr.log"
@@ -107,6 +107,8 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
     final_workspace_path = run_dir / "final-workspace"
     metadata_path = run_dir / "metadata.json"
     started = time.monotonic()
+    agent_started: float | None = None
+    agent_wall_seconds: float | None = None
     exit_code: int | None = None
     timed_out = False
     status = "infrastructure-failed"
@@ -156,6 +158,7 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
         with events_path.open("w", encoding="utf-8") as stdout_handle, stderr_path.open(
             "w", encoding="utf-8"
         ) as stderr_handle:
+            agent_started = time.monotonic()
             process = subprocess.Popen(
                 argv,
                 cwd=trial_root,
@@ -182,6 +185,7 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGKILL)
                     exit_code = process.wait(timeout=5)
+            agent_wall_seconds = time.monotonic() - agent_started
 
         diff = run_command(["git", "diff", "--binary", "HEAD"], trial_root, timeout_s=30)
         git_status = run_command(
@@ -212,6 +216,7 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
                 "codex_exit_code": exit_code,
                 "timed_out": timed_out,
                 "wall_seconds": wall_seconds,
+                "agent_wall_seconds": agent_wall_seconds,
                 "used_process_jobs": False,
                 "environment_override_names": sorted(spec.environment_overrides),
                 "argv_without_prompt": argv,
@@ -234,7 +239,7 @@ def run_trial(spec: TrialSpec) -> TrialRecord:
         status=status,
         codex_exit_code=exit_code,
         timed_out=timed_out,
-        wall_seconds=time.monotonic() - started,
+        wall_seconds=wall_seconds,
         run_dir=run_dir,
         events_path=events_path,
         stderr_path=stderr_path,

@@ -8,7 +8,7 @@ from pathlib import Path
 from .common import run_command
 
 
-REMOVED_PLUGINS = frozenset({"codex-process-jobs"})
+REMOVED_PLUGINS = frozenset({"codex-process-jobs", "empire-llm-codex"})
 CONDITION_IDS = (
     "b0",
     "b1",
@@ -126,9 +126,9 @@ def discover_skills(codex_root: Path) -> tuple[tuple[Path, str, str | None], ...
 def _selected(condition_id: str, name: str, plugin: str | None) -> bool:
     if plugin in REMOVED_PLUGINS:
         return False
-    if condition_id in {"b0", "b1"}:
+    if condition_id in {"b0", "b1", "minimal-finalist"}:
         return False
-    if condition_id in {"guardrails", "minimal-finalist"}:
+    if condition_id == "guardrails":
         return plugin == "codex-engineering-guardrails"
     if condition_id == "superpowers-engineering":
         return plugin == "superpowers" and name in SUPERPOWERS_ENGINEERING
@@ -188,7 +188,7 @@ def build_condition(
         "computer_use": False,
         "in_app_browser": False,
     }
-    project_doc_max_bytes = 32768 if condition_id in {"b1", "maximum"} else 0
+    project_doc_max_bytes = 32768 if condition_id in {"b1", "maximum", "minimal-finalist"} else 0
     labels = {
         "b0": "native Codex plus unavoidable system/developer instructions",
         "b1": "native Codex plus repository instructions",
@@ -201,7 +201,7 @@ def build_condition(
         "security": "native plus Codex Security skill surface",
         "github": "native plus GitHub skill surface",
         "maximum": "maximum discovered stack excluding owner-removed Process Jobs",
-        "minimal-finalist": "candidate minimal stack: native plus Engineering Guardrails",
+        "minimal-finalist": "finalist minimal stack: native Codex plus repository instructions",
     }
     payload = {
         "condition_id": condition_id,

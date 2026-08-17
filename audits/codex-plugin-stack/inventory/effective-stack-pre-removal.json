@@ -139,6 +139,60 @@
       "version": "1.1.1"
     },
     {
+      "app_declared": false,
+      "description": "Launch and manage durable, detached local process jobs from Codex.",
+      "hook_events": [
+        "PostToolUse",
+        "Stop",
+        "UserPromptSubmit"
+      ],
+      "install_state": "cached-unverified",
+      "manifest_sha256": "9d39df2580efa7dc52d5dc7cb17a2546d78adf4fe7fdd8a1223c976b1e0d0a0c",
+      "mcp_declared": false,
+      "name": "codex-process-jobs",
+      "receipt_present": false,
+      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0",
+      "skills": [
+        {
+          "description": "Safely request termination of a tracked detached process group using PID identity validation and a SIGTERM-to-SIGKILL grace period. Use only when the user asks to stop a job; critical repair, migration, firmware, or destructive jobs require explicit risk-aware approval and --force.",
+          "name": "cancel",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/cancel",
+          "sha256": "ff2c4df94741ab012affe0ffbfe10b4419ca8ac5083028f9473954b6610b07de"
+        },
+        {
+          "description": "Launch a finished Codex Process Jobs record again as a new detached job using its validated persisted argv, working directory, and execution mode. Use only when the user explicitly asks or approves rerunning a specific completed, failed, or cancelled build, test, benchmark, inference run, data job, or repair.",
+          "name": "rerun",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/rerun",
+          "sha256": "fc25955c4452028daef8f2358232f0af25a9d3db9c9c8cecb97ce22fd57b2b68"
+        },
+        {
+          "description": "Retrieve bounded finished-job output. Use for completed work and automatically when a CPJ hook begins \"Background job `...` finished\".",
+          "name": "result",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/result",
+          "sha256": "b04110cb653383f7dcaf7b2e9e0ccc2d6c478c308d298a7d9918eb85cfc83b3d"
+        },
+        {
+          "description": "Launch an ordinary finite local workload as a durable detached process job, then release the assigning Codex turn instead of monitoring it. Use proactively for builds, test suites, evaluations, benchmarks, inference/model A/B runs, data jobs, and repairs whose underlying work may exceed 60 seconds or has uncertain duration, even when a task-specific workflow emits a quick wrapper or launcher. Also use when the user explicitly asks to enable or disable CPJ's experimental live CLI completion delivery.",
+          "name": "start",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/start",
+          "sha256": "6743feabd21837225bbee5f851af8873be7616405f454fb71b5de851aa91e2b9"
+        },
+        {
+          "description": "Inspect active and recent detached process jobs in a later user-requested turn, retrieve a lightweight activity preview, or wait once when explicitly requested. Use for questions such as \"how's the build going?\", later user-requested checks of test, inference, data-processing, or repair progress, or diagnosis of a disappeared worker. Never use it to monitor a job from the same turn that launched it or merely because an automatic Goal continuation arrived.",
+          "name": "status",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/status",
+          "sha256": "d4c3c0562ba5dd43a7d7918cd40bb2893b463d6fe3c1e98db9eb03e1bb3d04a5"
+        },
+        {
+          "description": "Read the latest bounded stdout or stderr from a tracked detached process job. Use to inspect live build progress, benchmark output, test failures, repair diagnostics, or other command output without loading the entire persisted log.",
+          "name": "tail",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/codex-process-jobs/0.3.0/skills/tail",
+          "sha256": "9e561f440f760933123607f10f448c1fda1e097d55adcc0901ff8b4a9ca3a651"
+        }
+      ],
+      "version": "0.3.0"
+    },
+    {
       "app_declared": true,
       "description": "Codex Security workflows for security scans, analysis, and investigation.",
       "hook_events": [],
@@ -229,6 +283,62 @@
         }
       ],
       "version": "0.1.19"
+    },
+    {
+      "app_declared": false,
+      "description": "Keep Codex in the lead while routing bounded reviews and quarantined artifact proposals to current partner models.",
+      "hook_events": [],
+      "install_state": "cached-unverified",
+      "manifest_sha256": "b38a79d1841cbcfcdc8656c4313b66a91f9803c280a93ff0f67173ea4a253db9",
+      "mcp_declared": false,
+      "name": "empire-llm-codex",
+      "receipt_present": false,
+      "root": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1",
+      "skills": [
+        {
+          "description": "Resolve and enforce Empire LLM economic boundaries before external-model routing. Use when a user asks for free-only or Absolute Zero models, prefers free or value routing, requests frontier models, sets a spending ceiling or target language, previews a route, asks why a model was chosen, or wants to prevent paid fallback.",
+          "name": "empire-cost-policy",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-cost-policy",
+          "sha256": "973186dd6bcb16cd2345986519ab13c9df7373af35b31c96b39f3d0cb6cc3b58"
+        },
+        {
+          "description": "Route one bounded planning checklist or single-file implementation proposal to an external model, quarantine and validate it outside the repository, and let Codex preview, download, adversarially review, approve for consideration, or reject it without automatic application. Use when the user asks for an Empire handoff, external-model implementation proposal, downloadable model artifact, project checklist, single-file frontend, partner plan, or worker file while Codex remains the only repository writer.",
+          "name": "empire-handoff",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-handoff",
+          "sha256": "3e34b3e7ed011ef67c37d93c068fe6d6b3b92bdcd66d3b42357b96aabfa85b0b"
+        },
+        {
+          "description": "Route one bounded image-generation or image-edit request to a current non-OpenAI OpenRouter media endpoint, preview and authorize its cost, validate the returned image, and quarantine it outside the repository while Codex remains in control. Use for image prompts, icons, illustrations, transparent assets, image variations, reference-image edits, or an explicit request for Empire image generation.",
+          "name": "empire-image",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-image",
+          "sha256": "44afbbbef8f10d71d44a8cacfcd938d2db87c6f904cf76704e7a34d044a7a948"
+        },
+        {
+          "description": "Score Empire LLM Codex publishing readiness from 1 to 10 and maintain an evidence-based Codex App Store to-do loop covering engineering, security, live routing, publisher identity, public legal URLs, artwork, submission tests, release state, and real-diff acceptance. Use when the user asks whether Empire is ready, requests a readiness score or checklist, wants the next release step, or asks for the marketplace feedback loop.",
+          "name": "empire-readiness",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-readiness",
+          "sha256": "a17a50f4c17f9f8405d059239c134c8c7d6e64efd8948dc25ab4d06b174a69a9"
+        },
+        {
+          "description": "Route one bounded code review or second opinion to a current non-OpenAI model through OpenRouter, optionally enriched with Artificial Analysis data, while Codex remains the lead worker. Use when the user asks for an Empire review, external model review, routed second opinion, or partner-model critique of a diff or selected files.",
+          "name": "empire-review",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-review",
+          "sha256": "c409fb376e0308570e9b15611a92b3607b58d0b62c05c0cf3ffb00aac1b4ef45"
+        },
+        {
+          "description": "Configure, inspect, or remove Empire LLM credentials and project budget settings without exposing secret values. Use when the user asks to set up Empire, enter OpenRouter or Artificial Analysis API keys, check Empire credentials, change the review budget, or sign out.",
+          "name": "empire-settings",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-settings",
+          "sha256": "767f77f5b44e9de04231b561bb91578a85b58d4562a5bab19832776ed2b1fb84"
+        },
+        {
+          "description": "Route one bounded text-to-video or image-guided video request to a current non-OpenAI OpenRouter media model, preview and authorize cost, manage the asynchronous job, validate the MP4, and quarantine it outside the repository while Codex remains in control. Use for video prompts, landing-page loops, image-to-video, reference-guided clips, or an explicit request for Empire video generation.",
+          "name": "empire-video",
+          "path": "/home/joel/.codex/plugins/cache/openai-curated-remote/empire-llm-codex/1.5.1/skills/empire-video",
+          "sha256": "2b07348e31bf1017ace71ead4a229f625fe1b5067d25db93f02ffc20535c4c99"
+        }
+      ],
+      "version": "1.5.1"
     },
     {
       "app_declared": true,

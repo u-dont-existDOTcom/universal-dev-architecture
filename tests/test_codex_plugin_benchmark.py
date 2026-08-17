@@ -224,6 +224,13 @@ class ConditionTests(unittest.TestCase):
         self.assertNotIn("start", enabled)
         self.assertNotIn("status", enabled)
 
+    def test_minimal_finalist_uses_repository_instructions_without_workflow_skills(self):
+        condition = build_condition("minimal-finalist", self.trial_root, self.codex_root)
+
+        self.assertEqual(condition.enabled_skill_paths, ())
+        self.assertEqual(condition.project_doc_max_bytes, 32768)
+        self.assertFalse(condition.features["plugins"])
+
     def test_codex_overrides_encode_every_skill_and_surface_control(self):
         condition = build_condition("guardrails", self.trial_root, self.codex_root)
         overrides = codex_overrides(condition)
@@ -390,6 +397,82 @@ class ScorerTests(unittest.TestCase):
         self.assertGreater(score.workflow_overhead_artifact_count, 0)
         self.assertEqual(score.false_completion_claims, 1)
         self.assertFalse(score.success)
+
+    def test_preserved_workspace_is_scored_after_infrastructure_timeout(self):
+        run = self.make_run("timed-out-but-correct", correct=True, verified=True, overhead=False)
+        metadata_path = self.root / run.run_id / "metadata.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["status"] = "infrastructure-failed"
+        metadata["timed_out"] = True
+        atomic_write_json(metadata_path, metadata)
+
+        rescored = score_trial(metadata_path.parent)
+
+        self.assertTrue(rescored.implementation_correct)
+        self.assertFalse(rescored.success)
+        self.assertEqual(rescored.infrastructure_status, "infrastructure-failed")
+        self.assertIn("scored preserved workspace", " ".join(rescored.notes))
+
+        completed = self.make_run("completed-and-correct", correct=True, verified=True, overhead=False)
+        self.assertEqual(rank_trials([rescored, completed])[0].run_id, completed.run_id)
+
+    def test_collaboration_waits_and_terminal_question_are_measured(self):
+        run = self.make_run("asked-and-waited", correct=False, verified=False, overhead=False)
+        run_dir = self.root / run.run_id
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collab_tool_call",
+                    "tool": "wait",
+                    "receiver_thread_ids": [],
+                },
+            }
+        ]
+        (run_dir / "events.jsonl").write_text(
+            "\n".join(json.dumps(event) for event in events) + "\n",
+            encoding="utf-8",
+        )
+        (run_dir / "last-message.txt").write_text(
+            "Should I proceed with that interpretation?\n",
+            encoding="utf-8",
+        )
+
+        rescored = score_trial(run_dir)
+
+        self.assertEqual(rescored.tool_calls, 1)
+        self.assertEqual(rescored.collaboration_wait_count, 1)
+        self.assertEqual(rescored.unattributed_collaboration_wait_count, 1)
+        self.assertEqual(rescored.user_question_count, 1)
+        self.assertEqual(rescored.autonomy_score, 75.0)
+
+    def test_test_commands_count_only_completed_command_events(self):
+        run = self.make_run("one-test-command", correct=True, verified=False, overhead=False)
+        run_dir = self.root / run.run_id
+        item = {"type": "command_execution", "command": "npm test"}
+        (run_dir / "events.jsonl").write_text(
+            json.dumps({"type": "item.started", "item": item})
+            + "\n"
+            + json.dumps({"type": "item.completed", "item": item})
+            + "\n",
+            encoding="utf-8",
+        )
+
+        rescored = score_trial(run_dir)
+
+        self.assertEqual(rescored.test_command_count, 1)
+
+    def test_question_before_numbered_options_is_measured_once(self):
+        run = self.make_run("options-question", correct=False, verified=False, overhead=False)
+        run_dir = self.root / run.run_id
+        (run_dir / "last-message.txt").write_text(
+            "How should invalid input behave?\n\n1. Reject it.\n2. Ignore it.\n",
+            encoding="utf-8",
+        )
+
+        rescored = score_trial(run_dir)
+
+        self.assertEqual(rescored.user_question_count, 1)
 
 
 if __name__ == "__main__":

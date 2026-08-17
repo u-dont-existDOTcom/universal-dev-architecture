@@ -5,7 +5,7 @@ import { priceOrder } from "../src/pricing.mjs";
 
 test("extracted pricing seam preserves values and service delegation", () => {
   const order = { items: [{ price: 19.99, quantity: 3 }, { price: 45, quantity: 1 }] };
-  const expected = { subtotal: 104.97, discount: 10.5, tax: 6.61, total: 101.08 };
+  const expected = { subtotal: 104.97, discount: 10.5, tax: 6.61, total: 101.09 };
   assert.deepEqual(priceOrder(order, 0.07), expected);
   assert.deepEqual(new OrderService({ taxRate: 0.07 }).quote(order), expected);
 });

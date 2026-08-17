@@ -1,0 +1,9 @@
+component,Native/repo,Engineering Guardrails,Superpowers,Coordinator,Codex Security,GitHub,Plugin Management,Process Jobs
+Native/repo,—,D/C,G/F,D/B,B/A,D/B,A,G/F
+Engineering Guardrails,D/C,—,E/F,D/B,D/B,B,—,G/F
+Superpowers,G/F,E/F,—,D/F,D/F,D/F,—,F
+Coordinator,D/B,D/B,D/F,—,D/F,B,—,D/F
+Codex Security,B/A,D/B,D/F,D/F,—,D/B,B,D/F
+GitHub,D/B,B,D/F,B,D/B,—,B,—
+Plugin Management,A,—,—,—,B,B,—,B
+Process Jobs,G/F,G/F,F,D/F,D/F,—,B,removed
