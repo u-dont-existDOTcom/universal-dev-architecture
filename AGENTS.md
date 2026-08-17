@@ -34,6 +34,12 @@ Use the empirical stack audit, not plugin availability, to choose agent workflow
 
 The ordinary default is native Codex plus concise owner/repository instructions and exact repository checks, with no optional general workflow plugin. Do not automatically reinstall or reactivate a component classified `REMOVE` or `REMOVE — HARMFUL`. Keep `UNCERTAIN`, specialized, connector, and domain components inactive until the task satisfies their exact activation rule. A later model or plugin release may supersede a version-specific decision only after a role-relevant rerun records better outcomes, not merely a successful invocation.
 
+## Specialist architecture dependencies
+
+For any task materially involving UI/UX, frontend visual implementation, website or app design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, components, design systems, design critique/study, or design-production/accessibility/responsive review, load the current `u-dont-existDOTcom/design` repository before substantive design work. Start with its live default-branch `skills/design/SKILL.md` and follow `patterns/canonical-design-os-bootstrap.md`. Do not rely on remembered copies of the design methodology.
+
+The design repository is specialist guidance below current owner/project truth and this universal architecture. It is not required for backend-only or other non-design work. If it is inaccessible, do not reconstruct its current contents from memory; continue from local authority and record the missing dependency.
+
 ## Branch roles
 
 - `main`: canonical universal guidance

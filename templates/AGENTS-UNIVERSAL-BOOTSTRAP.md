@@ -11,6 +11,14 @@ Authority order:
 3. current universal guidance from `u-dont-existDOTcom/universal-dev-architecture`;
 4. older summaries, stale checkpoints, and remembered chat context.
 
+## Specialist design architecture
+
+When the task materially involves UI/UX, frontend visual implementation, website or application design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, component design, design systems, design critique/study, accessibility/responsive visual review, or design-production auditing, recover the current `u-dont-existDOTcom/design` repository before substantive design work.
+
+Start with the live default-branch `skills/design/SKILL.md` and apply the universal `patterns/canonical-design-os-bootstrap.md` rule. The live design repository outranks remembered design guidance or stale generated adapters, but remains subordinate to current owner instructions, project-specific product/content truth, verified project state, and universal development architecture.
+
+Do not load the design dependency for backend-only or otherwise non-design work. If it is inaccessible, do not invent or reconstruct its current contents from memory; continue from current local authority and record the missing specialist dependency.
+
 ## Durable continuity
 
 Treat conversation/context as disposable working memory. Treat the repository as durable project memory and Git history as the audit trail.
