@@ -1,6 +1,6 @@
 # Paid, privileged, and irreversible workflow safety
 
-Reviewed: 2026-08-14
+Reviewed: 2026-08-18
 
 ## Purpose
 
@@ -72,6 +72,36 @@ Use `persist-credentials: false` for every checkout that does not push. If a fin
 Pin remote actions to reviewed full commit SHAs. A protected environment, required reviewer, branch rule, or hosted Actions policy can be a necessary independent control; repository files must record these settings as verified, disabled, or unverified rather than assume them.
 
 GitHub source: https://docs.github.com/en/actions/reference/security/secure-use
+
+## Private-repository Actions cost boundary
+
+Treat privacy classification and compute placement as separate decisions. Do not weaken a repository or data boundary merely to obtain free public-repository Actions minutes.
+
+GitHub-hosted standard runners are free for public repositories, while private-repository runs consume the owner's included allowance and then paid usage. Self-hosted runners do not consume GitHub-hosted Actions minutes. Reusable workflows do not create a billing escape hatch: billing and runner assignment follow the caller workflow, so moving only a workflow definition into a public repository does not make a private caller free.
+
+For private repositories, reduce hosted-minute consumption in this order before adding infrastructure:
+
+1. **Avoid iterative CI churn.** Push work branches freely when no branch-push workflow is required, run deterministic checks locally, and open the pull request only when the branch is ready for a hosted merge gate. Do not use an open private PR as the ordinary inner development loop when each synchronization triggers paid CI.
+2. **Separate experiment execution from CI.** Live acquisition, model downloads, benchmark recomputation, deliberate rate-limit sleeps, browser automation, paid-provider calls, and other research executions belong behind `workflow_dispatch`, a protected manual execution boundary, or a trusted private self-hosted runner. Pull-request CI should normally validate the implementation, invariants, fixtures, and metadata/receipt schema rather than automatically rerun the full experiment.
+3. **Eliminate duplicate gates.** If branch policy already requires a successful pull-request gate and the merge method preserves the tested tree sufficiently for the project's risk model, do not automatically rerun the identical full suite on the resulting default-branch push. Keep only materially distinct post-merge checks or a periodic audit. If merge-head execution is a hard requirement, record that explicitly rather than duplicating by habit.
+4. **Scope auxiliary mutation workflows narrowly.** A workflow that processes metadata, closeout requests, generated indexes, or similar housekeeping should trigger only for the paths/events that can require that mutation. Do not reinstall dependencies and run a second test subset on every unrelated PR merely because the mutation job shares a workflow file with the main gate.
+5. **Cancel superseded validation.** Use PR-scoped concurrency and `cancel-in-progress: true` for read-only validation when an older run cannot add durable evidence after a newer head exists. Keep mutation, paid, deployment, and archival jobs in separate concurrency groups with an explicit cancellation policy.
+6. **Cache only after trigger reduction.** Dependency/model caches can reduce runtime, but they do not fix unnecessary workflow invocations. Apply caching after automatic execution has been narrowed to the minimum justified set.
+7. **Use self-hosting selectively.** For trusted private repositories with sustained hosted overage, a repository-scoped self-hosted runner can remove GitHub-hosted minute charges. Keep it off production machines that hold unrelated secrets, do not share it with public repositories, minimize token permissions and secrets, and prefer disposable/isolated workspaces where feasible. GitHub warns that persistent self-hosted runners can be compromised by workflow code, including private-repository collaborators who can cause PR execution.
+8. **Publish only genuinely public components.** A generic library or test harness that is independently safe and useful as public source may be moved to a public repository so its own CI is free. Do not create a public mirror, sanitized-by-convention sync, or public workflow that checks out private source merely to shift billing; the disclosure/logging failure modes outweigh the savings.
+
+Minute rounding also matters: GitHub rounds each hosted job's partial minute up to a whole minute. Splitting many tiny private jobs therefore has a direct cost floor even when each step is fast. Preserve job separation when it is required for privilege isolation, but do not create job boundaries solely for aesthetic organization.
+
+Before provisioning a dedicated CI server, compare it with GitHub's current Linux hosted overage rate. A self-hosted machine has operational, patching, isolation, and availability costs even when its Actions minutes are free. A spare trusted machine may have near-zero marginal cash cost; a new VPS is justified only when the expected paid overflow and/or workload characteristics beat that total cost.
+
+Current GitHub references to recheck before major changes:
+
+- https://docs.github.com/en/billing/concepts/product-billing/github-actions
+- https://docs.github.com/en/billing/reference/actions-runner-pricing
+- https://docs.github.com/en/actions/concepts/billing-and-usage
+- https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency
+- https://docs.github.com/en/actions/reference/security/secure-use
+- https://docs.github.com/en/actions/concepts/runners/self-hosted-runners
 
 ## Archive obsolete workflows without losing provenance
 
@@ -147,4 +177,6 @@ A fail-closed default-branch stub prevents accidental execution in its reviewed 
 
 Static policy checks catch known shapes, not every YAML semantic or shell-injection possibility. Prefer a real YAML parser when dependencies and schema control permit it, keep adversarial regressions for valid trigger forms, and fail closed on constructs the checker cannot safely resolve.
 
-Review official sources before major revisions because GitHub event registration, environment-file syntax, runner behavior, and security controls can change.
+Static cost controls likewise cannot prove account-level billing or exact per-repository consumption. Use GitHub's billing and Actions usage surfaces for the authoritative usage ledger, and recheck official pricing before cost comparisons.
+
+Review official sources before major revisions because GitHub event registration, billing, environment-file syntax, runner behavior, and security controls can change.
