@@ -4,3 +4,5 @@ __pycache__/
 .env
 .env.*
 !.env.example
+audits/codex-plugin-stack/results/raw/
+audits/codex-plugin-stack/results/excluded/

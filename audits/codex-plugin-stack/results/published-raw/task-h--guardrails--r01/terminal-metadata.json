@@ -1,0 +1,23 @@
+{
+  "agent_wall_seconds": 1200.0350097379996,
+  "codex_exit_code": -15,
+  "condition_id": "guardrails",
+  "condition_label": "native plus Engineering Guardrails",
+  "condition_sha256": "f5f62409d99069720b9663d5a19dceedd3297243d86dceb8229d84eed712e494",
+  "evaluation_contract_sha256": "874c5eeddc400f3d4dc0976e6354d7d0f032ee1afcb3b592a6fee8650df66697",
+  "fixture_sha256": "fb9387e74c4275fb5504789427c329e12f1604fa0a55519e9793c9c4e0670503",
+  "hidden_command_sha256": "c189cc46a5216a5207e0e2f265720a7cbe123b390893aef3915077fe1039caac",
+  "model": "gpt-5.6-sol",
+  "oracle_sha256": "5215e089b3a2ccb096f853fda349287401d00febde3e3ed4ac523c7d78daca38",
+  "reasoning_effort": "xhigh",
+  "repetition": 1,
+  "run_id": "task-h--guardrails--r01",
+  "schema_version": 1,
+  "status": "infrastructure-failed",
+  "task_id": "task-h",
+  "terminal": true,
+  "timed_out": true,
+  "used_process_jobs": false,
+  "visible_command_sha256": "0bef5ea2dad234a4b82ccb6304e695f54ae090a1f8fa224875219648fb57a2bf",
+  "wall_seconds": 1200.9721018109994
+}

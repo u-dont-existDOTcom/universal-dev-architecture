@@ -18,6 +18,10 @@ For Codex + GitHub work, the canonical current pattern is:
 
 - `patterns/codex-github-operating-system.md`
 
+The reproducible Codex plugin-stack audit and minimal-stack decision are:
+
+- [`audits/codex-plugin-stack/reports/final-report.md`](audits/codex-plugin-stack/reports/final-report.md)
+
 The canonical recovery checkpoint is:
 
 - `state/CURRENT-STATE.md`

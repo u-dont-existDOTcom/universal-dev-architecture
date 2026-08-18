@@ -1,0 +1,262 @@
+[
+  {
+    "entries": [
+      {
+        "run_id": "task-i--b0--r01",
+        "schedule_index": 1,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-i--security--r01",
+        "schedule_index": 2,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-i--security-full--r01",
+        "schedule_index": 3,
+        "state": "skipped-existing-terminal"
+      }
+    ],
+    "schedule": "formal-security"
+  },
+  {
+    "entries": [
+      {
+        "run_id": "task-h--b0--r01",
+        "schedule_index": 1,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-h--coordinator--r01",
+        "schedule_index": 2,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-h--guardrails--r01",
+        "schedule_index": 3,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-h--superpowers-coordination--r01",
+        "schedule_index": 4,
+        "state": "infrastructure-failed"
+      }
+    ],
+    "schedule": "real-project"
+  },
+  {
+    "entries": [
+      {
+        "run_id": "task-b--guardrails--r01",
+        "schedule_index": 1,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-c--coordinator--r01",
+        "schedule_index": 2,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-d--superpowers-engineering--r01",
+        "schedule_index": 3,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-e--maximum--r01",
+        "schedule_index": 4,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-f--security--r01",
+        "schedule_index": 5,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-a--guardrails--r01",
+        "schedule_index": 6,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-b--b0--r01",
+        "schedule_index": 7,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-c--superpowers-coordination--r01",
+        "schedule_index": 8,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-d--b0--r01",
+        "schedule_index": 9,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-e--guardrails--r01",
+        "schedule_index": 10,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-f--b0--r01",
+        "schedule_index": 11,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-a--superpowers-engineering--r01",
+        "schedule_index": 12,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-b--guardrails-plus-superpowers--r01",
+        "schedule_index": 13,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-c--coordinator-plus-superpowers--r01",
+        "schedule_index": 14,
+        "state": "skipped-existing-terminal"
+      },
+      {
+        "run_id": "task-d--guardrails--r01",
+        "schedule_index": 15,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-e--b0--r01",
+        "schedule_index": 16,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-f--guardrails--r01",
+        "schedule_index": 17,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-a--guardrails-plus-superpowers--r01",
+        "schedule_index": 18,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-b--superpowers-engineering--r01",
+        "schedule_index": 19,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-c--b0--r01",
+        "schedule_index": 20,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-d--guardrails-plus-superpowers--r01",
+        "schedule_index": 21,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-e--superpowers-engineering--r01",
+        "schedule_index": 22,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-f--maximum--r01",
+        "schedule_index": 23,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-a--maximum--r01",
+        "schedule_index": 24,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-b--maximum--r01",
+        "schedule_index": 25,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-c--guardrails--r01",
+        "schedule_index": 26,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-d--maximum--r01",
+        "schedule_index": 27,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-e--guardrails-plus-superpowers--r01",
+        "schedule_index": 28,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-c--maximum--r01",
+        "schedule_index": 29,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-g--b0--r01",
+        "schedule_index": 30,
+        "state": "completed"
+      }
+    ],
+    "schedule": "screening"
+  },
+  {
+    "entries": [
+      {
+        "run_id": "task-a--b1--r01",
+        "schedule_index": 1,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-c--b1--r01",
+        "schedule_index": 2,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-f--b1--r01",
+        "schedule_index": 3,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-e--maximum--r02",
+        "schedule_index": 4,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-a--github--r01",
+        "schedule_index": 5,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-g--maximum--r01",
+        "schedule_index": 6,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-d--maximum-minus-guardrails--r01",
+        "schedule_index": 7,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-d--maximum-minus-superpowers--r01",
+        "schedule_index": 8,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-c--maximum-minus-coordinator--r01",
+        "schedule_index": 9,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-f--maximum-minus-security--r01",
+        "schedule_index": 10,
+        "state": "completed"
+      },
+      {
+        "run_id": "task-a--maximum-minus-github--r01",
+        "schedule_index": 11,
+        "state": "completed"
+      }
+    ],
+    "schedule": "supplemental"
+  }
+]

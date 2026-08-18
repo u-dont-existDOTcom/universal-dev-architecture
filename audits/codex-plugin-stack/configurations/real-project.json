@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "purpose": "Real 146-file repository task to challenge the small-fixture workflow conclusions. Start one run per central condition, then repeat only close or ambiguous comparisons.",
+  "trials": [
+    {"task_id": "task-h", "condition_id": "b0", "repetition": 1},
+    {"task_id": "task-h", "condition_id": "coordinator", "repetition": 1},
+    {"task_id": "task-h", "condition_id": "guardrails", "repetition": 1},
+    {"task_id": "task-h", "condition_id": "superpowers-coordination", "repetition": 1}
+  ]
+}

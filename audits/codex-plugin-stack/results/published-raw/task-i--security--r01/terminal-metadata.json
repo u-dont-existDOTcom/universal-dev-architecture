@@ -1,0 +1,23 @@
+{
+  "agent_wall_seconds": 594.3676244539965,
+  "codex_exit_code": 0,
+  "condition_id": "security",
+  "condition_label": "native plus Codex Security skill surface",
+  "condition_sha256": "b4b3c9e879b97c66605ccff986bbfd459c2b9008393d08f77762a934a45e2fbc",
+  "evaluation_contract_sha256": "0e317bd5628f030072c9ca68b7cb9d521a900557216374b970fdf32e450fc9cb",
+  "fixture_sha256": "07e5a5e10c175e1de784fdc04aeb0545f789b368a5643b9048067dde41978f66",
+  "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+  "model": "gpt-5.6-sol",
+  "oracle_sha256": "8c7605910c86d393e7f81a8fe216200ca134063aaa9d6de4417eb24558d0e265",
+  "reasoning_effort": "xhigh",
+  "repetition": 1,
+  "run_id": "task-i--security--r01",
+  "schema_version": 1,
+  "status": "completed",
+  "task_id": "task-i",
+  "terminal": true,
+  "timed_out": false,
+  "used_process_jobs": false,
+  "visible_command_sha256": "70bf45075d514596e7214b9fb3d75a9980961fe0e6524242dd90ef0c1590afaf",
+  "wall_seconds": 594.4946121840039
+}

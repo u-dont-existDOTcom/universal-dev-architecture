@@ -18,3 +18,7 @@ This is owner-authored operational policy, not an external, canonical, anecdotal
 The regression requires every projection to retain the execution-mode boundary, all four coordination mechanisms, and both authority limits. It is a documentation-contract check; it cannot prove that a future worker will apply the rule correctly in an unobserved task.
 
 Independent review of the initial candidate found that its detailed projection could detach delegation from independent review. The follow-up causal regression and paired-permission wording close that gap.
+
+## 2026-08-17 empirical narrowing
+
+The later component-ablation audit preserves the owner's authority grant but narrows its routine application: small or tightly coupled work defaults to one agent and no durable plan artifact; worktrees, ledgers, delegation, and review are added only when concrete complexity, separability, recovery need, or risk makes them proportionate. See `audits/codex-plugin-stack/reports/final-report.md` and `audits/codex-plugin-stack/activation-rules.md`. This newer evidence supersedes any reading of the 2026-08-14 wording as a requirement to maximize coordination ceremony on every task.

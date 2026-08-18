@@ -1,0 +1,531 @@
+{
+  "condition_id": "maximum-minus-coordinator",
+  "content_hash_scope": "prompt routing: skill paths/enabled flags, feature flags, project-doc budget, and controlled repository-instruction hash",
+  "content_sha256": "09ce7b0c1c72952a4a04edafd5931dfeabf7cff6a3a44c93ec4bb651db263975",
+  "effective_surface_evidence": {
+    "effective_stack_sha256": "96cfc2b046128cee09e3903de8561f0b6d4c3735990d8a695b1e3645a7d42fcf",
+    "runtime_tool_surface_sha256": "678bb03cbe7818b9be65f0e4680e5c51764a3772a83cd1310926e75ea02f3746"
+  },
+  "effective_surface_sha256": "18b59f4608fe31857a7606550734b248883b49648a6cff8cf676218511006499",
+  "features": {
+    "apps": true,
+    "browser_use": false,
+    "browser_use_external": false,
+    "computer_use": false,
+    "hooks": false,
+    "in_app_browser": false,
+    "plugins": true,
+    "recommended_plugins": false
+  },
+  "label": "maximum skill surface minus Coordinator and lifecycle hooks",
+  "project_doc_max_bytes": 32768,
+  "repository_instruction_sha256": null,
+  "residual_context_label": "system and developer instructions remain outside per-run ablation controls",
+  "schema_version": 1,
+  "skill_overrides": [
+    {
+      "enabled": false,
+      "name": "codex-coordinator",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-coordinator/0.4.0/skills/codex-coordinator/SKILL.md",
+      "plugin": "codex-coordinator",
+      "skill_sha256": "00724054da472442bdf65c965a6f9243dc226c04cda03bdd3f1a7f7c5b662964"
+    },
+    {
+      "enabled": true,
+      "name": "code-verification",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-verification/SKILL.md",
+      "plugin": "codex-engineering-guardrails",
+      "skill_sha256": "4aab85003f547ac6e1ee12e3ceb3f89d5744af56f3b22a3643e545007474fc87"
+    },
+    {
+      "enabled": true,
+      "name": "code-work",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-engineering-guardrails/1.1.1/skills/code-work/SKILL.md",
+      "plugin": "codex-engineering-guardrails",
+      "skill_sha256": "a3727efa825ff26a2ce67ff60379ad0e3a4bfcfc498c3632514fd662e7a0f3a6"
+    },
+    {
+      "enabled": true,
+      "name": "attack-path-analysis",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/attack-path-analysis/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "c7499785278fcfb7905b3082175bcf267fad7c9ab1e91ed4af9757a92e618fe5"
+    },
+    {
+      "enabled": true,
+      "name": "deep-security-scan",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/deep-security-scan/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "07760d765dade8cfbc44e5ddf5d14911fc842cca11ba157809b555ec7c0a88df"
+    },
+    {
+      "enabled": true,
+      "name": "define-security-policy",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/define-security-policy/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "286f549d7d5b017e13e38031494723b5870949e3f82ac85b6a9c32d4718433bf"
+    },
+    {
+      "enabled": true,
+      "name": "finding-discovery",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/finding-discovery/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "938b73329188aa124770fcdf7cf7916e2941c8fdbf20acd9df96bc1a80185fe7"
+    },
+    {
+      "enabled": true,
+      "name": "fix-finding",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/fix-finding/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "0e3ac8898a43b08c415c380fe59e8a052c17fb8264af945a66ce6b14121fd601"
+    },
+    {
+      "enabled": true,
+      "name": "propose-security-hardening",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/propose-security-hardening/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "b9d2c81ecb99e6eb4ad6424dbd297a935feb66c2658692d48caf4d9840eaf306"
+    },
+    {
+      "enabled": true,
+      "name": "security-diff-scan",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-diff-scan/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "b5005fc7a759d3d0f72f772fee7862b990e16e55f2e6f67740dbfc4173bb3216"
+    },
+    {
+      "enabled": true,
+      "name": "security-scan",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/security-scan/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "5dcd941f3dc0362edf14675256e987cfe7e71f47ec8982616133101b744bc98d"
+    },
+    {
+      "enabled": true,
+      "name": "threat-model",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/threat-model/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "0fe044993d1a08c4aefbc9d431f6f18115f62b3dbc2e818258af01ec8924a246"
+    },
+    {
+      "enabled": true,
+      "name": "track-findings",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/track-findings/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "cb6e7625bc7c10fbc7b94d99918667c9e942bacb56d871e837a6939d20f4fd8c"
+    },
+    {
+      "enabled": true,
+      "name": "triage-finding",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/triage-finding/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "4c3499bad13a290bcf9678e996807ca6e613557d427d9efa87f104421e33008f"
+    },
+    {
+      "enabled": true,
+      "name": "validation",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/validation/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "f92138ea9ad6a76a533b95212694f76f399666efb30568567f7e0d0dfdd28783"
+    },
+    {
+      "enabled": true,
+      "name": "vulnerability-writeup",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/codex-security/0.1.19/skills/vulnerability-writeup/SKILL.md",
+      "plugin": "codex-security",
+      "skill_sha256": "46ccff479884f6e2c9a38d9f84d168161959667357db53673134ffe71df6b219"
+    },
+    {
+      "enabled": true,
+      "name": "gh-address-comments",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-address-comments/SKILL.md",
+      "plugin": "github",
+      "skill_sha256": "c1ebc337357402f7faabafe712e0c463981a65f736453efe52abd305bcb74769"
+    },
+    {
+      "enabled": true,
+      "name": "gh-fix-ci",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/gh-fix-ci/SKILL.md",
+      "plugin": "github",
+      "skill_sha256": "7621a3560d788fb221d25f9753233fe0c393c5cfe63167c88b11f027c277b1f8"
+    },
+    {
+      "enabled": true,
+      "name": "github",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/github/SKILL.md",
+      "plugin": "github",
+      "skill_sha256": "81dbdd90934fe86a79ddc4790fd211e5fca866302a74090ad153395f56f2bd42"
+    },
+    {
+      "enabled": true,
+      "name": "yeet",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/github/0.1.8-2841cf9749ae/skills/yeet/SKILL.md",
+      "plugin": "github",
+      "skill_sha256": "e93c6ea769ba673d30749a981cd8ad75b687f454e3c8e2e45e7cfcbd412df12c"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-analytics-dashboard",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "cf5360fd8b197673bb237c52c603c97fa319c875c3dfa2cd8efff52d4422f513"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-business-review",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "27721fc1d67d1b41949caa75ac8f94f81952ff124406878af6524047929e60d2"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-design-report",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "563722f53854e606f8a9f87e37e72d7ef70a22d46d5836b8e4d6abfb1b79e9e0"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-experiment-analysis",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "0b05effc47df0a14f8e0c3e3597e6722224747435546385d38a2cae279bd20b9"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-financial-budget",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "c0b6b7a62a15597aaf2b1ec679e21da48f533b756127f0aef957cdfe9f3da738"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-investment-committee-memo",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "68abd08cfe5e073e3c446a3f675f44c5bf98f57434dba679e8acd8a763379a8b"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-legal-memorandum",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "51fb9d21baf6119c4ccb1903638a6bac0e859210de63460fffa7025d52e997e0"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-market-trends-report",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "d58d019b89cb6f292ac3ab991d561489eef477ff53ce05fb024a0c936f5af26a"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-minimal-letterhead",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "880ef094d4d0c89a7bde5ce9bbe4086625c186651e9e6efc8ba8bdd7cc77f9d5"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-operating-calendar",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "33bb660791a0b9a21628a42c34934932220203b6aabd84e98cb1b45327d0384c"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-operating-review",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "6d63c5cd025ffe936e7bab5db3023672bbaec26af55c2bb8b057d38c202c9c32"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-project-kickoff",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "aa893ebd89e7c8d1db4261d01cc2b1add35d78d00785871ccaaa5fc8db783ec9"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-project-tracker",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "d97d5be20189b7f53dd269b6e1c5f694eaf53e5a72f6559fcb1578911b7cda82"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-sales-pipeline",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "15cfeeedf440021f16ed3f3ad8c7c1ef6d48898b9447741e223d2fb41cfc9800"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-simple-dark-mode",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "b7c8d0c05f75878b9bc21e56a57c41ec1aa29700aca0a24822be0f9f1bd53207"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-simple-light-mode",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "7c68430c6cf57b55b457d4735dbd1a46b889bef135a32222902dd0848b6e1752"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-strategy-memorandum",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "51d7882ac94e8e57b323394825728c33925af878806e37277217c2dc12a912e5"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-system-design",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "87f7b7ed1b0d8410f5e5971cd7f7db9a4165e2f37069e97e52dbfb469b75a57c"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-team-alignment",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "26d7cafdcd1899a937b325c5d02ac57c162d45002153be33a934d35f81eb6110"
+    },
+    {
+      "enabled": true,
+      "name": "artifact-template-three-statement-forecast",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast/SKILL.md",
+      "plugin": "openai-templates",
+      "skill_sha256": "74f4a5cccec0107b861548b157e04c51d9b58ec13a990c86394b4c529b8ecf41"
+    },
+    {
+      "enabled": true,
+      "name": "plugin-management",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/plugin-management/0.1.0/skills/plugin-management/SKILL.md",
+      "plugin": "plugin-management",
+      "skill_sha256": "653841cc21205269f08b0ce135891e1518dac616a766bcfb0b57d788d3f68b10"
+    },
+    {
+      "enabled": true,
+      "name": "brainstorming",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/brainstorming/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "4a54a4858b99807f3155ed1614b2f116e35ea5c1b788e793f565dd837fd3891f"
+    },
+    {
+      "enabled": true,
+      "name": "dispatching-parallel-agents",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/dispatching-parallel-agents/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "1968923066f3b707eb01d1992cdf4c42284c3855f70253b9cd5000ff45fca13c"
+    },
+    {
+      "enabled": true,
+      "name": "executing-plans",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/executing-plans/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "c4c3d8b628c51114cd165fb8246fe02744cd8be180032328391252e653028d9b"
+    },
+    {
+      "enabled": true,
+      "name": "finishing-a-development-branch",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/finishing-a-development-branch/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "d0ac8360ed9d59121776ef95c84bcb38e9747de0d7ae7e227dca81e437593b9b"
+    },
+    {
+      "enabled": true,
+      "name": "receiving-code-review",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/receiving-code-review/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "091df1629510af1b92fc4abd6f96732ebedb4cb2c0f3457e8f2740b0504a2438"
+    },
+    {
+      "enabled": true,
+      "name": "requesting-code-review",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/requesting-code-review/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "d71cc01ba56d2325cf8af5f7c11837819b63ecd57de0bfdb812f7f3ff7751df8"
+    },
+    {
+      "enabled": true,
+      "name": "subagent-driven-development",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/subagent-driven-development/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "349a08ad8b59b19b86c13a7d2f34a1a38719bf88257004a863eefefa8d9f9e40"
+    },
+    {
+      "enabled": true,
+      "name": "systematic-debugging",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/systematic-debugging/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "808fc5717aa88ad65efff312b11c186294d3e6ee301afb584e2f86599b137787"
+    },
+    {
+      "enabled": true,
+      "name": "test-driven-development",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/test-driven-development/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "bf1b8216e523851a411e91d429a7c1c2a173e79d88957bc78e348218d50edd54"
+    },
+    {
+      "enabled": true,
+      "name": "using-git-worktrees",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-git-worktrees/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "8cfb86f121269e8f7f12361e6795c4f6738828340e28964c9229d365666c9edd"
+    },
+    {
+      "enabled": true,
+      "name": "using-superpowers",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/using-superpowers/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "55379fe7c1c473a02c61961c822996bff30e1320d6921d9062509bc508482c05"
+    },
+    {
+      "enabled": true,
+      "name": "verification-before-completion",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/verification-before-completion/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
+    },
+    {
+      "enabled": true,
+      "name": "writing-plans",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-plans/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "72190c88b2b5a67a96b91d66aa72b9161913e10e8769da3f28a226f4cc7b99d0"
+    },
+    {
+      "enabled": true,
+      "name": "writing-skills",
+      "path": "${CODEX_AUDIT_ROOT}/plugins/cache/openai-curated-remote/superpowers/6.2.0/skills/writing-skills/SKILL.md",
+      "plugin": "superpowers",
+      "skill_sha256": "d34db5c8aed6a4e0440132bd0613aace70a693ec7819d5637ad77481d8e10d1b"
+    },
+    {
+      "enabled": true,
+      "name": "imagegen",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/imagegen/SKILL.md",
+      "plugin": "__system__",
+      "skill_sha256": "59981d23519222bcecf1be48bb37730bbc50539ceb0e35ad09fcef98a3df19d3"
+    },
+    {
+      "enabled": true,
+      "name": "openai-docs",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/openai-docs/SKILL.md",
+      "plugin": "__system__",
+      "skill_sha256": "7cb8fa1b2a0c635b5c61ffe1da7b8594a7ea0fce5b71e8d523e2025d88b2a05e"
+    },
+    {
+      "enabled": true,
+      "name": "plugin-creator",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/plugin-creator/SKILL.md",
+      "plugin": "__system__",
+      "skill_sha256": "8fd56316b2c49cbdc657a5d197967a233018e1fada65b00a5dd030dce6499a6e"
+    },
+    {
+      "enabled": true,
+      "name": "review-agent",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/review-agent/SKILL.md",
+      "plugin": "__system__",
+      "skill_sha256": "07079efd0dc76f05fade424e5dfb048dce1de2df7626e1a4f56292a4f3f92228"
+    },
+    {
+      "enabled": true,
+      "name": "skill-creator",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/skill-creator/SKILL.md",
+      "plugin": "__system__",
+      "skill_sha256": "da44c88f6b3845a8fa8c60792ec9a722110a55a9793c279757b48fefb11f819c"
+    },
+    {
+      "enabled": true,
+      "name": "skill-installer",
+      "path": "${CODEX_AUDIT_ROOT}/skills/.system/skill-installer/SKILL.md",
+      "plugin": "__system__",
+      "skill_sha256": "d68b77e5bbb34dedab89d134da52855f140fc4b4299b80104f534e3b9e98f8ee"
+    },
+    {
+      "enabled": true,
+      "name": "agents-sdk",
+      "path": "${CODEX_AUDIT_ROOT}/skills/agents-sdk/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "a05244d3cfb23330daff956ec28a990241f5dbbe489cd7fd6489c8f76bb60877"
+    },
+    {
+      "enabled": true,
+      "name": "cloudflare",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "89bcccbb0b6dc77bec5e348f54a5ed8f1943d6ce56c33231a71fd2cd6bb05714"
+    },
+    {
+      "enabled": true,
+      "name": "cloudflare-email-service",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare-email-service/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "a62531900a08f9f6c352061d42e8b10a35009f5e1c6f91bbf18752feedad5a79"
+    },
+    {
+      "enabled": true,
+      "name": "cloudflare-one",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare-one/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "605336f84979367b6235a57da8ea43e4f3b856a97efd2c95d9e7f90e41bf17ec"
+    },
+    {
+      "enabled": true,
+      "name": "cloudflare-one-migrations",
+      "path": "${CODEX_AUDIT_ROOT}/skills/cloudflare-one-migrations/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "50ed246b92a3f82c7afac864201093269fad8de24e4ce7ea18929103a26adad8"
+    },
+    {
+      "enabled": true,
+      "name": "durable-objects",
+      "path": "${CODEX_AUDIT_ROOT}/skills/durable-objects/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "cd6797cb18f3ae8f721dfd2e5cb27b73a0aa8636683f1a38163dab2fd51a8dfb"
+    },
+    {
+      "enabled": true,
+      "name": "sandbox-sdk",
+      "path": "${CODEX_AUDIT_ROOT}/skills/sandbox-sdk/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "0f3501e6510921401be3f54bcb24d2a432a1b5c63af8f719eded3a087ad88ea9"
+    },
+    {
+      "enabled": true,
+      "name": "turnstile-spin",
+      "path": "${CODEX_AUDIT_ROOT}/skills/turnstile-spin/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "29e762d6c2be595910b219ba204490b35eba309a926fb3228c2ae52d5a2203be"
+    },
+    {
+      "enabled": true,
+      "name": "web-perf",
+      "path": "${CODEX_AUDIT_ROOT}/skills/web-perf/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "94c5cb37766676a8321a82861d2ac1072d3dd0ef612f0c946792014ad48fb0c2"
+    },
+    {
+      "enabled": true,
+      "name": "workers-best-practices",
+      "path": "${CODEX_AUDIT_ROOT}/skills/workers-best-practices/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "099432ff265ff6080327ef0b392c118b835d2a5bda98a7de07e1afd115ed6458"
+    },
+    {
+      "enabled": true,
+      "name": "wrangler",
+      "path": "${CODEX_AUDIT_ROOT}/skills/wrangler/SKILL.md",
+      "plugin": "__standalone__",
+      "skill_sha256": "42abe11ba6c0cb0c135deed1d591d844838fe0b61fc8c6d675a832435508a61b"
+    }
+  ]
+}

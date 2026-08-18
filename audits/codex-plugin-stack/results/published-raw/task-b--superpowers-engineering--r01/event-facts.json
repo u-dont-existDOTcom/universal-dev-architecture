@@ -1,0 +1,430 @@
+[
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "docs/superpowers/specs/2026-08-17-service-registry-resolve-design.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "docs/superpowers/plans/2026-08-17-service-registry-resolve.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "test/registry.test.mjs"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "docs/superpowers/plans/2026-08-17-service-registry-resolve.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "src/registry.mjs"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "turn.completed",
+    "input_tokens": 975647,
+    "output_tokens": 13876
+  }
+]

@@ -1,0 +1,549 @@
+[
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 128,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "tests/test_codex_plugin_benchmark.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "scripts/codex_plugin_benchmark/cli.py",
+      "scripts/codex_plugin_benchmark/scheduler.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 1,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "failed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "scripts/codex_plugin_benchmark/scheduler.py",
+      "tests/test_codex_plugin_benchmark.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "scripts/codex_plugin_benchmark/scheduler.py",
+      "tests/test_codex_plugin_benchmark.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "scripts/codex_plugin_benchmark/scheduler.py",
+      "tests/test_codex_plugin_benchmark.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "tests/test_codex_plugin_benchmark.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "git",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "scripts/codex_plugin_benchmark/scheduler.py",
+      "tests/test_codex_plugin_benchmark.py"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "collab_tool_call",
+    "server": null,
+    "status": "completed",
+    "tool": "wait"
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "inspection",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "event": "item.completed",
+    "exit_code": null,
+    "item_type": "file_change",
+    "paths": [
+      "docs/exec-plans/active/2026-08-17-codex-plugin-ablation-benchmark.md",
+      "docs/superpowers/plans/2026-08-17-codex-plugin-ablation-benchmark.md",
+      "state/CURRENT-STATE.md"
+    ],
+    "server": null,
+    "status": "completed",
+    "tool": null
+  },
+  {
+    "command_class": "test",
+    "event": "item.completed",
+    "exit_code": 0,
+    "item_type": "command_execution",
+    "server": null,
+    "status": "completed",
+    "tool": null
+  }
+]

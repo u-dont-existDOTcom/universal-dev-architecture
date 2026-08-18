@@ -1,0 +1,23 @@
+{
+  "agent_wall_seconds": 85.99825370300096,
+  "codex_exit_code": 0,
+  "condition_id": "maximum-minus-coordinator",
+  "condition_label": "maximum skill surface minus Coordinator and lifecycle hooks",
+  "condition_sha256": "09ce7b0c1c72952a4a04edafd5931dfeabf7cff6a3a44c93ec4bb651db263975",
+  "evaluation_contract_sha256": "20cb4f13903841c5f41533eff0f31a60ca28722d9ab82d0e1e3a3e6da7b90f1d",
+  "fixture_sha256": "bdde51b0c299b47b68d82302517fe107b93a1db8b60693b7f9297af893c51ba6",
+  "hidden_command_sha256": "a0dc709b0e90eebc80e999cc33a56adaef5cce95dbf7c7a036b1ae87d6c7b4fb",
+  "model": "gpt-5.6-sol",
+  "oracle_sha256": "123b294714177452cd400535f207ccbe4c7174563bd68a20f014fa309b7bb504",
+  "reasoning_effort": "xhigh",
+  "repetition": 1,
+  "run_id": "task-c--maximum-minus-coordinator--r01",
+  "schema_version": 1,
+  "status": "completed",
+  "task_id": "task-c",
+  "terminal": true,
+  "timed_out": false,
+  "used_process_jobs": false,
+  "visible_command_sha256": "8d8ae883905406cf3c3c0b959514f605cd5c26af9cc9bddfb78ab8d8f634f372",
+  "wall_seconds": 86.21361276999232
+}

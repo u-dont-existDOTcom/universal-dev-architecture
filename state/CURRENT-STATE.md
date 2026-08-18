@@ -1,6 +1,29 @@
 # Current State
 
-Updated: 2026-08-16
+Updated: 2026-08-17
+
+## Active branch task
+
+- Goal: finish the Codex plugin/skill/tool capability-ablation benchmark and publish the smallest empirically effective stack.
+- Worktree: dedicated isolated audit worktree (local absolute path deliberately omitted from public state).
+- Branch: `codex/plugin-stack-ablation-audit-20260817`.
+- Baseline: fresh `origin/main` at `df1c75ce1066d4ea97194ee92e6b8e4b9715ba38`.
+- Durable design: `docs/superpowers/specs/2026-08-17-codex-plugin-ablation-benchmark-design.md`, committed as `730a3a479f0c83812a4e4f95ed95b10343d90387` and published in draft PR #17.
+- Implementation plan: `docs/superpowers/plans/2026-08-17-codex-plugin-ablation-benchmark.md`.
+- Completed recovery ledger: `docs/exec-plans/completed/2026-08-17-codex-plugin-ablation-benchmark.md`.
+- Owner removed Codex Process Jobs after evidence showed its hard release boundary and global hook conflicted with result-gating work. The owner later removed Superpowers after its Task H treatment was frozen. Do not reinstall either component. Use native process polling and retain only sanitized historical evidence in the public audit.
+- Empire remains operationally dead; do not configure credentials or spend on external routing.
+- Current step: complete. Fifty terminal records are normalized and sanitized; 49 current/equivalent records drive the report and one materially different historical maximum trial is excluded from current aggregation. Final release review is clear, PR #17 is published, and the sanitized `codex-plugin-fix` lessons repository is initialized on `main` without the unrelated local `codexresume` history. Follow-up enforcement now routes global, repository-root, operating-pattern, and reusable-template instructions to the empirical stack decisions, proportional coordination rule, and the current universal lesson index without preloading the complete corpus.
+- Empirical result: native B0 passed all eight A-G baselines and Tasks H/I, while concise-repository B1 passed 3/3 and current maximum passed 5/7. Adversarial review found Task H's original hidden direct-child check stricter than the prompt's recursive relocation contract; after versioned evaluator correction, native and Coordinator both pass C/H. Coordinator cost more on C and less in one H run, so it is uncertain/conditional and outside the minimal stack. Guardrails and Superpowers produced correct Task H workspaces but timed out at 1,200 seconds. Remove both as harmful, remove GitHub workflow instructions from the default path, remove Security's `fix-finding` methodology from the default path, keep the formal Security tool pipeline uncertain/specialized, and do not restore Process Jobs or Empire.
+- Final report: `audits/codex-plugin-stack/reports/final-report.md`; reproducibility entry point: `audits/codex-plugin-stack/README.md`.
+- Publication boundary: the owner explicitly authorized Task H and sanitized publication to PR #17 plus the public `codex-plugin-fix` repository. Verbatim JSONL, logs, model/command output, workspaces, diffs, host paths/identity, and cached installed instructions remain private.
+- Owner instruction architecture: global coordination is now proportional (one agent/no durable artifact for small work), and the continuous-autonomous-completion rule requires routine safe work to continue, material tradeoff questions to include pros/cons and a recommendation, and completeness to win over time-saving shortcuts unless work is tangential or unnecessary. Both changes occurred after controlled trials and receive no invented causal credit.
+- Instruction enforcement: official OpenAI documentation confirms `~/.codex/AGENTS.md` is loaded globally and applicable repository `AGENTS.md` files are layered once per launched session. The global file embeds the native default, canonical audit pointer, and a mandatory substantive-work route through `LESSON-INDEX.md`; this repository's root agreement, operating pattern, and reusable bootstraps require the same index-first, task-relevant retrieval and explicitly prohibit preloading the full lesson corpus. Regression tests prevent removal.
+- Verified local boundary: all fixtures preflighted deterministically; 135 unit tests passed in 90.072 seconds; the deterministic repository audit and `git diff --check` passed; 50 sanitized records were regenerated and scanned; the public companion lessons bundle passed its three structural/sanitization tests. A fresh ephemeral Codex session loaded the global agreement and returned the exact universal repository, `LESSON-INDEX.md` router, selective-loading rule, owner/project precedence, audit branch, and native plugin default without inspecting files.
+- Verified remote boundary before the lesson-routing follow-up: PR #17 head `cf8f42806b6138cf52079bff43e401f9eda67db8` was mergeable/clean and passed deterministic run `32029057329` / job `95384671158` plus CodeQL run `32029054465` / jobs `95384665664` and `95384665851`. Companion `main` is published at `3b3980f586683775205c391f99bf54a37253e2e0`.
+- Handoff condition: publish the final lesson-routing enforcement commit to PR #17 and require its deterministic and CodeQL checks to pass; no further model trials or component decisions are needed.
+
+## Prior canonical repository state
 
 ## Goal
 

@@ -24,9 +24,19 @@ Use the uniquely named `Universal repository compliance / Deterministic reposito
 
 Use a task branch or worktree and a pull request for substantive changes. Track complex work in a durable plan, update `state/CURRENT-STATE.md` at meaningful boundaries, run applicable checks, review the final diff, and complete lesson closeout before reporting completion.
 
-When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: use isolated workspaces, a durable plan and recovery ledger, delegation plus independent review when safely separable, and serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
+When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach proportionately without asking the owner to select an execution mode. Default small or tightly coupled work to one agent and no durable plan artifact. Use isolated workspaces, a durable plan and recovery ledger, and delegation plus independent review when safely separable only when concrete complexity, concurrency, or recovery risk justifies them; serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
+
+## Universal lesson routing
+
+Before substantive work, start with `LESSON-INDEX.md` and treat the index as the router: open only the current patterns or templates whose described trigger materially matches the task. Do not preload the complete lesson, audit, pattern, or template corpus; the index is the routing and supersession authority, not an instruction to load every historical document. Current owner requirements and verified project-specific truth remain authoritative on genuine conflict.
+
+## Codex stack selection
+
+Use the empirical stack audit, not plugin availability, to choose agent workflow components. Before enabling an optional workflow, coordination, security, GitHub, or domain component, read `audits/codex-plugin-stack/activation-rules.md`; use `audits/codex-plugin-stack/reports/final-report.md` for the supporting evidence and limits.
+
+The ordinary default is native Codex plus concise owner/repository instructions and exact repository checks, with no optional general workflow plugin. Do not automatically reinstall or reactivate a component classified `REMOVE` or `REMOVE — HARMFUL`. Keep `UNCERTAIN`, specialized, connector, and domain components inactive until the task satisfies their exact activation rule. A later model or plugin release may supersede a version-specific decision only after a role-relevant rerun records better outcomes, not merely a successful invocation.
 
 ## Specialist architecture dependencies
 

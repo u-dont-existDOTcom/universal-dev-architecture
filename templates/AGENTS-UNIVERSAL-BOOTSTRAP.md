@@ -1,6 +1,8 @@
 # Universal Project Bootstrap
 
-Before substantive work, load the current cross-project guidance from `u-dont-existDOTcom/universal-dev-architecture`, starting with `LESSON-INDEX.md`. Follow only the task-relevant current patterns/templates. Do not rely on remembered lesson lists from prior chats.
+Before substantive work, load the current cross-project guidance from `u-dont-existDOTcom/universal-dev-architecture`, starting with `LESSON-INDEX.md`. Treat the index as a router and follow only the task-relevant current patterns/templates; do not preload the complete lesson, audit, pattern, or template corpus. Do not rely on remembered lesson lists from prior chats.
+
+For Codex component selection, keep the ordinary path native and consult `audits/codex-plugin-stack/activation-rules.md` before enabling an optional workflow, coordination, security, GitHub, or domain component. Use `audits/codex-plugin-stack/reports/final-report.md` for evidence and limits; do not infer benefit from installation or successful invocation.
 
 Authority order:
 

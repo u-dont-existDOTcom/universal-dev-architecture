@@ -1,0 +1,31 @@
+{
+  "accepted_condition_hashes": {
+    "b0": [
+      "4033a9e2cef43b2cf0babfb9dc7a0dd8633b697b5bfb7c8c4b8b0ae8eb1b6683",
+      "4dac820dff44c12ff712df4979529a8fbd3aa722fbce73864020d7c435564c71"
+    ],
+    "coordinator": [
+      "713a512ea16d107ac5e15d0bb110f6ae8604e76a5e52bdb6c009a6eb36b65bb4",
+      "c08102fcb96142494165ca06b812966da343d7d823d180b8a9f3fd93e6d7965d"
+    ],
+    "guardrails": [
+      "0a3d9c743abc544239b5236df19583c0e471971f1f89cae68e26e4e653e12ff1",
+      "f5f62409d99069720b9663d5a19dceedd3297243d86dceb8229d84eed712e494"
+    ],
+    "superpowers-engineering": [
+      "05d81684f12413fafb65bc9568ccb33edf66d15982fabaffc5e6f04f62661a1c",
+      "f4a8e4b90f553e3f86c0b683d686d6cb261ca94c8148ef0e739f24fe0dc55134"
+    ],
+    "superpowers-coordination": [
+      "4dbf922771ef931223e3cb0d839047f3811987ef8b4ff738d9d5dceb4a00f66f",
+      "c3c074f3204a89ae8f95eaf6ee6b108be51bb398cb86cf9257e37f4cfad88fe5"
+    ]
+  },
+  "basis": "Structural comparison established identical enabled skills, optional feature flags, project_doc_max_bytes, repository-instruction state, model, and task fixtures. Earlier hash changes came from removal of disabled Process Jobs and Empire override paths plus updated hash serialization that omits repository_instruction_sha256 when it is null. The Task H Superpowers retry retained the same ten enabled Superpowers skills but omitted additional disabled Coordinator, Guardrails, and Security paths after owner removals and discovered a disabled Visual Truth path; those inactive-surface changes do not alter the treatment.",
+  "excluded_material_change": {
+    "condition_id": "maximum",
+    "hash": "1b126d73ac0e21715d4a04606e7c4d2441e2b5dda793b593e65f4455944c6474",
+    "reason": "Empire skills were enabled, so this is not equivalent to the current maximum surface."
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,1 @@
+{"schema_version":1,"task_id":"task-g","class":"long-running-recovery","visible_test":"node --test test/*.test.mjs","oracle":"oracle/hidden.test.mjs","default_duration_over_60_seconds":true}
