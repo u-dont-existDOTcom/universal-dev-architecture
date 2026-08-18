@@ -18,12 +18,14 @@ Use this file as the entry point for cross-project lesson retrieval.
 12. `patterns/whole-argument-reconstruction.md` — before critiquing, fact-checking, editing, summarizing, or transforming a long source, reconstruct the complete claim across its definitions, qualifications, examples, and callbacks; preserve operative grammar and modality, distinguish true behavior labels from fuller contextual explanations, diagnose setup/placement before declaring an omission, and carry selective-feedback proposals forward without silently losing them.
 13. `patterns/canonical-design-os-bootstrap.md` — for design-domain work, recover the live `u-dont-existDOTcom/design` repository and load its current `skills/design/SKILL.md`; treat it as the specialist design architecture below owner/project truth and universal development rules, never reconstruct it from stale chat memory, and use it only when UI/UX, visual, interaction, long-form reading, design-system, or design-audit concerns materially affect the task.
 14. `patterns/youtube-transcript-workflow.md` — when asked for a YouTube transcript, prefer existing captions first; if none exist, use the validated yt-dlp + Deno + EJS + PO-token/browser download chain with `web_embedded` fallback, then cloud speech-to-text rather than slow local Whisper on low-power Linux. Canonical executable: `scripts/yt-transcript.sh`.
+15. `patterns/exclusive-active-task-locks.md` — for consequential multi-session work with competing handoffs, worktrees, roadmaps, or resumed-agent objectives, keep one exclusive machine-readable, branch-bound task identity; run preflight before old task sources; suspend competing queues explicitly; and separate ordinary repository tests from artifact-based completion, protected merge, and immutable closeout.
 
 ## Reusable policy template
 
 - `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents close the learning loop and preserve resumable durable state without asking the owner to remind them.
 - `templates/CURRENT-STATE.md` — reusable recovery checkpoint for long-running or multi-session work.
 - `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root `AGENTS.md` bootstrap for project repositories; points workers back to this index while embedding the minimum durable-continuity invariant locally and routes design-domain work to the canonical design OS.
+- `templates/ACTIVE-TASK.json` — reusable machine-readable exclusive task lock with branch-bound task identity, preflight, suspended competing task sources, and artifact-based completion semantics.
 
 ## Repository compliance worker architecture
 
@@ -46,6 +48,7 @@ Use this file as the entry point for cross-project lesson retrieval.
   Signal with exact report bytes, private preparation and repair PRs,
   pre/post-transition audit results, hosted readback, immutable scanner and
   CodeQL pins, and explicit limits.
+- `audits/2026-08-18-inner-signal-exclusive-task-lock.md` — resumed-agent task drift, stale branch-local checkpoints, competing worktree/roadmap authority, branch-bound preflight, explicit task-source suspension, and artifact-based completion gates, promoted from InnerSignalGraph PR #11 with causal regressions and explicit limits.
 
 ## Promotion rule
 
@@ -56,5 +59,7 @@ Project-local evidence stays in the project repository. Promote a lesson here on
 Start with this index, then open only the relevant current pattern. Do not load every historical lesson indiscriminately. Newer owner correction and newer validated evidence supersede older conflicting guidance.
 
 For long-running or multi-session project work, the project bootstrap/index should also point to one obvious current-state checkpoint (`CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable file). A fresh worker must reconcile that checkpoint with actual Git state before resuming.
+
+When a consequential task has an exclusive active-task lock, that branch-bound task identity and its preflight outrank unrelated handoffs, worktree checkpoints, autonomous roadmaps, and global next-task selection for that worker. Ordinary green tests remain prerequisites; the task-specific acceptance command defines readiness.
 
 For this repository, the one canonical checkpoint is `state/CURRENT-STATE.md`; root `CURRENT-STATE.md` is only a compatibility pointer.
