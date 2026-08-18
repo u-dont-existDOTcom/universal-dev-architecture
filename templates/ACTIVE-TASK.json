@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "taskId": "replace-with-stable-task-id",
+  "title": "Replace with the exact owner-authorized objective",
+  "status": "active",
+  "exclusive": true,
+  "repository": "owner/repository",
+  "requiredBranch": "agent/replace-with-task-branch",
+  "pullRequest": null,
+  "ownerAuthorized": true,
+  "source": {
+    "repository": "owner/source-repository-or-same-repository",
+    "mainSha": "replace-with-exact-source-sha"
+  },
+  "preflightCommand": "npm run task:preflight",
+  "completionCommand": "npm run task:acceptance",
+  "completionClaimRule": "Ordinary tests and green CI are prerequisites only. Readiness requires the task-specific acceptance command; completion additionally requires protected integration and an immutable receipt.",
+  "suspendedTaskSources": [
+    "old conversation objectives",
+    "unrelated worktree handoffs",
+    "global roadmap selection",
+    "unrelated compliance or release queues"
+  ],
+  "acceptance": {
+    "requiredArtifacts": [],
+    "requiredDocumentation": [],
+    "requiredCommands": []
+  }
+}
