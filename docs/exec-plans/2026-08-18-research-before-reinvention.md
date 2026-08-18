@@ -25,8 +25,8 @@
 - [x] `AGENTS.md`, `docs/INDEX.md`, and `LESSON-INDEX.md` expose one non-conflicting route.
 - [x] `templates/EXEC-PLAN.md`, `templates/CODEX-TASK.md`, and `templates/PRIOR-WORK-SCAN.md` carry the mechanical state/ledger fields.
 - [x] Contract regression covers dispositions, research debt, scholarly specialization, routing, and template fields.
-- [ ] `python3 -m unittest discover -s tests -v` passes.
-- [ ] `python3 scripts/audit_codex_github.py --root . --fail-on error` passes.
+- [x] `python3 -m unittest discover -s tests -v` passes.
+- [x] `python3 scripts/audit_codex_github.py --root . --fail-on error` passes.
 
 **Non-goals:** Do not delete the scholarly-discovery pattern or erase its 2026-08-18 provenance; do not alter unrelated governance/design/active-task controls.
 
@@ -39,12 +39,12 @@
 
 ## Tasks
 
-1. Add the integrated orchestration pattern and prior-work ledger template.
-2. Route root/index documentation to the new orchestration layer while retaining the scholarly specialization.
-3. Add research-before-reinvention fields to task and execution-plan templates.
-4. Add a contract regression that fails if routing/mechanics disappear or the scholarly specialization becomes orphaned.
-5. Preserve this execution plan as the current task recovery ledger; update canonical current-state evidence if a later cross-task handoff requires it.
-6. Run the complete declared deterministic verification and repository audit; review final diff; land by pull request.
+1. Add the integrated orchestration pattern and prior-work ledger template. — complete
+2. Route root/index documentation to the new orchestration layer while retaining the scholarly specialization. — complete
+3. Add research-before-reinvention fields to task and execution-plan templates. — complete
+4. Add a contract regression that fails if routing/mechanics disappear or the scholarly specialization becomes orphaned. — complete
+5. Preserve this execution plan as the current task recovery ledger; update canonical current-state evidence if a later cross-task handoff requires it. — complete for this task boundary
+6. Run the complete declared deterministic verification and repository audit; review final diff; land by pull request. — validation complete; merge pending
 
 ## Progress
 
@@ -52,7 +52,8 @@
 | --- | --- | --- | --- |
 | 2026-08-18 | Live-state reconciliation and reuse decision | `main` `88066557559e137397d3f6f441176c5616772590` + uploaded patch | Implement composed pattern |
 | 2026-08-18 | Composed orchestration pattern, scholarly specialization routing, templates, indexes, and contract test on task branch; PR #21 opened | `codex/research-before-reinvention-20260818`; PR #21 | Run exact required CI and repository audit, review diff, then merge if green |
+| 2026-08-18 | Exact unit-test and repository-audit steps passed in GitHub Actions | run `32131698299`, job `95694072779` | Re-run on this receipt-only head, then merge PR #21 if green |
 
 ## Completion
 
-Record final commit, pull request, checks, remaining limitations, and lesson disposition here before closeout.
+Implementation and first exact validation are complete. PR #21 is the landing vehicle. Final merge commit is recorded by protected-branch history; no known functional limitation remains. The scholarly semantic-discovery pattern remains the academic specialist layer rather than a competing canonical orchestration rule.
