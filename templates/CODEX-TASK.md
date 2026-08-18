@@ -12,6 +12,18 @@
 - Relevant files/artifacts:
 - Current behavior/evidence:
 
+## Research-before-reinvention gate
+
+- Applicability: `required` / `not_applicable` / `deferred`
+- Independent conception snapshot:
+- Underlying-problem search formulations:
+- Academic/standards/tooling/adjacent-discipline scan:
+- Existing-work map: solved / partially solved / composable / incompatible / unresolved / apparently novel or not found
+- Disposition: `reuse` / `adapt` / `compose` / `invent` / `experiment` / `not_applicable`
+- Novel remainder:
+- Strongest external baseline:
+- Research debt and hard trigger, if deferred:
+
 ## Constraints and invariants
 
 - <Requirement that must remain true.>
