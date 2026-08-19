@@ -79,17 +79,15 @@ When a chart contains apparently contradictory signatures, model the **condition
 
 ## Blinded personality-matching extension
 
-When the task is to identify which chart belongs to a known person among decoys:
+When the task is to identify which chart belongs to a known person among controls:
 
 1. Freeze the candidate set before ranking.
 2. Calculate every candidate using identical settings.
-3. Do not regenerate or hand-pick decoys after seeing results.
+3. Do not regenerate or hand-pick candidates after seeing results.
 4. Freeze a target personality description separately from the charts.
-5. Compare charts on the same psychological dimensions rather than free-writing a different narrative for each candidate.
-6. Use pairwise comparisons or a tournament among plausible finalists so each judgment is explicitly contrastive.
-7. Keep birth-date identity hidden from the personality synthesis as far as practical; do not use known age/cohort or biographical lookup as evidence.
-8. Record the ranking before revealing the true chart.
-9. If repeating the test, distinguish exploration from confirmatory trials.
+5. Keep birth-date identity hidden from the personality synthesis as far as practical; do not use known age/cohort or biographical lookup as evidence.
+6. Record the ranking before revealing the true chart.
+7. If repeating the test, distinguish exploration from confirmatory trials.
 
 ## Dual-pass synthesis: exact then intuitive
 
@@ -98,15 +96,14 @@ For exploratory matching, preserve two distinct passes rather than blending them
 ### Pass 1 — exact/auditable
 
 - Calculate positions, houses, angles, dignities, and major aspects first.
-- Generate a structured personality model from the exact chart geometry.
-- Compare candidates on the same explicit behavioral dimensions.
-- Record the ranking before any free-form intuitive pass.
+- Preserve those calculations as the factual substrate.
+- Do not let ephemeris memory or approximate sign guessing enter the synthesis.
 
 ### Pass 2 — intuitive/gestalt
 
-After the exact pass is frozen, temporarily stop treating placements as additive trait scores. Ask instead:
+After exact calculation, stop treating placements as additive trait scores. Ask instead:
 
-> What whole person would this chart most naturally describe, including its internal contradictions, compensations, timing, and conditional behavior?
+> What whole person would this chart most naturally describe, including its internal contradictions, compensations, hidden-vs-public behavior, and context-dependent switching?
 
 The intuitive pass should emphasize **configurations**, not isolated symbols. Examples:
 
@@ -116,9 +113,26 @@ The intuitive pass should emphasize **configurations**, not isolated symbols. Ex
 - strong Gemini/Uranus curiosity + earth/Saturn structure = exploratory mind that can become systematic when a problem warrants it
 - Virgo/Cancer/service signatures + low-status Aquarius/Pisces emphasis = conscientious care without conventional status motivation
 
-The intuitive pass may reorder candidates, but it **must not overwrite the exact ranking**. Save both rankings so later outcome data can tell whether intuition added signal or merely increased narrative overfitting.
+Save the exact chart data and the final gestalt ranking separately so later outcome data can test whether the synthesis added signal.
 
-For confirmatory tests, pre-register whether the exact ranking, intuitive ranking, or a defined combination is the primary endpoint.
+## Minimal-prompt rule for gestalt matching
+
+Do **not** over-specify the reasoning procedure given to the synthesis model.
+
+A user comparison on 2026-08-19 found that a heavily prescribed prompt—technical top-N filtering, explicit pairwise/tournament stages, additive dimensions, and mandatory methodological scaffolding—caused a model that otherwise performed well to become substantially worse at the final personality match. When the prompt was simplified to the target profile, fixed candidates, anti-leakage rules, and the required final ranking, the same model reportedly identified the target correctly on its first choice.
+
+Operational rule:
+
+- keep astronomical calculation exact and auditable;
+- keep candidate identity blinded;
+- give the synthesis model the rich target profile;
+- explicitly request whole-configuration/conditional interpretation;
+- specify the required output;
+- **do not prescribe how the model must arrive at its intuitive synthesis unless an audit specifically requires it**.
+
+This separates two failure modes: mathematical chart errors should be prevented upstream, while psychological synthesis should retain enough representational freedom to recognize interactions that a hand-designed scoring architecture may suppress.
+
+For confirmatory tests, use a fresh context/model instance when possible. A model that has already seen which dates were originally salient, prior rankings, or previous candidate discussions is contaminated even if instructed to ignore them.
 
 ## Standard comparison prompt
 
@@ -148,4 +162,4 @@ Requirements:
 
 ## Provenance
 
-Baseline comparison structure supplied by the user after a successful Gemini astrology workflow; aspect, calculation, anti-generic, blinded-ranking, and exact-vs-intuitive dual-pass extensions added for reproducibility and reuse.
+Baseline comparison structure supplied by the user after a successful Gemini astrology workflow; aspect, calculation, anti-generic, blinded-ranking, exact-vs-intuitive, and minimal-prompt extensions added for reproducibility and reuse.
