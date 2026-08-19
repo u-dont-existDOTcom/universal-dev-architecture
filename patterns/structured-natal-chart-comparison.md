@@ -91,6 +91,35 @@ When the task is to identify which chart belongs to a known person among decoys:
 8. Record the ranking before revealing the true chart.
 9. If repeating the test, distinguish exploration from confirmatory trials.
 
+## Dual-pass synthesis: exact then intuitive
+
+For exploratory matching, preserve two distinct passes rather than blending them invisibly.
+
+### Pass 1 — exact/auditable
+
+- Calculate positions, houses, angles, dignities, and major aspects first.
+- Generate a structured personality model from the exact chart geometry.
+- Compare candidates on the same explicit behavioral dimensions.
+- Record the ranking before any free-form intuitive pass.
+
+### Pass 2 — intuitive/gestalt
+
+After the exact pass is frozen, temporarily stop treating placements as additive trait scores. Ask instead:
+
+> What whole person would this chart most naturally describe, including its internal contradictions, compensations, timing, and conditional behavior?
+
+The intuitive pass should emphasize **configurations**, not isolated symbols. Examples:
+
+- quiet/private Ascendant + strongly Uranian cognition = externally reserved but internally radical
+- water-heavy attachment + Aquarius/Uranus = deep bonding without conventional possessiveness
+- Mars restrained by Saturn/12th-house/Neptune + Pluto trigger = frustration held until a specific boundary or honesty violation produces intensity
+- strong Gemini/Uranus curiosity + earth/Saturn structure = exploratory mind that can become systematic when a problem warrants it
+- Virgo/Cancer/service signatures + low-status Aquarius/Pisces emphasis = conscientious care without conventional status motivation
+
+The intuitive pass may reorder candidates, but it **must not overwrite the exact ranking**. Save both rankings so later outcome data can tell whether intuition added signal or merely increased narrative overfitting.
+
+For confirmatory tests, pre-register whether the exact ranking, intuitive ranking, or a defined combination is the primary endpoint.
+
 ## Standard comparison prompt
 
 Act as an expert astrologer specializing in Western Tropical Astrology and psychological chart synthesis.
@@ -119,4 +148,4 @@ Requirements:
 
 ## Provenance
 
-Baseline comparison structure supplied by the user after a successful Gemini astrology workflow; aspect, calculation, anti-generic, and blinded-ranking extensions added for reproducibility and reuse.
+Baseline comparison structure supplied by the user after a successful Gemini astrology workflow; aspect, calculation, anti-generic, blinded-ranking, and exact-vs-intuitive dual-pass extensions added for reproducibility and reuse.
