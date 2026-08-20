@@ -32,10 +32,11 @@ Treat the natal/symbolic configuration as a set of latent processing modules and
 - **Cognitive-Affective Processing System (CAPS):** stable if-then behavioral signatures and context-triggered processing units.
 - **Whole Trait Theory:** traits as distributions of momentary states with meaningful within-person variability.
 - **Experience-sampling / idiographic personality methods:** observe one person's context-behavior contingencies over time.
-- **Human Design topology:** type, authority, profile, centers, channels, gates, and definition as candidate routing/mechanics features.
-- **Huber Astrological Psychology:** aspect structure as an interaction graph rather than isolated placement keywords.
+- **Human Design topology:** type, authority, profile, centers, channels, gates, definition, Variable, and declared lifecycle techniques as candidate routing/mechanics features.
+- **Huber Astrological Psychology:** aspect structure as an interaction graph rather than isolated placement keywords; Age Progression as a competing developmental timing model.
 - **Cosmobiology:** tight midpoint pictures as lower-flexibility composite features.
 - **Classical natal techniques:** sect, rulership, dignity, angularity, and houses for domain and regulatory context.
+- **Established timing methods:** secondary progressions and solar-arc directions as explicit developmental competitors, not post-hoc repair tools.
 
 ### Adapt
 
@@ -46,6 +47,7 @@ Use psychological context models as the inference architecture while retaining s
 - Unlimited asteroids, lots, harmonics, symbolic degrees, or alternative zodiacs introduced after seeing a mismatch.
 - Wide-orb or generic sign statements used to override tighter contradictory configurations.
 - Treating post-hoc training fit as predictive validity.
+- Introducing a progression, return, transit, cycle, or direction only after a natal interpretation fails, unless that timing layer had already been declared for the target phenomenon.
 
 ### Novel remainder
 
@@ -66,6 +68,7 @@ A domain-routing layer that distinguishes at minimum:
 - Tropical geocentric longitudes and angles from a reproducible ephemeris.
 - Declared house system(s); use a single system per analytic function rather than switching opportunistically.
 - Human Design Personality and Design positions, with the Design moment found by exact 88-degree solar arc.
+- Declare True Node vs Mean Node before interpreting Human Design nodal substructure; Variable can change at Color/Tone level even when Gate/Line does not.
 - Optional sidereal/BaZi comparison only as an explicit competing model, not as a repair kit.
 
 ### 2. Structural feature layer
@@ -74,7 +77,7 @@ Prioritize by decreasing interpretive constraint:
 
 1. exact aspect patterns and angularity;
 2. tight midpoint pictures;
-3. Human Design completed channels, definition topology, authority and profile;
+3. Human Design completed channels, definition topology, authority, profile, and predeclared Variable/substructure;
 4. dispositorship, sect, dignity and house concentration;
 5. individual gates/lines and sign placements;
 6. broad archetypal keywords.
@@ -114,7 +117,29 @@ Routing rules take the form:
 
 Do not reinterpret a global claim as contextual after a contradiction appears unless the context rule is specified prospectively and tested elsewhere.
 
-### 5. Output layer
+### 5. Developmental timing layer
+
+Use timing only when the target claim is genuinely developmental (for example, "this became stronger around age 40") rather than a lifelong baseline.
+
+Predeclare a small candidate set before inspecting the biography:
+
+1. **Secondary progressions** — one ephemeris day after birth per year of life; prioritize progressed Sun, Moon, Mercury, Venus, Mars and tight progressed-to-natal contacts.
+2. **Solar-arc directions** — move natal factors by the solar arc; use tight directed-to-natal contacts and sign/angle changes.
+3. **Huber Age Progression** — use the Huber method on its own declared house system and rules rather than mixing its Age Point opportunistically with another house framework.
+4. **Human Design lifecycle/nodal shift** — if HD is in the candidate model, predeclare whether Saturn Return, Uranus Opposition, Kiron Return, or South-to-North nodal emphasis is relevant.
+5. **Transits** — reserve primarily for bounded temporary activation, not for explaining a stable trait that predates the transit.
+
+For every claimed developmental match, require:
+
+- an approximate onset window supplied independently by the biography;
+- the timing technique and allowable orb/window declared before checking the exact match;
+- at least one competing timing method inspected for contradictory predictions;
+- a statement of whether the timing factor changes **drive/intensity**, **domain salience**, **behavioral routing**, or the underlying module itself;
+- at least one prospective or holdout prediction when feasible.
+
+A natal context gate should not be erased by a progression. Example: a progression may increase romantic drive while a natal social-entry gate still predicts non-initiation. This allows developmental intensity and stable routing to coexist without contradiction.
+
+### 6. Output layer
 
 For each domain, report:
 
@@ -127,13 +152,21 @@ For each domain, report:
 - contradictory indicators;
 - confidence and residual.
 
+For developmental claims also report:
+
+- baseline natal module;
+- timing modifier;
+- expected onset/offset window;
+- observed onset if known;
+- whether the timing match was retrospective, holdout, or prospective.
+
 ## Calibration protocol
 
 1. Freeze the known profile and reserve at least 20 percent of traits as holdout.
 2. Generate chart-derived predictions for the holdout before seeing answers.
 3. Ask discriminating questions that separate competing mechanisms rather than solicit agreement.
 4. Fit the smallest set of context rules that resolves true conditionality.
-5. Penalize each added rule, symbol class, orb expansion, or alternate calculation setting.
+5. Penalize each added rule, symbol class, orb expansion, alternate calculation setting, or timing technique.
 6. Compare against:
    - the strongest single established system;
    - a simple two-system composition;
@@ -154,15 +187,18 @@ Keep scores heuristic unless a real dataset supports statistical inference.
 - decoy discrimination;
 - stability to calculation choices;
 - amount of post-hoc reinterpretation;
+- developmental onset error;
 - residual profile mass left unexplained.
 
 A useful composite can use minimum-description-length logic:
 
-> model value = holdout fit + decoy discrimination - contradiction penalty - interpretive-flexibility penalty - complexity penalty.
+> model value = holdout fit + decoy discrimination + timing accuracy - contradiction penalty - interpretive-flexibility penalty - complexity penalty.
 
 ## Falsification and longitudinal test
 
 Use a brief experience-sampling log for 30-60 days. Record situation type, whether recognition/consent was required, initial bodily signal, chosen action, emotional state, energy before/after, and outcome. Pre-register the model's context rules before collecting the log. Compare observed transitions with predicted module activation.
+
+For timing claims, pre-register upcoming narrow windows when feasible and score predictions after the window closes. Do not count events discovered only after searching the biography as prospective evidence.
 
 ## Reuse rule
 
