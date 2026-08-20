@@ -9,6 +9,12 @@ Authority order:
 3. current universal guidance from `u-dont-existDOTcom/universal-dev-architecture`;
 4. older summaries, stale checkpoints, and remembered chat context.
 
+## Owner-facing operational references
+
+In user-facing prose, explain the thing before its repository or automation identifier. On first use—or after a topic shift—write the plain-language role first and the pull-request number, issue number, branch name, commit SHA, workflow/run/job ID, artifact ID, or similar handle second, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78` alone.
+
+When an owner decision is required, state the substantive choice, consequences, and recommended default in ordinary language. Never ask the owner to choose among opaque PR numbers, branches, commits, or run IDs as though those identifiers were the decision itself. Follow `patterns/human-readable-operational-references.md` for the complete rule.
+
 ## Specialist design architecture
 
 When the task materially involves UI/UX, frontend visual implementation, website or application design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, component design, design systems, design critique/study, accessibility/responsive visual review, or design-production auditing, recover the current `u-dont-existDOTcom/design` repository before substantive design work.
