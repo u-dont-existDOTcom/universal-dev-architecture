@@ -174,6 +174,19 @@ For developmental claims also report:
    - a non-astrological CAPS/Whole-Trait description using behavioral data alone.
 7. Prefer the model only if it improves holdout accuracy and discrimination, not merely autobiographical richness.
 
+### Calibration-question discipline
+
+A calibration question must isolate a prediction rather than bundle several dimensions that can coexist.
+
+- **Name the dependent variable.** Ask whether the model predicts social initiation, physical comfort, task productivity, contemplative depth, food sequencing, trust calibration, or another specific outcome. Avoid vague prompts such as "where do you function better?" when different environments could improve different functions.
+- **Do not force false dichotomies.** If two candidate descriptions can both be true at once (for example exchange-rich surroundings and a boundary landscape), redesign the test so the alternatives make conflicting predictions under matched conditions.
+- **Distinguish preference from mechanism.** If a symbolic system predicts a bodily regimen or performance effect, a self-reported preference is evidence about preference only unless the system explicitly claims the preference itself. Record both separately.
+- **Keep subtype rules fixed before the answer.** If a Color/Tone or other substructure has multiple subtypes, calculate and freeze the exact subtype first. Do not move to a neighboring subtype because the answer contradicts the original prediction.
+- **A failed discriminative prediction remains a failure.** Nearby symbolism can generate a new hypothesis, but it cannot retroactively erase the miss.
+- **Use behavior over endorsement.** Concrete repeated examples, timelines, logs, and natural experiments carry more weight than "this resonates."
+- **For cognitive-style questions, condition on information sufficiency and task stage.** Deliberate reasoning, information gathering, incubation, and spontaneous synthesis can all occur in one problem. Compare their relative use at matched stages rather than asking a global either/or question.
+- **For developmental questions, separate endogenous maturation from learning after events.** If caution increases after a con, breakup, error, or other explicit feedback, the event is an ordinary causal explanation. A timing-system match receives only residual credit beyond that observable learning pathway.
+
 ## Evaluation metrics
 
 Keep scores heuristic unless a real dataset supports statistical inference.
