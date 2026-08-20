@@ -28,6 +28,16 @@ When multiple safe in-scope execution approaches achieve the same outcome, choos
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
 
+## Owner-facing operational references
+
+In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, artifact IDs, and similar opaque references are locating metadata, not semantic referents.
+
+On first use in a response—or again after a topic shift when the referent could be unclear—state the plain-language object or function first and put the identifier second, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78`. When several identifiers are involved, explain their substantive relationship in ordinary language instead of presenting a bare chain such as `PR #35 → PR #78`.
+
+When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
+
+Use `patterns/human-readable-operational-references.md` for the full rationale, examples, and recovery rule.
+
 ## Research before reinvention
 
 Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`.
