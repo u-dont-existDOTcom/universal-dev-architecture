@@ -12,9 +12,10 @@ lesson provenance, and directly verified hosted governance.
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
-- Source baseline for the active coverage-before-depth task:
+- Source baseline for the completed coverage-before-depth task:
   `129ac00bccaf7c45f388d7db8b4b61bbd4baf71b`
-- Active task branch: `agent/treatment-landscape-gate-20260821`
+- Coverage-before-depth merge boundary on `main`:
+  `2e81fefcca500265cad0e1209bab5e8fa2306743`
 - Final verified maintenance boundary on `main`:
   `67418bea3dcf024dae1dbc7ff6558430730ac595`
 - No unresolved compliance or lesson branch remains authoritative; inspect
@@ -115,8 +116,8 @@ lesson provenance, and directly verified hosted governance.
 ## Current checkpoint
 
 - A domain-neutral coverage-before-depth pattern, contract regression, lesson
-  routes, active execution plan, and exact AskRigor promotion audit are
-  implemented on `agent/treatment-landscape-gate-20260821`.
+  routes, completed execution plan, and exact AskRigor promotion audit are
+  merged on `main` through Universal PR #30.
 - The Universal pattern separates selection coverage from per-item audit depth,
   requires explicit candidate fingerprints and uncovered-class state, and
   fails broad synthesis while material selection gaps could change the
@@ -128,6 +129,10 @@ lesson provenance, and directly verified hosted governance.
   11/11, the complete unit suite passed 108/108, the repository audit reported
   `PASS: no findings`, and `git diff --check` was clean after the final
   recovery-record update.
+- Universal PR #30 head checks passed in deterministic run `32538077171` and
+  CodeQL run `32538075438`. It merged as
+  `2e81fefcca500265cad0e1209bab5e8fa2306743`; exact merged-main compliance run
+  `32538146652` and CodeQL run `32538146322` also passed.
 
 - The universal policy/control-plane baseline, public-transition promotion,
   external-evaluation reproducibility pattern, and checkout v7.0.1 dependency
@@ -145,10 +150,6 @@ lesson provenance, and directly verified hosted governance.
   actionable detector.
 
 ## Remaining
-
-- Land the Universal change through a reviewed pull request, then record exact
-  protected-check and merged-main receipts and move the active execution plan
-  to completed in the closeout boundary.
 
 - No known repository-compliance, lesson-publication, dependency-update, or
   hosted-governance task remains from the 2026-08-14/15 hardening sequence.
@@ -192,11 +193,11 @@ lesson provenance, and directly verified hosted governance.
   `patterns/editorial-authority-and-lossless-editing.md`, and the next-step
   continuation rule recorded in
   `audits/2026-08-15-universal-next-step-continuation-rule.md`
-- Active coverage-before-depth work:
+- Promoted coverage-before-depth work:
   `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`,
   `tests/test_coverage_before_depth_pattern.py`, and
-  `docs/exec-plans/active/2026-08-21-coverage-before-depth.md`
+  `docs/exec-plans/completed/2026-08-21-coverage-before-depth.md`
 - Its second adversarial pass covers repeated one/two-fingerprint
   concentration, unsupported relevance waivers, live continuation state,
   per-fingerprint and all-batch follow-up, production-surface receipt emission,
@@ -210,10 +211,6 @@ lesson provenance, and directly verified hosted governance.
 
 ## Next safe action
 
-On `agent/treatment-landscape-gate-20260821`, run the final declared gates,
-review the exact promoted candidate, and land it through the protected pull-
-request workflow.
-
 For a new task, start from current protected `main`, read `LESSON-INDEX.md` and
 the applicable current pattern, and use a focused branch. For maintenance,
 review the next Dependabot or weekly drift result only when it appears; do not
@@ -223,8 +220,8 @@ reopen completed PRs #2, #4, #13, or #14.
 
 After interruption, inspect the Git/merge state, this checkpoint,
 `LESSON-INDEX.md`, the operating-system pattern, the public-transition audit,
-the external-evaluation pattern, the active coverage-before-depth execution
+the external-evaluation pattern, the completed coverage-before-depth execution
 plan, current open PR/check state, and newer owner instructions. Treat PRs #2,
-#4, #11, #12, #13, and #14 as complete, preserve every recovery ref and
+#4, #11, #12, #13, #14, and #30 as complete, preserve every recovery ref and
 unrelated branch, never infer hosted enforcement from files, and preserve the
 exact AskRigor provenance recorded in the promotion audit.

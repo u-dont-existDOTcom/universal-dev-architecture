@@ -75,8 +75,8 @@ learning, repository profile, tests, and canonical state.
   audit; access-boundary and positive-control cases preserve bounded synthesis.
 - [x] Lesson and documentation indexes route the pattern and provenance audit.
 - [x] Exact AskRigor PR #49 merge evidence replaces every provisional field.
-- [x] Canonical current state identifies this active branch, exact AskRigor
-  provenance, verification, and recovery action.
+- [x] Canonical current state identifies the merged Universal boundary, exact
+  AskRigor provenance, protected checks, and completed recovery record.
 - [x] `python3 -m unittest discover -s tests -v` passes.
 - [x] `python3 scripts/audit_codex_github.py --root . --fail-on error` passes.
 
@@ -100,3 +100,4 @@ learning, repository profile, tests, and canonical state.
 | 2026-08-21 | Third AskRigor adversarial findings reproduced test-first | focused regression failed on 29 missing chain-integrity and caller-label assertions | Add authenticated/server-held continuation, cumulative-receipt, and ledger-derived applicability controls; re-run every gate |
 | 2026-08-21 | Third adversarial controls implemented and fully verified | authenticated/server-held continuation, first-to-terminal chain proof, truthful cumulative receipts, and ledger-derived applicability added; 10/10 focused and 107/107 full tests pass; repository audit reports `PASS: no findings` | Keep promotion provisional until exact AskRigor merge receipts exist |
 | 2026-08-21 | Exact AskRigor provenance reconciled and promotion completed | AskRigor PR #49 merged as `458190ab1be0849fba3f5193d59321a9c7f0d8df`; sanitized source audit SHA-256 `a6999861fd00c3047cbd0556d04e3c8ff2b8f93d1a9d0660f4e29ec985bcffd6`; causal regressions named in the promotion audit | Run final Universal gates, review, PR, merge, and closeout |
+| 2026-08-21 | Universal promotion merged, verified, and closed | Universal PR #30 merged as `2e81fefcca500265cad0e1209bab5e8fa2306743`; PR deterministic run `32538077171` and CodeQL run `32538075438` passed; merged-main compliance run `32538146652` and CodeQL run `32538146322` passed; durable state and this completed plan preserve the receipts | Return to normal maintenance |

@@ -72,7 +72,7 @@ remain project-local.
 - Pattern: `patterns/coverage-before-depth-in-selection.md`
 - Router: `LESSON-INDEX.md` and `docs/INDEX.md`
 - Regression: `tests/test_coverage_before_depth_pattern.py`
-- Recovery plan: `docs/exec-plans/active/2026-08-21-coverage-before-depth.md`
+- Completed plan: `docs/exec-plans/completed/2026-08-21-coverage-before-depth.md`
 - Canonical state: `state/CURRENT-STATE.md`
 
 The Universal regression is a durable documentation-contract check. It can
