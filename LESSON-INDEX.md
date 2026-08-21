@@ -25,6 +25,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 19. `patterns/persistent-browser-automation-hygiene.md` — treat persistent browser profiles as authentication/state stores rather than uncontrolled tab archives; bind asynchronous GUI completion to exact artifacts; treat browser-global history as non-authoritative for SPA application records; prefer authenticated application History/record surfaces for recovery; and never repeat ambiguous paid/irreversible actions before exact recovery fails closed.
 20. `patterns/self-updating-launcher-reexec.md` — when a launcher updates code that controls its own remaining execution, detect whether the launcher changed and restart exactly once into the fetched version before consequential downstream work; preserve logs/state across the restart and prevent re-exec loops.
 21. `patterns/github-actions-pr-ref-namespace-safety.md` — when a GitHub Actions audit enumerates PR heads or workflow logs from inside a `pull_request` run, keep audit PR heads in a namespace distinct from checkout-created `refs/remotes/pull/<n>/merge` refs and explicitly exclude `GITHUB_RUN_ID` from in-workflow log retrieval so the audit cannot depend on its own terminal log; validate both hosted execution-topology controls in real PR runs rather than assuming a local clone reproduces them.
+22. `patterns/coverage-before-depth-in-selection.md` — for a broad comparison or landscape synthesis, inventory materially distinct classes before deep selection, fingerprint candidates on decision-relevant dimensions, preserve unknown and uncovered states, and fail the synthesis lock when a narrow or redundant selected set could still change the conclusion; caller size/scope labels cannot waive ledger-derived structural coverage, and continuation completeness requires authenticated or server-held chain state plus truthful cumulative receipts.
 
 ## Reusable policy template
 
@@ -56,6 +57,10 @@ Use this file as the entry point for cross-project lesson retrieval.
   pre/post-transition audit results, hosted readback, immutable scanner and
   CodeQL pins, and explicit limits.
 - `audits/2026-08-18-inner-signal-exclusive-task-lock.md` — resumed-agent task drift, stale branch-local checkpoints, competing worktree/roadmap authority, branch-bound preflight, explicit task-source suspension, and artifact-based completion gates, promoted from InnerSignalGraph PR #11 with causal regressions and explicit limits.
+- `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md` —
+  domain-neutral coverage-before-depth selection and synthesis locks, promoted
+  from AskRigor PR #49 with its exact merge commit, sanitized source digest,
+  causal regressions, and explicit limits.
 
 ## Promotion rule
 

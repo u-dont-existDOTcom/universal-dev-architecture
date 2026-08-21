@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-08-16
+Updated: 2026-08-21
 
 ## Goal
 
@@ -12,6 +12,9 @@ lesson provenance, and directly verified hosted governance.
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
+- Source baseline for the active coverage-before-depth task:
+  `129ac00bccaf7c45f388d7db8b4b61bbd4baf71b`
+- Active task branch: `agent/treatment-landscape-gate-20260821`
 - Final verified maintenance boundary on `main`:
   `67418bea3dcf024dae1dbc7ff6558430730ac595`
 - No unresolved compliance or lesson branch remains authoritative; inspect
@@ -111,6 +114,21 @@ lesson provenance, and directly verified hosted governance.
 
 ## Current checkpoint
 
+- A domain-neutral coverage-before-depth pattern, contract regression, lesson
+  routes, active execution plan, and exact AskRigor promotion audit are
+  implemented on `agent/treatment-landscape-gate-20260821`.
+- The Universal pattern separates selection coverage from per-item audit depth,
+  requires explicit candidate fingerprints and uncovered-class state, and
+  fails broad synthesis while material selection gaps could change the
+  conclusion.
+- AskRigor PR #49 merged as
+  `458190ab1be0849fba3f5193d59321a9c7f0d8df`. The promotion audit records its
+  sanitized source artifact and SHA-256, exact PR, and causal regression paths.
+- Local verification passed on 2026-08-21: the focused regression passed
+  11/11, the complete unit suite passed 108/108, the repository audit reported
+  `PASS: no findings`, and `git diff --check` was clean after the final
+  recovery-record update.
+
 - The universal policy/control-plane baseline, public-transition promotion,
   external-evaluation reproducibility pattern, and checkout v7.0.1 dependency
   update are merged on protected `main` with exact successful deterministic and
@@ -128,6 +146,10 @@ lesson provenance, and directly verified hosted governance.
 
 ## Remaining
 
+- Land the Universal change through a reviewed pull request, then record exact
+  protected-check and merged-main receipts and move the active execution plan
+  to completed in the closeout boundary.
+
 - No known repository-compliance, lesson-publication, dependency-update, or
   hosted-governance task remains from the 2026-08-14/15 hardening sequence.
 - Continue normal reviewed Dependabot handling and weekly drift reconciliation.
@@ -135,6 +157,9 @@ lesson provenance, and directly verified hosted governance.
   cadence or earlier when a material platform behavior changes.
 
 ## Blockers / unresolved
+
+- No AskRigor provenance blocker remains; the exact merged repository evidence
+  is recorded in the promotion audit.
 
 - No applicable repository-control blocker remains. Historical private-plan
   `403` results are superseded by the dated public-repository API evidence in
@@ -167,10 +192,27 @@ lesson provenance, and directly verified hosted governance.
   `patterns/editorial-authority-and-lossless-editing.md`, and the next-step
   continuation rule recorded in
   `audits/2026-08-15-universal-next-step-continuation-rule.md`
+- Active coverage-before-depth work:
+  `patterns/coverage-before-depth-in-selection.md`,
+  `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`,
+  `tests/test_coverage_before_depth_pattern.py`, and
+  `docs/exec-plans/active/2026-08-21-coverage-before-depth.md`
+- Its second adversarial pass covers repeated one/two-fingerprint
+  concentration, unsupported relevance waivers, live continuation state,
+  per-fingerprint and all-batch follow-up, production-surface receipt emission,
+  and maximum accepted transport; AskRigor merge provenance is exact.
+- Its third adversarial pass covers unsigned or caller-editable continuation
+  state, skipped pages or forged offsets, lone continued pages presented as a
+  complete chain, truthful cumulative receipts, and caller size/scope labels
+  that conflict with the valid ledger; AskRigor merge provenance is exact.
 - Final report: `audits/2026-08-14-universal-compliance-report.md`
 - Hosted evidence: `.github/codex-repository.json`, issue #3, and PR CI.
 
 ## Next safe action
+
+On `agent/treatment-landscape-gate-20260821`, run the final declared gates,
+review the exact promoted candidate, and land it through the protected pull-
+request workflow.
 
 For a new task, start from current protected `main`, read `LESSON-INDEX.md` and
 the applicable current pattern, and use a focused branch. For maintenance,
@@ -181,7 +223,8 @@ reopen completed PRs #2, #4, #13, or #14.
 
 After interruption, inspect the Git/merge state, this checkpoint,
 `LESSON-INDEX.md`, the operating-system pattern, the public-transition audit,
-the external-evaluation pattern, current open PR/check state, and newer owner
-instructions. Treat PRs #2, #4, #11, #12, #13, and #14 as complete, preserve
-every recovery ref and unrelated branch, and never infer hosted enforcement
-from files.
+the external-evaluation pattern, the active coverage-before-depth execution
+plan, current open PR/check state, and newer owner instructions. Treat PRs #2,
+#4, #11, #12, #13, and #14 as complete, preserve every recovery ref and
+unrelated branch, never infer hosted enforcement from files, and preserve the
+exact AskRigor provenance recorded in the promotion audit.
