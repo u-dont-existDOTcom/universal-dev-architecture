@@ -134,6 +134,14 @@ Focused tests may be rerun when they are cheap and useful to an active debugging
 
 When testing is non-trivial enough that repeated execution could materially affect task time, start measurement before substantive implementation and route agent-initiated test commands through `scripts/test_efficiency.py` or a project-native equivalent that preserves the same fields.
 
+A project-local copy is **not** assumed to exist. If the active project lacks an equivalent observer, do not silently skip measurement. Before the first substantive test run, do one of the following:
+
+1. vendor/copy the current canonical `scripts/test_efficiency.py` from `u-dont-existDOTcom/universal-dev-architecture` into the project;
+2. execute the current canonical observer from a checked-out universal-architecture repository and pass `--root <PROJECT>`; or
+3. use a project-native observer that preserves this pattern's trigger, fingerprint/deduplication, and summary semantics.
+
+Mark telemetry `not_applicable` only when test execution is genuinely trivial enough that measuring it would cost more than it can plausibly save, and record that rationale in the task/plan. A missing local observer is not a valid `not_applicable` reason.
+
 Reference commands:
 
 ```bash
