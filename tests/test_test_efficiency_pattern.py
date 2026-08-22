@@ -44,6 +44,22 @@ class TestEfficiencyPatternTests(unittest.TestCase):
                 rel,
             )
 
+    def test_missing_project_observer_cannot_silently_disable_telemetry(self):
+        pattern = self.read("patterns/test-efficiency-and-verification-budget.md").lower()
+        agents = self.read("AGENTS.md").lower()
+        bootstrap = self.read("templates/AGENTS-UNIVERSAL-BOOTSTRAP.md").lower()
+        task = self.read("templates/CODEX-TASK.md").lower()
+        plan = self.read("templates/EXEC-PLAN.md").lower()
+
+        self.assertIn("missing local observer", pattern)
+        self.assertIn("--root <project>", pattern)
+        self.assertIn("do not silently skip", agents)
+        self.assertIn("do not silently skip", bootstrap)
+        self.assertIn("missing local observer", task)
+        self.assertIn("missing local observer", plan)
+        for text in (pattern, agents, bootstrap, task, plan):
+            self.assertIn("vendor", text)
+
     def test_full_and_mutation_scopes_require_explicit_trigger_vocabularies(self):
         self.assertIn("pre-pr", tool.FULL_TRIGGERS)
         self.assertIn("high-risk-change", tool.FULL_TRIGGERS)
