@@ -1,7 +1,7 @@
 # Joel Articles transformation-preservation proof promotion
 
 Date: 2026-08-22
-Status: candidate universal promotion
+Status: **promoted**
 
 ## Originating problem
 
@@ -96,10 +96,13 @@ Strong composed baseline:
 
 The promoted pattern adopts the stronger baseline.
 
-## Universal candidate
+## Universal promotion
 
-- `patterns/transformation-preservation-proof.md`
-- indexed from `LESSON-INDEX.md`
+- Pattern: `patterns/transformation-preservation-proof.md`
+- Index route: `LESSON-INDEX.md`
+- Promotion PR: `u-dont-existDOTcom/universal-dev-architecture#32`
+- Promotion merge: `c59dd24f4f18814cae4af516d17f46087fd839a1`
+- Exact-head deterministic run before merge: `32540594665`; 108/108 tests passed and repository audit reported `PASS: no findings`.
 
 Project-local implementation remains in Joel Articles:
 
@@ -120,4 +123,4 @@ Joel-specific article text, owner corrections, detector thresholds, and Pangram 
 
 ## Promotion disposition
 
-`promoted-candidate` pending branch review/merge.
+`promoted` — the pattern and index route are canonical on `main` at merge `c59dd24f4f18814cae4af516d17f46087fd839a1`. The universal contract regression added after promotion protects the discoverability and core bidirectional/zero-unexplained-delta invariants from later accidental removal.
