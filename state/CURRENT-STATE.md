@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-08-21
+Updated: 2026-08-22
 
 ## Goal
 
@@ -12,6 +12,10 @@ lesson provenance, and directly verified hosted governance.
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`
 - Canonical branch: `main`
+- Current test-efficiency merge boundary on `main`:
+  `3df14ea8f0cf5ee623005a4575821c3a2fb766b4`
+- Initial test-efficiency implementation merge boundary:
+  `3fd05b063105584e543b41a735792b336abcda93`
 - Source baseline for the completed coverage-before-depth task:
   `129ac00bccaf7c45f388d7db8b4b61bbd4baf71b`
 - Coverage-before-depth merge boundary on `main`:
@@ -28,6 +32,8 @@ lesson provenance, and directly verified hosted governance.
   `recovery/universal-pre-main-b699b31-774fd0d`
 - Universal entry point: `LESSON-INDEX.md`
 - Current Codex/GitHub policy: `patterns/codex-github-operating-system.md`
+- Current test-efficiency policy:
+  `patterns/test-efficiency-and-verification-budget.md`
 - Repository profile and exact commands: `.github/codex-repository.json`
 - Current owner/project requirements outrank universal defaults on genuine
   conflict.
@@ -115,6 +121,34 @@ lesson provenance, and directly verified hosted governance.
 
 ## Current checkpoint
 
+- The universal test-efficiency policy is merged on protected `main` through
+  PRs #34 and #35. The first merge established the measurement and verification
+  budget; the second made observer adoption fail closed across project repos.
+- `patterns/test-efficiency-and-verification-budget.md` now defines focused and
+  affected tests as the default implementation/debug loop, full suites as
+  explicit checkpoints, and mutation testing as a specialist gate with an
+  explicit trigger rather than a routine consequence of green ordinary tests.
+- `scripts/test_efficiency.py` records task/test wall time, classifies runs by
+  scope, fingerprints repository state plus command selection, skips identical
+  unchanged-state green full/mutation reruns by default, and reports forced
+  redundant-green time plus estimated time avoided.
+- Projects lacking the local observer must vendor the current canonical script,
+  run the canonical observer from a checked-out universal repository with
+  `--root <PROJECT>`, or use a verified project-native equivalent. A missing
+  observer cannot silently disable measurement or justify `not_applicable`.
+- The test-efficiency rule is routed through root `AGENTS.md`, the reusable
+  bootstrap, task contract, execution-plan template, lesson index, and docs
+  index, with regression coverage in `tests/test_test_efficiency_pattern.py`.
+- PR #34 exact head `37e499251f705fe4026a936a6d442f100c312c0d`
+  passed Universal repository compliance run `32584065653` and merged as
+  `3fd05b063105584e543b41a735792b336abcda93`.
+- PR #35 exact head `3f5e61901ed9bc73ed31688a1cc99c2e10b67493`
+  passed Universal repository compliance run `32584231674` and merged as
+  `3df14ea8f0cf5ee623005a4575821c3a2fb766b4`.
+- Required repository-declared completion and CI gates remain intact; the new
+  policy changes selection and timing of evidence collection, not the final
+  confidence boundary.
+
 - A domain-neutral coverage-before-depth pattern, contract regression, lesson
   routes, completed execution plan, and exact AskRigor promotion audit are
   merged on `main` through Universal PR #30.
@@ -151,6 +185,8 @@ lesson provenance, and directly verified hosted governance.
 
 ## Remaining
 
+- No known follow-up remains for the test-efficiency measurement and excessive
+  testing optimization task after the fail-closed propagation and state closeout.
 - No known repository-compliance, lesson-publication, dependency-update, or
   hosted-governance task remains from the 2026-08-14/15 hardening sequence.
 - Continue normal reviewed Dependabot handling and weekly drift reconciliation.
@@ -159,6 +195,7 @@ lesson provenance, and directly verified hosted governance.
 
 ## Blockers / unresolved
 
+- No test-efficiency policy blocker remains.
 - No AskRigor provenance blocker remains; the exact merged repository evidence
   is recorded in the promotion audit.
 
@@ -174,6 +211,14 @@ lesson provenance, and directly verified hosted governance.
 
 ## Evidence / artifacts
 
+- Test-efficiency policy and portable observer:
+  `patterns/test-efficiency-and-verification-budget.md` and
+  `scripts/test_efficiency.py`
+- Test-efficiency regression contract:
+  `tests/test_test_efficiency_pattern.py`
+- Test-efficiency project propagation surfaces: `AGENTS.md`,
+  `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md`, `templates/CODEX-TASK.md`, and
+  `templates/EXEC-PLAN.md`
 - Current implementation plan:
   `docs/superpowers/plans/2026-08-14-universal-dev-architecture-compliance.md`
 - Audit implementation and regressions: `scripts/audit_codex_github.py` and
@@ -212,16 +257,19 @@ lesson provenance, and directly verified hosted governance.
 ## Next safe action
 
 For a new task, start from current protected `main`, read `LESSON-INDEX.md` and
-the applicable current pattern, and use a focused branch. For maintenance,
-review the next Dependabot or weekly drift result only when it appears; do not
-reopen completed PRs #2, #4, #13, or #14.
+the applicable current pattern, and use a focused branch. For non-trivial
+software work, activate the test-efficiency observer before substantive testing
+and let the telemetry determine whether further test-selection optimization is
+needed. For maintenance, review the next Dependabot or weekly drift result only
+when it appears; do not reopen completed PRs #2, #4, #13, #14, #34, or #35.
 
 ## Recovery rule
 
 After interruption, inspect the Git/merge state, this checkpoint,
-`LESSON-INDEX.md`, the operating-system pattern, the public-transition audit,
-the external-evaluation pattern, the completed coverage-before-depth execution
-plan, current open PR/check state, and newer owner instructions. Treat PRs #2,
-#4, #11, #12, #13, #14, and #30 as complete, preserve every recovery ref and
-unrelated branch, never infer hosted enforcement from files, and preserve the
-exact AskRigor provenance recorded in the promotion audit.
+`LESSON-INDEX.md`, the operating-system pattern, the test-efficiency pattern,
+the public-transition audit, the external-evaluation pattern, the completed
+coverage-before-depth execution plan, current open PR/check state, and newer
+owner instructions. Treat PRs #2, #4, #11, #12, #13, #14, #30, #34, and #35
+as complete, preserve every recovery ref and unrelated branch, never infer
+hosted enforcement from files, and preserve the exact AskRigor provenance
+recorded in the promotion audit.
