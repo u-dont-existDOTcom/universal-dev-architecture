@@ -10,6 +10,8 @@ Read in this order:
 
 For substantial bespoke method/framework/architecture/metric/algorithm/taxonomy/protocol/evaluation/workflow invention that plausibly overlaps established knowledge, load `../patterns/research-before-reinvention.md` before further investment. When academic literature is material, that orchestration pattern routes to `../patterns/existing-work-scan-and-scholarly-discovery.md`; use a scholarly semantic search system such as SciSpace when available for terminology/literature discovery, then verify load-bearing claims against primary sources.
 
+For non-trivial software tasks where repeated testing could materially affect wall time, load `../patterns/test-efficiency-and-verification-budget.md`. Measure test cost from the start of substantive implementation, use focused/affected tests in the inner loop, run full suites at explicit checkpoints, and require a specialist trigger for mutation testing. Use `../scripts/test_efficiency.py` or a project-native equivalent to detect/skip redundant unchanged-state green full or mutation reruns and report test-time share.
+
 For a broad comparison or landscape synthesis where omitted alternatives,
 configurations, contexts, or outcome directions could change the conclusion,
 load `../patterns/coverage-before-depth-in-selection.md` before deep candidate
