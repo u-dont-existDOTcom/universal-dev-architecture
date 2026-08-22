@@ -11,9 +11,15 @@ Authority order:
 
 ## Owner-facing operational references
 
-In user-facing prose, explain the thing before its repository or automation identifier. On first use—or after a topic shift—write the plain-language role first and the pull-request number, issue number, branch name, commit SHA, workflow/run/job ID, artifact ID, or similar handle second, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78` alone.
+In user-facing prose, explain the thing before its repository or automation identifier. On first use—or after a topic shift—write the plain-language role first and the pull-request number, issue number, branch name, commit SHA, workflow/run/job ID, artifact ID, or similar handle, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78` alone.
 
 When an owner decision is required, state the substantive choice, consequences, and recommended default in ordinary language. Never ask the owner to choose among opaque PR numbers, branches, commits, or run IDs as though those identifiers were the decision itself. Follow `patterns/human-readable-operational-references.md` for the complete rule.
+
+## Test efficiency
+
+For non-trivial software tasks where repeated tests can materially affect task time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start telemetry before substantive implementation using the project's equivalent of `scripts/test_efficiency.py`.
+
+Use focused/affected tests in the inner loop. Run the full relevant suite at explicit integration/completion checkpoints rather than after every edit. Do not rerun an unchanged green full or mutation suite merely for reassurance. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger. Required final/CI gates still run at their proper checkpoint.
 
 ## Specialist design architecture
 
