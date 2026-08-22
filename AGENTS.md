@@ -24,6 +24,8 @@ Use the uniquely named `Universal repository compliance / Deterministic reposito
 
 For non-trivial software tasks where repeated testing could materially affect task wall time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start test-cost measurement before substantive implementation and route agent-initiated test commands through `scripts/test_efficiency.py` or a project-native equivalent preserving the same semantics and measurements.
 
+If the active project does not already contain an equivalent observer, do not silently skip measurement. Vendor the current canonical `scripts/test_efficiency.py` from this repository, run the current canonical observer from a checked-out copy with `--root <PROJECT>`, or use a verified project-native equivalent. A missing local observer is not a reason to mark telemetry not applicable.
+
 Focused and affected tests are the default inner loop. Full suites are checkpoint-based, not an after-every-edit reflex. Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger; ordinary green tests are not by themselves a reason to launch mutation testing.
 
 Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.
@@ -38,7 +40,7 @@ An owner answer, correction, upload, or requested clarification is input to the 
 
 ## Owner-facing operational references
 
-In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, artifact IDs, and similar opaque references are locating metadata, not semantic referents.
+In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.
 
 On first use in a response—or again after a topic shift when the referent could be unclear—state the plain-language object or function first and put the identifier second, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78`. When several identifiers are involved, explain their substantive relationship in ordinary language instead of presenting a bare chain such as `PR #35 → PR #78`.
 
