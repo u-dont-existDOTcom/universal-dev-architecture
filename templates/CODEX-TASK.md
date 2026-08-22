@@ -43,12 +43,19 @@
 ## Verification
 
 - Focused test/check: `<COMMAND>`
+- Affected test/check or selection mechanism: `<COMMAND / TOOL / NOT APPLICABLE>`
 - Full test/check: `<COMMAND>`
+- Full-suite checkpoint trigger(s): `<baseline / integration-boundary / high-risk-change / pre-commit / pre-pr / pre-handoff / release-gate / ci / owner-request>`
+- Mutation testing: `<NOT APPLICABLE OR COMMAND + EXPLICIT TRIGGER>`
+- Test-efficiency telemetry: `<scripts/test_efficiency.py / PROJECT-NATIVE EQUIVALENT / NOT APPLICABLE>`
+- Test-efficiency task id: `<TASK-ID>`
 - Lint/format: `<COMMAND OR NOT APPLICABLE>`
 - Typecheck: `<COMMAND OR NOT APPLICABLE>`
 - Build/package: `<COMMAND OR NOT APPLICABLE>`
 - Live/manual validation: `<EXACT PROCEDURE OR NOT APPLICABLE>`
 - Repository audit: `<COMMAND>`
+
+For non-trivial software testing, start telemetry before substantive implementation. Use focused/affected tests in the inner loop, full suites at explicit checkpoints, and mutation testing only under an explicit specialist trigger. Do not repeat an unchanged green full or mutation suite without a recorded material reason. Follow `patterns/test-efficiency-and-verification-budget.md`.
 
 ## Risks and rollback
 
@@ -67,5 +74,6 @@
 
 - Final commit(s):
 - Commands actually run and results:
+- Test-efficiency summary: task wall time; test wall time/share; scope breakdown; failure-discovering runs; full/mutation time; forced redundant-green time; redundant runs skipped/estimated time avoided
 - Deviations/blockers/residual risk:
 - Lesson dispositions:
