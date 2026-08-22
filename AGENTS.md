@@ -13,12 +13,20 @@ Project-specific current requirements win on genuine conflict.
 
 ## Validation
 
-Run both exact commands declared in `.github/codex-repository.json`:
+Run both exact commands declared in `.github/codex-repository.json` before completion:
 
 - `python3 -m unittest discover -s tests -v`
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`
 
 Use the uniquely named `Universal repository compliance / Deterministic repository audit` GitHub Actions check. Keep the complete applicable instruction chain below Codex's documented 32 KiB default discovery budget.
+
+## Test-efficiency policy
+
+For non-trivial software tasks where repeated testing could materially affect task wall time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start test-cost measurement before substantive implementation and route agent-initiated test commands through `scripts/test_efficiency.py` or a project-native equivalent preserving the same semantics and measurements.
+
+Focused and affected tests are the default inner loop. Full suites are checkpoint-based, not an after-every-edit reflex. Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger; ordinary green tests are not by themselves a reason to launch mutation testing.
+
+Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.
 
 ## Workflow
 
