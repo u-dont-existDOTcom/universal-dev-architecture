@@ -19,6 +19,8 @@ When an owner decision is required, state the substantive choice, consequences, 
 
 For non-trivial software tasks where repeated tests can materially affect task time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start telemetry before substantive implementation using the project's equivalent of `scripts/test_efficiency.py`.
 
+If no project-local equivalent exists, vendor the current canonical observer from `u-dont-existDOTcom/universal-dev-architecture`, or execute the current canonical observer from a checked-out universal repository with `--root <PROJECT>`. Do not silently skip telemetry because the project lacks the file; a missing observer is not a valid `not_applicable` reason.
+
 Use focused/affected tests in the inner loop. Run the full relevant suite at explicit integration/completion checkpoints rather than after every edit. Do not rerun an unchanged green full or mutation suite merely for reassurance. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger. Required final/CI gates still run at their proper checkpoint.
 
 ## Specialist design architecture

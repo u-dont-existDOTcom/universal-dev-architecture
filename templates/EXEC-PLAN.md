@@ -27,6 +27,7 @@
 For non-trivial software testing, follow `patterns/test-efficiency-and-verification-budget.md`.
 
 - **Telemetry:** `scripts/test_efficiency.py` / project-native equivalent / not applicable
+- **Observer acquisition if absent:** vendor current canonical observer / run canonical observer with `--root <PROJECT>` / verified project-native equivalent
 - **Task id:** stable identifier used for the telemetry session
 - **Focused tests:** smallest behavior-specific checks used in the edit/debug loop
 - **Affected-test selection:** project-native impact analysis, dependency/package selection, coverage-based selection, or explicit rationale
@@ -34,6 +35,8 @@ For non-trivial software testing, follow `patterns/test-efficiency-and-verificat
 - **Mutation-testing trigger:** test-quality-change / high-risk-logic / survivor-followup / explicit-owner / release-gate / not applicable
 - **Redundant-green rule:** unchanged green full/mutation runs are skipped unless a material force-rerun reason is recorded
 - **Completion metrics:** task wall time; test wall time/share; scope breakdown; failure-discovering runs; full/mutation time; forced redundant-green time; redundant runs skipped and estimated time avoided
+
+A missing local observer does not make telemetry `not_applicable`. Only genuinely trivial test execution may use that disposition, with rationale recorded.
 
 ## Decisions
 
