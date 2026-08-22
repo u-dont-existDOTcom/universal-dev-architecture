@@ -48,6 +48,7 @@
 - Full-suite checkpoint trigger(s): `<baseline / integration-boundary / high-risk-change / pre-commit / pre-pr / pre-handoff / release-gate / ci / owner-request>`
 - Mutation testing: `<NOT APPLICABLE OR COMMAND + EXPLICIT TRIGGER>`
 - Test-efficiency telemetry: `<scripts/test_efficiency.py / PROJECT-NATIVE EQUIVALENT / NOT APPLICABLE>`
+- Test-efficiency observer acquisition if absent: `<VENDOR CURRENT CANONICAL OBSERVER / RUN CANONICAL OBSERVER WITH --root <PROJECT> / VERIFIED PROJECT-NATIVE EQUIVALENT>`
 - Test-efficiency task id: `<TASK-ID>`
 - Lint/format: `<COMMAND OR NOT APPLICABLE>`
 - Typecheck: `<COMMAND OR NOT APPLICABLE>`
@@ -55,7 +56,7 @@
 - Live/manual validation: `<EXACT PROCEDURE OR NOT APPLICABLE>`
 - Repository audit: `<COMMAND>`
 
-For non-trivial software testing, start telemetry before substantive implementation. Use focused/affected tests in the inner loop, full suites at explicit checkpoints, and mutation testing only under an explicit specialist trigger. Do not repeat an unchanged green full or mutation suite without a recorded material reason. Follow `patterns/test-efficiency-and-verification-budget.md`.
+For non-trivial software testing, start telemetry before substantive implementation. Use focused/affected tests in the inner loop, full suites at explicit checkpoints, and mutation testing only under an explicit specialist trigger. Do not repeat an unchanged green full or mutation suite without a recorded material reason. If the project lacks the observer, vendor/run the current canonical observer or use a verified equivalent; a missing local observer is not a valid reason to mark telemetry not applicable. Follow `patterns/test-efficiency-and-verification-budget.md`.
 
 ## Risks and rollback
 
