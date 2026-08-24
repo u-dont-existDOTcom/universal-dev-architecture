@@ -121,6 +121,17 @@ lesson provenance, and directly verified hosted governance.
 
 ## Current checkpoint
 
+- On 2026-08-24, Joel established a capability-based Chat-to-Work routing rule:
+  repository involvement alone stays in Chat when its current tools suffice;
+  a genuinely missing terminal/shell capability triggers one bounded Work task,
+  whose result returns to the originating Chat without owner message-shuttling.
+  The current pattern, owner-policy audit, root agreement, reusable template,
+  lesson route, and regression are recorded in
+  `patterns/chat-work-terminal-routing.md`,
+  `audits/2026-08-24-chat-work-terminal-routing-owner-policy.md`, `AGENTS.md`,
+  `templates/AGENTS-CODEX.md`, `LESSON-INDEX.md`, and
+  `tests/test_chat_work_terminal_routing.py`.
+
 - The universal test-efficiency policy is merged on protected `main` through
   PRs #34 and #35. The first merge established the measurement and verification
   budget; the second made observer adoption fail closed across project repos.
@@ -211,6 +222,10 @@ lesson provenance, and directly verified hosted governance.
 
 ## Evidence / artifacts
 
+- Chat-to-Work capability routing:
+  `patterns/chat-work-terminal-routing.md`,
+  `audits/2026-08-24-chat-work-terminal-routing-owner-policy.md`, and
+  `tests/test_chat_work_terminal_routing.py`
 - Test-efficiency policy and portable observer:
   `patterns/test-efficiency-and-verification-budget.md` and
   `scripts/test_efficiency.py`
