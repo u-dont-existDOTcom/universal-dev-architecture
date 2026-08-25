@@ -13,10 +13,12 @@ Project-specific current requirements win on genuine conflict.
 
 ## Validation
 
-Run both exact commands declared in `.github/codex-repository.json` before completion:
+Run both exact commands declared in `.github/codex-repository.json` before completion **when the active task is at the repository's merge/release completion boundary**:
 
 - `python3 -m unittest discover -s tests -v`
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`
+
+Do not reinterpret release/merge completion gates as prerequisites for ordinary experimental iteration. Use the assurance-lane policy below to bind validation to the decision currently being made.
 
 Use the uniquely named `Universal repository compliance / Deterministic repository audit` GitHub Actions check. Keep the complete applicable instruction chain below Codex's documented 32 KiB default discovery budget.
 
@@ -30,11 +32,33 @@ Focused and affected tests are the default inner loop. Full suites are checkpoin
 
 Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.
 
+## Development assurance lanes
+
+For software/product development, load `patterns/development-assurance-lanes.md` and match assurance to the decision being made now.
+
+Default to the **Iteration lane** unless the owner or current project requirements actually establish a stronger boundary. A request such as “fix this,” “why is this worse?”, “try this architecture,” “make the app better,” or “let me test it” is not by itself a request for merge/release certification.
+
+- **Iteration:** smallest reversible candidate, focused/affected tests, a few representative product cases, and early owner/product evaluation. Do not require full repository verification, multi-model judge tournaments, mutation campaigns, publication scans, multiple independent reviews, or a merge-ready PR merely to let the owner try a safe reversible candidate.
+- **Decision:** use a bounded direct comparison only when a material architecture/product choice genuinely remains unresolved. Hold unrelated variables constant, compare the minimal alternatives directly, and stop when enough evidence exists to choose the next reversible implementation. Prefer the simpler candidate when decision-relevant evidence is effectively tied.
+- **Release:** run the full applicable repository, CI, security/privacy, independent-review, rollback, publication, installation, and release gates only when actually preparing to merge, release, publish, install, deploy, migrate, or cross another consequential production boundary.
+
+High-risk invariants can require targeted hard gates in Iteration/Decision, but one safety-sensitive surface does not import every unrelated release gate into the inner loop.
+
+Before launching expensive validation, require a concrete answer to: **what current decision can this result change?** If none, defer it as later assurance debt.
+
+Optional evaluator/provider outages or rate limits must not freeze unrelated development. Preserve the blocker, continue safe work, and defer optional evidence unless it is genuinely necessary for the current decision. Never bypass a hard gate or substitute an unauthorized model merely to avoid a limit.
+
+After a high-rigor investigation or release, ordinary development returns to Iteration. Do not create an assurance ratchet where one difficult task permanently makes every later change release-grade.
+
+If a durable task lock/checkpoint encodes a stronger stale lane and the owner explicitly returns the project to rapid experimentation, update/supersede that task state rather than continuing the obsolete campaign.
+
 ## Workflow
 
-Use a task branch or worktree and a pull request for substantive changes. Track complex work in a durable plan, update `state/CURRENT-STATE.md` at meaningful boundaries, run applicable checks, review the final diff, and complete lesson closeout before reporting completion.
+Use a task branch or worktree for substantive changes when isolation/recovery is useful. Open a pull request when the current task is actually approaching a review/merge boundary or the owner/project requires one; a reversible experimental candidate does not need to become merge-ready before the owner can try it.
 
-When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: use isolated workspaces, a durable plan and recovery ledger, delegation plus independent review when safely separable, and serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
+Track complex work in a durable plan, update `state/CURRENT-STATE.md` at meaningful boundaries, run the checks appropriate to the active assurance lane, review the relevant diff before crossing the corresponding boundary, and complete lesson closeout at the task's actual completion level. Do not use release completion semantics for an iteration experiment.
+
+When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: use isolated workspaces, a durable plan and recovery ledger, delegation plus independent review when safely separable and decision-relevant, and serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
 
