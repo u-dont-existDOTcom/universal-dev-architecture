@@ -9,6 +9,24 @@ Authority order:
 3. current universal guidance from `u-dont-existDOTcom/universal-dev-architecture`;
 4. older summaries, stale checkpoints, and remembered chat context.
 
+## Development assurance lane
+
+For software/product work, load `patterns/development-assurance-lanes.md`.
+
+Default to **Iteration** unless the owner or current project requirements actually establish a decision or release boundary. Ordinary requests such as “fix this,” “why is this worse?”, “try this approach,” “make the app better,” or “let me test it” do not by themselves authorize or require release-grade verification.
+
+- **Iteration:** build the smallest reversible candidate, run focused/affected tests plus a few representative behavior cases, and get the actual candidate in front of the owner/product evaluator early.
+- **Decision:** when a material architecture/product choice remains unresolved, run the smallest direct comparison that can settle it. Hold unrelated variables constant and stop when enough evidence exists for the next reversible implementation.
+- **Release:** only when actually preparing to merge, release, publish, install, deploy, migrate, or cross another consequential boundary, run the complete applicable repository/CI/security/privacy/review/rollback/release gates.
+
+High-risk behavior may require targeted hard gates during Iteration/Decision. Do not use one hard invariant to import every unrelated release gate into the inner loop.
+
+Before expensive validation, require a concrete answer to: `What current decision can this result change?` If none, defer it. Optional model judges, hosted evaluation, or CI rate limits must not freeze unrelated safe development.
+
+After a high-rigor task, return ordinary development to Iteration. Do not preserve a permanent assurance ratchet.
+
+If an active task lock/checkpoint encodes stale release-grade completion and the owner explicitly returns the project to experimentation, supersede/update the task state rather than continuing the obsolete campaign.
+
 ## Owner-facing operational references
 
 In user-facing prose, explain the thing before its repository or automation identifier. On first use—or after a topic shift—write the plain-language role first and the pull-request number, issue number, branch name, commit SHA, workflow/run/job ID, artifact ID, or similar handle, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78` alone.
@@ -21,7 +39,7 @@ For non-trivial software tasks where repeated tests can materially affect task t
 
 If no project-local equivalent exists, vendor the current canonical observer from `u-dont-existDOTcom/universal-dev-architecture`, or execute the current canonical observer from a checked-out universal repository with `--root <PROJECT>`. Do not silently skip telemetry because the project lacks the file; a missing observer is not a valid `not_applicable` reason.
 
-Use focused/affected tests in the inner loop. Run the full relevant suite at explicit integration/completion checkpoints rather than after every edit. Do not rerun an unchanged green full or mutation suite merely for reassurance. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger. Required final/CI gates still run at their proper checkpoint.
+Use focused/affected tests in the inner loop. Run the full relevant suite at explicit integration/completion checkpoints appropriate to the active assurance lane rather than after every edit. Do not rerun an unchanged green full or mutation suite merely for reassurance. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger. Required final/CI gates still run at their proper release/merge checkpoint.
 
 ## Specialist design architecture
 
@@ -35,9 +53,9 @@ Do not load the design dependency for backend-only or otherwise non-design work.
 
 Treat conversation/context as disposable working memory. Treat the repository as durable project memory and Git history as the audit trail.
 
-For long-running, multi-step, autonomous, or multi-session work, maintain one obvious project-local current-state checkpoint (`CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an existing project equivalent). It must be concise enough for a fresh competent worker to recover the goal, active decisions/constraints, completed work, current step, remaining work, blockers, relevant evidence/tests/branches/commits, and next safe action without the old transcript.
+For long-running, multi-step, autonomous, or multi-session work, maintain one obvious project-local current-state checkpoint (`CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an existing project equivalent). It must be concise enough for a fresh competent worker to recover the goal, active assurance lane, active decisions/constraints, completed work, current step, remaining work, blockers, relevant evidence/tests/branches/commits, deferred release obligations, and next safe action without the old transcript.
 
-Update that checkpoint at meaningful durable boundaries, including consequential decisions, milestones, blockers, handoffs, and before claiming multi-step work complete.
+Update that checkpoint at meaningful durable boundaries, including consequential decisions, milestones, blockers, handoffs, lane changes, and before claiming multi-step work complete at the current lane.
 
 After interruption, a fresh thread, context compaction, or model switch, inspect actual repository state and recent relevant commits/artifacts first. Reconcile the checkpoint, identify exactly what survived, repair stale entries, and resume from the latest verified durable boundary without repeating completed work.
 
