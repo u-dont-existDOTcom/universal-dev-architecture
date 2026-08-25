@@ -121,6 +121,17 @@ lesson provenance, and directly verified hosted governance.
 
 ## Current checkpoint
 
+- The AskRigor Phase K terminal-discovery incident is promoted as the
+  domain-neutral `patterns/executable-frontier-coherence.md` candidate. It
+  requires every authoritative nonfinal state to expose executable work or a
+  stable terminal boundary, reconciles operation/frontier/product projections,
+  preserves retryable and independent lanes, requires truthful transition
+  receipts, and tests wrapper-plus-specialist composition.
+- The source candidate is AskRigor PR #98 at
+  `0f706fcb07c37eea14267688715d091ccba72f1f`, merged as
+  `ab2433c5d774081dff4fecb2f78600b213b250a2` after deterministic,
+  workflow-policy, and CodeQL head checks passed.
+
 - The universal test-efficiency policy is merged on protected `main` through
   PRs #34 and #35. The first merge established the measurement and verification
   budget; the second made observer adoption fail closed across project repos.
