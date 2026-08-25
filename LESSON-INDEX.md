@@ -30,6 +30,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 24. `patterns/test-efficiency-and-verification-budget.md` — preserve regression confidence while minimizing low-information test repetition: measure test wall-time share, use focused/affected tests in the inner loop, make full suites checkpoint-based, require explicit mutation-testing triggers, fingerprint repository state, and skip unchanged-state green full/mutation reruns unless a material force-rerun reason exists. Portable baseline: `scripts/test_efficiency.py`.
 25. `patterns/independent-evaluation-separation.md` — when a fresh evaluation is worth the coordination cost, make independence real rather than role-played: separate the evaluator from the producing context, blind the first pass to producer rationale/prior verdicts where valid, disclose the minimum authoritative context needed for a fair assessment, freeze findings before reconciliation, and keep the independent evaluator diagnostic rather than automatically authoritative.
 26. `patterns/development-assurance-lanes.md` — default ordinary software/product work to rapid reversible iteration; use bounded decision experiments only when a material choice remains unresolved; reserve full repository/release assurance for actual merge/release/deploy/publication boundaries; require every expensive validation action to name the current decision it can change; keep targeted hard safety gates in the inner loop without importing unrelated release ceremony; and prevent optional evaluator/provider limits from freezing unrelated development.
+27. `patterns/executable-frontier-coherence.md` — for server-controlled multi-stage workflows, require every nonfinal state to expose server-directed work or an explicit terminal blocked/bounded boundary; reconcile operation, retained frontier, and product projection; preserve retryability and independent lanes; derive truthful transition receipts; and test that compact wrappers do not weaken specialist worker contracts.
 
 ## Reusable policy template
 
@@ -65,6 +66,11 @@ Use this file as the entry point for cross-project lesson retrieval.
   domain-neutral coverage-before-depth selection and synthesis locks, promoted
   from AskRigor PR #49 with its exact merge commit, sanitized source digest,
   causal regressions, and explicit limits.
+- `audits/2026-08-25-askrigor-executable-frontier-coherence.md` —
+  nonfinal controller liveness, retained-frontier reconciliation, truthful
+  transition evidence, independent-lane continuation, and wrapper/worker
+  composition, promoted from AskRigor PR #98 with causal regressions and
+  explicit limits.
 
 ## Promotion rule
 

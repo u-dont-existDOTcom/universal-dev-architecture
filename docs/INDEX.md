@@ -21,6 +21,14 @@ caller-supplied corpus label, and do not accept a continued page as complete
 chain coverage without authenticated or server-held continuation state and
 cumulative receipts.
 
+For a server-controlled, resumable, multi-provider, or multi-stage workflow,
+load `../patterns/executable-frontier-coherence.md` when unfinished state loses
+its next capability, terminal and retryable projections diverge, a failed lane
+suppresses independent work, or a compact wrapper may weaken its specialist
+worker contract. A nonfinal state must expose server-directed work or an
+explicit terminal blocked/bounded boundary; absence of a next capability never
+authorizes finalization.
+
 Templates live in `../templates/`. Use `../templates/PRIOR-WORK-SCAN.md` for durable prior-work/reuse/novelty ledgers. Execution plans live in `exec-plans/`.
 
 `../patterns/codex-github-operating-standard.md` is retained as superseded provenance and routes to the operating-system pattern. It is not a second current standard.
