@@ -68,6 +68,21 @@ Record:
 
 “Redundant,” “inferable,” “smoother,” and “better for the detector” are not deletion authority. A later worker must be able to recover what changed and why without reconstructing it from Git archaeology or chat.
 
+## Make every proposed edit operationally placeable
+
+Whenever recommending or supplying an addition, replacement, move, consolidation, or deletion for an existing artifact, identify the exact destination against the inspected current version. A complete placement instruction includes:
+
+- the target artifact and revision or authority state;
+- the nearest existing heading and the new heading level, when applicable;
+- the operation: insert before, insert after, replace, move, consolidate, or delete;
+- a stable textual anchor, block ID, or exact replacement start and end boundaries;
+- the disposition of any displaced material;
+- transition, table-of-contents, citation, link, caption, media, or native-object dependencies that the edit changes.
+
+For several edits, provide an ordered placement map. Prefer quoted text anchors or stable passage IDs to bare page or line numbers, because pagination and line numbers drift after earlier edits. Line or page numbers may supplement the anchor.
+
+“Add this near the discussion of X,” “this could go under Y,” and a standalone passage with no destination are incomplete edit proposals. If the current artifact has not been inspected closely enough to establish a reliable anchor, retrieve it before proposing the edit. After applying an earlier edit, re-resolve downstream anchors against the changed artifact rather than assuming their old positions still hold.
+
 ## Keep citations and detector evidence subordinate
 
 Attach evidence and uncertainty to claims, not merely to paragraphs. Distinguish verified, inaccessible, disputed, owner-only, unresolved, and not-applicable claims. Never fabricate a citation, and never flatten an argument merely because a strong source is hard to obtain.
