@@ -9,7 +9,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 3. `patterns/github-first-agent-bootstrap.md` — keep agent/project UI state minimal, fetch current canonical state from GitHub, separate canonical project state from specialist evidence, and never let stale bundles overwrite newer Git state.
 4. `patterns/context-compaction-resilience.md` — treat conversation as disposable working RAM, Git as durable project memory/audit history, maintain one concise current-state recovery checkpoint for long-running work, and reconcile that checkpoint against actual Git state after interruption, context compaction, model switch, or a fresh thread.
 5. `patterns/paid-workflow-safety.md` — gate paid, privileged, or irreversible GitHub Actions behind a fail-closed registration topology, deterministic secret-free validation, environment-file injection defenses, late credential/secret boundaries, and exact archival provenance.
-6. `patterns/editorial-authority-and-lossless-editing.md` — establish complete article-local authority before editing, preserve exact owner locks and protected functions, require reversible deletion and consolidation, keep citation/detector evidence subordinate to meaning, and bind publication provenance.
+6. `patterns/editorial-authority-and-lossless-editing.md` — establish complete article-local authority before editing, preserve exact owner locks and protected functions, require reversible deletion and consolidation, make every proposed addition/replacement/move/deletion operationally placeable with exact current-version anchors and dependency repairs, keep citation/detector evidence subordinate to meaning, and bind publication provenance.
 7. `patterns/source-interpretation-provenance.md` — keep exact source wording/provenance separate from later interpretations, repair downstream dependents when a paraphrase was misattributed, and do not force a project-level origin idea to govern a narrower local task without verifying that dependency.
 8. `patterns/conversational-prose-speakability.md` — for conversational writing, preserve the connective relations a person would actually say aloud, avoid artificial staccato created by hiding conjunctions behind hard stops, prefer active/experiencer-centered phrasing when natural, and audit accidental local word repetition without mechanically banning fragments, passives, or repeated words.
 9. `patterns/external-evaluation-reproducibility.md` — treat historical pass/green labels as evidence history rather than current controls unless the exact boundary and evaluator provenance reproduce; if the unchanged control itself changes result, stop causal attribution, preserve the discrepancy, and establish a new current baseline instead of rewriting to reconcile stale evaluation history.
@@ -50,7 +50,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `audits/2026-08-14-askrigor-transferable-controls.md` — exact-byte
   authority, truthful partial-access states, bounded opt-in live validation,
   public read-only service safety, and structure-aware secret detection,
-  promoted from AskRigor with source hashes, tests, and explicit limits.
+  promoted from AskRigor with source hashes, tests, limits, and anti-patterns.
 - `audits/2026-08-14-askrigor-lessons-transferable-design.md` —
   non-authoritative lesson ledgers, immutable byte provenance, executable
   dispositions/supersession, explicit freshness ownership, and bounded
