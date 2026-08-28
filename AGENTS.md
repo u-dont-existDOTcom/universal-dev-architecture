@@ -62,6 +62,14 @@ When multiple safe in-scope execution approaches achieve the same outcome, choos
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
 
+## Browser-control efficiency
+
+For browser automation or browser control, default to **headless mode**. Use a headed/visible browser only when the task materially depends on visible browser or OS interaction, headed-only behavior, extension UI, native dialogs, window/focus behavior, WebAuthn/passkeys, visual debugging, or another capability that cannot be reproduced reliably headlessly. When deviating from headless mode, preserve the reason in the task record when one exists.
+
+Reuse the existing browser process, context, page, or tab across sequential steps when the same session or target will be used again. Prefer navigating or resetting the existing page over repeatedly opening and closing an equivalent tab. Do not churn tabs merely as a generic cleanup habit.
+
+Create a fresh page/context/session only when there is a concrete need for isolation, parallelism, a clean authentication/storage state, cross-account separation, recovery from corrupted/stale page state, or behavior whose correctness depends on a fresh browsing context. Close reusable browser state only when the task is finished or keeping it alive creates a material resource, security, privacy, or state-contamination risk.
+
 ## Owner-facing operational references
 
 In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.
