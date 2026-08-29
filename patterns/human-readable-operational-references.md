@@ -22,6 +22,46 @@ Do not make an opaque identifier carry meaning by itself:
 
 When the same referent remains obvious in the immediately continuing discussion, the identifier may be used tersely afterward. Re-establish the plain-language referent after a topic shift, a long response, or any point where ambiguity is plausible.
 
+## Owner-facing artifact delivery
+
+**Delivery is part of task completion.** When the owner needs a file, packet, handoff, protocol, report, generated artifact, or other usable output, do not make repository navigation the delivery mechanism.
+
+Required priority:
+
+1. **Give the actual file or attachment** when the active surface can materialize or attach it.
+2. Otherwise give a **direct clickable file/download link** that opens the intended artifact itself.
+3. Only when neither is technically possible, provide the complete usable contents inline when practical, or explain the exact tool limitation and provide the nearest direct retrievable link.
+
+A repository branch name, commit SHA, directory path, or instruction such as `go to branch X and find path Y` is **retrieval metadata only**. It is never an adequate primary handoff when the artifact itself or a direct link can be supplied. Do not tell the owner to browse branches, traverse directory trees, copy opaque paths into GitHub, or rediscover an artifact that the agent can retrieve or link directly.
+
+For repository-hosted artifacts, attempt retrieval/link generation before giving navigation instructions. A response may include the repository path or branch after the direct file/link for provenance, but the owner should not need that metadata to obtain the artifact.
+
+### Handoff completeness
+
+When one artifact is not usable without companion material—such as a reader protocol plus source windows, an installation script plus configuration, a generated packet plus controller instructions, or a report plus its data file—deliver the required companions together in the same owner-facing handoff.
+
+Prefer a single ZIP or file set when that reduces handling burden. If experimental isolation, security, staged disclosure, or another substantive constraint requires artifacts to remain separate, preserve that separation but still provide the owner direct files/links for every artifact they need at that stage. Do not mention a companion file only by repository path and assume the owner will retrieve it later.
+
+Before closing a handoff, ask internally: **Can the owner use the output from what I have actually handed them, without navigating GitHub or reconstructing missing pieces?** If not, the handoff is incomplete unless an explicit technical or safety boundary prevents delivery.
+
+### Examples
+
+Avoid:
+
+> The Pro protocol is on `experiment/foo` under `docs/experiments/PROMPT.md`.
+
+Prefer:
+
+> Here is the Pro protocol: [PROMPT.md](direct-file-link). I have also included the source-window packet it requires.
+
+Avoid:
+
+> Go into PR #71, switch to the experiment branch, then open `HANDOFF-PROMPTS.md`.
+
+Prefer:
+
+> [Open the handoff instructions directly](direct-file-link). The PR/branch is listed afterward only as provenance if useful.
+
 ## Decision requests
 
 Never ask an owner to choose among PR numbers, branch names, commit SHAs, or other repository handles as though those handles were the substantive options.
@@ -49,6 +89,7 @@ This is especially important for stacked pull requests, multi-repository work, r
 This rule applies to:
 
 - user-facing status reports;
+- file/artifact delivery and download handoffs;
 - handoffs and recovery summaries intended for a human owner;
 - requests for approval or substantive decisions;
 - explanations of failures, CI state, merges, promotions, and rollbacks;
@@ -68,14 +109,17 @@ Do not:
 
 - assume the owner remembers what a PR or issue number means;
 - use a branch name as a substitute for explaining what work it contains;
+- use a branch/path as a substitute for delivering a file the owner needs;
+- tell the owner to navigate GitHub to retrieve an artifact when a file or direct link can be provided;
+- omit required companion instructions/files from a handoff and merely name where they live;
 - present a commit SHA as if it conveyed the nature of the change;
 - ask `merge #35 or #78?` without explaining the actual architectural choice;
 - repeat long identifiers unnecessarily once the semantic referent is established.
 
 ## Recovery rule
 
-After context loss or a fresh conversation, assume opaque operational identifiers have lost their human meaning even if they remain retrievable from Git. Recover the repository state, then reconstruct and state each relevant identifier's plain-language referent before using it in owner-facing reasoning.
+After context loss or a fresh conversation, assume opaque operational identifiers have lost their human meaning even if they remain retrievable from Git. Recover the repository state, then reconstruct and state each relevant identifier's plain-language referent before using it in owner-facing reasoning. If the recovered task requires the owner to use an artifact, retrieve/materialize it or create a direct link rather than making the owner reconstruct its repository location.
 
 ## Transfer rationale and limits
 
-This pattern is universal because the failure mode is independent of any one repository: machine-friendly identifiers are exact but cognitively opaque. The rule does not prohibit identifiers or reduce technical precision; it changes their presentation order so semantic meaning and retrieval precision coexist.
+This pattern is universal because the failure mode is independent of any one repository: machine-friendly identifiers are exact but cognitively opaque, and repository locations are not equivalent to owner-facing delivery. The rule does not prohibit identifiers or reduce technical precision; it changes their presentation order and makes artifact handoff an explicit completion responsibility so semantic meaning, retrieval precision, and usability coexist.
