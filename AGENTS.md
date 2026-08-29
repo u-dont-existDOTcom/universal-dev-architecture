@@ -78,7 +78,23 @@ On first use in a response—or again after a topic shift when the referent coul
 
 When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
 
-Use `patterns/human-readable-operational-references.md` for the full rationale, examples, and recovery rule.
+### Owner-facing artifact delivery
+
+**Delivery is part of completion.** When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.
+
+Use this priority:
+
+1. give the actual file/attachment when the active surface can materialize or attach it;
+2. otherwise give a direct clickable file/download link to the artifact itself;
+3. only if neither is technically possible, provide the usable contents inline when practical, or explain the exact tool limitation and give the nearest direct retrievable link.
+
+Branch names, repository paths, PR numbers, and commit SHAs may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery. Before saying `go to branch X`, `open path Y`, `grab the file from GitHub`, or equivalent, first attempt to retrieve/materialize/attach the artifact or create a direct link.
+
+When a handoff needs companion material, deliver the complete usable set. For example, a packet that requires a controller prompt or reader protocol is incomplete if only the data windows are handed over and the instructions are merely named by repository location. Prefer one ZIP/file set where useful; when isolation or staged disclosure requires separation, give direct files/links for every artifact needed at the current stage.
+
+Before closing an owner-facing handoff, verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**, unless a real technical, security, privacy, or experimental-isolation constraint prevents that.
+
+Use `patterns/human-readable-operational-references.md` for the full rationale, examples, artifact-delivery priority, handoff-completeness rule, and recovery rule.
 
 ## Research before reinvention
 
