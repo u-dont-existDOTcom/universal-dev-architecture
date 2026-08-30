@@ -20,12 +20,14 @@ However, do **not** blindly preserve the current task contract, acceptance crite
 At the next safe checkpoint:
 
 1. Recover the original owner request and material later corrections from canonical project records.
-2. Preserve the verbatim owner request.
-3. State the normalized final result without weakening it.
-4. List every required outcome, required evidence, current gap, and unmet or unknown outcome.
-5. List supporting states that do **not** by themselves satisfy the outcome.
-6. Compare the current task contract and proposed terminal state against that invariant.
-7. Preserve useful completed work, but reopen/continue any required outcome omitted or replaced by a proxy.
+2. Preserve the verbatim owner request and exact canonical locator or immutable source block.
+3. Record owner-request identity, SHA-256, capture time, and append-only corrections.
+4. State the normalized final result without weakening it.
+5. List every required outcome, required evidence, current gap, and unmet or unknown outcome.
+6. List supporting states that do **not** by themselves satisfy the outcome.
+7. Construct or update the objective-reconciliation matrix.
+8. Compare the current task contract and proposed terminal state against that invariant.
+9. Preserve useful completed work, but reopen/continue any required outcome omitted or replaced by a proxy.
 
 A downstream task contract may refine or decompose the owner outcome, but it may not weaken, omit, replace, or terminally bypass it without an explicit owner decision.
 
@@ -45,7 +47,14 @@ If the original owner outcome cannot be recovered or is materially ambiguous, ma
 
 If this bootstrap conflicts with a newer explicit owner instruction or a genuine project-specific requirement, the newer owner/project requirement wins.
 
-Required companion: `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`.
+Required companions:
+
+- `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
+- `patterns/supervision-assurance-planes-and-pro-meta-review.md`
+
+Machine-readable baseline:
+
+- `templates/OBJECTIVE-RECONCILIATION.json`
 
 ## 2. Intelligence and execution routing
 
@@ -68,7 +77,7 @@ Use exact tooling for facts such as:
 
 ### Extra High
 
-Prefer Extra High for work that is primarily reasoning, research, GitHub/repository reading, planning, architecture, evidence organization, ordinary code/diff review, or semantic comparison between a derived contract and the owner outcome, and does not require local execution.
+Prefer Extra High for work that is primarily reasoning, research, GitHub/repository reading, planning, architecture, evidence organization, ordinary code/diff review, semantic comparison between a derived contract and the owner outcome, or preparation of a supervision-design feedback packet, and does not require local execution.
 
 ### Codex
 
@@ -93,7 +102,8 @@ Use Pro promptly when the decision materially benefits from the highest availabl
 - a consequential unresolved architecture/product decision;
 - a material disagreement between worker evidence and ordinary review;
 - high-risk final adjudication when semantic failure would not be caught deterministically;
-- a disputed owner-outcome/derived-contract equivalence judgment with consequential terminal implications.
+- a disputed owner-outcome/derived-contract equivalence judgment with consequential terminal implications;
+- a substantive question or proposed improvement to the supervision architecture itself.
 
 Do not spend Pro on GitHub retrieval, routine implementation review, ordinary bugs/tests, formatting, plumbing, or repeated confirmation of unchanged conclusions.
 
@@ -103,23 +113,128 @@ When Pro value is genuinely uncertain, Extra High may perform bounded triage: `P
 
 Pro web chats cannot be assumed to access GitHub reliably.
 
-When Pro is used, give it a self-contained, versioned decision packet containing:
+When Pro is used for task supervision, give it a self-contained, versioned decision packet containing:
 
-- the verbatim and normalized owner outcome;
+- the independently acquired verbatim owner source and receipt;
+- the normalized owner outcome;
 - owner-outcome epoch/hash;
 - required outcomes and current gaps;
 - known non-satisfying proxies;
-- the current derived task contract and coverage mapping;
+- the current derived task contract and reconciliation matrix;
 - exact evidence, excerpts/diffs, and verification results;
+- both alignment states;
 - unresolved findings;
-- the proposed workflow/terminal state;
+- the typed completion claim and proposed workflow/terminal state;
 - the precise question.
 
 The supervisor must compare the derived contract and proposed finish line to the owner outcome **before** judging whether the worker satisfied the contract.
 
 Do not ask Pro to fetch the repository itself. Worker claims and independent evidence must remain separate. Supervisor approval never substitutes for outcome evidence.
 
-## 4. Reuse chats without overflowing context
+The owner source must be supplied independently by Mission Control, deterministic tooling, or an Extra High reader—not only through the worker’s polished handoff.
+
+## 4. Machine-checkable dual alignment and typed completion
+
+Every meaningful checkpoint and supervision packet must report these independently:
+
+```text
+worker_to_contract_alignment: GREEN | YELLOW | RED | UNKNOWN
+contract_to_owner_alignment: MATCH | PARTIAL | DIVERGED | SOURCE_MISSING
+```
+
+A worker may be GREEN against its task contract while the contract is RED/DIVERGED against the owner. In that case the overall root task is RED, regardless of worker competence or supervisor approval.
+
+Do not average the two states.
+
+Every checkpoint also carries exactly one completion claim:
+
+```text
+WORKING
+ARTIFACT_READY
+TESTS_PASS
+READY_FOR_OWNER_REVIEW
+READY_FOR_RELEASE
+PARTIAL_OUTCOME
+SUBTASK_COMPLETE_PARENT_OPEN
+OWNER_OUTCOME_ACHIEVED
+BLOCKED_OWNER_DECISION
+CANCELED_BY_OWNER
+```
+
+No earlier state implies `OWNER_OUTCOME_ACHIEVED`. A label rename cannot upgrade the semantic claim.
+
+Required objective-reconciliation matrix:
+
+| Owner requirement | Worker interpretation | Task criterion | Acceptance evidence | Status | Authorized change |
+|---|---|---|---|---|---|
+
+Every material requirement must be mapped, explicitly amended/removed by the owner, or escalated. Reconcile again:
+
+- after material discoveries;
+- before phase transitions;
+- after acceptance criteria/tests change;
+- after owner corrections;
+- before owner review;
+- before release/deployment/publication preparation;
+- before any root completion claim.
+
+For AskRigor and comparable research work, report three separate judgments:
+
+```text
+operational_alignment
+scientific_adequacy
+release_adequacy
+```
+
+Operational PASS does not imply scientific adequacy. Scientific PASS does not imply privacy, licensing, freshness, consent, provenance, product, or release adequacy.
+
+Machine-readable baselines:
+
+- `templates/OBJECTIVE-RECONCILIATION.json`
+- `templates/RESEARCH-SUPERVISION-VERDICT.json`
+
+## 5. Supervision-design improvements and questions must reach shared Pro meta-review
+
+When you identify a substantive improvement, loophole, ambiguity, contradiction, recurring failure, machine-checking gap, or question about the supervision design:
+
+1. Do not silently rewrite or reinterpret the canonical architecture.
+2. Record a structured `SUPERVISION_DESIGN_FEEDBACK` packet.
+3. Include the exact architecture version/hash, relevant rule/excerpt, failure mechanism, evidence, proposed change or question, risks, and whether the current task boundary is blocked.
+4. Use deterministic tooling or Extra High to collect GitHub evidence and prepare a self-contained packet.
+5. Route the packet to the shared scope-bound Pro supervisor-design chat.
+6. Preserve the Pro verdict and resulting repository changes/tests durably.
+7. Continue unaffected task work automatically.
+
+Use one shared Pro meta-review scope per architecture epoch:
+
+```text
+supervision-architecture/<epoch>
+```
+
+Do not open one architecture Pro chat per worker.
+
+Review immediately when the issue could falsely authorize completion/release, lose the owner outcome, affect therapy/research safety, create privacy/security/consent risk, or prevent safe current execution. Batch nonblocking improvements for the next meta-review checkpoint.
+
+A worker with no substantive supervision-design improvement or question does not need a ceremonial Pro check-in.
+
+Machine-readable baseline:
+
+- `templates/SUPERVISION-DESIGN-FEEDBACK.json`
+
+Pro meta-review returns one of:
+
+```text
+ACCEPT
+ACCEPT_WITH_REVISION
+REJECT
+NEEDS_EVIDENCE
+OWNER_DECISION_REQUIRED
+PROJECT_LOCAL_ONLY
+```
+
+Pro advice does not itself mutate the architecture. Repository changes, tests, and owner authorization where applicable remain required.
+
+## 6. Reuse chats without overflowing context
 
 Do not create a new Pro chat for every checkpoint. Do not keep one Pro chat forever either.
 
@@ -131,7 +246,7 @@ Reuse a related Pro chat while:
 - prior context provides useful continuity rather than contamination;
 - an independent fresh judgment is not required.
 
-Each substantive review turn should receive a compact current-authority capsule plus only the new delta/evidence since the last reviewed boundary. The capsule must retain the owner outcome, current gaps, and unmet outcomes even when older discussion is compacted.
+Each substantive review turn should receive a compact current-authority capsule plus only the new delta/evidence since the last reviewed boundary. The capsule must retain the owner outcome, current gaps, unmet outcomes, independent source receipt, both alignment states, and active design-feedback IDs even when older discussion is compacted.
 
 Prepare a rollover when context pressure rises materially or the chat starts:
 
@@ -141,11 +256,13 @@ Prepare a rollover when context pressure rises materially or the chat starts:
 - forgetting current owner locks or required outcomes;
 - anchoring on its own prior proposal;
 - producing contradictions without new evidence;
-- accepting a downstream proxy as the parent outcome.
+- accepting a downstream proxy as the parent outcome;
+- collapsing worker-to-contract and contract-to-owner alignment;
+- confusing operational, scientific, and release adequacy.
 
 A new chat receives a deterministic handoff capsule from durable state, not only a free-form summary of the old chat.
 
-## 5. Usage/resource exhaustion and account failover
+## 7. Usage/resource exhaustion and account failover
 
 The owner has authorized two account aliases: `primary` and `secondary`. Their actual identities are **private local configuration** and must not be committed to this public repository or copied into public logs.
 
@@ -153,7 +270,7 @@ If Pro, Codex, or another relevant resource becomes unavailable:
 
 1. identify the exact exhausted/unavailable resource;
 2. record the visible evidence (banner/error/usage state/reset time if shown);
-3. checkpoint the current task, owner-outcome epoch/hash, current gap, branch, HEAD, tests, chat epoch, and next safe action;
+3. checkpoint the current task, owner-outcome epoch/hash, current gap, both alignment states, completion claim, branch, HEAD, tests, chat epoch, and next safe action;
 4. audit whether that resource was being used efficiently, including both overuse and harmful under-escalation;
 5. consult the owner-private local account registry if it is available;
 6. verify the secondary account actually has the required capability before switching;
@@ -174,7 +291,7 @@ Do not rotate accounts to evade a policy restriction, suspicious-login condition
 
 Do not guess fixed Pro or Codex quotas when the product does not expose them reliably.
 
-## 6. Brave/browser hygiene
+## 8. Brave/browser hygiene
 
 For automation-controlled browsing:
 
@@ -198,13 +315,15 @@ Never automatically close:
 
 A persistent Pro chat does not require keeping its tab open. Persist the chat URL, account alias, scope key, current capsule, owner-outcome epoch, and last reviewed boundary locally.
 
-## 7. Continue automatically
+## 9. Continue automatically
 
-An owner correction, answer, or new shared rule is input to the current task, not a completion event. After incorporating it, continue to the next safe in-scope action unless a genuine owner decision, unavailable permission/credential, destructive/irreversible boundary, spending, publication, or explicit stop requires pausing.
+An owner correction, answer, new shared rule, or Pro meta-review result is input to the current task, not a completion event. After incorporating it, continue to the next safe in-scope action unless a genuine owner decision, unavailable permission/credential, destructive/irreversible boundary, spending, publication, or explicit stop requires pausing.
 
 Repairing a laundered contract is also not a reason to discard valid supporting work or wait. Preserve it, restore the actual remaining outcome, and continue.
 
-## 8. Mission Control-specific workers
+A nonblocking supervision-design question is not a reason to stop unrelated work. A blocking correctness/safety defect holds only the affected boundary.
+
+## 10. Mission Control-specific workers
 
 Only if your assigned task **is Mission Control**, additionally read the current draft architecture on PR #42, especially:
 
@@ -212,21 +331,28 @@ Only if your assigned task **is Mission Control**, additionally read the current
 - `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md`
 - `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md`
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
+- `patterns/supervision-assurance-planes-and-pro-meta-review.md`
 - `docs/exec-plans/2026-08-30-mission-control-symphony-gap-audit-and-pilot.md`
 - `docs/exec-plans/2026-08-30-mission-control-resource-routing-failover-and-tab-hygiene-addendum.md`
 - `docs/exec-plans/2026-08-30-mission-control-owner-outcome-terminal-integrity-addendum.md`
+- `docs/exec-plans/2026-08-30-mission-control-dual-alignment-and-pro-meta-review-addendum.md`
 
 Do not make non-Mission-Control workers execute those implementation plans.
 
-## 9. Current-worker receipt
+## 11. Current-worker receipt
 
 At the next meaningful checkpoint, record briefly in durable task state:
 
 - that this bootstrap was adopted;
-- owner-outcome ID/epoch/hash or `OUTCOME_AUTHORITY_UNRESOLVED`;
+- owner-request/outcome ID, locator, epoch, hash, and independent source-receipt status or `OUTCOME_AUTHORITY_UNRESOLVED`;
 - normalized result;
 - current gap and unmet required outcomes;
+- `worker_to_contract_alignment`;
+- `contract_to_owner_alignment`;
+- typed completion claim;
 - whether the current task contract/terminal boundary passed or required repair;
+- AskRigor operational/scientific/release judgments when applicable;
+- any substantive supervision-design feedback ID and Pro meta-review status;
 - only the material effect on the active task.
 
 Do not create ceremony or stop productive work merely to acknowledge it.
