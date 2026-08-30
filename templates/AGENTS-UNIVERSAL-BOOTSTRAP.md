@@ -43,6 +43,16 @@ After interruption, a fresh thread, context compaction, or model switch, inspect
 
 Never let a stale checkpoint or remembered chat state outrank newer owner instructions or verified repository state.
 
+## Supervised long-task handoffs
+
+For any long work task that needs supervision, keep the originating Chat as the owner-facing supervisor and GitHub as the canonical durable state. Before handing execution to a fresh Codex worker or requesting higher-level supervision, write the task instructions and a full self-contained handoff into the task's canonical GitHub issue, pull request, or committed recovery artifact. Include the goal and acceptance criteria, authority and constraints, relevant background and decisions, completed/current/remaining work, exact evidence and repository locations, blockers and uncertainty, and the next safe action. The handoff must support resumption without the old chat while still obeying existing secret, privacy, and data-sharing rules.
+
+Give the owner one very short paste-ready bootstrap instruction: `Resume the long task from <GitHub handoff URL/path>; verify current state and continue until complete unless a genuine owner tradeoff is required.`
+
+When higher-level supervision is needed and the supervisor does not need direct GitHub access, use Brave to open a new Pro chat and paste the complete handoff and all context needed for judgment into that chat; a GitHub link alone is insufficient because Pro chats in Brave cannot reliably access GitHub. If the supervisor must access GitHub, use GPT with extra-high reasoning instead of Pro. Also use extra-high without Pro when the task is not complex enough to justify Pro. Default therapy-bot work to Pro for therapy or clinical-conceptual considerations, AskRigor work to Pro for research-methodology or scientific considerations, and article work to extra-high without Pro unless it is unusually complex.
+
+Stop only when the Pro supervisor identifies a genuine owner decision involving material tradeoffs or another existing authority boundary requires owner input. Surface the choice, consequences, and recommended default to the owner, and do not cross the affected boundary. Otherwise apply the supervision and continue automatically without asking for approval. Write supervisory decisions and updated status back to the canonical GitHub handoff before continuing. If Brave or Pro is unavailable, record the exact capability failure in the GitHub handoff, use an available GPT extra-high route when adequate, and continue; pause only when required supervision remains unavailable or another genuine pause boundary applies.
+
 ## Learning closeout
 
 For substantive work, follow the current universal lesson-closeout pattern. Preserve project-specific evidence here and promote genuinely transferable lessons to the universal repository with provenance and limits.
