@@ -4,6 +4,17 @@
 
 Persistent browser profiles should persist **authentication and intentional application state**, not uncontrolled tab/session history.
 
+## Browser visibility and placement
+
+Default browser-control work to headless mode so automation does not open windows on, steal focus from, or cover the owner's active screen.
+
+Use a visible/headed Brave window only when the task genuinely requires rendered GUI interaction, visual inspection, an existing signed-in browser session, or another capability that headless mode cannot provide. When headed Brave is required:
+
+1. place it on a dedicated secondary virtual workspace or a secondary physical monitor so it stays off the owner's active screen;
+2. avoid focusing or raising it on the active workspace except for the minimum interaction that cannot be completed on the dedicated browser workspace/display;
+3. reuse the same dedicated browser workspace and existing controlled window when practical instead of repeatedly opening and closing windows;
+4. preserve the tab-bounding and clean-shutdown rules below when reuse is no longer practical or the browser must close.
+
 For headed browser automation that uses a persistent Chromium-family profile:
 
 1. start ordinary automation runs from a bounded working-tab set, normally one tab;
