@@ -1,29 +1,58 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "taskId": "replace-with-stable-task-id",
-  "title": "Replace with the exact owner-authorized objective",
+  "title": "Replace with the exact owner-authorized contribution",
   "status": "active",
   "exclusive": true,
   "repository": "owner/repository",
   "requiredBranch": "agent/replace-with-task-branch",
   "pullRequest": null,
   "ownerAuthorized": true,
+  "ownerOutcome": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256",
+    "sourceRefs": [],
+    "verbatimOwnerRequest": [
+      "Replace with exact owner wording"
+    ],
+    "normalizedResult": "Replace with the exact final result without weakening it",
+    "requiredOutcomeIds": [],
+    "nonSatisfyingProxies": []
+  },
+  "derivation": {
+    "rootOrSubtask": "root",
+    "contributionType": "implement",
+    "parentTaskId": null,
+    "parentRemainsOpen": false,
+    "outcomeCoverageProof": "path/to/outcome-coverage-proof"
+  },
   "source": {
     "repository": "owner/source-repository-or-same-repository",
     "mainSha": "replace-with-exact-source-sha"
   },
   "preflightCommand": "npm run task:preflight",
   "completionCommand": "npm run task:acceptance",
-  "completionClaimRule": "Ordinary tests and green CI are prerequisites only. Readiness requires the task-specific acceptance command; completion additionally requires protected integration and an immutable receipt.",
+  "completionClaimRule": "Ordinary tests, green CI, task-specific acceptance, review readiness, and supervisor approval are supporting evidence only. Root completion additionally requires a current owner-outcome epoch/hash, complete backward traceability, exact-candidate evidence for every terminal-required owner outcome, and terminal comparator result OWNER_OUTCOME_SATISFIED. A subtask may finish only as SUBTASK_COMPLETE_PARENT_OPEN while parent outcomes remain.",
+  "currentGap": {
+    "metRequiredOutcomeIds": [],
+    "unmetRequiredOutcomeIds": [],
+    "unknownRequiredOutcomeIds": [],
+    "summary": "Replace with the exact current gap to the owner outcome"
+  },
+  "proposedTerminalState": null,
+  "terminalComparatorResult": null,
   "suspendedTaskSources": [
-    "old conversation objectives",
+    "old conversation objectives that conflict with the current owner-outcome epoch",
     "unrelated worktree handoffs",
     "global roadmap selection",
-    "unrelated compliance or release queues"
+    "unrelated compliance or release queues",
+    "downstream checkpoints or supervisor packets that weaken the owner outcome"
   ],
   "acceptance": {
     "requiredArtifacts": [],
     "requiredDocumentation": [],
-    "requiredCommands": []
+    "requiredCommands": [],
+    "requiredOwnerOutcomeEvidence": []
   }
 }
