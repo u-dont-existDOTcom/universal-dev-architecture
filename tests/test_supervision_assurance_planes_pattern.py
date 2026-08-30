@@ -18,7 +18,7 @@ class SupervisionAssurancePlanesPatternTests(unittest.TestCase):
             "contract_to_owner: RED",
             "root_task_traffic: RED",
             "Independent supervisor receipt",
-            "Objective-reconciliation matrix",
+            "objective-reconciliation matrix",
             "Do not average the two states",
             "OBJECTIVE_SOURCE_MISSING",
             "COMPLETION_CLAIM_UNSUPPORTED",
@@ -58,6 +58,8 @@ class SupervisionAssurancePlanesPatternTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
+        self.assertIn("workerToContractAlignment", research)
+        self.assertIn("contractToOwnerAlignment", research)
         self.assertIn("operationalAlignment", research)
         self.assertIn("scientificAdequacy", research)
         self.assertIn("releaseAdequacy", research)
