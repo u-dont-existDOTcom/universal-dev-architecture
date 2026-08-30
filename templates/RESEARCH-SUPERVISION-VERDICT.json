@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "verdictId": "replace-with-verdict-id",
+  "taskId": "replace-with-task-id",
+  "packetId": "replace-with-packet-id",
+  "reviewedAt": "1970-01-01T00:00:00Z",
+  "ownerSourceReceiptId": "replace-with-owner-source-receipt-id",
+  "objectiveReconciliationId": "replace-with-reconciliation-id",
+  "contractToOwnerAlignment": "SOURCE_MISSING",
+  "operationalAlignment": {
+    "status": "UNKNOWN",
+    "findings": [],
+    "evidenceRefs": []
+  },
+  "scientificAdequacy": {
+    "status": "UNKNOWN",
+    "claimsAssessed": [],
+    "methodologicalFindings": [],
+    "inferenceBoundaries": [],
+    "unresolvedAccessOrValidationGaps": [],
+    "evidenceRefs": []
+  },
+  "releaseAdequacy": {
+    "status": "UNKNOWN",
+    "privacy": "UNKNOWN",
+    "consent": "UNKNOWN",
+    "licensing": "UNKNOWN",
+    "freshness": "UNKNOWN",
+    "provenance": "UNKNOWN",
+    "security": "UNKNOWN",
+    "productRules": "UNKNOWN",
+    "findings": [],
+    "evidenceRefs": []
+  },
+  "completionClaimType": "WORKING",
+  "releasePermission": {
+    "allowed": false,
+    "reason": "Release is fail-closed until all applicable hard conditions pass"
+  },
+  "requiredDirective": "CONTINUE_OR_RECONCILE",
+  "ownerDecisionRequired": false,
+  "ownerDecision": null
+}
