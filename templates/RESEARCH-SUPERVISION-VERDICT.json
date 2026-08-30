@@ -6,6 +6,7 @@
   "reviewedAt": "1970-01-01T00:00:00Z",
   "ownerSourceReceiptId": "replace-with-owner-source-receipt-id",
   "objectiveReconciliationId": "replace-with-reconciliation-id",
+  "workerToContractAlignment": "UNKNOWN",
   "contractToOwnerAlignment": "SOURCE_MISSING",
   "operationalAlignment": {
     "status": "UNKNOWN",
