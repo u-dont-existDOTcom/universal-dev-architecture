@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "research-mission-v1",
+  "missionId": "replace-with-stable-mission-id",
+  "title": "Replace with the durable research mission title",
+  "mode": "LONG_RANGE",
+  "state": "PROPOSED",
+  "repository": "owner/repository",
+  "ownerAuthorized": true,
+  "invariantPurpose": {
+    "purposeId": "replace-with-purpose-id",
+    "epoch": 1,
+    "sha256": "replace-with-purpose-sha256",
+    "sourceRefs": [],
+    "verbatimOwnerOrUserRequest": [
+      "Replace with exact owner or user wording"
+    ],
+    "normalizedPurpose": "Replace with the exact durable outcome without weakening it",
+    "nonSatisfyingProxies": [],
+    "frozen": true
+  },
+  "researchQuestions": [
+    {
+      "questionId": "replace-with-question-id",
+      "version": 1,
+      "status": "ACTIVE",
+      "question": "Replace with the exact current research question",
+      "scope": {
+        "populationOrDomain": null,
+        "interventionOrExposure": null,
+        "comparator": null,
+        "outcomes": [],
+        "timeHorizon": null,
+        "settingOrJurisdiction": null,
+        "languages": [],
+        "includedSourceClasses": [],
+        "excludedSourceClasses": []
+      },
+      "derivedFromPurposeId": "replace-with-purpose-id",
+      "acceptanceRequirements": [],
+      "createdAt": "replace-with-ISO-8601-timestamp",
+      "supersedesQuestionVersion": null,
+      "amendment": null
+    }
+  ],
+  "questionAmendments": [],
+  "authorityConstraints": {
+    "protocolIdentities": [],
+    "privacyAndConsentAuthorities": [],
+    "sourceLicensingAuthorities": [],
+    "providerAndPlatformAuthorities": [],
+    "legalAndSecurityAuthorities": [],
+    "publicationAuthorities": [],
+    "constraintsCannotBeOverriddenBySupervisor": true
+  },
+  "contributionAndPrivacyTier": {
+    "tier": "COMMUNITY_NONPERSONAL_CONTRIBUTION",
+    "requiredContributionClasses": [],
+    "excludedContributionClasses": [
+      "raw_chat",
+      "direct_identifiers",
+      "individual_health_story_without_separate_consent",
+      "credentials",
+      "unrelated_private_content"
+    ],
+    "separateSensitiveDataConsentRequired": true,
+    "paidPrivateNoContributionAvailable": false
+  },
+  "sourceFrontier": {
+    "frontierVersion": 1,
+    "sourceClasses": [],
+    "searchPasses": [],
+    "requestedDateWindows": [],
+    "confirmedDateWindows": [],
+    "queryFingerprints": [],
+    "paginationOrCursorState": [],
+    "candidateCounts": {
+      "discovered": 0,
+      "screened": 0,
+      "included": 0,
+      "excluded": 0,
+      "deferred": 0,
+      "duplicate": 0,
+      "unresolvedIdentity": 0
+    },
+    "fullTextCoverage": {
+      "complete": 0,
+      "partial": 0,
+      "abstractOrRegistryOnly": 0,
+      "inaccessible": 0,
+      "unknown": 0
+    },
+    "auditCoverage": [],
+    "synthesisCoverage": [],
+    "unresolvedTrails": [],
+    "blockedSources": [],
+    "zeroResultReceipts": [],
+    "freshness": {
+      "lastCompletePassAt": null,
+      "lastPartialPassAt": null,
+      "nextRefreshDueAt": null,
+      "refreshState": "NOT_SCHEDULED"
+    },
+    "stoppingOrRefreshRule": "Replace with the exact stopping or living-refresh rule"
+  },
+  "workPackages": [
+    {
+      "workPackageId": "replace-with-work-package-id",
+      "questionId": "replace-with-question-id",
+      "questionVersion": 1,
+      "objective": "Replace with one bounded contribution",
+      "epistemicRole": "DISCOVERY",
+      "status": "PLANNED",
+      "readSet": [],
+      "writeSet": [],
+      "prerequisites": [],
+      "dependencies": [],
+      "independenceRequirement": "NONE",
+      "blindingRequirement": "NONE",
+      "workerClass": "EXTRA_HIGH",
+      "reasoningTier": "EXTRA_HIGH",
+      "allowedToolsAndProviders": [],
+      "budget": {
+        "currency": null,
+        "hardCeiling": null,
+        "tokenOrUsageCeiling": null,
+        "timeOrCycleCeiling": null
+      },
+      "lease": {
+        "leaseId": null,
+        "fenceToken": null,
+        "claimedBy": null,
+        "claimedAt": null,
+        "expiresAt": null
+      },
+      "structuredOutputSchemaRef": "replace-with-schema-reference",
+      "deterministicAcceptanceChecks": [],
+      "scientificReviewRequired": true,
+      "scientificReviewState": "NOT_REVIEWED",
+      "heartbeatCadence": "replace-with-cadence-or-event-rule",
+      "lastHeartbeatAt": null,
+      "checkpointRef": null,
+      "escalationCriteria": [],
+      "stopConditions": [],
+      "completionDisposition": null
+    }
+  ],
+  "parallelism": {
+    "maximumConcurrentPackages": 1,
+    "sharedIdentityAndDedupAuthority": "replace-with-authority-reference",
+    "writeSetConflictPolicy": "REJECT_OR_SERIALIZE",
+    "staleCommitPolicy": "REJECT_BY_FENCE_TOKEN",
+    "duplicateWorkDetection": true,
+    "requiredIndependentRoles": [],
+    "reconciliationAndAdjudicationPolicy": "replace-with-policy-reference",
+    "falseConsensusProhibited": true
+  },
+  "budgets": {
+    "providerBudgets": [],
+    "premiumReasoningBudgets": [],
+    "workerConcurrencyBudget": null,
+    "storageAndRetentionBudget": null,
+    "scheduledRefreshBudget": null,
+    "humanReviewBudget": null,
+    "onExhaustion": "PAUSE_OR_FAIL_CLOSED",
+    "failoverPolicyRef": null
+  },
+  "progress": {
+    "missionWidePercentComplete": null,
+    "percentCompleteAllowed": false,
+    "currentStateSummary": "Replace with evidence-based current state",
+    "activeQuestionVersions": [],
+    "activeWorkPackageIds": [],
+    "blockedWorkPackageIds": [],
+    "sourceCoverageSummary": [],
+    "auditAndSynthesisSummary": [],
+    "materialContradictions": [],
+    "unresolvedQuestions": [],
+    "accessBudgetOrConsentBlocks": [],
+    "latestInterimSnapshotRef": null,
+    "currentReleaseRef": null,
+    "nextExecutableStep": "Replace with exact next executable work",
+    "ownerDecisionNeeded": null
+  },
+  "interimSnapshots": [],
+  "releasePolicy": {
+    "publicReleaseAllowed": false,
+    "releaseReceiptRequired": true,
+    "requiredReleaseChecks": [
+      "exact_claim_and_wording_binding",
+      "source_audit_and_synthesis_hash_binding",
+      "coverage_and_freshness",
+      "limitations_and_dissent",
+      "can_support_cannot_support_uncertain",
+      "privacy_and_consent",
+      "source_licensing",
+      "authorized_release_approver"
+    ],
+    "workerMayPublishDirectly": false,
+    "supervisorVerdictAloneMayPublish": false,
+    "currentReleaseRef": null
+  },
+  "subscriptionsAndNotifications": {
+    "materialChangeSubscriptions": [],
+    "notifyOn": [
+      "OWNER_DECISION_REQUIRED",
+      "BUDGET_EXHAUSTED",
+      "MATERIAL_CONCLUSION_CHANGE",
+      "CORRECTION_OR_RETRACTION",
+      "REFRESH_FAILURE_OR_STALE_STATE",
+      "MISSION_RELEASED_OR_CLOSED"
+    ]
+  },
+  "retentionCancellationAndWithdrawal": {
+    "retentionPolicyRef": "replace-with-retention-policy-reference",
+    "cancellationPolicyRef": "replace-with-cancellation-policy-reference",
+    "participantWithdrawalPolicyRefs": [],
+    "deleteOrPreserveOnCancellation": "replace-with-explicit-policy",
+    "auditHistoryPreserved": true
+  },
+  "allowedStates": [
+    "PROPOSED",
+    "PREFLIGHT",
+    "ACTIVE",
+    "INTERIM_SNAPSHOT",
+    "RELEASE_CANDIDATE",
+    "RELEASED",
+    "PAUSED_USER",
+    "PAUSED_BUDGET",
+    "BLOCKED_ACCESS",
+    "BLOCKED_OWNER_DECISION",
+    "WAITING_FOR_EVIDENCE",
+    "SCHEDULED_REFRESH",
+    "STALE_REFRESH_FAILED",
+    "CORRECTION_PENDING",
+    "CANCELLED",
+    "SUPERSEDED",
+    "CLOSED"
+  ],
+  "proposedTerminalState": null,
+  "terminalComparator": {
+    "result": null,
+    "evaluatesInvariantPurpose": true,
+    "evaluatedPurposeEpoch": null,
+    "evaluatedPurposeSha256": null,
+    "requiredOutcomeEvidenceRefs": [],
+    "unresolvedGapsCompatibleWithClosure": null,
+    "noActiveLeasesOrUnreviewedConsequentialConflicts": null,
+    "releaseHandbackAndDeletionObligationsComplete": null
+  },
+  "completionClaimRule": "Work-package completion, passing tests, green CI, interim snapshots, supervisor approval, and released versions are supporting evidence only. A work package normally terminates as SUBTASK_COMPLETE_PARENT_OPEN. A non-living root mission closes only when the current invariant-purpose epoch/hash is satisfied by backward-traceable evidence, all mandatory packages and release/handback/deletion obligations are complete, no active lease or unreviewed consequential conflict remains, and the terminal comparator returns OWNER_OUTCOME_SATISFIED. A living mission closes only under explicit authorized closure after required final snapshot, subscription, retention, and deletion actions. Participant consent, withdrawal, privacy, licensing, provider, legal, and security authorities remain independently binding throughout."
+}
