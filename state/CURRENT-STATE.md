@@ -14,7 +14,7 @@ for truthful owner-outcome supervision.
 
 - Working branch: `task/mission-control-dashboard-adaptation-20260830`
 - Restored PR #41 baseline: `c1bb87879edb773cb6d2db0bd309b13b6098a596`
-- Architecture merge boundary: `cb92d8913cb256303def032a8165da5464dacbe9`
+- Architecture merge boundary: `73962d6546dd0ba585f2fa356226e6db2782f7ea`
 - Rollback ref: `recovery/mission-control-pre-architecture-merge-c1bb878`
 - Owner request: `state/mission-control-dashboard-adaptation/OWNER-REQUEST.md`
 - Frozen gap audit: `docs/audits/2026-08-30-mission-control-pr41-gap-audit.md`
@@ -22,6 +22,8 @@ for truthful owner-outcome supervision.
   `state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json`
 - Execution slice:
   `docs/exec-plans/2026-08-30-mission-control-dashboard-adaptation-slice.md`
+- Required attention/correction UX addendum:
+  `docs/exec-plans/2026-08-30-mission-control-attention-and-correction-ux-addendum.md`
 
 ## Verified
 
@@ -36,11 +38,14 @@ for truthful owner-outcome supervision.
   under `docs/evidence/mission-control-baseline/`.
 - The gap audit records KEEP / ADAPT / REPLACE_WITH_SYMPHONY /
   DELETE_AS_DUPLICATE / DEFER dispositions before implementation.
+- The owner rejected score-first `RED · 21% aligned` presentation. The required
+  default is an all-worker attention queue with explanation, evidence, bounded
+  directive, durable correction lifecycle, next trigger, and owner-action state.
 
 ## Current step
 
-Freeze the validated audit and reconciliation in Git, then route the bounded
-supervision-design packet through the shared Pro lane and implement the slice.
+Freeze deterministic attention/correction UX fixtures, route the linked design
+feedback through a fresh shared Pro lane, then implement the slice.
 
 ## Constraints
 
@@ -56,6 +61,8 @@ supervision-design packet through the shared Pro lane and implement the slice.
 ## Remaining
 
 - Resolve the recorded supervision-design ambiguities.
+- Implement and verify the attention/correction acceptance fixtures, including
+  the explicit Test cleanup redirect lifecycle.
 - Implement versioned append-only events, migration, deterministic terminal
   comparison, owner-outcome projection, responsive UI refinement, and a thin
   read-only Symphony seam.
