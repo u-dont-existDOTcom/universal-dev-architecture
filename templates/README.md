@@ -13,6 +13,15 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `PULL_REQUEST_TEMPLATE.md` — exact verification, risk, diff audit, continuity, and lesson closeout.
 - `PROJECT-LEARNING-POLICY.md` — learning dispositions, provenance, promotion, and CI/orphan-audit policy.
 
+## Shared supervision and long-range research
+
+- `CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md` — current combined Codex/Pro/Mission Control bootstrap, including owner-outcome terminal integrity, reasoning/resource routing, account failover, and browser hygiene.
+- `ACTIVE-TASK.json` — implementation-task authority preserving the current owner-outcome epoch/hash and root-versus-subtask disposition.
+- `RESEARCH-MISSION.json` — durable parent authority for quick, deep, long-range, and living research with amendable questions, evidence frontier, parallel work packages, budgets, interim snapshots, release firewall, consent constraints, and closure comparator.
+- `CURRENT-CODEX-WORKER-SUPERVISION-RESEARCH-ADDENDUM.md` — concise worker instructions for applying the shared bootstrap to long-range research without treating one work package, snapshot, PR, or release as root completion.
+
+Use `ACTIVE-TASK.json` for a bounded implementation contribution. Add `RESEARCH-MISSION.json` when the root outcome spans multiple research sessions, workers, releases, future evidence, or scheduled refreshes. The research mission supplements rather than replaces the owner-outcome invariant.
+
 ## Compliance worker architecture
 
 - `REPOSITORY-COMPLIANCE-WORKER.md` — generic risk-adjusted worker contract; generate repository facts before execution.
