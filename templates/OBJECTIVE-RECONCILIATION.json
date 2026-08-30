@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "reconciliationId": "replace-with-reconciliation-id",
+  "taskId": "replace-with-task-id",
+  "trigger": "TASK_START",
+  "reconciledAt": "1970-01-01T00:00:00Z",
+  "ownerSource": {
+    "ownerRequestId": "replace-with-owner-request-id",
+    "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+    "sha256": "replace-with-owner-source-sha256",
+    "capturedAt": "1970-01-01T00:00:00Z",
+    "capturedBy": "mission-control",
+    "corrections": []
+  },
+  "independentSupervisorReceipt": {
+    "receiptId": "replace-with-owner-source-receipt-id",
+    "collector": "mission-control",
+    "sourceSha256": "replace-with-owner-source-sha256",
+    "workerSuppliedCopySha256": null,
+    "comparison": "WORKER_COPY_ABSENT",
+    "limitations": []
+  },
+  "taskContract": {
+    "taskContractId": "replace-with-contract-id",
+    "revision": 1,
+    "sha256": "replace-with-task-contract-sha256"
+  },
+  "alignment": {
+    "workerToContract": {
+      "status": "UNKNOWN",
+      "evidenceRefs": [],
+      "findings": []
+    },
+    "contractToOwner": {
+      "status": "SOURCE_MISSING",
+      "unmappedOwnerRequirementIds": [],
+      "divergences": [],
+      "authorizedScopeChanges": []
+    }
+  },
+  "requirements": [
+    {
+      "ownerRequirementId": "replace-with-owner-requirement-id",
+      "ownerRequirementText": "Replace with exact owner requirement wording",
+      "workerInterpretation": "Replace with the worker interpretation",
+      "taskCriterionIds": [],
+      "acceptanceEvidence": [],
+      "status": "UNMAPPED",
+      "authorizedChangeRef": null
+    }
+  ],
+  "completionClaim": {
+    "type": "WORKING",
+    "proposedTerminal": false,
+    "candidateRef": null,
+    "evidenceRefs": []
+  },
+  "result": {
+    "overallTraffic": "UNKNOWN",
+    "rootTerminalizationAllowed": false,
+    "requiredDirective": "RECONCILE_OBJECTIVE",
+    "findings": []
+  },
+  "previousReconciliationId": null
+}

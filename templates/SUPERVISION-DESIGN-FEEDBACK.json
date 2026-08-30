@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "replace-with-feedback-id",
+  "createdAt": "1970-01-01T00:00:00Z",
+  "taskId": "replace-with-task-id",
+  "workerRunId": "replace-with-worker-run-id",
+  "ownerOutcome": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "replace-with-exact-branch-or-commit",
+    "architectureEpoch": "replace-with-architecture-epoch",
+    "sha256OrCommit": "replace-with-exact-identity"
+  },
+  "type": "QUESTION",
+  "category": "CONTRACT_INTEGRITY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Replace with the exact supervision-design question or defect",
+  "relevantRule": {
+    "path": "replace-with-path",
+    "section": "replace-with-section",
+    "excerpt": "Replace with bounded exact excerpt"
+  },
+  "observedOrHypotheticalFailure": "Replace with the failure mechanism and affected outcome",
+  "evidenceRefs": [],
+  "proposedChange": "Replace with the proposed architecture change or null",
+  "alternativesConsidered": [],
+  "risks": [],
+  "workerRecommendation": "Replace with recommendation",
+  "workerUncertainty": "Replace with uncertainty",
+  "decisionThatCanChange": "Replace with the exact architecture or worker directive affected",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/replace-with-epoch"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

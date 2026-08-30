@@ -10,6 +10,57 @@ Read in this order:
 
 For substantial bespoke method/framework/architecture/metric/algorithm/taxonomy/protocol/evaluation/workflow invention that plausibly overlaps established knowledge, load `../patterns/research-before-reinvention.md` before further investment. When academic literature is material, that orchestration pattern routes to `../patterns/existing-work-scan-and-scholarly-discovery.md`; use a scholarly semantic search system such as SciSpace when available for terminology/literature discovery, then verify load-bearing claims against primary sources.
 
+For multi-worker Codex operation with ChatGPT semantic supervision, load all five current Mission Control patterns:
+
+1. `../patterns/codex-pro-supervision-mission-control.md`
+2. `../patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md`
+3. `../patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md`
+4. `../patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
+5. `../patterns/supervision-assurance-planes-and-pro-meta-review.md`
+
+Together they separate Symphony execution, Linear work state, GitHub authority, deterministic evidence, Extra High reasoning/repository review, Codex local execution, high-intelligence Pro judgment, immutable/versioned owner-outcome authority, machine-checkable contract integrity, and a shared Pro meta-review lane for supervision-design improvements/questions.
+
+Maintain a logical supervision lane per task rather than one always-active Pro chat per worker; reserve Pro especially for therapy-answer semantics and AskRigor methodological/conclusion flaws; reuse related Pro chats with compact authority capsules and delta packets; and roll over only at explicit context, authority, contamination, account, or independence boundaries. Default analysis and repository review to Extra High, require a concrete local-execution reason before allocating Codex, audit Pro/Codex efficiency periodically and on exhaustion, use verified owner-authorized account failover without treating accounts as merged, keep personal account identifiers out of public GitHub, and close stale system-opened Brave tabs through periodic leased-tab audits. Pro web supervisors must never depend on reliable GitHub access.
+
+Before preserving an existing task contract, acceptance criterion, checkpoint, or completion boundary, recover the original owner request independently and compare the downstream contract directly against it. A derived contract may refine or decompose the owner outcome but may not weaken, omit, replace, or terminally bypass it without an explicit owner decision. Every checkpoint and packet must carry the owner-source receipt, owner-outcome identity, verbatim/normalized result, current gap, unmet outcomes, non-satisfying proxies, objective-reconciliation record, two alignment states, typed completion claim, and terminal-comparator result.
+
+Keep these states separate:
+
+```text
+worker_to_contract_alignment: GREEN | YELLOW | RED | UNKNOWN
+contract_to_owner_alignment: MATCH | PARTIAL | DIVERGED | SOURCE_MISSING
+```
+
+A worker may be GREEN against a laundered task contract while contract-to-owner is DIVERGED; the root task must then be RED. Do not average the states.
+
+`READY_FOR_OWNER_REVIEW`, tests green, preservation PASS, reviewer approval, and similar supporting states are nonterminal by default while a required owner outcome remains unmet.
+
+For AskRigor and comparable research work, separately record:
+
+```text
+operational_alignment
+scientific_adequacy
+release_adequacy
+```
+
+Scientific adequacy does not imply privacy, consent, licensing, freshness, provenance, security, product, or publication adequacy.
+
+When a Codex worker identifies a substantive supervision-design improvement, loophole, ambiguity, recurring failure, or question, it must create `../templates/SUPERVISION-DESIGN-FEEDBACK.json`, assemble a self-contained evidence packet through deterministic tooling or Extra High, and route it to the shared scope-bound Pro supervisor-design chat. Immediate-risk defects are reviewed immediately; nonblocking suggestions may be batched. Workers with no substantive feedback do not make ceremonial Pro calls.
+
+For the Mission Control pilot, load all required addenda:
+
+- `exec-plans/2026-08-30-mission-control-owner-outcome-terminal-integrity-addendum.md`
+- `exec-plans/2026-08-30-mission-control-dual-alignment-and-pro-meta-review-addendum.md`
+- `exec-plans/2026-08-30-mission-control-resource-routing-failover-and-tab-hygiene-addendum.md`
+
+Run `../evals/mission-control/contract-laundering-article-humanization-13.82.json`, which must show worker-to-contract GREEN, contract-to-owner DIVERGED, and overall RED.
+
+Machine-readable supervision templates:
+
+- `../templates/OBJECTIVE-RECONCILIATION.json`
+- `../templates/RESEARCH-SUPERVISION-VERDICT.json`
+- `../templates/SUPERVISION-DESIGN-FEEDBACK.json`
+
 For non-trivial software tasks where repeated testing could materially affect wall time, load `../patterns/test-efficiency-and-verification-budget.md`. Measure test cost from the start of substantive implementation, use focused/affected tests in the inner loop, run full suites at explicit checkpoints, and require a specialist trigger for mutation testing. Use `../scripts/test_efficiency.py` or a project-native equivalent to detect/skip redundant unchanged-state green full or mutation reruns and report test-time share.
 
 For a broad comparison or landscape synthesis where omitted alternatives,

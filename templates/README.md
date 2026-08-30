@@ -8,8 +8,12 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `GITHUB-AGENTS.md` — scoped `.github/AGENTS.md` security and automation rules.
 - `STATE-AGENTS.md` — scoped state/checkpoint integrity rules.
 - `CODEX-REPOSITORY-PROFILE.json` — machine-readable repository classification, exact commands, continuity path, and hosted-control status.
-- `CURRENT-STATE.md` — concise recovery checkpoint.
-- `CODEX-TASK.md` — durable non-trivial task contract.
+- `CURRENT-STATE.md` — concise recovery checkpoint, including owner-source receipt, owner-outcome gap, dual alignment states, typed completion, research assurance planes, and supervision-design feedback.
+- `CODEX-TASK.md` — durable non-trivial task contract with owner-source identity, objective reconciliation, dual alignment, typed completion, and meta-review routing.
+- `ACTIVE-TASK.json` — exclusive machine-readable active-task lock with owner-source/outcome identity, dual alignment, reconciliation, completion claim, and research/meta-review state.
+- `OBJECTIVE-RECONCILIATION.json` — machine-readable owner-requirement-to-contract/evidence matrix plus independent owner-source receipt and separate worker-to-contract / contract-to-owner alignment.
+- `RESEARCH-SUPERVISION-VERDICT.json` — separate operational, scientific, and release-adequacy judgments for AskRigor and comparable research systems.
+- `SUPERVISION-DESIGN-FEEDBACK.json` — worker-submitted architecture question/improvement packet for the shared Pro supervisor-design meta-review lane.
 - `PULL_REQUEST_TEMPLATE.md` — exact verification, risk, diff audit, continuity, and lesson closeout.
 - `PROJECT-LEARNING-POLICY.md` — learning dispositions, provenance, promotion, and CI/orphan-audit policy.
 
@@ -30,4 +34,7 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - Public or high/critical-risk repositories need additional security, ownership, licensing, and contribution decisions.
 - Artifact repositories must record source commit, generator, version, checksums, and validation and must prohibit hand edits.
 - Research/content repositories require provenance, claim/evidence status, owner-authority, privacy, and loss-prevention controls instead of irrelevant software ceremony.
+- Keep worker-to-contract and contract-to-owner alignment separate; never average away a contract-integrity failure.
+- For AskRigor/research, keep operational, scientific, and release adequacy separate.
+- Route substantive supervision-design improvements/questions to the shared Pro meta-review lane instead of silently changing universal architecture.
 - Generated compliance mandates must record the worker architecture version and remove all template markers before use.
