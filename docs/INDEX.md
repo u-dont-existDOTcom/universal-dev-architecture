@@ -44,6 +44,8 @@ worker contract. A nonfinal state must expose server-directed work or an
 explicit terminal blocked/bounded boundary; absence of a next capability never
 authorizes finalization.
 
+For the AskRigor + InnerSignal Commons public health-research map, load `exec-plans/2026-08-30-health-research-compute-fabric.md`. It composes a small cloud public/control plane, owner-controlled private runners, Prefect deterministic research pipelines, stock Symphony agentic execution, Mission Control semantic governance, PostgreSQL/object storage, W3C PROV/RO-Crate exports, and measured hardware-scaling gates. It explicitly rejects a premature rack, GPU fleet, Kubernetes, graph database, browser-driven ChatGPT automation, and a personal subscription as a public backend.
+
 Templates live in `../templates/`. Use `../templates/PRIOR-WORK-SCAN.md` for durable prior-work/reuse/novelty ledgers. Execution plans live in `exec-plans/`.
 
 `../patterns/codex-github-operating-standard.md` is retained as superseded provenance and routes to the operating-system pattern. It is not a second current standard.
