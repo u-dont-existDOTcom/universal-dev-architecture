@@ -3,11 +3,11 @@
 Date: 2026-08-30
 Reviewed path: `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md`
 Reviewed branch: `architecture/codex-pro-supervision-mission-control-20260830`
-Status: bounded critique; does not rewrite the bootstrap
+Status: accepted and implemented through companion pattern, schemas, templates, fixture, and tests
 
 ## Verdict
 
-The current architecture correctly targets scope contraction, objective substitution, and completion illusion. Its remaining high-impact gap is that owner-objective reconciliation is still primarily an instruction rather than an independently sourced, machine-checkable contract.
+The architecture correctly targets scope contraction, objective substitution, and completion illusion. The remaining high-impact gap was that owner-objective reconciliation was still primarily an instruction rather than an independently sourced, machine-checkable contract.
 
 A worker can be perfectly aligned with a narrowed task contract. Mission Control therefore needs two distinct states:
 
@@ -115,3 +115,18 @@ Owner corrections change future authority without silently rewriting prior check
 ## Adoption recommendation
 
 Add these fields and fixtures to the generic shared bootstrap/Mission Control contracts. Domain repositories should then add only domain-specific adequacy and release fields rather than forking objective-integrity logic.
+
+## Implemented disposition
+
+The critique is implemented through:
+
+- `patterns/supervision-assurance-planes-and-pro-meta-review.md`;
+- `templates/OBJECTIVE-RECONCILIATION.json`;
+- `templates/RESEARCH-SUPERVISION-VERDICT.json`;
+- `templates/SUPERVISION-DESIGN-FEEDBACK.json`;
+- the revised current-worker bootstrap, task contract, current-state, and active-task templates;
+- `docs/exec-plans/2026-08-30-mission-control-dual-alignment-and-pro-meta-review-addendum.md`;
+- the strengthened `13.82% Human` regression fixture;
+- `tests/test_supervision_assurance_planes_pattern.py`.
+
+The owner additionally requires every worker that discovers a substantive supervision-design improvement or question to route a self-contained packet to the shared scope-bound Pro supervisor-design chat. No ceremonial Pro call is required when the worker has no substantive feedback.
