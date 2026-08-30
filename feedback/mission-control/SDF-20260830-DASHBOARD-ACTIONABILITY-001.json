@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260830-DASHBOARD-ACTIONABILITY-001",
+  "createdAt": "2026-08-30T19:40:00Z",
+  "taskId": "mission-control-dashboard-adaptation",
+  "workerRunId": "owner-evaluation-screenshot-20260830",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-MISSION-CONTROL-ATTENTION-001",
+    "epoch": 1,
+    "sha256": "e24a53d807df7c51bba6149c1dc85f41225ad63e79cc42d95caf3285d978c76c"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-08-30T19:40:00Z",
+    "exactText": [
+      "Build me a local ‘Codex Mission Control’ dashboard for supervising 4+ Codex workers, each of which is being supervised by a separate Pro chat. The purpose is not merely to show activity. The dashboard should tell me whether each worker is still pursuing its assigned objective or is beginning to drift.",
+      "so here's the dashboard. i'm not really seeing much useful information here. it says 21% aligned which is concerning but i'm not seeing a good explanation of which workers are not aligned how and what is beeing done to correct it."
+    ]
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "pr42-owner-outcome-dual-alignment",
+    "sha256OrCommit": "90a230e85f78063080dc627ec36a0237c3234f72"
+  },
+  "type": "DEFECT",
+  "category": "OPERATOR_ATTENTION_AND_CORRECTION_VISIBILITY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "The current dashboard worker detail leads with ‘RED · 21% aligned’ but does not provide an immediate causal explanation, does not show all affected workers in an attention queue, and does not state whether a corrective directive has been issued, delivered, acknowledged, started, or verified. The operator must infer the problem from several panels and scroll to find the supervisor assessment.",
+  "relevantRule": {
+    "path": "patterns/codex-pro-supervision-mission-control.md",
+    "section": "24. Dashboard information architecture",
+    "excerpt": "The main screen is an attention queue; worker cards show the top drift warning, supervisor verdict, next review trigger, and operator actions."
+  },
+  "observedOrHypotheticalFailure": "A RED score creates concern without telling the owner which workers need attention, which exact contract/outcome conditions failed, what correction is underway, whether the worker has acknowledged the redirect, or whether the owner must act. This defeats the owner outcome of allocating attention and can leave serious drift visible but operationally uncorrected.",
+  "evidenceRefs": [
+    {
+      "type": "owner_screenshot",
+      "sha256": "77eeab5df0443e23f9e8367e19e559104d7b8bdc24c2e4a9b2fdcaa6272d44a8",
+      "dimensions": "1022x756",
+      "page": "http://127.0.0.1:3000/worker/tests",
+      "visibleFacts": [
+        "Header shows RED · 21% aligned",
+        "Task is Test cleanup",
+        "Objective says production logic is untouched",
+        "Allowed scope is tests/** and test-support/**",
+        "Explicitly forbidden scope includes src/core/** and src/production/**",
+        "Current trajectory says rewriting the production scheduler and updating production callers",
+        "Plan changed is Yes with no trajectory-change reason",
+        "Stated assumption says production timing semantics may be changed",
+        "Supervisor assessment below the fold says REDIRECT"
+      ]
+    },
+    {
+      "type": "implementation_baseline",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "pullRequest": 41,
+      "head": "7fa261970b0d2f2227126b9883173fafed0474df"
+    }
+  ],
+  "proposedChange": "Replace score-first presentation with an explanation-first attention and correction model. The main screen must name every RED/YELLOW worker, the exact active findings, the correction directive, correction lifecycle status, next evidence/review trigger, and whether owner action is required. On detail pages, show a top decision strip with WHAT IS WRONG, WHY IT MATTERS, WHAT IS BEING DONE, CORRECTION STATUS, and OWNER ACTION. Keep numeric alignment as secondary diagnostic metadata with a visible dimension breakdown rather than the controlling headline.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Only expose the formula behind 21% alignment",
+      "rejectedBecause": "A better-explained score still does not tell the owner what is being corrected or whether intervention is required."
+    },
+    {
+      "alternative": "Keep the current layout and move the supervisor panel above the fold",
+      "rejectedBecause": "This improves one detail page but does not create an all-worker attention queue or a correction-status transaction."
+    },
+    {
+      "alternative": "Infer correction progress from the latest supervisor verdict",
+      "rejectedBecause": "A verdict is not evidence that the directive was delivered, acknowledged, acted on, or verified."
+    }
+  ],
+  "risks": [
+    "Overloading the main card with raw evidence instead of a bounded explanation",
+    "Falsely presenting a redirect as active before delivery or acknowledgement is recorded",
+    "Hiding a contract-to-owner defect behind a worker-to-contract correction",
+    "Showing stale corrective status after the code or contract changes",
+    "Creating owner-action prompts for corrections that the worker and supervisor can handle autonomously"
+  ],
+  "workerRecommendation": "Treat this as a blocking dashboard-usability defect. Implement explicit finding and corrective-action lifecycle records; redesign the main page around an attention queue; make the screenshot scenario immediately understandable within 10 seconds; and require Pro supervisor-design review of the information hierarchy after the deterministic UX acceptance fixtures exist.",
+  "workerUncertainty": "The exact visual density and whether findings should be inline or expandable require UI testing, but the required information and event semantics are not optional.",
+  "decisionThatCanChange": "The dashboard card/detail information hierarchy, correction lifecycle event schema, acceptance tests, and whether the current dashboard adaptation slice is acceptable.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/pr42-owner-outcome-dual-alignment"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}
