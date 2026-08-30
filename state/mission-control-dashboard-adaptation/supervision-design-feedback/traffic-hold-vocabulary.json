@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "sdf-20260830-traffic-hold-vocabulary",
+  "createdAt": "2026-08-30T23:28:17Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "workerRunId": "codex-root-gap-audit",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 3,
+    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-30-pr42",
+    "sha256OrCommit": "90a230e85f78063080dc627ec36a0237c3234f72"
+  },
+  "type": "QUESTION",
+  "category": "STATE_MODEL",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "Is HOLD a fourth overall traffic value, a required directive, or a separate terminalization gate when owner source is missing?",
+  "relevantRule": {
+    "path": "patterns/supervision-assurance-planes-and-pro-meta-review.md",
+    "section": "Dual alignment and fail-closed projection",
+    "excerpt": "SOURCE_MISSING fails closed for root completion/release while allowing safe reversible contributing work where valid."
+  },
+  "observedOrHypotheticalFailure": "Implementations can emit incompatible GREEN/YELLOW/RED/UNKNOWN/HOLD values and clients may accidentally treat HOLD as ordinary YELLOW progress rather than a terminalization prohibition.",
+  "evidenceRefs": ["docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"],
+  "proposedChange": "Use overall traffic GREEN | YELLOW | RED | UNKNOWN; model HOLD as a separate required directive/terminalization gate. SOURCE_MISSING projects UNKNOWN unless another deterministic RED condition applies, and rootTerminalizationAllowed remains false.",
+  "alternativesConsidered": ["Add HOLD to the traffic enum", "Project SOURCE_MISSING as RED"],
+  "risks": ["UNKNOWN can look passive unless the HOLD directive and source-missing reason are visually prominent"],
+  "workerRecommendation": "Keep traffic evidence and workflow directive as separate machine fields.",
+  "workerUncertainty": "Current prose uses HOLD both colloquially and as an apparent state label without one canonical enum declaration.",
+  "decisionThatCanChange": "The public projection schema and SOURCE_MISSING UI behavior.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/2026-08-30-pr42"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

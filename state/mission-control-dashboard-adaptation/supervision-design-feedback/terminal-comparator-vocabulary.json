@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "sdf-20260830-terminal-comparator-vocabulary",
+  "createdAt": "2026-08-30T23:28:17Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "workerRunId": "codex-root-gap-audit",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 3,
+    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-30-pr42",
+    "sha256OrCommit": "90a230e85f78063080dc627ec36a0237c3234f72"
+  },
+  "type": "QUESTION",
+  "category": "TERMINAL_INTEGRITY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "What exhaustive decision and reason-code enums should the terminal comparator expose for ordinary nonterminal work, source-unresolved holds, contract laundering, unmet outcomes, stale evidence, candidate mismatch, and allowed root completion?",
+  "relevantRule": {
+    "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "section": "Terminal comparator",
+    "excerpt": "Supervisor approval never substitutes for owner-source, contract-validity, outcome, evidence, or candidate-binding proof."
+  },
+  "observedOrHypotheticalFailure": "Without an exhaustive enum, clients translate similar prose into inconsistent terminal states, and a label translation can accidentally upgrade a nonterminal claim.",
+  "evidenceRefs": [
+    "docs/exec-plans/2026-08-30-mission-control-owner-outcome-terminal-integrity-addendum.md",
+    "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+  ],
+  "proposedChange": "Freeze separate contractStatus, ownerOutcomeStatus, terminalDecision, rootTerminalizationAllowed, requiredDirective, and reasonCodes fields; ordinary work should have an explicit CONTINUE decision rather than a null/implicit pass.",
+  "alternativesConsidered": ["One combined comparator enum", "Free-form directive strings"],
+  "risks": ["An overlarge flat enum couples unrelated axes and becomes difficult to evolve"],
+  "workerRecommendation": "Keep the axes separate and make reason codes an extensible versioned set.",
+  "workerUncertainty": "The required axes are clear, but canonical names and complete reason-code membership are not.",
+  "decisionThatCanChange": "The public terminal-comparator schema and migration fixtures.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/2026-08-30-pr42"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

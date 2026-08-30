@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "reconciliationId": "mc-recon-20260830-gap-audit-r1",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "trigger": "POST_BASELINE_GAP_AUDIT",
+  "reconciledAt": "2026-08-30T23:28:17Z",
+  "ownerSource": {
+    "ownerRequestId": "mission-control-dashboard-adaptation-20260830",
+    "canonicalLocator": "state/mission-control-dashboard-adaptation/OWNER-REQUEST.md",
+    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+    "capturedAt": "2026-08-30T23:28:17Z",
+    "capturedBy": "codex-root-independent-source-capture",
+    "corrections": [
+      "GitHub operations are pre-authorized",
+      "Routine in-scope execution is pre-authorized unless a material tradeoff remains",
+      "The current Pro/Extra High chat reuse limit is 2-3 substantive turns; this supersedes the earlier approximately 15-turn limit"
+    ]
+  },
+  "independentSupervisorReceipt": {
+    "receiptId": "mc-owner-source-20260830-e3",
+    "collector": "codex-root-independent-source-capture",
+    "sourceSha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+    "workerSuppliedCopySha256": null,
+    "comparison": "WORKER_COPY_ABSENT",
+    "limitations": [
+      "The active chat source is preserved in a repository-local immutable source block; no external conversation export is available"
+    ]
+  },
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 3,
+    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+    "normalizedResult": "Restore and adapt PR #41 into the bounded current Mission Control architecture slice without rebuilding Symphony-owned orchestration, using Extra High and shared Pro meta-review appropriately and rolling Pro/Extra High chats after at most 2-3 substantive turns.",
+    "currentGap": "The baseline and audit are frozen; the current data model, ledger, UI, regression suite, archive, and Symphony seam still require adaptation.",
+    "unmetOutcomes": [
+      "dual-alignment and typed-completion data model",
+      "machine-visible owner source and reconciliation projection",
+      "contract-laundering and AskRigor regressions",
+      "adapted UI and responsive verification",
+      "read-only Symphony seam",
+      "repaired source archive and final durable verification"
+    ],
+    "unknownOutcomes": [],
+    "nonSatisfyingProxies": [
+      "baseline app runs",
+      "tests pass",
+      "gap audit frozen",
+      "READY_FOR_OWNER_REVIEW",
+      "supervisor approval"
+    ]
+  },
+  "taskContract": {
+    "taskContractId": "docs/exec-plans/2026-08-30-mission-control-dashboard-adaptation-slice.md",
+    "revision": 1,
+    "sha256": "8c6ca529672509e0dbae3e8e8f82f8ec978da2eabb4f65703356c36065ca7781"
+  },
+  "alignment": {
+    "workerToContract": {
+      "status": "GREEN",
+      "evidenceRefs": [
+        "c1bb87879edb773cb6d2db0bd309b13b6098a596",
+        "docs/evidence/mission-control-baseline/BASELINE.md",
+        "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+      ],
+      "findings": []
+    },
+    "contractToOwner": {
+      "status": "MATCH",
+      "unmappedOwnerRequirementIds": [],
+      "divergences": [],
+      "authorizedScopeChanges": []
+    }
+  },
+  "requirements": [
+    {
+      "ownerRequirementId": "MC-R1",
+      "ownerRequirementText": "Read fresh from the requested architecture branch and slice, follow the shared bootstrap and all current Mission Control patterns.",
+      "workerInterpretation": "Use PR #42 as current architecture authority and merge it into the implementation branch after freezing PR #41.",
+      "taskCriterionIds": ["required-read-order"],
+      "acceptanceEvidence": ["cb92d8913cb256303def032a8165da5464dacbe9"],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R2",
+      "ownerRequirementText": "Reuse PR #41 rather than rebuilding the dashboard.",
+      "workerInterpretation": "Restore and adapt the incumbent Next.js app and visual system in place.",
+      "taskCriterionIds": ["phase-a", "phase-d"],
+      "acceptanceEvidence": ["c1bb87879edb773cb6d2db0bd309b13b6098a596"],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R3",
+      "ownerRequirementText": "First restore/run it and freeze the gap audit; then continue through the slice automatically.",
+      "workerInterpretation": "Commit an immutable baseline and frozen capability audit before behavioral code changes, then proceed without owner prompting.",
+      "taskCriterionIds": ["phase-a", "phase-b"],
+      "acceptanceEvidence": [
+        "c1bb87879edb773cb6d2db0bd309b13b6098a596",
+        "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+      ],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R4",
+      "ownerRequirementText": "Continue through the dashboard adaptation slice automatically.",
+      "workerInterpretation": "Implement the current owner-source, dual-alignment, typed-completion, fail-closed, AskRigor, UI, regression, and archive requirements.",
+      "taskCriterionIds": ["phase-c", "phase-d", "phase-e"],
+      "acceptanceEvidence": [],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R5",
+      "ownerRequirementText": "Do not rebuild orchestration that Symphony already solves.",
+      "workerInterpretation": "Implement only a read-only Symphony normalization seam; no dispatch, retry, stop, resume, tracker mutation, scheduler, concurrency, workspace, or App Server ownership.",
+      "taskCriterionIds": ["phase-f"],
+      "acceptanceEvidence": [],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R6",
+      "ownerRequirementText": "Use Extra High for reasoning/review checkpoints and the shared Pro supervisor-design lane for substantive supervision-design questions or improvements.",
+      "workerInterpretation": "Use independent Extra High architecture/code reviews and one shared architecture-epoch Pro packet only for material schema/design questions.",
+      "taskCriterionIds": ["extra-high-checkpoint", "pro-meta-review"],
+      "acceptanceEvidence": ["docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R7",
+      "ownerRequirementText": "The chat tabs should have max 2-3 turns before handoff because longer running chats are slowing down the browser too much.",
+      "workerInterpretation": "Track substantive turn count and require deterministic handoff by turn 3 for each Pro or Extra High chat, with earlier rollover for context/authority/independence triggers.",
+      "taskCriterionIds": ["supervision-lifecycle"],
+      "acceptanceEvidence": ["state/mission-control-dashboard-adaptation/OWNER-REQUEST.md"],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    },
+    {
+      "ownerRequirementId": "MC-R8",
+      "ownerRequirementText": "Do not claim the overall Mission Control owner outcome complete; this is an implementation slice.",
+      "workerInterpretation": "Close only the bounded adaptation slice and keep the parent outcome open.",
+      "taskCriterionIds": ["completion-boundary"],
+      "acceptanceEvidence": [],
+      "status": "MAPPED_DIRECT",
+      "authorizedChangeRef": null
+    }
+  ],
+  "completionClaim": {
+    "type": "WORKING",
+    "proposedTerminal": false,
+    "candidateRef": "cb92d8913cb256303def032a8165da5464dacbe9",
+    "evidenceRefs": [
+      "docs/evidence/mission-control-baseline/BASELINE.md",
+      "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+    ]
+  },
+  "result": {
+    "overallTraffic": "YELLOW",
+    "rootTerminalizationAllowed": false,
+    "requiredDirective": "CONTINUE_ADAPTATION_SLICE",
+    "findings": ["SLICE_IMPLEMENTATION_INCOMPLETE"]
+  },
+  "previousReconciliationId": null
+}
