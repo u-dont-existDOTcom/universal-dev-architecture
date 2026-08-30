@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "taskId": "replace-with-stable-task-id",
   "title": "Replace with the exact owner-authorized contribution",
   "status": "active",
