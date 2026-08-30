@@ -4,12 +4,17 @@
 
 Do not begin from this task contract alone. Recover and preserve the originating owner request and material later corrections.
 
+- Owner-request ID:
+- Canonical locator or immutable source block:
+- Source capture time:
+- Owner-source SHA-256:
+- Independent owner-source receipt ID/status:
 - Owner-outcome ID:
 - Outcome epoch / revision:
-- Source reference(s):
 - Verbatim owner request:
 - Normalized final result:
 - Owner-outcome SHA-256:
+- Append-only owner correction IDs:
 
 ### Required owner outcomes
 
@@ -29,7 +34,41 @@ Do not begin from this task contract alone. Recover and preserve the originating
 
 If the original owner request is unavailable or materially ambiguous, record `OUTCOME_AUTHORITY_UNRESOLVED`. Continue only clearly useful reversible contributing work; do not declare root completion.
 
-A downstream task contract may refine or decompose this outcome but may not omit, weaken, replace, or terminally bypass it without an explicit owner decision. Follow `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`.
+A downstream task contract may refine or decompose this outcome but may not omit, weaken, replace, or terminally bypass it without an explicit owner decision. Follow:
+
+- `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
+- `patterns/supervision-assurance-planes-and-pro-meta-review.md`
+
+## Objective-reconciliation matrix
+
+Machine-readable record: `<PATH TO OBJECTIVE-RECONCILIATION.json OR EQUIVALENT>`
+
+| Owner requirement | Worker interpretation | Task criterion | Acceptance evidence | Status | Authorized change |
+|---|---|---|---|---|---|
+| `RO-001` |  | `AC-001` |  | `UNMAPPED` |  |
+
+Allowed statuses:
+
+- `MAPPED_DIRECT`
+- `MAPPED_CONTRIBUTING`
+- `MAPPED_VERIFYING`
+- `UNMAPPED`
+- `WEAKENED`
+- `PROXY_SUBSTITUTED`
+- `OWNER_REMOVED`
+- `OWNER_AMENDED`
+- `AMBIGUOUS`
+
+Every material owner requirement must be mapped, explicitly changed by the owner, or escalated.
+
+## Independent alignment states
+
+- Worker-to-contract alignment: `GREEN` / `YELLOW` / `RED` / `UNKNOWN`
+- Contract-to-owner alignment: `MATCH` / `PARTIAL` / `DIVERGED` / `SOURCE_MISSING`
+- Overall task traffic:
+- Alignment evidence/reference:
+
+A GREEN worker-to-contract state cannot make the root task GREEN when contract-to-owner is `DIVERGED`, `SOURCE_MISSING`, or materially `PARTIAL`.
 
 ## Derived task objective
 
@@ -85,6 +124,19 @@ The task contract is invalid if a terminal-required owner outcome is omitted, we
 
 Passing every derived acceptance criterion does not close the root task unless the owner-outcome comparator also reports `OWNER_OUTCOME_SATISFIED`.
 
+## Reconciliation triggers
+
+Re-run objective reconciliation after:
+
+- material discoveries;
+- phase transitions;
+- acceptance-criteria or acceptance-test changes;
+- owner corrections;
+- owner-review readiness;
+- release/deployment/publication preparation;
+- any root completion proposal;
+- supervision-design changes affecting task semantics.
+
 ## Verification
 
 - Focused test/check: `<COMMAND>`
@@ -104,6 +156,28 @@ Passing every derived acceptance criterion does not close the root task unless t
 
 For non-trivial software testing, start telemetry before substantive implementation. Use focused/affected tests in the inner loop, full suites at explicit checkpoints, and mutation testing only under an explicit specialist trigger. Do not repeat an unchanged green full or mutation suite without a recorded material reason. If the project lacks the observer, vendor/run the current canonical observer or use a verified equivalent; a missing local observer is not a valid reason to mark telemetry not applicable. Follow `patterns/test-efficiency-and-verification-budget.md`.
 
+## Research/AskRigor assurance planes
+
+Complete when applicable; otherwise state `NOT_APPLICABLE`.
+
+- Operational alignment: `PASS` / `WARN` / `FAIL` / `UNKNOWN` / `NOT_APPLICABLE`
+- Scientific adequacy: `PASS` / `WARN` / `FAIL` / `UNKNOWN` / `NOT_APPLICABLE`
+- Release adequacy: `PASS` / `WARN` / `FAIL` / `UNKNOWN` / `NOT_APPLICABLE`
+- Research verdict record: `<PATH TO RESEARCH-SUPERVISION-VERDICT.json OR EQUIVALENT>`
+
+Scientific support does not imply privacy, licensing, consent, freshness, provenance, security, product, or publication adequacy.
+
+## Supervision-design feedback
+
+- Substantive supervision-design improvement/question found: yes/no
+- Feedback ID(s):
+- Blocks current boundary: yes/no
+- Shared Pro meta-review scope: `supervision-architecture/<epoch>`
+- Pro meta-review status:
+- Resulting repository/test references:
+
+Do not silently change universal supervision rules. Use `templates/SUPERVISION-DESIGN-FEEDBACK.json` and route substantive improvements/questions to the shared Pro meta-review chat. Continue unaffected work automatically.
+
 ## Risks and rollback
 
 - Risk:
@@ -119,6 +193,17 @@ For non-trivial software testing, start telemetry before substantive implementat
 
 ## Proposed workflow / terminal state
 
+- Completion claim type:
+  - `WORKING`
+  - `ARTIFACT_READY`
+  - `TESTS_PASS`
+  - `READY_FOR_OWNER_REVIEW`
+  - `READY_FOR_RELEASE`
+  - `PARTIAL_OUTCOME`
+  - `SUBTASK_COMPLETE_PARENT_OPEN`
+  - `OWNER_OUTCOME_ACHIEVED`
+  - `BLOCKED_OWNER_DECISION`
+  - `CANCELED_BY_OWNER`
 - Proposed state:
 - Root task / subtask:
 - Parent owner outcome remains open: yes/no
@@ -126,6 +211,8 @@ For non-trivial software testing, start telemetry before substantive implementat
 - Required owner outcomes: `MET` / `UNMET` / `UNKNOWN` with evidence references
 - Current gap:
 - Non-satisfying proxies present:
+- Worker-to-contract alignment:
+- Contract-to-owner alignment:
 - Terminal comparator result:
   - `OWNER_OUTCOME_SATISFIED`
   - `SUBTASK_COMPLETE_PARENT_OPEN`
@@ -140,10 +227,17 @@ For non-trivial software testing, start telemetry before substantive implementat
 
 - Final commit(s):
 - Commands actually run and results:
+- Independent owner-source receipt verified:
 - Owner-outcome epoch/hash verified:
+- Objective-reconciliation record:
+- Worker-to-contract final state:
+- Contract-to-owner final state:
+- Completion claim type:
 - Exact candidate/hash bound to outcome evidence:
 - Required owner outcomes and final statuses:
 - Terminal comparator result:
+- Operational/scientific/release verdicts if applicable:
+- Supervision-design feedback and Pro meta-review status if applicable:
 - Remaining parent outcome, if this is only a subtask:
 - Test-efficiency summary: task wall time; test wall time/share; scope breakdown; failure-discovering runs; full/mutation time; forced redundant-green time; redundant runs skipped/estimated time avoided
 - Deviations/blockers/residual risk:
