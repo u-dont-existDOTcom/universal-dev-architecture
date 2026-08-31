@@ -186,25 +186,43 @@ owner_action_required: false unless new owner source is genuinely necessary
 
 The fixture fails if the task is shown as healthy because its alignment states pass.
 
-## 9. Immediate Somatic containment
+## 9. Immediate Somatic containment and current replacement boundary
 
-Current project evidence records that the worker created and sent:
+Project evidence records that `SOMATIC-R15-PROGRESS-AUDIT-012` received a matching Pro decision.
 
-`SOMATIC-R15-PROGRESS-AUDIT-012`
+The decision found that the model-led preservation-clean rewrite method was falsified by the downward result sequence. It requires:
 
-and is awaiting a matching Pro response.
+- stop measuring or refining the frozen candidate;
+- stop treating intact R15 surface text as the wording substrate;
+- acquire one article-scale rough owner-language batch;
+- reconstruct from owner verbatim or minimum normalization, with normally at most one necessary bridge sentence per natural section;
+- keep every major section unmeasured while it still depends primarily on intact known-red R15 wording.
 
-Until that response:
+The exact owner-source request is frozen in the project repository at:
 
-- no additional prose under the same failed method;
-- no additional Pangram action;
-- no more supporting-work expansion except preserving state or assembling exact requested evidence;
-- keep the task open;
-- display progress as `REGRESSING` and strategy as `REPLACEMENT_REQUIRED`;
+`tasks/somatic-r15-clean-continuation-20260830/OWNER-LANGUAGE-ACQUISITION-PROMPT-20260831.md`
+
+Current truthful state:
+
+```text
+outcome_advancement: REGRESSING
+old_strategy_efficacy: FAILED / SUPERSEDED
+new_strategy: OWNER_TRANSCRIPT_RECONSTRUCTION
+new_strategy_efficacy: BLOCKED_EXTERNAL pending owner source
+same_old_strategy_continuation_allowed: false
+owner_action_required: true — provide one rough 15–25-minute response
+```
+
+Until that source is supplied:
+
+- no additional prose under the failed method;
+- no Pangram action;
+- no expansion of supporting-work ceremony beyond preserving state or exact requested evidence;
+- keep the root task open;
 - retain all valid preservation, reader, tooling and supervision artifacts;
-- continue only unaffected work that cannot contaminate the strategy decision.
+- continue only unaffected work that cannot contaminate the replacement strategy.
 
-After the matching Pro response, record the replacement strategy, causal hypothesis, success/failure threshold and next measurement trigger before execution.
+After owner source arrives, preserve it verbatim as an immutable artifact, instantiate a new strategy ID with causal hypothesis, success/failure threshold, cycle/budget limit and next measurement trigger, then continue automatically.
 
 ## 10. Pro meta-review
 
