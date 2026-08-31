@@ -1,51 +1,69 @@
-# Codex Mission Control MVP
+# Codex Mission Control — adapted source bundle
 
-This directory preserves the complete, tested source tree for the local Codex Mission Control dashboard requested on 2026-08-30.
+This directory preserves the current, tested Mission Control dashboard adaptation built from the existing PR #41 application. It is an explanation-first local supervision dashboard, not a worker orchestrator.
 
-The source is stored as a lossless ZIP archive split into ASCII base64 parts so it can be recovered without binary-transfer support. The extracted project is a standalone Next.js / React / TypeScript application with SQLite persistence, SSE live updates, append-only worker/supervisor events, immutable objective contracts, deterministic drift scoring, seeded demo data, worker details, schemas, curl examples, and tests.
+The reviewed source checkpoint is `744c477`. The source archive is a lossless ZIP split into ASCII base64 parts for repository-safe transfer.
 
-## Restore the source
-
-From this directory:
+## Restore and run
 
 ```bash
 bash restore-source.sh
 cd restored/codex-mission-control
-cp .env.example .env.local
 npm install
 npm test
 npm run typecheck
 npm run build
-npm run dev
+npm start
 ```
 
-Open `http://127.0.0.1:3000`.
+Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 
-## Integrity
-
-`restore-source.sh` verifies the reconstructed ZIP against `SOURCE-ARCHIVE.sha256` before extracting it.
-
-Source archive SHA-256:
+The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-93454988d7d103718e43c44602386ba09566c5ca12f11bb7004f3c7085d387c1
+69ad5a8be8fefe7317df5063aa50101052b0b18ddbd58b4717dacc2a0ab2c7c6
 ```
 
-Local source commit recorded before packaging:
+The checked archive contains 43 files in 20 base64 parts. A fresh reconstruction was checksum-verified, passed `unzip -t`, and matched the exact `744c477` application tree byte-for-byte.
 
-```text
-ea59bab build: add Codex Mission Control MVP
-```
+## Current operator model
 
-## Validation receipt
+The default page is the all-worker attention queue. Every RED, YELLOW, or UNKNOWN worker exposes:
 
-- 17/17 deterministic Node tests passed.
-- SQLite persistence across restart passed.
-- Append-only enforcement, idempotency, immutable objectives, global hash-chain verification, drift scoring, immediate escalation, warning resolution, and mark-viewed behavior passed.
-- A strict framework-stubbed TypeScript check passed; 33 TypeScript/TSX files had zero parser errors.
-- Dashboard and worker-detail layouts were rendered and inspected at 1440 px and 390 px.
-- The actual installed Next.js typecheck/build remains required because this build container could not resolve the npm registry.
+- the exact problem and why it matters;
+- durable evidence and reason codes;
+- the bounded directive or required response;
+- separately derived issued, delivered, acknowledged, started, evidenced, and verified states;
+- the current scoped continuation policy;
+- the next review trigger;
+- whether owner action is required.
 
-## Architecture boundary
+The Test cleanup fixture plainly says the worker is changing the forbidden production scheduler and callers for a test-only task. It directs the worker to stop, revert, return to `tests/**` or `test-support/**`, and rerun focused tests. Its actual state is `REDIRECT DELIVERED — AWAITING ACKNOWLEDGEMENT`; a `REDIRECT` verdict alone never implies correction activity.
 
-Mission Control is an audit and observability layer. It does not autonomously supervise or redirect workers. SQLite events remain authoritative, the UI renders derived state, supervisor estimates cannot erase deterministic violations, and SSE is only an invalidation signal.
+Numeric alignment remains secondary diagnostic metadata. Owner choices carry the complete Pro decision packet—question, context, options, benefits, drawbacks, consequences, recommendation, reasoning, and default if unanswered—rather than a compressed summary.
+
+## Runtime boundary
+
+`npm run dev` and `npm start` launch:
+
+- a daemon at `127.0.0.1:4100`, which exclusively owns SQLite mutation, hash-chain validation, append-only event checks, and SSE notifications;
+- the Next.js dashboard at `127.0.0.1:3000`, whose route handlers proxy the daemon and never open SQLite.
+
+External ingestion is disabled unless per-producer credentials are configured. Producer ID, producer kind, event class/status, and embedded actor/producer identity must agree.
+
+The stock Symphony adapter is read-only. Mission Control does not dispatch, retry, stop, resume, schedule, reconcile, mutate tracker state, own workspaces, or replace Symphony orchestration.
+
+## Verification receipt
+
+At the reviewed implementation checkpoint:
+
+- 56 deterministic tests passed;
+- TypeScript passed;
+- the Next.js production build passed;
+- daemon health and global hash chain passed;
+- unauthenticated daemon and external ingestion mutations were denied;
+- same-origin UI mutations succeeded for both localhost spellings while cross-origin mutations were denied;
+- desktop 1440 px and mobile 390 px screenshots were inspected;
+- the source archive restored with exact checksum and tree equality.
+
+See the application [README](restored/codex-mission-control/README.md), the frozen [gap audit](../../docs/audits/2026-08-30-mission-control-pr41-gap-audit.md), and [adaptation evidence](../../docs/evidence/mission-control-adaptation/).
