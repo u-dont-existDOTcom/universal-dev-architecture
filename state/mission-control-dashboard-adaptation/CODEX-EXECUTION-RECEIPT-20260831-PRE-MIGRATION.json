@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "mc-codex-execution-receipt-20260831-pre-migration-r1",
+  "createdAt": "2026-08-31T01:36:00Z",
+  "directiveId": "SUPERVISION_DIRECTIVE_MISSING",
+  "directiveRevision": 0,
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "runId": "codex-root-mission-control-adaptation-pre-chat-led-migration",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/mission-control-dashboard-adaptation-20260830",
+    "startingHead": "c1bb87879edb773cb6d2db0bd309b13b6098a596",
+    "endingHead": "b858b4b5b9a142595d91ac7060e836168ac389b0",
+    "dirtyState": "CLEAN_AT_MIGRATION_BOUNDARY",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/mission-control-slice"
+  },
+  "execution": {
+    "objectiveClaim": "Restored PR #41, froze the baseline and gap audit, adapted the dashboard and ledger through the attention/correction slice, repaired the source archive, and merged the current architecture authority before adopting the 2026-08-31 chat-led reasoning migration.",
+    "actionsAttempted": [
+      "restored and ran the incumbent PR #41 application",
+      "froze baseline and gap-audit commits",
+      "implemented the v2 owner-source, reconciliation, correction, completion, daemon, UI, and read-only Symphony surfaces",
+      "routed and preserved the two-turn shared Pro attention/correction review",
+      "ran deterministic, build, runtime, responsive, and archive verification",
+      "created a fresh Extra High review lane",
+      "merged current architecture authority at a reversible checkpoint"
+    ],
+    "commandsRun": [
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "npm start",
+      "git archive",
+      "bash restore-source.sh",
+      "gh pr view 41",
+      "gh pr view 42"
+    ],
+    "filesChanged": [
+      "tools/codex-mission-control/restored/codex-mission-control/**",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/{README.md,ARCHITECTURE.md,IMPLEMENTATION-SPEC.md,SOURCE-ARCHIVE.sha256}",
+      "docs/evidence/mission-control-adaptation/**",
+      "state/mission-control-dashboard-adaptation/**"
+    ],
+    "artifactsCreated": [
+      "744c47745c32e6fce440df7739f48c9a59020832",
+      "72de7e3",
+      "docs/evidence/mission-control-adaptation/",
+      "tools/codex-mission-control/source-archive/"
+    ],
+    "browserOrExternalActions": [
+      "two-turn shared Pro attention/correction meta-review, then chat closed",
+      "read-only GitHub PR and branch-topology inspection"
+    ],
+    "startedAt": "2026-08-30T22:35:00Z",
+    "stoppedAt": "2026-08-31T01:36:00Z"
+  },
+  "verification": {
+    "testsAndChecks": [
+      "56 deterministic application tests passed",
+      "TypeScript passed",
+      "Next.js production build passed",
+      "daemon runtime and hash chain passed",
+      "authenticated/same-origin mutation checks passed",
+      "1440 px and 390 px evidence inspected",
+      "source archive checksum, unzip, exact tree, and restore script passed"
+    ],
+    "measurements": [
+      "6 projected workers",
+      "Test cleanup first in attention order",
+      "56 tests, 0 failures",
+      "archive SHA-256 69ad5a8be8fefe7317df5063aa50101052b0b18ddbd58b4717dacc2a0ab2c7c6",
+      "20 archive parts and 43 restored files"
+    ],
+    "requiredEvidenceCollected": [
+      "frozen baseline and gap audit",
+      "attention/correction fixtures",
+      "Pro responses",
+      "responsive screenshots",
+      "Symphony seam evidence",
+      "runtime and archive receipts"
+    ],
+    "requiredEvidenceMissing": [
+      "post-migration Extra High reasoning verdict and current chat-authored execution directive",
+      "final full-repository gate and hosted PR receipt"
+    ],
+    "logsAndArtifactRefs": [
+      "docs/evidence/mission-control-baseline/",
+      "docs/evidence/mission-control-adaptation/",
+      "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+    ]
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "PR #41's original committed source bundle was truncated",
+      "Next canonicalized 127.0.0.1 mutation requests to localhost until the Host-aware same-origin repair",
+      "the architecture branch advanced to a new chat-led reasoning authority after the implementation checkpoint"
+    ],
+    "directiveAmbiguities": [
+      "No post-2026-08-31 chat-authored directive existed when the new controlling bootstrap was adopted."
+    ],
+    "scopeConflicts": [],
+    "tacticalChoicesMade": [
+      "Before the current chat-led migration became authoritative, Codex selected reversible implementation details and authored local supervision-schema interpretations under the prior bootstrap. Those choices are preserved only as execution evidence and are subject to fresh Extra High review."
+    ]
+  },
+  "blockers": [
+    "SUPERVISION_DIRECTIVE_MISSING until the active fresh Extra High lane returns its reviewed directive"
+  ],
+  "stopTriggerReached": "CURRENT_CHAT_LED_BOOTSTRAP_ADOPTED_AT_SAFE_EXECUTION_BOUNDARY",
+  "executionCompletionClaim": "PARTIAL",
+  "nextReasoningReviewRequired": true,
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null
+  },
+  "notes": [
+    "Valid implementation and evidence are preserved; this receipt makes no authoritative alignment, progress, strategy, or completion judgment.",
+    "The overall Mission Control owner outcome remains open even if the bounded adaptation slice is later accepted."
+  ]
+}
