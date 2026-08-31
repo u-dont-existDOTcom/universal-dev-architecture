@@ -22,6 +22,10 @@ Do not make an opaque identifier carry meaning by itself:
 
 When the same referent remains obvious in the immediately continuing discussion, the identifier may be used tersely afterward. Re-establish the plain-language referent after a topic shift, a long response, or any point where ambiguity is plausible.
 
+## Owner-facing outbound-link quality
+
+Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page. Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification. If the exact link cannot be verified in the current turn, do not surface it. Never present a broken or unverified link as a recommendation.
+
 ## Owner-facing artifact delivery
 
 **Delivery is part of task completion.** When the owner needs a file, packet, handoff, protocol, report, generated artifact, or other usable output, do not make repository navigation the delivery mechanism.
@@ -89,6 +93,7 @@ This is especially important for stacked pull requests, multi-repository work, r
 This rule applies to:
 
 - user-facing status reports;
+- outbound citations, references, downloads, product listings, and recommendations;
 - file/artifact delivery and download handoffs;
 - handoffs and recovery summaries intended for a human owner;
 - requests for approval or substantive decisions;
@@ -108,6 +113,8 @@ It does not require verbose expansion inside:
 Do not:
 
 - assume the owner remembers what a PR or issue number means;
+- surface an outbound link that was not opened and verified in the current turn;
+- recommend a broken, error, dead, parked, or stale destination;
 - use a branch name as a substitute for explaining what work it contains;
 - use a branch/path as a substitute for delivering a file the owner needs;
 - tell the owner to navigate GitHub to retrieve an artifact when a file or direct link can be provided;
@@ -122,4 +129,4 @@ After context loss or a fresh conversation, assume opaque operational identifier
 
 ## Transfer rationale and limits
 
-This pattern is universal because the failure mode is independent of any one repository: machine-friendly identifiers are exact but cognitively opaque, and repository locations are not equivalent to owner-facing delivery. The rule does not prohibit identifiers or reduce technical precision; it changes their presentation order and makes artifact handoff an explicit completion responsibility so semantic meaning, retrieval precision, and usability coexist.
+This pattern is universal because the failure modes are independent of any one repository: machine-friendly identifiers are exact but cognitively opaque, a syntactically valid link can still lead to unusable content, and repository locations are not equivalent to owner-facing delivery. The rule does not prohibit identifiers or reduce technical precision; it requires live destination verification, changes identifier presentation order, and makes artifact handoff an explicit completion responsibility so semantic meaning, retrieval precision, and usability coexist.

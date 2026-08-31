@@ -33,6 +33,10 @@ In user-facing prose, explain the thing before its repository or automation iden
 
 When an owner decision is required, state the substantive choice, consequences, and recommended default in ordinary language. Never ask the owner to choose among opaque PR numbers, branches, commits, or run IDs as though those identifiers were the decision itself. Follow `patterns/human-readable-operational-references.md` for the complete rule.
 
+### Outbound-link quality
+
+Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page. Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification. If the exact link cannot be verified in the current turn, do not surface it. Never present a broken or unverified link as a recommendation.
+
 ## Test efficiency
 
 For non-trivial software tasks where repeated tests can materially affect task time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start telemetry before substantive implementation using the project's equivalent of `scripts/test_efficiency.py`.
