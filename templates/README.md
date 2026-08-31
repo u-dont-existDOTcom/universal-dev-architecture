@@ -15,6 +15,7 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `OUTCOME-PROGRESS-RECEIPT.json` — direct-outcome baseline/current/best/target evidence, work classification, outcome advancement, strategy efficacy, intervention, and next decision-changing evidence boundary.
 - `CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json` — versioned chat-authored directive defining the exact execution objective, reasoning decision, strategy identity, scope, inputs, evidence, tests, tactical freedom, and stop/review boundary. Codex cannot start substantive execution without it.
 - `CODEX-EXECUTION-RECEIPT.json` — execution-only receipt containing commands/actions, mutations, tests, measurements, artifacts, runtime facts, deviations, blockers, and stop trigger. It deliberately excludes supervisory authority.
+- `EXECUTOR-REASONING-HANDOFF.json` — durable nonterminal lease, request, compact-poll, response-import, and automatic-resume state for a reasoning-review boundary.
 - `RESEARCH-SUPERVISION-VERDICT.json` — separate operational, scientific, and release-adequacy judgments for AskRigor and comparable research systems.
 - `SUPERVISION-DESIGN-FEEDBACK.json` — architecture question/improvement packet for the shared Pro supervisor-design meta-review lane.
 - `PULL_REQUEST_TEMPLATE.md` — exact verification, risk, diff audit, continuity, and lesson closeout.

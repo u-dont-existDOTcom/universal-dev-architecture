@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "handoffId": "replace-with-handoff-id",
+  "taskId": "replace-with-task-id",
+  "runId": "replace-with-run-id",
+  "directiveId": "replace-with-prior-directive-id",
+  "receiptId": "replace-with-receipt-id",
+  "lease": {
+    "owner": "CODEX_CONTROLLER_OR_MISSION_CONTROL",
+    "acquiredAt": "1970-01-01T00:00:00Z",
+    "expiresAt": "1970-01-01T00:00:00Z",
+    "transferredTo": null,
+    "transferAcceptedAt": null
+  },
+  "reviewRequest": {
+    "requestId": "replace-with-request-id",
+    "idempotencyKey": "replace-with-idempotency-key",
+    "targetSurface": "EXTRA_HIGH_OR_PRO",
+    "targetSessionId": "replace-with-session-id",
+    "targetChatEpoch": "replace-with-chat-epoch",
+    "packetRef": "replace-with-packet-ref",
+    "packetSha256": "replace-with-sha256",
+    "submittedAt": null,
+    "deliveryConfirmedAt": null
+  },
+  "state": "RECEIPT_PERSISTED",
+  "polling": {
+    "lastPollAt": null,
+    "lastCompactState": null,
+    "nextPollAt": null,
+    "pollCount": 0,
+    "fullConversationPayloadsRetrieved": 0,
+    "messagesSentAfterInitialRequest": 0
+  },
+  "response": {
+    "responseId": null,
+    "responseRef": null,
+    "sha256": null,
+    "sizeBytes": null,
+    "readyObservedAt": null,
+    "persistedAt": null,
+    "importIdempotencyKey": null,
+    "importedAt": null,
+    "appliedAt": null,
+    "responseKind": null
+  },
+  "continuation": {
+    "nextDirectiveId": null,
+    "nextDirectiveRevision": null,
+    "validatedAt": null,
+    "executionResumedAt": null
+  },
+  "blocker": null,
+  "ownerActionRequired": false,
+  "ownerAction": null,
+  "events": [],
+  "permittedStates": [
+    "RECEIPT_PERSISTED",
+    "REVIEW_REQUEST_SUBMITTED",
+    "REVIEW_REQUEST_DELIVERED",
+    "WAITING_FOR_REASONING_REVIEW",
+    "REASONING_RESPONSE_READY",
+    "REASONING_RESPONSE_PERSISTED",
+    "REASONING_RESPONSE_IMPORTED",
+    "NEXT_DIRECTIVE_VALIDATED",
+    "EXECUTION_RESUMED",
+    "REASONING_HOLD",
+    "OWNER_DECISION_REQUIRED",
+    "HANDOFF_BLOCKED",
+    "NO_FURTHER_EXECUTION_AUTHORIZED"
+  ],
+  "suspendingOrTerminalStates": [
+    "REASONING_HOLD",
+    "OWNER_DECISION_REQUIRED",
+    "HANDOFF_BLOCKED",
+    "NO_FURTHER_EXECUTION_AUTHORIZED"
+  ]
+}

@@ -416,15 +416,53 @@ For browser automation:
 
 A persistent chat does not require a persistent open tab. Persist URL, account alias, scope key, epoch, capsule, and last reviewed boundary locally.
 
-## 11. Continue automatically
+## 11. Continue automatically and keep the reasoning handoff live
 
-An owner correction, chat review, Pro decision, progress result, or supervision-design verdict is input to the current task, not completion.
+An owner correction, chat review, Pro decision, execution result, progress
+result, or supervision-design verdict is input to the current task, not task
+completion.
 
-After a chat issues a new valid execution directive, Codex continues automatically to its next stop boundary.
+Reaching a directive stop or review boundary stops only further substantive
+execution under that directive. It does not authorize Codex to end the
+owner-facing loop after merely returning an execution receipt.
 
-A failed strategy stops materially similar execution, not all unrelated safe work. Preserve evidence and wait only for the replacement reasoning directive.
+When reasoning review is required, Codex or the durable execution controller
+must:
 
-Pause only for genuine owner authority/input, unavailable permissions/credentials, destructive or irreversible action, spending, publication, explicit stop, or a missing reasoning directive at a substantive boundary.
+1. persist the exact execution receipt;
+2. route it to the directive-bound Extra High or Pro reasoning chat;
+3. maintain exactly one outstanding review request;
+4. recover exact request identity after any ambiguous send;
+5. enter the nonterminal state `WAITING_FOR_REASONING_REVIEW`;
+6. await the matching response using compact read-only status polling;
+7. retrieve and persist the completed response under an exact response ID and hash;
+8. import and apply it exactly once;
+9. validate any next `CHAT-TO-CODEX-EXECUTION-DIRECTIVE`;
+10. continue automatically to the next stop boundary.
+
+Intermediate polls return only `PENDING` or `READY` plus request/response
+identity and retry metadata. They must not repeatedly load full conversation
+turns or post status messages into the reasoning chat.
+
+Large responses must be stored outside the active conversation context when
+practical and referenced by exact artifact identity and SHA-256.
+
+A temporary wait, browser timeout, or pending reasoning response is not a
+terminal user-facing handoff.
+
+Extra High and Pro do not boot a finished Codex turn. The current execution
+controller owns immediate handoff continuity; the target Mission Control runtime
+owns durable wake-up and resumption when the Codex process or turn is parked.
+
+If continued waiting is impossible, persist `HANDOFF_BLOCKED` with the exact
+request ID, blocker, retry schedule, lease owner, and owner-action state. Do not
+silently stop or require the owner to rediscover the stalled frontier.
+
+Pause the substantive task only for a genuine owner/source decision,
+unavailable permission or credential, destructive or irreversible action,
+spending, publication, explicit stop, or a durably recorded unavailable
+reasoning surface. Continue unrelated safe work when it cannot contaminate the
+pending decision.
 
 ## 12. Mission Control-specific executors
 
@@ -451,6 +489,16 @@ At the next safe boundary, every current Codex session must record:
 - exact execution performed and evidence produced;
 - whether Codex previously made unauthorized strategic, editorial, scientific, product, progress, supervision, or completion decisions;
 - `SUPERVISION_DIRECTIVE_MISSING` when no valid directive exists;
-- stop trigger reached and exact packet for the reasoning chat.
+- stop trigger reached and exact packet for the reasoning chat;
+- handoff ID and current handoff-lease owner;
+- reasoning-review request ID and idempotency key;
+- request submission and delivery-confirmation evidence;
+- current handoff state;
+- last compact poll state and timestamp;
+- response ID, artifact reference and SHA-256 when ready;
+- response import/application identity;
+- next directive ID and validation result;
+- automatic-resume timestamp;
+- `EXECUTOR_HANDOFF_DROPPED`, `REASONING_RESPONSE_NOT_AWAITED`, `DUPLICATE_REASONING_REQUEST`, or `HANDOFF_BLOCKED` when applicable.
 
 Do not discard valid work. Reclassify it as execution evidence or supporting work and let the reasoning chat decide its meaning.

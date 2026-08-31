@@ -261,6 +261,139 @@ Safe mechanical cleanup, evidence preservation, and checkpointing may continue w
 
 ---
 
+## 8A. Closed-loop reasoning-handoff liveness
+
+A directive stop or review trigger stops only further substantive execution under
+that directive. It does not make the task, executor run, workflow, or
+owner-facing interaction terminal.
+
+When a Codex execution receipt requires reasoning review, the authoritative next
+state is:
+
+```text
+WAITING_FOR_REASONING_REVIEW
+```
+
+This is a nonterminal control-plane state with an executable frontier.
+
+Before relinquishing the active handoff lease, the execution controller must:
+
+1. persist the immutable execution receipt;
+2. create one reasoning-review request ID and idempotency key;
+3. submit the exact pre-authorized review packet to the directive-bound reasoning chat;
+4. recover exact request identity after ambiguous submission rather than resubmitting speculatively;
+5. confirm that exactly one logical request is outstanding;
+6. await the matching response through read-only compact polling;
+7. persist the completed response under an exact response ID and SHA-256;
+8. validate its request ID, task ID, owner-outcome epoch, evidence boundary, response kind, and directive schema;
+9. import and apply the response exactly once;
+10. resume automatically when a valid next execution directive is present.
+
+The reasoning chat does not reactivate Codex. The durable execution controller
+owns continuation.
+
+Until a deterministic Mission Control relay is operational, the active
+Codex/browser controller holds this lease where the execution surface permits.
+The target architecture transfers the lease to Mission Control or the
+Symphony-compatible orchestrator so that Codex may be parked without making the
+workflow terminal.
+
+### Polling contract
+
+Intermediate polls are read-only and must not send repeated messages into the
+reasoning conversation.
+
+Each intermediate poll returns only one compact envelope:
+
+```json
+{
+  "state": "PENDING",
+  "requestId": "rr_...",
+  "observedAt": "...",
+  "retryAfterSeconds": 30
+}
+```
+
+or:
+
+```json
+{
+  "state": "READY",
+  "requestId": "rr_...",
+  "responseId": "resp_...",
+  "responseRef": "artifact-or-message-reference",
+  "sha256": "...",
+  "sizeBytes": 0
+}
+```
+
+Intermediate polling must never return or re-ingest complete conversation
+turns, the full prior packet, or the completed response body.
+
+Polling intervals, maximum wait horizon, and owner-visible update interval are
+explicit directive/runtime configuration. Polling uses bounded backoff and
+must not create an unbounded busy loop.
+
+### Response handling
+
+A completed response is persisted outside conversation context when practical.
+The executor receives only the validated response envelope and bounded next
+directive required for execution.
+
+The transport may re-read the same response ID after an interrupted read that
+occurred before durable persistence. Import and directive application remain
+exactly once through a stable idempotency key.
+
+Duplicate `READY` observations, duplicate browser reads, or repeated event
+delivery must not produce duplicate response imports or duplicate execution.
+
+### Genuine boundaries
+
+The handoff loop may stop without a next directive only when one of these is
+durably established:
+
+- genuine owner decision or missing owner source;
+- unavailable authentication, permission, or credential;
+- destructive or irreversible-action boundary;
+- spending, publication, deployment, or equivalent owner gate;
+- explicit owner stop or cancellation;
+- reasoning surface unavailable beyond its configured wait horizon;
+- platform/runtime termination after the handoff lease has been durably transferred to Mission Control;
+- explicit reasoning response that no further execution is currently authorized.
+
+A reasoning-surface timeout or temporary `PENDING` state is not completion.
+
+When the wait horizon expires, persist:
+
+```text
+HANDOFF_BLOCKED
+```
+
+with the exact request ID, last poll, reason, retry schedule, lease owner, and
+owner-action state. Do not silently end the task.
+
+### Required failures
+
+Raise `EXECUTOR_HANDOFF_DROPPED` when a receipt requiring reasoning review is
+produced but no durable review request or accepted lease transfer follows.
+
+Raise `REASONING_RESPONSE_NOT_AWAITED` when the execution controller voluntarily
+relinquishes the handoff while a matching response can still be awaited within
+the authorized boundary.
+
+Raise `DUPLICATE_REASONING_REQUEST` when more than one logical request is
+created for the same receipt and review boundary.
+
+Raise `REASONING_RESPONSE_DUPLICATE_IMPORT` when the same response identity is
+imported or applied more than once.
+
+A task must not appear supervised merely because an execution receipt exists.
+The closed loop is complete only after the receipt is reviewed and the resulting
+directive, hold, owner gate, or no-further-execution decision is durably
+recorded.
+
+---
+
 ## 9. Progress and strategy ownership
 
 The reasoning supervisor, aided by deterministic evidence, owns the outcome-progress receipt.
@@ -380,6 +513,40 @@ Required alerts:
 - `CODEX_CONTINUED_AFTER_STOP_TRIGGER`
 - `CODEX_SUBSTANTIVE_PROSE_AUTHORSHIP_UNAUTHORIZED`
 - `OWNER_FORCED_PROGRESS_REVIEW`
+- `EXECUTOR_HANDOFF_DROPPED`
+- `REASONING_RESPONSE_NOT_AWAITED`
+- `DUPLICATE_REASONING_REQUEST`
+- `REASONING_RESPONSE_DUPLICATE_IMPORT`
+- `HANDOFF_LEASE_EXPIRED`
+- `HANDOFF_BLOCKED`
+
+Mission Control projects these handoff fields separately:
+
+```text
+handoff_id
+handoff_lease_owner
+review_request_id
+review_request_delivery_state
+reasoning_handoff_state
+last_compact_poll_at
+next_poll_at
+reasoning_response_id
+reasoning_response_artifact_ref
+response_import_state
+next_directive_id
+automatic_resume_state
+```
+
+The dashboard shows the live frontier in owner-readable form, for example:
+
+```text
+Waiting for Extra High review — request rr_123
+Last checked: 42 seconds ago
+Next check: 18 seconds
+No owner action required
+```
+
+It must not collapse this state to `Worker stopped`.
 
 A task card must not appear supervised merely because Codex has produced a detailed checkpoint or contacted Pro itself.
 

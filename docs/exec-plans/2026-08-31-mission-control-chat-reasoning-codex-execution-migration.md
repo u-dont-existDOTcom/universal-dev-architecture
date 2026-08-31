@@ -86,6 +86,11 @@ Pending reasoning review
 Outcome progress and strategy efficacy from the chat supervisor
 Pro escalation state
 Owner action
+Handoff ID and lease owner
+Review request delivery state
+Compact polling freshness and next poll
+Reasoning response import state
+Next directive and automatic-resume state
 ```
 
 Required alerts:
@@ -100,6 +105,12 @@ CODEX_AUTHORED_SUPERVISORY_VERDICT
 CODEX_CONTINUED_AFTER_STOP_TRIGGER
 CODEX_SUBSTANTIVE_PROSE_AUTHORSHIP_UNAUTHORIZED
 OWNER_FORCED_PROGRESS_REVIEW
+EXECUTOR_HANDOFF_DROPPED
+REASONING_RESPONSE_NOT_AWAITED
+DUPLICATE_REASONING_REQUEST
+REASONING_RESPONSE_DUPLICATE_IMPORT
+HANDOFF_LEASE_EXPIRED
+HANDOFF_BLOCKED
 ```
 
 The dashboard must never label a task supervised merely because Codex produced a detailed checkpoint or contacted Pro.
@@ -162,6 +173,65 @@ Codex/browser automation may:
 
 It may not choose the model/chat, author the substantive question, interpret the answer as architecture authority, or issue the next directive.
 
+## 8A. Closed-loop handoff implementation
+
+The migration is not complete when Codex merely returns an execution receipt.
+
+Implement:
+
+```text
+receipt persisted
+-> one review request submitted
+-> delivery confirmed
+-> WAITING_FOR_REASONING_REVIEW
+-> compact PENDING/READY polling
+-> response persisted and imported exactly once
+-> next directive validated
+-> execution resumed
+```
+
+The active executor or deterministic relay must retain a handoff lease. It may
+not terminate the loop and make the owner relay the receipt or restart Codex.
+
+Use Codex-held waiting only as the current compatibility implementation. The
+target runtime moves waiting and wake-up responsibility into Mission Control or
+the Symphony-compatible orchestrator so that Codex usage is not consumed by an
+idle wait.
+
+No polling operation may send a second chat message or retrieve a full
+conversation transcript. Large completed responses are persisted externally and
+referenced by identity/hash.
+
+A wait-horizon failure becomes `HANDOFF_BLOCKED`, not completion.
+
+Mission Control projects:
+
+```text
+handoff_id
+handoff_lease_owner
+review_request_id
+review_request_delivery_state
+reasoning_handoff_state
+last_compact_poll_at
+next_poll_at
+reasoning_response_id
+reasoning_response_artifact_ref
+response_import_state
+next_directive_id
+automatic_resume_state
+```
+
+The dashboard must show, for example:
+
+```text
+Waiting for Extra High review — request rr_123
+Last checked: 42 seconds ago
+Next check: 18 seconds
+No owner action required
+```
+
+It must not describe this nonterminal state as `Worker stopped`.
+
 ## 9. Hostile acceptance fixtures
 
 Implement `evals/mission-control/codex-self-supervision-articles-failure.json` and test:
@@ -210,5 +280,6 @@ This migration slice is complete only when:
 8. Hostile fixtures pass.
 9. Current Somatic task is migrated to chat-led transcript interpretation and candidate authoring.
 10. The shared Pro design review is recorded or an exact external-review blocker remains visible.
+11. Every reasoning-review boundary retains a durable handoff lease, imports one matching response exactly once, and resumes automatically or records an authoritative hold/blocker.
 
 Do not claim the overall Mission Control outcome complete at this slice.
