@@ -1,76 +1,95 @@
 # Current State
 
-Updated: 2026-08-30
+Updated: 2026-08-31 16:25 UTC
 
 ## Goal
 
-Adapt the existing Mission Control dashboard from PR #41 to the current
-supervision architecture on
-`architecture/codex-pro-supervision-mission-control-20260830`, preserving the
-incumbent UI and adding the smallest auditable runtime/projection layer needed
-for truthful owner-outcome supervision.
+Deliver the working local Mission Control owner view required by issue #47:
+four immediately understandable worker scenarios plus one current read-only
+worker evidence source, using the restored PR #41 dashboard rather than another
+architecture or governance cycle.
 
-## Authority and durable boundary
+## Authority / baseline
 
-- Working branch: `task/mission-control-dashboard-adaptation-20260830`
-- Restored PR #41 baseline: `c1bb87879edb773cb6d2db0bd309b13b6098a596`
-- Architecture merge boundary: `73962d6546dd0ba585f2fa356226e6db2782f7ea`
-- Rollback ref: `recovery/mission-control-pre-architecture-merge-c1bb878`
-- Owner request: `state/mission-control-dashboard-adaptation/OWNER-REQUEST.md`
-- Frozen gap audit: `docs/audits/2026-08-30-mission-control-pr41-gap-audit.md`
-- Objective reconciliation:
-  `state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json`
-- Execution slice:
-  `docs/exec-plans/2026-08-30-mission-control-dashboard-adaptation-slice.md`
-- Required attention/correction UX addendum:
-  `docs/exec-plans/2026-08-30-mission-control-attention-and-correction-ux-addendum.md`
+- Controlling root-mission directive:
+  `https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/47`
+- Active frontier: `USER_VISIBLE_VERTICAL_SLICE_DUE`.
+- Working branch: `task/mission-control-live-slice-issue-47`.
+- Accepted PR #41 adaptation starting head:
+  `f00202c9b6e389c37762fce7d83774597fc9aa29`.
+- Current PR #42 architecture base merged for hosted integration:
+  `a40d413477e57ead76dc6cf9b9a2c457462a0ff5`.
+- Pre-base-merge rollback ref:
+  `recovery/pre-issue47-base-merge-83e08a9`.
+- Superseded generic delivery-frontier work remains paused and recoverable at
+  `8fde4d17855406e5a58f4fe01182bd86f2b8c055`.
+- Extra High directive: `state/mission-control-live-slice/EXECUTION-DIRECTIVE-XH-ISSUE47-001.json`.
+- Pro is not the standing supervisor and was not used for this slice.
 
-## Verified
+## Completed
 
-- PR #41 was restored from a surviving local Codex Work artifact because the
-  committed base64 archive is truncated and fails its declared integrity check.
-- The recovered source matches surviving source commit
-  `38e95a269ee9654a5020b0c3630f7c0324d2e1b3` byte-for-byte.
-- Baseline dependencies installed with zero reported vulnerabilities.
-- Baseline tests passed 5/5, TypeScript passed, production build passed, and
-  `/` plus `/worker/tests` served successfully.
-- Responsive baseline screenshots and the restoration discrepancy are recorded
-  under `docs/evidence/mission-control-baseline/`.
-- The gap audit records KEEP / ADAPT / REPLACE_WITH_SYMPHONY /
-  DELETE_AS_DUPLICATE / DEFER dispositions before implementation.
-- The owner rejected score-first `RED · 21% aligned` presentation. The required
-  default is an all-worker attention queue with explanation, evidence, bounded
-  directive, durable correction lifecycle, next trigger, and owner-action state.
+- The restored PR #41 Next.js dashboard was installed, tested, built, and run
+  as a normal local application.
+- The top viewport now projects the exact healthy, Article regression,
+  InnerSignal stale-blocker, and Human Design governance-recursion scenarios.
+- Every attention card exposes the problem, evidence-backed reason, required
+  action, correction lifecycle, next trigger, owner need, reasoning surface,
+  Codex state, and evidence age. Numeric alignment is secondary.
+- The active Mission Control card reads
+  `state/mission-control-live-slice/WORKER-STATE.json` and the current Git
+  branch/head without mutation; changes reach the already-open page through
+  SSE.
+- Desktop, detail, and mobile evidence is stored under
+  `docs/evidence/mission-control-live-slice/`.
+- Dashboard verification passed 73/73 tests, TypeScript, production build,
+  append-only-chain validation, responsive browser checks, and repository
+  audit.
+- Extra High used two turns and returned `ACCEPT` with
+  `BLOCKS_LIVE_SLICE: NONE`.
+- Execution receipt:
+  `state/mission-control-live-slice/CODEX-EXECUTION-RECEIPT-MC-ISSUE47-001.json`.
 
-## Current step
+## Current checkpoint
 
-Freeze deterministic attention/correction UX fixtures, route the linked design
-feedback through a fresh shared Pro lane, then implement the slice.
-
-## Constraints
-
-- Reuse PR #41; do not rebuild the dashboard.
-- Symphony is an upstream read-only orchestration boundary, not code to fork.
-- Keep optional workflow plugins inactive unless a current empirical activation
-  rule explicitly applies.
-- Pro and Extra High chats may receive at most 2–3 substantive turns before a
-  fresh chat takes over through an exact handoff capsule.
-- Continue automatically through routine Git/GitHub work; ask only for a
-  material product/policy tradeoff or an irreversible/consequential action.
+- Implementation commit: `f5cfad6e3c75f856368f94e2f52161798b0e628b`.
+- Evidence receipt commit: `83e08a9a8b3fcfaca3c27759f8d1abbada0b3e1d`.
+- Current architecture-base integration commit:
+  `7fe2d23beccb9361dce4c623c5bc87c72b53514f`.
+- Draft integration PR: `https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/49`.
+- The first hosted run exposed one stale root-recovery checkpoint inherited
+  from the older dashboard branch. The narrow integration repair is this
+  current-state replacement; it does not reopen generic architecture work.
 
 ## Remaining
 
-- Resolve the recorded supervision-design ambiguities.
-- Implement and verify the attention/correction acceptance fixtures, including
-  the explicit Test cleanup redirect lifecycle.
-- Implement versioned append-only events, migration, deterministic terminal
-  comparison, owner-outcome projection, responsive UI refinement, and a thin
-  read-only Symphony seam.
-- Add deterministic and compatibility tests, run the full required gates,
-  capture final responsive evidence, perform independent Extra High review,
-  repair the PR #41 restore artifact, and commit the completed slice.
+- Re-run the complete Universal test suite and repository audit after this
+  current-state integration repair.
+- Push the repaired provenance head and require hosted CI to pass.
+- Leave the accepted local dashboard running at `http://localhost:3000` for
+  owner review.
 
-## Blockers
+## Blockers / unresolved
 
-- No execution blocker. The current Pro questions are bounded design
-  clarifications with recommended defaults and do not suspend safe work.
+- No live-slice blocker remains.
+- No owner action is required.
+- No Pro review is required.
+- Merge and deployment remain outside the issue #47 completion boundary.
+
+## Evidence / artifacts
+
+- Issue #47 dashboard evidence:
+  `docs/evidence/mission-control-live-slice/`.
+- Live source and receipt: `state/mission-control-live-slice/`.
+- Restored application:
+  `tools/codex-mission-control/restored/codex-mission-control/`.
+- The prior domain-neutral coverage-before-depth completion gate remains
+  durable through `patterns/coverage-before-depth-in-selection.md`,
+  `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
+  `tests/test_coverage_before_depth_pattern.py`.
+
+## Next safe action
+
+Complete only the bounded integration verification and hosted CI retry, then
+keep the owner-visible runtime available. Do not resume generic architecture,
+schema, fixture, validator, broad-test, or Pro-review expansion unless a new
+live attempt exposes one exact blocking capability.
