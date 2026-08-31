@@ -10,9 +10,11 @@ The normalized contract is: Repository involvement alone is not a reason to crea
 
 The capability boundary recurs across Joel's article, research, and development chats. Encoding it once prevents two opposite failures: leaving Chat to simulate terminal work it cannot perform, and fragmenting ordinary repository reading or editorial reasoning into unnecessary Work tasks.
 
+On 2026-08-31 a repeated editorial-control failure exposed a second, genuinely universal part of the same boundary: assigning roles in prose is not enough when the executor can still see the producer's failed realization, invent missing semantic inputs, or self-certify a correlated review. The portable correction is a reasoning-complete execution packet, artifact/input separation where priming matters, exact identity binding, a separate reasoning context for genuinely independent validation, and return to Chat when the packet is incomplete. Codex must not invent missing semantic inputs; it must fail closed. A structural validator can enforce recorded identities and state transitions without becoming the semantic judge. Article wording, detector strategy families, and editorial judgments remain in the originating repository and are not promoted here.
+
 ## Limits
 
-This is owner-authored operational policy rather than independently benchmarked evidence. It applies to Joel's workflows where ChatGPT Work and task coordination are available. It does not claim that this split is optimal for every user, does not require delegation when Chat already has the needed capability, and does not broaden scope, permissions, spending, publication, or destructive-action authority.
+This is owner-authored operational policy rather than independently benchmarked evidence. It applies to Joel's workflows where ChatGPT Work and task coordination are available. It does not claim that this split is optimal for every user, does not require delegation when Chat already has the needed capability, and does not broaden scope, permissions, spending, publication, or destructive-action authority. A reasoning-complete packet and structural validator also do not prove that a semantic judgment is correct; they prevent the mechanical executor from silently supplying or certifying that judgment.
 
 ## Durable projections
 

@@ -43,6 +43,10 @@ After interruption, a fresh thread, context compaction, or model switch, inspect
 
 Never let a stale checkpoint or remembered chat state outrank newer owner instructions or verified repository state.
 
+## Artifact-enforced reasoning/execution boundary
+
+When current authority assigns substantive reasoning to Chat or Pro and Codex only mechanical execution, Chat or Pro must freeze a **reasoning-complete execution packet** containing the resolved decisions or semantic inputs, exact constraints, allowed changes, acceptance criteria, unresolved items, and return contract. Codex must not invent missing semantic inputs, generate a reasoning-owned artifact, resolve an omitted substantive tradeoff, or self-certify a correlated judgment as independent validation. Codex may validate structure and identity, run tests, store artifacts, and apply the exact authorized transformation. If the packet is incomplete, fail closed and return the precise missing decision or artifact to the originating Chat. A structural validator proves recorded controls, not semantic correctness; genuinely independent review requires a separate reasoning context.
+
 ## Supervised long-task handoffs
 
 For any long work task that needs supervision, keep the originating Chat as the owner-facing supervisor and GitHub as the canonical durable state. Before handing execution to a fresh Codex worker or requesting higher-level supervision, write the task instructions and a full self-contained handoff into the task's canonical GitHub issue, pull request, or committed recovery artifact. Include the goal and acceptance criteria, authority and constraints, relevant background and decisions, completed/current/remaining work, exact evidence and repository locations, blockers and uncertainty, and the next safe action. The handoff must support resumption without the old chat while still obeying existing secret, privacy, and data-sharing rules.

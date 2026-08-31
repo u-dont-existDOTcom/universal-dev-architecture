@@ -81,6 +81,37 @@ class ChatWorkTerminalRoutingTests(unittest.TestCase):
         self.assertIn("patterns/chat-work-terminal-routing.md", index)
         self.assertIn("missing terminal/shell capability", index)
 
+    def test_reasoning_execution_boundary_is_artifact_enforced(self) -> None:
+        documents = (
+            ROOT / "AGENTS.md",
+            ROOT / "templates" / "AGENTS-CODEX.md",
+            ROOT / "templates" / "AGENTS-UNIVERSAL-BOOTSTRAP.md",
+            ROOT / "patterns" / "chat-work-terminal-routing.md",
+            ROOT
+            / "audits"
+            / "2026-08-24-chat-work-terminal-routing-owner-policy.md",
+        )
+        required_behavior = (
+            "reasoning-complete execution packet",
+            "Codex must not invent missing semantic inputs",
+            "fail closed",
+            "structural validator",
+            "separate reasoning context",
+        )
+
+        for path in documents:
+            with self.subTest(path=path):
+                text = path.read_text(encoding="utf-8")
+                for behavior in required_behavior:
+                    with self.subTest(behavior=behavior):
+                        self.assertIn(behavior, text)
+
+    def test_lesson_index_routes_reasoning_execution_boundary(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("reasoning-complete artifact-bound execution packet", index)
+        self.assertIn("fail closed", index)
+        self.assertIn("self-certify independent judgment", index)
+
 
 if __name__ == "__main__":
     unittest.main()

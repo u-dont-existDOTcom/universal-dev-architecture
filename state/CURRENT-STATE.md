@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-08-22
+Updated: 2026-08-31
 
 ## Goal
 
@@ -121,6 +121,17 @@ lesson provenance, and directly verified hosted governance.
 
 ## Current checkpoint
 
+- On 2026-08-31, the Chat-to-Work supervision pattern gained an
+  artifact-enforced reasoning/execution boundary. When authority assigns
+  substantive reasoning to Chat or Pro and Codex only mechanical execution,
+  the supervisor must freeze a reasoning-complete execution packet and Codex
+  must fail closed rather than invent missing semantic inputs, produce the
+  reasoning-owned artifact, or self-certify independent review. The current
+  pattern, root agreement, both reusable agent templates, owner-policy audit,
+  lesson route, and causal regression now carry that rule. This is a control
+  architecture promotion; task-specific editorial judgments and detector
+  strategies remain in their originating repository.
+
 - On 2026-08-24, Joel established a capability-based Chat-to-Work routing rule:
   repository involvement alone stays in Chat when its current tools suffice;
   a genuinely missing terminal/shell capability triggers one bounded Work task,
@@ -226,6 +237,9 @@ lesson provenance, and directly verified hosted governance.
   `patterns/chat-work-terminal-routing.md`,
   `audits/2026-08-24-chat-work-terminal-routing-owner-policy.md`, and
   `tests/test_chat_work_terminal_routing.py`
+- Artifact-enforced reasoning/execution projections: `AGENTS.md`,
+  `templates/AGENTS-CODEX.md`, and
+  `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md`
 - Test-efficiency policy and portable observer:
   `patterns/test-efficiency-and-verification-budget.md` and
   `scripts/test_efficiency.py`
