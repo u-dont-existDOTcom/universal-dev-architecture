@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "scenario_id": "MC-OUTCOME-REGRESSION-SOMATIC-R15",
+  "title": "Worker and contract align while the measured owner outcome regresses",
+  "provenance": {
+    "type": "owner-reported real supervision failure",
+    "recorded_at": "2026-08-31",
+    "source_repository": "u-dont-existDOTcom/joel-articles",
+    "source_pull_request": 73
+  },
+  "owner_outcome": {
+    "owner_outcome_id": "OR-SOMATIC-HUMANIZATION-20260830",
+    "epoch": 3,
+    "target": {
+      "metric": "Pangram 4.0 Human fraction",
+      "value": 1.0,
+      "direction": "HIGHER_IS_BETTER"
+    }
+  },
+  "alignment": {
+    "worker_to_contract": "GREEN",
+    "contract_to_owner": "MATCH"
+  },
+  "measurements": [
+    {
+      "strategy_id": "EXACT_R15_BASELINE",
+      "label": "Exact R15",
+      "value": 0.1547368467
+    },
+    {
+      "strategy_id": "BOUNDED_MICRO_REPAIR",
+      "label": "Micro candidate",
+      "value": 0.1381948739
+    },
+    {
+      "strategy_id": "ARTICLE_WIDE_RECONSTRUCTION",
+      "label": "Article-wide reconstruction",
+      "value": 0.1231321841
+    }
+  ],
+  "current_unmeasured_candidate": {
+    "strategy_id": "DIRECT_OWNER_VOICE_RECOVERY",
+    "measured": false,
+    "measurement_ineligible_reason": "Production surprise gate returned NO"
+  },
+  "supporting_work": {
+    "preservation_and_source_integrity": "PASS",
+    "reader_and_supervisor_rounds": "COMPLETE",
+    "tooling_and_recovery_artifacts": "SUBSTANTIAL",
+    "commits_reported_at_capture": 39,
+    "direct_owner_outcome_progress": "NONE"
+  },
+  "completion_claim_type": "WORKING",
+  "expected": {
+    "outcome_advancement": "REGRESSING",
+    "strategy_efficacy": "REPLACEMENT_REQUIRED",
+    "overall_control_state": "RED",
+    "same_strategy_continuation_allowed": false,
+    "required_directive": "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD",
+    "progress_audit_triggered_without_owner_prompt": true,
+    "owner_action_required": false,
+    "owner_action_exception": "Only if the replacement method genuinely requires new owner source, threshold, policy, or tradeoff authority",
+    "preserve_completed_supporting_work": true
+  },
+  "failure_conditions": [
+    "Overall state is GREEN or healthy because worker-to-contract and contract-to-owner pass",
+    "Commit count, tests, audits, packets, or preservation gates are reported as direct owner-outcome progress",
+    "Same materially similar strategy continues without a new evidence-backed causal justification",
+    "The owner must ask whether progress occurred before the progress intervention is generated",
+    "A fabricated qualitative percentage is used instead of direct evidence states"
+  ]
+}

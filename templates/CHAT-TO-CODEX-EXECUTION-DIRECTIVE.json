@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "directiveId": "replace-with-directive-id",
+  "directiveRevision": 1,
+  "createdAt": "1970-01-01T00:00:00Z",
+  "taskId": "replace-with-task-id",
+  "ownerOutcome": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256"
+  },
+  "reasoningSupervisor": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "replace-with-chat-session-id",
+    "chatEpoch": "replace-with-chat-epoch",
+    "decisionId": "replace-with-reasoning-decision-id",
+    "capsuleId": "replace-with-context-capsule-id",
+    "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity"
+  },
+  "strategy": {
+    "strategyId": "replace-with-strategy-id",
+    "causalHypothesis": "replace-with-chat-authored-hypothesis",
+    "predictedOutcomeChange": "replace-with-prediction",
+    "successThreshold": "replace-with-success-threshold",
+    "failureThreshold": "replace-with-failure-threshold",
+    "nextDecisionChangingEvidence": "replace-with-measurement-or-evidence-boundary"
+  },
+  "executionObjective": "replace-with-exact-bounded-execution-objective",
+  "reasoningSummary": "replace-with-bounded-chat-authored-rationale; Codex must not reinterpret this as authority to change strategy",
+  "inputs": [
+    {
+      "type": "FILE_OR_ARTIFACT",
+      "ref": "replace-with-exact-ref",
+      "sha256": "replace-with-sha256-or-null"
+    }
+  ],
+  "allowed": {
+    "actions": [],
+    "paths": [],
+    "commands": [],
+    "tacticalFreedom": "replace-with-what-low-level-choices-Codex-may-make"
+  },
+  "forbidden": {
+    "actions": [],
+    "paths": [],
+    "decisions": [
+      "change owner outcome",
+      "change task strategy",
+      "classify overall alignment or progress",
+      "author supervisory verdict",
+      "decide owner or Pro escalation",
+      "continue beyond stop trigger"
+    ]
+  },
+  "requiredEvidence": [],
+  "requiredTestsOrChecks": [],
+  "stopAndReturnTriggers": [
+    "execution objective completed",
+    "material ambiguity affecting semantics or strategy",
+    "scope or forbidden-path conflict",
+    "required input unavailable",
+    "direct measurement obtained",
+    "declared execution horizon reached"
+  ],
+  "maximumExecutionHorizon": {
+    "type": "MEANINGFUL_EXECUTION_CYCLE",
+    "limit": 1
+  },
+  "ambiguityBehavior": "STOP_AND_REPORT_DECISION_REQUIRED",
+  "ownerDecisionAuthority": "NONE",
+  "proEscalationAuthority": "NONE",
+  "substantiveProseAuthorshipAuthority": "NONE_UNLESS_EXACT_TEXT_OR_TRANSFORMATION_IS_INCLUDED",
+  "status": "ACTIVE"
+}

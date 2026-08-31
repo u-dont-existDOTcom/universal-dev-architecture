@@ -1,152 +1,258 @@
 # Current Codex Worker — Shared Supervision Bootstrap
 
-**Purpose:** Apply the current Mission Control / supervision operating rules to an already-running Codex worker **without replacing or broadening the owner’s real requested outcome**.
+**Purpose:** Apply the current Mission Control rules to an already-running Codex executor without replacing or broadening the owner’s real requested outcome.
 
-**Authority:** Current owner instruction and the worker’s current project authority remain primary. Existing checkpoints, acceptance criteria, supervisor packets, and completion boundaries are subordinate until they are validated against the originating owner outcome.
+**Controlling owner correction:** **Chats perform the reasoning. Codex is used only for execution that chats cannot reliably perform.**
+
+**Authority:** Current owner instruction and current project authority remain primary. Existing checkpoints, acceptance criteria, supervisor packets, strategies, and completion boundaries are subordinate until independently reconciled against the originating owner outcome.
 
 ## 1. Preserve the owner outcome, not a narrowed checkpoint
 
-If you are already working on a task:
+At the next safe execution boundary:
 
-- continue the same underlying owner-requested outcome;
-- preserve the current branch/worktree, explicit owner decisions, and valid completed supporting work;
-- incorporate these rules at the next safe checkpoint;
-- do **not** restart from scratch merely because this bootstrap is newer;
-- do **not** begin building Mission Control unless Mission Control is actually your assigned task;
-- do **not** treat Universal architecture as permission to broaden scope.
-
-However, do **not** blindly preserve the current task contract, acceptance criteria, checkpoint, or proposed finish line. They may already have laundered the original goal.
-
-At the next safe checkpoint:
-
-1. Recover the original owner request and material later corrections from canonical project records.
-2. Preserve the verbatim owner request and exact canonical locator or immutable source block.
-3. Record owner-request identity, SHA-256, capture time, and append-only corrections.
+1. Preserve the current branch/worktree and valid completed evidence.
+2. Recover the original owner request and material later corrections from canonical records.
+3. Preserve the verbatim owner source, locator or immutable source block, capture time, SHA-256, and append-only corrections.
 4. State the normalized final result without weakening it.
 5. List every required outcome, required evidence, current gap, and unmet or unknown outcome.
-6. List supporting states that do **not** by themselves satisfy the outcome.
+6. List supporting states that do not themselves satisfy the outcome.
 7. Construct or update the objective-reconciliation matrix.
-8. Compare the current task contract and proposed terminal state against that invariant.
-9. Preserve useful completed work, but reopen/continue any required outcome omitted or replaced by a proxy.
+8. Compare the current task contract and proposed terminal state against the owner outcome.
+9. Preserve useful supporting work, but reopen any required outcome omitted or replaced by a proxy.
 
-A downstream task contract may refine or decompose the owner outcome, but it may not weaken, omit, replace, or terminally bypass it without an explicit owner decision.
+A derived task contract may refine or decompose the owner outcome. It may not weaken, omit, replace, or terminally bypass it without an explicit owner decision.
 
-The following do not terminate a root task by default:
+These do not terminate a root task by default:
 
 - `READY_FOR_OWNER_REVIEW`;
-- editorial/review readiness;
+- editorial or review readiness;
 - tests passing;
 - source-integrity or preservation PASS;
 - supervisor approval;
 - independent-reader PASS;
-- PR/handoff readiness.
+- PR or handoff readiness.
 
-If the owner requested a final substantive outcome and that outcome remains unmet, the task remains open. An early owner-evaluation state must be labeled nonterminal.
-
-If the original owner outcome cannot be recovered or is materially ambiguous, mark `OUTCOME_AUTHORITY_UNRESOLVED`. Continue only clearly useful reversible contributing work; do not declare root completion.
-
-If this bootstrap conflicts with a newer explicit owner instruction or a genuine project-specific requirement, the newer owner/project requirement wins.
+If the original outcome is unavailable or materially ambiguous, mark `OUTCOME_AUTHORITY_UNRESOLVED`. Preserve state and continue only clearly useful, reversible, already authorized execution. Do not declare root completion.
 
 Required companions:
 
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
+- `patterns/outcome-advancement-and-strategy-efficacy.md`
+- `patterns/chat-led-reasoning-codex-execution-separation.md`
 
-Machine-readable baseline:
+Machine-readable baselines:
 
 - `templates/OBJECTIVE-RECONCILIATION.json`
+- `templates/OUTCOME-PROGRESS-RECEIPT.json`
+- `templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
+- `templates/CODEX-EXECUTION-RECEIPT.json`
 
-## 2. Intelligence and execution routing
+## 2. Chat-led reasoning; Codex execution only
 
-Use the cheapest/simplest surface that can reliably complete the next action, but do not under-escalate important judgments.
+Codex is an executor, not the project controller, strategist, author, supervisor, or judge.
 
-### Deterministic/local checks
+The reasoning supervisor is a chat:
 
-Use exact tooling for facts such as:
+```text
+Extra High by default
+Pro for the highest-intelligence decisions
+fresh Pro when independent adjudication matters
+```
 
-- branch/HEAD/base identity;
-- files changed;
-- tests and CI;
-- hashes;
-- schema validation;
-- runtime/process state;
-- stale evidence;
-- resource collisions;
-- owner-outcome/contract coverage;
-- proposed terminal-state comparison.
+The reasoning chat owns:
+
+- owner-outcome interpretation and task decomposition;
+- strategy selection and replacement;
+- task-contract and acceptance-boundary reasoning;
+- article argument, voice, substantive prose, and editorial judgment;
+- architecture and implementation reasoning;
+- scientific, therapeutic, product, and release judgments;
+- worker-to-contract and contract-to-owner assessment;
+- outcome-advancement and strategy-efficacy assessment;
+- deciding whether Pro or owner input is required;
+- writing the next bounded Codex execution directive.
+
+Codex may perform only narrowly instrumental reasoning unavoidable for execution, such as locating an exact file, resolving a compile error inside the authorized scope, or choosing an equivalent command. It may not alter strategy, semantics, owner outcomes, acceptance authority, or supervision state.
+
+Codex must not:
+
+- decide what the owner really meant;
+- choose or revise the project strategy;
+- author a substantive article rewrite unless exact chat-authored text or an exact mechanical transformation is supplied;
+- classify overall alignment, progress, strategy efficacy, scientific adequacy, release adequacy, or completion;
+- decide that supporting work counts as owner-outcome progress;
+- decide whether Pro is needed;
+- decide whether an owner decision is needed, except to report missing authority/input;
+- author a supervisory verdict or substantive Pro question;
+- invent a new strategy after failure;
+- continue beyond a declared stop or review boundary.
+
+Every nontrivial Codex run requires a current chat-authored directive using:
+
+- `templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
+
+Codex returns an execution receipt using:
+
+- `templates/CODEX-EXECUTION-RECEIPT.json`
+
+The receipt contains actions, commands, diffs, tests, measurements, artifacts, runtime facts, deviations, and blockers. It does not authoritatively contain `contract_to_owner_alignment`, `outcome_advancement`, `strategy_efficacy`, `scientific_adequacy`, `release_adequacy`, or `owner_outcome_achieved`.
+
+If no current chat-authored directive exists, mark:
+
+```text
+SUPERVISION_DIRECTIVE_MISSING
+```
+
+Stop new substantive execution after preserving evidence and current state. Route the packet to the assigned reasoning chat and resume automatically only after a versioned directive arrives.
+
+## 3. Capability routing
+
+Use the least scarce surface that can reliably perform the required role, while preserving the reasoning/execution boundary.
+
+### Deterministic tooling
+
+Use for exact facts:
+
+- branch, base, and HEAD identity;
+- changed files and hashes;
+- tests, CI, schemas, runtime state;
+- direct measurements and deltas;
+- stale evidence and sequence gaps;
+- packet/directive/receipt validation;
+- scope and stop-trigger checks.
 
 ### Extra High
 
-Prefer Extra High for work that is primarily reasoning, research, GitHub/repository reading, planning, architecture, evidence organization, ordinary code/diff review, semantic comparison between a derived contract and the owner outcome, or preparation of a supervision-design feedback packet, and does not require local execution.
+Default to Extra High for:
+
+- analysis and research;
+- repository reading;
+- planning and architecture;
+- article authoring/editing reasoning;
+- ordinary code and diff review;
+- evidence organization;
+- contract reconciliation;
+- progress and strategy review;
+- composing bounded Codex directives;
+- deciding whether a Pro pass would be useful.
 
 ### Codex
 
-Use Codex when a named local execution capability is required, including:
+Use Codex only when a named execution capability is required:
 
-- terminal commands;
-- filesystem mutation;
-- builds/tests;
+- terminal or filesystem action;
+- multi-file mutation;
+- build, test, lint, typecheck;
+- local services and runtime debugging;
 - Git/worktree operations;
-- local services;
-- browser/OS control;
-- deployment or equivalent executable work.
+- browser/OS automation;
+- deployment or environment inspection;
+- exact materialization or mechanical transformation;
+- collection of execution evidence.
 
-Do not keep Codex occupied with reasoning-only work that Extra High can perform. After the execution boundary is crossed, return reasoning/review work to Extra High when appropriate.
+A valid Codex necessity declaration states:
+
+```text
+required execution capability
+why a chat cannot reliably perform it
+exact intended mutations/actions
+evidence required
+stop/review trigger
+```
+
+“This is coding work” is not sufficient.
 
 ### Pro
 
 Use Pro promptly when the decision materially benefits from the highest available semantic judgment, especially:
 
-- therapy-answer semantics, safety, technique, relational interpretation, leading/coercive/invalidating behavior, or difficult edge cases;
-- AskRigor methodological flaws, evidence sufficiency, protocol conflicts, access boundaries, and what conclusions research can or cannot support;
-- a consequential unresolved architecture/product decision;
-- a material disagreement between worker evidence and ordinary review;
-- high-risk final adjudication when semantic failure would not be caught deterministically;
-- a disputed owner-outcome/derived-contract equivalence judgment with consequential terminal implications;
-- a substantive question or proposed improvement to the supervision architecture itself.
+- therapy-answer semantics, technique, safety, relational interpretation, or difficult edge cases;
+- AskRigor methodological flaws, evidence sufficiency, protocol conflicts, and conclusion validity;
+- disputed owner-contract equivalence;
+- difficult strategy-failure diagnosis or replacement;
+- consequential architecture/product decisions;
+- high-risk final adjudication;
+- substantive supervision-design review.
 
-Do not spend Pro on GitHub retrieval, routine implementation review, ordinary bugs/tests, formatting, plumbing, or repeated confirmation of unchanged conclusions.
+Do not spend Pro on GitHub retrieval, routine implementation review, ordinary bugs/tests, formatting, plumbing, deterministic progress arithmetic, or repeated confirmation of unchanged conclusions.
 
-When Pro value is genuinely uncertain, Extra High may perform bounded triage: `PRO_REQUIRED`, `PRO_RECOMMENDED`, `PRO_OPTIONAL`, or `NO_PRO`. Obvious important cases should go directly to Pro.
+When Pro value is genuinely uncertain, Extra High may return:
 
-## 3. Pro must not depend on GitHub access or a laundered contract
+```text
+PRO_REQUIRED | PRO_RECOMMENDED | PRO_OPTIONAL | NO_PRO
+```
+
+Obvious material cases go directly to Pro.
+
+## 4. Chat-supervisor review cycle
+
+A reasoning-chat review is required:
+
+- before the first nontrivial Codex directive;
+- whenever a directive reaches its stop boundary;
+- after each direct outcome measurement;
+- after a material deviation, failure, or blocker;
+- before repeating a materially similar action;
+- before a new strategy begins;
+- before another scarce or paid resource action;
+- at phase transitions;
+- before owner review, release, publication, deployment, or root completion;
+- when the execution horizon or review deadline expires.
+
+Codex may run several commands inside one bounded execution directive. It may not free-run across strategy or phase boundaries.
+
+For article work:
+
+```text
+Extra High / Pro chat writes or approves substantive candidate prose
+Codex materializes exact text, runs checks and authorized external actions
+chat reviews the resulting evidence and decides the next revision
+```
+
+For software work:
+
+```text
+Extra High designs the architecture, acceptance criteria, patch plan and tests
+Codex implements and runs the local verification loop
+Extra High reviews the diff/evidence and issues the next directive
+Pro is used only for a genuinely Pro-level decision
+```
+
+## 5. Pro must receive self-contained evidence
 
 Pro web chats cannot be assumed to access GitHub reliably.
 
-When Pro is used for task supervision, give it a self-contained, versioned decision packet containing:
+A Pro packet must include:
 
-- the independently acquired verbatim owner source and receipt;
-- the normalized owner outcome;
-- owner-outcome epoch/hash;
-- required outcomes and current gaps;
-- known non-satisfying proxies;
-- the current derived task contract and reconciliation matrix;
-- exact evidence, excerpts/diffs, and verification results;
-- both alignment states;
-- unresolved findings;
-- the typed completion claim and proposed workflow/terminal state;
-- the precise question.
+- independently acquired owner source and receipt;
+- normalized owner outcome and epoch/hash;
+- current task contract and reconciliation matrix;
+- exact evidence, excerpts/diffs, tests and measurements;
+- worker-to-contract and contract-to-owner states;
+- latest outcome-progress receipt;
+- strategy identity, prediction, actual result and cycle/budget state;
+- unresolved findings and typed completion claim;
+- the exact bounded question and what its answer can change.
 
-The supervisor must compare the derived contract and proposed finish line to the owner outcome **before** judging whether the worker satisfied the contract.
+The reasoning supervisor or deterministic packet builder composes this packet. Codex may transmit it through browser automation but may not author the substantive reasoning or question.
 
-Do not ask Pro to fetch the repository itself. Worker claims and independent evidence must remain separate. Supervisor approval never substitutes for outcome evidence.
+Do not ask Pro to fetch the repository. Worker/Codex claims and independent evidence remain separate. Supervisor approval never substitutes for outcome evidence.
 
-The owner source must be supplied independently by Mission Control, deterministic tooling, or an Extra High reader—not only through the worker’s polished handoff.
+## 6. Machine-checkable dual alignment and typed completion
 
-## 4. Machine-checkable dual alignment and typed completion
-
-Every meaningful checkpoint and supervision packet must report these independently:
+Every substantive reasoning checkpoint reports independently:
 
 ```text
 worker_to_contract_alignment: GREEN | YELLOW | RED | UNKNOWN
 contract_to_owner_alignment: MATCH | PARTIAL | DIVERGED | SOURCE_MISSING
 ```
 
-A worker may be GREEN against its task contract while the contract is RED/DIVERGED against the owner. In that case the overall root task is RED, regardless of worker competence or supervisor approval.
+A Codex execution receipt may claim that it followed the directive, but the chat supervisor assigns these states.
 
-Do not average the two states.
+A worker may be GREEN against a defective contract while contract-to-owner is DIVERGED. The overall root task is then RED. Do not average the states.
 
-Every checkpoint also carries exactly one completion claim:
+Every checkpoint carries exactly one completion claim:
 
 ```text
 WORKING
@@ -161,24 +267,16 @@ BLOCKED_OWNER_DECISION
 CANCELED_BY_OWNER
 ```
 
-No earlier state implies `OWNER_OUTCOME_ACHIEVED`. A label rename cannot upgrade the semantic claim.
+No earlier state implies `OWNER_OUTCOME_ACHIEVED`.
 
 Required objective-reconciliation matrix:
 
-| Owner requirement | Worker interpretation | Task criterion | Acceptance evidence | Status | Authorized change |
+| Owner requirement | Chat interpretation | Task criterion | Acceptance evidence | Status | Authorized change |
 |---|---|---|---|---|---|
 
-Every material requirement must be mapped, explicitly amended/removed by the owner, or escalated. Reconcile again:
+Every material requirement must be mapped, explicitly amended/removed by the owner, or escalated. Reconcile after material discoveries, phase changes, acceptance-test changes, owner corrections, review readiness, release preparation, and before root completion.
 
-- after material discoveries;
-- before phase transitions;
-- after acceptance criteria/tests change;
-- after owner corrections;
-- before owner review;
-- before release/deployment/publication preparation;
-- before any root completion claim.
-
-For AskRigor and comparable research work, report three separate judgments:
+For AskRigor and comparable research work, keep separate:
 
 ```text
 operational_alignment
@@ -186,42 +284,89 @@ scientific_adequacy
 release_adequacy
 ```
 
-Operational PASS does not imply scientific adequacy. Scientific PASS does not imply privacy, licensing, freshness, consent, provenance, product, or release adequacy.
+Operational PASS does not imply scientific adequacy. Scientific PASS does not imply privacy, consent, licensing, freshness, provenance, security, product, or release adequacy.
 
-Machine-readable baselines:
+## 7. Machine-checkable outcome advancement and strategy efficacy
 
-- `templates/OBJECTIVE-RECONCILIATION.json`
-- `templates/RESEARCH-SUPERVISION-VERDICT.json`
+Alignment is not progress.
 
-## 5. Supervision-design improvements and questions must reach shared Pro meta-review
+The reasoning chat, using deterministic evidence, assigns:
 
-When you identify a substantive improvement, loophole, ambiguity, contradiction, recurring failure, machine-checking gap, or question about the supervision design:
+```text
+outcome_advancement:
+  ADVANCING | FLAT | REGRESSING | UNMEASURED |
+  NOT_YET_MEASURABLE | BLOCKED_EXTERNAL | UNKNOWN
 
-1. Do not silently rewrite or reinterpret the canonical architecture.
-2. Record a structured `SUPERVISION_DESIGN_FEEDBACK` packet.
-3. Include the exact architecture version/hash, relevant rule/excerpt, failure mechanism, evidence, proposed change or question, risks, and whether the current task boundary is blocked.
-4. Use deterministic tooling or Extra High to collect GitHub evidence and prepare a self-contained packet.
-5. Route the packet to the shared scope-bound Pro supervisor-design chat.
-6. Preserve the Pro verdict and resulting repository changes/tests durably.
-7. Continue unaffected task work automatically.
+strategy_efficacy:
+  VIABLE | UNCERTAIN | FAILED | EXHAUSTED |
+  REPLACEMENT_REQUIRED | BLOCKED_EXTERNAL | SUPERSEDED
+```
 
-Use one shared Pro meta-review scope per architecture epoch:
+Use `templates/OUTCOME-PROGRESS-RECEIPT.json`.
+
+For numeric outcomes, bind target, baseline, previous, current, best, direction, exact delta, freshness, and candidate/artifact identity. For qualitative or delayed outcomes, use explicit evidence states or owner-authorized leading indicators; do not fabricate a percentage.
+
+Classify work since the last direct evidence as:
+
+```text
+DIRECT_OUTCOME_ADVANCEMENT
+ENABLEMENT_PROGRESS
+RISK_REDUCTION
+EVIDENCE_ACQUISITION
+STRATEGY_LEARNING
+PROCESS_OR_TOOLING
+REWORK
+WASTE_OR_NO_INFORMATION_GAIN
+```
+
+**Commits, tests, audits, packets, documentation**, elapsed time, and model calls do not count as direct owner-outcome progress merely because they occurred.
+
+Control rules:
+
+- one flat strategy cycle is at least YELLOW and requires chat review;
+- two flat cycles or the configured no-progress budget require `REPLACEMENT_REQUIRED` unless a valid delayed-effect model applies;
+- a negative direct delta is `REGRESSING` and requires immediate chat strategy review;
+- repeating a failed, regressing, or exhausted strategy without a new evidence-backed causal reason is RED;
+- an overdue promised measurement produces `PROGRESS_EVIDENCE_OVERDUE`;
+- strategy limits cannot be bypassed by renaming the method.
+
+Required projection:
+
+```text
+worker_to_contract GREEN
+contract_to_owner MATCH
+outcome_advancement REGRESSING
+strategy_efficacy REPLACEMENT_REQUIRED
+=> overall RED
+```
+
+When progress is flat, regressing, or overdue, Codex stops materially similar execution and returns evidence. The chat supervisor selects the replacement method. Codex does not diagnose or replace the strategy itself.
+
+**The owner must not have to ask whether substantial work made progress.** If the owner asks, record `OWNER_FORCED_PROGRESS_REVIEW` and treat it as a supervision failure.
+
+## 8. Supervision-design improvements and questions must reach shared Pro meta-review
+
+When a substantive improvement, loophole, ambiguity, contradiction, recurring failure, or machine-checking gap is found:
+
+1. Codex reports the execution observation; it does not reason out the universal fix.
+2. Extra High collects evidence and prepares `templates/SUPERVISION-DESIGN-FEEDBACK.json`.
+3. Route the self-contained packet to the shared Pro supervisor-design chat.
+4. Preserve the Pro verdict and repository changes/tests.
+5. Continue unaffected execution automatically under current valid directives.
+
+Use one shared scope:
 
 ```text
 supervision-architecture/<epoch>
 ```
 
-Do not open one architecture Pro chat per worker.
+Immediate review is required when a defect could authorize false completion/release, lose the owner outcome, conceal no/negative progress, affect therapy/research safety, or create privacy/security/consent risk.
 
-Review immediately when the issue could falsely authorize completion/release, lose the owner outcome, affect therapy/research safety, create privacy/security/consent risk, or prevent safe current execution. Batch nonblocking improvements for the next meta-review checkpoint.
+**Supervision-design improvements and questions must reach shared Pro meta-review.**
 
-A worker with no substantive supervision-design improvement or question does not need a ceremonial Pro check-in.
+**A worker with no substantive supervision-design improvement or question does not need a ceremonial Pro check-in.**
 
-Machine-readable baseline:
-
-- `templates/SUPERVISION-DESIGN-FEEDBACK.json`
-
-Pro meta-review returns one of:
+Pro meta-review returns:
 
 ```text
 ACCEPT
@@ -232,127 +377,80 @@ OWNER_DECISION_REQUIRED
 PROJECT_LOCAL_ONLY
 ```
 
-Pro advice does not itself mutate the architecture. Repository changes, tests, and owner authorization where applicable remain required.
+## 9. Context lifecycle
 
-## 6. Reuse chats without overflowing context
+Do not create a new reasoning chat at every checkpoint. Do not keep one indefinitely.
 
-Do not create a new Pro chat for every checkpoint. Do not keep one Pro chat forever either.
+Reuse a related Extra High or Pro chat while the objective family and contract epoch remain compatible, context is healthy, and continuity helps rather than contaminates judgment.
 
-Reuse a related Pro chat while:
+Each reasoning turn receives a compact current-authority capsule plus only the new delta/evidence. Preserve owner outcome, current gap, independent source receipt, alignment states, latest progress receipt, current strategy, active directive, unresolved findings, and last reviewed evidence boundary.
 
-- the domain/objective family is unchanged;
-- the owner-outcome and contract epochs are compatible;
-- context remains healthy;
-- prior context provides useful continuity rather than contamination;
-- an independent fresh judgment is not required.
+Compact or roll over when the chat starts citing superseded facts, confusing tasks, forgetting owner locks, treating activity as progress, accepting proxy completion, repeating a failed strategy, or approaching the configured context-pressure threshold.
 
-Each substantive review turn should receive a compact current-authority capsule plus only the new delta/evidence since the last reviewed boundary. The capsule must retain the owner outcome, current gaps, unmet outcomes, independent source receipt, both alignment states, and active design-feedback IDs even when older discussion is compacted.
+A new chat receives a deterministic handoff capsule, not only a free-form summary.
 
-Prepare a rollover when context pressure rises materially or the chat starts:
+## 10. Usage, account failover, and Brave hygiene
 
-- citing superseded facts;
-- confusing tasks/workers;
-- repeating resolved findings;
-- forgetting current owner locks or required outcomes;
-- anchoring on its own prior proposal;
-- producing contradictions without new evidence;
-- accepting a downstream proxy as the parent outcome;
-- collapsing worker-to-contract and contract-to-owner alignment;
-- confusing operational, scientific, and release adequacy.
+Keep the existing private `primary`/`secondary` account mapping out of public GitHub.
 
-A new chat receives a deterministic handoff capsule from durable state, not only a free-form summary of the old chat.
+On a Pro, Extra High, or Codex limit:
 
-## 7. Usage/resource exhaustion and account failover
+1. identify the exact unavailable resource and visible evidence;
+2. checkpoint owner outcome, evidence, active strategy, reasoning chat epoch, active directive, Codex receipt, branch/HEAD, and next safe action;
+3. audit overuse, under-escalation, and no-progress consumption;
+4. verify the secondary account has the required capability;
+5. switch only through a verifiable ordinary flow;
+6. verify active identity;
+7. resume with an exact cross-account capsule/directive.
 
-The owner has authorized two account aliases: `primary` and `secondary`. Their actual identities are **private local configuration** and must not be committed to this public repository or copied into public logs.
+Never rotate accounts to evade a restriction, suspicious-login condition, or authentication challenge. Do not guess fixed quotas.
 
-If Pro, Codex, or another relevant resource becomes unavailable:
+For browser automation:
 
-1. identify the exact exhausted/unavailable resource;
-2. record the visible evidence (banner/error/usage state/reset time if shown);
-3. checkpoint the current task, owner-outcome epoch/hash, current gap, both alignment states, completion claim, branch, HEAD, tests, chat epoch, and next safe action;
-4. audit whether that resource was being used efficiently, including both overuse and harmful under-escalation;
-5. consult the owner-private local account registry if it is available;
-6. verify the secondary account actually has the required capability before switching;
-7. switch only through a verifiable ordinary account-switch flow;
-8. verify the active account after switching;
-9. resume under the same durable task identity and owner-outcome epoch using an exact cross-account handoff capsule.
+- default to headless;
+- keep headed Brave outside the owner’s active workspace where possible;
+- reuse only near-term relevant tabs;
+- audit automation-owned tabs about every 30 minutes and at task/account/limit boundaries;
+- close stale, duplicate, completed, one-time, and superseded automation-owned tabs after preserving state;
+- never close owner/pre-existing/pinned tabs, unsaved forms, pending transfers/results, paid/irreversible actions, or tabs needed to reconcile ambiguity.
 
-Do not rotate accounts to evade a policy restriction, suspicious-login condition, authentication challenge, or other guardrail. If automatic switching cannot be verified, stop only the affected boundary and tell the owner:
+A persistent chat does not require a persistent open tab. Persist URL, account alias, scope key, epoch, capsule, and last reviewed boundary locally.
 
-- which resource is unavailable;
-- which account alias was active;
-- why it appears unavailable;
-- reset time if known;
-- whether the secondary account appears usable;
-- why automatic switching could not be completed;
-- exact manual switching steps;
-- exact resume artifact/state.
+## 11. Continue automatically
 
-Do not guess fixed Pro or Codex quotas when the product does not expose them reliably.
+An owner correction, chat review, Pro decision, progress result, or supervision-design verdict is input to the current task, not completion.
 
-## 8. Brave/browser hygiene
+After a chat issues a new valid execution directive, Codex continues automatically to its next stop boundary.
 
-For automation-controlled browsing:
+A failed strategy stops materially similar execution, not all unrelated safe work. Preserve evidence and wait only for the replacement reasoning directive.
 
-- default to headless unless a headed UI is genuinely required;
-- keep headed Brave windows out of the owner’s active workspace when possible;
-- reuse the same relevant tab/session when it will be used again soon;
-- treat system-opened tabs as leased resources, not permanent state;
-- consider a tab “needed soon” when it is part of the next declared action or expected again within roughly 30 minutes;
-- audit automation-owned tabs about every 30 minutes during active browser work, at major task switches, before/after account switching, after usage-limit events, and before ending a long work session;
-- close stale, completed, duplicate, one-time evidence, and superseded automation-owned tabs once their result/URL/state is durably captured.
+Pause only for genuine owner authority/input, unavailable permissions/credentials, destructive or irreversible action, spending, publication, explicit stop, or a missing reasoning directive at a substantive boundary.
 
-Never automatically close:
+## 12. Mission Control-specific executors
 
-- owner/pre-existing tabs;
-- owner-pinned tabs;
-- tabs with unsaved forms;
-- pending uploads/downloads;
-- generating/pending-result tabs;
-- paid or irreversible actions;
-- tabs needed to reconcile an ambiguous operation.
-
-A persistent Pro chat does not require keeping its tab open. Persist the chat URL, account alias, scope key, current capsule, owner-outcome epoch, and last reviewed boundary locally.
-
-## 9. Continue automatically
-
-An owner correction, answer, new shared rule, or Pro meta-review result is input to the current task, not a completion event. After incorporating it, continue to the next safe in-scope action unless a genuine owner decision, unavailable permission/credential, destructive/irreversible boundary, spending, publication, or explicit stop requires pausing.
-
-Repairing a laundered contract is also not a reason to discard valid supporting work or wait. Preserve it, restore the actual remaining outcome, and continue.
-
-A nonblocking supervision-design question is not a reason to stop unrelated work. A blocking correctness/safety defect holds only the affected boundary.
-
-## 10. Mission Control-specific workers
-
-Only if your assigned task **is Mission Control**, additionally read the current draft architecture on PR #42, especially:
+Only a Codex executor actually assigned to Mission Control also reads:
 
 - `patterns/codex-pro-supervision-mission-control.md`
 - `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md`
 - `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md`
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
-- `docs/exec-plans/2026-08-30-mission-control-symphony-gap-audit-and-pilot.md`
-- `docs/exec-plans/2026-08-30-mission-control-resource-routing-failover-and-tab-hygiene-addendum.md`
-- `docs/exec-plans/2026-08-30-mission-control-owner-outcome-terminal-integrity-addendum.md`
-- `docs/exec-plans/2026-08-30-mission-control-dual-alignment-and-pro-meta-review-addendum.md`
+- `patterns/outcome-advancement-and-strategy-efficacy.md`
+- `patterns/chat-led-reasoning-codex-execution-separation.md`
+- all current Mission Control execution-plan addenda in `docs/exec-plans/`.
 
-Do not make non-Mission-Control workers execute those implementation plans.
+Do not make non-Mission-Control executors run the Mission Control build plans.
 
-## 11. Current-worker receipt
+## 13. Current-executor receipt
 
-At the next meaningful checkpoint, record briefly in durable task state:
+At the next safe boundary, every current Codex session must record:
 
-- that this bootstrap was adopted;
-- owner-request/outcome ID, locator, epoch, hash, and independent source-receipt status or `OUTCOME_AUTHORITY_UNRESOLVED`;
-- normalized result;
-- current gap and unmet required outcomes;
-- `worker_to_contract_alignment`;
-- `contract_to_owner_alignment`;
-- typed completion claim;
-- whether the current task contract/terminal boundary passed or required repair;
-- AskRigor operational/scientific/release judgments when applicable;
-- any substantive supervision-design feedback ID and Pro meta-review status;
-- only the material effect on the active task.
+- adoption of this bootstrap;
+- current owner-outcome identity and gap;
+- last chat-authored directive ID, chat surface/session/epoch, strategy ID, and reviewed evidence boundary;
+- exact execution performed and evidence produced;
+- whether Codex previously made unauthorized strategic, editorial, scientific, product, progress, supervision, or completion decisions;
+- `SUPERVISION_DIRECTIVE_MISSING` when no valid directive exists;
+- stop trigger reached and exact packet for the reasoning chat.
 
-Do not create ceremony or stop productive work merely to acknowledge it.
+Do not discard valid work. Reclassify it as execution evidence or supporting work and let the reasoning chat decide its meaning.
