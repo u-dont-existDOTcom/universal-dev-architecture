@@ -286,6 +286,7 @@ export const ownerOutcomeRecordedSchema = z.object({
   epoch: z.number().int().positive(),
   owner_outcome_sha256: z.union([Sha256, FixtureSha]),
   source_receipt_id: StableId,
+  owner_source_sha256: z.union([Sha256, FixtureSha]),
   verbatim_owner_request: z.array(NonEmpty).min(1),
   normalized_result: NonEmpty,
   required_outcomes: z.array(requiredOutcomeSchema).min(1),
@@ -293,6 +294,7 @@ export const ownerOutcomeRecordedSchema = z.object({
   current_gap: NonEmpty,
   gap_status: z.enum(["OPEN", "NONE", "UNKNOWN"]),
   supersedes: StableId.nullable().default(null),
+  supersedes_outcome_sha256: Sha256.nullable().optional(),
 });
 
 export const taskContractRecordedSchema = z.object({
@@ -403,6 +405,9 @@ export const evidenceReceiptRecordedSchema = z.object({
   summary: NonEmpty,
   refs: z.array(NonEmpty).default([]),
   verified: z.boolean(),
+  claim_kind: z.enum(["GENERAL", "MITIGATION", "FINDING_INVALIDATION", "CORRECTION"]).optional(),
+  supports_finding_id: StableId.nullable().optional(),
+  proposition_sha256: Sha256.nullable().optional(),
   changed_path_manifest: z.object({
     base_candidate_sha256: Sha256,
     current_candidate_sha256: Sha256,
@@ -479,6 +484,7 @@ export const findingStatusChangedSchema = z.discriminatedUnion("status", [
     ...findingStatusCommon,
     status: z.literal("INVALIDATED"),
     invalidation_evidence_receipt_ids: z.array(StableId).min(1),
+    invalidation_proposition_sha256: Sha256,
     invalidator_method_version: StableId,
     affected_directive_event_ids: z.array(StableId).default([]),
   }),
@@ -648,6 +654,204 @@ export const supervisionRouteRecordedSchema = z.object({
   handoff_capsule_sha256: z.union([Sha256, FixtureSha]).nullable().default(null),
   accepted_state_vector_sha256: z.union([Sha256, FixtureSha]).nullable().default(null),
   authority_high_water_sequence: z.number().int().nonnegative(),
+}).superRefine((route, context) => {
+  if (route.substantive_response_count >= 3 && route.status === "ACTIVE") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "Turn 3 cannot remain ACTIVE; a handoff is required." });
+  }
+  if (route.substantive_response_count >= 3
+    && (!route.handoff_capsule_id || !route.handoff_capsule_sha256 || !route.accepted_state_vector_sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["handoff_capsule_id"], message: "Turn 3 requires a complete state-bound handoff capsule." });
+  }
+  if (route.predecessor_session_id && (!route.handoff_capsule_id || !route.handoff_capsule_sha256 || !route.accepted_state_vector_sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["predecessor_session_id"], message: "A successor session requires the predecessor handoff capsule and accepted state vector." });
+  }
+});
+
+export const outcomeAdvancementSchema = z.enum([
+  "ADVANCING", "FLAT", "REGRESSING", "UNMEASURED", "NOT_YET_MEASURABLE", "BLOCKED_EXTERNAL", "UNKNOWN",
+]);
+export const strategyEfficacySchema = z.enum([
+  "VIABLE", "UNCERTAIN", "FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED", "BLOCKED_EXTERNAL", "SUPERSEDED",
+]);
+export const workClassificationSchema = z.enum([
+  "DIRECT_OUTCOME_ADVANCEMENT", "ENABLEMENT_PROGRESS", "RISK_REDUCTION", "EVIDENCE_ACQUISITION",
+  "STRATEGY_LEARNING", "PROCESS_OR_TOOLING", "REWORK", "WASTE_OR_NO_INFORMATION_GAIN",
+]);
+
+export const reasoningSupervisionRecordedSchema = z.object({
+  type: z.literal("reasoning_supervision_recorded"),
+  worker: WorkerId,
+  reasoning_supervisor_surface: z.enum(["EXTRA_HIGH", "PRO"]),
+  reasoning_supervisor_session_id: StableId,
+  reasoning_supervisor_chat_epoch: StableId,
+  decision_id: StableId,
+  capsule_id: StableId,
+  reviewed_evidence_boundary: NonEmpty,
+  last_reasoning_review_at: Timestamp,
+  last_reasoning_reviewed_head_or_artifact: NonEmpty,
+  current_strategy_id: StableId,
+  active_execution_directive_id: StableId.nullable(),
+  next_reasoning_review_trigger: NonEmpty,
+  review_freshness: z.enum(["CURRENT", "OVERDUE", "UNKNOWN"]),
+  pro_escalation_state: z.enum(["NOT_REQUIRED", "PENDING", "ACTIVE", "COMPLETE"]),
+});
+
+export const executionDirectiveRecordedSchema = z.object({
+  type: z.literal("execution_directive_recorded"),
+  worker: WorkerId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  owner_outcome_id: StableId,
+  owner_outcome_epoch: z.number().int().positive(),
+  owner_outcome_sha256: Sha256,
+  reasoning_supervisor_session_id: StableId,
+  reasoning_chat_epoch: StableId,
+  chat_decision_id: StableId,
+  capsule_id: StableId,
+  strategy_id: StableId,
+  strategy_causal_hypothesis: NonEmpty,
+  predicted_outcome_change: NonEmpty,
+  success_threshold: NonEmpty,
+  failure_threshold: NonEmpty,
+  next_decision_changing_evidence: NonEmpty,
+  reviewed_evidence_boundary: NonEmpty,
+  execution_objective: NonEmpty,
+  reasoning_summary: NonEmpty,
+  inputs: z.array(z.object({ type: NonEmpty, ref: NonEmpty, sha256: Sha256.nullable() })).min(1),
+  allowed_actions: z.array(NonEmpty).min(1),
+  allowed_paths: z.array(NonEmpty).min(1),
+  allowed_commands: z.array(NonEmpty).min(1),
+  forbidden_actions: z.array(NonEmpty).min(1),
+  forbidden_paths: z.array(NonEmpty).default([]),
+  forbidden_decisions: z.array(NonEmpty).min(1),
+  required_evidence: z.array(NonEmpty).min(1),
+  required_tests_or_checks: z.array(NonEmpty).min(1),
+  stop_and_return_triggers: z.array(NonEmpty).min(1),
+  maximum_execution_cycles: z.number().int().positive(),
+  maximum_execution_horizon_type: z.literal("MEANINGFUL_EXECUTION_CYCLE"),
+  ambiguity_behavior: z.literal("STOP_AND_REPORT_DECISION_REQUIRED"),
+  owner_decision_authority: z.literal("NONE"),
+  pro_escalation_authority: z.literal("NONE"),
+  strategy_authority: z.literal("NONE"),
+  supervisory_verdict_authority: z.literal("NONE"),
+  substantive_prose_authorship_authority: z.enum(["NONE", "EXACT_TEXT_OR_TRANSFORMATION_ONLY"]),
+  status: z.enum(["ACTIVE", "SATISFIED", "SUPERSEDED", "EXPIRED"]),
+});
+
+export const executionReceiptRecordedSchema = z.object({
+  type: z.literal("execution_receipt_recorded"),
+  worker: WorkerId,
+  receipt_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  worker_run_id: StableId,
+  repository_start_state: NonEmpty,
+  repository_end_state: NonEmpty,
+  started_at: Timestamp,
+  stopped_at: Timestamp,
+  actions_taken: z.array(NonEmpty).default([]),
+  files_changed: z.array(NonEmpty).default([]),
+  artifacts_produced: z.array(NonEmpty).default([]),
+  checks_run: z.array(z.object({ command: NonEmpty, result: z.enum(["PASS", "FAIL", "NOT_RUN"]), summary: NonEmpty })).default([]),
+  measurements: z.array(NonEmpty).default([]),
+  evidence_refs: z.array(NonEmpty).default([]),
+  deviations: z.array(NonEmpty).default([]),
+  blockers: z.array(NonEmpty).default([]),
+  stop_trigger_reached: NonEmpty,
+  execution_claim: NonEmpty,
+  strategy_change: z.null(),
+  progress_classification: z.null(),
+  supervisory_verdict: z.null(),
+  owner_escalation_decision: z.null(),
+  pro_escalation_decision: z.null(),
+  contract_to_owner_alignment: z.null(),
+  outcome_advancement: z.null(),
+  strategy_efficacy: z.null(),
+  scientific_adequacy: z.null(),
+  release_adequacy: z.null(),
+  owner_outcome_achievement: z.null(),
+  next_reasoning_review_required: z.literal(true),
+});
+
+export const codexExecutionStartedSchema = z.object({
+  type: z.literal("codex_execution_started"),
+  worker: WorkerId,
+  execution_start_id: StableId,
+  worker_run_id: StableId,
+  task_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  started_at: Timestamp,
+  execution_mode: z.enum(["SUBSTANTIVE", "BOUNDED_MECHANICAL"]),
+  declared_tactical_boundary: NonEmpty,
+});
+
+const directEvidenceSchema = z.object({
+  state: NonEmpty,
+  numeric_value: z.number().nullable().default(null),
+  unit: z.string().nullable().default(null),
+  evidence_receipt_ids: z.array(StableId).default([]),
+});
+
+export const outcomeProgressRecordedSchema = z.object({
+  type: z.literal("outcome_progress_recorded"),
+  worker: WorkerId,
+  progress_receipt_id: StableId,
+  owner_outcome_id: StableId,
+  owner_outcome_epoch: z.number().int().positive(),
+  owner_outcome_sha256: Sha256,
+  worker_to_contract_alignment: workerAlignmentSchema,
+  contract_to_owner_alignment: contractOwnerAlignmentSchema,
+  overall_control_state: trafficSchema,
+  strategy_id: StableId,
+  strategy_causal_hypothesis: NonEmpty,
+  success_threshold: NonEmpty,
+  failure_threshold: NonEmpty,
+  measurement_direction: z.enum(["HIGHER_IS_BETTER", "LOWER_IS_BETTER"]),
+  target_evidence: directEvidenceSchema,
+  baseline_evidence: directEvidenceSchema,
+  previous_evidence: directEvidenceSchema,
+  current_evidence: directEvidenceSchema,
+  best_evidence: directEvidenceSchema,
+  change_from_baseline: z.number().nullable().default(null),
+  change_from_previous: z.number().nullable().default(null),
+  newly_met_outcome_ids: z.array(StableId).default([]),
+  unmet_outcome_ids: z.array(StableId).default([]),
+  unknown_outcome_ids: z.array(StableId).default([]),
+  work_since_last_direct_progress: z.array(z.object({ classification: workClassificationSchema, summary: NonEmpty })).default([]),
+  measurement_freshness: z.enum(["CURRENT", "OVERDUE", "STALE", "UNKNOWN"]),
+  outcome_advancement: outcomeAdvancementSchema,
+  strategy_efficacy: strategyEfficacySchema,
+  strategy_cycle_index: z.number().int().nonnegative(),
+  strategy_cycle_budget: z.number().int().positive(),
+  measurement_cycle_limit: z.number().int().positive(),
+  progress_detection_flags: z.array(NonEmpty).default([]),
+  same_strategy_continuation_allowed: z.boolean(),
+  required_intervention: NonEmpty,
+  next_decision_changing_evidence: NonEmpty,
+  owner_action: ownerActionObligationSchema,
+  reviewed_by_surface: z.enum(["EXTRA_HIGH", "PRO"]),
+  reviewed_by_session_id: StableId,
+  reviewed_chat_epoch: StableId,
+  reviewed_at: Timestamp,
+});
+
+export const supervisionAlertCodeSchema = z.enum([
+  "SUPERVISION_DIRECTIVE_MISSING", "CODEX_RUNNING_WITHOUT_CURRENT_DIRECTIVE", "DIRECTIVE_SCOPE_EXCEEDED",
+  "REASONING_REVIEW_OVERDUE", "CODEX_AUTHORED_STRATEGY_CHANGE", "CODEX_AUTHORED_SUPERVISORY_VERDICT",
+  "CODEX_CONTINUED_AFTER_STOP_TRIGGER", "CODEX_SUBSTANTIVE_PROSE_AUTHORSHIP_UNAUTHORIZED", "OWNER_FORCED_PROGRESS_REVIEW",
+]);
+
+export const supervisionAlertRecordedSchema = z.object({
+  type: z.literal("supervision_alert_recorded"),
+  worker: WorkerId,
+  alert_id: StableId,
+  code: supervisionAlertCodeSchema,
+  status: z.enum(["OPEN", "CLEARED"]),
+  statement: NonEmpty,
+  source_event_ids: z.array(StableId).min(1),
 });
 
 export const researchVerdictRecordedSchema = z.object({
@@ -695,6 +899,17 @@ export const symphonyRuntimeObservedSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 
+export const symphonyAdapterDiagnosticRecordedSchema = z.object({
+  type: z.literal("symphony_adapter_diagnostic_recorded"),
+  worker: WorkerId,
+  diagnostic_id: StableId,
+  source: symphonySourceSchema,
+  reason_code: z.literal("SYMPHONY_WORKER_UNMAPPED"),
+  upstream_worker_id: NonEmpty,
+  statement: NonEmpty,
+  control_semantics: z.literal(false),
+});
+
 export const reviewMarkedSchema = z.object({
   type: z.literal("review_marked"),
   worker: z.null(),
@@ -707,7 +922,10 @@ export const eventSchemaV2 = z.union([
   evidenceReceiptRecordedSchema, findingRecordedSchema, findingStatusChangedSchema, correctionLifecycleRecordedSchema,
   verificationValidityRecordedSchema, completionClaimRecordedSchema, ownerDecisionRecordedSchema,
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
+  reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema, codexExecutionStartedSchema, executionReceiptRecordedSchema,
+  outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,
   supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, reviewMarkedSchema,
+  symphonyAdapterDiagnosticRecordedSchema,
   supervisorChatLinkSetSchema,
 ]);
 
@@ -740,6 +958,8 @@ export type DirectiveKind = z.infer<typeof directiveKindSchema>;
 export type CompletionClaimType = z.infer<typeof completionClaimTypeSchema>;
 export type CorrectionStatus = z.infer<typeof correctionStatusSchema>;
 export type FindingType = z.infer<typeof findingTypeSchema>;
+export type OutcomeAdvancement = z.infer<typeof outcomeAdvancementSchema>;
+export type StrategyEfficacy = z.infer<typeof strategyEfficacySchema>;
 
 export interface StoredEvent {
   id: number;
@@ -753,6 +973,8 @@ export interface StoredEvent {
   receivedAt: string;
   previousHash: string | null;
   eventHash: string;
+  producerId: string;
+  producerKind: string;
   data: MissionControlEvent;
 }
 

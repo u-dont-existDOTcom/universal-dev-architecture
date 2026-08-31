@@ -9,39 +9,65 @@ const stackEnv = {
   ...process.env,
   MISSION_CONTROL_INTERNAL_TOKEN: process.env.MISSION_CONTROL_INTERNAL_TOKEN ?? randomBytes(32).toString("hex"),
 };
-const daemon = spawn(executable, ["daemon/server.ts"], { stdio: "inherit", env: stackEnv });
+const daemon = spawn(executable, ["daemon/server.ts"], { stdio: "inherit", env: stackEnv, detached: process.platform !== "win32" });
 let next;
 let closing = false;
+let requestedExitCode = 0;
+let forceExitTimer;
+const liveChildren = new Set([daemon]);
 
 try {
   await waitForDaemon();
-  next = spawn(nextExecutable, [mode, ...forwarded], { stdio: "inherit", env: stackEnv });
+  next = spawn(nextExecutable, [mode, ...forwarded], { stdio: "inherit", env: stackEnv, detached: process.platform !== "win32" });
+  liveChildren.add(next);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   daemon.kill("SIGTERM");
   process.exit(1);
 }
 
-function shutdown(signal = "SIGTERM") {
-  if (closing) return;
-  closing = true;
-  daemon.kill(signal);
-  next?.kill(signal);
+function shutdown(signal = "SIGTERM", exitCode = 0) {
+  requestedExitCode = Math.max(requestedExitCode, exitCode);
+  if (!closing) closing = true;
+  for (const child of liveChildren) stopChild(child, signal);
+  if (liveChildren.size === 0) process.exit(requestedExitCode);
+  forceExitTimer ??= setTimeout(() => {
+    for (const child of liveChildren) stopChild(child, "SIGKILL");
+    process.exit(requestedExitCode || 1);
+  }, 5000);
 }
 
 daemon.on("exit", (code) => {
+  liveChildren.delete(daemon);
   if (!closing) {
-    shutdown();
-    process.exit(code ?? 1);
+    shutdown("SIGTERM", code ?? 1);
+  }
+  if (closing && liveChildren.size === 0) {
+    if (forceExitTimer) clearTimeout(forceExitTimer);
+    process.exit(requestedExitCode);
   }
 });
 next.on("exit", (code) => {
+  liveChildren.delete(next);
   if (!closing) {
-    shutdown();
-    process.exit(code ?? 0);
+    shutdown("SIGTERM", code ?? 0);
+  }
+  if (closing && liveChildren.size === 0) {
+    if (forceExitTimer) clearTimeout(forceExitTimer);
+    process.exit(requestedExitCode);
   }
 });
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => shutdown(signal));
+
+function stopChild(child, signal) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    if (process.platform !== "win32" && child.pid) process.kill(-child.pid, signal);
+    else child.kill(signal);
+  } catch {
+    child.kill(signal);
+  }
+}
 
 async function waitForDaemon() {
   const url = process.env.MISSION_CONTROL_DAEMON_URL ?? "http://127.0.0.1:4100/health";

@@ -69,6 +69,7 @@ export type SymphonyStateV1 = z.infer<typeof symphonyStateSchema>;
 
 export interface SymphonyAdapterResult {
   observations: Array<Extract<MissionControlEventV2, { type: "symphony_runtime_observed" }>>;
+  diagnosticEvents: Array<Extract<MissionControlEventV2, { type: "symphony_adapter_diagnostic_recorded" }>>;
   diagnostics: string[];
   payloadSha256: string;
 }
@@ -76,7 +77,7 @@ export interface SymphonyAdapterResult {
 export function adaptSymphonyState(
   input: unknown,
   receivedAt: string,
-  workerForIssue: (issueIdentifier: string) => string,
+  workerForIssue: (issueIdentifier: string) => string | null,
 ): SymphonyAdapterResult {
   const state = symphonyStateSchema.parse(input);
   const payloadSha256 = sha256(canonicalJson(input));
@@ -95,35 +96,36 @@ export function adaptSymphonyState(
     }
   }
   const observations: SymphonyAdapterResult["observations"] = [];
-  for (const payload of state.running) observations.push({
-    type: "symphony_runtime_observed",
-    worker: workerForIssue(payload.issue_identifier),
-    source,
-    kind: "running",
-    issue_id: payload.issue_id,
-    issue_identifier: payload.issue_identifier,
-    tracker_state: payload.state,
-    payload,
-  });
-  for (const payload of state.retrying) observations.push({
-    type: "symphony_runtime_observed",
-    worker: workerForIssue(payload.issue_identifier),
-    source,
-    kind: "retrying",
-    issue_id: payload.issue_id,
-    issue_identifier: payload.issue_identifier,
-    tracker_state: null,
-    payload,
-  });
-  for (const payload of state.blocked) observations.push({
-    type: "symphony_runtime_observed",
-    worker: workerForIssue(payload.issue_identifier),
-    source,
-    kind: "blocked",
-    issue_id: payload.issue_id,
-    issue_identifier: payload.issue_identifier,
-    tracker_state: payload.state,
-    payload,
-  });
-  return { observations, diagnostics, payloadSha256 };
+  const diagnosticEvents: SymphonyAdapterResult["diagnosticEvents"] = [];
+  for (const kind of ["running", "retrying", "blocked"] as const) {
+    for (const payload of state[kind]) {
+      const worker = workerForIssue(payload.issue_identifier);
+      if (!worker) {
+        const reason = `SYMPHONY_WORKER_UNMAPPED:${payload.issue_identifier}`;
+        diagnostics.push(reason);
+        diagnosticEvents.push({
+          type: "symphony_adapter_diagnostic_recorded",
+          worker: "symphony-adapter",
+          diagnostic_id: `symphony-unmapped:${payload.issue_id}:${kind}`,
+          source,
+          reason_code: "SYMPHONY_WORKER_UNMAPPED",
+          upstream_worker_id: payload.issue_identifier,
+          statement: `Symphony issue ${payload.issue_identifier} has no Mission Control worker mapping; no control state was inferred.`,
+          control_semantics: false,
+        });
+        continue;
+      }
+      observations.push({
+        type: "symphony_runtime_observed",
+        worker,
+        source,
+        kind,
+        issue_id: payload.issue_id,
+        issue_identifier: payload.issue_identifier,
+        tracker_state: "state" in payload && (typeof payload.state === "string" || payload.state === null) ? payload.state : null,
+        payload,
+      });
+    }
+  }
+  return { observations, diagnosticEvents, diagnostics, payloadSha256 };
 }

@@ -24,8 +24,12 @@ export function authenticateIngestProducer(
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) return { ok: false, reason: "UNAUTHORIZED" };
   const kind = (entry as Record<string, unknown>).kind;
   const token = (entry as Record<string, unknown>).token;
+  const workers = (entry as Record<string, unknown>).workers;
+  const tasks = (entry as Record<string, unknown>).tasks;
   if (typeof kind !== "string" || !producerKinds.includes(kind as ProducerKind)
-    || typeof token !== "string" || token.length < 32) {
+    || typeof token !== "string" || token.length < 32
+    || !Array.isArray(workers) || workers.length === 0 || workers.some((value) => typeof value !== "string")
+    || !Array.isArray(tasks) || tasks.length === 0 || tasks.some((value) => typeof value !== "string")) {
     return { ok: false, reason: "MISCONFIGURED" };
   }
   const supplied = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -34,5 +38,5 @@ export function authenticateIngestProducer(
   if (expectedBuffer.length !== suppliedBuffer.length || !timingSafeEqual(expectedBuffer, suppliedBuffer)) {
     return { ok: false, reason: "UNAUTHORIZED" };
   }
-  return { ok: true, producer: { id: producerId, kind: kind as ProducerKind } };
+  return { ok: true, producer: { id: producerId, kind: kind as ProducerKind, workerScopes: workers as string[], taskScopes: tasks as string[] } };
 }

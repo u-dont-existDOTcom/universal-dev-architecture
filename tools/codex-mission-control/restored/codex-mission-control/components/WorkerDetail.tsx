@@ -77,6 +77,33 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
           {worker.assumptions.length > 0 && <ListBlock title="Stated assumptions" items={worker.assumptions} />}
         </Panel>
 
+        <Panel eyebrow="OWNER-OUTCOME PROGRESS" title={`${worker.progress.outcomeAdvancement.replaceAll("_", " ")} · ${worker.progress.strategyEfficacy.replaceAll("_", " ")}`} className={`terminal-panel ${worker.overallTraffic.toLowerCase()}`}>
+          <div className="comparator-planes">
+            <Identity label="Target" value={worker.progress.targetEvidence} />
+            <Identity label="Latest direct evidence" value={worker.progress.latestEvidence} />
+            <Identity label="Best direct evidence" value={worker.progress.bestEvidence} />
+            <Identity label="Measurement" value={worker.progress.measurementFreshness} />
+          </div>
+          <div className="directive-callout"><span className="field-label">ACTIVE STRATEGY</span><strong>{worker.progress.strategyId ?? "MISSING"}</strong><p>{worker.progress.requiredIntervention}</p></div>
+          <div className="evidence-list"><span className="field-label">SUPPORTING WORK SINCE DIRECT PROGRESS</span>{worker.progress.supportingWork.map((item) => <code key={`${item.classification}:${item.summary}`}>{item.classification}: {item.summary}</code>)}</div>
+          <p><span className="field-label">NEXT DECISION-CHANGING EVIDENCE</span>{worker.progress.nextDecisionTrigger}</p>
+        </Panel>
+
+        <Panel eyebrow="CHAT-LED EXECUTION" title={`${worker.executionSupervision.surface} · ${worker.executionSupervision.reviewFreshness}`}>
+          <div className="comparator-planes">
+            <Identity label="Chat epoch" value={worker.executionSupervision.chatEpoch ?? "MISSING"} />
+            <Identity label="Active directive" value={worker.executionSupervision.activeDirectiveId ?? "MISSING"} />
+            <Identity label="Directive status" value={worker.executionSupervision.directiveStatus} />
+            <Identity label="Codex execution" value={worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} />
+            <Identity label="Pro escalation" value={worker.executionSupervision.proEscalationState} />
+          </div>
+          <div className="directive-callout"><span className="field-label">EXECUTION OBJECTIVE</span><strong>{worker.executionSupervision.directiveObjective}</strong></div>
+          <div className="contract-section danger"><span className="field-label">STOP / REVIEW BOUNDARY</span><ul>{worker.executionSupervision.stopBoundary.map((item) => <li key={item}>{item}</li>)}</ul></div>
+          <p><span className="field-label">LATEST EXECUTION RECEIPT</span>{worker.executionSupervision.latestReceiptId ?? "None"} — {worker.executionSupervision.receiptClaim}</p>
+          <div className="freshness-row"><span>Pending reasoning review</span><strong className={worker.executionSupervision.pendingReasoningReview ? "bad" : "good"}>{worker.executionSupervision.pendingReasoningReview ? "YES" : "NO"}</strong></div>
+          {worker.executionSupervision.alerts.length > 0 && <div className="reason-codes">{worker.executionSupervision.alerts.map((code) => <code key={code}>{code}</code>)}</div>}
+        </Panel>
+
         <Panel eyebrow="ACTUAL WORK" title="Evidence, not activity">
           <div className="evidence-stats">
             <Metric value={String(worker.filesTouched.length)} label="files touched" />
@@ -216,9 +243,16 @@ function eventSummary(event: StoredEvent): string {
     case "completion_claim_recorded": return `${data.completion_claim_type}: ${data.proposed_terminal_state}`;
     case "owner_decision_recorded": return `${data.decision_kind}: ${data.exact_text}`;
     case "supervision_route_recorded": return `${data.lane} ${data.substantive_response_count}/${data.hard_maximum}: ${data.next_review_trigger}`;
+    case "reasoning_supervision_recorded": return `${data.reasoning_supervisor_surface} ${data.reasoning_supervisor_chat_epoch}: ${data.next_reasoning_review_trigger}`;
+    case "execution_directive_recorded": return `${data.status}: ${data.execution_objective}`;
+    case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
+    case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;
+    case "outcome_progress_recorded": return `${data.outcome_advancement} · ${data.strategy_efficacy}: ${data.required_intervention}`;
+    case "supervision_alert_recorded": return `${data.code} ${data.status}: ${data.statement}`;
     case "research_verdict_recorded": return `Operational ${data.operational_protocol} · scientific ${data.scientific_conclusion} · release ${data.release_adequacy}`;
     case "supervision_design_feedback_recorded": return `${data.feedback_id}: ${data.status}`;
     case "symphony_runtime_observed": return `${data.kind}: ${data.issue_identifier} (${data.tracker_state ?? "provider state unavailable"})`;
+    case "symphony_adapter_diagnostic_recorded": return `${data.reason_code}: ${data.statement}`;
     case "review_marked": return `Reviewed through sequence ${data.reviewed_through_sequence}`;
     case "objective_created": return data.goal;
     case "worker_heartbeat": return data.current_step;

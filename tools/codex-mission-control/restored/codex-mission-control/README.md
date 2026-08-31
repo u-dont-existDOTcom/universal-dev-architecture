@@ -71,7 +71,9 @@ Important modules:
 - `lib/schema.ts`: versioned owner authority, evidence, finding, directive/response, completion, route, research, and Symphony schemas;
 - `lib/store.ts`: append-only SQLite ledger, v1 migration, exact idempotency, authority ordering, and hash-chain verification;
 - `lib/terminal-comparator.ts`: worker→contract and contract→owner comparison plus typed terminal decisions;
+- `lib/progress-invariants.ts`: numeric direction/delta validation and fail-closed outcome/strategy projection;
 - `lib/correction-lifecycle.ts`: fail-closed transition and identity guards;
+- `lib/supervision-handoff.ts`: state-vector-bound three-turn chat handoff identity;
 - `lib/projection.ts`: attention ordering and operator projection;
 - `daemon/server.ts`: single-writer HTTP/SSE daemon;
 - `lib/symphony-adapter.ts`: read-only stock Symphony state normalization.
@@ -100,7 +102,12 @@ The complete runtime contract is the Zod union in `lib/schema.ts`. Significant e
 - immutable `finding_recorded` plus event-derived `finding_status_changed`;
 - `correction_lifecycle_recorded` with correction-attempt, directive digest, target, run, contract, owner outcome, predecessor, evidence-set, candidate, verification-policy, and verifier bindings;
 - `completion_claim_recorded`, `supervision_route_recorded`, `research_verdict_recorded`, and `supervision_design_feedback_recorded`;
+- `reasoning_supervision_recorded`, `execution_directive_recorded`, `codex_execution_started`, `execution_receipt_recorded`, `outcome_progress_recorded`, and `supervision_alert_recorded`;
 - `symphony_runtime_observed` for the read-only upstream seam.
+
+Outcome progress is an independent control plane. Numeric receipts declare `HIGHER_IS_BETTER` or `LOWER_IS_BETTER`; the store validates exact current-minus-baseline/current-minus-previous deltas, and projection derives advancement from those bytes instead of trusting a supplied healthy label. A regression holds same-strategy continuation and cannot project GREEN.
+
+Substantive Codex execution is also independently supervised: a current reasoning review authorizes one exact versioned directive, the worker records a directive-bound start, Codex emits an execution-only receipt with supervisory fields fixed to `null`, and a later independent review is required before another directive. A missing directive or pending review fails closed visibly.
 
 Legacy PR #41 events remain decodable and migrate without being reinterpreted as current owner authority. Legacy completion remains nonterminal until independently sourced owner outcome and reconciliation exist.
 
@@ -145,7 +152,7 @@ The daemon rejects every mutation without its process-internal bearer secret. `n
 External `POST /api/events` is disabled by default. To enable it, configure a distinct credential per producer ID:
 
 ```bash
-export MISSION_CONTROL_INGEST_CREDENTIALS='{"collector:tests":{"kind":"COLLECTOR","token":"replace-with-at-least-32-secret-characters"}}'
+export MISSION_CONTROL_INGEST_CREDENTIALS='{"collector:tests":{"kind":"COLLECTOR","token":"replace-with-at-least-32-secret-characters","workers":["tests"],"tasks":["task:tests"]}}'
 ```
 
 Then submit with the configured immutable identity:
@@ -159,9 +166,12 @@ curl -sS http://127.0.0.1:3000/api/events \
 ```
 
 The credential fixes the producer kind. Event-class/status authorization is checked again at the daemon, and evidence/correction/status records must carry the same embedded producer or actor ID and role. A caller cannot promote itself by changing a role header or payload field.
+Credentials without explicit worker and task scopes are invalid. The BFF forwards those authenticated scopes to the daemon, which checks them again for every event family.
 
 ## Symphony boundary
 
 The adapter consumes stock Symphony `GET /api/v1/state` output pinned to the audited upstream commit and emits normalized read-only observations for the existing ledger.
 
 Mission Control does not own Symphony dispatch, claim/release, retry, continue/stop/resume, tracker eligibility, concurrency/backoff, workspace lifecycle, App Server integration, workflow configuration, tracker writes, or recovery.
+
+Unmapped Symphony items are persisted as diagnostic-only events with `control_semantics: false`; diagnostic-only identities are excluded from the worker projection, so they cannot create or crash a dashboard worker.

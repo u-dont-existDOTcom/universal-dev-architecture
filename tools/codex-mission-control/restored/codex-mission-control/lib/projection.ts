@@ -13,7 +13,8 @@ import type {
   WorkerAlignment,
   WorkerHeartbeatEvent,
 } from "./schema";
-import { compareTerminalState, type TerminalComparison } from "./terminal-comparator";
+import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
+import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
 
 export type Health = Traffic;
 export type WorkerStatus = "working" | "blocked" | "done";
@@ -163,12 +164,48 @@ export interface WorkerState {
     nextReviewTrigger: string;
     handoffCapsuleId: string | null;
   };
+  progress: {
+    outcomeAdvancement: string;
+    strategyId: string | null;
+    strategyEfficacy: string;
+    targetEvidence: string;
+    latestEvidence: string;
+    bestEvidence: string;
+    changeFromPrevious: number | null;
+    supportingWork: Array<{ classification: string; summary: string }>;
+    nextDecisionTrigger: string;
+    requiredIntervention: string;
+    sameStrategyContinuationAllowed: boolean;
+    measurementFreshness: string;
+  };
+  executionSupervision: {
+    surface: string;
+    sessionId: string | null;
+    chatEpoch: string | null;
+    lastReviewAt: string | null;
+    reviewFreshness: string;
+    activeDirectiveId: string | null;
+    directiveStatus: string;
+    directiveObjective: string;
+    codexExecutionState: string;
+    stopBoundary: string[];
+    latestReceiptId: string | null;
+    receiptClaim: string;
+    pendingReasoningReview: boolean;
+    proEscalationState: string;
+    alerts: string[];
+  };
   lastCheckpointAt: string;
   timeline: StoredEvent[];
 }
 
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
-  const workerIds = [...new Set(events.map((event) => event.worker).filter((worker): worker is string => Boolean(worker)))];
+  const projectableWorkers = new Set(events.flatMap((event) => {
+    if (event.data.type === "task_contract_recorded" || event.data.type === "objective_created") return [event.worker];
+    return [];
+  }).filter((worker): worker is string => Boolean(worker)));
+  const workerIds = [...new Set(events.map((event) => event.worker)
+    .filter((worker): worker is string => typeof worker === "string" && projectableWorkers.has(worker)))];
   return workerIds
     .map((worker) => projectWorker(events.filter((event) => event.worker === worker), now, config))
     .sort((left, right) => attentionPriority(left) - attentionPriority(right)
@@ -188,15 +225,23 @@ function projectV2Worker(
 ): WorkerState {
   const checkpoint = latest(events, "worker_checkpoint_recorded");
   const assessment = latest(events, "supervisor_assessment_recorded");
-  const source = latest(events, "owner_source_recorded");
   const outcome = latest(events, "owner_outcome_recorded");
+  const linkedSourceEvent = outcome
+    ? events.findLast((event) => event.data.type === "owner_source_recorded" && event.data.receipt_id === outcome.source_receipt_id)
+    : undefined;
+  const source = linkedSourceEvent?.data.type === "owner_source_recorded" ? linkedSourceEvent.data : undefined;
   const reconciliation = latest(events, "objective_reconciliation_recorded");
   const route = latest(events, "supervision_route_recorded");
   const research = latest(events, "research_verdict_recorded");
+  const reasoning = latest(events, "reasoning_supervision_recorded");
+  const directive = latest(events, "execution_directive_recorded");
+  const executionStart = latest(events, "codex_execution_started");
+  const receipt = latest(events, "execution_receipt_recorded");
+  const progress = latest(events, "outcome_progress_recorded");
   const comparison = compareTerminalState(events);
   const activeFindings = projectFindings(events);
   const primaryFinding = activeFindings[0];
-  const correction = projectCorrection(events, primaryFinding, assessment, now);
+  const correction = projectCorrection(events, primaryFinding, assessment, progress, comparison, now);
   const filesTouched = checkpoint?.files_touched ?? [];
   const commits = events.flatMap((event) => event.data.type === "commit_created"
     ? [{ sha: event.data.sha, message: event.data.message }]
@@ -207,10 +252,14 @@ function projectV2Worker(
   const diagnosticIndex = assessment?.diagnostic_index ?? alignmentIndex(comparison.workerToContractAlignment);
   const primaryProblemSummary = primaryFinding?.statement
     ?? researchProblem(research)
-    ?? contractProblem(comparison);
+    ?? progressProblem(progress, comparison.outcomeAdvancement)
+    ?? contractProblem(comparison)
+    ?? terminalProblem(comparison);
   const whyItMatters = primaryFinding?.violatedRequirement
     ?? researchWhy(research)
-    ?? (comparison.contractToOwnerAlignment !== "MATCH" ? comparison.currentGap : null);
+    ?? progressWhy(progress, comparison.outcomeAdvancement)
+    ?? (comparison.contractToOwnerAlignment !== "MATCH" ? comparison.currentGap : null)
+    ?? terminalWhy(comparison);
   const supervisorUrl = route?.supervisor_chat_url ?? latestSupervisorLink(events)?.supervisor_chat_url ?? "https://chatgpt.com/";
   const supervisorLabel = route?.supervisor_chat_label ?? latestSupervisorLink(events)?.supervisor_chat_label ?? "Open supervisor chat";
   const lastCheckpoint = checkpointEvent(events) ?? events.at(-1)!;
@@ -313,6 +362,40 @@ function projectV2Worker(
       nextReviewTrigger: route?.next_review_trigger ?? correction.nextReviewTrigger,
       handoffCapsuleId: route?.handoff_capsule_id ?? null,
     },
+    progress: {
+      outcomeAdvancement: comparison.outcomeAdvancement,
+      strategyId: progress?.strategy_id ?? reasoning?.current_strategy_id ?? null,
+      strategyEfficacy: effectiveStrategyEfficacy(progress, comparison.outcomeAdvancement),
+      targetEvidence: evidenceLabel(progress?.target_evidence),
+      latestEvidence: evidenceLabel(progress?.current_evidence),
+      bestEvidence: evidenceLabel(progress?.best_evidence),
+      changeFromPrevious: progress?.change_from_previous ?? null,
+      supportingWork: progress?.work_since_last_direct_progress ?? [],
+      nextDecisionTrigger: progress?.next_decision_changing_evidence ?? reasoning?.next_reasoning_review_trigger ?? "Record a current progress receipt.",
+      requiredIntervention: progress?.required_intervention ?? "RECORD_OUTCOME_PROGRESS",
+      sameStrategyContinuationAllowed: effectiveSameStrategyContinuationAllowed(progress),
+      measurementFreshness: progress?.measurement_freshness ?? "UNKNOWN",
+    },
+    executionSupervision: {
+      surface: reasoning?.reasoning_supervisor_surface ?? "UNASSIGNED",
+      sessionId: reasoning?.reasoning_supervisor_session_id ?? null,
+      chatEpoch: reasoning?.reasoning_supervisor_chat_epoch ?? null,
+      lastReviewAt: reasoning?.last_reasoning_review_at ?? null,
+      reviewFreshness: reasoning?.review_freshness ?? "UNKNOWN",
+      activeDirectiveId: directive?.directive_id ?? null,
+      directiveStatus: directive?.status ?? "MISSING",
+      directiveObjective: directive?.execution_objective ?? "No current chat-authored execution directive is recorded.",
+      codexExecutionState: receipt ? "STOPPED_FOR_REASONING_REVIEW" : executionStart ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
+      stopBoundary: directive?.stop_and_return_triggers ?? [],
+      latestReceiptId: receipt?.receipt_id ?? null,
+      receiptClaim: receipt?.execution_claim ?? "No execution receipt recorded.",
+      pendingReasoningReview: comparison.pendingReasoningReview,
+      proEscalationState: reasoning?.pro_escalation_state ?? "NOT_REQUIRED",
+      alerts: comparison.reasonCodes.filter((code) => [
+        "SUPERVISION_DIRECTIVE_MISSING", "REASONING_REVIEW_OVERDUE", "PENDING_REASONING_REVIEW",
+        "PROGRESS_EVIDENCE_OVERDUE", "OWNER_OUTCOME_REGRESSING", "STRATEGY_REPLACEMENT_REQUIRED",
+      ].includes(code) || code.startsWith("CODEX_") || code === "DIRECTIVE_SCOPE_EXCEEDED" || code === "OWNER_FORCED_PROGRESS_REVIEW"),
+    },
     lastCheckpointAt: lastCheckpoint.occurredAt,
     timeline: [...events].reverse(),
   };
@@ -334,6 +417,9 @@ function projectFindings(events: StoredEvent[]): FindingProjection[] {
       const current = findings.get(event.data.finding_id);
       if (current) current.status = event.data.status;
     }
+  }
+  for (const [findingId, finding] of findings) {
+    if (["RESOLVED", "INVALIDATED"].includes(finding.status) && correctionVerificationStale(events, findingId)) finding.status = "REOPENED";
   }
   return [...findings.values()]
     .filter(({ status }) => status !== "RESOLVED" && status !== "INVALIDATED")
@@ -361,6 +447,8 @@ function projectCorrection(
   events: StoredEvent[],
   primaryFinding: FindingProjection | undefined,
   assessment: Extract<MissionControlEventV2, { type: "supervisor_assessment_recorded" }> | undefined,
+  progress: Extract<MissionControlEventV2, { type: "outcome_progress_recorded" }> | undefined,
+  comparison: TerminalComparison,
   now: Date,
 ): CorrectionProjection {
   const corrections = events.filter((event) => event.data.type === "correction_lifecycle_recorded");
@@ -377,7 +465,7 @@ function projectCorrection(
     .filter((data): data is Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }> => data.type === "correction_lifecycle_recorded");
   const statuses = new Set(history.map((event) => event.status));
   const fallbackFinding = primaryFindingEvent(events, primaryFinding?.id);
-  const recordedOwnerAction = latestCorrection?.owner_action ?? fallbackFinding?.owner_action ?? assessment?.owner_action;
+  const recordedOwnerAction = latestOwnerAction(events);
   const latestAttemptEvents = new Map<string, Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }>>();
   for (const event of corrections) {
     if (event.data.type === "correction_lifecycle_recorded") latestAttemptEvents.set(event.data.correction_attempt_id, event.data);
@@ -398,6 +486,7 @@ function projectCorrection(
   const validityScope = latestCorrection?.verification_validity_scope;
   const verifiedBindingStale = Boolean(latestCorrection
     && ["CORRECTION_VERIFIED", "CORRECTION_RESOLVED"].includes(latestCorrection.status)
+    && latestCorrection.closure_basis !== "FINDING_INVALIDATED"
     && (currentContract?.contract_id !== latestCorrection.contract_id
       || currentContract.task_contract_sha256 !== latestCorrection.contract_sha256
       || currentOutcome?.owner_outcome_id !== latestCorrection.owner_outcome_id
@@ -442,16 +531,17 @@ function projectCorrection(
     status: effectiveStatus,
     statusLabel: verifiedBindingStale ? `CORRECTION REOPENED — VALIDITY CHANGED AT ${invalidatingEventId ?? "UNKNOWN EVENT"}`
       : correctionStatusLabel(effectiveStatus, latestCorrection?.directive_kind, latestCorrection?.closure_basis),
-    directive: latestCorrection?.directive ?? primaryFinding?.requiredResponse ?? null,
-    directiveIssued: Boolean(latestCorrection && latestCorrection.status !== "DIRECTIVE_PREPARED"),
-    directiveDelivered: statuses.has("DIRECTIVE_DELIVERED") || hasLaterCorrectionStatus(statuses, "DIRECTIVE_DELIVERED"),
-    workerAcknowledged: statuses.has("DIRECTIVE_ACKNOWLEDGED") || hasLaterCorrectionStatus(statuses, "DIRECTIVE_ACKNOWLEDGED"),
-    correctionStarted: statuses.has("CORRECTION_STARTED") || hasLaterCorrectionStatus(statuses, "CORRECTION_STARTED"),
+    directive: latestCorrection?.directive ?? primaryFinding?.requiredResponse
+      ?? (comparison.overallTraffic !== "GREEN" ? comparison.requiredDirective : progress?.required_intervention) ?? null,
+    directiveIssued: statuses.has("DIRECTIVE_ISSUED"),
+    directiveDelivered: statuses.has("DIRECTIVE_DELIVERED"),
+    workerAcknowledged: statuses.has("DIRECTIVE_ACKNOWLEDGED"),
+    correctionStarted: statuses.has("CORRECTION_STARTED"),
     correctionInProgress: Boolean(latestCorrection && activityLeaseCurrent && !supersedingState
       && ["CORRECTION_STARTED", "CORRECTION_EVIDENCE_SUBMITTED"].includes(latestCorrection.status)),
-    evidenceSubmitted: statuses.has("CORRECTION_EVIDENCE_SUBMITTED") || hasLaterCorrectionStatus(statuses, "CORRECTION_EVIDENCE_SUBMITTED"),
-    correctionVerified: !verifiedBindingStale && (latestCorrection?.status === "CORRECTION_VERIFIED" || latestCorrection?.status === "CORRECTION_RESOLVED"),
-    correctionResolved: !verifiedBindingStale && latestCorrection?.status === "CORRECTION_RESOLVED",
+    evidenceSubmitted: statuses.has("CORRECTION_EVIDENCE_SUBMITTED"),
+    correctionVerified: !verifiedBindingStale && statuses.has("CORRECTION_VERIFIED"),
+    correctionResolved: !verifiedBindingStale && statuses.has("CORRECTION_RESOLVED"),
     reopenRequired: verifiedBindingStale,
     reopenTriggerEventId: invalidatingEventId,
     closureBasis: latestCorrection?.closure_basis ?? null,
@@ -516,6 +606,12 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     unknownOutcomeIds: ["legacy-owner-outcome"],
     nonSatisfyingProxies: ["legacy task_completed event", "numeric alignment"],
     supervisorAssessmentFresh: false,
+    outcomeAdvancement: "UNKNOWN",
+    strategyEfficacy: "UNCERTAIN",
+    reasoningReviewFresh: false,
+    activeDirectiveCurrent: false,
+    pendingReasoningReview: true,
+    unresolvedOwnerObligation: true,
   };
   const supervisorUrl = link?.supervisor_chat_url ?? objective.supervisor_chat_url;
   return {
@@ -639,6 +735,20 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     terminal,
     research: null,
     supervisionRoute: { lane: "DETERMINISTIC", sessionId: null, status: "ROLLOVER_REQUIRED", substantiveTurns: 0, hardMaximum: 3, nextReviewTrigger: "after authority migration", handoffCapsuleId: null },
+    progress: {
+      outcomeAdvancement: "UNKNOWN", strategyId: null, strategyEfficacy: "UNCERTAIN",
+      targetEvidence: "Owner outcome target unavailable in legacy schema.", latestEvidence: "No direct progress receipt.",
+      bestEvidence: "No direct progress receipt.", changeFromPrevious: null, supportingWork: [],
+      nextDecisionTrigger: "after authority migration", requiredIntervention: "RECORD_OUTCOME_PROGRESS",
+      sameStrategyContinuationAllowed: false, measurementFreshness: "UNKNOWN",
+    },
+    executionSupervision: {
+      surface: "UNASSIGNED", sessionId: null, chatEpoch: null, lastReviewAt: null, reviewFreshness: "UNKNOWN",
+      activeDirectiveId: null, directiveStatus: "MISSING", directiveObjective: "No chat-authored directive in legacy schema.",
+      codexExecutionState: "UNKNOWN_LEGACY_EXECUTION",
+      stopBoundary: [], latestReceiptId: null, receiptClaim: "No execution receipt in legacy schema.",
+      pendingReasoningReview: true, proEscalationState: "NOT_REQUIRED", alerts: ["SUPERVISION_DIRECTIVE_MISSING"],
+    },
     lastCheckpointAt: last.occurredAt,
     timeline: [...events].reverse(),
   };
@@ -712,6 +822,54 @@ function researchProblem(research?: Extract<MissionControlEventV2, { type: "rese
 function researchWhy(research?: Extract<MissionControlEventV2, { type: "research_verdict_recorded" }>): string | null {
   if (!research || research.release_permission) return null;
   return "Operational protocol, scientific conclusion, and release adequacy are independent planes; a failed plane blocks release.";
+}
+
+function progressProblem(
+  progress: Extract<MissionControlEventV2, { type: "outcome_progress_recorded" }> | undefined,
+  outcomeAdvancement: TerminalComparison["outcomeAdvancement"],
+): string | null {
+  if (!progress) return "No current outcome-progress receipt is available from the reasoning supervisor.";
+  if (outcomeAdvancement === "REGRESSING") return `Direct owner-outcome evidence regressed under ${progress.strategy_id}.`;
+  if (outcomeAdvancement === "FLAT") return `Owner-outcome evidence is flat under ${progress.strategy_id}; strategy efficacy requires review.`;
+  if (outcomeAdvancement === "BLOCKED_EXTERNAL") return `Direct owner-outcome progress is blocked on an external dependency under ${progress.strategy_id}.`;
+  if (outcomeAdvancement === "NOT_YET_MEASURABLE") return `Direct owner-outcome progress is not yet measurable under ${progress.strategy_id}.`;
+  if (outcomeAdvancement === "UNKNOWN") return `Owner-outcome progress is unknown under ${progress.strategy_id}; obtain decision-changing evidence.`;
+  if (progress.measurement_freshness === "OVERDUE") return "Promised direct owner-outcome evidence is overdue.";
+  if (["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(progress.strategy_efficacy)) {
+    return `The current strategy is ${progress.strategy_efficacy.toLowerCase().replaceAll("_", " ")}.`;
+  }
+  return null;
+}
+
+function progressWhy(
+  progress: Extract<MissionControlEventV2, { type: "outcome_progress_recorded" }> | undefined,
+  outcomeAdvancement: TerminalComparison["outcomeAdvancement"],
+): string | null {
+  if (!progress || outcomeAdvancement === "ADVANCING") return null;
+  return `Local compliance and supporting work cannot substitute for direct owner-outcome progress. Required intervention: ${progress.required_intervention}.`;
+}
+
+function terminalProblem(comparison: TerminalComparison): string | null {
+  if (comparison.overallTraffic === "GREEN") return null;
+  if (comparison.reasonCodes.includes("SUPERVISION_DIRECTIVE_MISSING")) {
+    return "No current chat-authored execution directive is bound to this worker and owner-outcome epoch.";
+  }
+  if (comparison.reasonCodes.includes("REASONING_SUPERVISOR_MISSING")) return "No current independent reasoning supervisor is recorded for this worker.";
+  if (comparison.reasonCodes.includes("REASONING_REVIEW_OVERDUE")) return "The independent reasoning-supervisor review is overdue.";
+  if (comparison.reasonCodes.includes("PENDING_REASONING_REVIEW")) return "Codex stopped at its directive boundary and the execution receipt awaits independent reasoning review.";
+  if (comparison.reasonCodes.includes("OWNER_ACTION_REQUIRED")) return "A recorded owner obligation is open and blocks the affected scope.";
+  if (comparison.reasonCodes.includes("SUPERVISOR_ASSESSMENT_STALE")) return "The supervisor assessment does not cover the current durable authority state.";
+  return `Mission Control is holding this worker because ${comparison.reasonCodes.join(", ") || "the current control state is incomplete"}.`;
+}
+
+function terminalWhy(comparison: TerminalComparison): string | null {
+  if (comparison.overallTraffic === "GREEN") return null;
+  return `Fail-closed control reasons: ${comparison.reasonCodes.join(", ") || "current authority or evidence is incomplete"}. Required response: ${comparison.requiredDirective}.`;
+}
+
+function evidenceLabel(evidence?: { state: string; numeric_value: number | null; unit: string | null }): string {
+  if (!evidence) return "Not recorded";
+  return evidence.numeric_value === null ? evidence.state : `${evidence.state}: ${evidence.numeric_value}${evidence.unit ? ` ${evidence.unit}` : ""}`;
 }
 
 function effectiveOwnerAction(
@@ -876,15 +1034,6 @@ function effectiveContinuationPolicy(recorded: ContinuationPolicy, now: Date): C
 
 function alignmentIndex(alignment: WorkerAlignment): number {
   return alignment === "GREEN" ? 100 : alignment === "YELLOW" ? 65 : alignment === "RED" ? 20 : 0;
-}
-
-function hasLaterCorrectionStatus(statuses: Set<CorrectionStatus>, threshold: CorrectionStatus): boolean {
-  const order: CorrectionStatus[] = [
-    "DIRECTIVE_PREPARED", "DIRECTIVE_ISSUED", "DIRECTIVE_DELIVERED", "DIRECTIVE_ACKNOWLEDGED",
-    "CORRECTION_STARTED", "CORRECTION_EVIDENCE_SUBMITTED", "CORRECTION_VERIFIED", "CORRECTION_RESOLVED",
-  ];
-  const thresholdIndex = order.indexOf(threshold);
-  return order.some((status, index) => index > thresholdIndex && statuses.has(status));
 }
 
 function severityScore(severity?: FindingProjection["severity"]): number {

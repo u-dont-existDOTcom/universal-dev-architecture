@@ -6,7 +6,10 @@ import type {
   StoredEvent,
   Traffic,
   WorkerAlignment,
+  OutcomeAdvancement,
+  StrategyEfficacy,
 } from "./schema";
+import { effectiveOutcomeAdvancement, effectiveStrategyEfficacy } from "./progress-invariants";
 
 export type ContractStatus = "VALID" | "CONTRACT_LAUNDERING" | "OUTCOME_AUTHORITY_UNRESOLVED" | "UNKNOWN";
 export type OwnerOutcomeStatus = "MET" | "UNMET" | "UNKNOWN";
@@ -40,6 +43,12 @@ export interface TerminalComparison {
   unknownOutcomeIds: string[];
   nonSatisfyingProxies: string[];
   supervisorAssessmentFresh: boolean;
+  outcomeAdvancement: OutcomeAdvancement;
+  strategyEfficacy: StrategyEfficacy;
+  reasoningReviewFresh: boolean;
+  activeDirectiveCurrent: boolean;
+  pendingReasoningReview: boolean;
+  unresolvedOwnerObligation: boolean;
 }
 
 const authorityVectorTypes = new Set<MissionControlEventV2["type"]>([
@@ -55,6 +64,10 @@ const authorityVectorTypes = new Set<MissionControlEventV2["type"]>([
   "owner_decision_recorded",
   "verification_validity_recorded",
   "research_verdict_recorded",
+  "reasoning_supervision_recorded",
+  "execution_directive_recorded",
+  "outcome_progress_recorded",
+  "supervision_alert_recorded",
 ]);
 
 const terminalVectorTypes = new Set<MissionControlEventV2["type"]>([
@@ -62,6 +75,8 @@ const terminalVectorTypes = new Set<MissionControlEventV2["type"]>([
   "supervisor_assessment_recorded",
   "correction_lifecycle_recorded",
   "supervision_route_recorded",
+  "execution_receipt_recorded",
+  "codex_execution_started",
 ]);
 
 export function authorityStateVectorHash(events: StoredEvent[]): string {
@@ -73,13 +88,27 @@ export function terminalStateVectorHash(events: StoredEvent[]): string {
 }
 
 export function compareTerminalState(events: StoredEvent[]): TerminalComparison {
-  const source = latest(events, "owner_source_recorded");
   const outcome = latest(events, "owner_outcome_recorded");
+  const sourceEvent = outcome
+    ? [...events].reverse().find((event) => event.data.type === "owner_source_recorded" && event.data.receipt_id === outcome.source_receipt_id)
+    : undefined;
+  const source = sourceEvent?.data.type === "owner_source_recorded" ? sourceEvent.data : undefined;
   const contract = latest(events, "task_contract_recorded");
   const reconciliation = latest(events, "objective_reconciliation_recorded");
   const assessment = latest(events, "supervisor_assessment_recorded");
   const claim = latest(events, "completion_claim_recorded");
   const research = latest(events, "research_verdict_recorded");
+  const reasoning = latest(events, "reasoning_supervision_recorded");
+  const directive = latest(events, "execution_directive_recorded");
+  const receipt = latest(events, "execution_receipt_recorded");
+  const progress = latest(events, "outcome_progress_recorded");
+  const alertStatus = new Map<string, Extract<MissionControlEventV2, { type: "supervision_alert_recorded" }>>();
+  for (const event of events) if (event.data.type === "supervision_alert_recorded") alertStatus.set(event.data.alert_id, event.data);
+  const activeSupervisionAlerts = [...alertStatus.values()].filter((alert) => alert.status === "OPEN");
+  const hardSupervisionAlert = activeSupervisionAlerts.some((alert) => [
+    "CODEX_RUNNING_WITHOUT_CURRENT_DIRECTIVE", "DIRECTIVE_SCOPE_EXCEEDED", "CODEX_AUTHORED_STRATEGY_CHANGE",
+    "CODEX_AUTHORED_SUPERVISORY_VERDICT", "CODEX_CONTINUED_AFTER_STOP_TRIGGER", "CODEX_SUBSTANTIVE_PROSE_AUTHORSHIP_UNAUTHORIZED",
+  ].includes(alert.code));
   const ownerDecision = claim?.owner_decision_id
     ? events.find((event) => event.data.type === "owner_decision_recorded"
       && event.data.owner_decision_id === claim.owner_decision_id)?.data
@@ -106,7 +135,9 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   } else if (!source || !outcome || !contract || !reconciliation) {
     contractToOwnerAlignment = "SOURCE_MISSING";
   } else if (
-    source.comparison === "MISMATCH"
+    source.owner_request_id !== outcome.owner_request_id
+    || source.source_sha256 !== outcome.owner_source_sha256
+    || source.comparison === "MISMATCH"
     || contract.owner_outcome_id !== outcome.owner_outcome_id
     || contract.owner_outcome_epoch !== outcome.epoch
     || contract.owner_outcome_sha256 !== outcome.owner_outcome_sha256
@@ -145,6 +176,22 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   const rootCancellationClaimed = completionClaimType === "CANCELED_BY_OWNER";
   const gapOpen = outcome?.gap_status !== "NONE" || reconciliation?.gap_status !== "NONE";
   const supervisorAssessmentFresh = Boolean(assessment && assessment.reviewed_state_vector_sha256 === authorityStateVectorHash(events));
+  const outcomeAdvancement = effectiveOutcomeAdvancement(progress);
+  const strategyEfficacy = effectiveStrategyEfficacy(progress, outcomeAdvancement);
+  const reasoningReviewFresh = reasoning?.review_freshness === "CURRENT";
+  const activeDirectiveCurrent = Boolean(directive && directive.status === "ACTIVE" && reasoning
+    && directive.owner_outcome_id === outcome?.owner_outcome_id
+    && directive.owner_outcome_epoch === outcome?.epoch
+    && directive.owner_outcome_sha256 === outcome?.owner_outcome_sha256
+    && directive.strategy_id === reasoning.current_strategy_id
+    && directive.reasoning_supervisor_session_id === reasoning.reasoning_supervisor_session_id
+    && directive.reasoning_chat_epoch === reasoning.reasoning_supervisor_chat_epoch
+    && directive.chat_decision_id === reasoning.decision_id);
+  const latestReceiptEvent = latestStored(events, "execution_receipt_recorded");
+  const latestReasoningReviewEvent = [latestStored(events, "reasoning_supervision_recorded"), latestStored(events, "outcome_progress_recorded")]
+    .filter((event): event is StoredEvent => Boolean(event)).sort((left, right) => right.sequence - left.sequence)[0];
+  const pendingReasoningReview = Boolean(latestReceiptEvent && (!latestReasoningReviewEvent || latestReasoningReviewEvent.sequence < latestReceiptEvent.sequence));
+  const currentSupervisionRequired = Boolean(outcome && outcome.epoch >= 4);
 
   const findingStatus = new Map<string, string>();
   const findingRecords = new Map<string, Extract<MissionControlEventV2, { type: "finding_recorded" }>>();
@@ -155,10 +202,15 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     }
     if (event.data.type === "finding_status_changed") findingStatus.set(event.data.finding_id, event.data.status);
   }
-  const openBlockingFindingIds = [...findingRecords.values()]
-    .filter((finding) => ["BLOCKING", "CRITICAL"].includes(finding.severity)
+  for (const [findingId, status] of findingStatus) {
+    if (["RESOLVED", "INVALIDATED"].includes(status) && correctionVerificationStale(events, findingId)) findingStatus.set(findingId, "REOPENED");
+  }
+  const openMaterialFindingIds = [...findingRecords.values()]
+    .filter((finding) => ["MATERIAL", "BLOCKING", "CRITICAL"].includes(finding.severity)
       && !["RESOLVED", "INVALIDATED"].includes(findingStatus.get(finding.finding_id) ?? "OPEN"))
     .map((finding) => finding.finding_id);
+  const activeOwnerAction = latestOwnerAction(events);
+  const unresolvedOwnerObligation = Boolean(activeOwnerAction && activeOwnerAction.kind !== "NONE" && activeOwnerAction.status === "OPEN");
 
   if (!source || !outcome) reasonCodes.push("OUTCOME_AUTHORITY_UNRESOLVED");
   if (source && !["INDEPENDENT_SOURCE_VERIFIED", "OWNER_REATTESTED"].includes(source.receipt_capability)) reasonCodes.push("OWNER_SOURCE_RECEIPT_NOT_INDEPENDENT");
@@ -171,6 +223,17 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   if (reconciliation?.freshness === "STALE") reasonCodes.push("RECONCILIATION_STALE");
   if (ownerOutcomeStatus === "UNMET") reasonCodes.push("OWNER_OUTCOME_UNMET");
   if (ownerOutcomeStatus === "UNKNOWN") reasonCodes.push("COMPLETION_EVIDENCE_INSUFFICIENT");
+  if (currentSupervisionRequired && !reasoning) reasonCodes.push("REASONING_SUPERVISOR_MISSING");
+  if (currentSupervisionRequired && !reasoningReviewFresh) reasonCodes.push("REASONING_REVIEW_OVERDUE");
+  if (currentSupervisionRequired && !activeDirectiveCurrent) reasonCodes.push("SUPERVISION_DIRECTIVE_MISSING");
+  if (pendingReasoningReview) reasonCodes.push("PENDING_REASONING_REVIEW");
+  if (currentSupervisionRequired && !progress) reasonCodes.push("OUTCOME_PROGRESS_UNMEASURED");
+  if (progress?.measurement_freshness === "OVERDUE") reasonCodes.push("PROGRESS_EVIDENCE_OVERDUE");
+  if (outcomeAdvancement === "REGRESSING") reasonCodes.push("OWNER_OUTCOME_REGRESSING");
+  if (outcomeAdvancement === "FLAT") reasonCodes.push("OWNER_OUTCOME_FLAT");
+  if (["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(strategyEfficacy)) reasonCodes.push("STRATEGY_REPLACEMENT_REQUIRED");
+  if (unresolvedOwnerObligation) reasonCodes.push("OWNER_ACTION_REQUIRED");
+  reasonCodes.push(...activeSupervisionAlerts.map((alert) => alert.code));
 
   if (terminalAdjacent && claim) {
     if (claim.evidence_receipt_ids.length === 0) reasonCodes.push("EVIDENCE_RECEIPT_MISSING");
@@ -200,7 +263,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   }
   if (research && !research.release_permission) reasonCodes.push("RESEARCH_RELEASE_BLOCKED");
   if (gapOpen && terminalAdjacent) reasonCodes.push("OWNER_OUTCOME_GAP_REMAINS");
-  if (openBlockingFindingIds.length && terminalAdjacent) reasonCodes.push("OPEN_BLOCKING_FINDING");
+  if (openMaterialFindingIds.length && terminalAdjacent) reasonCodes.push("OPEN_MATERIAL_FINDING");
   if (terminalAdjacent && !supervisorAssessmentFresh) reasonCodes.push("SUPERVISOR_ASSESSMENT_STALE");
 
   const cancellationAuthorized = Boolean(rootCancellationClaimed && claim?.owner_decision_id
@@ -231,7 +294,10 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     decision = "REJECT_ROOT_TERMINALIZATION";
   } else if (research && !research.release_permission && terminalAdjacent) {
     decision = "REJECT_ROOT_TERMINALIZATION";
-  } else if (rootAchievementClaimed && (gapOpen || openBlockingFindingIds.length > 0)) {
+  } else if (rootAchievementClaimed && (gapOpen || openMaterialFindingIds.length > 0
+    || workerToContractAlignment !== "GREEN" || unresolvedOwnerObligation
+    || hardSupervisionAlert || currentSupervisionRequired && (!progress || outcomeAdvancement !== "ADVANCING" || strategyEfficacy !== "VIABLE"
+      || !reasoningReviewFresh || !activeDirectiveCurrent || pendingReasoningReview))) {
     decision = "REJECT_ROOT_TERMINALIZATION";
   } else if (rootAchievementClaimed && !supervisorAssessmentFresh) {
     decision = "HOLD_COMPLETION_EVIDENCE";
@@ -241,7 +307,10 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     decision = "ALLOW_SUBTASK_CLOSE_PARENT_OPEN";
   } else if (completionClaimType === "READY_FOR_OWNER_REVIEW") {
     decision = "ALLOW_EARLY_OWNER_REVIEW_PARENT_OPEN";
-  } else if (completionClaimType === "OWNER_OUTCOME_ACHIEVED" && ownerOutcomeStatus === "MET") {
+  } else if (completionClaimType === "OWNER_OUTCOME_ACHIEVED" && ownerOutcomeStatus === "MET"
+    && workerToContractAlignment === "GREEN" && !unresolvedOwnerObligation
+    && (!currentSupervisionRequired || outcomeAdvancement === "ADVANCING" && strategyEfficacy === "VIABLE"
+      && reasoningReviewFresh && activeDirectiveCurrent && !pendingReasoningReview)) {
     decision = "ALLOW_ROOT_CLOSE";
   } else {
     decision = "CONTINUE_WORK";
@@ -250,6 +319,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   const rootTerminalizationAllowed = decision === "ALLOW_ROOT_CLOSE" || decision === "ALLOW_OWNER_CANCELLATION";
   let overallTraffic: Traffic;
   if (workerToContractAlignment === "RED" || contractToOwnerAlignment === "DIVERGED" || decision === "REJECT_ROOT_TERMINALIZATION"
+    || hardSupervisionAlert || outcomeAdvancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(strategyEfficacy)
     || (rootAchievementClaimed && !rootTerminalizationAllowed)) {
     overallTraffic = "RED";
   } else if (contractToOwnerAlignment === "SOURCE_MISSING") {
@@ -257,6 +327,9 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   } else if (workerToContractAlignment === "UNKNOWN") {
     overallTraffic = "UNKNOWN";
   } else if (workerToContractAlignment === "YELLOW" || contractToOwnerAlignment === "PARTIAL"
+    || ["FLAT", "UNMEASURED", "NOT_YET_MEASURABLE", "BLOCKED_EXTERNAL", "UNKNOWN"].includes(outcomeAdvancement)
+    || ["UNCERTAIN", "BLOCKED_EXTERNAL"].includes(strategyEfficacy) || progress?.measurement_freshness === "OVERDUE"
+    || unresolvedOwnerObligation || currentSupervisionRequired && (!reasoningReviewFresh || !activeDirectiveCurrent || !progress)
     || (terminalAdjacent && !supervisorAssessmentFresh)
     || research?.scientific_conclusion === "FAIL" || research?.release_adequacy === "FAIL") {
     overallTraffic = "YELLOW";
@@ -277,6 +350,11 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     completionClaimType,
     reconciliationDirective: reconciliation?.proposed_required_directive,
     researchBlocked: Boolean(research && !research.release_permission),
+    outcomeAdvancement,
+    strategyEfficacy,
+    currentSupervisionRequired,
+    activeDirectiveCurrent,
+    pendingReasoningReview,
   });
   const stateVectorSha256 = terminalStateVectorHash(events);
   if (assessment && !supervisorAssessmentFresh && !reasonCodes.includes("SUPERVISOR_ASSESSMENT_STALE")) reasonCodes.push("SUPERVISOR_ASSESSMENT_STALE");
@@ -300,6 +378,12 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     unknownOutcomeIds,
     nonSatisfyingProxies: reconciliation?.non_satisfying_proxies ?? outcome?.non_satisfying_proxies ?? [],
     supervisorAssessmentFresh,
+    outcomeAdvancement,
+    strategyEfficacy,
+    reasoningReviewFresh,
+    activeDirectiveCurrent,
+    pendingReasoningReview,
+    unresolvedOwnerObligation,
   };
 }
 
@@ -325,13 +409,68 @@ function latest<T extends MissionControlEventV2["type"]>(events: StoredEvent[], 
   return data?.type === type ? data as Extract<MissionControlEventV2, { type: T }> : undefined;
 }
 
+function latestStored<T extends MissionControlEventV2["type"]>(events: StoredEvent[], type: T): StoredEvent | undefined {
+  return [...events].reverse().find((event) => event.schemaVersion === 2 && event.data.type === type);
+}
+
+export function latestOwnerAction(events: StoredEvent[]) {
+  for (const event of [...events].reverse()) {
+    if (event.data.type === "correction_lifecycle_recorded" || event.data.type === "finding_recorded"
+      || event.data.type === "supervisor_assessment_recorded" || event.data.type === "outcome_progress_recorded") return event.data.owner_action;
+  }
+  return undefined;
+}
+
+export function correctionVerificationStale(events: StoredEvent[], findingId: string): boolean {
+  const correction = [...events].reverse().find((event) => event.data.type === "correction_lifecycle_recorded"
+    && event.data.finding_ids.includes(findingId) && ["CORRECTION_VERIFIED", "CORRECTION_RESOLVED"].includes(event.data.status))?.data;
+  if (correction?.type !== "correction_lifecycle_recorded") return false;
+  if (correction.closure_basis === "FINDING_INVALIDATED") return false;
+  const scope = correction.verification_validity_scope;
+  const validity = latest(events, "verification_validity_recorded");
+  const contract = latest(events, "task_contract_recorded");
+  const outcome = latest(events, "owner_outcome_recorded");
+  const checkpoint = latest(events, "worker_checkpoint_recorded");
+  return !scope || !validity
+    || validity.context_id !== scope.context_id
+    || validity.exact_candidate_sha256 !== scope.exact_candidate_sha256
+    || validity.contract_sha256 !== scope.contract_sha256
+    || contract?.task_contract_sha256 !== scope.contract_sha256
+    || outcome?.owner_outcome_id !== scope.owner_outcome_id
+    || outcome?.epoch !== scope.owner_outcome_epoch
+    || outcome?.owner_outcome_sha256 !== scope.owner_outcome_sha256
+    || validity.verification_policy_id !== scope.verification_policy_id
+    || validity.verification_policy_sha256 !== scope.verification_policy_sha256
+    || validity.evidence_requirement_schema_sha256 !== scope.evidence_requirement_schema_sha256
+    || validity.worker_run_id !== scope.worker_run_id
+    || validity.assignment_epoch !== scope.assignment_epoch
+    || validity.target_kind !== scope.target_kind
+    || validity.target_id !== scope.target_id
+    || validity.target_epoch !== scope.target_epoch
+    || canonicalJson(validity.environment_bindings) !== canonicalJson(scope.environment_bindings)
+    || canonicalJson(validity.source_snapshot_bindings) !== canonicalJson(scope.source_snapshot_bindings)
+    || validity.verifier_method_version !== scope.verifier_method_version
+    || checkpoint?.worker_run_id !== scope.worker_run_id;
+}
+
 function deriveDirective(input: {
   decision: TerminalDecision;
   workerToContractAlignment: WorkerAlignment;
   completionClaimType: CompletionClaimType;
   reconciliationDirective?: string;
   researchBlocked: boolean;
+  outcomeAdvancement: OutcomeAdvancement;
+  strategyEfficacy: StrategyEfficacy;
+  currentSupervisionRequired: boolean;
+  activeDirectiveCurrent: boolean;
+  pendingReasoningReview: boolean;
 }): string {
+  if (input.pendingReasoningReview) return "STOP_AND_RETURN_TO_REASONING_SUPERVISOR";
+  if (input.currentSupervisionRequired && !input.activeDirectiveCurrent) return "OBTAIN_CURRENT_CHAT_AUTHORED_EXECUTION_DIRECTIVE";
+  if (input.outcomeAdvancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(input.strategyEfficacy)) {
+    return "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD";
+  }
+  if (input.outcomeAdvancement === "FLAT") return "REVIEW_STRATEGY_EFFICACY_BEFORE_REPEAT";
   if (input.decision === "HOLD_SOURCE_AUTHORITY") return "RECOVER_OWNER_SOURCE";
   if (input.decision === "HOLD_RECONCILIATION") return "REFRESH_OBJECTIVE_RECONCILIATION";
   if (input.decision === "HOLD_COMPLETION_EVIDENCE") return "KEEP_ROOT_OPEN_AND_REFRESH_TERMINAL_EVIDENCE";

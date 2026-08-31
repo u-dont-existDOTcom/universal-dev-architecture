@@ -1,7 +1,6 @@
-import { pathToFileURL } from "node:url";
 import { canonicalJson, sha256 } from "./canonical";
 import type { MissionControlEventV2 } from "./schema";
-import { EventStore, getStore } from "./store";
+import { EventStore } from "./store";
 import { authorityStateVectorHash } from "./terminal-comparator";
 
 const missionId = "mission-control-demo";
@@ -49,7 +48,7 @@ interface DemoWorker {
   baseMinute: number;
 }
 
-export function seedStore(store: EventStore = getStore()): boolean {
+export function seedStore(store: EventStore): boolean {
   if (store.eventByEventId("demo:v2:seed-complete")) return false;
 
   for (const worker of demoWorkers()) seedWorker(store, worker);
@@ -68,10 +67,11 @@ export function seedStore(store: EventStore = getStore()): boolean {
 }
 
 function seedWorker(store: EventStore, seed: DemoWorker) {
-  const sourceId = `source:${seed.worker}:1`;
+  const ownerEpoch = 4;
+  const sourceId = `source:${seed.worker}:${ownerEpoch}`;
   const outcomeId = `outcome:${seed.worker}`;
   const sourceHash = sha256(`${seed.worker}:owner-source`);
-  const outcomeHash = sha256(`${seed.worker}:owner-outcome:1`);
+  const outcomeHash = sha256(`${seed.worker}:owner-outcome:${ownerEpoch}`);
   const contractHash = sha256(`${seed.worker}:contract:1`);
   const sourceCapability = seed.sourceCapability ?? "INDEPENDENT_SOURCE_VERIFIED";
   const sourceComparison = seed.sourceComparison ?? "MATCH";
@@ -108,7 +108,7 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       changed_path_manifest: changedPathManifest,
     };
   });
-  const sourceEvents: MissionControlEventV2[] = [
+  const authorityEvents: MissionControlEventV2[] = [
     {
       type: "owner_source_recorded",
       worker: seed.worker,
@@ -129,9 +129,10 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       worker: seed.worker,
       owner_outcome_id: outcomeId,
       owner_request_id: `owner-request:${seed.worker}`,
-      epoch: 1,
+      epoch: ownerEpoch,
       owner_outcome_sha256: outcomeHash,
       source_receipt_id: sourceId,
+      owner_source_sha256: sourceHash,
       verbatim_owner_request: [seed.ownerRequest],
       normalized_result: seed.normalizedResult,
       required_outcomes: seed.requiredOutcomes.map((outcome) => ({
@@ -146,6 +147,7 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       gap_status: seed.requiredOutcomes.every((required) => required.status === "MET") ? "NONE"
         : seed.requiredOutcomes.some((required) => required.status === "UNKNOWN") ? "UNKNOWN" : "OPEN",
       supersedes: null,
+      supersedes_outcome_sha256: null,
     },
     {
       type: "task_contract_recorded",
@@ -155,7 +157,7 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       revision: 1,
       task_contract_sha256: contractHash,
       owner_outcome_id: outcomeId,
-      owner_outcome_epoch: 1,
+      owner_outcome_epoch: ownerEpoch,
       owner_outcome_sha256: outcomeHash,
       goal: seed.goal,
       acceptance_criteria: seed.acceptance,
@@ -175,7 +177,7 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       worker: seed.worker,
       reconciliation_id: `reconciliation:${seed.worker}:1`,
       owner_outcome_id: outcomeId,
-      owner_outcome_epoch: 1,
+      owner_outcome_epoch: ownerEpoch,
       owner_outcome_sha256: outcomeHash,
       task_contract_sha256: contractHash,
       freshness: "CURRENT",
@@ -196,12 +198,18 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       non_satisfying_proxies: seed.proxies ?? [],
       proposed_required_directive: seed.reconciliationDirective,
     },
+  ];
+  const supervision = supervisionCycle(seed, outcomeId, ownerEpoch, outcomeHash);
+  const sourceEvents: MissionControlEventV2[] = [
+    ...authorityEvents,
+    ...supervision.slice(0, 3),
     seed.checkpoint,
     ...(seed.evidence ?? []),
     ...findingEvidence,
     ...(seed.findings ?? []),
     ...(seed.research ? [seed.research] : []),
     seed.claim,
+    ...supervision.slice(3),
   ];
   store.appendMany(sourceEvents.map((data, index) => {
     const occurredAt = time(seed.baseMinute + index);
@@ -236,7 +244,7 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       contract_id: `contract:${seed.worker}`,
       contract_sha256: contractHash,
       owner_outcome_id: outcomeId,
-      owner_outcome_epoch: 1,
+      owner_outcome_epoch: ownerEpoch,
       owner_outcome_sha256: outcomeHash,
       directive_kind: correction.directive_kind,
       target_kind: correction.target_kind,
@@ -279,6 +287,197 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
     };
     store.append(envelope(eventId, occurredAt, data), occurredAt);
   }
+}
+
+function supervisionCycle(
+  seed: DemoWorker,
+  outcomeId: string,
+  ownerEpoch: number,
+  outcomeHash: string,
+): MissionControlEventV2[] {
+  const strategyId = seed.worker === "article-humanization" ? "somatic-model-led-rewrite-v1" : `strategy:${seed.worker}:1`;
+  const directiveId = `execution-directive:${seed.worker}:1`;
+  const sessionId = `extra-high:${seed.worker}:epoch-1`;
+  const chatEpoch = `chat-epoch:${seed.worker}:1`;
+  const decisionId = `reasoning-decision:${seed.worker}:1`;
+  const evidenceBoundary = `fixture-head:${seed.worker}:epoch-${ownerEpoch}`;
+  const advancement = seed.worker === "article-humanization" ? "REGRESSING" as const
+    : seed.worker === "tests" || seed.worker === "billing" ? "FLAT" as const
+      : seed.worker === "ui" ? "BLOCKED_EXTERNAL" as const
+        : seed.worker === "askrigor" ? "UNMEASURED" as const
+          : "ADVANCING" as const;
+  const efficacy = seed.worker === "article-humanization" ? "REPLACEMENT_REQUIRED" as const
+    : seed.worker === "ui" ? "BLOCKED_EXTERNAL" as const
+      : seed.worker === "billing" || seed.worker === "askrigor" || seed.worker === "tests" ? "UNCERTAIN" as const
+        : "VIABLE" as const;
+  const baseline = seed.worker === "article-humanization" ? 0.1547368467 : null;
+  const previous = seed.worker === "article-humanization" ? 0.1381948739 : null;
+  const current = seed.worker === "article-humanization" ? 0.1231321841 : null;
+  const evidence = (state: string, numericValue: number | null) => ({
+    state, numeric_value: numericValue, unit: numericValue === null ? null : "Human probability", evidence_receipt_ids: [],
+  });
+  const reviewedAt = time(seed.baseMinute + 40);
+  return [
+    {
+      type: "reasoning_supervision_recorded",
+      worker: seed.worker,
+      reasoning_supervisor_surface: "EXTRA_HIGH",
+      reasoning_supervisor_session_id: sessionId,
+      reasoning_supervisor_chat_epoch: chatEpoch,
+      decision_id: decisionId,
+      capsule_id: `reasoning-capsule:${seed.worker}:1`,
+      reviewed_evidence_boundary: evidenceBoundary,
+      last_reasoning_review_at: reviewedAt,
+      last_reasoning_reviewed_head_or_artifact: evidenceBoundary,
+      current_strategy_id: strategyId,
+      active_execution_directive_id: directiveId,
+      next_reasoning_review_trigger: "after the bounded execution receipt or any stop trigger",
+      review_freshness: "CURRENT",
+      pro_escalation_state: "NOT_REQUIRED",
+    },
+    {
+      type: "execution_directive_recorded",
+      worker: seed.worker,
+      directive_id: directiveId,
+      directive_revision: 1,
+      task_id: `task:${seed.worker}`,
+      owner_outcome_id: outcomeId,
+      owner_outcome_epoch: ownerEpoch,
+      owner_outcome_sha256: outcomeHash,
+      reasoning_supervisor_session_id: sessionId,
+      reasoning_chat_epoch: chatEpoch,
+      chat_decision_id: decisionId,
+      capsule_id: `reasoning-capsule:${seed.worker}:1`,
+      strategy_id: strategyId,
+      strategy_causal_hypothesis: `The bounded ${seed.worker} method should move the exact owner outcome forward without leaving authorized scope.`,
+      predicted_outcome_change: "The next exact evidence checkpoint should resolve or narrow the stated owner-outcome gap.",
+      success_threshold: seed.effectiveFinishLine,
+      failure_threshold: "Direct evidence regresses, remains flat across two cycles, or the method is exhausted.",
+      next_decision_changing_evidence: seed.assessment.next_review_trigger,
+      reviewed_evidence_boundary: evidenceBoundary,
+      execution_objective: seed.goal,
+      reasoning_summary: "Execute the bounded chat-selected strategy and return factual evidence without assigning supervisory state.",
+      inputs: [{ type: "FILE_OR_ARTIFACT", ref: evidenceBoundary, sha256: null }],
+      allowed_actions: ["Perform only the bounded task-contract work and collect exact evidence."],
+      allowed_paths: seed.allowed,
+      allowed_commands: ["fixture verification"],
+      forbidden_actions: ["Change owner outcome, strategy, supervisory verdict, or escalation authority."],
+      forbidden_paths: seed.forbidden,
+      forbidden_decisions: ["Change owner outcome", "Change strategy", "Assign supervisory verdict", "Decide owner or Pro escalation"],
+      required_evidence: ["Exact factual execution receipt", "Direct owner-outcome evidence at the next measurement boundary"],
+      required_tests_or_checks: ["fixture verification", "authority and scope validation"],
+      stop_and_return_triggers: ["bounded execution objective completed", "material ambiguity", "owner or Pro decision discovered"],
+      maximum_execution_cycles: 1,
+      maximum_execution_horizon_type: "MEANINGFUL_EXECUTION_CYCLE",
+      ambiguity_behavior: "STOP_AND_REPORT_DECISION_REQUIRED",
+      owner_decision_authority: "NONE",
+      pro_escalation_authority: "NONE",
+      strategy_authority: "NONE",
+      supervisory_verdict_authority: "NONE",
+      substantive_prose_authorship_authority: "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
+      status: "ACTIVE",
+    },
+    {
+      type: "codex_execution_started",
+      worker: seed.worker,
+      execution_start_id: `execution-start:${seed.worker}:1`,
+      worker_run_id: seed.checkpoint.worker_run_id,
+      task_id: `task:${seed.worker}`,
+      directive_id: directiveId,
+      directive_revision: 1,
+      started_at: time(seed.baseMinute),
+      execution_mode: "SUBSTANTIVE",
+      declared_tactical_boundary: "Execute only the allowed actions and paths in the active chat-authored directive.",
+    },
+    {
+      type: "execution_receipt_recorded",
+      worker: seed.worker,
+      receipt_id: `execution-receipt:${seed.worker}:1`,
+      directive_id: directiveId,
+      directive_revision: 1,
+      task_id: `task:${seed.worker}`,
+      worker_run_id: seed.checkpoint.worker_run_id,
+      repository_start_state: evidenceBoundary,
+      repository_end_state: `${evidenceBoundary}:execution-receipt`,
+      started_at: time(seed.baseMinute),
+      stopped_at: reviewedAt,
+      actions_taken: [seed.checkpoint.current_step],
+      files_changed: seed.checkpoint.files_touched,
+      artifacts_produced: [],
+      checks_run: [{ command: "fixture verification", result: seed.checkpoint.tests.failing ? "FAIL" : "PASS", summary: `${seed.checkpoint.tests.passing} passing; ${seed.checkpoint.tests.failing} failing.` }],
+      measurements: ["Factual worker checkpoint recorded; no supervisory classification authored by Codex."],
+      evidence_refs: [],
+      deviations: [],
+      blockers: seed.checkpoint.blocker ? [seed.checkpoint.blocker] : [],
+      stop_trigger_reached: "bounded execution receipt emitted",
+      execution_claim: "Bounded execution stopped for independent reasoning review.",
+      strategy_change: null,
+      progress_classification: null,
+      supervisory_verdict: null,
+      owner_escalation_decision: null,
+      pro_escalation_decision: null,
+      contract_to_owner_alignment: null,
+      outcome_advancement: null,
+      strategy_efficacy: null,
+      scientific_adequacy: null,
+      release_adequacy: null,
+      owner_outcome_achievement: null,
+      next_reasoning_review_required: true,
+    },
+    {
+      type: "outcome_progress_recorded",
+      worker: seed.worker,
+      progress_receipt_id: `outcome-progress:${seed.worker}:1`,
+      owner_outcome_id: outcomeId,
+      owner_outcome_epoch: ownerEpoch,
+      owner_outcome_sha256: outcomeHash,
+      worker_to_contract_alignment: seed.assessment.worker_to_contract_alignment,
+      contract_to_owner_alignment: seed.omitted?.length || seed.weakened?.length || seed.proxies?.length ? "DIVERGED"
+        : seed.sourceCapability === "INTEGRITY_ONLY" ? "PARTIAL" : "MATCH",
+      overall_control_state: advancement === "REGRESSING" || efficacy === "REPLACEMENT_REQUIRED" || seed.assessment.worker_to_contract_alignment === "RED"
+        ? "RED" : advancement === "FLAT" || advancement === "BLOCKED_EXTERNAL" || advancement === "UNMEASURED" ? "YELLOW" : "GREEN",
+      strategy_id: strategyId,
+      strategy_causal_hypothesis: seed.worker === "article-humanization"
+        ? "The current model-led rewrite method should increase Human probability toward 1.0."
+        : `The bounded ${seed.worker} strategy should move the exact owner outcome forward without leaving authorized scope.`,
+      success_threshold: seed.worker === "article-humanization" ? "Human probability increases toward 1.0." : seed.effectiveFinishLine,
+      failure_threshold: "Direct evidence regresses, remains flat across two cycles, or the method is exhausted.",
+      measurement_direction: "HIGHER_IS_BETTER",
+      target_evidence: evidence(seed.worker === "article-humanization" ? "Human probability target" : seed.normalizedResult, seed.worker === "article-humanization" ? 1 : null),
+      baseline_evidence: evidence(seed.worker === "article-humanization" ? "Baseline direct evidence" : "Baseline captured", baseline),
+      previous_evidence: evidence(seed.worker === "article-humanization" ? "Prior micro-rewrite evidence" : "Previous review evidence", previous),
+      current_evidence: evidence(seed.worker === "article-humanization" ? "Article-wide rewrite evidence" : seed.currentGap, current),
+      best_evidence: evidence(seed.worker === "article-humanization" ? "Best remains baseline" : "Best current direct evidence", baseline),
+      change_from_baseline: baseline !== null && current !== null ? current - baseline : null,
+      change_from_previous: previous !== null && current !== null ? current - previous : null,
+      newly_met_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "MET").map((item) => item.id),
+      unmet_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "UNMET").map((item) => item.id),
+      unknown_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "UNKNOWN").map((item) => item.id),
+      work_since_last_direct_progress: [{
+        classification: seed.worker === "article-humanization" ? "REWORK" : advancement === "ADVANCING" ? "DIRECT_OUTCOME_ADVANCEMENT" : "ENABLEMENT_PROGRESS",
+        summary: seed.checkpoint.current_step,
+      }],
+      measurement_freshness: advancement === "UNMEASURED" ? "OVERDUE" : "CURRENT",
+      outcome_advancement: advancement,
+      strategy_efficacy: efficacy,
+      strategy_cycle_index: 1,
+      strategy_cycle_budget: 2,
+      measurement_cycle_limit: 1,
+      progress_detection_flags: advancement === "REGRESSING" ? ["NEGATIVE_DIRECT_DELTA"]
+        : advancement === "FLAT" ? ["FLAT_STRATEGY_CYCLE"]
+          : advancement === "UNMEASURED" ? ["PROGRESS_EVIDENCE_OVERDUE"] : [],
+      same_strategy_continuation_allowed: !["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED", "SUPERSEDED"].includes(efficacy),
+      required_intervention: seed.worker === "article-humanization"
+        ? "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD"
+        : advancement === "FLAT" ? "REVIEW_STRATEGY_EFFICACY_BEFORE_REPEAT" : seed.reconciliationDirective,
+      next_decision_changing_evidence: seed.assessment.next_review_trigger,
+      owner_action: seed.assessment.owner_action,
+      reviewed_by_surface: "EXTRA_HIGH",
+      reviewed_by_session_id: sessionId,
+      reviewed_chat_epoch: chatEpoch,
+      reviewed_at: reviewedAt,
+    },
+  ];
 }
 
 function demoWorkers(): DemoWorker[] {
@@ -672,9 +871,4 @@ function time(minute: number, second = 0): string {
   const date = new Date("2026-08-30T19:00:00.000Z");
   date.setUTCMinutes(minute, second, 0);
   return date.toISOString();
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const inserted = seedStore();
-  console.log(inserted ? "Seeded six supervision fixtures." : "Versioned supervision fixtures already exist.");
 }

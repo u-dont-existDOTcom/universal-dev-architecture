@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { canonicalJson, sha256 } from "./canonical";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
+import { progressInvariantErrors } from "./progress-invariants";
+import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
+import { authorityStateVectorHash } from "./terminal-comparator";
+import type { AuthenticatedProducer, ProducerKind } from "./ingestion-auth";
 import {
   AppendEnvelope,
   MissionControlEvent,
@@ -18,6 +22,7 @@ import {
 export class ContractInvariantError extends Error {}
 export class IdempotencyConflictError extends Error {}
 export class LedgerIntegrityError extends Error {}
+export class WriterLockError extends Error {}
 
 interface EventHashInput {
   schemaVersion: 1 | 2;
@@ -32,16 +37,30 @@ interface EventHashInput {
 
 export class EventStore {
   private readonly db: DatabaseSync;
+  private readonly writerLockPath: string | null;
+  private readonly writerLockFd: number | null;
 
   constructor(filename = process.env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db")) {
     if (filename !== ":memory:") fs.mkdirSync(path.dirname(filename), { recursive: true });
-    this.db = new DatabaseSync(filename);
-    this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
-    this.initialize();
+    this.writerLockPath = filename === ":memory:" ? null : `${filename}.writer.lock`;
+    try {
+      this.writerLockFd = this.writerLockPath === null ? null : fs.openSync(this.writerLockPath, "wx", 0o600);
+    } catch (error) {
+      throw new WriterLockError(`Another Mission Control writer owns ${this.writerLockPath}.`);
+    }
+    try {
+      this.db = new DatabaseSync(filename);
+      this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+      this.initialize();
+    } catch (error) {
+      this.releaseWriterLock();
+      throw error;
+    }
   }
 
   close() {
     this.db.close();
+    this.releaseWriterLock();
   }
 
   count(schemaVersion?: 1 | 2): number {
@@ -51,12 +70,14 @@ export class EventStore {
     return Number(row.count);
   }
 
-  append(input: unknown, receivedAt = new Date().toISOString()): StoredEvent {
+  append(input: unknown, receivedAt = new Date().toISOString(), producer?: AuthenticatedProducer): StoredEvent {
     const envelope = parseAppendEnvelope(input);
+    const authenticatedProducer = producer ?? internalProducerFor(envelope.data);
     const worker = eventWorker(envelope.data);
     const existing = this.eventByEventId(envelope.event_id);
     if (existing) {
-      if (sameLogicalEvent(existing, envelope)) return existing;
+      if (sameLogicalEvent(existing, envelope)
+        && existing.producerId === authenticatedProducer.id && existing.producerKind === authenticatedProducer.kind) return existing;
       throw new IdempotencyConflictError(`Event ID ${envelope.event_id} already exists with different content.`);
     }
 
@@ -76,8 +97,8 @@ export class EventStore {
     const result = this.db.prepare(`
       INSERT INTO events(
         event_id, schema_version, mission_id, worker, type, payload_json,
-        occurred_at, received_at, previous_hash, event_hash
-      ) VALUES (?, 2, ?, ?, ?, ?, ?, ?, ?, ?)
+        occurred_at, received_at, previous_hash, event_hash, producer_id, producer_kind
+      ) VALUES (?, 2, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       envelope.event_id,
       envelope.mission_id,
@@ -88,14 +109,16 @@ export class EventStore {
       receivedAt,
       previousHash,
       eventHash,
+      authenticatedProducer.id,
+      authenticatedProducer.kind,
     );
     return this.eventBySequence(Number(result.lastInsertRowid))!;
   }
 
-  appendMany(items: Array<{ event: unknown; receivedAt?: string }>): StoredEvent[] {
+  appendMany(items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>): StoredEvent[] {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const result = items.map(({ event, receivedAt }) => this.append(event, receivedAt));
+      const result = items.map(({ event, receivedAt, producer }) => this.append(event, receivedAt, producer));
       this.db.exec("COMMIT");
       return result;
     } catch (error) {
@@ -146,7 +169,7 @@ export class EventStore {
     return data.type === "review_marked" ? data.reviewed_through_sequence : 0;
   }
 
-  markViewed(missionId = "mission-control"): { lastViewedEventId: number; viewedAt: string } {
+  markViewed(producer: AuthenticatedProducer = internalUiProducer(), missionId = "mission-control"): { lastViewedEventId: number; viewedAt: string } {
     const latest = this.latestSequence();
     const viewedAt = new Date().toISOString();
     this.append({
@@ -155,7 +178,7 @@ export class EventStore {
       mission_id: missionId,
       occurred_at: viewedAt,
       data: { type: "review_marked", worker: null, reviewed_through_sequence: latest },
-    }, viewedAt);
+    }, viewedAt, producer);
     return { lastViewedEventId: latest, viewedAt };
   }
 
@@ -212,13 +235,22 @@ export class EventStore {
         occurred_at TEXT NOT NULL,
         received_at TEXT NOT NULL,
         previous_hash TEXT,
-        event_hash TEXT NOT NULL UNIQUE
+        event_hash TEXT NOT NULL UNIQUE,
+        producer_id TEXT NOT NULL,
+        producer_kind TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS events_worker_sequence ON events(worker, sequence);
       CREATE INDEX IF NOT EXISTS events_mission_sequence ON events(mission_id, sequence);
       CREATE INDEX IF NOT EXISTS events_type_sequence ON events(type, sequence);
       PRAGMA user_version = 2;
     `);
+    const columns = this.db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "producer_id")) {
+      this.db.exec("ALTER TABLE events ADD COLUMN producer_id TEXT NOT NULL DEFAULT 'legacy:unattributed';");
+    }
+    if (!columns.some((column) => column.name === "producer_kind")) {
+      this.db.exec("ALTER TABLE events ADD COLUMN producer_kind TEXT NOT NULL DEFAULT 'SYSTEM';");
+    }
     if (withTriggers) this.createAppendOnlyTriggers();
   }
 
@@ -309,8 +341,8 @@ export class EventStore {
     eventHash: string;
   }) {
     this.db.prepare(`
-      INSERT INTO events(event_id, schema_version, mission_id, worker, type, payload_json, occurred_at, received_at, previous_hash, event_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events(event_id, schema_version, mission_id, worker, type, payload_json, occurred_at, received_at, previous_hash, event_hash, producer_id, producer_kind)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'legacy:migration', 'SYSTEM')
     `).run(
       input.eventId, input.schemaVersion, input.missionId, input.worker, input.type,
       canonicalJson(input.data), input.occurredAt, input.receivedAt, input.previousHash, input.eventHash,
@@ -331,8 +363,19 @@ export class EventStore {
     if (data.type === "owner_outcome_recorded") {
       const source = sources.find((event) => event.data.type === "owner_source_recorded" && event.data.receipt_id === data.source_receipt_id);
       if (!source) throw new ContractInvariantError("Record the referenced owner-source receipt before the owner outcome.");
+      if (source.data.type !== "owner_source_recorded"
+        || source.data.owner_request_id !== data.owner_request_id
+        || source.data.source_sha256 !== data.owner_source_sha256) {
+        throw new ContractInvariantError("Owner outcomes must bind the exact referenced owner-source request and source hash.");
+      }
       const sameEpoch = outcomes.some((event) => event.data.type === "owner_outcome_recorded" && event.data.owner_outcome_id === data.owner_outcome_id && event.data.epoch === data.epoch);
       if (sameEpoch) throw new ContractInvariantError("Owner-outcome epochs are append-only and unique.");
+      const previous = outcomes.filter((event) => event.data.type === "owner_outcome_recorded" && event.data.owner_outcome_id === data.owner_outcome_id).at(-1)?.data;
+      if (previous?.type === "owner_outcome_recorded"
+        && (data.epoch !== previous.epoch + 1 || data.supersedes !== previous.owner_outcome_id
+          || data.supersedes_outcome_sha256 !== previous.owner_outcome_sha256)) {
+        throw new ContractInvariantError("Owner-outcome corrections must advance one epoch and name the exact prior outcome identity.");
+      }
     }
     if (data.type === "owner_decision_recorded") {
       const source = sources.find((event) => event.data.type === "owner_source_recorded" && event.data.receipt_id === data.source_receipt_id);
@@ -389,11 +432,133 @@ export class EventStore {
         throw new ContractInvariantError("A superseding verification context must bind the exact predecessor and changed validity dimensions.");
       }
     }
+    if (data.type === "reasoning_supervision_recorded") {
+      const currentOutcome = outcomes.at(-1)?.data;
+      if (currentOutcome?.type !== "owner_outcome_recorded") throw new ContractInvariantError("Reasoning supervision requires current owner-outcome authority.");
+    }
+    if (data.type === "execution_directive_recorded") {
+      const currentOutcome = outcomes.at(-1)?.data;
+      const reasoning = [...events].reverse().find((event) => event.data.type === "reasoning_supervision_recorded")?.data;
+      if (currentOutcome?.type !== "owner_outcome_recorded"
+        || currentOutcome.owner_outcome_id !== data.owner_outcome_id
+        || currentOutcome.epoch !== data.owner_outcome_epoch
+        || currentOutcome.owner_outcome_sha256 !== data.owner_outcome_sha256) {
+        throw new ContractInvariantError("Execution directives must bind the current exact owner-outcome epoch.");
+      }
+      if (reasoning?.type !== "reasoning_supervision_recorded"
+        || reasoning.reasoning_supervisor_session_id !== data.reasoning_supervisor_session_id
+        || reasoning.reasoning_supervisor_chat_epoch !== data.reasoning_chat_epoch
+        || reasoning.decision_id !== data.chat_decision_id
+        || reasoning.current_strategy_id !== data.strategy_id
+        || reasoning.reviewed_evidence_boundary !== data.reviewed_evidence_boundary) {
+        throw new ContractInvariantError("Execution directives must bind the exact current chat decision, strategy, and reviewed evidence boundary.");
+      }
+      const priorDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
+      const latestReceipt = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
+      if (priorDirective?.type === "execution_directive_recorded" && priorDirective.status === "ACTIVE"
+        && latestReceipt?.type === "execution_receipt_recorded" && latestReceipt.directive_id === priorDirective.directive_id
+        && reasoning.active_execution_directive_id === priorDirective.directive_id) {
+        throw new ContractInvariantError("A new directive requires a later independent reasoning review after the prior execution receipt.");
+      }
+    }
+    if (data.type === "execution_receipt_recorded") {
+      const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
+      const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
+      if (directive?.type !== "execution_directive_recorded" || directive.status !== "ACTIVE"
+        || directive.directive_id !== data.directive_id || directive.directive_revision !== data.directive_revision
+        || directive.task_id !== data.task_id
+        || start?.type !== "codex_execution_started" || start.directive_id !== data.directive_id
+        || start.directive_revision !== data.directive_revision || start.task_id !== data.task_id
+        || start.worker_run_id !== data.worker_run_id) {
+        throw new ContractInvariantError("Execution receipts require the current active exact directive.");
+      }
+    }
+    if (data.type === "codex_execution_started") {
+      const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
+      const priorReceipt = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded"
+        && event.data.directive_id === data.directive_id)?.data;
+      if (directive?.type !== "execution_directive_recorded" || directive.status !== "ACTIVE"
+        || directive.directive_id !== data.directive_id || directive.directive_revision !== data.directive_revision
+        || directive.task_id !== data.task_id) {
+        throw new ContractInvariantError("Substantive Codex execution cannot start without the current active exact chat-authored directive.");
+      }
+      if (priorReceipt?.type === "execution_receipt_recorded") {
+        throw new ContractInvariantError("Codex cannot continue after a directive stop receipt; a new independent chat review and directive are required.");
+      }
+    }
+    const currentOutcomeForExecution = outcomes.at(-1)?.data;
+    if (data.type === "worker_checkpoint_recorded" && currentOutcomeForExecution?.type === "owner_outcome_recorded"
+      && currentOutcomeForExecution.epoch >= 4) {
+      const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
+      const receiptAfterStart = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
+      if (start?.type !== "codex_execution_started" || start.worker_run_id !== data.worker_run_id
+        || receiptAfterStart?.type === "execution_receipt_recorded" && receiptAfterStart.directive_id === start.directive_id) {
+        throw new ContractInvariantError("Current-epoch substantive worker checkpoints require an unclosed directive-bound Codex execution start.");
+      }
+    }
+    if (data.type === "completion_claim_recorded" && currentOutcomeForExecution?.type === "owner_outcome_recorded"
+      && currentOutcomeForExecution.epoch >= 4) {
+      const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
+      const receipt = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
+      if (start?.type !== "codex_execution_started"
+        || receipt?.type === "execution_receipt_recorded" && receipt.directive_id === start.directive_id) {
+        throw new ContractInvariantError("Current-epoch completion claims require an unclosed directive-bound Codex execution start.");
+      }
+    }
+    if (data.type === "outcome_progress_recorded") {
+      const currentOutcome = outcomes.at(-1)?.data;
+      const reasoning = [...events].reverse().find((event) => event.data.type === "reasoning_supervision_recorded")?.data;
+      if (currentOutcome?.type !== "owner_outcome_recorded"
+        || currentOutcome.owner_outcome_id !== data.owner_outcome_id
+        || currentOutcome.epoch !== data.owner_outcome_epoch
+        || currentOutcome.owner_outcome_sha256 !== data.owner_outcome_sha256
+        || reasoning?.type !== "reasoning_supervision_recorded"
+        || reasoning.reasoning_supervisor_session_id !== data.reviewed_by_session_id
+        || reasoning.reasoning_supervisor_chat_epoch !== data.reviewed_chat_epoch
+        || reasoning.current_strategy_id !== data.strategy_id) {
+        throw new ContractInvariantError("Outcome progress must be assigned by the current reasoning supervisor against the exact current outcome and strategy.");
+      }
+      const progressErrors = progressInvariantErrors(data);
+      if (progressErrors.length) throw new ContractInvariantError(`Invalid outcome progress receipt: ${progressErrors.join("; ")}.`);
+    }
+    if (data.type === "supervision_route_recorded") {
+      const prior = [...events].reverse().find((event) => event.data.type === "supervision_route_recorded")?.data;
+      if (data.authority_high_water_sequence > this.latestSequence()) throw new ContractInvariantError("Supervision route high-water cannot exceed the durable ledger.");
+      if (prior?.type === "supervision_route_recorded") {
+        if (data.authority_high_water_sequence < prior.authority_high_water_sequence) throw new ContractInvariantError("Supervision route high-water must be monotonic.");
+        if (data.session_id === prior.session_id && data.substantive_response_count < prior.substantive_response_count) {
+          throw new ContractInvariantError("Supervision turn accounting must be monotonic within a session.");
+        }
+        if (data.session_id !== prior.session_id && data.predecessor_session_id !== prior.session_id) {
+          throw new ContractInvariantError("A supervision handoff must name the immediately preceding session.");
+        }
+      }
+      if (data.handoff_capsule_id && data.handoff_capsule_sha256 && data.accepted_state_vector_sha256) {
+        const acceptedEvents = this.workerEvents(data.worker)
+          .filter((event) => event.sequence <= data.authority_high_water_sequence);
+        const acceptedStateVectorSha256 = authorityStateVectorHash(acceptedEvents);
+        if (data.accepted_state_vector_sha256 !== acceptedStateVectorSha256) {
+          throw new ContractInvariantError("A supervision handoff must bind the exact durable authority vector at its declared high-water sequence.");
+        }
+        const expectedCapsuleSha256 = supervisionHandoffCapsuleSha256({
+          capsuleId: data.handoff_capsule_id,
+          worker: data.worker,
+          sourceSessionId: data.predecessor_session_id ?? data.session_id,
+          acceptedStateVectorSha256,
+          authorityHighWaterSequence: data.authority_high_water_sequence,
+        });
+        if (data.handoff_capsule_sha256 !== expectedCapsuleSha256) {
+          throw new ContractInvariantError("A supervision handoff capsule digest must bind its worker, source session, accepted authority vector, and high-water sequence.");
+        }
+      }
+    }
     const contractRequiredTypes = new Set([
       "worker_checkpoint_recorded", "supervisor_assessment_recorded", "evidence_receipt_recorded",
       "finding_recorded", "finding_status_changed", "correction_lifecycle_recorded", "completion_claim_recorded",
       "supervision_route_recorded", "research_verdict_recorded", "supervision_design_feedback_recorded",
       "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed",
+      "reasoning_supervision_recorded", "execution_directive_recorded",
+      "codex_execution_started", "execution_receipt_recorded", "outcome_progress_recorded", "supervision_alert_recorded",
     ]);
     if (contractRequiredTypes.has(data.type) && contracts.length === 0) {
       throw new ContractInvariantError(`Record a task contract before ${data.type}.`);
@@ -419,6 +584,12 @@ export class EventStore {
     if (data.type === "verification_validity_recorded") this.assertUniqueDomainId(data.worker, data.type, "context_id", data.context_id);
     if (data.type === "owner_decision_recorded") this.assertUniqueDomainId(data.worker, data.type, "owner_decision_id", data.owner_decision_id);
     if (data.type === "completion_claim_recorded") this.assertUniqueDomainId(data.worker, data.type, "claim_id", data.claim_id);
+    if (data.type === "reasoning_supervision_recorded") this.assertUniqueDomainId(data.worker, data.type, "decision_id", data.decision_id);
+    if (data.type === "execution_directive_recorded") this.assertUniqueDomainId(data.worker, data.type, "directive_id", data.directive_id);
+    if (data.type === "codex_execution_started") this.assertUniqueDomainId(data.worker, data.type, "execution_start_id", data.execution_start_id);
+    if (data.type === "execution_receipt_recorded") this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id);
+    if (data.type === "outcome_progress_recorded") this.assertUniqueDomainId(data.worker, data.type, "progress_receipt_id", data.progress_receipt_id);
+    if (data.type === "supervision_alert_recorded") this.assertUniqueDomainId(data.worker, data.type, "alert_id", data.alert_id);
     if (data.type === "finding_recorded") {
       const duplicate = this.workerEvents(data.worker)
         .some((event) => event.data.type === "finding_recorded" && event.data.finding_id === data.finding_id);
@@ -477,8 +648,10 @@ export class EventStore {
         const receipts = data.invalidation_evidence_receipt_ids.map((receiptId) => events.find((event) => event.data.type === "evidence_receipt_recorded" && event.data.receipt_id === receiptId)?.data);
         if (receipts.some((receipt) => receipt?.type !== "evidence_receipt_recorded" || !receipt.verified
           || receipt.freshness !== "CURRENT" || receipt.independence !== "INDEPENDENT"
+          || receipt.claim_kind !== "FINDING_INVALIDATION" || receipt.supports_finding_id !== data.finding_id
+          || receipt.proposition_sha256 !== data.invalidation_proposition_sha256
           || data.exact_candidate_sha256 !== null && receipt.exact_candidate_sha256 !== data.exact_candidate_sha256)) {
-          throw new CorrectionInvariantError("Finding invalidation requires current independent verified evidence bound to any declared candidate.");
+          throw new CorrectionInvariantError("Finding invalidation requires current independent verified evidence bound to the exact finding proposition and any declared candidate.");
         }
         const activeDirective = [...events].reverse().find((event) => event.data.type === "correction_lifecycle_recorded" && event.data.finding_ids.includes(data.finding_id))?.data;
         if (activeDirective?.type === "correction_lifecycle_recorded"
@@ -529,6 +702,17 @@ export class EventStore {
       .filter((event) => event.data.type === "correction_lifecycle_recorded" && event.data.correction_attempt_id === data.correction_attempt_id)
       .at(-1);
     const prior = priorEvent?.data;
+    if (!priorEvent) {
+      const currentStatuses = new Map<string, string>();
+      for (const event of this.workerEvents(data.worker)) {
+        if (event.data.type === "finding_recorded") currentStatuses.set(event.data.finding_id, "OPEN");
+        if (event.data.type === "finding_status_changed") currentStatuses.set(event.data.finding_id, event.data.status);
+      }
+      if (data.status !== "CORRECTION_REOPENED"
+        && data.finding_ids.some((findingId) => ["RESOLVED", "INVALIDATED"].includes(currentStatuses.get(findingId) ?? "OPEN"))) {
+        throw new CorrectionInvariantError("A closed finding cannot receive a new correction attempt without an explicit finding reopen event.");
+      }
+    }
     validateCorrectionTransition(data, prior?.type === "correction_lifecycle_recorded" ? prior : undefined, priorEvent?.eventId);
     const workerEvents = this.workerEvents(data.worker);
     this.validateObligationReferences(data.worker, data.owner_action.source_event_ids, data.continuation_policy.basis_finding_ids, data.continuation_policy.basis_evidence_ids);
@@ -659,6 +843,15 @@ export class EventStore {
     const row = this.db.prepare("SELECT * FROM events WHERE sequence = ?").get(sequence) as Record<string, unknown> | undefined;
     return row ? toStoredEvent(row) : null;
   }
+
+  private releaseWriterLock() {
+    if (this.writerLockFd !== null) {
+      try { fs.closeSync(this.writerLockFd); } catch {}
+    }
+    if (this.writerLockPath !== null) {
+      try { fs.unlinkSync(this.writerLockPath); } catch {}
+    }
+  }
 }
 
 function sameLogicalEvent(existing: StoredEvent, envelope: AppendEnvelope): boolean {
@@ -702,13 +895,22 @@ function toStoredEvent(row: Record<string, unknown>): StoredEvent {
     receivedAt: String(row.received_at),
     previousHash: row.previous_hash === null ? null : String(row.previous_hash),
     eventHash: String(row.event_hash),
+    producerId: String(row.producer_id),
+    producerKind: String(row.producer_kind),
     data,
   };
 }
 
-let singleton: EventStore | undefined;
+function internalProducerFor(data: MissionControlEventV2): AuthenticatedProducer {
+  const worker = data.worker ?? "mission-control";
+  if (data.type === "evidence_receipt_recorded") return {
+    id: data.producer_id,
+    kind: data.producer_role as ProducerKind,
+    workerScopes: [worker], taskScopes: [`task:${worker}`],
+  };
+  return { id: `bootstrap:${worker}`, kind: "SYSTEM", workerScopes: [worker], taskScopes: [`task:${worker}`] };
+}
 
-export function getStore(): EventStore {
-  if (!singleton) singleton = new EventStore();
-  return singleton;
+function internalUiProducer(): AuthenticatedProducer {
+  return { id: "mission-control-ui", kind: "UI", workerScopes: ["*"], taskScopes: ["*"] };
 }

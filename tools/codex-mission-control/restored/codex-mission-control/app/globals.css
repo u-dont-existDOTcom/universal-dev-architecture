@@ -351,6 +351,8 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
 .research-finding { margin-top: 11px; }
 .research-finding p { margin: 5px 0 0; color: #c9b092; font-size: 11px; line-height: 1.5; }
 .timeline-event small { display: block; margin-top: 5px; color: #52645e; font: 7px var(--mono); word-break: break-all; }
+.timeline-event > *, .timeline-event > div { min-width: 0; }
+.timeline-event time, .timeline-event p { overflow-wrap: anywhere; word-break: break-word; }
 
 @media (max-width: 1050px) {
   .operator-summary-head { align-items: flex-start; flex-direction: column; }

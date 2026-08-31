@@ -36,6 +36,7 @@ The v2 event union in `restored/codex-mission-control/lib/schema.ts` is authorit
 - target-neutral correction lifecycle with complete attempt, authority, evidence, validity, actor, owner-action, and continuation bindings;
 - typed completion claim and supervision route;
 - supervision-design feedback and read-only Symphony observations;
+- reasoning-supervision decisions, versioned execution directives, Codex starts, execution-only receipts, outcome-progress receipts, and supervision alerts;
 - legacy v1 events, which remain readable but never gain v2 authority by translation.
 
 ## Owner-choice relay
@@ -61,9 +62,13 @@ Finding state changes are evidence-gated. Bare terminal assertions, unrelated re
 
 The comparator directly checks the latest owner outcome rather than trusting completion labels. Root achievement needs current exact-candidate independent receipts mapped into both required owner outcomes and reconciliation, no open gap or blocking finding, and a fresh supervisor authority-vector review. Root cancellation and authorized owner changes require exact durable owner decisions.
 
+Numeric progress is also derived rather than trusted. Every numeric receipt declares whether higher or lower is better and stores exact baseline/previous/current deltas. Inconsistent bytes are rejected; projection independently recalculates the effective advancement, strategy efficacy, and same-strategy hold so a hostile `ADVANCING`/`VIABLE` label cannot create GREEN.
+
+For current owner-outcome epochs, substantive Codex execution requires a current reasoning decision and one exact versioned directive. Execution receipts are factual only and their supervisory/progress/adequacy/completion/escalation fields are literal `null`. A stop receipt prevents another start until a later independent chat review and directive. Three-turn handoffs bind the actual durable authority vector and high-water sequence.
+
 ## Ingestion and trust
 
-The daemon internal token is generated at runtime unless explicitly supplied. External `POST /api/events` is disabled without `MISSION_CONTROL_INGEST_CREDENTIALS`, a JSON map from producer ID to fixed kind and a 32+ character secret. The external bearer authenticates that producer; the daemon independently validates event/status authority and embedded identity.
+The daemon internal token is generated at runtime unless explicitly supplied. External `POST /api/events` is disabled without `MISSION_CONTROL_INGEST_CREDENTIALS`, a JSON map from producer ID to fixed kind, a 32+ character secret, and nonempty worker/task scopes. The external bearer authenticates that producer; the BFF forwards immutable identity and scopes, and the daemon independently validates worker scope, task scope, event/status authority, and embedded identity.
 
 ## Completion boundary
 

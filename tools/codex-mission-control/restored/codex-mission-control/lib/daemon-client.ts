@@ -21,6 +21,8 @@ export function daemonMutationHeaders(producer: AuthenticatedProducer, headers: 
     authorization: `Bearer ${internalToken}`,
     "x-mission-control-producer-id": producer.id,
     "x-mission-control-producer-kind": producer.kind,
+    "x-mission-control-worker-scopes": producer.workerScopes.join(","),
+    "x-mission-control-task-scopes": producer.taskScopes.join(","),
   };
 }
 

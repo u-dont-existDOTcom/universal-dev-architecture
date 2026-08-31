@@ -36,8 +36,8 @@ export function Dashboard() {
     return () => source.close();
   }, [load]);
 
-  const queue = useMemo(() => snapshot?.workers.filter((worker) => worker.overallTraffic !== "GREEN") ?? [], [snapshot]);
-  const healthy = useMemo(() => snapshot?.workers.filter((worker) => worker.overallTraffic === "GREEN") ?? [], [snapshot]);
+  const queue = useMemo(() => snapshot?.workers.filter((worker) => worker.overallTraffic !== "GREEN" || worker.correction.ownerActionType !== "NONE") ?? [], [snapshot]);
+  const healthy = useMemo(() => snapshot?.workers.filter((worker) => worker.overallTraffic === "GREEN" && worker.correction.ownerActionType === "NONE") ?? [], [snapshot]);
   const counts = useMemo(() => ({
     redirect: snapshot?.workers.filter((worker) => worker.verdict === "REDIRECT").length ?? 0,
     watch: snapshot?.workers.filter((worker) => worker.verdict === "WATCH" || worker.verdict === "CONTRACT_REPAIR" || worker.verdict === "HOLD").length ?? 0,
@@ -136,8 +136,23 @@ function AttentionCard({ worker }: { worker: WorkerState }) {
       <div className="plane-row">
         <Plane label="Worker → Contract" value={worker.workerToContractAlignment} />
         <Plane label="Contract → Owner" value={worker.contractToOwnerAlignment} />
+        <Plane label="Outcome progress" value={worker.progress.outcomeAdvancement} />
+        <Plane label="Strategy" value={worker.progress.strategyEfficacy} />
         <Plane label="Verification" value={verificationLabel(worker)} />
         <Plane label="Freshness" value={worker.terminal.reconciliationFreshness} />
+      </div>
+
+      <div className="correction-block">
+        <div className="correction-copy">
+          <span className="block-kicker">OWNER OUTCOME TARGET + DIRECT EVIDENCE</span>
+          <p>{worker.progress.targetEvidence}</p>
+          <small>Latest: {worker.progress.latestEvidence} · Best: {worker.progress.bestEvidence}</small>
+        </div>
+        <div className="correction-state">
+          <span className="block-kicker">ACTIVE STRATEGY</span>
+          <strong>{worker.progress.strategyId ?? "MISSING"} · {worker.progress.strategyEfficacy.replaceAll("_", " ")}</strong>
+          <small>{worker.progress.requiredIntervention}</small>
+        </div>
       </div>
 
       <div className="problem-block">
@@ -164,6 +179,13 @@ function AttentionCard({ worker }: { worker: WorkerState }) {
         <div><span className="block-kicker">NEXT REVIEW</span><strong>{worker.correction.nextReviewTrigger}</strong></div>
         <div><span className="block-kicker">CURRENT PATH</span><strong>{continuationLabel(worker)}</strong><small>Recheck: {worker.correction.continuationPolicy.recheck_trigger}</small></div>
         <div className={worker.correction.ownerActionType === "NONE" ? "owner-none" : "owner-needed"}><span className="block-kicker">OWNER ACTION</span><strong>{ownerActionLabel(worker)}</strong><small>{worker.correction.ownerActionText}</small><OwnerDecisionDetails worker={worker} /></div>
+      </div>
+
+      <div className="attention-card-foot">
+        <span>Reasoning supervisor: {worker.executionSupervision.surface} · {worker.executionSupervision.chatEpoch ?? "epoch missing"}</span>
+        <span>Directive: {worker.executionSupervision.activeDirectiveId ?? "MISSING"} · {worker.executionSupervision.directiveStatus}</span>
+        <span>Codex: {worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}</span>
+        <span>Receipt: {worker.executionSupervision.latestReceiptId ?? "none"} · review {worker.executionSupervision.pendingReasoningReview ? "PENDING" : worker.executionSupervision.reviewFreshness}</span>
       </div>
 
       <div className="attention-card-foot">
@@ -214,6 +236,9 @@ function OperatorFact({ label, value, tone = "" }: { label: string; value: strin
 }
 
 function verdictLabel(worker: WorkerState): string {
+  if (["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(worker.progress.strategyEfficacy)) return "STRATEGY REPLACEMENT";
+  if (worker.progress.outcomeAdvancement === "REGRESSING") return "OUTCOME REGRESSING";
+  if (worker.correction.ownerActionType !== "NONE" && worker.overallTraffic === "GREEN") return "OWNER DECISION";
   return worker.verdict.replaceAll("_", " ");
 }
 

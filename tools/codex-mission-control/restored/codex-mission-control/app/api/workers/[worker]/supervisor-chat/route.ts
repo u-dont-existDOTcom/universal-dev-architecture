@@ -5,7 +5,7 @@ export async function POST(request: Request, context: RouteContext<"/api/workers
   const { worker } = await context.params;
   return relayJson(`/workers/${encodeURIComponent(worker)}/supervisor-chat`, {
     method: "POST",
-    headers: daemonMutationHeaders({ id: "ui:dashboard", kind: "UI" }, { "content-type": "application/json" }),
+    headers: daemonMutationHeaders({ id: "ui:dashboard", kind: "UI", workerScopes: [worker], taskScopes: [`task:${worker}`] }, { "content-type": "application/json" }),
     body: await request.text(),
   });
 }

@@ -2,5 +2,5 @@ import { daemonMutationHeaders, relayJson, sameOriginMutation } from "@/lib/daem
 
 export async function POST(request: Request) {
   if (!sameOriginMutation(request)) return Response.json({ error: "Cross-origin mutation rejected." }, { status: 403 });
-  return relayJson("/viewed", { method: "POST", headers: daemonMutationHeaders({ id: "ui:dashboard", kind: "UI" }) });
+  return relayJson("/viewed", { method: "POST", headers: daemonMutationHeaders({ id: "ui:dashboard", kind: "UI", workerScopes: ["*"], taskScopes: ["*"] }) });
 }

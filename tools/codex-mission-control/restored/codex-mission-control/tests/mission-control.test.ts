@@ -7,13 +7,14 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { sha256 } from "../lib/canonical";
 import { correctionStatusLabel, CorrectionInvariantError, validateCorrectionTransition } from "../lib/correction-lifecycle";
-import { producerMayEmit } from "../lib/ingestion-auth";
+import { authenticatedEventTypes, producerKinds, producerMayEmit } from "../lib/ingestion-auth";
 import { authenticateIngestProducer } from "../lib/ingestion-credentials";
 import { sameOriginMutation } from "../lib/daemon-client";
+import { supervisionHandoffCapsuleSha256 } from "../lib/supervision-handoff";
 import { attentionPriority, projectWorker, projectWorkers, summarizeChanges } from "../lib/projection";
 import { appendEnvelopeSchema, eventSchema, ownerActionObligationSchema, supervisorChatLinkSetSchema, type MissionControlEventV2, type StoredEvent } from "../lib/schema";
 import { seedStore } from "../lib/seed";
-import { ContractInvariantError, EventStore, IdempotencyConflictError } from "../lib/store";
+import { ContractInvariantError, EventStore, IdempotencyConflictError, WriterLockError } from "../lib/store";
 import { adaptSymphonyState, SYMPHONY_UPSTREAM_COMMIT } from "../lib/symphony-adapter";
 import { authorityStateVectorHash, compareTerminalState } from "../lib/terminal-comparator";
 
@@ -69,9 +70,9 @@ test("all public v2 content identities reject human-readable pseudo-hashes", () 
 
 test("external ingest credentials bind a secret to one producer ID and kind", () => {
   const token = "0123456789abcdef0123456789abcdef";
-  const credentials = JSON.stringify({ "collector:tests": { kind: "COLLECTOR", token } });
+  const credentials = JSON.stringify({ "collector:tests": { kind: "COLLECTOR", token, workers: ["tests"], tasks: ["task:tests"] } });
   assert.deepEqual(authenticateIngestProducer(credentials, "collector:tests", `Bearer ${token}`), {
-    ok: true, producer: { id: "collector:tests", kind: "COLLECTOR" },
+    ok: true, producer: { id: "collector:tests", kind: "COLLECTOR", workerScopes: ["tests"], taskScopes: ["task:tests"] },
   });
   assert.equal(authenticateIngestProducer(credentials, "verifier:tests", `Bearer ${token}`).ok, false);
   assert.equal(authenticateIngestProducer(credentials, "collector:tests", "Bearer wrong").ok, false);
@@ -91,18 +92,61 @@ test("same-origin mutation checks honor the actual Host authority without trusti
 test("authenticated producer identity must match embedded evidence identity and authorized event class", () => {
   const evidence = workerEvents("tests").find((event) => event.data.type === "evidence_receipt_recorded")!.data;
   if (evidence.type !== "evidence_receipt_recorded") throw new Error("Expected v2 evidence fixture.");
-  assert.equal(producerMayEmit({ id: evidence.producer_id, kind: "COLLECTOR" }, evidence), true);
-  assert.equal(producerMayEmit({ id: "collector:impostor", kind: "COLLECTOR" }, evidence), false);
-  assert.equal(producerMayEmit({ id: evidence.producer_id, kind: "VERIFIER" }, evidence), false);
+  assert.equal(producerMayEmit(scopedProducer(evidence.producer_id, "COLLECTOR", "tests"), evidence), true);
+  assert.equal(producerMayEmit(scopedProducer("collector:impostor", "COLLECTOR", "tests"), evidence), false);
+  assert.equal(producerMayEmit(scopedProducer(evidence.producer_id, "VERIFIER", "tests"), evidence), false);
   const checkpoint = workerEvents("tests").find((event) => event.data.type === "worker_checkpoint_recorded")!.data;
   if (checkpoint.type !== "worker_checkpoint_recorded") throw new Error("Expected v2 checkpoint fixture.");
-  assert.equal(producerMayEmit({ id: "worker:tests", kind: "WORKER" }, checkpoint), true);
-  assert.equal(producerMayEmit({ id: "worker:billing", kind: "WORKER" }, checkpoint), false);
+  assert.equal(producerMayEmit(scopedProducer("worker:tests", "WORKER", "tests"), checkpoint), true);
+  assert.equal(producerMayEmit(scopedProducer("worker:billing", "WORKER", "billing"), checkpoint), false);
 });
 
 test("owner outcomes cannot be recorded before their referenced source receipt", () => {
   const store = new EventStore(":memory:");
   assert.throws(() => store.append(outcomeEnvelope("alpha")), ContractInvariantError);
+  store.close();
+});
+
+test("owner-outcome corrections bind the exact source request, source hash, next epoch, and prior outcome hash", () => {
+  const store = new EventStore(":memory:");
+  const source = sourceEnvelope("source:alpha:exact-binding");
+  store.append(source);
+  const first = outcomeEnvelope("alpha");
+  assert.throws(() => store.append({ ...first, event_id: "outcome:alpha:wrong-request", data: {
+    ...first.data, owner_request_id: "owner-request:wrong",
+  } }), /exact referenced owner-source request and source hash/);
+  assert.throws(() => store.append({ ...first, event_id: "outcome:alpha:wrong-hash", data: {
+    ...first.data, owner_source_sha256: "c".repeat(64),
+  } }), /exact referenced owner-source request and source hash/);
+  store.append(first);
+
+  const secondSource = {
+    ...source,
+    event_id: "source:alpha:correction",
+    occurred_at: "2026-08-30T10:02:00.000Z",
+    data: { ...source.data, receipt_id: "receipt:alpha:2", source_sha256: "c".repeat(64), worker_copy_sha256: "c".repeat(64) },
+  };
+  store.append(secondSource);
+  const secondData = {
+    ...first.data,
+    epoch: 2,
+    owner_outcome_sha256: "d".repeat(64),
+    source_receipt_id: "receipt:alpha:2",
+    owner_source_sha256: "c".repeat(64),
+    supersedes: first.data.owner_outcome_id,
+    supersedes_outcome_sha256: first.data.owner_outcome_sha256,
+  };
+  assert.throws(() => store.append({
+    ...first, event_id: "outcome:alpha:skipped-epoch", occurred_at: "2026-08-30T10:03:00.000Z",
+    data: { ...secondData, epoch: 3 },
+  }), /advance one epoch/);
+  assert.throws(() => store.append({
+    ...first, event_id: "outcome:alpha:wrong-prior-hash", occurred_at: "2026-08-30T10:03:00.000Z",
+    data: { ...secondData, supersedes_outcome_sha256: "e".repeat(64) },
+  }), /exact prior outcome identity/);
+  assert.doesNotThrow(() => store.append({
+    ...first, event_id: "outcome:alpha:2", occurred_at: "2026-08-30T10:03:00.000Z", data: secondData,
+  }));
   store.close();
 });
 
@@ -129,7 +173,7 @@ test("an event-ID collision with different content is rejected", () => {
 test("the event hash chain verifies from the first event through the demo ledger", () => {
   const store = new EventStore(":memory:");
   seedStore(store);
-  assert.equal(store.count(), 77);
+  assert.equal(store.count(), 107);
   assert.deepEqual(store.verifyChain(), { valid: true, errors: [] });
   assert.equal(store.allEvents()[0].previousHash, null);
   store.close();
@@ -395,6 +439,20 @@ test("finding invalidation closure is labeled separately from a verified correct
   assert.equal(correctionStatusLabel("CORRECTION_RESOLVED", "WORKER_REDIRECT", "FINDING_INVALIDATED"), "CLOSED — FINDING INVALIDATED");
   assert.equal(correctionStatusLabel("CORRECTION_RESOLVED", "WORKER_REDIRECT", "MIXED_RESOLUTION"), "CLOSED — VERIFIED CORRECTION AND FINDING INVALIDATION");
   assert.equal(correctionStatusLabel("CORRECTION_RESOLVED", "WORKER_REDIRECT", "CORRECTED_AND_VERIFIED"), "REDIRECT RESOLVED");
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  appendInvalidationOnlyClosure(store);
+  const lifecycle = projectWorker(store.workerEvents("auth"), new Date("2026-08-30T20:06:06.000Z")).correction;
+  assert.equal(lifecycle.correctionResolved, true);
+  assert.equal(lifecycle.directiveIssued, false);
+  assert.equal(lifecycle.directiveDelivered, false);
+  assert.equal(lifecycle.workerAcknowledged, false);
+  assert.equal(lifecycle.correctionStarted, false);
+  assert.equal(lifecycle.evidenceSubmitted, false);
+  assert.equal(lifecycle.correctionVerified, false);
+  assert.equal(lifecycle.closureBasis, "FINDING_INVALIDATED");
+  assert.match(lifecycle.statusLabel, /FINDING INVALIDATED/);
+  store.close();
 });
 
 test("verified correction reopens fail-closed when its contract binding changes", () => {
@@ -449,15 +507,29 @@ test("a durable validity-context change identifies the exact event that reopens 
     },
   }));
   assert.equal(projectWorker(events, new Date("2026-08-30T20:05:02.000Z")).correction.correctionVerified, true);
+  const verificationEvent = events.findLast((event) => event.data.type === "correction_lifecycle_recorded")!;
+  pushV2(events, "finding:tests:resolved-before-validity-change", {
+    type: "finding_status_changed", worker: "tests", finding_id: "finding-tests-forbidden-production",
+    from_status: "OPEN", status: "RESOLVED", reason: "The exact correction was independently verified.",
+    reason_code: "FINDING.RESOLVED.CORRECTION_VERIFIED", basis_event_ids: [verificationEvent.eventId],
+    actor_id: "verifier:tests", actor_role: "VERIFIER", exact_candidate_sha256: candidate,
+    contract_sha256: contract.task_contract_sha256, owner_outcome_id: outcome.owner_outcome_id,
+    owner_outcome_epoch: outcome.epoch, owner_outcome_sha256: outcome.owner_outcome_sha256,
+    resolution_path: "CORRECTION_VERIFIED", verification_event_id: verificationEvent.eventId,
+    evidence_requirement_schema_sha256: requirements, verification_policy_sha256: policy,
+  }, "2026-08-30T20:05:02.500Z");
   pushV2(events, "validity:tests:event:2", {
     ...context, context_id: "validity:tests:2", supersedes_context_id: context.context_id,
     change_reason: "Verification policy advanced.", changed_dimensions: ["VERIFICATION_POLICY"],
     verification_policy_id: "policy:tests:2", verification_policy_sha256: sha256("tests:verification-policy:v2"),
   }, "2026-08-30T20:05:03.000Z");
-  const reopened = projectWorker(events, new Date("2026-08-30T20:05:04.000Z")).correction;
+  const invalidatedWorker = projectWorker(events, new Date("2026-08-30T20:05:04.000Z"));
+  const reopened = invalidatedWorker.correction;
   assert.equal(reopened.status, "CORRECTION_REOPENED");
   assert.equal(reopened.correctionVerified, false);
   assert.equal(reopened.reopenTriggerEventId, "validity:tests:event:2");
+  assert.equal(invalidatedWorker.activeFindings.find((finding) => finding.id === "finding-tests-forbidden-production")?.status, "REOPENED");
+  assert.equal(invalidatedWorker.terminal.rootTerminalizationAllowed, false);
 });
 
 test("Test cleanup continuation is scoped and requires stop/revert before test-only work continues", () => {
@@ -501,6 +573,7 @@ test("finding status is event-derived and immutable finding records cannot be ov
   const finding = store.workerEvents("billing").find((event) => event.data.type === "finding_recorded")!;
   const invalidationEvidence = store.workerEvents("billing").find((event) => event.data.type === "evidence_receipt_recorded"
     && event.data.receipt_id === "evidence:finding-billing-shared-schema")!;
+  const invalidationProposition = sha256("The billing finding is false because the detector used an obsolete path rule.");
   const contract = store.workerEvents("billing").findLast((event) => event.data.type === "task_contract_recorded")!.data;
   const outcome = store.workerEvents("billing").findLast((event) => event.data.type === "owner_outcome_recorded")!.data;
   assert.equal(contract.type, "task_contract_recorded");
@@ -509,20 +582,35 @@ test("finding status is event-derived and immutable finding records cannot be ov
     schema_version: 2, event_id: "demo:billing:finding:duplicate", mission_id: "mission-control-demo",
     occurred_at: "2026-08-30T20:03:00.000Z", data: finding.data,
   }), /immutable/);
+  if (invalidationEvidence.data.type !== "evidence_receipt_recorded") throw new Error("Expected billing evidence.");
+  const propositionReceiptId = "evidence:billing:invalidation-proposition";
+  const propositionReceiptEventId = "demo:billing:evidence:invalidation-proposition";
+  store.append({
+    schema_version: 2, event_id: propositionReceiptEventId, mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:03:30.000Z",
+    data: {
+      ...invalidationEvidence.data,
+      receipt_id: propositionReceiptId,
+      summary: "Independent verifier disproved the exact billing finding proposition.",
+      claim_kind: "FINDING_INVALIDATION",
+      supports_finding_id: "finding-billing-shared-schema",
+      proposition_sha256: invalidationProposition,
+    },
+  });
   store.append({
     schema_version: 2, event_id: "demo:billing:finding:invalidated", mission_id: "mission-control-demo",
     occurred_at: "2026-08-30T20:04:00.000Z",
     data: {
       type: "finding_status_changed", worker: "billing", finding_id: "finding-billing-shared-schema",
       from_status: "OPEN", status: "INVALIDATED", reason: "The detector used an obsolete path rule.",
-      reason_code: "FINDING.INVALIDATED.OBSOLETE_RULE", basis_event_ids: [invalidationEvidence.eventId],
+      reason_code: "FINDING.INVALIDATED.OBSOLETE_RULE", basis_event_ids: [propositionReceiptEventId],
       actor_id: "verifier:billing", actor_role: "VERIFIER",
       exact_candidate_sha256: invalidationEvidence.data.type === "evidence_receipt_recorded" ? invalidationEvidence.data.exact_candidate_sha256 : null,
       contract_sha256: contract.type === "task_contract_recorded" ? contract.task_contract_sha256 : sha256("unreachable"),
       owner_outcome_id: outcome.type === "owner_outcome_recorded" ? outcome.owner_outcome_id : "unreachable",
       owner_outcome_epoch: outcome.type === "owner_outcome_recorded" ? outcome.epoch : 1,
       owner_outcome_sha256: outcome.type === "owner_outcome_recorded" ? outcome.owner_outcome_sha256 : sha256("unreachable"),
-      invalidation_evidence_receipt_ids: ["evidence:finding-billing-shared-schema"],
+      invalidation_evidence_receipt_ids: [propositionReceiptId], invalidation_proposition_sha256: invalidationProposition,
       invalidator_method_version: "path-rule-verifier:v2", affected_directive_event_ids: [],
     },
   });
@@ -603,7 +691,7 @@ test("the 13.82 percent contract-laundering fixture preserves worker GREEN and m
   assert.equal(worker.overallTraffic, "RED");
   assert.equal(worker.terminal.completionClaimType, "READY_FOR_OWNER_REVIEW");
   assert.equal(worker.terminal.contractStatus, "CONTRACT_LAUNDERING");
-  assert.equal(worker.terminal.requiredDirective, "CONTINUE_HUMANIZATION");
+  assert.equal(worker.terminal.requiredDirective, "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD");
   assert.equal(worker.terminal.rootTerminalizationAllowed, false);
   for (const code of ["SCOPE_CONTRACTION", "OBJECTIVE_SUBSTITUTION", "PROXY_SUBSTITUTION", "COMPLETION_ILLUSION"]) {
     assert.ok(worker.terminal.reasonCodes.includes(code));
@@ -692,6 +780,16 @@ test("root close requires a coherent fresh authority vector and exact outcome-to
   const comparison = compareTerminalState(events);
   assert.equal(comparison.decision, "ALLOW_ROOT_CLOSE");
   assert.equal(comparison.rootTerminalizationAllowed, true);
+  replaceLatest(events, "supervisor_assessment_recorded", (assessment) => ({
+    ...assessment,
+    worker_to_contract_alignment: "RED",
+    operator_verdict: "REDIRECT",
+    reason: "The worker no longer follows the exact contract.",
+  }));
+  const redComparison = compareTerminalState(events);
+  assert.equal(redComparison.workerToContractAlignment, "RED");
+  assert.equal(redComparison.rootTerminalizationAllowed, false);
+  assert.equal(redComparison.overallTraffic, "RED");
 });
 
 test("unmet reconciliation, unrelated evidence, and stale review can never authorize a root close", () => {
@@ -763,6 +861,253 @@ test("supervision routes enforce the three-turn hard maximum", () => {
   const invalid = structuredClone(routeEvent.data) as Extract<MissionControlEventV2, { type: "supervision_route_recorded" }>;
   invalid.substantive_response_count = 4 as never;
   assert.throws(() => eventSchema.parse(invalid));
+  const activeTurnThree = { ...structuredClone(routeEvent.data), substantive_response_count: 3, status: "ACTIVE", handoff_capsule_id: null, handoff_capsule_sha256: null, accepted_state_vector_sha256: null };
+  assert.throws(() => eventSchema.parse(activeTurnThree), /Turn 3 cannot remain ACTIVE/);
+  assert.doesNotThrow(() => eventSchema.parse({
+    ...activeTurnThree,
+    status: "ROLLOVER_REQUIRED",
+    handoff_capsule_id: "handoff:auth:1",
+    handoff_capsule_sha256: sha256("handoff:auth:1"),
+    accepted_state_vector_sha256: sha256("state:auth:turn-3"),
+  }));
+
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  const current = store.workerEvents("auth").findLast((event) => event.data.type === "supervision_route_recorded")!.data;
+  assert.equal(current.type, "supervision_route_recorded");
+  const highWater = store.latestSequence();
+  const acceptedStateVectorSha256 = authorityStateVectorHash(
+    store.workerEvents("auth").filter((event) => event.sequence <= highWater),
+  );
+  const capsuleId = "handoff:auth:turn-3";
+  const handoffCapsuleSha256 = supervisionHandoffCapsuleSha256({
+    capsuleId,
+    worker: "auth",
+    sourceSessionId: current.session_id,
+    acceptedStateVectorSha256,
+    authorityHighWaterSequence: highWater,
+  });
+  const outgoing = {
+    ...current,
+    substantive_response_count: 3 as const,
+    status: "ROLLOVER_REQUIRED" as const,
+    handoff_capsule_id: capsuleId,
+    handoff_capsule_sha256: handoffCapsuleSha256,
+    accepted_state_vector_sha256: acceptedStateVectorSha256,
+    authority_high_water_sequence: highWater,
+  };
+  assert.throws(() => store.append({
+    schema_version: 2, event_id: "route:auth:turn-3:forged", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:00.000Z", data: { ...outgoing, handoff_capsule_sha256: sha256("forged") },
+  }), /capsule digest must bind/);
+  store.append({
+    schema_version: 2, event_id: "route:auth:turn-3", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:00.000Z", data: outgoing,
+  });
+  assert.doesNotThrow(() => store.append({
+    schema_version: 2, event_id: "route:auth:successor", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:07:00.000Z", data: {
+      ...outgoing,
+      session_id: "pro-session:auth:successor",
+      predecessor_session_id: current.session_id,
+      substantive_response_count: 0,
+      status: "ACTIVE",
+    },
+  }));
+  store.close();
+});
+
+test("every authenticated event family rejects a producer scoped to another worker and task", () => {
+  const families = new Map(workerEvents("tests").map((event) => [event.data.type, event.data as MissionControlEventV2]));
+  assert.ok(families.has("execution_directive_recorded"));
+  assert.ok(families.has("execution_receipt_recorded"));
+  assert.ok(families.has("outcome_progress_recorded"));
+  for (const [type, event] of families) {
+    for (const kind of producerKinds) {
+      assert.equal(producerMayEmit({
+        id: `cross-worker:${kind.toLowerCase()}`,
+        kind,
+        workerScopes: ["billing"],
+        taskScopes: ["task:billing"],
+      }, event), false, `${kind} unexpectedly emitted ${type} across worker/task scope`);
+    }
+  }
+  for (const type of authenticatedEventTypes) {
+    const worker = type === "review_marked" ? null : "tests";
+    const scopeProbe = { type, worker } as MissionControlEventV2;
+    assert.equal(producerMayEmit({
+      id: "scope-probe:wrong-worker", kind: "UI", workerScopes: ["billing"], taskScopes: ["*"],
+    }, scopeProbe), false, `${type} accepted a producer outside its worker scope`);
+    assert.equal(producerMayEmit({
+      id: "scope-probe:wrong-task", kind: "UI", workerScopes: ["*"], taskScopes: ["task:wrong"],
+    }, scopeProbe), false, `${type} accepted a producer outside its task scope`);
+  }
+});
+
+test("authenticated producer provenance is immutable and persisted on every append", () => {
+  const store = new EventStore(":memory:");
+  const producer = { id: "owner-authority:alpha", kind: "OWNER_AUTHORITY" as const, workerScopes: ["alpha"], taskScopes: ["task:alpha"] };
+  const source = sourceEnvelope("source:alpha:provenance");
+  const stored = store.append(source, source.occurred_at, producer);
+  assert.equal(stored.producerId, producer.id);
+  assert.equal(stored.producerKind, producer.kind);
+  assert.throws(() => store.append(source, source.occurred_at, { ...producer, id: "owner-authority:other" }), IdempotencyConflictError);
+  assert.ok(store.allEvents().every((event) => event.producerId && event.producerKind));
+  store.close();
+});
+
+test("an unrelated later owner-source receipt cannot launder the bound owner outcome", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")!.data;
+  assert.equal(outcome.type, "owner_outcome_recorded");
+  const linkedReceiptId = outcome.source_receipt_id;
+  pushV2(events, "source:auth:unrelated", {
+    type: "owner_source_recorded", worker: "auth", receipt_id: "source:auth:unrelated",
+    owner_request_id: "owner-request:unrelated", canonical_locator: "fixture://owner-request/unrelated",
+    source_sha256: sha256("unrelated-source"), worker_copy_sha256: sha256("unrelated-copy"), capture_integrity: "VERIFIED",
+    acquisition_mode: "INDEPENDENT_READER_DIRECT", receipt_capability: "INDEPENDENT_SOURCE_VERIFIED",
+    comparison: "MISMATCH", freshness: "CURRENT", limitations: ["Unrelated to the active owner outcome."],
+  }, "2026-08-30T20:06:00.000Z");
+  const worker = projectWorker(events);
+  assert.equal(worker.sourceReceipt.receiptId, linkedReceiptId);
+  assert.equal(worker.contractToOwnerAlignment, "MATCH");
+});
+
+test("Somatic regression stays RED even while worker and contract alignment pass", () => {
+  const worker = demoWorker("article-humanization");
+  assert.equal(worker.workerToContractAlignment, "GREEN");
+  assert.equal(worker.progress.outcomeAdvancement, "REGRESSING");
+  assert.equal(worker.progress.strategyEfficacy, "REPLACEMENT_REQUIRED");
+  assert.equal(worker.progress.sameStrategyContinuationAllowed, false);
+  assert.equal(worker.overallTraffic, "RED");
+  assert.equal(worker.terminal.requiredDirective, "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD");
+  assert.match(worker.progress.latestEvidence, /0\.1231321841/);
+  assert.match(worker.progress.bestEvidence, /0\.1547368467/);
+});
+
+test("numeric evidence direction automatically overrides a dishonest healthy progress classification", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  replaceLatest(events, "outcome_progress_recorded", (progress) => ({
+    ...progress,
+    measurement_direction: "HIGHER_IS_BETTER",
+    target_evidence: { state: "target", numeric_value: 1, unit: "score", evidence_receipt_ids: [] },
+    baseline_evidence: { state: "baseline", numeric_value: 0.8, unit: "score", evidence_receipt_ids: [] },
+    previous_evidence: { state: "previous", numeric_value: 0.7, unit: "score", evidence_receipt_ids: [] },
+    current_evidence: { state: "current", numeric_value: 0.5, unit: "score", evidence_receipt_ids: [] },
+    best_evidence: { state: "best", numeric_value: 0.8, unit: "score", evidence_receipt_ids: [] },
+    change_from_baseline: -0.3,
+    change_from_previous: -0.2,
+    outcome_advancement: "ADVANCING",
+    strategy_efficacy: "VIABLE",
+    overall_control_state: "GREEN",
+    same_strategy_continuation_allowed: true,
+  }));
+  const worker = projectWorker(events);
+  assert.equal(worker.progress.outcomeAdvancement, "REGRESSING");
+  assert.equal(worker.progress.strategyEfficacy, "UNCERTAIN");
+  assert.equal(worker.progress.sameStrategyContinuationAllowed, false);
+  assert.equal(worker.overallTraffic, "RED");
+  assert.equal(worker.terminal.requiredDirective, "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD");
+
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  const invalid = events.findLast((event) => event.data.type === "outcome_progress_recorded")!.data;
+  assert.equal(invalid.type, "outcome_progress_recorded");
+  assert.throws(() => store.append({
+    schema_version: 2,
+    event_id: "outcome-progress:auth:dishonest-healthy",
+    mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:00.000Z",
+    data: { ...invalid, progress_receipt_id: "outcome-progress:auth:dishonest-healthy" },
+  }), /outcome_advancement must be REGRESSING/);
+  store.close();
+});
+
+test("missing directives hold current-epoch Codex execution and execution receipts cannot claim supervisory authority", () => {
+  const events = cloneEvents(workerEvents("auth")).filter((event) => event.data.type !== "execution_directive_recorded");
+  const worker = projectWorker(events);
+  assert.equal(worker.terminal.activeDirectiveCurrent, false);
+  assert.ok(worker.terminal.reasonCodes.includes("SUPERVISION_DIRECTIVE_MISSING"));
+  assert.notEqual(worker.overallTraffic, "GREEN");
+  assert.match(worker.primaryProblemSummary ?? "", /No current chat-authored execution directive/i);
+  assert.match(worker.whyItMatters ?? "", /SUPERVISION_DIRECTIVE_MISSING/);
+  assert.equal(worker.correction.directive, "OBTAIN_CURRENT_CHAT_AUTHORED_EXECUTION_DIRECTIVE");
+  const receipt = workerEvents("auth").find((event) => event.data.type === "execution_receipt_recorded")!.data;
+  assert.equal(receipt.type, "execution_receipt_recorded");
+  assert.throws(() => eventSchema.parse({ ...receipt, progress_classification: "ADVANCING" }));
+  assert.throws(() => eventSchema.parse({ ...receipt, strategy_change: "new-strategy" }));
+  assert.throws(() => eventSchema.parse({ ...receipt, supervisory_verdict: "PASS" }));
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  const start = store.workerEvents("auth").find((event) => event.data.type === "codex_execution_started")!.data;
+  assert.equal(start.type, "codex_execution_started");
+  assert.throws(() => store.append({
+    schema_version: 2, event_id: "execution-start:auth:missing-directive", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:07:00.000Z", data: {
+      ...start, execution_start_id: "execution-start:auth:missing-directive", directive_id: "directive:missing",
+    },
+  }), /cannot start without the current active exact chat-authored directive/);
+  assert.throws(() => store.append({
+    schema_version: 2, event_id: "execution-start:auth:continued-after-stop", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:08:00.000Z", data: { ...start, execution_start_id: "execution-start:auth:continued-after-stop" },
+  }), /cannot continue after a directive stop receipt/);
+  store.close();
+});
+
+test("a GREEN-base owner decision enters attention and retains the full Pro choice packet", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  const decision = {
+    kind: "DECISION_REQUIRED" as const, exact_text: "Choose the auth rollout boundary.", reason_code: "OWNER.AUTH_ROLLOUT",
+    subject_id: "auth:rollout", blocking_scope: ["auth rollout"], source_event_ids: [events.at(-1)!.eventId],
+    due_at: null, escalation_at: null, status: "OPEN" as const, decision_id: "decision:auth:rollout",
+    decision_question: "Should rollout remain canary-only or expand now?", decision_context: "Both approaches preserve the contract but carry different operational risk.",
+    options: [
+      { option_id: "option:canary", label: "Canary only", benefits: ["Limits blast radius"], drawbacks: ["Delays full adoption"], downstream_consequences: ["Only canary traffic changes"] },
+      { option_id: "option:expand", label: "Expand now", benefits: ["Completes rollout sooner"], drawbacks: ["Increases live risk"], downstream_consequences: ["All auth traffic changes"] },
+    ],
+    recommendation_option_id: "option:canary", recommendation_reasoning: "Canary preserves reversibility while exact live evidence accumulates.",
+    pro_analysis_ref: "pro:auth-rollout:turn-2", default_if_no_decision: "Hold at canary-only rollout.",
+  };
+  const progress = events.findLast((event) => event.data.type === "outcome_progress_recorded")!.data;
+  assert.equal(progress.type, "outcome_progress_recorded");
+  pushV2(events, "outcome-progress:auth:owner-decision", {
+    ...progress, progress_receipt_id: "outcome-progress:auth:owner-decision", owner_action: decision,
+  }, "2026-08-30T20:06:00.000Z");
+  const worker = projectWorker(events);
+  assert.equal(worker.correction.ownerActionType, "DECISION_REQUIRED");
+  assert.equal(worker.overallTraffic, "YELLOW");
+  assert.ok(attentionPriority(worker) < 90);
+  assert.equal(worker.correction.ownerAction.kind === "DECISION_REQUIRED" && worker.correction.ownerAction.options.length, 2);
+  assert.equal(worker.correction.ownerAction.kind === "DECISION_REQUIRED" && worker.correction.ownerAction.default_if_no_decision, "Hold at canary-only rollout.");
+});
+
+test("progress, strategy, directive, receipt, and producer identity survive a daemon-store restart", () => {
+  withTempDatabase((filename) => {
+    const first = new EventStore(filename);
+    seedStore(first);
+    const count = first.count();
+    first.close();
+    const reopened = new EventStore(filename);
+    const article = projectWorker(reopened.workerEvents("article-humanization"));
+    assert.equal(reopened.count(), count);
+    assert.deepEqual(reopened.verifyChain(), { valid: true, errors: [] });
+    assert.equal(article.progress.outcomeAdvancement, "REGRESSING");
+    assert.equal(article.progress.strategyEfficacy, "REPLACEMENT_REQUIRED");
+    assert.equal(article.executionSupervision.activeDirectiveId, "execution-directive:article-humanization:1");
+    assert.equal(article.executionSupervision.latestReceiptId, "execution-receipt:article-humanization:1");
+    assert.ok(reopened.allEvents().every((event) => event.producerId && event.producerKind));
+    reopened.close();
+  });
+});
+
+test("a file-backed Mission Control database permits only one EventStore writer", () => {
+  withTempDatabase((filename) => {
+    const first = new EventStore(filename);
+    assert.throws(() => new EventStore(filename), WriterLockError);
+    first.close();
+    const successor = new EventStore(filename);
+    successor.close();
+  });
 });
 
 test("Symphony adapter observes running, retrying, and blocked arrays without control semantics", () => {
@@ -783,17 +1128,24 @@ test("Symphony array lengths, not declared counts, drive observations and emit d
   assert.throws(() => adaptSymphonyState({ error: "not a state response" }, "2026-08-30T12:00:01Z", () => "worker"));
 });
 
-test("an unmapped Symphony observation is rejected before it can crash dashboard projection", () => {
-  const result = adaptSymphonyState(symphonyFixture, "2026-08-30T12:00:01Z", () => "unmapped-symphony-worker");
+test("an unmapped Symphony input produces a durable diagnostic with no control semantics", () => {
+  const result = adaptSymphonyState(symphonyFixture, "2026-08-30T12:00:01Z", () => null);
   const store = new EventStore(":memory:");
-  assert.throws(() => store.append({
+  assert.equal(result.observations.length, 0);
+  assert.equal(result.diagnosticEvents.length, 3);
+  assert.ok(result.diagnostics.every((diagnostic) => diagnostic.startsWith("SYMPHONY_WORKER_UNMAPPED:")));
+  const stored = store.append({
     schema_version: 2,
-    event_id: "symphony:unmapped:observation:1",
+    event_id: "symphony:unmapped:diagnostic:1",
     mission_id: "mission-control-demo",
     occurred_at: "2026-08-30T12:00:01.000Z",
-    data: result.observations[0],
-  }), /Record a task contract before symphony_runtime_observed/);
-  assert.deepEqual(store.allEvents(), []);
+    data: result.diagnosticEvents[0],
+  });
+  assert.equal(stored.type, "symphony_adapter_diagnostic_recorded");
+  assert.equal(stored.data.type === "symphony_adapter_diagnostic_recorded" && stored.data.control_semantics, false);
+  seedStore(store);
+  assert.equal(projectWorkers(store.allEvents()).length, 6);
+  assert.equal(projectWorkers(store.allEvents()).some((worker) => worker.id === "symphony-adapter"), false);
   store.close();
 });
 
@@ -909,6 +1261,7 @@ function outcomeEnvelope(worker: string) {
       epoch: 1,
       owner_outcome_sha256: "b".repeat(64),
       source_receipt_id: `receipt:${worker}:1`,
+      owner_source_sha256: "a".repeat(64),
       verbatim_owner_request: ["Do the exact bounded task."],
       normalized_result: "The exact bounded task is complete.",
       required_outcomes: [{ id: `required:${worker}`, text: "Complete it.", terminal_required: true, status: "UNMET" as const, direct_evidence_receipt_ids: [] }],
@@ -916,6 +1269,7 @@ function outcomeEnvelope(worker: string) {
       current_gap: "Complete it.",
       gap_status: "OPEN" as const,
       supersedes: null,
+      supersedes_outcome_sha256: null,
     },
   };
 }
@@ -954,7 +1308,97 @@ function legacyStoredEvent(sequence: number, data: StoredEvent["data"]): StoredE
     id: sequence, sequence, eventId: `legacy-v1:${sequence}`, schemaVersion: 1, missionId: "legacy-default", worker: "alpha",
     type: data.type, occurredAt: `2026-08-30T10:0${sequence - 1}:00.000Z`, receivedAt: `2026-08-30T10:0${sequence - 1}:00.000Z`,
     previousHash: sequence === 1 ? null : `hash-${sequence - 1}`, eventHash: `hash-${sequence}`, data,
+    producerId: "legacy:migration", producerKind: "SYSTEM",
   };
+}
+
+function appendInvalidationOnlyClosure(store: EventStore) {
+  const events = store.workerEvents("auth");
+  const contract = events.findLast((event) => event.data.type === "task_contract_recorded")!.data;
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")!.data;
+  const checkpoint = events.findLast((event) => event.data.type === "worker_checkpoint_recorded")!.data;
+  const assessment = events.findLast((event) => event.data.type === "supervisor_assessment_recorded")!.data;
+  assert.equal(contract.type, "task_contract_recorded");
+  assert.equal(outcome.type, "owner_outcome_recorded");
+  assert.equal(checkpoint.type, "worker_checkpoint_recorded");
+  assert.equal(assessment.type, "supervisor_assessment_recorded");
+  const evidence = store.append({
+    schema_version: 2, event_id: "evidence:auth:invalidation-basis", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:05:59.000Z", data: {
+      type: "evidence_receipt_recorded", worker: "auth", receipt_id: "evidence:auth:invalidation-basis",
+      producer_id: "verifier:auth:invalidation-basis", producer_role: "VERIFIER", evidence_class: "SEMANTIC_REVIEW",
+      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null,
+      summary: "Initial evidence raised a proposition that requires an independent applicability check.", refs: [], verified: true,
+      claim_kind: "GENERAL", supports_finding_id: null, proposition_sha256: null, changed_path_manifest: null,
+    },
+  }).data;
+  assert.equal(evidence.type, "evidence_receipt_recorded");
+  const findingId = "finding:auth:invalidated-only";
+  const continuationPolicy = { ...assessment.continuation_policy, basis_finding_ids: [findingId] };
+  store.append({
+    schema_version: 2, event_id: "finding:auth:invalidated-only:event", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:00.000Z", data: {
+      type: "finding_recorded", worker: "auth", finding_id: findingId, principal_group_id: "group:auth:invalidated-only",
+      finding_type: "EVIDENCE_MISSING", severity: "MATERIAL", statement: "A candidate evidence gap requires checking.",
+      violated_requirement: "Root claims require current exact evidence.", evidence_refs: [evidence.receipt_id],
+      evidence_receipt_ids: [evidence.receipt_id], reason_codes: ["EVIDENCE.MISSING"], status: "OPEN",
+      required_response: "Check whether the evidence requirement applies.", owner_action: assessment.owner_action,
+      continuation_policy: continuationPolicy,
+    },
+  });
+  const directive = "Check the evidence requirement.";
+  const prepared = {
+    ...correctionData("DIRECTIVE_PREPARED"), worker: "auth", correction_attempt_id: "attempt:auth:invalidation-only",
+    directive_id: "directive:auth:invalidation-only", directive_digest: sha256(directive), directive,
+    finding_ids: [findingId], task_id: "task:auth", worker_run_id: checkpoint.worker_run_id,
+    contract_id: contract.contract_id, contract_sha256: contract.task_contract_sha256,
+    owner_outcome_id: outcome.owner_outcome_id, owner_outcome_epoch: outcome.epoch,
+    owner_outcome_sha256: outcome.owner_outcome_sha256, target_id: checkpoint.worker_run_id,
+    producer_id: "supervisor:auth", actor_id: "supervisor:auth", actor_role: "SUPERVISOR" as const,
+    owner_action: assessment.owner_action, continuation_policy: continuationPolicy,
+  };
+  const preparedEvent = store.append({
+    schema_version: 2, event_id: "correction:auth:invalidation-only:prepared", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:01.000Z", data: prepared,
+  });
+  const withdrawnEvent = store.append({
+    schema_version: 2, event_id: "correction:auth:invalidation-only:withdrawn", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:02.000Z", data: {
+      ...prepared, status: "DIRECTIVE_WITHDRAWN" as const, expected_predecessor_event_id: preparedEvent.eventId,
+      causation_event_id: preparedEvent.eventId, exception_reason: "Independent evidence showed that the finding proposition was false.",
+    },
+  });
+  const propositionSha256 = sha256("The auth candidate lacks the required exact evidence.");
+  const invalidationEvidence = store.append({
+    schema_version: 2, event_id: "evidence:auth:invalidation-only", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:03.000Z", data: {
+      ...evidence, receipt_id: "evidence:auth:invalidation-only", producer_id: "verifier:auth:invalidation-only",
+      producer_role: "VERIFIER" as const, evidence_class: "SEMANTIC_REVIEW" as const,
+      independence: "INDEPENDENT" as const, freshness: "CURRENT" as const, verified: true,
+      claim_kind: "FINDING_INVALIDATION" as const, supports_finding_id: findingId, proposition_sha256: propositionSha256,
+      changed_path_manifest: null, summary: "Independent review falsified the exact evidence-gap proposition.",
+    },
+  });
+  const invalidated = store.append({
+    schema_version: 2, event_id: "finding:auth:invalidation-only:invalidated", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:04.000Z", data: {
+      type: "finding_status_changed", worker: "auth", finding_id: findingId, from_status: "OPEN", status: "INVALIDATED",
+      reason: "Independent evidence falsified the exact finding proposition.", reason_code: "FINDING.INVALIDATED",
+      basis_event_ids: [invalidationEvidence.eventId, withdrawnEvent.eventId], actor_id: "verifier:auth:invalidation-only",
+      actor_role: "VERIFIER", exact_candidate_sha256: null, contract_sha256: contract.task_contract_sha256,
+      owner_outcome_id: outcome.owner_outcome_id, owner_outcome_epoch: outcome.epoch,
+      owner_outcome_sha256: outcome.owner_outcome_sha256, invalidation_evidence_receipt_ids: ["evidence:auth:invalidation-only"],
+      invalidation_proposition_sha256: propositionSha256, invalidator_method_version: "verifier-method:auth:1",
+      affected_directive_event_ids: [withdrawnEvent.eventId],
+    },
+  });
+  store.append({
+    schema_version: 2, event_id: "correction:auth:invalidation-only:resolved", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:05.000Z", data: {
+      ...prepared, status: "CORRECTION_RESOLVED" as const, expected_predecessor_event_id: withdrawnEvent.eventId,
+      causation_event_id: invalidated.eventId, closure_basis: "FINDING_INVALIDATED" as const,
+    },
+  });
 }
 
 function correctionData(
@@ -1049,8 +1493,14 @@ function pushV2(
     receivedAt: occurredAt,
     previousHash: events.at(-1)?.eventHash ?? null,
     eventHash: sha256(`${eventId}:${sequence}`),
+    producerId: `test:${data.worker ?? "system"}`,
+    producerKind: "SYSTEM",
     data,
   });
+}
+
+function scopedProducer(id: string, kind: "COLLECTOR" | "VERIFIER" | "WORKER", worker: string) {
+  return { id, kind, workerScopes: [worker], taskScopes: [`task:${worker}`] };
 }
 
 function replaceLatest<T extends MissionControlEventV2["type"]>(

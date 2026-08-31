@@ -9,8 +9,7 @@
     "build": "next build",
     "start": "node scripts/run-stack.mjs start",
     "test": "tsx --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit",
-    "seed": "tsx lib/seed.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.3",

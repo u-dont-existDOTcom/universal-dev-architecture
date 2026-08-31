@@ -38,7 +38,7 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       const envelope = parseAppendEnvelope(await readJson(request));
       if (!producerMayEmit(producer, envelope.data)) return json(response, 403, { error: `Producer ${producer} cannot emit ${envelope.data.type}.` });
-      const event = store.append(envelope);
+      const event = store.append(envelope, undefined, producer);
       notifications.emit("event", event);
       return json(response, 201, { event });
     }
@@ -47,7 +47,7 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === "POST" && url.pathname === "/viewed") {
       if (authorizeMutation(request).kind !== "UI") return json(response, 403, { error: "Only the dashboard UI may mark a view cursor." });
-      const viewed = store.markViewed();
+      const viewed = store.markViewed(authorizeMutation(request));
       notifications.emit("event", { type: "review_marked" });
       return json(response, 200, viewed);
     }
@@ -64,6 +64,7 @@ const server = http.createServer(async (request, response) => {
       const worker = decodeURIComponent(chatMatch[1]);
       const body = await readJson(request) as Record<string, unknown>;
       const occurredAt = new Date().toISOString();
+      const producer = authorizeMutation(request);
       const event = store.append({
         schema_version: 2,
         event_id: typeof body.event_id === "string" ? body.event_id : `chat-link:${randomUUID()}`,
@@ -76,7 +77,7 @@ const server = http.createServer(async (request, response) => {
           supervisor_chat_label: body.supervisor_chat_label,
           reason: body.reason,
         },
-      });
+      }, undefined, producer);
       notifications.emit("event", event);
       return json(response, 201, { event });
     }
@@ -98,12 +99,16 @@ server.listen(port, host, () => {
   console.log(`Mission Control daemon listening on http://${host}:${port}`);
 });
 
+let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     server.close(() => {
       store.close();
       process.exit(0);
     });
+    server.closeAllConnections();
   });
 }
 
@@ -153,11 +158,19 @@ function authorizeMutation(request: http.IncomingMessage): AuthenticatedProducer
   }
   const producerId = request.headers["x-mission-control-producer-id"];
   const producerKind = request.headers["x-mission-control-producer-kind"];
+  const workerScopes = parseScopes(request.headers["x-mission-control-worker-scopes"]);
+  const taskScopes = parseScopes(request.headers["x-mission-control-task-scopes"]);
   if (typeof producerId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(producerId)
-    || typeof producerKind !== "string" || !producerKinds.includes(producerKind as ProducerKind)) {
+    || typeof producerKind !== "string" || !producerKinds.includes(producerKind as ProducerKind)
+    || workerScopes.length === 0 || taskScopes.length === 0) {
     const error = new Error("A recognized producer identity is required.");
     Object.assign(error, { statusCode: 403 });
     throw error;
   }
-  return { id: producerId, kind: producerKind as ProducerKind };
+  return { id: producerId, kind: producerKind as ProducerKind, workerScopes, taskScopes };
+}
+
+function parseScopes(value: string | string[] | undefined): string[] {
+  if (typeof value !== "string") return [];
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
