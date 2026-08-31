@@ -57,16 +57,17 @@ architecture or governance cycle.
   `7fe2d23beccb9361dce4c623c5bc87c72b53514f`.
 - Draft integration PR: `https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/49`.
 - The first hosted run exposed one stale root-recovery checkpoint inherited
-  from the older dashboard branch. The narrow integration repair is this
-  current-state replacement; it does not reopen generic architecture work.
+  from the older dashboard branch. Commit
+  `604aaecbd2de6359d563125016d65905087bfb64` replaced only that checkpoint;
+  hosted run `33414218138` then passed the complete Universal compliance job.
 
 ## Remaining
 
-- Re-run the complete Universal test suite and repository audit after this
-  current-state integration repair.
-- Push the repaired provenance head and require hosted CI to pass.
-- Leave the accepted local dashboard running at `http://localhost:3000` for
+- No implementation work remains in the bounded issue #47 live slice.
+- Keep the accepted local dashboard running at `http://localhost:3000` for
   owner review.
+- Merge and deployment require separate owner authority; this draft PR does
+  neither.
 
 ## Blockers / unresolved
 
@@ -89,7 +90,8 @@ architecture or governance cycle.
 
 ## Next safe action
 
-Complete only the bounded integration verification and hosted CI retry, then
-keep the owner-visible runtime available. Do not resume generic architecture,
+Keep the owner-visible runtime available. The next smallest runtime slice, if
+separately directed, is to bind one additional genuinely active worker's
+durable state to the same read-only adapter. Do not resume generic architecture,
 schema, fixture, validator, broad-test, or Pro-review expansion unless a new
 live attempt exposes one exact blocking capability.
