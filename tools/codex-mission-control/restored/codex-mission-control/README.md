@@ -1,21 +1,26 @@
 # Codex Mission Control
 
-A local audit and observability dashboard for answering one question quickly: **are my Codex workers still doing what I asked them to do?**
+A local, explanation-first supervision dashboard for determining which workers need attention, exactly what is wrong, what correction has actually happened, and whether the owner must act.
 
-Four or more workers append structured events to SQLite. Their assigned Pro supervisor chats append assessments to the same log. The dashboard derives present state, deterministic drift warnings, intervention priority, and a concise “since I last looked” summary. It observes; it does not autonomously supervise or redirect workers.
+This is the adapted PR #41 application. It observes durable supervision evidence; it does not dispatch, retry, stop, resume, or otherwise control workers.
 
 ## Run locally
 
-Requirements: Node.js 22.5+ (the app uses Node's built-in SQLite module) and npm.
+Requirements: Node.js 22.5+ and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The first dashboard request seeds four realistic demo workers. To start with an empty database, set `MISSION_CONTROL_SKIP_SEED=1`. To choose another database file, set `MISSION_CONTROL_DB=/absolute/path/mission-control.db`.
+`npm run dev` starts:
 
-Useful checks:
+- the single-writer Mission Control daemon at `http://127.0.0.1:4100`;
+- the Next.js dashboard at `http://127.0.0.1:3000`.
+
+Open the dashboard route. It seeds six deterministic supervision fixtures into `data/mission-control.db` unless `MISSION_CONTROL_SKIP_SEED=1` is set. Override the database with `MISSION_CONTROL_DB=/absolute/path/mission-control.db` and the daemon with `MISSION_CONTROL_DAEMON_URL=http://127.0.0.1:4100`.
+
+Useful commands:
 
 ```bash
 npm test
@@ -24,160 +29,139 @@ npm run build
 npm start
 ```
 
-SQLite data lives at `data/mission-control.db` by default and is intentionally excluded from Git.
+## Operator semantics
+
+The default route is the all-worker attention queue. RED, YELLOW, and UNKNOWN workers lead with:
+
+- the exact problem and owner/contract consequence;
+- evidence references and reproducible reason codes;
+- the bounded directive or required response;
+- independently derived issued, delivered, acknowledged, started, evidenced, verified, and resolved state;
+- the current-path continuation policy;
+- the next review trigger;
+- the structured owner obligation.
+
+Numeric alignment is secondary metadata. A `REDIRECT` assessment does not prove that a directive was issued or delivered. Evidence submission does not prove verification. Verification does not resolve a finding.
+
+Test cleanup is the hostile default fixture: it states that the worker is changing forbidden production scheduler/caller code for a test-only task and directs it to stop, revert, return to `tests/**` or `test-support/**`, and rerun focused tests.
 
 ## Architecture
 
-- Next.js, React, and TypeScript for the local dashboard and API
-- Node's built-in SQLite for persistent append-only events
-- SSE at `GET /api/events/stream` for live updates
-- Zod runtime schemas in `lib/schema.ts`
-- Derived worker state and deterministic drift scoring in `lib/projection.ts`
-- Configurable weights and thresholds in `config/drift-rules.json`
-
-The `events` table is append-only: application code only inserts and reads. Current worker state is projected from ordered events. The `review_state` table stores only the dashboard cursor used by “mark viewed”; it does not alter worker history.
-
-### Objective-contract invariant
-
-`objective_created` is write-once per worker. A second objective is rejected with HTTP 409. A heartbeat that repeats a different `objective` string is also rejected. To undertake a different objective, create a new worker ID and a new contract.
-
-Supervisor chat links do not weaken this invariant. The initial link is stored with `objective_created`; later corrections use `supervisor_chat_link_set`. The projection uses the latest link event while retaining the original contract and complete change history.
-
-## Demo Pro supervisor chat links
-
-The four seeded URLs are explicit placeholders such as:
-
 ```text
-https://chatgpt.com/c/replace-billing-supervisor
+workers / supervisors / adapters
+            |
+            v
+Mission Control daemon :4100
+  - sole SQLite owner
+  - append-only validation
+  - hash chain + idempotency
+  - SSE event notification
+            |
+            v
+Next.js BFF routes :3000
+            |
+            v
+attention queue + worker decision records
 ```
 
-They appear on every dashboard card and worker detail page with a **demo link** flag. Replace them with actual Pro chat URLs by appending a link event:
+The Next.js route handlers proxy the daemon and never open SQLite. SSE is driven by daemon append notifications, not database polling.
+
+Important modules:
+
+- `lib/schema.ts`: versioned owner authority, evidence, finding, directive/response, completion, route, research, and Symphony schemas;
+- `lib/store.ts`: append-only SQLite ledger, v1 migration, exact idempotency, authority ordering, and hash-chain verification;
+- `lib/terminal-comparator.ts`: worker→contract and contract→owner comparison plus typed terminal decisions;
+- `lib/correction-lifecycle.ts`: fail-closed transition and identity guards;
+- `lib/projection.ts`: attention ordering and operator projection;
+- `daemon/server.ts`: single-writer HTTP/SSE daemon;
+- `lib/symphony-adapter.ts`: read-only stock Symphony state normalization.
+
+## Durable model
+
+HTTP append requests use a v2 envelope:
+
+```json
+{
+  "schema_version": 2,
+  "event_id": "stable:event:id",
+  "mission_id": "mission-id",
+  "occurred_at": "2026-08-30T20:00:00.000Z",
+  "data": {
+    "type": "worker_checkpoint_recorded",
+    "worker": "worker-id"
+  }
+}
+```
+
+The complete runtime contract is the Zod union in `lib/schema.ts`. Significant event families are:
+
+- `owner_source_recorded`, `owner_outcome_recorded`, `task_contract_recorded`, and `objective_reconciliation_recorded`;
+- `worker_checkpoint_recorded`, `supervisor_assessment_recorded`, and `evidence_receipt_recorded`;
+- immutable `finding_recorded` plus event-derived `finding_status_changed`;
+- `correction_lifecycle_recorded` with correction-attempt, directive digest, target, run, contract, owner outcome, predecessor, evidence-set, candidate, verification-policy, and verifier bindings;
+- `completion_claim_recorded`, `supervision_route_recorded`, `research_verdict_recorded`, and `supervision_design_feedback_recorded`;
+- `symphony_runtime_observed` for the read-only upstream seam.
+
+Legacy PR #41 events remain decodable and migrate without being reinterpreted as current owner authority. Legacy completion remains nonterminal until independently sourced owner outcome and reconciliation exist.
+
+## Correction and owner-action invariants
+
+Durable directive states are target-neutral. Worker redirects receive redirect-specific UI labels; contract repairs target the contract, not a conforming worker.
+
+Delivery requires a receiver-generated receipt bound to the exact directive digest. Acknowledgement binds the same ID and digest. Correction start requires the target or an authorized executor, a first action, and an expiring activity lease. Verification requires one current exact-candidate evidence set, a complete PASS manifest, policy identity, and authorized verifier identity. Binding changes reopen verification fail-closed.
+
+Owner action is a structured obligation. `NONE` requires a known non-owner next actor, action, trigger, due time, and escalation policy. Missing/overdue telemetry, conflicting directives, non-retrying delivery failure, or owner-held blockers become `MANUAL_INTERVENTION_REQUIRED`. A `DECISION_REQUIRED` event must carry the full Pro decision packet, including options, benefits, drawbacks, consequences, recommendation, and reasoning.
+
+Both owner-facing views render that complete choice packet, including the consequence of every option and the explicit default if no decision is made. A short summary or link to the Pro analysis is not a sufficient owner handoff.
+
+Continuation is `PAUSE_ALL`, `SAFE_WITHIN_SCOPE`, `CONTINUE_UNRESTRICTED`, or `UNKNOWN`; it is not a Boolean. `UNKNOWN` grants no allowed scope.
+
+## API
+
+Dashboard-facing Next.js BFF:
+
+- `GET /api/workers`
+- `GET /api/workers/:worker`
+- `GET /api/events`
+- `POST /api/events`
+- `GET /api/events/stream`
+- `POST /api/viewed`
+- `POST /api/workers/:worker/supervisor-chat`
+
+Daemon:
+
+- `GET /health`
+- `GET /snapshot`
+- `GET|POST /events`
+- `GET /events/stream`
+- `POST /viewed`
+- `GET /workers/:worker`
+- `POST /workers/:worker/supervisor-chat`
+
+### Authenticated ingestion
+
+The daemon rejects every mutation without its process-internal bearer secret. `npm run dev` and `npm start` generate that secret in memory and share it only with the daemon and Next.js broker.
+
+External `POST /api/events` is disabled by default. To enable it, configure a distinct credential per producer ID:
 
 ```bash
-curl -X POST http://localhost:3000/api/events \
-  -H 'content-type: application/json' \
-  -d '{
-    "type": "supervisor_chat_link_set",
-    "worker": "billing",
-    "supervisor_chat_url": "https://chatgpt.com/c/YOUR-REAL-CONVERSATION-ID",
-    "supervisor_chat_label": "Open Billing Pro supervisor",
-    "reason": "Connected the assigned durable supervisor chat"
-  }'
+export MISSION_CONTROL_INGEST_CREDENTIALS='{"collector:tests":{"kind":"COLLECTOR","token":"replace-with-at-least-32-secret-characters"}}'
 ```
 
-There is also a focused convenience endpoint. It creates the same append-only event:
+Then submit with the configured immutable identity:
 
 ```bash
-curl -X POST http://localhost:3000/api/workers/billing/supervisor-chat \
+curl -sS http://127.0.0.1:3000/api/events \
+  -H 'authorization: Bearer replace-with-at-least-32-secret-characters' \
+  -H 'x-mission-control-producer-id: collector:tests' \
   -H 'content-type: application/json' \
-  -d '{
-    "supervisor_chat_url": "https://chatgpt.com/c/YOUR-REAL-CONVERSATION-ID",
-    "supervisor_chat_label": "Open Billing Pro supervisor",
-    "reason": "Replaced the seeded demo URL"
-  }'
+  --data-binary @event.json
 ```
 
-## Event ingestion API
+The credential fixes the producer kind. Event-class/status authorization is checked again at the daemon, and evidence/correction/status records must carry the same embedded producer or actor ID and role. A caller cannot promote itself by changing a role header or payload field.
 
-Append one validated event:
+## Symphony boundary
 
-```text
-POST /api/events
-Content-Type: application/json
-```
+The adapter consumes stock Symphony `GET /api/v1/state` output pinned to the audited upstream commit and emits normalized read-only observations for the existing ledger.
 
-Read events with `GET /api/events`. Read the projected fleet with `GET /api/workers` and one worker with `GET /api/workers/:worker`. All POST responses contain the new event ID and timestamp. Malformed events return 400; objective-contract conflicts return 409.
-
-### Create an objective contract
-
-Do this once before sending any other event for a worker:
-
-```bash
-curl -X POST http://localhost:3000/api/events \
-  -H 'content-type: application/json' \
-  -d '{
-    "type": "objective_created",
-    "worker": "search",
-    "worker_name": "Search indexing",
-    "goal": "Make document indexing retry-safe",
-    "acceptance_criteria": ["Duplicate jobs are idempotent", "Integration tests pass"],
-    "allowed_scope": ["src/search/**", "tests/search/**"],
-    "forbidden_scope": ["src/billing/**", "src/core/auth/**"],
-    "expected_max_diff_lines": 400,
-    "supervisor_chat_url": "https://chatgpt.com/c/YOUR-SEARCH-SUPERVISOR-ID",
-    "supervisor_chat_label": "Open Search Pro supervisor"
-  }'
-```
-
-### Worker heartbeat schema and example
-
-The canonical TypeScript/Zod schema is `workerHeartbeatSchema` in `lib/schema.ts`. Fields use snake case at the HTTP boundary. Defaults are applied for optional evidence fields.
-
-```bash
-curl -X POST http://localhost:3000/api/events \
-  -H 'content-type: application/json' \
-  -d '{
-    "type": "worker_heartbeat",
-    "worker": "billing",
-    "objective": "Implement retry-safe Stripe webhook handling using the existing event model",
-    "status": "working",
-    "current_step": "Adding idempotency storage",
-    "completed_steps": ["Mapped webhook entry points"],
-    "next_steps": ["Add duplicate-event test", "Run integration suite"],
-    "files_touched": ["src/billing/webhooks.ts", "src/billing/events.ts"],
-    "tests": {"passing": 184, "failing": 0, "lint": "passing", "build": "passing"},
-    "plan_changed": false,
-    "plan_change_reason": null,
-    "blocker": null,
-    "assumptions": ["Stripe event IDs are stable"],
-    "diff_lines": 188,
-    "repeated_failure_count": 0,
-    "assumptions_materially_changed": false,
-    "architecture_rewrite": false,
-    "architecture_rewrite_explained": false,
-    "destructive_action": false,
-    "touched_other_worker_area": false,
-    "major_contract_violation": false
-  }'
-```
-
-### Pro supervisor verdict schema and example
-
-The canonical schema is `supervisorVerdictSchema` in `lib/schema.ts`. `alignment` is evidence supplied by the supervisor; it does not replace deterministic drift warnings.
-
-```bash
-curl -X POST http://localhost:3000/api/events \
-  -H 'content-type: application/json' \
-  -d '{
-    "type": "supervisor_verdict",
-    "worker": "billing",
-    "verdict": "WATCH",
-    "alignment": 0.72,
-    "reason": "Worker introduced a new event abstraction not required by the task.",
-    "corrective_action": "Finish idempotency using the existing event model.",
-    "review_after": "next_commit",
-    "work_no_longer_serves_objective": false
-  }'
-```
-
-## Supported event types
-
-`objective_created`, `worker_heartbeat`, `plan_changed`, `command_run`, `files_changed`, `tests_run`, `commit_created`, `blocker_reported`, `supervisor_verdict`, `redirect_issued`, `task_completed`, and `supervisor_chat_link_set`.
-
-Each is a member of the discriminated TypeScript union `MissionControlEvent`. The worker detail timeline renders every stored member.
-
-## Deterministic drift scoring
-
-Weights, thresholds, diff limits, retry counts, and checkpoint staleness are loaded from `config/drift-rules.json`, not hardcoded in the UI. Warning points cover supervisor misalignment, unexplained plan changes, forbidden-scope touches, regressions, oversized diffs, retry loops, material assumption changes, and stale checkpoints.
-
-These immediately force RED regardless of total score: supervisor redirect, destructive action, unexplained architecture rewrite, touching another worker's area, and major objective-contract violation.
-
-Color semantics:
-
-- GREEN — continue autonomously
-- YELLOW — inspect the next checkpoint
-- RED — redirect before more work proceeds
-
-## Mark viewed and live updates
-
-`POST /api/viewed` advances a single local review cursor to the latest event ID. The next summary includes only subsequent events. SSE clients receive appended events without changing history; the browser then fetches a fresh deterministic projection.
+Mission Control does not own Symphony dispatch, claim/release, retry, continue/stop/resume, tracker eligibility, concurrency/backoff, workspace lifecycle, App Server integration, workflow configuration, tracker writes, or recovery.

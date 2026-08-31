@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/run-stack.mjs dev",
+    "dashboard:dev": "next dev",
+    "daemon": "tsx daemon/server.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/run-stack.mjs start",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "seed": "tsx lib/seed.ts"

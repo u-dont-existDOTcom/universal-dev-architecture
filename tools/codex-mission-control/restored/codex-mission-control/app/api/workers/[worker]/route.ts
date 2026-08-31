@@ -1,11 +1,8 @@
-import { ensureDemoData } from "@/lib/dashboard-data";
-import { projectWorker } from "@/lib/projection";
+import { relayJson } from "@/lib/daemon-client";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: Request, context: { params: Promise<{ worker: string }> }) {
+export async function GET(_request: Request, context: RouteContext<"/api/workers/[worker]">) {
   const { worker } = await context.params;
-  const events = ensureDemoData().workerEvents(worker);
-  if (events.length === 0) return Response.json({ error: "Worker not found" }, { status: 404 });
-  return Response.json({ worker: projectWorker(events), generatedAt: new Date().toISOString() });
+  return relayJson(`/workers/${encodeURIComponent(worker)}`);
 }

@@ -1,20 +1,28 @@
-import { getStore, ContractInvariantError } from "@/lib/store";
-import { ZodError } from "zod";
+import { daemonMutationHeaders, relayJson } from "@/lib/daemon-client";
+import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json({ events: getStore().allEvents() });
+  return relayJson("/events");
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const stored = getStore().append(body);
-    return Response.json({ event: stored }, { status: 201 });
-  } catch (error) {
-    if (error instanceof ZodError) return Response.json({ error: "Invalid event", issues: error.issues }, { status: 400 });
-    if (error instanceof ContractInvariantError) return Response.json({ error: error.message }, { status: 409 });
-    return Response.json({ error: "Unable to append event" }, { status: 500 });
+  const authentication = authenticateIngestProducer(
+    process.env.MISSION_CONTROL_INGEST_CREDENTIALS,
+    request.headers.get("x-mission-control-producer-id"),
+    request.headers.get("authorization"),
+  );
+  if (!authentication.ok) {
+    const unavailable = authentication.reason === "DISABLED" || authentication.reason === "MISCONFIGURED";
+    return Response.json(
+      { error: unavailable ? "External event ingestion is disabled or misconfigured." : "Unauthorized event producer." },
+      { status: unavailable ? 503 : 401 },
+    );
   }
+  return relayJson("/events", {
+    method: "POST",
+    headers: daemonMutationHeaders(authentication.producer, { "content-type": "application/json" }),
+    body: await request.text(),
+  });
 }

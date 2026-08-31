@@ -1,0 +1,480 @@
+ACCEPT_WITH_REVISION
+
+The owner correction is correct, and the explanation-first queue, fixture ordering, dual-alignment display, and routine card implementation should proceed. The normal correction path is sound, but the lifecycle and owner-action schema should not yet be frozen: exception handling, target identity, freshness, supersession, and fail-closed NONE semantics remain incomplete.
+
+Schema-blocking revisions
+
+Generalize the lifecycle from “redirect” to “directive/response.”
+Add:
+
+directive_kind:
+  WORKER_REDIRECT
+  CONTRACT_REPAIR
+  RELEASE_REMEDIATION
+target_kind:
+  WORKER_RUN
+  TASK_CONTRACT
+  RELEASE_CANDIDATE
+
+The UI may still display REDIRECT DELIVERED for a worker redirect, but the durable event should not imply that every correction targets worker behavior. A contract repair targets a contract revision or its responsible issuer, not the faithfully conforming worker.
+
+Add exception and revision events. At minimum:
+
+DIRECTIVE_DELIVERY_FAILED
+DIRECTIVE_SUPERSEDED
+DIRECTIVE_WITHDRAWN
+CORRECTION_EVIDENCE_REJECTED
+CORRECTION_REOPENED
+FINDING_INVALIDATED
+
+Either add VERIFICATION_STARTED with a verifier identity and expiring lease, or never claim that verification is underway. CORRECTION_EVIDENCE_SUBMITTED should project only “awaiting verification.”
+
+Add a correction-attempt identity.
+The current key set needs correction_attempt_id. A failed or blocked attempt followed by another attempt must not overwrite or cosmetically erase the first attempt.
+
+Make finding status event-derived.
+The immutable finding record may contain its initial status, but current status must be projected from subsequent resolution, invalidation, reopening, or supersession events. It must not be mutable in place.
+
+Require exact identity and evidence binding.
+Every lifecycle event needs immutable event identity, actor/source identity, causal ordering, directive content digest, target identity, contract and owner-outcome versions, and—where applicable—the exact candidate and evidence set.
+
+Keep the four-value owner-action enum, but require a structured obligation record.
+No additional public owner-action value is necessary. NONE, however, must never be a default or an inference from missing information.
+
+1. Attention queue and false claims of correction progress
+
+The attention-queue UX is sufficient. The present lifecycle schema is only conditionally sufficient.
+
+The default route should indeed be the all-worker attention queue, ordered primarily by actionable risk rather than alignment score. The Test cleanup card belongs in the top viewport because:
+
+the current path is explicitly unsafe;
+
+the worker is modifying forbidden production scope;
+
+the redirect is only delivered, not acknowledged;
+
+no correction evidence exists;
+
+owner action is NONE, but owner attention is still warranted.
+
+That last distinction must be preserved:
+
+attention priority ≠ owner action requirement
+
+A RED item with owner_action = NONE must not disappear, collapse, or rank below a less consequential item merely because the owner has no immediate button to press.
+
+For the frozen fixture, the correct primary projection is:
+
+REDIRECT DELIVERED — AWAITING ACKNOWLEDGEMENT
+Current path: UNSAFE — STOP
+Owner action: NONE
+Next trigger: directive-bound acknowledgement
+
+The 21/100 diagnostic may appear beneath that information, never instead of it.
+
+The system may project “correction in progress” only when a valid CORRECTION_STARTED event:
+
+comes from the targeted worker or an authorized execution system;
+
+binds the exact directive_id and immutable directive digest;
+
+binds task_id, worker assignment, worker_run_id, and correction_attempt_id;
+
+identifies the first corrective action or machine-observable activity;
+
+remains within a freshness lease;
+
+has not been followed by blocked, failed, superseded, withdrawn, or reopened status.
+
+A supervisor assertion, generic heartbeat, acknowledgement, or unexpired-looking timestamp is insufficient.
+
+2. Lifecycle completeness, identity, freshness, and invalid inferences
+Normal path
+
+The proposed normal path is good:
+
+detected
+→ prepared
+→ issued
+→ delivered
+→ acknowledged
+→ started
+→ evidence submitted
+→ verified
+→ resolved
+
+The flaw is in the missing non-happy paths.
+
+Required additional states
+DIRECTIVE_DELIVERY_FAILED
+
+An issued message that never reaches its target must not remain indefinitely as “issued” or accidentally become “delivered.”
+
+DIRECTIVE_SUPERSEDED
+DIRECTIVE_WITHDRAWN
+
+A changed directive must receive a new immutable ID or digest and explicitly supersede the old one. Withdrawal is not successful correction and is not resolution.
+
+CORRECTION_EVIDENCE_REJECTED
+
+Submitted evidence can be incomplete, stale, mismatched, or substantively failing. That should return the attempt to corrective work without falsely treating the entire attempt as terminally failed.
+
+CORRECTION_REOPENED
+
+Previously verified or resolved work must reopen when the candidate changes, evidence becomes stale, the contract or owner outcome changes materially, or regression evidence appears.
+
+FINDING_INVALIDATED
+
+A false detector result, obsolete rule, or malformed finding should be invalidated, not described as successfully corrected.
+
+CORRECTION_BLOCKED should be legal after acknowledgement or after work starts. Its payload must identify the blocker, responsible actor, escalation trigger, and whether a retry is possible.
+
+Minimum identity bindings
+
+Every event should carry at least:
+
+event_id
+schema_version
+event_type
+occurred_at
+recorded_at
+producer_id
+actor_id
+actor_role
+causation_event_id
+correlation_id
+stream_sequence or expected_predecessor_id
+
+finding_id
+directive_id
+directive_digest
+correction_attempt_id
+
+task_id
+worker_id
+worker_run_id
+assignment_epoch
+
+contract_id
+contract_version_or_hash
+owner_outcome_epoch
+owner_outcome_hash
+
+target_kind
+target_id
+target_epoch
+
+Evidence and verification events additionally need:
+
+candidate_id
+candidate_digest
+evidence_set_id
+evidence_requirement_schema_hash
+verification_policy_id
+verification_policy_hash
+verifier_id
+verifier_role
+verifier_method_version
+
+Delivery must include a destination and transport- or receiver-generated receipt bound to the directive digest. A sender recording “send succeeded” proves issuance, not delivery.
+
+Acknowledgement must bind the same digest, not merely the same directive_id. If the worker process restarts or the task is reassigned, the new worker run must explicitly adopt or re-acknowledge the active directive.
+
+Freshness rule
+
+“All evidence is current” needs a deterministic definition:
+
+Every evidence item binds one exact candidate digest.
+
+An evidence set may not mix commits, report revisions, task assignments, or contract versions.
+
+Every evidence type has either a maximum age or explicit invalidation triggers.
+
+A change to candidate digest, contract hash, owner-outcome epoch, verification policy, required-evidence schema, worker assignment, or relevant environment invalidates pending verification.
+
+A previously verified result becomes reopened or stale when one of its declared invalidation triggers occurs.
+
+Negative evidence such as “no forbidden paths changed” must prove complete scope coverage from a named base to the exact candidate; the absence of a forbidden path from a sampled diff is not evidence of absence.
+
+Invalid inferences to prohibit
+
+In addition to the packet’s rules, prohibit:
+
+delivery receipt → target read or understood content
+acknowledgement → agreement with directive
+start event → continuing progress after its lease expires
+evidence submission → evidence completeness
+verification of candidate A → verification of candidate B
+verification → root finding resolved
+resolution of a grouped explanation → resolution of every member finding
+worker→contract GREEN → overall GREEN when contract→owner is DIVERGED
+old worker-run acknowledgement → new worker-run acknowledgement
+owner-action field absent → owner action NONE
+
+The projection should not use “latest event wins.” It should preserve milestone timestamps and derive delivery, execution, verification, closure, and exception conditions separately.
+
+3. Owner-action enum and independent-work semantics
+Owner-action enum
+
+The four values are sufficient as categories:
+
+NONE
+DECISION_REQUIRED
+MANUAL_INTERVENTION_REQUIRED
+VERIFY_RESULT
+
+They are not sufficient as standalone fields. Require:
+
+owner_action:
+  kind
+  exact_text
+  reason_code
+  subject_id
+  blocking_scope
+  source_event_ids
+  due_at
+  escalation_at
+  status
+
+For DECISION_REQUIRED, also require:
+
+decision_id
+decision_question
+available_options or explicit open-ended requirement
+default_if_no_decision
+
+For VERIFY_RESULT, require the exact evidence_set_id and candidate_digest the owner is being asked to verify.
+
+For NONE, require:
+
+none_reason_code
+next_actor_kind
+next_actor_id
+next_action
+next_trigger
+next_due_at
+escalation_policy
+
+NONE is valid only when a known non-owner actor or automation owns the next transition and the transition is not overdue. The following must force reevaluation and commonly produce MANUAL_INTERVENTION_REQUIRED:
+
+delivery failure with no working automated retry;
+
+acknowledgement or evidence timeout;
+
+worker disappearance or reassignment;
+
+conflicting active directives;
+
+telemetry too incomplete to determine the next actor;
+
+a blocked correction whose unblocker is the owner;
+
+unresolved contract ambiguity.
+
+Independent-work flag
+
+A Boolean is insufficient because “some work can safely continue” is materially different from both unrestricted continuation and total pause.
+
+Use a structured continuation policy:
+
+continuation_mode:
+  PAUSE_ALL
+  SAFE_WITHIN_SCOPE
+  CONTINUE_UNRESTRICTED
+  UNKNOWN
+
+With:
+
+allowed_scope
+forbidden_scope
+preconditions
+basis_finding_ids
+basis_evidence_ids
+expires_at
+recheck_trigger
+
+For Test cleanup:
+
+Current production-rewrite path: UNSAFE
+Continuation mode: SAFE_WITHIN_SCOPE
+Allowed after stopping/reverting: tests/**, test-support/**
+Forbidden: src/core/**, src/production/**
+
+UNKNOWN must fail closed and should normally project as a pause plus a review trigger.
+
+4. Contract repair for a worker following the wrong contract
+
+Yes, the routing principle is correct, but the current REDIRECT-specific lifecycle cannot faithfully represent it.
+
+The projection should show:
+
+Worker → Contract: GREEN
+Contract → Owner: DIVERGED
+Overall: RED
+Root cause: CONTRACT–OWNER DIVERGENCE
+Response kind: CONTRACT_REPAIR
+Worker behavioral fault: NONE DETECTED
+
+The contract-repair directive should target the contract revision or responsible contract issuer. It should not target the worker run as though the worker had disobeyed.
+
+Supporting work may continue only after a scoped compatibility assessment. “The worker followed the contract” does not by itself prove that its artifacts are safe or reusable under the owner’s actual objective.
+
+The root remains open until:
+
+a corrected contract receives a new immutable version/hash;
+
+it is issued and delivered to affected workers and supervisors;
+
+the affected worker run acknowledges or a new run explicitly adopts it;
+
+retained artifacts are classified as reusable, needing rework, or incompatible;
+
+the current candidate is re-evaluated against the repaired contract and owner outcome;
+
+that reconciliation is verified.
+
+No event from the worker-behavior branch should be required to absolve the worker. The worker was already GREEN against the operative contract.
+
+5. Minimum visible reason codes and evidence bindings
+
+Plain-language explanation remains primary. Codes make the decision reproducible and auditable; they must not replace the explanation.
+
+Test cleanup
+
+Minimum reason codes:
+
+SCOPE.FORBIDDEN_PATH_MODIFICATION
+PLAN.UNAUTHORIZED_CHANGE
+PLAN.CHANGE_REASON_MISSING
+ASSUMPTION.CONTRACT_CONTRADICTION
+
+Minimum visible bindings:
+
+task_id and worker_run_id
+task contract hash
+owner-outcome hash
+allowed and forbidden path rules
+heartbeat/checkpoint event identifying the current step
+exact base candidate and current candidate digest
+complete changed-path manifest
+exact forbidden files or paths changed
+plan_changed = true
+plan_change_reason = absent
+invalid-assumption identifier and text
+directive_id and directive_digest
+delivery receipt and destination
+
+Required correction evidence must bind the same exact corrected candidate:
+
+revert commit or clean-diff attestation
+complete base→candidate diff proving no forbidden paths changed
+focused test command
+command identity and arguments
+exit code
+test-report artifact digest
+test run timestamp and environment identity
+
+“No forbidden production paths changed” cannot be established through a partial file list.
+
+AskRigor: operational PASS, scientific FAIL
+
+Projection:
+
+Operational execution: PASS
+Scientific validity: FAIL
+Reason: SCIENCE.UNSUPPORTED_INFERENCE
+Release readiness: BLOCKED
+Reason: RELEASE.SCIENTIFIC_GATE_BLOCKED
+
+Minimum evidence bindings:
+
+exact report/research candidate digest
+exact unsupported claim or inference span
+stable span locator and text hash
+source identifiers and exact supporting/contradicting passages
+Universal and HRP manifest versions and hashes
+scientific rule or protocol clause violated
+audit/research run ID
+scientific evaluator identity and version
+verification policy hash
+release-gate decision event
+
+The operational PASS must never dominate or average away the scientific FAIL.
+
+AskRigor: scientific PASS, release FAIL
+
+Projection:
+
+Scientific validity: PASS
+Release readiness: FAIL
+Reason: RELEASE.PUBLICATION_BARRIER
+Specific reason: required
+
+A generic publication-barrier code is not enough. It must be accompanied by the actual subtype, such as:
+
+RELEASE.MANIFEST_MISMATCH
+RELEASE.UNRESOLVED_ACCESS_BOUNDARY
+RELEASE.REQUIRED_ARTIFACT_MISSING
+RELEASE.CITATION_BINDING_FAILURE
+RELEASE.POLICY_CHECK_FAILED
+
+Bind the failure to:
+
+exact release candidate digest
+release target
+release policy and policy hash
+failing artifact, field, citation, or access boundary
+gate/check run ID
+machine output or human finding
+required remediation
+6. Remaining loopholes
+False projection	Remaining loophole	Required guard
+Correction in progress	Supervisor emits CORRECTION_STARTED on the worker’s behalf	Only the target or authorized executor may emit it; bind attempt, directive digest, run, and first corrective action
+Correction in progress	Start remains active forever	Require an expiring activity lease and progress/checkpoint deadline
+Correction in progress	Old worker run acknowledged before restart	Bind assignment epoch and require adoption or re-acknowledgement by the new run
+Verified	Evidence comes from a previous or mixed candidate	One atomic evidence set, one candidate digest, one contract/outcome/policy context
+Verified	Target worker verifies its own correction without authorization	Require an authorized verifier role; self-verification only where policy explicitly permits it
+Verified	A verification event omits one required evidence item	Require a verification manifest enumerating every requirement ID and PASS result
+Verified	Negative claim is based on incomplete observation	Require scope-complete evidence, such as a full base-to-candidate diff
+Verified	Candidate or policy changes immediately afterward	Emit reopening/staleness automatically on declared invalidation triggers
+Resolved	REDIRECT_RESOLVED can be emitted directly	Enforce transition preconditions: current verification plus current root-finding reevaluation
+Resolved	One grouped explanation closes several raw findings	Keep member_finding_ids; each raw finding must resolve or invalidate independently
+Resolved	A false positive is called corrected	Use FINDING_INVALIDATED, preserving why the original finding was unsound
+No correction issued	A prior directive was issued and later withdrawn	Display PRIOR DIRECTIVE WITHDRAWN — NO ACTIVE DIRECTIVE, not NO CORRECTION ISSUED
+Owner action NONE	Missing/null action defaults to NONE	Make owner-action evaluation explicit and non-null; absence is an error
+Owner action NONE	Next automated action is overdue or has no active actor	Recompute and escalate to manual intervention
+Owner action NONE	Active directives conflict	Create a directive-conflict finding and require decision or intervention
+Owner action NONE	Telemetry is insufficient to know what is happening	Fail closed to manual observability repair, not NONE
+Worker blame	Overall RED automatically generates a worker redirect	Route from the failing alignment axis, not from overall severity
+Failure hidden	A second correction attempt reuses the original lifecycle	Require a new correction_attempt_id; retain all prior failures and blockers
+Existing-work disposition
+
+COMPOSITION, rather than bespoke reinvention:
+
+Use a CloudEvents-compatible envelope for event identity, source, type, schema version, and occurrence context.
+
+Adapt W3C PROV concepts for entities, activities, responsible agents, generation, use, and invalidation.
+
+Use in-toto-style subject and digest binding for candidate-specific evidence and verification attestations.
+
+Apply Temporal’s run-aware idempotency lesson: message IDs and deduplication must survive retries and cannot be assumed to carry across execution runs.
+
+Follow the same conceptual separation GitHub Checks makes between an execution status, its conclusion, and explicit staleness; “in progress,” “completed,” and “successful” are different claims.
+GitHub Docs
++4
+GitHub
++4
+W3C
++4
+
+The genuinely project-specific remainder is the dual-alignment routing, contract-repair-versus-worker-redirect distinction, owner-attention projection, and scoped continuation policy.
+
+Implementation disposition
+Explanation-first queue and fixture UI: CONTINUE
+Top-viewport Test cleanup behavior: ACCEPTED
+Billing “NO CORRECTION ISSUED”: ACCEPTED, subject to historical-directive invariant
+Numeric alignment as secondary metadata: ACCEPTED
+Lifecycle/public enum schema freeze: BLOCKED on revisions above
+Owner-action enum values: ACCEPTED
+Owner-action supporting schema and NONE invariants: REQUIRED BEFORE FREEZE
+Independent-work Boolean: REJECTED; replace with scoped continuation policy

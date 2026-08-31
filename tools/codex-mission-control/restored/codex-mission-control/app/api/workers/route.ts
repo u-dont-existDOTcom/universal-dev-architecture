@@ -1,7 +1,7 @@
-import { dashboardSnapshot } from "@/lib/dashboard-data";
+import { relayJson } from "@/lib/daemon-client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json(dashboardSnapshot());
+  return relayJson("/snapshot");
 }

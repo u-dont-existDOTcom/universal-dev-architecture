@@ -5,3 +5,4 @@ data/*.db-*
 *.log
 *.tsbuildinfo
 .DS_Store
+.superdesign/
