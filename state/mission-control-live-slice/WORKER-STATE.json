@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "worker": "mission-control-live-slice",
   "directiveId": "XH-ISSUE47-001",
-  "receiptId": null,
-  "phase": "VERIFYING",
-  "summary": "The four-scenario projection is running; focused tests and responsive owner-view acceptance are passing while final verification continues."
+  "receiptId": "MC-ISSUE47-001",
+  "phase": "EVIDENCED",
+  "summary": "Issue #47's four-scenario dashboard slice is running, its read-only file/Git source updates through SSE, and Extra High accepted the desktop and mobile owner views with no blockers."
 }

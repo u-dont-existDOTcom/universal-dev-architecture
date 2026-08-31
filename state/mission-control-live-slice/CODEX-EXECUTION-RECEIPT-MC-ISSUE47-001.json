@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "MC-ISSUE47-001",
+  "createdAt": "2026-08-31T16:15:37Z",
+  "directiveId": "XH-ISSUE47-001",
+  "directiveRevision": 1,
+  "taskId": "mission-control-live-slice-issue-47",
+  "runId": "codex-root-mission-control-live-slice-issue-47",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/mission-control-live-slice-issue-47",
+    "startingHead": "f00202c9b6e389c37762fce7d83774597fc9aa29",
+    "implementationHead": "f5cfad6e3c75f856368f94e2f52161798b0e628b",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/mission-control-slice"
+  },
+  "execution": {
+    "objectiveClaim": "Reused and ran the PR #41 dashboard as the issue #47 owner-visible slice, projected four required persisted scenarios, and connected one current read-only file/Git evidence source through the existing SSE path.",
+    "actionsTaken": [
+      "checkpointed and stopped the superseded delivery-frontier architecture expansion at commit 8fde4d17855406e5a58f4fe01182bd86f2b8c055",
+      "adapted the restored PR #41 dashboard into a compact four-card owner view with detail and mobile selection states",
+      "persisted the healthy Mission Control, regressing Article, unrelated InnerSignal blocker, and Human Design governance-recursion scenarios",
+      "bound the Mission Control card to the current WORKER-STATE.json and active Git worktree through a read-only polling adapter",
+      "demonstrated an IMPLEMENTING-to-VERIFYING source transition on an already-open page through SSE",
+      "captured desktop, detail, mobile, and post-SSE screenshots",
+      "received independent Extra High UI acceptance with BLOCKS_LIVE_SLICE: NONE"
+    ],
+    "commandsRun": [
+      "npm ci",
+      "npm test -- --test-name-pattern='issue 47|live worker evidence|four required real-failure scenarios'",
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "python3 scripts/audit_codex_github.py --root . --fail-on error",
+      "git diff --check"
+    ],
+    "filesChanged": [
+      "docs/evidence/mission-control-live-slice/*.jpg",
+      "state/mission-control-live-slice/*",
+      "tools/codex-mission-control/restored/codex-mission-control/app/globals.css",
+      "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+      "tools/codex-mission-control/restored/codex-mission-control/components/WorkerDetail.tsx",
+      "tools/codex-mission-control/restored/codex-mission-control/daemon/server.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/*.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts"
+    ],
+    "startedAt": "2026-08-31T14:59:00Z",
+    "stoppedAt": "2026-08-31T16:15:37Z"
+  },
+  "verification": {
+    "checksRun": [
+      {
+        "check": "focused issue #47 regressions",
+        "result": "PASS",
+        "summary": "3 passed, 0 failed after the full-suite compatibility repair."
+      },
+      {
+        "check": "complete restored-dashboard suite",
+        "result": "PASS",
+        "summary": "73 passed, 0 failed."
+      },
+      {
+        "check": "TypeScript and production build",
+        "result": "PASS",
+        "summary": "tsc --noEmit and Next.js 16.3.3 production build completed without errors."
+      },
+      {
+        "check": "append-only runtime chain",
+        "result": "PASS",
+        "summary": "The 65-event fresh runtime chain was valid before the demonstrated live-source update."
+      },
+      {
+        "check": "responsive browser acceptance",
+        "result": "PASS",
+        "summary": "At CSS 1440x900 all four card bounds were visible at y=213-558 and y=564-898; at 390x844 all selectors ended by y=282 and the selected Article card ended at y=715; neither view overflowed."
+      },
+      {
+        "check": "repository audit",
+        "result": "PASS",
+        "summary": "0 errors and 1 unrelated pre-existing CURRENT-STATE.md heading warning."
+      },
+      {
+        "check": "JSON validation and git diff --check",
+        "result": "PASS",
+        "summary": "All changed JSON parsed and no whitespace errors were reported."
+      }
+    ],
+    "extraHighAcceptance": {
+      "reasoningSession": "/root/xhigh_issue47_runtime_slice",
+      "reasoningTurnsUsed": 2,
+      "verdict": "ACCEPT",
+      "blocksLiveSlice": "NONE",
+      "acceptedEvidence": "Four required scenarios, owner-answerable detail, responsive desktop/mobile views, and current file/Git-to-SSE evidence transition."
+    },
+    "evidenceRefs": [
+      "docs/evidence/mission-control-live-slice/all-workers-1440x900.jpg#sha256=c9e3b25a5fb50cb4023fa59c65e4a96f2c0b36728b96581ddc7521664de0e535",
+      "docs/evidence/mission-control-live-slice/article-failure-detail-1440x900.jpg#sha256=9319f2ab85f81db95a7d3cc9fc6f257d53c5b8e20d1678ae0edb8978a4a0de2c",
+      "docs/evidence/mission-control-live-slice/article-selected-390x844.jpg#sha256=d841c40633fff6ec87c132bd5ce6526ca945e7a8e6f0f8de664721829ddd2a5a",
+      "docs/evidence/mission-control-live-slice/live-source-after-sse-390x844.jpg#sha256=04034cd6ba374b965331ba192822c506fd8b849c94809a63d5b2b447cacee1f3"
+    ],
+    "requiredEvidenceMissing": []
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "The connected Chrome surface captured the requested CSS 1440x900 view as a 1425x891 JPEG because browser chrome and zoom affect raster output; DOM measurements establish the exact CSS viewport and no-overflow result."
+    ],
+    "scopeConflicts": [],
+    "tacticalChoicesMade": [
+      "Used one bounded file/Git adapter instead of creating a scheduler or generalized worker-ingestion framework.",
+      "Kept deterministic persisted scenarios separate from the one current live-source observation."
+    ]
+  },
+  "blockers": [],
+  "stopTriggerReached": "ISSUE_47_USER_VISIBLE_VERTICAL_SLICE_RUNNING_AND_EXTRA_HIGH_ACCEPTED",
+  "executionCompletionClaim": "BOUNDED_ISSUE_47_LIVE_SLICE_COMPLETE",
+  "nextReasoningReviewRequired": false,
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null
+  },
+  "notes": [
+    "Extra High was the sole reasoning and UI-acceptance surface. Pro was not used.",
+    "This receipt records execution evidence; the running owner view and screenshots are the delivered result.",
+    "The live adapter is deliberately read-only and observes exactly one current worker-state file plus its Git branch and head."
+  ]
+}
