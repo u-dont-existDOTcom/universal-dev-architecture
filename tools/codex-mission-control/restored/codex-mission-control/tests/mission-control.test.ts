@@ -1054,6 +1054,115 @@ test("missing directives hold current-epoch Codex execution and execution receip
   store.close();
 });
 
+test("a next directive requires a post-receipt reasoning review and the exact review capsule", () => {
+  const source = workerEvents("auth");
+  const receiptIndex = source.findIndex((event) => event.data.type === "execution_receipt_recorded");
+  assert.ok(receiptIndex > 0);
+  const store = new EventStore(":memory:");
+  for (const event of source.slice(0, receiptIndex)) {
+    store.append({
+      schema_version: 2, event_id: event.eventId, mission_id: event.missionId,
+      occurred_at: event.occurredAt, data: event.data,
+    }, event.receivedAt);
+  }
+  const priorReasoning = store.workerEvents("auth").findLast((event) => event.data.type === "reasoning_supervision_recorded")!.data;
+  assert.equal(priorReasoning.type, "reasoning_supervision_recorded");
+  const predatedReview = {
+    ...priorReasoning,
+    decision_id: "reasoning-decision:auth:predated",
+    capsule_id: "reasoning-capsule:auth:predated",
+    reasoning_supervisor_chat_epoch: "chat-epoch:auth:predated",
+    active_execution_directive_id: null,
+    last_reasoning_review_at: "2026-08-30T20:05:57.000Z",
+  };
+  store.append({
+    schema_version: 2, event_id: "reasoning:auth:predated", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:05:57.000Z", data: predatedReview,
+  });
+  const receipt = source[receiptIndex];
+  store.append({
+    schema_version: 2, event_id: receipt.eventId, mission_id: receipt.missionId,
+    occurred_at: receipt.occurredAt, data: receipt.data,
+  }, receipt.receivedAt);
+  const priorDirective = store.workerEvents("auth").findLast((event) => event.data.type === "execution_directive_recorded")!.data;
+  assert.equal(priorDirective.type, "execution_directive_recorded");
+  const predatedDirective = {
+    ...priorDirective,
+    directive_id: "execution-directive:auth:2",
+    directive_revision: 2,
+    reasoning_chat_epoch: predatedReview.reasoning_supervisor_chat_epoch,
+    chat_decision_id: predatedReview.decision_id,
+    capsule_id: predatedReview.capsule_id,
+  };
+  assert.throws(() => store.append({
+    schema_version: 2, event_id: "directive:auth:predated-review", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:05:59.000Z", data: predatedDirective,
+  }), /later independent reasoning review after the prior execution receipt/);
+
+  const postReceiptReview = {
+    ...predatedReview,
+    decision_id: "reasoning-decision:auth:post-receipt",
+    capsule_id: "reasoning-capsule:auth:post-receipt",
+    reasoning_supervisor_chat_epoch: "chat-epoch:auth:post-receipt",
+    last_reasoning_review_at: "2026-08-30T20:06:00.000Z",
+  };
+  store.append({
+    schema_version: 2, event_id: "reasoning:auth:post-receipt", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:00.000Z", data: postReceiptReview,
+  });
+  const validDirective = {
+    ...predatedDirective,
+    reasoning_chat_epoch: postReceiptReview.reasoning_supervisor_chat_epoch,
+    chat_decision_id: postReceiptReview.decision_id,
+    capsule_id: postReceiptReview.capsule_id,
+  };
+  assert.throws(() => store.append({
+    schema_version: 2, event_id: "directive:auth:capsule-mismatch", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:01.000Z", data: { ...validDirective, capsule_id: "reasoning-capsule:auth:wrong" },
+  }), /exact current chat decision, capsule/);
+  assert.doesNotThrow(() => store.append({
+    schema_version: 2, event_id: "directive:auth:post-receipt", mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:02.000Z", data: validDirective,
+  }));
+  store.close();
+});
+
+test("every owner-action-bearing event rejects missing and cross-worker source provenance", () => {
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  const samples = [
+    store.workerEvents("auth").findLast((event) => event.data.type === "supervisor_assessment_recorded")!.data,
+    store.workerEvents("auth").findLast((event) => event.data.type === "outcome_progress_recorded")!.data,
+    store.workerEvents("tests").findLast((event) => event.data.type === "finding_recorded")!.data,
+    store.workerEvents("tests").findLast((event) => event.data.type === "correction_lifecycle_recorded")!.data,
+  ];
+  assert.equal(samples.length, 4);
+  for (const [index, data] of samples.entries()) {
+    assert.ok("owner_action" in data);
+    if (!("owner_action" in data)) continue;
+    assert.throws(() => store.append({
+      schema_version: 2, event_id: `owner-action:missing:${index}`, mission_id: "mission-control-demo",
+      occurred_at: `2026-08-30T20:1${index}:00.000Z`,
+      data: { ...data, owner_action: { ...data.owner_action, source_event_ids: ["event:does-not-exist"] } },
+    }), /same worker ledger/);
+    assert.throws(() => store.append({
+      schema_version: 2, event_id: `owner-action:cross-worker:${index}`, mission_id: "mission-control-demo",
+      occurred_at: `2026-08-30T20:2${index}:00.000Z`,
+      data: { ...data, owner_action: { ...data.owner_action, source_event_ids: ["demo:billing:base:1"] } },
+    }), /same worker ledger/);
+  }
+  store.close();
+});
+
+test("compact healthy cards expose the complete progress and execution-supervision state", () => {
+  const source = fs.readFileSync(path.join(appRoot, "components/Dashboard.tsx"), "utf8");
+  for (const label of [
+    "Owner outcome target", "Direct evidence", "Active strategy", "Supporting work",
+    "Next measurement / intervention", "Reasoning review", "Active directive", "Codex execution",
+    "Receipt / review boundary", "Pro escalation", "Owner action", "Next review",
+  ]) assert.match(source, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
 test("a GREEN-base owner decision enters attention and retains the full Pro choice packet", () => {
   const events = cloneEvents(workerEvents("auth"));
   const decision = {

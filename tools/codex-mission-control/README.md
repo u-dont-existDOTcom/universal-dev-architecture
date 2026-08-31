@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-d3dc55415d57954ef469c44e2a5bc58a613394d3272ddb2153f23bb0f581a0ec
+bb53453be58db9eebbc2405374d2535617ffadbf6c4eb088c703121cd7a6abb4
 ```
 
-The checked archive contains 45 source files in 23 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, and runtime databases.
+The checked archive contains 45 source files in 24 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, and runtime databases.
 
 ## Current operator model
 
@@ -59,13 +59,13 @@ The stock Symphony adapter is read-only. Mission Control does not dispatch, retr
 
 At the current execution receipt boundary:
 
-- 66 deterministic tests passed;
+- 69 deterministic tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;
 - unauthenticated daemon and external ingestion mutations were denied;
 - same-origin UI mutations succeeded for both localhost spellings while cross-origin mutations were denied;
-- desktop 1440 px and mobile 390 px screenshots were inspected;
+- desktop 1440 px and mobile 390 px rendered states were inspected, including the complete healthy-worker card;
 - mobile detail overflow was measured and eliminated;
 - stack shutdown released the daemon writer lock;
 - the source archive restored with exact checksum and tree equality.

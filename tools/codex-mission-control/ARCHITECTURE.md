@@ -52,8 +52,10 @@ Worker-to-contract and contract-to-owner alignment are never averaged. A worker 
 - Alignment GREEN/MATCH never masks FLAT, REGRESSING, overdue, or externally blocked progress.
 - Regressing evidence holds same-strategy continuation; exhausted flat/regressing cycles require replacement.
 - A current reasoning review binds the owner-outcome hash, strategy, chat session/epoch, and reviewed evidence boundary.
+- A successor directive after an execution receipt requires a strictly later durable reasoning review and the exact review capsule; active-directive labels cannot substitute for ledger causality.
 - Codex cannot start without the current exact directive, continue after its stop receipt, or use an execution receipt to author progress, strategy, adequacy, completion, owner escalation, or Pro escalation.
 - Turn-three handoffs bind the exact durable authority vector and high-water sequence; a forged capsule or stale vector is rejected.
+- All owner-action source references must exist in the same worker ledger, and every task card projects the complete progress and execution-supervision state.
 
 ## Completion invariants
 

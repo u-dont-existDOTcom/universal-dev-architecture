@@ -107,7 +107,7 @@ The complete runtime contract is the Zod union in `lib/schema.ts`. Significant e
 
 Outcome progress is an independent control plane. Numeric receipts declare `HIGHER_IS_BETTER` or `LOWER_IS_BETTER`; the store validates exact current-minus-baseline/current-minus-previous deltas, and projection derives advancement from those bytes instead of trusting a supplied healthy label. A regression holds same-strategy continuation and cannot project GREEN.
 
-Substantive Codex execution is also independently supervised: a current reasoning review authorizes one exact versioned directive, the worker records a directive-bound start, Codex emits an execution-only receipt with supervisory fields fixed to `null`, and a later independent review is required before another directive. A missing directive or pending review fails closed visibly.
+Substantive Codex execution is also independently supervised: a current reasoning review authorizes one exact versioned directive, the worker records a directive-bound start, Codex emits an execution-only receipt with supervisory fields fixed to `null`, and a later independent review is required before another directive. The successor review must occur later in the durable ledger than the matching prior receipt, and the new directive must bind that review's exact capsule. A missing directive, predated review, capsule mismatch, or pending review fails closed visibly.
 
 Legacy PR #41 events remain decodable and migrate without being reinterpreted as current owner authority. Legacy completion remains nonterminal until independently sourced owner outcome and reconciliation exist.
 
@@ -119,7 +119,9 @@ Delivery requires a receiver-generated receipt bound to the exact directive dige
 
 Owner action is a structured obligation. `NONE` requires a known non-owner next actor, action, trigger, due time, and escalation policy. Missing/overdue telemetry, conflicting directives, non-retrying delivery failure, or owner-held blockers become `MANUAL_INTERVENTION_REQUIRED`. A `DECISION_REQUIRED` event must carry the full Pro decision packet, including options, benefits, drawbacks, consequences, recommendation, and reasoning.
 
-Both owner-facing views render that complete choice packet, including the consequence of every option and the explicit default if no decision is made. A short summary or link to the Pro analysis is not a sufficient owner handoff.
+Every owner-action-bearing event family binds each `source_event_id` to an existing event in the same worker ledger. Missing or cross-worker evidence provenance is rejected before append.
+
+Both owner-facing views render that complete choice packet, including the consequence of every option and the explicit default if no decision is made. A short summary or link to the Pro analysis is not a sufficient owner handoff. Every dashboard task card, including a GREEN healthy card, also exposes owner target/evidence, progress, strategy, supporting work, next measurement/intervention, reasoning review, directive, Codex state, receipt/review boundary, Pro escalation, and owner action.
 
 Continuation is `PAUSE_ALL`, `SAFE_WITHIN_SCOPE`, `CONTINUE_UNRESTRICTED`, or `UNKNOWN`; it is not a Boolean. `UNKNOWN` grants no allowed scope.
 

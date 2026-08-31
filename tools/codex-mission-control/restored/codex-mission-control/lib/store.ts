@@ -438,7 +438,8 @@ export class EventStore {
     }
     if (data.type === "execution_directive_recorded") {
       const currentOutcome = outcomes.at(-1)?.data;
-      const reasoning = [...events].reverse().find((event) => event.data.type === "reasoning_supervision_recorded")?.data;
+      const reasoningEvent = [...events].reverse().find((event) => event.data.type === "reasoning_supervision_recorded");
+      const reasoning = reasoningEvent?.data;
       if (currentOutcome?.type !== "owner_outcome_recorded"
         || currentOutcome.owner_outcome_id !== data.owner_outcome_id
         || currentOutcome.epoch !== data.owner_outcome_epoch
@@ -449,15 +450,18 @@ export class EventStore {
         || reasoning.reasoning_supervisor_session_id !== data.reasoning_supervisor_session_id
         || reasoning.reasoning_supervisor_chat_epoch !== data.reasoning_chat_epoch
         || reasoning.decision_id !== data.chat_decision_id
+        || reasoning.capsule_id !== data.capsule_id
         || reasoning.current_strategy_id !== data.strategy_id
         || reasoning.reviewed_evidence_boundary !== data.reviewed_evidence_boundary) {
-        throw new ContractInvariantError("Execution directives must bind the exact current chat decision, strategy, and reviewed evidence boundary.");
+        throw new ContractInvariantError("Execution directives must bind the exact current chat decision, capsule, strategy, and reviewed evidence boundary.");
       }
       const priorDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
-      const latestReceipt = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
-      if (priorDirective?.type === "execution_directive_recorded" && priorDirective.status === "ACTIVE"
-        && latestReceipt?.type === "execution_receipt_recorded" && latestReceipt.directive_id === priorDirective.directive_id
-        && reasoning.active_execution_directive_id === priorDirective.directive_id) {
+      const priorReceiptEvent = priorDirective?.type === "execution_directive_recorded"
+        ? [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded"
+          && event.data.directive_id === priorDirective.directive_id
+          && event.data.directive_revision === priorDirective.directive_revision)
+        : undefined;
+      if (priorReceiptEvent && (!reasoningEvent || reasoningEvent.sequence <= priorReceiptEvent.sequence)) {
         throw new ContractInvariantError("A new directive requires a later independent reasoning review after the prior execution receipt.");
       }
     }
@@ -567,6 +571,16 @@ export class EventStore {
 
   private validateCorrection(envelope: AppendEnvelope) {
     const data = envelope.data;
+    if ("owner_action" in data) {
+      const continuationPolicy = "continuation_policy" in data ? data.continuation_policy : undefined;
+      this.validateObligationReferences(
+        data.worker,
+        data.owner_action.source_event_ids,
+        continuationPolicy?.basis_finding_ids ?? [],
+        continuationPolicy?.basis_evidence_ids ?? [],
+        data.type === "finding_recorded" ? data.finding_id : undefined,
+      );
+    }
     if (data.type === "owner_source_recorded") this.assertUniqueDomainId(data.worker, "owner_source_recorded", "receipt_id", data.receipt_id);
     if (data.type === "objective_reconciliation_recorded") this.assertUniqueDomainId(data.worker, data.type, "reconciliation_id", data.reconciliation_id);
     if (data.type === "evidence_receipt_recorded") {
@@ -599,7 +613,6 @@ export class EventStore {
       if (data.evidence_receipt_ids.some((receiptId) => !receipts.has(receiptId))) {
         throw new CorrectionInvariantError("Findings must bind existing durable evidence receipts, not free-form evidence assertions.");
       }
-      this.validateObligationReferences(data.worker, data.owner_action.source_event_ids, data.continuation_policy.basis_finding_ids, data.continuation_policy.basis_evidence_ids, data.finding_id);
       return;
     }
     if (data.type === "finding_status_changed") {
@@ -715,7 +728,6 @@ export class EventStore {
     }
     validateCorrectionTransition(data, prior?.type === "correction_lifecycle_recorded" ? prior : undefined, priorEvent?.eventId);
     const workerEvents = this.workerEvents(data.worker);
-    this.validateObligationReferences(data.worker, data.owner_action.source_event_ids, data.continuation_policy.basis_finding_ids, data.continuation_policy.basis_evidence_ids);
     const currentContract = [...workerEvents].reverse().find((event) => event.data.type === "task_contract_recorded")?.data;
     const currentOutcome = [...workerEvents].reverse().find((event) => event.data.type === "owner_outcome_recorded")?.data;
     if (data.status !== "CORRECTION_REOPENED") {
@@ -802,7 +814,10 @@ export class EventStore {
     evidenceIds: string[],
     pendingFindingId?: string,
   ) {
-    if (sourceEventIds.some((eventId) => !this.eventByEventId(eventId))) throw new CorrectionInvariantError("Owner-action source_event_ids must exist.");
+    if (sourceEventIds.some((eventId) => {
+      const source = this.eventByEventId(eventId);
+      return !source || source.worker !== worker;
+    })) throw new CorrectionInvariantError("Owner-action source_event_ids must exist in the same worker ledger.");
     const events = this.workerEvents(worker);
     const findings = new Set(events.flatMap((event) => event.data.type === "finding_recorded" ? [event.data.finding_id] : []));
     const evidence = new Set(events.flatMap((event) => event.data.type === "evidence_receipt_recorded" ? [event.data.receipt_id] : []));

@@ -50,7 +50,7 @@ The v2 event union in `restored/codex-mission-control/lib/schema.ts` is authorit
 - complete Pro analysis reference;
 - explicit default if unanswered.
 
-Both queue and detail views render the complete packet. A compressed summary is invalid.
+Both queue and detail views render the complete packet. A compressed summary is invalid. Every owner-action source reference is validated for same-worker durable provenance before append.
 
 ## Correction and closure
 

@@ -1,167 +1,159 @@
 {
   "schemaVersion": 1,
-  "reconciliationId": "mc-recon-20260830-gap-audit-r1",
+  "reconciliationId": "mc-recon-20260831-epoch4-r2",
   "taskId": "mission-control-dashboard-adaptation-20260830",
-  "trigger": "POST_BASELINE_GAP_AUDIT",
-  "reconciledAt": "2026-08-30T23:28:17Z",
+  "trigger": "XH_POST_REVISION_REVIEW_REJECT_R2",
+  "reconciledAt": "2026-08-31T03:08:42Z",
   "ownerSource": {
     "ownerRequestId": "mission-control-dashboard-adaptation-20260830",
     "canonicalLocator": "state/mission-control-dashboard-adaptation/OWNER-REQUEST.md",
-    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
-    "capturedAt": "2026-08-30T23:28:17Z",
-    "capturedBy": "codex-root-independent-source-capture",
+    "sha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "capturedAt": "2026-08-31T03:08:42Z",
+    "capturedBy": "/root/xhigh_post_revision_review",
+    "captureMode": "INDEPENDENT_SOURCE_FIRST_REVIEW",
     "corrections": [
-      "GitHub operations are pre-authorized",
-      "Routine in-scope execution is pre-authorized unless a material tradeoff remains",
-      "The current Pro/Extra High chat reuse limit is 2-3 substantive turns; this supersedes the earlier approximately 15-turn limit"
+      "GitHub and routine in-scope execution are pre-authorized; ask only for a genuine material tradeoff.",
+      "Pro and Extra High chat tabs must hand off after at most two to three substantive turns.",
+      "Every owner choice relayed from Pro must include the full question, context, options, benefits, drawbacks, consequences, reasoning, recommendation, and default behavior.",
+      "The all-worker attention queue is the default; RED and YELLOW workers expose the exact problem, evidence-backed reasons, directive, actual lifecycle, next review trigger, and owner action.",
+      "The Test cleanup fixture must plainly identify forbidden production scheduler/caller changes for a test-only task and direct stop, revert, and return to test scope.",
+      "Numeric alignment is secondary and REDIRECT alone never proves correction is underway."
     ]
   },
   "independentSupervisorReceipt": {
-    "receiptId": "mc-owner-source-20260830-e3",
-    "collector": "codex-root-independent-source-capture",
-    "sourceSha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+    "receiptId": "mc-owner-source-20260831-e4-xh-r2",
+    "collector": "/root/xhigh_post_revision_review",
+    "sourceSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
     "workerSuppliedCopySha256": null,
-    "comparison": "WORKER_COPY_ABSENT",
-    "limitations": [
-      "The active chat source is preserved in a repository-local immutable source block; no external conversation export is available"
-    ]
+    "comparison": "INDEPENDENT_SOURCE_VERIFIED",
+    "reviewedHead": "3b9745cb92ee7fd41d6b76fc55db06a920908b32",
+    "reviewedReceiptSha256": "fa038df7d8dae61b137984599f95580cb22ac4c3f79e2a6e397b9ab38c3ddcd2",
+    "limitations": []
   },
   "ownerOutcome": {
     "ownerOutcomeId": "mission-control-dashboard-adaptation",
-    "epoch": 3,
-    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
-    "normalizedResult": "Restore and adapt PR #41 into the bounded current Mission Control architecture slice without rebuilding Symphony-owned orchestration, using Extra High and shared Pro meta-review appropriately and rolling Pro/Extra High chats after at most 2-3 substantive turns.",
-    "currentGap": "The baseline and audit are frozen; the current data model, ledger, UI, regression suite, archive, and Symphony seam still require adaptation.",
+    "epoch": 4,
+    "sha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1",
+    "normalizedResult": "Complete the bounded Mission Control dashboard adaptation slice by preserving the existing attention-first and owner-outcome controls; adding the now-current outcome-advancement, strategy-efficacy, and chat-led-reasoning/Codex-execution planes; repairing the independently reviewed lifecycle, terminalization, authentication, daemon, and handoff defects; keeping Symphony read-only; and adding no custom orchestration. Do not claim the overall multi-worker Mission Control owner outcome complete.",
+    "sourceReceiptId": "mc-owner-source-20260831-e4-xh-r2",
+    "ownerSourceSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "supersedes": {
+      "ownerOutcomeId": "mission-control-dashboard-adaptation",
+      "epoch": 3,
+      "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+      "reconciliationId": "mc-recon-20260830-gap-audit-r1"
+    },
+    "currentGap": "Four deterministic post-revision blockers are under revision-2 repair and remain pending a fresh independent Extra High review.",
     "unmetOutcomes": [
-      "dual-alignment and typed-completion data model",
-      "machine-visible owner source and reconciliation projection",
-      "contract-laundering and AskRigor regressions",
-      "adapted UI and responsive verification",
-      "read-only Symphony seam",
-      "repaired source archive and final durable verification"
+      "post-receipt reasoning review ordering and exact capsule binding",
+      "complete progress and execution-supervision state on every task card",
+      "durable epoch-4 task authority bound to the current owner source and prior epoch",
+      "same-worker durable provenance for every owner-action source reference"
     ],
     "unknownOutcomes": [],
     "nonSatisfyingProxies": [
-      "baseline app runs",
       "tests pass",
-      "gap audit frozen",
-      "READY_FOR_OWNER_REVIEW",
-      "supervisor approval"
+      "build passes",
+      "responsive screenshots exist",
+      "execution receipt claims completion",
+      "supervisor verdict without source-first evidence"
     ]
   },
   "taskContract": {
     "taskContractId": "docs/exec-plans/2026-08-30-mission-control-dashboard-adaptation-slice.md",
     "revision": 1,
-    "sha256": "8c6ca529672509e0dbae3e8e8f82f8ec978da2eabb4f65703356c36065ca7781"
+    "sha256": "8c6ca529672509e0dbae3e8e8f82f8ec978da2eabb4f65703356c36065ca7781",
+    "currentAuthorityRefs": [
+      "docs/exec-plans/2026-08-30-mission-control-attention-and-correction-ux-addendum.md",
+      "docs/exec-plans/2026-08-31-mission-control-outcome-progress-and-stagnation-addendum.md",
+      "docs/exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json"
+    ]
   },
-  "alignment": {
-    "workerToContract": {
-      "status": "GREEN",
-      "evidenceRefs": [
-        "c1bb87879edb773cb6d2db0bd309b13b6098a596",
-        "docs/evidence/mission-control-baseline/BASELINE.md",
-        "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
-      ],
-      "findings": []
-    },
-    "contractToOwner": {
-      "status": "MATCH",
-      "unmappedOwnerRequirementIds": [],
-      "divergences": [],
-      "authorizedScopeChanges": []
-    }
+  "frozenIndependentReview": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_post_revision_review",
+    "chatEpoch": "review-3b9745c-turn-1",
+    "decisionId": "xh-post-review-3b9745c-reject-r2",
+    "verdict": "REJECT",
+    "ownerActionRequired": false,
+    "proMetaReviewRequired": false,
+    "sliceMayClose": false,
+    "findings": [
+      "MC-R2-B1_POST_RECEIPT_REVIEW_CAUSALITY_AND_CAPSULE",
+      "MC-R2-B2_ALL_CARD_PROGRESS_AND_EXECUTION_STATE",
+      "MC-R2-B3_DURABLE_EPOCH4_TASK_AUTHORITY",
+      "MC-R2-B4_OWNER_ACTION_EVIDENCE_PROVENANCE"
+    ],
+    "nextDirectiveId": "XH-MC-744C477-REVISION-002",
+    "nextReviewRequired": true
   },
   "requirements": [
     {
       "ownerRequirementId": "MC-R1",
-      "ownerRequirementText": "Read fresh from the requested architecture branch and slice, follow the shared bootstrap and all current Mission Control patterns.",
-      "workerInterpretation": "Use PR #42 as current architecture authority and merge it into the implementation branch after freezing PR #41.",
-      "taskCriterionIds": ["required-read-order"],
-      "acceptanceEvidence": ["cb92d8913cb256303def032a8165da5464dacbe9"],
+      "ownerRequirementText": "Read current universal architecture authority and reuse PR #41 rather than rebuilding the dashboard.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["744c47745c32e6fce440df7739f48c9a59020832", "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"]
     },
     {
       "ownerRequirementId": "MC-R2",
-      "ownerRequirementText": "Reuse PR #41 rather than rebuilding the dashboard.",
-      "workerInterpretation": "Restore and adapt the incumbent Next.js app and visual system in place.",
-      "taskCriterionIds": ["phase-a", "phase-d"],
-      "acceptanceEvidence": ["c1bb87879edb773cb6d2db0bd309b13b6098a596"],
+      "ownerRequirementText": "Continue automatically through the bounded adaptation slice while keeping Symphony read-only and adding no custom orchestration.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["2896cf3e04522ffbad68ed317e8dd3939a818a7f", "tools/codex-mission-control/restored/codex-mission-control/lib/symphony-adapter.ts"]
     },
     {
       "ownerRequirementId": "MC-R3",
-      "ownerRequirementText": "First restore/run it and freeze the gap audit; then continue through the slice automatically.",
-      "workerInterpretation": "Commit an immutable baseline and frozen capability audit before behavioral code changes, then proceed without owner prompting.",
-      "taskCriterionIds": ["phase-a", "phase-b"],
-      "acceptanceEvidence": [
-        "c1bb87879edb773cb6d2db0bd309b13b6098a596",
-        "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
-      ],
+      "ownerRequirementText": "Default to the all-worker attention queue with exact RED/YELLOW explanations, directives, actual correction lifecycle, next review, and owner action.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["docs/evidence/mission-control-adaptation/dashboard-current-1440.png", "docs/evidence/mission-control-adaptation/test-cleanup-detail-current-1440.png"]
     },
     {
       "ownerRequirementId": "MC-R4",
-      "ownerRequirementText": "Continue through the dashboard adaptation slice automatically.",
-      "workerInterpretation": "Implement the current owner-source, dual-alignment, typed-completion, fail-closed, AskRigor, UI, regression, and archive requirements.",
-      "taskCriterionIds": ["phase-c", "phase-d", "phase-e"],
-      "acceptanceEvidence": [],
+      "ownerRequirementText": "Treat numeric alignment as secondary and never infer correction from REDIRECT alone.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts"]
     },
     {
       "ownerRequirementId": "MC-R5",
-      "ownerRequirementText": "Do not rebuild orchestration that Symphony already solves.",
-      "workerInterpretation": "Implement only a read-only Symphony normalization seam; no dispatch, retry, stop, resume, tracker mutation, scheduler, concurrency, workspace, or App Server ownership.",
-      "taskCriterionIds": ["phase-f"],
-      "acceptanceEvidence": [],
+      "ownerRequirementText": "Use Extra High checkpoints, shared Pro only for substantive supervision design, and hand off Pro/Extra High chats within two to three substantive turns.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json", "docs/evidence/mission-control-adaptation/pro-attention-ux-final-confirmation.txt"]
     },
     {
       "ownerRequirementId": "MC-R6",
-      "ownerRequirementText": "Use Extra High for reasoning/review checkpoints and the shared Pro supervisor-design lane for substantive supervision-design questions or improvements.",
-      "workerInterpretation": "Use independent Extra High architecture/code reviews and one shared architecture-epoch Pro packet only for material schema/design questions.",
-      "taskCriterionIds": ["extra-high-checkpoint", "pro-meta-review"],
-      "acceptanceEvidence": ["docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"],
+      "ownerRequirementText": "Relay any Pro owner choice in full rather than as a brief summary.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx", "tools/codex-mission-control/restored/codex-mission-control/components/WorkerDetail.tsx"]
     },
     {
       "ownerRequirementId": "MC-R7",
-      "ownerRequirementText": "The chat tabs should have max 2-3 turns before handoff because longer running chats are slowing down the browser too much.",
-      "workerInterpretation": "Track substantive turn count and require deterministic handoff by turn 3 for each Pro or Extra High chat, with earlier rollover for context/authority/independence triggers.",
-      "taskCriterionIds": ["supervision-lifecycle"],
-      "acceptanceEvidence": ["state/mission-control-dashboard-adaptation/OWNER-REQUEST.md"],
+      "ownerRequirementText": "Do not claim the overall multi-worker Mission Control owner outcome complete.",
       "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
-    },
-    {
-      "ownerRequirementId": "MC-R8",
-      "ownerRequirementText": "Do not claim the overall Mission Control owner outcome complete; this is an implementation slice.",
-      "workerInterpretation": "Close only the bounded adaptation slice and keep the parent outcome open.",
-      "taskCriterionIds": ["completion-boundary"],
-      "acceptanceEvidence": [],
-      "status": "MAPPED_DIRECT",
-      "authorizedChangeRef": null
+      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json"]
     }
   ],
   "completionClaim": {
     "type": "WORKING",
     "proposedTerminal": false,
-    "candidateRef": "cb92d8913cb256303def032a8165da5464dacbe9",
+    "candidateRef": "3b9745cb92ee7fd41d6b76fc55db06a920908b32",
     "evidenceRefs": [
-      "docs/evidence/mission-control-baseline/BASELINE.md",
-      "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-001.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json"
     ]
   },
   "result": {
-    "overallTraffic": "YELLOW",
+    "supervisoryVerdict": "REJECT",
     "rootTerminalizationAllowed": false,
-    "requiredDirective": "CONTINUE_ADAPTATION_SLICE",
-    "findings": ["SLICE_IMPLEMENTATION_INCOMPLETE"]
+    "requiredDirective": "APPLY_XH_MC_744C477_REVISION_002",
+    "ownerActionRequired": false,
+    "proMetaReviewRequired": false,
+    "nextReasoningReviewRequired": true,
+    "findings": [
+      "MC-R2-B1_POST_RECEIPT_REVIEW_CAUSALITY_AND_CAPSULE",
+      "MC-R2-B2_ALL_CARD_PROGRESS_AND_EXECUTION_STATE",
+      "MC-R2-B3_DURABLE_EPOCH4_TASK_AUTHORITY",
+      "MC-R2-B4_OWNER_ACTION_EVIDENCE_PROVENANCE"
+    ]
   },
-  "previousReconciliationId": null
+  "previousReconciliationId": "mc-recon-20260830-gap-audit-r1"
 }

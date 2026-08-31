@@ -1,22 +1,17 @@
 # Mission Control Adaptation Checkpoint
 
-Updated: 2026-08-30
+Updated: 2026-08-31T03:08:42Z
 
-- Verified baseline: restored PR #41 commit `c1bb87879edb773cb6d2db0bd309b13b6098a596`.
-- Architecture authority: attention-addendum merge commit
-  `73962d6546dd0ba585f2fa356226e6db2782f7ea`.
-- Recovery ref: `recovery/mission-control-pre-architecture-merge-c1bb878`.
-- Audit disposition: frozen before adaptation in
-  `docs/audits/2026-08-30-mission-control-pr41-gap-audit.md`.
-- Reconciliation status: worker-to-contract `GREEN`, contract-to-owner `MATCH`,
-  overall `YELLOW`, directive `CONTINUE_ADAPTATION_SLICE`.
-- Owner UX correction: the default route is an explanation-first all-worker
-  attention queue. RED/YELLOW cards expose durable findings, the corrective
-  directive, its non-inferred lifecycle state, next verification trigger, and
-  exact owner-action semantics. Numeric alignment is secondary metadata.
-- Active next action: freeze the deterministic attention/correction fixtures,
-  route `SDF-20260830-DASHBOARD-ACTIONABILITY-001` to a fresh shared Pro chat,
-  then implement the adapted ledger and UI.
-- Chat rollover: no Pro or Extra High chat may exceed three substantive turns;
-  prefer rollover after the second when a clean handoff is available.
-- No blocker.
+- Reused baseline: PR #41 source at `744c47745c32e6fce440df7739f48c9a59020832`; the dashboard was adapted in place rather than rebuilt.
+- Current branch: `task/mission-control-dashboard-adaptation-20260830`.
+- Reviewed evidence boundary: implementation `2896cf3e04522ffbad68ed317e8dd3939a818a7f`; factual receipt HEAD `3b9745cb92ee7fd41d6b76fc55db06a920908b32`.
+- Current owner source: `OWNER-REQUEST.md` SHA-256 `b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef`.
+- Owner outcome authority: epoch 4, SHA-256 `746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1`, superseding epoch 3 / `9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058`.
+- Independent reasoning review: fresh Extra High session `/root/xhigh_post_revision_review`, one substantive turn, verdict `REJECT` at `3b9745c`; owner action `NONE`; fresh Pro meta-review `NOT_REQUIRED`.
+- Active execution directive: `XH-MC-744C477-REVISION-002` for one bounded deterministic repair cycle.
+- Frozen blockers: post-receipt reasoning ordering/capsule binding; complete progress and execution-supervision state on every task card; durable epoch-4 task authority; same-worker durable owner-action evidence provenance.
+- Default owner view remains the explanation-first all-worker attention queue. The Test cleanup fixture states the forbidden production scheduler/caller change, directs stop/revert and return to test scope, and shows only its actual delivered/awaiting-acknowledgement lifecycle.
+- Numeric alignment remains secondary diagnostic metadata. `REDIRECT` alone does not imply that correction was issued or started.
+- Any genuine Pro owner choice must be shown and relayed in full: question, context, options, benefits, drawbacks, downstream consequences, recommendation, reasoning, and default behavior.
+- The bounded slice and the overall multi-worker Mission Control owner outcome remain open pending execution receipt and a fresh independent Extra High review.
+- No push, merge, deployment, publication, rebase, or history rewrite is authorized during this repair cycle.
