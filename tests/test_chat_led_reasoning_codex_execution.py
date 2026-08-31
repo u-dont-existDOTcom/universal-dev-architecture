@@ -41,7 +41,7 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(directive["schemaVersion"], 1)
+        self.assertEqual(directive["schemaVersion"], 2)
         self.assertIn("reasoningSupervisor", directive)
         self.assertIn("strategy", directive)
         self.assertEqual(directive["ownerDecisionAuthority"], "NONE")
@@ -50,8 +50,11 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
             directive["ambiguityBehavior"], "STOP_AND_REPORT_DECISION_REQUIRED"
         )
 
-        self.assertEqual(receipt["schemaVersion"], 1)
+        self.assertEqual(receipt["schemaVersion"], 2)
         self.assertTrue(receipt["nextReasoningReviewRequired"])
+        self.assertIn("handoffPolicy", directive)
+        self.assertIn("reasoningHandoff", receipt)
+        self.assertFalse(receipt["reasoningHandoff"]["terminal"])
         prohibited = receipt["prohibitedAuthorityFields"]
         self.assertIsNone(prohibited["outcomeAdvancement"])
         self.assertIsNone(prohibited["strategyEfficacy"])
@@ -98,6 +101,8 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
             "SUPERVISION_DIRECTIVE_MISSING",
             "Codex does not diagnose or replace the strategy itself",
             "The owner must not have to ask whether substantial work made progress",
+            "WAITING_FOR_REASONING_REVIEW",
+            "Intermediate polls return only `PENDING` or `READY`",
         )
         for phrase in required:
             with self.subTest(phrase=phrase):
@@ -118,6 +123,7 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
             self.assertIn("CODEX-EXECUTION-RECEIPT.json", text)
         self.assertIn("CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json", templates)
         self.assertIn("CODEX-EXECUTION-RECEIPT.json", templates)
+        self.assertIn("EXECUTOR-REASONING-HANDOFF.json", templates)
         self.assertIn("Chats perform the reasoning", templates)
 
 

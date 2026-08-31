@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+  "reviewId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001-CORRECTIONS-002",
+  "verdict": "ACCEPT",
+  "status": "CLOSED",
+  "ownerDecisionRequired": false,
+  "implementationCommit": "601b135e8947e6cc8ad4f20eb8f062d179289403",
+  "receiptProvenanceHead": "26e12554d9cb97c96ed95e1293a0408dc416e797",
+  "closedAgainstHead": "c9b3475da8e290159dffbfaa784ec20844c40693",
+  "remainingCorrections": [],
+  "executorHandoffLivenessFeedbackReopened": false,
+  "activeSomaticLoopBlocked": false,
+  "parentMissionControlTaskComplete": false
+}

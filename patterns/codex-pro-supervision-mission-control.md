@@ -313,6 +313,20 @@ Recommended Symphony configuration:
 
 Linear also supplies first-class blockers and issue relationships. Mission Control should not recreate a dependency engine when the tracker already has one.
 
+### 6.1A Blockers are scoped; waits require admission
+
+Mission Control must not project a repository-global status label directly onto every active task. Resolve the validated branch-bound active-task lock and matching task-local checkpoint first. A global blocker affects the current frontier only when a current `SCOPED-BLOCKER` record explicitly binds the task, strategy family, directive, required capability, or operation and proves a causal dependency.
+
+Preserve unrelated global blockers in the task projection as ignored or suspended competing sources. Show their identity, scope, age, and relation; do not hide or delete them. A task card must separately show active blockers, ignored/unrelated blockers, the repository-global relation, current wait identity/horizon, unblock actor or mechanism, owner action, and whether unrelated work may continue.
+
+Waiting is admitted only through `WAIT-ADMISSION`: exact task and blocking-source identity, causal dependency, changing condition and source, actor/mechanism, polling or notification mechanism, bounded horizon, and expiry state. If no actor or mechanism can change the condition, do not poll. Persist the truthful scoped state while keeping independent frontiers executable.
+
+The active-task projection must fail closed rather than merely decorate the dashboard. Bind current owner-source/correction authority through a separately validated independent receipt, then bind the selected checkpoint's path, Git ref, commit/blob identity, content hash, task ID, branch, and owner-outcome epoch/hash. Never trust a receipt-status label asserted inside the authority projection. Project the affected frontier as `AUTHORIZED`, `BLOCKED_BY_APPLICABLE_BLOCKER`, `BLOCKER_REVALIDATION_REQUIRED`, `REASONING_REVIEW_REQUIRED`, or `INVALID_AUTHORITY`; list its permitted action class, blocked capabilities, and blocker IDs separately from independent frontiers that may continue.
+
+Classify every blocker as `OPERATIONAL` or one of the non-waivable policy classes. Task-declared independence cannot bypass a causally applicable safety, privacy, security, permission, spending, publication, or irreversible-action boundary. Conversely, repository-wide classification alone does not block an operation without the causal edge.
+
+Substantive execution directives require resolved `VALID` authority, an authorized affected frontier whose permitted action class includes `SUBSTANTIVE_EXECUTION`, no applicable/revalidation/ambiguous blocker for that operation, and a valid referenced wait admission. `REASONING_REVIEW_DUE` permits only `REASONING_HANDOFF`; `OWNER_DECISION_REQUIRED` permits evidence preservation and authorized owner-wait handling. The directive must be transactionally compared with the current resolver and wait-admission outputs, including owner receipt, checkpoint, blocker, capability, action-class, and wait identities; self-asserted projection fields cannot authorize execution. Under unresolved, invalid, or ambiguous authority, only typed allowlisted recovery, evidence-preservation, or reasoning-handoff actions may run. Blocker waits bind the exact unblock event; owner waits bind decision ID and action; reasoning waits bind the accepted executor-reasoning handoff and require continuous lease coverage from wait start through next check and declared horizon. Later coverage requires an accepted durable transfer or renewal bound to the exact lease/controller identities. All waits use parsed timestamps and nonterminal expiry states.
+
 ### 6.2 GitHub remains canonical where it is strongest
 
 GitHub stores:

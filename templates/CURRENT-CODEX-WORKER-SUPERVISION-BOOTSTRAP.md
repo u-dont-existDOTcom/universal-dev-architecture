@@ -22,6 +22,27 @@ At the next safe execution boundary:
 
 A derived task contract may refine or decompose the owner outcome. It may not weaken, omit, replace, or terminally bypass it without an explicit owner decision.
 
+For an active task, resolve execution authority before consuming a repository-global execution status. The fixed order is:
+
+```text
+current exact owner instruction or correction
+-> validated branch-bound active-task lock and task-local checkpoint
+-> task-local plan and chat-authored directive
+-> current task artifacts, PR, tests, CI, and execution evidence
+-> repository-global operational state where causally applicable
+-> historical task state, old issues, old handoffs, and archived checkpoints
+```
+
+A repository-global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label does not block the active task unless a current scoped blocker record proves causal applicability. Never wait merely because an older global checkpoint or issue is unresolved. Preserve unrelated global state as `SUSPENDED_COMPETING_SOURCE`; do not delete or rewrite it. Repository-wide safety, privacy, security, permission, spending, publication, and irreversible-action policies remain controlling for every affected operation.
+
+Use `templates/SCOPED-BLOCKER.json` and `templates/WAIT-ADMISSION.json`. When scope cannot be resolved mechanically, set blocker applicability to `AMBIGUOUS`, require reasoning review, and do not let Codex choose.
+
+Bind the selected task-local checkpoint by exact source path, Git ref, commit or blob identity, content SHA-256, task ID, branch, and owner-outcome epoch/hash. Resolve the current independently captured owner request or append-only correction through the existing owner-source chain before selecting that checkpoint. Validate a separate owner-source receipt against the source record ID, receipt ID, source hash, canonical locator, capture time, task, owner-outcome ID/epoch/hash, receipt capability, and receipt status; a `MATCH` field asserted by the owner-authority object is not evidence. A newer independently authenticated `OWNER_STOP`, an owner amendment, or any checkpoint mismatch sets `selectedExecutionSource = NONE`, forbids substantive execution, and requires reconciliation/reasoning review. An unauthenticated correction or stop is invalid/ambiguous authority and must not be applied as the owner instruction.
+
+`independentOfBlockerIds` may short-circuit only ordinary operational blockers. It cannot waive an applicable repository-wide `SAFETY`, `PRIVACY`, `SECURITY`, `PERMISSION`, `SPENDING`, `PUBLICATION`, or `IRREVERSIBLE_ACTION` boundary. Record an attempted applicable override as `INVALID_TASK_INDEPENDENCE_OVERRIDE`. A repository-wide policy with no causal relation to the current operation remains nonblocking.
+
+Display state is not execution authorization. Project `frontierAuthorization` separately as `AUTHORIZED`, `BLOCKED_BY_APPLICABLE_BLOCKER`, `BLOCKER_REVALIDATION_REQUIRED`, `REASONING_REVIEW_REQUIRED`, or `INVALID_AUTHORITY`, together with the affected operation, permitted action class, blocked capabilities, blocking blocker IDs, independent-frontier allowance, and reasoning-review requirement. `REASONING_REVIEW_DUE` permits `REASONING_HANDOFF`, not substantive execution. `OWNER_DECISION_REQUIRED` permits evidence preservation and authorized owner-wait handling, not substantive execution. A substantive chat-to-Codex directive requires `VALID` authority and `AUTHORIZED` frontier status. Authorize it only through a transactional comparison with the current deterministic authority-resolution and wait-admission outputs; internally consistent directive fields are not authority. Unresolved, invalid, or ambiguous authority permits only an explicitly typed and allowlisted authority-recovery, evidence-preservation, or reasoning-handoff action.
+
 These do not terminate a root task by default:
 
 - `READY_FOR_OWNER_REVIEW`;
@@ -86,7 +107,10 @@ Codex must not:
 - decide whether an owner decision is needed, except to report missing authority/input;
 - author a supervisory verdict or substantive Pro question;
 - invent a new strategy after failure;
-- continue beyond a declared stop or review boundary.
+- perform unauthorized substantive work beyond a declared stop or review
+  boundary. Reaching that boundary does not end the owner-facing loop: Codex or
+  the durable controller must route the receipt, obtain the required reasoning
+  review, and resume automatically when authorized work remains.
 
 Every nontrivial Codex run requires a current chat-authored directive using:
 
@@ -416,15 +440,106 @@ For browser automation:
 
 A persistent chat does not require a persistent open tab. Persist URL, account alias, scope key, epoch, capsule, and last reviewed boundary locally.
 
-## 11. Continue automatically
+## 11. Continue automatically and keep the reasoning handoff live
 
-An owner correction, chat review, Pro decision, progress result, or supervision-design verdict is input to the current task, not completion.
+An owner correction, chat review, Pro decision, execution result, progress
+result, or supervision-design verdict is input to the current task, not task
+completion.
 
-After a chat issues a new valid execution directive, Codex continues automatically to its next stop boundary.
+Reaching a directive stop or review boundary stops only further substantive
+execution under that directive. It does not authorize Codex to end the
+owner-facing loop after merely returning an execution receipt. A task contract
+or directive that already identifies later slices keeps those slices queued;
+the review boundary reconciles or reauthorizes the next slice, but it is not a
+request for the owner to restart the worker.
 
-A failed strategy stops materially similar execution, not all unrelated safe work. Preserve evidence and wait only for the replacement reasoning directive.
+When reasoning review is required, Codex or the durable execution controller
+must:
 
-Pause only for genuine owner authority/input, unavailable permissions/credentials, destructive or irreversible action, spending, publication, explicit stop, or a missing reasoning directive at a substantive boundary.
+1. persist the exact execution receipt;
+2. route it to the directive-bound Extra High or Pro reasoning chat;
+3. maintain exactly one outstanding review request;
+4. recover exact request identity after any ambiguous send;
+5. enter the nonterminal state `WAITING_FOR_REASONING_REVIEW`;
+6. await the matching response using compact read-only status polling;
+7. retrieve and persist the completed response under an exact response ID and hash;
+8. import and apply it exactly once;
+9. validate any next `CHAT-TO-CODEX-EXECUTION-DIRECTIVE`;
+10. continue automatically to the next stop boundary.
+
+Do not ask the owner whether to continue merely because a receipt, subtask,
+phase, or slice finished. Ask only when the next action depends on a genuine
+missing owner decision or one of the explicit pause conditions below. If the
+reasoning surface must issue a separate directive, the controller obtains it;
+`separate directive` never means `separate owner prompt`.
+
+Intermediate polls return only `PENDING` or `READY` plus request/response
+identity and retry metadata. They must not repeatedly load full conversation
+turns or post status messages into the reasoning chat.
+
+Account for waiting separately from substantive execution. When the runtime
+exposes exact token telemetry, record cumulative wait input/output tokens,
+cumulative execution input/output tokens since the prior reasoning handoff,
+and the wait-to-execution token ratio. When exact token telemetry is
+unavailable, record request/response bytes and call counts as the fallback and
+mark token totals `UNAVAILABLE`; never invent or estimate token counts. Keep
+this accounting out of the compact poll envelope so repeated waiting remains
+constant-context control-plane work. Resource accounting must not delay
+response import or automatic execution resumption.
+
+Bind each accounting event to an exact phase window, surface, metering domain,
+telemetry source, call count, elapsed seconds, and—during waiting—executor-
+occupied seconds. Keep wall-clock wait separate from the time the executor is
+actually occupied polling. Parse every window timestamp and require
+`elapsedSeconds` to equal its exact duration. Treat windows as half-open
+intervals: touching boundaries are valid, but same-phase overlaps and any
+wait/execution overlap are invalid. Once accounting is finalized, reject every
+later usage event with `ACCOUNTING_ALREADY_FINALIZED`. Use
+`ACCOUNTING_WINDOW_OVERLAP`, `ACCOUNTING_PHASE_OVERLAP`, and
+`ACCOUNTING_ELAPSED_WINDOW_MISMATCH` for the corresponding invalid events. The
+exact token formula is
+`(wait_input_tokens + wait_output_tokens) / (execution_input_tokens + execution_output_tokens)`.
+Compute it only when both phases have complete exact runtime token counts, the
+metering domains are identical, and the execution denominator is positive.
+The byte fallback formula is
+`(wait_request_bytes + wait_response_bytes) / (execution_request_bytes + execution_response_bytes)`
+under the same completeness, comparability, and positive-denominator gates.
+Label that result transport volume only—not token, cost, quota, or intelligence
+accounting. Record unavailable, partial, incomparable-domain, and zero-
+denominator states explicitly rather than emitting a ratio.
+
+Large responses must be stored outside the active conversation context when
+practical and referenced by exact artifact identity and SHA-256.
+
+A temporary wait, browser timeout, or pending reasoning response is not a
+terminal user-facing handoff.
+
+Ending the owner-facing turn while an already-specified slice remains and no
+genuine owner decision is required is `EXECUTOR_CONTINUATION_DROPPED`, even if
+the preceding receipt and review packet were valid.
+
+Extra High and Pro do not boot a finished Codex turn. The current execution
+controller owns immediate handoff continuity; the target Mission Control runtime
+owns durable wake-up and resumption when the Codex process or turn is parked.
+
+If continued waiting is impossible, persist `HANDOFF_BLOCKED` with the exact
+request ID, blocker, retry schedule, lease owner, and owner-action state. Do not
+silently stop or require the owner to rediscover the stalled frontier.
+
+Pause the substantive task only for a genuine owner/source decision,
+unavailable permission or credential, destructive or irreversible action,
+spending, publication, explicit stop, or a durably recorded unavailable
+reasoning surface. Continue unrelated safe work when it cannot contaminate the
+pending decision.
+
+Every non-reasoning wait also requires a scoped applicable blocker or exact
+reasoning-request identity, a causal dependency, an exact condition capable of
+changing, the actor or mechanism that can change it, a bounded horizon, and a
+truthful state when that horizon expires. `wait for GitHub to update`, `wait for
+CI`, or `wait for owner` is invalid without those identities. If no actor or
+mechanism can change the condition, polling is prohibited.
+
+A blocker-backed wait must match the exact blocker unblock-event identity, source, expected state, actor/mechanism, and causal capability or operation. An owner-decision wait additionally binds the exact decision ID and required action. A reasoning-review wait must match a live `EXECUTOR-REASONING-HANDOFF` record; a request ID alone is insufficient. Parse `waitStartedAt` and `nextCheckAt`, require the next check after the start and inside the declared horizon, and require the lease to cover wait start, next check, and the full declared horizon. A later period requires an accepted durable transfer or renewal bound to the exact prior lease and controller identities. Allow only an explicit nonterminal horizon-expiry state.
 
 ## 12. Mission Control-specific executors
 
@@ -451,6 +566,18 @@ At the next safe boundary, every current Codex session must record:
 - exact execution performed and evidence produced;
 - whether Codex previously made unauthorized strategic, editorial, scientific, product, progress, supervision, or completion decisions;
 - `SUPERVISION_DIRECTIVE_MISSING` when no valid directive exists;
-- stop trigger reached and exact packet for the reasoning chat.
+- stop trigger reached and exact packet for the reasoning chat;
+- handoff ID and current handoff-lease owner;
+- reasoning-review request ID and idempotency key;
+- request submission and delivery-confirmation evidence;
+- current handoff state;
+- last compact poll state and timestamp;
+- response ID, artifact reference and SHA-256 when ready;
+- response import/application identity;
+- next directive ID and validation result;
+- automatic-resume timestamp;
+- `EXECUTOR_HANDOFF_DROPPED`, `REASONING_RESPONSE_NOT_AWAITED`, `DUPLICATE_REASONING_REQUEST`, or `HANDOFF_BLOCKED` when applicable.
+- `EXECUTOR_CONTINUATION_DROPPED` when a receipt or slice boundary was treated
+  as task completion despite remaining already-authorized work.
 
 Do not discard valid work. Reclassify it as execution evidence or supporting work and let the reasoning chat decide its meaning.

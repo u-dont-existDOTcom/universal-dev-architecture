@@ -4,8 +4,10 @@
   "title": "Replace with the exact owner-authorized contribution",
   "status": "active",
   "exclusive": true,
+  "activeTaskRef": "path/to/active-task.json",
   "repository": "owner/repository",
   "requiredBranch": "agent/replace-with-task-branch",
+  "requiredRef": "refs/heads/agent/replace-with-task-branch",
   "pullRequest": null,
   "ownerAuthorized": true,
   "ownerSource": {
@@ -15,7 +17,38 @@
     "sha256": "replace-with-owner-source-sha256",
     "independentReceiptId": "replace-with-owner-source-receipt-id",
     "independentReceiptStatus": "SOURCE_UNAVAILABLE",
-    "appendOnlyCorrectionIds": []
+    "appendOnlyCorrectionIds": [],
+    "currentAuthorityProjection": {
+      "sourceRecordId": "replace-with-owner-request-or-correction-id",
+      "sourceKind": "OWNER_REQUEST",
+      "relation": "ROOT",
+      "instructionClass": "CONTINUE",
+      "ownerRequestId": "replace-with-owner-request-id",
+      "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+      "capturedAt": "1970-01-01T00:00:00Z",
+      "sha256": "replace-with-owner-source-sha256",
+      "effectiveEpoch": 1,
+      "taskId": "replace-with-stable-task-id",
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "ownerOutcomeSha256": "replace-with-owner-outcome-sha256",
+      "independentReceiptId": "replace-with-current-owner-source-receipt-id",
+      "independentReceiptStatus": "SOURCE_UNAVAILABLE"
+    },
+    "currentAuthorityReceipt": {
+      "receiptId": "replace-with-current-owner-source-receipt-id",
+      "sourceRecordId": "replace-with-owner-request-or-correction-id",
+      "sourceSha256": "replace-with-owner-source-sha256",
+      "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+      "capturedAt": "1970-01-01T00:00:00Z",
+      "taskId": "replace-with-stable-task-id",
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "ownerOutcomeEpoch": 1,
+      "ownerOutcomeSha256": "replace-with-owner-outcome-sha256",
+      "collector": "mission-control-or-deterministic-tool-or-extra-high-reader",
+      "capability": "INDEPENDENT_OWNER_SOURCE_RECEIPT",
+      "status": "SOURCE_UNAVAILABLE",
+      "limitations": []
+    }
   },
   "ownerOutcome": {
     "ownerOutcomeId": "replace-with-owner-outcome-id",
@@ -79,6 +112,70 @@
     "reconciledAt": null
   },
   "nextReconciliationTrigger": "TASK_START",
+  "taskLocalCheckpoint": {
+    "ref": "path/to/task-local-current-state",
+    "sourcePath": "path/to/task-local-current-state",
+    "gitRef": "refs/heads/agent/replace-with-task-branch",
+    "gitObjectId": "replace-with-exact-commit-or-blob-identity",
+    "contentSha256": "replace-with-task-local-content-sha256",
+    "taskId": "replace-with-stable-task-id",
+    "branch": "agent/replace-with-task-branch",
+    "observedAt": "1970-01-01T00:00:00Z",
+    "ownerOutcome": {
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "epoch": 1,
+      "sha256": "replace-with-owner-outcome-sha256"
+    }
+  },
+  "authorityResolution": {
+    "status": "UNRESOLVED",
+    "repositoryGlobalStateRef": "path/to/repository-global-current-state",
+    "repositoryGlobalStateObservedAt": "1970-01-01T00:00:00Z",
+    "globalStateRelation": "AMBIGUOUS",
+    "selectedExecutionSource": "NONE",
+    "substantiveExecutionAuthorized": false,
+    "reasoningReviewRequired": true,
+    "activeBlockerRefs": [],
+    "ignoredOrUnrelatedBlockerRefs": [],
+    "independentOfBlockerIds": [],
+    "suspendedCompetingSourceRefs": [],
+    "allowedStatuses": [
+      "UNRESOLVED",
+      "VALID",
+      "INVALID",
+      "AMBIGUOUS"
+    ],
+    "allowedGlobalStateRelations": [
+      "CURRENT_AND_APPLICABLE",
+      "CURRENT_BUT_UNRELATED",
+      "STALE_BUT_APPLICABLE_REVALIDATION_REQUIRED",
+      "STALE_AND_UNRELATED",
+      "AMBIGUOUS"
+    ]
+  },
+  "executionFrontier": {
+    "state": "WORKING",
+    "requiredAction": "replace-with-current-chat-authored-action",
+    "operation": "LOCAL_DEVELOPMENT",
+    "requiredCapabilityIds": [],
+    "strategyFamilyId": null,
+    "directiveId": null,
+    "permittedActionClasses": [
+      "SUBSTANTIVE_EXECUTION"
+    ],
+    "authorization": "REASONING_REVIEW_REQUIRED",
+    "blockedCapabilityIds": [],
+    "blockingBlockerIds": [],
+    "independentFrontiersAllowed": false,
+    "allowedAuthorizationStates": [
+      "AUTHORIZED",
+      "BLOCKED_BY_APPLICABLE_BLOCKER",
+      "BLOCKER_REVALIDATION_REQUIRED",
+      "REASONING_REVIEW_REQUIRED",
+      "INVALID_AUTHORITY"
+    ]
+  },
+  "waitAdmissionRef": null,
   "suspendedTaskSources": [
     "old conversation objectives that conflict with the current owner-outcome epoch",
     "unrelated worktree handoffs",

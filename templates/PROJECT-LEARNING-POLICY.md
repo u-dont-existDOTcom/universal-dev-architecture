@@ -8,6 +8,18 @@ GitHub is the canonical durable store for project lessons and project continuity
 
 At the start of substantive work, read the project's current lesson index first. Follow its current read order, authority rules, and branch/evidence routing rather than relying on remembered file names.
 
+## Task-time lesson activation gate
+
+**Lesson capture is not lesson application.** For substantive tasks, apply `patterns/task-time-lesson-activation.md` after loading current authority and lesson indexes.
+
+Before the first substantive attempt, compile only the materially relevant current lessons into a small Active Lesson Contract. For each active lesson record its trigger, required behavior, observable failure condition, repair action, and whether enforcement is mechanical, semantic, or owner-evaluated. Prefer current owner/task-local lessons over broader generic lessons on conflict.
+
+Immediately before consequential execution or owner-facing substantive delivery, run the contract against the literal work. Every active lesson must produce `PASS` with specific evidence, a genuinely justified `NOT_APPLICABLE`, or `FAIL`. A substantive `FAIL` blocks delivery/action until repaired and rechecked. `I read the lesson`, `the prompt included it`, or `I kept it in mind` is not evidence of application.
+
+Direct owner corrections make the active contract stale until the correction is persisted and activated for the next attempt. Keep the active set small enough to remain cognitively live; do not dump the entire historical lesson corpus into every task.
+
+Where the project separates reasoning from execution, the reasoning/writing Chat owns semantic lesson activation and owner interaction. Codex/execution workers enforce mechanical rules and implement already-decided actions; they do not become the semantic/editorial judge merely because they can modify the repository.
+
 ## Codex and GitHub operating baseline
 
 Classify the repository with `.github/codex-repository.json` and apply the risk-adjusted requirements in `patterns/codex-github-operating-system.md`. The root `AGENTS.md` must name the real authority/index files and exact commands rather than copying a stale universal snapshot.

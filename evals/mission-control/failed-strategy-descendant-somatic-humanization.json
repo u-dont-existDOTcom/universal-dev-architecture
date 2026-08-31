@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "failed-strategy-descendant-somatic-humanization",
+  "purpose": "Verify that a failed strategy cannot be revived as a nominally new family through conversational surface changes, fresh context, or relabeling.",
+  "sourceIncident": {
+    "repository": "u-dont-existDOTcom/joel-articles",
+    "taskId": "somatic-r15-clean-continuation-20260830",
+    "pullRequest": 73,
+    "date": "2026-08-31"
+  },
+  "ownerOutcome": {
+    "ownerOutcomeId": "OR-SOMATIC-HUMANIZATION-20260830",
+    "rootMetric": "whole-document Pangram 4.0 Human fraction",
+    "target": 1.0
+  },
+  "failedFamily": {
+    "familyId": "SOMATIC-HUMANIZATION-DIRECT-PARAPHRASE-CONVERSATIONALIZATION",
+    "state": "FAILED",
+    "failureEvidence": [
+      "Owner previously rejected a direct paraphrase/conversationalization candidate because plainer and first-person wording preserved predictable model thought rhythm.",
+      "Whole-document model-led repair strategies had already regressed the direct Human metric from the clean R15 baseline.",
+      "Later reasoning regenerated contractions, first-person/conversational substitutions, local cold passes, and largely preserved conceptual structure.",
+      "Owner detected that some apparent Human quality came from owner-verbatim text rather than the AI-target repair."
+    ],
+    "causalFailureHypothesis": "Keeping the model-written realization as the generation scaffold preserves its conceptual cards, ordering, symmetry, and explanatory rhythm even when vocabulary and tone are changed.",
+    "forbiddenDescendantPredicates": [
+      "original AI prose remains the primary generation scaffold",
+      "source conceptual-card ordering is retained by default",
+      "primary claimed improvement mechanism is conversational surface substitution",
+      "owner-authored Human text is blended into evaluation without provenance accounting"
+    ],
+    "knownNonNovelChanges": [
+      "contractions",
+      "first-person conversion",
+      "synonym replacement",
+      "sentence-length variation",
+      "generic conversational transitions",
+      "fresh chat alone",
+      "strategy rename"
+    ],
+    "reenableConditions": [
+      "new evidence falsifies the recorded causal failure hypothesis",
+      "or a materially different mechanism demonstrably removes the implicated scaffold relationship"
+    ]
+  },
+  "proposedStrategy": {
+    "strategyId": "somatic-introduction-cold-humanization-v2",
+    "claimedFamilyId": "SOMATIC-HUMANIZATION-COLD-CONVERSATIONAL-REWRITE-V2",
+    "plannerClaim": "materially more human while recognizably the same section",
+    "fingerprint": {
+      "inputRepresentation": "original mixed R15 Introduction prose visible during rewrite",
+      "informationExposure": "writer has source prose and prior humanization guidance in the same reasoning context",
+      "actionMechanism": "rewrite sentences into contractions, first-person/conversational wording, shorten explanations, vary local cadence",
+      "iterationGranularity": "paragraph and sentence cold passes",
+      "optimizationSignal": "subjective human-likeness before Pangram",
+      "rootOutcomeRelationship": "assumes conversational local improvements will raise Human detector score while preserving meaning",
+      "feedbackLoop": "self-review then owner/Pangram test",
+      "artifactArchitecturePolicy": "retain most source conceptual sequence and paragraph functions",
+      "validationTopology": "same reasoning context generates and self-assesses before owner review",
+      "resourcePattern": "one candidate followed by external detector if accepted"
+    }
+  },
+  "expectedLineageComparison": {
+    "sharedDimensions": [
+      "original prose is the main scaffold",
+      "same conceptual sequence is largely retained",
+      "conversational surface substitution is the primary mechanism",
+      "same context performs generation and initial novelty assessment"
+    ],
+    "changedDimensions": [
+      "different exact wording",
+      "different strategy label",
+      "some local cadence and transition changes"
+    ],
+    "whyChangedDimensionsAreNotCausal": "They do not alter the scaffold, root causal hypothesis, or generator/validator topology implicated by the recorded failure.",
+    "negativeEvidenceEscaped": "NONE"
+  },
+  "recurrence": {
+    "recurrenceTriggered": true,
+    "triggerReasons": [
+      "owner identified regeneration of the known failed mechanism",
+      "planner had prior negative evidence available",
+      "planner nevertheless assessed the descendant as a meaningful fix"
+    ],
+    "independentLineageReviewRequired": true
+  },
+  "expected": {
+    "lineageVerdict": "DESCENDANT_OF_FAILED_FAMILY",
+    "nearestFailedAncestorFamilyId": "SOMATIC-HUMANIZATION-DIRECT-PARAPHRASE-CONVERSATIONALIZATION",
+    "strategyAuthorizationEffect": "NO_VALID_STRATEGY",
+    "substantiveExecutionAllowed": false,
+    "paidDetectorAllowed": false,
+    "candidatePromotionAllowed": false,
+    "taskTerminal": false,
+    "ownerActionRequired": false,
+    "requiredAlerts": [
+      "FAILED_STRATEGY_DESCENDANT",
+      "LINEAGE_REVIEW_REQUIRED"
+    ],
+    "requiredNextReasoning": "Construct a causally different strategy and pass independent lineage adjudication before another substantive execution cycle."
+  },
+  "antiCheatAssertions": [
+    "Changing strategyId or familyId alone must not alter the expected verdict.",
+    "A fresh chat alone must not alter the expected verdict.",
+    "A higher subjective prose-quality assessment must not alter the expected verdict.",
+    "Owner-authored unchanged spans must not count as evidence that the AI-target transformation succeeded.",
+    "Codex must not authoritatively change the lineage verdict to NEW_FAMILY."
+  ]
+}
