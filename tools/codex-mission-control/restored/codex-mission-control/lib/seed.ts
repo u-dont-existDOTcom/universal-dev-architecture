@@ -169,6 +169,7 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
       omitted_owner_outcome_ids: seed.omitted ?? [],
       weakened_owner_outcome_ids: seed.weakened ?? [],
       proxy_substitutions: seed.proxies ?? [],
+      unsupported_added_constraints: [],
       authorized_scope_changes: [],
       parent_outcome_remains_open: true,
     },

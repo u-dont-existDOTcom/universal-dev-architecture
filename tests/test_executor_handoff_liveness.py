@@ -962,6 +962,53 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertIn("EXECUTOR_CONTINUATION_DROPPED", bootstrap)
         self.assertIn("separate owner prompt", bootstrap)
 
+    def test_33_derived_contracts_cannot_invent_owner_governance(self) -> None:
+        bootstrap = (
+            ROOT / "templates" / "CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md"
+        ).read_text()
+        migration = (
+            ROOT
+            / "docs"
+            / "exec-plans"
+            / "2026-08-31-current-workers-chat-supervisor-migration-instruction.md"
+        ).read_text()
+        schema = (
+            ROOT
+            / "tools"
+            / "codex-mission-control"
+            / "restored"
+            / "codex-mission-control"
+            / "lib"
+            / "schema.ts"
+        ).read_text()
+        comparator = (
+            ROOT
+            / "tools"
+            / "codex-mission-control"
+            / "restored"
+            / "codex-mission-control"
+            / "lib"
+            / "terminal-comparator.ts"
+        ).read_text()
+        packet_path = (
+            ROOT
+            / "feedback"
+            / "mission-control"
+            / "SDF-20260831-UNSOURCED-GOVERNANCE-001.json"
+        )
+        packet = json.loads(packet_path.read_text())
+
+        for source in (bootstrap, migration):
+            self.assertRegex(source, r"(?i)operating model")
+            self.assertRegex(source, r"(?i)owner source")
+            self.assertRegex(source, r"(?i)unsupported")
+        self.assertIn("unsupported_added_constraints", schema)
+        self.assertIn("unsupported_added_constraints", comparator)
+        self.assertIn("UNSUPPORTED_CONSTRAINT_ADDITION", comparator)
+        self.assertEqual(packet["category"], "UNSOURCED_GOVERNANCE_ADDITION")
+        self.assertEqual(packet["status"], "PENDING_PRO_META_REVIEW")
+        self.assertIn("invite-only pilot", packet["exactIssue"])
+
 
 if __name__ == "__main__":
     unittest.main()

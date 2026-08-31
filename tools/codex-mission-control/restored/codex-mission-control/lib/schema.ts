@@ -317,6 +317,7 @@ export const taskContractRecordedSchema = z.object({
   omitted_owner_outcome_ids: z.array(StableId).default([]),
   weakened_owner_outcome_ids: z.array(StableId).default([]),
   proxy_substitutions: z.array(NonEmpty).default([]),
+  unsupported_added_constraints: z.array(NonEmpty).default([]),
   authorized_scope_changes: z.array(NonEmpty).default([]),
   parent_outcome_remains_open: z.boolean(),
 });

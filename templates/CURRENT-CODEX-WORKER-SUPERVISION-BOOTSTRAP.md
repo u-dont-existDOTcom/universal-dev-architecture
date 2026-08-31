@@ -20,7 +20,7 @@ At the next safe execution boundary:
 8. Compare the current task contract and proposed terminal state against the owner outcome.
 9. Preserve useful supporting work, but reopen any required outcome omitted or replaced by a proxy.
 
-A derived task contract may refine or decompose the owner outcome. It may not weaken, omit, replace, or terminally bypass it without an explicit owner decision.
+A derived task contract may refine or decompose the owner outcome. It may not weaken, omit, replace, or terminally bypass it without an explicit owner decision. It also may not add an operating model, launch gate, staffing requirement, institutional process, approval regime, or other material constraint and then attribute that addition to the owner without an independently traceable owner source. Safety, privacy, legal, and release requirements may constrain the affected handling or release surface, but they do not by themselves authorize inventing a broader product strategy or organization. Record every material added constraint as owner-sourced, externally mandatory with its exact authority, or unsupported; any unsupported addition makes contract-to-owner alignment `DIVERGED` until removed or authorized.
 
 For an active task, resolve execution authority before consuming a repository-global execution status. The fixed order is:
 

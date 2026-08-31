@@ -2,6 +2,23 @@
 
 Updated: 2026-08-31T05:06:28Z
 
+## 2026-08-31 queued-continuation and unsourced-governance hotfix
+
+- The queued-slice continuation hotfix remains open in PR #46. A receipt/reasoning
+  boundary is nonterminal and controller-owned; it may not require the owner to
+  send `continue` when later authorized work is already known.
+- AskRigor exposed a second controller defect: a chat-authored directive invented
+  an invite-only pilot and consolidated institutional/staffing gate without an
+  independently traceable owner source, then the worker reported that gate as
+  owner-required. The exact causal packet is
+  `feedback/mission-control/SDF-20260831-UNSOURCED-GOVERNANCE-001.json`.
+- Task contracts now record `unsupported_added_constraints`. Any nonempty value
+  makes contract-to-owner `DIVERGED`, overall traffic RED, and root
+  terminalization unavailable even when worker-to-contract remains GREEN.
+- The focused Mission Control suite passes 74/74; typecheck passes after Next
+  generates its route types; the production build and restored archive equality
+  pass. The overall Mission Control parent outcome remains open.
+
 - Reused baseline: PR #41 source at `744c47745c32e6fce440df7739f48c9a59020832`; the dashboard was adapted in place rather than rebuilt.
 - Current branch: `task/mission-control-dashboard-adaptation-20260830`.
 - Current owner source: `OWNER-REQUEST.md` SHA-256 `b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef`.

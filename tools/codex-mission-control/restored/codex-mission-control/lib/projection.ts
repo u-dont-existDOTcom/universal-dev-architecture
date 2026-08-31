@@ -811,6 +811,9 @@ function primaryFindingEvent(events: StoredEvent[], findingId?: string) {
 }
 
 function contractProblem(comparison: TerminalComparison): string | null {
+  if (comparison.reasonCodes.includes("UNSUPPORTED_CONSTRAINT_ADDITION")) {
+    return "The derived contract added a material gate or operating constraint that is not supported by the independent owner source.";
+  }
   if (comparison.contractToOwnerAlignment === "DIVERGED") return "The worker may be following a derived contract that does not preserve the current owner outcome.";
   if (comparison.contractToOwnerAlignment === "SOURCE_MISSING") return "Independent owner-source authority is missing, so root completion cannot be evaluated.";
   if (comparison.contractToOwnerAlignment === "PARTIAL") return "Owner-source or reconciliation evidence is incomplete or stale.";

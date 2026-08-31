@@ -133,11 +133,13 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   const reasonCodes: string[] = [];
   const requiredOutcomeIds = new Set(outcome?.required_outcomes.map((item) => item.id) ?? []);
   const reconciliationRows = new Map(reconciliation?.matrix.map((row) => [row.owner_requirement_id, row]) ?? []);
+  const unsupportedAddedConstraints = contract?.unsupported_added_constraints ?? [];
   const contractDiverged = Boolean(
     contract && (
       contract.omitted_owner_outcome_ids.length
       || contract.weakened_owner_outcome_ids.length
       || contract.proxy_substitutions.length
+      || unsupportedAddedConstraints.length
     )
   ) || Boolean(reconciliation?.matrix.some((row) => ["UNMAPPED", "WEAKENED", "PROXY_SUBSTITUTED", "AMBIGUOUS"].includes(row.status)))
     || Boolean(outcome && [...requiredOutcomeIds].some((id) => !reconciliationRows.has(id)));
@@ -236,6 +238,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     reasonCodes.push("CONTRACT_LAUNDERING");
     if (contract?.omitted_owner_outcome_ids.length) reasonCodes.push("SCOPE_CONTRACTION", "OBJECTIVE_SUBSTITUTION");
     if (contract?.proxy_substitutions.length) reasonCodes.push("PROXY_SUBSTITUTION", "COMPLETION_ILLUSION");
+    if (unsupportedAddedConstraints.length) reasonCodes.push("UNSUPPORTED_CONSTRAINT_ADDITION");
   }
   if (reconciliation?.freshness === "STALE") reasonCodes.push("RECONCILIATION_STALE");
   if (ownerOutcomeStatus === "UNMET") reasonCodes.push("OWNER_OUTCOME_UNMET");

@@ -111,6 +111,8 @@ Substantive Codex execution is also independently supervised: a current reasonin
 
 A pending review is nonterminal. Mission Control projects it as a controller-owned route/await/resume handoff, never as a stopped task or a request for the owner to send `continue`. The dashboard remains observational—it does not dispatch or resume workers—but it requires the owning controller to keep the receipt handoff live and resume the next already-specified slice after the matching reasoning directive arrives.
 
+Derived contracts must also disclose `unsupported_added_constraints`. This covers a material gate, staffing rule, institutional process, approval regime, or other operating constraint that was added by a controller but cannot be traced to the owner source or an exact external authority. A nonempty list makes contract-to-owner alignment `DIVERGED` and the root RED even when the worker is GREEN against that contract. Safety and privacy controls can still constrain the affected handling surface; they do not become owner-requested product strategy through inference.
+
 Legacy PR #41 events remain decodable and migrate without being reinterpreted as current owner authority. Legacy completion remains nonterminal until independently sourced owner outcome and reconciliation exist.
 
 ## Correction and owner-action invariants

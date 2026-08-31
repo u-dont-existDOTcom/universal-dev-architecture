@@ -702,6 +702,25 @@ test("the 13.82 percent contract-laundering fixture preserves worker GREEN and m
   assert.equal(worker.correction.directiveKind, "CONTRACT_REPAIR");
 });
 
+test("an unsupported institutional gate cannot remain aligned with the owner", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  replaceLatest(events, "task_contract_recorded", (contract) => ({
+    ...contract,
+    unsupported_added_constraints: [
+      "Require an invite-only pilot and a consolidated staffing gate before allowing the owner-requested public form.",
+    ],
+  }));
+  const comparison = compareTerminalState(events);
+  const worker = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(comparison.workerToContractAlignment, "GREEN");
+  assert.equal(comparison.contractToOwnerAlignment, "DIVERGED");
+  assert.equal(comparison.contractStatus, "CONTRACT_LAUNDERING");
+  assert.equal(comparison.overallTraffic, "RED");
+  assert.equal(comparison.rootTerminalizationAllowed, false);
+  assert.ok(comparison.reasonCodes.includes("UNSUPPORTED_CONSTRAINT_ADDITION"));
+  assert.match(worker.primaryProblemSummary ?? "", /added a material gate.*not supported by the independent owner source/i);
+});
+
 test("an honest completed subtask can close while its parent outcome remains open", () => {
   const events = cloneEvents(workerEvents("auth"));
   replaceLatest(events, "completion_claim_recorded", (claim) => ({

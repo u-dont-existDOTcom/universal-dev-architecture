@@ -60,7 +60,7 @@ Finding state changes are evidence-gated. Bare terminal assertions, unrelated re
 
 ## Terminal comparator
 
-The comparator directly checks the latest owner outcome rather than trusting completion labels. Root achievement needs current exact-candidate independent receipts mapped into both required owner outcomes and reconciliation, no open gap or blocking finding, and a fresh supervisor authority-vector review. Root cancellation and authorized owner changes require exact durable owner decisions.
+The comparator directly checks the latest owner outcome rather than trusting completion labels. Root achievement needs current exact-candidate independent receipts mapped into both required owner outcomes and reconciliation, no open gap or blocking finding, and a fresh supervisor authority-vector review. Root cancellation and authorized owner changes require exact durable owner decisions. A task contract also records any unsupported material constraint it adds beyond the owner source. A nonempty list is contract laundering: contract-to-owner becomes `DIVERGED`, overall traffic becomes RED, and the projection explains that the derived contract invented a gate rather than merely narrowing or proxying an existing outcome.
 
 Numeric progress is also derived rather than trusted. Every numeric receipt declares whether higher or lower is better and stores exact baseline/previous/current deltas. Inconsistent bytes are rejected; projection independently recalculates the effective advancement, strategy efficacy, and same-strategy hold so a hostile `ADVANCING`/`VIABLE` label cannot create GREEN.
 
