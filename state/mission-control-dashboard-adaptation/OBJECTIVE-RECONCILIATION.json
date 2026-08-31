@@ -43,7 +43,7 @@
       "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
       "reconciliationId": "mc-recon-20260830-gap-audit-r1"
     },
-    "currentGap": "Revision-3 repairs and exact-width evidence are implemented in the bounded working tree and remain nonterminal pending an execution-only receipt and fresh independent Extra High review.",
+    "currentGap": "Revision-3 repairs and exact-width evidence are implemented at e291a59cee5f61a7d17238be95291d10ef9b5314 and remain nonterminal pending a fresh independent Extra High review of the execution-only receipt.",
     "unmetOutcomes": [
       "exact current-owner-outcome binding for reasoning authority, directives, and progress",
       "fail-closed qualitative advancement backed by durable direct or validated-leading-indicator evidence",
@@ -135,10 +135,11 @@
   "completionClaim": {
     "type": "WORKING",
     "proposedTerminal": false,
-    "candidateRef": "WORKTREE_REVISION_003_PENDING_RECEIPT",
+    "candidateRef": "e291a59cee5f61a7d17238be95291d10ef9b5314",
     "evidenceRefs": [
       "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-002.json",
       "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-003.json",
       "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json"
     ]
   },

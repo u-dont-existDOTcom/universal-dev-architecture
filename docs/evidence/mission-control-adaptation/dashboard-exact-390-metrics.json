@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
-  "captured_at": "2026-08-31T04:02:33Z",
+  "captured_at": "2026-08-31T04:13:22Z",
   "source_base_head": "37d0723ba09d7c8394dd37b75db324c4f696ef11",
+  "source_candidate_commit": "e291a59cee5f61a7d17238be95291d10ef9b5314",
   "runtime": "rebuilt production Mission Control stack with a fresh deterministic fixture database",
   "viewport": {
     "window_inner_width": 390,
@@ -12,6 +13,15 @@
     "document_element_scroll_width": 390,
     "body_client_width": 390,
     "body_scroll_width": 390,
+    "horizontal_overflow": false
+  },
+  "desktop_viewport": {
+    "window_inner_width": 1440,
+    "window_inner_height": 1000,
+    "device_pixel_ratio": 0.75,
+    "document_element_client_width": 1420,
+    "document_element_scroll_width": 1420,
+    "body_scroll_width": 1420,
     "horizontal_overflow": false
   },
   "content_checks": {
@@ -41,6 +51,18 @@
       "sha256": "81f7ab6d4982e63fd412467f601a9086cf9c714e51f38f887974f497ffd42dbe",
       "dimensions": "390x844",
       "scope": "actual healthy Auth card from the same runtime and viewport; sibling sections were hidden only in the browser capture surface to avoid a long-page compositor failure, then the temporary style was removed and the capture tab was closed"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-queue-current-1440-css.jpg",
+      "sha256": "87e94abdca823ed3ebff73a0c11ef39f08afeba7eb2f147ef51a80c3470bd1fc",
+      "dimensions": "1893x1333 physical pixels at 1440x1000 CSS pixels",
+      "scope": "unmodified default desktop queue at page top"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-healthy-auth-current-1440-css.jpg",
+      "sha256": "2b657750360ab25724dc6b407cb675412f98a7931fd2b71f4753e25eb09a5279",
+      "dimensions": "1920x1333 physical pixels at 1440x1000 CSS pixels",
+      "scope": "actual healthy Auth card from the same desktop runtime; sibling sections were hidden only in the browser capture surface, then the temporary style was removed and the capture tab was closed"
     }
   ]
 }
