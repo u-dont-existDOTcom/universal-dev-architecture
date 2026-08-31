@@ -66,11 +66,13 @@
     "reviewPriority": "BATCH",
     "sharedProScopeKey": "supervision-architecture/2026-08-31"
   },
-  "status": "CORRECTIONS_IMPLEMENTED_PENDING_PRO_META_REVIEW",
+  "status": "SECOND_CORRECTIONS_IMPLEMENTED_PENDING_PRO_META_REVIEW",
   "proMetaReview": {
     "verdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
     "disposition": "CORRECTIONS_REQUIRED",
     "receivedAt": "2026-08-31T04:11:00Z",
+    "latestVerdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001-CORRECTIONS-001",
+    "latestDisposition": "BOUNDED_SECOND_CORRECTIONS_REQUIRED",
     "activeSomaticLoopBlocked": false
   },
   "ownerDecisionRef": "owner-directive-2026-08-31-add-wait-versus-work-accounting",
@@ -89,6 +91,11 @@
     "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_23_incomparable_metering_domains_emit_no_resource_ratios",
     "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_24_zero_execution_denominators_emit_no_ratio",
     "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_25_usage_events_and_finalization_are_idempotent",
-    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_26_owner_source_receipt_is_exactly_bound"
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_26_owner_source_receipt_is_exactly_bound",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_27_one_hundred_polls_accumulate_exact_wait_transport_without_projection_growth",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_28_usage_after_finalization_is_rejected_without_changing_liveness",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_29_same_phase_overlapping_windows_are_rejected",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_30_wait_execution_overlap_is_rejected_but_touching_boundaries_are_valid",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_31_elapsed_seconds_must_match_exact_window_duration"
   ]
 }
