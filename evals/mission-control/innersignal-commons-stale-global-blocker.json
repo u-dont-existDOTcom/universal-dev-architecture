@@ -6,6 +6,7 @@
     "taskId": "opt-in-community-mvp-20260830",
     "status": "active",
     "exclusive": true,
+    "activeTaskRef": "evals/mission-control/innersignal-commons-stale-global-blocker.json#activeTask",
     "requiredBranch": "design/opt-in-community-learning-20260830",
     "requiredRef": "refs/heads/design/opt-in-community-learning-20260830",
     "ownerSource": {
@@ -31,6 +32,21 @@
         "ownerOutcomeSha256": "d0e4a8e35e78597921d6791d44247b2d78ebcbaf572537322c220ced3701f07a",
         "independentReceiptId": "osr-innersignal-pr15-current-owner",
         "independentReceiptStatus": "MATCH"
+      },
+      "currentAuthorityReceipt": {
+        "receiptId": "osr-innersignal-pr15-current-owner",
+        "sourceRecordId": "innersignal-owner-pr15-continuation",
+        "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "canonicalLocator": "owner-chat:innersignal-pr15-current-instruction",
+        "capturedAt": "2026-08-31T08:55:00Z",
+        "taskId": "opt-in-community-mvp-20260830",
+        "ownerOutcomeId": "innersignal-opt-in-community-mvp",
+        "ownerOutcomeEpoch": 1,
+        "ownerOutcomeSha256": "d0e4a8e35e78597921d6791d44247b2d78ebcbaf572537322c220ced3701f07a",
+        "collector": "mission-control",
+        "capability": "INDEPENDENT_OWNER_SOURCE_RECEIPT",
+        "status": "MATCH",
+        "limitations": []
       }
     },
     "ownerOutcome": {
@@ -66,7 +82,10 @@
         "privacy-security-product-review"
       ],
       "strategyFamilyId": "community-mvp-review",
-      "directiveId": "ctc-innersignal-pr15-review"
+      "directiveId": "ctc-innersignal-pr15-review",
+      "permittedActionClasses": [
+        "REASONING_HANDOFF"
+      ]
     }
   },
   "currentOwnerSource": {
@@ -84,6 +103,21 @@
     "ownerOutcomeSha256": "d0e4a8e35e78597921d6791d44247b2d78ebcbaf572537322c220ced3701f07a",
     "independentReceiptId": "osr-innersignal-pr15-current-owner",
     "independentReceiptStatus": "MATCH"
+  },
+  "currentOwnerSourceReceipt": {
+    "receiptId": "osr-innersignal-pr15-current-owner",
+    "sourceRecordId": "innersignal-owner-pr15-continuation",
+    "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "canonicalLocator": "owner-chat:innersignal-pr15-current-instruction",
+    "capturedAt": "2026-08-31T08:55:00Z",
+    "taskId": "opt-in-community-mvp-20260830",
+    "ownerOutcomeId": "innersignal-opt-in-community-mvp",
+    "ownerOutcomeEpoch": 1,
+    "ownerOutcomeSha256": "d0e4a8e35e78597921d6791d44247b2d78ebcbaf572537322c220ced3701f07a",
+    "collector": "mission-control",
+    "capability": "INDEPENDENT_OWNER_SOURCE_RECEIPT",
+    "status": "MATCH",
+    "limitations": []
   },
   "taskLocalState": {
     "taskId": "opt-in-community-mvp-20260830",
@@ -241,7 +275,8 @@
     "unrelatedWorkAllowed": true,
     "requiredAction": "ROUTE_CURRENT_TASK_EVIDENCE_TO_REASONING_CHAT",
     "frontierAuthorization": "AUTHORIZED",
-    "substantiveExecutionAuthorized": true,
+    "permittedActionClass": "REASONING_HANDOFF",
+    "substantiveExecutionAuthorized": false,
     "requiredAlerts": [
       "STALE_GLOBAL_BLOCKER_INHERITED",
       "CROSS_TASK_BLOCKER_LEAKAGE",

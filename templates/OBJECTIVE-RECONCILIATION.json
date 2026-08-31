@@ -14,8 +14,17 @@
   },
   "independentSupervisorReceipt": {
     "receiptId": "replace-with-owner-source-receipt-id",
+    "sourceRecordId": "replace-with-owner-request-or-correction-id",
     "collector": "mission-control",
+    "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+    "capturedAt": "1970-01-01T00:00:00Z",
     "sourceSha256": "replace-with-owner-source-sha256",
+    "taskId": "replace-with-task-id",
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "ownerOutcomeEpoch": 1,
+    "ownerOutcomeSha256": "replace-with-owner-outcome-sha256",
+    "capability": "INDEPENDENT_OWNER_SOURCE_RECEIPT",
+    "status": "SOURCE_UNAVAILABLE",
     "workerSuppliedCopySha256": null,
     "comparison": "WORKER_COPY_ABSENT",
     "limitations": []

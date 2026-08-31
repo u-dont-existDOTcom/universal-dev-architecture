@@ -13,6 +13,9 @@ from scripts.active_task_authority import (
     validate_wait_admission,
 )
 from scripts.executor_handoff_state import HandoffValidationError, validate_directive
+from scripts.executor_handoff_state import (
+    authorize_directive_against_authority_resolution,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +38,9 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         self.task_state = copy.deepcopy(self.fixture["taskLocalState"])
         self.global_state = copy.deepcopy(self.fixture["repositoryGlobalState"])
         self.unrelated = copy.deepcopy(self.fixture["blockers"][0])
+        self.owner_receipt = copy.deepcopy(
+            self.fixture["currentOwnerSourceReceipt"]
+        )
 
     def applicable_blocker(
         self,
@@ -143,8 +149,11 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             )
         )
         directive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
+        directive["taskId"] = self.active["taskId"]
+        directive["ownerOutcome"] = copy.deepcopy(self.active["ownerOutcome"])
         directive["authorityContext"].update(
             {
+                "activeTaskRef": self.active["activeTaskRef"],
                 "taskLocalCheckpointGitRef": self.active["taskLocalCheckpoint"][
                     "gitRef"
                 ],
@@ -160,11 +169,13 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
                 "currentOwnerSourceReceiptId": self.active["ownerSource"][
                     "currentAuthorityProjection"
                 ]["independentReceiptId"],
+                "ownerOutcomeSha256": self.active["ownerOutcome"]["sha256"],
                 "authorityResolutionStatus": "VALID",
                 "selectedExecutionSource": "TASK_LOCAL_CHECKPOINT",
                 "substantiveExecutionAuthorized": True,
                 "reasoningReviewRequired": False,
                 "frontierAuthorization": "AUTHORIZED",
+                "permittedActionClass": "SUBSTANTIVE_EXECUTION",
                 "affectedOperation": "LOCAL_DEVELOPMENT",
                 "currentBlockerIds": [],
                 "blockedCapabilityIds": [],
@@ -176,6 +187,104 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             }
         )
         return directive
+
+    def directive_for_resolution(
+        self,
+        resolution: dict,
+        action_class: str,
+        wait_admission: dict | None = None,
+    ) -> dict:
+        directive = self.valid_directive()
+        action_map = {
+            "SUBSTANTIVE_EXECUTION": "APPLY_BOUNDED_CODE_CHANGE",
+            "AUTHORITY_RECOVERY": "RECONCILE_AUTHORITY",
+            "EVIDENCE_PRESERVATION": "PRESERVE_EVIDENCE",
+            "REASONING_HANDOFF": "ROUTE_EVIDENCE_TO_REASONING_CHAT",
+            "OWNER_WAIT_HANDLING": "PERSIST_OWNER_WAIT",
+        }
+        directive["actionClass"] = action_class
+        directive["allowed"]["actions"] = [action_map[action_class]]
+        checkpoint = resolution["taskLocalCheckpointIdentity"]
+        authority = directive["authorityContext"]
+        authority.update(
+            {
+                "activeTaskRef": resolution["activeTaskRef"],
+                "taskLocalCheckpointRef": resolution["taskLocalCheckpointRef"],
+                "taskLocalCheckpointGitRef": checkpoint["gitRef"],
+                "taskLocalCheckpointGitObjectId": checkpoint["gitObjectId"],
+                "taskLocalCheckpointContentSha256": checkpoint[
+                    "contentSha256"
+                ],
+                "currentOwnerSourceRecordId": resolution[
+                    "ownerAuthoritySourceRecordId"
+                ],
+                "currentOwnerSourceReceiptId": resolution[
+                    "ownerAuthorityReceiptId"
+                ],
+                "ownerOutcomeSha256": resolution["ownerOutcomeSha256"],
+                "repositoryGlobalStateRef": resolution[
+                    "repositoryGlobalStateRef"
+                ],
+                "globalStateRelation": resolution["globalStateRelation"],
+                "authorityResolutionStatus": resolution[
+                    "authorityResolutionStatus"
+                ],
+                "selectedExecutionSource": resolution[
+                    "selectedExecutionSource"
+                ],
+                "substantiveExecutionAuthorized": resolution[
+                    "substantiveExecutionAuthorized"
+                ],
+                "reasoningReviewRequired": resolution[
+                    "reasoningReviewRequired"
+                ],
+                "frontierAuthorization": resolution[
+                    "frontierAuthorization"
+                ],
+                "permittedActionClass": action_class,
+                "affectedOperation": resolution["affectedOperation"],
+                "currentBlockerIds": resolution["activeBlockerIds"],
+                "blockedCapabilityIds": resolution["blockedCapabilityIds"],
+                "blockingBlockerIds": resolution["blockingBlockerIds"],
+                "revalidationRequiredBlockerIds": resolution[
+                    "revalidationRequiredBlockerIds"
+                ],
+                "ambiguousBlockerIds": resolution["ambiguousBlockerIds"],
+                "waitAdmissionId": (
+                    wait_admission["waitId"] if wait_admission else None
+                ),
+                "waitAdmissionState": (
+                    wait_admission["state"]
+                    if wait_admission
+                    else "NOT_REQUIRED"
+                ),
+            }
+        )
+        return directive
+
+    def substantive_resolution(self) -> dict:
+        self.active["executionFrontier"].update(
+            {
+                "state": "WORKING",
+                "operation": "LOCAL_DEVELOPMENT",
+                "requiredCapabilityIds": [],
+                "permittedActionClasses": ["SUBSTANTIVE_EXECUTION"],
+            }
+        )
+        self.task_state.update(
+            {
+                "state": "WORKING",
+                "requiredAction": "APPLY_BOUNDED_CODE_CHANGE",
+            }
+        )
+        return resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            self.fixture["currentOwnerSource"],
+            self.owner_receipt,
+        )
 
     def reasoning_wait_and_handoff(self) -> tuple[dict, dict]:
         handoff = json.loads(
@@ -202,9 +311,13 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         )
         handoff["lease"].update(
             {
+                "leaseId": "lease-active-task-review",
                 "owner": "CODEX_CONTROLLER",
                 "acquiredAt": "2026-08-31T09:00:00Z",
-                "expiresAt": "2026-08-31T10:00:00Z",
+                "expiresAt": "2026-08-31T11:00:00Z",
+                "transferredTo": None,
+                "transferAcceptedAt": None,
+                "continuationRecord": None,
             }
         )
         wait = copy.deepcopy(self.fixture["proposedWait"])
@@ -616,6 +729,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         directive["allowed"]["actions"] = ["PRESERVE_EVIDENCE"]
         directive["authorityContext"].update(
             {
+                "permittedActionClass": "EVIDENCE_PRESERVATION",
                 "authorityResolutionStatus": "AMBIGUOUS",
                 "selectedExecutionSource": "NONE",
                 "substantiveExecutionAuthorized": False,
@@ -641,6 +755,17 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
                 "capturedAt": "2026-08-31T09:05:00Z",
                 "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
                 "effectiveEpoch": 2,
+                "independentReceiptId": "osr-owner-correction-stop-pr15",
+            }
+        )
+        stop_receipt = copy.deepcopy(self.owner_receipt)
+        stop_receipt.update(
+            {
+                "receiptId": "osr-owner-correction-stop-pr15",
+                "sourceRecordId": "owner-correction-stop-pr15",
+                "sourceSha256": "e" * 64,
+                "capturedAt": "2026-08-31T09:05:00Z",
+                "ownerOutcomeEpoch": 2,
             }
         )
         result = resolve_active_task_authority(
@@ -649,6 +774,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             self.global_state,
             [self.unrelated],
             owner_stop,
+            stop_receipt,
         )
         self.assertEqual(result["authorityResolutionStatus"], "INVALID")
         self.assertEqual(result["selectedExecutionSource"], "NONE")
@@ -813,6 +939,436 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         self.assertEqual(result["authorityResolutionStatus"], "INVALID")
         self.assertIn(
             "CURRENT_OWNER_SOURCE_RECEIPT_NOT_MATCHED", result["findings"]
+        )
+
+    def test_42_distinct_owner_stop_requires_its_exact_receipt(self) -> None:
+        owner_stop = copy.deepcopy(self.fixture["currentOwnerSource"])
+        owner_stop.update(
+            {
+                "sourceRecordId": "owner-stop-distinct",
+                "sourceKind": "OWNER_CORRECTION",
+                "relation": "AMENDS",
+                "instructionClass": "OWNER_STOP",
+                "capturedAt": "2026-08-31T09:06:00Z",
+                "sha256": "e" * 64,
+                "effectiveEpoch": 2,
+                "independentReceiptId": "osr-owner-stop-distinct",
+            }
+        )
+        receipt = copy.deepcopy(self.owner_receipt)
+        receipt.update(
+            {
+                "receiptId": "osr-owner-stop-distinct",
+                "sourceRecordId": "owner-stop-distinct",
+                "sourceSha256": "e" * 64,
+                "capturedAt": "2026-08-31T09:06:00Z",
+                "ownerOutcomeEpoch": 2,
+            }
+        )
+        result = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            owner_stop,
+            receipt,
+        )
+        self.assertTrue(result["ownerAuthorityAuthenticated"])
+        self.assertIn("CURRENT_OWNER_STOP", result["findings"])
+        self.assertEqual(result["selectedExecutionSource"], "NONE")
+
+    def test_43_owner_stop_reusing_root_receipt_is_rejected(self) -> None:
+        owner_stop = copy.deepcopy(self.fixture["currentOwnerSource"])
+        owner_stop.update(
+            {
+                "sourceRecordId": "owner-stop-reused-receipt",
+                "sourceKind": "OWNER_CORRECTION",
+                "relation": "AMENDS",
+                "instructionClass": "OWNER_STOP",
+                "capturedAt": "2026-08-31T09:06:00Z",
+                "sha256": "e" * 64,
+                "effectiveEpoch": 2,
+            }
+        )
+        result = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            owner_stop,
+            self.owner_receipt,
+        )
+        self.assertFalse(result["ownerAuthorityAuthenticated"])
+        self.assertNotIn("CURRENT_OWNER_STOP", result["findings"])
+        self.assertIn(
+            "CURRENT_OWNER_RECEIPT_SOURCE_RECORD_ID_MISMATCH",
+            result["findings"],
+        )
+        self.assertFalse(result["substantiveExecutionAuthorized"])
+
+    def test_44_owner_receipt_source_record_mismatch_is_rejected(self) -> None:
+        receipt = copy.deepcopy(self.owner_receipt)
+        receipt["sourceRecordId"] = "different-owner-source"
+        result = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            self.fixture["currentOwnerSource"],
+            receipt,
+        )
+        self.assertIn(
+            "CURRENT_OWNER_RECEIPT_SOURCE_RECORD_ID_MISMATCH",
+            result["findings"],
+        )
+        self.assertEqual(result["selectedExecutionSource"], "NONE")
+
+    def test_45_owner_receipt_source_sha_mismatch_is_rejected(self) -> None:
+        receipt = copy.deepcopy(self.owner_receipt)
+        receipt["sourceSha256"] = "f" * 64
+        result = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            self.fixture["currentOwnerSource"],
+            receipt,
+        )
+        self.assertIn(
+            "CURRENT_OWNER_RECEIPT_SOURCE_SHA256_MISMATCH",
+            result["findings"],
+        )
+
+    def test_46_owner_receipt_task_or_outcome_mismatch_is_rejected(self) -> None:
+        mutations = {
+            "taskId": "different-task",
+            "ownerOutcomeId": "different-outcome",
+            "ownerOutcomeEpoch": 99,
+            "ownerOutcomeSha256": "f" * 64,
+        }
+        for field, value in mutations.items():
+            with self.subTest(field=field):
+                receipt = copy.deepcopy(self.owner_receipt)
+                receipt[field] = value
+                result = resolve_active_task_authority(
+                    self.active,
+                    self.task_state,
+                    self.global_state,
+                    [self.unrelated],
+                    self.fixture["currentOwnerSource"],
+                    receipt,
+                )
+                self.assertEqual(result["authorityResolutionStatus"], "INVALID")
+                self.assertFalse(result["substantiveExecutionAuthorized"])
+
+    def test_47_owner_authority_without_receipt_cannot_authorize_execution(self) -> None:
+        del self.active["ownerSource"]["currentAuthorityReceipt"]
+        result = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            self.fixture["currentOwnerSource"],
+            None,
+        )
+        self.assertEqual(result["authorityResolutionStatus"], "INVALID")
+        self.assertEqual(result["selectedExecutionSource"], "NONE")
+        self.assertFalse(result["substantiveExecutionAuthorized"])
+        self.assertTrue(result["reasoningReviewRequired"])
+
+    def test_48_directive_valid_claim_cannot_override_ambiguous_resolution(self) -> None:
+        resolution = self.substantive_resolution()
+        directive = self.directive_for_resolution(
+            resolution, "SUBSTANTIVE_EXECUTION"
+        )
+        ambiguous = copy.deepcopy(resolution)
+        ambiguous.update(
+            {
+                "authorityResolutionStatus": "AMBIGUOUS",
+                "selectedExecutionSource": "NONE",
+                "substantiveExecutionAuthorized": False,
+                "reasoningReviewRequired": True,
+                "frontierAuthorization": "REASONING_REVIEW_REQUIRED",
+                "permittedActionClasses": ["AUTHORITY_RECOVERY"],
+            }
+        )
+        with self.assertRaisesRegex(
+            HandoffValidationError, "authority-resolution status"
+        ):
+            authorize_directive_against_authority_resolution(
+                directive, self.active, ambiguous, None
+            )
+
+    def test_49_directive_cannot_hide_an_applicable_blocker(self) -> None:
+        blocker = self.applicable_blocker()
+        resolution = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [blocker],
+        )
+        directive = self.directive_for_resolution(
+            resolution, "EVIDENCE_PRESERVATION"
+        )
+        directive["authorityContext"]["currentBlockerIds"] = []
+        directive["authorityContext"]["blockingBlockerIds"] = []
+        directive["authorityContext"]["blockedCapabilityIds"] = []
+        with self.assertRaisesRegex(HandoffValidationError, "active blocker IDs"):
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, None
+            )
+
+    def test_50_directive_checkpoint_hash_must_match_resolution(self) -> None:
+        resolution = self.substantive_resolution()
+        directive = self.directive_for_resolution(
+            resolution, "SUBSTANTIVE_EXECUTION"
+        )
+        directive["authorityContext"]["taskLocalCheckpointContentSha256"] = (
+            "f" * 64
+        )
+        with self.assertRaisesRegex(HandoffValidationError, "content hash"):
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, None
+            )
+
+    def test_51_directive_owner_receipt_must_match_resolution(self) -> None:
+        resolution = self.substantive_resolution()
+        directive = self.directive_for_resolution(
+            resolution, "SUBSTANTIVE_EXECUTION"
+        )
+        directive["authorityContext"]["currentOwnerSourceReceiptId"] = (
+            "osr-self-asserted"
+        )
+        with self.assertRaisesRegex(HandoffValidationError, "receipt identity"):
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, None
+            )
+
+    def test_52_substantive_execution_is_rejected_on_reasoning_frontier(self) -> None:
+        resolution = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+        )
+        directive = self.directive_for_resolution(
+            resolution, "REASONING_HANDOFF"
+        )
+        directive["actionClass"] = "SUBSTANTIVE_EXECUTION"
+        directive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
+        directive["authorityContext"].update(
+            {
+                "permittedActionClass": "SUBSTANTIVE_EXECUTION",
+                "substantiveExecutionAuthorized": True,
+                "reasoningReviewRequired": False,
+            }
+        )
+        with self.assertRaises(HandoffValidationError):
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, None
+            )
+
+    def test_53_matching_reasoning_handoff_is_admitted(self) -> None:
+        resolution = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+        )
+        directive = self.directive_for_resolution(
+            resolution, "REASONING_HANDOFF"
+        )
+        self.assertTrue(
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, None
+            )
+        )
+
+    def test_54_matching_substantive_directive_is_admitted(self) -> None:
+        resolution = self.substantive_resolution()
+        directive = self.directive_for_resolution(
+            resolution, "SUBSTANTIVE_EXECUTION"
+        )
+        self.assertTrue(
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, None
+            )
+        )
+
+    def test_55_self_consistent_directive_without_resolver_result_is_rejected(self) -> None:
+        resolution = self.substantive_resolution()
+        directive = self.directive_for_resolution(
+            resolution, "SUBSTANTIVE_EXECUTION"
+        )
+        with self.assertRaises(HandoffValidationError):
+            authorize_directive_against_authority_resolution(
+                directive, self.active, {}, None
+            )
+
+    def test_56_reasoning_lease_expired_before_source_is_rejected(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        handoff["lease"]["expiresAt"] = "2026-08-31T09:01:00Z"
+        result = validate_wait_admission(wait, self.active, None, None, handoff)
+        self.assertIn("WAIT_REASONING_LEASE_EXPIRED_BEFORE_SOURCE", result["findings"])
+
+    def test_57_reasoning_lease_expired_before_wait_start_is_rejected(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        wait["sourceObservedAt"] = "2026-08-31T09:01:00Z"
+        handoff["lease"]["expiresAt"] = "2026-08-31T09:02:15Z"
+        result = validate_wait_admission(wait, self.active, None, None, handoff)
+        self.assertIn(
+            "WAIT_REASONING_LEASE_EXPIRED_BEFORE_WAIT_START", result["findings"]
+        )
+
+    def test_58_reasoning_lease_expired_before_next_check_is_rejected(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        handoff["lease"]["expiresAt"] = "2026-08-31T09:02:45Z"
+        result = validate_wait_admission(wait, self.active, None, None, handoff)
+        self.assertIn(
+            "WAIT_REASONING_LEASE_EXPIRES_BEFORE_NEXT_CHECK", result["findings"]
+        )
+
+    def test_59_reasoning_wait_horizon_requires_lease_continuation(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        handoff["lease"]["expiresAt"] = "2026-08-31T09:30:00Z"
+        result = validate_wait_admission(wait, self.active, None, None, handoff)
+        self.assertIn("WAIT_REASONING_LEASE_CONTINUATION_REQUIRED", result["findings"])
+        self.assertIn(
+            "WAIT_REASONING_LEASE_EXPIRES_BEFORE_WAIT_HORIZON",
+            result["findings"],
+        )
+
+    def test_60_accepted_mission_control_transfer_covers_wait(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        handoff["lease"].update(
+            {
+                "expiresAt": "2026-08-31T09:30:00Z",
+                "transferredTo": "MISSION_CONTROL",
+                "transferAcceptedAt": "2026-08-31T09:29:00Z",
+                "continuationRecord": {
+                    "recordId": "lease-transfer-active-task-review",
+                    "kind": "TRANSFER",
+                    "fromLeaseId": "lease-active-task-review",
+                    "fromOwner": "CODEX_CONTROLLER",
+                    "toOwner": "MISSION_CONTROL",
+                    "acceptedAt": "2026-08-31T09:29:00Z",
+                    "acquiredAt": "2026-08-31T09:29:00Z",
+                    "expiresAt": "2026-08-31T11:00:00Z",
+                    "capability": "EXECUTOR_REASONING_HANDOFF_LEASE_CONTINUATION",
+                    "status": "ACCEPTED",
+                    "durable": True,
+                },
+            }
+        )
+        result = validate_wait_admission(wait, self.active, None, None, handoff)
+        self.assertTrue(result["admitted"], result["findings"])
+
+    def test_61_same_controller_lease_covers_start_and_next_check(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        result = validate_wait_admission(wait, self.active, None, None, handoff)
+        self.assertTrue(result["admitted"], result["findings"])
+
+    def test_62_owner_decision_frontier_forbids_substantive_execution(self) -> None:
+        self.active["executionFrontier"].update(
+            {
+                "state": "OWNER_DECISION_REQUIRED",
+                "operation": "OWNER_DECISION",
+                "permittedActionClasses": [
+                    "EVIDENCE_PRESERVATION",
+                    "OWNER_WAIT_HANDLING",
+                ],
+            }
+        )
+        self.task_state.update(
+            {
+                "state": "OWNER_DECISION_REQUIRED",
+                "requiredAction": "WAIT_FOR_EXACT_OWNER_DECISION",
+            }
+        )
+        resolution = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+        )
+        self.assertFalse(resolution["substantiveExecutionAuthorized"])
+        self.assertEqual(
+            resolution["permittedActionClasses"],
+            ["EVIDENCE_PRESERVATION", "OWNER_WAIT_HANDLING"],
+        )
+        preservation = self.directive_for_resolution(
+            resolution, "EVIDENCE_PRESERVATION"
+        )
+        self.assertTrue(
+            authorize_directive_against_authority_resolution(
+                preservation, self.active, resolution, None
+            )
+        )
+        substantive = self.directive_for_resolution(
+            resolution, "EVIDENCE_PRESERVATION"
+        )
+        substantive["actionClass"] = "SUBSTANTIVE_EXECUTION"
+        substantive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
+        substantive["authorityContext"].update(
+            {
+                "permittedActionClass": "SUBSTANTIVE_EXECUTION",
+                "substantiveExecutionAuthorized": True,
+            }
+        )
+        with self.assertRaises(HandoffValidationError):
+            authorize_directive_against_authority_resolution(
+                substantive, self.active, resolution, None
+            )
+
+    def test_63_exact_owner_wait_handling_is_transactionally_admitted(self) -> None:
+        blocker = self.applicable_blocker(
+            blocker_id="owner-decision-current-frontier",
+            scope_type="OWNER_DECISION",
+            operation="OWNER_DECISION",
+            capability="owner-decision:current-frontier",
+        )
+        blocker["ownerAction"] = {
+            "required": True,
+            "decisionId": "owner-decision-current-frontier",
+            "action": "DECIDE_CURRENT_FRONTIER",
+        }
+        blocker["unblockEvent"]["actorOrMechanism"] = "OWNER"
+        self.active["executionFrontier"].update(
+            {
+                "state": "OWNER_DECISION_REQUIRED",
+                "operation": "OWNER_DECISION",
+                "requiredCapabilityIds": ["owner-decision:current-frontier"],
+                "permittedActionClasses": [
+                    "EVIDENCE_PRESERVATION",
+                    "OWNER_WAIT_HANDLING",
+                ],
+            }
+        )
+        self.task_state.update(
+            {
+                "state": "OWNER_DECISION_REQUIRED",
+                "requiredAction": "WAIT_FOR_EXACT_OWNER_DECISION",
+            }
+        )
+        blocker_result = evaluate_blocker_applicability(self.active, blocker)
+        wait = self.admitted_wait(blocker)
+        admission = validate_wait_admission(
+            wait, self.active, blocker_result, blocker
+        )
+        self.assertTrue(admission["admitted"], admission["findings"])
+        resolution = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [blocker],
+        )
+        directive = self.directive_for_resolution(
+            resolution, "OWNER_WAIT_HANDLING", admission
+        )
+        self.assertTrue(
+            authorize_directive_against_authority_resolution(
+                directive, self.active, resolution, admission
+            )
         )
 
 

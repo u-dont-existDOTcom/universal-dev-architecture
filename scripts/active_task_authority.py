@@ -49,6 +49,14 @@ FRONTIER_AUTHORIZATION_STATES = {
     "INVALID_AUTHORITY",
 }
 
+ACTIVE_FRONTIER_ACTION_CLASSES = {
+    "SUBSTANTIVE_EXECUTION",
+    "AUTHORITY_RECOVERY",
+    "EVIDENCE_PRESERVATION",
+    "REASONING_HANDOFF",
+    "OWNER_WAIT_HANDLING",
+}
+
 ALLOWED_NONTERMINAL_HORIZON_STATES = {
     "BLOCKED_EXTERNAL",
     "OWNER_DECISION_REQUIRED",
@@ -111,6 +119,9 @@ def _append_once(values: list[str], value: str) -> None:
 
 def _active_context(active_task: dict[str, Any]) -> dict[str, Any]:
     _require(_nonempty(active_task.get("taskId")), "active taskId is required")
+    _require(
+        _nonempty(active_task.get("activeTaskRef")), "activeTaskRef is required"
+    )
     _require(_nonempty(active_task.get("requiredBranch")), "requiredBranch is required")
     _require(_nonempty(active_task.get("requiredRef")), "requiredRef is required")
     outcome = active_task.get("ownerOutcome", {})
@@ -129,6 +140,21 @@ def _active_context(active_task: dict[str, Any]) -> dict[str, Any]:
     )
     frontier = active_task.get("executionFrontier", {})
     _require(_nonempty(frontier.get("state")), "executionFrontier.state is required")
+    permitted_action_classes = _string_list(
+        frontier.get("permittedActionClasses", []),
+        "executionFrontier.permittedActionClasses",
+    )
+    _require(
+        bool(permitted_action_classes),
+        "executionFrontier.permittedActionClasses must not be empty",
+    )
+    _require(
+        all(
+            action_class in ACTIVE_FRONTIER_ACTION_CLASSES
+            for action_class in permitted_action_classes
+        ),
+        "executionFrontier.permittedActionClasses contains an invalid class",
+    )
     return {
         "taskId": active_task["taskId"],
         "strategyFamilyId": frontier.get("strategyFamilyId"),
@@ -140,6 +166,7 @@ def _active_context(active_task: dict[str, Any]) -> dict[str, Any]:
                 "executionFrontier.requiredCapabilityIds",
             )
         ),
+        "permittedActionClasses": permitted_action_classes,
     }
 
 
@@ -189,12 +216,18 @@ def _checkpoint_findings(
 def _owner_authority_findings(
     active_task: dict[str, Any],
     current_owner_source: dict[str, Any] | None,
-) -> tuple[dict[str, Any], list[str]]:
+    current_owner_source_receipt: dict[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
     """Validate the existing owner-source/correction chain's current projection."""
     findings: list[str] = []
     owner_source = active_task.get("ownerSource", {})
     active_projection = owner_source.get("currentAuthorityProjection", {})
     current = current_owner_source or active_projection
+    receipt = (
+        current_owner_source_receipt
+        or owner_source.get("currentAuthorityReceipt")
+        or {}
+    )
     required = (
         "sourceRecordId",
         "sourceKind",
@@ -249,6 +282,67 @@ def _owner_authority_findings(
     if current.get("ownerOutcomeId") != expected_outcome.get("ownerOutcomeId"):
         _append_once(findings, "CURRENT_OWNER_OUTCOME_ID_MISMATCH")
 
+    receipt_fields = (
+        "receiptId",
+        "sourceRecordId",
+        "sourceSha256",
+        "canonicalLocator",
+        "capturedAt",
+        "taskId",
+        "ownerOutcomeId",
+        "ownerOutcomeSha256",
+        "capability",
+        "status",
+        "collector",
+    )
+    for field in receipt_fields:
+        if not _nonempty(receipt.get(field)):
+            _append_once(
+                findings,
+                f"CURRENT_OWNER_RECEIPT_{field.upper()}_REQUIRED",
+            )
+    if not isinstance(receipt.get("ownerOutcomeEpoch"), int):
+        _append_once(
+            findings, "CURRENT_OWNER_RECEIPT_OWNER_OUTCOME_EPOCH_REQUIRED"
+        )
+    receipt_bindings = (
+        ("receiptId", "independentReceiptId", "RECEIPT_ID"),
+        ("sourceRecordId", "sourceRecordId", "SOURCE_RECORD_ID"),
+        ("sourceSha256", "sha256", "SOURCE_SHA256"),
+        ("canonicalLocator", "canonicalLocator", "CANONICAL_LOCATOR"),
+        ("capturedAt", "capturedAt", "CAPTURED_AT"),
+        ("taskId", "taskId", "TASK_ID"),
+        ("ownerOutcomeId", "ownerOutcomeId", "OWNER_OUTCOME_ID"),
+        (
+            "ownerOutcomeSha256",
+            "ownerOutcomeSha256",
+            "OWNER_OUTCOME_SHA256",
+        ),
+    )
+    for receipt_field, source_field, finding_name in receipt_bindings:
+        if receipt.get(receipt_field) != current.get(source_field):
+            _append_once(
+                findings,
+                f"CURRENT_OWNER_RECEIPT_{finding_name}_MISMATCH",
+            )
+    if receipt.get("ownerOutcomeEpoch") != current.get("effectiveEpoch"):
+        _append_once(findings, "CURRENT_OWNER_RECEIPT_OWNER_OUTCOME_EPOCH_MISMATCH")
+    if receipt.get("capability") != "INDEPENDENT_OWNER_SOURCE_RECEIPT":
+        _append_once(findings, "CURRENT_OWNER_RECEIPT_CAPABILITY_INVALID")
+    if receipt.get("status") != "MATCH":
+        _append_once(findings, "CURRENT_OWNER_RECEIPT_STATUS_NOT_MATCHED")
+    try:
+        _require_sha256(
+            receipt.get("sourceSha256"), "current owner receipt sourceSha256"
+        )
+        _require_sha256(
+            receipt.get("ownerOutcomeSha256"),
+            "current owner receipt ownerOutcomeSha256",
+        )
+        _parse_utc(receipt.get("capturedAt"), "current owner receipt capturedAt")
+    except AuthorityValidationError:
+        _append_once(findings, "CURRENT_OWNER_RECEIPT_IDENTITY_INVALID")
+
     active_at = None
     if active_projection:
         try:
@@ -265,8 +359,17 @@ def _owner_authority_findings(
         if current["effectiveEpoch"] < active_epoch:
             _append_once(findings, "CURRENT_OWNER_SOURCE_EPOCH_STALE")
 
+    receipt_findings = [
+        finding
+        for finding in findings
+        if finding.startswith("CURRENT_OWNER_RECEIPT_")
+        or finding == "CURRENT_OWNER_SOURCE_RECEIPT_NOT_MATCHED"
+    ]
     instruction = current.get("instructionClass")
-    if instruction == "CONTINUE":
+    if receipt_findings:
+        # Never apply an owner correction or stop from self-asserted receipt state.
+        instruction = None
+    elif instruction == "CONTINUE":
         if current.get("effectiveEpoch") != expected_outcome.get("epoch"):
             _append_once(findings, "CURRENT_OWNER_OUTCOME_EPOCH_MISMATCH")
         if current.get("ownerOutcomeSha256") != expected_outcome.get("sha256"):
@@ -275,7 +378,7 @@ def _owner_authority_findings(
         _append_once(findings, "OWNER_OUTCOME_AMENDED_AFTER_ACTIVE_TASK")
     elif instruction == "OWNER_STOP":
         _append_once(findings, "CURRENT_OWNER_STOP")
-    return current, findings
+    return current, receipt, findings
 
 
 def _global_relation(freshness: str, applicability: str) -> str:
@@ -552,6 +655,7 @@ def resolve_active_task_authority(
     repository_global_state: dict[str, Any],
     blockers: Iterable[dict[str, Any]],
     current_owner_source: dict[str, Any] | None = None,
+    current_owner_source_receipt: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Resolve authority by fixed precedence, never file-read order."""
     context = _active_context(active_task)
@@ -569,8 +673,10 @@ def resolve_active_task_authority(
             findings.append(f"OWNER_OUTCOME_{field.upper()}_MISMATCH")
     for finding in _checkpoint_findings(active_task, task_local_state):
         _append_once(findings, finding)
-    owner_authority, owner_findings = _owner_authority_findings(
-        active_task, current_owner_source
+    owner_authority, owner_receipt, owner_findings = _owner_authority_findings(
+        active_task,
+        current_owner_source,
+        current_owner_source_receipt,
     )
     for finding in owner_findings:
         _append_once(findings, finding)
@@ -671,15 +777,74 @@ def resolve_active_task_authority(
     )
     if authority_status == "INVALID":
         independent_frontiers_allowed = False
-    reasoning_review_required = authority_status != "VALID" or bool(ambiguous_ids)
+    frontier_state = task_local_state.get("state")
+    declared_action_classes = _string_list(
+        active_task.get("executionFrontier", {}).get(
+            "permittedActionClasses", []
+        ),
+        "executionFrontier.permittedActionClasses",
+    )
+    expected_action_classes = None
+    if frontier_state == "REASONING_REVIEW_DUE":
+        expected_action_classes = ["REASONING_HANDOFF"]
+    elif frontier_state == "OWNER_DECISION_REQUIRED":
+        expected_action_classes = [
+            "EVIDENCE_PRESERVATION",
+            "OWNER_WAIT_HANDLING",
+        ]
+    if (
+        expected_action_classes is not None
+        and declared_action_classes != expected_action_classes
+    ):
+        _append_once(findings, "ACTIVE_FRONTIER_ACTION_CLASS_MISMATCH")
+        authority_status = "INVALID"
+        frontier_authorization = "INVALID_AUTHORITY"
+    reasoning_review_required = (
+        authority_status != "VALID"
+        or bool(ambiguous_ids)
+        or frontier_state == "REASONING_REVIEW_DUE"
+    )
+    if authority_status != "VALID":
+        permitted_action_classes = [
+            "AUTHORITY_RECOVERY",
+            "EVIDENCE_PRESERVATION",
+            "REASONING_HANDOFF",
+        ]
+    elif frontier_state == "OWNER_DECISION_REQUIRED":
+        permitted_action_classes = declared_action_classes
+    elif frontier_authorization != "AUTHORIZED":
+        permitted_action_classes = ["EVIDENCE_PRESERVATION"]
+    else:
+        permitted_action_classes = declared_action_classes
+    substantive_execution_authorized = (
+        authority_status == "VALID"
+        and frontier_authorization == "AUTHORIZED"
+        and "SUBSTANTIVE_EXECUTION" in permitted_action_classes
+        and not reasoning_review_required
+    )
     return {
         "authorityResolutionStatus": authority_status,
         "authorityPrecedence": list(AUTHORITY_PRECEDENCE),
         "selectedExecutionSource": (
             "TASK_LOCAL_CHECKPOINT" if authority_status == "VALID" else "NONE"
         ),
+        "activeTaskRef": active_task.get("activeTaskRef"),
         "ownerAuthoritySourceRecordId": owner_authority.get("sourceRecordId"),
-        "ownerInstructionClass": owner_authority.get("instructionClass"),
+        "ownerAuthorityReceiptId": owner_receipt.get("receiptId"),
+        "ownerAuthorityAuthenticated": not any(
+            finding.startswith("CURRENT_OWNER_RECEIPT_")
+            or finding == "CURRENT_OWNER_SOURCE_RECEIPT_NOT_MATCHED"
+            for finding in findings
+        ),
+        "ownerInstructionClass": (
+            owner_authority.get("instructionClass")
+            if not any(
+                finding.startswith("CURRENT_OWNER_RECEIPT_")
+                or finding == "CURRENT_OWNER_SOURCE_RECEIPT_NOT_MATCHED"
+                for finding in findings
+            )
+            else None
+        ),
         "taskId": active_task["taskId"],
         "requiredBranch": active_task["requiredBranch"],
         "requiredRef": active_task["requiredRef"],
@@ -695,6 +860,9 @@ def resolve_active_task_authority(
                 "branch",
             )
         },
+        "ownerOutcomeEpoch": expected_outcome["epoch"],
+        "ownerOutcomeId": expected_outcome["ownerOutcomeId"],
+        "ownerOutcomeSha256": expected_outcome["sha256"],
         "repositoryGlobalStateRef": repository_global_state["ref"],
         "repositoryGlobalSourceDisposition": source_disposition,
         "globalStateRelation": relation,
@@ -710,9 +878,13 @@ def resolve_active_task_authority(
         "blockingBlockerIds": blocking_ids,
         "independentFrontiersAllowed": independent_frontiers_allowed,
         "reasoningReviewRequired": reasoning_review_required,
-        "substantiveExecutionAuthorized": (
-            frontier_authorization == "AUTHORIZED"
+        "permittedActionClasses": permitted_action_classes,
+        "permittedActionClass": (
+            permitted_action_classes[0]
+            if len(permitted_action_classes) == 1
+            else None
         ),
+        "substantiveExecutionAuthorized": substantive_execution_authorized,
         "blockerResults": blocker_results,
         "alerts": alerts,
         "findings": findings,
@@ -725,6 +897,9 @@ def _reasoning_handoff_wait_findings(
     task_id: str,
     request_id: str,
     observed_at: datetime | None,
+    wait_started_at: datetime | None,
+    next_check_at: datetime | None,
+    horizon_seconds: int | None,
 ) -> list[str]:
     """Validate a wait against the accepted executor-reasoning handoff path."""
     findings: list[str] = []
@@ -744,6 +919,8 @@ def _reasoning_handoff_wait_findings(
     if not _nonempty(review_request.get("deliveryConfirmedAt")):
         findings.append("WAIT_REASONING_DELIVERY_UNCONFIRMED")
     lease = reasoning_handoff.get("lease", {})
+    if not _nonempty(lease.get("leaseId")):
+        findings.append("WAIT_REASONING_LEASE_ID_MISSING")
     if not _nonempty(lease.get("owner")):
         findings.append("WAIT_REASONING_LEASE_OWNER_MISSING")
     try:
@@ -755,8 +932,119 @@ def _reasoning_handoff_wait_findings(
         )
         if expires_at <= acquired_at:
             findings.append("WAIT_REASONING_LEASE_INVALID")
-        if observed_at is not None and expires_at <= observed_at:
-            findings.append("WAIT_REASONING_LEASE_EXPIRED")
+        effective_expires_at = expires_at
+        horizon_end = (
+            wait_started_at + timedelta(seconds=horizon_seconds)
+            if wait_started_at is not None
+            and isinstance(horizon_seconds, int)
+            and not isinstance(horizon_seconds, bool)
+            and horizon_seconds > 0
+            else None
+        )
+        continuation = lease.get("continuationRecord")
+        needs_continuation = any(
+            point is not None and point > expires_at
+            for point in (next_check_at, horizon_end)
+        ) or (wait_started_at is not None and wait_started_at >= expires_at)
+        if continuation is not None:
+            required_continuation_strings = (
+                "recordId",
+                "kind",
+                "fromLeaseId",
+                "fromOwner",
+                "toOwner",
+                "acceptedAt",
+                "acquiredAt",
+                "expiresAt",
+                "capability",
+                "status",
+            )
+            for field in required_continuation_strings:
+                if not _nonempty(continuation.get(field)):
+                    findings.append(
+                        "WAIT_REASONING_LEASE_CONTINUATION_"
+                        f"{field.upper()}_REQUIRED"
+                    )
+            try:
+                continuation_accepted_at = _parse_utc(
+                    continuation.get("acceptedAt"),
+                    "reasoning handoff continuation acceptedAt",
+                )
+                continuation_acquired_at = _parse_utc(
+                    continuation.get("acquiredAt"),
+                    "reasoning handoff continuation acquiredAt",
+                )
+                continuation_expires_at = _parse_utc(
+                    continuation.get("expiresAt"),
+                    "reasoning handoff continuation expiresAt",
+                )
+                if continuation.get("kind") not in {"TRANSFER", "RENEWAL"}:
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_KIND_INVALID")
+                if continuation.get("fromLeaseId") != lease.get("leaseId"):
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_ID_MISMATCH")
+                if continuation.get("fromOwner") != lease.get("owner"):
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_OWNER_MISMATCH")
+                if continuation.get("kind") == "TRANSFER":
+                    if continuation.get("toOwner") != lease.get("transferredTo"):
+                        findings.append("WAIT_REASONING_LEASE_TRANSFER_OWNER_MISMATCH")
+                    if continuation.get("acceptedAt") != lease.get(
+                        "transferAcceptedAt"
+                    ):
+                        findings.append(
+                            "WAIT_REASONING_LEASE_TRANSFER_ACCEPTANCE_MISMATCH"
+                        )
+                elif continuation.get("toOwner") != lease.get("owner"):
+                    findings.append("WAIT_REASONING_LEASE_RENEWAL_OWNER_MISMATCH")
+                if (
+                    continuation.get("capability")
+                    != "EXECUTOR_REASONING_HANDOFF_LEASE_CONTINUATION"
+                ):
+                    findings.append(
+                        "WAIT_REASONING_LEASE_CONTINUATION_CAPABILITY_INVALID"
+                    )
+                if continuation.get("status") != "ACCEPTED":
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_NOT_ACCEPTED")
+                if continuation.get("durable") is not True:
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_NOT_DURABLE")
+                if continuation_accepted_at > expires_at:
+                    findings.append(
+                        "WAIT_REASONING_LEASE_CONTINUATION_ACCEPTED_TOO_LATE"
+                    )
+                if continuation_acquired_at > expires_at:
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_GAP")
+                if continuation_accepted_at < acquired_at:
+                    findings.append(
+                        "WAIT_REASONING_LEASE_CONTINUATION_ACCEPTED_BEFORE_LEASE"
+                    )
+                if continuation_acquired_at < continuation_accepted_at:
+                    findings.append(
+                        "WAIT_REASONING_LEASE_CONTINUATION_ACQUIRED_BEFORE_ACCEPTANCE"
+                    )
+                if continuation_expires_at <= continuation_acquired_at:
+                    findings.append("WAIT_REASONING_LEASE_CONTINUATION_INVALID")
+                if not any(
+                    finding.startswith("WAIT_REASONING_LEASE_CONTINUATION_")
+                    or finding.startswith("WAIT_REASONING_LEASE_TRANSFER_")
+                    or finding.startswith("WAIT_REASONING_LEASE_RENEWAL_")
+                    for finding in findings
+                ):
+                    effective_expires_at = continuation_expires_at
+            except AuthorityValidationError:
+                findings.append(
+                    "WAIT_REASONING_LEASE_CONTINUATION_TIMESTAMP_INVALID"
+                )
+        elif needs_continuation:
+            findings.append("WAIT_REASONING_LEASE_CONTINUATION_REQUIRED")
+        if wait_started_at is not None and acquired_at > wait_started_at:
+            findings.append("WAIT_REASONING_LEASE_ACQUIRED_AFTER_WAIT_START")
+        if observed_at is not None and effective_expires_at <= observed_at:
+            findings.append("WAIT_REASONING_LEASE_EXPIRED_BEFORE_SOURCE")
+        if wait_started_at is not None and effective_expires_at <= wait_started_at:
+            findings.append("WAIT_REASONING_LEASE_EXPIRED_BEFORE_WAIT_START")
+        if next_check_at is not None and next_check_at > effective_expires_at:
+            findings.append("WAIT_REASONING_LEASE_EXPIRES_BEFORE_NEXT_CHECK")
+        if horizon_end is not None and horizon_end > effective_expires_at:
+            findings.append("WAIT_REASONING_LEASE_EXPIRES_BEFORE_WAIT_HORIZON")
     except AuthorityValidationError:
         findings.append("WAIT_REASONING_LEASE_TIMESTAMP_INVALID")
     if reasoning_handoff.get("taskTerminal") is not False:
@@ -896,6 +1184,9 @@ def validate_wait_admission(
             context["taskId"],
             reasoning_request_id,
             source_observed_at,
+            wait_started_at,
+            next_check_at,
+            wait.get("maximumWaitHorizonSeconds"),
         ):
             findings.append(finding)
         if condition.get("identity") != reasoning_request_id:
@@ -994,6 +1285,7 @@ def validate_wait_admission(
         )
     return {
         "waitId": wait.get("waitId"),
+        "activeTaskId": wait.get("activeTaskId"),
         "admitted": not unique_findings,
         "state": "ADMITTED" if not unique_findings else "REJECTED",
         "findings": unique_findings,
@@ -1020,6 +1312,7 @@ def project_task_blockers(
     wait: dict[str, Any] | None = None,
     current_owner_source: dict[str, Any] | None = None,
     reasoning_handoff: dict[str, Any] | None = None,
+    current_owner_source_receipt: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a dashboard-safe projection without hiding ignored blockers."""
     blocker_list = list(blockers)
@@ -1029,6 +1322,7 @@ def project_task_blockers(
         repository_global_state,
         blocker_list,
         current_owner_source,
+        current_owner_source_receipt,
     )
     results = {item["blockerId"]: item for item in resolution["blockerResults"]}
     blocker_by_id = {item["blockerId"]: item for item in blocker_list}
@@ -1082,6 +1376,10 @@ def project_task_blockers(
         "activeTaskExecutionState": resolution["activeTaskExecutionState"],
         "authorityResolutionStatus": resolution["authorityResolutionStatus"],
         "selectedExecutionSource": resolution["selectedExecutionSource"],
+        "ownerAuthoritySourceRecordId": resolution[
+            "ownerAuthoritySourceRecordId"
+        ],
+        "ownerAuthorityReceiptId": resolution["ownerAuthorityReceiptId"],
         "frontierAuthorization": resolution["frontierAuthorization"],
         "affectedOperation": resolution["affectedOperation"],
         "blockedCapabilityIds": resolution["blockedCapabilityIds"],
@@ -1090,6 +1388,8 @@ def project_task_blockers(
             "independentFrontiersAllowed"
         ],
         "reasoningReviewRequired": resolution["reasoningReviewRequired"],
+        "permittedActionClasses": resolution["permittedActionClasses"],
+        "permittedActionClass": resolution["permittedActionClass"],
         "substantiveExecutionAuthorized": resolution[
             "substantiveExecutionAuthorized"
         ],
@@ -1122,6 +1422,7 @@ def evaluate_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
         wait,
         fixture.get("currentOwnerSource"),
         fixture.get("reasoningHandoff"),
+        fixture.get("currentOwnerSourceReceipt"),
     )
     resolution = resolve_active_task_authority(
         fixture["activeTask"],
@@ -1129,6 +1430,7 @@ def evaluate_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
         fixture["repositoryGlobalState"],
         fixture["blockers"],
         fixture.get("currentOwnerSource"),
+        fixture.get("currentOwnerSourceReceipt"),
     )
     return {"resolution": resolution, "projection": projection}
 

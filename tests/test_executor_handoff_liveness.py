@@ -40,6 +40,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.directive = copy.deepcopy(self.directive_template)
         self.directive.update({"directiveId": "directive-001", "taskId": "task-001"})
         self.directive["ownerOutcome"]["epoch"] = 7
+        self.directive["ownerOutcome"]["sha256"] = "a" * 64
         self.directive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
         self.directive["authorityContext"].update(
             {
@@ -48,11 +49,13 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
                 "taskLocalCheckpointContentSha256": "a" * 64,
                 "currentOwnerSourceRecordId": "owner-source-task-001",
                 "currentOwnerSourceReceiptId": "osr-task-001",
+                "ownerOutcomeSha256": "a" * 64,
                 "authorityResolutionStatus": "VALID",
                 "selectedExecutionSource": "TASK_LOCAL_CHECKPOINT",
                 "substantiveExecutionAuthorized": True,
                 "reasoningReviewRequired": False,
                 "frontierAuthorization": "AUTHORIZED",
+                "permittedActionClass": "SUBSTANTIVE_EXECUTION",
                 "affectedOperation": "LOCAL_DEVELOPMENT",
                 "currentBlockerIds": [],
                 "blockedCapabilityIds": [],
@@ -82,6 +85,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         )
         self.handoff["lease"].update(
             {
+                "leaseId": "lease-001",
                 "owner": "CODEX_CONTROLLER",
                 "acquiredAt": "2026-08-31T00:00:00Z",
                 "expiresAt": "2026-08-31T00:10:00Z",

@@ -26,6 +26,7 @@ DIRECTIVE_ACTION_CLASSES = {
     "AUTHORITY_RECOVERY",
     "EVIDENCE_PRESERVATION",
     "REASONING_HANDOFF",
+    "OWNER_WAIT_HANDLING",
 }
 
 NONSUBSTANTIVE_ACTION_ALLOWLISTS = {
@@ -43,6 +44,10 @@ NONSUBSTANTIVE_ACTION_ALLOWLISTS = {
         "ROUTE_EVIDENCE_TO_REASONING_CHAT",
         "PERSIST_REASONING_HANDOFF",
         "POLL_REASONING_HANDOFF",
+    },
+    "OWNER_WAIT_HANDLING": {
+        "PERSIST_OWNER_WAIT",
+        "POLL_OWNER_DECISION_SOURCE",
     },
 }
 
@@ -80,6 +85,14 @@ def validate_directive(directive: dict[str, Any]) -> bool:
     _require(
         isinstance(directive.get("ownerOutcome", {}).get("epoch"), int),
         "ownerOutcome.epoch must be an integer",
+    )
+    _require(
+        bool(directive.get("ownerOutcome", {}).get("ownerOutcomeId")),
+        "ownerOutcome.ownerOutcomeId is required",
+    )
+    _require(
+        _is_sha256(directive.get("ownerOutcome", {}).get("sha256")),
+        "ownerOutcome.sha256 is invalid",
     )
     authority = directive.get("authorityContext", {})
     for field in (
@@ -135,6 +148,14 @@ def validate_directive(directive: dict[str, Any]) -> bool:
             "INVALID_AUTHORITY",
         },
         "authorityContext.frontierAuthorization is invalid",
+    )
+    _require(
+        authority.get("permittedActionClass") in DIRECTIVE_ACTION_CLASSES,
+        "authorityContext.permittedActionClass is invalid",
+    )
+    _require(
+        _is_sha256(authority.get("ownerOutcomeSha256")),
+        "authorityContext.ownerOutcomeSha256 is invalid",
     )
     _require(
         bool(authority.get("affectedOperation")),
@@ -239,6 +260,16 @@ def validate_directive(directive: dict[str, Any]) -> bool:
             set(actions).issubset(allowlist),
             f"{action_class} contains a non-allowlisted action",
         )
+        if action_class == "OWNER_WAIT_HANDLING":
+            _require(
+                bool(authority.get("waitAdmissionId"))
+                and authority.get("waitAdmissionState") == "ADMITTED",
+                "owner wait handling requires an admitted exact wait",
+            )
+    _require(
+        authority["permittedActionClass"] == action_class,
+        "directive actionClass differs from the admitted frontier action class",
+    )
     supervisor = directive.get("reasoningSupervisor", {})
     _require(
         supervisor.get("surface") in {"EXTRA_HIGH", "PRO"},
@@ -286,6 +317,236 @@ def validate_directive(directive: dict[str, Any]) -> bool:
         str(strategy.get("authoredBy", "REASONING_CHAT")).upper() != "CODEX",
         "Codex-authored strategy forbidden",
     )
+    return True
+
+
+def authorize_directive_against_authority_resolution(
+    directive: dict[str, Any],
+    active_task: dict[str, Any],
+    authority_resolution: dict[str, Any],
+    wait_admission: dict[str, Any] | None,
+) -> bool:
+    """Authorize only a directive exactly bound to current deterministic outputs."""
+    validate_directive(directive)
+    authority = directive["authorityContext"]
+    checkpoint = authority_resolution.get("taskLocalCheckpointIdentity", {})
+    expected_wait_id = (
+        wait_admission.get("waitId") if wait_admission is not None else None
+    )
+    expected_wait_state = (
+        wait_admission.get("state")
+        if wait_admission is not None
+        else "NOT_REQUIRED"
+    )
+    exact_pairs = (
+        (directive.get("taskId"), active_task.get("taskId"), "task ID"),
+        (
+            directive.get("taskId"),
+            authority_resolution.get("taskId"),
+            "resolved task ID",
+        ),
+        (
+            directive.get("ownerOutcome", {}).get("epoch"),
+            authority_resolution.get("ownerOutcomeEpoch"),
+            "owner-outcome epoch",
+        ),
+        (
+            directive.get("ownerOutcome", {}).get("ownerOutcomeId"),
+            authority_resolution.get("ownerOutcomeId"),
+            "owner-outcome ID",
+        ),
+        (
+            directive.get("ownerOutcome", {}).get("sha256"),
+            authority_resolution.get("ownerOutcomeSha256"),
+            "owner-outcome hash",
+        ),
+        (
+            authority.get("ownerOutcomeSha256"),
+            authority_resolution.get("ownerOutcomeSha256"),
+            "authority owner-outcome hash",
+        ),
+        (
+            authority.get("activeTaskRef"),
+            authority_resolution.get("activeTaskRef"),
+            "active-task identity",
+        ),
+        (
+            authority_resolution.get("activeTaskRef"),
+            active_task.get("activeTaskRef"),
+            "current active-task identity",
+        ),
+        (
+            authority_resolution.get("requiredBranch"),
+            active_task.get("requiredBranch"),
+            "current active-task branch",
+        ),
+        (
+            authority_resolution.get("requiredRef"),
+            active_task.get("requiredRef"),
+            "current active-task ref",
+        ),
+        (
+            authority.get("taskLocalCheckpointRef"),
+            authority_resolution.get("taskLocalCheckpointRef"),
+            "checkpoint source path",
+        ),
+        (
+            checkpoint,
+            {
+                field: active_task.get("taskLocalCheckpoint", {}).get(field)
+                for field in (
+                    "sourcePath",
+                    "gitRef",
+                    "gitObjectId",
+                    "contentSha256",
+                    "taskId",
+                    "branch",
+                )
+            },
+            "current task-local checkpoint identity",
+        ),
+        (
+            authority.get("taskLocalCheckpointGitRef"),
+            checkpoint.get("gitRef"),
+            "checkpoint Git ref",
+        ),
+        (
+            authority.get("taskLocalCheckpointGitObjectId"),
+            checkpoint.get("gitObjectId"),
+            "checkpoint object identity",
+        ),
+        (
+            authority.get("taskLocalCheckpointContentSha256"),
+            checkpoint.get("contentSha256"),
+            "checkpoint content hash",
+        ),
+        (
+            authority.get("currentOwnerSourceRecordId"),
+            authority_resolution.get("ownerAuthoritySourceRecordId"),
+            "owner-source record identity",
+        ),
+        (
+            authority.get("currentOwnerSourceReceiptId"),
+            authority_resolution.get("ownerAuthorityReceiptId"),
+            "owner-source receipt identity",
+        ),
+        (
+            authority.get("repositoryGlobalStateRef"),
+            authority_resolution.get("repositoryGlobalStateRef"),
+            "repository-global source",
+        ),
+        (
+            authority.get("globalStateRelation"),
+            authority_resolution.get("globalStateRelation"),
+            "repository-global relation",
+        ),
+        (
+            authority.get("authorityResolutionStatus"),
+            authority_resolution.get("authorityResolutionStatus"),
+            "authority-resolution status",
+        ),
+        (
+            authority.get("selectedExecutionSource"),
+            authority_resolution.get("selectedExecutionSource"),
+            "selected execution source",
+        ),
+        (
+            authority.get("affectedOperation"),
+            authority_resolution.get("affectedOperation"),
+            "affected operation",
+        ),
+        (
+            authority.get("frontierAuthorization"),
+            authority_resolution.get("frontierAuthorization"),
+            "frontier authorization",
+        ),
+        (
+            authority.get("currentBlockerIds"),
+            authority_resolution.get("activeBlockerIds"),
+            "active blocker IDs",
+        ),
+        (
+            authority.get("blockingBlockerIds"),
+            authority_resolution.get("blockingBlockerIds"),
+            "blocking blocker IDs",
+        ),
+        (
+            authority.get("revalidationRequiredBlockerIds"),
+            authority_resolution.get("revalidationRequiredBlockerIds"),
+            "revalidation blocker IDs",
+        ),
+        (
+            authority.get("ambiguousBlockerIds"),
+            authority_resolution.get("ambiguousBlockerIds"),
+            "ambiguous blocker IDs",
+        ),
+        (
+            authority.get("blockedCapabilityIds"),
+            authority_resolution.get("blockedCapabilityIds"),
+            "blocked capability IDs",
+        ),
+        (
+            authority.get("reasoningReviewRequired"),
+            authority_resolution.get("reasoningReviewRequired"),
+            "reasoning-review requirement",
+        ),
+        (
+            authority.get("substantiveExecutionAuthorized"),
+            authority_resolution.get("substantiveExecutionAuthorized"),
+            "substantive execution authorization",
+        ),
+        (
+            authority.get("waitAdmissionId"),
+            expected_wait_id,
+            "wait-admission identity",
+        ),
+        (
+            authority.get("waitAdmissionState"),
+            expected_wait_state,
+            "wait-admission state",
+        ),
+    )
+    for actual, expected, field in exact_pairs:
+        _require(actual == expected, f"directive authority mismatch: {field}")
+
+    permitted = authority_resolution.get("permittedActionClasses", [])
+    _require(
+        authority_resolution.get("ownerAuthorityAuthenticated") is True
+        or directive["actionClass"]
+        in {
+            "AUTHORITY_RECOVERY",
+            "EVIDENCE_PRESERVATION",
+            "REASONING_HANDOFF",
+        },
+        "directive action requires independently authenticated owner authority",
+    )
+    if wait_admission is not None:
+        _require(
+            wait_admission.get("activeTaskId") == directive["taskId"],
+            "wait admission task mismatch",
+        )
+    _require(
+        directive["actionClass"] in permitted,
+        "directive action class is not permitted by the active frontier",
+    )
+    _require(
+        authority["permittedActionClass"] == directive["actionClass"],
+        "directive permitted action class is self-inconsistent",
+    )
+    if directive["actionClass"] == "SUBSTANTIVE_EXECUTION":
+        _require(
+            authority_resolution.get("substantiveExecutionAuthorized") is True,
+            "resolver did not authorize substantive execution",
+        )
+        _require(
+            expected_wait_state in {"NOT_REQUIRED", "ADMITTED"},
+            "substantive execution wait was not admitted",
+        )
+    if directive["actionClass"] == "OWNER_WAIT_HANDLING":
+        _require(
+            wait_admission is not None and wait_admission.get("admitted") is True,
+            "owner wait handling requires the current admitted wait output",
+        )
     return True
 
 
