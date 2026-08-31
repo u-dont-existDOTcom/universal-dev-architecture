@@ -98,10 +98,23 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   const assessment = latest(events, "supervisor_assessment_recorded");
   const claim = latest(events, "completion_claim_recorded");
   const research = latest(events, "research_verdict_recorded");
-  const reasoning = latest(events, "reasoning_supervision_recorded");
+  const reasoningRecord = latest(events, "reasoning_supervision_recorded");
+  const reasoning = reasoningRecord && outcome
+    && reasoningRecord.owner_outcome_id === outcome.owner_outcome_id
+    && reasoningRecord.owner_outcome_epoch === outcome.epoch
+    && reasoningRecord.owner_outcome_sha256 === outcome.owner_outcome_sha256
+    ? reasoningRecord : undefined;
   const directive = latest(events, "execution_directive_recorded");
   const receipt = latest(events, "execution_receipt_recorded");
-  const progress = latest(events, "outcome_progress_recorded");
+  const progressRecord = latest(events, "outcome_progress_recorded");
+  const progress = progressRecord && outcome && reasoning
+    && progressRecord.owner_outcome_id === outcome.owner_outcome_id
+    && progressRecord.owner_outcome_epoch === outcome.epoch
+    && progressRecord.owner_outcome_sha256 === outcome.owner_outcome_sha256
+    && progressRecord.reviewed_by_session_id === reasoning.reasoning_supervisor_session_id
+    && progressRecord.reviewed_chat_epoch === reasoning.reasoning_supervisor_chat_epoch
+    && progressRecord.strategy_id === reasoning.current_strategy_id
+    ? progressRecord : undefined;
   const alertStatus = new Map<string, Extract<MissionControlEventV2, { type: "supervision_alert_recorded" }>>();
   for (const event of events) if (event.data.type === "supervision_alert_recorded") alertStatus.set(event.data.alert_id, event.data);
   const activeSupervisionAlerts = [...alertStatus.values()].filter((alert) => alert.status === "OPEN");
@@ -183,12 +196,16 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     && directive.owner_outcome_id === outcome?.owner_outcome_id
     && directive.owner_outcome_epoch === outcome?.epoch
     && directive.owner_outcome_sha256 === outcome?.owner_outcome_sha256
+    && reasoning.owner_outcome_id === directive.owner_outcome_id
+    && reasoning.owner_outcome_epoch === directive.owner_outcome_epoch
+    && reasoning.owner_outcome_sha256 === directive.owner_outcome_sha256
     && directive.strategy_id === reasoning.current_strategy_id
     && directive.reasoning_supervisor_session_id === reasoning.reasoning_supervisor_session_id
     && directive.reasoning_chat_epoch === reasoning.reasoning_supervisor_chat_epoch
     && directive.chat_decision_id === reasoning.decision_id);
   const latestReceiptEvent = latestStored(events, "execution_receipt_recorded");
-  const latestReasoningReviewEvent = [latestStored(events, "reasoning_supervision_recorded"), latestStored(events, "outcome_progress_recorded")]
+  const latestReasoningReviewEvent = [reasoning ? latestStored(events, "reasoning_supervision_recorded") : undefined,
+    progress ? latestStored(events, "outcome_progress_recorded") : undefined]
     .filter((event): event is StoredEvent => Boolean(event)).sort((left, right) => right.sequence - left.sequence)[0];
   const pendingReasoningReview = Boolean(latestReceiptEvent && (!latestReasoningReviewEvent || latestReasoningReviewEvent.sequence < latestReceiptEvent.sequence));
   const currentSupervisionRequired = Boolean(outcome && outcome.epoch >= 4);

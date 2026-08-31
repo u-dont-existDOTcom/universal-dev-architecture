@@ -15,7 +15,7 @@ Adapt the existing PR #41 dashboard into the current owner-source, dual-alignmen
 
 ## Required public projection
 
-The all-worker queue is the default. Non-green cards must expose the task, execution state, worker-to-contract state, contract-to-owner state, overall traffic/verdict, exact problem, evidence, directive/response, correction lifecycle, next trigger, owner action, continuation boundary, and checkpoint age. Numeric alignment is secondary.
+The all-worker queue is the default. Non-green cards must expose the task, execution state, worker-to-contract state, contract-to-owner state, overall traffic/verdict, exact problem, evidence, directive/response, correction lifecycle, next trigger, owner action, continuation boundary, and checkpoint age. Attention and healthy variants share one complete renderer for the owner target/gap, latest/best evidence, strategy, supporting work, next measurement/intervention, reasoning identity/age, directive, Codex state, stop/review boundary, receipt/claim, Pro escalation, owner action, and next review. Numeric alignment is secondary.
 
 The Test cleanup fixture is normative:
 
@@ -64,7 +64,9 @@ The comparator directly checks the latest owner outcome rather than trusting com
 
 Numeric progress is also derived rather than trusted. Every numeric receipt declares whether higher or lower is better and stores exact baseline/previous/current deltas. Inconsistent bytes are rejected; projection independently recalculates the effective advancement, strategy efficacy, and same-strategy hold so a hostile `ADVANCING`/`VIABLE` label cannot create GREEN.
 
-For current owner-outcome epochs, substantive Codex execution requires a current reasoning decision and one exact versioned directive. Execution receipts are factual only and their supervisory/progress/adequacy/completion/escalation fields are literal `null`. A stop receipt prevents another start until a later independent chat review and directive. Three-turn handoffs bind the actual durable authority vector and high-water sequence.
+For current owner-outcome epochs, substantive Codex execution requires a reasoning decision bound to the exact current owner-outcome ID, epoch, and hash plus one exact versioned directive bound to that same authority. Legacy reasoning without these fields is readable but non-authoritative. Execution receipts are factual only and their supervisory/progress/adequacy/completion/escalation fields are literal `null`. A stop receipt prevents another start until a later independent chat review and directive. Three-turn handoffs bind the actual durable authority vector and high-water sequence.
+
+For nonnumeric progress, `ADVANCING` requires both current and best evidence to reference current, verified, independent, same-worker durable receipts classified as direct owner-outcome evidence or a validated leading indicator. Validated leading indicators state their predictive basis and later direct-outcome decision boundary. Supporting-only work, future instructions, gaps, placeholders, missing receipts, and activity-only receipts fail closed to unmeasured/uncertain rather than GREEN.
 
 ## Ingestion and trust
 

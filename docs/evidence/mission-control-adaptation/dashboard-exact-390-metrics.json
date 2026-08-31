@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-08-31T04:02:33Z",
+  "source_base_head": "37d0723ba09d7c8394dd37b75db324c4f696ef11",
+  "runtime": "rebuilt production Mission Control stack with a fresh deterministic fixture database",
+  "viewport": {
+    "window_inner_width": 390,
+    "window_inner_height": 844,
+    "device_pixel_ratio": 1,
+    "visual_viewport_width": 390,
+    "document_element_client_width": 390,
+    "document_element_scroll_width": 390,
+    "body_client_width": 390,
+    "body_scroll_width": 390,
+    "horizontal_overflow": false
+  },
+  "content_checks": {
+    "test_cleanup_exact_problem_rendered": true,
+    "test_cleanup_exact_directive_rendered": true,
+    "correction_lifecycle_rendered": true,
+    "owner_outcome_gap_rendered_separately": true,
+    "auth_current_evidence_rendered": true,
+    "auth_unmet_gap_rendered_separately": true,
+    "complete_receipt_and_claim_state_rendered": true
+  },
+  "captures": [
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-queue-exact-390.jpg",
+      "sha256": "e6132179c7e9eadaf04dd96dbcd0b014ee4720e18943127807d4b8027a2ecedc",
+      "dimensions": "390x844",
+      "scope": "unmodified default queue at page top"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg",
+      "sha256": "ffd6d0fd85b4e74bd4d93da43e04920a805f0044dbc123e6ce0501a603b1c8c6",
+      "dimensions": "390x844",
+      "scope": "unmodified first attention card scrolled to its top; exact problem and evidence-backed reasons precede the correction"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-healthy-auth-exact-390.jpg",
+      "sha256": "81f7ab6d4982e63fd412467f601a9086cf9c714e51f38f887974f497ffd42dbe",
+      "dimensions": "390x844",
+      "scope": "actual healthy Auth card from the same runtime and viewport; sibling sections were hidden only in the browser capture surface to avoid a long-page compositor failure, then the temporary style was removed and the capture tab was closed"
+    }
+  ]
+}

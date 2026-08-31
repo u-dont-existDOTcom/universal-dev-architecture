@@ -123,7 +123,7 @@ export function Dashboard() {
   );
 }
 
-function AttentionCard({ worker }: { worker: WorkerState }) {
+export function AttentionCard({ worker }: { worker: WorkerState }) {
   const topEvidence = worker.activeFindings.flatMap((finding) => finding.evidenceRefs).slice(0, 3);
   return (
     <article className={`attention-card ${worker.overallTraffic.toLowerCase()}`}>
@@ -140,19 +140,6 @@ function AttentionCard({ worker }: { worker: WorkerState }) {
         <Plane label="Strategy" value={worker.progress.strategyEfficacy} />
         <Plane label="Verification" value={verificationLabel(worker)} />
         <Plane label="Freshness" value={worker.terminal.reconciliationFreshness} />
-      </div>
-
-      <div className="correction-block">
-        <div className="correction-copy">
-          <span className="block-kicker">OWNER OUTCOME TARGET + DIRECT EVIDENCE</span>
-          <p>{worker.progress.targetEvidence}</p>
-          <small>Latest: {worker.progress.latestEvidence} · Best: {worker.progress.bestEvidence}</small>
-        </div>
-        <div className="correction-state">
-          <span className="block-kicker">ACTIVE STRATEGY</span>
-          <strong>{worker.progress.strategyId ?? "MISSING"} · {worker.progress.strategyEfficacy.replaceAll("_", " ")}</strong>
-          <small>{worker.progress.requiredIntervention}</small>
-        </div>
       </div>
 
       <div className="problem-block">
@@ -181,6 +168,8 @@ function AttentionCard({ worker }: { worker: WorkerState }) {
         <div className={worker.correction.ownerActionType === "NONE" ? "owner-none" : "owner-needed"}><span className="block-kicker">OWNER ACTION</span><strong>{ownerActionLabel(worker)}</strong><small>{worker.correction.ownerActionText}</small><OwnerDecisionDetails worker={worker} /></div>
       </div>
 
+      <TaskControlState worker={worker} />
+
       <div className="attention-card-foot">
         <span>Reasoning supervisor: {worker.executionSupervision.surface} · {worker.executionSupervision.chatEpoch ?? "epoch missing"}</span>
         <span>Directive: {worker.executionSupervision.activeDirectiveId ?? "MISSING"} · {worker.executionSupervision.directiveStatus}</span>
@@ -198,11 +187,7 @@ function AttentionCard({ worker }: { worker: WorkerState }) {
   );
 }
 
-function HealthyCard({ worker }: { worker: WorkerState }) {
-  const supportingWork = worker.progress.supportingWork.length
-    ? worker.progress.supportingWork.map((item) => `${item.classification.replaceAll("_", " ")}: ${item.summary}`).join(" · ")
-    : "No supporting work recorded.";
-  const reviewAge = worker.executionSupervision.lastReviewAt ? relativeTime(worker.executionSupervision.lastReviewAt) : "missing";
+export function HealthyCard({ worker }: { worker: WorkerState }) {
   return (
     <article className="healthy-card">
       <div className="healthy-card-head"><div><StatusDot health="GREEN" /><Link href={`/worker/${worker.id}`}><h3>{worker.name}</h3></Link></div><span>{worker.status}</span></div>
@@ -213,27 +198,40 @@ function HealthyCard({ worker }: { worker: WorkerState }) {
         <span>Outcome <strong>{worker.progress.outcomeAdvancement.replaceAll("_", " ")}</strong></span>
         <span>Strategy <strong>{worker.progress.strategyEfficacy.replaceAll("_", " ")}</strong></span>
       </div>
-      <div className="healthy-state-grid">
-        <HealthyFact label="Owner outcome target" value={worker.progress.targetEvidence} />
-        <HealthyFact label="Direct evidence" value={`Latest: ${worker.progress.latestEvidence} · Best: ${worker.progress.bestEvidence}`} />
-        <HealthyFact label="Active strategy" value={`${worker.progress.strategyId ?? "MISSING"} · ${worker.progress.strategyEfficacy.replaceAll("_", " ")}`} />
-        <HealthyFact label="Supporting work" value={supportingWork} />
-        <HealthyFact label="Next measurement / intervention" value={`${worker.progress.nextDecisionTrigger} · ${worker.progress.requiredIntervention}`} />
-        <HealthyFact label="Reasoning review" value={`${worker.executionSupervision.surface} · ${worker.executionSupervision.chatEpoch ?? "epoch missing"} · ${reviewAge} · ${worker.executionSupervision.reviewFreshness}`} />
-        <HealthyFact label="Active directive" value={`${worker.executionSupervision.activeDirectiveId ?? "MISSING"} · ${worker.executionSupervision.directiveStatus}`} />
-        <HealthyFact label="Codex execution" value={`${worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} · stop: ${worker.executionSupervision.stopBoundary.join("; ") || "none recorded"}`} />
-        <HealthyFact label="Receipt / review boundary" value={`${worker.executionSupervision.latestReceiptId ?? "none"} · review ${worker.executionSupervision.pendingReasoningReview ? "PENDING" : worker.executionSupervision.reviewFreshness}`} />
-        <HealthyFact label="Pro escalation" value={worker.executionSupervision.proEscalationState.replaceAll("_", " ")} />
-        <HealthyFact label="Owner action" value={`${worker.correction.ownerActionType.replaceAll("_", " ")} · ${worker.correction.ownerActionText}`} />
-        <HealthyFact label="Next review" value={worker.correction.nextReviewTrigger} />
-      </div>
+      <TaskControlState worker={worker} />
       <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
       <Link className="healthy-evidence-link" href={`/worker/${worker.id}`}>Evidence + decision trail →</Link>
     </article>
   );
 }
 
-function HealthyFact({ label, value }: { label: string; value: string }) {
+function TaskControlState({ worker }: { worker: WorkerState }) {
+  const supportingWork = worker.progress.supportingWork.length
+    ? worker.progress.supportingWork.map((item) => `${item.classification.replaceAll("_", " ")}: ${item.summary}`).join(" · ")
+    : "No supporting work recorded.";
+  const reviewAge = worker.executionSupervision.lastReviewAt ? relativeTime(worker.executionSupervision.lastReviewAt) : "missing";
+  return (
+    <div className="task-control-grid" aria-label={`${worker.name} complete task control state`}>
+      <ControlFact label="Owner outcome target" value={worker.progress.targetEvidence} />
+      <ControlFact label="Owner outcome gap" value={worker.ownerOutcome.currentGap} />
+      <ControlFact label="Latest direct evidence" value={worker.progress.latestEvidence} />
+      <ControlFact label="Best direct evidence" value={worker.progress.bestEvidence} />
+      <ControlFact label="Active strategy" value={`${worker.progress.strategyId ?? "MISSING"} · ${worker.progress.strategyEfficacy.replaceAll("_", " ")}`} />
+      <ControlFact label="Supporting work" value={supportingWork} />
+      <ControlFact label="Next decision-changing measurement / intervention" value={`${worker.progress.nextDecisionTrigger} · ${worker.progress.requiredIntervention}`} />
+      <ControlFact label="Reasoning review" value={`${worker.executionSupervision.surface} · session ${worker.executionSupervision.sessionId ?? "missing"} · chat ${worker.executionSupervision.chatEpoch ?? "missing"} · reviewed ${reviewAge} · ${worker.executionSupervision.reviewFreshness}`} />
+      <ControlFact label="Active directive" value={`${worker.executionSupervision.activeDirectiveId ?? "MISSING"} · ${worker.executionSupervision.directiveStatus} · ${worker.executionSupervision.directiveObjective}`} />
+      <ControlFact label="Codex execution" value={worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} />
+      <ControlFact label="Stop / review boundary" value={`Stop: ${worker.executionSupervision.stopBoundary.join("; ") || "none recorded"} · Review: ${worker.progress.nextDecisionTrigger}`} />
+      <ControlFact label="Execution receipt / claim" value={`${worker.executionSupervision.latestReceiptId ?? "none"} · ${worker.executionSupervision.receiptClaim} · independent review ${worker.executionSupervision.pendingReasoningReview ? "PENDING" : worker.executionSupervision.reviewFreshness}`} />
+      <ControlFact label="Pro escalation" value={worker.executionSupervision.proEscalationState.replaceAll("_", " ")} />
+      <ControlFact label="Owner action" value={`${worker.correction.ownerActionType.replaceAll("_", " ")} · ${worker.correction.ownerActionText}`} />
+      <ControlFact label="Next review" value={worker.correction.nextReviewTrigger} />
+    </div>
+  );
+}
+
+function ControlFact({ label, value }: { label: string; value: string }) {
   return <div><span>{label}</span><p>{value}</p></div>;
 }
 

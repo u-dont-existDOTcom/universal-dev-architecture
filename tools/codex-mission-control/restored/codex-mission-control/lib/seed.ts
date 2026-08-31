@@ -313,14 +313,32 @@ function supervisionCycle(
   const baseline = seed.worker === "article-humanization" ? 0.1547368467 : null;
   const previous = seed.worker === "article-humanization" ? 0.1381948739 : null;
   const current = seed.worker === "article-humanization" ? 0.1231321841 : null;
-  const evidence = (state: string, numericValue: number | null) => ({
-    state, numeric_value: numericValue, unit: numericValue === null ? null : "Human probability", evidence_receipt_ids: [],
+  const authEvidenceReceiptId = "evidence:auth:behavior-parity-current";
+  const authEvidenceState = "Independent auth characterization verification passed for the current candidate, directly checking preserved authentication behavior while guard centralization remains unfinished.";
+  const evidence = (
+    state: string,
+    numericValue: number | null,
+    evidenceReceiptIds: string[] = [],
+    evidenceRole: "DIRECT_OUTCOME" | "VALIDATED_LEADING_INDICATOR" | "SUPPORTING_ONLY" | "UNKNOWN" = "UNKNOWN",
+    predictiveBasis: string | null = null,
+    decisionBoundary: string | null = null,
+  ) => ({
+    state,
+    numeric_value: numericValue,
+    unit: numericValue === null ? null : "Human probability",
+    evidence_receipt_ids: evidenceReceiptIds,
+    evidence_role: evidenceRole,
+    predictive_basis: predictiveBasis,
+    decision_boundary: decisionBoundary,
   });
   const reviewedAt = time(seed.baseMinute + 40);
   return [
     {
       type: "reasoning_supervision_recorded",
       worker: seed.worker,
+      owner_outcome_id: outcomeId,
+      owner_outcome_epoch: ownerEpoch,
+      owner_outcome_sha256: outcomeHash,
       reasoning_supervisor_surface: "EXTRA_HIGH",
       reasoning_supervisor_session_id: sessionId,
       reasoning_supervisor_chat_epoch: chatEpoch,
@@ -446,15 +464,33 @@ function supervisionCycle(
       target_evidence: evidence(seed.worker === "article-humanization" ? "Human probability target" : seed.normalizedResult, seed.worker === "article-humanization" ? 1 : null),
       baseline_evidence: evidence(seed.worker === "article-humanization" ? "Baseline direct evidence" : "Baseline captured", baseline),
       previous_evidence: evidence(seed.worker === "article-humanization" ? "Prior micro-rewrite evidence" : "Previous review evidence", previous),
-      current_evidence: evidence(seed.worker === "article-humanization" ? "Article-wide rewrite evidence" : seed.currentGap, current),
-      best_evidence: evidence(seed.worker === "article-humanization" ? "Best remains baseline" : "Best current direct evidence", baseline),
+      current_evidence: seed.worker === "auth"
+        ? evidence(
+          authEvidenceState,
+          null,
+          [authEvidenceReceiptId],
+          "VALIDATED_LEADING_INDICATOR",
+          "The independent characterization suite exercises the mapped auth entry points and therefore predicts whether the bounded guard extraction preserves observable authentication behavior.",
+          "After guard extraction is complete, rerun the full auth integration suite and inspect the centralized validation implementation before deciding whether the owner outcome is met.",
+        )
+        : evidence(seed.worker === "article-humanization" ? "Article-wide rewrite evidence" : seed.currentGap, current),
+      best_evidence: seed.worker === "auth"
+        ? evidence(
+          `Best current validated owner-outcome indicator: ${authEvidenceState}`,
+          null,
+          [authEvidenceReceiptId],
+          "VALIDATED_LEADING_INDICATOR",
+          "The independent characterization suite exercises the mapped auth entry points and therefore predicts whether the bounded guard extraction preserves observable authentication behavior.",
+          "After guard extraction is complete, rerun the full auth integration suite and inspect the centralized validation implementation before deciding whether the owner outcome is met.",
+        )
+        : evidence(seed.worker === "article-humanization" ? "Best remains baseline" : "No independently verified best outcome evidence recorded.", baseline),
       change_from_baseline: baseline !== null && current !== null ? current - baseline : null,
       change_from_previous: previous !== null && current !== null ? current - previous : null,
       newly_met_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "MET").map((item) => item.id),
       unmet_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "UNMET").map((item) => item.id),
       unknown_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "UNKNOWN").map((item) => item.id),
       work_since_last_direct_progress: [{
-        classification: seed.worker === "article-humanization" ? "REWORK" : advancement === "ADVANCING" ? "DIRECT_OUTCOME_ADVANCEMENT" : "ENABLEMENT_PROGRESS",
+        classification: seed.worker === "article-humanization" ? "REWORK" : "ENABLEMENT_PROGRESS",
         summary: seed.checkpoint.current_step,
       }],
       measurement_freshness: advancement === "UNMEASURED" ? "OVERDUE" : "CURRENT",
@@ -499,6 +535,14 @@ function authWorker(): DemoWorker {
     effectiveFinishLine: "Bounded auth refactor verified against the current owner outcome",
     reconciliationDirective: "CONTINUE_AUTH_REFACTOR",
     checkpoint: checkpoint("auth", "run-auth-01", "Consolidating session validation guards", ["Mapped existing auth entry points", "Added characterization tests"], ["Finish guard extraction", "Run auth integration tests"], ["src/auth/session.ts", "tests/auth/session.test.ts"], 86, 0, 144),
+    evidence: [{
+      type: "evidence_receipt_recorded", worker: "auth", receipt_id: "evidence:auth:behavior-parity-current",
+      producer_id: "verifier:auth", producer_role: "VERIFIER",
+      evidence_class: "TEST", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("auth-current-candidate"),
+      summary: "Independent auth characterization verification passed for the current candidate and directly checked preserved authentication behavior across the mapped entry points; guard centralization remains unfinished.",
+      refs: ["command:auth-characterization-suite", "artifact:auth-entry-point-parity-report"], verified: true,
+      claim_kind: "GENERAL", changed_path_manifest: null,
+    }],
     claim: claim("auth", "claim-auth-working", "WORKING", "IN_PROGRESS"),
     assessment: assessment("auth", "assessment-auth-01", "run-auth-01", "GREEN", "CONTINUE", "Work remains inside the auth boundary and preserves observed behavior.", 96, "next commit"),
     route: route("auth", "session-auth-pro-01", "next commit", 1),

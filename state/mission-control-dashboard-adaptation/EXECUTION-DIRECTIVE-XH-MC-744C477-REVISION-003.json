@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "directiveId": "XH-MC-744C477-REVISION-003",
+  "directiveRevision": 3,
+  "createdAt": "2026-08-31T03:33:27Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 4,
+    "sha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1"
+  },
+  "reasoningSupervisor": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_revision2_acceptance",
+    "chatEpoch": "review-37d0723-turn-1",
+    "decisionId": "xh-revision2-37d0723-reject-r3",
+    "capsuleId": "xh-mc-37d0723-review-capsule-r3",
+    "reviewedEvidenceBoundary": "original:744c47745c32e6fce440df7739f48c9a59020832;prior-reviewed:3b9745cb92ee7fd41d6b76fc55db06a920908b32;revision2-implementation:40838d622efacc451f388e60ad53b0dfc927b358;head:37d0723ba09d7c8394dd37b75db324c4f696ef11;directive-sha256:60798a96a81d382f1e4753640fbd3054197a60325f57e5cb99a64c94089e5c55;receipt-sha256:e57f0f635e2456a0af05a7db5a67a5adf3a0621203c07f549353b24dfe8f9a8c"
+  },
+  "strategy": {
+    "strategyId": "mc-current-epoch-reasoning-and-evidence-truth-r3",
+    "causalHypothesis": "Binding reasoning decisions to the exact current owner-outcome epoch, rejecting evidence-free qualitative advancement, projecting the mandatory supervision state on both task-card variants, and capturing a true 390px render will close the remaining acceptance failures without changing Mission Control architecture.",
+    "predictedOutcomeChange": "The bounded slice becomes eligible for a fresh independent Extra High acceptance review while remaining nonterminal until that review.",
+    "successThreshold": "All four required repairs pass hostile store/projection/render tests, the actual Auth card contains current durable evidence rather than placeholders or future work, exact 390px evidence is captured, and the regenerated archive matches the restored source.",
+    "failureThreshold": "A pre-owner-correction reasoning event can authorize a post-correction directive; qualitative ADVANCING/GREEN can exist without current durable direct or validated-leading-indicator evidence; any task-card variant omits a mandatory field; or claimed 390px evidence uses a wider CSS viewport.",
+    "nextDecisionChangingEvidence": "One execution-only receipt containing hostile-test results, rendered card evidence at desktop and exact 390px CSS width, archive identity, and exact ending repository state."
+  },
+  "executionObjective": "Perform one bounded repair cycle for the four revision-3 blockers and return an execution-only receipt for a fresh independent Extra High review.",
+  "requiredChanges": [
+    {
+      "id": "MC-R3-B1-CURRENT-EPOCH-REASONING-BINDING",
+      "requirement": "Make every new reasoning_supervision_recorded decision bind owner_outcome_id, owner_outcome_epoch, and owner_outcome_sha256. Reject new reasoning records not bound to the current exact owner outcome. Require execution directives and outcome-progress reviews to select a reasoning event whose exact owner-outcome binding equals their current owner-outcome binding. Preserve legacy stored events readably but treat reasoning records lacking these fields as non-authoritative for new directives or progress judgments."
+    },
+    {
+      "id": "MC-R3-B2-FAIL-CLOSED-QUALITATIVE-PROGRESS",
+      "requirement": "A nonnumeric ADVANCING judgment must bind current same-worker durable evidence through current_evidence.evidence_receipt_ids and best_evidence.evidence_receipt_ids. Reject missing, cross-worker, stale, unverified, or merely worker-activity evidence. Distinguish direct owner-outcome evidence from a validated leading indicator and supporting-only work; a leading indicator must name its predictive basis and later decision/falsification boundary. ENABLEMENT_PROGRESS, PROCESS_OR_TOOLING, future work, current gaps, or placeholder prose cannot create ADVANCING or GREEN. Replace the Auth fixture placeholders with honest current evidence and keep its unmet outcome/gap distinct."
+    },
+    {
+      "id": "MC-R3-B3-EVERY-TASK-CARD-COMPLETE",
+      "requirement": "Render on both AttentionCard and HealthyCard: owner target; latest and best evidence; outcome advancement; strategy ID and efficacy; supporting work; next measurement and required intervention; reasoning surface, chat epoch, and review age; active directive and status; Codex execution state; exact directive stop/review boundary; latest receipt and pending-review state; Pro escalation; and owner action. Tests must exercise each card variant and fail if any individual field is removed; a source-file substring search is insufficient."
+    },
+    {
+      "id": "MC-R3-B4-EXACT-390-RESPONSIVE-EVIDENCE",
+      "requirement": "Capture actual rendered queue and healthy Auth card evidence with a CSS viewport width of exactly 390 pixels. Record window.innerWidth, documentElement.clientWidth, documentElement.scrollWidth, and body.scrollWidth. Require no horizontal overflow and visible mandatory fields. Do not label a 500/520px CSS viewport as 390px evidence."
+    }
+  ],
+  "allowed": {
+    "actions": [
+      "edit the restored Mission Control schema, invariants, store, projection, seed, card UI, styles, and deterministic tests",
+      "add backward-readable handling for legacy reasoning events while keeping new authority fail-closed",
+      "replace demonstration evidence placeholders with durable fixture evidence",
+      "regenerate desktop and exact-390px rendered evidence",
+      "update factual Mission Control documentation and nonterminal current state",
+      "regenerate the exact source-only archive",
+      "record one execution-only revision-3 receipt"
+    ],
+    "paths": [
+      "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/progress-invariants.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/projection.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/seed.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+      "tools/codex-mission-control/restored/codex-mission-control/app/globals.css",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/**",
+      "tools/codex-mission-control/restored/codex-mission-control/README.md",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/README.md",
+      "tools/codex-mission-control/ARCHITECTURE.md",
+      "tools/codex-mission-control/IMPLEMENTATION-SPEC.md",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "docs/evidence/mission-control-adaptation/**",
+      "state/mission-control-dashboard-adaptation/CURRENT-STATE.md",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-*-REVISION-003.json"
+    ],
+    "commands": [
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "npm start",
+      "git diff",
+      "git status",
+      "git diff --check",
+      "unzip -t",
+      "archive checksum and byte-comparison commands",
+      "browser capture and viewport-measurement commands"
+    ],
+    "tacticalFreedom": "Low-level schema compatibility, factoring, naming, test organization, and responsive layout choices inside the four exact behavioral requirements."
+  },
+  "forbidden": {
+    "actions": [
+      "push, deploy, publish, merge, rebase, or rewrite history",
+      "change the owner outcome, owner-source bytes, frozen architecture, or supervision strategy",
+      "add Symphony dispatch, scheduling, retry, stop, resume, workspace, or tracker-control behavior",
+      "weaken correction, terminal, authentication, writer, handoff, or owner-action provenance gates",
+      "treat activity/supporting work as direct owner-outcome evidence",
+      "claim the bounded slice accepted before fresh independent Extra High review",
+      "claim the overall multi-worker Mission Control owner outcome complete",
+      "expand into optional hardening"
+    ],
+    "paths": ["patterns/**", "templates/**", "docs/exec-plans/**"],
+    "decisions": [
+      "owner choice", "Pro escalation", "new supervision architecture", "owner-outcome or contract amendment",
+      "strategy replacement", "slice acceptance", "parent Mission Control completion"
+    ]
+  },
+  "requiredEvidence": [
+    "hostile rejection of reasoning recorded before a later owner-outcome correction even when it is after the prior execution receipt and its capsule/session/strategy otherwise match",
+    "acceptance of a post-correction reasoning event bound to the exact current owner-outcome ID, epoch, and hash",
+    "legacy reasoning records remain readable but cannot authorize a new directive or progress judgment",
+    "hostile rejection of qualitative ADVANCING/GREEN with empty evidence receipts",
+    "hostile rejection of missing, cross-worker, stale, unverified, worker-reported-only, and supporting-only qualitative evidence",
+    "acceptance of current same-worker direct evidence and explicitly validated leading-indicator evidence with a later decision boundary",
+    "actual Auth GREEN projection with meaningful latest/best evidence and supporting work kept separate",
+    "rendered tests proving every required field on both an attention card and the healthy card",
+    "desktop and exact 390px CSS-viewport evidence with client/scroll width measurements and no horizontal overflow",
+    "exact regenerated archive checksum, ZIP integrity, and byte-for-byte restored-tree comparison",
+    "execution-only receipt with all supervisory authority fields null"
+  ],
+  "requiredTestsOrChecks": [
+    "all existing 69 application tests plus new hostile current-epoch, qualitative-evidence, and both-card render tests",
+    "npm test", "npm run typecheck", "npm run build",
+    "temporary-database runtime daemon/dashboard projection inspection",
+    "unauthenticated daemon and disabled external-ingest probes",
+    "exact 1440px and 390px CSS-viewport inspection of attention and healthy cards",
+    "root and body horizontal-overflow measurement at exactly 390 CSS pixels",
+    "archive checksum, unzip integrity, and byte-for-byte restored-tree comparison",
+    "git diff --check and exact ending repository state"
+  ],
+  "stopAndReturnTriggers": [
+    "all four required changes and evidence are complete",
+    "a repair would alter the frozen owner outcome or architecture",
+    "a genuine owner or Pro decision is discovered",
+    "qualitative evidence integrity cannot be made fail-closed without a substantive new product choice",
+    "a hostile fixture cannot be satisfied without weakening another authority invariant",
+    "scope or forbidden-path conflict",
+    "required source or browser input is unavailable",
+    "one meaningful execution cycle is exhausted"
+  ],
+  "maximumExecutionHorizon": {"type": "MEANINGFUL_EXECUTION_CYCLE", "limit": 1},
+  "ambiguityBehavior": "STOP_AND_REPORT_DECISION_REQUIRED",
+  "ownerDecisionAuthority": "NONE",
+  "proEscalationAuthority": "NONE",
+  "strategyAuthority": "NONE",
+  "supervisoryVerdictAuthority": "NONE",
+  "substantiveProseAuthorshipAuthority": "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
+  "status": "ACTIVE"
+}

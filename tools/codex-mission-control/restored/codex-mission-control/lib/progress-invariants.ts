@@ -30,6 +30,9 @@ export function effectiveOutcomeAdvancement(progress?: OutcomeProgressEvent): Ou
     if (delta > 0) return "ADVANCING";
     return "FLAT";
   }
+  if (progress.outcome_advancement === "ADVANCING"
+    && (!qualitativeEvidenceAuthorizesAdvancement(progress.current_evidence)
+      || !qualitativeEvidenceAuthorizesAdvancement(progress.best_evidence))) return "UNMEASURED";
   return progress.outcome_advancement;
 }
 
@@ -47,6 +50,8 @@ export function effectiveStrategyEfficacy(
     if (methodExhausted) return "REPLACEMENT_REQUIRED";
     return progress.strategy_efficacy === "BLOCKED_EXTERNAL" ? "BLOCKED_EXTERNAL" : "UNCERTAIN";
   }
+  if (["UNMEASURED", "UNKNOWN", "NOT_YET_MEASURABLE"].includes(advancement)
+    && progress.strategy_efficacy === "VIABLE") return "UNCERTAIN";
   return progress.strategy_efficacy;
 }
 
@@ -69,6 +74,10 @@ export function progressInvariantErrors(progress: OutcomeProgressEvent): string[
     errors.push("change_from_previous must equal the exact current-minus-previous numeric delta");
   }
   const advancement = effectiveOutcomeAdvancement(progress);
+  if (numeric.directionalChangeFromPrevious === null && progress.outcome_advancement === "ADVANCING"
+    && advancement !== "ADVANCING") {
+    errors.push("nonnumeric ADVANCING requires current and best evidence bound to direct-outcome or validated-leading-indicator receipts");
+  }
   if (numeric.directionalChangeFromPrevious !== null && progress.outcome_advancement !== advancement) {
     errors.push(`outcome_advancement must be ${advancement} for the recorded numeric direction and delta`);
   }
@@ -79,14 +88,24 @@ export function progressInvariantErrors(progress: OutcomeProgressEvent): string[
   if (efficacy === "REPLACEMENT_REQUIRED" && progress.strategy_efficacy !== "REPLACEMENT_REQUIRED") {
     errors.push("an exhausted flat/regressing strategy cycle must be REPLACEMENT_REQUIRED");
   }
-  if ((advancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(efficacy))
+  if ((advancement !== "ADVANCING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(efficacy))
     && progress.overall_control_state === "GREEN") {
-    errors.push("regressing or nonviable strategy evidence cannot declare overall control GREEN");
+    errors.push("non-advancing or nonviable strategy evidence cannot declare overall control GREEN");
   }
   if (progress.measurement_freshness === "OVERDUE" && progress.overall_control_state === "GREEN") {
     errors.push("overdue progress evidence cannot declare overall control GREEN");
   }
   return errors;
+}
+
+function qualitativeEvidenceAuthorizesAdvancement(
+  evidence: OutcomeProgressEvent["current_evidence"] | OutcomeProgressEvent["best_evidence"],
+): boolean {
+  if (evidence.evidence_receipt_ids.length === 0) return false;
+  if (evidence.evidence_role === "DIRECT_OUTCOME") return true;
+  return evidence.evidence_role === "VALIDATED_LEADING_INDICATOR"
+    && Boolean(evidence.predictive_basis)
+    && Boolean(evidence.decision_boundary);
 }
 
 function sameNullableNumber(recorded: number | null, expected: number | null): boolean {

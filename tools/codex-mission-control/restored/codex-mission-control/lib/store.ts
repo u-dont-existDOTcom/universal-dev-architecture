@@ -434,7 +434,12 @@ export class EventStore {
     }
     if (data.type === "reasoning_supervision_recorded") {
       const currentOutcome = outcomes.at(-1)?.data;
-      if (currentOutcome?.type !== "owner_outcome_recorded") throw new ContractInvariantError("Reasoning supervision requires current owner-outcome authority.");
+      if (currentOutcome?.type !== "owner_outcome_recorded"
+        || currentOutcome.owner_outcome_id !== data.owner_outcome_id
+        || currentOutcome.epoch !== data.owner_outcome_epoch
+        || currentOutcome.owner_outcome_sha256 !== data.owner_outcome_sha256) {
+        throw new ContractInvariantError("New reasoning supervision must bind the current exact owner-outcome ID, epoch, and hash.");
+      }
     }
     if (data.type === "execution_directive_recorded") {
       const currentOutcome = outcomes.at(-1)?.data;
@@ -447,6 +452,9 @@ export class EventStore {
         throw new ContractInvariantError("Execution directives must bind the current exact owner-outcome epoch.");
       }
       if (reasoning?.type !== "reasoning_supervision_recorded"
+        || reasoning.owner_outcome_id !== data.owner_outcome_id
+        || reasoning.owner_outcome_epoch !== data.owner_outcome_epoch
+        || reasoning.owner_outcome_sha256 !== data.owner_outcome_sha256
         || reasoning.reasoning_supervisor_session_id !== data.reasoning_supervisor_session_id
         || reasoning.reasoning_supervisor_chat_epoch !== data.reasoning_chat_epoch
         || reasoning.decision_id !== data.chat_decision_id
@@ -517,6 +525,9 @@ export class EventStore {
         || currentOutcome.epoch !== data.owner_outcome_epoch
         || currentOutcome.owner_outcome_sha256 !== data.owner_outcome_sha256
         || reasoning?.type !== "reasoning_supervision_recorded"
+        || reasoning.owner_outcome_id !== data.owner_outcome_id
+        || reasoning.owner_outcome_epoch !== data.owner_outcome_epoch
+        || reasoning.owner_outcome_sha256 !== data.owner_outcome_sha256
         || reasoning.reasoning_supervisor_session_id !== data.reviewed_by_session_id
         || reasoning.reasoning_supervisor_chat_epoch !== data.reviewed_chat_epoch
         || reasoning.current_strategy_id !== data.strategy_id) {
@@ -524,6 +535,11 @@ export class EventStore {
       }
       const progressErrors = progressInvariantErrors(data);
       if (progressErrors.length) throw new ContractInvariantError(`Invalid outcome progress receipt: ${progressErrors.join("; ")}.`);
+      if (data.outcome_advancement === "ADVANCING"
+        && (data.previous_evidence.numeric_value === null || data.current_evidence.numeric_value === null)) {
+        this.validateQualitativeAdvancementEvidence(data.worker, "current", data.current_evidence);
+        this.validateQualitativeAdvancementEvidence(data.worker, "best", data.best_evidence);
+      }
     }
     if (data.type === "supervision_route_recorded") {
       const prior = [...events].reverse().find((event) => event.data.type === "supervision_route_recorded")?.data;
@@ -805,6 +821,30 @@ export class EventStore {
     const duplicate = this.workerEvents(worker).some((event) => event.data.type === type
       && (event.data as unknown as Record<string, unknown>)[field] === value);
     if (duplicate) throw new CorrectionInvariantError(`${type}.${field} must be unique within the worker ledger.`);
+  }
+
+  private validateQualitativeAdvancementEvidence(
+    worker: string,
+    boundary: "current" | "best",
+    evidence: Extract<MissionControlEventV2, { type: "outcome_progress_recorded" }>["current_evidence"],
+  ) {
+    const directClasses = new Set(["TEST", "ARTIFACT", "SEMANTIC_REVIEW", "OWNER_OBSERVATION", "RESEARCH_VERDICT"]);
+    for (const receiptId of evidence.evidence_receipt_ids) {
+      const matching = this.allEvents().filter((event) => event.data.type === "evidence_receipt_recorded"
+        && event.data.receipt_id === receiptId);
+      const receiptEvent = matching.find((event) => event.worker === worker);
+      const receipt = receiptEvent?.data;
+      if (receipt?.type !== "evidence_receipt_recorded") {
+        const location = matching.length ? "belongs to another worker" : "does not exist";
+        throw new ContractInvariantError(`Qualitative ${boundary} ADVANCING evidence receipt ${receiptId} ${location}; same-worker durable evidence is required.`);
+      }
+      if (!receipt.verified || receipt.freshness !== "CURRENT" || receipt.independence !== "INDEPENDENT") {
+        throw new ContractInvariantError(`Qualitative ${boundary} ADVANCING evidence receipt ${receiptId} must be verified, CURRENT, and INDEPENDENT.`);
+      }
+      if (receipt.producer_role === "WORKER" || !directClasses.has(receipt.evidence_class)) {
+        throw new ContractInvariantError(`Qualitative ${boundary} ADVANCING evidence receipt ${receiptId} records worker activity or supporting change evidence, not an independently checked outcome indicator.`);
+      }
+    }
   }
 
   private validateObligationReferences(

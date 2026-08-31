@@ -48,14 +48,14 @@ Worker-to-contract and contract-to-owner alignment are never averaged. A worker 
 
 ## Progress and execution supervision
 
-- Outcome receipts declare measurement direction and exact baseline/previous/current evidence. Numeric deltas are recalculated; inconsistent receipts are rejected and hostile in-memory projections still derive the effective state.
+- Outcome receipts declare measurement direction and exact baseline/previous/current evidence. Numeric deltas are recalculated; inconsistent receipts are rejected and hostile in-memory projections still derive the effective state. Nonnumeric advancement requires current and best same-worker durable direct-outcome or validated-leading-indicator receipts; the latter binds a predictive basis and later decision boundary. Supporting, missing, stale, unverified, cross-worker, and activity-only evidence cannot authorize `ADVANCING` or GREEN.
 - Alignment GREEN/MATCH never masks FLAT, REGRESSING, overdue, or externally blocked progress.
 - Regressing evidence holds same-strategy continuation; exhausted flat/regressing cycles require replacement.
-- A current reasoning review binds the owner-outcome hash, strategy, chat session/epoch, and reviewed evidence boundary.
+- A current reasoning review binds the exact owner-outcome ID, epoch, and hash plus strategy, chat session/epoch, capsule, and reviewed evidence boundary. Legacy unbound reasoning remains readable but is non-authoritative.
 - A successor directive after an execution receipt requires a strictly later durable reasoning review and the exact review capsule; active-directive labels cannot substitute for ledger causality.
 - Codex cannot start without the current exact directive, continue after its stop receipt, or use an execution receipt to author progress, strategy, adequacy, completion, owner escalation, or Pro escalation.
 - Turn-three handoffs bind the exact durable authority vector and high-water sequence; a forged capsule or stale vector is rejected.
-- All owner-action source references must exist in the same worker ledger, and every task card projects the complete progress and execution-supervision state.
+- All owner-action source references must exist in the same worker ledger, and both attention and healthy task cards use one complete progress and execution-supervision state renderer.
 
 ## Completion invariants
 

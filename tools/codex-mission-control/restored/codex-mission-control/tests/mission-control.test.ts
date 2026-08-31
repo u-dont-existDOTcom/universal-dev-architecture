@@ -5,6 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { AttentionCard, HealthyCard } from "../components/Dashboard";
 import { sha256 } from "../lib/canonical";
 import { correctionStatusLabel, CorrectionInvariantError, validateCorrectionTransition } from "../lib/correction-lifecycle";
 import { authenticatedEventTypes, producerKinds, producerMayEmit } from "../lib/ingestion-auth";
@@ -173,7 +176,7 @@ test("an event-ID collision with different content is rejected", () => {
 test("the event hash chain verifies from the first event through the demo ledger", () => {
   const store = new EventStore(":memory:");
   seedStore(store);
-  assert.equal(store.count(), 107);
+  assert.equal(store.count(), 108);
   assert.deepEqual(store.verifyChain(), { valid: true, errors: [] });
   assert.equal(store.allEvents()[0].previousHash, null);
   store.close();
@@ -990,11 +993,11 @@ test("numeric evidence direction automatically overrides a dishonest healthy pro
   replaceLatest(events, "outcome_progress_recorded", (progress) => ({
     ...progress,
     measurement_direction: "HIGHER_IS_BETTER",
-    target_evidence: { state: "target", numeric_value: 1, unit: "score", evidence_receipt_ids: [] },
-    baseline_evidence: { state: "baseline", numeric_value: 0.8, unit: "score", evidence_receipt_ids: [] },
-    previous_evidence: { state: "previous", numeric_value: 0.7, unit: "score", evidence_receipt_ids: [] },
-    current_evidence: { state: "current", numeric_value: 0.5, unit: "score", evidence_receipt_ids: [] },
-    best_evidence: { state: "best", numeric_value: 0.8, unit: "score", evidence_receipt_ids: [] },
+    target_evidence: { state: "target", numeric_value: 1, unit: "score", evidence_receipt_ids: [], evidence_role: "UNKNOWN", predictive_basis: null, decision_boundary: null },
+    baseline_evidence: { state: "baseline", numeric_value: 0.8, unit: "score", evidence_receipt_ids: [], evidence_role: "UNKNOWN", predictive_basis: null, decision_boundary: null },
+    previous_evidence: { state: "previous", numeric_value: 0.7, unit: "score", evidence_receipt_ids: [], evidence_role: "UNKNOWN", predictive_basis: null, decision_boundary: null },
+    current_evidence: { state: "current", numeric_value: 0.5, unit: "score", evidence_receipt_ids: [], evidence_role: "UNKNOWN", predictive_basis: null, decision_boundary: null },
+    best_evidence: { state: "best", numeric_value: 0.8, unit: "score", evidence_receipt_ids: [], evidence_role: "UNKNOWN", predictive_basis: null, decision_boundary: null },
     change_from_baseline: -0.3,
     change_from_previous: -0.2,
     outcome_advancement: "ADVANCING",
@@ -1127,6 +1130,114 @@ test("a next directive requires a post-receipt reasoning review and the exact re
   store.close();
 });
 
+test("new reasoning supervision binds the exact current owner-outcome authority while legacy records remain readable but non-authoritative", () => {
+  const current = workerEvents("auth").findLast((event) => event.data.type === "reasoning_supervision_recorded")!.data;
+  assert.equal(current.type, "reasoning_supervision_recorded");
+  const legacy = { ...current } as Record<string, unknown>;
+  delete legacy.owner_outcome_id;
+  delete legacy.owner_outcome_epoch;
+  delete legacy.owner_outcome_sha256;
+  const readable = eventSchema.parse(legacy);
+  assert.equal(readable.type, "reasoning_supervision_recorded");
+  assert.equal(readable.type === "reasoning_supervision_recorded" && readable.owner_outcome_id, null);
+  const legacyEvents = cloneEvents(workerEvents("auth"));
+  replaceLatest(legacyEvents, "reasoning_supervision_recorded", (reasoning) => ({
+    ...reasoning, owner_outcome_id: null, owner_outcome_epoch: null, owner_outcome_sha256: null,
+  }));
+  const legacyProjection = projectWorker(legacyEvents);
+  assert.equal(legacyProjection.terminal.reasoningReviewFresh, false);
+  assert.equal(legacyProjection.terminal.activeDirectiveCurrent, false);
+  assert.notEqual(legacyProjection.overallTraffic, "GREEN");
+  assert.ok(legacyProjection.terminal.reasonCodes.includes("REASONING_SUPERVISOR_MISSING"));
+
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  assert.throws(() => store.append({
+    schema_version: 2,
+    event_id: "reasoning:auth:stale-owner-epoch",
+    mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:06:00.000Z",
+    data: {
+      ...current,
+      decision_id: "reasoning-decision:auth:stale-owner-epoch",
+      capsule_id: "reasoning-capsule:auth:stale-owner-epoch",
+      owner_outcome_epoch: 3,
+      owner_outcome_sha256: sha256("auth-stale-owner-outcome"),
+    },
+  }), /current exact owner-outcome ID, epoch, and hash/);
+  store.close();
+});
+
+test("qualitative ADVANCING fails closed unless current and best evidence are durable independent outcome indicators", () => {
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  const base = store.workerEvents("auth").findLast((event) => event.data.type === "outcome_progress_recorded")!.data;
+  assert.equal(base.type, "outcome_progress_recorded");
+  const validReceiptId = base.current_evidence.evidence_receipt_ids[0];
+  assert.ok(validReceiptId);
+
+  const appendProgress = (id: string, currentEvidence: typeof base.current_evidence, bestEvidence = currentEvidence) => store.append({
+    schema_version: 2,
+    event_id: `outcome-progress:auth:${id}`,
+    mission_id: "mission-control-demo",
+    occurred_at: "2026-08-30T20:07:00.000Z",
+    data: { ...base, progress_receipt_id: `outcome-progress:auth:${id}`, current_evidence: currentEvidence, best_evidence: bestEvidence },
+  });
+
+  assert.throws(() => appendProgress("missing-receipts", {
+    ...base.current_evidence, evidence_role: "DIRECT_OUTCOME", evidence_receipt_ids: [], predictive_basis: null, decision_boundary: null,
+  }), /nonnumeric ADVANCING requires current and best evidence/);
+  assert.throws(() => appendProgress("supporting-only", {
+    ...base.current_evidence, evidence_role: "SUPPORTING_ONLY", evidence_receipt_ids: [validReceiptId], predictive_basis: null, decision_boundary: null,
+  }), /nonnumeric ADVANCING requires current and best evidence/);
+  assert.doesNotThrow(() => appendProgress("valid-direct-outcome", {
+    ...base.current_evidence, evidence_role: "DIRECT_OUTCOME", evidence_receipt_ids: [validReceiptId], predictive_basis: null, decision_boundary: null,
+  }));
+  assert.throws(() => eventSchema.parse({ ...base, current_evidence: {
+    ...base.current_evidence, evidence_role: "VALIDATED_LEADING_INDICATOR", predictive_basis: null, decision_boundary: null,
+  } }), /validated leading indicator requires/i);
+
+  const billingReceipt = store.workerEvents("billing").find((event) => event.data.type === "evidence_receipt_recorded")!.data;
+  assert.equal(billingReceipt.type, "evidence_receipt_recorded");
+  assert.throws(() => appendProgress("cross-worker", {
+    ...base.current_evidence, evidence_role: "DIRECT_OUTCOME", evidence_receipt_ids: [billingReceipt.receipt_id], predictive_basis: null, decision_boundary: null,
+  }), /belongs to another worker/);
+
+  for (const [suffix, receiptState, expected] of [
+    ["stale", { freshness: "STALE" as const, verified: true, independence: "INDEPENDENT" as const, evidence_class: "TEST" as const }, /verified, CURRENT, and INDEPENDENT/],
+    ["unverified", { freshness: "CURRENT" as const, verified: false, independence: "INDEPENDENT" as const, evidence_class: "TEST" as const }, /verified, CURRENT, and INDEPENDENT/],
+    ["worker-reported", { freshness: "CURRENT" as const, verified: true, independence: "WORKER_REPORTED" as const, evidence_class: "TEST" as const }, /verified, CURRENT, and INDEPENDENT/],
+    ["activity", { freshness: "CURRENT" as const, verified: true, independence: "INDEPENDENT" as const, evidence_class: "COMMAND" as const }, /worker activity or supporting change evidence/],
+  ] as const) {
+    const receiptId = `evidence:auth:${suffix}-qualitative`;
+    store.append({
+      schema_version: 2,
+      event_id: `evidence:auth:${suffix}-qualitative:event`,
+      mission_id: "mission-control-demo",
+      occurred_at: "2026-08-30T20:06:30.000Z",
+      data: {
+        type: "evidence_receipt_recorded", worker: "auth", receipt_id: receiptId,
+        producer_id: `verifier:auth:${suffix}`, producer_role: "VERIFIER", evidence_class: receiptState.evidence_class,
+        independence: receiptState.independence, freshness: receiptState.freshness, exact_candidate_sha256: sha256(`auth-${suffix}-candidate`),
+        summary: `Hostile ${suffix} qualitative evidence fixture.`, refs: [`fixture:${suffix}`], verified: receiptState.verified,
+        changed_path_manifest: null,
+      },
+    });
+    assert.throws(() => appendProgress(suffix, {
+      ...base.current_evidence, evidence_role: "DIRECT_OUTCOME", evidence_receipt_ids: [receiptId], predictive_basis: null, decision_boundary: null,
+    }), expected);
+  }
+  store.close();
+
+  const auth = demoWorker("auth");
+  assert.equal(auth.overallTraffic, "GREEN");
+  assert.match(auth.progress.latestEvidence, /Independent auth characterization verification passed/);
+  assert.match(auth.progress.bestEvidence, /Best current validated owner-outcome indicator/);
+  assert.equal(auth.ownerOutcome.requiredOutcomes[0].status, "UNMET");
+  assert.match(auth.ownerOutcome.currentGap, /Finish the bounded guard extraction/);
+  assert.equal(auth.progress.supportingWork[0].classification, "ENABLEMENT_PROGRESS");
+});
+
 test("every owner-action-bearing event rejects missing and cross-worker source provenance", () => {
   const store = new EventStore(":memory:");
   seedStore(store);
@@ -1154,13 +1265,46 @@ test("every owner-action-bearing event rejects missing and cross-worker source p
   store.close();
 });
 
-test("compact healthy cards expose the complete progress and execution-supervision state", () => {
-  const source = fs.readFileSync(path.join(appRoot, "components/Dashboard.tsx"), "utf8");
-  for (const label of [
-    "Owner outcome target", "Direct evidence", "Active strategy", "Supporting work",
-    "Next measurement / intervention", "Reasoning review", "Active directive", "Codex execution",
-    "Receipt / review boundary", "Pro escalation", "Owner action", "Next review",
-  ]) assert.match(source, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+test("attention and healthy card variants render the complete progress and execution-supervision state", () => {
+  const variants = [
+    ["attention", demoWorker("tests"), AttentionCard],
+    ["healthy", demoWorker("auth"), HealthyCard],
+  ] as const;
+  const labels = [
+    "Owner outcome target", "Owner outcome gap", "Latest direct evidence", "Best direct evidence", "Active strategy", "Supporting work",
+    "Next decision-changing measurement / intervention", "Reasoning review", "Active directive", "Codex execution",
+    "Stop / review boundary", "Execution receipt / claim", "Pro escalation", "Owner action", "Next review",
+  ];
+  for (const [variant, worker, Card] of variants) {
+    const html = renderToStaticMarkup(createElement(Card, { worker }));
+    for (const label of labels) assert.ok(html.includes(label), `${variant} card must render ${label}`);
+    for (const value of [
+      worker.progress.targetEvidence,
+      worker.ownerOutcome.currentGap,
+      worker.progress.latestEvidence,
+      worker.progress.bestEvidence,
+      worker.progress.strategyId,
+      worker.progress.supportingWork[0]?.summary,
+      worker.progress.nextDecisionTrigger,
+      worker.progress.requiredIntervention,
+      worker.executionSupervision.surface,
+      worker.executionSupervision.sessionId,
+      worker.executionSupervision.chatEpoch,
+      worker.executionSupervision.reviewFreshness,
+      worker.executionSupervision.activeDirectiveId,
+      worker.executionSupervision.directiveStatus,
+      worker.executionSupervision.directiveObjective,
+      worker.executionSupervision.codexExecutionState.replaceAll("_", " "),
+      worker.executionSupervision.stopBoundary[0],
+      worker.executionSupervision.latestReceiptId,
+      worker.executionSupervision.receiptClaim,
+      worker.executionSupervision.proEscalationState.replaceAll("_", " "),
+      worker.correction.ownerActionText,
+      worker.correction.nextReviewTrigger,
+    ].filter((value): value is string => Boolean(value))) {
+      assert.ok(html.includes(value), `${variant} card must render actual value: ${value}`);
+    }
+  }
 });
 
 test("a GREEN-base owner decision enters attention and retains the full Pro choice packet", () => {

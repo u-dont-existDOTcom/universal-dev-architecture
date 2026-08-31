@@ -681,6 +681,9 @@ export const workClassificationSchema = z.enum([
 export const reasoningSupervisionRecordedSchema = z.object({
   type: z.literal("reasoning_supervision_recorded"),
   worker: WorkerId,
+  owner_outcome_id: StableId.nullable().default(null),
+  owner_outcome_epoch: z.number().int().positive().nullable().default(null),
+  owner_outcome_sha256: Sha256.nullable().default(null),
   reasoning_supervisor_surface: z.enum(["EXTRA_HIGH", "PRO"]),
   reasoning_supervisor_session_id: StableId,
   reasoning_supervisor_chat_epoch: StableId,
@@ -788,11 +791,27 @@ export const codexExecutionStartedSchema = z.object({
   declared_tactical_boundary: NonEmpty,
 });
 
+export const directEvidenceRoleSchema = z.enum([
+  "DIRECT_OUTCOME", "VALIDATED_LEADING_INDICATOR", "SUPPORTING_ONLY", "UNKNOWN",
+]);
+
 const directEvidenceSchema = z.object({
   state: NonEmpty,
   numeric_value: z.number().nullable().default(null),
   unit: z.string().nullable().default(null),
   evidence_receipt_ids: z.array(StableId).default([]),
+  evidence_role: directEvidenceRoleSchema.default("UNKNOWN"),
+  predictive_basis: NonEmpty.nullable().default(null),
+  decision_boundary: NonEmpty.nullable().default(null),
+}).superRefine((evidence, context) => {
+  if (evidence.evidence_role === "VALIDATED_LEADING_INDICATOR") {
+    if (!evidence.predictive_basis) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["predictive_basis"], message: "A validated leading indicator requires its predictive basis." });
+    }
+    if (!evidence.decision_boundary) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_boundary"], message: "A validated leading indicator requires a later direct-outcome decision boundary." });
+    }
+  }
 });
 
 export const outcomeProgressRecordedSchema = z.object({

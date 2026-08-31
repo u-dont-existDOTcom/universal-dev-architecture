@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-bb53453be58db9eebbc2405374d2535617ffadbf6c4eb088c703121cd7a6abb4
+6694c0647dd4b6661c49242bdb14bb7d750c361e6d01c2e5bf8c59afa93cc808
 ```
 
-The checked archive contains 45 source files in 24 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, and runtime databases.
+The checked archive contains 45 source files in 25 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, and runtime databases.
 
 ## Current operator model
 
@@ -42,7 +42,7 @@ The Test cleanup fixture plainly says the worker is changing the forbidden produ
 
 Numeric alignment remains secondary diagnostic metadata. Owner choices carry the complete Pro decision packet—question, context, options, benefits, drawbacks, consequences, recommendation, reasoning, and default if unanswered—rather than a compressed summary.
 
-Outcome advancement and strategy efficacy are independent planes. Numeric direction and deltas are validated and derived; a supplied `ADVANCING` label cannot mask regressing bytes. Chat reasoning and Codex execution are separate: substantive Codex work requires a current versioned chat-authored directive, an execution-only receipt cannot populate supervisory verdicts, and a fresh reasoning review is required before another directive.
+Outcome advancement and strategy efficacy are independent planes. Numeric direction and deltas are validated and derived; a supplied `ADVANCING` label cannot mask regressing bytes. Nonnumeric `ADVANCING` requires current and best same-worker durable direct-outcome or validated-leading-indicator receipts; supporting work and placeholder/future prose cannot make a worker GREEN. Chat reasoning and Codex execution are separate: substantive Codex work requires a reasoning decision bound to the exact current owner-outcome ID, epoch, and hash plus a current versioned chat-authored directive; an execution-only receipt cannot populate supervisory verdicts, and a fresh reasoning review is required before another directive.
 
 ## Runtime boundary
 
@@ -59,14 +59,14 @@ The stock Symphony adapter is read-only. Mission Control does not dispatch, retr
 
 At the current execution receipt boundary:
 
-- 69 deterministic tests passed;
+- 71 deterministic tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;
 - unauthenticated daemon and external ingestion mutations were denied;
 - same-origin UI mutations succeeded for both localhost spellings while cross-origin mutations were denied;
-- desktop 1440 px and mobile 390 px rendered states were inspected, including the complete healthy-worker card;
-- mobile detail overflow was measured and eliminated;
+- the default queue, Test cleanup card, and complete healthy Auth card were captured at an actual 390 CSS-pixel viewport;
+- `window.innerWidth`, root client/scroll width, and body scroll width all measured exactly 390, with no horizontal overflow;
 - stack shutdown released the daemon writer lock;
 - the source archive restored with exact checksum and tree equality.
 
