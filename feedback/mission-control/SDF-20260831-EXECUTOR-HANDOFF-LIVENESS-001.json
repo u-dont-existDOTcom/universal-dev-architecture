@@ -108,7 +108,9 @@
     "summary": "Accept closed-loop handoff liveness with a durable controller-held lease, one logical request, compact polling, idempotent transport recovery before persistence, and exactly-once response import/directive application. Current compatibility may keep Codex/browser alive; target Mission Control owns durable wake-up."
   },
   "ownerDecisionRef": "owner-correction-2026-08-31-executor-must-wait-for-supervisor",
-  "repositoryChangeRefs": [],
+  "repositoryChangeRefs": [
+    "27c520a7a3079af61742a0fe17cb74b697caad9d"
+  ],
   "testRefs": [
     "tests/test_executor_handoff_liveness.py",
     "evals/mission-control/executor-handoff-dropped.json"
