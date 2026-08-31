@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "reconciliationId": "mc-recon-20260831-epoch4-r3",
+  "reconciliationId": "mc-recon-20260831-epoch4-r4",
   "taskId": "mission-control-dashboard-adaptation-20260830",
-  "trigger": "XH_REVISION2_ACCEPTANCE_REJECT_R3",
-  "reconciledAt": "2026-08-31T04:02:33Z",
+  "trigger": "XH_REVISION3_ACCEPTANCE_REJECT_R4",
+  "reconciledAt": "2026-08-31T04:43:13Z",
   "ownerSource": {
     "ownerRequestId": "mission-control-dashboard-adaptation-20260830",
     "canonicalLocator": "state/mission-control-dashboard-adaptation/OWNER-REQUEST.md",
@@ -43,12 +43,9 @@
       "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
       "reconciliationId": "mc-recon-20260830-gap-audit-r1"
     },
-    "currentGap": "Revision-3 repairs and exact-width evidence are implemented at e291a59cee5f61a7d17238be95291d10ef9b5314 and remain nonterminal pending a fresh independent Extra High review of the execution-only receipt.",
+    "currentGap": "Revision-4 acceptance-proof and execution-provenance repairs are implemented at b5bc0d069dcc549a68d3995c6f53633966c16c8c and remain nonterminal pending a fresh independent Extra High review of the execution-only receipt.",
     "unmetOutcomes": [
-      "exact current-owner-outcome binding for reasoning authority, directives, and progress",
-      "fail-closed qualitative advancement backed by durable direct or validated-leading-indicator evidence",
-      "one complete progress and execution-supervision renderer exercised on every task-card variant",
-      "actual rendered 390 CSS-pixel queue and healthy-card evidence without horizontal overflow"
+      "fresh independent Extra High acceptance of the revision-4 directive-scope provenance, deletion-sensitive card proof, truthful exact-390 capture, and regenerated archive"
     ],
     "unknownOutcomes": [],
     "nonSatisfyingProxies": [
@@ -67,25 +64,28 @@
       "docs/exec-plans/2026-08-30-mission-control-attention-and-correction-ux-addendum.md",
       "docs/exec-plans/2026-08-31-mission-control-outcome-progress-and-stagnation-addendum.md",
       "docs/exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md",
-      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json"
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json"
     ]
   },
   "frozenIndependentReview": {
     "surface": "EXTRA_HIGH",
-    "sessionId": "/root/xhigh_revision2_acceptance",
-    "chatEpoch": "review-37d0723-turn-1",
-    "decisionId": "xh-revision2-37d0723-reject-r3",
+    "sessionId": "/root/xhigh_revision3_acceptance",
+    "chatEpoch": "review-97ebbd7-turn-1",
+    "decisionId": "xh-revision3-97ebbd7-reject-r4",
     "verdict": "REJECT",
     "ownerActionRequired": false,
     "proMetaReviewRequired": false,
     "sliceMayClose": false,
     "findings": [
-      "MC-R3-B1-CURRENT-EPOCH-REASONING-BINDING",
-      "MC-R3-B2-FAIL-CLOSED-QUALITATIVE-PROGRESS",
-      "MC-R3-B3-EVERY-TASK-CARD-COMPLETE",
-      "MC-R3-B4-EXACT-390-RESPONSIVE-EVIDENCE"
+      "MC-R4-B1-DIRECTIVE-SCOPE-PROVENANCE",
+      "MC-R4-B2-DELETION-SENSITIVE-CARD-PROOF",
+      "MC-R4-B3-TRUTHFUL-EXACT-390-CAPTURE",
+      "MC-R4-B4-REVERIFY-AND-ARCHIVE"
     ],
-    "nextDirectiveId": "XH-MC-744C477-REVISION-003",
+    "nextDirectiveId": "XH-MC-744C477-REVISION-004",
+    "substantiveTurns": 2,
+    "reviewerChatClosed": true,
+    "directiveClarificationId": "xh-revision4-archive-readme-path-clarification",
     "nextReviewRequired": true
   },
   "requirements": [
@@ -117,7 +117,7 @@
       "ownerRequirementId": "MC-R5",
       "ownerRequirementText": "Use Extra High checkpoints, shared Pro only for substantive supervision design, and hand off Pro/Extra High chats within two to three substantive turns.",
       "status": "MAPPED_DIRECT",
-      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json", "docs/evidence/mission-control-adaptation/pro-attention-ux-final-confirmation.txt"]
+      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json", "docs/evidence/mission-control-adaptation/pro-attention-ux-final-confirmation.txt"]
     },
     {
       "ownerRequirementId": "MC-R6",
@@ -129,33 +129,35 @@
       "ownerRequirementId": "MC-R7",
       "ownerRequirementText": "Do not claim the overall multi-worker Mission Control owner outcome complete.",
       "status": "MAPPED_DIRECT",
-      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json"]
+      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json"]
     }
   ],
   "completionClaim": {
     "type": "WORKING",
     "proposedTerminal": false,
-    "candidateRef": "e291a59cee5f61a7d17238be95291d10ef9b5314",
+    "candidateRef": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
     "evidenceRefs": [
       "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-002.json",
       "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json",
       "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-003.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-004.json",
       "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json"
     ]
   },
   "result": {
     "supervisoryVerdict": "REJECT",
     "rootTerminalizationAllowed": false,
-    "requiredDirective": "RETURN_EXECUTION_RECEIPT_FOR_FRESH_XH_REVIEW",
+    "requiredDirective": "RETURN_REVISION_4_EXECUTION_RECEIPT_FOR_FRESH_XH_REVIEW",
     "ownerActionRequired": false,
     "proMetaReviewRequired": false,
     "nextReasoningReviewRequired": true,
     "findings": [
-      "MC-R3-B1-CURRENT-EPOCH-REASONING-BINDING",
-      "MC-R3-B2-FAIL-CLOSED-QUALITATIVE-PROGRESS",
-      "MC-R3-B3-EVERY-TASK-CARD-COMPLETE",
-      "MC-R3-B4-EXACT-390-RESPONSIVE-EVIDENCE"
+      "MC-R4-B1-DIRECTIVE-SCOPE-PROVENANCE",
+      "MC-R4-B2-DELETION-SENSITIVE-CARD-PROOF",
+      "MC-R4-B3-TRUTHFUL-EXACT-390-CAPTURE",
+      "MC-R4-B4-REVERIFY-AND-ARCHIVE"
     ]
   },
-  "previousReconciliationId": "mc-recon-20260831-epoch4-r2"
+  "previousReconciliationId": "mc-recon-20260831-epoch4-r3"
 }

@@ -17,6 +17,22 @@
     "capsuleId": "xh-mc-97ebbd7-review-capsule-r4",
     "reviewedEvidenceBoundary": "original:744c47745c32e6fce440df7739f48c9a59020832;revision3-implementation:e291a59cee5f61a7d17238be95291d10ef9b5314;head:97ebbd72dc893b180abfda7a3fb8c4ccab713723;directive-sha256:1ac9ee6fbb4aea65ba87efe23c664982481043752e5ed1c485cf8f5b6164ced4;receipt-sha256:3fd7cae1ddda0e64c23149891068dac51087872adb99e71cdd121a8d259d8c04"
   },
+  "directiveClarifications": [
+    {
+      "clarificationId": "xh-revision4-archive-readme-path-clarification",
+      "clarifiedAt": "2026-08-31T04:41:47Z",
+      "surface": "EXTRA_HIGH",
+      "sessionId": "/root/xhigh_revision3_acceptance",
+      "chatEpoch": "review-97ebbd7-turn-2",
+      "originalDirectiveSha256": "d8ce5e5fd16c87c4f4ae68287a8fc195582b4d278aae723304261264d2d6b690",
+      "trigger": "Archive regeneration after commit b5bc0d069dcc549a68d3995c6f53633966c16c8c would make the README's labeled current archive identity false while the README path was omitted from the exhaustive allowed-path list.",
+      "authorization": "Add tools/codex-mission-control/README.md to revision 4's allowed paths solely to replace the checksum under Current archive identity and the source-file/base64-part counts with independently verified facts from the archive regenerated after b5bc0d069dcc549a68d3995c6f53633966c16c8c. The README checksum must exactly equal SOURCE-ARCHIVE.sha256; the counts must equal the reconstructed archive. No other README content or behavior is authorized to change.",
+      "ownerDecisionRequired": false,
+      "proReviewRequired": false,
+      "strategyChanged": false,
+      "reviewerChatClosedAfterThisTurn": true
+    }
+  ],
   "priorExecutionBoundary": {
     "status": "DIRECTIVE_SCOPE_EXCEEDED",
     "priorDirectiveId": "XH-MC-744C477-REVISION-003",
@@ -77,6 +93,7 @@
       "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
       "tools/codex-mission-control/source-archive/**",
       "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "tools/codex-mission-control/README.md",
       "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg",
       "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json",
       "state/mission-control-dashboard-adaptation/CURRENT-STATE.md",
