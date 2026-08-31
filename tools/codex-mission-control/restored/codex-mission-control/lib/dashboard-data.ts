@@ -4,8 +4,11 @@ import { EventStore } from "./store";
 export function snapshotFromStore(store: EventStore) {
   const events = store.allEvents();
   const lastViewedEventId = store.lastViewedEventId();
+  const liveSourceEvent = [...events].reverse().find((event) => event.data.type === "live_worker_evidence_observed");
+  const liveSource = liveSourceEvent?.data.type === "live_worker_evidence_observed" ? liveSourceEvent.data : null;
   return {
     workers: projectWorkers(events),
+    liveSource,
     summary: summarizeChanges(events, lastViewedEventId),
     lastViewedEventId,
     latestEventId: store.latestEventId(),

@@ -252,6 +252,7 @@ function eventSummary(event: StoredEvent): string {
     case "research_verdict_recorded": return `Operational ${data.operational_protocol} · scientific ${data.scientific_conclusion} · release ${data.release_adequacy}`;
     case "supervision_design_feedback_recorded": return `${data.feedback_id}: ${data.status}`;
     case "symphony_runtime_observed": return `${data.kind}: ${data.issue_identifier} (${data.tracker_state ?? "provider state unavailable"})`;
+    case "live_worker_evidence_observed": return `${data.phase}: ${data.branch}@${data.head.slice(0, 8)} · ${data.summary}`;
     case "symphony_adapter_diagnostic_recorded": return `${data.reason_code}: ${data.statement}`;
     case "review_marked": return `Reviewed through sequence ${data.reviewed_through_sequence}`;
     case "objective_created": return data.goal;

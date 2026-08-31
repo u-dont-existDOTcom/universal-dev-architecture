@@ -169,6 +169,8 @@ export interface WorkerState {
     strategyId: string | null;
     strategyEfficacy: string;
     targetEvidence: string;
+    baselineEvidence: string;
+    previousEvidence: string;
     latestEvidence: string;
     bestEvidence: string;
     changeFromPrevious: number | null;
@@ -239,6 +241,9 @@ function projectV2Worker(
   const receipt = latest(events, "execution_receipt_recorded");
   const progress = latest(events, "outcome_progress_recorded");
   const comparison = compareTerminalState(events);
+  const strategyParked = Boolean(progress && reasoning?.active_execution_directive_id === null
+    && !effectiveSameStrategyContinuationAllowed(progress)
+    && ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(effectiveStrategyEfficacy(progress, comparison.outcomeAdvancement)));
   const activeFindings = projectFindings(events);
   const primaryFinding = activeFindings[0];
   const correction = projectCorrection(events, primaryFinding, assessment, progress, comparison, now);
@@ -367,6 +372,8 @@ function projectV2Worker(
       strategyId: progress?.strategy_id ?? reasoning?.current_strategy_id ?? null,
       strategyEfficacy: effectiveStrategyEfficacy(progress, comparison.outcomeAdvancement),
       targetEvidence: evidenceLabel(progress?.target_evidence),
+      baselineEvidence: evidenceLabel(progress?.baseline_evidence),
+      previousEvidence: evidenceLabel(progress?.previous_evidence),
       latestEvidence: evidenceLabel(progress?.current_evidence),
       bestEvidence: evidenceLabel(progress?.best_evidence),
       changeFromPrevious: progress?.change_from_previous ?? null,
@@ -382,10 +389,10 @@ function projectV2Worker(
       chatEpoch: reasoning?.reasoning_supervisor_chat_epoch ?? null,
       lastReviewAt: reasoning?.last_reasoning_review_at ?? null,
       reviewFreshness: reasoning?.review_freshness ?? "UNKNOWN",
-      activeDirectiveId: directive?.directive_id ?? null,
-      directiveStatus: directive?.status ?? "MISSING",
-      directiveObjective: directive?.execution_objective ?? "No current chat-authored execution directive is recorded.",
-      codexExecutionState: receipt ? "STOPPED_FOR_REASONING_REVIEW" : executionStart ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
+      activeDirectiveId: strategyParked ? null : directive?.directive_id ?? null,
+      directiveStatus: strategyParked ? "INTENTIONALLY_ABSENT_WHILE_PARKED" : directive?.status ?? "MISSING",
+      directiveObjective: strategyParked ? "No executable directive while the strategy boundary is parked." : directive?.execution_objective ?? "No current chat-authored execution directive is recorded.",
+      codexExecutionState: strategyParked ? "PARKED" : receipt ? "STOPPED_FOR_REASONING_REVIEW" : executionStart ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
       stopBoundary: directive?.stop_and_return_triggers ?? [],
       latestReceiptId: receipt?.receipt_id ?? null,
       receiptClaim: receipt?.execution_claim ?? "No execution receipt recorded.",
@@ -737,7 +744,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     supervisionRoute: { lane: "DETERMINISTIC", sessionId: null, status: "ROLLOVER_REQUIRED", substantiveTurns: 0, hardMaximum: 3, nextReviewTrigger: "after authority migration", handoffCapsuleId: null },
     progress: {
       outcomeAdvancement: "UNKNOWN", strategyId: null, strategyEfficacy: "UNCERTAIN",
-      targetEvidence: "Owner outcome target unavailable in legacy schema.", latestEvidence: "No direct progress receipt.",
+      targetEvidence: "Owner outcome target unavailable in legacy schema.", baselineEvidence: "Not recorded", previousEvidence: "Not recorded", latestEvidence: "No direct progress receipt.",
       bestEvidence: "No direct progress receipt.", changeFromPrevious: null, supportingWork: [],
       nextDecisionTrigger: "after authority migration", requiredIntervention: "RECORD_OUTCOME_PROGRESS",
       sameStrategyContinuationAllowed: false, measurementFreshness: "UNKNOWN",

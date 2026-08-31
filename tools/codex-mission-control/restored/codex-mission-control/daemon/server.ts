@@ -3,7 +3,8 @@ import { EventEmitter } from "node:events";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { ZodError } from "zod";
 import { snapshotFromStore, workerSnapshotFromStore } from "../lib/dashboard-data";
-import { seedStore } from "../lib/seed";
+import { seedIssue47Store, seedStore } from "../lib/seed";
+import { startLiveWorkerSourceWatcher } from "../lib/live-worker-source";
 import {
   ContractInvariantError,
   EventStore,
@@ -20,7 +21,16 @@ if (!internalToken) throw new Error("MISSION_CONTROL_INTERNAL_TOKEN is required;
 const store = new EventStore();
 const notifications = new EventEmitter();
 notifications.setMaxListeners(100);
-if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") seedStore(store);
+if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
+  if ((process.env.MISSION_CONTROL_SEED_PROFILE ?? "ISSUE_47") === "ISSUE_47") seedIssue47Store(store);
+  else seedStore(store);
+}
+const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
+  ? startLiveWorkerSourceWatcher(store, {
+    sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
+    worktreePath: process.env.MISSION_CONTROL_LIVE_WORKTREE,
+  }, (event) => notifications.emit("event", event))
+  : null;
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -105,6 +115,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     if (shuttingDown) return;
     shuttingDown = true;
     server.close(() => {
+      liveSourceWatcher?.close();
       store.close();
       process.exit(0);
     });

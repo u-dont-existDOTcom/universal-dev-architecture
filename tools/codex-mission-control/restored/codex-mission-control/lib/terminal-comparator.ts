@@ -9,7 +9,7 @@ import type {
   OutcomeAdvancement,
   StrategyEfficacy,
 } from "./schema";
-import { effectiveOutcomeAdvancement, effectiveStrategyEfficacy } from "./progress-invariants";
+import { effectiveOutcomeAdvancement, effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 
 export type ContractStatus = "VALID" | "CONTRACT_LAUNDERING" | "OUTCOME_AUTHORITY_UNRESOLVED" | "UNKNOWN";
 export type OwnerOutcomeStatus = "MET" | "UNMET" | "UNKNOWN";
@@ -191,6 +191,9 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   const supervisorAssessmentFresh = Boolean(assessment && assessment.reviewed_state_vector_sha256 === authorityStateVectorHash(events));
   const outcomeAdvancement = effectiveOutcomeAdvancement(progress);
   const strategyEfficacy = effectiveStrategyEfficacy(progress, outcomeAdvancement);
+  const parkedForStrategy = Boolean(progress && reasoning?.active_execution_directive_id === null
+    && !effectiveSameStrategyContinuationAllowed(progress)
+    && ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(strategyEfficacy));
   const reasoningReviewFresh = reasoning?.review_freshness === "CURRENT";
   const activeDirectiveCurrent = Boolean(directive && directive.status === "ACTIVE" && reasoning
     && directive.owner_outcome_id === outcome?.owner_outcome_id
@@ -242,7 +245,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   if (ownerOutcomeStatus === "UNKNOWN") reasonCodes.push("COMPLETION_EVIDENCE_INSUFFICIENT");
   if (currentSupervisionRequired && !reasoning) reasonCodes.push("REASONING_SUPERVISOR_MISSING");
   if (currentSupervisionRequired && !reasoningReviewFresh) reasonCodes.push("REASONING_REVIEW_OVERDUE");
-  if (currentSupervisionRequired && !activeDirectiveCurrent) reasonCodes.push("SUPERVISION_DIRECTIVE_MISSING");
+  if (currentSupervisionRequired && !activeDirectiveCurrent && !parkedForStrategy) reasonCodes.push("SUPERVISION_DIRECTIVE_MISSING");
   if (pendingReasoningReview) reasonCodes.push("PENDING_REASONING_REVIEW");
   if (currentSupervisionRequired && !progress) reasonCodes.push("OUTCOME_PROGRESS_UNMEASURED");
   if (progress?.measurement_freshness === "OVERDUE") reasonCodes.push("PROGRESS_EVIDENCE_OVERDUE");
@@ -346,7 +349,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   } else if (workerToContractAlignment === "YELLOW" || contractToOwnerAlignment === "PARTIAL"
     || ["FLAT", "UNMEASURED", "NOT_YET_MEASURABLE", "BLOCKED_EXTERNAL", "UNKNOWN"].includes(outcomeAdvancement)
     || ["UNCERTAIN", "BLOCKED_EXTERNAL"].includes(strategyEfficacy) || progress?.measurement_freshness === "OVERDUE"
-    || unresolvedOwnerObligation || currentSupervisionRequired && (!reasoningReviewFresh || !activeDirectiveCurrent || !progress)
+    || unresolvedOwnerObligation || currentSupervisionRequired && (!reasoningReviewFresh || !progress || !activeDirectiveCurrent && !parkedForStrategy)
     || (terminalAdjacent && !supervisorAssessmentFresh)
     || research?.scientific_conclusion === "FAIL" || research?.release_adequacy === "FAIL") {
     overallTraffic = "YELLOW";
@@ -483,10 +486,10 @@ function deriveDirective(input: {
   pendingReasoningReview: boolean;
 }): string {
   if (input.pendingReasoningReview) return "STOP_AND_RETURN_TO_REASONING_SUPERVISOR";
-  if (input.currentSupervisionRequired && !input.activeDirectiveCurrent) return "OBTAIN_CURRENT_CHAT_AUTHORED_EXECUTION_DIRECTIVE";
   if (input.outcomeAdvancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(input.strategyEfficacy)) {
     return "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD";
   }
+  if (input.currentSupervisionRequired && !input.activeDirectiveCurrent) return "OBTAIN_CURRENT_CHAT_AUTHORED_EXECUTION_DIRECTIVE";
   if (input.outcomeAdvancement === "FLAT") return "REVIEW_STRATEGY_EFFICACY_BEFORE_REPEAT";
   if (input.decision === "HOLD_SOURCE_AUTHORITY") return "RECOVER_OWNER_SOURCE";
   if (input.decision === "HOLD_RECONCILIATION") return "REFRESH_OBJECTIVE_RECONCILIATION";

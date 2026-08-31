@@ -45,6 +45,22 @@ interface DemoWorker {
   assessment: Omit<Extract<MissionControlEventV2, { type: "supervisor_assessment_recorded" }>, "reviewed_state_vector_sha256">;
   route: Omit<Extract<MissionControlEventV2, { type: "supervision_route_recorded" }>, "authority_high_water_sequence">;
   corrections?: CorrectionSeed[];
+  strategyId?: string;
+  outcomeAdvancement?: "ADVANCING" | "FLAT" | "REGRESSING" | "UNMEASURED" | "NOT_YET_MEASURABLE" | "BLOCKED_EXTERNAL" | "UNKNOWN";
+  strategyEfficacy?: "VIABLE" | "UNCERTAIN" | "FAILED" | "EXHAUSTED" | "REPLACEMENT_REQUIRED" | "BLOCKED_EXTERNAL" | "SUPERSEDED";
+  evidenceValues?: {
+    target: { state: string; value: number | null; unit?: string | null };
+    baseline: { state: string; value: number | null; unit?: string | null };
+    previous: { state: string; value: number | null; unit?: string | null };
+    current: { state: string; value: number | null; unit?: string | null; receiptIds?: string[]; role?: "DIRECT_OUTCOME" | "VALIDATED_LEADING_INDICATOR"; predictiveBasis?: string; decisionBoundary?: string };
+    best: { state: string; value: number | null; unit?: string | null; receiptIds?: string[]; role?: "DIRECT_OUTCOME" | "VALIDATED_LEADING_INDICATOR"; predictiveBasis?: string; decisionBoundary?: string };
+  };
+  requiredIntervention?: string;
+  supportingWorkClassification?: "DIRECT_OUTCOME_ADVANCEMENT" | "ENABLEMENT_PROGRESS" | "RISK_REDUCTION" | "EVIDENCE_ACQUISITION" | "STRATEGY_LEARNING" | "PROCESS_OR_TOOLING" | "REWORK" | "WASTE_OR_NO_INFORMATION_GAIN";
+  strategyCycleIndex?: number;
+  strategyCycleBudget?: number;
+  sameStrategyContinuationAllowed?: boolean;
+  executionPhase?: "RUNNING" | "STOPPED" | "PARKED";
   baseMinute: number;
 }
 
@@ -62,6 +78,23 @@ export function seedStore(store: EventStore): boolean {
     status: "PENDING_PRO_META_REVIEW",
     packet_sha256: sha256("SDF-20260830-DASHBOARD-ACTIONABILITY-001"),
     shared_pro_scope_key: "supervision-architecture/pr42-owner-outcome-dual-alignment",
+  }), timestamp);
+  return true;
+}
+
+export function seedIssue47Store(store: EventStore): boolean {
+  if (store.eventByEventId("issue47:v1:seed-complete")) return false;
+  for (const worker of issue47Workers()) seedWorker(store, worker);
+  const timestamp = time(70);
+  store.append(envelope("issue47:v1:seed-complete", timestamp, {
+    type: "supervision_design_feedback_recorded",
+    worker: "mission-control-live-slice",
+    feedback_id: "ISSUE-47-USER-VISIBLE-VERTICAL-SLICE",
+    category: "RUNTIME_SLICE_ACCEPTANCE",
+    severity: "NONBLOCKING",
+    status: "ACCEPTED",
+    packet_sha256: sha256("issue-47-extra-high-acceptance"),
+    shared_pro_scope_key: "not-required-extra-high-default",
   }), timestamp);
   return true;
 }
@@ -295,24 +328,24 @@ function supervisionCycle(
   ownerEpoch: number,
   outcomeHash: string,
 ): MissionControlEventV2[] {
-  const strategyId = seed.worker === "article-humanization" ? "somatic-model-led-rewrite-v1" : `strategy:${seed.worker}:1`;
+  const strategyId = seed.strategyId ?? (seed.worker === "article-humanization" ? "somatic-model-led-rewrite-v1" : `strategy:${seed.worker}:1`);
   const directiveId = `execution-directive:${seed.worker}:1`;
   const sessionId = `extra-high:${seed.worker}:epoch-1`;
   const chatEpoch = `chat-epoch:${seed.worker}:1`;
   const decisionId = `reasoning-decision:${seed.worker}:1`;
   const evidenceBoundary = `fixture-head:${seed.worker}:epoch-${ownerEpoch}`;
-  const advancement = seed.worker === "article-humanization" ? "REGRESSING" as const
+  const advancement = seed.outcomeAdvancement ?? (seed.worker === "article-humanization" ? "REGRESSING" as const
     : seed.worker === "tests" || seed.worker === "billing" ? "FLAT" as const
       : seed.worker === "ui" ? "BLOCKED_EXTERNAL" as const
         : seed.worker === "askrigor" ? "UNMEASURED" as const
-          : "ADVANCING" as const;
-  const efficacy = seed.worker === "article-humanization" ? "REPLACEMENT_REQUIRED" as const
+          : "ADVANCING" as const);
+  const efficacy = seed.strategyEfficacy ?? (seed.worker === "article-humanization" ? "REPLACEMENT_REQUIRED" as const
     : seed.worker === "ui" ? "BLOCKED_EXTERNAL" as const
       : seed.worker === "billing" || seed.worker === "askrigor" || seed.worker === "tests" ? "UNCERTAIN" as const
-        : "VIABLE" as const;
-  const baseline = seed.worker === "article-humanization" ? 0.1547368467 : null;
-  const previous = seed.worker === "article-humanization" ? 0.1381948739 : null;
-  const current = seed.worker === "article-humanization" ? 0.1231321841 : null;
+        : "VIABLE" as const);
+  const baseline = seed.evidenceValues?.baseline.value ?? (seed.worker === "article-humanization" ? 0.1547368467 : null);
+  const previous = seed.evidenceValues?.previous.value ?? (seed.worker === "article-humanization" ? 0.1381948739 : null);
+  const current = seed.evidenceValues?.current.value ?? (seed.worker === "article-humanization" ? 0.1231321841 : null);
   const authEvidenceReceiptId = "evidence:auth:behavior-parity-current";
   const authEvidenceState = "Independent auth characterization verification passed for the current candidate, directly checking preserved authentication behavior while guard centralization remains unfinished.";
   const evidence = (
@@ -332,28 +365,7 @@ function supervisionCycle(
     decision_boundary: decisionBoundary,
   });
   const reviewedAt = time(seed.baseMinute + 40);
-  return [
-    {
-      type: "reasoning_supervision_recorded",
-      worker: seed.worker,
-      owner_outcome_id: outcomeId,
-      owner_outcome_epoch: ownerEpoch,
-      owner_outcome_sha256: outcomeHash,
-      reasoning_supervisor_surface: "EXTRA_HIGH",
-      reasoning_supervisor_session_id: sessionId,
-      reasoning_supervisor_chat_epoch: chatEpoch,
-      decision_id: decisionId,
-      capsule_id: `reasoning-capsule:${seed.worker}:1`,
-      reviewed_evidence_boundary: evidenceBoundary,
-      last_reasoning_review_at: reviewedAt,
-      last_reasoning_reviewed_head_or_artifact: evidenceBoundary,
-      current_strategy_id: strategyId,
-      active_execution_directive_id: directiveId,
-      next_reasoning_review_trigger: "after the bounded execution receipt or any stop trigger",
-      review_freshness: "CURRENT",
-      pro_escalation_state: "NOT_REQUIRED",
-    },
-    {
+  const directiveEvent: MissionControlEventV2 = {
       type: "execution_directive_recorded",
       worker: seed.worker,
       directive_id: directiveId,
@@ -394,8 +406,8 @@ function supervisionCycle(
       supervisory_verdict_authority: "NONE",
       substantive_prose_authorship_authority: "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
       status: "ACTIVE",
-    },
-    {
+  };
+  const executionStartEvent: MissionControlEventV2 = {
       type: "codex_execution_started",
       worker: seed.worker,
       execution_start_id: `execution-start:${seed.worker}:1`,
@@ -406,8 +418,8 @@ function supervisionCycle(
       started_at: time(seed.baseMinute),
       execution_mode: "SUBSTANTIVE",
       declared_tactical_boundary: "Execute only the allowed actions and paths in the active chat-authored directive.",
-    },
-    {
+  };
+  const executionReceiptEvent: MissionControlEventV2 = {
       type: "execution_receipt_recorded",
       worker: seed.worker,
       receipt_id: `execution-receipt:${seed.worker}:1`,
@@ -424,24 +436,48 @@ function supervisionCycle(
       artifacts_produced: [],
       checks_run: [{ command: "fixture verification", result: seed.checkpoint.tests.failing ? "FAIL" : "PASS", summary: `${seed.checkpoint.tests.passing} passing; ${seed.checkpoint.tests.failing} failing.` }],
       measurements: ["Factual worker checkpoint recorded; no supervisory classification authored by Codex."],
-      evidence_refs: [],
-      deviations: [],
-      blockers: seed.checkpoint.blocker ? [seed.checkpoint.blocker] : [],
+      evidence_refs: [], deviations: [], blockers: seed.checkpoint.blocker ? [seed.checkpoint.blocker] : [],
       stop_trigger_reached: "bounded execution receipt emitted",
       execution_claim: "Bounded execution stopped for independent reasoning review.",
-      strategy_change: null,
-      progress_classification: null,
-      supervisory_verdict: null,
-      owner_escalation_decision: null,
-      pro_escalation_decision: null,
-      contract_to_owner_alignment: null,
-      outcome_advancement: null,
-      strategy_efficacy: null,
-      scientific_adequacy: null,
-      release_adequacy: null,
-      owner_outcome_achievement: null,
-      next_reasoning_review_required: true,
+      strategy_change: null, progress_classification: null, supervisory_verdict: null,
+      owner_escalation_decision: null, pro_escalation_decision: null, contract_to_owner_alignment: null,
+      outcome_advancement: null, strategy_efficacy: null, scientific_adequacy: null,
+      release_adequacy: null, owner_outcome_achievement: null, next_reasoning_review_required: true,
+  };
+  const executionEvents = seed.executionPhase === "RUNNING" ? [directiveEvent, executionStartEvent]
+      : [directiveEvent, executionStartEvent, executionReceiptEvent];
+  const values = seed.evidenceValues;
+  const evidenceValue = (value: NonNullable<DemoWorker["evidenceValues"]>["current"] | undefined, fallbackState: string, fallbackValue: number | null) => ({
+    state: value?.state ?? fallbackState,
+    numeric_value: value?.value ?? fallbackValue,
+    unit: value?.unit ?? ((value?.value ?? fallbackValue) === null ? null : "Human probability"),
+    evidence_receipt_ids: value?.receiptIds ?? [],
+    evidence_role: value?.role ?? "UNKNOWN" as const,
+    predictive_basis: value?.predictiveBasis ?? null,
+    decision_boundary: value?.decisionBoundary ?? null,
+  });
+  return [
+    {
+      type: "reasoning_supervision_recorded",
+      worker: seed.worker,
+      owner_outcome_id: outcomeId,
+      owner_outcome_epoch: ownerEpoch,
+      owner_outcome_sha256: outcomeHash,
+      reasoning_supervisor_surface: "EXTRA_HIGH",
+      reasoning_supervisor_session_id: sessionId,
+      reasoning_supervisor_chat_epoch: chatEpoch,
+      decision_id: decisionId,
+      capsule_id: `reasoning-capsule:${seed.worker}:1`,
+      reviewed_evidence_boundary: evidenceBoundary,
+      last_reasoning_review_at: reviewedAt,
+      last_reasoning_reviewed_head_or_artifact: evidenceBoundary,
+      current_strategy_id: strategyId,
+      active_execution_directive_id: seed.executionPhase === "PARKED" ? null : directiveId,
+      next_reasoning_review_trigger: "after the bounded execution receipt or any stop trigger",
+      review_freshness: "CURRENT",
+      pro_escalation_state: "NOT_REQUIRED",
     },
+    ...executionEvents,
     {
       type: "outcome_progress_recorded",
       worker: seed.worker,
@@ -453,7 +489,7 @@ function supervisionCycle(
       contract_to_owner_alignment: seed.omitted?.length || seed.weakened?.length || seed.proxies?.length ? "DIVERGED"
         : seed.sourceCapability === "INTEGRITY_ONLY" ? "PARTIAL" : "MATCH",
       overall_control_state: advancement === "REGRESSING" || efficacy === "REPLACEMENT_REQUIRED" || seed.assessment.worker_to_contract_alignment === "RED"
-        ? "RED" : advancement === "FLAT" || advancement === "BLOCKED_EXTERNAL" || advancement === "UNMEASURED" ? "YELLOW" : "GREEN",
+        ? "RED" : advancement === "FLAT" || advancement === "BLOCKED_EXTERNAL" || advancement === "UNMEASURED" || advancement === "NOT_YET_MEASURABLE" ? "YELLOW" : "GREEN",
       strategy_id: strategyId,
       strategy_causal_hypothesis: seed.worker === "article-humanization"
         ? "The current model-led rewrite method should increase Human probability toward 1.0."
@@ -461,10 +497,10 @@ function supervisionCycle(
       success_threshold: seed.worker === "article-humanization" ? "Human probability increases toward 1.0." : seed.effectiveFinishLine,
       failure_threshold: "Direct evidence regresses, remains flat across two cycles, or the method is exhausted.",
       measurement_direction: "HIGHER_IS_BETTER",
-      target_evidence: evidence(seed.worker === "article-humanization" ? "Human probability target" : seed.normalizedResult, seed.worker === "article-humanization" ? 1 : null),
-      baseline_evidence: evidence(seed.worker === "article-humanization" ? "Baseline direct evidence" : "Baseline captured", baseline),
-      previous_evidence: evidence(seed.worker === "article-humanization" ? "Prior micro-rewrite evidence" : "Previous review evidence", previous),
-      current_evidence: seed.worker === "auth"
+      target_evidence: values ? evidenceValue(values.target, values.target.state, values.target.value) : evidence(seed.worker === "article-humanization" ? "Human probability target" : seed.normalizedResult, seed.worker === "article-humanization" ? 1 : null),
+      baseline_evidence: values ? evidenceValue(values.baseline, values.baseline.state, values.baseline.value) : evidence(seed.worker === "article-humanization" ? "Baseline direct evidence" : "Baseline captured", baseline),
+      previous_evidence: values ? evidenceValue(values.previous, values.previous.state, values.previous.value) : evidence(seed.worker === "article-humanization" ? "Prior micro-rewrite evidence" : "Previous review evidence", previous),
+      current_evidence: values ? evidenceValue(values.current, values.current.state, values.current.value) : seed.worker === "auth"
         ? evidence(
           authEvidenceState,
           null,
@@ -474,7 +510,7 @@ function supervisionCycle(
           "After guard extraction is complete, rerun the full auth integration suite and inspect the centralized validation implementation before deciding whether the owner outcome is met.",
         )
         : evidence(seed.worker === "article-humanization" ? "Article-wide rewrite evidence" : seed.currentGap, current),
-      best_evidence: seed.worker === "auth"
+      best_evidence: values ? evidenceValue(values.best, values.best.state, values.best.value) : seed.worker === "auth"
         ? evidence(
           `Best current validated owner-outcome indicator: ${authEvidenceState}`,
           null,
@@ -490,22 +526,22 @@ function supervisionCycle(
       unmet_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "UNMET").map((item) => item.id),
       unknown_outcome_ids: seed.requiredOutcomes.filter((item) => item.status === "UNKNOWN").map((item) => item.id),
       work_since_last_direct_progress: [{
-        classification: seed.worker === "article-humanization" ? "REWORK" : "ENABLEMENT_PROGRESS",
+        classification: seed.supportingWorkClassification ?? (seed.worker === "article-humanization" ? "REWORK" : "ENABLEMENT_PROGRESS"),
         summary: seed.checkpoint.current_step,
       }],
       measurement_freshness: advancement === "UNMEASURED" ? "OVERDUE" : "CURRENT",
       outcome_advancement: advancement,
       strategy_efficacy: efficacy,
-      strategy_cycle_index: 1,
-      strategy_cycle_budget: 2,
+      strategy_cycle_index: seed.strategyCycleIndex ?? 1,
+      strategy_cycle_budget: seed.strategyCycleBudget ?? 2,
       measurement_cycle_limit: 1,
       progress_detection_flags: advancement === "REGRESSING" ? ["NEGATIVE_DIRECT_DELTA"]
         : advancement === "FLAT" ? ["FLAT_STRATEGY_CYCLE"]
           : advancement === "UNMEASURED" ? ["PROGRESS_EVIDENCE_OVERDUE"] : [],
-      same_strategy_continuation_allowed: !["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED", "SUPERSEDED"].includes(efficacy),
-      required_intervention: seed.worker === "article-humanization"
+      same_strategy_continuation_allowed: seed.sameStrategyContinuationAllowed ?? !["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED", "SUPERSEDED"].includes(efficacy),
+      required_intervention: seed.requiredIntervention ?? (seed.worker === "article-humanization"
         ? "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD"
-        : advancement === "FLAT" ? "REVIEW_STRATEGY_EFFICACY_BEFORE_REPEAT" : seed.reconciliationDirective,
+        : advancement === "FLAT" ? "REVIEW_STRATEGY_EFFICACY_BEFORE_REPEAT" : seed.reconciliationDirective),
       next_decision_changing_evidence: seed.assessment.next_review_trigger,
       owner_action: seed.assessment.owner_action,
       reviewed_by_surface: "EXTRA_HIGH",
@@ -518,6 +554,197 @@ function supervisionCycle(
 
 function demoWorkers(): DemoWorker[] {
   return [authWorker(), billingWorker(), uiWorker(), testCleanupWorker(), articleWorker(), askRigorWorker()];
+}
+
+function issue47Workers(): DemoWorker[] {
+  return [issue47HealthyWorker(), issue47ArticleWorker(), issue47InnerSignalWorker(), issue47HumanDesignWorker()];
+}
+
+function issue47HealthyWorker(): DemoWorker {
+  const worker = "mission-control-live-slice";
+  return {
+    worker,
+    name: "Healthy task · Mission Control live slice",
+    ownerRequest: "Deliver one working local Mission Control vertical slice from PR #41.",
+    normalizedResult: "The local dashboard shows current worker control state and advances through direct owner-visible evidence.",
+    currentGap: "One owner-visible check remains before the bounded live slice reaches 4/4.",
+    requiredOutcomes: [{ id: "live-slice", text: "Run the useful local dashboard and prove its owner-visible behavior.", status: "UNMET" }],
+    goal: "Implement and run the issue #47 user-visible vertical slice",
+    acceptance: ["Local URL runs", "Four scenarios are visible", "A read-only live source updates through SSE"],
+    allowed: ["tools/codex-mission-control/**", "state/mission-control-live-slice/**", "docs/evidence/mission-control-live-slice/**"],
+    forbidden: ["templates/**", "patterns/**", "unrelated project code"],
+    effectiveFinishLine: "4/4 owner-visible checks pass on the running local dashboard",
+    reconciliationDirective: "Continue to the next direct measurement",
+    checkpoint: checkpoint(worker, "run-issue47-live-01", "Rendering the minimum useful current projection from persisted events", ["Restored PR #41", "Passed baseline tests, typecheck, and build", "Started SQLite daemon and Next.js app"], ["Complete live-source proof", "Capture owner screenshots"], ["components/Dashboard.tsx", "lib/seed.ts"], 71, 0, 360),
+    evidence: [{
+      type: "evidence_receipt_recorded", worker, receipt_id: "evidence:issue47:owner-visible-3-of-4",
+      producer_id: `collector:${worker}`, producer_role: "COLLECTOR", evidence_class: "OWNER_OBSERVATION",
+      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("issue47-owner-visible-3-of-4"),
+      summary: "Three of four owner-visible runtime checks pass on the current local candidate.",
+      refs: ["local:http://localhost:3000", "runtime:sqlite+sse", "review:extra-high:issue47:turn-1"], verified: true,
+      claim_kind: "GENERAL", changed_path_manifest: null,
+    }],
+    claim: claim(worker, "claim-issue47-working", "WORKING", "IN_PROGRESS"),
+    assessment: assessment(worker, "assessment-issue47-healthy", "run-issue47-live-01", "GREEN", "CONTINUE", "All control planes pass and direct owner-visible evidence improved from 2/4 to 3/4.", 98, "after the live-source update and screenshot boundary"),
+    route: route(worker, "extra-high-issue47-runtime-turn-1", "after the live-source update and screenshot boundary", 1),
+    strategyId: "strategy:issue47:minimum-live-projection",
+    outcomeAdvancement: "ADVANCING",
+    strategyEfficacy: "VIABLE",
+    evidenceValues: {
+      target: { state: "Owner-visible checks target", value: 4, unit: "of 4" },
+      baseline: { state: "Baseline owner-visible checks", value: 2, unit: "of 4" },
+      previous: { state: "Previous owner-visible checks", value: 2, unit: "of 4" },
+      current: { state: "Latest owner-visible checks", value: 3, unit: "of 4", receiptIds: ["evidence:issue47:owner-visible-3-of-4"], role: "DIRECT_OUTCOME" },
+      best: { state: "Best owner-visible checks", value: 3, unit: "of 4", receiptIds: ["evidence:issue47:owner-visible-3-of-4"], role: "DIRECT_OUTCOME" },
+    },
+    requiredIntervention: "Continue to the next direct measurement",
+    supportingWorkClassification: "DIRECT_OUTCOME_ADVANCEMENT",
+    executionPhase: "RUNNING",
+    baseMinute: 1,
+  };
+}
+
+function issue47ArticleWorker(): DemoWorker {
+  const worker = "article-failure";
+  const directive = "Park the same rewrite strategy; Extra High must select a replacement method before another Codex directive.";
+  return {
+    worker,
+    name: "Article failure · whole-document regression",
+    ownerRequest: "Increase the exact whole article's Human probability while preserving required meaning and sources.",
+    normalizedResult: "The whole article advances toward Human probability 1.0 without sacrificing source integrity.",
+    currentGap: "Whole-document Human probability regressed from 0.1547368467 best to 0.1231321841 latest.",
+    requiredOutcomes: [{ id: "article-human-outcome", text: "The exact whole article reaches the required Human outcome.", status: "UNMET" }],
+    goal: "Improve the whole-document Human result under the assigned editorial contract",
+    acceptance: ["Whole-document Human probability advances", "Meaning and sources remain intact"],
+    allowed: ["article/**", "evidence/**"], forbidden: ["sources/canonical/**"],
+    effectiveFinishLine: "Whole-document Human probability reaches 1.0",
+    reconciliationDirective: "PARK_SAME_STRATEGY_FOR_REPLACEMENT",
+    checkpoint: checkpoint(worker, "run-article-failure-01", "Stopped after the whole-document result regressed", ["Followed the current rewrite contract", "Measured the exact whole document"], ["Await Extra High replacement review"], ["article/final.md", "evidence/whole-document.json"], 18, 0, 92),
+    evidence: [{
+      type: "evidence_receipt_recorded", worker, receipt_id: "evidence:article:whole-document-0.1231321841",
+      producer_id: `collector:${worker}`, producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("article-whole-document-0.1231321841"),
+      summary: "Exact whole-document evidence reports Human probability 0.1231321841 after 0.1381948739 previously; best remains 0.1547368467.",
+      refs: ["artifact:whole-document-detector-result", "candidate:exact-final-article"], verified: true,
+      claim_kind: "GENERAL", changed_path_manifest: null,
+    }],
+    findings: [finding(worker, "finding-article-whole-document-regression", "finding-group-article-strategy", "REPEATED_FAILURE_LOOP", "BLOCKING", "The worker followed its contract, but the whole-document owner outcome regressed under the same rewrite strategy.", "Direct whole-document progress must advance; fragment compliance or instruction-following cannot substitute for the root result.", ["whole-document:baseline=0.1547368467", "whole-document:previous=0.1381948739", "whole-document:latest=0.1231321841"], directive, false)],
+    claim: claim(worker, "claim-article-failure-working", "WORKING", "IN_PROGRESS"),
+    assessment: assessment(worker, "assessment-article-failure", "run-article-failure-01", "GREEN", "HOLD", "The worker followed the contract, but direct whole-document evidence regressed and the strategy requires replacement.", 91, "when Extra High records a materially distinct replacement strategy"),
+    route: route(worker, "extra-high-article-replacement-turn-1", "when Extra High records a materially distinct replacement strategy", 1),
+    corrections: [{
+      directive_id: "directive-article-park-rewrite", directive_kind: "WORKER_REDIRECT", target_kind: "WORKER_RUN", target_id: "run-article-failure-01",
+      finding_ids: ["finding-article-whole-document-regression"], worker_run_id: "run-article-failure-01", status: "DIRECTIVE_PREPARED", directive,
+      required_evidence: ["versioned replacement strategy decision", "new whole-document measurement boundary"],
+      next_review_trigger: "when Extra High records a materially distinct replacement strategy",
+      owner_action: ownerActionNone(worker, "directive-article-park-rewrite", "SUPERVISOR", "Select a materially distinct replacement strategy from the current whole-document evidence.", "versioned Extra High replacement decision", "No owner action is required while Extra High selects a replacement method."),
+      continuation_policy: { mode: "PAUSE_ALL", allowed_scope: [], forbidden_scope: ["another same-strategy rewrite cycle"], preconditions: ["Extra High records a materially distinct replacement strategy"], basis_finding_ids: ["finding-article-whole-document-regression"], basis_evidence_ids: ["evidence:article:whole-document-0.1231321841"], expires_at: "2099-01-01T00:00:00.000Z", recheck_trigger: "versioned replacement strategy decision" },
+    }],
+    strategyId: "strategy:article:model-led-whole-document-rewrite-v1",
+    outcomeAdvancement: "REGRESSING", strategyEfficacy: "REPLACEMENT_REQUIRED",
+    evidenceValues: {
+      target: { state: "Human probability target", value: 1, unit: "Human probability" },
+      baseline: { state: "Baseline / best whole-document result", value: 0.1547368467, unit: "Human probability" },
+      previous: { state: "Previous whole-document result", value: 0.1381948739, unit: "Human probability" },
+      current: { state: "Latest whole-document result", value: 0.1231321841, unit: "Human probability", receiptIds: ["evidence:article:whole-document-0.1231321841"], role: "DIRECT_OUTCOME" },
+      best: { state: "Best whole-document result", value: 0.1547368467, unit: "Human probability", receiptIds: ["evidence:article:whole-document-0.1231321841"], role: "DIRECT_OUTCOME" },
+    },
+    requiredIntervention: directive, supportingWorkClassification: "REWORK",
+    strategyCycleIndex: 2, strategyCycleBudget: 2, sameStrategyContinuationAllowed: false,
+    executionPhase: "PARKED", baseMinute: 17,
+  };
+}
+
+function issue47InnerSignalWorker(): DemoWorker {
+  const worker = "innersignal-review";
+  const action = "Continue the current review frontier; do not wait on GitHub.";
+  return {
+    worker,
+    name: "InnerSignal · stale blocker isolated",
+    ownerRequest: "Continue the current review frontier using current task-scoped evidence.",
+    normalizedResult: "The current review proceeds unless a blocker affects this exact frontier.",
+    currentGap: "The current review boundary is underway; the old repository-global blocker is unrelated.",
+    requiredOutcomes: [{ id: "innersignal-current-review", text: "Complete the current task-scoped review frontier.", status: "UNMET" }],
+    goal: "Complete the current InnerSignal review without inheriting unrelated repository blockers",
+    acceptance: ["Current review evidence is assessed", "Unrelated historical blocker does not pause work"],
+    allowed: ["review/**", "evidence/**"], forbidden: ["unrelated repository recovery"],
+    effectiveFinishLine: "Current review frontier reaches its direct decision boundary",
+    reconciliationDirective: "CONTINUE_CURRENT_REVIEW_NO_GITHUB_WAIT",
+    checkpoint: checkpoint(worker, "run-innersignal-review-01", "Continuing the current review frontier with GitHub wait disabled", ["Classified old repository-global blocker as unrelated"], ["Complete current review evidence"], ["review/current-boundary.md"], 12, 0, 44),
+    evidence: [{
+      type: "evidence_receipt_recorded", worker, receipt_id: "evidence:innersignal:current-review-boundary",
+      producer_id: `collector:${worker}`, producer_role: "COLLECTOR", evidence_class: "SEMANTIC_REVIEW",
+      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("innersignal-current-review-boundary"),
+      summary: "Current task-scoped review evidence is available; the historical repository-global blocker has no dependency edge to this frontier.",
+      refs: ["blocker:historical-repository-global=UNRELATED", "github-wait:NO", "frontier:current-review"], verified: true,
+      claim_kind: "GENERAL", changed_path_manifest: null,
+    }],
+    findings: [finding(worker, "finding-innersignal-stale-blocker", "finding-group-innersignal-scope", "INTEGRATION_OR_RESOURCE_BLOCKER", "INFO", "Historical repository-global blocker: UNRELATED — DOES NOT BLOCK CURRENT FRONTIER. GITHUB WAIT: NO.", "Only a blocker with a current dependency edge may stop this review frontier.", ["blocker-scope:repository-global-old", "current-frontier:review", "dependency-edge:none"], action, true)],
+    claim: claim(worker, "claim-innersignal-working", "WORKING", "IN_PROGRESS"),
+    assessment: assessment(worker, "assessment-innersignal", "run-innersignal-review-01", "GREEN", "CONTINUE", "The old repository-global blocker is visible for context but is unrelated to the current review frontier.", 96, "at the current review decision boundary"),
+    route: route(worker, "extra-high-innersignal-review-turn-1", "at the current review decision boundary", 1),
+    corrections: [{
+      directive_id: "directive-innersignal-continue-review", directive_kind: "EVIDENCE_REPAIR", target_kind: "EVIDENCE_SET", target_id: "current-review-boundary",
+      finding_ids: ["finding-innersignal-stale-blocker"], worker_run_id: "run-innersignal-review-01", status: "DIRECTIVE_PREPARED", directive: action,
+      required_evidence: ["current task-scoped review result"], next_review_trigger: "at the current review decision boundary",
+      owner_action: ownerActionNone(worker, "directive-innersignal-continue-review", "WORKER", action, "current review decision boundary", "No owner action is required; the current frontier can continue without GitHub."),
+      continuation_policy: { mode: "SAFE_WITHIN_SCOPE", allowed_scope: ["review/**", "evidence/**"], forbidden_scope: ["unrelated repository recovery"], preconditions: [], basis_finding_ids: ["finding-innersignal-stale-blocker"], basis_evidence_ids: ["evidence:innersignal:current-review-boundary"], expires_at: "2099-01-01T00:00:00.000Z", recheck_trigger: "a new blocker with a direct dependency edge to the current frontier" },
+    }],
+    strategyId: "strategy:innersignal:current-review-frontier", outcomeAdvancement: "NOT_YET_MEASURABLE", strategyEfficacy: "VIABLE",
+    evidenceValues: {
+      target: { state: "Current review reaches its decision boundary", value: null }, baseline: { state: "Review boundary opened", value: null }, previous: { state: "Historical blocker classified", value: null },
+      current: { state: "Current review evidence available; GITHUB WAIT: NO", value: null, receiptIds: ["evidence:innersignal:current-review-boundary"], role: "VALIDATED_LEADING_INDICATOR", predictiveBasis: "The current task-scoped evidence is the required input to the bounded review decision.", decisionBoundary: "At the current review verdict." },
+      best: { state: "Historical blocker isolated from the current frontier", value: null, receiptIds: ["evidence:innersignal:current-review-boundary"], role: "VALIDATED_LEADING_INDICATOR", predictiveBasis: "No dependency edge exists from the old blocker to the current review inputs.", decisionBoundary: "At the current review verdict." },
+    },
+    requiredIntervention: action, supportingWorkClassification: "EVIDENCE_ACQUISITION", executionPhase: "RUNNING", baseMinute: 33,
+  };
+}
+
+function issue47HumanDesignWorker(): DemoWorker {
+  const worker = "human-design-governance";
+  const action = "Reject another governance child; Extra High consolidates one pilot proposal from existing evidence.";
+  return {
+    worker,
+    name: "Human Design · governance recursion",
+    ownerRequest: "Advance the Human Design product to one consolidated pilot proposal grounded in existing evidence.",
+    normalizedResult: "A single pilot proposal reaches the owner only after existing evidence is consolidated; governance recursion stops.",
+    currentGap: "Governance/support budget is exhausted and no consolidated pilot proposal exists.",
+    requiredOutcomes: [{ id: "human-design-pilot", text: "Produce one consolidated pilot proposal from existing evidence.", status: "UNMET" }],
+    goal: "Consolidate existing evidence into one bounded Human Design pilot proposal",
+    acceptance: ["No new governance child", "One consolidated pilot proposal", "Owner gate only after proposal exists"],
+    allowed: ["existing evidence consolidation"], forbidden: ["another governance child", "another Pro checkpoint"],
+    effectiveFinishLine: "One consolidated pilot proposal is ready for the owner gate",
+    reconciliationDirective: "PARK_NO_VALID_STRATEGY",
+    checkpoint: checkpoint(worker, "run-human-design-governance-01", "Parked after governance/support budget exhaustion", ["Recorded the exhausted governance budget", "Rejected inherited Pro routing"], ["Await one Extra High consolidated pilot proposal"], ["state/existing-evidence.json"], 26, 0, 0),
+    evidence: [{
+      type: "evidence_receipt_recorded", worker, receipt_id: "evidence:human-design:governance-budget-exhausted",
+      producer_id: `collector:${worker}`, producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("human-design-governance-budget-exhausted"),
+      summary: "Governance/support cycles are exhausted; the latest proposed child adds no production or pilot evidence.",
+      refs: ["support-budget:exhausted", "pro-route:denied-routine", "production-src-delta:0", "pilot-proposal:absent"], verified: true,
+      claim_kind: "GENERAL", changed_path_manifest: null,
+    }],
+    findings: [finding(worker, "finding-human-design-governance-recursion", "finding-group-human-design-recursion", "REPEATED_FAILURE_LOOP", "BLOCKING", "Governance/support budget is exhausted; another governance child would repeat supporting work without producing the pilot.", "Supporting governance cannot substitute for the user-visible pilot frontier after its cumulative budget is exhausted.", ["governance-cycles:12+", "latest-child:production-src-delta=0", "pilot-proposal:absent"], action, false)],
+    claim: claim(worker, "claim-human-design-working", "WORKING", "IN_PROGRESS"),
+    assessment: assessment(worker, "assessment-human-design", "run-human-design-governance-01", "GREEN", "HOLD", "The worker is contract-aligned, but the governance strategy family is exhausted and another governance child is unauthorized.", 94, "when Extra High produces one consolidated pilot proposal"),
+    route: route(worker, "extra-high-human-design-pilot-turn-1", "when Extra High produces one consolidated pilot proposal", 1),
+    corrections: [{
+      directive_id: "directive-human-design-reject-governance-child", directive_kind: "WORKER_REDIRECT", target_kind: "WORKER_RUN", target_id: "run-human-design-governance-01",
+      finding_ids: ["finding-human-design-governance-recursion"], worker_run_id: "run-human-design-governance-01", status: "DIRECTIVE_PREPARED", directive: action,
+      required_evidence: ["one consolidated pilot proposal"], next_review_trigger: "when Extra High produces one consolidated pilot proposal",
+      owner_action: ownerActionNone(worker, "directive-human-design-reject-governance-child", "SUPERVISOR", "Consolidate existing evidence into one pilot proposal without opening another governance child.", "one consolidated pilot proposal", "NONE NOW — DEFER UNTIL ONE CONSOLIDATED PILOT PROPOSAL."),
+      continuation_policy: { mode: "PAUSE_ALL", allowed_scope: [], forbidden_scope: ["another governance child", "another routine Pro checkpoint"], preconditions: ["Extra High produces one consolidated pilot proposal"], basis_finding_ids: ["finding-human-design-governance-recursion"], basis_evidence_ids: ["evidence:human-design:governance-budget-exhausted"], expires_at: "2099-01-01T00:00:00.000Z", recheck_trigger: "one consolidated pilot proposal is recorded" },
+    }],
+    strategyId: "strategy:human-design:governance-support-family", outcomeAdvancement: "FLAT", strategyEfficacy: "EXHAUSTED",
+    evidenceValues: {
+      target: { state: "One consolidated pilot proposal", value: null }, baseline: { state: "Substantial product foundation exists", value: null }, previous: { state: "Twelve-plus governance checkpoints", value: null },
+      current: { state: "Zero production-source change; pilot evidence absent", value: null, receiptIds: ["evidence:human-design:governance-budget-exhausted"], role: "DIRECT_OUTCOME" },
+      best: { state: "Existing evidence is ready to consolidate, but no pilot proposal exists", value: null, receiptIds: ["evidence:human-design:governance-budget-exhausted"], role: "DIRECT_OUTCOME" },
+    },
+    requiredIntervention: action, supportingWorkClassification: "WASTE_OR_NO_INFORMATION_GAIN",
+    strategyCycleIndex: 12, strategyCycleBudget: 12, sameStrategyContinuationAllowed: false,
+    executionPhase: "PARKED", baseMinute: 49,
+  };
 }
 
 function authWorker(): DemoWorker {
@@ -822,9 +1049,9 @@ function assessment(worker: string, id: string, runId: string, alignment: Extrac
 
 function route(worker: string, sessionId: string, trigger: string, turns: number): Omit<Extract<MissionControlEventV2, { type: "supervision_route_recorded" }>, "authority_high_water_sequence"> {
   return {
-    type: "supervision_route_recorded", worker, session_id: sessionId, lane: "PRO", predecessor_session_id: null,
+    type: "supervision_route_recorded", worker, session_id: sessionId, lane: "EXTRA_HIGH", predecessor_session_id: null,
     chat_scope_key: `mission-control/${worker}`, supervisor_chat_url: `https://chatgpt.com/c/replace-${worker}-supervisor`,
-    supervisor_chat_label: `Open ${worker} Pro supervisor`, next_review_trigger: trigger,
+    supervisor_chat_label: `Open ${worker} Extra High reasoning chat`, next_review_trigger: trigger,
     substantive_response_count: turns, hard_maximum: 3, status: turns >= 3 ? "ROLLOVER_REQUIRED" : "ACTIVE",
     handoff_capsule_id: null, handoff_capsule_sha256: null, accepted_state_vector_sha256: null,
   };

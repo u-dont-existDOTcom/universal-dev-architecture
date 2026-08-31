@@ -11,12 +11,27 @@ interface Snapshot {
   summary: string;
   latestEventId: number;
   generatedAt: string;
+  liveSource: {
+    worker: string;
+    source_kind: "READ_ONLY_FILE_GIT";
+    source_path: string;
+    observed_at: string;
+    file_modified_at: string;
+    content_sha256: string;
+    branch: string;
+    head: string;
+    directive_id: string | null;
+    receipt_id: string | null;
+    phase: string;
+    summary: string;
+  } | null;
 }
 
 export function Dashboard() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState(false);
+  const [selectedWorkerId, setSelectedWorkerId] = useState("article-failure");
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/workers", { cache: "no-store" });
@@ -36,14 +51,10 @@ export function Dashboard() {
     return () => source.close();
   }, [load]);
 
-  const queue = useMemo(() => snapshot?.workers.filter((worker) => worker.overallTraffic !== "GREEN" || worker.correction.ownerActionType !== "NONE") ?? [], [snapshot]);
-  const healthy = useMemo(() => snapshot?.workers.filter((worker) => worker.overallTraffic === "GREEN" && worker.correction.ownerActionType === "NONE") ?? [], [snapshot]);
-  const counts = useMemo(() => ({
-    redirect: snapshot?.workers.filter((worker) => worker.verdict === "REDIRECT").length ?? 0,
-    watch: snapshot?.workers.filter((worker) => worker.verdict === "WATCH" || worker.verdict === "CONTRACT_REPAIR" || worker.verdict === "HOLD").length ?? 0,
-    onTrack: snapshot?.workers.filter((worker) => ["CONTINUE", "ON_TRACK"].includes(worker.verdict)).length ?? 0,
-    owner: snapshot?.workers.filter((worker) => worker.correction.ownerActionType !== "NONE").length ?? 0,
-  }), [snapshot]);
+  const workers = useMemo(() => {
+    const order = ["mission-control-live-slice", "article-failure", "innersignal-review", "human-design-governance"];
+    return [...(snapshot?.workers ?? [])].sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
+  }, [snapshot]);
 
   async function markViewed() {
     setMarking(true);
@@ -53,10 +64,8 @@ export function Dashboard() {
   }
 
   if (!snapshot) return <main className="shell"><div className="loading-panel">Loading mission telemetry…</div></main>;
-  const highest = queue[0];
-
   return (
-    <main className="shell">
+    <main className="shell mission-shell">
       <header className="topbar">
         <div className="brand-row">
           <div className="brand-mark">MC</div>
@@ -69,58 +78,76 @@ export function Dashboard() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      <LiveWorkerStrip source={snapshot.liveSource} />
 
-      <section className="operator-summary" aria-label="Needs attention now">
-        <div className="operator-summary-head">
-          <div className="attention-title"><span className="alert-icon">!</span><div><p className="eyebrow">NEEDS ATTENTION NOW</p><h2>{queue.length} worker{queue.length === 1 ? "" : "s"} need explanation or correction</h2></div></div>
-          <div className="queue-counts" aria-label="Fleet state counts">
-            <Count value={counts.redirect} label="redirect" tone="red" />
-            <Count value={counts.watch} label="watch / repair" tone="yellow" />
-            <Count value={counts.onTrack} label="on track" tone="green" />
-            <Count value={counts.owner} label="owner actions" tone={counts.owner ? "red" : "green"} />
-          </div>
-        </div>
-        {highest ? (
-          <div className="highest-priority">
-            <div className="highest-label"><span>HIGHEST PRIORITY</span><strong>{highest.name} — {verdictLabel(highest)}</strong></div>
-            <div className="highest-facts">
-              <OperatorFact label="Why" value={highest.primaryProblemSummary ?? "No active problem explanation recorded."} />
-              <OperatorFact label={highest.correction.directiveIssued ? "Correction" : "Required response"} value={highest.correction.directive ?? "No corrective directive has been prepared."} />
-              <OperatorFact label="Status" value={highest.correction.statusLabel} tone={highest.correction.status === "DIRECTIVE_DELIVERED" ? "warning" : undefined} />
-              <OperatorFact label="Current path" value={continuationLabel(highest)} tone={highest.correction.continuationPolicy.mode === "CONTINUE_UNRESTRICTED" ? "good" : "warning"} />
-              <OperatorFact label="Owner action" value={ownerActionLabel(highest)} tone={highest.correction.ownerActionType === "NONE" ? "good" : "warning"} />
-            </div>
-            <Link href={`/worker/${highest.id}`} className="summary-open">Open decision record <span>→</span></Link>
-          </div>
-        ) : <p className="all-clear">No active RED, YELLOW, or UNKNOWN worker state.</p>}
+      <div className="mission-heading">
+        <div><p className="eyebrow">USER-VISIBLE VERTICAL SLICE · ISSUE #47</p><h2>Who is advancing, parked, or safe to continue?</h2></div>
+        <span>{workers.filter((worker) => worker.overallTraffic !== "GREEN").length} need attention · owner actions {workers.filter((worker) => worker.correction.ownerActionType !== "NONE").length}</span>
+      </div>
+
+      <nav className="scenario-index" aria-label="Worker scenarios">
+        {workers.map((worker) => <button key={worker.id} className={selectedWorkerId === worker.id ? "selected" : ""} onClick={() => setSelectedWorkerId(worker.id)}><StatusDot health={worker.overallTraffic} /><span>{shortName(worker)}</span><strong>{dispositionLabel(worker)}</strong><small>Owner: {ownerActionLabel(worker)}</small></button>)}
+      </nav>
+
+      <section className="mission-grid" aria-label="All-worker current control projection">
+        {workers.map((worker) => <MissionCard key={worker.id} worker={worker} selected={selectedWorkerId === worker.id} />)}
       </section>
 
-      <section className="change-summary">
-        <div className="summary-title"><span className="scan-icon">⌁</span><p className="eyebrow">WHAT CHANGED SINCE I LAST LOOKED?</p></div>
+      <section className="change-summary secondary-history">
+        <div className="summary-title"><span className="scan-icon">⌁</span><p className="eyebrow">APPEND-ONLY CHANGE HISTORY</p></div>
         <p>{snapshot.summary}</p>
         <button onClick={markViewed} disabled={marking}>{marking ? "Marking…" : "Mark viewed"}<span>✓</span></button>
       </section>
 
-      <div className="section-heading">
-        <div><p className="eyebrow">ALL-WORKER ATTENTION QUEUE</p><h2>Problems, directives, and proof of correction</h2></div>
-        <div className="legend"><span><StatusDot health="RED" />redirect</span><span><StatusDot health="YELLOW" />inspect</span><span><StatusDot health="UNKNOWN" />authority unknown</span></div>
-      </div>
-
-      <section className="attention-queue">
-        {queue.map((worker) => <AttentionCard key={worker.id} worker={worker} />)}
-      </section>
-
-      <div className="section-heading healthy-heading">
-        <div><p className="eyebrow">SAFE TO CONTINUE</p><h2>Healthy or independently continuing work</h2></div>
-        <span className="healthy-count">{healthy.length} worker{healthy.length === 1 ? "" : "s"}</span>
-      </div>
-      <section className="healthy-grid">
-        {healthy.map((worker) => <HealthyCard key={worker.id} worker={worker} />)}
-      </section>
-
-      <footer><span>Append-only v2 ledger · daemon-owned SQLite · read-only Symphony seam</span><span>Updated {relativeTime(snapshot.generatedAt)}</span></footer>
+      <footer><span>Append-only v2 ledger · daemon-owned SQLite · read-only file/Git evidence</span><span>Projection updated {relativeTime(snapshot.generatedAt)}</span></footer>
     </main>
   );
+}
+
+function LiveWorkerStrip({ source }: { source: Snapshot["liveSource"] }) {
+  return <section className={`live-worker-strip ${source ? "connected" : "missing"}`} aria-label="Current live worker evidence source">
+    <div><StatusDot health={source ? "GREEN" : "UNKNOWN"} pulse={Boolean(source)} /><span><b>LIVE WORKER</b>{source?.worker ?? "source not configured"}</span></div>
+    {source ? <>
+      <p>{source.summary}</p>
+      <dl><div><dt>Source</dt><dd>{source.source_path}</dd></div><div><dt>Git</dt><dd>{source.branch}@{source.head.slice(0, 8)}</dd></div><div><dt>Directive / receipt</dt><dd>{source.directive_id ?? "none"} / {source.receipt_id ?? "pending"}</dd></div><div><dt>Evidence</dt><dd>{source.phase} · {relativeTime(source.observed_at)}</dd></div></dl>
+    </> : <p>Set MISSION_CONTROL_LIVE_SOURCE and MISSION_CONTROL_LIVE_WORKTREE to observe the current worker read-only.</p>}
+  </section>;
+}
+
+export function MissionCard({ worker, selected }: { worker: WorkerState; selected: boolean }) {
+  const evidenceTime = worker.lastCheckpointAt;
+  return <article className={`mission-card ${worker.overallTraffic.toLowerCase()} ${selected ? "selected" : ""}`} data-worker={worker.id}>
+    <div className="mission-card-head"><div><StatusDot health={worker.overallTraffic} pulse={worker.overallTraffic === "RED"} /><span><small>{worker.status.toUpperCase()}</small><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link></span></div><strong>{dispositionLabel(worker)}</strong></div>
+    <div className="mission-planes"><Plane label="Worker → Contract" value={worker.workerToContractAlignment} /><Plane label="Contract → Owner" value={worker.contractToOwnerAlignment} /><Plane label="Outcome" value={worker.progress.outcomeAdvancement} /><Plane label="Strategy" value={worker.progress.strategyEfficacy} /></div>
+    <div className="mission-decision"><div><span>EXACT PROBLEM</span><p>{worker.primaryProblemSummary ?? "No active problem; direct owner-outcome evidence improved."}</p></div><div><span>CURRENT CORRECTION / NEXT ACTION</span><p>{worker.correction.directive ?? worker.progress.requiredIntervention}</p></div></div>
+    <div className="mission-evidence"><span>DIRECT EVIDENCE</span><p><b>Target</b> {worker.progress.targetEvidence} <i>·</i> <b>Baseline</b> {worker.progress.baselineEvidence} <i>·</i> <b>Previous</b> {worker.progress.previousEvidence} <i>·</i> <b>Latest</b> {worker.progress.latestEvidence} <i>·</i> <b>Best</b> {worker.progress.bestEvidence}</p></div>
+    <div className="mission-control-row"><div><span>STATE</span><strong>{executionPath(worker)}</strong><small>{worker.correction.statusLabel}</small></div><div><span>OWNER ACTION</span><strong>{ownerActionLabel(worker)}</strong><small>{worker.correction.ownerActionText}</small></div><div><span>REASONING / EXECUTION</span><strong>{worker.executionSupervision.surface} · PRO {worker.executionSupervision.proEscalationState.replaceAll("_", " ")}</strong><small>{worker.executionSupervision.activeDirectiveId ?? "No executable directive"} · Codex {worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}{worker.id === "article-failure" ? " · replacement review PENDING" : ""}</small></div></div>
+    {worker.overallTraffic !== "GREEN" && <div className="mission-lifecycle"><span>LIFECYCLE</span><small>{lifecycleCompact(worker)}</small><span>NEXT REVIEW</span><small>{worker.correction.nextReviewTrigger}</small></div>}
+    <div className="mission-card-foot"><span>Evidence {new Date(evidenceTime).toISOString()} · {relativeTime(evidenceTime)}</span><Link href={`/worker/${worker.id}`}>Open evidence trail →</Link></div>
+  </article>;
+}
+
+function lifecycleCompact(worker: WorkerState): string {
+  return `issued ${yesNo(worker.correction.directiveIssued)} · delivered ${yesNo(worker.correction.directiveDelivered)} · acknowledged ${yesNo(worker.correction.workerAcknowledged)} · started ${yesNo(worker.correction.correctionStarted)} · evidenced ${yesNo(worker.correction.evidenceSubmitted)} · verified ${yesNo(worker.correction.correctionVerified)}`;
+}
+
+function yesNo(value: boolean): string { return value ? "YES" : "NO"; }
+
+function shortName(worker: WorkerState): string {
+  return worker.name.split(" · ")[0];
+}
+
+function dispositionLabel(worker: WorkerState): string {
+  if (worker.progress.strategyEfficacy === "EXHAUSTED" && !worker.progress.sameStrategyContinuationAllowed) return "RED · PARKED — NO VALID STRATEGY";
+  if (["FAILED", "REPLACEMENT_REQUIRED"].includes(worker.progress.strategyEfficacy) && !worker.progress.sameStrategyContinuationAllowed) return "RED · PARKED — REPLACEMENT REQUIRED";
+  return `${worker.overallTraffic} · READY TO CONTINUE`;
+}
+
+function executionPath(worker: WorkerState): string {
+  if (worker.progress.strategyEfficacy === "EXHAUSTED" && !worker.progress.sameStrategyContinuationAllowed) return "PARKED_NO_VALID_STRATEGY · strategy authorization NO_VALID_STRATEGY";
+  if (worker.executionSupervision.codexExecutionState === "PARKED") return "PARKED · same strategy prohibited";
+  if (worker.id === "innersignal-review") return "CONTINUE CURRENT FRONTIER · GITHUB WAIT: NO";
+  return `CONTINUE · ${worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}`;
 }
 
 export function AttentionCard({ worker }: { worker: WorkerState }) {

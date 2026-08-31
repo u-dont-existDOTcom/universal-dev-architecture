@@ -918,6 +918,22 @@ export const symphonyRuntimeObservedSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 
+export const liveWorkerEvidenceObservedSchema = z.object({
+  type: z.literal("live_worker_evidence_observed"),
+  worker: WorkerId,
+  source_kind: z.literal("READ_ONLY_FILE_GIT"),
+  source_path: NonEmpty,
+  observed_at: Timestamp,
+  file_modified_at: Timestamp,
+  content_sha256: Sha256,
+  branch: NonEmpty,
+  head: z.string().regex(/^[a-f0-9]{40}$/),
+  directive_id: StableId.nullable(),
+  receipt_id: StableId.nullable(),
+  phase: z.enum(["DIRECTED", "IMPLEMENTING", "VERIFYING", "EVIDENCED", "COMPLETE"]),
+  summary: NonEmpty,
+});
+
 export const symphonyAdapterDiagnosticRecordedSchema = z.object({
   type: z.literal("symphony_adapter_diagnostic_recorded"),
   worker: WorkerId,
@@ -943,7 +959,7 @@ export const eventSchemaV2 = z.union([
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema, codexExecutionStartedSchema, executionReceiptRecordedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,
-  supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, reviewMarkedSchema,
+  supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, liveWorkerEvidenceObservedSchema, reviewMarkedSchema,
   symphonyAdapterDiagnosticRecordedSchema,
   supervisorChatLinkSetSchema,
 ]);

@@ -7,7 +7,7 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AttentionCard, HealthyCard } from "../components/Dashboard";
+import { AttentionCard, HealthyCard, MissionCard } from "../components/Dashboard";
 import { sha256 } from "../lib/canonical";
 import { correctionStatusLabel, CorrectionInvariantError, validateCorrectionTransition } from "../lib/correction-lifecycle";
 import { authenticatedEventTypes, producerKinds, producerMayEmit } from "../lib/ingestion-auth";
@@ -16,9 +16,10 @@ import { sameOriginMutation } from "../lib/daemon-client";
 import { supervisionHandoffCapsuleSha256 } from "../lib/supervision-handoff";
 import { attentionPriority, projectWorker, projectWorkers, summarizeChanges } from "../lib/projection";
 import { appendEnvelopeSchema, eventSchema, ownerActionObligationSchema, supervisorChatLinkSetSchema, type MissionControlEventV2, type StoredEvent } from "../lib/schema";
-import { seedStore } from "../lib/seed";
+import { seedIssue47Store, seedStore } from "../lib/seed";
 import { ContractInvariantError, EventStore, IdempotencyConflictError, WriterLockError } from "../lib/store";
 import { adaptSymphonyState, SYMPHONY_UPSTREAM_COMMIT } from "../lib/symphony-adapter";
+import { observeLiveWorkerSource } from "../lib/live-worker-source";
 import { authorityStateVectorHash, compareTerminalState } from "../lib/terminal-comparator";
 
 const testRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -1517,6 +1518,45 @@ test("mark-viewed summaries consider only later append-only events", () => {
   });
   assert.match(summarizeChanges(store.allEvents(), store.lastViewedEventId(), new Date("2026-08-30T20:11:00.000Z")), /Auth refactor/);
   store.close();
+});
+
+test("issue #47 projects the four exact runtime scenarios from persisted events", () => {
+  const store = new EventStore(":memory:");
+  seedIssue47Store(store);
+  const workers = new Map(projectWorkers(store.allEvents()).map((worker) => [worker.id, worker]));
+  assert.deepEqual([...workers.keys()].sort(), ["article-failure", "human-design-governance", "innersignal-review", "mission-control-live-slice"]);
+
+  const healthy = workers.get("mission-control-live-slice")!;
+  assert.deepEqual([healthy.overallTraffic, healthy.workerToContractAlignment, healthy.contractToOwnerAlignment, healthy.progress.outcomeAdvancement, healthy.progress.strategyEfficacy], ["GREEN", "GREEN", "MATCH", "ADVANCING", "VIABLE"]);
+  assert.equal(healthy.executionSupervision.codexExecutionState, "RUNNING_WITH_DIRECTIVE");
+
+  const article = workers.get("article-failure")!;
+  assert.deepEqual([article.overallTraffic, article.workerToContractAlignment, article.contractToOwnerAlignment, article.progress.outcomeAdvancement, article.progress.strategyEfficacy], ["RED", "GREEN", "MATCH", "REGRESSING", "REPLACEMENT_REQUIRED"]);
+  assert.equal(article.executionSupervision.codexExecutionState, "PARKED");
+  assert.match(renderToStaticMarkup(createElement(MissionCard, { worker: article, selected: true })), /0\.1547368467[\s\S]*0\.1381948739[\s\S]*0\.1231321841[\s\S]*replacement review PENDING/);
+
+  const innerSignal = workers.get("innersignal-review")!;
+  assert.deepEqual([innerSignal.overallTraffic, innerSignal.workerToContractAlignment, innerSignal.contractToOwnerAlignment, innerSignal.progress.outcomeAdvancement, innerSignal.progress.strategyEfficacy], ["YELLOW", "GREEN", "MATCH", "NOT_YET_MEASURABLE", "VIABLE"]);
+  assert.match(innerSignal.primaryProblemSummary!, /UNRELATED — DOES NOT BLOCK CURRENT FRONTIER.*GITHUB WAIT: NO/);
+
+  const humanDesign = workers.get("human-design-governance")!;
+  assert.deepEqual([humanDesign.overallTraffic, humanDesign.workerToContractAlignment, humanDesign.contractToOwnerAlignment, humanDesign.progress.outcomeAdvancement, humanDesign.progress.strategyEfficacy], ["RED", "GREEN", "MATCH", "FLAT", "EXHAUSTED"]);
+  assert.equal(humanDesign.executionSupervision.codexExecutionState, "PARKED");
+  assert.match(renderToStaticMarkup(createElement(MissionCard, { worker: humanDesign, selected: true })), /PARKED_NO_VALID_STRATEGY[\s\S]*NO_VALID_STRATEGY[\s\S]*NONE NOW — DEFER UNTIL ONE CONSOLIDATED PILOT PROPOSAL/);
+  assert.deepEqual(store.verifyChain(), { valid: true, errors: [] });
+  store.close();
+});
+
+test("the read-only issue #47 source binds current file bytes and Git identity without inferring control state", () => {
+  const repositoryRoot = path.resolve(appRoot, "../../../..");
+  const sourcePath = path.join(repositoryRoot, "state/mission-control-live-slice/WORKER-STATE.json");
+  const observation = observeLiveWorkerSource({ sourcePath, worktreePath: repositoryRoot }, "2026-08-31T15:45:00.000Z");
+  assert.equal(observation.worker, "mission-control-live-slice");
+  assert.equal(observation.source_kind, "READ_ONLY_FILE_GIT");
+  assert.equal(observation.directive_id, "XH-ISSUE47-001");
+  assert.match(observation.content_sha256, /^[a-f0-9]{64}$/);
+  assert.match(observation.head, /^[a-f0-9]{40}$/);
+  assert.ok(["IMPLEMENTING", "VERIFYING", "EVIDENCED", "COMPLETE"].includes(observation.phase));
 });
 
 function demoWorker(worker: string) {

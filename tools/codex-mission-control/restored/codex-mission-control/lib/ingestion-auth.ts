@@ -13,7 +13,7 @@ export const authenticatedEventTypes = [
   "owner_decision_recorded", "supervision_route_recorded", "research_verdict_recorded", "reasoning_supervision_recorded",
   "execution_directive_recorded", "codex_execution_started", "execution_receipt_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "supervision_design_feedback_recorded", "symphony_runtime_observed",
-  "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
+  "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
 ] as const satisfies readonly MissionControlEventV2["type"][];
 
 export interface AuthenticatedProducer {
@@ -37,7 +37,7 @@ const supervisorEvents = new Set<MissionControlEventV2["type"]>([
   "supervision_alert_recorded",
 ]);
 const collectorEvents = new Set<MissionControlEventV2["type"]>([
-  "evidence_receipt_recorded", "symphony_runtime_observed", "symphony_adapter_diagnostic_recorded",
+  "evidence_receipt_recorded", "symphony_runtime_observed", "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded",
 ]);
 const verifierEvents = new Set<MissionControlEventV2["type"]>([
   "evidence_receipt_recorded", "verification_validity_recorded", "finding_status_changed",

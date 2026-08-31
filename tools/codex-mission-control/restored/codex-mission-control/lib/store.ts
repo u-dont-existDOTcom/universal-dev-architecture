@@ -576,7 +576,7 @@ export class EventStore {
       "worker_checkpoint_recorded", "supervisor_assessment_recorded", "evidence_receipt_recorded",
       "finding_recorded", "finding_status_changed", "correction_lifecycle_recorded", "completion_claim_recorded",
       "supervision_route_recorded", "research_verdict_recorded", "supervision_design_feedback_recorded",
-      "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed",
+      "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed", "live_worker_evidence_observed",
       "reasoning_supervision_recorded", "execution_directive_recorded",
       "codex_execution_started", "execution_receipt_recorded", "outcome_progress_recorded", "supervision_alert_recorded",
     ]);

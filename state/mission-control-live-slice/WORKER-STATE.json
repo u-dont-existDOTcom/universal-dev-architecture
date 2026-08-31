@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "worker": "mission-control-live-slice",
+  "directiveId": "XH-ISSUE47-001",
+  "receiptId": null,
+  "phase": "VERIFYING",
+  "summary": "The four-scenario projection is running; focused tests and responsive owner-view acceptance are passing while final verification continues."
+}

@@ -50,6 +50,9 @@ export function effectiveStrategyEfficacy(
     if (methodExhausted) return "REPLACEMENT_REQUIRED";
     return progress.strategy_efficacy === "BLOCKED_EXTERNAL" ? "BLOCKED_EXTERNAL" : "UNCERTAIN";
   }
+  if (advancement === "NOT_YET_MEASURABLE" && progress.strategy_efficacy === "VIABLE"
+    && qualitativeEvidenceAuthorizesAdvancement(progress.current_evidence)
+    && qualitativeEvidenceAuthorizesAdvancement(progress.best_evidence)) return "VIABLE";
   if (["UNMEASURED", "UNKNOWN", "NOT_YET_MEASURABLE"].includes(advancement)
     && progress.strategy_efficacy === "VIABLE") return "UNCERTAIN";
   return progress.strategy_efficacy;
