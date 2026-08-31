@@ -43,7 +43,7 @@
       "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
       "reconciliationId": "mc-recon-20260830-gap-audit-r1"
     },
-    "currentGap": "Four deterministic post-revision blockers are under revision-2 repair and remain pending a fresh independent Extra High review.",
+    "currentGap": "Revision-2 repairs are implemented at 40838d622efacc451f388e60ad53b0dfc927b358 and remain nonterminal pending a fresh independent Extra High review.",
     "unmetOutcomes": [
       "post-receipt reasoning review ordering and exact capsule binding",
       "complete progress and execution-supervision state on every task card",
@@ -135,7 +135,7 @@
   "completionClaim": {
     "type": "WORKING",
     "proposedTerminal": false,
-    "candidateRef": "3b9745cb92ee7fd41d6b76fc55db06a920908b32",
+    "candidateRef": "40838d622efacc451f388e60ad53b0dfc927b358",
     "evidenceRefs": [
       "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-001.json",
       "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json"
@@ -144,7 +144,7 @@
   "result": {
     "supervisoryVerdict": "REJECT",
     "rootTerminalizationAllowed": false,
-    "requiredDirective": "APPLY_XH_MC_744C477_REVISION_002",
+    "requiredDirective": "RETURN_EXECUTION_RECEIPT_FOR_FRESH_XH_REVIEW",
     "ownerActionRequired": false,
     "proMetaReviewRequired": false,
     "nextReasoningReviewRequired": true,
