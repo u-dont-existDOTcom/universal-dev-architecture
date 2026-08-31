@@ -6,6 +6,7 @@
   "exclusive": true,
   "repository": "owner/repository",
   "requiredBranch": "agent/replace-with-task-branch",
+  "requiredRef": "refs/heads/agent/replace-with-task-branch",
   "pullRequest": null,
   "ownerAuthorized": true,
   "ownerSource": {
@@ -79,6 +80,44 @@
     "reconciledAt": null
   },
   "nextReconciliationTrigger": "TASK_START",
+  "taskLocalCheckpoint": {
+    "ref": "refs/heads/agent/replace-with-task-branch:path/to/task-local-current-state",
+    "taskId": "replace-with-stable-task-id",
+    "branch": "agent/replace-with-task-branch",
+    "observedAt": "1970-01-01T00:00:00Z"
+  },
+  "authorityResolution": {
+    "status": "UNRESOLVED",
+    "repositoryGlobalStateRef": "path/to/repository-global-current-state",
+    "repositoryGlobalStateObservedAt": "1970-01-01T00:00:00Z",
+    "globalStateRelation": "AMBIGUOUS",
+    "activeBlockerRefs": [],
+    "ignoredOrUnrelatedBlockerRefs": [],
+    "independentOfBlockerIds": [],
+    "suspendedCompetingSourceRefs": [],
+    "allowedStatuses": [
+      "UNRESOLVED",
+      "VALID",
+      "INVALID",
+      "AMBIGUOUS"
+    ],
+    "allowedGlobalStateRelations": [
+      "CURRENT_AND_APPLICABLE",
+      "CURRENT_BUT_UNRELATED",
+      "STALE_BUT_APPLICABLE_REVALIDATION_REQUIRED",
+      "STALE_AND_UNRELATED",
+      "AMBIGUOUS"
+    ]
+  },
+  "executionFrontier": {
+    "state": "WORKING",
+    "requiredAction": "replace-with-current-chat-authored-action",
+    "operation": "LOCAL_DEVELOPMENT",
+    "requiredCapabilityIds": [],
+    "strategyFamilyId": null,
+    "directiveId": null
+  },
+  "waitAdmissionRef": null,
   "suspendedTaskSources": [
     "old conversation objectives that conflict with the current owner-outcome epoch",
     "unrelated worktree handoffs",

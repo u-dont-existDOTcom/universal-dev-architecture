@@ -113,6 +113,50 @@ If a repository must preserve an older compliance checkpoint verbatim for audit 
 
 Do not allow a branch-local current-state file to continue saying “do not change this policy” after a newer owner-authorized branch exists specifically to change it.
 
+## 4A. Resolve task authority before global execution status
+
+File order is not authority order. For continuation of a validated active task, use:
+
+```text
+current exact owner instruction or correction
+-> active-task lock and matching task-local checkpoint
+-> task-local plan and current chat-authored directive
+-> task PR/code/tests/CI and execution evidence
+-> repository-global operational state where causally applicable
+-> historical task state, old issues, old handoffs, archived checkpoints
+```
+
+Repository-wide safety, privacy, security, permission, spending, publication, and irreversible-action policies remain controlling for affected operations. A more specific task-local checkpoint cannot waive them. But a generic global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label is not transitive across task IDs.
+
+Before a blocker changes the active task state, require a machine-readable `templates/SCOPED-BLOCKER.json` record proving that it is unresolved, current enough, scoped to this task/frontier/operation, causally required, not superseded, and not displaced by higher-precedence authority that establishes independence.
+
+Use these repository-global relations:
+
+```text
+CURRENT_AND_APPLICABLE
+CURRENT_BUT_UNRELATED
+STALE_BUT_APPLICABLE_REVALIDATION_REQUIRED
+STALE_AND_UNRELATED
+AMBIGUOUS
+```
+
+When a global blocker is unrelated, preserve it as `SUSPENDED_COMPETING_SOURCE`, leave the task-local execution state unchanged, and raise the applicable finding rather than deleting history. When scope is semantic or ambiguous, route to the reasoning chat; Codex does not decide.
+
+Waiting is a separate controlled action. `templates/WAIT-ADMISSION.json` binds the active task, exact blocker or reasoning request, causal dependency, exact changing condition, source, actor/mechanism, poll or notification identity, next check, maximum horizon, horizon-expiry state, owner action, and unrelated-work policy. A bare `wait for GitHub to update`, `wait for CI`, `wait for issue`, or `wait for owner` fails closed.
+
+Required findings include:
+
+```text
+STALE_GLOBAL_BLOCKER_INHERITED
+BLOCKER_SCOPE_MISMATCH
+BLOCKER_CAUSAL_DEPENDENCY_MISSING
+GLOBAL_STATE_STALE_FOR_ACTIVE_TASK
+WAIT_CONDITION_NOT_ACTIONABLE
+WAIT_WITHOUT_ADMISSION
+GITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY
+CROSS_TASK_BLOCKER_LEAKAGE
+```
+
 ## 5. Use an artifact-based acceptance command
 
 A task-specific command such as:

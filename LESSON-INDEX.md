@@ -45,6 +45,8 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/CURRENT-STATE.md` — recovery checkpoint carrying owner authority, gap, alignment, completion, progress, strategy, research assurance, and supervision-design state.
 - `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root bootstrap pointing workers to current universal rules.
 - `templates/ACTIVE-TASK.json` — exclusive machine-readable active-task lock.
+- `templates/SCOPED-BLOCKER.json` — scoped blocker identity, freshness, causal applicability, unblock event, and supersession.
+- `templates/WAIT-ADMISSION.json` — machine-readable wait admission with exact changing condition, actor/mechanism, polling policy, and bounded horizon.
 - `templates/PRIOR-WORK-SCAN.md` — independent conception, existing-work, reuse decision, novelty, baseline, and research-debt ledger.
 - `templates/CODEX-TASK.md` — durable task contract with owner authority, derivation proof, reconciliation, alignment, completion, progress, and routing.
 - `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md` — current executor bootstrap requiring chat-led reasoning, bounded directives, dual alignment, progress/strategy control, and Pro meta-review routing.
@@ -80,4 +82,4 @@ Start with this index, then open only the relevant current pattern. Newer owner 
 
 For long-running work, the project bootstrap/index should point to one obvious current-state checkpoint. A fresh session must reconcile actual Git state, independently recover owner authority, identify the current reasoning-supervisor chat and directive, report alignment/progress/strategy state, and stop substantive Codex execution when `SUPERVISION_DIRECTIVE_MISSING`.
 
-For a consequential active-task lock, the branch-bound task identity and preflight outrank unrelated handoffs, worktrees, roadmaps, and global next-task selection. Ordinary green tests never substitute for the root owner outcome, direct evidence that the strategy is advancing it, or a current chat-authored execution directive.
+For a consequential active-task lock, the branch-bound task identity and preflight outrank unrelated handoffs, worktrees, roadmaps, and global next-task selection. A repository-global status label affects that task only through a current scoped blocker and causal dependency; waiting requires a valid `WAIT-ADMISSION` record. Ordinary green tests never substitute for the root owner outcome, direct evidence that the strategy is advancing it, or a current chat-authored execution directive.

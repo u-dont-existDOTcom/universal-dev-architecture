@@ -22,6 +22,21 @@ At the next safe execution boundary:
 
 A derived task contract may refine or decompose the owner outcome. It may not weaken, omit, replace, or terminally bypass it without an explicit owner decision.
 
+For an active task, resolve execution authority before consuming a repository-global execution status. The fixed order is:
+
+```text
+current exact owner instruction or correction
+-> validated branch-bound active-task lock and task-local checkpoint
+-> task-local plan and chat-authored directive
+-> current task artifacts, PR, tests, CI, and execution evidence
+-> repository-global operational state where causally applicable
+-> historical task state, old issues, old handoffs, and archived checkpoints
+```
+
+A repository-global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label does not block the active task unless a current scoped blocker record proves causal applicability. Never wait merely because an older global checkpoint or issue is unresolved. Preserve unrelated global state as `SUSPENDED_COMPETING_SOURCE`; do not delete or rewrite it. Repository-wide safety, privacy, security, permission, spending, publication, and irreversible-action policies remain controlling for every affected operation.
+
+Use `templates/SCOPED-BLOCKER.json` and `templates/WAIT-ADMISSION.json`. When scope cannot be resolved mechanically, set blocker applicability to `AMBIGUOUS`, require reasoning review, and do not let Codex choose.
+
 These do not terminate a root task by default:
 
 - `READY_FOR_OWNER_REVIEW`;
@@ -510,6 +525,13 @@ unavailable permission or credential, destructive or irreversible action,
 spending, publication, explicit stop, or a durably recorded unavailable
 reasoning surface. Continue unrelated safe work when it cannot contaminate the
 pending decision.
+
+Every non-reasoning wait also requires a scoped applicable blocker or exact
+reasoning-request identity, a causal dependency, an exact condition capable of
+changing, the actor or mechanism that can change it, a bounded horizon, and a
+truthful state when that horizon expires. `wait for GitHub to update`, `wait for
+CI`, or `wait for owner` is invalid without those identities. If no actor or
+mechanism can change the condition, polling is prohibited.
 
 ## 12. Mission Control-specific executors
 
