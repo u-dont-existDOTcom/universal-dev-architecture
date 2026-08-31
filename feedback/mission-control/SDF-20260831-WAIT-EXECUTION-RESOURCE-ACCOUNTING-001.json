@@ -66,13 +66,14 @@
     "reviewPriority": "BATCH",
     "sharedProScopeKey": "supervision-architecture/2026-08-31"
   },
-  "status": "SECOND_CORRECTIONS_IMPLEMENTED_PENDING_PRO_META_REVIEW",
+  "status": "CLOSED",
   "proMetaReview": {
     "verdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
     "disposition": "CORRECTIONS_REQUIRED",
     "receivedAt": "2026-08-31T04:11:00Z",
     "latestVerdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001-CORRECTIONS-001",
-    "latestDisposition": "BOUNDED_SECOND_CORRECTIONS_REQUIRED",
+    "latestDisposition": "ACCEPT",
+    "closedAgainstHead": "c9b3475da8e290159dffbfaa784ec20844c40693",
     "activeSomaticLoopBlocked": false
   },
   "ownerDecisionRef": "owner-directive-2026-08-31-add-wait-versus-work-accounting",
