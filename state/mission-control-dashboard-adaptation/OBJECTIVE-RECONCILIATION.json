@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "reconciliationId": "mc-recon-20260831-epoch4-r4",
+  "reconciliationId": "mc-recon-20260831-epoch4-r4-accepted",
   "taskId": "mission-control-dashboard-adaptation-20260830",
-  "trigger": "XH_REVISION3_ACCEPTANCE_REJECT_R4",
-  "reconciledAt": "2026-08-31T04:43:13Z",
+  "trigger": "XH_REVISION4_ACCEPTANCE_ACCEPT",
+  "reconciledAt": "2026-08-31T05:06:28Z",
   "ownerSource": {
     "ownerRequestId": "mission-control-dashboard-adaptation-20260830",
     "canonicalLocator": "state/mission-control-dashboard-adaptation/OWNER-REQUEST.md",
@@ -43,10 +43,8 @@
       "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
       "reconciliationId": "mc-recon-20260830-gap-audit-r1"
     },
-    "currentGap": "Revision-4 acceptance-proof and execution-provenance repairs are implemented at b5bc0d069dcc549a68d3995c6f53633966c16c8c and remain nonterminal pending a fresh independent Extra High review of the execution-only receipt.",
-    "unmetOutcomes": [
-      "fresh independent Extra High acceptance of the revision-4 directive-scope provenance, deletion-sensitive card proof, truthful exact-390 capture, and regenerated archive"
-    ],
+    "currentGap": "No bounded dashboard-adaptation slice gap remains after fresh Extra High acceptance at receipt HEAD 0c9c7c0ea0be4df000944e2b7abafcecae113d96. The overall multi-worker Mission Control parent outcome remains outside this slice and open.",
+    "unmetOutcomes": [],
     "unknownOutcomes": [],
     "nonSatisfyingProxies": [
       "tests pass",
@@ -86,7 +84,37 @@
     "substantiveTurns": 2,
     "reviewerChatClosed": true,
     "directiveClarificationId": "xh-revision4-archive-readme-path-clarification",
-    "nextReviewRequired": true
+    "nextReviewRequired": false,
+    "nextReviewSatisfiedBy": "freshAcceptanceReview"
+  },
+  "freshAcceptanceReview": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_revision4_acceptance",
+    "chatEpoch": "review-0c9c7c0-turn-1",
+    "reviewedHead": "0c9c7c0ea0be4df000944e2b7abafcecae113d96",
+    "reviewedImplementation": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
+    "directiveSha256": "e227fa11d71be43e7fc6d50fa260bcee074dc64de8254affe897ce63431fba50",
+    "receiptSha256": "e589669eea85f4add425a2a146e62a8c81939fd343b115ec7abf8808af50d733",
+    "verdict": "ACCEPT",
+    "sliceMayClose": true,
+    "overallParentOutcomeComplete": false,
+    "ownerActionRequired": false,
+    "proMetaReviewRequired": false,
+    "nextDirectiveRequired": false,
+    "substantiveTurns": 1,
+    "reviewerChatClosed": true,
+    "passedGates": [
+      "revision-3 scope truth and exact revision-4 comparator adoption",
+      "deletion-sensitive rendered proof on AttentionCard and HealthyCard",
+      "truthful nonblank exact-390 Test cleanup evidence",
+      "all-worker queue and Test cleanup lifecycle semantics",
+      "numeric alignment secondary and REDIRECT non-inference",
+      "full owner-choice packet rendering",
+      "Symphony read-only and no custom orchestration",
+      "tests, typecheck, build, runtime, security, responsive layout, and archive",
+      "exact amended changed-path authority and clean repository"
+    ],
+    "evidenceLimit": "Historical same-runtime/tab identity cannot be cryptographically replayed by a later reviewer; acceptance instead combines the screenshot hash and truthful visible-frame inspection with independent current-HEAD reproduction of the directive, lifecycle, and no-overflow behavior."
   },
   "requirements": [
     {
@@ -133,9 +161,10 @@
     }
   ],
   "completionClaim": {
-    "type": "WORKING",
-    "proposedTerminal": false,
+    "type": "SUBTASK_COMPLETE_PARENT_OPEN",
+    "proposedTerminal": true,
     "candidateRef": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
+    "reviewedReceiptHead": "0c9c7c0ea0be4df000944e2b7abafcecae113d96",
     "evidenceRefs": [
       "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-002.json",
       "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json",
@@ -146,18 +175,16 @@
     ]
   },
   "result": {
-    "supervisoryVerdict": "REJECT",
+    "supervisoryVerdict": "ACCEPT",
     "rootTerminalizationAllowed": false,
-    "requiredDirective": "RETURN_REVISION_4_EXECUTION_RECEIPT_FOR_FRESH_XH_REVIEW",
+    "boundedSliceTerminalizationAllowed": true,
+    "requiredDirective": "NONE_SLICE_ACCEPTED_PARENT_OPEN",
     "ownerActionRequired": false,
     "proMetaReviewRequired": false,
-    "nextReasoningReviewRequired": true,
-    "findings": [
-      "MC-R4-B1-DIRECTIVE-SCOPE-PROVENANCE",
-      "MC-R4-B2-DELETION-SENSITIVE-CARD-PROOF",
-      "MC-R4-B3-TRUTHFUL-EXACT-390-CAPTURE",
-      "MC-R4-B4-REVERIFY-AND-ARCHIVE"
-    ]
+    "nextReasoningReviewRequired": false,
+    "sliceMayClose": true,
+    "overallParentOutcomeComplete": false,
+    "findings": []
   },
-  "previousReconciliationId": "mc-recon-20260831-epoch4-r3"
+  "previousReconciliationId": "mc-recon-20260831-epoch4-r4"
 }
