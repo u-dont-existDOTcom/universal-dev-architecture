@@ -31,10 +31,11 @@ Use this file as the entry point for cross-project lesson retrieval.
 25. `patterns/independent-evaluation-separation.md` — when a fresh evaluation is worth the coordination cost, make independence real rather than role-played: separate the evaluator from the producing context, blind the first pass to producer rationale/prior verdicts where valid, disclose the minimum authoritative context needed for a fair assessment, freeze findings before reconciliation, and keep the independent evaluator diagnostic rather than automatically authoritative.
 26. `patterns/development-assurance-lanes.md` — default ordinary software/product work to rapid reversible iteration; use bounded decision experiments only when a material choice remains unresolved; reserve full repository/release assurance for actual merge/release/deploy/publication boundaries; require every expensive validation action to name the current decision it can change; keep targeted hard safety gates in the inner loop without importing unrelated release ceremony; and prevent optional evaluator/provider limits from freezing unrelated development.
 27. `patterns/executable-frontier-coherence.md` — for server-controlled multi-stage workflows, require every nonfinal state to expose server-directed work or an explicit terminal blocked/bounded boundary; reconcile operation, retained frontier, and product projection; preserve retryability and independent lanes; derive truthful transition receipts; and test that compact wrappers do not weaken specialist worker contracts.
+28. `patterns/task-time-lesson-activation.md` — close the gap between durable lesson capture and actual application: compile only task-relevant lessons into a small active contract with triggers, required behavior, failure conditions, repair actions, and enforcement mode; run a literal-work admission gate before consequential action/delivery; block on substantive failures; refresh immediately after owner correction or task change; and keep semantic reasoning with the reasoning/writing agent rather than delegating it to mechanical execution workers.
 
 ## Reusable policy template
 
-- `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents close the learning loop and preserve resumable durable state without asking the owner to remind them.
+- `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents both activate applicable lessons before work and close the learning loop afterward, while preserving resumable durable state without asking the owner to remind them.
 - `templates/CURRENT-STATE.md` — reusable recovery checkpoint for long-running or multi-session work.
 - `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root `AGENTS.md` bootstrap for project repositories; points workers back to this index while embedding the minimum durable-continuity invariant locally and routes design-domain work to the canonical design OS.
 - `templates/ACTIVE-TASK.json` — reusable machine-readable exclusive task lock with branch-bound task identity, preflight, suspended competing task sources, and artifact-based completion semantics.
@@ -79,6 +80,8 @@ Project-local evidence stays in the project repository. Promote a lesson here on
 ## Retrieval rule
 
 Start with this index, then open only the relevant current pattern. Do not load every historical lesson indiscriminately. Newer owner correction and newer validated evidence supersede older conflicting guidance.
+
+For substantive tasks, retrieval is incomplete until task-time activation has identified the relevant lessons and established their enforcement point; merely reading the index does not prove application.
 
 For long-running or multi-session project work, the project bootstrap/index should also point to one obvious current-state checkpoint (`CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable file). A fresh worker must reconcile that checkpoint with actual Git state before resuming.
 
