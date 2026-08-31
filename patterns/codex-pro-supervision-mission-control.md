@@ -313,6 +313,14 @@ Recommended Symphony configuration:
 
 Linear also supplies first-class blockers and issue relationships. Mission Control should not recreate a dependency engine when the tracker already has one.
 
+### 6.1A Blockers are scoped; waits require admission
+
+Mission Control must not project a repository-global status label directly onto every active task. Resolve the validated branch-bound active-task lock and matching task-local checkpoint first. A global blocker affects the current frontier only when a current `SCOPED-BLOCKER` record explicitly binds the task, strategy family, directive, required capability, or operation and proves a causal dependency.
+
+Preserve unrelated global blockers in the task projection as ignored or suspended competing sources. Show their identity, scope, age, and relation; do not hide or delete them. A task card must separately show active blockers, ignored/unrelated blockers, the repository-global relation, current wait identity/horizon, unblock actor or mechanism, owner action, and whether unrelated work may continue.
+
+Waiting is admitted only through `WAIT-ADMISSION`: exact task and blocking-source identity, causal dependency, changing condition and source, actor/mechanism, polling or notification mechanism, bounded horizon, and expiry state. If no actor or mechanism can change the condition, do not poll. Persist the truthful scoped state while keeping independent frontiers executable.
+
 ### 6.2 GitHub remains canonical where it is strongest
 
 GitHub stores:

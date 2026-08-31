@@ -43,6 +43,45 @@ def validate_directive(directive: dict[str, Any]) -> bool:
         isinstance(directive.get("ownerOutcome", {}).get("epoch"), int),
         "ownerOutcome.epoch must be an integer",
     )
+    authority = directive.get("authorityContext", {})
+    for field in (
+        "activeTaskRef",
+        "taskLocalCheckpointRef",
+        "repositoryGlobalStateRef",
+    ):
+        _require(bool(authority.get(field)), f"authorityContext.{field} is required")
+    _require(
+        authority.get("globalStateRelation")
+        in {
+            "CURRENT_AND_APPLICABLE",
+            "CURRENT_BUT_UNRELATED",
+            "STALE_BUT_APPLICABLE_REVALIDATION_REQUIRED",
+            "STALE_AND_UNRELATED",
+            "AMBIGUOUS",
+        },
+        "authorityContext.globalStateRelation is invalid",
+    )
+    _require(
+        authority.get("authorityResolutionStatus")
+        in {"UNRESOLVED", "VALID", "INVALID", "AMBIGUOUS"},
+        "authorityContext.authorityResolutionStatus is invalid",
+    )
+    _require(
+        isinstance(authority.get("currentBlockerIds"), list)
+        and all(
+            isinstance(blocker_id, str) and blocker_id.strip()
+            for blocker_id in authority["currentBlockerIds"]
+        ),
+        "authorityContext.currentBlockerIds must be a string list",
+    )
+    _require(
+        authority.get("waitAdmissionId") is None
+        or (
+            isinstance(authority.get("waitAdmissionId"), str)
+            and authority["waitAdmissionId"].strip()
+        ),
+        "authorityContext.waitAdmissionId must be null or a nonempty string",
+    )
     supervisor = directive.get("reasoningSupervisor", {})
     _require(
         supervisor.get("surface") in {"EXTRA_HIGH", "PRO"},

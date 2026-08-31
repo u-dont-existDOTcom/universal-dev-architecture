@@ -292,6 +292,12 @@ Before relinquishing the active handoff lease, the execution controller must:
 The reasoning chat does not reactivate Codex. The durable execution controller
 owns continuation.
 
+This reasoning-handoff loop does not authorize generic waiting elsewhere. Any
+non-handoff wait must pass the current scoped-blocker and wait-admission
+controls. A repository-global status label or open issue is not a wait source
+without current task scope, causal dependency, an exact condition capable of
+changing, an actor or mechanism, and a bounded horizon.
+
 Until a deterministic Mission Control relay is operational, the active
 Codex/browser controller holds this lease where the execution surface permits.
 The target architecture transfers the lease to Mission Control or the

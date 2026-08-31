@@ -1,0 +1,166 @@
+{
+  "fixtureId": "innersignal-commons-stale-global-blocker",
+  "description": "An active Commons review frontier must not inherit an unrelated historical GitHub App blocker.",
+  "activeTask": {
+    "schemaVersion": 1,
+    "taskId": "opt-in-community-mvp-20260830",
+    "status": "active",
+    "exclusive": true,
+    "requiredBranch": "design/opt-in-community-learning-20260830",
+    "requiredRef": "refs/heads/design/opt-in-community-learning-20260830",
+    "ownerOutcome": {
+      "ownerOutcomeId": "innersignal-opt-in-community-mvp",
+      "epoch": 1,
+      "sha256": "d0e4a8e35e78597921d6791d44247b2d78ebcbaf572537322c220ced3701f07a"
+    },
+    "authorityResolution": {
+      "independentOfBlockerIds": [
+        "innersignal-repository-hardening-github-app-permission"
+      ]
+    },
+    "executionFrontier": {
+      "state": "REASONING_REVIEW_DUE",
+      "requiredAction": "ROUTE_CURRENT_TASK_EVIDENCE_TO_REASONING_CHAT",
+      "operation": "REASONING_REVIEW",
+      "requiredCapabilityIds": [
+        "privacy-security-product-review"
+      ],
+      "strategyFamilyId": "community-mvp-review",
+      "directiveId": "ctc-innersignal-pr15-review"
+    }
+  },
+  "taskLocalState": {
+    "taskId": "opt-in-community-mvp-20260830",
+    "branch": "design/opt-in-community-learning-20260830",
+    "ref": "refs/heads/design/opt-in-community-learning-20260830",
+    "observedAt": "2026-08-31T09:00:00Z",
+    "ownerOutcome": {
+      "ownerOutcomeId": "innersignal-opt-in-community-mvp",
+      "epoch": 1,
+      "sha256": "d0e4a8e35e78597921d6791d44247b2d78ebcbaf572537322c220ced3701f07a"
+    },
+    "state": "REASONING_REVIEW_DUE",
+    "requiredAction": "ROUTE_CURRENT_TASK_EVIDENCE_TO_REASONING_CHAT",
+    "ci": "GREEN"
+  },
+  "repositoryGlobalState": {
+    "ref": "state/CODEX-CURRENT-STATE.md@historical-repository-hardening",
+    "observedAt": "2026-08-20T00:00:00Z",
+    "freshnessState": "STALE",
+    "state": "BLOCKED",
+    "sourceTaskId": "repository-public-transition-hardening"
+  },
+  "blockers": [
+    {
+      "schemaVersion": 1,
+      "blockerId": "innersignal-repository-hardening-github-app-permission",
+      "status": "UNRESOLVED",
+      "scope": {
+        "type": "TASK",
+        "id": "repository-public-transition-hardening",
+        "repositoryWidePolicy": false
+      },
+      "source": {
+        "ref": "u-dont-existDOTcom/innerSignalGraph#4",
+        "sourceType": "REPOSITORY_GLOBAL_STATE",
+        "taskId": "repository-public-transition-hardening",
+        "observedAt": "2026-08-20T00:00:00Z",
+        "freshnessState": "STALE"
+      },
+      "blockingCondition": {
+        "kind": "CAPABILITY_UNAVAILABLE",
+        "identity": "installed-github-app-permission-readback",
+        "capabilityId": "github-app-permission-readback",
+        "operation": "GITHUB_APP_PERMISSION_READBACK"
+      },
+      "appliesTo": {
+        "taskIds": [
+          "repository-public-transition-hardening"
+        ],
+        "strategyFamilyIds": [],
+        "directiveIds": [],
+        "operations": [
+          "GITHUB_APP_PERMISSION_READBACK"
+        ]
+      },
+      "causalDependency": {
+        "requiredByTaskIds": [
+          "repository-public-transition-hardening"
+        ],
+        "requiredCapabilityId": "github-app-permission-readback",
+        "requiredOperation": "GITHUB_APP_PERMISSION_READBACK",
+        "evidenceRefs": [
+          "u-dont-existDOTcom/innerSignalGraph#4"
+        ]
+      },
+      "unblockEvent": {
+        "kind": "PERMISSION_READBACK_AVAILABLE",
+        "identity": "installed-github-app-permission-readback",
+        "sourceRef": "u-dont-existDOTcom/innerSignalGraph#4",
+        "expectedState": "AVAILABLE",
+        "actorOrMechanism": "GITHUB_APP_AUTHORIZED_SESSION"
+      },
+      "ownerAction": {
+        "required": false,
+        "action": "NONE"
+      },
+      "retryOrRecheckPolicy": {
+        "mode": "NONE",
+        "mechanismIdentity": "NONE",
+        "nextCheckAt": null
+      },
+      "maximumWaitHorizonSeconds": 0,
+      "unrelatedWorkAllowed": true,
+      "supersession": {
+        "supersedes": [],
+        "supersededBy": null
+      },
+      "inheritanceAttempted": true
+    }
+  ],
+  "proposedWait": {
+    "schemaVersion": 1,
+    "waitId": "wait-for-github-update",
+    "activeTaskId": "opt-in-community-mvp-20260830",
+    "reasonForWait": "wait for GitHub to update",
+    "blockingBlockerId": "innersignal-repository-hardening-github-app-permission",
+    "reasoningRequestId": null,
+    "causalDependency": "NONE",
+    "conditionExpectedToChange": {
+      "kind": "GITHUB_UPDATE",
+      "identity": "issue-4-unspecified-update",
+      "currentState": "OPEN",
+      "expectedState": "UPDATED",
+      "sourceRef": "u-dont-existDOTcom/innerSignalGraph#4",
+      "actorOrMechanism": "NONE"
+    },
+    "sourceObservedAt": "2026-08-31T09:00:00Z",
+    "pollOrNotificationMechanism": {
+      "mode": "POLL",
+      "identity": "issue-4-poll"
+    },
+    "pollingNeeded": true,
+    "nextCheckAt": "2026-08-31T09:05:00Z",
+    "maximumWaitHorizonSeconds": 3600,
+    "stateIfHorizonExpires": "BLOCKED_EXTERNAL",
+    "ownerActionRequired": false,
+    "unrelatedWorkAllowed": true
+  },
+  "expected": {
+    "authorityResolutionStatus": "VALID",
+    "globalStateRelation": "STALE_AND_UNRELATED",
+    "repositoryGlobalSourceDisposition": "SUSPENDED_COMPETING_SOURCE",
+    "blockerApplicability": "NOT_APPLICABLE",
+    "activeTaskExecutionState": "REASONING_REVIEW_DUE",
+    "waitForGitHubUpdate": false,
+    "ownerActionRequired": false,
+    "unrelatedWorkAllowed": true,
+    "requiredAction": "ROUTE_CURRENT_TASK_EVIDENCE_TO_REASONING_CHAT",
+    "requiredAlerts": [
+      "STALE_GLOBAL_BLOCKER_INHERITED",
+      "CROSS_TASK_BLOCKER_LEAKAGE",
+      "WAIT_WITHOUT_ADMISSION",
+      "WAIT_CONDITION_NOT_ACTIONABLE"
+    ]
+  }
+}

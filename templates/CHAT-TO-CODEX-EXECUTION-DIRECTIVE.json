@@ -9,6 +9,15 @@
     "epoch": 1,
     "sha256": "replace-with-owner-outcome-sha256"
   },
+  "authorityContext": {
+    "activeTaskRef": "path/to/active-task.json",
+    "taskLocalCheckpointRef": "path/to/task-local-current-state",
+    "repositoryGlobalStateRef": "path/to/repository-global-current-state",
+    "globalStateRelation": "AMBIGUOUS",
+    "authorityResolutionStatus": "UNRESOLVED",
+    "currentBlockerIds": [],
+    "waitAdmissionId": null
+  },
   "reasoningSupervisor": {
     "surface": "EXTRA_HIGH",
     "sessionId": "replace-with-chat-session-id",
