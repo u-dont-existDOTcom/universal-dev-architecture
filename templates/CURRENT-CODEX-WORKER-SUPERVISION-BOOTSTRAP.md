@@ -51,10 +51,12 @@ Required companions:
 
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
+- `patterns/outcome-advancement-and-strategy-efficacy.md`
 
-Machine-readable baseline:
+Machine-readable baselines:
 
 - `templates/OBJECTIVE-RECONCILIATION.json`
+- `templates/OUTCOME-PROGRESS-RECEIPT.json`
 
 ## 2. Intelligence and execution routing
 
@@ -73,11 +75,13 @@ Use exact tooling for facts such as:
 - stale evidence;
 - resource collisions;
 - owner-outcome/contract coverage;
-- proposed terminal-state comparison.
+- proposed terminal-state comparison;
+- direct owner-outcome measurements and deltas;
+- strategy-cycle count and progress-evidence freshness.
 
 ### Extra High
 
-Prefer Extra High for work that is primarily reasoning, research, GitHub/repository reading, planning, architecture, evidence organization, ordinary code/diff review, semantic comparison between a derived contract and the owner outcome, or preparation of a supervision-design feedback packet, and does not require local execution.
+Prefer Extra High for work that is primarily reasoning, research, GitHub/repository reading, planning, architecture, evidence organization, ordinary code/diff review, semantic comparison between a derived contract and the owner outcome, ordinary strategy-efficacy review, or preparation of a supervision-design feedback packet, and does not require local execution.
 
 ### Codex
 
@@ -103,9 +107,10 @@ Use Pro promptly when the decision materially benefits from the highest availabl
 - a material disagreement between worker evidence and ordinary review;
 - high-risk final adjudication when semantic failure would not be caught deterministically;
 - a disputed owner-outcome/derived-contract equivalence judgment with consequential terminal implications;
+- a difficult strategy-failure diagnosis or replacement-method decision after flat or negative owner-outcome progress;
 - a substantive question or proposed improvement to the supervision architecture itself.
 
-Do not spend Pro on GitHub retrieval, routine implementation review, ordinary bugs/tests, formatting, plumbing, or repeated confirmation of unchanged conclusions.
+Do not spend Pro on GitHub retrieval, routine implementation review, ordinary bugs/tests, formatting, plumbing, deterministic progress arithmetic, or repeated confirmation of unchanged conclusions.
 
 When Pro value is genuinely uncertain, Extra High may perform bounded triage: `PRO_REQUIRED`, `PRO_RECOMMENDED`, `PRO_OPTIONAL`, or `NO_PRO`. Obvious important cases should go directly to Pro.
 
@@ -123,11 +128,12 @@ When Pro is used for task supervision, give it a self-contained, versioned decis
 - the current derived task contract and reconciliation matrix;
 - exact evidence, excerpts/diffs, and verification results;
 - both alignment states;
+- the latest outcome-progress receipt, direct outcome delta, strategy identity, prediction, actual result, completed cycles, and supporting work since the last direct evidence;
 - unresolved findings;
 - the typed completion claim and proposed workflow/terminal state;
 - the precise question.
 
-The supervisor must compare the derived contract and proposed finish line to the owner outcome **before** judging whether the worker satisfied the contract.
+The supervisor must compare the derived contract and proposed finish line to the owner outcome **before** judging whether the worker satisfied the contract. It must then determine whether the chosen strategy is actually advancing that outcome.
 
 Do not ask Pro to fetch the repository itself. Worker claims and independent evidence must remain separate. Supervisor approval never substitutes for outcome evidence.
 
@@ -193,7 +199,91 @@ Machine-readable baselines:
 - `templates/OBJECTIVE-RECONCILIATION.json`
 - `templates/RESEARCH-SUPERVISION-VERDICT.json`
 
-## 5. Supervision-design improvements and questions must reach shared Pro meta-review
+## 5. Machine-checkable outcome advancement and strategy efficacy
+
+Alignment is not progress. A worker can be GREEN, the contract can MATCH, and the owner outcome can still be flat or worsening.
+
+Every meaningful progress checkpoint must also report:
+
+```text
+outcome_advancement:
+  ADVANCING | FLAT | REGRESSING | UNMEASURED |
+  NOT_YET_MEASURABLE | BLOCKED_EXTERNAL | UNKNOWN
+
+strategy_efficacy:
+  VIABLE | UNCERTAIN | FAILED | EXHAUSTED |
+  REPLACEMENT_REQUIRED | BLOCKED_EXTERNAL | SUPERSEDED
+```
+
+Required receipt:
+
+- `templates/OUTCOME-PROGRESS-RECEIPT.json`
+
+For numeric outcomes, bind the exact target, baseline, previous, current and best measurements; directionality; change from baseline; change from the prior checkpoint; measurement freshness; and exact candidate/artifact identity.
+
+For qualitative or delayed outcomes, use explicit evidence states or owner-authorized leading indicators. Do not fabricate a percentage.
+
+Classify material work since the last direct outcome evidence as:
+
+```text
+DIRECT_OUTCOME_ADVANCEMENT
+ENABLEMENT_PROGRESS
+RISK_REDUCTION
+EVIDENCE_ACQUISITION
+STRATEGY_LEARNING
+PROCESS_OR_TOOLING
+REWORK
+WASTE_OR_NO_INFORMATION_GAIN
+```
+
+Commits, tests, audits, packets, documentation, elapsed time and model calls do not count as direct owner-outcome progress merely because they occurred.
+
+Reassess advancement:
+
+- after every strategy cycle or experiment;
+- after every direct measurement;
+- before repeating a similar method;
+- before another scarce or paid action;
+- after material discoveries and before phase transitions;
+- after a configured time/commit/turn/compute threshold without direct evidence;
+- before owner review, release or root completion.
+
+Control rules:
+
+- one completed flat cycle is at least YELLOW and requires strategy-efficacy review;
+- two flat cycles, or the configured no-progress budget, require `REPLACEMENT_REQUIRED` unless a valid delayed-effect model applies;
+- a negative direct delta is `REGRESSING` and requires immediate strategy review;
+- repeating a regressing/failed/exhausted strategy without a new evidence-backed causal reason is RED;
+- an overdue promised measurement produces `PROGRESS_EVIDENCE_OVERDUE`;
+- a strategy at its cycle/call/time/evidence limit becomes `EXHAUSTED` and cannot continue under a renamed variant.
+
+Required overall projection:
+
+```text
+worker_to_contract GREEN
+contract_to_owner MATCH
+outcome_advancement REGRESSING
+strategy_efficacy REPLACEMENT_REQUIRED
+=> overall RED
+```
+
+When progress is flat, regressing or overdue:
+
+1. preserve valid supporting work;
+2. stop materially similar work under the failed strategy;
+3. record direct outcome delta and effort since the last direct evidence;
+4. identify what was learned;
+5. route ordinary method review to Extra High and difficult/high-consequence replacement to Pro;
+6. resume automatically under the selected replacement strategy;
+7. ask the owner only for genuinely missing source, threshold, policy or tradeoff authority.
+
+The owner must not have to ask whether substantial work made progress. If the owner asks, treat that as a supervision failure and repair the progress-control loop.
+
+Required companion:
+
+- `patterns/outcome-advancement-and-strategy-efficacy.md`
+
+## 6. Supervision-design improvements and questions must reach shared Pro meta-review
 
 When you identify a substantive improvement, loophole, ambiguity, contradiction, recurring failure, machine-checking gap, or question about the supervision design:
 
@@ -213,7 +303,7 @@ supervision-architecture/<epoch>
 
 Do not open one architecture Pro chat per worker.
 
-Review immediately when the issue could falsely authorize completion/release, lose the owner outcome, affect therapy/research safety, create privacy/security/consent risk, or prevent safe current execution. Batch nonblocking improvements for the next meta-review checkpoint.
+Review immediately when the issue could falsely authorize completion/release, lose the owner outcome, allow substantial no-progress work to continue, affect therapy/research safety, create privacy/security/consent risk, or prevent safe current execution. Batch nonblocking improvements for the next meta-review checkpoint.
 
 A worker with no substantive supervision-design improvement or question does not need a ceremonial Pro check-in.
 
@@ -234,7 +324,7 @@ PROJECT_LOCAL_ONLY
 
 Pro advice does not itself mutate the architecture. Repository changes, tests, and owner authorization where applicable remain required.
 
-## 6. Reuse chats without overflowing context
+## 7. Reuse chats without overflowing context
 
 Do not create a new Pro chat for every checkpoint. Do not keep one Pro chat forever either.
 
@@ -246,7 +336,7 @@ Reuse a related Pro chat while:
 - prior context provides useful continuity rather than contamination;
 - an independent fresh judgment is not required.
 
-Each substantive review turn should receive a compact current-authority capsule plus only the new delta/evidence since the last reviewed boundary. The capsule must retain the owner outcome, current gaps, unmet outcomes, independent source receipt, both alignment states, and active design-feedback IDs even when older discussion is compacted.
+Each substantive review turn should receive a compact current-authority capsule plus only the new delta/evidence since the last reviewed boundary. The capsule must retain the owner outcome, current gaps, unmet outcomes, independent source receipt, both alignment states, latest outcome-progress receipt, current strategy state, and active design-feedback IDs even when older discussion is compacted.
 
 Prepare a rollover when context pressure rises materially or the chat starts:
 
@@ -258,11 +348,13 @@ Prepare a rollover when context pressure rises materially or the chat starts:
 - producing contradictions without new evidence;
 - accepting a downstream proxy as the parent outcome;
 - collapsing worker-to-contract and contract-to-owner alignment;
+- treating activity/supporting work as owner-outcome progress;
+- forgetting a negative or flat result when recommending more of the same method;
 - confusing operational, scientific, and release adequacy.
 
 A new chat receives a deterministic handoff capsule from durable state, not only a free-form summary of the old chat.
 
-## 7. Usage/resource exhaustion and account failover
+## 8. Usage/resource exhaustion and account failover
 
 The owner has authorized two account aliases: `primary` and `secondary`. Their actual identities are **private local configuration** and must not be committed to this public repository or copied into public logs.
 
@@ -270,8 +362,8 @@ If Pro, Codex, or another relevant resource becomes unavailable:
 
 1. identify the exact exhausted/unavailable resource;
 2. record the visible evidence (banner/error/usage state/reset time if shown);
-3. checkpoint the current task, owner-outcome epoch/hash, current gap, both alignment states, completion claim, branch, HEAD, tests, chat epoch, and next safe action;
-4. audit whether that resource was being used efficiently, including both overuse and harmful under-escalation;
+3. checkpoint the current task, owner-outcome epoch/hash, current gap, both alignment states, outcome-advancement state, strategy-efficacy state, completion claim, branch, HEAD, tests, chat epoch, and next safe action;
+4. audit whether that resource was being used efficiently, including overuse, harmful under-escalation, and substantial no-progress consumption;
 5. consult the owner-private local account registry if it is available;
 6. verify the secondary account actually has the required capability before switching;
 7. switch only through a verifiable ordinary account-switch flow;
@@ -291,7 +383,7 @@ Do not rotate accounts to evade a policy restriction, suspicious-login condition
 
 Do not guess fixed Pro or Codex quotas when the product does not expose them reliably.
 
-## 8. Brave/browser hygiene
+## 9. Brave/browser hygiene
 
 For automation-controlled browsing:
 
@@ -315,15 +407,17 @@ Never automatically close:
 
 A persistent Pro chat does not require keeping its tab open. Persist the chat URL, account alias, scope key, current capsule, owner-outcome epoch, and last reviewed boundary locally.
 
-## 9. Continue automatically
+## 10. Continue automatically
 
-An owner correction, answer, new shared rule, or Pro meta-review result is input to the current task, not a completion event. After incorporating it, continue to the next safe in-scope action unless a genuine owner decision, unavailable permission/credential, destructive/irreversible boundary, spending, publication, or explicit stop requires pausing.
+An owner correction, answer, new shared rule, progress-review result, or Pro meta-review result is input to the current task, not a completion event. After incorporating it, continue to the next safe in-scope action unless a genuine owner decision, unavailable permission/credential, destructive/irreversible boundary, spending, publication, or explicit stop requires pausing.
 
 Repairing a laundered contract is also not a reason to discard valid supporting work or wait. Preserve it, restore the actual remaining outcome, and continue.
 
-A nonblocking supervision-design question is not a reason to stop unrelated work. A blocking correctness/safety defect holds only the affected boundary.
+A flat or regressing strategy is a reason to stop materially similar work—not to stop all unrelated safe work. Preserve the evidence, select a replacement, and continue under that method.
 
-## 10. Mission Control-specific workers
+A nonblocking supervision-design question is not a reason to stop unrelated work. A blocking correctness/safety/progress defect holds only the affected boundary.
+
+## 11. Mission Control-specific workers
 
 Only if your assigned task **is Mission Control**, additionally read the current draft architecture on PR #42, especially:
 
@@ -332,14 +426,17 @@ Only if your assigned task **is Mission Control**, additionally read the current
 - `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md`
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
+- `patterns/outcome-advancement-and-strategy-efficacy.md`
 - `docs/exec-plans/2026-08-30-mission-control-symphony-gap-audit-and-pilot.md`
 - `docs/exec-plans/2026-08-30-mission-control-resource-routing-failover-and-tab-hygiene-addendum.md`
 - `docs/exec-plans/2026-08-30-mission-control-owner-outcome-terminal-integrity-addendum.md`
 - `docs/exec-plans/2026-08-30-mission-control-dual-alignment-and-pro-meta-review-addendum.md`
+- `docs/exec-plans/2026-08-30-mission-control-attention-and-correction-ux-addendum.md`
+- `docs/exec-plans/2026-08-31-mission-control-outcome-progress-and-stagnation-addendum.md`
 
 Do not make non-Mission-Control workers execute those implementation plans.
 
-## 11. Current-worker receipt
+## 12. Current-worker receipt
 
 At the next meaningful checkpoint, record briefly in durable task state:
 
@@ -350,6 +447,11 @@ At the next meaningful checkpoint, record briefly in durable task state:
 - `worker_to_contract_alignment`;
 - `contract_to_owner_alignment`;
 - typed completion claim;
+- latest direct owner-outcome baseline/current/best evidence;
+- `outcome_advancement`;
+- current `strategy_id` and `strategy_efficacy`;
+- work since the last direct evidence classified as direct progress, enablement, risk reduction, evidence acquisition, strategy learning, tooling, rework, or no-information-gain;
+- next decision-changing measurement/intervention trigger;
 - whether the current task contract/terminal boundary passed or required repair;
 - AskRigor operational/scientific/release judgments when applicable;
 - any substantive supervision-design feedback ID and Pro meta-review status;
