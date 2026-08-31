@@ -12,6 +12,8 @@ The controlling rule is:
 
 > **Chat surfaces own reasoning. Codex owns only bounded execution that chat surfaces cannot reliably perform.**
 
+**Extra High by default; Pro only when the decision materially requires the highest available semantic judgment.**
+
 Default reasoning surface:
 
 ```text
