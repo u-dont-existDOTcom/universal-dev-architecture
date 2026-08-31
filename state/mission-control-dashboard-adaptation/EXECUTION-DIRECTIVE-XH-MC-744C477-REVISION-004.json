@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "directiveId": "XH-MC-744C477-REVISION-004",
+  "directiveRevision": 4,
+  "createdAt": "2026-08-31T04:29:12Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 4,
+    "sha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1"
+  },
+  "reasoningSupervisor": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_revision3_acceptance",
+    "chatEpoch": "review-97ebbd7-turn-1",
+    "decisionId": "xh-revision3-97ebbd7-reject-r4",
+    "capsuleId": "xh-mc-97ebbd7-review-capsule-r4",
+    "reviewedEvidenceBoundary": "original:744c47745c32e6fce440df7739f48c9a59020832;revision3-implementation:e291a59cee5f61a7d17238be95291d10ef9b5314;head:97ebbd72dc893b180abfda7a3fb8c4ccab713723;directive-sha256:1ac9ee6fbb4aea65ba87efe23c664982481043752e5ed1c485cf8f5b6164ced4;receipt-sha256:3fd7cae1ddda0e64c23149891068dac51087872adb99e71cdd121a8d259d8c04"
+  },
+  "priorExecutionBoundary": {
+    "status": "DIRECTIVE_SCOPE_EXCEEDED",
+    "priorDirectiveId": "XH-MC-744C477-REVISION-003",
+    "unauthorizedPath": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+    "priorReceiptClaimedScopeConflicts": [],
+    "truthfulFinding": "Revision 3 changed terminal-comparator.ts even though that path was absent from the exhaustive revision-3 allowed-path list; the revision-3 receipt therefore incorrectly reported no scope conflict.",
+    "proposalStatus": "NON_AUTHORITATIVE_PROPOSAL_PENDING_EXPLICIT_ADOPTION",
+    "proposedPatchIdentity": {
+      "baseCommit": "37d0723ba09d7c8394dd37b75db324c4f696ef11",
+      "implementationCommit": "e291a59cee5f61a7d17238be95291d10ef9b5314",
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+      "lineDelta": "20 insertions, 3 deletions",
+      "resultingGitBlob": "4e8dfe48ec16ab4783f1ffe48960e66a7d6582f5",
+      "resultingSha256": "e66c0183fa1570d2d7660c95ad072e3bd2c4f1c0629e9eaf0c43303fb7e18f80"
+    },
+    "authorization": "Revision 4 explicitly authorizes preserving and adopting this exact patch only after Codex verifies that it makes current owner-outcome reasoning authoritative, rejects stale or legacy-unbound reasoning and progress as current authority, and binds current directives to that exact reasoning authority. Any patch-identity drift must stop for review."
+  },
+  "strategy": {
+    "strategyId": "mc-acceptance-proof-and-provenance-r4",
+    "causalHypothesis": "Truthfully recording the revision-3 scope overrun, explicitly adopting the already-valid comparator patch, making every mandatory value deletion-sensitive in both rendered card variants, and replacing the false capture will make the acceptance packet auditable without changing product or supervision design.",
+    "predictedOutcomeChange": "The functionally valid revision-3 candidate becomes eligible for fresh independent Extra High acceptance after one proof-and-provenance repair cycle.",
+    "successThreshold": "The comparator patch identity and behavior are verified and explicitly adopted; both card variants have unique per-field sentinel assertions for every mandatory value; the Test cleanup exact-390 artifact is nonblank and bound to the measured runtime; all deterministic, runtime, browser, and archive gates pass.",
+    "failureThreshold": "Any patch-identity drift, missing deletion-sensitive mandatory value, screenshot/runtime mismatch, new scope conflict, or failed gate.",
+    "nextDecisionChangingEvidence": "One execution-only revision-4 receipt plus regenerated archive and truthful exact-390 evidence for a fresh Extra High review."
+  },
+  "executionObjective": "Perform one bounded acceptance-proof and execution-provenance repair. Preserve the functionally valid revision-3 implementation, but do not classify the slice accepted.",
+  "requiredChanges": [
+    {
+      "id": "MC-R4-B1-DIRECTIVE-SCOPE-PROVENANCE",
+      "requirement": "Record DIRECTIVE_SCOPE_EXCEEDED for revision 3 and truthfully record that terminal-comparator.ts was outside the revision-3 allowed-path list. Treat its 20-insertion/3-deletion patch as a non-authoritative proposal and preserve/adopt it only under the exact explicit path, patch identity, and current-outcome behavior authorization in this directive."
+    },
+    {
+      "id": "MC-R4-B2-DELETION-SENSITIVE-CARD-PROOF",
+      "requirement": "Strengthen the rendered AttentionCard and HealthyCard test with unique per-field sentinel values and explicit assertions for every mandatory value, including outcome advancement, strategy efficacy, review age, and pending-review state. Each card variant must fail if any one mandatory render expression is removed. Preserve explanation-first ordering on attention cards."
+    },
+    {
+      "id": "MC-R4-B3-TRUTHFUL-EXACT-390-CAPTURE",
+      "requirement": "Replace dashboard-test-cleanup-exact-390.jpg with a genuine nonblank exact-390 capture, or remove the false capture/content claim. Bind its screenshot, DOM checks, and width measurements to the same runtime and candidate."
+    },
+    {
+      "id": "MC-R4-B4-REVERIFY-AND-ARCHIVE",
+      "requirement": "Run 71 or more tests, typecheck, build, fresh runtime chain and authentication probes, mobile-emulated exact-390 no-overflow inspection, current desktop inspection, and independent 45-file archive reconstruction. Regenerate the source archive after the test change."
+    }
+  ],
+  "allowed": {
+    "actions": [
+      "verify and explicitly adopt the exact terminal-comparator patch identity recorded above",
+      "strengthen rendered card regression tests with unique per-field values and assertions",
+      "change Dashboard.tsx only if needed to expose a testable mandatory value",
+      "replace the false Test cleanup exact-390 capture and update its metrics manifest",
+      "regenerate and independently reconstruct the source-only archive",
+      "update nonterminal current state and objective reconciliation",
+      "record one execution-only revision-4 receipt"
+    ],
+    "paths": [
+      "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg",
+      "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json",
+      "state/mission-control-dashboard-adaptation/CURRENT-STATE.md",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-*-REVISION-004.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-*-REVISION-004.json"
+    ],
+    "commands": [
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "npm start",
+      "git diff",
+      "git status",
+      "git diff --check",
+      "unzip -t",
+      "archive checksum and byte-comparison commands",
+      "browser capture and viewport-measurement commands"
+    ],
+    "tacticalFreedom": "Low-level test fixture construction and assertion organization inside the exact acceptance-proof requirements."
+  },
+  "forbidden": {
+    "actions": [
+      "architecture or owner-outcome changes",
+      "Symphony control or orchestration behavior",
+      "Pro or owner escalation",
+      "push, merge, deploy, publish, rebase, or rewrite history",
+      "claim bounded-slice acceptance or overall Mission Control completion",
+      "expand into optional hardening"
+    ],
+    "paths": ["patterns/**", "templates/**", "docs/exec-plans/**"],
+    "decisions": [
+      "owner choice",
+      "Pro escalation",
+      "new supervision architecture",
+      "owner-outcome or contract amendment",
+      "strategy replacement",
+      "slice acceptance",
+      "parent Mission Control completion"
+    ]
+  },
+  "requiredEvidence": [
+    "revision-3 DIRECTIVE_SCOPE_EXCEEDED truthfully recorded without rewriting its immutable receipt",
+    "exact terminal-comparator path, line delta, Git blob, SHA-256, and current-outcome behavior verified before explicit adoption",
+    "unique per-field rendered values and assertions for every mandatory state on AttentionCard and HealthyCard, including outcome advancement, strategy efficacy, review age, and pending review",
+    "attention-card explanation-first ordering preserved",
+    "genuine nonblank Test cleanup capture from the exact runtime/candidate measured at 390 CSS pixels with no horizontal overflow",
+    "71 or more tests, typecheck, build, fresh runtime chain and mutation probes, exact-390 and desktop inspection",
+    "exact regenerated archive checksum, ZIP integrity, and byte-for-byte restored-tree comparison",
+    "execution-only receipt with all supervisory authority fields null"
+  ],
+  "requiredTestsOrChecks": [
+    "npm test",
+    "npm run typecheck",
+    "npm run build",
+    "temporary-database runtime daemon/dashboard projection inspection",
+    "unauthenticated daemon and disabled external-ingest probes",
+    "exact 390 CSS-pixel mobile and current desktop browser inspection",
+    "archive checksum, unzip integrity, and byte-for-byte restored-tree comparison",
+    "git diff --check and exact ending repository state"
+  ],
+  "stopAndReturnTriggers": [
+    "one repair and verification cycle is complete",
+    "any patch-identity drift or new scope conflict",
+    "a repair would alter the frozen owner outcome or architecture",
+    "a genuine owner, Pro, product, or architecture decision is discovered",
+    "required source or browser input is unavailable"
+  ],
+  "maximumExecutionHorizon": {"type": "MEANINGFUL_EXECUTION_CYCLE", "limit": 1},
+  "ambiguityBehavior": "STOP_AND_REPORT_DECISION_REQUIRED",
+  "ownerDecisionAuthority": "NONE",
+  "proEscalationAuthority": "NONE",
+  "strategyAuthority": "NONE",
+  "supervisoryVerdictAuthority": "NONE",
+  "substantiveProseAuthorshipAuthority": "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
+  "status": "ACTIVE"
+}

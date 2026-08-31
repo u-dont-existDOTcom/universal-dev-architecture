@@ -1266,44 +1266,96 @@ test("every owner-action-bearing event rejects missing and cross-worker source p
 });
 
 test("attention and healthy card variants render the complete progress and execution-supervision state", () => {
-  const variants = [
-    ["attention", demoWorker("tests"), AttentionCard],
-    ["healthy", demoWorker("auth"), HealthyCard],
-  ] as const;
-  const labels = [
-    "Owner outcome target", "Owner outcome gap", "Latest direct evidence", "Best direct evidence", "Active strategy", "Supporting work",
-    "Next decision-changing measurement / intervention", "Reasoning review", "Active directive", "Codex execution",
-    "Stop / review boundary", "Execution receipt / claim", "Pro escalation", "Owner action", "Next review",
-  ];
-  for (const [variant, worker, Card] of variants) {
-    const html = renderToStaticMarkup(createElement(Card, { worker }));
-    for (const label of labels) assert.ok(html.includes(label), `${variant} card must render ${label}`);
-    for (const value of [
-      worker.progress.targetEvidence,
-      worker.ownerOutcome.currentGap,
-      worker.progress.latestEvidence,
-      worker.progress.bestEvidence,
-      worker.progress.strategyId,
-      worker.progress.supportingWork[0]?.summary,
-      worker.progress.nextDecisionTrigger,
-      worker.progress.requiredIntervention,
-      worker.executionSupervision.surface,
-      worker.executionSupervision.sessionId,
-      worker.executionSupervision.chatEpoch,
-      worker.executionSupervision.reviewFreshness,
-      worker.executionSupervision.activeDirectiveId,
-      worker.executionSupervision.directiveStatus,
-      worker.executionSupervision.directiveObjective,
-      worker.executionSupervision.codexExecutionState.replaceAll("_", " "),
-      worker.executionSupervision.stopBoundary[0],
-      worker.executionSupervision.latestReceiptId,
-      worker.executionSupervision.receiptClaim,
-      worker.executionSupervision.proEscalationState.replaceAll("_", " "),
-      worker.correction.ownerActionText,
-      worker.correction.nextReviewTrigger,
-    ].filter((value): value is string => Boolean(value))) {
-      assert.ok(html.includes(value), `${variant} card must render actual value: ${value}`);
+  const originalDateNow = Date.now;
+  Date.now = () => new Date("2026-08-31T00:00:00.000Z").getTime();
+  try {
+    const sentinelWorker = (workerId: string, prefix: string, outcomeAdvancement: string, strategyEfficacy: string, pendingReasoningReview: boolean) => {
+      const worker = structuredClone(demoWorker(workerId));
+      worker.ownerOutcome.currentGap = `${prefix}-owner-gap`;
+      worker.progress.outcomeAdvancement = outcomeAdvancement;
+      worker.progress.strategyId = `${prefix}-strategy-id`;
+      worker.progress.strategyEfficacy = strategyEfficacy;
+      worker.progress.targetEvidence = `${prefix}-owner-target`;
+      worker.progress.latestEvidence = `${prefix}-latest-evidence`;
+      worker.progress.bestEvidence = `${prefix}-best-evidence`;
+      worker.progress.supportingWork = [{ classification: "ENABLEMENT_PROGRESS", summary: `${prefix}-supporting-work` }];
+      worker.progress.nextDecisionTrigger = `${prefix}-next-measurement`;
+      worker.progress.requiredIntervention = `${prefix}-required-intervention`;
+      worker.executionSupervision.surface = `${prefix}-reasoning-surface`;
+      worker.executionSupervision.sessionId = `${prefix}-reasoning-session`;
+      worker.executionSupervision.chatEpoch = `${prefix}-chat-epoch`;
+      worker.executionSupervision.lastReviewAt = "2026-08-30T23:00:00.000Z";
+      worker.executionSupervision.reviewFreshness = `${prefix}-review-freshness`;
+      worker.executionSupervision.activeDirectiveId = `${prefix}-directive-id`;
+      worker.executionSupervision.directiveStatus = `${prefix}-directive-status`;
+      worker.executionSupervision.directiveObjective = `${prefix}-directive-objective`;
+      worker.executionSupervision.codexExecutionState = `${prefix}_codex_state`;
+      worker.executionSupervision.stopBoundary = [`${prefix}-stop-boundary-a`, `${prefix}-stop-boundary-b`];
+      worker.executionSupervision.latestReceiptId = `${prefix}-receipt-id`;
+      worker.executionSupervision.receiptClaim = `${prefix}-receipt-claim`;
+      worker.executionSupervision.pendingReasoningReview = pendingReasoningReview;
+      worker.executionSupervision.proEscalationState = `${prefix}_pro_state`;
+      worker.correction.ownerActionType = "NONE";
+      worker.correction.ownerActionText = `${prefix}-owner-action`;
+      worker.correction.nextReviewTrigger = `${prefix}-next-review`;
+      return worker;
+    };
+
+    const variants = [
+      {
+        name: "attention",
+        prefix: "sentinel-attention",
+        worker: sentinelWorker("tests", "sentinel-attention", "REGRESSING", "FAILED", true),
+        Card: AttentionCard,
+        planeFragments: [
+          "<span>Outcome progress</span>",
+          ">REGRESSING</strong>",
+          '<div><span>Strategy</span><strong class="bad">FAILED</strong></div>',
+        ],
+        pendingReviewText: "PENDING",
+      },
+      {
+        name: "healthy",
+        prefix: "sentinel-healthy",
+        worker: sentinelWorker("auth", "sentinel-healthy", "ADVANCING", "EFFECTIVE", false),
+        Card: HealthyCard,
+        planeFragments: [
+          "<span>Outcome <strong>ADVANCING</strong></span>",
+          "<span>Strategy <strong>EFFECTIVE</strong></span>",
+        ],
+        pendingReviewText: "sentinel-healthy-review-freshness",
+      },
+    ] as const;
+
+    for (const { name, prefix, worker, Card, planeFragments, pendingReviewText } of variants) {
+      const html = renderToStaticMarkup(createElement(Card, { worker }));
+      for (const fragment of planeFragments) {
+        assert.ok(html.includes(fragment), `${name} card must render its exact outcome/strategy value fragment: ${fragment}`);
+      }
+      const facts = [
+        ["Owner outcome target", `${prefix}-owner-target`],
+        ["Owner outcome gap", `${prefix}-owner-gap`],
+        ["Latest direct evidence", `${prefix}-latest-evidence`],
+        ["Best direct evidence", `${prefix}-best-evidence`],
+        ["Active strategy", `${prefix}-strategy-id · ${worker.progress.strategyEfficacy}`],
+        ["Supporting work", `ENABLEMENT PROGRESS: ${prefix}-supporting-work`],
+        ["Next decision-changing measurement / intervention", `${prefix}-next-measurement · ${prefix}-required-intervention`],
+        ["Reasoning review", `${prefix}-reasoning-surface · session ${prefix}-reasoning-session · chat ${prefix}-chat-epoch · reviewed 1h ago · ${prefix}-review-freshness`],
+        ["Active directive", `${prefix}-directive-id · ${prefix}-directive-status · ${prefix}-directive-objective`],
+        ["Codex execution", `${prefix} codex state`],
+        ["Stop / review boundary", `Stop: ${prefix}-stop-boundary-a; ${prefix}-stop-boundary-b · Review: ${prefix}-next-measurement`],
+        ["Execution receipt / claim", `${prefix}-receipt-id · ${prefix}-receipt-claim · independent review ${pendingReviewText}`],
+        ["Pro escalation", `${prefix} pro state`],
+        ["Owner action", `NONE · ${prefix}-owner-action`],
+        ["Next review", `${prefix}-next-review`],
+      ] as const;
+      for (const [label, value] of facts) {
+        const fragment = `<div><span>${label}</span><p>${value}</p></div>`;
+        assert.ok(html.includes(fragment), `${name} card must render the deletion-sensitive ${label} sentinel`);
+      }
     }
+  } finally {
+    Date.now = originalDateNow;
   }
 });
 
