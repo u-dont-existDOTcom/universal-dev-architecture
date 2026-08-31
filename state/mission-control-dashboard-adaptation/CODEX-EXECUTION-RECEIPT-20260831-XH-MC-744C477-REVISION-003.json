@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "mc-codex-execution-receipt-20260831-xh-mc-744c477-revision-003",
+  "createdAt": "2026-08-31T04:13:22Z",
+  "directiveId": "XH-MC-744C477-REVISION-003",
+  "directiveRevision": 3,
+  "directiveSha256": "1ac9ee6fbb4aea65ba87efe23c664982481043752e5ed1c485cf8f5b6164ced4",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "runId": "codex-root-mission-control-adaptation-xh-mc-744c477-revision-003",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/mission-control-dashboard-adaptation-20260830",
+    "startingHead": "37d0723ba09d7c8394dd37b75db324c4f696ef11",
+    "implementationHead": "e291a59cee5f61a7d17238be95291d10ef9b5314",
+    "endingState": "Implementation committed; this factual receipt, current-state update, desktop evidence, and exact evidence manifest update are the only subsequent files before the receipt commit.",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/mission-control-slice"
+  },
+  "authorityBindings": {
+    "ownerRequestSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "ownerOutcomeEpoch": 4,
+    "ownerOutcomeSha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1",
+    "priorOwnerOutcomeEpoch": 3,
+    "priorOwnerOutcomeSha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+    "objectiveReconciliationId": "mc-recon-20260831-epoch4-r3"
+  },
+  "execution": {
+    "objectiveClaim": "Executed one bounded repair and verification cycle for the four frozen revision-3 findings.",
+    "actionsTaken": [
+      "bound every new reasoning-supervision decision to the exact current owner-outcome ID, epoch, and hash",
+      "required execution directives and outcome-progress judgments to select reasoning authority with the same exact owner-outcome binding",
+      "kept legacy reasoning records readable while making unbound records non-authoritative in the terminal comparator and new appends",
+      "made nonnumeric ADVANCING fail closed unless current and best evidence reference current verified independent same-worker direct-outcome or validated-leading-indicator receipts",
+      "required validated leading indicators to state their predictive basis and later direct-outcome decision boundary",
+      "rejected missing, cross-worker, stale, unverified, worker-reported, supporting-only, and activity-only qualitative evidence",
+      "replaced the Auth evidence placeholders with an independent current characterization receipt while keeping the unmet guard-extraction gap and supporting work separate",
+      "factored one complete task-control-state renderer into both AttentionCard and HealthyCard and exercised each rendered variant",
+      "kept the attention card explanation-first so the exact problem, reasons, correction, lifecycle, next trigger, and owner action precede secondary control metadata",
+      "captured current queue, Test cleanup, and Auth evidence at exactly 390 CSS pixels with no horizontal overflow, plus current desktop queue and Auth evidence",
+      "updated factual documentation and regenerated the exact source-only archive"
+    ],
+    "filesChanged": [
+      "tools/codex-mission-control/restored/codex-mission-control/{README.md,app/globals.css,components/Dashboard.tsx,lib/progress-invariants.ts,lib/schema.ts,lib/seed.ts,lib/store.ts,lib/terminal-comparator.ts,tests/mission-control.test.ts}",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/{README.md,ARCHITECTURE.md,IMPLEMENTATION-SPEC.md,SOURCE-ARCHIVE.sha256}",
+      "docs/evidence/mission-control-adaptation/dashboard-*-exact-390.*",
+      "docs/evidence/mission-control-adaptation/dashboard-{queue,healthy-auth}-current-1440-css.jpg",
+      "state/mission-control-dashboard-adaptation/{OBJECTIVE-RECONCILIATION.json,EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json}"
+    ],
+    "startedAt": "2026-08-31T03:33:27Z",
+    "stoppedAt": "2026-08-31T04:13:22Z"
+  },
+  "verification": {
+    "checksRun": [
+      {
+        "command": "npm test",
+        "result": "PASS",
+        "summary": "71 tests passed and 0 failed, including stale-owner reasoning, legacy non-authority, qualitative-evidence hostility, valid direct/leading evidence, and rendered attention/healthy card fixtures"
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "summary": "tsc --noEmit completed without diagnostics"
+      },
+      {
+        "command": "npm run build",
+        "result": "PASS",
+        "summary": "Next.js 16.3.3 production compilation, TypeScript, static page generation, and route manifest completed"
+      },
+      {
+        "command": "npm start with a fresh temporary database",
+        "result": "PASS",
+        "summary": "six workers projected; five attention workers and one healthy Auth worker; daemon reported a valid 108-event chain"
+      },
+      {
+        "command": "unauthenticated daemon and disabled external-ingest probes",
+        "result": "PASS",
+        "summary": "daemon POST /events returned 401 and POST /ingest returned 404"
+      },
+      {
+        "command": "desktop and exact-390 CSS-viewport browser inspection",
+        "result": "PASS",
+        "summary": "the default queue, Test cleanup card, and healthy Auth card rendered current data; exact mobile measurements were innerWidth/clientWidth/scrollWidth/bodyScrollWidth 390/390/390/390 with no horizontal overflow"
+      },
+      {
+        "command": "archive reconstruction, checksum, unzip -t, and diff -qr",
+        "result": "PASS",
+        "summary": "45 source files restored from 25 base64 parts; ZIP integrity passed and the extracted source was byte-for-byte equal to the restored source after generated/runtime exclusions"
+      },
+      {
+        "command": "coordinated runtime shutdown",
+        "result": "PASS",
+        "summary": "dashboard and daemon exited, ports 3000 and 4100 closed, temporary capture styles were removed, capture tabs were closed, and no writer lock remained"
+      },
+      {
+        "command": "git diff --check and JSON validation",
+        "result": "PASS",
+        "summary": "no whitespace errors and all revision-3 JSON artifacts parsed successfully"
+      }
+    ],
+    "measurements": {
+      "projectedWorkers": 6,
+      "attentionWorkers": 5,
+      "healthyWorkers": 1,
+      "testsPassed": 71,
+      "testsFailed": 0,
+      "runtimeLedgerEvents": 108,
+      "archiveFiles": 45,
+      "archiveParts": 25,
+      "archiveSha256": "6694c0647dd4b6661c49242bdb14bb7d750c361e6d01c2e5bf8c59afa93cc808",
+      "mobileCssViewportWidth": 390,
+      "mobileCssViewportHeight": 844,
+      "mobileDevicePixelRatio": 1,
+      "mobileRootClientWidth": 390,
+      "mobileRootScrollWidth": 390,
+      "mobileBodyScrollWidth": 390,
+      "mobileHorizontalOverflow": false,
+      "desktopCssViewportWidth": 1440,
+      "desktopRootClientWidth": 1420,
+      "desktopRootScrollWidth": 1420,
+      "desktopHorizontalOverflow": false
+    },
+    "evidenceRefs": [
+      "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json#sha256=6075e1f3fe6f3499cb1d203efa75f752d1d5bc1d1678a42a7e557132da7440c6",
+      "docs/evidence/mission-control-adaptation/dashboard-queue-exact-390.jpg#sha256=e6132179c7e9eadaf04dd96dbcd0b014ee4720e18943127807d4b8027a2ecedc",
+      "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg#sha256=ffd6d0fd85b4e74bd4d93da43e04920a805f0044dbc123e6ce0501a603b1c8c6",
+      "docs/evidence/mission-control-adaptation/dashboard-healthy-auth-exact-390.jpg#sha256=81f7ab6d4982e63fd412467f601a9086cf9c714e51f38f887974f497ffd42dbe",
+      "docs/evidence/mission-control-adaptation/dashboard-queue-current-1440-css.jpg#sha256=87e94abdca823ed3ebff73a0c11ef39f08afeba7eb2f147ef51a80c3470bd1fc",
+      "docs/evidence/mission-control-adaptation/dashboard-healthy-auth-current-1440-css.jpg#sha256=2b657750360ab25724dc6b407cb675412f98a7931fd2b71f4753e25eb09a5279",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json"
+    ]
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "The connected external browser applies a 0.75 desktop zoom factor, so desktop evidence records CSS and physical-pixel dimensions separately.",
+      "Long-page CDP and scrolled-viewport Auth captures timed out or produced an empty compositor frame before the successful fresh-tab capture."
+    ],
+    "repairsMade": [
+      "Calibrated the browser against measured CSS dimensions instead of inferring them from requested physical dimensions.",
+      "Captured the actual Auth component in a fresh tab after temporarily hiding only sibling sections in the browser capture surface; removed the temporary style and closed the tab without changing source or durable runtime state."
+    ],
+    "scopeConflicts": [],
+    "remainingExecutionBlockers": []
+  },
+  "stopTriggerReached": "ALL_FOUR_REQUIRED_CHANGES_AND_EVIDENCE_COMPLETE",
+  "executionCompletionClaim": "BOUNDED_REVISION_003_EXECUTION_COMPLETE_PENDING_FRESH_INDEPENDENT_EXTRA_HIGH_REVIEW",
+  "nextReasoningReviewRequired": true,
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null,
+    "ownerEscalationDecision": null,
+    "proEscalationDecision": null,
+    "supervisoryVerdict": null,
+    "sliceAcceptance": null
+  },
+  "notes": [
+    "This is an execution-only receipt. It does not classify any frozen review finding as closed and does not claim slice acceptance or overall Mission Control completion.",
+    "No owner or Pro decision was discovered.",
+    "No push, deployment, publication, merge, rebase, or history rewrite occurred."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "thresholds": { "yellow": 20, "red": 50 },
+  "weights": {
+    "supervisorMisalignment": 35,
+    "unexplainedPlanChange": 25,
+    "outOfScopeTouch": 20,
+    "testRegression": 15,
+    "oversizedDiff": 15,
+    "repeatedFailureLoop": 10,
+    "materialAssumptionChange": 10,
+    "staleCheckpoint": 10
+  },
+  "limits": {
+    "largeDiffLines": 500,
+    "repeatedFailureCount": 3,
+    "staleCheckpointMinutes": 120
+  },
+  "immediateEscalations": [
+    "supervisor_redirect",
+    "destructive_action",
+    "unexplained_architecture_rewrite",
+    "other_worker_owned_area",
+    "major_contract_violation"
+  ]
+}

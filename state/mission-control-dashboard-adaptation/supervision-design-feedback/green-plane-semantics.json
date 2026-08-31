@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "sdf-20260830-green-plane-semantics",
+  "createdAt": "2026-08-30T23:28:17Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "workerRunId": "codex-root-gap-audit",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 3,
+    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-30-pr42",
+    "sha256OrCommit": "90a230e85f78063080dc627ec36a0237c3234f72"
+  },
+  "type": "QUESTION",
+  "category": "CONTRACT_INTEGRITY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "Does the rule forbidding GREEN for a non-CONTRACT_VALID packet apply only to overall/root supervisory approval, or does it also forbid an independently correct Worker-to-Contract GREEN plane when Contract-to-Owner is DIVERGED?",
+  "relevantRule": {
+    "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "section": "Fail-closed comparator and overall projection",
+    "excerpt": "A worker may be GREEN against a laundered task contract while contract-to-owner is DIVERGED; the root task must then be RED."
+  },
+  "observedOrHypotheticalFailure": "If GREEN is prohibited on the worker plane, the required 13.82% regression cannot preserve the truthful fact that the worker satisfied its narrowed contract. If GREEN is allowed to leak to the root, the laundered contract can falsely authorize completion.",
+  "evidenceRefs": [
+    "evals/mission-control/contract-laundering-article-humanization-13.82.json",
+    "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"
+  ],
+  "proposedChange": "State explicitly that the prohibition applies to overall/root GREEN and completion approval; the independent Worker-to-Contract plane may remain GREEN while Contract-to-Owner DIVERGED deterministically makes Overall RED.",
+  "alternativesConsidered": ["Rename worker GREEN to SATISFIED", "Collapse both planes into RED"],
+  "risks": ["Ambiguous UI color can still imply root health unless labels and precedence are explicit"],
+  "workerRecommendation": "Accept the proposed clarification and retain independent plane semantics.",
+  "workerUncertainty": "The intended semantics are strongly implied across newer patterns but one blanket GREEN prohibition remains textually ambiguous.",
+  "decisionThatCanChange": "The machine enum and UI projection for the mandatory GREEN + DIVERGED regression.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/2026-08-30-pr42"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

@@ -94,5 +94,7 @@
   "proMetaReview": null,
   "ownerDecisionRef": null,
   "repositoryChangeRefs": [],
-  "testRefs": []
+  "testRefs": [
+    "tools/codex-mission-control/restored/codex-mission-control/tests/fixtures/attention-and-correction-ux.json"
+  ]
 }

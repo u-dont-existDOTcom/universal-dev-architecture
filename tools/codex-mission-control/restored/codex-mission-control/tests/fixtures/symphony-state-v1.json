@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-08-30T12:00:00Z",
+  "counts": {
+    "running": 1,
+    "retrying": 1,
+    "blocked": 1
+  },
+  "running": [
+    {
+      "issue_id": "issue-http",
+      "issue_identifier": "MT-HTTP",
+      "issue_url": "https://example.org/issues/MT-HTTP",
+      "state": "In Progress",
+      "worker_host": null,
+      "workspace_path": null,
+      "session_id": "thread-http",
+      "turn_count": 7,
+      "last_event": "notification",
+      "last_message": "rendered",
+      "started_at": "2026-08-30T11:55:00Z",
+      "last_event_at": null,
+      "tokens": {
+        "input_tokens": 4,
+        "output_tokens": 8,
+        "total_tokens": 12
+      }
+    }
+  ],
+  "retrying": [
+    {
+      "issue_id": "issue-retry",
+      "issue_identifier": "MT-RETRY",
+      "issue_url": "https://example.org/issues/MT-RETRY",
+      "attempt": 2,
+      "due_at": "2026-08-30T12:00:02Z",
+      "error": "boom",
+      "worker_host": null,
+      "workspace_path": null
+    }
+  ],
+  "blocked": [
+    {
+      "issue_id": "issue-blocked",
+      "issue_identifier": "MT-BLOCKED",
+      "issue_url": "https://example.org/issues/MT-BLOCKED",
+      "state": "In Progress",
+      "error": "codex turn requires operator input",
+      "worker_host": "dm-dev2",
+      "workspace_path": "/workspaces/MT-BLOCKED",
+      "session_id": "thread-blocked",
+      "blocked_at": "2026-08-30T11:59:00Z",
+      "last_event": "turn_input_required",
+      "last_message": "turn blocked: waiting for user input",
+      "last_event_at": "2026-08-30T11:59:00Z"
+    }
+  ],
+  "codex_totals": {
+    "input_tokens": 4,
+    "output_tokens": 8,
+    "total_tokens": 12,
+    "seconds_running": 42.5
+  },
+  "rate_limits": null
+}

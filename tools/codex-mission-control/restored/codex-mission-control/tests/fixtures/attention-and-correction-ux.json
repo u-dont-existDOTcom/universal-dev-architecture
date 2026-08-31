@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "MC-ATTENTION-CORRECTION-UX-20260830",
+  "now": "2026-08-30T20:00:00.000Z",
+  "defaultQueue": {
+    "workers": [
+      {
+        "workerId": "tests",
+        "workerName": "Test cleanup",
+        "executionState": "working",
+        "workerToContractAlignment": "RED",
+        "contractToOwnerAlignment": "MATCH",
+        "overallTraffic": "RED",
+        "operatorVerdict": "REDIRECT",
+        "primaryProblemSummary": "Worker is changing the forbidden production scheduler and callers to solve a test-only task.",
+        "whyItMatters": "The task allows only tests/** and test-support/**, forbids src/core/** and src/production/**, and requires production logic to remain untouched.",
+        "activeFindings": [
+          {
+            "findingId": "finding-tests-forbidden-production",
+            "type": "FORBIDDEN_SCOPE",
+            "severity": "BLOCKING",
+            "statement": "Current and planned work changes production scheduler behavior outside the allowed test scope.",
+            "violates": "Allowed scope: tests/** and test-support/**; forbidden scope: src/core/** and src/production/**.",
+            "evidenceRefs": [
+              "worker-checkpoint:current_step=Rewriting the production scheduler to accommodate test timing",
+              "worker-checkpoint:next_step=Update production callers",
+              "file:src/core/scheduler.ts"
+            ],
+            "status": "OPEN",
+            "requiredResponse": "Stop and revert production changes."
+          },
+          {
+            "findingId": "finding-tests-objective-contradiction",
+            "type": "OBJECTIVE_CONTRADICTION",
+            "severity": "BLOCKING",
+            "statement": "The proposed scheduler rewrite contradicts the acceptance criterion that production logic remain untouched.",
+            "violates": "Acceptance criterion: Production logic is untouched.",
+            "evidenceRefs": [
+              "task-contract:acceptance=Production logic is untouched",
+              "worker-checkpoint:current_step=Rewriting the production scheduler to accommodate test timing"
+            ],
+            "status": "OPEN",
+            "requiredResponse": "Return the implementation to test-only mechanisms."
+          },
+          {
+            "findingId": "finding-tests-unexplained-plan-change",
+            "type": "UNEXPLAINED_PLAN_CHANGE",
+            "severity": "MATERIAL",
+            "statement": "The plan changed without an authority-preserving reason.",
+            "violates": "Material plan changes require a recorded reason and reconciliation.",
+            "evidenceRefs": [
+              "worker-checkpoint:plan_changed=true",
+              "worker-checkpoint:plan_change_reason=null"
+            ],
+            "status": "OPEN",
+            "requiredResponse": "Provide a scope-compliant plan after the revert."
+          },
+          {
+            "findingId": "finding-tests-invalid-assumption",
+            "type": "INVALID_ASSUMPTION",
+            "severity": "MATERIAL",
+            "statement": "The new assumption that production timing semantics may change contradicts task authority.",
+            "violates": "Goal and acceptance require no production behavior change.",
+            "evidenceRefs": [
+              "worker-checkpoint:assumption=Production timing semantics may be changed"
+            ],
+            "status": "OPEN",
+            "requiredResponse": "Withdraw the assumption and work within tests/** or test-support/**."
+          }
+        ],
+        "correction": {
+          "findingId": "finding-tests-forbidden-production",
+          "directiveId": "directive-tests-return-to-test-scope",
+          "workerRunId": "run-tests-20260830-01",
+          "status": "REDIRECT_DELIVERED",
+          "directive": "Stop and revert production scheduler and caller changes; return to tests/** or test-support/**; rerun the focused test command.",
+          "issuedAt": "2026-08-30T19:51:00.000Z",
+          "deliveredAt": "2026-08-30T19:52:00.000Z",
+          "acknowledgedAt": null,
+          "correctionStartedAt": null,
+          "evidenceSubmittedAt": null,
+          "verifiedAt": null,
+          "requiredEvidence": [
+            "revert commit or clean diff",
+            "no forbidden production paths changed",
+            "focused tests pass"
+          ],
+          "nextReviewTrigger": "after revert evidence and focused tests",
+          "ownerActionType": "NONE",
+          "ownerActionText": "Worker and supervisor can complete the bounded correction.",
+          "safeToContinueIndependentWork": false
+        },
+        "lastMeaningfulCheckpointAt": "2026-08-30T19:52:00.000Z",
+        "diagnosticIndex": 21
+      },
+      {
+        "workerId": "billing",
+        "workerName": "Billing / webhooks",
+        "executionState": "working",
+        "workerToContractAlignment": "YELLOW",
+        "contractToOwnerAlignment": "MATCH",
+        "overallTraffic": "YELLOW",
+        "operatorVerdict": "WATCH",
+        "primaryProblemSummary": "Worker touched a forbidden shared-schema path while implementing billing idempotency.",
+        "whyItMatters": "The task requires retaining the existing event model and forbids src/shared/schema/**.",
+        "activeFindings": [
+          {
+            "findingId": "finding-billing-shared-schema",
+            "type": "FORBIDDEN_SCOPE",
+            "severity": "MATERIAL",
+            "statement": "A shared-schema abstraction expanded the change beyond the billing boundary.",
+            "violates": "Forbidden scope: src/shared/schema/**.",
+            "evidenceRefs": [
+              "file:src/shared/schema/events.ts"
+            ],
+            "status": "OPEN",
+            "requiredResponse": "Remove the shared-schema experiment and use the existing billing event model."
+          }
+        ],
+        "correction": null,
+        "nextReviewTrigger": "next commit",
+        "ownerActionType": "NONE",
+        "ownerActionText": "No owner decision is required.",
+        "safeToContinueIndependentWork": true,
+        "lastMeaningfulCheckpointAt": "2026-08-30T19:48:00.000Z",
+        "diagnosticIndex": 72
+      },
+      {
+        "workerId": "auth",
+        "workerName": "Auth refactor",
+        "executionState": "working",
+        "workerToContractAlignment": "GREEN",
+        "contractToOwnerAlignment": "MATCH",
+        "overallTraffic": "GREEN",
+        "operatorVerdict": "CONTINUE",
+        "primaryProblemSummary": null,
+        "activeFindings": [],
+        "correction": null,
+        "nextReviewTrigger": "next commit",
+        "ownerActionType": "NONE",
+        "safeToContinueIndependentWork": true,
+        "lastMeaningfulCheckpointAt": "2026-08-30T19:45:00.000Z",
+        "diagnosticIndex": 96
+      },
+      {
+        "workerId": "ui",
+        "workerName": "UI migration",
+        "executionState": "blocked",
+        "workerToContractAlignment": "GREEN",
+        "contractToOwnerAlignment": "MATCH",
+        "overallTraffic": "GREEN",
+        "operatorVerdict": "CONTINUE",
+        "primaryProblemSummary": null,
+        "activeFindings": [],
+        "correction": null,
+        "nextReviewTrigger": "dependency resolved",
+        "ownerActionType": "NONE",
+        "safeToContinueIndependentWork": true,
+        "lastMeaningfulCheckpointAt": "2026-08-30T19:44:00.000Z",
+        "diagnosticIndex": 93
+      }
+    ],
+    "expected": {
+      "counts": {
+        "redirect": 1,
+        "watch": 1,
+        "onTrack": 2,
+        "ownerActionsRequired": 0
+      },
+      "priorityOrder": [
+        "tests",
+        "billing",
+        "auth",
+        "ui"
+      ],
+      "topViewportStrings": [
+        "Test cleanup — REDIRECT",
+        "Worker is changing the forbidden production scheduler and callers to solve a test-only task.",
+        "Stop and revert production scheduler and caller changes; return to tests/** or test-support/**; rerun the focused test command.",
+        "REDIRECT DELIVERED — AWAITING ACKNOWLEDGEMENT",
+        "OWNER ACTION: NONE"
+      ],
+      "billingCorrectionStatus": "NO CORRECTION ISSUED"
+    }
+  },
+  "lifecycleCases": [
+    {
+      "caseId": "delivered-unacknowledged",
+      "status": "REDIRECT_DELIVERED",
+      "deliveredAt": "2026-08-30T19:52:00.000Z",
+      "acknowledgedAt": null,
+      "evidenceSubmittedAt": null,
+      "verifiedAt": null,
+      "expectedLabel": "REDIRECT DELIVERED — AWAITING ACKNOWLEDGEMENT",
+      "expectedResolved": false
+    },
+    {
+      "caseId": "acknowledged-no-evidence",
+      "status": "REDIRECT_ACKNOWLEDGED",
+      "deliveredAt": "2026-08-30T19:52:00.000Z",
+      "acknowledgedAt": "2026-08-30T19:54:00.000Z",
+      "evidenceSubmittedAt": null,
+      "verifiedAt": null,
+      "expectedLabel": "REDIRECT ACKNOWLEDGED — EVIDENCE PENDING",
+      "expectedResolved": false
+    },
+    {
+      "caseId": "evidence-unverified",
+      "status": "CORRECTION_EVIDENCE_SUBMITTED",
+      "deliveredAt": "2026-08-30T19:52:00.000Z",
+      "acknowledgedAt": "2026-08-30T19:54:00.000Z",
+      "evidenceSubmittedAt": "2026-08-30T19:57:00.000Z",
+      "verifiedAt": null,
+      "expectedLabel": "CORRECTION EVIDENCE SUBMITTED — VERIFICATION PENDING",
+      "expectedResolved": false
+    },
+    {
+      "caseId": "verified",
+      "status": "CORRECTION_VERIFIED",
+      "deliveredAt": "2026-08-30T19:52:00.000Z",
+      "acknowledgedAt": "2026-08-30T19:54:00.000Z",
+      "evidenceSubmittedAt": "2026-08-30T19:57:00.000Z",
+      "verifiedAt": "2026-08-30T19:59:00.000Z",
+      "expectedLabel": "CORRECTION VERIFIED",
+      "expectedResolved": false
+    },
+    {
+      "caseId": "resolved",
+      "status": "REDIRECT_RESOLVED",
+      "deliveredAt": "2026-08-30T19:52:00.000Z",
+      "acknowledgedAt": "2026-08-30T19:54:00.000Z",
+      "evidenceSubmittedAt": "2026-08-30T19:57:00.000Z",
+      "verifiedAt": "2026-08-30T19:59:00.000Z",
+      "resolvedAt": "2026-08-30T20:00:00.000Z",
+      "expectedLabel": "REDIRECT RESOLVED",
+      "expectedResolved": true
+    }
+  ],
+  "dualAlignmentContractRepair": {
+    "workerId": "article-humanization",
+    "workerToContractAlignment": "GREEN",
+    "contractToOwnerAlignment": "DIVERGED",
+    "overallTraffic": "RED",
+    "primaryProblemSummary": "Worker faithfully satisfied a narrowed review-ready contract that omitted the required Pangram humanization outcome.",
+    "correctionKind": "CONTRACT_REPAIR",
+    "correctiveDirective": "Repair the derived contract, preserve valid editorial work, and continue humanization against the owner-required target.",
+    "completionClaimType": "READY_FOR_OWNER_REVIEW",
+    "requiredDirective": "CONTINUE_HUMANIZATION",
+    "rootTerminalizationAllowed": false,
+    "ownerActionType": "NONE"
+  },
+  "askRigorCases": [
+    {
+      "caseId": "operational-pass-scientific-fail",
+      "operationalProtocol": "PASS",
+      "scientificConclusion": "FAIL",
+      "releaseAdequacy": "FAIL",
+      "primaryProblemSummary": "Protocol execution passed, but the claimed inference is not supported by the assembled evidence.",
+      "correctiveDirective": "Continue bounded scientific review and repair the unsupported inference before any release decision.",
+      "ownerActionType": "NONE",
+      "releasePermission": false
+    },
+    {
+      "caseId": "scientific-pass-release-fail",
+      "operationalProtocol": "PASS",
+      "scientificConclusion": "PASS",
+      "releaseAdequacy": "FAIL",
+      "primaryProblemSummary": "The scientific conclusion is supported, but publication remains blocked by an unmet release requirement.",
+      "correctiveDirective": "Complete the named release remediation and rerun release review.",
+      "ownerActionType": "VERIFY_RESULT",
+      "ownerActionText": "Verify the final release artifact after remediation.",
+      "releasePermission": false
+    }
+  ],
+  "alignmentIndexRule": {
+    "redOrYellowRequiresVisibleProblem": true,
+    "redOrYellowRequiresVisibleCorrectionStatus": true,
+    "numericIndexIsPrimary": false,
+    "numericIndexLabel": "Diagnostic index"
+  }
+}

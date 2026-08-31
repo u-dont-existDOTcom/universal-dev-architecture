@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "mc-codex-execution-receipt-20260831-xh-mc-744c477-revision-004",
+  "createdAt": "2026-08-31T04:46:19Z",
+  "directiveId": "XH-MC-744C477-REVISION-004",
+  "directiveRevision": 4,
+  "directiveIdentity": {
+    "originalSha256": "d8ce5e5fd16c87c4f4ae68287a8fc195582b4d278aae723304261264d2d6b690",
+    "clarificationId": "xh-revision4-archive-readme-path-clarification",
+    "amendedControllingSha256": "e227fa11d71be43e7fc6d50fa260bcee074dc64de8254affe897ce63431fba50",
+    "clarificationSessionId": "/root/xhigh_revision3_acceptance",
+    "clarificationChatEpoch": "review-97ebbd7-turn-2"
+  },
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "runId": "codex-root-mission-control-adaptation-xh-mc-744c477-revision-004",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/mission-control-dashboard-adaptation-20260830",
+    "startingHead": "97ebbd72dc893b180abfda7a3fb8c4ccab713723",
+    "implementationHead": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
+    "endingState": "Revision-4 implementation is committed; the amended directive, archive, factual evidence/state, and this execution-only receipt remain the state-layer follow-up for one receipt commit.",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/mission-control-slice"
+  },
+  "authorityBindings": {
+    "ownerRequestSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "ownerOutcomeEpoch": 4,
+    "ownerOutcomeSha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1",
+    "objectiveReconciliationId": "mc-recon-20260831-epoch4-r4"
+  },
+  "priorExecutionProvenance": {
+    "status": "DIRECTIVE_SCOPE_EXCEEDED",
+    "affectedDirectiveId": "XH-MC-744C477-REVISION-003",
+    "outsideAllowedPath": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+    "priorReceiptIncorrectScopeConflictClaim": "The revision-3 receipt recorded an empty scopeConflicts list even though terminal-comparator.ts was not in that directive's exhaustive allowed paths.",
+    "proposalTreatment": "The revision-3 comparator change was treated as non-authoritative until revision 4 explicitly authorized its exact path and patch identity.",
+    "explicitlyAdoptedPatch": {
+      "baseCommit": "37d0723ba09d7c8394dd37b75db324c4f696ef11",
+      "proposalCommit": "e291a59cee5f61a7d17238be95291d10ef9b5314",
+      "lineDelta": "20 insertions, 3 deletions",
+      "gitBlob": "4e8dfe48ec16ab4783f1ffe48960e66a7d6582f5",
+      "sha256": "e66c0183fa1570d2d7660c95ad072e3bd2c4f1c0629e9eaf0c43303fb7e18f80",
+      "identityDrift": false,
+      "behaviorVerified": "Current owner-outcome reasoning is selected as authority; stale and legacy-unbound reasoning/progress are not current authority; current directives bind the exact reasoning authority."
+    }
+  },
+  "execution": {
+    "objectiveClaim": "Executed one bounded acceptance-proof and execution-provenance repair cycle without classifying the slice accepted.",
+    "actionsTaken": [
+      "recorded the revision-3 DIRECTIVE_SCOPE_EXCEEDED fact without rewriting the immutable revision-3 receipt",
+      "verified and explicitly adopted the exact unchanged terminal-comparator proposal under revision-4 authority",
+      "replaced the prior broad value-presence loop with unique per-field sentinels and exact rendered fragments for both AttentionCard and HealthyCard",
+      "made outcome advancement, strategy efficacy, one-hour review age, and pending-versus-current independent review state explicit and deletion-sensitive in each relevant rendered variant",
+      "preserved attention-card ordering from problem and reasons through directive, lifecycle, next review, owner action, then secondary control metadata",
+      "replaced the contradictory blank Test cleanup screenshot with a genuine nonblank exact-390 frame and truthfully bounded the frame's visible-content claim",
+      "verified complete Test cleanup and healthy Auth DOM state on the same fresh exact-390 runtime and inspected the current desktop layout",
+      "obtained an Extra High turn-2 directive clarification before updating the archive identity README, then closed that reviewer chat",
+      "regenerated and independently reconstructed the exact source-only archive"
+    ],
+    "filesChanged": [
+      "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "tools/codex-mission-control/README.md only for the clarified archive identity",
+      "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg",
+      "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json",
+      "state/mission-control-dashboard-adaptation/CURRENT-STATE.md",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-004.json"
+    ],
+    "startedAt": "2026-08-31T04:29:12Z",
+    "stoppedAt": "2026-08-31T04:46:19Z"
+  },
+  "verification": {
+    "checksRun": [
+      {
+        "command": "npm test",
+        "result": "PASS",
+        "summary": "71 tests passed and 0 failed; the rendered-card test uses unique sentinels and exact fragments for every mandatory value on both card variants."
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "summary": "tsc --noEmit completed without diagnostics."
+      },
+      {
+        "command": "npm run build",
+        "result": "PASS",
+        "summary": "Next.js 16.3.3 production compilation, TypeScript validation, page generation, and route manifest completed."
+      },
+      {
+        "command": "fresh temporary-database production runtime",
+        "result": "PASS",
+        "summary": "Six workers projected, with five attention workers and one healthy Auth worker; daemon health reported a valid 108-event chain."
+      },
+      {
+        "command": "unauthenticated daemon append, disabled external dashboard ingest, and dashboard GET probes",
+        "result": "PASS",
+        "summary": "POST daemon /events returned 401, POST dashboard /api/events returned 503, and dashboard GET returned 200."
+      },
+      {
+        "command": "exact-390 mobile browser inspection and replacement capture",
+        "result": "PASS",
+        "summary": "Measured inner/root/body widths 390/390/390/390 with no overflow; five attention cards and one healthy card rendered; Test problem/directive/lifecycle and every mandatory label on attention and healthy cards were present; explanation-first order passed."
+      },
+      {
+        "command": "current desktop browser inspection",
+        "result": "PASS",
+        "summary": "Measured actual CSS window.innerWidth 1440, root/body width 1420, and no horizontal overflow; queue and complete healthy Auth control state were present."
+      },
+      {
+        "command": "archive checksum, unzip integrity, and independent restored-tree comparison",
+        "result": "PASS",
+        "summary": "45 files reconstructed from 25 base64 parts; SHA-256 and ZIP CRC passed; extracted and restored source trees were byte-for-byte equal after documented generated/runtime exclusions."
+      },
+      {
+        "command": "coordinated runtime and browser cleanup",
+        "result": "PASS",
+        "summary": "Viewport overrides were reset, the capture tab was closed, ports 3000 and 4100 closed, and no writer-lock file remained."
+      },
+      {
+        "command": "git diff --check and JSON validation",
+        "result": "PASS",
+        "summary": "No whitespace errors; revision-4 directive, reconciliation, metrics, and receipt parse as JSON."
+      }
+    ],
+    "measurements": {
+      "testsPassed": 71,
+      "testsFailed": 0,
+      "runtimeLedgerEvents": 108,
+      "projectedWorkers": 6,
+      "attentionWorkers": 5,
+      "healthyWorkers": 1,
+      "mobileCssViewport": "390x844",
+      "mobileRootClientWidth": 390,
+      "mobileRootScrollWidth": 390,
+      "mobileBodyScrollWidth": 390,
+      "mobileHorizontalOverflow": false,
+      "desktopCssViewportWidth": 1440,
+      "desktopRootClientWidth": 1420,
+      "desktopRootScrollWidth": 1420,
+      "desktopHorizontalOverflow": false,
+      "replacementScreenshotSha256": "ef0bc7f738a7e4f8cd3a631afec3d03a7a2d7f9934bf0a77088ab2bf16871aa5",
+      "archiveFiles": 45,
+      "archiveParts": 25,
+      "archiveSha256": "e45a6e0e771cb2e1ebe0eaee31e8542aa4dbacd0808a3cdd94ce5cd9cc7efdc0"
+    },
+    "evidenceRefs": [
+      "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json#sha256=a99422dd540e757de5a84bc340f41f43a536b303823300f43cc2ff756fccf25d",
+      "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg#sha256=ef0bc7f738a7e4f8cd3a631afec3d03a7a2d7f9934bf0a77088ab2bf16871aa5",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256#sha256=e45a6e0e771cb2e1ebe0eaee31e8542aa4dbacd0808a3cdd94ce5cd9cc7efdc0",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json#sha256=0e9574faad03c5e7b0f89049ad0f2a99461801e4d1a91a0c62ec73d65371a248"
+    ]
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "The connected external browser applies a 0.75 desktop zoom factor, so requested device metrics were calibrated against measured CSS dimensions.",
+      "The initial revision-4 allowed paths omitted the archive README whose labeled current checksum would become false after mandatory archive regeneration."
+    ],
+    "repairsMade": [
+      "Calibrated mobile and desktop evidence from measured CSS widths.",
+      "Stopped before the omitted README mutation and obtained an explicit Extra High turn-2 structured directive clarification; amended the revision-4 directive before resuming."
+    ],
+    "scopeConflicts": [
+      {
+        "scope": "REVISION_3",
+        "code": "DIRECTIVE_SCOPE_EXCEEDED",
+        "status": "TRUTHFULLY_RECORDED_AND_EXACT_PATCH_EXPLICITLY_ADOPTED_UNDER_REVISION_4"
+      }
+    ],
+    "remainingExecutionBlockers": ["FRESH_INDEPENDENT_EXTRA_HIGH_ACCEPTANCE_REVIEW"]
+  },
+  "stopTriggerReached": "ONE_REPAIR_AND_VERIFICATION_CYCLE_COMPLETE",
+  "executionCompletionClaim": "BOUNDED_REVISION_004_EXECUTION_COMPLETE_PENDING_FRESH_INDEPENDENT_EXTRA_HIGH_REVIEW",
+  "nextReasoningReviewRequired": true,
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null,
+    "ownerEscalationDecision": null,
+    "proEscalationDecision": null,
+    "supervisoryVerdict": null,
+    "sliceAcceptance": null
+  },
+  "notes": [
+    "This is an execution-only receipt. It does not classify any review finding as closed and does not claim bounded-slice acceptance or overall Mission Control completion.",
+    "No owner decision or substantive Pro supervision-design question was discovered.",
+    "The prior Extra High reviewer was used for exactly two substantive turns and is closed; the next acceptance review must use a fresh Extra High chat.",
+    "No push, deployment, publication, merge, rebase, or history rewrite occurred."
+  ]
+}

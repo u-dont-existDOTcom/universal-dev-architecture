@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "directiveId": "XH-MC-744C477-REVISION-002",
+  "directiveRevision": 2,
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 4,
+    "sha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1"
+  },
+  "reasoningSupervisor": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_post_revision_review",
+    "chatEpoch": "review-3b9745c-turn-1",
+    "decisionId": "xh-post-review-3b9745c-reject-r2",
+    "capsuleId": "xh-mc-3b9745c-review-capsule-r2",
+    "reviewedEvidenceBoundary": "original:744c47745c32e6fce440df7739f48c9a59020832;pre-revision:a812c02f15541d4c3047957416d1d9a86fa57727;implementation:2896cf3e04522ffbad68ed317e8dd3939a818a7f;head:3b9745cb92ee7fd41d6b76fc55db06a920908b32;directive-sha256:ae7c296bf0a6a99cf59dde6955847212b3c9e218789bc9aa4a2b893732776547;receipt-sha256:fa038df7d8dae61b137984599f95580cb22ac4c3f79e2a6e397b9ab38c3ddcd2"
+  },
+  "strategy": {
+    "strategyId": "mc-post-receipt-authority-and-all-card-completeness-v2",
+    "causalHypothesis": "Enforcing ledger-order review causality and exact capsule identity, making every owner-action evidence reference same-worker and durable, exposing the mandatory state on the compact healthy card, and recording the frozen epoch-4 task authority will close the remaining deterministic acceptance gaps.",
+    "predictedOutcomeChange": "The bounded slice becomes eligible for a fresh independent Extra High acceptance review without changing its architecture or claiming the parent Mission Control outcome complete.",
+    "successThreshold": "All four frozen blockers are closed by hostile store tests, rendered healthy-card evidence, a durable epoch-4 source/outcome reconciliation, passing deterministic/type/build/runtime/responsive checks, and a regenerated exact archive.",
+    "failureThreshold": "Any pre-receipt reasoning record can authorize a later directive; any capsule mismatch is accepted; any owner-action source is missing or cross-worker; any task card omits required progress/execution supervision state; or epoch-4 task authority remains unbound.",
+    "nextDecisionChangingEvidence": "One factual execution receipt containing the hostile-test results, updated authority artifacts, responsive healthy-card evidence, archive identity, and exact ending repository state."
+  },
+  "executionObjective": "Perform one bounded repair cycle for the four remaining post-revision blockers and return an execution-only receipt for independent Extra High review.",
+  "requiredChanges": [
+    {
+      "id": "MC-R2-B1",
+      "requirement": "For a new execution directive following a receipt for the prior directive/revision, require the selected reasoning_supervision_recorded ledger event to have a sequence strictly greater than that matching receipt. Compare directive capsule_id with the exact reasoning record capsule_id. Do not use active_execution_directive_id as a substitute for ledger ordering."
+    },
+    {
+      "id": "MC-R2-B2",
+      "requirement": "Extend the compact healthy-worker card so every task card exposes owner target, latest/best evidence, outcome advancement, active strategy/efficacy, supporting work, next measurement/intervention, reasoning surface/chat epoch/review age, active directive/status, Codex execution state, stop/review boundary, latest receipt, pending reasoning review, Pro escalation, and owner action."
+    },
+    {
+      "id": "MC-R2-B3",
+      "requirement": "Record an epoch-4 objective reconciliation/source receipt that binds current OWNER-REQUEST.md SHA-256 b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef, owner outcome epoch/hash 4/746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1, and the prior epoch-3 outcome. Preserve the four review blockers and pending independent-review boundary; do not claim acceptance."
+    },
+    {
+      "id": "MC-R2-B4",
+      "requirement": "Validate owner_action.source_event_ids for every owner-action-bearing event family. Every referenced event must exist in the same worker ledger. Validate continuation finding/evidence bases wherever present. Reject missing and cross-worker references before append."
+    }
+  ],
+  "allowed": {
+    "actions": [
+      "edit the restored Mission Control app and deterministic tests",
+      "materialize the exact epoch-4 task authority and factual current-state checkpoint",
+      "regenerate responsive evidence and the exact source archive",
+      "record one execution-only receipt",
+      "run deterministic, type, build, runtime, responsive, and archive checks"
+    ],
+    "paths": [
+      "tools/codex-mission-control/restored/codex-mission-control/**",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/README.md",
+      "tools/codex-mission-control/ARCHITECTURE.md",
+      "tools/codex-mission-control/IMPLEMENTATION-SPEC.md",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json",
+      "state/mission-control-dashboard-adaptation/CURRENT-STATE.md",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-*-REVISION-002.json",
+      "docs/evidence/mission-control-adaptation/**"
+    ],
+    "commands": [
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "npm start",
+      "git diff",
+      "git status",
+      "bash restore-source.sh",
+      "unzip -t"
+    ],
+    "tacticalFreedom": "Low-level factoring, naming, layout, and test organization within the four exact requirements."
+  },
+  "forbidden": {
+    "actions": [
+      "push, deploy, publish, merge, rebase, or rewrite history",
+      "change the owner outcome, strategy, or frozen supervisory verdict",
+      "add Symphony control, scheduling, dispatch, retry, or tracker mutation",
+      "weaken terminal, evidence, correction, authentication, writer, or handoff gates",
+      "claim the bounded slice or overall Mission Control outcome accepted",
+      "expand into optional hardening"
+    ],
+    "paths": [
+      "patterns/**",
+      "templates/**",
+      "docs/exec-plans/**"
+    ],
+    "decisions": [
+      "owner choice",
+      "Pro escalation",
+      "new architecture",
+      "strategy replacement",
+      "overall alignment/progress classification",
+      "slice acceptance or parent-outcome completion"
+    ]
+  },
+  "requiredEvidence": [
+    "hostile rejection of a reasoning event recorded before the matching prior receipt even when active_execution_directive_id is null or different",
+    "hostile rejection of a directive whose capsule differs from its exact reasoning record",
+    "acceptance of a correctly bound reasoning event recorded after the matching receipt",
+    "hostile rejection of missing and cross-worker owner-action source references for every owner-action-bearing event family",
+    "desktop and 390px evidence showing the mandatory fields on an actual healthy card",
+    "durable epoch-4 source/outcome/reconciliation identity",
+    "exact regenerated archive checksum and restored-tree comparison",
+    "execution-only receipt with no supervisory authority fields"
+  ],
+  "requiredTestsOrChecks": [
+    "all existing 66 tests plus the new hostile fixtures",
+    "npm test",
+    "npm run typecheck",
+    "npm run build",
+    "runtime daemon/dashboard projection inspection",
+    "1440px and 390px responsive inspection with no horizontal overflow",
+    "archive checksum, unzip integrity, and byte-for-byte restored-tree comparison",
+    "clean git diff --check and exact ending repository state"
+  ],
+  "stopAndReturnTriggers": [
+    "all four required changes and evidence are complete",
+    "a required change would alter the frozen owner outcome or architecture",
+    "a genuine owner or Pro decision is discovered",
+    "a hostile fixture cannot be satisfied without weakening another authority invariant",
+    "scope or forbidden-path conflict",
+    "required source input is unavailable",
+    "one meaningful execution cycle is exhausted"
+  ],
+  "maximumExecutionHorizon": {
+    "type": "MEANINGFUL_EXECUTION_CYCLE",
+    "limit": 1
+  },
+  "ambiguityBehavior": "STOP_AND_REPORT_DECISION_REQUIRED",
+  "ownerDecisionAuthority": "NONE",
+  "proEscalationAuthority": "NONE",
+  "strategyAuthority": "NONE",
+  "supervisoryVerdictAuthority": "NONE",
+  "substantiveProseAuthorshipAuthority": "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
+  "status": "ACTIVE"
+}
