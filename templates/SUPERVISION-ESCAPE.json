@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "escapeId": "replace-with-escape-id",
+  "architectureEpoch": "replace-with-architecture-epoch",
+  "taskId": "replace-with-task-id",
+  "ownerOutcomeRef": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256"
+  },
+  "ownerIntervention": {
+    "ref": "replace-with-owner-intervention-ref",
+    "observedAt": "1970-01-01T00:00:00Z",
+    "disposition": "AMBIGUOUS_REVIEW_REQUIRED"
+  },
+  "problem": {
+    "summary": "replace-with-bounded-problem-summary",
+    "familyId": "replace-with-stable-family-id",
+    "materiality": "MATERIAL",
+    "scope": "MISSION_CONTROL"
+  },
+  "detectability": {
+    "semanticJudgmentRef": "replace-with-chat-authored-judgment-ref",
+    "detectableSince": "1970-01-01T00:00:00Z",
+    "evidenceBoundaryRef": "replace-with-evidence-boundary-ref",
+    "evidenceRefs": [],
+    "evidenceWasAvailableToSystem": false,
+    "systemHadAuthorityToSurface": false
+  },
+  "priorSystemHandling": {
+    "equivalentFindingRef": null,
+    "equivalentCorrectionRef": null,
+    "firstSystemDetectionAt": null
+  },
+  "detection": {
+    "firstDetector": "UNKNOWN",
+    "ownerDetectedAt": "1970-01-01T00:00:00Z",
+    "systemDetectedAt": null,
+    "ownerLeadSeconds": null
+  },
+  "classification": "REVIEW_REQUIRED",
+  "classificationReason": "replace-with-chat-authored-bounded-rationale",
+  "classificationAuthority": {
+    "reasoningSurface": "CHATGPT_WEB_EXTRA_HIGH",
+    "chatEpochId": "replace-with-chat-epoch-id",
+    "decisionRef": "replace-with-decision-ref"
+  },
+  "repair": {
+    "designFeedbackRef": null,
+    "correctionRef": null,
+    "state": "NONE",
+    "verificationRef": null
+  },
+  "recordedAt": "1970-01-01T00:00:00Z",
+  "allowedValues": {
+    "ownerInterventionDisposition": [
+      "PREEXISTING_PROBLEM_DISCOVERED",
+      "NEW_REQUIREMENT",
+      "NEW_EXTERNAL_FACT",
+      "RESERVED_OWNER_DECISION",
+      "SUBJECTIVE_OWNER_JUDGMENT",
+      "OWNER_CONFIRMATION_OF_EXISTING_FINDING",
+      "OWNER_REQUESTED_STATUS_ONLY",
+      "AMBIGUOUS_REVIEW_REQUIRED"
+    ],
+    "materiality": [
+      "LOW",
+      "MATERIAL",
+      "CRITICAL"
+    ],
+    "scope": [
+      "TASK",
+      "PROJECT",
+      "MISSION_CONTROL",
+      "UNIVERSAL_SUPERVISION"
+    ],
+    "firstDetector": [
+      "OWNER",
+      "MISSION_CONTROL",
+      "REASONING_SUPERVISOR",
+      "EXTERNAL",
+      "UNKNOWN"
+    ],
+    "classification": [
+      "SUPERVISION_ESCAPE",
+      "PREVENTED_ESCAPE",
+      "NOT_AN_ESCAPE",
+      "REVIEW_REQUIRED"
+    ],
+    "repairState": [
+      "NONE",
+      "REQUIRED",
+      "PREPARED",
+      "ISSUED",
+      "DELIVERED",
+      "ACKNOWLEDGED",
+      "CORRECTING",
+      "EVIDENCE_SUBMITTED",
+      "VERIFIED",
+      "FAILED",
+      "SUPERSEDED"
+    ]
+  },
+  "semanticInvariants": [
+    "SUPERVISION_ESCAPE requires a chat-authored semantic judgment that a material or critical problem pre-existed owner detection, detectable evidence was already available to the system, the system had authority to surface it, no equivalent current system finding/correction preceded the owner, and the owner detected it first.",
+    "PREVENTED_ESCAPE requires a qualifying Mission Control or reasoning-supervisor detection before owner detection.",
+    "NEW_REQUIREMENT, NEW_EXTERNAL_FACT, RESERVED_OWNER_DECISION, and OWNER_CONFIRMATION_OF_EXISTING_FINDING do not by themselves support SUPERVISION_ESCAPE.",
+    "Deterministic code validates identity, structure, ordering, timestamps, counts, and lifecycle consistency only; it does not interpret owner prose or invent semantic materiality/detectability.",
+    "If semantic authority is absent or genuinely ambiguous, classification is REVIEW_REQUIRED."
+  ]
+}

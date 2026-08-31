@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-OWNER-DISCOVERED-SUPERVISION-ESCAPES-001",
+  "createdAt": "2026-08-31T13:37:30Z",
+  "taskId": "mission-control-supervision-architecture",
+  "workerRunId": "extra-high-owner-authorized-assurance-design-20260831",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-MISSION-CONTROL-ASSURANCE-001",
+    "epoch": 1,
+    "sha256": "00f603491b437005fe0044aea96968639d941a3cb8005087cd8252e45da5f1f3"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-08-31T13:32:34Z",
+    "exactText": "I feel like i need a mission control FOR the mission control\nImplement that",
+    "sha256": "00f603491b437005fe0044aea96968639d941a3cb8005087cd8252e45da5f1f3"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "pr42-mission-control-assurance-plane-v1",
+    "sha256OrCommit": "e993901b80ba4c2c5a2642c662a29f1cc04de5ba"
+  },
+  "type": "DEFECT",
+  "category": "SUPERVISION_EFFECTIVENESS_ASSURANCE",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "Mission Control has extensive white-box assurance over workers, contracts, outcome progress, strategy, directives, evidence, and corrections, but it lacks an external assurance test of whether Mission Control itself surfaces important supervision failures before the owner has to discover them. The owner can therefore remain the de facto top-level monitoring system even while all lower-level supervision machinery is locally coherent.",
+  "relevantRule": {
+    "path": "patterns/outcome-advancement-and-strategy-efficacy.md",
+    "section": "automatic progress/strategy review",
+    "excerpt": "Trigger method review/replacement automatically when outcome progress is flat, regressing, overdue or strategy-exhausted—before the owner asks."
+  },
+  "observedOrHypotheticalFailure": "The owner has already had to identify multiple classes of defects that Mission Control was intended to catch first, including lack of real outcome progress despite extensive work, Codex acting as a reasoning/controller surface, dashboard alignment state without actionable explanation/correction, and premature stopping/continuation failures. Existing internal fields can record each local state after the fact but do not aggregate the owner-first detection itself as evidence that supervision failed.",
+  "evidenceRefs": [
+    {
+      "type": "owner_correction",
+      "exactTextSha256": "00f603491b437005fe0044aea96968639d941a3cb8005087cd8252e45da5f1f3"
+    },
+    {
+      "type": "existing_failure_fixture",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "path": "evals/mission-control/codex-self-supervision-articles-failure.json"
+    },
+    {
+      "type": "existing_failure_fixture",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "path": "evals/mission-control/outcome-regression-somatic-r15.json"
+    },
+    {
+      "type": "independent_conception_and_prior_work_scan",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "path": "audits/2026-08-31-mission-control-owner-discovered-supervision-escape-assurance.md",
+      "commit": "4e1256e379214f270bfaedc52aa81a0d45e92101"
+    }
+  ],
+  "proposedChange": "Add one read/evaluate/route Mission Control Assurance Plane over the existing event ledger. A reasoning authority classifies supervision escapes when a material pre-existing problem was detectably evidenced before owner detection, the system had a route to surface it, no equivalent current system finding/correction preceded the owner, and the owner detected it first. Reuse current design-feedback/correction machinery. Track repeat escape families and repair verification. If the assurance plane itself fails, redesign it; never add a meta-meta supervisor.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Create a second full Mission Control above Mission Control",
+      "rejectedBecause": "This duplicates scheduling/state/governance and creates recursive supervision rather than an independent assurance signal."
+    },
+    {
+      "alternative": "Add only more internal dashboard metrics",
+      "rejectedBecause": "More white-box state cannot establish whether the supervisory system catches the important problem before the owner does."
+    },
+    {
+      "alternative": "Treat every owner correction as a supervision escape",
+      "rejectedBecause": "Owners legitimately add new requirements, provide new facts, make reserved decisions, and supply subjective judgments; counting those would make the metric meaningless and discourage owner control."
+    },
+    {
+      "alternative": "Use Pro continuously as the meta-supervisor",
+      "rejectedBecause": "This violates the current Extra-High-default Pro-admission rule and risks supervision-review recursion."
+    }
+  ],
+  "risks": [
+    "False positives if new owner requirements are misclassified as missed pre-existing failures",
+    "Semantic detectability judgments can be contaminated if delegated to deterministic code or Codex",
+    "Escape counts can become performative metrics if concrete missed controls and repair verification are hidden",
+    "Meta-assurance could itself become governance recursion if implemented as another scheduler or recurring ceremonial review",
+    "Historical owner-first failures may lack sufficiently timestamped evidence for confident retrospective classification"
+  ],
+  "workerRecommendation": "Implement directive MISSION-CONTROL-SUPERVISION-ESCAPE-ASSURANCE-v1.0.0 exactly as a thin assurance plane. Reuse the current event ledger, feedback/correction path, dashboard, and recursion budgets. Add executable hostile regressions before claiming the Mission Control architecture is accepted.",
+  "workerUncertainty": "The semantic architecture is owner-authorized and sufficiently resolved for implementation. Historical retrospective escape counts may remain REVIEW_REQUIRED where evidence timing is incomplete; do not fabricate certainty. Pro is not required merely because this is meta-assurance.",
+  "decisionThatCanChange": "Whether Mission Control can claim it supervises its own effectiveness and whether the owner remains the unmeasured last-resort detector of supervision failures.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": false,
+    "reviewPriority": "IMMEDIATE_IMPLEMENTATION",
+    "sharedProScopeKey": "supervision-architecture/pr42-owner-discovered-supervision-escape-assurance"
+  },
+  "status": "CHAT_AUTHORIZED_IMPLEMENTATION",
+  "proMetaReview": null,
+  "ownerDecisionRef": "owner-authorization-2026-08-31-mission-control-for-mission-control",
+  "repositoryChangeRefs": [
+    "4e1256e379214f270bfaedc52aa81a0d45e92101",
+    "43601dbe5ef0a2ff894be3246312adb3676ca9fa",
+    "b92ce6afeee8cb69502dcc67f49554cc3bee4b44",
+    "e993901b80ba4c2c5a2642c662a29f1cc04de5ba"
+  ],
+  "testRefs": []
+}
