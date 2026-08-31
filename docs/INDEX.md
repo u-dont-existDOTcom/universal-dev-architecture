@@ -8,7 +8,7 @@ Read in this order:
 4. `../state/CURRENT-STATE.md`
 5. Exact project artifacts, tests, and Git history
 
-For substantial bespoke method/framework/architecture/metric/algorithm/taxonomy/protocol/evaluation/workflow invention that plausibly overlaps established knowledge, load `../patterns/research-before-reinvention.md` before further investment. When academic literature is material, that orchestration pattern routes to `../patterns/existing-work-scan-and-scholarly-discovery.md`; use a scholarly semantic search system such as SciSpace when available for terminology/literature discovery, then verify load-bearing claims against primary sources.
+For substantial bespoke method/framework/architecture/metric/algorithm/taxonomy/protocol/evaluation/workflow invention that plausibly overlaps established knowledge, load `../patterns/research-before-reinvention.md` before further investment. When academic literature is material, that orchestration pattern routes to `../patterns/existing-work-scan-and-scholarly-discovery.md`; use a scholarly semantic search system such as SciSpace when available for terminology/literature discovery, then verify load-bearing claims against primary sources. Canonical repository-relative template: `templates/PRIOR-WORK-SCAN.md` (from this directory: `../templates/PRIOR-WORK-SCAN.md`).
 
 For multi-worker Codex operation with ChatGPT semantic supervision, load all seven current Mission Control patterns. The first is controlling wherever older language is ambiguous:
 
