@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "handoffId": "replace-with-handoff-id",
   "taskId": "replace-with-task-id",
   "runId": "replace-with-run-id",
@@ -37,6 +37,12 @@
     "responseRef": null,
     "sha256": null,
     "sizeBytes": null,
+    "requestIdEcho": null,
+    "taskIdEcho": null,
+    "ownerOutcomeEpochEcho": null,
+    "chatEpochEcho": null,
+    "reviewedEvidenceBoundaryEcho": null,
+    "nextDirectiveSchemaVersion": null,
     "readyObservedAt": null,
     "persistedAt": null,
     "importIdempotencyKey": null,
@@ -53,6 +59,7 @@
   "blocker": null,
   "ownerActionRequired": false,
   "ownerAction": null,
+  "taskTerminal": false,
   "events": [],
   "permittedStates": [
     "RECEIPT_PERSISTED",

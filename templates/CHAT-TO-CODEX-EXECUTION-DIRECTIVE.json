@@ -99,6 +99,10 @@
       "requiredRequestIdEcho": true,
       "requiredTaskIdEcho": true,
       "requiredOwnerOutcomeEpochEcho": true,
+      "requiredChatEpochEcho": true,
+      "requiredReviewedEvidenceBoundaryEcho": true,
+      "requiredResponseKind": true,
+      "requiredNextDirectiveSchemaVersion": 2,
       "largePayloadPolicy": "PERSIST_OUTSIDE_CONVERSATION_AND_REFERENCE",
       "transportSemantics": "IDEMPOTENT_REFETCH_ALLOWED_BEFORE_PERSISTENCE",
       "processingSemantics": "EXACTLY_ONCE_IMPORT_AND_DIRECTIVE_APPLICATION"
