@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-OUTCOME-ADVANCEMENT-001",
+  "createdAt": "2026-08-31T00:00:00Z",
+  "taskId": "somatic-r15-clean-continuation-20260830",
+  "workerRunId": "owner-forced-progress-audit-20260831",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OR-SOMATIC-HUMANIZATION-20260830",
+    "epoch": 3,
+    "sha256": "d851f7ac7cd7289947b6766600c490e3344b48aac652aece20a645b7b0f3200a"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-08-31T00:00:00Z",
+    "sha256": "f35649bfcfb39611b4abd15ed99eaaf9242f96396d08b79669f7ff488fed8e0d",
+    "exactText": "so idk where this is at now but i just had to ask the articles worker whether it made any progress after all the work, it said NO. that means there's no supervision going on regarding the overall goal still"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "pr42-owner-outcome-dual-alignment-actionability",
+    "sha256OrCommit": "e76dc37d7116bfe865f2fbef52299f7d05e1e86d"
+  },
+  "type": "DEFECT",
+  "category": "OUTCOME_ADVANCEMENT_AND_STRATEGY_EFFICACY",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "The supervision system verifies worker-to-contract alignment and contract-to-owner alignment but does not independently require measurable owner-outcome advancement or automatic strategy intervention. The Somatic worker remained GREEN/MATCH/WORKING through substantial activity while the direct measurable owner outcome worsened. Joel had to ask manually whether any progress occurred before the worker generated a progress audit.",
+  "relevantRule": {
+    "path": "patterns/supervision-assurance-planes-and-pro-meta-review.md",
+    "section": "Required independent assurance planes",
+    "excerpt": "The current architecture separates worker-to-contract and contract-to-owner alignment but does not make outcome advancement a third independent plane."
+  },
+  "observedOrHypotheticalFailure": "A worker can follow the correct contract, preserve all safety and fidelity gates, produce many commits and reviews, and still make no progress or negative progress toward the owner outcome. Because the architecture labels the task GREEN/MATCH/WORKING, the supervisor does not automatically stop the failed strategy or select a replacement. The owner must notice and ask, defeating Mission Control's purpose.",
+  "evidenceRefs": [
+    {
+      "type": "github_pr",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "pullRequest": 73,
+      "headAtCapture": "48f6ad23287be507c977d68fd0061de9cd17dc45",
+      "facts": [
+        "worker-to-contract GREEN",
+        "contract-to-owner MATCH",
+        "completion claim WORKING",
+        "owner outcome Human 1.0 unmet"
+      ]
+    },
+    {
+      "type": "progress_evidence",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "path": "tasks/somatic-r15-clean-continuation-20260830/SUPERVISION-REQUEST-SOMATIC-R15-PROGRESS-AUDIT-012.md",
+      "facts": [
+        "exact R15 Human 0.1547368467",
+        "micro candidate Human 0.1381948739",
+        "article-wide reconstruction Human 0.1231321841",
+        "no detector improvement",
+        "progress audit created only after Joel required progress to be judged against Human 1.0"
+      ]
+    },
+    {
+      "type": "work_volume",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "pullRequest": 73,
+      "facts": [
+        "39 commits reported at capture",
+        "numerous preservation, reader, tooling, supervision, and recovery artifacts",
+        "direct measured owner outcome regressed"
+      ]
+    }
+  ],
+  "proposedChange": "Add a third independent `owner_outcome_advancement` plane and a strategy-efficacy state. Require machine-readable baseline/current/best/target evidence, direct outcome delta, work classification, measurement freshness, strategy-cycle identity, and automatic no-progress intervention. `GREEN + MATCH + REGRESSING` must be overall RED under a repeated or failed strategy. Flat or negative progress must automatically stop materially similar work, trigger Extra High/Pro method review, and surface the replacement strategy and owner-action state before the owner asks.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Treat current gap reporting as sufficient",
+      "rejectedBecause": "A static gap does not show whether the last period of work improved, worsened, or failed to affect the outcome."
+    },
+    {
+      "alternative": "Use commit count, tests, or completed gates as progress",
+      "rejectedBecause": "These are activities and supporting outputs; they can increase while the owner outcome regresses."
+    },
+    {
+      "alternative": "Ask Pro at every checkpoint whether progress occurred",
+      "rejectedBecause": "Numeric and evidence-state deltas should be deterministic; Pro is needed for strategy diagnosis or replacement when causally difficult."
+    },
+    {
+      "alternative": "Rely on the owner to request a progress audit",
+      "rejectedBecause": "That defeats the purpose of supervision and Mission Control."
+    }
+  ],
+  "risks": [
+    "Forcing fake percentages on qualitative outcomes",
+    "Interrupting useful exploration before its declared evidence boundary",
+    "Misclassifying necessary safety/preservation work as waste",
+    "Optimizing one metric while sacrificing another owner-required outcome",
+    "Excessive Pro usage for deterministic progress accounting",
+    "Resetting history when a new strategy begins and thereby hiding cumulative failure"
+  ],
+  "workerRecommendation": "Adopt `patterns/outcome-advancement-and-strategy-efficacy.md` and `templates/OUTCOME-PROGRESS-RECEIPT.json`; add the Somatic R15 regression; update the shared worker bootstrap, dashboard, checkpoints, packets, and supervisor order; hold same-strategy Somatic work until the already-sent `SOMATIC-R15-PROGRESS-AUDIT-012` receives a matching Pro decision.",
+  "workerUncertainty": "Default flat-cycle thresholds must remain configurable by task and delayed-effect model. The necessity of the independent advancement plane and automatic intervention is not uncertain.",
+  "decisionThatCanChange": "Mission Control's control-plane model, worker checkpoint schema, dashboard status projection, supervisor prompts, and the current Somatic strategy continuation state.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/pr42-owner-outcome-dual-alignment-actionability"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [
+    "patterns/outcome-advancement-and-strategy-efficacy.md",
+    "templates/OUTCOME-PROGRESS-RECEIPT.json"
+  ],
+  "testRefs": []
+}
