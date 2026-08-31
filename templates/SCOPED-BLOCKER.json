@@ -7,6 +7,20 @@
     "id": "replace-with-scope-identity",
     "repositoryWidePolicy": false
   },
+  "policy": {
+    "class": "OPERATIONAL",
+    "nonWaivable": false,
+    "allowedClasses": [
+      "OPERATIONAL",
+      "SAFETY",
+      "PRIVACY",
+      "SECURITY",
+      "PERMISSION",
+      "SPENDING",
+      "PUBLICATION",
+      "IRREVERSIBLE_ACTION"
+    ]
+  },
   "source": {
     "ref": "replace-with-exact-source-ref",
     "sourceType": "TASK_LOCAL_STATE",
@@ -41,6 +55,7 @@
   },
   "ownerAction": {
     "required": false,
+    "decisionId": null,
     "action": "NONE"
   },
   "retryOrRecheckPolicy": {

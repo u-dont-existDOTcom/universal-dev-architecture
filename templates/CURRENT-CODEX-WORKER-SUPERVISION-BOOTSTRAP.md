@@ -37,6 +37,12 @@ A repository-global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label doe
 
 Use `templates/SCOPED-BLOCKER.json` and `templates/WAIT-ADMISSION.json`. When scope cannot be resolved mechanically, set blocker applicability to `AMBIGUOUS`, require reasoning review, and do not let Codex choose.
 
+Bind the selected task-local checkpoint by exact source path, Git ref, commit or blob identity, content SHA-256, task ID, branch, and owner-outcome epoch/hash. Resolve the current independently captured owner request or append-only correction through the existing owner-source chain before selecting that checkpoint. A newer valid `OWNER_STOP`, an owner amendment, or any checkpoint mismatch sets `selectedExecutionSource = NONE`, forbids substantive execution, and requires reconciliation/reasoning review.
+
+`independentOfBlockerIds` may short-circuit only ordinary operational blockers. It cannot waive an applicable repository-wide `SAFETY`, `PRIVACY`, `SECURITY`, `PERMISSION`, `SPENDING`, `PUBLICATION`, or `IRREVERSIBLE_ACTION` boundary. Record an attempted applicable override as `INVALID_TASK_INDEPENDENCE_OVERRIDE`. A repository-wide policy with no causal relation to the current operation remains nonblocking.
+
+Display state is not execution authorization. Project `frontierAuthorization` separately as `AUTHORIZED`, `BLOCKED_BY_APPLICABLE_BLOCKER`, `BLOCKER_REVALIDATION_REQUIRED`, `REASONING_REVIEW_REQUIRED`, or `INVALID_AUTHORITY`, together with the affected operation, blocked capabilities, blocking blocker IDs, independent-frontier allowance, and reasoning-review requirement. A substantive chat-to-Codex directive requires `VALID` authority and `AUTHORIZED` frontier status. Unresolved, invalid, or ambiguous authority permits only an explicitly typed and allowlisted authority-recovery, evidence-preservation, or reasoning-handoff action.
+
 These do not terminate a root task by default:
 
 - `READY_FOR_OWNER_REVIEW`;
@@ -532,6 +538,8 @@ changing, the actor or mechanism that can change it, a bounded horizon, and a
 truthful state when that horizon expires. `wait for GitHub to update`, `wait for
 CI`, or `wait for owner` is invalid without those identities. If no actor or
 mechanism can change the condition, polling is prohibited.
+
+A blocker-backed wait must match the exact blocker unblock-event identity, source, expected state, actor/mechanism, and causal capability or operation. An owner-decision wait additionally binds the exact decision ID and required action. A reasoning-review wait must match a live `EXECUTOR-REASONING-HANDOFF` record; a request ID alone is insufficient. Parse `waitStartedAt` and `nextCheckAt`, require the next check after the start and inside the declared horizon, and allow only an explicit nonterminal horizon-expiry state.
 
 ## 12. Mission Control-specific executors
 

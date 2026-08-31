@@ -144,6 +144,10 @@ When a global blocker is unrelated, preserve it as `SUSPENDED_COMPETING_SOURCE`,
 
 Waiting is a separate controlled action. `templates/WAIT-ADMISSION.json` binds the active task, exact blocker or reasoning request, causal dependency, exact changing condition, source, actor/mechanism, poll or notification identity, next check, maximum horizon, horizon-expiry state, owner action, and unrelated-work policy. A bare `wait for GitHub to update`, `wait for CI`, `wait for issue`, or `wait for owner` fails closed.
 
+The active-task lock selects one checkpoint by exact source path, Git ref, commit/blob identity, content SHA-256, task ID, branch, and owner-outcome epoch/hash. Resolve the latest independently captured owner-source/correction record first; a newer valid owner stop or amendment invalidates continuation. Do not accept matching prose or task fields from a substituted checkpoint whose exact identity differs.
+
+Blocker independence is valid only for `OPERATIONAL` blockers. An applicable safety, privacy, security, permission, spending, publication, or irreversible-action policy cannot be waived by listing its blocker ID as independent. Project affected-frontier authorization separately from the task's descriptive state and fail closed on applicable, stale-applicable, ambiguous, or invalid authority.
+
 Required findings include:
 
 ```text
@@ -155,6 +159,11 @@ WAIT_CONDITION_NOT_ACTIONABLE
 WAIT_WITHOUT_ADMISSION
 GITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY
 CROSS_TASK_BLOCKER_LEAKAGE
+INVALID_TASK_INDEPENDENCE_OVERRIDE
+TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH
+CURRENT_OWNER_STOP
+WAIT_REASONING_HANDOFF_MISSING
+WAIT_NEXT_CHECK_OUTSIDE_HORIZON
 ```
 
 ## 5. Use an artifact-based acceptance command

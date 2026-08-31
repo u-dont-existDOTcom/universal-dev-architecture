@@ -44,9 +44,9 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/PROJECT-LEARNING-POLICY.md` — reusable project learning and continuity policy.
 - `templates/CURRENT-STATE.md` — recovery checkpoint carrying owner authority, gap, alignment, completion, progress, strategy, research assurance, and supervision-design state.
 - `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root bootstrap pointing workers to current universal rules.
-- `templates/ACTIVE-TASK.json` — exclusive machine-readable active-task lock.
-- `templates/SCOPED-BLOCKER.json` — scoped blocker identity, freshness, causal applicability, unblock event, and supersession.
-- `templates/WAIT-ADMISSION.json` — machine-readable wait admission with exact changing condition, actor/mechanism, polling policy, and bounded horizon.
+- `templates/ACTIVE-TASK.json` — exclusive machine-readable active-task lock with current owner-source projection, exact checkpoint identity, and affected-frontier authorization.
+- `templates/SCOPED-BLOCKER.json` — scoped blocker identity, non-waivable policy classification, freshness, causal applicability, unblock event, and supersession.
+- `templates/WAIT-ADMISSION.json` — machine-readable wait admission with exact blocker/handoff binding, owner-decision identity, changing condition, actor/mechanism, parsed timing, and bounded horizon.
 - `templates/PRIOR-WORK-SCAN.md` — independent conception, existing-work, reuse decision, novelty, baseline, and research-debt ledger.
 - `templates/CODEX-TASK.md` — durable task contract with owner authority, derivation proof, reconciliation, alignment, completion, progress, and routing.
 - `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md` — current executor bootstrap requiring chat-led reasoning, bounded directives, dual alignment, progress/strategy control, and Pro meta-review routing.

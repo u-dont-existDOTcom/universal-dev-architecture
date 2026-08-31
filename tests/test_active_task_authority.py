@@ -12,7 +12,7 @@ from scripts.active_task_authority import (
     resolve_active_task_authority,
     validate_wait_admission,
 )
-from scripts.executor_handoff_state import validate_directive
+from scripts.executor_handoff_state import HandoffValidationError, validate_directive
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +43,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         scope_type: str = "TASK",
         operation: str = "REASONING_REVIEW",
         capability: str = "privacy-security-product-review",
+        policy_class: str = "OPERATIONAL",
     ) -> dict:
         blocker = copy.deepcopy(self.unrelated)
         blocker.update(
@@ -55,7 +56,11 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         blocker["scope"] = {
             "type": scope_type,
             "id": self.active["taskId"],
-            "repositoryWidePolicy": scope_type == "SECURITY_POLICY",
+            "repositoryWidePolicy": policy_class != "OPERATIONAL",
+        }
+        blocker["policy"] = {
+            "class": policy_class,
+            "nonWaivable": policy_class != "OPERATIONAL",
         }
         blocker["source"].update(
             {
@@ -87,7 +92,11 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
                 "actorOrMechanism": "EXACT_EXTERNAL_ACTOR",
             }
         )
-        blocker["ownerAction"] = {"required": False, "action": "NONE"}
+        blocker["ownerAction"] = {
+            "required": False,
+            "decisionId": None,
+            "action": "NONE",
+        }
         blocker["unrelatedWorkAllowed"] = True
         self.active["authorityResolution"]["independentOfBlockerIds"] = []
         return blocker
@@ -102,23 +111,127 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
                     "requiredCapabilityId"
                 ],
                 "sourceObservedAt": "2026-08-31T09:02:00Z",
+                "waitStartedAt": "2026-08-31T09:02:30Z",
                 "pollingNeeded": False,
-                "nextCheckAt": None,
+                "nextCheckAt": "2026-08-31T09:03:00Z",
+                "ownerActionRequired": blocker["ownerAction"]["required"],
+                "ownerDecisionId": blocker["ownerAction"].get("decisionId"),
+                "ownerAction": blocker["ownerAction"]["action"],
             }
         )
         wait["conditionExpectedToChange"] = {
-            "kind": "EXACT_EXTERNAL_STATE",
+            "kind": blocker["unblockEvent"]["kind"],
             "identity": blocker["unblockEvent"]["identity"],
             "currentState": "PENDING",
             "expectedState": blocker["unblockEvent"]["expectedState"],
             "sourceRef": blocker["unblockEvent"]["sourceRef"],
             "actorOrMechanism": blocker["unblockEvent"]["actorOrMechanism"],
+            "requiredCapabilityOrOperation": blocker["causalDependency"][
+                "requiredCapabilityId"
+            ],
         }
         wait["pollOrNotificationMechanism"] = {
             "mode": "NOTIFICATION",
             "identity": f"notification-{blocker['blockerId']}",
         }
         return wait
+
+    def valid_directive(self) -> dict:
+        directive = json.loads(
+            (ROOT / "templates" / "CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        directive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
+        directive["authorityContext"].update(
+            {
+                "taskLocalCheckpointGitRef": self.active["taskLocalCheckpoint"][
+                    "gitRef"
+                ],
+                "taskLocalCheckpointGitObjectId": self.active[
+                    "taskLocalCheckpoint"
+                ]["gitObjectId"],
+                "taskLocalCheckpointContentSha256": self.active[
+                    "taskLocalCheckpoint"
+                ]["contentSha256"],
+                "currentOwnerSourceRecordId": self.active["ownerSource"][
+                    "currentAuthorityProjection"
+                ]["sourceRecordId"],
+                "currentOwnerSourceReceiptId": self.active["ownerSource"][
+                    "currentAuthorityProjection"
+                ]["independentReceiptId"],
+                "authorityResolutionStatus": "VALID",
+                "selectedExecutionSource": "TASK_LOCAL_CHECKPOINT",
+                "substantiveExecutionAuthorized": True,
+                "reasoningReviewRequired": False,
+                "frontierAuthorization": "AUTHORIZED",
+                "affectedOperation": "LOCAL_DEVELOPMENT",
+                "currentBlockerIds": [],
+                "blockedCapabilityIds": [],
+                "blockingBlockerIds": [],
+                "revalidationRequiredBlockerIds": [],
+                "ambiguousBlockerIds": [],
+                "waitAdmissionId": None,
+                "waitAdmissionState": "NOT_REQUIRED",
+            }
+        )
+        return directive
+
+    def reasoning_wait_and_handoff(self) -> tuple[dict, dict]:
+        handoff = json.loads(
+            (ROOT / "templates" / "EXECUTOR-REASONING-HANDOFF.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        handoff.update(
+            {
+                "handoffId": "handoff-active-task-review",
+                "taskId": self.active["taskId"],
+                "state": "WAITING_FOR_REASONING_REVIEW",
+                "taskTerminal": False,
+                "ownerActionRequired": False,
+            }
+        )
+        handoff["reviewRequest"].update(
+            {
+                "requestId": "reasoning-request-active-task-review",
+                "targetSurface": "PRO",
+                "submittedAt": "2026-08-31T09:01:00Z",
+                "deliveryConfirmedAt": "2026-08-31T09:01:30Z",
+            }
+        )
+        handoff["lease"].update(
+            {
+                "owner": "CODEX_CONTROLLER",
+                "acquiredAt": "2026-08-31T09:00:00Z",
+                "expiresAt": "2026-08-31T10:00:00Z",
+            }
+        )
+        wait = copy.deepcopy(self.fixture["proposedWait"])
+        wait.update(
+            {
+                "waitId": "wait-reasoning-request-active-task-review",
+                "blockingBlockerId": None,
+                "reasoningRequestId": "reasoning-request-active-task-review",
+                "causalDependency": "reasoning-review",
+                "sourceObservedAt": "2026-08-31T09:02:00Z",
+                "waitStartedAt": "2026-08-31T09:02:30Z",
+                "nextCheckAt": "2026-08-31T09:03:00Z",
+                "ownerActionRequired": False,
+                "ownerDecisionId": None,
+                "ownerAction": "NONE",
+            }
+        )
+        wait["conditionExpectedToChange"] = {
+            "kind": "REASONING_RESPONSE",
+            "identity": "reasoning-request-active-task-review",
+            "currentState": "PENDING",
+            "expectedState": "READY",
+            "sourceRef": "handoff-active-task-review",
+            "actorOrMechanism": "PRO",
+            "requiredCapabilityOrOperation": "reasoning-review",
+        }
+        return wait, handoff
 
     def test_01_exact_innersignal_regression_rejects_stale_global_wait(self) -> None:
         result = evaluate_fixture(copy.deepcopy(self.fixture))
@@ -148,6 +261,14 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         self.assertEqual(projection["ownerAction"], "NONE")
         self.assertTrue(projection["unrelatedWorkAllowed"])
         self.assertEqual(projection["requiredAction"], expected["requiredAction"])
+        self.assertEqual(
+            projection["frontierAuthorization"],
+            expected["frontierAuthorization"],
+        )
+        self.assertEqual(
+            projection["substantiveExecutionAuthorized"],
+            expected["substantiveExecutionAuthorized"],
+        )
         alerts = set(projection["alerts"] + projection["waitAdmission"]["findings"])
         self.assertTrue(set(expected["requiredAlerts"]).issubset(alerts))
 
@@ -174,6 +295,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             scope_type="SECURITY_POLICY",
             operation="WRITE",
             capability="repository-write",
+            policy_class="SECURITY",
         )
         security["appliesTo"]["taskIds"] = ["*"]
         security["causalDependency"]["requiredByTaskIds"] = ["*"]
@@ -216,7 +338,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         result = evaluate_blocker_applicability(self.active, blocker)
         wait = self.admitted_wait(blocker)
         wait["conditionExpectedToChange"]["identity"] = ""
-        admission = validate_wait_admission(wait, self.active, result)
+        admission = validate_wait_admission(wait, self.active, result, blocker)
         self.assertFalse(admission["admitted"])
         self.assertIn("WAIT_CONDITION_IDENTITY_REQUIRED", admission["findings"])
 
@@ -225,7 +347,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         result = evaluate_blocker_applicability(self.active, blocker)
         wait = self.admitted_wait(blocker)
         wait["conditionExpectedToChange"]["actorOrMechanism"] = "NONE"
-        admission = validate_wait_admission(wait, self.active, result)
+        admission = validate_wait_admission(wait, self.active, result, blocker)
         self.assertFalse(admission["admitted"])
         self.assertIn("WAIT_CONDITION_NOT_ACTIONABLE", admission["findings"])
 
@@ -243,7 +365,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         )
         result = evaluate_blocker_applicability(self.active, blocker)
         admission = validate_wait_admission(
-            self.admitted_wait(blocker), self.active, result
+            self.admitted_wait(blocker), self.active, result, blocker
         )
         self.assertTrue(admission["admitted"])
 
@@ -262,7 +384,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         result = evaluate_blocker_applicability(self.active, blocker)
         wait = self.admitted_wait(blocker)
         wait["conditionExpectedToChange"]["currentState"] = "COMPLETE"
-        admission = validate_wait_admission(wait, self.active, result)
+        admission = validate_wait_admission(wait, self.active, result, blocker)
         self.assertFalse(admission["admitted"])
         self.assertIn("WAIT_CONDITION_ALREADY_SATISFIED", admission["findings"])
 
@@ -275,6 +397,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         )
         blocker["ownerAction"] = {
             "required": True,
+            "decisionId": "owner-decision-privacy-boundary",
             "action": "DECIDE_PRIVACY_BOUNDARY",
         }
         blocker["unblockEvent"]["actorOrMechanism"] = "OWNER"
@@ -287,7 +410,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         result = evaluate_blocker_applicability(self.active, blocker)
         wait = self.admitted_wait(blocker)
         wait["ownerActionRequired"] = True
-        admission = validate_wait_admission(wait, self.active, result)
+        admission = validate_wait_admission(wait, self.active, result, blocker)
         self.assertTrue(admission["admitted"])
 
     def test_13_unneeded_credential_does_not_block_active_task(self) -> None:
@@ -314,6 +437,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             blocker_id="publication-permission",
             operation="PUBLICATION",
             capability="publication-permission",
+            policy_class="PUBLICATION",
         )
         result = evaluate_blocker_applicability(self.active, blocker)
         self.assertEqual(result["applicability"], "NOT_APPLICABLE")
@@ -324,6 +448,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             scope_type="SECURITY_POLICY",
             operation="WRITE",
             capability="repository-write",
+            policy_class="SECURITY",
         )
         blocker["appliesTo"]["taskIds"] = ["*"]
         blocker["causalDependency"]["requiredByTaskIds"] = ["*"]
@@ -361,7 +486,7 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
         result = evaluate_blocker_applicability(self.active, self.unrelated)
         wait = copy.deepcopy(self.fixture["proposedWait"])
         wait["maximumWaitHorizonSeconds"] = 0
-        admission = validate_wait_admission(wait, self.active, result)
+        admission = validate_wait_admission(wait, self.active, result, self.unrelated)
         self.assertFalse(admission["admitted"])
         self.assertIn("WAIT_WITHOUT_ADMISSION", admission["findings"])
         self.assertIn("WAIT_MAXIMUM_HORIZON_INVALID", admission["findings"])
@@ -390,10 +515,14 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        self.assertTrue(validate_directive(directive))
+        with self.assertRaises(HandoffValidationError):
+            validate_directive(directive)
+        completed = self.valid_directive()
+        self.assertTrue(validate_directive(completed))
         authority = directive["authorityContext"]
         self.assertIn("currentBlockerIds", authority)
         self.assertIn("waitAdmissionId", authority)
+        self.assertIn("frontierAuthorization", authority)
 
     def test_24_templates_and_routes_are_machine_readable(self) -> None:
         scoped = json.loads(
@@ -406,14 +535,285 @@ class ActiveTaskAuthorityTests(unittest.TestCase):
             (ROOT / "templates" / "ACTIVE-TASK.json").read_text(encoding="utf-8")
         )
         self.assertIn("causalDependency", scoped)
+        self.assertIn("policy", scoped)
         self.assertIn("conditionExpectedToChange", wait)
+        self.assertIn("waitStartedAt", wait)
         self.assertIn("authorityResolution", active)
         self.assertIn("executionFrontier", active)
+        self.assertIn("contentSha256", active["taskLocalCheckpoint"])
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
         for text in (index, docs):
             self.assertIn("SCOPED-BLOCKER.json", text)
             self.assertIn("WAIT-ADMISSION.json", text)
+
+    def test_25_task_independence_cannot_bypass_repository_security(self) -> None:
+        blocker = self.applicable_blocker(
+            blocker_id="repository-security-freeze",
+            scope_type="SECURITY_POLICY",
+            operation="WRITE",
+            capability="repository-write",
+            policy_class="SECURITY",
+        )
+        blocker["appliesTo"]["taskIds"] = ["*"]
+        blocker["causalDependency"]["requiredByTaskIds"] = ["*"]
+        self.active["authorityResolution"]["independentOfBlockerIds"] = [
+            blocker["blockerId"]
+        ]
+        self.active["executionFrontier"].update(
+            {"operation": "WRITE", "requiredCapabilityIds": ["repository-write"]}
+        )
+        result = evaluate_blocker_applicability(self.active, blocker)
+        self.assertEqual(result["applicability"], "APPLICABLE")
+        self.assertIn("INVALID_TASK_INDEPENDENCE_OVERRIDE", result["alerts"])
+        projection = project_task_blockers(
+            self.active, self.task_state, self.global_state, [blocker]
+        )
+        self.assertEqual(
+            projection["frontierAuthorization"],
+            "BLOCKED_BY_APPLICABLE_BLOCKER",
+        )
+        self.assertFalse(projection["substantiveExecutionAuthorized"])
+
+    def test_26_unresolved_substantive_directive_is_rejected(self) -> None:
+        directive = self.valid_directive()
+        directive["authorityContext"]["authorityResolutionStatus"] = "UNRESOLVED"
+        with self.assertRaises(HandoffValidationError):
+            validate_directive(directive)
+
+    def test_27_ambiguous_substantive_directive_routes_to_reasoning(self) -> None:
+        directive = self.valid_directive()
+        directive["authorityContext"].update(
+            {
+                "authorityResolutionStatus": "AMBIGUOUS",
+                "selectedExecutionSource": "NONE",
+                "substantiveExecutionAuthorized": False,
+                "reasoningReviewRequired": True,
+                "frontierAuthorization": "REASONING_REVIEW_REQUIRED",
+                "ambiguousBlockerIds": ["ambiguous-blocker"],
+            }
+        )
+        with self.assertRaises(HandoffValidationError):
+            validate_directive(directive)
+
+    def test_28_invalid_substantive_directive_is_rejected(self) -> None:
+        directive = self.valid_directive()
+        directive["authorityContext"].update(
+            {
+                "authorityResolutionStatus": "INVALID",
+                "selectedExecutionSource": "NONE",
+                "substantiveExecutionAuthorized": False,
+                "reasoningReviewRequired": True,
+                "frontierAuthorization": "INVALID_AUTHORITY",
+            }
+        )
+        with self.assertRaises(HandoffValidationError):
+            validate_directive(directive)
+
+    def test_29_ambiguous_authority_allows_only_narrow_preservation(self) -> None:
+        directive = self.valid_directive()
+        directive["actionClass"] = "EVIDENCE_PRESERVATION"
+        directive["allowed"]["actions"] = ["PRESERVE_EVIDENCE"]
+        directive["authorityContext"].update(
+            {
+                "authorityResolutionStatus": "AMBIGUOUS",
+                "selectedExecutionSource": "NONE",
+                "substantiveExecutionAuthorized": False,
+                "reasoningReviewRequired": True,
+                "frontierAuthorization": "REASONING_REVIEW_REQUIRED",
+            }
+        )
+        self.assertTrue(validate_directive(directive))
+        directive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
+        with self.assertRaises(HandoffValidationError):
+            validate_directive(directive)
+
+    def test_30_newer_owner_stop_overrides_task_continuation(self) -> None:
+        owner_stop = copy.deepcopy(
+            self.active["ownerSource"]["currentAuthorityProjection"]
+        )
+        owner_stop.update(
+            {
+                "sourceRecordId": "owner-correction-stop-pr15",
+                "sourceKind": "OWNER_CORRECTION",
+                "relation": "AMENDS",
+                "instructionClass": "OWNER_STOP",
+                "capturedAt": "2026-08-31T09:05:00Z",
+                "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "effectiveEpoch": 2,
+            }
+        )
+        result = resolve_active_task_authority(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+            owner_stop,
+        )
+        self.assertEqual(result["authorityResolutionStatus"], "INVALID")
+        self.assertEqual(result["selectedExecutionSource"], "NONE")
+        self.assertFalse(result["substantiveExecutionAuthorized"])
+        self.assertIn("CURRENT_OWNER_STOP", result["findings"])
+
+    def test_31_substituted_checkpoint_hash_is_rejected(self) -> None:
+        self.task_state["checkpointIdentity"]["contentSha256"] = "f" * 64
+        result = resolve_active_task_authority(
+            self.active, self.task_state, self.global_state, [self.unrelated]
+        )
+        self.assertEqual(result["authorityResolutionStatus"], "INVALID")
+        self.assertEqual(result["selectedExecutionSource"], "NONE")
+        self.assertIn(
+            "TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH",
+            result["findings"],
+        )
+
+    def test_32_applicable_blocker_blocks_affected_frontier(self) -> None:
+        blocker = self.applicable_blocker()
+        projection = project_task_blockers(
+            self.active, self.task_state, self.global_state, [blocker]
+        )
+        self.assertEqual(
+            projection["frontierAuthorization"],
+            "BLOCKED_BY_APPLICABLE_BLOCKER",
+        )
+        self.assertIn(blocker["blockerId"], projection["blockingBlockerIds"])
+
+    def test_33_stale_applicable_blocker_requires_frontier_revalidation(self) -> None:
+        blocker = self.applicable_blocker()
+        blocker["source"]["freshnessState"] = "STALE"
+        projection = project_task_blockers(
+            self.active, self.task_state, self.global_state, [blocker]
+        )
+        self.assertEqual(
+            projection["frontierAuthorization"],
+            "BLOCKER_REVALIDATION_REQUIRED",
+        )
+        self.assertFalse(projection["substantiveExecutionAuthorized"])
+
+    def test_34_wait_must_exactly_match_blocker_unblock_event(self) -> None:
+        blocker = self.applicable_blocker()
+        result = evaluate_blocker_applicability(self.active, blocker)
+        mutations = {
+            "identity": "different-identity",
+            "sourceRef": "different-source",
+            "expectedState": "different-state",
+            "actorOrMechanism": "different-actor",
+        }
+        for field, value in mutations.items():
+            with self.subTest(field=field):
+                wait = self.admitted_wait(blocker)
+                wait["conditionExpectedToChange"][field] = value
+                admission = validate_wait_admission(
+                    wait, self.active, result, blocker
+                )
+                self.assertFalse(admission["admitted"])
+                self.assertTrue(
+                    any(
+                        finding.startswith(f"WAIT_CONDITION_{field.upper()}")
+                        for finding in admission["findings"]
+                    )
+                )
+
+    def test_35_owner_wait_requires_exact_decision_id_and_action(self) -> None:
+        blocker = self.applicable_blocker(
+            blocker_id="owner-decision-required",
+            scope_type="OWNER_DECISION",
+            operation="OWNER_DECISION",
+            capability="owner-decision:policy",
+        )
+        blocker["ownerAction"] = {
+            "required": True,
+            "decisionId": "owner-decision-policy-001",
+            "action": "DECIDE_POLICY",
+        }
+        self.active["executionFrontier"].update(
+            {
+                "operation": "OWNER_DECISION",
+                "requiredCapabilityIds": ["owner-decision:policy"],
+            }
+        )
+        result = evaluate_blocker_applicability(self.active, blocker)
+        wait = self.admitted_wait(blocker)
+        wait["ownerDecisionId"] = None
+        wait["ownerAction"] = "NONE"
+        admission = validate_wait_admission(wait, self.active, result, blocker)
+        self.assertFalse(admission["admitted"])
+        self.assertIn("WAIT_OWNER_DECISION_ID_MISMATCH", admission["findings"])
+        self.assertIn("WAIT_OWNER_ACTION_MISMATCH", admission["findings"])
+
+    def test_36_reasoning_wait_requires_matching_live_handoff(self) -> None:
+        wait, handoff = self.reasoning_wait_and_handoff()
+        missing = validate_wait_admission(wait, self.active, None)
+        self.assertFalse(missing["admitted"])
+        self.assertIn("WAIT_REASONING_HANDOFF_MISSING", missing["findings"])
+        admitted = validate_wait_admission(
+            wait, self.active, None, None, handoff
+        )
+        self.assertTrue(admitted["admitted"], admitted["findings"])
+
+    def test_37_next_check_must_follow_start_and_stay_inside_horizon(self) -> None:
+        blocker = self.applicable_blocker()
+        result = evaluate_blocker_applicability(self.active, blocker)
+        before = self.admitted_wait(blocker)
+        before["nextCheckAt"] = before["waitStartedAt"]
+        admission = validate_wait_admission(before, self.active, result, blocker)
+        self.assertIn("WAIT_NEXT_CHECK_NOT_AFTER_START", admission["findings"])
+        outside = self.admitted_wait(blocker)
+        outside["nextCheckAt"] = "2026-08-31T12:00:00Z"
+        admission = validate_wait_admission(outside, self.active, result, blocker)
+        self.assertIn("WAIT_NEXT_CHECK_OUTSIDE_HORIZON", admission["findings"])
+
+    def test_38_terminal_or_unknown_horizon_state_is_rejected(self) -> None:
+        blocker = self.applicable_blocker()
+        result = evaluate_blocker_applicability(self.active, blocker)
+        for state in ("COMPLETE", "UNKNOWN_STATE"):
+            with self.subTest(state=state):
+                wait = self.admitted_wait(blocker)
+                wait["stateIfHorizonExpires"] = state
+                wait["allowedStatesIfHorizonExpires"].append(state)
+                admission = validate_wait_admission(
+                    wait, self.active, result, blocker
+                )
+                self.assertIn(
+                    "WAIT_HORIZON_EXPIRY_STATE_INVALID", admission["findings"]
+                )
+
+    def test_39_unrelated_operational_blocker_remains_suspended(self) -> None:
+        projection = project_task_blockers(
+            self.active,
+            self.task_state,
+            self.global_state,
+            [self.unrelated],
+        )
+        ignored = projection["ignoredOrUnrelatedBlockers"][0]
+        self.assertEqual(ignored["sourceDisposition"], "SUSPENDED_COMPETING_SOURCE")
+        self.assertEqual(projection["frontierAuthorization"], "AUTHORIZED")
+
+    def test_40_repository_policy_without_causal_relation_does_not_block(self) -> None:
+        blocker = self.applicable_blocker(
+            blocker_id="repository-security-unrelated-operation",
+            scope_type="SECURITY_POLICY",
+            operation="WRITE",
+            capability="repository-write",
+            policy_class="SECURITY",
+        )
+        blocker["appliesTo"]["taskIds"] = ["*"]
+        blocker["causalDependency"]["requiredByTaskIds"] = ["*"]
+        result = evaluate_blocker_applicability(self.active, blocker)
+        self.assertEqual(result["applicability"], "NOT_APPLICABLE")
+        self.assertIn("BLOCKER_CAUSAL_DEPENDENCY_MISSING", result["alerts"])
+
+    def test_41_current_owner_source_requires_independent_match_receipt(self) -> None:
+        self.active["ownerSource"]["currentAuthorityProjection"][
+            "independentReceiptStatus"
+        ] = "SOURCE_UNAVAILABLE"
+        result = resolve_active_task_authority(
+            self.active, self.task_state, self.global_state, [self.unrelated]
+        )
+        self.assertEqual(result["authorityResolutionStatus"], "INVALID")
+        self.assertIn(
+            "CURRENT_OWNER_SOURCE_RECEIPT_NOT_MATCHED", result["findings"]
+        )
 
 
 if __name__ == "__main__":

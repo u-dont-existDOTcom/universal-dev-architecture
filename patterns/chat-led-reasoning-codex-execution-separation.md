@@ -298,6 +298,8 @@ controls. A repository-global status label or open issue is not a wait source
 without current task scope, causal dependency, an exact condition capable of
 changing, an actor or mechanism, and a bounded horizon.
 
+The directive's action class is part of execution authority. `SUBSTANTIVE_EXECUTION` requires a validated exact task checkpoint and an `AUTHORIZED` frontier. `AUTHORITY_RECOVERY`, `EVIDENCE_PRESERVATION`, and `REASONING_HANDOFF` are narrow non-substantive classes with explicit action allowlists; they may preserve or restore control under unresolved, invalid, or ambiguous authority but may not mutate the product. An unfilled placeholder directive is parseable JSON, not executable authority.
+
 Until a deterministic Mission Control relay is operational, the active
 Codex/browser controller holds this lease where the execution surface permits.
 The target architecture transfers the lease to Mission Control or the

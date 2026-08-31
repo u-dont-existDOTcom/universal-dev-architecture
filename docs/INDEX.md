@@ -88,6 +88,8 @@ Machine-readable supervision templates:
 
 Resolve the current active-task lock and matching task-local checkpoint before consuming repository-global execution status. A global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label is not transitive across task IDs; it affects the active frontier only through a current scoped blocker and causal dependency. A wait additionally requires an exact changing condition, actor or mechanism, and bounded horizon.
 
+Bind the current owner-source/correction record and the exact checkpoint path/ref/object/content hash before authorizing execution. Project frontier authorization separately from descriptive task state. Task independence cannot waive a causally applicable non-waivable policy, substantive directives require `VALID`/`AUTHORIZED` authority, and blocker/owner/reasoning waits must match their authoritative unblock record with parsed start/check/horizon timing.
+
 For non-trivial software tasks where repeated testing could materially affect wall time, load `../patterns/test-efficiency-and-verification-budget.md`. Measure test wall-time share, use focused/affected tests in the inner loop, run full suites at explicit checkpoints, and require a specialist trigger for mutation testing.
 
 For a broad comparison or landscape synthesis where omitted alternatives, configurations, contexts, or outcome directions could change the conclusion, load `../patterns/coverage-before-depth-in-selection.md` before deep candidate selection.

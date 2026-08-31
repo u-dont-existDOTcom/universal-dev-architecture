@@ -321,6 +321,12 @@ Preserve unrelated global blockers in the task projection as ignored or suspende
 
 Waiting is admitted only through `WAIT-ADMISSION`: exact task and blocking-source identity, causal dependency, changing condition and source, actor/mechanism, polling or notification mechanism, bounded horizon, and expiry state. If no actor or mechanism can change the condition, do not poll. Persist the truthful scoped state while keeping independent frontiers executable.
 
+The active-task projection must fail closed rather than merely decorate the dashboard. Bind current owner-source/correction authority and the selected checkpoint's path, Git ref, commit/blob identity, content hash, task ID, branch, and owner-outcome epoch/hash. Project the affected frontier as `AUTHORIZED`, `BLOCKED_BY_APPLICABLE_BLOCKER`, `BLOCKER_REVALIDATION_REQUIRED`, `REASONING_REVIEW_REQUIRED`, or `INVALID_AUTHORITY`; list blocked capabilities and blocker IDs separately from independent frontiers that may continue.
+
+Classify every blocker as `OPERATIONAL` or one of the non-waivable policy classes. Task-declared independence cannot bypass a causally applicable safety, privacy, security, permission, spending, publication, or irreversible-action boundary. Conversely, repository-wide classification alone does not block an operation without the causal edge.
+
+Substantive execution directives require resolved `VALID` authority, an authorized affected frontier, no applicable/revalidation/ambiguous blocker for that operation, and a valid referenced wait admission. Under unresolved, invalid, or ambiguous authority, only typed allowlisted recovery, evidence-preservation, or reasoning-handoff actions may run. Blocker waits bind the exact unblock event; owner waits bind decision ID and action; reasoning waits bind the accepted executor-reasoning handoff; all waits use parsed start/check/horizon timestamps and nonterminal expiry states.
+
 ### 6.2 GitHub remains canonical where it is strongest
 
 GitHub stores:

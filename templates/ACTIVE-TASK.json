@@ -16,7 +16,23 @@
     "sha256": "replace-with-owner-source-sha256",
     "independentReceiptId": "replace-with-owner-source-receipt-id",
     "independentReceiptStatus": "SOURCE_UNAVAILABLE",
-    "appendOnlyCorrectionIds": []
+    "appendOnlyCorrectionIds": [],
+    "currentAuthorityProjection": {
+      "sourceRecordId": "replace-with-owner-request-or-correction-id",
+      "sourceKind": "OWNER_REQUEST",
+      "relation": "ROOT",
+      "instructionClass": "CONTINUE",
+      "ownerRequestId": "replace-with-owner-request-id",
+      "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+      "capturedAt": "1970-01-01T00:00:00Z",
+      "sha256": "replace-with-owner-source-sha256",
+      "effectiveEpoch": 1,
+      "taskId": "replace-with-stable-task-id",
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "ownerOutcomeSha256": "replace-with-owner-outcome-sha256",
+      "independentReceiptId": "replace-with-current-owner-source-receipt-id",
+      "independentReceiptStatus": "SOURCE_UNAVAILABLE"
+    }
   },
   "ownerOutcome": {
     "ownerOutcomeId": "replace-with-owner-outcome-id",
@@ -81,16 +97,28 @@
   },
   "nextReconciliationTrigger": "TASK_START",
   "taskLocalCheckpoint": {
-    "ref": "refs/heads/agent/replace-with-task-branch:path/to/task-local-current-state",
+    "ref": "path/to/task-local-current-state",
+    "sourcePath": "path/to/task-local-current-state",
+    "gitRef": "refs/heads/agent/replace-with-task-branch",
+    "gitObjectId": "replace-with-exact-commit-or-blob-identity",
+    "contentSha256": "replace-with-task-local-content-sha256",
     "taskId": "replace-with-stable-task-id",
     "branch": "agent/replace-with-task-branch",
-    "observedAt": "1970-01-01T00:00:00Z"
+    "observedAt": "1970-01-01T00:00:00Z",
+    "ownerOutcome": {
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "epoch": 1,
+      "sha256": "replace-with-owner-outcome-sha256"
+    }
   },
   "authorityResolution": {
     "status": "UNRESOLVED",
     "repositoryGlobalStateRef": "path/to/repository-global-current-state",
     "repositoryGlobalStateObservedAt": "1970-01-01T00:00:00Z",
     "globalStateRelation": "AMBIGUOUS",
+    "selectedExecutionSource": "NONE",
+    "substantiveExecutionAuthorized": false,
+    "reasoningReviewRequired": true,
     "activeBlockerRefs": [],
     "ignoredOrUnrelatedBlockerRefs": [],
     "independentOfBlockerIds": [],
@@ -115,7 +143,18 @@
     "operation": "LOCAL_DEVELOPMENT",
     "requiredCapabilityIds": [],
     "strategyFamilyId": null,
-    "directiveId": null
+    "directiveId": null,
+    "authorization": "REASONING_REVIEW_REQUIRED",
+    "blockedCapabilityIds": [],
+    "blockingBlockerIds": [],
+    "independentFrontiersAllowed": false,
+    "allowedAuthorizationStates": [
+      "AUTHORIZED",
+      "BLOCKED_BY_APPLICABLE_BLOCKER",
+      "BLOCKER_REVALIDATION_REQUIRED",
+      "REASONING_REVIEW_REQUIRED",
+      "INVALID_AUTHORITY"
+    ]
   },
   "waitAdmissionRef": null,
   "suspendedTaskSources": [

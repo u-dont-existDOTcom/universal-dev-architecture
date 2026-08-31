@@ -40,6 +40,29 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.directive = copy.deepcopy(self.directive_template)
         self.directive.update({"directiveId": "directive-001", "taskId": "task-001"})
         self.directive["ownerOutcome"]["epoch"] = 7
+        self.directive["allowed"]["actions"] = ["APPLY_BOUNDED_CODE_CHANGE"]
+        self.directive["authorityContext"].update(
+            {
+                "taskLocalCheckpointGitRef": "refs/heads/task-001",
+                "taskLocalCheckpointGitObjectId": "1" * 40,
+                "taskLocalCheckpointContentSha256": "a" * 64,
+                "currentOwnerSourceRecordId": "owner-source-task-001",
+                "currentOwnerSourceReceiptId": "osr-task-001",
+                "authorityResolutionStatus": "VALID",
+                "selectedExecutionSource": "TASK_LOCAL_CHECKPOINT",
+                "substantiveExecutionAuthorized": True,
+                "reasoningReviewRequired": False,
+                "frontierAuthorization": "AUTHORIZED",
+                "affectedOperation": "LOCAL_DEVELOPMENT",
+                "currentBlockerIds": [],
+                "blockedCapabilityIds": [],
+                "blockingBlockerIds": [],
+                "revalidationRequiredBlockerIds": [],
+                "ambiguousBlockerIds": [],
+                "waitAdmissionId": None,
+                "waitAdmissionState": "NOT_REQUIRED",
+            }
+        )
         self.directive["reasoningSupervisor"].update(
             {
                 "surface": "PRO",
@@ -450,7 +473,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertEqual(len(body), persisted["bodySizeBytes"])
         self.assertEqual(hashlib.sha256(body).hexdigest(), persisted["bodySha256"])
 
-        directive = copy.deepcopy(self.directive_template)
+        directive = copy.deepcopy(self.directive)
         directive.update(
             {
                 "directiveId": expected["directiveId"],
