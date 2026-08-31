@@ -78,6 +78,10 @@ On first use in a response—or again after a topic shift when the referent coul
 
 When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
 
+### Owner-facing outbound-link quality
+
+Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page. Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification. If the exact link cannot be verified in the current turn, do not surface it. Never present a broken or unverified link as a recommendation.
+
 ### Owner-facing artifact delivery
 
 **Delivery is part of completion.** When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.
@@ -94,7 +98,7 @@ When a handoff needs companion material, deliver the complete usable set. For ex
 
 Before closing an owner-facing handoff, verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**, unless a real technical, security, privacy, or experimental-isolation constraint prevents that.
 
-Use `patterns/human-readable-operational-references.md` for the full rationale, examples, artifact-delivery priority, handoff-completeness rule, and recovery rule.
+Use `patterns/human-readable-operational-references.md` for the full outbound-link and artifact-delivery rules, rationale, examples, and recovery rule.
 
 ## Research before reinvention
 
