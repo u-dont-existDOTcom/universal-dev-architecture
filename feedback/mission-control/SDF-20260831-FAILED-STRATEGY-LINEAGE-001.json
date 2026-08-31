@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-FAILED-STRATEGY-LINEAGE-001",
+  "createdAt": "2026-08-31T00:00:00Z",
+  "taskId": "somatic-r15-clean-continuation-20260830",
+  "workerRunId": "chat-strategy-lineage-diagnosis-20260831",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OR-SOMATIC-HUMANIZATION-20260830",
+    "epoch": 3,
+    "sha256": "d851f7ac7cd7289947b6766600c490e3344b48aac652aece20a645b7b0f3200a"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "pr42-owner-outcome-dual-alignment-actionability",
+    "sha256OrCommit": "03db807ef4382c8d2d32ff94941845be3f116e24"
+  },
+  "type": "DEFECT",
+  "category": "STRATEGY_LINEAGE_AND_NEGATIVE_EVIDENCE",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Mission Control records failed strategy families and already says materially similar failed work must not continue, but the reasoning surface can still launder a failed strategy by assigning a new label/family ID and asserting material difference. There is no required causal fingerprint, executable descendant prohibition, or independent lineage adjudication after recurrence. Negative evidence therefore remains partly advisory instead of binding.",
+  "relevantRule": {
+    "path": "docs/exec-plans/2026-08-31-mission-control-no-valid-strategy-kill-switch.md",
+    "section": "VALID_NEXT_STRATEGY admission contract / strategy-family budgets / reasoning-context saturation",
+    "excerpt": "A reasoning chat must state why a strategy is materially different from failed/exhausted strategies, but material difference is not yet bound to a lineage receipt or independent recurrence check."
+  },
+  "observedOrHypotheticalFailure": "In Somatic R15, a reasoning writer knew an earlier direct-paraphrase/conversationalization approach had been owner-rejected for preserving model thought rhythm. It later independently produced a candidate using substantially the same mechanism: contractions, first-person/conversational substitutions, local cold passes, and largely preserved conceptual structure. The writer assessed the result as materially more Human until the owner noticed that much of the apparent Human quality was owner-verbatim and asked what AI material had actually been fixed. A stable strategy-family rule did not prevent recurrence because the same reasoning process was also judging novelty.",
+  "evidenceRefs": [
+    {
+      "type": "github_pr",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "pullRequest": 73,
+      "facts": [
+        "known earlier owner rejection of conversational/direct paraphrase strategy",
+        "later reasoning regenerated a descendant strategy",
+        "owner caught provenance contamination before detector testing",
+        "new task-local fail-closed lineage gate now blocks detector submission"
+      ]
+    },
+    {
+      "type": "github_file",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "path": "tasks/somatic-r15-clean-continuation-20260830/HUMANIZATION-FAIL-CLOSED-CONTROL-20260831.md"
+    },
+    {
+      "type": "github_file",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "path": "docs/exec-plans/2026-08-31-mission-control-no-valid-strategy-kill-switch.md",
+      "facts": [
+        "strategy_family_id already required",
+        "strategy relabeling already recognized as a saturation indicator",
+        "same-family continuation already prohibited after failure",
+        "missing piece is evidence-backed lineage classification"
+      ]
+    },
+    {
+      "type": "github_file",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "path": "patterns/independent-evaluation-separation.md",
+      "facts": [
+        "independence and anti-anchoring are already established universal controls",
+        "the new adaptation applies them specifically to strategy-lineage adjudication after recurrence"
+      ]
+    }
+  ],
+  "proposedChange": "Add a strategy-lineage control between strategy proposal and VALID_NEXT_STRATEGY authorization. Every replacement/new family must carry a causal fingerprint and be compared against relevant failed/exhausted families and their executable descendant predicates. After a recurrence event, a separate diagnostic-only reasoning context must adjudicate lineage. Only NEW_FAMILY may proceed to strategy admission; SAME_FAMILY, DESCENDANT_OF_FAILED_FAMILY, and LINEAGE_UNRESOLVED fail closed. Use asymmetric information isolation when rejected artifacts are themselves anchoring the generator.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Trust the planner's materialDifferenceFromPriorFamilies field",
+      "rejectedBecause": "The observed defect is precisely that the same reasoning context can know the failure history and still misclassify its descendant as novel."
+    },
+    {
+      "alternative": "Rely only on stable strategy_family_id",
+      "rejectedBecause": "A family ID is a label; without fingerprint/lineage evidence a new ID can reset the prohibition semantically even if budgets are mechanically stable."
+    },
+    {
+      "alternative": "Use a fresh chat as the new strategy by definition",
+      "rejectedBecause": "Fresh context can reduce contamination but does not make an unchanged causal method materially new."
+    },
+    {
+      "alternative": "Require independent review for every strategy change",
+      "rejectedBecause": "That adds unnecessary ceremony. Independent lineage adjudication is required after recurrence, relabeling, saturation, or other high-risk lineage ambiguity."
+    }
+  ],
+  "risks": [
+    "Overbroad strategy fingerprints could suppress legitimate exploration",
+    "Semantic lineage cannot be fully reduced to deterministic field equality",
+    "Independent lineage review can add latency and model cost",
+    "Blinding the generator to failed artifacts can remove useful context if the semantic/function packet is incomplete",
+    "Family definitions must include explicit scope and re-enable conditions so changed external conditions can be handled correctly"
+  ],
+  "workerRecommendation": "Adopt `patterns/failed-strategy-lineage-and-negative-evidence-binding.md`, `templates/STRATEGY-LINEAGE-GATE.json`, and `templates/CURRENT-CODEX-WORKER-SUPERVISION-STRATEGY-LINEAGE-ADDENDUM.md`; add a hostile Somatic recurrence fixture and integrate lineage admission into the existing NO_VALID_STRATEGY validator/dashboard/directive implementation. Keep chats as strategy/lineage reasoning authority and Codex as mechanical executor only.",
+  "workerUncertainty": "The exact deterministic fingerprint fields may need refinement from implementation experience. The need to bind negative evidence to descendants and require independent adjudication after observed recurrence is not uncertain.",
+  "decisionThatCanChange": "PR #42 strategy admission, failed-family continuation semantics, reasoning-context rollover rules, dashboard alerts, execution-directive authorization, and the validator/tests implementing NO_VALID_STRATEGY.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/pr42-owner-outcome-dual-alignment-actionability"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": "owner-directed-immediate-task-local-fix-20260831",
+  "repositoryChangeRefs": [
+    "patterns/failed-strategy-lineage-and-negative-evidence-binding.md",
+    "templates/STRATEGY-LINEAGE-GATE.json",
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-STRATEGY-LINEAGE-ADDENDUM.md"
+  ],
+  "testRefs": []
+}
