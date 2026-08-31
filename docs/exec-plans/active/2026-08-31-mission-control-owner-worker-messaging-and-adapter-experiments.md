@@ -62,8 +62,8 @@ publication, permission, and irreversible-action gates continue to apply.
 
 | Order | Queue ID | Item | State | Dependency | Adoption state |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `MC-Q-OWNER-CHANNEL-001` | Ledger-first bidirectional owner↔worker messaging | `IMPLEMENTED_IN_PR_51` | Existing Mission Control daemon/event ledger | Implemented, not orchestration authority |
-| 2 | `MC-Q-DIRECTION-SYNC-001` | Direction acknowledgement, queue reconciliation, blockers, and proposed changes | `IMPLEMENTED_IN_PR_51` | Owner channel event/outbox contract | Implemented, worker claims remain evidence |
+| 1 | `MC-Q-OWNER-CHANNEL-001` | Ledger-first bidirectional owner↔worker messaging | `IMPLEMENTED_VERIFIED_IN_PR_51` | Existing Mission Control daemon/event ledger | Implemented, not orchestration authority |
+| 2 | `MC-Q-DIRECTION-SYNC-001` | Direction acknowledgement, queue reconciliation, blockers, and proposed changes | `IMPLEMENTED_VERIFIED_IN_PR_51` | Owner channel event/outbox contract | Implemented, worker claims remain evidence |
 | 3 | `MC-EXP-HERMES-001` | Bounded Hermes continuity/supervision comparison | `QUEUED_EXPERIMENT` | Stable worker-channel adapter and preregistered budget | Not adopted |
 | 4 | `MC-EVAL-N8N-001` | Bounded n8n integration/event-routing evaluation | `QUEUED_EVALUATION` | Stable external event API and at least one real adapter burden | Not adopted |
 
