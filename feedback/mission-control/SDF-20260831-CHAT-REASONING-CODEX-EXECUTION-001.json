@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-CHAT-REASONING-CODEX-EXECUTION-001",
+  "createdAt": "2026-08-31T00:45:00Z",
+  "taskId": "mission-control-supervision-architecture",
+  "workerRunId": "pro-design-chat-owner-correction-20260831",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-MISSION-CONTROL-SUPERVISION-001",
+    "epoch": 4,
+    "sha256": "d8ae5b66b118b0c4b1f0830e160c9aaf8c2a84c95294fd948d4403674c43fe8b"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-08-31T00:45:00Z",
+    "exactText": "you missed the main problem. i already told you originally, don't use codex to do reasoning. the chats do the reasoning, codex just handles the execution the chats are incapable of."
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "pr42-chat-led-reasoning-execution-separation",
+    "sha256OrCommit": "a115eb0a9eaeaae6a0dc6774caa6d7f47218c024"
+  },
+  "type": "DEFECT",
+  "category": "REASONING_EXECUTION_AUTHORITY_SEPARATION",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "The architecture routed reasoning-heavy tasks away from Codex in principle but still allowed Codex to act as controller, self-checker, article author, progress auditor, strategy selector, and composer of Pro supervision requests. This violates the owner's original operating rule. The absence of a separate active chat reasoning loop allowed extensive locally compliant execution with no independent strategic supervision of progress.",
+  "relevantRule": {
+    "path": "patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md",
+    "section": "Tier 1 — worker self-check and repository contract",
+    "excerpt": "Codex evaluates its own work against the task contract; the earlier architecture also referred to ordinary Codex/Extra High review."
+  },
+  "observedOrHypotheticalFailure": "Codex performs substantive article rewriting and strategy reasoning, evaluates itself, and contacts Pro only when it decides to. Because the actuator is also the controller, no independent chat continuously asks whether the chosen method is working. The owner must notice no progress and request a review manually.",
+  "evidenceRefs": [
+    {
+      "type": "owner_correction",
+      "exactTextSha256": "d8ae5b66b118b0c4b1f0830e160c9aaf8c2a84c95294fd948d4403674c43fe8b"
+    },
+    {
+      "type": "real_failure_fixture",
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "path": "evals/mission-control/codex-self-supervision-articles-failure.json"
+    },
+    {
+      "type": "project_evidence",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "pullRequest": 73,
+      "facts": [
+        "Codex performed substantial article reasoning and implementation",
+        "direct outcome regressed",
+        "progress audit was initiated only after owner prompting"
+      ]
+    }
+  ],
+  "proposedChange": "Make chat-led reasoning / Codex execution separation the controlling architecture. Extra High owns default strategy, planning, authoring, progress judgment, and directive composition; Pro handles the highest-intelligence judgments; Codex executes only a versioned chat-authored directive and returns a non-authoritative execution receipt. Codex cannot select strategy, author substantive prose, classify progress/adequacy/completion, decide escalation, or supervise itself.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Keep Codex self-check and add more progress fields",
+      "rejectedBecause": "More fields do not create an independent controller; Codex remains the actor judging its own strategy."
+    },
+    {
+      "alternative": "Ask Codex to consult Pro more often",
+      "rejectedBecause": "Codex would still decide when and how to frame the reasoning question. Extra High/Pro must own the reasoning loop."
+    },
+    {
+      "alternative": "Use Pro for every reasoning step",
+      "rejectedBecause": "Extra High is the default abundant reasoning surface; Pro is reserved for decisions that materially need the highest intelligence."
+    }
+  ],
+  "risks": [
+    "Overly rigid directives could make execution brittle",
+    "Reasoning chat context can become stale or overflow",
+    "Extra High may lack local state unless exact receipts are supplied",
+    "Too-small execution horizons could create excessive handoff overhead",
+    "Codex tactical reasoning must remain allowed without becoming strategy authority"
+  ],
+  "workerRecommendation": "Adopt the new controlling pattern, directive/receipt schemas, runtime migration plan, hostile fixture, and current-worker bootstrap immediately. Migrate article prose authoring and strategy reasoning to Extra High/Pro; restrict Codex to materialization, testing, browser actions, and evidence collection.",
+  "workerUncertainty": "Execution-horizon size should be calibrated by task. The authority separation itself is not uncertain.",
+  "decisionThatCanChange": "All Mission Control routing, current worker instructions, article workflow, dashboard supervision state, and Codex allocation.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/pr42-chat-led-reasoning-execution-separation"
+  },
+  "status": "ACCEPTED_WITH_REVISION",
+  "proMetaReview": {
+    "reviewedIn": "current Pro supervisor-design chat",
+    "verdict": "ACCEPT_WITH_REVISION",
+    "summary": "The owner correction identifies the upstream causal defect. Progress monitoring alone is insufficient while Codex remains the reasoning controller. Make chat reasoning and execution directives authoritative; retain only tactical execution reasoning in Codex.",
+    "affectedPaths": [
+      "patterns/chat-led-reasoning-codex-execution-separation.md",
+      "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+      "templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json",
+      "templates/CODEX-EXECUTION-RECEIPT.json",
+      "docs/exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md",
+      "evals/mission-control/codex-self-supervision-articles-failure.json"
+    ]
+  },
+  "ownerDecisionRef": "owner-correction-2026-08-31-chat-reasoning-codex-execution",
+  "repositoryChangeRefs": [
+    "fa299394ea86ba2ebea987790b4559b8ec7dbf0f",
+    "33bfaa504c1997941e509118af40cb6cecaa883a",
+    "03999305cc7150143f9532e9b62931bf9a32b420"
+  ],
+  "testRefs": [
+    "tests/test_chat_led_reasoning_codex_execution.py"
+  ]
+}
