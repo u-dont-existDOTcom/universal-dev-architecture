@@ -12,18 +12,22 @@
     "currentState": "replace-with-current-state",
     "expectedState": "replace-with-expected-state",
     "sourceRef": "replace-with-authoritative-condition-source",
-    "actorOrMechanism": "replace-with-actor-or-mechanism-that-can-change-it"
+    "actorOrMechanism": "replace-with-actor-or-mechanism-that-can-change-it",
+    "requiredCapabilityOrOperation": "replace-with-exact-blocked-capability-or-operation"
   },
   "sourceObservedAt": "1970-01-01T00:00:00Z",
+  "waitStartedAt": "1970-01-01T00:00:01Z",
   "pollOrNotificationMechanism": {
     "mode": "NOTIFICATION",
     "identity": "replace-with-exact-poll-or-notification-mechanism"
   },
   "pollingNeeded": false,
-  "nextCheckAt": null,
+  "nextCheckAt": "1970-01-01T00:01:00Z",
   "maximumWaitHorizonSeconds": 3600,
   "stateIfHorizonExpires": "BLOCKED_EXTERNAL",
   "ownerActionRequired": false,
+  "ownerDecisionId": null,
+  "ownerAction": "NONE",
   "unrelatedWorkAllowed": true,
   "allowedStatesIfHorizonExpires": [
     "BLOCKED_EXTERNAL",

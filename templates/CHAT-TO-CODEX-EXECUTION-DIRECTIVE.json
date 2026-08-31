@@ -4,6 +4,7 @@
   "directiveRevision": 1,
   "createdAt": "1970-01-01T00:00:00Z",
   "taskId": "replace-with-task-id",
+  "actionClass": "SUBSTANTIVE_EXECUTION",
   "ownerOutcome": {
     "ownerOutcomeId": "replace-with-owner-outcome-id",
     "epoch": 1,
@@ -12,11 +13,26 @@
   "authorityContext": {
     "activeTaskRef": "path/to/active-task.json",
     "taskLocalCheckpointRef": "path/to/task-local-current-state",
+    "taskLocalCheckpointGitRef": "refs/heads/replace-with-task-branch",
+    "taskLocalCheckpointGitObjectId": "replace-with-exact-commit-or-blob-identity",
+    "taskLocalCheckpointContentSha256": "replace-with-task-local-content-sha256",
+    "currentOwnerSourceRecordId": "replace-with-owner-request-or-correction-id",
+    "currentOwnerSourceReceiptId": "replace-with-independent-owner-source-receipt-id",
     "repositoryGlobalStateRef": "path/to/repository-global-current-state",
     "globalStateRelation": "AMBIGUOUS",
     "authorityResolutionStatus": "UNRESOLVED",
+    "selectedExecutionSource": "NONE",
+    "substantiveExecutionAuthorized": false,
+    "reasoningReviewRequired": true,
+    "frontierAuthorization": "REASONING_REVIEW_REQUIRED",
+    "affectedOperation": "replace-with-exact-operation",
     "currentBlockerIds": [],
-    "waitAdmissionId": null
+    "blockedCapabilityIds": [],
+    "blockingBlockerIds": [],
+    "revalidationRequiredBlockerIds": [],
+    "ambiguousBlockerIds": [],
+    "waitAdmissionId": null,
+    "waitAdmissionState": "NOT_REQUIRED"
   },
   "reasoningSupervisor": {
     "surface": "EXTRA_HIGH",

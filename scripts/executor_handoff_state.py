@@ -21,10 +21,43 @@ RESPONSE_IDENTITY_FIELDS = (
     "nextDirectiveSchemaVersion",
 )
 
+DIRECTIVE_ACTION_CLASSES = {
+    "SUBSTANTIVE_EXECUTION",
+    "AUTHORITY_RECOVERY",
+    "EVIDENCE_PRESERVATION",
+    "REASONING_HANDOFF",
+}
+
+NONSUBSTANTIVE_ACTION_ALLOWLISTS = {
+    "AUTHORITY_RECOVERY": {
+        "READ_AUTHORITY_SOURCE",
+        "RECONCILE_AUTHORITY",
+        "VALIDATE_CHECKPOINT_IDENTITY",
+    },
+    "EVIDENCE_PRESERVATION": {
+        "PRESERVE_EVIDENCE",
+        "HASH_EVIDENCE",
+        "RECORD_EXECUTION_RECEIPT",
+    },
+    "REASONING_HANDOFF": {
+        "ROUTE_EVIDENCE_TO_REASONING_CHAT",
+        "PERSIST_REASONING_HANDOFF",
+        "POLL_REASONING_HANDOFF",
+    },
+}
+
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise HandoffValidationError(message)
+
+
+def _is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdefABCDEF" for character in value)
+    )
 
 
 def _parse_utc(value: str) -> datetime:
@@ -39,6 +72,11 @@ def validate_directive(directive: dict[str, Any]) -> bool:
     _require(directive.get("schemaVersion") == 2, "directive schemaVersion must be 2")
     _require(bool(directive.get("directiveId")), "directiveId is required")
     _require(bool(directive.get("taskId")), "taskId is required")
+    action_class = directive.get("actionClass")
+    _require(
+        action_class in DIRECTIVE_ACTION_CLASSES,
+        "directive actionClass is invalid",
+    )
     _require(
         isinstance(directive.get("ownerOutcome", {}).get("epoch"), int),
         "ownerOutcome.epoch must be an integer",
@@ -47,9 +85,17 @@ def validate_directive(directive: dict[str, Any]) -> bool:
     for field in (
         "activeTaskRef",
         "taskLocalCheckpointRef",
+        "taskLocalCheckpointGitRef",
+        "taskLocalCheckpointGitObjectId",
+        "currentOwnerSourceRecordId",
+        "currentOwnerSourceReceiptId",
         "repositoryGlobalStateRef",
     ):
         _require(bool(authority.get(field)), f"authorityContext.{field} is required")
+    _require(
+        _is_sha256(authority.get("taskLocalCheckpointContentSha256")),
+        "authorityContext.taskLocalCheckpointContentSha256 is invalid",
+    )
     _require(
         authority.get("globalStateRelation")
         in {
@@ -67,6 +113,34 @@ def validate_directive(directive: dict[str, Any]) -> bool:
         "authorityContext.authorityResolutionStatus is invalid",
     )
     _require(
+        authority.get("selectedExecutionSource")
+        in {"NONE", "TASK_LOCAL_CHECKPOINT"},
+        "authorityContext.selectedExecutionSource is invalid",
+    )
+    _require(
+        isinstance(authority.get("substantiveExecutionAuthorized"), bool),
+        "authorityContext.substantiveExecutionAuthorized must be a boolean",
+    )
+    _require(
+        isinstance(authority.get("reasoningReviewRequired"), bool),
+        "authorityContext.reasoningReviewRequired must be a boolean",
+    )
+    _require(
+        authority.get("frontierAuthorization")
+        in {
+            "AUTHORIZED",
+            "BLOCKED_BY_APPLICABLE_BLOCKER",
+            "BLOCKER_REVALIDATION_REQUIRED",
+            "REASONING_REVIEW_REQUIRED",
+            "INVALID_AUTHORITY",
+        },
+        "authorityContext.frontierAuthorization is invalid",
+    )
+    _require(
+        bool(authority.get("affectedOperation")),
+        "authorityContext.affectedOperation is required",
+    )
+    _require(
         isinstance(authority.get("currentBlockerIds"), list)
         and all(
             isinstance(blocker_id, str) and blocker_id.strip()
@@ -82,6 +156,89 @@ def validate_directive(directive: dict[str, Any]) -> bool:
         ),
         "authorityContext.waitAdmissionId must be null or a nonempty string",
     )
+    _require(
+        authority.get("waitAdmissionState")
+        in {"NOT_REQUIRED", "ADMITTED", "REJECTED", "UNRESOLVED"},
+        "authorityContext.waitAdmissionState is invalid",
+    )
+    for field in (
+        "blockedCapabilityIds",
+        "blockingBlockerIds",
+        "revalidationRequiredBlockerIds",
+        "ambiguousBlockerIds",
+    ):
+        value = authority.get(field)
+        _require(
+            isinstance(value, list)
+            and all(isinstance(item, str) and item.strip() for item in value),
+            f"authorityContext.{field} must be a string list",
+        )
+    authority_status = authority["authorityResolutionStatus"]
+    if authority_status in {"UNRESOLVED", "AMBIGUOUS", "INVALID"}:
+        _require(
+            authority["selectedExecutionSource"] == "NONE",
+            "unresolved, ambiguous, or invalid authority cannot select an execution source",
+        )
+        _require(
+            authority["substantiveExecutionAuthorized"] is False,
+            "unresolved, ambiguous, or invalid authority cannot authorize substantive execution",
+        )
+        _require(
+            authority["reasoningReviewRequired"] is True,
+            "unresolved, ambiguous, or invalid authority requires reasoning review",
+        )
+
+    actions = directive.get("allowed", {}).get("actions")
+    _require(
+        isinstance(actions, list)
+        and bool(actions)
+        and all(isinstance(action, str) and action.strip() for action in actions),
+        "allowed.actions must contain at least one exact action",
+    )
+    if action_class == "SUBSTANTIVE_EXECUTION":
+        _require(
+            authority_status == "VALID",
+            "substantive execution requires VALID authority",
+        )
+        _require(
+            authority["selectedExecutionSource"] == "TASK_LOCAL_CHECKPOINT",
+            "substantive execution requires the exact task-local checkpoint",
+        )
+        _require(
+            authority["substantiveExecutionAuthorized"] is True,
+            "substantive execution is not authorized",
+        )
+        _require(
+            authority["reasoningReviewRequired"] is False,
+            "substantive execution cannot bypass a required reasoning review",
+        )
+        _require(
+            authority["frontierAuthorization"] == "AUTHORIZED",
+            "substantive execution frontier is not authorized",
+        )
+        for field in (
+            "blockedCapabilityIds",
+            "blockingBlockerIds",
+            "revalidationRequiredBlockerIds",
+            "ambiguousBlockerIds",
+        ):
+            _require(
+                not authority[field],
+                f"substantive execution has unresolved {field}",
+            )
+        wait_id = authority.get("waitAdmissionId")
+        wait_state = authority.get("waitAdmissionState")
+        _require(
+            (wait_id is None and wait_state == "NOT_REQUIRED")
+            or (bool(wait_id) and wait_state == "ADMITTED"),
+            "substantive execution requires a valid referenced wait admission",
+        )
+    else:
+        allowlist = NONSUBSTANTIVE_ACTION_ALLOWLISTS[action_class]
+        _require(
+            set(actions).issubset(allowlist),
+            f"{action_class} contains a non-allowlisted action",
+        )
     supervisor = directive.get("reasoningSupervisor", {})
     _require(
         supervisor.get("surface") in {"EXTRA_HIGH", "PRO"},
