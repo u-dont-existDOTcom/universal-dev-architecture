@@ -86,7 +86,10 @@ Codex must not:
 - decide whether an owner decision is needed, except to report missing authority/input;
 - author a supervisory verdict or substantive Pro question;
 - invent a new strategy after failure;
-- continue beyond a declared stop or review boundary.
+- perform unauthorized substantive work beyond a declared stop or review
+  boundary. Reaching that boundary does not end the owner-facing loop: Codex or
+  the durable controller must route the receipt, obtain the required reasoning
+  review, and resume automatically when authorized work remains.
 
 Every nontrivial Codex run requires a current chat-authored directive using:
 
@@ -424,7 +427,10 @@ completion.
 
 Reaching a directive stop or review boundary stops only further substantive
 execution under that directive. It does not authorize Codex to end the
-owner-facing loop after merely returning an execution receipt.
+owner-facing loop after merely returning an execution receipt. A task contract
+or directive that already identifies later slices keeps those slices queued;
+the review boundary reconciles or reauthorizes the next slice, but it is not a
+request for the owner to restart the worker.
 
 When reasoning review is required, Codex or the durable execution controller
 must:
@@ -439,6 +445,12 @@ must:
 8. import and apply it exactly once;
 9. validate any next `CHAT-TO-CODEX-EXECUTION-DIRECTIVE`;
 10. continue automatically to the next stop boundary.
+
+Do not ask the owner whether to continue merely because a receipt, subtask,
+phase, or slice finished. Ask only when the next action depends on a genuine
+missing owner decision or one of the explicit pause conditions below. If the
+reasoning surface must issue a separate directive, the controller obtains it;
+`separate directive` never means `separate owner prompt`.
 
 Intermediate polls return only `PENDING` or `READY` plus request/response
 identity and retry metadata. They must not repeatedly load full conversation
@@ -480,6 +492,10 @@ practical and referenced by exact artifact identity and SHA-256.
 
 A temporary wait, browser timeout, or pending reasoning response is not a
 terminal user-facing handoff.
+
+Ending the owner-facing turn while an already-specified slice remains and no
+genuine owner decision is required is `EXECUTOR_CONTINUATION_DROPPED`, even if
+the preceding receipt and review packet were valid.
 
 Extra High and Pro do not boot a finished Codex turn. The current execution
 controller owns immediate handoff continuity; the target Mission Control runtime
@@ -531,5 +547,7 @@ At the next safe boundary, every current Codex session must record:
 - next directive ID and validation result;
 - automatic-resume timestamp;
 - `EXECUTOR_HANDOFF_DROPPED`, `REASONING_RESPONSE_NOT_AWAITED`, `DUPLICATE_REASONING_REQUEST`, or `HANDOFF_BLOCKED` when applicable.
+- `EXECUTOR_CONTINUATION_DROPPED` when a receipt or slice boundary was treated
+  as task completion despite remaining already-authorized work.
 
 Do not discard valid work. Reclassify it as execution evidence or supporting work and let the reasoning chat decide its meaning.

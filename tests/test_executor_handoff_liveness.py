@@ -921,6 +921,24 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
             "ACCOUNTING_ELAPSED_WINDOW_MISMATCH",
         )
 
+    def test_32_review_boundaries_never_require_the_owner_to_restart_queued_slices(self) -> None:
+        bootstrap = (
+            ROOT / "templates" / "CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md"
+        ).read_text()
+        migration = (
+            ROOT
+            / "docs"
+            / "exec-plans"
+            / "2026-08-31-current-workers-chat-supervisor-migration-instruction.md"
+        ).read_text()
+        for source in (bootstrap, migration):
+            self.assertIn("later slices", source.lower())
+            self.assertIn("queued", source.lower())
+            self.assertIn("resume automatically", source)
+            self.assertRegex(source, r"(?i)owner.*restart")
+        self.assertIn("EXECUTOR_CONTINUATION_DROPPED", bootstrap)
+        self.assertIn("separate owner prompt", bootstrap)
+
 
 if __name__ == "__main__":
     unittest.main()
