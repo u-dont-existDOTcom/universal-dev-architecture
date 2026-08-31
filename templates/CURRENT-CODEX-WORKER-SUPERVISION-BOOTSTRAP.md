@@ -457,7 +457,14 @@ response import or automatic execution resumption.
 Bind each accounting event to an exact phase window, surface, metering domain,
 telemetry source, call count, elapsed seconds, and—during waiting—executor-
 occupied seconds. Keep wall-clock wait separate from the time the executor is
-actually occupied polling. The exact token formula is
+actually occupied polling. Parse every window timestamp and require
+`elapsedSeconds` to equal its exact duration. Treat windows as half-open
+intervals: touching boundaries are valid, but same-phase overlaps and any
+wait/execution overlap are invalid. Once accounting is finalized, reject every
+later usage event with `ACCOUNTING_ALREADY_FINALIZED`. Use
+`ACCOUNTING_WINDOW_OVERLAP`, `ACCOUNTING_PHASE_OVERLAP`, and
+`ACCOUNTING_ELAPSED_WINDOW_MISMATCH` for the corresponding invalid events. The
+exact token formula is
 `(wait_input_tokens + wait_output_tokens) / (execution_input_tokens + execution_output_tokens)`.
 Compute it only when both phases have complete exact runtime token counts, the
 metering domains are identical, and the execution denominator is positive.

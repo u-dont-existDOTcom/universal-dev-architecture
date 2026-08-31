@@ -154,6 +154,14 @@ def _record_resource_usage(
     state: dict[str, Any], event: dict[str, Any], at: str
 ) -> dict[str, Any]:
     accounting = state["resourceAccounting"]
+    if accounting["finalizationId"] is not None:
+        return _resource_error(
+            state,
+            event,
+            at,
+            "ACCOUNTING_ALREADY_FINALIZED",
+            "resource usage cannot be recorded after accounting finalization",
+        )
     usage_id = event.get("usageEventId")
     if not usage_id:
         return _resource_error(state, event, at, "USAGE_EVENT_ID_REQUIRED", "usageEventId is required")
@@ -238,6 +246,15 @@ def _record_resource_usage(
         return _resource_error(
             state, event, at, "INVALID_ELAPSED_TIME", "elapsedSeconds must be nonnegative"
         )
+    interval_seconds = (end_time - start_time).total_seconds()
+    if float(event["elapsedSeconds"]) != interval_seconds:
+        return _resource_error(
+            state,
+            event,
+            at,
+            "ACCOUNTING_ELAPSED_WINDOW_MISMATCH",
+            "elapsedSeconds must equal the exact accounting-window duration",
+        )
     occupied = event.get("executorOccupiedSeconds")
     if phase == "WAIT" and not _is_nonnegative_number(occupied):
         return _resource_error(
@@ -255,6 +272,22 @@ def _record_resource_usage(
             "INVALID_EXECUTOR_OCCUPANCY",
             "EXECUTION occupancy must be null because execution elapsed is already occupied work",
         )
+    for existing_record in accounting["usageEvents"]:
+        existing_start = _parse_utc(existing_record["windowStartedAt"])
+        existing_end = _parse_utc(existing_record["windowEndedAt"])
+        if start_time < existing_end and existing_start < end_time:
+            same_phase = existing_record["phase"] == phase
+            return _resource_error(
+                state,
+                event,
+                at,
+                "ACCOUNTING_WINDOW_OVERLAP" if same_phase else "ACCOUNTING_PHASE_OVERLAP",
+                (
+                    "accounting windows within one phase must not overlap"
+                    if same_phase
+                    else "WAIT and EXECUTION accounting windows must not overlap"
+                ),
+            )
     record = {key: value for key, value in event.items() if key not in {"type", "at"}}
     accounting["usageEvents"].append(record)
     _append_event(state, "RECORD_RESOURCE_USAGE", at)
@@ -308,11 +341,11 @@ def _finalize_resource_accounting(
         accounting["attribution"][f"{prefix}MeteringDomains"] = domains
         if selected:
             accounting["window"][f"{prefix}StartedAt"] = min(
-                record["windowStartedAt"] for record in selected
-            )
+                selected, key=lambda record: _parse_utc(record["windowStartedAt"])
+            )["windowStartedAt"]
             accounting["window"][f"{prefix}EndedAt"] = max(
-                record["windowEndedAt"] for record in selected
-            )
+                selected, key=lambda record: _parse_utc(record["windowEndedAt"])
+            )["windowEndedAt"]
         target = accounting[prefix]
         target["inputTokens"] = _sum_complete(selected, "inputTokens")
         target["outputTokens"] = _sum_complete(selected, "outputTokens")

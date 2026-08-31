@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts.executor_handoff_state import (
@@ -707,6 +708,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
             responseBytes=0,
             callCount=0,
             elapsedSeconds=0.0,
+            windowEndedAt="2026-08-31T00:00:00Z",
         )
         state = self.usage(
             state,
@@ -771,7 +773,153 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertEqual(len(raw), source["utf8Bytes"])
         self.assertEqual(hashlib.sha256(raw).hexdigest(), source["sha256"])
         self.assertEqual(feedback["ownerOutcome"]["sha256"], source["sha256"])
+        self.assertEqual(
+            feedback["ownerOutcome"]["ownerOutcomeId"],
+            "OO-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+        )
+        self.assertEqual(
+            feedback["parentOwnerOutcomeReference"],
+            {
+                "ownerOutcomeId": "somatic-therapies-humanization",
+                "relationship": "UNAFFECTED_PARENT_OUTCOME_REFERENCE",
+            },
+        )
         self.assertFalse(source["terminalNewline"])
+
+    def test_27_one_hundred_polls_accumulate_exact_wait_transport_without_projection_growth(
+        self,
+    ) -> None:
+        state = self.usage(
+            self.waiting(),
+            usage_id="execution-before-wait",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+        )
+        base = datetime(2026, 8, 31, 0, 10, tzinfo=timezone.utc)
+        projections = []
+        for index in range(100):
+            started = base + timedelta(seconds=index)
+            ended = started + timedelta(seconds=1)
+            at = ended.isoformat().replace("+00:00", "Z")
+            state = self.event(
+                state,
+                "POLL_PENDING",
+                at,
+                nextPollAt="2026-08-31T00:20:00Z",
+            )
+            state = self.usage(
+                state,
+                usage_id=f"wait-poll-{index:03d}",
+                phase="WAIT",
+                at=at,
+                tokenTelemetry="UNAVAILABLE",
+                inputTokens=None,
+                outputTokens=None,
+                requestBytes=10,
+                responseBytes=2,
+                callCount=1,
+                elapsedSeconds=1.0,
+                executorOccupiedSeconds=0.01,
+                windowStartedAt=started.isoformat().replace("+00:00", "Z"),
+                windowEndedAt=ended.isoformat().replace("+00:00", "Z"),
+            )
+            projection = compact_poll_projection(state)
+            self.assertNotIn("resourceAccounting", projection)
+            projections.append(tuple(sorted(projection)))
+        self.assertEqual(len(set(projections)), 1)
+        self.assertEqual(state["polling"]["messagesSentAfterInitialRequest"], 0)
+        self.assertEqual(state["polling"]["fullConversationPayloadsRetrieved"], 0)
+        finalized = self.finalized_accounting(state)
+        accounting = finalized["resourceAccounting"]
+        self.assertEqual(accounting["wait"]["requestBytes"], 1000)
+        self.assertEqual(accounting["wait"]["responseBytes"], 200)
+        self.assertEqual(accounting["wait"]["callCount"], 100)
+        self.assertEqual(accounting["wait"]["elapsedSeconds"], 100.0)
+        self.assertEqual(accounting["wait"]["executorOccupiedSeconds"], 1.0)
+        self.assertEqual(finalized["state"], "WAITING_FOR_REASONING_REVIEW")
+
+    def test_28_usage_after_finalization_is_rejected_without_changing_liveness(self) -> None:
+        waiting = self.waiting()
+        finalized = self.finalized_accounting(waiting)
+        rejected = self.usage(
+            finalized,
+            usage_id="late-wait-usage",
+            phase="WAIT",
+            at="2026-08-31T00:09:01Z",
+        )
+        self.assertEqual(rejected["state"], "WAITING_FOR_REASONING_REVIEW")
+        self.assertEqual(rejected["resourceAccounting"]["usageEvents"], [])
+        self.assertEqual(
+            rejected["resourceAccounting"]["accountingErrors"][0]["code"],
+            "ACCOUNTING_ALREADY_FINALIZED",
+        )
+
+    def test_29_same_phase_overlapping_windows_are_rejected(self) -> None:
+        once = self.usage(
+            self.handoff,
+            usage_id="execution-window-1",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+        )
+        rejected = self.usage(
+            once,
+            usage_id="execution-window-2",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:01Z",
+            windowStartedAt="2026-08-31T00:00:30Z",
+            windowEndedAt="2026-08-31T00:01:30Z",
+        )
+        self.assertEqual(len(rejected["resourceAccounting"]["usageEvents"]), 1)
+        self.assertEqual(
+            rejected["resourceAccounting"]["accountingErrors"][0]["code"],
+            "ACCOUNTING_WINDOW_OVERLAP",
+        )
+
+    def test_30_wait_execution_overlap_is_rejected_but_touching_boundaries_are_valid(
+        self,
+    ) -> None:
+        execution = self.usage(
+            self.handoff,
+            usage_id="execution-window",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+        )
+        overlapping = self.usage(
+            execution,
+            usage_id="wait-overlap",
+            phase="WAIT",
+            at="2026-08-31T00:01:01Z",
+            windowStartedAt="2026-08-31T00:00:30Z",
+            windowEndedAt="2026-08-31T00:01:00Z",
+        )
+        self.assertEqual(
+            overlapping["resourceAccounting"]["accountingErrors"][0]["code"],
+            "ACCOUNTING_PHASE_OVERLAP",
+        )
+        touching = self.usage(
+            execution,
+            usage_id="wait-touching",
+            phase="WAIT",
+            at="2026-08-31T00:01:30Z",
+            windowStartedAt="2026-08-31T00:01:00Z",
+            windowEndedAt="2026-08-31T00:01:30Z",
+        )
+        self.assertEqual(len(touching["resourceAccounting"]["usageEvents"]), 2)
+        self.assertEqual(touching["resourceAccounting"]["accountingErrors"], [])
+
+    def test_31_elapsed_seconds_must_match_exact_window_duration(self) -> None:
+        rejected = self.usage(
+            self.handoff,
+            usage_id="bad-elapsed",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+            elapsedSeconds=59.0,
+        )
+        self.assertEqual(rejected["resourceAccounting"]["usageEvents"], [])
+        self.assertEqual(
+            rejected["resourceAccounting"]["accountingErrors"][0]["code"],
+            "ACCOUNTING_ELAPSED_WINDOW_MISMATCH",
+        )
 
 
 if __name__ == "__main__":

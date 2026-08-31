@@ -5,9 +5,13 @@
   "taskId": "somatic-r15-clean-continuation-20260830",
   "workerRunId": "somatic-r15-codex-controller-20260831",
   "ownerOutcome": {
-    "ownerOutcomeId": "somatic-therapies-humanization",
+    "ownerOutcomeId": "OO-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
     "epoch": 1,
     "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6"
+  },
+  "parentOwnerOutcomeReference": {
+    "ownerOutcomeId": "somatic-therapies-humanization",
+    "relationship": "UNAFFECTED_PARENT_OUTCOME_REFERENCE"
   },
   "ownerSourceReceipt": {
     "source": "current owner conversation",
