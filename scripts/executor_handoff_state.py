@@ -134,6 +134,293 @@ def _same_fields(existing: dict[str, Any], incoming: dict[str, Any], fields: tup
     return all(existing.get(field) == incoming.get(field) for field in fields)
 
 
+def _is_nonnegative_number(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and value >= 0
+
+
+def _resource_error(
+    state: dict[str, Any], event: dict[str, Any], at: str, code: str, detail: str
+) -> dict[str, Any]:
+    accounting = state["resourceAccounting"]
+    identity = str(event.get("usageEventId") or event.get("finalizationId") or "unidentified")
+    error = {"identity": identity, "code": code, "detail": detail, "recordedAt": at}
+    if error not in accounting["accountingErrors"]:
+        accounting["accountingErrors"].append(error)
+        _append_event(state, "RESOURCE_ACCOUNTING_REJECTED", at)
+    return state
+
+
+def _record_resource_usage(
+    state: dict[str, Any], event: dict[str, Any], at: str
+) -> dict[str, Any]:
+    accounting = state["resourceAccounting"]
+    usage_id = event.get("usageEventId")
+    if not usage_id:
+        return _resource_error(state, event, at, "USAGE_EVENT_ID_REQUIRED", "usageEventId is required")
+    existing = [item for item in accounting["usageEvents"] if item["usageEventId"] == usage_id]
+    if existing:
+        incoming = {key: value for key, value in event.items() if key not in {"type", "at"}}
+        if existing[0] == incoming:
+            return state
+        return _resource_error(
+            state,
+            event,
+            at,
+            "ACCOUNTING_EVENT_CONFLICT",
+            "a different usage event already has this identity",
+        )
+    if any(
+        key in event
+        for key in ("estimatedTokens", "estimatedInputTokens", "estimatedOutputTokens")
+    ) or event.get("tokenTelemetry") == "ESTIMATED":
+        return _resource_error(
+            state,
+            event,
+            at,
+            "GUESSED_TOKEN_TELEMETRY_REJECTED",
+            "token accounting must come from exact runtime telemetry",
+        )
+    phase = event.get("phase")
+    if phase not in {"WAIT", "EXECUTION"}:
+        return _resource_error(state, event, at, "INVALID_PHASE", "phase must be WAIT or EXECUTION")
+    for field in ("surface", "meteringDomain", "telemetrySource"):
+        if not str(event.get(field) or "").strip():
+            return _resource_error(state, event, at, "ATTRIBUTION_REQUIRED", f"{field} is required")
+    started = event.get("windowStartedAt")
+    ended = event.get("windowEndedAt")
+    try:
+        start_time = _parse_utc(started)
+        end_time = _parse_utc(ended)
+    except HandoffValidationError as exc:
+        return _resource_error(state, event, at, "INVALID_ACCOUNTING_WINDOW", str(exc))
+    if end_time < start_time:
+        return _resource_error(
+            state, event, at, "INVALID_ACCOUNTING_WINDOW", "window end precedes start"
+        )
+    token_quality = event.get("tokenTelemetry")
+    input_tokens = event.get("inputTokens")
+    output_tokens = event.get("outputTokens")
+    if token_quality not in {"EXACT", "PARTIAL", "UNAVAILABLE"}:
+        return _resource_error(
+            state, event, at, "INVALID_TOKEN_TELEMETRY", "tokenTelemetry is invalid"
+        )
+    token_values = (input_tokens, output_tokens)
+    if token_quality == "EXACT" and not all(
+        isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        for value in token_values
+    ):
+        return _resource_error(
+            state, event, at, "INEXACT_TOKEN_TELEMETRY", "EXACT requires two exact integer counts"
+        )
+    if token_quality == "UNAVAILABLE" and token_values != (None, None):
+        return _resource_error(
+            state, event, at, "UNAVAILABLE_TOKEN_TELEMETRY_HAS_VALUES", "unavailable tokens must be null"
+        )
+    if token_quality == "PARTIAL" and not all(
+        value is None
+        or (isinstance(value, int) and not isinstance(value, bool) and value >= 0)
+        for value in token_values
+    ):
+        return _resource_error(
+            state, event, at, "INVALID_PARTIAL_TOKEN_TELEMETRY", "partial token values are invalid"
+        )
+    byte_values = (event.get("requestBytes"), event.get("responseBytes"))
+    if not (
+        byte_values == (None, None)
+        or all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in byte_values)
+    ):
+        return _resource_error(
+            state, event, at, "INVALID_BYTE_TELEMETRY", "byte counts must be two exact integers or null"
+        )
+    if not isinstance(event.get("callCount"), int) or isinstance(event.get("callCount"), bool) or event["callCount"] < 0:
+        return _resource_error(state, event, at, "INVALID_CALL_COUNT", "callCount must be nonnegative")
+    if not _is_nonnegative_number(event.get("elapsedSeconds")):
+        return _resource_error(
+            state, event, at, "INVALID_ELAPSED_TIME", "elapsedSeconds must be nonnegative"
+        )
+    occupied = event.get("executorOccupiedSeconds")
+    if phase == "WAIT" and not _is_nonnegative_number(occupied):
+        return _resource_error(
+            state,
+            event,
+            at,
+            "INVALID_EXECUTOR_OCCUPANCY",
+            "WAIT requires nonnegative executorOccupiedSeconds",
+        )
+    if phase == "EXECUTION" and occupied is not None:
+        return _resource_error(
+            state,
+            event,
+            at,
+            "INVALID_EXECUTOR_OCCUPANCY",
+            "EXECUTION occupancy must be null because execution elapsed is already occupied work",
+        )
+    record = {key: value for key, value in event.items() if key not in {"type", "at"}}
+    accounting["usageEvents"].append(record)
+    _append_event(state, "RECORD_RESOURCE_USAGE", at)
+    return state
+
+
+def _sum_complete(records: list[dict[str, Any]], field: str) -> int | float | None:
+    values = [record.get(field) for record in records]
+    if not records or any(value is None for value in values):
+        return None
+    return sum(values)
+
+
+def _pair_total(values: dict[str, Any], first: str, second: str) -> int | float | None:
+    if values[first] is None or values[second] is None:
+        return None
+    return values[first] + values[second]
+
+
+def _ratio(numerator: int | float | None, denominator: int | float | None) -> float | None:
+    if numerator is None or denominator is None or denominator <= 0:
+        return None
+    return float(numerator) / float(denominator)
+
+
+def _finalize_resource_accounting(
+    state: dict[str, Any], event: dict[str, Any], at: str
+) -> dict[str, Any]:
+    accounting = state["resourceAccounting"]
+    finalization_id = event.get("finalizationId")
+    if not finalization_id:
+        return _resource_error(
+            state, event, at, "FINALIZATION_ID_REQUIRED", "finalizationId is required"
+        )
+    if accounting["finalizationId"] is not None:
+        if accounting["finalizationId"] == finalization_id:
+            return state
+        return _resource_error(
+            state, event, at, "ACCOUNTING_FINALIZATION_CONFLICT", "accounting is already finalized"
+        )
+    records = accounting["usageEvents"]
+    wait = [record for record in records if record["phase"] == "WAIT"]
+    execution = [record for record in records if record["phase"] == "EXECUTION"]
+    for phase, selected, prefix in (
+        ("WAIT", wait, "wait"),
+        ("EXECUTION", execution, "execution"),
+    ):
+        surfaces = sorted({record["surface"] for record in selected})
+        domains = sorted({record["meteringDomain"] for record in selected})
+        accounting["attribution"][f"{prefix}Surfaces"] = surfaces
+        accounting["attribution"][f"{prefix}MeteringDomains"] = domains
+        if selected:
+            accounting["window"][f"{prefix}StartedAt"] = min(
+                record["windowStartedAt"] for record in selected
+            )
+            accounting["window"][f"{prefix}EndedAt"] = max(
+                record["windowEndedAt"] for record in selected
+            )
+        target = accounting[prefix]
+        target["inputTokens"] = _sum_complete(selected, "inputTokens")
+        target["outputTokens"] = _sum_complete(selected, "outputTokens")
+        target["requestBytes"] = _sum_complete(selected, "requestBytes")
+        target["responseBytes"] = _sum_complete(selected, "responseBytes")
+        target["callCount"] = int(sum(record["callCount"] for record in selected))
+        target["elapsedSeconds"] = _sum_complete(selected, "elapsedSeconds")
+        if phase == "WAIT":
+            target["executorOccupiedSeconds"] = _sum_complete(
+                selected, "executorOccupiedSeconds"
+            )
+
+    qualities = {record["tokenTelemetry"] for record in records}
+    exact_tokens = bool(wait and execution) and qualities == {"EXACT"}
+    any_tokens = any(
+        record.get("inputTokens") is not None or record.get("outputTokens") is not None
+        for record in records
+    )
+    exact_bytes = bool(wait and execution) and all(
+        record.get("requestBytes") is not None and record.get("responseBytes") is not None
+        for record in records
+    )
+    quality = accounting["telemetryQuality"]
+    quality["tokens"] = "EXACT" if exact_tokens else "PARTIAL" if any_tokens else "UNAVAILABLE"
+    quality["transportBytes"] = "EXACT" if exact_bytes else "PARTIAL" if any(
+        record.get("requestBytes") is not None or record.get("responseBytes") is not None
+        for record in records
+    ) else "UNAVAILABLE"
+    quality["windows"] = "EXACT" if wait and execution else "PARTIAL" if records else "UNAVAILABLE"
+    quality["calls"] = "EXACT" if wait and execution else "PARTIAL" if records else "UNAVAILABLE"
+    quality["elapsed"] = "EXACT" if wait and execution else "PARTIAL" if records else "UNAVAILABLE"
+    wait_domains = accounting["attribution"]["waitMeteringDomains"]
+    execution_domains = accounting["attribution"]["executionMeteringDomains"]
+    comparable_domain = (
+        len(wait_domains) == 1
+        and len(execution_domains) == 1
+        and wait_domains == execution_domains
+    )
+    wait_tokens = _pair_total(accounting["wait"], "inputTokens", "outputTokens")
+    execution_tokens = _pair_total(
+        accounting["execution"], "inputTokens", "outputTokens"
+    )
+    wait_bytes = _pair_total(accounting["wait"], "requestBytes", "responseBytes")
+    execution_bytes = _pair_total(
+        accounting["execution"], "requestBytes", "responseBytes"
+    )
+    ratios = accounting["ratios"]
+    statuses = accounting["ratioStatus"]
+    if not wait or not execution:
+        statuses["tokens"] = "INCOMPLETE_PHASE_COVERAGE"
+        statuses["transportBytes"] = "INCOMPLETE_PHASE_COVERAGE"
+        statuses["calls"] = "INCOMPLETE_PHASE_COVERAGE"
+        statuses["elapsed"] = "INCOMPLETE_PHASE_COVERAGE"
+        statuses["executorOccupied"] = "INCOMPLETE_PHASE_COVERAGE"
+    elif not comparable_domain:
+        statuses["tokens"] = "INCOMPARABLE_METERING_DOMAINS"
+        statuses["transportBytes"] = "INCOMPARABLE_METERING_DOMAINS"
+        statuses["calls"] = "INCOMPARABLE_METERING_DOMAINS"
+    else:
+        if not exact_tokens:
+            statuses["tokens"] = (
+                "PARTIAL_TOKEN_TELEMETRY" if any_tokens else "UNAVAILABLE"
+            )
+        elif execution_tokens == 0:
+            statuses["tokens"] = "ZERO_EXECUTION_TOKEN_DENOMINATOR"
+        else:
+            statuses["tokens"] = "COMPARABLE_EXACT_TOKENS"
+            ratios["waitToExecutionTokens"] = _ratio(wait_tokens, execution_tokens)
+        if not exact_bytes:
+            statuses["transportBytes"] = (
+                "PARTIAL_TRANSPORT_BYTE_TELEMETRY"
+                if quality["transportBytes"] == "PARTIAL"
+                else "UNAVAILABLE"
+            )
+        elif execution_bytes == 0:
+            statuses["transportBytes"] = "ZERO_EXECUTION_BYTE_DENOMINATOR"
+        else:
+            statuses["transportBytes"] = "COMPARABLE_EXACT_TRANSPORT_BYTES_FALLBACK"
+            ratios["waitToExecutionTransportBytes"] = _ratio(
+                wait_bytes, execution_bytes
+            )
+        if accounting["execution"]["callCount"] == 0:
+            statuses["calls"] = "ZERO_EXECUTION_CALL_DENOMINATOR"
+        else:
+            statuses["calls"] = "COMPARABLE_EXACT_CALL_COUNTS"
+            ratios["waitToExecutionCalls"] = _ratio(
+                accounting["wait"]["callCount"],
+                accounting["execution"]["callCount"],
+            )
+    execution_elapsed = accounting["execution"]["elapsedSeconds"]
+    if wait and execution and execution_elapsed == 0:
+        statuses["elapsed"] = "ZERO_EXECUTION_ELAPSED_DENOMINATOR"
+        statuses["executorOccupied"] = "ZERO_EXECUTION_ELAPSED_DENOMINATOR"
+    elif wait and execution:
+        statuses["elapsed"] = "COMPARABLE_EXACT_ELAPSED_SECONDS"
+        statuses["executorOccupied"] = "COMPARABLE_EXACT_OCCUPIED_SECONDS"
+        ratios["waitToExecutionElapsed"] = _ratio(
+            accounting["wait"]["elapsedSeconds"], execution_elapsed
+        )
+        ratios["executorOccupiedWaitToExecutionElapsed"] = _ratio(
+            accounting["wait"]["executorOccupiedSeconds"], execution_elapsed
+        )
+    accounting["finalizationId"] = finalization_id
+    accounting["finalizedAt"] = at
+    _append_event(state, "FINALIZE_RESOURCE_ACCOUNTING", at)
+    return state
+
+
 def apply_handoff_event(
     handoff: dict[str, Any], event: dict[str, Any]
 ) -> dict[str, Any]:
@@ -144,6 +431,11 @@ def apply_handoff_event(
     _require(bool(event_type), "event type is required")
     _parse_utc(at)
     current = state.get("state")
+
+    if event_type == "RECORD_RESOURCE_USAGE":
+        return _record_resource_usage(state, event, at)
+    if event_type == "FINALIZE_RESOURCE_ACCOUNTING":
+        return _finalize_resource_accounting(state, event, at)
 
     if event_type == "SUBMIT_REVIEW_REQUEST":
         _require(

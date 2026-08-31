@@ -33,19 +33,62 @@
     "messagesSentAfterInitialRequest": 0
   },
   "resourceAccounting": {
-    "tokenTelemetry": "UNAVAILABLE",
-    "telemetrySource": null,
-    "waitInputTokens": null,
-    "waitOutputTokens": null,
-    "executionInputTokensSincePriorHandoff": null,
-    "executionOutputTokensSincePriorHandoff": null,
-    "waitToExecutionTokenRatio": null,
-    "waitRequestBytes": 0,
-    "waitResponseBytes": 0,
-    "waitCallCount": 0,
-    "executionRequestBytesSincePriorHandoff": null,
-    "executionResponseBytesSincePriorHandoff": null,
-    "waitToExecutionByteRatio": null
+    "schemaVersion": 1,
+    "window": {
+      "waitStartedAt": null,
+      "waitEndedAt": null,
+      "executionStartedAt": null,
+      "executionEndedAt": null
+    },
+    "attribution": {
+      "waitSurfaces": [],
+      "executionSurfaces": [],
+      "waitMeteringDomains": [],
+      "executionMeteringDomains": []
+    },
+    "telemetryQuality": {
+      "tokens": "UNAVAILABLE",
+      "transportBytes": "UNAVAILABLE",
+      "windows": "UNAVAILABLE",
+      "calls": "UNAVAILABLE",
+      "elapsed": "UNAVAILABLE"
+    },
+    "ratioStatus": {
+      "tokens": "NOT_FINALIZED",
+      "transportBytes": "NOT_FINALIZED",
+      "calls": "NOT_FINALIZED",
+      "elapsed": "NOT_FINALIZED",
+      "executorOccupied": "NOT_FINALIZED"
+    },
+    "wait": {
+      "inputTokens": null,
+      "outputTokens": null,
+      "requestBytes": null,
+      "responseBytes": null,
+      "callCount": 0,
+      "elapsedSeconds": null,
+      "executorOccupiedSeconds": null
+    },
+    "execution": {
+      "inputTokens": null,
+      "outputTokens": null,
+      "requestBytes": null,
+      "responseBytes": null,
+      "callCount": 0,
+      "elapsedSeconds": null
+    },
+    "ratios": {
+      "waitToExecutionTokens": null,
+      "waitToExecutionTransportBytes": null,
+      "waitToExecutionCalls": null,
+      "waitToExecutionElapsed": null,
+      "executorOccupiedWaitToExecutionElapsed": null
+    },
+    "transportByteFallbackLabel": "TRANSPORT_VOLUME_ONLY_NOT_TOKEN_COST_QUOTA_OR_INTELLIGENCE",
+    "usageEvents": [],
+    "accountingErrors": [],
+    "finalizationId": null,
+    "finalizedAt": null
   },
   "response": {
     "responseId": null,

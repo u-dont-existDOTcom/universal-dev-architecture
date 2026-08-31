@@ -454,6 +454,20 @@ this accounting out of the compact poll envelope so repeated waiting remains
 constant-context control-plane work. Resource accounting must not delay
 response import or automatic execution resumption.
 
+Bind each accounting event to an exact phase window, surface, metering domain,
+telemetry source, call count, elapsed seconds, and—during waiting—executor-
+occupied seconds. Keep wall-clock wait separate from the time the executor is
+actually occupied polling. The exact token formula is
+`(wait_input_tokens + wait_output_tokens) / (execution_input_tokens + execution_output_tokens)`.
+Compute it only when both phases have complete exact runtime token counts, the
+metering domains are identical, and the execution denominator is positive.
+The byte fallback formula is
+`(wait_request_bytes + wait_response_bytes) / (execution_request_bytes + execution_response_bytes)`
+under the same completeness, comparability, and positive-denominator gates.
+Label that result transport volume only—not token, cost, quota, or intelligence
+accounting. Record unavailable, partial, incomparable-domain, and zero-
+denominator states explicitly rather than emitting a ratio.
+
 Large responses must be stored outside the active conversation context when
 practical and referenced by exact artifact identity and SHA-256.
 

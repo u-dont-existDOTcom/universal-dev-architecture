@@ -88,6 +88,39 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
     def event(self, state, event_type, at, **values):
         return apply_handoff_event(state, {"type": event_type, "at": at, **values})
 
+    def usage(self, state, *, usage_id, phase, at, **overrides):
+        defaults = {
+            "usageEventId": usage_id,
+            "phase": phase,
+            "surface": "CHATGPT_PRO" if phase == "WAIT" else "CODEX_EXECUTOR",
+            "meteringDomain": "OPENAI_RUNTIME_ACCOUNTING",
+            "telemetrySource": "runtime_usage",
+            "tokenTelemetry": "EXACT",
+            "inputTokens": 10 if phase == "WAIT" else 900,
+            "outputTokens": 2 if phase == "WAIT" else 100,
+            "requestBytes": 100 if phase == "WAIT" else 1000,
+            "responseBytes": 20 if phase == "WAIT" else 200,
+            "callCount": 1,
+            "elapsedSeconds": 30.0 if phase == "WAIT" else 60.0,
+            "executorOccupiedSeconds": 0.5 if phase == "WAIT" else None,
+            "windowStartedAt": "2026-08-31T00:03:00Z"
+            if phase == "WAIT"
+            else "2026-08-31T00:00:00Z",
+            "windowEndedAt": "2026-08-31T00:03:30Z"
+            if phase == "WAIT"
+            else "2026-08-31T00:01:00Z",
+        }
+        defaults.update(overrides)
+        return self.event(state, "RECORD_RESOURCE_USAGE", at, **defaults)
+
+    def finalized_accounting(self, state):
+        return self.event(
+            state,
+            "FINALIZE_RESOURCE_ACCOUNTING",
+            "2026-08-31T00:09:00Z",
+            finalizationId="accounting-final-001",
+        )
+
     def waiting(self):
         state = self.event(
             self.handoff,
@@ -514,15 +547,12 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
 
     def test_18_wait_and_execution_resource_accounting_are_separate(self) -> None:
         accounting = self.handoff_template["resourceAccounting"]
-        self.assertEqual(accounting["tokenTelemetry"], "UNAVAILABLE")
-        self.assertIsNone(accounting["waitInputTokens"])
-        self.assertIsNone(accounting["waitOutputTokens"])
-        self.assertIsNone(accounting["executionInputTokensSincePriorHandoff"])
-        self.assertIsNone(accounting["executionOutputTokensSincePriorHandoff"])
-        self.assertIsNone(accounting["waitToExecutionTokenRatio"])
-        self.assertEqual(accounting["waitRequestBytes"], 0)
-        self.assertEqual(accounting["waitResponseBytes"], 0)
-        self.assertEqual(accounting["waitCallCount"], 0)
+        self.assertEqual(accounting["telemetryQuality"]["tokens"], "UNAVAILABLE")
+        self.assertEqual(accounting["ratioStatus"]["tokens"], "NOT_FINALIZED")
+        self.assertIsNone(accounting["wait"]["inputTokens"])
+        self.assertIsNone(accounting["execution"]["inputTokens"])
+        self.assertEqual(accounting["wait"]["callCount"], 0)
+        self.assertEqual(accounting["execution"]["callCount"], 0)
         projection = compact_poll_projection(self.waiting())
         self.assertNotIn("resourceAccounting", projection)
         bootstrap = (
@@ -531,6 +561,217 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertIn("Account for waiting separately from substantive execution", bootstrap)
         self.assertIn("never invent or estimate token counts", bootstrap)
         self.assertIn("must not delay", bootstrap)
+
+    def test_19_exact_usage_computes_separate_ratios_and_wall_time(self) -> None:
+        state = self.usage(
+            self.handoff,
+            usage_id="execution-001",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+        )
+        state = self.usage(
+            state,
+            usage_id="wait-001",
+            phase="WAIT",
+            at="2026-08-31T00:04:00Z",
+        )
+        finalized = self.finalized_accounting(state)
+        accounting = finalized["resourceAccounting"]
+        self.assertEqual(accounting["telemetryQuality"]["tokens"], "EXACT")
+        self.assertEqual(accounting["ratioStatus"]["tokens"], "COMPARABLE_EXACT_TOKENS")
+        self.assertAlmostEqual(accounting["ratios"]["waitToExecutionTokens"], 0.012)
+        self.assertEqual(
+            accounting["ratioStatus"]["transportBytes"],
+            "COMPARABLE_EXACT_TRANSPORT_BYTES_FALLBACK",
+        )
+        self.assertAlmostEqual(
+            accounting["ratios"]["waitToExecutionTransportBytes"], 0.1
+        )
+        self.assertEqual(accounting["wait"]["elapsedSeconds"], 30.0)
+        self.assertEqual(accounting["wait"]["executorOccupiedSeconds"], 0.5)
+        self.assertAlmostEqual(accounting["ratios"]["waitToExecutionElapsed"], 0.5)
+        self.assertAlmostEqual(
+            accounting["ratios"]["executorOccupiedWaitToExecutionElapsed"],
+            0.5 / 60.0,
+        )
+        self.assertEqual(accounting["window"]["waitStartedAt"], "2026-08-31T00:03:00Z")
+        self.assertEqual(accounting["window"]["executionEndedAt"], "2026-08-31T00:01:00Z")
+
+    def test_20_unavailable_tokens_use_labeled_exact_byte_fallback(self) -> None:
+        state = self.usage(
+            self.handoff,
+            usage_id="execution-bytes",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+            tokenTelemetry="UNAVAILABLE",
+            inputTokens=None,
+            outputTokens=None,
+        )
+        state = self.usage(
+            state,
+            usage_id="wait-bytes",
+            phase="WAIT",
+            at="2026-08-31T00:04:00Z",
+            tokenTelemetry="UNAVAILABLE",
+            inputTokens=None,
+            outputTokens=None,
+        )
+        accounting = self.finalized_accounting(state)["resourceAccounting"]
+        self.assertEqual(accounting["ratioStatus"]["tokens"], "UNAVAILABLE")
+        self.assertIsNone(accounting["ratios"]["waitToExecutionTokens"])
+        self.assertEqual(
+            accounting["ratioStatus"]["transportBytes"],
+            "COMPARABLE_EXACT_TRANSPORT_BYTES_FALLBACK",
+        )
+        self.assertIn("NOT_TOKEN_COST_QUOTA_OR_INTELLIGENCE", accounting["transportByteFallbackLabel"])
+
+    def test_21_partial_tokens_do_not_emit_token_ratio(self) -> None:
+        state = self.usage(
+            self.handoff,
+            usage_id="execution-partial",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+            tokenTelemetry="PARTIAL",
+            outputTokens=None,
+        )
+        state = self.usage(
+            state,
+            usage_id="wait-exact",
+            phase="WAIT",
+            at="2026-08-31T00:04:00Z",
+        )
+        accounting = self.finalized_accounting(state)["resourceAccounting"]
+        self.assertEqual(accounting["telemetryQuality"]["tokens"], "PARTIAL")
+        self.assertEqual(accounting["ratioStatus"]["tokens"], "PARTIAL_TOKEN_TELEMETRY")
+        self.assertIsNone(accounting["ratios"]["waitToExecutionTokens"])
+
+    def test_22_guessed_tokens_are_rejected_without_changing_liveness(self) -> None:
+        waiting = self.waiting()
+        rejected = self.usage(
+            waiting,
+            usage_id="guessed",
+            phase="WAIT",
+            at="2026-08-31T00:04:00Z",
+            tokenTelemetry="ESTIMATED",
+            estimatedTokens=123,
+        )
+        self.assertEqual(rejected["state"], "WAITING_FOR_REASONING_REVIEW")
+        self.assertEqual(rejected["resourceAccounting"]["usageEvents"], [])
+        self.assertEqual(
+            rejected["resourceAccounting"]["accountingErrors"][0]["code"],
+            "GUESSED_TOKEN_TELEMETRY_REJECTED",
+        )
+        still_pending = self.event(
+            rejected,
+            "POLL_PENDING",
+            "2026-08-31T00:05:00Z",
+            nextPollAt="2026-08-31T00:06:00Z",
+        )
+        self.assertEqual(still_pending["state"], "WAITING_FOR_REASONING_REVIEW")
+
+    def test_23_incomparable_metering_domains_emit_no_resource_ratios(self) -> None:
+        state = self.usage(
+            self.handoff,
+            usage_id="execution-domain-a",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+            meteringDomain="CODEX_BILLING",
+        )
+        state = self.usage(
+            state,
+            usage_id="wait-domain-b",
+            phase="WAIT",
+            at="2026-08-31T00:04:00Z",
+            meteringDomain="CHATGPT_BILLING",
+        )
+        accounting = self.finalized_accounting(state)["resourceAccounting"]
+        self.assertEqual(
+            accounting["ratioStatus"]["tokens"], "INCOMPARABLE_METERING_DOMAINS"
+        )
+        self.assertEqual(
+            accounting["ratioStatus"]["transportBytes"],
+            "INCOMPARABLE_METERING_DOMAINS",
+        )
+        self.assertIsNone(accounting["ratios"]["waitToExecutionTokens"])
+        self.assertIsNone(accounting["ratios"]["waitToExecutionTransportBytes"])
+
+    def test_24_zero_execution_denominators_emit_no_ratio(self) -> None:
+        state = self.usage(
+            self.handoff,
+            usage_id="execution-zero",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+            inputTokens=0,
+            outputTokens=0,
+            requestBytes=0,
+            responseBytes=0,
+            callCount=0,
+            elapsedSeconds=0.0,
+        )
+        state = self.usage(
+            state,
+            usage_id="wait-nonzero",
+            phase="WAIT",
+            at="2026-08-31T00:04:00Z",
+        )
+        accounting = self.finalized_accounting(state)["resourceAccounting"]
+        self.assertEqual(
+            accounting["ratioStatus"]["tokens"], "ZERO_EXECUTION_TOKEN_DENOMINATOR"
+        )
+        self.assertEqual(
+            accounting["ratioStatus"]["transportBytes"],
+            "ZERO_EXECUTION_BYTE_DENOMINATOR",
+        )
+        self.assertEqual(
+            accounting["ratioStatus"]["elapsed"], "ZERO_EXECUTION_ELAPSED_DENOMINATOR"
+        )
+        self.assertIsNone(accounting["ratios"]["waitToExecutionTokens"])
+
+    def test_25_usage_events_and_finalization_are_idempotent(self) -> None:
+        once = self.usage(
+            self.handoff,
+            usage_id="execution-duplicate",
+            phase="EXECUTION",
+            at="2026-08-31T00:01:00Z",
+        )
+        duplicate = self.usage(
+            once,
+            usage_id="execution-duplicate",
+            phase="EXECUTION",
+            at="2026-08-31T00:02:00Z",
+        )
+        self.assertEqual(duplicate, once)
+        conflict = self.usage(
+            once,
+            usage_id="execution-duplicate",
+            phase="EXECUTION",
+            at="2026-08-31T00:02:00Z",
+            inputTokens=901,
+        )
+        self.assertEqual(conflict["state"], once["state"])
+        self.assertEqual(
+            conflict["resourceAccounting"]["accountingErrors"][0]["code"],
+            "ACCOUNTING_EVENT_CONFLICT",
+        )
+        finalized = self.finalized_accounting(once)
+        repeated = self.finalized_accounting(finalized)
+        self.assertEqual(repeated, finalized)
+
+    def test_26_owner_source_receipt_is_exactly_bound(self) -> None:
+        feedback = json.loads(
+            (
+                ROOT
+                / "feedback"
+                / "mission-control"
+                / "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001.json"
+            ).read_text()
+        )
+        source = feedback["ownerSourceReceipt"]
+        raw = source["exactSourceBlock"].encode("utf-8")
+        self.assertEqual(len(raw), source["utf8Bytes"])
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), source["sha256"])
+        self.assertEqual(feedback["ownerOutcome"]["sha256"], source["sha256"])
+        self.assertFalse(source["terminalNewline"])
 
 
 if __name__ == "__main__":

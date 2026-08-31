@@ -7,7 +7,15 @@
   "ownerOutcome": {
     "ownerOutcomeId": "somatic-therapies-humanization",
     "epoch": 1,
-    "sha256": "owner-directive-live-conversation-20260831"
+    "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6"
+  },
+  "ownerSourceReceipt": {
+    "source": "current owner conversation",
+    "encoding": "UTF-8",
+    "terminalNewline": false,
+    "utf8Bytes": 147,
+    "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6",
+    "exactSourceBlock": "how many tokens are you using to wait for the chat response compared to wwen you actually work?\nadd that to the codex supervisor workflow, continue"
   },
   "supervisionArchitecture": {
     "repository": "u-dont-existDOTcom/universal-dev-architecture",
@@ -54,14 +62,29 @@
     "reviewPriority": "BATCH",
     "sharedProScopeKey": "supervision-architecture/2026-08-31"
   },
-  "status": "IMPLEMENTED_PENDING_PRO_META_REVIEW",
-  "proMetaReview": null,
+  "status": "CORRECTIONS_IMPLEMENTED_PENDING_PRO_META_REVIEW",
+  "proMetaReview": {
+    "verdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+    "disposition": "CORRECTIONS_REQUIRED",
+    "receivedAt": "2026-08-31T04:11:00Z",
+    "activeSomaticLoopBlocked": false
+  },
   "ownerDecisionRef": "owner-directive-2026-08-31-add-wait-versus-work-accounting",
   "repositoryChangeRefs": [
     "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
-    "templates/EXECUTOR-REASONING-HANDOFF.json"
+    "templates/EXECUTOR-REASONING-HANDOFF.json",
+    "scripts/executor_handoff_state.py",
+    "tests/test_executor_handoff_liveness.py"
   ],
   "testRefs": [
-    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_18_wait_and_execution_resource_accounting_are_separate"
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_18_wait_and_execution_resource_accounting_are_separate",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_19_exact_usage_computes_separate_ratios_and_wall_time",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_20_unavailable_tokens_use_labeled_exact_byte_fallback",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_21_partial_tokens_do_not_emit_token_ratio",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_22_guessed_tokens_are_rejected_without_changing_liveness",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_23_incomparable_metering_domains_emit_no_resource_ratios",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_24_zero_execution_denominators_emit_no_ratio",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_25_usage_events_and_finalization_are_idempotent",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_26_owner_source_receipt_is_exactly_bound"
   ]
 }
