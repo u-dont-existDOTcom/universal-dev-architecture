@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "assuranceId": "replace-with-assurance-id",
+  "architectureEpoch": "replace-with-architecture-epoch",
+  "reviewWindow": {
+    "start": "1970-01-01T00:00:00Z",
+    "end": "1970-01-01T00:00:00Z"
+  },
+  "assuranceState": "UNMEASURED",
+  "materialEscapeCount": 0,
+  "criticalEscapeCount": 0,
+  "preventedEscapeCount": 0,
+  "reviewRequiredCount": 0,
+  "ownerForcedProgressReviewCount": 0,
+  "ownerForcedContinuationCount": 0,
+  "repeatEscapeFamilies": [],
+  "openEscapeIds": [],
+  "openArchitectureCorrectionRefs": [],
+  "lastVerifiedRepairAt": null,
+  "lastCleanWindowRef": null,
+  "nextAssuranceReviewTrigger": "replace-with-event-or-bounded-review-trigger",
+  "ownerAction": {
+    "required": false,
+    "action": "NONE"
+  },
+  "allowedValues": {
+    "assuranceState": [
+      "PASS",
+      "WARN",
+      "FAIL",
+      "UNMEASURED"
+    ]
+  },
+  "projectionRules": [
+    "UNMEASURED when no valid bounded assurance window or no valid semantic supervision-escape records exist.",
+    "PASS only when the bounded measured window contains no confirmed MATERIAL or CRITICAL supervision escape, no failed repeat repair, and no unresolved semantic record that is required to support the PASS claim.",
+    "WARN when a relevant semantic review is outstanding or a lower-materiality signal requires review without a confirmed MATERIAL or CRITICAL escape.",
+    "FAIL when at least one confirmed MATERIAL or CRITICAL supervision escape exists in the review window or when a materially equivalent escape recurs after a repair previously reached VERIFIED.",
+    "This assurance state is never averaged with worker-to-contract, contract-to-owner, outcome-advancement, strategy-efficacy, scientific-adequacy, release-adequacy, or other control planes.",
+    "A zero escape count is a bounded measurement statement, not proof that Mission Control is universally correct."
+  ],
+  "antiRecursionInvariant": {
+    "rule": "If this assurance plane itself repeatedly requires owner correction, redesign or replace this assurance plane. Do not add another supervisory layer.",
+    "forbiddenConcepts": [
+      "META_META_SUPERVISOR",
+      "MISSION_CONTROL_3",
+      "ASSURANCE_OF_ASSURANCE_SERVICE",
+      "SECOND_ASSURANCE_DASHBOARD",
+      "SECOND_ASSURANCE_EVENT_LEDGER"
+    ],
+    "requiredFindingOnViolation": "META_SUPERVISION_RECURSION",
+    "requiredDisposition": "REDESIGN_EXISTING_ASSURANCE_PLANE"
+  }
+}
