@@ -1,0 +1,45 @@
+{
+  "experimentId": "mission-control-hermes-continuity-v1",
+  "status": "QUEUED_EXPERIMENT",
+  "authority": {
+    "hermesIsAuthoritative": false,
+    "missionControlLedgerRemainsSourceOfTruth": true,
+    "symphonyRoleChanges": false
+  },
+  "bounds": {
+    "maximumCalendarDays": 7,
+    "maximumScenarios": 3,
+    "maximumRunsPerArmPerScenario": 3,
+    "stopOnAuthorityViolation": true
+  },
+  "scenarios": [
+    {
+      "id": "continuity-after-restart",
+      "question": "Does Hermes restore current direction, queue, blockers, and pending acknowledgement after a supervisor restart?"
+    },
+    {
+      "id": "offline-worker-return",
+      "question": "Does Hermes reduce missed context when a VPS worker reconnects after an offline interval?"
+    },
+    {
+      "id": "supervision-handoff",
+      "question": "Does Hermes reduce owner correction effort across a bounded reasoning-supervisor handoff?"
+    }
+  ],
+  "metrics": [
+    "state_recovery_fidelity_percent",
+    "missed_owner_directions",
+    "owner_corrections_required",
+    "recovery_seconds",
+    "authority_violations"
+  ],
+  "adoptionGate": {
+    "required": [
+      "zero authority violations",
+      "no lost or reordered ledger events",
+      "at least 20 percent median recovery-time improvement",
+      "fewer owner corrections in at least two of three scenarios"
+    ],
+    "defaultDecision": "DO_NOT_ADOPT"
+  }
+}

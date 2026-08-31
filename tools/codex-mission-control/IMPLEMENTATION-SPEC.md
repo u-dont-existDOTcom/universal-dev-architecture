@@ -4,6 +4,20 @@
 
 Adapt the existing PR #41 dashboard into the current owner-source, dual-alignment, typed-completion Mission Control slice. The application allocates owner attention and audits correction truth. It does not orchestrate Codex workers.
 
+## Implemented channel and bounded evaluation queue
+
+The current application implements bidirectional owner↔worker messaging, a
+durable event-backed delivery outbox, explicit direction acknowledgement, a
+direction-bound persistent worker queue, structured blockers/proposals, and
+fleet aggregation. Owner message and queued-delivery events commit in one
+transaction before any network attempt. Local and remote workers use the same
+authenticated polling and event-publication interface.
+
+Hermes and n8n remain design-ready experiments in
+`docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`.
+Executable scaffolding lives under `experiments/`; its presence does not make Hermes or n8n authoritative
+and does not broaden Mission Control into Symphony-owned orchestration.
+
 ## Runtime composition
 
 - Next.js 16 / React 19 / TypeScript;
@@ -38,6 +52,7 @@ The v2 event union in `restored/codex-mission-control/lib/schema.ts` is authorit
 - supervision-design feedback and read-only Symphony observations;
 - reasoning-supervision decisions, versioned execution directives, Codex starts, execution-only receipts, outcome-progress receipts, and supervision alerts;
 - legacy v1 events, which remain readable but never gain v2 authority by translation.
+- owner message/direction, outbound delivery lifecycle, message acknowledgement, worker response/question, direction acknowledgement/reconciliation, work queue, structured blocker, and change proposal.
 
 ## Owner-choice relay
 
@@ -71,6 +86,11 @@ For nonnumeric progress, `ADVANCING` requires both current and best evidence to 
 ## Ingestion and trust
 
 The daemon internal token is generated at runtime unless explicitly supplied. External `POST /api/events` is disabled without `MISSION_CONTROL_INGEST_CREDENTIALS`, a JSON map from producer ID to fixed kind, a 32+ character secret, and nonempty worker/task scopes. The external bearer authenticates that producer; the BFF forwards immutable identity and scopes, and the daemon independently validates worker scope, task scope, event/status authority, and embedded identity.
+
+The worker-channel outbox and publish endpoints use the same credential map but
+require `WORKER` kind and an exact worker scope. The dashboard owner composer is
+same-origin only. Every queue, blocker, proposal, and acknowledgement is
+validated against same-worker durable direction/message identities.
 
 ## Completion boundary
 

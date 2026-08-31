@@ -2,7 +2,7 @@
 
 A local, explanation-first supervision dashboard for determining which workers need attention, exactly what is wrong, what correction has actually happened, and whether the owner must act.
 
-This is the adapted PR #41 application. It observes durable supervision evidence; it does not dispatch, retry, stop, resume, or otherwise control workers.
+This is the adapted PR #41 application. It observes durable supervision evidence and provides an owner↔worker message channel; it does not take over Symphony dispatch, execution retry, stop/resume, or workspace control.
 
 ## Run locally
 
@@ -75,6 +75,7 @@ Important modules:
 - `lib/correction-lifecycle.ts`: fail-closed transition and identity guards;
 - `lib/supervision-handoff.ts`: state-vector-bound three-turn chat handoff identity;
 - `lib/projection.ts`: attention ordering and operator projection;
+- `lib/worker-channel.ts`: ledger-first owner sends, durable polling leases, channel/queue projection, and stale-direction detection;
 - `daemon/server.ts`: single-writer HTTP/SSE daemon;
 - `lib/symphony-adapter.ts`: read-only stock Symphony state normalization.
 
@@ -104,6 +105,7 @@ The complete runtime contract is the Zod union in `lib/schema.ts`. Significant e
 - `completion_claim_recorded`, `supervision_route_recorded`, `research_verdict_recorded`, and `supervision_design_feedback_recorded`;
 - `reasoning_supervision_recorded`, `execution_directive_recorded`, `codex_execution_started`, `execution_receipt_recorded`, `outcome_progress_recorded`, and `supervision_alert_recorded`;
 - `symphony_runtime_observed` for the read-only upstream seam.
+- `owner_message_recorded`, outbound delivery/acknowledgement, worker response/question, direction acknowledgement/reconciliation, work queue, structured blocker, and change proposal events.
 
 Outcome progress is an independent control plane. Numeric receipts declare `HIGHER_IS_BETTER` or `LOWER_IS_BETTER`; the store validates exact current-minus-baseline/current-minus-previous deltas, and projection derives advancement from those bytes instead of trusting a supplied healthy label. Nonnumeric `ADVANCING` requires current and best same-worker durable receipts classified as direct outcome evidence or a validated leading indicator. A leading indicator records its predictive basis and later direct-outcome decision boundary; missing, stale, unverified, cross-worker, supporting-only, or activity-only evidence fails closed. A regression holds same-strategy continuation and cannot project GREEN.
 
@@ -136,6 +138,10 @@ Dashboard-facing Next.js BFF:
 - `GET /api/events/stream`
 - `POST /api/viewed`
 - `POST /api/workers/:worker/supervisor-chat`
+- `POST /api/workers/:worker/messages` (same-origin owner UI)
+- `GET /api/worker-channel/:worker/outbox` (authenticated worker)
+- `POST /api/worker-channel/:worker/events` (authenticated worker)
+- `POST /api/mcp` (authenticated, read-only MCP-compatible JSON-RPC tools)
 
 Daemon:
 
@@ -146,6 +152,10 @@ Daemon:
 - `POST /viewed`
 - `GET /workers/:worker`
 - `POST /workers/:worker/supervisor-chat`
+- `POST /workers/:worker/messages`
+- `GET /workers/:worker/outbox`
+- `POST /workers/:worker/channel/events`
+- `POST /mcp`
 
 ### Authenticated ingestion
 
@@ -169,6 +179,23 @@ curl -sS http://127.0.0.1:3000/api/events \
 
 The credential fixes the producer kind. Event-class/status authorization is checked again at the daemon, and evidence/correction/status records must carry the same embedded producer or actor ID and role. A caller cannot promote itself by changing a role header or payload field.
 Credentials without explicit worker and task scopes are invalid. The BFF forwards those authenticated scopes to the daemon, which checks them again for every event family.
+
+Workers use the same credential format with `"kind":"WORKER"`. Polling the
+outbox creates explicit attempted/delivered events and a retry lease; the
+worker then posts a generic message acknowledgement plus any direction
+interpretation, persistent queue revision, response/question, blocker, or
+proposal envelopes. Event IDs make retries exactly idempotent.
+
+## Queued adapter experiments
+
+`experiments/hermes/experiment.json` defines a maximum seven-day,
+three-scenario baseline-versus-Hermes continuity experiment. `npm run
+experiment:hermes -- --arm baseline --scenario continuity-after-restart
+--dry-run` validates its executable contract without adopting Hermes.
+
+`experiments/n8n/` contains an inactive pass-through workflow and an exact
+event/order parity comparator. n8n remains an integration adapter candidate;
+it has no source-of-truth, reasoning, or scheduling authority.
 
 ## Symphony boundary
 

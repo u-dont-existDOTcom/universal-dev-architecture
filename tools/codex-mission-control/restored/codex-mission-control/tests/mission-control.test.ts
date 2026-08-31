@@ -1540,9 +1540,13 @@ test("issue #47 projects the four exact runtime scenarios from persisted events"
   assert.match(innerSignal.primaryProblemSummary!, /UNRELATED — DOES NOT BLOCK CURRENT FRONTIER.*GITHUB WAIT: NO/);
 
   const humanDesign = workers.get("human-design-governance")!;
-  assert.deepEqual([humanDesign.overallTraffic, humanDesign.workerToContractAlignment, humanDesign.contractToOwnerAlignment, humanDesign.progress.outcomeAdvancement, humanDesign.progress.strategyEfficacy], ["RED", "GREEN", "MATCH", "FLAT", "EXHAUSTED"]);
-  assert.equal(humanDesign.executionSupervision.codexExecutionState, "PARKED");
-  assert.match(renderToStaticMarkup(createElement(MissionCard, { worker: humanDesign, selected: true })), /PARKED_NO_VALID_STRATEGY[\s\S]*NO_VALID_STRATEGY[\s\S]*NONE NOW — DEFER UNTIL ONE CONSOLIDATED PILOT PROPOSAL/);
+  assert.deepEqual([humanDesign.overallTraffic, humanDesign.workerToContractAlignment, humanDesign.contractToOwnerAlignment, humanDesign.progress.outcomeAdvancement, humanDesign.progress.strategyEfficacy], ["YELLOW", "GREEN", "MATCH", "NOT_YET_MEASURABLE", "VIABLE"]);
+  assert.equal(humanDesign.executionSupervision.codexExecutionState, "RUNNING_WITH_DIRECTIVE");
+  assert.equal(humanDesign.channel.freshness, "CURRENT");
+  assert.match(humanDesign.objective.goal, /AstroHD survey/);
+  assert.match(humanDesign.channel.latestDirectionBody!, /Run the AstroHD survey first/);
+  assert.deepEqual(humanDesign.channel.queue.map((item) => item.title), ["Validate AstroHD survey inputs", "Run the AstroHD survey", "Review decision-changing evidence"]);
+  assert.match(renderToStaticMarkup(createElement(MissionCard, { worker: humanDesign, selected: true })), /AstroHD survey first[\s\S]*CURRENT[\s\S]*3 queued items/);
   assert.deepEqual(store.verifyChain(), { valid: true, errors: [] });
   store.close();
 });

@@ -82,6 +82,7 @@ export class EventStore {
     }
 
     this.validateAuthorityInvariants(envelope);
+    this.validateWorkerChannel(envelope, authenticatedProducer);
     this.validateCorrection(envelope);
     const previousHash = this.latestEventHash();
     const eventHash = calculateEventHash({
@@ -814,6 +815,153 @@ export class EventStore {
           throw new CorrectionInvariantError("Corrected or mixed closure requires a current valid correction verification in the same attempt.");
         }
       }
+    }
+  }
+
+  private validateWorkerChannel(envelope: AppendEnvelope, producer: AuthenticatedProducer) {
+    const data = envelope.data;
+    if (!["owner_message_recorded", "outbound_delivery_lifecycle_recorded", "outbound_message_acknowledged",
+      "worker_message_recorded", "direction_acknowledged", "work_queue_published", "direction_reconciled",
+      "structured_blocker_recorded", "change_proposal_recorded"].includes(data.type)) return;
+    if (!data.worker) throw new ContractInvariantError("Worker-channel events require a worker identity.");
+    const events = this.workerEvents(data.worker);
+    const ownerMessages = events.filter((event) => event.data.type === "owner_message_recorded");
+    const directionMessage = (directionId: string) => ownerMessages.find((event) => event.data.type === "owner_message_recorded"
+      && event.data.direction_id === directionId);
+
+    if (data.type === "owner_message_recorded") {
+      if (events.some((event) => event.data.type === data.type && event.data.message_id === data.message_id)) {
+        throw new ContractInvariantError("owner_message_recorded.message_id must be unique within the worker ledger.");
+      }
+      if (data.reply_to_message_id && !events.some((event) => (event.data.type === "owner_message_recorded" || event.data.type === "worker_message_recorded")
+        && event.data.message_id === data.reply_to_message_id)) {
+        throw new ContractInvariantError("Owner replies must bind an existing same-worker channel message.");
+      }
+      if (data.supersedes_direction_id && !directionMessage(data.supersedes_direction_id)) {
+        throw new ContractInvariantError("A superseding owner direction must bind an existing same-worker direction.");
+      }
+      if (data.created_by !== producer.id) throw new ContractInvariantError("Owner message source identity must match the authenticated producer.");
+      if (data.message_kind === "DIRECTION") {
+        const latest = ownerMessages.findLast((event) => event.data.type === "owner_message_recorded" && event.data.message_kind === "DIRECTION")?.data;
+        const expectedEpoch = latest?.type === "owner_message_recorded" ? (latest.authority_epoch ?? 0) + 1 : 1;
+        if (data.authority_epoch !== expectedEpoch) throw new ContractInvariantError("Owner direction authority epochs must increase exactly once per worker.");
+        if ((latest?.type === "owner_message_recorded" ? latest.direction_id : null) !== data.supersedes_direction_id) {
+          throw new ContractInvariantError("A new owner direction must explicitly supersede the latest same-worker direction.");
+        }
+        if (data.scope?.kind === "WORKER" && data.scope.id !== data.worker) {
+          throw new ContractInvariantError("Worker-scoped owner directions must name the exact worker.");
+        }
+      }
+      return;
+    }
+
+    if (data.type === "outbound_delivery_lifecycle_recorded") {
+      const source = this.eventByEventId(data.source_message_event_id);
+      if (source?.worker !== data.worker || source.data.type !== "owner_message_recorded" || source.data.message_id !== data.message_id) {
+        throw new ContractInvariantError("Outbound delivery must bind the exact durable owner message event.");
+      }
+      const prior = events.filter((event) => event.data.type === data.type && event.data.delivery_id === data.delivery_id).at(-1)?.data;
+      if (!prior) {
+        if (data.status !== "QUEUED" || data.attempt !== 0) throw new ContractInvariantError("A delivery lifecycle must begin at QUEUED attempt 0.");
+        return;
+      }
+      if (prior.type !== data.type || prior.message_id !== data.message_id || prior.source_message_event_id !== data.source_message_event_id
+        || prior.transport !== data.transport || prior.endpoint_id !== data.endpoint_id) {
+        throw new ContractInvariantError("Delivery lifecycle identity and routing are immutable.");
+      }
+      const allowed: Record<string, string[]> = {
+        QUEUED: ["DELIVERY_ATTEMPTED", "EXPIRED", "SUPERSEDED"],
+        DELIVERY_ATTEMPTED: ["DELIVERED", "DELIVERY_FAILED", "EXPIRED"],
+        DELIVERED: ["DELIVERY_ATTEMPTED", "EXPIRED", "SUPERSEDED"],
+        DELIVERY_FAILED: ["DELIVERY_ATTEMPTED", "EXPIRED", "SUPERSEDED"],
+        EXPIRED: [], SUPERSEDED: [],
+      };
+      if (!allowed[prior.status]?.includes(data.status)) throw new ContractInvariantError(`Invalid delivery transition ${prior.status} -> ${data.status}.`);
+      if (data.status === "DELIVERY_ATTEMPTED" && data.attempt !== prior.attempt + 1
+        || data.status !== "DELIVERY_ATTEMPTED" && data.attempt !== prior.attempt) {
+        throw new ContractInvariantError("Delivery attempts must advance exactly once at DELIVERY_ATTEMPTED and remain stable for its result.");
+      }
+      return;
+    }
+
+    if (data.type === "outbound_message_acknowledged") {
+      const message = ownerMessages.find((event) => event.data.type === "owner_message_recorded" && event.data.message_id === data.message_id);
+      const delivered = events.findLast((event) => event.data.type === "outbound_delivery_lifecycle_recorded"
+        && event.data.delivery_id === data.delivery_id && event.data.message_id === data.message_id)?.data;
+      if (!message || delivered?.type !== "outbound_delivery_lifecycle_recorded" || delivered.status !== "DELIVERED") {
+        throw new ContractInvariantError("A message acknowledgement requires the exact delivered same-worker message.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "acknowledgement_id", data.acknowledgement_id);
+      return;
+    }
+
+    if (data.type === "worker_message_recorded") {
+      this.assertUniqueDomainId(data.worker, data.type, "message_id", data.message_id);
+      if (data.reply_to_message_id && !events.some((event) => (event.data.type === "owner_message_recorded" || event.data.type === "worker_message_recorded")
+        && event.data.message_id === data.reply_to_message_id)) {
+        throw new ContractInvariantError("Worker replies must bind an existing same-worker channel message.");
+      }
+      if (data.direction_id && !directionMessage(data.direction_id)) throw new ContractInvariantError("Worker messages cannot bind an unknown direction.");
+      return;
+    }
+
+    if (data.type === "direction_acknowledged") {
+      const message = directionMessage(data.direction_id);
+      if (message?.data.type !== "owner_message_recorded" || message.data.message_id !== data.message_id) {
+        throw new ContractInvariantError("Direction acknowledgement must bind the exact owner direction message.");
+      }
+      if (!events.some((event) => event.data.type === "outbound_message_acknowledged" && event.data.message_id === data.message_id)) {
+        throw new ContractInvariantError("Direction interpretation cannot precede transport acknowledgement.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "acknowledgement_id", data.acknowledgement_id);
+      return;
+    }
+
+    if (data.type === "work_queue_published") {
+      if (!directionMessage(data.direction_id)) throw new ContractInvariantError("Work queues must bind an existing owner direction.");
+      if (!events.some((event) => event.data.type === "direction_acknowledged" && event.data.direction_id === data.direction_id)) {
+        throw new ContractInvariantError("A worker must acknowledge a direction before publishing its direction-bound queue.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "queue_revision_id", data.queue_revision_id);
+      const priorQueue = events.findLast((event) => event.data.type === "work_queue_published" && event.data.direction_id === data.direction_id)?.data;
+      const expectedRevision = priorQueue?.type === "work_queue_published" ? priorQueue.revision + 1 : 1;
+      const expectedPrevious = priorQueue?.type === "work_queue_published" ? priorQueue.queue_revision_id : null;
+      if (data.revision !== expectedRevision || data.previous_queue_revision_id !== expectedPrevious) {
+        throw new ContractInvariantError("Queue revisions must advance exactly once and bind the prior direction queue publication.");
+      }
+      const itemIds = new Set(data.items.map((item) => item.item_id));
+      if (itemIds.size !== data.items.length || data.items.some((item) => item.depends_on.some((dependency) => !itemIds.has(dependency)))) {
+        throw new ContractInvariantError("Queue item identities must be unique and dependencies must resolve within the same revision.");
+      }
+      return;
+    }
+
+    if (data.type === "direction_reconciled") {
+      const queue = events.find((event) => event.data.type === "work_queue_published" && event.data.queue_revision_id === data.queue_revision_id)?.data;
+      if (queue?.type !== "work_queue_published" || queue.direction_id !== data.direction_id) {
+        throw new ContractInvariantError("Direction reconciliation must bind an exact queue revision for the same direction.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "reconciliation_id", data.reconciliation_id);
+      return;
+    }
+
+    if (data.type === "structured_blocker_recorded" || data.type === "change_proposal_recorded") {
+      if (!directionMessage(data.direction_id)) throw new ContractInvariantError("Structured worker issues must bind an existing owner direction.");
+      const queueItemId = data.queue_item_id;
+      if (queueItemId && !events.some((event) => event.data.type === "work_queue_published"
+        && event.data.direction_id === data.direction_id && event.data.items.some((item) => item.item_id === queueItemId))) {
+        throw new ContractInvariantError("Structured worker issues must bind a queue item from the same direction when one is named.");
+      }
+      if (data.type === "structured_blocker_recorded" && data.reported_by !== producer.id) {
+        throw new ContractInvariantError("Blocker reporter must match the authenticated producer.");
+      }
+      if (data.type === "change_proposal_recorded") {
+        if (data.proposer_id !== producer.id) throw new ContractInvariantError("Proposal author must match the authenticated producer.");
+        if (data.authority_effect !== "NON_OPERATIVE" || data.reasoning_authority !== "WORKER_CLAIM") {
+          throw new ContractInvariantError("Worker change proposals are non-operative claims and cannot assert decision authority.");
+        }
+      }
+      return;
     }
   }
 

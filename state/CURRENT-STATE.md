@@ -1,97 +1,107 @@
 # Current State
 
-Updated: 2026-08-31 16:25 UTC
+Updated: 2026-08-31 23:35 UTC
 
 ## Goal
 
-Deliver the working local Mission Control owner view required by issue #47:
-four immediately understandable worker scenarios plus one current read-only
-worker evidence source, using the restored PR #41 dashboard rather than another
-architecture or governance cycle.
+Implement and durably publish the owner-approved Mission Control directive:
+ledger-first bidirectional owner↔worker communication for local and remote
+workers, direction-bound queues/blockers/proposals, machine-readable supervisor
+access, and bounded non-authoritative Hermes/n8n experiments.
 
 ## Authority / baseline
 
-- Controlling root-mission directive:
-  `https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/47`
-- Active frontier: `USER_VISIBLE_VERTICAL_SLICE_DUE`.
-- Working branch: `task/mission-control-live-slice-issue-47`.
-- Accepted PR #41 adaptation starting head:
-  `f00202c9b6e389c37762fce7d83774597fc9aa29`.
-- Current PR #42 architecture base merged for hosted integration:
-  `a40d413477e57ead76dc6cf9b9a2c457462a0ff5`.
-- Pre-base-merge rollback ref:
-  `recovery/pre-issue47-base-merge-83e08a9`.
-- Superseded generic delivery-frontier work remains paused and recoverable at
-  `8fde4d17855406e5a58f4fe01182bd86f2b8c055`.
-- Extra High directive: `state/mission-control-live-slice/EXECUTION-DIRECTIVE-XH-ISSUE47-001.json`.
-- Pro is not the standing supervisor and was not used for this slice.
+- Working branch:
+  `task/mission-control-owner-worker-channel-experiments-20260831`.
+- Baseline: issue #47 live slice at `30c335e`.
+- Owner directive: the 20-item `pasted isntructios` attachment approved in the
+  continuing Mission Control conversation.
+- Symphony remains execution orchestrator. Mission Control owns the event
+  ledger, outbound delivery evidence, projections, and dashboard. Supervising
+  chats retain semantic/reasoning authority; Hermes and n8n remain experiments.
 
-## Completed
+## Completed implementation
 
-- The restored PR #41 Next.js dashboard was installed, tested, built, and run
-  as a normal local application.
-- The top viewport now projects the exact healthy, Article regression,
-  InnerSignal stale-blocker, and Human Design governance-recursion scenarios.
-- Every attention card exposes the problem, evidence-backed reason, required
-  action, correction lifecycle, next trigger, owner need, reasoning surface,
-  Codex state, and evidence age. Numeric alignment is secondary.
-- The active Mission Control card reads
-  `state/mission-control-live-slice/WORKER-STATE.json` and the current Git
-  branch/head without mutation; changes reach the already-open page through
-  SSE.
-- Desktop, detail, and mobile evidence is stored under
-  `docs/evidence/mission-control-live-slice/`.
-- Dashboard verification passed 73/73 tests, TypeScript, production build,
-  append-only-chain validation, responsive browser checks, and repository
-  audit.
-- Extra High used two turns and returned `ACCEPT` with
-  `BLOCKS_LIVE_SLICE: NONE`.
-- Execution receipt:
-  `state/mission-control-live-slice/CODEX-EXECUTION-RECEIPT-MC-ISSUE47-001.json`.
+- Owner conversation and operative directions now commit to the append-only
+  ledger atomically with durable queued delivery.
+- Authenticated worker-initiated local/VPS polling supports offline persistence,
+  at-least-once retry leases, idempotent message IDs, delivery evidence,
+  acknowledgement, interpretation, and queue reconciliation.
+- Any unreconciled newest direction projects `DASHBOARD_BEHIND_OWNER`; old work
+  cannot remain current merely because it was previously healthy.
+- Workers publish persistent direction-bound queues plus structured blockers
+  and visibly non-operative change proposals. The dashboard exposes both the
+  per-worker channel and a filterable fleet queue.
+- Human Design now leads with the AstroHD survey. The hostile live scenario
+  proved immediate supersession, stale state before reconciliation, and CURRENT
+  only after acknowledgement plus a new queue.
+- Authenticated JSON and MCP-compatible reads expose the same fleet/worker
+  projection to supervisors without scraping the UI.
+- Hermes has an executable seven-day/three-scenario comparison contract and dry
+  runner; n8n has an inactive pass-through workflow and parity evaluator. Both
+  default to non-adoption.
+- The source archive was rebuilt from 61 app source files into 31 base64 parts;
+  SHA-256 `1ecf26dca669b7f9903254412a51da4ca85505c6c4562b61767e14826c2491ae`
+  passes decode, checksum, unzip, and byte-for-byte tree comparison.
+
+## Verification complete
+
+- 87/87 deterministic application tests pass.
+- TypeScript typecheck passes.
+- Next.js production build passes with all new routes.
+- Live HTTP scenario passes: offline owner direction, authenticated poll,
+  delivery, acknowledgement, stale-before-queue behavior, reconciliation,
+  blocker/proposal/fleet visibility, and valid global hash chain.
+- Live MCP initialize/list/worker read passes; unauthenticated access is denied.
+- Embedded-browser desktop and 375px compact acceptance passes with no
+  horizontal overflow. The compact worker page exposes the composer, direction
+  control, AstroHD state, lifecycle, blocker, and proposal.
 
 ## Current checkpoint
 
-- Implementation commit: `f5cfad6e3c75f856368f94e2f52161798b0e628b`.
-- Evidence receipt commit: `83e08a9a8b3fcfaca3c27759f8d1abbada0b3e1d`.
-- Current architecture-base integration commit:
-  `7fe2d23beccb9361dce4c623c5bc87c72b53514f`.
-- Draft integration PR: `https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/49`.
-- The first hosted run exposed one stale root-recovery checkpoint inherited
-  from the older dashboard branch. Commit
-  `604aaecbd2de6359d563125016d65905087bfb64` replaced only that checkpoint;
-  hosted run `33414218138` then passed the complete Universal compliance job.
-
-## Remaining
-
-- No implementation work remains in the bounded issue #47 live slice.
-- Keep the accepted local dashboard running at `http://localhost:3000` for
-  owner review.
-- Merge and deployment require separate owner authority; this draft PR does
-  neither.
-
-## Blockers / unresolved
-
-- No live-slice blocker remains.
-- No owner action is required.
-- No Pro review is required.
-- Merge and deployment remain outside the issue #47 completion boundary.
+Implementation, app and repository gates, live acceptance, requirement audit,
+source archive reconstruction, and final diff checks are complete locally.
+Commit, push, stacked PR, and CI remain in the active execution.
 
 ## Evidence / artifacts
 
-- Issue #47 dashboard evidence:
-  `docs/evidence/mission-control-live-slice/`.
-- Live source and receipt: `state/mission-control-live-slice/`.
-- Restored application:
-  `tools/codex-mission-control/restored/codex-mission-control/`.
-- The prior domain-neutral coverage-before-depth completion gate remains
-  durable through `patterns/coverage-before-depth-in-selection.md`,
+- Preserved repository-wide coverage-before-depth completion gate:
+  `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
   `tests/test_coverage_before_depth_pattern.py`.
+- Implementation plan:
+  `docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`
+- 20-item closeout audit:
+  `docs/audits/2026-08-31-mission-control-owner-worker-channel-directive-audit.md`
+- Application:
+  `tools/codex-mission-control/restored/codex-mission-control/`
+- Source archive receipt:
+  `tools/codex-mission-control/SOURCE-ARCHIVE.sha256`
+- Test-efficiency telemetry:
+  `/tmp/mission-control-full-implementation-20260831.jsonl`
+
+## Remaining
+
+1. Commit the verified diff and update this checkpoint/audit with the exact commit.
+2. Push the branch and create the appropriate stacked PR against the issue #47
+   live-slice branch.
+3. Follow CI until green or an external blocker is proven.
+
+## Blockers / unresolved
+
+- No implementation or verification blocker is open.
+- A real Hermes run still requires a separately authorized spend ceiling and
+  experiment credentials; this does not block the executable experiment queue.
+- A real n8n comparison still requires a named recurring integration flow; this
+  does not block the executable evaluator.
 
 ## Next safe action
 
-Keep the owner-visible runtime available. The next smallest runtime slice, if
-separately directed, is to bind one additional genuinely active worker's
-durable state to the same read-only adapter. Do not resume generic architecture,
-schema, fixture, validator, broad-test, or Pro-review expansion unless a new
-live attempt exposes one exact blocking capability.
+Review and commit the verified diff, push the branch, create the stacked PR,
+then follow its required checks to a terminal result.
+
+## Recovery rule
+
+Resume from the remaining list. Do not reclassify Hermes or n8n as adopted and
+do not move Symphony authority. Do not close out until the audit records exact
+GitHub branch, commit, PR, tests, and CI state.

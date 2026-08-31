@@ -5,12 +5,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { WorkerState } from "@/lib/projection";
 import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
+import { FleetQueue } from "./WorkerChannel";
+import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 
 interface Snapshot {
   workers: WorkerState[];
   summary: string;
   latestEventId: number;
   generatedAt: string;
+  fleetQueue: WorkQueueItemProjection[];
+  channelSummary: {
+    staleDirections: number;
+    awaitingDelivery: number;
+    awaitingAcknowledgement: number;
+    deliveryFailures: number;
+    openBlockers: number;
+    openProposals: number;
+  };
   liveSource: {
     worker: string;
     source_kind: "READ_ONLY_FILE_GIT";
@@ -93,6 +104,17 @@ export function Dashboard() {
         {workers.map((worker) => <MissionCard key={worker.id} worker={worker} selected={selectedWorkerId === worker.id} />)}
       </section>
 
+      <section className="channel-fleet-summary" aria-label="Fleet communication status">
+        <div><span>Dashboard behind owner</span><strong>{snapshot.channelSummary.staleDirections}</strong></div>
+        <div><span>Awaiting delivery</span><strong>{snapshot.channelSummary.awaitingDelivery}</strong></div>
+        <div><span>Awaiting acknowledgement</span><strong>{snapshot.channelSummary.awaitingAcknowledgement}</strong></div>
+        <div><span>Delivery failures</span><strong>{snapshot.channelSummary.deliveryFailures}</strong></div>
+        <div><span>Open blockers</span><strong>{snapshot.channelSummary.openBlockers}</strong></div>
+        <div><span>Open proposals</span><strong>{snapshot.channelSummary.openProposals}</strong></div>
+      </section>
+
+      <FleetQueue queue={snapshot.fleetQueue} />
+
       <section className="change-summary secondary-history">
         <div className="summary-title"><span className="scan-icon">⌁</span><p className="eyebrow">APPEND-ONLY CHANGE HISTORY</p></div>
         <p>{snapshot.summary}</p>
@@ -119,6 +141,7 @@ export function MissionCard({ worker, selected }: { worker: WorkerState; selecte
   return <article className={`mission-card ${worker.overallTraffic.toLowerCase()} ${selected ? "selected" : ""}`} data-worker={worker.id}>
     <div className="mission-card-head"><div><StatusDot health={worker.overallTraffic} pulse={worker.overallTraffic === "RED"} /><span><small>{worker.status.toUpperCase()}</small><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link></span></div><strong>{dispositionLabel(worker)}</strong></div>
     <div className="mission-planes"><Plane label="Worker → Contract" value={worker.workerToContractAlignment} /><Plane label="Contract → Owner" value={worker.contractToOwnerAlignment} /><Plane label="Outcome" value={worker.progress.outcomeAdvancement} /><Plane label="Strategy" value={worker.progress.strategyEfficacy} /></div>
+    <div className="mission-direction"><span>LATEST OWNER DIRECTION</span><p>{worker.channel.latestDirectionBody ?? "No direction recorded in the worker channel."}</p><strong className={freshnessClass(worker.channel.freshness)}>{worker.channel.freshness.replaceAll("_", " ")}</strong><small>{worker.channel.queue.length} queued item{worker.channel.queue.length === 1 ? "" : "s"} · {worker.channel.blockers.length} blocker{worker.channel.blockers.length === 1 ? "" : "s"} · {worker.channel.proposals.length} proposal{worker.channel.proposals.length === 1 ? "" : "s"}</small></div>
     <div className="mission-decision"><div><span>EXACT PROBLEM</span><p>{worker.primaryProblemSummary ?? "No active problem; direct owner-outcome evidence improved."}</p></div><div><span>CURRENT CORRECTION / NEXT ACTION</span><p>{worker.correction.directive ?? worker.progress.requiredIntervention}</p></div></div>
     <div className="mission-evidence"><span>DIRECT EVIDENCE</span><p><b>Target</b> {worker.progress.targetEvidence} <i>·</i> <b>Baseline</b> {worker.progress.baselineEvidence} <i>·</i> <b>Previous</b> {worker.progress.previousEvidence} <i>·</i> <b>Latest</b> {worker.progress.latestEvidence} <i>·</i> <b>Best</b> {worker.progress.bestEvidence}</p></div>
     <div className="mission-control-row"><div><span>STATE</span><strong>{executionPath(worker)}</strong><small>{worker.correction.statusLabel}</small></div><div><span>OWNER ACTION</span><strong>{ownerActionLabel(worker)}</strong><small>{worker.correction.ownerActionText}</small></div><div><span>REASONING / EXECUTION</span><strong>{worker.executionSupervision.surface} · PRO {worker.executionSupervision.proEscalationState.replaceAll("_", " ")}</strong><small>{worker.executionSupervision.activeDirectiveId ?? "No executable directive"} · Codex {worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}{worker.id === "article-failure" ? " · replacement review PENDING" : ""}</small></div></div>
@@ -132,6 +155,12 @@ function lifecycleCompact(worker: WorkerState): string {
 }
 
 function yesNo(value: boolean): string { return value ? "YES" : "NO"; }
+
+function freshnessClass(freshness: WorkerState["channel"]["freshness"]): string {
+  if (freshness === "CURRENT" || freshness === "NO_DIRECTION") return "good";
+  if (freshness === "DELIVERY_FAILED") return "bad";
+  return "warn";
+}
 
 function shortName(worker: WorkerState): string {
   return worker.name.split(" · ")[0];

@@ -125,6 +125,8 @@ The following should be built:
 - objective-drift taxonomy and rubric;
 - owner-decision gates;
 - attention-prioritized multi-worker dashboard;
+- ledger-first bidirectional owner↔worker messaging for local and remote workers;
+- direction acknowledgement plus current work, queue, blocker, and change-proposal projection;
 - structured import of Pro verdicts;
 - browser links and best-effort chat relay;
 - calibration scenarios drawn from Joel’s real failures.
@@ -136,6 +138,7 @@ The following should be built:
 - **Compose:** deterministic evidence collection + optional Extra High reader + Pro semantic judgment.
 - **Invent narrowly:** objective-drift contract, packet protocol, review schema, owner-attention dashboard.
 - **Experiment:** whether Extra High improves evidence completeness enough to justify the extra stage.
+- **Experiment:** whether Hermes Agent materially improves continuity/supervision, and whether n8n reduces integration/event-routing burden.
 - **Do not build now:** a custom scheduler, generic multi-agent framework, distributed workflow engine, or brittle full automation of ChatGPT’s web UI.
 
 ---
@@ -148,7 +151,7 @@ Avoid one vague “source of truth.” Each dimension has exactly one authority:
 
 | Dimension | Authority |
 |---|---|
-| Current owner intent | Latest explicit owner instruction, then versioned GitHub task contract |
+| Current owner intent | Latest explicit owner instruction; a dashboard direction becomes an authenticated append-only owner-source record immediately, while GitHub remains the durable derived task authority |
 | Live work state | Linear |
 | Code and durable implementation evidence | GitHub |
 | Worker process/session state | Symphony plus local process observation |
@@ -282,6 +285,31 @@ Run these as separate local processes:
 7. **Optional Brave relay** — opens/reuses task-specific chats and copies packets; never a source of truth.
 
 Keep the daemon separate from the Next.js runtime. Background polling and event ingestion must not depend on development reloads, browser tabs, or serverless-style request lifecycles.
+
+### Implemented owner↔worker messaging channel
+
+The dashboard is now a real owner communication surface for workers running
+locally or on VPS/cloud hosts. The implemented channel is:
+
+```text
+owner dashboard
+    -> Mission Control authenticates and atomically appends direction + outbox item
+    -> committed ledger/outbox
+    -> local adapter or worker-initiated remote connection/poll
+    -> transport receipt -> worker acknowledgement -> queue reconciliation
+    -> worker response/blocker/change proposal -> scoped Mission Control ingress
+```
+
+Mission Control records the exact direction before network delivery, so an
+offline worker cannot make a new owner instruction invisible. The browser does
+not connect directly to a VPS worker, and workers do not require a public
+control port. Delivery, acknowledgement, and reconciliation are separate facts.
+
+This capability does not transfer orchestration from Symphony or reasoning from
+the supervising chats. A worker's acknowledgement and work queue are claims
+bound to the exact owner direction; they cannot rewrite it. The full design and
+ordered work queue are in
+`docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`.
 
 ---
 
@@ -1309,6 +1337,34 @@ TASK_CLOSED
 INTEGRATION_DEGRADED
 ```
 
+Queued messaging event families are deliberately not part of the accepted
+runtime schema yet. Their design-ready names separate owner source, transport,
+worker interpretation, and queue reconciliation:
+
+```text
+OWNER_MESSAGE_RECORDED
+OWNER_DIRECTION_RECORDED
+OUTBOUND_DELIVERY_QUEUED
+OUTBOUND_DELIVERY_ATTEMPTED
+OUTBOUND_DELIVERY_SUCCEEDED
+OUTBOUND_DELIVERY_FAILED
+WORKER_DIRECTION_ACKNOWLEDGED
+WORKER_DIRECTION_REJECTED
+WORKER_MESSAGE_RECORDED
+WORK_QUEUE_PUBLISHED
+WORK_QUEUE_ITEM_STATE_CHANGED
+WORKER_BLOCKER_RECORDED
+WORKER_BLOCKER_CHANGED
+WORKER_CHANGE_PROPOSED
+WORKER_CHANGE_DISPOSITION_RECORDED
+```
+
+The required delivery projection is
+`RECORDED -> QUEUED -> DELIVERY_ATTEMPTED -> DELIVERED`, with failure,
+expiry, and supersession branches. `DELIVERED -> ACKNOWLEDGED -> RECONCILED`
+is a separate worker-side lifecycle. No later process or Git activity may be
+used to infer a missing milestone.
+
 ### 21.3 OpenTelemetry compatibility
 
 Use compatible concepts where stable:
@@ -1434,6 +1490,22 @@ POST /api/v1/supervisor-reviews/import
 POST /api/v1/owner-decisions
 ```
 
+Implemented owner↔worker and supervisor-read APIs:
+
+```text
+GET  /api/workers
+GET  /api/workers/:worker
+POST /api/workers/:worker/messages
+GET  /api/worker-channel/:worker/outbox
+POST /api/worker-channel/:worker/events
+POST /api/mcp
+```
+
+An owner direction append and its outbound queue item commit in one daemon
+transaction. Delivery starts only after commit and is at-least-once with
+message-ID/content-hash deduplication. Remote workers use scoped credentials and
+outbound connectivity; the design adds no arbitrary shell endpoint.
+
 ### Controlled mutation APIs
 
 ```text
@@ -1498,6 +1570,11 @@ Tabs:
 
 ```text
 Overview
+Conversation
+Current direction
+Work queue
+Blockers
+Proposed changes
 Contract
 Timeline
 Changes
@@ -1524,6 +1601,15 @@ Do not show a live raw log firehose, giant transcript, every tool call, or every
 - Record owner decision.
 - Resume worker.
 - Mark a finding resolved with evidence.
+- Send an ordinary owner message.
+- Record and send an operative owner direction.
+
+The messaging controls remain queued until their ledger/outbox contract is
+implemented. When present, the current direction, **Working now**, remaining
+queue, blockers, and material proposed changes appear above retrospective
+evidence. If the latest direction is newer than the latest acknowledgement or
+queue reconciliation, the worker projection must display
+`DASHBOARD_BEHIND_OWNER` and cannot appear current/healthy.
 
 Every action displays the plain-language effect before identifiers.
 
@@ -1930,6 +2016,20 @@ Exit criteria:
 
 Exit criterion: Joel can supervise four active tasks without reading raw logs.
 
+### Queued Phase 2A — owner channel and live work queue
+
+- Atomically append owner messages/directions with durable outbox items.
+- Deliver the same envelope through local and worker-initiated remote adapters.
+- Project recorded, queued, delivered, acknowledged, and reconciled separately.
+- Require a direction-bound worker queue, blockers, and material change proposals.
+- Expose the same read model to the dashboard and authenticated supervisors.
+- Fail visibly with `DASHBOARD_BEHIND_OWNER` when a worker has not reconciled the
+  newest direction.
+
+Exit criterion: an offline remote worker can later receive and reconcile an
+already-visible owner direction without loss, duplication, inferred
+acknowledgement, or any change to Symphony's role.
+
 ### Phase 3 — Extra High reader and controlled redirect
 
 - Add retrieval manifest/dossier protocol.
@@ -2029,6 +2129,12 @@ Do not build at this stage:
 - Multi-repository task graphs may eventually justify a higher-level orchestrator, but that need is unproven.
 - The correct supervision cadence must be calibrated against cost, limits, drift latency, and Joel’s attention.
 - Alignment thresholds require empirical calibration and should not be treated as scientific probabilities.
+- Bidirectional owner↔worker messaging and direction-bound work queues are
+  design-ready queue items, not features of the current read-only live slice.
+- Hermes Agent remains a bounded experimental worker candidate. Its memory,
+  skills, and claims are non-authoritative unless independently validated.
+- n8n remains a possible integration/event-routing edge adapter. It is not the
+  event ledger, owner source, reasoning authority, or Symphony scheduler.
 
 ---
 
@@ -2050,6 +2156,9 @@ Do not build at this stage:
 | Redirect authority | Validated record, initially owner-triggered | Prevent model output from directly controlling workers |
 | Browser automation | Best-effort convenience | Web UI is not a stable systems interface |
 | Symphony fork | Deferred behind measured gap | Benchmark before bespoke infrastructure |
+| Owner↔worker dashboard channel | Queued, ledger-first extension | Record owner direction before delivery and support offline local/VPS/cloud workers without exposing worker control ports |
+| Hermes Agent | Bounded experiment only | Test continuity and supervision value behind the same adapter; no default authority or architecture adoption |
+| n8n | Bounded adapter evaluation only | Consider only for recurring integration/event-routing burden; never source of truth or reasoning authority |
 
 ---
 
@@ -2062,6 +2171,15 @@ This architecture was developed after a bounded scan of:
 - Anthropic’s long-running-agent harness, evaluator-agent, parallel-agent, and agent-evaluation guidance;
 - emerging agent-as-a-judge and software-agent trajectory research;
 - OpenTelemetry’s developing GenAI agent/workflow/tool semantic conventions;
+- CNCF CloudEvents event format and HTTP/WebSocket bindings;
+- Nous Research's official Hermes Agent repository/documentation;
+- n8n's official workflow, integration, and security documentation;
 - the current `u-dont-existDOTcom/universal-dev-architecture` repository policies on repository authority, independent evaluation, assurance lanes, test efficiency, and research before reinvention.
 
 The novel remainder is deliberately narrow: **GitHub-grounded evidence packaging for GitHub-unreliable Pro web supervisors, objective-drift judgment, owner-decision gating, and attention-oriented multi-worker supervision.**
+
+The 2026-08-31 extension keeps another narrow remainder in the queue:
+direction-to-queue reconciliation across heterogeneous local/remote workers.
+The direct Mission Control adapter is the simple baseline; Hermes and n8n must
+earn any broader role through the bounded experiments recorded in
+`docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`.

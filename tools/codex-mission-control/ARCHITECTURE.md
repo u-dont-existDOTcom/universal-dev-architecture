@@ -16,6 +16,36 @@ Mission Control daemon — sole SQLite writer, append-only validation, SSE
         all-worker attention queue + decision records
 ```
 
+## Implemented owner↔worker channel
+
+The next architecture slice is a tool-neutral communication channel for local,
+VPS, and cloud workers:
+
+```text
+owner direction
+    -> authenticate
+    -> one daemon transaction: append owner event + durable outbox item
+    -> local adapter or worker-initiated remote delivery
+    -> delivered -> acknowledged -> direction-bound queue reconciliation
+    -> worker messages, blockers, and proposed changes return to the ledger
+```
+
+The owner direction becomes current owner-source authority when committed, not
+when a worker eventually receives it. Ordinary conversation and operative
+directions remain different message classes. Transport delivery, worker
+acknowledgement, and queue reconciliation are never inferred from each other.
+When the newest direction is unreconciled, the dashboard must project
+`DASHBOARD_BEHIND_OWNER` rather than presenting stale state as healthy.
+
+This implementation does not change current roles: Symphony still orchestrates
+Codex execution; Mission Control owns the ledger/outbox/projection; reasoning
+chats remain the semantic authority; GitHub and Linear retain their durable and
+live control-plane roles. The bounded Hermes worker experiment and n8n edge-
+adapter evaluation remain unadopted. Executable manifests and comparison tools
+live under `experiments/hermes/` and `experiments/n8n/`; their exact bounds and decision rules
+are in
+`docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`.
+
 ## Authority separation
 
 | Dimension | Authority |
@@ -31,6 +61,8 @@ Mission Control daemon — sole SQLite writer, append-only validation, SSE
 | Correction truth | append-only finding and correction lifecycle events |
 | Terminal permission | deterministic owner-outcome comparator |
 | Runtime execution state | read-only Symphony observation |
+| Owner↔worker transport | Mission Control ledger plus durable outbound delivery events |
+| Worker work queue | worker-published projection bound to the exact owner direction |
 | Dashboard | rebuildable projection only |
 
 Worker-to-contract and contract-to-owner alignment are never averaged. A worker can be GREEN against a laundered contract while the task remains overall RED and routes to contract repair.
@@ -68,6 +100,12 @@ Owner cancellation requires an explicit durable owner decision bound to the curr
 The daemon requires an internal bearer secret for every mutation. The Next ingestion route uses a separate per-producer credential map; credentials bind producer ID, kind, worker scopes, and task scopes. Those authenticated scopes are forwarded and checked again by the daemon for every event, along with event-class/status authorization and embedded producer/actor identity. UI mutation routes also require exact same-origin authority.
 
 SQLite is daemon-owned. The Next routes never import the event store. SSE is notification only; clients refetch the canonical projection.
+
+External workers authenticate with the existing scoped producer credential map,
+poll `/api/worker-channel/{worker}/outbox`, and publish acknowledgement,
+response, queue, blocker, and proposal envelopes to
+`/api/worker-channel/{worker}/events`. The optional `/api/mcp` JSON-RPC seam is
+read-only and uses the same producer identity and worker scopes.
 
 ## Symphony boundary
 

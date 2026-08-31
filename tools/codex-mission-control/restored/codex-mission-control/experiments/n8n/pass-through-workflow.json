@@ -1,0 +1,37 @@
+{
+  "name": "Mission Control non-authoritative event pass-through",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "mission-control-events", "responseMode": "lastNode" },
+      "id": "mission-control-webhook",
+      "name": "Authenticated inbound event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MISSION_CONTROL_EVENTS_URL }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Authorization", "value": "={{ 'Bearer ' + $env.MISSION_CONTROL_PRODUCER_TOKEN }}" },
+          { "name": "X-Mission-Control-Producer-Id", "value": "={{ $env.MISSION_CONTROL_PRODUCER_ID }}" }
+        ] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body) }}"
+      },
+      "id": "mission-control-forward",
+      "name": "Forward unchanged",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    }
+  ],
+  "connections": { "Authenticated inbound event": { "main": [[{ "node": "Forward unchanged", "type": "main", "index": 0 }]] } },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "none", "saveDataSuccessExecution": "none" },
+  "meta": { "missionControlAuthority": false, "purpose": "bounded adapter evaluation only" }
+}

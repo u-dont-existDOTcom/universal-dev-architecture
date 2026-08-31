@@ -934,6 +934,175 @@ export const liveWorkerEvidenceObservedSchema = z.object({
   summary: NonEmpty,
 });
 
+export const ownerMessageRecordedSchema = z.object({
+  type: z.literal("owner_message_recorded"),
+  worker: WorkerId,
+  message_id: StableId,
+  thread_id: StableId,
+  message_kind: z.enum(["CONVERSATION", "DIRECTION"]),
+  body: NonEmpty.max(20_000),
+  direction_id: StableId.nullable(),
+  reply_to_message_id: StableId.nullable().default(null),
+  created_by: StableId,
+  delivery_required: z.boolean(),
+  supersedes_direction_id: StableId.nullable().default(null),
+  priority: z.enum(["URGENT", "HIGH", "NORMAL", "LOW"]).nullable().default(null),
+  scope: z.object({ kind: z.enum(["WORKER", "TASK", "FLEET"]), id: StableId }).nullable().default(null),
+  authority_epoch: z.number().int().positive().nullable().default(null),
+  owner_outcome_id: StableId.nullable().default(null),
+  owner_outcome_sha256: z.union([Sha256, FixtureSha]).nullable().default(null),
+  authority_semantics: z.enum(["INFORMATIONAL", "CURRENT_UNTIL_SUPERSEDED"]),
+}).superRefine((message, context) => {
+  if (message.message_kind === "DIRECTION" && !message.direction_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["direction_id"], message: "Owner directions require a stable direction identity." });
+  }
+  if (message.message_kind === "CONVERSATION" && message.direction_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["direction_id"], message: "Conversation messages cannot silently carry direction authority." });
+  }
+  if (message.message_kind === "DIRECTION"
+    && (!message.priority || !message.scope || !message.authority_epoch || message.authority_semantics !== "CURRENT_UNTIL_SUPERSEDED")) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["authority_semantics"], message: "Owner directions require priority, scope, epoch, and current-until-superseded authority semantics." });
+  }
+  if (message.message_kind === "CONVERSATION"
+    && (message.priority || message.scope || message.authority_epoch || message.owner_outcome_id || message.owner_outcome_sha256
+      || message.supersedes_direction_id || message.authority_semantics !== "INFORMATIONAL")) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["authority_semantics"], message: "Conversation messages must remain informational and cannot carry direction authority fields." });
+  }
+  if (Boolean(message.owner_outcome_id) !== Boolean(message.owner_outcome_sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["owner_outcome_id"], message: "Owner outcome identity and hash must be supplied together." });
+  }
+});
+
+export const outboundDeliveryLifecycleRecordedSchema = z.object({
+  type: z.literal("outbound_delivery_lifecycle_recorded"),
+  worker: WorkerId,
+  delivery_id: StableId,
+  message_id: StableId,
+  source_message_event_id: StableId,
+  status: z.enum(["QUEUED", "DELIVERY_ATTEMPTED", "DELIVERED", "DELIVERY_FAILED", "EXPIRED", "SUPERSEDED"]),
+  attempt: z.number().int().nonnegative(),
+  transport: z.enum(["LOCAL_POLL", "REMOTE_POLL", "WEBHOOK"]),
+  endpoint_id: StableId,
+  next_attempt_at: Timestamp.nullable().default(null),
+  lease_expires_at: Timestamp.nullable().default(null),
+  remote_receipt_id: StableId.nullable().default(null),
+  error_code: NonEmpty.nullable().default(null),
+});
+
+export const workerMessageRecordedSchema = z.object({
+  type: z.literal("worker_message_recorded"),
+  worker: WorkerId,
+  message_id: StableId,
+  thread_id: StableId,
+  message_kind: z.enum(["RESPONSE", "QUESTION"]),
+  body: NonEmpty.max(20_000),
+  reply_to_message_id: StableId.nullable().default(null),
+  direction_id: StableId.nullable().default(null),
+});
+
+export const directionAcknowledgedSchema = z.object({
+  type: z.literal("direction_acknowledged"),
+  worker: WorkerId,
+  acknowledgement_id: StableId,
+  direction_id: StableId,
+  message_id: StableId,
+  interpretation: NonEmpty.max(20_000),
+  accepted_scope: z.array(NonEmpty).default([]),
+  acknowledged_at: Timestamp,
+});
+
+export const outboundMessageAcknowledgedSchema = z.object({
+  type: z.literal("outbound_message_acknowledged"),
+  worker: WorkerId,
+  acknowledgement_id: StableId,
+  message_id: StableId,
+  delivery_id: StableId,
+  acknowledged_at: Timestamp,
+});
+
+const workQueueItemSchema = z.object({
+  item_id: StableId,
+  title: NonEmpty,
+  detail: NonEmpty,
+  status: z.enum(["PLANNED", "READY", "IN_PROGRESS", "BLOCKED", "WAITING_REVIEW", "DONE", "SUPERSEDED", "CANCELED"]),
+  priority: z.enum(["P0", "P1", "P2", "P3"]),
+  ordinal: z.number().int().nonnegative(),
+  depends_on: z.array(StableId).default([]),
+  created_at: Timestamp,
+  updated_at: Timestamp,
+});
+
+export const workQueuePublishedSchema = z.object({
+  type: z.literal("work_queue_published"),
+  worker: WorkerId,
+  project_id: StableId,
+  task_id: StableId,
+  queue_revision_id: StableId,
+  revision: z.number().int().positive(),
+  previous_queue_revision_id: StableId.nullable().default(null),
+  direction_id: StableId,
+  published_at: Timestamp,
+  items: z.array(workQueueItemSchema).max(200),
+});
+
+export const directionReconciledSchema = z.object({
+  type: z.literal("direction_reconciled"),
+  worker: WorkerId,
+  reconciliation_id: StableId,
+  direction_id: StableId,
+  queue_revision_id: StableId,
+  status: z.enum(["ACTIVE", "INCORPORATED", "SUPERSEDED"]),
+  summary: NonEmpty.max(20_000),
+  reconciled_at: Timestamp,
+});
+
+export const structuredBlockerRecordedSchema = z.object({
+  type: z.literal("structured_blocker_recorded"),
+  worker: WorkerId,
+  blocker_id: StableId,
+  task_id: StableId,
+  direction_id: StableId,
+  queue_item_id: StableId.nullable().default(null),
+  status: z.enum(["OPEN", "RESOLVED", "SUPERSEDED"]),
+  severity: z.enum(["INFO", "MATERIAL", "BLOCKING"]),
+  title: NonEmpty,
+  description: NonEmpty.max(20_000),
+  impact: NonEmpty,
+  blocking_scope: z.array(NonEmpty).min(1),
+  workaround_available: z.boolean(),
+  workaround: NonEmpty.nullable().default(null),
+  required_actor: z.object({ kind: z.enum(["OWNER", "WORKER", "SUPERVISOR", "SYSTEM", "EXTERNAL"]), id: StableId }),
+  evidence_refs: z.array(NonEmpty).default([]),
+  reported_by: StableId,
+  needs_owner: z.boolean(),
+  reported_at: Timestamp,
+}).superRefine((blocker, context) => {
+  if (blocker.workaround_available !== Boolean(blocker.workaround)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["workaround"], message: "Workaround text must match workaround availability." });
+  }
+});
+
+export const changeProposalRecordedSchema = z.object({
+  type: z.literal("change_proposal_recorded"),
+  worker: WorkerId,
+  proposal_id: StableId,
+  task_id: StableId,
+  direction_id: StableId,
+  queue_item_id: StableId.nullable().default(null),
+  status: z.enum(["OPEN", "WITHDRAWN"]),
+  title: NonEmpty,
+  rationale: NonEmpty.max(20_000),
+  expected_impact: NonEmpty,
+  affected_scope: z.array(NonEmpty).min(1),
+  proposer_id: StableId,
+  reasoning_authority: z.enum(["WORKER_CLAIM", "SUPERVISOR_ADVICE", "OWNER_AUTHORITY"]),
+  authority_effect: z.literal("NON_OPERATIVE"),
+  disposition: NonEmpty.nullable().default(null),
+  evidence_refs: z.array(NonEmpty).default([]),
+  requires_owner_decision: z.boolean(),
+  reported_at: Timestamp,
+});
+
 export const symphonyAdapterDiagnosticRecordedSchema = z.object({
   type: z.literal("symphony_adapter_diagnostic_recorded"),
   worker: WorkerId,
@@ -962,6 +1131,9 @@ export const eventSchemaV2 = z.union([
   supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, liveWorkerEvidenceObservedSchema, reviewMarkedSchema,
   symphonyAdapterDiagnosticRecordedSchema,
   supervisorChatLinkSetSchema,
+  ownerMessageRecordedSchema, outboundDeliveryLifecycleRecordedSchema, workerMessageRecordedSchema,
+  directionAcknowledgedSchema, outboundMessageAcknowledgedSchema, workQueuePublishedSchema, directionReconciledSchema,
+  structuredBlockerRecordedSchema, changeProposalRecordedSchema,
 ]);
 
 export const eventSchema = z.union([legacyEventSchema, eventSchemaV2]);

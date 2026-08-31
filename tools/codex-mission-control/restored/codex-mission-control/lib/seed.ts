@@ -2,6 +2,7 @@ import { canonicalJson, sha256 } from "./canonical";
 import type { MissionControlEventV2 } from "./schema";
 import { EventStore } from "./store";
 import { authorityStateVectorHash } from "./terminal-comparator";
+import { pullWorkerOutbox, recordOwnerMessage } from "./worker-channel";
 
 const missionId = "mission-control-demo";
 type CorrectionEvent = Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }>;
@@ -85,6 +86,7 @@ export function seedStore(store: EventStore): boolean {
 export function seedIssue47Store(store: EventStore): boolean {
   if (store.eventByEventId("issue47:v1:seed-complete")) return false;
   for (const worker of issue47Workers()) seedWorker(store, worker);
+  seedIssue47HumanDesignChannel(store);
   const timestamp = time(70);
   store.append(envelope("issue47:v1:seed-complete", timestamp, {
     type: "supervision_design_feedback_recorded",
@@ -702,49 +704,81 @@ function issue47InnerSignalWorker(): DemoWorker {
 
 function issue47HumanDesignWorker(): DemoWorker {
   const worker = "human-design-governance";
-  const action = "Reject another governance child; Extra High consolidates one pilot proposal from existing evidence.";
+  const action = "Run the bounded AstroHD survey first; return decision-changing evidence before resuming governance consolidation.";
   return {
     worker,
-    name: "Human Design · governance recursion",
-    ownerRequest: "Advance the Human Design product to one consolidated pilot proposal grounded in existing evidence.",
-    normalizedResult: "A single pilot proposal reaches the owner only after existing evidence is consolidated; governance recursion stops.",
-    currentGap: "Governance/support budget is exhausted and no consolidated pilot proposal exists.",
-    requiredOutcomes: [{ id: "human-design-pilot", text: "Produce one consolidated pilot proposal from existing evidence.", status: "UNMET" }],
-    goal: "Consolidate existing evidence into one bounded Human Design pilot proposal",
-    acceptance: ["No new governance child", "One consolidated pilot proposal", "Owner gate only after proposal exists"],
-    allowed: ["existing evidence consolidation"], forbidden: ["another governance child", "another Pro checkpoint"],
-    effectiveFinishLine: "One consolidated pilot proposal is ready for the owner gate",
-    reconciliationDirective: "PARK_NO_VALID_STRATEGY",
-    checkpoint: checkpoint(worker, "run-human-design-governance-01", "Parked after governance/support budget exhaustion", ["Recorded the exhausted governance budget", "Rejected inherited Pro routing"], ["Await one Extra High consolidated pilot proposal"], ["state/existing-evidence.json"], 26, 0, 0),
+    name: "Human Design · AstroHD survey",
+    ownerRequest: "Run the AstroHD survey first and use its evidence before returning to Human Design governance consolidation.",
+    normalizedResult: "A bounded AstroHD survey runs first and returns decision-changing evidence to the owner.",
+    currentGap: "The AstroHD survey is prepared but its evidence has not yet been collected and reviewed.",
+    requiredOutcomes: [{ id: "astrohd-survey-first", text: "Run the bounded AstroHD survey first and report its decision-changing evidence.", status: "UNMET" }],
+    goal: "Run and evaluate the AstroHD survey before resuming governance consolidation",
+    acceptance: ["AstroHD survey runs before governance work", "Survey evidence is preserved", "Results and blockers are visible to the owner"],
+    allowed: ["AstroHD survey setup", "AstroHD evidence collection", "AstroHD result review"], forbidden: ["unrelated governance expansion", "adopting a new authority layer"],
+    effectiveFinishLine: "AstroHD survey results and decision-changing evidence are visible to the owner",
+    reconciliationDirective: "RUN_ASTROHD_SURVEY_FIRST",
+    checkpoint: checkpoint(worker, "run-human-design-astrohd-01", "Preparing the bounded AstroHD survey run", ["Received the AstroHD-first direction", "Bound the survey evidence scope"], ["Validate survey inputs", "Run survey", "Summarize decision-changing evidence"], ["state/astrohd-survey.json"], 18, 0, 0),
     evidence: [{
-      type: "evidence_receipt_recorded", worker, receipt_id: "evidence:human-design:governance-budget-exhausted",
+      type: "evidence_receipt_recorded", worker, receipt_id: "evidence:human-design:astrohd-ready",
       producer_id: `collector:${worker}`, producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
-      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("human-design-governance-budget-exhausted"),
-      summary: "Governance/support cycles are exhausted; the latest proposed child adds no production or pilot evidence.",
-      refs: ["support-budget:exhausted", "pro-route:denied-routine", "production-src-delta:0", "pilot-proposal:absent"], verified: true,
+      independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: sha256("human-design-astrohd-ready"),
+      summary: "The bounded AstroHD survey input and evidence boundary are ready for execution.",
+      refs: ["astrohd-survey:input-boundary", "astrohd-survey:evidence-plan"], verified: true,
       claim_kind: "GENERAL", changed_path_manifest: null,
     }],
-    findings: [finding(worker, "finding-human-design-governance-recursion", "finding-group-human-design-recursion", "REPEATED_FAILURE_LOOP", "BLOCKING", "Governance/support budget is exhausted; another governance child would repeat supporting work without producing the pilot.", "Supporting governance cannot substitute for the user-visible pilot frontier after its cumulative budget is exhausted.", ["governance-cycles:12+", "latest-child:production-src-delta=0", "pilot-proposal:absent"], action, false)],
     claim: claim(worker, "claim-human-design-working", "WORKING", "IN_PROGRESS"),
-    assessment: assessment(worker, "assessment-human-design", "run-human-design-governance-01", "GREEN", "HOLD", "The worker is contract-aligned, but the governance strategy family is exhausted and another governance child is unauthorized.", 94, "when Extra High produces one consolidated pilot proposal"),
-    route: route(worker, "extra-high-human-design-pilot-turn-1", "when Extra High produces one consolidated pilot proposal", 1),
-    corrections: [{
-      directive_id: "directive-human-design-reject-governance-child", directive_kind: "WORKER_REDIRECT", target_kind: "WORKER_RUN", target_id: "run-human-design-governance-01",
-      finding_ids: ["finding-human-design-governance-recursion"], worker_run_id: "run-human-design-governance-01", status: "DIRECTIVE_PREPARED", directive: action,
-      required_evidence: ["one consolidated pilot proposal"], next_review_trigger: "when Extra High produces one consolidated pilot proposal",
-      owner_action: ownerActionNone(worker, "directive-human-design-reject-governance-child", "SUPERVISOR", "Consolidate existing evidence into one pilot proposal without opening another governance child.", "one consolidated pilot proposal", "NONE NOW — DEFER UNTIL ONE CONSOLIDATED PILOT PROPOSAL."),
-      continuation_policy: { mode: "PAUSE_ALL", allowed_scope: [], forbidden_scope: ["another governance child", "another routine Pro checkpoint"], preconditions: ["Extra High produces one consolidated pilot proposal"], basis_finding_ids: ["finding-human-design-governance-recursion"], basis_evidence_ids: ["evidence:human-design:governance-budget-exhausted"], expires_at: "2099-01-01T00:00:00.000Z", recheck_trigger: "one consolidated pilot proposal is recorded" },
-    }],
-    strategyId: "strategy:human-design:governance-support-family", outcomeAdvancement: "FLAT", strategyEfficacy: "EXHAUSTED",
+    assessment: assessment(worker, "assessment-human-design", "run-human-design-astrohd-01", "GREEN", "CONTINUE", "The current contract and queue both lead with the bounded AstroHD survey.", 98, "after the AstroHD survey produces decision-changing evidence"),
+    route: route(worker, "extra-high-human-design-astrohd-turn-1", "after the AstroHD survey produces decision-changing evidence", 1),
+    strategyId: "strategy:human-design:astrohd-first", outcomeAdvancement: "NOT_YET_MEASURABLE", strategyEfficacy: "VIABLE",
     evidenceValues: {
-      target: { state: "One consolidated pilot proposal", value: null }, baseline: { state: "Substantial product foundation exists", value: null }, previous: { state: "Twelve-plus governance checkpoints", value: null },
-      current: { state: "Zero production-source change; pilot evidence absent", value: null, receiptIds: ["evidence:human-design:governance-budget-exhausted"], role: "DIRECT_OUTCOME" },
-      best: { state: "Existing evidence is ready to consolidate, but no pilot proposal exists", value: null, receiptIds: ["evidence:human-design:governance-budget-exhausted"], role: "DIRECT_OUTCOME" },
+      target: { state: "AstroHD survey evidence reviewed", value: null }, baseline: { state: "AstroHD survey not yet run", value: null }, previous: { state: "Owner direction captured", value: null },
+      current: { state: "Survey inputs and evidence boundary ready", value: null, receiptIds: ["evidence:human-design:astrohd-ready"], role: "VALIDATED_LEADING_INDICATOR", predictiveBasis: "A bounded validated input is required before the survey can produce interpretable evidence.", decisionBoundary: "After the survey result is independently reviewed." },
+      best: { state: "Survey inputs and evidence boundary ready", value: null, receiptIds: ["evidence:human-design:astrohd-ready"], role: "VALIDATED_LEADING_INDICATOR", predictiveBasis: "A bounded validated input is required before the survey can produce interpretable evidence.", decisionBoundary: "After the survey result is independently reviewed." },
     },
-    requiredIntervention: action, supportingWorkClassification: "WASTE_OR_NO_INFORMATION_GAIN",
-    strategyCycleIndex: 12, strategyCycleBudget: 12, sameStrategyContinuationAllowed: false,
-    executionPhase: "PARKED", baseMinute: 49,
+    requiredIntervention: action, supportingWorkClassification: "EVIDENCE_ACQUISITION",
+    strategyCycleIndex: 1, strategyCycleBudget: 3, sameStrategyContinuationAllowed: true,
+    executionPhase: "RUNNING", baseMinute: 49,
   };
+}
+
+function seedIssue47HumanDesignChannel(store: EventStore) {
+  const workerId = "human-design-governance";
+  const directionAt = time(67);
+  recordOwnerMessage(store, {
+    worker: workerId, missionId, kind: "DIRECTION",
+    body: "Run the AstroHD survey first. Publish the direction-bound queue and surface blockers or proposed changes before expanding scope.",
+    now: directionAt, messageId: "message:human-design:astrohd-first", directionId: "direction:human-design:astrohd-first",
+    deliveryId: "delivery:human-design:astrohd-first", ownerEventId: "issue47:owner-message:human-design:astrohd-first",
+    deliveryEventId: "issue47:delivery-queued:human-design:astrohd-first",
+  }, { id: "owner:dashboard", kind: "UI", workerScopes: [workerId], taskScopes: [`task:${workerId}`] });
+  const workerProducer = { id: `worker:${workerId}`, kind: "WORKER" as const, workerScopes: [workerId], taskScopes: [`task:${workerId}`] };
+  pullWorkerOutbox(store, workerId, workerProducer, { now: time(68) });
+  store.appendMany([
+    { event: envelope("issue47:message-ack:human-design:astrohd-first", time(68, 10), {
+      type: "outbound_message_acknowledged", worker: workerId, acknowledgement_id: "ack:message:human-design:astrohd-first",
+      message_id: "message:human-design:astrohd-first", delivery_id: "delivery:human-design:astrohd-first", acknowledged_at: time(68, 10),
+    }), producer: workerProducer },
+    { event: envelope("issue47:direction-ack:human-design:astrohd-first", time(68, 11), {
+      type: "direction_acknowledged", worker: workerId, acknowledgement_id: "ack:direction:human-design:astrohd-first",
+      direction_id: "direction:human-design:astrohd-first", message_id: "message:human-design:astrohd-first",
+      interpretation: "Prioritize the bounded AstroHD survey and return its evidence before governance consolidation.",
+      accepted_scope: ["AstroHD survey setup", "AstroHD evidence collection", "AstroHD result review"], acknowledged_at: time(68, 11),
+    }), producer: workerProducer },
+    { event: envelope("issue47:queue:human-design:astrohd-first", time(68, 12), {
+      type: "work_queue_published", worker: workerId, project_id: "project:human-design", task_id: `task:${workerId}`,
+      queue_revision_id: "queue:human-design:astrohd-first", revision: 1, previous_queue_revision_id: null,
+      direction_id: "direction:human-design:astrohd-first", published_at: time(68, 12), items: [
+        { item_id: "astrohd:validate-inputs", title: "Validate AstroHD survey inputs", detail: "Confirm the bounded input and evidence plan.", status: "IN_PROGRESS", priority: "P0", ordinal: 0, depends_on: [], created_at: time(68, 12), updated_at: time(68, 12) },
+        { item_id: "astrohd:run-survey", title: "Run the AstroHD survey", detail: "Execute the bounded survey and preserve raw evidence.", status: "READY", priority: "P0", ordinal: 1, depends_on: ["astrohd:validate-inputs"], created_at: time(68, 12), updated_at: time(68, 12) },
+        { item_id: "astrohd:review-results", title: "Review decision-changing evidence", detail: "Summarize results, blockers, and proposed changes for the owner.", status: "PLANNED", priority: "P1", ordinal: 2, depends_on: ["astrohd:run-survey"], created_at: time(68, 12), updated_at: time(68, 12) },
+      ],
+    }), producer: workerProducer },
+    { event: envelope("issue47:reconcile:human-design:astrohd-first", time(68, 13), {
+      type: "direction_reconciled", worker: workerId, reconciliation_id: "reconcile:human-design:astrohd-first",
+      direction_id: "direction:human-design:astrohd-first", queue_revision_id: "queue:human-design:astrohd-first",
+      status: "INCORPORATED", summary: "The active queue now leads with the AstroHD survey and defers governance expansion.", reconciled_at: time(68, 13),
+    }), producer: workerProducer },
+  ]);
 }
 
 function authWorker(): DemoWorker {

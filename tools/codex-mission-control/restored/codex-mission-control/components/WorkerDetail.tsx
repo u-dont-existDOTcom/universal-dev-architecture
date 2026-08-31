@@ -6,6 +6,7 @@ import type { WorkerState } from "@/lib/projection";
 import type { StoredEvent } from "@/lib/schema";
 import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
+import { WorkerChannel } from "./WorkerChannel";
 
 export function WorkerDetail({ workerId }: { workerId: string }) {
   const [worker, setWorker] = useState<WorkerState | null>(null);
@@ -43,6 +44,8 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
       </header>
 
       <DecisionStrip worker={worker} />
+
+      <WorkerChannel worker={worker} onRefresh={load} />
 
       <section className="detail-grid">
         <Panel eyebrow="OWNER AUTHORITY" title="Owner outcome and current gap" className="authority-panel">
@@ -253,6 +256,15 @@ function eventSummary(event: StoredEvent): string {
     case "supervision_design_feedback_recorded": return `${data.feedback_id}: ${data.status}`;
     case "symphony_runtime_observed": return `${data.kind}: ${data.issue_identifier} (${data.tracker_state ?? "provider state unavailable"})`;
     case "live_worker_evidence_observed": return `${data.phase}: ${data.branch}@${data.head.slice(0, 8)} · ${data.summary}`;
+    case "owner_message_recorded": return `${data.message_kind}: ${data.body}`;
+    case "outbound_delivery_lifecycle_recorded": return `${data.status}: ${data.message_id} via ${data.transport}`;
+    case "outbound_message_acknowledged": return `Message ${data.message_id} acknowledged`;
+    case "worker_message_recorded": return `${data.message_kind}: ${data.body}`;
+    case "direction_acknowledged": return `Direction ${data.direction_id}: ${data.interpretation}`;
+    case "work_queue_published": return `${data.items.length} items bound to ${data.direction_id}`;
+    case "direction_reconciled": return `${data.status}: ${data.summary}`;
+    case "structured_blocker_recorded": return `${data.severity} ${data.status}: ${data.title}`;
+    case "change_proposal_recorded": return `${data.status}: ${data.title}`;
     case "symphony_adapter_diagnostic_recorded": return `${data.reason_code}: ${data.statement}`;
     case "review_marked": return `Reviewed through sequence ${data.reviewed_through_sequence}`;
     case "objective_created": return data.goal;

@@ -2,7 +2,7 @@
 
 This directory preserves the current, tested Mission Control dashboard adaptation built from the existing PR #41 application. It is an explanation-first local supervision dashboard, not a worker orchestrator.
 
-The adaptation baseline is `744c477`; the current revision adds the epoch-4 progress and chat-led-execution controls required by the fresh Extra High directive. The source archive is a lossless ZIP split into ASCII base64 parts for repository-safe transfer.
+The adaptation baseline is `744c477`; the current revision adds ledger-first owner↔worker messaging, authenticated local/VPS polling, persistent direction-bound queues, structured blockers/proposals, and bounded Hermes/n8n evaluation scaffolding. The source archive is a lossless ZIP split into ASCII base64 parts for repository-safe transfer.
 
 ## Restore and run
 
@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-e45a6e0e771cb2e1ebe0eaee31e8542aa4dbacd0808a3cdd94ce5cd9cc7efdc0
+1ecf26dca669b7f9903254412a51da4ca85505c6c4562b61767e14826c2491ae
 ```
 
-The checked archive contains 45 source files in 25 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, and runtime databases.
+The checked archive contains 61 source files in 31 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
 
 ## Current operator model
 
@@ -55,18 +55,34 @@ External ingestion is disabled unless per-producer credentials with explicit wor
 
 The stock Symphony adapter is read-only. Mission Control does not dispatch, retry, stop, resume, schedule, reconcile, mutate tracker state, own workspaces, or replace Symphony orchestration.
 
+## Owner↔worker channel and queued experiments
+
+The live slice now records owner messages and directions before delivery,
+maintains an event-backed outbound queue, exposes authenticated polling and
+worker-event APIs for local or VPS/cloud workers, and projects recorded,
+queued, delivered, acknowledged, and incorporated states independently. Each
+worker can publish a direction-bound persistent queue plus structured blockers
+and change proposals; the fleet dashboard aggregates and filters those items.
+
+Hermes remains only a bounded three-scenario/seven-day continuity experiment,
+and n8n remains only an eight-hour edge-adapter evaluation. Neither is adopted,
+authoritative, or allowed to change Symphony's role. See the
+[owner↔worker messaging and adapter experiment plan](../../docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md).
+
 ## Verification receipt
 
 At the current execution receipt boundary:
 
-- 71 deterministic tests passed;
+- 87 deterministic application tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;
 - unauthenticated daemon and external ingestion mutations were denied;
 - same-origin UI mutations succeeded for both localhost spellings while cross-origin mutations were denied;
-- the default queue, Test cleanup card, and complete healthy Auth card were captured at an actual 390 CSS-pixel viewport;
-- `window.innerWidth`, root client/scroll width, and body scroll width all measured exactly 390, with no horizontal overflow;
+- the owner queue and Human Design worker channel were exercised in the embedded browser at desktop and an actual 375 CSS-pixel compact viewport;
+- compact root/client/body scroll widths all measured exactly 375, with no horizontal overflow;
+- the AstroHD direction, composer, delivery lifecycle, direction-bound queue, blocker, and proposal were visible at the compact viewport;
+- authenticated MCP initialize/list/read calls returned the same worker projection, while an unauthenticated read was denied;
 - stack shutdown released the daemon writer lock;
 - the source archive restored with exact checksum and tree equality.
 

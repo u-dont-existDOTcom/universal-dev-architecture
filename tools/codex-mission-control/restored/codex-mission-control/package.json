@@ -9,7 +9,9 @@
     "build": "next build",
     "start": "node scripts/run-stack.mjs start",
     "test": "tsx --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "experiment:hermes": "node scripts/run-hermes-experiment.mjs",
+    "evaluate:n8n": "node scripts/evaluate-n8n-adapter.mjs"
   },
   "dependencies": {
     "next": "16.3.3",

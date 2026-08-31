@@ -14,6 +14,9 @@ export const authenticatedEventTypes = [
   "execution_directive_recorded", "codex_execution_started", "execution_receipt_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "supervision_design_feedback_recorded", "symphony_runtime_observed",
   "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
+  "owner_message_recorded", "outbound_delivery_lifecycle_recorded", "worker_message_recorded",
+  "direction_acknowledged", "outbound_message_acknowledged", "work_queue_published", "direction_reconciled",
+  "structured_blocker_recorded", "change_proposal_recorded",
 ] as const satisfies readonly MissionControlEventV2["type"][];
 
 export interface AuthenticatedProducer {
@@ -26,9 +29,12 @@ export interface AuthenticatedProducer {
 const authorityEvents = new Set<MissionControlEventV2["type"]>([
   "owner_source_recorded", "owner_outcome_recorded", "task_contract_recorded",
   "objective_reconciliation_recorded", "owner_decision_recorded",
+  "owner_message_recorded",
 ]);
 const workerEvents = new Set<MissionControlEventV2["type"]>([
   "worker_checkpoint_recorded", "completion_claim_recorded", "codex_execution_started", "execution_receipt_recorded",
+  "worker_message_recorded", "direction_acknowledged", "outbound_message_acknowledged", "work_queue_published", "direction_reconciled",
+  "structured_blocker_recorded", "change_proposal_recorded",
 ]);
 const supervisorEvents = new Set<MissionControlEventV2["type"]>([
   "supervisor_assessment_recorded", "finding_recorded", "finding_status_changed",
@@ -64,10 +70,11 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
       && !["CORRECTION_VERIFIED", "CORRECTION_EVIDENCE_REJECTED", "CORRECTION_REOPENED"].includes(event.status));
   }
   if (producer.kind === "SYSTEM") {
+    if (event.type === "outbound_delivery_lifecycle_recorded") return true;
     return event.type === "correction_lifecycle_recorded"
       && ["DIRECTIVE_DELIVERED", "DIRECTIVE_DELIVERY_FAILED", "CORRECTION_REOPENED"].includes(event.status);
   }
-  return event.type === "review_marked" || event.type === "supervisor_chat_link_set";
+  return event.type === "review_marked" || event.type === "supervisor_chat_link_set" || event.type === "owner_message_recorded";
 }
 
 function eventTaskId(event: MissionControlEventV2): string {

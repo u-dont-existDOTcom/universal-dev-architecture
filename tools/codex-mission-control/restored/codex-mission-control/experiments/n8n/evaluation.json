@@ -1,0 +1,19 @@
+{
+  "evaluationId": "mission-control-n8n-adapter-v1",
+  "status": "QUEUED_EVALUATION",
+  "timeboxHours": 8,
+  "role": "INTEGRATION_EVENT_ROUTING_ADAPTER_ONLY",
+  "sourceOfTruth": false,
+  "reasoningAuthority": false,
+  "schedulingAuthority": false,
+  "comparison": "Direct authenticated adapter versus n8n pass-through adapter",
+  "requiredChecks": [
+    "event IDs and payloads remain byte-equivalent after canonical JSON normalization",
+    "event order is preserved",
+    "duplicate delivery does not create duplicate ledger records",
+    "authentication identity and worker scope survive routing",
+    "outage recovery does not lose queued events",
+    "operational burden is lower than the direct adapter"
+  ],
+  "defaultDecision": "KEEP_DIRECT_ADAPTER"
+}

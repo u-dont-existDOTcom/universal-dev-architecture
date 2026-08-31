@@ -15,6 +15,7 @@ import type {
 } from "./schema";
 import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
+import { projectWorkerChannel, type WorkerChannelProjection } from "./worker-channel";
 
 export type Health = Traffic;
 export type WorkerStatus = "working" | "blocked" | "done";
@@ -197,6 +198,7 @@ export interface WorkerState {
     proEscalationState: string;
     alerts: string[];
   };
+  channel: WorkerChannelProjection;
   lastCheckpointAt: string;
   timeline: StoredEvent[];
 }
@@ -403,6 +405,7 @@ function projectV2Worker(
         "PROGRESS_EVIDENCE_OVERDUE", "OWNER_OUTCOME_REGRESSING", "STRATEGY_REPLACEMENT_REQUIRED",
       ].includes(code) || code.startsWith("CODEX_") || code === "DIRECTIVE_SCOPE_EXCEEDED" || code === "OWNER_FORCED_PROGRESS_REVIEW"),
     },
+    channel: projectWorkerChannel(events),
     lastCheckpointAt: lastCheckpoint.occurredAt,
     timeline: [...events].reverse(),
   };
@@ -756,6 +759,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       stopBoundary: [], latestReceiptId: null, receiptClaim: "No execution receipt in legacy schema.",
       pendingReasoningReview: true, proEscalationState: "NOT_REQUIRED", alerts: ["SUPERVISION_DIRECTIVE_MISSING"],
     },
+    channel: projectWorkerChannel(events),
     lastCheckpointAt: last.occurredAt,
     timeline: [...events].reverse(),
   };

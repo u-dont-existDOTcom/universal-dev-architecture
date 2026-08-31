@@ -68,6 +68,13 @@ For the Mission Control pilot and dashboard adaptation, load all required addend
 - `exec-plans/2026-08-31-mission-control-outcome-progress-and-stagnation-addendum.md`
 - `exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md`
 - `exec-plans/2026-08-31-mission-control-active-task-authority-and-blocker-scope.md`
+- `exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`
+
+The final item is a queued extension, not current runtime truth: Mission Control
+must append an authenticated owner direction and durable outbox item before
+delivery to a local/VPS/cloud worker, then show delivery, acknowledgement, and
+direction-bound queue reconciliation separately. Hermes and n8n remain bounded
+experiments with no default authority or adoption.
 
 Run these hostile fixtures:
 
