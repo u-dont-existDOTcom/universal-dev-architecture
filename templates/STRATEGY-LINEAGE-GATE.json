@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "replace-with-lineage-receipt-id",
+  "createdAt": "1970-01-01T00:00:00Z",
+  "taskId": "replace-with-task-id",
+  "ownerOutcome": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256"
+  },
+  "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity",
+  "proposedStrategy": {
+    "strategyId": "replace-with-strategy-id",
+    "claimedFamilyId": "replace-with-family-id",
+    "fingerprint": {
+      "inputRepresentation": "replace-with-input-representation",
+      "informationExposure": "replace-with-blinding-or-context-state",
+      "actionMechanism": "replace-with-causal-action-mechanism",
+      "iterationGranularity": "replace-with-search-or-cycle-granularity",
+      "optimizationSignal": "replace-with-root-metric-or-proxy",
+      "rootOutcomeRelationship": "replace-with-how-the-mechanism-is-expected-to-change-the-owner-outcome",
+      "feedbackLoop": "replace-with-measure-review-revise-loop",
+      "artifactArchitecturePolicy": "replace-with-what-structure-is-preserved-or-intentionally-changed",
+      "validationTopology": "replace-with-self-review-independent-review-or-other-topology",
+      "resourcePattern": "replace-with-material-resource/external-call-pattern-or-NOT_APPLICABLE"
+    }
+  },
+  "relevantPriorFamilies": [
+    {
+      "familyId": "replace-with-prior-family-id",
+      "state": "FAILED",
+      "failureEvidenceBoundary": "replace-with-evidence-ref",
+      "failureReason": "replace-with-observed-failure",
+      "causalFailureHypothesis": "replace-with-causal-failure-hypothesis",
+      "forbiddenDescendantPredicates": [],
+      "knownNonNovelChanges": [],
+      "reenableConditions": [],
+      "comparison": {
+        "sharedDimensions": [],
+        "changedDimensions": [],
+        "whyChangedDimensionsAreCausal": "replace-with-bounded-reasoning",
+        "negativeEvidenceEscaped": "replace-with-specific-negative-evidence-or-NONE",
+        "newFalsifiablePrediction": "replace-with-prediction",
+        "newFailureThreshold": "replace-with-threshold"
+      }
+    }
+  ],
+  "recurrenceState": {
+    "recurrenceTriggered": false,
+    "triggerReasons": [],
+    "independentLineageReviewRequired": false
+  },
+  "lineageReviewer": {
+    "surface": "EXTRA_HIGH_OR_PRO",
+    "sessionId": "replace-with-session-id",
+    "chatEpoch": "replace-with-chat-epoch",
+    "independentFromPlanner": true,
+    "diagnosticOnly": true,
+    "informationDisclosed": [],
+    "informationWithheld": []
+  },
+  "verdict": "LINEAGE_UNRESOLVED",
+  "nearestFailedAncestorFamilyId": null,
+  "confidence": "UNKNOWN",
+  "blockingFindings": [],
+  "reenableConditionSatisfied": false,
+  "strategyAuthorizationEffect": "NO_VALID_STRATEGY",
+  "allowedVerdicts": [
+    "NEW_FAMILY",
+    "SAME_FAMILY",
+    "DESCENDANT_OF_FAILED_FAMILY",
+    "LINEAGE_UNRESOLVED"
+  ],
+  "allowedAuthorizationEffects": [
+    "MAY_CONTINUE_TO_STRATEGY_ADMISSION",
+    "NO_VALID_STRATEGY"
+  ]
+}

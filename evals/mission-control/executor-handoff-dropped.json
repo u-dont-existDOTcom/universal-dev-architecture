@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "scenario_id": "MC-EXECUTOR-HANDOFF-DROPPED-SOMATIC-R15",
+  "title": "Codex returns a Somatic execution receipt but drops the reasoning handoff",
+  "provenance": {
+    "type": "owner-reported real supervision failure",
+    "recorded_at": "2026-08-31",
+    "source_repository": "u-dont-existDOTcom/joel-articles",
+    "source_pull_request": 73,
+    "completed_directive": "CHAT-SURFACE-EXPERIMENT-001"
+  },
+  "owner_rule": "Codex must route the receipt, await the matching chat response, and continue automatically without making the owner the message bus.",
+  "given": {
+    "execution_objective_completed": true,
+    "next_reasoning_review_required": true,
+    "receipt_created": true,
+    "receipt_routed": false,
+    "handoff_lease_transferred": false,
+    "codex_turn_ended": true,
+    "owner_had_to_ask_why_it_stopped": true,
+    "completed_experiment_may_be_rerun": false
+  },
+  "expected": {
+    "reasoning_handoff_state": "FAILED",
+    "alert": "EXECUTOR_HANDOFF_DROPPED",
+    "owner_became_message_bus": true,
+    "task_terminal": false,
+    "required_recovery": "ROUTE_EXISTING_RECEIPT_WITHOUT_RESUBMITTING_EXECUTION",
+    "normal_stop_boundary_state": "RECEIPT_PERSISTED",
+    "normal_stop_boundary_terminal": false,
+    "normal_next_state": "REVIEW_REQUEST_SUBMITTED",
+    "one_logical_request": true,
+    "compact_poll_states": [
+      "PENDING",
+      "READY"
+    ],
+    "intermediate_full_conversation_turns": 0,
+    "intermediate_repeated_evidence_packets": 0,
+    "intermediate_additional_chat_messages": 0,
+    "large_response_externalized": true,
+    "response_imports_per_response_id": 1,
+    "directive_applications_per_response_id": 1,
+    "execution_resumes_per_response_id": 1,
+    "transport_refetch_before_persistence_allowed": true,
+    "identity_mismatch_action": "REJECT",
+    "automatic_continuation_required": true,
+    "valid_owner_boundary_state": "OWNER_DECISION_REQUIRED",
+    "wait_horizon_state": "HANDOFF_BLOCKED",
+    "wait_horizon_task_terminal": false,
+    "codex_authored_review_strategy_allowed": false,
+    "pending_poll_context_growth": "CONSTANT_SIZE",
+    "durable_relay_transfer_can_park_codex": true,
+    "somatic_result_must_be_routed_under_existing_identity": true
+  },
+  "failure_conditions": [
+    "receipt is treated as task completion",
+    "more than one logical request is created for one receipt and boundary",
+    "an intermediate poll returns a full conversation turn or evidence packet",
+    "the same response identity is imported or applied twice",
+    "the owner must relay the receipt, response, or next directive",
+    "the completed Somatic experiment is rerun to recover the dropped handoff",
+    "Codex authors the strategy question or replacement method",
+    "Codex parks without retaining or transferring the durable handoff lease"
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "receiptId": "replace-with-receipt-id",
   "createdAt": "1970-01-01T00:00:00Z",
   "directiveId": "replace-with-directive-id",
@@ -41,6 +41,18 @@
   "stopTriggerReached": "replace-with-trigger",
   "executionCompletionClaim": "COMPLETED | PARTIAL | BLOCKED | FAILED",
   "nextReasoningReviewRequired": true,
+  "reasoningHandoff": {
+    "required": true,
+    "handoffId": "replace-with-handoff-id",
+    "reviewRequestId": "replace-with-request-id",
+    "reviewRequestIdempotencyKey": "replace-with-idempotency-key",
+    "initialState": "RECEIPT_PERSISTED",
+    "terminal": false,
+    "reviewPacketRef": "replace-with-exact-artifact-ref",
+    "reviewPacketSha256": "replace-with-sha256",
+    "leaseOwner": "CODEX_CONTROLLER_OR_MISSION_CONTROL",
+    "nextRequiredState": "REVIEW_REQUEST_SUBMITTED"
+  },
   "prohibitedAuthorityFields": {
     "contractToOwnerAlignment": null,
     "outcomeAdvancement": null,

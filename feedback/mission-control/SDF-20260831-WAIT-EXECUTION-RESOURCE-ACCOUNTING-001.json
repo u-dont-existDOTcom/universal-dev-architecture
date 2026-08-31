@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+  "createdAt": "2026-08-31T03:44:46Z",
+  "taskId": "somatic-r15-clean-continuation-20260830",
+  "workerRunId": "somatic-r15-codex-controller-20260831",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+    "epoch": 1,
+    "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6"
+  },
+  "parentOwnerOutcomeReference": {
+    "ownerOutcomeId": "somatic-therapies-humanization",
+    "relationship": "UNAFFECTED_PARENT_OUTCOME_REFERENCE"
+  },
+  "ownerSourceReceipt": {
+    "source": "current owner conversation",
+    "encoding": "UTF-8",
+    "terminalNewline": false,
+    "utf8Bytes": 147,
+    "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6",
+    "exactSourceBlock": "how many tokens are you using to wait for the chat response compared to wwen you actually work?\nadd that to the codex supervisor workflow, continue"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-31",
+    "sha256OrCommit": "cb7d8fbd456a3568d0d47a1f60bd87fc4a79511e"
+  },
+  "type": "IMPROVEMENT",
+  "category": "RESOURCE_ACCOUNTING",
+  "severity": "NONBLOCKING",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Compact polling constrains context growth but does not separately report waiting resource use versus substantive execution resource use, so the owner cannot audit whether supervision overhead is proportionate.",
+  "relevantRule": {
+    "path": "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "section": "11. Continue automatically and keep the reasoning handoff live",
+    "excerpt": "Intermediate polls return only PENDING or READY plus request/response identity and retry metadata."
+  },
+  "observedOrHypotheticalFailure": "A worker can comply with constant-size polling while still hiding cumulative wait cost or comparing guessed token totals, preventing an evidence-based wait-versus-work efficiency audit.",
+  "evidenceRefs": [
+    "owner-correction-2026-08-31-report-wait-tokens-versus-work-tokens",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_03_one_hundred_pending_polls_have_constant_size_projection"
+  ],
+  "proposedChange": "Add separate exact-token accounting when runtime telemetry exists, byte/call-count fallback when it does not, an explicit prohibition on estimated token totals, and a rule that accounting cannot delay response import or execution resumption.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Report an informal percentage from conversation length.",
+      "rejectedBecause": "It would be an unverifiable estimate and could confuse context size with billed or generated tokens."
+    },
+    {
+      "alternative": "Keep only the existing constant-size poll regression.",
+      "rejectedBecause": "It proves bounded per-poll context but does not expose cumulative wait cost relative to execution."
+    }
+  ],
+  "risks": [
+    "Telemetry fields could become busywork if they block resumption.",
+    "Byte ratios are only a fallback proxy and must not be labeled token ratios."
+  ],
+  "workerRecommendation": "Adopt the minimal schema, bootstrap rule, and regression while keeping accounting outside compact poll envelopes and nonblocking for task execution.",
+  "workerUncertainty": "The current runtime does not expose exact per-phase token telemetry to this controller, so this run can report only that exact token totals are unavailable.",
+  "decisionThatCanChange": "Supervisor handoff telemetry schema and owner-visible supervision efficiency reporting.",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/2026-08-31"
+  },
+  "status": "CLOSED",
+  "proMetaReview": {
+    "verdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+    "disposition": "CORRECTIONS_REQUIRED",
+    "receivedAt": "2026-08-31T04:11:00Z",
+    "latestVerdictId": "SUPERVISION_DESIGN_VERDICT SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001-CORRECTIONS-001",
+    "latestDisposition": "ACCEPT",
+    "closedAgainstHead": "c9b3475da8e290159dffbfaa784ec20844c40693",
+    "activeSomaticLoopBlocked": false
+  },
+  "ownerDecisionRef": "owner-directive-2026-08-31-add-wait-versus-work-accounting",
+  "repositoryChangeRefs": [
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "templates/EXECUTOR-REASONING-HANDOFF.json",
+    "scripts/executor_handoff_state.py",
+    "tests/test_executor_handoff_liveness.py"
+  ],
+  "testRefs": [
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_18_wait_and_execution_resource_accounting_are_separate",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_19_exact_usage_computes_separate_ratios_and_wall_time",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_20_unavailable_tokens_use_labeled_exact_byte_fallback",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_21_partial_tokens_do_not_emit_token_ratio",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_22_guessed_tokens_are_rejected_without_changing_liveness",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_23_incomparable_metering_domains_emit_no_resource_ratios",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_24_zero_execution_denominators_emit_no_ratio",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_25_usage_events_and_finalization_are_idempotent",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_26_owner_source_receipt_is_exactly_bound",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_27_one_hundred_polls_accumulate_exact_wait_transport_without_projection_growth",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_28_usage_after_finalization_is_rejected_without_changing_liveness",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_29_same_phase_overlapping_windows_are_rejected",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_30_wait_execution_overlap_is_rejected_but_touching_boundaries_are_valid",
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_31_elapsed_seconds_must_match_exact_window_duration"
+  ]
+}

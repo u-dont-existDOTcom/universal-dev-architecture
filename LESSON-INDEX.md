@@ -45,6 +45,8 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/CURRENT-STATE.md` — recovery checkpoint carrying owner authority, gap, alignment, completion, progress, strategy, research assurance, and supervision-design state.
 - `templates/AGENTS-UNIVERSAL-BOOTSTRAP.md` — compact root bootstrap pointing workers to current universal rules.
 - `templates/ACTIVE-TASK.json` — exclusive machine-readable active-task lock.
+- `templates/SCOPED-BLOCKER.json` — scoped blocker identity, freshness, causal applicability, unblock event, and supersession.
+- `templates/WAIT-ADMISSION.json` — machine-readable wait admission with exact changing condition, actor/mechanism, polling policy, and bounded horizon.
 - `templates/PRIOR-WORK-SCAN.md` — independent conception, existing-work, reuse decision, novelty, baseline, and research-debt ledger.
 - `templates/CODEX-TASK.md` — durable task contract with owner authority, derivation proof, reconciliation, alignment, completion, progress, and routing.
 - `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md` — current executor bootstrap requiring chat-led reasoning, bounded directives, dual alignment, progress/strategy control, and Pro meta-review routing.
@@ -52,6 +54,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/OUTCOME-PROGRESS-RECEIPT.json` — direct outcome target/baseline/current/best evidence, work classification, advancement, strategy efficacy, intervention, and next evidence boundary.
 - `templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json` — versioned reasoning-chat instruction defining exact execution objective, strategy identity, scope, evidence, and stop/review boundary.
 - `templates/CODEX-EXECUTION-RECEIPT.json` — execution-only receipt with commands, mutations, tests, measurements, artifacts, deviations, blockers, and stop trigger; no supervisory authority.
+- `templates/EXECUTOR-REASONING-HANDOFF.json` — durable closed-loop lease and compact polling record that keeps reasoning-review boundaries nonterminal and resumes one validated directive exactly once.
 - `templates/RESEARCH-SUPERVISION-VERDICT.json` — separate operational, scientific, and release-adequacy judgments.
 - `templates/SUPERVISION-DESIGN-FEEDBACK.json` — structured feedback packet for shared Pro supervisor-design review.
 
@@ -79,4 +82,4 @@ Start with this index, then open only the relevant current pattern. Newer owner 
 
 For long-running work, the project bootstrap/index should point to one obvious current-state checkpoint. A fresh session must reconcile actual Git state, independently recover owner authority, identify the current reasoning-supervisor chat and directive, report alignment/progress/strategy state, and stop substantive Codex execution when `SUPERVISION_DIRECTIVE_MISSING`.
 
-For a consequential active-task lock, the branch-bound task identity and preflight outrank unrelated handoffs, worktrees, roadmaps, and global next-task selection. Ordinary green tests never substitute for the root owner outcome, direct evidence that the strategy is advancing it, or a current chat-authored execution directive.
+For a consequential active-task lock, the branch-bound task identity and preflight outrank unrelated handoffs, worktrees, roadmaps, and global next-task selection. A repository-global status label affects that task only through a current scoped blocker and causal dependency; waiting requires a valid `WAIT-ADMISSION` record. Ordinary green tests never substitute for the root owner outcome, direct evidence that the strategy is advancing it, or a current chat-authored execution directive.

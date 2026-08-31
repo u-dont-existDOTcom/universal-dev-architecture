@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+  "receiptId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001-CORRECTIONS-002-RECEIPT-001",
+  "createdAt": "2026-08-31T04:50:34Z",
+  "implementationCommit": "601b135e8947e6cc8ad4f20eb8f062d179289403",
+  "branch": "architecture/codex-pro-supervision-mission-control-20260830",
+  "ownerSourceReceipt": {
+    "ownerOutcomeId": "OO-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+    "utf8Bytes": 147,
+    "terminalNewline": false,
+    "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6"
+  },
+  "unaffectedParentOwnerOutcome": {
+    "ownerOutcomeId": "somatic-therapies-humanization",
+    "relationship": "UNAFFECTED_PARENT_OUTCOME_REFERENCE"
+  },
+  "implementedCorrections": [
+    "resource-usage events after finalization reject with ACCOUNTING_ALREADY_FINALIZED",
+    "elapsedSeconds must exactly equal the parsed accounting-window duration",
+    "same-phase overlapping half-open windows reject with ACCOUNTING_WINDOW_OVERLAP",
+    "cross-phase WAIT and EXECUTION overlaps reject with ACCOUNTING_PHASE_OVERLAP",
+    "touching half-open interval boundaries remain valid",
+    "100 compact PENDING polls accumulate exact wait bytes and calls without accounting data in the projection, extra messages, full payload retrieval, or liveness loss",
+    "post-finalization, overlapping-window, phase-overlap, and elapsed-window mutation tests fail closed"
+  ],
+  "errorCodes": [
+    "ACCOUNTING_WINDOW_OVERLAP",
+    "ACCOUNTING_PHASE_OVERLAP",
+    "ACCOUNTING_ELAPSED_WINDOW_MISMATCH",
+    "ACCOUNTING_ALREADY_FINALIZED"
+  ],
+  "artifacts": {
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md": "e14837fdc0e5d2c43fda6079bb5ada6661321106d41c26fd05746c31a75b2ed7",
+    "templates/EXECUTOR-REASONING-HANDOFF.json": "cc9716c590aad9711825d4a65f0deac487e07c071d031c0891b0f4f94a524e5c",
+    "scripts/executor_handoff_state.py": "a36cf086ad2f6c9bc740206452e5163d63930d1380fcd05fe5e6c3f8ba8980cf",
+    "tests/test_executor_handoff_liveness.py": "95d99ce1decd138062db14e50e0710643c1d4651aed43a77b04fe08f590655c1",
+    "feedback/mission-control/SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001.json": "45d1ea392e6b227374ecefe413df0759c0f73892dec96dfa3d0a06706d72fd88"
+  },
+  "verification": {
+    "focusedHandoffTests": {
+      "command": "python -m unittest tests.test_executor_handoff_liveness",
+      "result": "PASS",
+      "tests": 31
+    },
+    "fullUniversalSuite": {
+      "command": "python3 -m unittest discover -s tests -v",
+      "result": "PASS",
+      "tests": 175
+    },
+    "pythonCompile": "PASS",
+    "jsonValidation": "PASS",
+    "gitDiffCheck": "PASS",
+    "repositoryAudit": {
+      "command": "python3 scripts/audit_codex_github.py --root . --fail-on error",
+      "result": "PASS_NO_FINDINGS"
+    },
+    "hostedCi": "PENDING_RECEIPT_COMMIT"
+  },
+  "activeSomaticLoopBlocked": false,
+  "ownerActionRequired": false,
+  "status": "READY_FOR_PRO_META_REVIEW"
+}

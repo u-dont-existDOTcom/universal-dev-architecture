@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "blockerId": "replace-with-stable-blocker-id",
+  "status": "UNRESOLVED",
+  "scope": {
+    "type": "TASK",
+    "id": "replace-with-scope-identity",
+    "repositoryWidePolicy": false
+  },
+  "source": {
+    "ref": "replace-with-exact-source-ref",
+    "sourceType": "TASK_LOCAL_STATE",
+    "taskId": "replace-with-originating-task-id",
+    "observedAt": "1970-01-01T00:00:00Z",
+    "freshnessState": "UNKNOWN"
+  },
+  "blockingCondition": {
+    "kind": "replace-with-condition-kind",
+    "identity": "replace-with-exact-condition-identity",
+    "capabilityId": "replace-with-blocked-capability-id",
+    "operation": "replace-with-blocked-operation"
+  },
+  "appliesTo": {
+    "taskIds": [],
+    "strategyFamilyIds": [],
+    "directiveIds": [],
+    "operations": []
+  },
+  "causalDependency": {
+    "requiredByTaskIds": [],
+    "requiredCapabilityId": "replace-with-required-capability-id",
+    "requiredOperation": null,
+    "evidenceRefs": []
+  },
+  "unblockEvent": {
+    "kind": "replace-with-event-kind",
+    "identity": "replace-with-exact-event-identity",
+    "sourceRef": "replace-with-event-source",
+    "expectedState": "replace-with-expected-state",
+    "actorOrMechanism": "replace-with-actor-or-mechanism"
+  },
+  "ownerAction": {
+    "required": false,
+    "action": "NONE"
+  },
+  "retryOrRecheckPolicy": {
+    "mode": "NOTIFICATION",
+    "mechanismIdentity": "replace-with-exact-mechanism",
+    "nextCheckAt": null
+  },
+  "maximumWaitHorizonSeconds": 3600,
+  "unrelatedWorkAllowed": true,
+  "supersession": {
+    "supersedes": [],
+    "supersededBy": null
+  },
+  "inheritanceAttempted": false,
+  "allowedScopeTypes": [
+    "REPOSITORY",
+    "TASK",
+    "STRATEGY_FAMILY",
+    "DIRECTIVE",
+    "RELEASE",
+    "SECURITY_POLICY",
+    "EXTERNAL_SERVICE",
+    "OWNER_DECISION"
+  ],
+  "allowedStatuses": [
+    "UNRESOLVED",
+    "RESOLVED",
+    "SUPERSEDED"
+  ],
+  "allowedFreshnessStates": [
+    "CURRENT",
+    "STALE",
+    "UNKNOWN"
+  ]
+}

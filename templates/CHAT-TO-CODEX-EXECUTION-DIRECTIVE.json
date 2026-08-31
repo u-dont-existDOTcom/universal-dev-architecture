@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "directiveId": "replace-with-directive-id",
   "directiveRevision": 1,
   "createdAt": "1970-01-01T00:00:00Z",
@@ -8,6 +8,15 @@
     "ownerOutcomeId": "replace-with-owner-outcome-id",
     "epoch": 1,
     "sha256": "replace-with-owner-outcome-sha256"
+  },
+  "authorityContext": {
+    "activeTaskRef": "path/to/active-task.json",
+    "taskLocalCheckpointRef": "path/to/task-local-current-state",
+    "repositoryGlobalStateRef": "path/to/repository-global-current-state",
+    "globalStateRelation": "AMBIGUOUS",
+    "authorityResolutionStatus": "UNRESOLVED",
+    "currentBlockerIds": [],
+    "waitAdmissionId": null
   },
   "reasoningSupervisor": {
     "surface": "EXTRA_HIGH",
@@ -49,7 +58,8 @@
       "classify overall alignment or progress",
       "author supervisory verdict",
       "decide owner or Pro escalation",
-      "continue beyond stop trigger"
+      "continue beyond stop trigger",
+      "treat a reasoning-review boundary or pending response as task termination"
     ]
   },
   "requiredEvidence": [],
@@ -70,5 +80,44 @@
   "ownerDecisionAuthority": "NONE",
   "proEscalationAuthority": "NONE",
   "substantiveProseAuthorshipAuthority": "NONE_UNLESS_EXACT_TEXT_OR_TRANSFORMATION_IS_INCLUDED",
+  "handoffPolicy": {
+    "requiredAtStopBoundary": true,
+    "targetReasoningSupervisor": {
+      "surface": "EXTRA_HIGH_OR_PRO",
+      "sessionId": "replace-with-exact-session-id",
+      "chatEpoch": "replace-with-chat-epoch"
+    },
+    "reviewRequestTemplateRef": "replace-with-chat-authored-review-template",
+    "acceptedResponseKinds": [
+      "NEXT_EXECUTION_DIRECTIVE",
+      "REASONING_HOLD",
+      "OWNER_DECISION_REQUIRED",
+      "NO_FURTHER_EXECUTION_AUTHORIZED"
+    ],
+    "requestIdempotency": "ONE_LOGICAL_REQUEST_PER_RECEIPT_AND_REVIEW_BOUNDARY",
+    "polling": {
+      "mode": "READ_ONLY_COMPACT_STATUS",
+      "intermediatePayload": "PENDING_OR_READY_WITH_IDENTIFIERS_ONLY",
+      "initialIntervalSeconds": "runtime-required-positive-integer",
+      "maximumIntervalSeconds": "runtime-required-positive-integer",
+      "maximumWaitSeconds": "runtime-required-positive-integer",
+      "ownerVisibleUpdateIntervalSeconds": "runtime-required-positive-integer",
+      "backoff": "BOUNDED_EXPONENTIAL_WITH_JITTER"
+    },
+    "responseHandling": {
+      "requiredRequestIdEcho": true,
+      "requiredTaskIdEcho": true,
+      "requiredOwnerOutcomeEpochEcho": true,
+      "requiredChatEpochEcho": true,
+      "requiredReviewedEvidenceBoundaryEcho": true,
+      "requiredResponseKind": true,
+      "requiredNextDirectiveSchemaVersion": 2,
+      "largePayloadPolicy": "PERSIST_OUTSIDE_CONVERSATION_AND_REFERENCE",
+      "transportSemantics": "IDEMPOTENT_REFETCH_ALLOWED_BEFORE_PERSISTENCE",
+      "processingSemantics": "EXACTLY_ONCE_IMPORT_AND_DIRECTIVE_APPLICATION"
+    },
+    "onWaitHorizonExceeded": "PERSIST_HANDOFF_BLOCKED_AND_TRANSFER_DURABLE_LEASE",
+    "ownerMayBeUsedAsMessageBus": false
+  },
   "status": "ACTIVE"
 }
