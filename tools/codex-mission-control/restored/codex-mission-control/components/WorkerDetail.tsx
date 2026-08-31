@@ -98,9 +98,9 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
             <Identity label="Pro escalation" value={worker.executionSupervision.proEscalationState} />
           </div>
           <div className="directive-callout"><span className="field-label">EXECUTION OBJECTIVE</span><strong>{worker.executionSupervision.directiveObjective}</strong></div>
-          <div className="contract-section danger"><span className="field-label">STOP / REVIEW BOUNDARY</span><ul>{worker.executionSupervision.stopBoundary.map((item) => <li key={item}>{item}</li>)}</ul></div>
+          <div className="contract-section danger"><span className="field-label">REVIEW / AUTO-CONTINUATION BOUNDARY</span><ul>{worker.executionSupervision.stopBoundary.map((item) => <li key={item}>{item}</li>)}</ul></div>
           <p><span className="field-label">LATEST EXECUTION RECEIPT</span>{worker.executionSupervision.latestReceiptId ?? "None"} — {worker.executionSupervision.receiptClaim}</p>
-          <div className="freshness-row"><span>Pending reasoning review</span><strong className={worker.executionSupervision.pendingReasoningReview ? "bad" : "good"}>{worker.executionSupervision.pendingReasoningReview ? "YES" : "NO"}</strong></div>
+          <div className="freshness-row"><span>Review handoff</span><strong className={worker.executionSupervision.pendingReasoningReview ? "bad" : "good"}>{worker.executionSupervision.pendingReasoningReview ? "ACTIVE — AUTO-CONTINUE REQUIRED" : "CURRENT"}</strong></div>
           {worker.executionSupervision.alerts.length > 0 && <div className="reason-codes">{worker.executionSupervision.alerts.map((code) => <code key={code}>{code}</code>)}</div>}
         </Panel>
 

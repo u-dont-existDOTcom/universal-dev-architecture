@@ -222,7 +222,7 @@ function TaskControlState({ worker }: { worker: WorkerState }) {
       <ControlFact label="Reasoning review" value={`${worker.executionSupervision.surface} · session ${worker.executionSupervision.sessionId ?? "missing"} · chat ${worker.executionSupervision.chatEpoch ?? "missing"} · reviewed ${reviewAge} · ${worker.executionSupervision.reviewFreshness}`} />
       <ControlFact label="Active directive" value={`${worker.executionSupervision.activeDirectiveId ?? "MISSING"} · ${worker.executionSupervision.directiveStatus} · ${worker.executionSupervision.directiveObjective}`} />
       <ControlFact label="Codex execution" value={worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} />
-      <ControlFact label="Stop / review boundary" value={`Stop: ${worker.executionSupervision.stopBoundary.join("; ") || "none recorded"} · Review: ${worker.progress.nextDecisionTrigger}`} />
+      <ControlFact label="Review / auto-continuation boundary" value={`Boundary: ${worker.executionSupervision.stopBoundary.join("; ") || "none recorded"} · Review: ${worker.progress.nextDecisionTrigger}`} />
       <ControlFact label="Execution receipt / claim" value={`${worker.executionSupervision.latestReceiptId ?? "none"} · ${worker.executionSupervision.receiptClaim} · independent review ${worker.executionSupervision.pendingReasoningReview ? "PENDING" : worker.executionSupervision.reviewFreshness}`} />
       <ControlFact label="Pro escalation" value={worker.executionSupervision.proEscalationState.replaceAll("_", " ")} />
       <ControlFact label="Owner action" value={`${worker.correction.ownerActionType.replaceAll("_", " ")} · ${worker.correction.ownerActionText}`} />

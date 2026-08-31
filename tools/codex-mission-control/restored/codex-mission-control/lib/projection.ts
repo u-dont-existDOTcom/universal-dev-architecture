@@ -250,8 +250,10 @@ function projectV2Worker(
     ? "done"
     : checkpoint?.status ?? "working";
   const diagnosticIndex = assessment?.diagnostic_index ?? alignmentIndex(comparison.workerToContractAlignment);
+  const activeReviewHandoffProblem = comparison.pendingReasoningReview ? terminalProblem(comparison) : null;
   const primaryProblemSummary = primaryFinding?.statement
     ?? researchProblem(research)
+    ?? activeReviewHandoffProblem
     ?? progressProblem(progress, comparison.outcomeAdvancement)
     ?? contractProblem(comparison)
     ?? terminalProblem(comparison);
@@ -385,7 +387,7 @@ function projectV2Worker(
       activeDirectiveId: directive?.directive_id ?? null,
       directiveStatus: directive?.status ?? "MISSING",
       directiveObjective: directive?.execution_objective ?? "No current chat-authored execution directive is recorded.",
-      codexExecutionState: receipt ? "STOPPED_FOR_REASONING_REVIEW" : executionStart ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
+      codexExecutionState: receipt ? "AWAITING_REASONING_REVIEW_AUTO_RESUME_REQUIRED" : executionStart ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
       stopBoundary: directive?.stop_and_return_triggers ?? [],
       latestReceiptId: receipt?.receipt_id ?? null,
       receiptClaim: receipt?.execution_claim ?? "No execution receipt recorded.",
@@ -466,6 +468,9 @@ function projectCorrection(
   const statuses = new Set(history.map((event) => event.status));
   const fallbackFinding = primaryFindingEvent(events, primaryFinding?.id);
   const recordedOwnerAction = latestOwnerAction(events);
+  const pendingReviewOwnerAction = !recordedOwnerAction && comparison.pendingReasoningReview
+    ? pendingReasoningReviewOwnerAction(events)
+    : undefined;
   const latestAttemptEvents = new Map<string, Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }>>();
   for (const event of corrections) {
     if (event.data.type === "correction_lifecycle_recorded") latestAttemptEvents.set(event.data.correction_attempt_id, event.data);
@@ -473,7 +478,7 @@ function projectCorrection(
   const inactiveStates: CorrectionStatus[] = ["CORRECTION_RESOLVED", "CORRECTION_FAILED", "DIRECTIVE_SUPERSEDED", "DIRECTIVE_WITHDRAWN"];
   const activeDirectives = [...latestAttemptEvents.values()].filter((event) => !inactiveStates.includes(event.status));
   const directiveConflict = new Set(activeDirectives.map((event) => event.directive_id)).size > 1;
-  const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict);
+  const ownerAction = effectiveOwnerAction(recordedOwnerAction ?? pendingReviewOwnerAction, now, events, latestCorrection, directiveConflict);
   const recordedContinuationPolicy = latestCorrection?.continuation_policy ?? fallbackFinding?.continuation_policy
     ?? assessment?.continuation_policy ?? unknownContinuationPolicy();
   const continuationPolicy = effectiveContinuationPolicy(recordedContinuationPolicy, now);
@@ -856,7 +861,7 @@ function terminalProblem(comparison: TerminalComparison): string | null {
   }
   if (comparison.reasonCodes.includes("REASONING_SUPERVISOR_MISSING")) return "No current independent reasoning supervisor is recorded for this worker.";
   if (comparison.reasonCodes.includes("REASONING_REVIEW_OVERDUE")) return "The independent reasoning-supervisor review is overdue.";
-  if (comparison.reasonCodes.includes("PENDING_REASONING_REVIEW")) return "Codex stopped at its directive boundary and the execution receipt awaits independent reasoning review.";
+  if (comparison.reasonCodes.includes("PENDING_REASONING_REVIEW")) return "Execution reached its directive boundary; the receipt awaits independent reasoning review in a nonterminal handoff that must resume automatically.";
   if (comparison.reasonCodes.includes("OWNER_ACTION_REQUIRED")) return "A recorded owner obligation is open and blocks the affected scope.";
   if (comparison.reasonCodes.includes("SUPERVISOR_ASSESSMENT_STALE")) return "The supervisor assessment does not cover the current durable authority state.";
   return `Mission Control is holding this worker because ${comparison.reasonCodes.join(", ") || "the current control state is incomplete"}.`;
@@ -948,6 +953,30 @@ function effectiveOwnerAction(
     status: "OPEN",
   };
   return recorded;
+}
+
+function pendingReasoningReviewOwnerAction(events: StoredEvent[]): OwnerActionObligation | undefined {
+  const receipt = latestStoredEvent(events, "execution_receipt_recorded");
+  if (!receipt) return undefined;
+  const nextDueAt = new Date(new Date(receipt.occurredAt).getTime() + 10 * 60_000).toISOString();
+  return {
+    kind: "NONE",
+    exact_text: "No owner action is required; the current worker/controller owns receipt routing, reasoning review, and automatic continuation.",
+    reason_code: "OWNER.NOT_REQUIRED.REASONING_HANDOFF_CONTROLLER_OWNS_NEXT_TRANSITION",
+    subject_id: `reasoning-handoff:${receipt.worker}`,
+    blocking_scope: [],
+    source_event_ids: [receipt.eventId],
+    due_at: null,
+    escalation_at: nextDueAt,
+    status: "NOT_REQUIRED",
+    none_reason_code: "NON_OWNER_ACTOR_OWNS_NEXT_TRANSITION",
+    next_actor_kind: "WORKER",
+    next_actor_id: `worker:${receipt.worker}`,
+    next_action: "Route the execution receipt, keep one reasoning request live, import the matching directive, and resume automatically.",
+    next_trigger: "execution receipt recorded",
+    next_due_at: nextDueAt,
+    escalation_policy: "Escalate only if the controller lease or reasoning surface becomes unavailable; do not ask the owner to send continue.",
+  };
 }
 
 function namedNextActorIsCurrent(

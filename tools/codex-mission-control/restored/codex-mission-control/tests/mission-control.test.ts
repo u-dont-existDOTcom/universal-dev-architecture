@@ -1057,6 +1057,34 @@ test("missing directives hold current-epoch Codex execution and execution receip
   store.close();
 });
 
+test("a receipt awaiting reasoning review remains a visible nonterminal auto-continuation handoff", () => {
+  const source = cloneEvents(workerEvents("auth"));
+  const receiptIndex = source.findIndex((event) => event.data.type === "execution_receipt_recorded");
+  assert.ok(receiptIndex > 0);
+  const worker = projectWorker(source.slice(0, receiptIndex + 1), new Date(source[receiptIndex].occurredAt));
+  assert.equal(worker.executionSupervision.pendingReasoningReview, true);
+  assert.equal(worker.executionSupervision.codexExecutionState, "AWAITING_REASONING_REVIEW_AUTO_RESUME_REQUIRED");
+  assert.equal(worker.terminal.requiredDirective, "ROUTE_RECEIPT_AWAIT_REVIEW_AND_RESUME_AUTOMATICALLY");
+  assert.equal(worker.terminal.decision, "CONTINUE_WORK");
+  assert.equal(worker.terminal.rootTerminalizationAllowed, false);
+  assert.notEqual(worker.overallTraffic, "GREEN");
+  assert.match(worker.primaryProblemSummary ?? "", /nonterminal handoff.*resume automatically/i);
+  assert.equal(worker.correction.ownerActionType, "NONE");
+  assert.match(worker.correction.ownerActionText, /No owner action.*automatic continuation/i);
+  assert.ok(!worker.terminal.requiredDirective.includes("STOP"));
+});
+
+test("a dropped review handoff escalates only after the controller continuation lease expires", () => {
+  const source = cloneEvents(workerEvents("auth"));
+  const receiptIndex = source.findIndex((event) => event.data.type === "execution_receipt_recorded");
+  assert.ok(receiptIndex > 0);
+  const receiptAt = new Date(source[receiptIndex].occurredAt).getTime();
+  const worker = projectWorker(source.slice(0, receiptIndex + 1), new Date(receiptAt + 10 * 60_000 + 1));
+  assert.equal(worker.executionSupervision.pendingReasoningReview, true);
+  assert.equal(worker.correction.ownerActionType, "MANUAL_INTERVENTION_REQUIRED");
+  assert.match(worker.correction.ownerActionText, /non-owner next action is overdue/i);
+});
+
 test("a next directive requires a post-receipt reasoning review and the exact review capsule", () => {
   const source = workerEvents("auth");
   const receiptIndex = source.findIndex((event) => event.data.type === "execution_receipt_recorded");
@@ -1343,7 +1371,7 @@ test("attention and healthy card variants render the complete progress and execu
         ["Reasoning review", `${prefix}-reasoning-surface · session ${prefix}-reasoning-session · chat ${prefix}-chat-epoch · reviewed 1h ago · ${prefix}-review-freshness`],
         ["Active directive", `${prefix}-directive-id · ${prefix}-directive-status · ${prefix}-directive-objective`],
         ["Codex execution", `${prefix} codex state`],
-        ["Stop / review boundary", `Stop: ${prefix}-stop-boundary-a; ${prefix}-stop-boundary-b · Review: ${prefix}-next-measurement`],
+        ["Review / auto-continuation boundary", `Boundary: ${prefix}-stop-boundary-a; ${prefix}-stop-boundary-b · Review: ${prefix}-next-measurement`],
         ["Execution receipt / claim", `${prefix}-receipt-id · ${prefix}-receipt-claim · independent review ${pendingReviewText}`],
         ["Pro escalation", `${prefix} pro state`],
         ["Owner action", `NONE · ${prefix}-owner-action`],

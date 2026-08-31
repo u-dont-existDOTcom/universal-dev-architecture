@@ -109,6 +109,8 @@ Outcome progress is an independent control plane. Numeric receipts declare `HIGH
 
 Substantive Codex execution is also independently supervised: a current reasoning review bound to the exact owner-outcome ID, epoch, and hash authorizes one exact versioned directive; the worker records a directive-bound start; Codex emits an execution-only receipt with supervisory fields fixed to `null`; and a later independent review is required before another directive. The successor review must occur later in the durable ledger than the matching prior receipt, and the new directive must bind that review's exact owner authority and capsule. Legacy reasoning records without owner-outcome bindings remain readable but cannot authorize directives or progress. A missing directive, stale owner epoch, predated review, capsule mismatch, or pending review fails closed visibly.
 
+A pending review is nonterminal. Mission Control projects it as a controller-owned route/await/resume handoff, never as a stopped task or a request for the owner to send `continue`. The dashboard remains observational—it does not dispatch or resume workers—but it requires the owning controller to keep the receipt handoff live and resume the next already-specified slice after the matching reasoning directive arrives.
+
 Legacy PR #41 events remain decodable and migrate without being reinterpreted as current owner authority. Legacy completion remains nonterminal until independently sourced owner outcome and reconciliation exist.
 
 ## Correction and owner-action invariants

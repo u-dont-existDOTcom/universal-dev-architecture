@@ -21,7 +21,7 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-e45a6e0e771cb2e1ebe0eaee31e8542aa4dbacd0808a3cdd94ce5cd9cc7efdc0
+57e8131c5f062f41613866e0afcfd42eee65a3c02259316276e1c375f71448c5
 ```
 
 The checked archive contains 45 source files in 25 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, and runtime databases.
@@ -59,7 +59,7 @@ The stock Symphony adapter is read-only. Mission Control does not dispatch, retr
 
 At the current execution receipt boundary:
 
-- 71 deterministic tests passed;
+- 73 deterministic tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;

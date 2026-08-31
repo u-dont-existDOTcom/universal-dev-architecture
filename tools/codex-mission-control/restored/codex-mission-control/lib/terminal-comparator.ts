@@ -346,6 +346,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   } else if (workerToContractAlignment === "YELLOW" || contractToOwnerAlignment === "PARTIAL"
     || ["FLAT", "UNMEASURED", "NOT_YET_MEASURABLE", "BLOCKED_EXTERNAL", "UNKNOWN"].includes(outcomeAdvancement)
     || ["UNCERTAIN", "BLOCKED_EXTERNAL"].includes(strategyEfficacy) || progress?.measurement_freshness === "OVERDUE"
+    || pendingReasoningReview
     || unresolvedOwnerObligation || currentSupervisionRequired && (!reasoningReviewFresh || !activeDirectiveCurrent || !progress)
     || (terminalAdjacent && !supervisorAssessmentFresh)
     || research?.scientific_conclusion === "FAIL" || research?.release_adequacy === "FAIL") {
@@ -482,7 +483,7 @@ function deriveDirective(input: {
   activeDirectiveCurrent: boolean;
   pendingReasoningReview: boolean;
 }): string {
-  if (input.pendingReasoningReview) return "STOP_AND_RETURN_TO_REASONING_SUPERVISOR";
+  if (input.pendingReasoningReview) return "ROUTE_RECEIPT_AWAIT_REVIEW_AND_RESUME_AUTOMATICALLY";
   if (input.currentSupervisionRequired && !input.activeDirectiveCurrent) return "OBTAIN_CURRENT_CHAT_AUTHORED_EXECUTION_DIRECTIVE";
   if (input.outcomeAdvancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(input.strategyEfficacy)) {
     return "HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD";
