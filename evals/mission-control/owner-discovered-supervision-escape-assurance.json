@@ -1,0 +1,185 @@
+{
+  "fixtureId": "owner-discovered-supervision-escape-assurance",
+  "directive": "MISSION-CONTROL-SUPERVISION-ESCAPE-ASSURANCE-v1.0.0",
+  "purpose": "Prove that Mission Control is externally assured against material failures the owner has to discover first, while excluding genuine new owner input and rejecting recursive meta-supervision.",
+  "cases": [
+    {
+      "caseId": "somatic-owner-forced-progress-review",
+      "given": {
+        "workerToContract": "GREEN",
+        "contractToOwner": "MATCH",
+        "outcomeEvidence": [
+          "whole-document evidence shows no material owner-outcome advancement",
+          "later direct evidence regresses"
+        ],
+        "systemFindingBeforeOwner": false,
+        "systemCorrectionBeforeOwner": false,
+        "ownerIntervention": "owner asks whether any progress occurred; only then is focused progress review initiated",
+        "semanticJudgment": {
+          "disposition": "PREEXISTING_PROBLEM_DISCOVERED",
+          "materiality": "CRITICAL",
+          "detectableEvidenceAvailableBeforeOwner": true,
+          "systemHadAuthorityToSurface": true,
+          "familyId": "outcome-regression-not-surfaced"
+        }
+      },
+      "expected": {
+        "classification": "SUPERVISION_ESCAPE",
+        "finding": [
+          "SUPERVISION_ESCAPE_DETECTED",
+          "OWNER_DISCOVERED_BEFORE_SYSTEM"
+        ],
+        "assuranceState": "FAIL",
+        "ownerAction": "NONE"
+      }
+    },
+    {
+      "caseId": "system-catches-regression-first",
+      "given": {
+        "sameUnderlyingRegression": true,
+        "systemFindingBeforeOwner": true,
+        "systemActionBeforeOwner": "current outcome-regression finding plus hold/reasoning review or strategy replacement",
+        "ownerLaterRequestsStatus": true,
+        "semanticJudgment": {
+          "disposition": "OWNER_CONFIRMATION_OF_EXISTING_FINDING",
+          "familyId": "outcome-regression-not-surfaced"
+        }
+      },
+      "expected": {
+        "classification": "PREVENTED_ESCAPE",
+        "finding": [
+          "SUPERVISION_ESCAPE_PREVENTED"
+        ],
+        "materialEscapeCountDelta": 0,
+        "preventedEscapeCountDelta": 1
+      }
+    },
+    {
+      "caseId": "genuine-new-owner-requirement",
+      "given": {
+        "systemWasCorrectUnderPriorAuthority": true,
+        "ownerIntervention": "owner adds a product requirement not previously present",
+        "semanticJudgment": {
+          "disposition": "NEW_REQUIREMENT",
+          "materiality": "MATERIAL"
+        }
+      },
+      "expected": {
+        "classification": "NOT_AN_ESCAPE",
+        "materialEscapeCountDelta": 0
+      }
+    },
+    {
+      "caseId": "codex-reasoning-controller-owner-correction",
+      "given": {
+        "observableRoleBreachBeforeOwner": true,
+        "roleBreach": "Codex selects strategy, performs substantive reasoning, and judges its own progress",
+        "systemFindingBeforeOwner": false,
+        "ownerIntervention": "owner corrects architecture: chats reason; Codex executes",
+        "semanticJudgment": {
+          "disposition": "PREEXISTING_PROBLEM_DISCOVERED",
+          "materiality": "CRITICAL",
+          "detectableEvidenceAvailableBeforeOwner": true,
+          "systemHadAuthorityToSurface": true,
+          "familyId": "reasoning-execution-authority-collapse"
+        }
+      },
+      "expected": {
+        "classification": "SUPERVISION_ESCAPE",
+        "assuranceState": "FAIL",
+        "finding": [
+          "SUPERVISION_ESCAPE_DETECTED",
+          "OWNER_DISCOVERED_BEFORE_SYSTEM"
+        ]
+      }
+    },
+    {
+      "caseId": "owner-forced-continuation-after-scoped-stop-leakage",
+      "given": {
+        "projectLocalStop": "NO_FURTHER_EXECUTION_AUTHORIZED",
+        "acceptedUniversalContinuationExists": true,
+        "rootOwnerDecisionRequired": false,
+        "rootTerminalState": false,
+        "controllerStopsRootChain": true,
+        "ownerIntervention": "owner asks why execution stopped and forces continuation",
+        "semanticJudgment": {
+          "disposition": "PREEXISTING_PROBLEM_DISCOVERED",
+          "materiality": "CRITICAL",
+          "detectableEvidenceAvailableBeforeOwner": true,
+          "systemHadAuthorityToSurface": true,
+          "familyId": "scoped-stop-projected-to-root-chain"
+        }
+      },
+      "expected": {
+        "classification": "SUPERVISION_ESCAPE",
+        "assuranceState": "FAIL",
+        "finding": [
+          "SUPERVISION_ESCAPE_DETECTED",
+          "OWNER_DISCOVERED_BEFORE_SYSTEM"
+        ]
+      }
+    },
+    {
+      "caseId": "repeat-family-after-verified-repair",
+      "given": {
+        "priorEscape": {
+          "familyId": "reasoning-execution-authority-collapse",
+          "classification": "SUPERVISION_ESCAPE"
+        },
+        "priorRepairState": "VERIFIED",
+        "newEscape": {
+          "familyId": "reasoning-execution-authority-collapse",
+          "classification": "SUPERVISION_ESCAPE"
+        }
+      },
+      "expected": {
+        "finding": [
+          "REPEAT_SUPERVISION_ESCAPE",
+          "SUPERVISION_REPAIR_FAILED"
+        ],
+        "assuranceState": "FAIL",
+        "requiredAction": "REDESIGN_EXISTING_CONTROL"
+      }
+    },
+    {
+      "caseId": "meta-meta-supervisor-proposal-rejected",
+      "given": {
+        "assurancePlaneMissedOwnerFirstFailure": true,
+        "ownerCorrectedAssurancePlane": true,
+        "proposedArchitectureChange": "META_META_SUPERVISOR"
+      },
+      "expected": {
+        "finding": [
+          "META_SUPERVISION_RECURSION"
+        ],
+        "proposalAccepted": false,
+        "requiredDisposition": "REDESIGN_EXISTING_ASSURANCE_PLANE",
+        "secondSchedulerCreated": false,
+        "secondDashboardCreated": false,
+        "secondEventLedgerCreated": false
+      }
+    },
+    {
+      "caseId": "ambiguous-owner-statement-fails-to-review",
+      "given": {
+        "ownerInterventionMeaning": "ambiguous between new requirement and missed pre-existing problem",
+        "semanticJudgment": {
+          "disposition": "AMBIGUOUS_REVIEW_REQUIRED"
+        }
+      },
+      "expected": {
+        "classification": "REVIEW_REQUIRED",
+        "assuranceStateMustNotBecomePassByIgnoringRecord": true,
+        "codexSemanticInferenceAllowed": false
+      }
+    }
+  ],
+  "globalInvariants": [
+    "A confirmed MATERIAL or CRITICAL supervision escape forces Mission Control assurance FAIL even when lower-level worker/task planes are GREEN.",
+    "A system finding/correction that predates owner detection prevents false owner-first classification.",
+    "New owner requirements, new external facts, and reserved owner decisions are not supervision escapes merely because the owner supplied them.",
+    "Codex and deterministic code never infer semantic owner-intervention disposition, materiality, or detectability from free text.",
+    "Repeated materially equivalent escape after a VERIFIED repair is evidence the repair failed.",
+    "Failure of the assurance plane is repaired by redesigning that plane, never by adding another supervisory layer."
+  ]
+}
