@@ -444,6 +444,16 @@ Intermediate polls return only `PENDING` or `READY` plus request/response
 identity and retry metadata. They must not repeatedly load full conversation
 turns or post status messages into the reasoning chat.
 
+Account for waiting separately from substantive execution. When the runtime
+exposes exact token telemetry, record cumulative wait input/output tokens,
+cumulative execution input/output tokens since the prior reasoning handoff,
+and the wait-to-execution token ratio. When exact token telemetry is
+unavailable, record request/response bytes and call counts as the fallback and
+mark token totals `UNAVAILABLE`; never invent or estimate token counts. Keep
+this accounting out of the compact poll envelope so repeated waiting remains
+constant-context control-plane work. Resource accounting must not delay
+response import or automatic execution resumption.
+
 Large responses must be stored outside the active conversation context when
 practical and referenced by exact artifact identity and SHA-256.
 

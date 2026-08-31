@@ -32,6 +32,21 @@
     "fullConversationPayloadsRetrieved": 0,
     "messagesSentAfterInitialRequest": 0
   },
+  "resourceAccounting": {
+    "tokenTelemetry": "UNAVAILABLE",
+    "telemetrySource": null,
+    "waitInputTokens": null,
+    "waitOutputTokens": null,
+    "executionInputTokensSincePriorHandoff": null,
+    "executionOutputTokensSincePriorHandoff": null,
+    "waitToExecutionTokenRatio": null,
+    "waitRequestBytes": 0,
+    "waitResponseBytes": 0,
+    "waitCallCount": 0,
+    "executionRequestBytesSincePriorHandoff": null,
+    "executionResponseBytesSincePriorHandoff": null,
+    "waitToExecutionByteRatio": null
+  },
   "response": {
     "responseId": null,
     "responseRef": null,

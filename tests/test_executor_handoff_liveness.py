@@ -512,6 +512,26 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertEqual(expected["directiveApplicationCount"], 1)
         self.assertEqual(expected["executionResumeCount"], 1)
 
+    def test_18_wait_and_execution_resource_accounting_are_separate(self) -> None:
+        accounting = self.handoff_template["resourceAccounting"]
+        self.assertEqual(accounting["tokenTelemetry"], "UNAVAILABLE")
+        self.assertIsNone(accounting["waitInputTokens"])
+        self.assertIsNone(accounting["waitOutputTokens"])
+        self.assertIsNone(accounting["executionInputTokensSincePriorHandoff"])
+        self.assertIsNone(accounting["executionOutputTokensSincePriorHandoff"])
+        self.assertIsNone(accounting["waitToExecutionTokenRatio"])
+        self.assertEqual(accounting["waitRequestBytes"], 0)
+        self.assertEqual(accounting["waitResponseBytes"], 0)
+        self.assertEqual(accounting["waitCallCount"], 0)
+        projection = compact_poll_projection(self.waiting())
+        self.assertNotIn("resourceAccounting", projection)
+        bootstrap = (
+            ROOT / "templates" / "CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md"
+        ).read_text()
+        self.assertIn("Account for waiting separately from substantive execution", bootstrap)
+        self.assertIn("never invent or estimate token counts", bootstrap)
+        self.assertIn("must not delay", bootstrap)
+
 
 if __name__ == "__main__":
     unittest.main()
