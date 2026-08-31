@@ -6,7 +6,7 @@ Branch: `task/mission-control-owner-worker-channel-experiments-20260831`
 
 Directive source: owner-approved `pasted isntructios` attachment
 
-Current release state: implementation and local verification complete; GitHub publication pending
+Current release state: implementation commit pushed; stacked PR #51 open; CI running
 
 Status vocabulary is copied from the owner directive. “Verified” means the
 required behavior has deterministic or live acceptance evidence, not that an
@@ -31,7 +31,7 @@ experimental third-party tool has been adopted.
 | 15 | IMPLEMENTED+VERIFIED | Deterministic hostile tests | The 87-test application suite covers supersession/staleness, offline direction recording, exact retry idempotency across time, acknowledgement without reconciliation, queue revision/supersession, blocker visibility, unauthorized proposals attempting authority, delivery failure/recovery, and AstroHD stale-state prevention. Repository contract tests cover the architecture boundary. |
 | 16 | IMPLEMENTED+VERIFIED | Dashboard/detail UI and desktop/mobile browser evidence | Embedded-browser acceptance covered fleet and Human Design detail views. Desktop width was 1280px with no root overflow; the compact iframe viewport had 375px root/client/body widths, matched the mobile media query, and had no overflow. The compact worker view exposed composer, direction control, AstroHD, lifecycle, blocker, and proposal. |
 | 17 | IMPLEMENTED+VERIFIED | Focused and required full gates | Focused channel and adapter tests, 87/87 full app tests, 243/243 repository tests, typecheck, production build, live hash-chain/HTTP/MCP checks, archive verification, and the repository audit with zero findings pass. |
-| 18 | IMPLEMENTED+PARTIALLY_VERIFIED | Durable GitHub branch/PR/CI | The implementation is on the named local branch and source archive is rebuilt, checksum-verified, and byte-identical to 61 source files. Commit, push, stacked PR, and CI are pending the final local gates. |
+| 18 | IMPLEMENTED+PARTIALLY_VERIFIED | Durable GitHub branch/PR/CI | Branch `task/mission-control-owner-worker-channel-experiments-20260831` and implementation commit `91a3c646f9f3a060acc6b8b800a361b463e41cb4` are pushed. Stacked PR [#51](https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/51) targets `task/mission-control-live-slice-issue-47`; its required CI check is running. |
 | 19 | IMPLEMENTED+VERIFIED | Automatically continue through eligible slices | The execution proceeded from ledger/outbox through queue/UI, experiments, hostile tests, live delivery, responsive acceptance, MCP, and archive reconstruction without stopping at an intermediate green slice. |
 | 20 | IMPLEMENTED+PARTIALLY_VERIFIED | Requirement-by-requirement closeout audit | This document accounts for all 20 requirements with exact local evidence. Item 18 and this final classification will be upgraded after GitHub/CI evidence is durable. |
 
