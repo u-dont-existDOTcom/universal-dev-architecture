@@ -1,6 +1,6 @@
 name: One-shot direct PM transcript bootstrap
 
-# Attempt 2: exhaustive event summary and union narrowing repaired.
+# Attempt 3: write permission is scoped to the one mutation job.
 on:
   push:
     branches:
@@ -9,7 +9,7 @@ on:
       - .github/workflows/direct-pm-transcript-one-shot.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: direct-pm-transcript-one-shot-${{ github.ref }}
@@ -18,6 +18,8 @@ concurrency:
 jobs:
   apply-and-verify:
     if: github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
