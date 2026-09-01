@@ -1,17 +1,20 @@
-name: One-shot Mission Control Chat-Work hotfix archive refresh
+name: Mission Control Chat-Work hotfix archive refresh
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - task/mission-control-direct-pm-attractor-independence-20260901
     paths:
       - .github/workflows/mission-control-chat-work-hotfix-one-shot.yml
+      - tools/codex-mission-control/package-source.sh
+      - tools/codex-mission-control/restored/codex-mission-control/**
 
 permissions:
   contents: read
 
 concurrency:
-  group: mission-control-chat-work-hotfix-one-shot-${{ github.ref }}
+  group: mission-control-chat-work-hotfix-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -57,8 +60,8 @@ jobs:
         env:
           TARGET_BRANCH: task/mission-control-direct-pm-attractor-independence-20260901
         run: |
-          git config user.name "mission-control-one-shot"
-          git config user.email "mission-control-one-shot@users.noreply.github.com"
+          git config user.name "mission-control-archive-refresh"
+          git config user.email "mission-control-archive-refresh@users.noreply.github.com"
           git add tools/codex-mission-control/source-archive tools/codex-mission-control/SOURCE-ARCHIVE.sha256
           if git diff --cached --quiet; then
             echo "Source archive is already current"
