@@ -829,9 +829,14 @@ export class EventStore {
 
   private validateWorkerChannel(envelope: AppendEnvelope, producer: AuthenticatedProducer) {
     const data = envelope.data;
+    if (data.type === "change_proposal_recorded") {
+      throw new ContractInvariantError(
+        "New worker-authored proposals are forbidden. Route immutable factual state automatically to a verified Project Manager or specialist supervisor chat for reasoning and proposal authorship.",
+      );
+    }
     if (!["owner_message_recorded", "outbound_delivery_lifecycle_recorded", "outbound_message_acknowledged",
       "worker_message_recorded", "direction_acknowledged", "work_queue_published", "direction_reconciled",
-      "structured_blocker_recorded", "change_proposal_recorded"].includes(data.type)) return;
+      "structured_blocker_recorded"].includes(data.type)) return;
     if (!data.worker) throw new ContractInvariantError("Worker-channel events require a worker identity.");
     const events = this.workerEvents(data.worker);
     const ownerMessages = events.filter((event) => event.data.type === "owner_message_recorded");
@@ -954,21 +959,15 @@ export class EventStore {
       return;
     }
 
-    if (data.type === "structured_blocker_recorded" || data.type === "change_proposal_recorded") {
+    if (data.type === "structured_blocker_recorded") {
       if (!directionMessage(data.direction_id)) throw new ContractInvariantError("Structured worker issues must bind an existing owner direction.");
       const queueItemId = data.queue_item_id;
       if (queueItemId && !events.some((event) => event.data.type === "work_queue_published"
         && event.data.direction_id === data.direction_id && event.data.items.some((item) => item.item_id === queueItemId))) {
         throw new ContractInvariantError("Structured worker issues must bind a queue item from the same direction when one is named.");
       }
-      if (data.type === "structured_blocker_recorded" && data.reported_by !== producer.id) {
+      if (data.reported_by !== producer.id) {
         throw new ContractInvariantError("Blocker reporter must match the authenticated producer.");
-      }
-      if (data.type === "change_proposal_recorded") {
-        if (data.proposer_id !== producer.id) throw new ContractInvariantError("Proposal author must match the authenticated producer.");
-        if (data.authority_effect !== "NON_OPERATIVE" || data.reasoning_authority !== "WORKER_CLAIM") {
-          throw new ContractInvariantError("Worker change proposals are non-operative claims and cannot assert decision authority.");
-        }
       }
       return;
     }

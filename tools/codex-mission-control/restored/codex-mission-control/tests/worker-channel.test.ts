@@ -10,7 +10,7 @@ import { FleetQueue, WorkerChannel } from "../components/WorkerChannel";
 import { MissionCard } from "../components/Dashboard";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { producerMayEmit } from "../lib/ingestion-auth";
-import type { MissionControlEventV2 } from "../lib/schema";
+import { parseEventV2, type MissionControlEventV2 } from "../lib/schema";
 import { ContractInvariantError, EventStore } from "../lib/store";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import { projectWorkerConnection, projectWorkers } from "../lib/projection";
@@ -223,20 +223,25 @@ test("remote delivery failure stays durable and recovers through the retry-safe 
   store.close();
 });
 
-test("a worker proposal cannot claim owner reasoning authority or become operative", () => {
+test("worker-authored proposals are rejected at producer and ledger boundaries", () => {
   const store = new EventStore(":memory:");
   recordOwnerMessage(store, {
     worker: "alpha", kind: "DIRECTION", body: "Run the bounded survey.", now,
     messageId: "message:alpha:proposal", directionId: "direction:alpha:proposal", deliveryId: "delivery:alpha:proposal",
     ownerEventId: "event:owner-message:alpha:proposal", deliveryEventId: "event:delivery-queued:alpha:proposal",
   }, owner);
-  assert.throws(() => store.append(envelope("event:proposal:alpha:unauthorized", now, {
+  const proposal: MissionControlEventV2 = {
     type: "change_proposal_recorded", worker: "alpha", proposal_id: "proposal:alpha:unauthorized", task_id: "task:alpha",
-    direction_id: "direction:alpha:proposal", queue_item_id: null, status: "OPEN", title: "Expand scope",
-    rationale: "A worker-authored suggestion.", expected_impact: "Would materially change scope.", affected_scope: ["task:alpha"],
-    proposer_id: "worker:alpha", reasoning_authority: "OWNER_AUTHORITY", authority_effect: "NON_OPERATIVE",
+    direction_id: "direction:alpha:proposal", queue_item_id: null, status: "OPEN", title: "Add paid inference",
+    rationale: "A worker-authored spending proposal.", expected_impact: "Would materially change cost and methodology.", affected_scope: ["task:alpha"],
+    proposer_id: "worker:alpha", reasoning_authority: "WORKER_CLAIM", authority_effect: "NON_OPERATIVE",
     disposition: null, evidence_refs: [], requires_owner_decision: true, reported_at: now,
-  }), undefined, worker), /non-operative claims/);
+  };
+  assert.equal(producerMayEmit(worker, proposal), false);
+  assert.throws(
+    () => store.append(envelope("event:proposal:alpha:unauthorized", now, proposal), undefined, worker),
+    /worker-authored proposals are forbidden/,
+  );
   assert.equal(store.count(), 2);
   store.close();
 });
@@ -261,7 +266,7 @@ test("cross-worker and invented direction bindings fail closed", () => {
   store.close();
 });
 
-test("structured blockers and proposals remain queryable after restart", () => {
+test("structured blockers persist while historical proposal records remain parseable only", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mission-control-channel-"));
   const filename = path.join(directory, "mission-control.db");
   try {
@@ -301,26 +306,30 @@ test("structured blockers and proposals remain queryable after restart", () => {
       direction_id: "direction:alpha:5", queue_item_id: "queue-item:alpha:5", status: "OPEN", severity: "BLOCKING",
       title: "Survey credentials missing", description: "The remote survey source rejects the current credential.",
       impact: "Evidence collection cannot start.", blocking_scope: ["queue-item:alpha:5"], workaround_available: true,
-      workaround: "Use a bounded read-only service credential.", required_actor: { kind: "OWNER", id: "owner:dashboard" },
-      evidence_refs: ["evidence:credential-rejection"], reported_by: "worker:alpha", needs_owner: true, reported_at: now,
-    }), undefined, worker);
-    first.append(envelope("event:proposal:alpha:5", now, {
-      type: "change_proposal_recorded", worker: "alpha", proposal_id: "proposal:alpha:5", task_id: "task:alpha",
-      direction_id: "direction:alpha:5", queue_item_id: "queue-item:alpha:5", status: "OPEN", title: "Use a read-only service credential",
-      rationale: "It unblocks survey collection without granting write access.", expected_impact: "Restores bounded evidence collection.",
-      affected_scope: ["queue-item:alpha:5"], proposer_id: "worker:alpha", reasoning_authority: "WORKER_CLAIM",
-      authority_effect: "NON_OPERATIVE", disposition: null, evidence_refs: ["evidence:credential-rejection"],
-      requires_owner_decision: true, reported_at: now,
+      workaround: "A verified supervisor must decide whether a bounded read-only credential is acceptable.",
+      required_actor: { kind: "SUPERVISOR", id: "chat:askrigor:methods-supervisor" },
+      evidence_refs: ["evidence:credential-rejection"], reported_by: "worker:alpha", needs_owner: false, reported_at: now,
     }), undefined, worker);
     first.close();
+
     const reopened = new EventStore(filename);
     const channel = projectWorkerChannel(reopened.workerEvents("alpha"));
     assert.equal(channel.freshness, "CURRENT");
     assert.equal(channel.queue[0].itemId, "queue-item:alpha:5");
-    assert.equal(channel.blockers[0].needsOwner, true);
-    assert.equal(channel.proposals[0].requiresOwnerDecision, true);
+    assert.equal(channel.blockers[0].needsOwner, false);
+    assert.equal(channel.proposals.length, 0);
     assert.deepEqual(reopened.verifyChain(), { valid: true, errors: [] });
     reopened.close();
+
+    const historical = parseEventV2({
+      type: "change_proposal_recorded", worker: "alpha", proposal_id: "proposal:legacy", task_id: "task:alpha",
+      direction_id: "direction:alpha:5", queue_item_id: null, status: "WITHDRAWN", title: "Historical worker proposal",
+      rationale: "Retained only so an existing append-only ledger can still be decoded.", expected_impact: "None.",
+      affected_scope: ["task:alpha"], proposer_id: "worker:alpha", reasoning_authority: "WORKER_CLAIM",
+      authority_effect: "NON_OPERATIVE", disposition: "SUPERSEDED_BY_CHAT_AUTHORITY_GATE", evidence_refs: [],
+      requires_owner_decision: false, reported_at: now,
+    });
+    assert.equal(historical.type, "change_proposal_recorded");
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
