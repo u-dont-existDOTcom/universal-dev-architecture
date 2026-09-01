@@ -75,6 +75,8 @@ test("owner-attested owner messages are permitted but remain distinct from provi
     provenance_status: "OWNER_ATTESTED",
     recorded_by: "owner:dashboard",
   });
+  assert.equal(event.type, "reasoning_message_recorded");
+  if (event.type !== "reasoning_message_recorded") throw new Error("Expected a reasoning_message_recorded event.");
   assert.equal(producerMayEmit(ownerProducer, event), true);
   assert.equal(event.provenance_status, "OWNER_ATTESTED");
 });
