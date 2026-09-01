@@ -20,7 +20,11 @@
     "experiment:hermes": "node scripts/run-hermes-experiment.mjs",
     "experiment:hermes:matrix": "node scripts/run-hermes-matrix.mjs",
     "experiment:hermes:record": "node scripts/record-hermes-result.mjs",
-    "evaluate:n8n": "node scripts/evaluate-n8n-adapter.mjs"
+    "evaluate:n8n": "node scripts/evaluate-n8n-adapter.mjs",
+    "experiment:attractor:prepare": "node scripts/prepare-attractor-experiment.mjs",
+    "experiment:attractor:record-run": "node scripts/record-attractor-run.mjs",
+    "experiment:attractor:record-evaluation": "node scripts/record-attractor-evaluation.mjs",
+    "experiment:attractor:report": "node scripts/report-attractor-experiment.mjs"
   },
   "dependencies": {
     "next": "16.3.3",
