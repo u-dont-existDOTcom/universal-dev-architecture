@@ -1,0 +1,110 @@
+{
+  "experimentId": "somatic-intro-attractor-independence-v1",
+  "status": "READY_FOR_MECHANICAL_IMPLEMENTATION",
+  "question": "Does mechanically enforced execution isolation increase structural coverage or blind editorial pass rate when the model family, prompt, semantic seed, candidate count, and evaluator are held fixed?",
+  "ownerHypothesis": "Changing or multiplying models does not fix a shared structural attractor; the interaction and state architecture is the primary variable.",
+  "authority": {
+    "ownerIsFinalEditorialAuthority": true,
+    "detectorIsPrimaryJudge": false,
+    "orchestratorMayAuthorVerdict": false,
+    "codexMayAuthorVerdict": false,
+    "n8nIsReasoningAuthority": false,
+    "hermesIsReasoningAuthority": false,
+    "automaticArticlePromotion": false
+  },
+  "fixedControls": {
+    "sameModelFamilyAcrossArms": true,
+    "sameModelModeAcrossArms": true,
+    "sameMinimalWriterPromptAcrossArms": true,
+    "sameSemanticSeedAcrossArms": true,
+    "sameCandidateWordBandAcrossArms": true,
+    "sameCandidateCountPerArm": true,
+    "sameBlindEvaluatorAcrossArms": true,
+    "crossCandidateCommunication": false,
+    "modelDebate": false,
+    "selfRefinement": false,
+    "criticTextReturnedToWriter": false,
+    "candidateIdentityShownToEvaluator": false
+  },
+  "arms": [
+    {
+      "id": "DIRECT_FRESH_PROCESS",
+      "orchestrator": "DIRECT_RUNNER",
+      "isolation": "new execution process and empty task-local state for every candidate",
+      "persistentMemory": false
+    },
+    {
+      "id": "N8N_ISOLATED_EXECUTION",
+      "orchestrator": "N8N",
+      "isolation": "one new n8n execution per candidate with explicit immutable input and no workflow static data",
+      "persistentMemory": false
+    },
+    {
+      "id": "HERMES_ISOLATED_PROFILE_MEMORY_DISABLED",
+      "orchestrator": "HERMES_AGENT",
+      "isolation": "new isolated Hermes profile or child session per candidate; built-in and external memory disabled; no session search",
+      "persistentMemory": false
+    }
+  ],
+  "sampleBudget": {
+    "candidatesPerArm": 8,
+    "minimumWords": 50,
+    "maximumWords": 80,
+    "maximumArms": 3,
+    "maximumCandidates": 24,
+    "paidExecutionRequiresSeparateAuthorization": true
+  },
+  "writerPacket": {
+    "format": "minimal positive instruction plus one precommitted behavior cell",
+    "forbiddenInputs": [
+      "prior candidates",
+      "critic or evaluator language",
+      "detector results",
+      "pass/fail counters",
+      "writer identity comparisons",
+      "what a pass would trigger",
+      "multi-model debate transcript"
+    ]
+  },
+  "behaviorDescriptors": [
+    {
+      "id": "DISCOURSE_MOVEMENT",
+      "cells": ["LOCAL_CONTINUATION", "OBSERVATIONAL_TURN", "UNRESOLVED_PRESSURE", "CONCRETE_RELATION"]
+    },
+    {
+      "id": "CLOSURE_SHAPE",
+      "cells": ["OPEN", "INTERRUPTED", "PARTIAL", "NO_TAKEAWAY"]
+    },
+    {
+      "id": "SYNTACTIC_MOTION",
+      "cells": ["UNEQUAL_SENTENCE_LOAD", "PLAIN_SEQUENCE", "BROKEN_CADENCE", "MIXED"]
+    }
+  ],
+  "primaryOutcome": "BLIND_EDITORIAL_PASS_RATE",
+  "secondaryOutcomes": [
+    "SEMANTIC_FIDELITY_PASS_RATE",
+    "OCCUPIED_BEHAVIOR_CELLS",
+    "LENGTH_CONTROLLED_STRUCTURAL_DIVERSITY",
+    "WITHIN_ARM_PAIRWISE_SEMANTIC_SIMILARITY",
+    "REPEATED_FAILURE_FAMILY_RATE",
+    "PROVENANCE_OR_CONTAMINATION_VIOLATIONS",
+    "EXECUTION_TIME",
+    "PROVIDER_COST"
+  ],
+  "evaluation": {
+    "literalVerdictFirst": true,
+    "allowedVerdicts": ["PASS", "FAIL", "UNCERTAIN"],
+    "verdictFrozenBeforeStateRead": true,
+    "evaluatorMayRewriteCandidate": false,
+    "lengthControlledComparison": true,
+    "randomizedCandidateOrder": true,
+    "runtimeIdentityBlinded": true
+  },
+  "decisionRules": {
+    "orchestrationEffect": "An arm is promising only if it materially raises blind editorial pass rate or occupied behavior cells without lowering semantic fidelity.",
+    "noEffect": "If n8n and Hermes do not beat direct fresh-process execution, retain the direct runner and reject orchestration as the causal remedy.",
+    "sharedFailure": "If all arms reproduce the same broad closure family, close generative reconstruction as the primary lane.",
+    "noAutomaticAdoption": true,
+    "defaultDecision": "KEEP_DIRECT_RUNNER_AND_ABANDON_DEBATE"
+  }
+}
