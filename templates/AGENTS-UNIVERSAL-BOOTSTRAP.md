@@ -9,6 +9,16 @@ Authority order:
 3. current universal guidance from `u-dont-existDOTcom/universal-dev-architecture`;
 4. older summaries, stale checkpoints, and remembered chat context.
 
+## Autonomous routine execution
+
+Across Chat, Work, Codex/agent execution, and browser or computer-use, once the requested outcome and authority are clear, continue through routine, reversible, in-scope execution. Do not ask for approval merely to inspect or edit in-scope files, run commands or tests, debug failures, browse for task-required information, validate results, or take the obvious next step.
+
+Do not convert ordinary implementation decisions into owner decisions. Infer low-risk, reversible details from the stated goal, repository evidence, existing architecture, and conventions. An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step.
+
+Ask the owner only when materially different viable choices have consequential tradeoffs and the correct choice cannot reasonably be inferred; an action is destructive or difficult to reverse; an action has meaningful external consequences such as publishing, sending communications, purchases or spending, or security, account, or privacy consequences; the work requires material scope expansion or new authority; genuinely unavailable required information, permission, or credential blocks progress; or there is an explicit request to stop. These boundaries preserve applicable safety, access, and authorization controls.
+
+When the execution environment or security sandbox presents an approval gate, do not add a redundant conversational approval request; use the environment's gate directly. The gate remains authoritative, and this rule never bypasses a required approval.
+
 ## Development assurance lane
 
 For software/product work, load `patterns/development-assurance-lanes.md`.
