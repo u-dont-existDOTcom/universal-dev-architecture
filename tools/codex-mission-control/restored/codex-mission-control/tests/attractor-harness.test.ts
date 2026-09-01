@@ -80,6 +80,7 @@ test("diagnosis-control harness keeps only matched direct/n8n arms and rejects c
 
     fs.writeFileSync(candidatePath, `${Array.from({ length: 55 }, (_, index) => `word${index + 1}`).join(" ")}.\n`);
     const run = plan.runs[0];
+    const generationConfigSha256 = "b".repeat(64);
     const common = [
       "--plan", planPath,
       "--run-id", run.runId,
@@ -87,7 +88,9 @@ test("diagnosis-control harness keeps only matched direct/n8n arms and rejects c
       "--output", runsPath,
       "--provider-surface", "CHATGPT_CONSUMER",
       "--model-family", "GPT-5.6",
+      "--exact-model-identifier", "gpt-5.6-pro-test",
       "--model-mode", "PRO",
+      "--generation-config-sha256", generationConfigSha256,
       "--orchestrator-version", "test-direct-v2",
       "--started-at", "2026-09-01T13:00:00.000Z",
       "--completed-at", "2026-09-01T13:00:10.000Z",
@@ -98,7 +101,21 @@ test("diagnosis-control harness keeps only matched direct/n8n arms and rejects c
     ];
     const dryRun = invoke("scripts/record-attractor-run.mjs", [...common, "--dry-run"]);
     assert.equal(dryRun.status, 0, dryRun.stderr);
-    assert.equal(JSON.parse(dryRun.stdout).status, "CANDIDATE_PROVENANCE_VALID_DRY_RUN");
+    const dryRecord = JSON.parse(dryRun.stdout) as {
+      status: string;
+      exactModelIdentifier: string;
+      generationConfigSha256: string;
+    };
+    assert.equal(dryRecord.status, "CANDIDATE_PROVENANCE_VALID_DRY_RUN");
+    assert.equal(dryRecord.exactModelIdentifier, "gpt-5.6-pro-test");
+    assert.equal(dryRecord.generationConfigSha256, generationConfigSha256);
+
+    const unknownModel = invoke("scripts/record-attractor-run.mjs", [
+      ...common.map((item, index, list) => list[index - 1] === "--exact-model-identifier" ? "UNKNOWN" : item),
+      "--dry-run",
+    ]);
+    assert.notEqual(unknownModel.status, 0);
+    assert.match(unknownModel.stderr, /exact non-UNKNOWN model identifier/);
 
     const contaminated = invoke("scripts/record-attractor-run.mjs", [
       ...common.map((item, index, list) => list[index - 1] === "--memory-state" ? "ENABLED" : item),
@@ -137,9 +154,15 @@ test("diagnosis-control harness keeps only matched direct/n8n arms and rejects c
       "--evaluations", evaluationsPath,
     ]);
     assert.equal(report.status, 0, report.stderr);
-    const summary = JSON.parse(report.stdout) as { complete: boolean; decision: string; automaticAdoptionPerformed: boolean };
+    const summary = JSON.parse(report.stdout) as {
+      complete: boolean;
+      decision: string;
+      diagnosisAccuracyCountedAsProgress: boolean;
+      automaticAdoptionPerformed: boolean;
+    };
     assert.equal(summary.complete, false);
     assert.equal(summary.decision, "INCOMPLETE_OR_INVALID_NO_COMPARATIVE_CLAIM");
+    assert.equal(summary.diagnosisAccuracyCountedAsProgress, false);
     assert.equal(summary.automaticAdoptionPerformed, false);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
