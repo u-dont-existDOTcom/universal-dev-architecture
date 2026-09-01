@@ -1,0 +1,163 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chats";
+import {
+  evaluateSupervisionAdmission,
+  internalSupervisorRoutePrefix,
+  parseInternalSupervisorRouteBody,
+} from "../lib/supervision-admission-runtime";
+import type { AuthenticatedProducer } from "../lib/ingestion-auth";
+
+const workerProducer: AuthenticatedProducer = {
+  id: "worker:askrigor-mast",
+  kind: "WORKER",
+  workerScopes: ["askrigor-mast"],
+  taskScopes: ["task:askrigor-mast"],
+};
+const digest = "a".repeat(64);
+
+function input(overrides: Record<string, unknown> = {}) {
+  const requestOverrides = (overrides.request ?? {}) as Record<string, unknown>;
+  const request = {
+    requestId: "admission:askrigor:mast:1",
+    action: "DESIGN_SPEND",
+    actor: "CODEX",
+    sourceReceipt: null,
+    boundedExecution: false,
+    taskRequiresExecutionOutsideChat: false,
+    spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 30, ownerApprovedNonzeroSpendManifestId: null },
+    internalRoute: {
+      destination: "SPECIALIST_SUPERVISOR_CHAT",
+      destinationChatId: "chat:askrigor:new-research-avenues",
+      standingOwnerAuthorization: true,
+      ownerRelayRequested: false,
+      actionTimeConfirmationRequested: false,
+    },
+    ownerPolicy: { paidModelInferenceAllowed: false, activeZeroSpendDecisionId: "owner:no-paid-api:20260901" },
+    ...requestOverrides,
+  };
+  const base = {
+    request,
+    factualPacket: {
+      packetId: "packet:askrigor:mast:1",
+      taskId: "task:askrigor:mast",
+      exactFactualState: "The deterministic harness is ready. No inference has run. A worker considered a $30 API smoke.",
+      evidenceRefs: ["repo:AskRigor@main"],
+      decisionRequested: "Choose the next methodology and spending boundary.",
+    },
+  };
+  return { ...base, ...overrides, request };
+}
+
+test("Codex spend design is blocked before action and automatically queued to Chat", () => {
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input(), "2026-09-01T21:00:00.000Z");
+  assert.equal(result.admitted, false);
+  assert.equal(result.mayExecute, false);
+  assert.equal(result.ownerRelayRequired, false);
+  assert.equal(result.primaryDecision.decision, "REJECT_CODEX_OR_WORK_SEMANTIC_AUTHORSHIP");
+  assert.equal(result.routeDecision?.decision, "ALLOW_AUTOMATIC_INTERNAL_ROUTE");
+  assert.equal(result.providerDeliveryState, "QUEUED_FOR_PROVIDER_RELAY");
+  const routeEnvelope = result.routeEnvelope;
+  assert.ok(routeEnvelope && routeEnvelope.data.type === "worker_message_recorded");
+  if (!routeEnvelope || routeEnvelope.data.type !== "worker_message_recorded") throw new Error("Route envelope missing");
+  assert.ok(routeEnvelope.data.body.startsWith(internalSupervisorRoutePrefix));
+  const packet = parseInternalSupervisorRouteBody(routeEnvelope.data.body);
+  assert.equal(packet?.ownerRelayRequired, false);
+  assert.equal(packet?.actionTimeConfirmationRequired, false);
+  assert.equal(packet?.providerDeliveryState, "QUEUED_FOR_PROVIDER_RELAY");
+});
+
+test("the approximately $175 pilot path is blocked by the same pre-action gate", () => {
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({ request: {
+    action: "DESIGN_SPEND",
+    spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 175, ownerApprovedNonzeroSpendManifestId: null },
+  } }));
+  assert.equal(result.mayExecute, false);
+  assert.equal(result.providerDeliveryState, "QUEUED_FOR_PROVIDER_RELAY");
+});
+
+test("a worker cannot impersonate a Project Manager Chat reasoning surface", () => {
+  assert.throws(() => evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({ request: {
+    action: "DESIGN_METHODOLOGY",
+    actor: "PROJECT_MANAGER_CHAT",
+  } })), /cannot claim authority actor/);
+});
+
+test("asking Joel to relay or confirm an internal route fails closed without creating a packet", () => {
+  const relay = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({ request: {
+    action: "ROUTE_INTERNAL_SUPERVISOR",
+    spend: null,
+    internalRoute: {
+      destination: "PROJECT_MANAGER_CHAT",
+      destinationChatId: "chat:mission-control:project-manager",
+      standingOwnerAuthorization: true,
+      ownerRelayRequested: true,
+      actionTimeConfirmationRequested: false,
+    },
+  } }));
+  assert.equal(relay.ownerRelayRequired, false);
+  assert.equal(relay.routeEnvelope, null);
+  assert.equal(relay.routeDecision?.decision, "REJECT_OWNER_RELAY_FOR_INTERNAL_ROUTE");
+
+  const confirmation = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({ request: {
+    action: "ROUTE_INTERNAL_SUPERVISOR",
+    spend: null,
+    internalRoute: {
+      destination: "PROJECT_MANAGER_CHAT",
+      destinationChatId: "chat:mission-control:project-manager",
+      standingOwnerAuthorization: true,
+      ownerRelayRequested: false,
+      actionTimeConfirmationRequested: true,
+    },
+  } }));
+  assert.equal(confirmation.routeDecision?.decision, "REJECT_INTERNAL_ROUTE_CONFIRMATION_HANDOFF");
+  assert.equal(confirmation.routeEnvelope, null);
+});
+
+test("missing supervisor configuration is visible and never converted into an owner relay", () => {
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({ request: { internalRoute: null } }));
+  assert.equal(result.providerDeliveryState, "ROUTE_CONFIGURATION_MISSING");
+  assert.equal(result.ownerRelayRequired, false);
+  assert.equal(result.routeEnvelope, null);
+});
+
+test("only a source-bound bounded zero-spend Chat directive admits execution", () => {
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({
+    request: {
+      action: "EXECUTE_BOUNDED_TASK",
+      actor: "CODEX",
+      sourceReceipt: {
+        messageId: "chat-message:askrigor:zero-spend",
+        bodySha256: digest,
+        claimedSurface: "CHATGPT_PROJECT_MANAGER",
+        observedSurface: "CHATGPT_PROJECT_MANAGER",
+        provenanceStatus: "VERIFIED",
+        authorActor: "PROJECT_MANAGER_CHAT",
+      },
+      boundedExecution: true,
+      taskRequiresExecutionOutsideChat: true,
+      spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 0, ownerApprovedNonzeroSpendManifestId: null },
+      internalRoute: null,
+    },
+    factualPacket: null,
+  }));
+  assert.equal(result.admitted, true);
+  assert.equal(result.mayExecute, true);
+  assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
+});
+
+test("configured chat locators are exposed without pretending provider verification or relay", () => {
+  const directory = loadConfiguredSupervisorChats(JSON.stringify([
+    {
+      scope: "PROJECT_MANAGER",
+      chatId: "chat:mission-control:project-manager",
+      label: "Mission Control overall supervisor",
+      url: "https://chatgpt.com/c/6a944d7a-3350-83e9-8302-5c011835fd77",
+      workerId: null,
+    },
+  ]));
+  assert.equal(directory.configurationState, "CONFIGURED");
+  assert.equal(directory.providerRelayState, "NOT_CONNECTED");
+  assert.equal(directory.entries[0]?.locatorVerification, "OWNER_CONFIGURED_UNVERIFIED");
+});
