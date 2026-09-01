@@ -14,28 +14,27 @@ const statePath = value("--state-file", "state/CURRENT-STATE.md");
 const baseUrl = value("--base-url", "http://127.0.0.1:3000").replace(/\/$/, "");
 const producerId = value("--producer-id", worker ? `worker:${worker}` : null);
 const token = value("--token", process.env.MISSION_CONTROL_WORKER_TOKEN);
-const projectId = value("--project-id", worker ? `project:${worker}` : null);
-const taskId = value("--task-id", worker ? `task:${worker}` : null);
 const dryRun = args.includes("--dry-run");
 const watch = args.includes("--watch");
 const intervalMs = Number(value("--interval-ms", "30000"));
 
-if (!worker || !producerId || !projectId || !taskId) {
-  throw new Error("Provide --worker; producer, project, and task IDs then derive safely or may be supplied explicitly.");
+if (!worker || !producerId) {
+  throw new Error("Provide --worker; the producer ID derives safely or may be supplied explicitly.");
 }
 if (!dryRun && (!token || token.length < 32)) throw new Error("MISSION_CONTROL_WORKER_TOKEN or --token must contain at least 32 characters.");
 
 if (dryRun) {
   const source = inspectRepository(repository, statePath);
-  const preview = buildDirectionEvents({
-    worker, projectId, taskId, source,
+  const preview = buildDirectionDeliveryEvents({
+    worker,
+    source,
     delivery: {
       messageId: "message:adapter:dry-run", directionId: "direction:adapter:dry-run",
       deliveryId: "delivery:adapter:dry-run", receiptId: "receipt:adapter:dry-run",
       threadId: `thread:${worker}`, body: "Continue the current owner-prioritized work.", recordedAt: new Date().toISOString(),
     },
   });
-  process.stdout.write(`${JSON.stringify({ dryRun: true, source: publicSource(source), events: preview }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ dryRun: true, source, events: preview }, null, 2)}\n`);
   process.exit(0);
 }
 
@@ -61,8 +60,8 @@ async function pollOnce() {
   let published = 0;
   for (const delivery of outbox.deliveries ?? []) {
     const events = delivery.kind === "DIRECTION"
-      ? buildDirectionEvents({ worker, projectId, taskId, source, delivery })
-      : buildConversationEvents({ worker, source, delivery });
+      ? buildDirectionDeliveryEvents({ worker, source, delivery })
+      : buildConversationDeliveryEvents({ worker, source, delivery });
     await fetchJson(`${baseUrl}/api/worker-channel/${encodeURIComponent(worker)}/events`, {
       method: "POST", headers, body: JSON.stringify({ events }),
     });
@@ -74,68 +73,37 @@ async function pollOnce() {
     });
     published = 1;
   }
-  return { worker, deliveries: outbox.deliveries?.length ?? 0, published, source: publicSource(source) };
+  return { worker, deliveries: outbox.deliveries?.length ?? 0, published, source };
 }
 
-function buildDirectionEvents({ worker, projectId, taskId, source, delivery }) {
+/**
+ * This sidecar proves transport and repository identity only.
+ *
+ * It deliberately does not emit direction_acknowledged, work_queue_published,
+ * structured_blocker_recorded, change_proposal_recorded, or
+ * direction_reconciled. Those events contain semantic judgments and must come
+ * from a separately authenticated worker or reasoning surface that actually
+ * interpreted the exact owner direction.
+ */
+function buildDirectionDeliveryEvents({ worker, source, delivery }) {
   const now = new Date().toISOString();
   const suffix = stableSuffix(`${delivery.receiptId}:${delivery.directionId}`);
-  const queueRevisionId = `queue:${worker}:${stableSuffix(delivery.directionId)}`;
-  const items = queueItemsFromState(source.stateText, now);
-  const events = [
+  return [
     envelope(`adapter:message-ack:${suffix}`, worker, now, {
       type: "outbound_message_acknowledged", worker, acknowledgement_id: `ack:message:${suffix}`,
       message_id: delivery.messageId, delivery_id: delivery.deliveryId, acknowledged_at: now,
     }),
-    envelope(`adapter:direction-ack:${suffix}`, worker, now, {
-      type: "direction_acknowledged", worker, acknowledgement_id: `ack:direction:${suffix}`,
-      direction_id: delivery.directionId, message_id: delivery.messageId,
-      interpretation: `Continue the current repository-defined work from ${source.statePath} at ${source.branch}@${source.head.slice(0, 8)}; preserve the owner direction as the active boundary.`,
-      accepted_scope: items.map((item) => item.title), acknowledged_at: now,
-    }),
     connectionEnvelope(worker, source, now),
-    envelope(`adapter:queue:${stableSuffix(delivery.directionId)}`, worker, now, {
-      type: "work_queue_published", worker, project_id: projectId, task_id: taskId,
-      queue_revision_id: queueRevisionId, revision: 1, previous_queue_revision_id: null,
-      direction_id: delivery.directionId, published_at: now,
-      items: items.map((item, ordinal) => ({ ...item, ordinal, depends_on: ordinal === 0 ? [] : [items[ordinal - 1].item_id] })),
+    envelope(`adapter:worker-message:${suffix}`, worker, now, {
+      type: "worker_message_recorded", worker, message_id: `message:worker:${suffix}`, thread_id: delivery.threadId,
+      message_kind: "RESPONSE",
+      body: `Transport-only sidecar delivered the direction while tracking ${source.branch}@${source.head.slice(0, 8)}. Semantic acknowledgement, queue publication, and reconciliation remain pending verified worker or supervisor events.`,
+      reply_to_message_id: delivery.messageId, direction_id: delivery.directionId,
     }),
   ];
-  const ownerBlocker = ownerBlockerFromState(source.stateText);
-  if (ownerBlocker) events.push(envelope(`adapter:blocker:${suffix}`, worker, now, {
-    type: "structured_blocker_recorded", worker, blocker_id: `blocker:${worker}:owner-session`,
-    task_id: taskId,
-    direction_id: delivery.directionId, queue_item_id: items[0]?.item_id ?? null, status: "OPEN", severity: "MATERIAL",
-    title: ownerBlocker.title, description: ownerBlocker.description, impact: ownerBlocker.impact,
-    blocking_scope: ["owner-only acceptance"], workaround_available: false, workaround: null,
-    required_actor: { kind: "OWNER", id: "owner:primary" }, evidence_refs: [`file:${source.statePath}`, `git:${source.head}`],
-    reported_by: `worker:${worker}`, needs_owner: true, reported_at: now,
-  }));
-  events.push(envelope(`adapter:proposal:${suffix}`, worker, now, {
-    type: "change_proposal_recorded", worker, proposal_id: `proposal:${worker}:current-sequence:${suffix}`,
-    task_id: taskId,
-    direction_id: delivery.directionId, queue_item_id: items[0]?.item_id ?? null, status: "OPEN",
-    title: "Advance the repository-recorded next executable sequence",
-    rationale: source.nextExecutable || "Use the current durable state as the work boundary.",
-    expected_impact: "Keep worker execution aligned with the latest repository state and owner direction.",
-    affected_scope: items.map((item) => item.title), proposer_id: `worker:${worker}`,
-    reasoning_authority: "WORKER_CLAIM", authority_effect: "NON_OPERATIVE", disposition: null,
-    evidence_refs: [`file:${source.statePath}`, `git:${source.head}`], requires_owner_decision: false, reported_at: now,
-  }));
-  events.push(envelope(`adapter:worker-message:${suffix}`, worker, now, {
-    type: "worker_message_recorded", worker, message_id: `message:worker:${suffix}`, thread_id: delivery.threadId,
-    message_kind: "RESPONSE", body: `Live adapter received the direction at ${source.branch}@${source.head.slice(0, 8)} and published ${items.length} real state-derived queue items.`,
-    reply_to_message_id: delivery.messageId, direction_id: delivery.directionId,
-  }));
-  events.push(envelope(`adapter:reconcile:${suffix}`, worker, now, {
-    type: "direction_reconciled", worker, reconciliation_id: `reconcile:${suffix}`,
-    direction_id: delivery.directionId, queue_revision_id: queueRevisionId, status: "INCORPORATED",
-    summary: `Direction incorporated against ${source.repository} ${source.branch}@${source.head.slice(0, 8)} using ${source.statePath}.`, reconciled_at: now,
-  }));
-  return events;
 }
 
-function buildConversationEvents({ worker, source, delivery }) {
+function buildConversationDeliveryEvents({ worker, source, delivery }) {
   const now = new Date().toISOString();
   const suffix = stableSuffix(`${delivery.receiptId}:${delivery.messageId}`);
   return [
@@ -146,7 +114,7 @@ function buildConversationEvents({ worker, source, delivery }) {
     connectionEnvelope(worker, source, now),
     envelope(`adapter:worker-message:${suffix}`, worker, now, {
       type: "worker_message_recorded", worker, message_id: `message:worker:${suffix}`, thread_id: delivery.threadId,
-      message_kind: "RESPONSE", body: `Live adapter received the message while tracking ${source.branch}@${source.head.slice(0, 8)}.`,
+      message_kind: "RESPONSE", body: `Transport-only sidecar delivered the message while tracking ${source.branch}@${source.head.slice(0, 8)}.`,
       reply_to_message_id: delivery.messageId, direction_id: null,
     }),
   ];
@@ -160,13 +128,13 @@ function connectionEnvelope(worker, source, now = new Date().toISOString()) {
     state: "CONNECTED", runtime_kind: "POLLING_SIDECAR", endpoint_id: `worker:${worker}:poll`,
     observed_at: now, lease_expires_at: leaseExpiresAt,
     source: { repository: source.repository, branch: source.branch, head: source.head, state_path: source.statePath },
-    detail: `Authenticated sidecar poll succeeded and bound live repository state at ${source.branch}@${source.head.slice(0, 8)}.`,
+    detail: `Authenticated sidecar poll succeeded and bound live repository state at ${source.branch}@${source.head.slice(0, 8)}. No semantic interpretation is asserted.`,
   });
 }
 
 function inspectRepository(repository, statePath) {
   const absoluteState = path.resolve(repository, statePath);
-  const stateText = fs.readFileSync(absoluteState, "utf8");
+  const stateBytes = fs.readFileSync(absoluteState);
   const git = (...gitArgs) => {
     const result = spawnSync("git", gitArgs, { cwd: repository, encoding: "utf8" });
     if (result.status !== 0) throw new Error(result.stderr || `git ${gitArgs.join(" ")} failed`);
@@ -175,52 +143,14 @@ function inspectRepository(repository, statePath) {
   const branch = git("branch", "--show-current") || "DETACHED";
   const head = git("rev-parse", "HEAD");
   const dirtyEntries = git("status", "--short").split(/\r?\n/).filter(Boolean);
-  const nextExecutable = extractNextExecutable(stateText);
-  return { repository, statePath, stateText, branch, head, dirtyEntries, nextExecutable };
-}
-
-function publicSource(source) {
-  const { stateText: _stateText, ...safe } = source;
-  return safe;
-}
-
-function extractNextExecutable(markdown) {
-  const lines = markdown.split(/\r?\n/);
-  const index = lines.findIndex((line) => /^- Next executable:/i.test(line.trim()));
-  if (index === -1) return "";
-  const captured = [lines[index].replace(/^\s*- Next executable:\s*/i, "")];
-  for (const line of lines.slice(index + 1)) {
-    if (/^\s*-\s+/.test(line) || /^#{1,6}\s/.test(line) || !line.trim()) break;
-    captured.push(line.trim());
-  }
-  return captured.join(" ").replace(/\s+/g, " ").trim();
-}
-
-function queueItemsFromState(markdown, now) {
-  const next = extractNextExecutable(markdown);
-  const clauses = next.split(/;\s+|\band\s+(?=deploy\b|run\b|configure\b|verify\b|stage\b)/i).map((item) => item.trim()).filter(Boolean);
-  const selected = clauses.length ? clauses : ["Inspect the current durable state and continue the first eligible task."];
-  return selected.slice(0, 8).map((detail, index) => ({
-    item_id: `repo-next:${stableSuffix(detail)}`,
-    title: sentenceTitle(detail), detail,
-    status: index === 0 ? "READY" : "PLANNED", priority: index === 0 ? "P0" : "P1",
-    created_at: now, updated_at: now,
-  }));
-}
-
-function ownerBlockerFromState(markdown) {
-  const match = markdown.match(/(?:PENDING_OWNER_SESSION|pending the owner[^.]*|owner(?:'s)? first fresh study[^.]*)/i);
-  if (!match) return null;
   return {
-    title: "Owner-only acceptance input is pending",
-    description: match[0].replaceAll("_", " "),
-    impact: "The worker can prepare and verify the technical path, but cannot fabricate the owner's private acceptance session.",
+    repository,
+    statePath,
+    stateSha256: createHash("sha256").update(stateBytes).digest("hex"),
+    branch,
+    head,
+    dirtyEntries,
   };
-}
-
-function sentenceTitle(value) {
-  const cleaned = value.replace(/^\([^)]*\)\s*/, "").replace(/[.;]+$/, "").trim();
-  return `${cleaned.slice(0, 1).toUpperCase()}${cleaned.slice(1, 96)}`;
 }
 
 function envelope(eventId, worker, occurredAt, data) {
