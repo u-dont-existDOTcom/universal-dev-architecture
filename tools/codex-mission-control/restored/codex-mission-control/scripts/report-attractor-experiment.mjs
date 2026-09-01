@@ -50,18 +50,28 @@ const armReports = [...arms.entries()].map(([arm, planned]) => {
   };
 });
 const allComplete = armReports.every((arm) => arm.complete);
-const modelIdentities = new Set(runs.map((run) => `${run.providerSurface}\u0000${run.modelFamily}\u0000${run.modelMode}`));
-const modelIdentityMatched = runs.length === 0 || modelIdentities.size === 1;
+const modelAndGenerationIdentities = new Set(runs.map((run) => [
+  run.providerSurface,
+  run.modelFamily,
+  run.exactModelIdentifier,
+  run.modelMode,
+  run.generationConfigSha256,
+].join("\u0000")));
+const modelAndGenerationMatched = runs.length === 0 || modelAndGenerationIdentities.size === 1;
+const malformedRunBindings = runs.filter((run) => !run.exactModelIdentifier
+  || /^unknown$/i.test(run.exactModelIdentifier)
+  || !/^[a-f0-9]{64}$/.test(run.generationConfigSha256 ?? ""));
 const provenanceViolations = [
   ...runs.filter((run) => run.runtimeIdentityStatus !== "VERIFIED"
     || run.memoryState !== "DISABLED"
     || run.sessionSearchState !== "DISABLED"
     || (run.inheritedStateFlags ?? []).length > 0),
+  ...malformedRunBindings,
   ...evaluations.filter((evaluation) => !["VERIFIED", "OWNER_ATTESTED"].includes(evaluation.evaluatorProvenanceStatus)
     || evaluation.runtimeIdentityVisibleBeforeVerdict !== false
     || evaluation.verdictFrozenBeforeStateRead !== true),
 ];
-if (!modelIdentityMatched) provenanceViolations.push({ reason: "MODEL_IDENTITY_DIFFERS_ACROSS_MATCHED_ARMS" });
+if (!modelAndGenerationMatched) provenanceViolations.push({ reason: "EXACT_MODEL_OR_GENERATION_CONFIG_DIFFERS_ACROSS_MATCHED_ARMS" });
 
 const allEvaluated = evaluations.filter((evaluation) => plan.runs.some((run) => run.runId === evaluation.runId));
 const totalPasses = allEvaluated.filter((evaluation) => evaluation.verdict === "PASS").length;
@@ -87,7 +97,7 @@ const report = {
   complete: allComplete,
   arms: armReports,
   diagnosisAccuracyCountedAsProgress: false,
-  matchedModelIdentity: modelIdentityMatched,
+  matchedExactModelAndGenerationConfiguration: modelAndGenerationMatched,
   duplicateCandidateHashes: duplicateHashes,
   provenanceViolationCount: provenanceViolations.length,
   overallPassCount: totalPasses,
