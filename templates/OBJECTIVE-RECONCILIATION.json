@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "reconciliationId": "replace-with-reconciliation-id",
   "taskId": "replace-with-task-id",
   "trigger": "TASK_START",
@@ -33,6 +33,47 @@
     "taskContractId": "replace-with-contract-id",
     "revision": 1,
     "sha256": "replace-with-task-contract-sha256"
+  },
+  "claimRegistry": [
+    {
+      "claimId": "replace-with-claim-id",
+      "claimText": "Replace with the exact load-bearing claim",
+      "authority": "EXECUTOR_PROPOSAL",
+      "claimKind": "FACT",
+      "loadBearing": true,
+      "sourceRefs": [],
+      "sourceSha256": null,
+      "derivationCommand": null,
+      "artifactIdentity": null,
+      "verifier": null,
+      "verifiedAt": null,
+      "freshnessStatus": "DERIVATION_UNVERIFIED",
+      "authorizedCriterionRef": null,
+      "decisionUse": "UNAUTHORIZED"
+    }
+  ],
+  "claimAuthorityPolicy": {
+    "allowedAuthorities": [
+      "OWNER_LITERAL",
+      "OWNER_CORRECTION",
+      "REASONING_DECISION",
+      "ARTIFACT_DERIVED_FACT",
+      "EXECUTOR_PROPOSAL"
+    ],
+    "loadBearingClaimKinds": [
+      "FACT",
+      "IMPLEMENTATION_DETAIL",
+      "SCIENTIFIC_CRITERION",
+      "PRODUCT_DECISION",
+      "RELEASE_CONDITION"
+    ],
+    "reconciliationFailureStates": [
+      "UNAUTHORIZED_ADDITION",
+      "INFERRED_NUMERIC_SCOPE",
+      "DERIVATION_UNVERIFIED"
+    ],
+    "artifactFactMaySelectScientificCriterion": false,
+    "unregisteredDefinitiveRenderingAllowed": false
   },
   "alignment": {
     "workerToContract": {

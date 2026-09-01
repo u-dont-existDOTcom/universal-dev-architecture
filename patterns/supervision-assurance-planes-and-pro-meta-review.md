@@ -272,6 +272,65 @@ result
 
 Prior approvals remain historical. They are invalidated for current authority when a later owner correction, material discovery, or reconciliation failure changes their premise.
 
+### 7.1 Claim-level authority and unauthorized specificity
+
+An authentic owner-source receipt proves the source bytes; it does not authorize
+specificity absent from those bytes. Every load-bearing numeric, scientific,
+product, or release claim must be registered separately with:
+
+```text
+claim_id
+exact claim text and value
+authority:
+  OWNER_LITERAL | OWNER_CORRECTION | REASONING_DECISION |
+  ARTIFACT_DERIVED_FACT | EXECUTOR_PROPOSAL
+claim_kind:
+  FACT | IMPLEMENTATION_DETAIL | SCIENTIFIC_CRITERION |
+  PRODUCT_DECISION | RELEASE_CONDITION
+source/reference/hash
+derivation command
+artifact identity
+independent verifier
+verification time and freshness
+authorized criterion reference, when the claim governs a decision
+```
+
+These types are not interchangeable. `ARTIFACT_DERIVED_FACT` may establish
+that a production mapping currently contains 23 unique IDs. It cannot select
+23 as the scientific completeness gate. `EXECUTOR_PROPOSAL` may preserve a
+hypothesis for reasoning review. It cannot enter an owner-facing definitive
+statement, task acceptance criterion, supervisor premise, or release condition.
+
+Required reconciliation failures include:
+
+```text
+UNAUTHORIZED_ADDITION
+INFERRED_NUMERIC_SCOPE
+DERIVATION_UNVERIFIED
+```
+
+An executor-added denominator, threshold, sample size, validation phase,
+evidence-sufficiency rule, scientific criterion, product decision, or release
+condition is `DIRECTIVE_SCOPE_EXCEEDED` unless a current owner source or
+versioned reasoning-chat directive explicitly authorizes it. Directives must
+enumerate the authorized criteria and load-bearing numeric claim references;
+silence grants no authority.
+
+Re-run objective reconciliation automatically whenever any registered
+acceptance count, threshold, evidence class, validation phase, scientific
+criterion, product decision, or release condition changes. Invalidate prior
+reviews whose premises contain the superseded or unauthorized claim.
+
+Require production-artifact cardinality evidence reproduced against the exact
+production artifact and identity. A synthetic, fake, or reduced test fixture
+may verify a mechanism but cannot satisfy production-cardinality evidence. The
+independent reviewer must reproduce every load-bearing cardinality or return
+`UNKNOWN`.
+
+Owner-facing definitive rendering fails closed for unregistered load-bearing
+claims. If preserving the observation is useful, render it only as
+`executor hypothesis—unverified` until the authority and evidence fields pass.
+
 ---
 
 ## 8. Fail-closed supervisor order and verdicts
@@ -545,6 +604,16 @@ At minimum, test:
 16. A nonblocking design suggestion does not stop unrelated task execution.
 17. An immediate-risk design defect is not delayed for batching.
 18. A Pro meta-review verdict cannot silently rewrite the architecture without repository change and tests.
+19. Owner says “complete profile”; executor infers 76 and receives `SCIENTIFIC_SCOPE_UNAUTHORIZED`.
+20. Owner explicitly says 76 with a current receipt and the claim is accepted.
+21. Extra High issues a versioned 76-item directive and the claim is accepted as reasoning authority.
+22. A contract says 76 while the exact production artifact exposes 23 and receives `CONTRACT_ARTIFACT_MISMATCH`.
+23. A fake backend proves phase filtering without proving production cardinality and release remains blocked.
+24. Worker-to-contract GREEN plus an unauthorized scientific criterion yields root RED.
+25. Tests pass while owner-facing numeric prose lacks claim provenance and definitive rendering is rejected.
+26. A mapping identity change invalidates the prior cardinality automatically.
+27. An executor receipt attempts to choose a denominator or populate scientific adequacy and schema admission fails.
+28. A reviewer repeats a producer-supplied cardinality without reproduction and review remains `UNKNOWN`.
 
 The article-humanization `13.82% Human` fixture must explicitly demonstrate:
 

@@ -300,6 +300,53 @@ Required objective-reconciliation matrix:
 
 Every material requirement must be mapped, explicitly amended/removed by the owner, or escalated. Reconcile after material discoveries, phase changes, acceptance-test changes, owner corrections, review readiness, release preparation, and before root completion.
 
+### Claim-level authority and inferred numeric scope
+
+An authentic owner-source receipt does not authorize specificity absent from
+the source. Register every load-bearing claim with exact text/value, authority,
+claim kind, source/ref/hash, derivation command, artifact identity, verifier,
+verification time/freshness, and any authorized criterion reference.
+
+Allowed authorities:
+
+```text
+OWNER_LITERAL
+OWNER_CORRECTION
+REASONING_DECISION
+ARTIFACT_DERIVED_FACT
+EXECUTOR_PROPOSAL
+```
+
+Claim kinds:
+
+```text
+FACT
+IMPLEMENTATION_DETAIL
+SCIENTIFIC_CRITERION
+PRODUCT_DECISION
+RELEASE_CONDITION
+```
+
+An artifact-derived fact can report a count; it cannot choose that count as a
+scientific or product criterion. An executor proposal remains non-authoritative.
+Do not place either into supervisory authority fields or render an unregistered
+load-bearing claim definitively to the owner.
+
+Every chat-to-Codex directive must enumerate authorized scientific criteria,
+product decisions, release conditions, and load-bearing numeric claim refs.
+Codex adding or changing an unlisted denominator, threshold, sample size,
+validation phase, evidence-sufficiency rule, scientific criterion, product
+decision, or release condition is `DIRECTIVE_SCOPE_EXCEEDED`.
+
+Use reconciliation failures `UNAUTHORIZED_ADDITION`,
+`INFERRED_NUMERIC_SCOPE`, and `DERIVATION_UNVERIFIED`. Rerun objective
+reconciliation whenever a load-bearing acceptance count, threshold, evidence
+class, validation phase, scientific criterion, product decision, or release
+condition changes. Require exact production-artifact cardinality evidence for
+production claims; synthetic fixtures prove only their bounded mechanics. An
+independent reviewer reproduces each load-bearing cardinality or returns
+`UNKNOWN`.
+
 For AskRigor and comparable research work, keep separate:
 
 ```text

@@ -54,6 +54,21 @@
   },
   "executionObjective": "replace-with-exact-bounded-execution-objective",
   "reasoningSummary": "replace-with-bounded-chat-authored-rationale; Codex must not reinterpret this as authority to change strategy",
+  "authorizedCriteria": {
+    "scientificCriteria": [],
+    "productDecisions": [],
+    "releaseConditions": [],
+    "loadBearingNumericClaimRefs": [],
+    "restrictedDimensions": [
+      "denominators",
+      "thresholds",
+      "sample sizes",
+      "validation phases",
+      "evidence sufficiency"
+    ],
+    "executorMayAddOrChange": false,
+    "onUnlistedChange": "DIRECTIVE_SCOPE_EXCEEDED"
+  },
   "inputs": [
     {
       "type": "FILE_OR_ARTIFACT",
@@ -76,6 +91,7 @@
       "classify overall alignment or progress",
       "author supervisory verdict",
       "decide owner or Pro escalation",
+      "add or change an unlisted denominator, threshold, sample size, validation phase, evidence-sufficiency rule, scientific criterion, product decision, or release condition",
       "continue beyond stop trigger",
       "treat a reasoning-review boundary or pending response as task termination"
     ]

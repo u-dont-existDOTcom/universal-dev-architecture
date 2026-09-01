@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001",
+  "createdAt": "2026-09-01T02:08:00Z",
+  "taskId": "humandesign-astrohd-owner-intake-quality-v1",
+  "workerRunId": "extra-high-pr21-review-20260901",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-MISSION-CONTROL-CLAIM-AUTHORITY-001",
+    "epoch": 1,
+    "sha256": "6ce9b1f5e9b35d6888cecf20d8c7dbacb613fec1cc9195ad06f2930cfebc90f3"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-09-01T02:03:00Z",
+    "exactText": "diagnose this flaw because this should not happen, you're not the reasoner. ask an extra high chat to figure out what to fix and then send the fix to mission control. ok you can't connbect to browser that's weird, put this in your top priority work queue, save everything to github and i will restart the work",
+    "sha256": "6ce9b1f5e9b35d6888cecf20d8c7dbacb613fec1cc9195ad06f2930cfebc90f3"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "a40d413-claim-authority-v1",
+    "sha256OrCommit": "a40d413477e57ead76dc6cf9b9a2c457462a0ff5"
+  },
+  "type": "DEFECT",
+  "category": "REASONING_EXECUTION_AUTHORITY_SEPARATION",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "A Codex executor derived 76 non-validation questionnaire records by arithmetic and silently upgraded that artifact observation into the scientific acceptance rule that a complete profile requires 76 items. No owner or reasoning-chat directive selected that denominator, and production scoring actually exposes 27 frozen rules spanning 23 unique question IDs. The unauthorized criterion then entered owner-facing prose and independent-review premises as if it were established authority.",
+  "relevantRule": {
+    "path": "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "section": "Machine-checkable dual alignment and typed completion",
+    "excerpt": "Every material requirement must be mapped, explicitly amended/removed by the owner, or escalated."
+  },
+  "observedOrHypotheticalFailure": "Authentic owner-source receipts and dual alignment did not prevent an executor-added numeric specificity from becoming a scientific criterion. Worker-to-contract can remain GREEN after the inference is copied into the contract, synthetic tests can validate the mechanics without validating production cardinality, and later reviewers can inherit the producer-supplied number rather than reproduce it. This can falsely authorize scientific readiness or release while the actual acceptance rule remains unresolved.",
+  "evidenceRefs": [
+    {
+      "type": "extra_high_diagnosis",
+      "reviewIdentity": "/root/extra_high_pr21_review",
+      "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001",
+      "finding": "81 total and 76 non-validation are question-bank facts; 23 unique mapped IDs is a production scoring fact; neither number is an authorized scientific completeness criterion."
+    },
+    {
+      "type": "project_commit",
+      "repository": "u-dont-existDOTcom/humandesign",
+      "commit": "69c2d57",
+      "pullRequest": 23,
+      "paths": [
+        "src/hdmatch/participant/backend.py",
+        "tests/unit/test_participant_session.py",
+        "CURRENT_PLAN.md",
+        "state/CURRENT-STATE.md"
+      ]
+    },
+    {
+      "type": "production_artifact_reproduction",
+      "facts": {
+        "questionBankTotal": 81,
+        "questionBankNonValidation": 76,
+        "frozenMappingRules": 27,
+        "uniqueMappedQuestionIds": 23,
+        "validationQuestionIdsMapped": 0
+      }
+    },
+    {
+      "type": "browser_capability_receipt",
+      "state": "UNAVAILABLE",
+      "observation": "The browser runtime returned no available browser instances, so no signed-in Pro meta-review verdict was obtained."
+    }
+  ],
+  "proposedChange": "Add claim-level provenance with explicit authority and claim-kind typing; treat every executor-added denominator, threshold, sample size, validation phase, or evidence-sufficiency rule as unauthorized unless enumerated in a current owner or reasoning-chat directive; add reconciliation states UNAUTHORIZED_ADDITION, INFERRED_NUMERIC_SCOPE, and DERIVATION_UNVERIFIED; rerun objective reconciliation whenever a load-bearing numeric or scientific criterion changes; require production-artifact cardinality evidence and independent reproduction; prevent synthetic fixtures from satisfying production-cardinality evidence; and reject definitive owner-facing rendering of unregistered claims.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Treat all non-validation questionnaire records as required",
+      "rejectedBecause": "That selects a scientific burden and completeness rule without authority and conflates acquisition scope with production scoring scope."
+    },
+    {
+      "alternative": "Use the 23 mapped production IDs as the completeness rule",
+      "rejectedBecause": "That is an artifact-derived fact, not an owner- or reasoning-authorized scientific criterion."
+    },
+    {
+      "alternative": "Rely on independent review to catch incorrect counts",
+      "rejectedBecause": "The reviewer can inherit the producer number unless every load-bearing cardinality must be independently reproduced before it enters the review premise."
+    }
+  ],
+  "risks": [
+    "Claim registries can become ceremonial unless definitive rendering and directive admission fail closed.",
+    "Not every qualitative refinement can be classified mechanically; semantic equivalence still belongs to Extra High or Pro.",
+    "Overbroad numeric gating could burden harmless implementation constants, so the control is limited to load-bearing acceptance, scientific, product, and release claims.",
+    "The proposed change has not yet received the required shared Pro meta-review verdict."
+  ],
+  "workerRecommendation": "Extra High recommends immediate adoption of the claim-authority guardrails and hostile tests on a draft Mission Control branch, with canonical integration held until the shared Pro meta-review returns a validated verdict.",
+  "workerUncertainty": "The exact runtime storage location for the claim registry may vary by Mission Control implementation. The authority distinction and failure mode are not uncertain; neither 23 nor 76 is currently an authorized scientific completeness criterion.",
+  "decisionThatCanChange": "Whether Mission Control admits executor-derived numeric specificity into task contracts, owner-facing scientific statements, reviewer premises, or release criteria without explicit reasoning authority and independently reproduced production evidence.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/a40d413-claim-authority-v1"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": "owner-directive-2026-09-01-diagnose-and-send-fix-to-mission-control",
+  "repositoryChangeRefs": [],
+  "testRefs": [
+    "tests/test_claim_authority_laundering.py",
+    "evals/mission-control/executor-inferred-scientific-scope-authority-laundering.json"
+  ]
+}

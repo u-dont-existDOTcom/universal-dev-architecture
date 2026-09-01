@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "executor-inferred-scientific-scope-authority-laundering",
+  "origin": {
+    "repository": "u-dont-existDOTcom/humandesign",
+    "commit": "69c2d57",
+    "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001"
+  },
+  "observedFacts": {
+    "questionBankTotal": 81,
+    "questionBankNonValidation": 76,
+    "frozenMappingRules": 27,
+    "uniqueMappedQuestionIds": 23,
+    "validationQuestionIdsMapped": 0
+  },
+  "scientificCompletenessCriterion": {
+    "status": "SCIENTIFIC_SCOPE_UNRESOLVED",
+    "authorizedValue": null,
+    "disallowedInference": "Neither 23 nor 76 may be selected from artifact facts alone."
+  },
+  "scenarios": [
+    {
+      "id": "owner-complete-profile-executor-infers-76",
+      "ownerSource": "Complete the profile.",
+      "claim": 76,
+      "claimAuthority": "EXECUTOR_PROPOSAL",
+      "expected": "SCIENTIFIC_SCOPE_UNAUTHORIZED"
+    },
+    {
+      "id": "owner-explicitly-authorizes-76",
+      "ownerSource": "Require all 76 non-validation items.",
+      "claim": 76,
+      "claimAuthority": "OWNER_LITERAL",
+      "ownerSourceReceipt": "CURRENT_MATCH",
+      "expected": "ACCEPTED"
+    },
+    {
+      "id": "extra-high-versioned-directive-authorizes-76",
+      "claim": 76,
+      "claimAuthority": "REASONING_DECISION",
+      "directive": "CURRENT_VERSIONED_MATCH",
+      "expected": "ACCEPTED_AS_REASONING_AUTHORITY"
+    },
+    {
+      "id": "contract-76-production-23",
+      "contractCriterion": 76,
+      "productionUniqueMappedQuestionIds": 23,
+      "expected": "CONTRACT_ARTIFACT_MISMATCH"
+    },
+    {
+      "id": "fake-backend-proves-filtering-only",
+      "syntheticFixtureQuestionIds": 3,
+      "productionCardinalityEvidence": null,
+      "expected": "RELEASE_BLOCKED"
+    },
+    {
+      "id": "green-worker-unauthorized-criterion",
+      "workerToContract": "GREEN",
+      "claimAuthority": "EXECUTOR_PROPOSAL",
+      "claimKind": "SCIENTIFIC_CRITERION",
+      "expected": "ROOT_RED"
+    },
+    {
+      "id": "tests-pass-owner-prose-unregistered",
+      "tests": "PASS",
+      "ownerFacingNumericClaimRegistered": false,
+      "expected": "DEFINITIVE_RENDERING_REJECTED"
+    },
+    {
+      "id": "mapping-change-invalidates-count",
+      "priorArtifactIdentity": "mapping-v1",
+      "currentArtifactIdentity": "mapping-v2",
+      "expected": "CARDINALITY_REVALIDATION_REQUIRED"
+    },
+    {
+      "id": "executor-receipt-selects-denominator",
+      "receiptAttemptsScientificCriterion": true,
+      "expected": "SCHEMA_REJECTED"
+    },
+    {
+      "id": "reviewer-repeats-unreproduced-count",
+      "producerClaim": 76,
+      "independentReproduction": null,
+      "expected": "UNKNOWN"
+    }
+  ]
+}
