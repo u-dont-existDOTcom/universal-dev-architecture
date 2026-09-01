@@ -1,8 +1,16 @@
 {
-  "experimentId": "somatic-intro-attractor-independence-v1",
-  "status": "READY_FOR_MECHANICAL_IMPLEMENTATION",
-  "question": "Does mechanically enforced execution isolation increase structural coverage or blind editorial pass rate when the model family, prompt, semantic seed, candidate count, and evaluator are held fixed?",
-  "ownerHypothesis": "Changing or multiplying models does not fix a shared structural attractor; the interaction and state architecture is the primary variable.",
+  "experimentId": "somatic-intro-attractor-diagnosis-control-v2",
+  "status": "READY_FOR_BOUNDED_ISOLATION_DIAGNOSTIC",
+  "question": "Does mechanically enforced execution-state isolation expose more rare out-of-basin prose when the model, prompt, semantic seed, candidate count, and evaluator are fixed, or does the shared failure persist and require intervention on the effective generation distribution?",
+  "ownerHypothesis": "GPT can accurately diagnose the prose defect and still reproduce it because training creates a strong high-probability continuation basin. Better critique, another model, and model debate do not supply generative control.",
+  "causalModel": {
+    "diagnosisAvailable": true,
+    "generativeControlAvailableThroughOrdinarySelfCritique": false,
+    "suspectedMechanism": "LEARNED_HIGH_PROBABILITY_CONTINUATION_BASIN",
+    "isolationCanTest": "Whether inherited conversational or workflow state further suppresses rare out-of-basin samples.",
+    "isolationCannotByItselfChange": "Model weights, activations, logits, decoding objective, or learned continuation probabilities.",
+    "diagnosisAccuracyCountsAsProgress": false
+  },
   "authority": {
     "ownerIsFinalEditorialAuthority": true,
     "detectorIsPrimaryJudge": false,
@@ -13,7 +21,7 @@
     "automaticArticlePromotion": false
   },
   "fixedControls": {
-    "sameModelFamilyAcrossArms": true,
+    "sameExactModelAcrossArms": true,
     "sameModelModeAcrossArms": true,
     "sameMinimalWriterPromptAcrossArms": true,
     "sameSemanticSeedAcrossArms": true,
@@ -23,6 +31,7 @@
     "crossCandidateCommunication": false,
     "modelDebate": false,
     "selfRefinement": false,
+    "selfDiagnosisReturnedToWriter": false,
     "criticTextReturnedToWriter": false,
     "candidateIdentityShownToEvaluator": false
   },
@@ -38,20 +47,21 @@
       "orchestrator": "N8N",
       "isolation": "one new n8n execution per candidate with explicit immutable input and no workflow static data",
       "persistentMemory": false
-    },
+    }
+  ],
+  "deferredArms": [
     {
       "id": "HERMES_ISOLATED_PROFILE_MEMORY_DISABLED",
-      "orchestrator": "HERMES_AGENT",
-      "isolation": "new isolated Hermes profile or child session per candidate; built-in and external memory disabled; no session search",
-      "persistentMemory": false
+      "disposition": "DEFER_NO_DISTINCT_CONTROL_MECHANISM",
+      "reason": "An isolated Hermes profile duplicates the execution-isolation variable without changing the learned generation distribution. Reopen only for a specific search, decoding, activation, or external-signal mechanism that a thinner runner cannot implement."
     }
   ],
   "sampleBudget": {
     "candidatesPerArm": 8,
     "minimumWords": 50,
     "maximumWords": 80,
-    "maximumArms": 3,
-    "maximumCandidates": 24,
+    "maximumArms": 2,
+    "maximumCandidates": 16,
     "paidExecutionRequiresSeparateAuthorization": true
   },
   "writerPacket": {
@@ -59,6 +69,7 @@
     "forbiddenInputs": [
       "prior candidates",
       "critic or evaluator language",
+      "self-diagnosis or explanation of the attractor",
       "detector results",
       "pass/fail counters",
       "writer identity comparisons",
@@ -91,6 +102,13 @@
     "EXECUTION_TIME",
     "PROVIDER_COST"
   ],
+  "excludedProgressSignals": [
+    "ACCURATE_SELF_CRITIQUE",
+    "ACCURATE_POST_HOC_DEFECT_DIAGNOSIS",
+    "AGENT_CONSENSUS",
+    "MODEL_DISAGREEMENT_WITHOUT_OUTPUT_IMPROVEMENT",
+    "COSMETIC_WORDING_VARIATION_WITH_THE_SAME_CLOSURE_FAMILY"
+  ],
   "evaluation": {
     "literalVerdictFirst": true,
     "allowedVerdicts": ["PASS", "FAIL", "UNCERTAIN"],
@@ -101,10 +119,18 @@
     "runtimeIdentityBlinded": true
   },
   "decisionRules": {
-    "orchestrationEffect": "An arm is promising only if it materially raises blind editorial pass rate or occupied behavior cells without lowering semantic fidelity.",
-    "noEffect": "If n8n and Hermes do not beat direct fresh-process execution, retain the direct runner and reject orchestration as the causal remedy.",
-    "sharedFailure": "If all arms reproduce the same broad closure family, close generative reconstruction as the primary lane.",
+    "orchestrationEffect": "n8n is promising only if it materially raises blind editorial pass rate or occupied behavior cells without lowering semantic fidelity, under byte-identical matched requests.",
+    "operationalOnlyEffect": "Better logging or isolation with no prose improvement permits n8n only as infrastructure, not as the semantic remedy.",
+    "sharedFailureThreshold": "If both arms produce zero genuine passes or the same broad failure family appears in at least 75 percent of outputs, reject orchestration as the primary escape mechanism.",
+    "sharedFailureNextStage": [
+      "DIVERSITY_OR_AVOIDANCE_AWARE_DECODING",
+      "ACTIVATION_OR_REPRESENTATION_STEERING_ON_AN_OPEN_MODEL",
+      "PREFERENCE_ADAPTATION_OR_FINE_TUNING_FROM_ACCEPTED_AND_REJECTED_EXAMPLES",
+      "QUALITY_DIVERSITY_SEARCH_WITH_EXTERNAL_SELECTION",
+      "OWNER_AUTHORED_OR_OWNER_SPOKEN_SOURCE_TRANSFORMATION"
+    ],
+    "noMoreDiagnosisLoop": "Do not respond to shared failure with another critic, explanation, persona, prohibition list, model debate, or longer prompt.",
     "noAutomaticAdoption": true,
-    "defaultDecision": "KEEP_DIRECT_RUNNER_AND_ABANDON_DEBATE"
+    "defaultDecision": "KEEP_DIRECT_RUNNER_UNLESS_N8N_MEASURABLY_HELPS_THEN_MOVE_TO_DISTRIBUTION_CONTROL_ON_SHARED_FAILURE"
   }
 }
