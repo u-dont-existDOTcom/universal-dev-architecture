@@ -12,6 +12,7 @@
     {"id": "cleanup-leaves-agent-tab", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "AGENT_TAB_CLEANUP_INCOMPLETE"},
     {"id": "observe-absence-attributes-actor", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "TAB_OWNERSHIP_UNVERIFIED"},
     {"id": "claimed-tab-without-open-or-proof", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_OPEN_ACTION_MISMATCH"},
-    {"id": "cleanup-state-contradicts-actions", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_CLEANUP_RECONCILIATION_MISMATCH"}
+    {"id": "cleanup-state-contradicts-actions", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_CLEANUP_RECONCILIATION_MISMATCH"},
+    {"id": "close-before-open", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_ACTION_SEQUENCE_INVALID"}
   ]
 }

@@ -3,5 +3,6 @@
   "admissionNonce": "replace-with-single-use-admission-nonce",
   "transactionId": "replace-with-transaction-id",
   "verdictId": "replace-with-verdict-id",
-  "responseDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+  "responseDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "admissionQuestionDigest": "0000000000000000000000000000000000000000000000000000000000000000"
 }

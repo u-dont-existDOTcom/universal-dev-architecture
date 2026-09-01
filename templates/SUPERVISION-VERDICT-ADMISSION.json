@@ -12,6 +12,12 @@
     "byteLength": 0,
     "bytesDefinition": "exact UTF-8 completed assistant-response bytes"
   },
+  "admissionQuestionDigest": {
+    "algorithm": "sha256",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "byteLength": 0,
+    "bytesDefinition": "exact UTF-8 admission-question bytes"
+  },
   "reasoningSurfaceReceiptRef": "replace-with-reasoning-surface-receipt-id",
   "boundSubjectRefs": ["replace-with-external-review-subject-ref"],
   "admissionState": "PENDING_RECEIPT",

@@ -30,6 +30,7 @@
     },
     "submissionTransform": {
       "type": "NONE",
+      "transformRef": null,
       "description": null,
       "transformDigest": null
     },

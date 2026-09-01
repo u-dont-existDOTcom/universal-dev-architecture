@@ -66,6 +66,24 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
   tabs with cleanup attempted.
 - Hostile fixtures are executable inputs: the repository validator runs every
   scenario through the real evaluator and compares actual outcomes.
+- Second-review evidence binding uses the exact 33,847-byte contiguous suffix
+  after the unique `## Complete response\n\n` marker in the bound Human Design
+  Git blob, with no normalization; the validator can read the exact external
+  commit and recompute both artifact and response digests without committing a
+  raw Chat URL or conversation-session identifier.
+- Reasoning admission now receives admission-question bytes and any payload
+  transform externally. Receipt, verdict, and durable consumption event bind
+  the admission-question digest; a declared transform must be executed over
+  the exact input and reproduce the submitted bytes.
+- Every verified UI observation requires a nonempty evidence reference and a
+  valid timezone-bearing observation timestamp.
+- Browser actions are evaluated in order; navigate/close requires ownership
+  established by an earlier successful open or immutable prior proof, and a
+  successful close removes the live tab from the cleanup reconciliation set.
+- Claim transition chains validate the complete prior record and canonical
+  digest and require exact prior `toClaimRef` to current `fromClaimRef`
+  continuity. Reproduction evaluates all required independence fields at
+  runtime, not only at schema-validation time.
 
 ## Verification
 
@@ -83,6 +101,18 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Post-repair full repository unit suite: 307/307 passed.
 - Post-repair standalone validation: 17/17 checks passed, including execution
   of 35 hostile scenarios (11 claim, 15 reasoning, 9 browser).
+- Second-review blocker regressions before repair: 7/7 failed against
+  `795df95` (the initial three directly in the repair worktree and the later
+  four in a disposable detached worktree), reproducing the incorrect response
+  slice, admission-question self-selection, close-before-open, fabricated or
+  missing transition history, absent independence evidence, unexecuted payload
+  transform, and empty/invalid verified-observation evidence bypasses.
+- Second-review focused authority/reasoning/browser/retained suite: 83/83
+  passed.
+- Second-review full repository unit suite: 317/317 passed.
+- Second-review standalone validation: 18/18 checks passed, including exact
+  external Git-blob extraction and execution of 44 hostile scenarios (14
+  claim, 20 reasoning, 10 browser).
 - Deterministic repository audit: `PASS: no findings.`
 - `python3 -m py_compile scripts/mission_control_provenance.py scripts/validate_mission_control_provenance.py`: passed.
 - `git diff --check`: passed before the final verification checkpoint.

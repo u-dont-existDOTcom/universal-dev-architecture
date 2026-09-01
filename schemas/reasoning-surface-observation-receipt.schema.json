@@ -27,12 +27,20 @@
         "submissionTransform": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["type", "description", "transformDigest"],
+          "required": ["type", "transformRef", "description", "transformDigest"],
           "properties": {
             "type": {"enum": ["NONE", "DECLARED_REPRODUCIBLE_TRANSFORM"]},
+            "transformRef": {"type": ["string", "null"], "minLength": 1},
             "description": {"type": ["string", "null"]},
             "transformDigest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
-          }
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"type": {"const": "NONE"}}, "required": ["type"]},
+              "then": {"properties": {"transformRef": {"type": "null"}, "description": {"type": "null"}, "transformDigest": {"type": "null"}}},
+              "else": {"properties": {"transformRef": {"type": "string", "minLength": 1}, "description": {"type": "string", "minLength": 1}, "transformDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+            }
+          ]
         },
         "admissionQuestionDigest": {"$ref": "#/$defs/digest"},
         "boundRepositoryHeads": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
@@ -136,7 +144,19 @@
             "conversationSessionId": {"type": ["string", "null"]}
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "VERIFIED"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "evidenceRef": {"type": "string", "minLength": 1},
+              "evidenceSourceType": {"const": "BROWSER_UI_OBSERVATION"},
+              "observedAt": {"type": "string", "minLength": 1, "format": "date-time"}
+            }
+          }
+        }
+      ]
     }
   }
 }

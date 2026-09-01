@@ -708,6 +708,9 @@ is reported and never authorizes closing an adjacent or guessed tab. Observing
 that a tab is absent does not establish who closed it. When any agent-opened tab
 exists, cleanup must be marked attempted and the successful `CLOSE` actions,
 cleanup results, and remaining IDs must reconcile exactly.
+Action order is authoritative: `NAVIGATE` and `CLOSE` require an earlier
+successful same-transaction `OPEN` or an immutable prior ownership proof, and
+a successful `CLOSE` removes the tab from the live owned set.
 
 Required browser failure codes are:
 
@@ -721,6 +724,7 @@ AGENT_TAB_CLEANUP_INCOMPLETE
 UNNECESSARY_OWNER_BROWSER_MUTATION
 BROWSER_OPEN_ACTION_MISMATCH
 BROWSER_CLEANUP_RECONCILIATION_MISMATCH
+BROWSER_ACTION_SEQUENCE_INVALID
 ```
 
 ### 14.2 Tab lease record

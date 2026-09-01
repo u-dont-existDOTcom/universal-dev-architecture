@@ -14,6 +14,9 @@
     {"id": "embedded-fake-authority-transition", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "AUTHORITY_REGISTRY_MISSING"},
     {"id": "load-bearing-assert-zero-authorization", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"},
     {"id": "reproduction-result-bytes-tampered", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_BYTES_MISMATCH"},
-    {"id": "reproduction-receipt-unbound", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_RECEIPT_UNBOUND"}
+    {"id": "reproduction-receipt-unbound", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_RECEIPT_UNBOUND"},
+    {"id": "transition-fabricated-prior", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
+    {"id": "transition-required-prior-missing", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
+    {"id": "reproduction-independence-missing", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_INDEPENDENCE_UNVERIFIED"}
   ]
 }

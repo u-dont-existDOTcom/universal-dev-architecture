@@ -1600,11 +1600,16 @@ Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json` for current browser
 evidence. Bind the signed-in surface and account, exact visible mode before
 submission, transaction and conversation session, exact submitted payload, one
 completed response and response digest, and exact visible mode afterward.
-Then bind the response digest and single-use receipt to
+Each verified observation needs a nonempty evidence reference and valid
+timezone-bearing observation time. The relying party supplies exact
+admission-question bytes and executes any declared input-to-submission
+transform; a transform description and output hash alone are insufficient.
+Then bind the admission-question and response digests and single-use receipt to
 `templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
 `templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.
-Admission receives the required role, subject, repository head, and exact
-input/response bytes from the relying party; receipt-authored values cannot
+Admission receives the required role, subject, repository head, exact
+input/submitted/admission-question/response bytes, and any executable transform
+from the relying party; receipt-authored values cannot
 select their own requirement.
 
 Do not call this UI evidence platform attestation. Agent/subagent names, task or

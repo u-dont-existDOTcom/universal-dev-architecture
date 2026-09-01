@@ -49,8 +49,10 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "AUTHORITY_REGISTRY_MISSING",
                 "AUTHORITY_SOURCE_UNREGISTERED",
                 "TRANSITION_VALIDATION_REQUIRED",
+                "TRANSITION_CHAIN_INVALID",
                 "REPRODUCTION_BYTES_MISMATCH",
                 "REPRODUCTION_RECEIPT_UNBOUND",
+                "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
             },
         )
 

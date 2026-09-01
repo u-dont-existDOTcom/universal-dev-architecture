@@ -4,7 +4,7 @@
   "title": "Observation-bound supervision verdict",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schemaVersion", "verdictId", "scopeKey", "packetId", "verdict", "reviewRole", "responsePayloadDigest", "reasoningSurfaceReceiptRef", "boundSubjectRefs", "admissionState", "authoritative", "authorizedScope", "prohibitedConsequences", "issuedAt", "admittedAt"],
+  "required": ["$schema", "schemaVersion", "verdictId", "scopeKey", "packetId", "verdict", "reviewRole", "responsePayloadDigest", "admissionQuestionDigest", "reasoningSurfaceReceiptRef", "boundSubjectRefs", "admissionState", "authoritative", "authorizedScope", "prohibitedConsequences", "issuedAt", "admittedAt"],
   "properties": {
     "$schema": {"const": "../schemas/supervision-verdict-admission.schema.json"},
     "schemaVersion": {"const": 1},
@@ -22,6 +22,17 @@
         "value": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "byteLength": {"type": "integer", "minimum": 0},
         "bytesDefinition": {"type": "string", "minLength": 1}
+      }
+    },
+    "admissionQuestionDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value", "byteLength", "bytesDefinition"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "value": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byteLength": {"type": "integer", "minimum": 0},
+        "bytesDefinition": {"const": "exact UTF-8 admission-question bytes"}
       }
     },
     "reasoningSurfaceReceiptRef": {"type": "string", "minLength": 1},

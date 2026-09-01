@@ -12,6 +12,7 @@ from scripts.mission_control_provenance import (
     DurableReceiptConsumptionStore,
     ImmutableAuthoritySourceRegistry,
     ImmutableBrowserOwnershipRegistry,
+    ImmutablePayloadTransform,
     _jcs_text,
     append_owner_source_correction,
     authority_source_digest,
@@ -36,6 +37,7 @@ ONE = "1" * 64
 TWO = "2" * 64
 INPUT_BYTES = b"exact source packet"
 RESPONSE_BYTES = b"exact completed response"
+ADMISSION_QUESTION_BYTES = b"accept, revise, or reject this bounded review packet"
 REVIEW_SUBJECT = "supervision-architecture/a40d413-authority-provenance-v1"
 REPOSITORY_HEAD = "u-dont-existDOTcom/universal-dev-architecture@156c42d"
 _TEST_LEDGER_DIR = tempfile.TemporaryDirectory()
@@ -86,6 +88,8 @@ def reasoning_kwargs(
     required_repository_head: str = REPOSITORY_HEAD,
     input_bytes: bytes = INPUT_BYTES,
     submitted_bytes: bytes = INPUT_BYTES,
+    payload_transform: ImmutablePayloadTransform | None = None,
+    admission_question_bytes: bytes = ADMISSION_QUESTION_BYTES,
     response_bytes: bytes = RESPONSE_BYTES,
 ) -> dict:
     return {
@@ -94,6 +98,8 @@ def reasoning_kwargs(
         "required_repository_head": required_repository_head,
         "input_payload_bytes": input_bytes,
         "submitted_payload_bytes": submitted_bytes,
+        "payload_transform": payload_transform,
+        "admission_question_bytes": admission_question_bytes,
         "response_payload_bytes": response_bytes,
         "consumption_store": store or new_consumption_store(),
     }
@@ -328,6 +334,12 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
     receipt["responsePayloadDigest"].update(
         {"value": response_digest, "byteLength": len(RESPONSE_BYTES)}
     )
+    receipt["subjectBinding"]["admissionQuestionDigest"].update(
+        {
+            "value": hashlib.sha256(ADMISSION_QUESTION_BYTES).hexdigest(),
+            "byteLength": len(ADMISSION_QUESTION_BYTES),
+        }
+    )
     receipt["replayProtection"]["admissionNonce"] = "nonce-1"
     values = {
         "surface": "SIGNED_IN_CHATGPT_CHAT",
@@ -377,6 +389,9 @@ def make_verdict(receipt: dict, *, response_digest: str | None = None) -> dict:
             "value": response_digest or hashlib.sha256(RESPONSE_BYTES).hexdigest(),
             "byteLength": len(RESPONSE_BYTES),
         }
+    )
+    verdict["admissionQuestionDigest"] = deepcopy(
+        receipt["subjectBinding"]["admissionQuestionDigest"]
     )
     return verdict
 
@@ -521,6 +536,47 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         transition["reason"] = "mutated after digest"
         self.assertIn("SUBJECT_BINDING_STALE", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["failureCodes"])
 
+    def test_transition_chain_requires_valid_prior_record_and_exact_claim_link(self) -> None:
+        version_one = make_claim()
+        version_two = deepcopy(version_one)
+        version_two["claimVersion"] = 2
+        version_two["supersedesClaimRef"] = f"{version_one['claimId']}@1"
+        bind_claim_registry(version_two)
+        refresh_claim_digest(version_two)
+        version_three = promoted_claim(version_two)
+        registry = make_authority_registry_from_claim(version_three)
+
+        prior = make_transition(version_one, version_two)
+        prior["transitionType"] = "DERIVED"
+        prior["transitionDigest"] = transition_digest(prior)
+        current = make_transition(version_two, version_three)
+
+        missing = validate_claim_transition(
+            current, version_two, version_three, authority_registry=registry
+        )
+        self.assertIn("TRANSITION_CHAIN_INVALID", missing["failureCodes"])
+
+        fabricated = validate_claim_transition(
+            current,
+            version_two,
+            version_three,
+            authority_registry=registry,
+            previous_transition={"transitionDigest": "a" * 64},
+        )
+        self.assertIn("TRANSITION_CHAIN_INVALID", fabricated["failureCodes"])
+
+        current["previousTransitionDigest"] = prior["transitionDigest"]
+        current["transitionDigest"] = transition_digest(current)
+        self.assertTrue(
+            validate_claim_transition(
+                current,
+                version_two,
+                version_three,
+                authority_registry=registry,
+                previous_transition=prior,
+            )["valid"]
+        )
+
     def test_owner_source_correction_is_append_only(self) -> None:
         original = [{"sourceId": "owner-1", "exactText": "original"}]
         current = append_owner_source_correction(original, {"sourceId": "owner-2", "exactText": "correction"})
@@ -574,6 +630,45 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
             actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
         )
         self.assertIn("REPRODUCTION_RECEIPT_UNBOUND", unbound["failureCodes"])
+
+    def test_reproduction_requires_substantive_independence_evidence_fields(self) -> None:
+        claim = make_claim()
+        mutations = (
+            ("producerEvidenceRef", None),
+            ("independenceBasis", ""),
+            ("methodRef", None),
+            ("reproducedAt", "not-a-timestamp"),
+        )
+        for field, value in mutations:
+            with self.subTest(field=field):
+                receipt = make_reproduction(claim)
+                receipt[field] = value
+                result = evaluate_reproduction(
+                    receipt,
+                    claim,
+                    current_subject=deepcopy(claim["subjectRef"]),
+                    actual_method_bytes=b"count exact production records",
+                    actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                )
+                self.assertIn(
+                    "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
+                    result["failureCodes"],
+                )
+        for field in ("identityRef", "trustDomain"):
+            with self.subTest(reproducer_field=field):
+                receipt = make_reproduction(claim)
+                receipt["reproducer"][field] = ""
+                result = evaluate_reproduction(
+                    receipt,
+                    claim,
+                    current_subject=deepcopy(claim["subjectRef"]),
+                    actual_method_bytes=b"count exact production records",
+                    actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                )
+                self.assertIn(
+                    "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
+                    result["failureCodes"],
+                )
 
 
 class ReasoningSurfaceReceiptTests(unittest.TestCase):
@@ -657,6 +752,52 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
         receipt["aggregateState"] = "MISMATCH"
         self.assertIn("REASONING_RECEIPT_PAYLOAD_MISMATCH", evaluate_reasoning(receipt)["failureCodes"])
 
+    def test_declared_transform_must_execute_to_exact_submitted_bytes(self) -> None:
+        submitted = b"magic"
+        receipt = make_reasoning_receipt()
+        receipt["subjectBinding"]["submittedVisiblePayloadDigest"].update(
+            {
+                "value": hashlib.sha256(submitted).hexdigest(),
+                "byteLength": len(submitted),
+            }
+        )
+        receipt["subjectBinding"]["submissionTransform"] = {
+            "type": "DECLARED_REPRODUCIBLE_TRANSFORM",
+            "transformRef": "magic-transform",
+            "description": "magic",
+            "transformDigest": hashlib.sha256(submitted).hexdigest(),
+        }
+        result = evaluate_reasoning(receipt, submitted_payload_bytes=submitted)
+        self.assertIn("REASONING_RECEIPT_PAYLOAD_MISMATCH", result["failureCodes"])
+
+    def test_external_transform_is_executed_and_bound(self) -> None:
+        transform = ImmutablePayloadTransform(
+            "append-review-question-v1",
+            "append the bounded review question",
+            lambda value: value + b"\nreview",
+        )
+        submitted = transform.apply(INPUT_BYTES)
+        receipt = make_reasoning_receipt()
+        receipt["subjectBinding"]["submittedVisiblePayloadDigest"].update(
+            {
+                "value": hashlib.sha256(submitted).hexdigest(),
+                "byteLength": len(submitted),
+            }
+        )
+        receipt["subjectBinding"]["submissionTransform"] = {
+            "type": "DECLARED_REPRODUCIBLE_TRANSFORM",
+            "transformRef": transform.transform_ref,
+            "description": transform.description,
+            "transformDigest": transform.transform_digest,
+        }
+        self.assertTrue(
+            evaluate_reasoning(
+                receipt,
+                submitted_payload_bytes=submitted,
+                payload_transform=transform,
+            )["valid"]
+        )
+
     def test_response_digest_mismatch_rejects_verdict_admission(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["observations"]["completedResponse"]["observedValue"] = TWO
@@ -668,6 +809,20 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
         receipt["cryptographicPlatformAttestation"] = True
         receipt["aggregateState"] = "PARTIAL"
         self.assertIn("ASSURANCE_CLASS_OVERCLAIM", evaluate_reasoning(receipt)["failureCodes"])
+
+    def test_verified_observation_requires_evidence_ref_and_valid_timestamp(self) -> None:
+        receipt = make_reasoning_receipt()
+        receipt["observations"]["account"]["evidenceRef"] = ""
+        self.assertIn(
+            "REASONING_OBSERVATION_EVIDENCE_INVALID",
+            evaluate_reasoning(receipt)["failureCodes"],
+        )
+        receipt = make_reasoning_receipt()
+        receipt["observations"]["completedResponse"]["observedAt"] = "not-a-time"
+        self.assertIn(
+            "REASONING_OBSERVATION_EVIDENCE_INVALID",
+            evaluate_reasoning(receipt)["failureCodes"],
+        )
 
     def test_mismatch_incident_can_never_be_authoritative(self) -> None:
         receipt = make_reasoning_receipt(observed_mode="Extra High")
@@ -689,6 +844,16 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
         receipt = make_reasoning_receipt()
         result = admit_reasoning(make_verdict(receipt, response_digest=TWO), receipt)
         self.assertIn("VERDICT_RECEIPT_BINDING_MISMATCH", result["failureCodes"])
+
+    def test_verdict_cannot_change_bound_admission_question(self) -> None:
+        receipt = make_reasoning_receipt()
+        verdict = make_verdict(receipt)
+        verdict["admissionQuestionDigest"].update(
+            {"value": "f" * 64, "byteLength": 999999}
+        )
+        result = admit_reasoning(verdict, receipt)
+        self.assertFalse(result["admitted"])
+        self.assertIn("ADMISSION_QUESTION_BINDING_MISMATCH", result["failureCodes"])
 
     def test_external_subject_and_repository_head_override_receipt_self_selection(self) -> None:
         receipt = make_reasoning_receipt()
@@ -812,6 +977,24 @@ class BrowserOperationReceiptTests(unittest.TestCase):
         )
         self.assertTrue(evaluate_browser(receipt)["allowed"])
 
+    def test_navigate_before_same_transaction_open_is_rejected(self) -> None:
+        receipt = make_browser_receipt()
+        receipt["agentOpenedTabIds"] = ["agent-1"]
+        receipt["actions"] = [
+            {"type": "NAVIGATE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": None},
+            {"type": "OPEN", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": None},
+            {"type": "CLOSE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": "routing-executor"},
+        ]
+        receipt["cleanup"].update(
+            {
+                "attempted": True,
+                "results": [{"tabId": "agent-1", "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
+        )
+        result = evaluate_browser(receipt)
+        self.assertIn("BROWSER_ACTION_SEQUENCE_INVALID", result["failureCodes"])
+
     def test_immutable_prior_open_proof_can_authorize_same_transaction_cleanup(self) -> None:
         proof = {
             "tabId": "agent-1",
@@ -847,12 +1030,80 @@ class ProvenanceSchemaAndFixtureTests(unittest.TestCase):
     def test_all_schemas_templates_incidents_and_hostile_fixtures_validate(self) -> None:
         findings = validate_repository(ROOT)
         self.assertGreaterEqual(len(findings), 17)
-        self.assertTrue(any("claim-authority-provenance-hostile.json:11-executed" in finding for finding in findings))
-        self.assertTrue(any("reasoning-surface-receipt-hostile.json:15-executed" in finding for finding in findings))
-        self.assertTrue(any("browser-operation-hostile.json:9-executed" in finding for finding in findings))
+        self.assertTrue(any("claim-authority-provenance-hostile.json:14-executed" in finding for finding in findings))
+        self.assertTrue(any("reasoning-surface-receipt-hostile.json:20-executed" in finding for finding in findings))
+        self.assertTrue(any("browser-operation-hostile.json:10-executed" in finding for finding in findings))
 
 
 class IndependentReviewBlockerRegressionTests(unittest.TestCase):
+    def test_sanitized_response_digest_binds_exact_external_artifact_slice(self) -> None:
+        receipt = json.loads(
+            (
+                ROOT
+                / "feedback"
+                / "mission-control"
+                / "PRO-META-A40D413-SANITIZED-EVIDENCE-RECEIPT-20260901.json"
+            ).read_text(encoding="utf-8")
+        )
+        response = receipt["completedResponseDigest"]
+        self.assertEqual(
+            response["value"],
+            "73abbb661ad2e6acf0caf13c4c425a33f283bf13d2c1dd3c404e97d48e9d6a2e",
+        )
+        self.assertEqual(response["byteLength"], 33847)
+        self.assertEqual(
+            response["extraction"],
+            {
+                "algorithm": "UNIQUE_UTF8_MARKER_SUFFIX_V1",
+                "marker": "## Complete response\n\n",
+                "requiredMarkerOccurrences": 1,
+                "startBoundary": "EXCLUSIVE_END_OF_MARKER",
+                "endBoundary": "END_OF_ARTIFACT",
+                "normalization": "NONE",
+            },
+        )
+
+    def test_admission_question_digest_cannot_be_self_selected(self) -> None:
+        receipt = make_reasoning_receipt()
+        receipt["subjectBinding"]["admissionQuestionDigest"].update(
+            {"value": "f" * 64, "byteLength": 999999}
+        )
+        self.assertFalse(evaluate_reasoning(receipt)["valid"])
+
+    def test_close_before_same_transaction_open_is_rejected(self) -> None:
+        receipt = make_browser_receipt()
+        receipt["agentOpenedTabIds"] = ["agent-1"]
+        receipt["actions"] = [
+            {
+                "type": "CLOSE",
+                "tabId": "agent-1",
+                "ownershipClass": "AGENT_OPENED",
+                "protected": False,
+                "browserSessionRef": "browser-session-1",
+                "transactionId": "transaction-1",
+                "result": "SUCCEEDED",
+                "closedByActor": "routing-executor",
+            },
+            {
+                "type": "OPEN",
+                "tabId": "agent-1",
+                "ownershipClass": "AGENT_OPENED",
+                "protected": False,
+                "browserSessionRef": "browser-session-1",
+                "transactionId": "transaction-1",
+                "result": "SUCCEEDED",
+                "closedByActor": None,
+            },
+        ]
+        receipt["cleanup"].update(
+            {
+                "attempted": True,
+                "results": [{"tabId": "agent-1", "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
+        )
+        self.assertFalse(evaluate_browser(receipt)["allowed"])
+
     def test_external_evidence_ref_is_bound_to_existing_humandesign_commit(self) -> None:
         state = (ROOT / "state" / "MISSION-CONTROL-AUTHORITY-PROVENANCE-2026-09-01.md").read_text(encoding="utf-8")
         feedback = (ROOT / "feedback" / "mission-control" / "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001.json").read_text(encoding="utf-8")

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 import tempfile
 from copy import deepcopy
@@ -32,6 +33,8 @@ try:
         admit_supervision_verdict,
         parse_all_json,
         validate_claim_record,
+        validate_claim_transition,
+        transition_digest,
     )
 except ModuleNotFoundError:  # Direct script execution places scripts/ on sys.path.
     from mission_control_provenance import (
@@ -52,11 +55,111 @@ except ModuleNotFoundError:  # Direct script execution places scripts/ on sys.pa
         admit_supervision_verdict,
         parse_all_json,
         validate_claim_record,
+        validate_claim_transition,
+        transition_digest,
     )
 
 
 class SchemaError(ValueError):
     """Raised when a template does not satisfy its checked JSON Schema."""
+
+
+_PRO_EVIDENCE_EXTERNAL_ARTIFACT = {
+    "repository": "u-dont-existDOTcom/humandesign",
+    "commit": "bf8fa12bb133faa042e20a7408a0990aadf72eb6",
+    "path": "state/PRO-META-REVIEW-2026-09-01.md",
+    "artifactDigest": {
+        "algorithm": "sha256",
+        "value": "c10d68a4b28112f1cf17c2b4cd830ebac98823bf7e8ed2842d645c2461ff9139",
+        "byteLength": 35743,
+        "bytesDefinition": "exact Git blob content bytes at the bound commit and path",
+    },
+}
+_PRO_EVIDENCE_EXTRACTION = {
+    "algorithm": "UNIQUE_UTF8_MARKER_SUFFIX_V1",
+    "marker": "## Complete response\n\n",
+    "requiredMarkerOccurrences": 1,
+    "startBoundary": "EXCLUSIVE_END_OF_MARKER",
+    "endBoundary": "END_OF_ARTIFACT",
+    "normalization": "NONE",
+}
+_PRO_EVIDENCE_RESPONSE = {
+    "algorithm": "sha256",
+    "value": "73abbb661ad2e6acf0caf13c4c425a33f283bf13d2c1dd3c404e97d48e9d6a2e",
+    "byteLength": 33847,
+    "bytesDefinition": "exact contiguous Git blob bytes strictly after the unique UTF-8 marker through end of artifact, with no normalization",
+    "extraction": _PRO_EVIDENCE_EXTRACTION,
+}
+
+
+def extract_unique_marker_suffix(
+    artifact_bytes: bytes, extraction: dict[str, Any]
+) -> bytes:
+    """Apply the only admitted response extraction algorithm byte-for-byte."""
+
+    if extraction != _PRO_EVIDENCE_EXTRACTION:
+        raise SchemaError("unsupported or altered Pro evidence extraction contract")
+    marker = extraction["marker"].encode("utf-8")
+    if artifact_bytes.count(marker) != extraction["requiredMarkerOccurrences"]:
+        raise SchemaError("Pro evidence extraction marker is not unique")
+    return artifact_bytes.split(marker, 1)[1]
+
+
+def validate_sanitized_pro_evidence(
+    receipt: dict[str, Any], *, artifact_bytes: bytes | None = None
+) -> None:
+    """Validate the public binding, and exact external bytes when supplied."""
+
+    if receipt.get("externalArtifact") != _PRO_EVIDENCE_EXTERNAL_ARTIFACT:
+        raise SchemaError(
+            "sanitized Pro evidence is not bound to the existing Human Design artifact"
+        )
+    if receipt.get("completedResponseDigest") != _PRO_EVIDENCE_RESPONSE:
+        raise SchemaError("sanitized Pro response extraction binding is incorrect")
+    exclusions = receipt.get("privacyExclusions", [])
+    if not {"RAW_CHAT_URL", "RAW_CONVERSATION_SESSION_ID"} <= set(exclusions):
+        raise SchemaError("sanitized Pro evidence does not declare privacy exclusions")
+    serialized = _jcs_text(receipt)
+    if "chatgpt.com/c/" in serialized or "conversationSessionId" in serialized:
+        raise SchemaError("sanitized Pro evidence contains excluded raw locator data")
+    if artifact_bytes is None:
+        return
+    artifact_digest = receipt["externalArtifact"]["artifactDigest"]
+    if (
+        len(artifact_bytes) != artifact_digest["byteLength"]
+        or hashlib.sha256(artifact_bytes).hexdigest() != artifact_digest["value"]
+    ):
+        raise SchemaError("external Human Design artifact bytes do not match receipt")
+    response_bytes = extract_unique_marker_suffix(
+        artifact_bytes, receipt["completedResponseDigest"]["extraction"]
+    )
+    response_digest = receipt["completedResponseDigest"]
+    if (
+        len(response_bytes) != response_digest["byteLength"]
+        or hashlib.sha256(response_bytes).hexdigest() != response_digest["value"]
+    ):
+        raise SchemaError("extracted Pro response bytes do not match receipt")
+
+
+def read_bound_external_artifact(repository: Path) -> bytes:
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "show",
+            f"{_PRO_EVIDENCE_EXTERNAL_ARTIFACT['commit']}:{_PRO_EVIDENCE_EXTERNAL_ARTIFACT['path']}",
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        raise SchemaError(
+            "could not read bound Human Design evidence artifact: "
+            + result.stderr.decode("utf-8", errors="replace").strip()
+        )
+    return result.stdout
 
 
 def _types_match(value: Any, expected: str) -> bool:
@@ -191,6 +294,7 @@ SCHEMA_TEMPLATE_PAIRS = {
 
 _FIXTURE_INPUT = b"fixture source packet"
 _FIXTURE_RESPONSE = b"fixture completed response"
+_FIXTURE_ADMISSION_QUESTION = b"accept, revise, or reject this fixture packet"
 _FIXTURE_SUBJECT = "supervision-architecture/a40d413-authority-provenance-v1"
 _FIXTURE_HEAD = "u-dont-existDOTcom/universal-dev-architecture@fixture-head"
 
@@ -335,6 +439,100 @@ def _fixture_reproduction(claim: dict[str, Any], *, synthetic: bool) -> dict[str
     }
 
 
+def _fixture_transition_chain() -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    ImmutableAuthoritySourceRegistry,
+]:
+    version_one, _ = _fixture_claim()
+    version_two = deepcopy(version_one)
+    version_two["claimVersion"] = 2
+    version_two["supersedesClaimRef"] = "fixture-claim@1"
+    version_two["claimDigest"]["value"] = claim_digest(version_two)
+    version_two["claimDigest"]["byteLength"] = len(
+        _jcs_text(
+            {key: value for key, value in version_two.items() if key != "claimDigest"}
+        ).encode("utf-8")
+    )
+
+    artifact = _source(
+        "artifact-source-v1",
+        "ARTIFACT_DERIVED_FACT",
+        "ASSERT_FACT",
+        "artifact-fact",
+    )
+    owner = _source(
+        "owner-source-v1", "OWNER_EXPLICIT", "PROMOTE_TO_POLICY", "completion-policy"
+    )
+    registry = _registry(artifact, owner)
+    version_three = deepcopy(version_two)
+    version_three["claimVersion"] = 3
+    version_three["claimKind"] = "OWNER_ACCEPTANCE_CRITERION"
+    version_three["supersedesClaimRef"] = "fixture-claim@2"
+    version_three["currentAuthorities"].append(
+        {key: deepcopy(value) for key, value in owner.items() if key != "sourceRecordDigest"}
+    )
+    version_three["requiredAuthorizations"].append(
+        {
+            "operation": "PROMOTE_TO_POLICY",
+            "requiredIssuerClass": "OWNER_EXPLICIT",
+            "scopeRef": "completion-policy",
+            "authorizationSourceRef": "owner-source-v1",
+            "status": "SATISFIED",
+        }
+    )
+    version_three["authorityRegistryRef"] = registry.registry_id
+    version_three["authorityRegistryDigest"] = registry.registry_digest
+    version_three["verificationState"] = "AUTHORIZED_POLICY"
+    version_three["decisionUse"] = "POLICY_ELIGIBLE"
+    version_three["claimDigest"]["value"] = claim_digest(version_three)
+    version_three["claimDigest"]["byteLength"] = len(
+        _jcs_text(
+            {key: value for key, value in version_three.items() if key != "claimDigest"}
+        ).encode("utf-8")
+    )
+
+    def make_record(
+        transition_id: str,
+        from_claim: dict[str, Any],
+        to_claim: dict[str, Any],
+        transition_type: str,
+    ) -> dict[str, Any]:
+        record = {
+            "schemaVersion": 1,
+            "transitionId": transition_id,
+            "claimId": "fixture-claim",
+            "fromClaimRef": {
+                "claimId": "fixture-claim",
+                "claimVersion": from_claim["claimVersion"],
+                "claimDigest": from_claim["claimDigest"]["value"],
+            },
+            "toClaimRef": {
+                "claimId": "fixture-claim",
+                "claimVersion": to_claim["claimVersion"],
+                "claimDigest": to_claim["claimDigest"]["value"],
+            },
+            "transitionType": transition_type,
+            "requestedByRef": "owner-source-v1",
+            "requiredAuthorizationRefs": ["completion-policy"],
+            "authoritySourceRefs": ["owner-source-v1"],
+            "evidenceRefs": [],
+            "reason": "Fixture transition",
+            "recordedAt": "2026-09-01T00:00:00Z",
+            "previousTransitionDigest": None,
+            "transitionDigest": "0" * 64,
+            "status": "APPLIED",
+        }
+        record["transitionDigest"] = transition_digest(record)
+        return record
+
+    prior = make_record("fixture-transition-1", version_one, version_two, "DERIVED")
+    current = make_record("fixture-transition-2", version_two, version_three, "PROMOTED")
+    return version_two, version_three, prior, current, registry
+
+
 def _fixture_reasoning_receipt(root: Path) -> dict[str, Any]:
     receipt = json.loads(
         (root / "templates" / "REASONING-SURFACE-OBSERVATION-RECEIPT.json").read_text(
@@ -362,6 +560,12 @@ def _fixture_reasoning_receipt(root: Path) -> dict[str, Any]:
     response_digest = hashlib.sha256(_FIXTURE_RESPONSE).hexdigest()
     receipt["responsePayloadDigest"].update(
         {"value": response_digest, "byteLength": len(_FIXTURE_RESPONSE)}
+    )
+    receipt["subjectBinding"]["admissionQuestionDigest"].update(
+        {
+            "value": hashlib.sha256(_FIXTURE_ADMISSION_QUESTION).hexdigest(),
+            "byteLength": len(_FIXTURE_ADMISSION_QUESTION),
+        }
     )
     receipt["conversation"]["conversationSessionId"] = "fixture-session"
     receipt["replayProtection"]["admissionNonce"] = "fixture-nonce"
@@ -399,6 +603,8 @@ def _fixture_reasoning_kwargs(store: DurableReceiptConsumptionStore) -> dict[str
         "required_repository_head": _FIXTURE_HEAD,
         "input_payload_bytes": _FIXTURE_INPUT,
         "submitted_payload_bytes": _FIXTURE_INPUT,
+        "payload_transform": None,
+        "admission_question_bytes": _FIXTURE_ADMISSION_QUESTION,
         "response_payload_bytes": _FIXTURE_RESPONSE,
         "consumption_store": store,
     }
@@ -421,6 +627,9 @@ def _fixture_verdict(root: Path, receipt: dict[str, Any]) -> dict[str, Any]:
         }
     )
     verdict["responsePayloadDigest"] = deepcopy(receipt["responsePayloadDigest"])
+    verdict["admissionQuestionDigest"] = deepcopy(
+        receipt["subjectBinding"]["admissionQuestionDigest"]
+    )
     return verdict
 
 
@@ -525,6 +734,34 @@ def execute_hostile_scenario(
                 receipt["claimRef"]["claimDigest"] = claim["claimDigest"]["value"]
                 result_bytes = _jcs_text(claim["claimValue"]).encode("utf-8")
             return evaluate_reproduction(receipt, claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=result_bytes)
+        if scenario_id in {
+            "transition-fabricated-prior",
+            "transition-required-prior-missing",
+        }:
+            from_claim, to_claim, _, current, registry = _fixture_transition_chain()
+            previous = (
+                {"transitionDigest": "a" * 64}
+                if scenario_id == "transition-fabricated-prior"
+                else None
+            )
+            return validate_claim_transition(
+                current,
+                from_claim,
+                to_claim,
+                authority_registry=registry,
+                previous_transition=previous,
+            )
+        if scenario_id == "reproduction-independence-missing":
+            claim, _ = _fixture_claim()
+            receipt = _fixture_reproduction(claim, synthetic=False)
+            receipt["producerEvidenceRef"] = ""
+            return evaluate_reproduction(
+                receipt,
+                claim,
+                current_subject=deepcopy(claim["subjectRef"]),
+                actual_method_bytes=b"count exact production records",
+                actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            )
 
     if fixture_id == "reasoning-surface-receipt-hostile":
         receipt = _fixture_reasoning_receipt(root)
@@ -569,6 +806,35 @@ def execute_hostile_scenario(
             kwargs["input_payload_bytes"] = b"different input"
         elif scenario_id == "external-response-bytes-mismatch":
             kwargs["response_payload_bytes"] = b"different response"
+        elif scenario_id == "admission-question-receipt-tampered":
+            receipt["subjectBinding"]["admissionQuestionDigest"].update(
+                {"value": "f" * 64, "byteLength": 999999}
+            )
+        elif scenario_id == "admission-question-verdict-tampered":
+            verdict = _fixture_verdict(root, receipt)
+            verdict["admissionQuestionDigest"].update(
+                {"value": "f" * 64, "byteLength": 999999}
+            )
+            return admit_supervision_verdict(verdict, receipt, **kwargs)
+        elif scenario_id == "declared-transform-unreproduced":
+            submitted = b"magic"
+            receipt["subjectBinding"]["submittedVisiblePayloadDigest"].update(
+                {
+                    "value": hashlib.sha256(submitted).hexdigest(),
+                    "byteLength": len(submitted),
+                }
+            )
+            receipt["subjectBinding"]["submissionTransform"] = {
+                "type": "DECLARED_REPRODUCIBLE_TRANSFORM",
+                "transformRef": "magic-transform",
+                "description": "magic",
+                "transformDigest": hashlib.sha256(submitted).hexdigest(),
+            }
+            kwargs["submitted_payload_bytes"] = submitted
+        elif scenario_id == "verified-observation-empty-evidence-ref":
+            receipt["observations"]["account"]["evidenceRef"] = ""
+        elif scenario_id == "verified-observation-invalid-observed-at":
+            receipt["observations"]["completedResponse"]["observedAt"] = "not-a-time"
         return evaluate_reasoning_surface_receipt(receipt, **kwargs)
 
     if fixture_id == "browser-operation-hostile":
@@ -601,12 +867,26 @@ def execute_hostile_scenario(
         elif scenario_id == "cleanup-state-contradicts-actions":
             receipt["agentOpenedTabIds"] = ["agent-1"]
             receipt["actions"] = [_browser_action("OPEN", "agent-1")]
+        elif scenario_id == "close-before-open":
+            receipt["agentOpenedTabIds"] = ["agent-1"]
+            receipt["actions"] = [
+                _browser_action("CLOSE", "agent-1"),
+                _browser_action("OPEN", "agent-1"),
+            ]
+            receipt["cleanup"] = {
+                "policy": "CLOSE_ONLY_AGENT_OPENED",
+                "attempted": True,
+                "results": [{"tabId": "agent-1", "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
         return evaluate_browser_operation(receipt, ownership_registry=registry)
 
     raise SchemaError(f"unimplemented hostile scenario {fixture_id}:{scenario_id}")
 
 
-def validate_repository(root: Path) -> list[str]:
+def validate_repository(
+    root: Path, *, external_evidence_repository: Path | None = None
+) -> list[str]:
     findings: list[str] = []
     invalid_json = parse_all_json(root)
     if invalid_json:
@@ -642,6 +922,8 @@ def validate_repository(root: Path) -> list[str]:
             required_repository_head=reasoning["subjectBinding"]["boundRepositoryHeads"][0],
             input_payload_bytes=b"",
             submitted_payload_bytes=b"",
+            payload_transform=None,
+            admission_question_bytes=b"",
             response_payload_bytes=b"",
             consumption_store=DurableReceiptConsumptionStore(ledger_root / "template.jsonl"),
         )
@@ -704,20 +986,17 @@ def validate_repository(root: Path) -> list[str]:
     if mode_incident["priorTransaction"]["proMetaReviewAuthoritative"] is not False:
         raise SchemaError("prior mode mismatch was made authoritative")
     sanitized = json.loads((root / "feedback" / "mission-control" / "PRO-META-A40D413-SANITIZED-EVIDENCE-RECEIPT-20260901.json").read_text(encoding="utf-8"))
-    if sanitized["externalArtifact"] != {
-        "repository": "u-dont-existDOTcom/humandesign",
-        "commit": "bf8fa12bb133faa042e20a7408a0990aadf72eb6",
-        "path": "state/PRO-META-REVIEW-2026-09-01.md",
-        "artifactDigest": {
-            "algorithm": "sha256",
-            "value": "c10d68a4b28112f1cf17c2b4cd830ebac98823bf7e8ed2842d645c2461ff9139",
-            "byteLength": 35743,
-            "bytesDefinition": "exact Git blob content bytes at the bound commit and path",
-        },
-    }:
-        raise SchemaError("sanitized Pro evidence is not bound to the existing Human Design artifact")
-    if "RAW_CHAT_URL" not in sanitized["privacyExclusions"] or "RAW_CONVERSATION_SESSION_ID" not in sanitized["privacyExclusions"]:
-        raise SchemaError("sanitized Pro evidence does not declare privacy exclusions")
+    artifact_bytes = (
+        read_bound_external_artifact(external_evidence_repository)
+        if external_evidence_repository is not None
+        else None
+    )
+    validate_sanitized_pro_evidence(sanitized, artifact_bytes=artifact_bytes)
+    findings.append(
+        "external-evidence:exact-artifact-extraction:PASS"
+        if artifact_bytes is not None
+        else "external-evidence:binding-contract:PASS"
+    )
     findings.append("incident-dispositions:PASS")
     return findings
 
@@ -725,9 +1004,20 @@ def validate_repository(root: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=".")
+    parser.add_argument(
+        "--external-evidence-repository",
+        help="local clone containing the bound Human Design evidence commit",
+    )
     args = parser.parse_args()
     try:
-        findings = validate_repository(Path(args.root).resolve())
+        findings = validate_repository(
+            Path(args.root).resolve(),
+            external_evidence_repository=(
+                Path(args.external_evidence_repository).resolve()
+                if args.external_evidence_repository
+                else None
+            ),
+        )
     except (OSError, KeyError, ValueError, SchemaError) as exc:
         print(f"Mission Control provenance validation failed: {exc}", file=sys.stderr)
         return 1

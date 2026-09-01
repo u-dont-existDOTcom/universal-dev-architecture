@@ -4,12 +4,13 @@
   "title": "Append-only reasoning receipt consumption event",
   "type": "object",
   "additionalProperties": false,
-  "required": ["receiptId", "admissionNonce", "transactionId", "verdictId", "responseDigest"],
+  "required": ["receiptId", "admissionNonce", "transactionId", "verdictId", "responseDigest", "admissionQuestionDigest"],
   "properties": {
     "receiptId": {"type": "string", "minLength": 1},
     "admissionNonce": {"type": "string", "minLength": 1},
     "transactionId": {"type": "string", "minLength": 1},
     "verdictId": {"type": "string", "minLength": 1},
-    "responseDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "responseDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "admissionQuestionDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   }
 }

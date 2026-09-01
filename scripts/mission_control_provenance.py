@@ -14,9 +14,10 @@ import json
 import os
 from dataclasses import dataclass
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 import fcntl
 
@@ -116,6 +117,8 @@ CLAIM_FAILURE_CODES = {
     "TRANSITION_VALIDATION_REQUIRED",
     "REPRODUCTION_BYTES_MISMATCH",
     "REPRODUCTION_RECEIPT_UNBOUND",
+    "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
+    "TRANSITION_CHAIN_INVALID",
 }
 REASONING_FAILURE_CODES = {
     "SELF_ASSERTED_REASONING_IDENTITY_REJECTED",
@@ -127,6 +130,8 @@ REASONING_FAILURE_CODES = {
     "VERDICT_RECEIPT_BINDING_MISMATCH",
     "ASSURANCE_CLASS_OVERCLAIM",
     "REASONING_REQUIREMENT_BINDING_MISMATCH",
+    "ADMISSION_QUESTION_BINDING_MISMATCH",
+    "REASONING_OBSERVATION_EVIDENCE_INVALID",
 }
 BROWSER_FAILURE_CODES = {
     "BROWSER_ROUTE_NOT_JUSTIFIED",
@@ -138,6 +143,7 @@ BROWSER_FAILURE_CODES = {
     "UNNECESSARY_OWNER_BROWSER_MUTATION",
     "BROWSER_OPEN_ACTION_MISMATCH",
     "BROWSER_CLEANUP_RECONCILIATION_MISMATCH",
+    "BROWSER_ACTION_SEQUENCE_INVALID",
 }
 
 
@@ -148,6 +154,16 @@ def _require(condition: bool, message: str) -> None:
 
 def _nonempty(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _valid_timestamp(value: Any) -> bool:
+    if not _nonempty(value):
+        return False
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None
 
 
 def _sha256(value: Any, field: str) -> str:
@@ -215,6 +231,35 @@ def _bytes_digest(value: bytes, bytes_definition: str) -> dict[str, Any]:
         "byteLength": len(value),
         "bytesDefinition": bytes_definition,
     }
+
+
+@dataclass(frozen=True)
+class ImmutablePayloadTransform:
+    """Relying-party supplied transform that must reproduce submitted bytes."""
+
+    transform_ref: str
+    description: str
+    _implementation: Callable[[bytes], bytes]
+
+    def __post_init__(self) -> None:
+        _require(_nonempty(self.transform_ref), "transform_ref is required")
+        _require(_nonempty(self.description), "transform description is required")
+        _require(callable(self._implementation), "transform implementation is required")
+
+    @property
+    def transform_digest(self) -> str:
+        return canonical_sha256(
+            {
+                "transformRef": self.transform_ref,
+                "description": self.description,
+                "contract": "external implementation executed over exact input bytes",
+            }
+        )
+
+    def apply(self, value: bytes) -> bytes:
+        transformed = self._implementation(value)
+        _require(isinstance(transformed, bytes), "payload transform must return bytes")
+        return transformed
 
 
 def authority_source_digest(source: dict[str, Any]) -> str:
@@ -681,11 +726,33 @@ def validate_claim_transition(
     ):
         _append_failure(failures, "SUBJECT_BINDING_STALE")
 
-    expected_previous = (
-        previous_transition.get("transitionDigest") if previous_transition else None
-    )
-    if transition.get("previousTransitionDigest") != expected_previous:
-        _append_failure(failures, "SUBJECT_BINDING_STALE")
+    chain_required = from_claim.get("claimVersion", 0) > 1
+    if chain_required and previous_transition is None:
+        _append_failure(failures, "TRANSITION_CHAIN_INVALID")
+    if not chain_required and previous_transition is not None:
+        _append_failure(failures, "TRANSITION_CHAIN_INVALID")
+    if previous_transition is not None:
+        previous_digest = previous_transition.get("transitionDigest")
+        previous_from_ref = previous_transition.get("fromClaimRef")
+        previous_to_ref = previous_transition.get("toClaimRef")
+        previous_record_valid = (
+            previous_transition.get("schemaVersion") == 1
+            and previous_transition.get("claimId") == transition.get("claimId")
+            and previous_transition.get("transitionType") in TRANSITION_TYPES
+            and previous_transition.get("status") == "APPLIED"
+            and isinstance(previous_from_ref, dict)
+            and isinstance(previous_to_ref, dict)
+            and previous_to_ref == from_ref
+            and isinstance(previous_digest, str)
+            and len(previous_digest) == 64
+            and transition_digest(previous_transition) == previous_digest
+        )
+        if not previous_record_valid:
+            _append_failure(failures, "TRANSITION_CHAIN_INVALID")
+        if transition.get("previousTransitionDigest") != previous_digest:
+            _append_failure(failures, "TRANSITION_CHAIN_INVALID")
+    elif transition.get("previousTransitionDigest") is not None:
+        _append_failure(failures, "TRANSITION_CHAIN_INVALID")
     if transition_digest(transition) != transition.get("transitionDigest"):
         _append_failure(failures, "SUBJECT_BINDING_STALE")
 
@@ -827,6 +894,18 @@ def evaluate_reproduction(
         and receipt.get("synthetic") is not False
     ):
         _append_failure(failures, "PRODUCTION_REPRODUCTION_MISSING")
+    reproducer = receipt.get("reproducer")
+    if not (
+        _nonempty(receipt.get("producerEvidenceRef"))
+        and isinstance(reproducer, dict)
+        and _nonempty(reproducer.get("identityRef"))
+        and reproducer.get("type") == "HUMAN_OR_INDEPENDENT_PROCESS"
+        and _nonempty(reproducer.get("trustDomain"))
+        and _nonempty(receipt.get("independenceBasis"))
+        and _nonempty(receipt.get("methodRef"))
+        and _valid_timestamp(receipt.get("reproducedAt"))
+    ):
+        _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
     method_digest = _bytes_digest(
         actual_method_bytes, "exact method/procedure UTF-8 bytes"
     )
@@ -837,8 +916,8 @@ def evaluate_reproduction(
         receipt.get("methodDigest") != method_digest["value"]
         or receipt.get("methodByteLength") != method_digest["byteLength"]
         or receipt.get("methodBytesDefinition") != method_digest["bytesDefinition"]
-        or receipt.get("commandOrProcedure").encode("utf-8")
-        != actual_method_bytes
+        or not isinstance(receipt.get("commandOrProcedure"), str)
+        or receipt.get("commandOrProcedure", "").encode("utf-8") != actual_method_bytes
     ):
         _append_failure(failures, "REPRODUCTION_BYTES_MISMATCH")
     expected_result_bytes = _jcs_text(receipt.get("resultValue")).encode("utf-8")
@@ -878,6 +957,8 @@ def evaluate_reasoning_surface_receipt(
     required_repository_head: str,
     input_payload_bytes: bytes,
     submitted_payload_bytes: bytes,
+    payload_transform: ImmutablePayloadTransform | None,
+    admission_question_bytes: bytes,
     response_payload_bytes: bytes,
     consumption_store: DurableReceiptConsumptionStore,
 ) -> dict[str, Any]:
@@ -932,6 +1013,10 @@ def evaluate_reasoning_surface_receipt(
         submitted_payload_bytes,
         "exact UTF-8 composer text submitted to the conversation",
     )
+    expected_admission_question = _bytes_digest(
+        admission_question_bytes,
+        "exact UTF-8 admission-question bytes",
+    )
     expected_response = _bytes_digest(
         response_payload_bytes,
         "exact UTF-8 completed assistant-response bytes",
@@ -943,16 +1028,38 @@ def evaluate_reasoning_surface_receipt(
         or receipt.get("responsePayloadDigest") != expected_response
     ):
         _append_failure(failures, "REASONING_RECEIPT_PAYLOAD_MISMATCH")
+    if binding.get("admissionQuestionDigest") != expected_admission_question:
+        _append_failure(failures, "ADMISSION_QUESTION_BINDING_MISMATCH")
     transform = binding.get("submissionTransform", {})
     if input_payload_bytes != submitted_payload_bytes:
-        if (
-            transform.get("type") != "DECLARED_REPRODUCIBLE_TRANSFORM"
-            or not _nonempty(transform.get("description"))
-            or transform.get("transformDigest")
-            != hashlib.sha256(submitted_payload_bytes).hexdigest()
-        ):
+        transform_valid = isinstance(payload_transform, ImmutablePayloadTransform)
+        if transform_valid:
+            expected_transform = {
+                "type": "DECLARED_REPRODUCIBLE_TRANSFORM",
+                "transformRef": payload_transform.transform_ref,
+                "description": payload_transform.description,
+                "transformDigest": payload_transform.transform_digest,
+            }
+            try:
+                reproduced_submission = payload_transform.apply(input_payload_bytes)
+            except Exception:
+                reproduced_submission = None
+            transform_valid = (
+                transform == expected_transform
+                and reproduced_submission == submitted_payload_bytes
+            )
+        if not transform_valid:
             _append_failure(failures, "REASONING_RECEIPT_PAYLOAD_MISMATCH")
-    elif transform != {"type": "NONE", "description": None, "transformDigest": None}:
+    elif (
+        payload_transform is not None
+        or transform
+        != {
+            "type": "NONE",
+            "transformRef": None,
+            "description": None,
+            "transformDigest": None,
+        }
+    ):
         _append_failure(failures, "REASONING_RECEIPT_PAYLOAD_MISMATCH")
 
     required_names = (
@@ -985,6 +1092,11 @@ def evaluate_reasoning_surface_receipt(
             or evidence_type != "BROWSER_UI_OBSERVATION"
         ):
             _append_failure(failures, "SELF_ASSERTED_REASONING_IDENTITY_REJECTED")
+        if status == "VERIFIED" and not (
+            _nonempty(observation.get("evidenceRef"))
+            and _valid_timestamp(observation.get("observedAt"))
+        ):
+            _append_failure(failures, "REASONING_OBSERVATION_EVIDENCE_INVALID")
         if status != "VERIFIED":
             missing = missing or status in {"MISSING", "UNVERIFIED", "STALE"}
             mismatch = mismatch or status == "MISMATCH"
@@ -1044,6 +1156,8 @@ def admit_supervision_verdict(
     required_repository_head: str,
     input_payload_bytes: bytes,
     submitted_payload_bytes: bytes,
+    payload_transform: ImmutablePayloadTransform | None,
+    admission_question_bytes: bytes,
     response_payload_bytes: bytes,
     consumption_store: DurableReceiptConsumptionStore,
 ) -> dict[str, Any]:
@@ -1054,16 +1168,28 @@ def admit_supervision_verdict(
         required_repository_head=required_repository_head,
         input_payload_bytes=input_payload_bytes,
         submitted_payload_bytes=submitted_payload_bytes,
+        payload_transform=payload_transform,
+        admission_question_bytes=admission_question_bytes,
         response_payload_bytes=response_payload_bytes,
         consumption_store=consumption_store,
     )
     failures = list(receipt_result["failureCodes"])
     verdict_digest = verdict.get("responsePayloadDigest", {})
     receipt_digest = receipt.get("responsePayloadDigest", {})
+    question_digest = _bytes_digest(
+        admission_question_bytes,
+        "exact UTF-8 admission-question bytes",
+    )
     if verdict.get("reasoningSurfaceReceiptRef") != receipt.get("receiptId"):
         _append_failure(failures, "VERDICT_RECEIPT_BINDING_MISMATCH")
     if verdict_digest != receipt_digest:
         _append_failure(failures, "VERDICT_RECEIPT_BINDING_MISMATCH")
+    if (
+        receipt.get("subjectBinding", {}).get("admissionQuestionDigest")
+        != question_digest
+        or verdict.get("admissionQuestionDigest") != question_digest
+    ):
+        _append_failure(failures, "ADMISSION_QUESTION_BINDING_MISMATCH")
     if (
         verdict.get("reviewRole") != receipt.get("requiredReviewerRole")
         or verdict.get("reviewRole") != required_role
@@ -1095,6 +1221,9 @@ def admit_supervision_verdict(
         "transactionId": receipt.get("transactionId"),
         "verdictId": verdict.get("verdictId"),
         "responseDigest": hashlib.sha256(response_payload_bytes).hexdigest(),
+        "admissionQuestionDigest": hashlib.sha256(
+            admission_question_bytes
+        ).hexdigest(),
     }
     if not consumption_store.consume(consumption_event):
         return {
@@ -1182,6 +1311,7 @@ def evaluate_browser_operation(
         tab.get("tabId"): tab for tab in receipt.get("baselineTabs", [])
     }
     known_agent_tabs = opened_by_actions | prior_proven
+    live_agent_tabs = set(prior_proven)
     for action in receipt.get("actions", []):
         action_type = action.get("type")
         tab_id = action.get("tabId")
@@ -1191,6 +1321,10 @@ def evaluate_browser_operation(
         protected = action.get("protected") is True or baseline.get(tab_id, {}).get("protected") is True
         if action_type in {"NAVIGATE", "CLOSE"} and protected:
             _append_failure(failures, "PROTECTED_TAB_MUTATION_ATTEMPT")
+        if action_type in {"NAVIGATE", "CLOSE"} and tab_id not in live_agent_tabs:
+            _append_failure(failures, "BROWSER_ACTION_SEQUENCE_INVALID")
+            if ownership == "AGENT_OPENED":
+                _append_failure(failures, "TAB_OWNERSHIP_UNVERIFIED")
         if action_type == "CLOSE":
             if ownership != "AGENT_OPENED" or tab_id not in known_agent_tabs:
                 _append_failure(failures, "TAB_OWNERSHIP_UNVERIFIED")
@@ -1206,6 +1340,20 @@ def evaluate_browser_operation(
             and receipt.get("browserNecessity") != "REQUIRED"
         ):
             _append_failure(failures, "UNNECESSARY_OWNER_BROWSER_MUTATION")
+        if (
+            action_type == "OPEN"
+            and action.get("result") == "SUCCEEDED"
+            and ownership == "AGENT_OPENED"
+        ):
+            if tab_id in live_agent_tabs:
+                _append_failure(failures, "BROWSER_ACTION_SEQUENCE_INVALID")
+            live_agent_tabs.add(tab_id)
+        elif (
+            action_type == "CLOSE"
+            and action.get("result") == "SUCCEEDED"
+            and tab_id in live_agent_tabs
+        ):
+            live_agent_tabs.remove(tab_id)
 
     if receipt.get("ownerTabsTouched") is True:
         _append_failure(failures, "UNNECESSARY_OWNER_BROWSER_MUTATION")
@@ -1221,12 +1369,7 @@ def evaluate_browser_operation(
         for action in receipt.get("actions", [])
         if action.get("type") == "CLOSE" and action.get("tabId") in known_agent_tabs
     ]
-    successfully_closed = {
-        action.get("tabId")
-        for action in close_actions
-        if action.get("result") == "SUCCEEDED"
-    }
-    expected_remaining = known_agent_tabs - successfully_closed
+    expected_remaining = live_agent_tabs
     cleanup_results = {
         result.get("tabId"): result.get("result")
         for result in cleanup.get("results", [])

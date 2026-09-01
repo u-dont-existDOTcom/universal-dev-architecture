@@ -18,6 +18,11 @@
     {"id": "external-subject-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_REQUIREMENT_BINDING_MISMATCH"},
     {"id": "external-repository-head-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_REQUIREMENT_BINDING_MISMATCH"},
     {"id": "external-input-bytes-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
-    {"id": "external-response-bytes-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"}
+    {"id": "external-response-bytes-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
+    {"id": "admission-question-receipt-tampered", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "ADMISSION_QUESTION_BINDING_MISMATCH"},
+    {"id": "admission-question-verdict-tampered", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "ADMISSION_QUESTION_BINDING_MISMATCH"},
+    {"id": "declared-transform-unreproduced", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
+    {"id": "verified-observation-empty-evidence-ref", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "verified-observation-invalid-observed-at", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"}
   ]
 }

@@ -23,6 +23,20 @@
     "transitionDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "status": {"enum": ["APPLIED", "REJECTED"]}
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "fromClaimRef": {
+            "properties": {"claimVersion": {"minimum": 2}},
+            "required": ["claimVersion"]
+          }
+        },
+        "required": ["fromClaimRef"]
+      },
+      "then": {"properties": {"previousTransitionDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+    }
+  ],
   "$defs": {
     "claimRef": {
       "type": "object",

@@ -19,9 +19,17 @@
   },
   "completedResponseDigest": {
     "algorithm": "sha256",
-    "value": "bc2ee36999016e2e1ab5d5768a8b492a95857bf8742c9f46be6e92fed0e1ebb1",
-    "byteLength": 33805,
-    "bytesDefinition": "exact UTF-8 completed assistant-response bytes as recorded in the bound external artifact"
+    "value": "73abbb661ad2e6acf0caf13c4c425a33f283bf13d2c1dd3c404e97d48e9d6a2e",
+    "byteLength": 33847,
+    "bytesDefinition": "exact contiguous Git blob bytes strictly after the unique UTF-8 marker through end of artifact, with no normalization",
+    "extraction": {
+      "algorithm": "UNIQUE_UTF8_MARKER_SUFFIX_V1",
+      "marker": "## Complete response\n\n",
+      "requiredMarkerOccurrences": 1,
+      "startBoundary": "EXCLUSIVE_END_OF_MARKER",
+      "endBoundary": "END_OF_ARTIFACT",
+      "normalization": "NONE"
+    }
   },
   "observationSummary": {
     "surface": "SIGNED_IN_CHATGPT_CHAT",

@@ -526,6 +526,9 @@ For browser automation:
 - require `agentOpenedTabIds` to equal successful current-receipt `OPEN`
   actions plus independently validated same-session/same-transaction prior
   proofs, and reconcile successful closes and remaining IDs exactly;
+- evaluate actions in receipt order; `NAVIGATE` or `CLOSE` is unauthorized
+  until a prior successful same-transaction `OPEN` or immutable prior ownership
+  proof has established the tab, and a successful close removes live ownership;
 - reuse only near-term relevant tabs and allow at most one agent-opened transient
   tab unless a recorded necessity exception applies;
 - audit automation-owned tabs about every 30 minutes and at task/account/limit boundaries;
