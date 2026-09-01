@@ -3,7 +3,7 @@
   "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001",
   "createdAt": "2026-09-01T02:08:00Z",
   "taskId": "humandesign-astrohd-owner-intake-quality-v1",
-  "workerRunId": "extra-high-pr21-review-20260901",
+  "workerRunId": "codex-collaboration-subagent-review-20260901",
   "ownerOutcome": {
     "ownerOutcomeId": "OO-MISSION-CONTROL-CLAIM-AUTHORITY-001",
     "epoch": 1,
@@ -34,8 +34,10 @@
   "observedOrHypotheticalFailure": "Authentic owner-source receipts and dual alignment did not prevent an executor-added numeric specificity from becoming a scientific criterion. Worker-to-contract can remain GREEN after the inference is copied into the contract, synthetic tests can validate the mechanics without validating production cardinality, and later reviewers can inherit the producer-supplied number rather than reproduce it. This can falsely authorize scientific readiness or release while the actual acceptance rule remains unresolved.",
   "evidenceRefs": [
     {
-      "type": "extra_high_diagnosis",
-      "reviewIdentity": "/root/extra_high_pr21_review",
+      "type": "unverified_collaboration_subagent_proposal",
+      "localTaskName": "/root/extra_high_pr21_review",
+      "reasoningSurfaceIdentity": "UNVERIFIED",
+      "notEquivalentTo": "SIGNED_IN_CHATGPT_EXTRA_HIGH_CHAT",
       "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001",
       "finding": "81 total and 76 non-validation are question-bank facts; 23 unique mapped IDs is a production scoring fact; neither number is an authorized scientific completeness criterion."
     },
@@ -67,7 +69,7 @@
       "observation": "The browser runtime returned no available browser instances, so no signed-in Pro meta-review verdict was obtained."
     }
   ],
-  "proposedChange": "Add claim-level provenance with explicit authority and claim-kind typing; treat every executor-added denominator, threshold, sample size, validation phase, or evidence-sufficiency rule as unauthorized unless enumerated in a current owner or reasoning-chat directive; add reconciliation states UNAUTHORIZED_ADDITION, INFERRED_NUMERIC_SCOPE, and DERIVATION_UNVERIFIED; rerun objective reconciliation whenever a load-bearing numeric or scientific criterion changes; require production-artifact cardinality evidence and independent reproduction; prevent synthetic fixtures from satisfying production-cardinality evidence; and reject definitive owner-facing rendering of unregistered claims.",
+  "proposedChange": "UNVERIFIED SUBAGENT PROPOSAL: Add claim-level provenance with explicit authority and claim-kind typing; treat every executor-added denominator, threshold, sample size, validation phase, or evidence-sufficiency rule as unauthorized unless enumerated in a current owner or reasoning-chat directive; add reconciliation states UNAUTHORIZED_ADDITION, INFERRED_NUMERIC_SCOPE, and DERIVATION_UNVERIFIED; rerun objective reconciliation whenever a load-bearing numeric or scientific criterion changes; require production-artifact cardinality evidence and independent reproduction; prevent synthetic fixtures from satisfying production-cardinality evidence; and reject definitive owner-facing rendering of unregistered claims. A verified Extra High reasoning chat must independently diagnose and accept, revise, or reject this proposal before it can enter the shared Pro lane.",
   "alternativesConsidered": [
     {
       "alternative": "Treat all non-validation questionnaire records as required",
@@ -86,18 +88,19 @@
     "Claim registries can become ceremonial unless definitive rendering and directive admission fail closed.",
     "Not every qualitative refinement can be classified mechanically; semantic equivalence still belongs to Extra High or Pro.",
     "Overbroad numeric gating could burden harmless implementation constants, so the control is limited to load-bearing acceptance, scientific, product, and release claims.",
-    "The proposed change has not yet received the required shared Pro meta-review verdict."
+    "The proposal has received neither a verified Extra High reasoning-chat review nor the required shared Pro meta-review verdict.",
+    "The executor previously mislabeled a local collaboration subagent as Extra High, creating a second reasoning-authority provenance failure."
   ],
-  "workerRecommendation": "Extra High recommends immediate adoption of the claim-authority guardrails and hostile tests on a draft Mission Control branch, with canonical integration held until the shared Pro meta-review returns a validated verdict.",
-  "workerUncertainty": "The exact runtime storage location for the claim registry may vary by Mission Control implementation. The authority distinction and failure mode are not uncertain; neither 23 nor 76 is currently an authorized scientific completeness criterion.",
+  "workerRecommendation": "No authoritative reasoning recommendation has been obtained. Preserve the candidate guardrails and hostile tests only as a draft proposal, then route the exact evidence through a verified Extra High reasoning chat before Pro meta-review or canonical integration.",
+  "workerUncertainty": "The local task name did not prove the subagent model, mode, account, or ChatGPT reasoning surface. The 23-versus-76 artifact facts remain reproducible, but the proposed universal guardrails have not been validated by the requested reasoning authority.",
   "decisionThatCanChange": "Whether Mission Control admits executor-derived numeric specificity into task contracts, owner-facing scientific statements, reviewer premises, or release criteria without explicit reasoning authority and independently reproduced production evidence.",
   "routing": {
-    "extraHighPacketPrepared": true,
+    "extraHighPacketPrepared": false,
     "proMetaReviewRequired": true,
     "reviewPriority": "IMMEDIATE",
     "sharedProScopeKey": "supervision-architecture/a40d413-claim-authority-v1"
   },
-  "status": "PENDING_PRO_META_REVIEW",
+  "status": "PENDING_VERIFIED_EXTRA_HIGH_REVIEW",
   "proMetaReview": null,
   "ownerDecisionRef": "owner-directive-2026-09-01-diagnose-and-send-fix-to-mission-control",
   "repositoryChangeRefs": [],

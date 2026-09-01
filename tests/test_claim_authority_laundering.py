@@ -112,7 +112,7 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         self.assertEqual(expected["green-worker-unauthorized-criterion"], "ROOT_RED")
         self.assertEqual(expected["reviewer-repeats-unreproduced-count"], "UNKNOWN")
 
-    def test_feedback_packet_is_self_contained_and_pending_shared_pro(self) -> None:
+    def test_feedback_packet_awaits_verified_extra_high_before_pro(self) -> None:
         feedback = json.loads(
             (
                 ROOT
@@ -124,7 +124,7 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         self.assertEqual(
             feedback["feedbackId"], "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001"
         )
-        self.assertTrue(feedback["routing"]["extraHighPacketPrepared"])
+        self.assertFalse(feedback["routing"]["extraHighPacketPrepared"])
         self.assertTrue(feedback["routing"]["proMetaReviewRequired"])
         self.assertEqual(feedback["routing"]["reviewPriority"], "IMMEDIATE")
         self.assertTrue(
@@ -132,9 +132,45 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "supervision-architecture/"
             )
         )
-        self.assertEqual(feedback["status"], "PENDING_PRO_META_REVIEW")
+        self.assertEqual(feedback["status"], "PENDING_VERIFIED_EXTRA_HIGH_REVIEW")
         self.assertIsNone(feedback["proMetaReview"])
         self.assertGreaterEqual(len(feedback["evidenceRefs"]), 4)
+
+    def test_unverified_subagent_name_cannot_claim_extra_high_authority(self) -> None:
+        fixture = json.loads(
+            (
+                ROOT
+                / "evals"
+                / "mission-control"
+                / "unverified-reasoning-surface-identity.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(fixture["given"]["browserState"], "UNAVAILABLE")
+        self.assertEqual(fixture["given"]["browserInstances"], 0)
+        self.assertFalse(fixture["given"]["modelOrModeVerified"])
+        self.assertIsNone(fixture["given"]["signedInChatReceipt"])
+        self.assertEqual(
+            fixture["expected"]["reasoningSurface"],
+            "UNVERIFIED_COLLABORATION_SUBAGENT",
+        )
+        self.assertFalse(fixture["expected"]["extraHighPacketPrepared"])
+        self.assertFalse(fixture["expected"]["reasoningDecisionAuthoritative"])
+        self.assertFalse(fixture["expected"]["mergeAllowed"])
+        self.assertFalse(fixture["expected"]["proMetaReviewSubmissionAllowed"])
+
+        feedback = json.loads(
+            (
+                ROOT
+                / "feedback"
+                / "mission-control"
+                / "SDF-20260901-REASONING-SURFACE-IDENTITY-LAUNDERING-001.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertFalse(feedback["routing"]["extraHighPacketPrepared"])
+        self.assertEqual(
+            feedback["status"], "PENDING_VERIFIED_EXTRA_HIGH_DIAGNOSIS"
+        )
+        self.assertIsNone(feedback["proposedChange"])
 
     def test_current_bootstrap_and_pattern_fail_closed(self) -> None:
         bootstrap = (
