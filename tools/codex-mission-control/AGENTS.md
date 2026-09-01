@@ -9,7 +9,7 @@ A direct owner request or correction to fix, improve, add, remove, preserve, dis
 Before the next substantive action:
 
 1. Preserve the owner wording verbatim in the current owner-outcome or task requirement record, with source time when available and an exact digest.
-2. State the requested observable result, the evidence that can prove it, and the adjacent results that do **not** satisfy it.
+2. State the requested observable result, the evidence that can prove it, and the adjacent results that do **not** satisfy it. Record those adjacent results explicitly as `non-satisfying proxies`.
 3. Activate `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` and `patterns/task-time-lesson-activation.md` in the current task contract.
 4. Trace implementation and verification back to the literal request. A summary, issue, plan, schema, test, PR, or CI result is not completion unless that was the requested result.
 5. Continue automatically to the next safe implementation step. Ask the owner only when a real semantic choice remains unresolved.
