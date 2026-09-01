@@ -65,17 +65,47 @@ test("n8n evaluation is pass-through only and parity comparison fails closed", (
   }
 });
 
-test("the real-worker sidecar derives a direction-bound queue from repository state without writing it", () => {
+test("the attractor-independence experiment holds the model fixed and forbids debate", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/attractor-independence/experiment.json"), "utf8"));
+  assert.equal(manifest.status, "READY_FOR_MECHANICAL_IMPLEMENTATION");
+  assert.equal(manifest.fixedControls.sameModelFamilyAcrossArms, true);
+  assert.equal(manifest.fixedControls.crossCandidateCommunication, false);
+  assert.equal(manifest.fixedControls.modelDebate, false);
+  assert.deepEqual(manifest.arms.map((arm: { id: string }) => arm.id), [
+    "DIRECT_FRESH_PROCESS",
+    "N8N_ISOLATED_EXECUTION",
+    "HERMES_ISOLATED_PROFILE_MEMORY_DISABLED",
+  ]);
+  assert.equal(manifest.primaryOutcome, "BLIND_EDITORIAL_PASS_RATE");
+  assert.equal(manifest.authority.detectorIsPrimaryJudge, false);
+  assert.equal(manifest.authority.orchestratorMayAuthorVerdict, false);
+});
+
+test("the real-worker sidecar proves transport but cannot author semantic acknowledgement or reconciliation", () => {
   const run = spawnSync(process.execPath, [
     "scripts/run-worker-adapter.mjs", "--worker", "human-design-governance",
     "--repo", appRoot, "--state-file", "README.md", "--dry-run",
   ], { cwd: appRoot, encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr);
-  const result = JSON.parse(run.stdout) as { dryRun: boolean; source: { repository: string; head: string }; events: Array<{ data: { type: string; state?: string; items?: unknown[] } }> };
+  const result = JSON.parse(run.stdout) as {
+    dryRun: boolean;
+    source: { repository: string; head: string; stateSha256: string };
+    events: Array<{ data: { type: string; state?: string; body?: string } }>;
+  };
   assert.equal(result.dryRun, true);
   assert.equal(result.source.repository, appRoot);
   assert.match(result.source.head, /^[a-f0-9]{40}$/);
+  assert.match(result.source.stateSha256, /^[a-f0-9]{64}$/);
+  assert.ok(result.events.some((event) => event.data.type === "outbound_message_acknowledged"));
   assert.ok(result.events.some((event) => event.data.type === "worker_connection_observed" && event.data.state === "CONNECTED"));
-  assert.ok(result.events.some((event) => event.data.type === "work_queue_published" && Array.isArray(event.data.items) && event.data.items.length > 0));
-  assert.ok(result.events.some((event) => event.data.type === "direction_reconciled"));
+  assert.ok(result.events.some((event) => event.data.type === "worker_message_recorded"
+    && event.data.body?.includes("Semantic acknowledgement, queue publication, and reconciliation remain pending")));
+  const forbidden = new Set([
+    "direction_acknowledged",
+    "work_queue_published",
+    "direction_reconciled",
+    "structured_blocker_recorded",
+    "change_proposal_recorded",
+  ]);
+  assert.deepEqual(result.events.filter((event) => forbidden.has(event.data.type)), []);
 });
