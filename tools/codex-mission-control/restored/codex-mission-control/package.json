@@ -10,6 +10,7 @@
     "start": "node scripts/run-stack.mjs start",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "supervision:admit": "tsx scripts/check-supervision-admission.ts",
     "worker:poll": "node scripts/run-worker-adapter.mjs",
     "worker:verify-live": "node scripts/verify-live-worker-acceptance.mjs",
     "queue:advance-experiments": "node scripts/advance-experiment-queue.mjs",
