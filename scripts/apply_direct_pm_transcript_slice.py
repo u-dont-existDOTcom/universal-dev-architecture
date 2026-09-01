@@ -162,11 +162,21 @@ def patch_worker_channel() -> None:
     )
 
 
+def patch_worker_detail() -> None:
+    path = APP / "components" / "WorkerDetail.tsx"
+    marker = '    case "reasoning_supervision_recorded": return `${data.reasoning_supervisor_surface} ${data.reasoning_supervisor_chat_epoch}: ${data.next_reasoning_review_trigger}`;\n'
+    replacement = '''    case "reasoning_message_recorded": return `${data.surface_role.replaceAll("_", " ")} ${data.author_role} · ${data.provenance_status}: ${data.exact_visible_body ?? data.immutable_provider_locator ?? "message content unavailable"}`;
+    case "reasoning_supervision_recorded": return `${data.reasoning_supervisor_surface} ${data.reasoning_supervisor_chat_epoch}: ${data.next_reasoning_review_trigger}`;
+'''
+    replace_once(path, marker, replacement)
+
+
 def main() -> None:
     patch_schema()
     patch_ingestion_auth()
     patch_store()
     patch_worker_channel()
+    patch_worker_detail()
     print("DIRECT_PM_TRANSCRIPT_SLICE_PATCHED")
 
 
