@@ -20,15 +20,23 @@ const headers = { authorization: `Bearer ${ownerToken}` };
 const workerResponse = await getJson(`${baseUrl}/api/workers/${encodeURIComponent(worker)}`, headers);
 const eventsResponse = await getJson(`${baseUrl}/api/events`, headers);
 const projected = workerResponse.worker;
-const relevant = eventsResponse.events.filter((event) => event.worker === worker
-  && (event.data?.direction_id === directionId || event.data?.message_id === directionId.replace(/^direction:/, "message:")));
+const workerEvents = eventsResponse.events.filter((event) => event.worker === worker);
+const relevant = workerEvents.filter((event) => event.data?.direction_id === directionId
+  || event.data?.message_id === directionId.replace(/^direction:/, "message:"));
 const ownerRecorded = relevant.find((event) => event.type === "owner_message_recorded");
 const delivery = relevant.find((event) => event.type === "outbound_delivery_lifecycle_recorded" && event.data.status === "DELIVERED");
 const transportAck = relevant.find((event) => event.type === "outbound_message_acknowledged");
-const connection = relevant.find((event) => event.type === "worker_connection_observed" && event.data.state === "CONNECTED");
 const workerMessage = relevant.find((event) => event.type === "worker_message_recorded");
-const required = { ownerRecorded, delivery, transportAck, connection, workerMessage };
-for (const [name, event] of Object.entries(required)) if (!event) throw new Error(`Live transport acceptance is missing ${name}.`);
+if (!ownerRecorded || !delivery || !transportAck || !workerMessage) {
+  const missing = Object.entries({ ownerRecorded, delivery, transportAck, workerMessage })
+    .filter(([, event]) => !event).map(([name]) => name);
+  throw new Error(`Live transport acceptance is missing ${missing.join(", ")}.`);
+}
+const connection = workerEvents.find((event) => event.type === "worker_connection_observed"
+  && event.data.state === "CONNECTED"
+  && event.sequence > transportAck.sequence
+  && event.sequence < workerMessage.sequence);
+if (!connection) throw new Error("Live transport acceptance is missing the batch-bound connected sidecar observation.");
 
 const semanticEvents = relevant.filter((event) => [
   "direction_acknowledged",
@@ -54,6 +62,7 @@ if (projected.connection.state !== "CONNECTED" || projected.connection.runtimeKi
 if (projected.channel.queue.length || projected.channel.acknowledgementInterpretation) {
   throw new Error("Transport evidence incorrectly populated a semantic queue or interpretation.");
 }
+const required = { ownerRecorded, delivery, transportAck, connection, workerMessage };
 const receipt = {
   acceptance: "PASS_TRANSPORT_ONLY",
   checkedAt: new Date().toISOString(),
