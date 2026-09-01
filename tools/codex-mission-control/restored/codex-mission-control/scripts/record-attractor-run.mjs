@@ -13,7 +13,9 @@ const candidatePath = value("--candidate");
 const output = value("--output");
 const providerSurface = value("--provider-surface");
 const modelFamily = value("--model-family");
+const exactModelIdentifier = value("--exact-model-identifier");
 const modelMode = value("--model-mode");
+const generationConfigSha256 = value("--generation-config-sha256");
 const orchestratorVersion = value("--orchestrator-version");
 const startedAt = value("--started-at");
 const completedAt = value("--completed-at");
@@ -24,9 +26,10 @@ const runtimeIdentityStatus = value("--runtime-identity-status");
 const dryRun = args.includes("--dry-run");
 
 const required = {
-  planPath, runId, candidatePath, output, providerSurface, modelFamily, modelMode,
-  orchestratorVersion, startedAt, completedAt, memoryState, sessionSearchState,
-  inheritedStateFlags, runtimeIdentityStatus,
+  planPath, runId, candidatePath, output, providerSurface, modelFamily,
+  exactModelIdentifier, modelMode, generationConfigSha256, orchestratorVersion,
+  startedAt, completedAt, memoryState, sessionSearchState, inheritedStateFlags,
+  runtimeIdentityStatus,
 };
 const missing = Object.entries(required).filter(([, value]) => !value).map(([key]) => key);
 if (missing.length) throw new Error(`Missing required arguments: ${missing.join(", ")}`);
@@ -38,6 +41,8 @@ if (sha256(canonicalJson(withoutDigest(plan))) !== plan.runPlanSha256) {
   throw new Error("The run plan digest does not match its contents.");
 }
 if (runtimeIdentityStatus !== "VERIFIED") throw new Error("Runtime identity must be VERIFIED; unknown model/runtime identity invalidates the run.");
+if (!exactModelIdentifier || /^unknown$/i.test(exactModelIdentifier)) throw new Error("An exact non-UNKNOWN model identifier is required.");
+if (!/^[a-f0-9]{64}$/.test(generationConfigSha256)) throw new Error("generation-config-sha256 must be a lowercase SHA-256 digest.");
 if (memoryState !== "DISABLED") throw new Error("Persistent memory must be DISABLED for every arm.");
 if (sessionSearchState !== "DISABLED") throw new Error("Session search must be DISABLED for every arm.");
 if (inheritedStateFlags !== "NONE") throw new Error("Inherited-state flags must be NONE; contaminated runs are invalid rather than repaired.");
@@ -58,8 +63,9 @@ if (forbiddenMarkers.some((pattern) => pattern.test(exactCandidate))) {
 }
 
 const record = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   experimentId: plan.experimentId,
+  experimentStage: plan.experimentStage,
   runPlanSha256: plan.runPlanSha256,
   runId,
   arm: run.arm,
@@ -67,7 +73,9 @@ const record = {
   exactWriterInputSha256: run.exactWriterInputSha256,
   providerSurface,
   modelFamily,
+  exactModelIdentifier,
   modelMode,
+  generationConfigSha256,
   runtimeIdentityStatus,
   orchestratorVersion,
   memoryState,
@@ -98,6 +106,8 @@ process.stdout.write(`${JSON.stringify({
   runId,
   arm: run.arm,
   behaviorCellId: run.behaviorCellId,
+  exactModelIdentifier,
+  generationConfigSha256,
   candidateSha256: record.candidateSha256,
   candidateWordCount: wordCount,
   editorialVerdict: null,
