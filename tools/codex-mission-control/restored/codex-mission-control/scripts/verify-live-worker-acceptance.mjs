@@ -24,29 +24,48 @@ const relevant = eventsResponse.events.filter((event) => event.worker === worker
   && (event.data?.direction_id === directionId || event.data?.message_id === directionId.replace(/^direction:/, "message:")));
 const ownerRecorded = relevant.find((event) => event.type === "owner_message_recorded");
 const delivery = relevant.find((event) => event.type === "outbound_delivery_lifecycle_recorded" && event.data.status === "DELIVERED");
-const acknowledged = relevant.find((event) => event.type === "direction_acknowledged");
-const queue = relevant.find((event) => event.type === "work_queue_published");
-const reconciled = relevant.find((event) => event.type === "direction_reconciled");
-const required = { ownerRecorded, delivery, acknowledged, queue, reconciled };
-for (const [name, event] of Object.entries(required)) if (!event) throw new Error(`Live acceptance is missing ${name}.`);
-if (!(ownerRecorded.sequence < delivery.sequence && delivery.sequence < acknowledged.sequence
-  && acknowledged.sequence < queue.sequence && queue.sequence < reconciled.sequence)) {
-  throw new Error("Live acceptance event ordering is invalid.");
+const transportAck = relevant.find((event) => event.type === "outbound_message_acknowledged");
+const connection = relevant.find((event) => event.type === "worker_connection_observed" && event.data.state === "CONNECTED");
+const workerMessage = relevant.find((event) => event.type === "worker_message_recorded");
+const required = { ownerRecorded, delivery, transportAck, connection, workerMessage };
+for (const [name, event] of Object.entries(required)) if (!event) throw new Error(`Live transport acceptance is missing ${name}.`);
+
+const semanticEvents = relevant.filter((event) => [
+  "direction_acknowledged",
+  "work_queue_published",
+  "direction_reconciled",
+  "structured_blocker_recorded",
+  "change_proposal_recorded",
+].includes(event.type));
+if (semanticEvents.length) {
+  throw new Error(`The transport-only sidecar authored forbidden semantic events: ${semanticEvents.map((event) => event.type).join(", ")}.`);
 }
-if (projected.channel.freshness !== "CURRENT" || projected.channel.latestDirectionId !== directionId) {
-  throw new Error("The live direction is not current in the worker projection.");
+if (!(ownerRecorded.sequence < delivery.sequence && delivery.sequence < transportAck.sequence
+  && transportAck.sequence < connection.sequence && connection.sequence < workerMessage.sequence)) {
+  throw new Error("Live transport acceptance event ordering is invalid.");
+}
+if (projected.channel.freshness !== "AWAITING_ACKNOWLEDGEMENT" || projected.channel.latestDirectionId !== directionId) {
+  throw new Error("Transport delivery incorrectly advanced the direction beyond AWAITING_ACKNOWLEDGEMENT.");
 }
 if (projected.connection.state !== "CONNECTED" || projected.connection.runtimeKind !== "POLLING_SIDECAR"
   || projected.connection.source?.repository !== path.resolve(expectedRepository)) {
   throw new Error("The projection is not bound to the expected real repository sidecar.");
 }
-if (!projected.channel.queue.length || !projected.channel.proposals.length) throw new Error("The real queue or proposal projection is empty.");
+if (projected.channel.queue.length || projected.channel.acknowledgementInterpretation) {
+  throw new Error("Transport evidence incorrectly populated a semantic queue or interpretation.");
+}
 const receipt = {
-  acceptance: "PASS",
+  acceptance: "PASS_TRANSPORT_ONLY",
   checkedAt: new Date().toISOString(),
   worker,
   directionId,
   ledgerOrdering: Object.fromEntries(Object.entries(required).map(([name, event]) => [name, event.sequence])),
+  semanticCurrent: false,
+  requiredNextEvidence: [
+    "verified direction_acknowledged from an authenticated worker or reasoning surface",
+    "direction-bound work_queue_published",
+    "direction_reconciled bound to that queue revision",
+  ],
   projection: {
     freshness: projected.channel.freshness,
     connection: projected.connection,
