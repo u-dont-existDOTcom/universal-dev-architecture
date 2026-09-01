@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-09-01 00:54 UTC
+Updated: 2026-09-01 01:12 UTC
 
 ## Goal
 
@@ -87,15 +87,24 @@ CI, and evidence-based Hermes/n8n decisions.
 
 ## Remaining release work
 
-1. Commit and push this continuation to PR #51.
-2. Verify the new hosted application job and repository audit are green at the
-   exact pushed head; fix any failure before closeout.
-3. Record the exact final Git head and check-run state in this file.
+1. Push this closeout-only state receipt and verify the same two hosted jobs on
+   that exact final head.
+2. Review and merge PR #51 through the existing GitHub authority boundary.
 
 ## Current checkpoint
 
-All implementation and local verification gates are green. The continuation is
-ready for its release commit, push to PR #51, and exact-head hosted CI check.
+Implementation commit `b303bfa5400cf84f857fd7a193db94a665e32578` and CI
+allowlist repair `8b676439ba5f845c754de33be48ff8d624a862c8` are pushed to
+PR #51. GitHub Actions run `33457664878` is green at `8b67643`:
+
+- `Deterministic repository audit`, job `99700981325`, passed in 7 seconds.
+- `Mission Control app · tests, types, build`, job `99700981513`, passed in 37
+  seconds, including install, 92 tests, typecheck, and production build.
+
+PR #51 is open and mergeable. The first workflow attempt at `b303bfa` was
+rejected before job creation because repository policy permits only the pinned
+checkout action; `8b67643` removed the disallowed setup action and added a
+runner-version guard, after which both real hosted jobs passed.
 
 ## External/account-bound follow-up
 
@@ -115,15 +124,21 @@ ready for its release commit, push to PR #51, and exact-head hosted CI check.
 - No local implementation or verification blocker remains.
 - ChatGPT tunnel association and LLM-backed Hermes semantic runs remain the
   explicit account/credential boundaries described above.
+- The two hosted jobs execute and pass on PR #51, but they are not formally
+  required on its unprotected feature base branch. The existing active ruleset
+  covers only the default branch and requires the deterministic audit there.
+  The attempted feature-branch protection change was declined by the execution
+  environment as a separate repository security-setting mutation; no policy
+  setting was changed or weakened.
 
 ## Next safe action
 
-Commit and push the verified continuation, then follow both hosted PR checks to
-terminal green before writing the exact-head closeout receipt.
+Push this closeout receipt and confirm both hosted jobs remain green on its
+exact head, then leave PR #51 ready for review/merge.
 
 ## Recovery rule
 
 Resume from the remaining release work. Do not classify account-bound ChatGPT
 tunnel registration as mechanically complete, do not adopt Hermes after its
-failed gate, do not run n8n without its dependency, and do not claim hosted CI
-green until the exact final head has check-run evidence.
+failed gate, do not run n8n without its dependency, and do not claim the
+closeout head green until its own check-run evidence exists.
