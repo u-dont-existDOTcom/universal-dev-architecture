@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/claim-transition.schema.json",
+  "title": "Append-only claim transition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "transitionId", "claimId", "fromClaimRef", "toClaimRef", "transitionType", "requestedByRef", "requiredAuthorizationRefs", "authoritySourceRefs", "evidenceRefs", "reason", "recordedAt", "previousTransitionDigest", "transitionDigest", "status"],
+  "properties": {
+    "$schema": {"const": "../schemas/claim-transition.schema.json"},
+    "schemaVersion": {"const": 1},
+    "transitionId": {"type": "string", "minLength": 1},
+    "claimId": {"type": "string", "minLength": 1},
+    "fromClaimRef": {"$ref": "#/$defs/claimRef"},
+    "toClaimRef": {"$ref": "#/$defs/claimRef"},
+    "transitionType": {"enum": ["DERIVED", "PROMOTED", "REVOKED", "SUPERSEDED"]},
+    "requestedByRef": {"type": "string", "minLength": 1},
+    "requiredAuthorizationRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "authoritySourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "evidenceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "reason": {"type": "string", "minLength": 1},
+    "recordedAt": {"type": "string", "format": "date-time"},
+    "previousTransitionDigest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "transitionDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["APPLIED", "REJECTED"]}
+  },
+  "$defs": {
+    "claimRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimId", "claimVersion", "claimDigest"],
+      "properties": {
+        "claimId": {"type": "string", "minLength": 1},
+        "claimVersion": {"type": "integer", "minimum": 1},
+        "claimDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

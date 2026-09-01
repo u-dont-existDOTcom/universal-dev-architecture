@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "claim-authority-provenance-hostile",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "scenarios": [
+    {"id": "reasoning-cannot-satisfy-owner-explicit", "requiredIssuerClass": "OWNER_EXPLICIT", "presentIssuerClass": "REASONING_DECISION", "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"},
+    {"id": "artifact-23-descriptive-only", "value": 23, "authorityClass": "ARTIFACT_DERIVED_FACT", "decisionUse": "DESCRIPTIVE_ONLY", "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
+    {"id": "artifact-76-descriptive-only", "value": 76, "authorityClass": "ARTIFACT_DERIVED_FACT", "decisionUse": "DESCRIPTIVE_ONLY", "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
+    {"id": "rename-cannot-promote", "fromField": "mapped_scoreable_question_count", "toField": "completion_required_question_count", "transition": null, "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
+    {"id": "synthetic-reproduction-not-production", "synthetic": true, "productionRequired": true, "expected": "PRODUCTION_REPRODUCTION_MISSING"},
+    {"id": "subject-commit-changed", "expected": "SUBJECT_BINDING_STALE"},
+    {"id": "load-bearing-worker-false", "workerLoadBearing": false, "useSite": "OWNER_FACING_DEFINITIVE_RENDERING", "expected": "DEFINITIVE_RENDERING_REJECTED"}
+  ]
+}

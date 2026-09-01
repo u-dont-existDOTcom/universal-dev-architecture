@@ -657,17 +657,63 @@ The dashboard should generate plain-language copy such as:
 
 ## 14. Browser tab ownership
 
-### 14.1 Close only tabs the system owns
+Every agent browser transaction uses
+`templates/BROWSER-OPERATION-RECEIPT.json` and validates through
+`scripts/mission_control_provenance.py`. The receipt binds necessity, the exact
+capability, non-browser alternatives, selected route, browser session,
+transaction, baseline tabs, ownership, transient-tab cap, actions, and cleanup.
 
-Every opened tab is labeled:
+Repository retrieval defaults to authenticated CLI or local Git whenever that
+route satisfies the capability. Browser navigation is blocked before execution
+when an available non-browser route satisfies the same capability. A signed-in
+ChatGPT reasoning-surface observation may require the browser because CLI and
+local Git cannot observe the account, visible mode, conversation submission,
+completed response, and post-response mode.
+
+The normative ownership classes for new receipts are:
 
 ```text
-SYSTEM_OWNED
-USER_OWNED
-PREEXISTING_UNKNOWN
+OWNER_EXISTING
+AGENT_OPENED
+UNKNOWN
 ```
 
-Automation may close only `SYSTEM_OWNED` tabs unless the owner explicitly authorizes otherwise.
+Legacy `SYSTEM_OWNED` means `AGENT_OPENED` only when the exact opening event is
+bound to the same browser session and transaction. A name or stale tab handle
+does not prove ownership.
+
+### 14.1 Close only tabs the system owns
+
+Every tab in a new browser-operation receipt is labeled:
+
+```text
+AGENT_OPENED
+OWNER_EXISTING
+UNKNOWN
+```
+
+Automation may close only tabs proven `AGENT_OPENED` in the same browser
+session and transaction. `UNKNOWN` ownership fails closed: leave the tab
+untouched and report it. Owner-existing tabs and signed-in reasoning
+conversation tabs are protected. A tab ID from another browser session cannot
+be reused as ownership proof.
+
+At most one agent-opened transient tab is allowed unless `exceptionRef` records
+the concrete necessity. Cleanup uses `CLOSE_ONLY_AGENT_OPENED`; a close failure
+is reported and never authorizes closing an adjacent or guessed tab. Observing
+that a tab is absent does not establish who closed it.
+
+Required browser failure codes are:
+
+```text
+BROWSER_ROUTE_NOT_JUSTIFIED
+AGENT_TAB_CAP_EXCEEDED
+TAB_OWNERSHIP_UNVERIFIED
+TAB_SESSION_MISMATCH
+PROTECTED_TAB_MUTATION_ATTEMPT
+AGENT_TAB_CLEANUP_INCOMPLETE
+UNNECESSARY_OWNER_BROWSER_MUTATION
+```
 
 ### 14.2 Tab lease record
 

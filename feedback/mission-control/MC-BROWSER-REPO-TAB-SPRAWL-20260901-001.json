@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "incidentId": "MC-BROWSER-REPO-TAB-SPRAWL-20260901-001",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "candidateVerdict": "REVISE",
+  "sameConsolidatedArchitectureKey": true,
+  "rootCause": [
+    "Repository evidence was retrieved through browser tabs even though authenticated CLI and local Git satisfied that capability.",
+    "The routing transaction lacked a browser-operation receipt binding necessity, baseline ownership, transient-tab limits, actions, and cleanup."
+  ],
+  "disposition": {
+    "currentTabState": "CLOSED_OR_STALE_AS_REPORTED",
+    "closedByActor": "UNKNOWN",
+    "cleanupAttributionState": "UNATTRIBUTED",
+    "inferenceAuthorized": false
+  },
+  "implementedControlRefs": [
+    "templates/BROWSER-OPERATION-RECEIPT.json",
+    "schemas/browser-operation-receipt.schema.json",
+    "scripts/mission_control_provenance.py#evaluate_browser_operation",
+    "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md"
+  ],
+  "requiredDefaults": {
+    "repositoryRetrieval": "AUTHENTICATED_CLI_OR_LOCAL_GIT",
+    "maxAgentTransientTabs": 1,
+    "cleanupPolicy": "CLOSE_ONLY_AGENT_OPENED",
+    "unknownOwnership": "FAIL_CLOSED_LEAVE_UNTOUCHED",
+    "reasoningConversationTabs": "PROTECTED"
+  },
+  "status": "PRO_REVISE_IMPLEMENTED_ON_DRAFT_BRANCH",
+  "prohibitedClaims": [
+    "Do not infer which actor closed a stale handle.",
+    "Do not close an owner-existing or ownership-unknown tab.",
+    "Do not call a cleanup successful without baseline and cleanup receipts."
+  ]
+}

@@ -276,30 +276,47 @@ Prior approvals remain historical. They are invalidated for current authority wh
 
 An authentic owner-source receipt proves the source bytes; it does not authorize
 specificity absent from those bytes. Every load-bearing numeric, scientific,
-product, or release claim must be registered separately with:
+product, release, identity, or supervisory claim must be a versioned
+`templates/CLAIM-RECORD.json` instance bound to an immutable subject and claim
+digest.
+
+Authority is **scoped and conjunctive**, never ordinal. Do not compare an
+authority rank or assume that one apparently stronger role can satisfy a
+differently scoped requirement. A claim may simultaneously require artifact
+authority to assert a fact, owner authority to promote that fact into a policy,
+and a separately admitted reasoning-surface receipt to author a supervisory
+verdict. Every `requiredAuthorizations` entry for the requested operation must
+be `SATISFIED` by an exact current source with the required issuer class and
+scope.
+
+The authority classes are:
 
 ```text
-claim_id
-exact claim text and value
-authority:
-  OWNER_LITERAL | OWNER_CORRECTION | REASONING_DECISION |
-  ARTIFACT_DERIVED_FACT | EXECUTOR_PROPOSAL
-claim_kind:
-  FACT | IMPLEMENTATION_DETAIL | SCIENTIFIC_CRITERION |
-  PRODUCT_DECISION | RELEASE_CONDITION
-source/reference/hash
-derivation command
-artifact identity
-independent verifier
-verification time and freshness
-authorized criterion reference, when the claim governs a decision
+OWNER_EXPLICIT
+OWNER_CORRECTION
+REASONING_DECISION
+ARTIFACT_DERIVED_FACT
+OBSERVED_PLATFORM_STATE
+EXECUTOR_PROPOSAL
+```
+
+The authorization operations are:
+
+```text
+ASSERT_FACT
+PROMOTE_TO_POLICY
+AUTHOR_SUPERVISORY_VERDICT
+AUTHORIZE_EXECUTION
+AUTHORIZE_RELEASE
 ```
 
 These types are not interchangeable. `ARTIFACT_DERIVED_FACT` may establish
 that a production mapping currently contains 23 unique IDs. It cannot select
-23 as the scientific completeness gate. `EXECUTOR_PROPOSAL` may preserve a
-hypothesis for reasoning review. It cannot enter an owner-facing definitive
-statement, task acceptance criterion, supervisor premise, or release condition.
+23 as the scientific completeness gate. A `REASONING_DECISION` can analyze or
+recommend that criterion, but it cannot satisfy an `OWNER_EXPLICIT`
+requirement. `EXECUTOR_PROPOSAL` may preserve a hypothesis for reasoning
+review. It cannot enter an owner-facing definitive statement, task acceptance
+criterion, supervisor premise, or release condition.
 
 Required reconciliation failures include:
 
@@ -330,6 +347,94 @@ independent reviewer must reproduce every load-bearing cardinality or return
 Owner-facing definitive rendering fails closed for unregistered load-bearing
 claims. If preserving the observation is useful, render it only as
 `executor hypothesis—unverified` until the authority and evidence fields pass.
+
+Load-bearing status is determined from the actual use site, not a worker-set
+boolean. Any claim referenced by an acceptance criterion, release condition,
+owner-facing definitive rendering, execution authorization, or supervisory
+verdict is load-bearing even if the producer marked it false.
+
+### 7.2 Append-only claim transitions
+
+A fact cannot become policy through a mutable `claimTransition` flag, field
+rename, copied value, contract placement, or reviewer repetition. Use a
+separate `templates/CLAIM-TRANSITION.json` ledger with immutable `fromClaimRef`
+and `toClaimRef`, canonical digests, `previousTransitionDigest`, and one of:
+
+```text
+DERIVED
+PROMOTED
+REVOKED
+SUPERSEDED
+```
+
+A `PROMOTED` transition creates a new claim version, identifies a new authority
+source that permits the target policy use, satisfies every required
+authorization conjunctively, and preserves the artifact-derived fact as a
+separate descriptive claim. Corrections append new owner sources and
+transitions; they never rewrite an existing exact owner-source block.
+
+### 7.3 Subject-bound reproduction
+
+Independent reproduction uses
+`templates/CLAIM-REPRODUCTION-RECEIPT.json`. Bind the claim version and digest,
+exact repository commit or other subject, producer evidence, independent trust
+domain, method digest, result digest, freshness, and synthetic/production
+status. Synthetic fixtures can validate a mechanism but cannot satisfy a
+production reproduction requirement.
+
+Reproduction establishes only the artifact fact. `promotesAuthority` is always
+`false`; policy promotion requires its own qualifying authority source and
+append-only `PROMOTED` transition. A changed subject commit, source digest,
+directive version, packet digest, or session marks dependent decision use
+`STALE`.
+
+### 7.4 Reasoning-surface observation and verdict binding
+
+Current browser/UI evidence is an **observation receipt**, not attestation.
+Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`; do not use a
+reasoning-surface attestation template for browser evidence and never claim
+cryptographic platform attestation.
+
+The receipt independently binds the required reviewer role, packet and input
+digests, exact submitted-visible payload or a declared reproducible transform,
+admission question, repository heads, signed-in surface, account, exact visible
+mode before submission, conversation session, submission, one completed
+response, response digest, and exact visible mode after response. Every
+observation is bound to the same transaction and conversation session. Exact
+mode equality is required: a Pro-plan account does not prove visible Pro mode,
+and visible Extra High does not satisfy Pro.
+
+Agent and subagent names, task names, role labels, branch names, worktree paths,
+process names, environment variables, prompt requests, packet-author claims,
+GitHub assertions, and model self-description have zero receipt weight. A
+corrected observation gets a new receipt and transaction and references the
+old mismatch; it never overwrites the incident.
+
+Receipts are single-use. Bind the exact completed response to
+`templates/SUPERVISION-VERDICT-ADMISSION.json`. The verdict cannot become
+authoritative unless the receipt is `VERIFIED_COMPLETE`, unused, same-session,
+payload-matched, and its response digest exactly matches the verdict record.
+Only `admissionState: ADMITTED` permits `authoritative: true`.
+
+Executable reference controls are in
+`scripts/mission_control_provenance.py`; the templates and schemas are the
+machine boundary. Required failures include:
+
+```text
+UNAUTHORIZED_CLAIM_PROMOTION
+AUTHORIZATION_REQUIREMENT_UNSATISFIED
+SUBJECT_BINDING_STALE
+PRODUCTION_REPRODUCTION_MISSING
+DEFINITIVE_RENDERING_REJECTED
+SELF_ASSERTED_REASONING_IDENTITY_REJECTED
+REASONING_SURFACE_MODE_MISMATCH
+REASONING_RECEIPT_SESSION_MISMATCH
+REASONING_RECEIPT_REPLAY_REJECTED
+REASONING_RECEIPT_PAYLOAD_MISMATCH
+REASONING_RECEIPT_INCOMPLETE
+VERDICT_RECEIPT_BINDING_MISMATCH
+ASSURANCE_CLASS_OVERCLAIM
+```
 
 ---
 
@@ -605,15 +710,27 @@ At minimum, test:
 17. An immediate-risk design defect is not delayed for batching.
 18. A Pro meta-review verdict cannot silently rewrite the architecture without repository change and tests.
 19. Owner says “complete profile”; executor infers 76 and receives `SCIENTIFIC_SCOPE_UNAUTHORIZED`.
-20. Owner explicitly says 76 with a current receipt and the claim is accepted.
-21. Extra High issues a versioned 76-item directive and the claim is accepted as reasoning authority.
+20. Owner explicitly says 76 with a current receipt, a new qualifying source, and an append-only `PROMOTED` transition; the new policy claim is accepted.
+21. Extra High issues a versioned 76-item recommendation, but the claim still requires `OWNER_EXPLICIT` and receives `AUTHORIZATION_REQUIREMENT_UNSATISFIED`.
 22. A contract says 76 while the exact production artifact exposes 23 and receives `CONTRACT_ARTIFACT_MISMATCH`.
 23. A fake backend proves phase filtering without proving production cardinality and release remains blocked.
 24. Worker-to-contract GREEN plus an unauthorized scientific criterion yields root RED.
 25. Tests pass while owner-facing numeric prose lacks claim provenance and definitive rendering is rejected.
-26. A mapping identity change invalidates the prior cardinality automatically.
+26. A mapping identity, subject commit, or directive-version change marks the prior claim `SUBJECT_BINDING_STALE` automatically.
 27. An executor receipt attempts to choose a denominator or populate scientific adequacy and schema admission fails.
 28. A reviewer repeats a producer-supplied cardinality without reproduction and review remains `UNKNOWN`.
+29. A copied or renamed fact cannot become policy without an append-only `PROMOTED` transition and new authority source.
+30. A synthetic reproduction verifies fixture behavior but cannot satisfy production reproduction.
+31. A worker marks a claim non-load-bearing, but a definitive owner-facing use site still triggers the rendering gate.
+32. An agent or subagent name contains `extra_high`; its receipt weight remains zero.
+33. A model says it is Pro; self-description remains zero-weight evidence.
+34. A Pro-plan account with no verified visible Pro mode leaves the receipt partial.
+35. Required Pro plus observed Extra High produces `REASONING_SURFACE_MODE_MISMATCH`.
+36. A completed response from another session cannot be paired with the current receipt.
+37. A previously used receipt cannot admit the same or a different response.
+38. An unexplained input-to-submitted digest change fails payload binding.
+39. A valid observation receipt paired with a different response digest rejects verdict admission.
+40. Browser-observed evidence claiming cryptographic platform attestation fails.
 
 The article-humanization `13.82% Human` fixture must explicitly demonstrate:
 

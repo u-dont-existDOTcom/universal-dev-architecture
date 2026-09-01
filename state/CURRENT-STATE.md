@@ -1,6 +1,17 @@
 # Current State
 
-Updated: 2026-08-22
+Updated: 2026-09-01
+
+## Active draft task checkpoint
+
+- The unmerged Mission Control authority-provenance repair on branch
+  `feedback/supervision-authority-laundering-20260901` is routed through
+  `state/MISSION-CONTROL-AUTHORITY-PROVENANCE-2026-09-01.md`.
+- Its exact pre-mutation branch boundary was
+  `6ec73802cf9439be7160f9ac2eea58c7bb95e683`.
+- This draft task does not supersede canonical `main`, authorize a Human Design
+  completeness denominator, or authorize merge, push, deployment, spending,
+  participant contact, session replacement, or browser-tab closure.
 
 ## Goal
 

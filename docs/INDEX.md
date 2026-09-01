@@ -74,10 +74,19 @@ Run these hostile fixtures:
 - `../evals/mission-control/contract-laundering-article-humanization-13.82.json`
 - `../evals/mission-control/outcome-regression-somatic-r15.json`
 - `../evals/mission-control/codex-self-supervision-articles-failure.json`
+- `../evals/mission-control/claim-authority-provenance-hostile.json`
+- `../evals/mission-control/reasoning-surface-receipt-hostile.json`
+- `../evals/mission-control/browser-operation-hostile.json`
 
 Machine-readable supervision templates:
 
 - `../templates/OBJECTIVE-RECONCILIATION.json`
+- `../templates/CLAIM-RECORD.json`
+- `../templates/CLAIM-TRANSITION.json`
+- `../templates/CLAIM-REPRODUCTION-RECEIPT.json`
+- `../templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`
+- `../templates/SUPERVISION-VERDICT-ADMISSION.json`
+- `../templates/BROWSER-OPERATION-RECEIPT.json`
 - `../templates/OUTCOME-PROGRESS-RECEIPT.json`
 - `../templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
 - `../templates/CODEX-EXECUTION-RECEIPT.json`
@@ -85,6 +94,13 @@ Machine-readable supervision templates:
 - `../templates/SUPERVISION-DESIGN-FEEDBACK.json`
 - `../templates/SCOPED-BLOCKER.json`
 - `../templates/WAIT-ADMISSION.json`
+
+Validate the authority-provenance JSON Schemas, template instances, incidents,
+and hostile-fixture vocabulary with:
+
+```bash
+python3 scripts/validate_mission_control_provenance.py --root .
+```
 
 Resolve the current active-task lock and matching task-local checkpoint before consuming repository-global execution status. A global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label is not transitive across task IDs; it affects the active frontier only through a current scoped blocker and causal dependency. A wait additionally requires an exact changing condition, actor or mechanism, and bounded horizon.
 

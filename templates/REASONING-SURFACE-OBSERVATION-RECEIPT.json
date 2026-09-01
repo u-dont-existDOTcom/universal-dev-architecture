@@ -1,0 +1,82 @@
+{
+  "$schema": "../schemas/reasoning-surface-observation-receipt.schema.json",
+  "schemaVersion": 1,
+  "receiptId": "replace-with-receipt-id",
+  "transactionId": "replace-with-transaction-id",
+  "reviewRequirementId": "replace-with-review-requirement-id",
+  "scopeKey": "replace-with-scope-key",
+  "packetId": "replace-with-packet-id",
+  "requiredReviewerRole": "PRO",
+  "requirementSourceRef": "replace-with-requirement-source-ref",
+  "subjectBinding": {
+    "sourcePacketDigest": {
+      "algorithm": "sha256",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "byteLength": 0,
+      "bytesDefinition": "exact UTF-8 source-packet bytes"
+    },
+    "inputPayloadDigest": {
+      "algorithm": "sha256",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "byteLength": 0,
+      "bytesDefinition": "exact UTF-8 source-packet bytes"
+    },
+    "submittedVisiblePayloadDigest": {
+      "algorithm": "sha256",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "byteLength": 0,
+      "bytesDefinition": "exact UTF-8 composer text submitted to the conversation"
+    },
+    "submissionTransform": {
+      "type": "NONE",
+      "description": null,
+      "transformDigest": null
+    },
+    "admissionQuestionDigest": {
+      "algorithm": "sha256",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "byteLength": 0,
+      "bytesDefinition": "exact UTF-8 admission-question bytes"
+    },
+    "boundRepositoryHeads": []
+  },
+  "conversation": {
+    "surfaceOrigin": "https://chatgpt.com",
+    "conversationSessionId": "replace-with-conversation-session-id"
+  },
+  "observations": {
+    "surface": {"requiredValue": "SIGNED_IN_CHATGPT_CHAT", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "account": {"requiredValue": "replace-with-required-account-alias-or-visible-label", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "visibleModePreSubmission": {"requiredValue": "Pro", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "conversationSession": {"requiredValue": "SAME_TRANSACTION_SESSION", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "submittedMessage": {"requiredValue": "EXACT_BOUND_PAYLOAD", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "completedResponse": {"requiredValue": "ONE_COMPLETE_ASSISTANT_RESPONSE", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "visibleModePostResponse": {"requiredValue": "Pro", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}}
+  },
+  "responsePayloadDigest": {
+    "algorithm": "sha256",
+    "value": null,
+    "byteLength": null,
+    "bytesDefinition": "exact UTF-8 completed assistant-response bytes"
+  },
+  "observer": {
+    "observerId": "replace-with-routing-executor-id",
+    "observerType": "ROUTING_EXECUTOR",
+    "trustDomain": "replace-with-observer-trust-domain",
+    "relationToReviewedWorker": "independent observer of the routed UI transaction"
+  },
+  "evidenceSourceType": "BROWSER_UI_OBSERVATION",
+  "assuranceClass": "OBSERVED_UI_RECEIPT",
+  "cryptographicPlatformAttestation": false,
+  "observedAt": "1970-01-01T00:00:00Z",
+  "freshnessPolicyRef": "replace-with-freshness-policy-ref",
+  "aggregateState": "PARTIAL",
+  "mismatchReasons": [],
+  "supersedesReceiptRef": null,
+  "incidentRefs": [],
+  "replayProtection": {
+    "singleUse": true,
+    "admissionNonce": "replace-with-single-use-admission-nonce",
+    "usedByVerdictRef": null
+  }
+}

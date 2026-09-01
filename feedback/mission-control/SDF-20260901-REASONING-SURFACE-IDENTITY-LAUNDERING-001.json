@@ -58,6 +58,7 @@
     }
   ],
   "proposedChange": null,
+  "proRevisedChange": "Reject agent, subagent, task, role, branch, worktree, process, environment, prompt, and model self-description as reasoning-surface evidence. Admit a review only through a single-use OBSERVED_UI_RECEIPT that independently binds the required visible mode, account, transaction, conversation session, exact submitted payload, completed response, post-response mode, and verdict response digest.",
   "alternativesConsidered": [],
   "risks": [
     "Reasoning authority can be fabricated accidentally from worker-controlled names.",
@@ -65,19 +66,44 @@
     "The owner again became the first detector of a supervision failure.",
     "Correcting labels without a verified reasoning review does not validate the existing proposed guardrails."
   ],
-  "workerRecommendation": "No universal fix is authored by Codex. A verified Extra High reasoning chat must diagnose the failure and produce the bounded Mission Control change directive. Until then, treat all guardrail text in this draft branch as an unverified candidate and prohibit merge or canonical adoption.",
-  "workerUncertainty": "The collaboration runtime does not expose sufficient evidence here to establish the subagent model or ChatGPT reasoning mode. The absence of verified identity is itself the controlling fact.",
+  "historicalWorkerRecommendationAtCommit6ec7380": "No universal fix is authored by Codex. A verified Extra High reasoning chat must diagnose the failure and produce the bounded Mission Control change directive. Until then, treat all guardrail text in this draft branch as an unverified candidate and prohibit merge or canonical adoption.",
+  "workerRecommendation": "Implement the admitted observation-receipt and verdict-binding controls on the draft branch while preserving the original mismatch as a non-authoritative append-only incident.",
+  "workerUncertainty": "A collaboration runtime still cannot establish ChatGPT mode. Only the separately observed signed-in UI transaction can satisfy the reasoning-surface requirement, and current browser evidence remains an observed UI receipt rather than cryptographic attestation.",
   "decisionThatCanChange": "How Mission Control authenticates reasoning-surface identity and prevents worker-controlled labels, role names, or task metadata from satisfying Extra High or Pro review requirements.",
   "routing": {
+    "stateScope": "HISTORICAL_AT_COMMIT_6EC7380",
     "extraHighPacketPrepared": false,
     "proMetaReviewRequired": true,
     "reviewPriority": "IMMEDIATE",
     "sharedProScopeKey": "supervision-architecture/a40d413-reasoning-surface-identity-v1"
   },
-  "status": "PENDING_VERIFIED_EXTRA_HIGH_DIAGNOSIS",
-  "proMetaReview": null,
+  "historicalStatusAtCommit6ec7380": "PENDING_VERIFIED_EXTRA_HIGH_DIAGNOSIS",
+  "subsequentRouting": {
+    "verifiedExtraHighRootCause": "TRUST_DOMAIN_CONFUSION_AND_SELF_ASSERTED_IDENTITY_PROMOTION",
+    "sharedProMetaReviewVerdict": "REVISE",
+    "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+    "packetId": "PRO-META-A40D413-AUTHORITY-PROVENANCE-20260901-v1",
+    "externalEvidenceRef": "u-dont-existDOTcom/humandesign@4ccd140b33f8473fa79e91ff6161caaaaa69323e:state/PRO-META-REVIEW-2026-09-01.md",
+    "privacyBoundary": "Raw signed-in Chat URLs and session identifiers remain owner-local."
+  },
+  "status": "PRO_REVISE_IMPLEMENTED_DRAFT_TESTS_PASS",
+  "proMetaReview": {
+    "verdict": "REVISE",
+    "admissionState": "ADMITTED_BY_EXTERNAL_SAME_SESSION_UI_RECEIPT",
+    "requiredArchitecture": [
+      "OBSERVED_UI_RECEIPT_NOT_PLATFORM_ATTESTATION",
+      "EXACT_VISIBLE_MODE",
+      "SAME_TRANSACTION_SESSION_BINDING",
+      "SINGLE_USE_REPLAY_PROTECTION",
+      "COMPLETED_RESPONSE_VERDICT_BINDING"
+    ]
+  },
   "ownerDecisionRef": "owner-correction-2026-09-01-save-reasoning-identity-failure",
-  "repositoryChangeRefs": [],
+  "repositoryChangeRefs": [
+    "templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json",
+    "templates/SUPERVISION-VERDICT-ADMISSION.json",
+    "scripts/mission_control_provenance.py"
+  ],
   "testRefs": [
     "tests/test_claim_authority_laundering.py",
     "evals/mission-control/unverified-reasoning-surface-identity.json"

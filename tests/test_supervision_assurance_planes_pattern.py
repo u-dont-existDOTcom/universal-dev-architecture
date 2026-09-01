@@ -33,7 +33,7 @@ class SupervisionAssurancePlanesPatternTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        self.assertEqual(reconciliation["schemaVersion"], 2)
+        self.assertEqual(reconciliation["schemaVersion"], 3)
         self.assertIn("independentSupervisorReceipt", reconciliation)
         self.assertIn("workerToContract", reconciliation["alignment"])
         self.assertIn("contractToOwner", reconciliation["alignment"])

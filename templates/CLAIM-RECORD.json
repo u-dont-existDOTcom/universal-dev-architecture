@@ -1,0 +1,56 @@
+{
+  "$schema": "../schemas/claim-record.schema.json",
+  "schemaVersion": 3,
+  "claimId": "replace-with-claim-id",
+  "claimVersion": 1,
+  "claimDigest": {
+    "algorithm": "sha256",
+    "canonicalization": "RFC8785_JCS",
+    "digestScope": "CLAIM_SEMANTICS",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "byteLength": 0
+  },
+  "claimText": "Replace with the exact claim text",
+  "claimValue": null,
+  "claimKind": "SCIENTIFIC_CRITERION",
+  "useSiteRefs": ["ACCEPTANCE_CRITERION"],
+  "loadBearingEvaluation": {
+    "rulesetVersion": "authority-provenance-v1",
+    "result": true,
+    "reasons": ["Referenced by an acceptance criterion"]
+  },
+  "subjectRef": {
+    "subjectType": "GIT_COMMIT",
+    "repository": "owner/repository",
+    "ref": "replace-with-exact-commit",
+    "version": null,
+    "digest": {"sha256": null}
+  },
+  "currentAuthorities": [
+    {
+      "authorityClass": "ARTIFACT_DERIVED_FACT",
+      "authoritySourceRef": "replace-with-artifact-evidence-ref",
+      "authorityScope": ["ASSERT_FACT"],
+      "scopeRefs": ["replace-with-artifact-fact-scope-ref"],
+      "status": "CURRENT"
+    }
+  ],
+  "requiredAuthorizations": [
+    {
+      "operation": "PROMOTE_TO_POLICY",
+      "requiredIssuerClass": "OWNER_EXPLICIT",
+      "scopeRef": "replace-with-policy-scope-ref",
+      "authorizationSourceRef": null,
+      "status": "MISSING"
+    }
+  ],
+  "evidenceRefs": [],
+  "derivation": null,
+  "reproductionRequirement": "REQUIRED",
+  "reproductionReceiptRefs": [],
+  "verificationState": "VERIFIED_FACT_ONLY",
+  "decisionUse": "FORBIDDEN",
+  "createdAt": "1970-01-01T00:00:00Z",
+  "expiresAt": null,
+  "supersedesClaimRef": null
+}

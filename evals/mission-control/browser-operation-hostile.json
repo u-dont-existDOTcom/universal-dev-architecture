@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "browser-operation-hostile",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "scenarios": [
+    {"id": "repository-browser-with-cli-available", "expected": "BROWSER_ROUTE_NOT_JUSTIFIED"},
+    {"id": "second-transient-tab-no-exception", "expected": "AGENT_TAB_CAP_EXCEEDED"},
+    {"id": "close-other-transaction-tab", "expected": "TAB_SESSION_MISMATCH"},
+    {"id": "close-unknown-stale-tab", "expected": "TAB_OWNERSHIP_UNVERIFIED"},
+    {"id": "navigate-owner-existing-tab", "expected": "PROTECTED_TAB_MUTATION_ATTEMPT"},
+    {"id": "cleanup-leaves-agent-tab", "expected": "AGENT_TAB_CLEANUP_INCOMPLETE"},
+    {"id": "observe-absence-attributes-actor", "expected": "TAB_OWNERSHIP_UNVERIFIED"}
+  ]
+}

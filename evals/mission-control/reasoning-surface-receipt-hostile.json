@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "reasoning-surface-receipt-hostile",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "scenarios": [
+    {"id": "agent-name-extra-high", "evidenceSourceType": "AGENT_NAME", "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
+    {"id": "model-self-description", "evidenceSourceType": "MODEL_SELF_DESCRIPTION", "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
+    {"id": "prompt-requested-mode", "evidenceSourceType": "PROMPT_REQUEST", "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
+    {"id": "pro-plan-not-pro-mode", "accountObserved": "Pro plan", "modeStatus": "MISSING", "expected": "REASONING_RECEIPT_INCOMPLETE"},
+    {"id": "pro-required-extra-high-observed", "requiredMode": "Pro", "observedMode": "Extra High", "expected": "REASONING_SURFACE_MODE_MISMATCH"},
+    {"id": "transplanted-session", "expected": "REASONING_RECEIPT_SESSION_MISMATCH"},
+    {"id": "receipt-replay", "expected": "REASONING_RECEIPT_REPLAY_REJECTED"},
+    {"id": "unexplained-payload-transform", "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
+    {"id": "response-verdict-digest-mismatch", "expected": "VERDICT_RECEIPT_BINDING_MISMATCH"},
+    {"id": "platform-attestation-overclaim", "expected": "ASSURANCE_CLASS_OVERCLAIM"}
+  ]
+}

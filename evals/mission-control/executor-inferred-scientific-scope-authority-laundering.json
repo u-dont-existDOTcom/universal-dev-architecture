@@ -30,16 +30,18 @@
       "id": "owner-explicitly-authorizes-76",
       "ownerSource": "Require all 76 non-validation items.",
       "claim": 76,
-      "claimAuthority": "OWNER_LITERAL",
+      "claimAuthority": "OWNER_EXPLICIT",
       "ownerSourceReceipt": "CURRENT_MATCH",
-      "expected": "ACCEPTED"
+      "promotionTransition": "CURRENT_APPEND_ONLY_MATCH",
+      "expected": "AUTHORIZED_POLICY"
     },
     {
       "id": "extra-high-versioned-directive-authorizes-76",
       "claim": 76,
       "claimAuthority": "REASONING_DECISION",
       "directive": "CURRENT_VERSIONED_MATCH",
-      "expected": "ACCEPTED_AS_REASONING_AUTHORITY"
+      "requiredIssuerClass": "OWNER_EXPLICIT",
+      "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"
     },
     {
       "id": "contract-76-production-23",
@@ -70,7 +72,7 @@
       "id": "mapping-change-invalidates-count",
       "priorArtifactIdentity": "mapping-v1",
       "currentArtifactIdentity": "mapping-v2",
-      "expected": "CARDINALITY_REVALIDATION_REQUIRED"
+      "expected": "SUBJECT_BINDING_STALE"
     },
     {
       "id": "executor-receipt-selects-denominator",

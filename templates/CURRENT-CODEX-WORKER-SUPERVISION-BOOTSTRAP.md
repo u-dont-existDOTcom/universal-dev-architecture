@@ -303,21 +303,35 @@ Every material requirement must be mapped, explicitly amended/removed by the own
 ### Claim-level authority and inferred numeric scope
 
 An authentic owner-source receipt does not authorize specificity absent from
-the source. Register every load-bearing claim with exact text/value, authority,
-claim kind, source/ref/hash, derivation command, artifact identity, verifier,
-verification time/freshness, and any authorized criterion reference.
+the source. Register every load-bearing claim using
+`templates/CLAIM-RECORD.json`: exact text/value and version, canonical digest,
+claim kind, actual use sites, immutable subject, current scoped authorities,
+conjunctive required authorizations, evidence/derivation/reproduction,
+verification state, and permitted decision use.
 
-Allowed authorities:
+Authority is not ordinal. The scoped authority classes are:
 
 ```text
-OWNER_LITERAL
+OWNER_EXPLICIT
 OWNER_CORRECTION
 REASONING_DECISION
 ARTIFACT_DERIVED_FACT
+OBSERVED_PLATFORM_STATE
 EXECUTOR_PROPOSAL
 ```
 
-Claim kinds:
+Every required authorization for the requested operation must be satisfied by
+an exact current source of the required issuer class and scope. A
+`REASONING_DECISION` cannot satisfy `OWNER_EXPLICIT` merely because it appears
+stronger. Reproduction verifies a fact but never promotes policy.
+
+Fact-to-policy use requires a new claim version plus an append-only
+`templates/CLAIM-TRANSITION.json` `PROMOTED` entry and a new qualifying
+authority source. Copying, renaming, placing the value in a contract, or reviewer
+repetition fails `UNAUTHORIZED_CLAIM_PROMOTION`. Owner corrections append new
+source/transition records; they never rewrite prior exact owner-source blocks.
+
+Claim kinds include:
 
 ```text
 FACT
@@ -325,6 +339,9 @@ IMPLEMENTATION_DETAIL
 SCIENTIFIC_CRITERION
 PRODUCT_DECISION
 RELEASE_CONDITION
+OWNER_ACCEPTANCE_CRITERION
+SUPERVISORY_VERDICT
+IDENTITY_ASSERTION
 ```
 
 An artifact-derived fact can report a count; it cannot choose that count as a
@@ -339,13 +356,25 @@ validation phase, evidence-sufficiency rule, scientific criterion, product
 decision, or release condition is `DIRECTIVE_SCOPE_EXCEEDED`.
 
 Use reconciliation failures `UNAUTHORIZED_ADDITION`,
-`INFERRED_NUMERIC_SCOPE`, and `DERIVATION_UNVERIFIED`. Rerun objective
+`INFERRED_NUMERIC_SCOPE`, `DERIVATION_UNVERIFIED`,
+`AUTHORIZATION_REQUIREMENT_UNSATISFIED`, `SUBJECT_BINDING_STALE`,
+`PRODUCTION_REPRODUCTION_MISSING`, and `DEFINITIVE_RENDERING_REJECTED`. Rerun objective
 reconciliation whenever a load-bearing acceptance count, threshold, evidence
 class, validation phase, scientific criterion, product decision, or release
 condition changes. Require exact production-artifact cardinality evidence for
 production claims; synthetic fixtures prove only their bounded mechanics. An
 independent reviewer reproduces each load-bearing cardinality or returns
 `UNKNOWN`.
+
+Reasoning identity requires
+`templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json` and a response-bound
+`templates/SUPERVISION-VERDICT-ADMISSION.json`. Current browser evidence is
+`OBSERVED_UI_RECEIPT`, never cryptographic platform attestation. Agent/subagent
+names, role or task labels, branch/worktree/process/environment names, prompts,
+and model self-description have zero receipt weight. Bind exact visible mode,
+account, transaction, conversation session, submission, completed response,
+post-response mode, and response digest. A used or mismatched receipt cannot
+admit a verdict.
 
 For AskRigor and comparable research work, keep separate:
 
@@ -480,10 +509,20 @@ For browser automation:
 
 - default to headless;
 - keep headed Brave outside the owner’s active workspace where possible;
-- reuse only near-term relevant tabs;
+- use authenticated CLI/local Git for repository retrieval when that satisfies
+  the capability;
+- record necessity, alternatives, baseline tabs, session/transaction ownership,
+  actions, and cleanup in `templates/BROWSER-OPERATION-RECEIPT.json`;
+- reuse only near-term relevant tabs and allow at most one agent-opened transient
+  tab unless a recorded necessity exception applies;
 - audit automation-owned tabs about every 30 minutes and at task/account/limit boundaries;
-- close stale, duplicate, completed, one-time, and superseded automation-owned tabs after preserving state;
-- never close owner/pre-existing/pinned tabs, unsaved forms, pending transfers/results, paid/irreversible actions, or tabs needed to reconcile ambiguity.
+- mark stale, duplicate, completed, one-time, and superseded tabs for cleanup
+  after preserving state, then close only when the receipt proves ownership;
+- close only a tab proven `AGENT_OPENED` in the same browser session and
+  transaction; never close owner/pre-existing/pinned/unknown tabs, signed-in
+  reasoning conversations, unsaved forms, pending transfers/results,
+  paid/irreversible actions, or tabs needed to reconcile ambiguity;
+- observing absence never authorizes attributing which actor closed a tab.
 
 A persistent chat does not require a persistent open tab. Persist URL, account alias, scope key, epoch, capsule, and last reviewed boundary locally.
 

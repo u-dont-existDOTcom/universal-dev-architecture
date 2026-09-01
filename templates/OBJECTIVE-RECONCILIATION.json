@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "reconciliationId": "replace-with-reconciliation-id",
   "taskId": "replace-with-task-id",
   "trigger": "TASK_START",
@@ -37,41 +37,94 @@
   "claimRegistry": [
     {
       "claimId": "replace-with-claim-id",
+      "claimVersion": 1,
+      "claimDigest": {
+        "algorithm": "sha256",
+        "canonicalization": "RFC8785_JCS",
+        "digestScope": "CLAIM_SEMANTICS",
+        "value": "0000000000000000000000000000000000000000000000000000000000000000",
+        "byteLength": 0
+      },
       "claimText": "Replace with the exact load-bearing claim",
-      "authority": "EXECUTOR_PROPOSAL",
+      "claimValue": null,
       "claimKind": "FACT",
-      "loadBearing": true,
-      "sourceRefs": [],
-      "sourceSha256": null,
-      "derivationCommand": null,
-      "artifactIdentity": null,
-      "verifier": null,
-      "verifiedAt": null,
-      "freshnessStatus": "DERIVATION_UNVERIFIED",
-      "authorizedCriterionRef": null,
-      "decisionUse": "UNAUTHORIZED"
+      "useSiteRefs": ["ACCEPTANCE_CRITERION"],
+      "loadBearingEvaluation": {
+        "rulesetVersion": "authority-provenance-v1",
+        "result": true,
+        "reasons": ["Referenced by an acceptance criterion"]
+      },
+      "subjectRef": {
+        "subjectType": "GIT_COMMIT",
+        "repository": "owner/repository",
+        "ref": "replace-with-exact-commit",
+        "version": null,
+        "digest": {"sha256": null}
+      },
+      "currentAuthorities": [
+        {
+          "authorityClass": "EXECUTOR_PROPOSAL",
+          "authoritySourceRef": "replace-with-executor-proposal-ref",
+          "authorityScope": ["ASSERT_FACT"],
+          "scopeRefs": ["replace-with-exact-claim-scope-ref"],
+          "status": "CURRENT"
+        }
+      ],
+      "requiredAuthorizations": [],
+      "evidenceRefs": [],
+      "derivation": null,
+      "reproductionRequirement": "REQUIRED",
+      "reproductionReceiptRefs": [],
+      "verificationState": "UNVERIFIED",
+      "decisionUse": "FORBIDDEN",
+      "createdAt": "1970-01-01T00:00:00Z",
+      "expiresAt": null,
+      "supersedesClaimRef": null
     }
   ],
+  "claimTransitions": [],
+  "reproductionReceipts": [],
   "claimAuthorityPolicy": {
-    "allowedAuthorities": [
-      "OWNER_LITERAL",
+    "authorityClasses": [
+      "OWNER_EXPLICIT",
       "OWNER_CORRECTION",
       "REASONING_DECISION",
       "ARTIFACT_DERIVED_FACT",
+      "OBSERVED_PLATFORM_STATE",
       "EXECUTOR_PROPOSAL"
+    ],
+    "authorizationOperations": [
+      "ASSERT_FACT",
+      "PROMOTE_TO_POLICY",
+      "AUTHOR_SUPERVISORY_VERDICT",
+      "AUTHORIZE_EXECUTION",
+      "AUTHORIZE_RELEASE"
     ],
     "loadBearingClaimKinds": [
       "FACT",
       "IMPLEMENTATION_DETAIL",
       "SCIENTIFIC_CRITERION",
       "PRODUCT_DECISION",
-      "RELEASE_CONDITION"
+      "RELEASE_CONDITION",
+      "OWNER_ACCEPTANCE_CRITERION",
+      "SUPERVISORY_VERDICT",
+      "IDENTITY_ASSERTION"
     ],
     "reconciliationFailureStates": [
       "UNAUTHORIZED_ADDITION",
       "INFERRED_NUMERIC_SCOPE",
-      "DERIVATION_UNVERIFIED"
+      "DERIVATION_UNVERIFIED",
+      "DIRECTIVE_SCOPE_EXCEEDED",
+      "UNAUTHORIZED_CLAIM_PROMOTION",
+      "AUTHORIZATION_REQUIREMENT_UNSATISFIED",
+      "SUBJECT_BINDING_STALE",
+      "PRODUCTION_REPRODUCTION_MISSING",
+      "DEFINITIVE_RENDERING_REJECTED"
     ],
+    "authorityOrdinalAllowed": false,
+    "requiredAuthorizationsConjunctive": true,
+    "promotionRequiresAppendOnlyTransition": true,
+    "reproductionMayPromotePolicy": false,
     "artifactFactMaySelectScientificCriterion": false,
     "unregisteredDefinitiveRenderingAllowed": false
   },

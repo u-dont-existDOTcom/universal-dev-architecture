@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/claim-reproduction-receipt.schema.json",
+  "title": "Subject-bound independent reproduction receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "reproductionReceiptId", "claimRef", "subjectRef", "producerEvidenceRef", "reproducer", "independenceBasis", "methodRef", "methodDigest", "commandOrProcedure", "resultValue", "resultDigest", "matchState", "synthetic", "reproducedAt", "freshnessState", "promotesAuthority"],
+  "properties": {
+    "$schema": {"const": "../schemas/claim-reproduction-receipt.schema.json"},
+    "schemaVersion": {"const": 1},
+    "reproductionReceiptId": {"type": "string", "minLength": 1},
+    "claimRef": {"$ref": "#/$defs/claimRef"},
+    "subjectRef": {"type": "object", "minProperties": 2},
+    "producerEvidenceRef": {"type": "string", "minLength": 1},
+    "reproducer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityRef", "type", "trustDomain"],
+      "properties": {
+        "identityRef": {"type": "string", "minLength": 1},
+        "type": {"const": "HUMAN_OR_INDEPENDENT_PROCESS"},
+        "trustDomain": {"type": "string", "minLength": 1}
+      }
+    },
+    "independenceBasis": {"type": "string", "minLength": 1},
+    "methodRef": {"type": "string", "minLength": 1},
+    "methodDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commandOrProcedure": {"type": "string", "minLength": 1},
+    "resultValue": true,
+    "resultDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "matchState": {"enum": ["MATCH", "MISMATCH", "INCONCLUSIVE"]},
+    "synthetic": {"type": "boolean"},
+    "reproducedAt": {"type": "string", "format": "date-time"},
+    "freshnessState": {"enum": ["CURRENT", "STALE"]},
+    "promotesAuthority": {"const": false}
+  },
+  "$defs": {
+    "claimRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimId", "claimVersion", "claimDigest"],
+      "properties": {
+        "claimId": {"type": "string", "minLength": 1},
+        "claimVersion": {"type": "integer", "minimum": 1},
+        "claimDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

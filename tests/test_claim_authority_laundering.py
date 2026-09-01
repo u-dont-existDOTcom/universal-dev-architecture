@@ -15,18 +15,23 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        self.assertEqual(template["schemaVersion"], 2)
+        self.assertEqual(template["schemaVersion"], 3)
         policy = template["claimAuthorityPolicy"]
         self.assertEqual(
-            policy["allowedAuthorities"],
+            policy["authorityClasses"],
             [
-                "OWNER_LITERAL",
+                "OWNER_EXPLICIT",
                 "OWNER_CORRECTION",
                 "REASONING_DECISION",
                 "ARTIFACT_DERIVED_FACT",
+                "OBSERVED_PLATFORM_STATE",
                 "EXECUTOR_PROPOSAL",
             ],
         )
+        self.assertFalse(policy["authorityOrdinalAllowed"])
+        self.assertTrue(policy["requiredAuthorizationsConjunctive"])
+        self.assertTrue(policy["promotionRequiresAppendOnlyTransition"])
+        self.assertFalse(policy["reproductionMayPromotePolicy"])
         self.assertFalse(policy["artifactFactMaySelectScientificCriterion"])
         self.assertFalse(policy["unregisteredDefinitiveRenderingAllowed"])
         self.assertEqual(
@@ -35,23 +40,30 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "UNAUTHORIZED_ADDITION",
                 "INFERRED_NUMERIC_SCOPE",
                 "DERIVATION_UNVERIFIED",
+                "DIRECTIVE_SCOPE_EXCEEDED",
+                "UNAUTHORIZED_CLAIM_PROMOTION",
+                "AUTHORIZATION_REQUIREMENT_UNSATISFIED",
+                "SUBJECT_BINDING_STALE",
+                "PRODUCTION_REPRODUCTION_MISSING",
+                "DEFINITIVE_RENDERING_REJECTED",
             },
         )
 
         claim = template["claimRegistry"][0]
         required_fields = {
             "claimId",
+            "claimVersion",
+            "claimDigest",
             "claimText",
-            "authority",
+            "claimValue",
             "claimKind",
-            "sourceRefs",
-            "sourceSha256",
-            "derivationCommand",
-            "artifactIdentity",
-            "verifier",
-            "verifiedAt",
-            "freshnessStatus",
-            "authorizedCriterionRef",
+            "useSiteRefs",
+            "loadBearingEvaluation",
+            "subjectRef",
+            "currentAuthorities",
+            "requiredAuthorizations",
+            "reproductionRequirement",
+            "verificationState",
             "decisionUse",
         }
         self.assertTrue(required_fields.issubset(claim))
@@ -107,12 +119,16 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
             expected["contract-76-production-23"], "CONTRACT_ARTIFACT_MISMATCH"
         )
         self.assertEqual(
+            expected["extra-high-versioned-directive-authorizes-76"],
+            "AUTHORIZATION_REQUIREMENT_UNSATISFIED",
+        )
+        self.assertEqual(
             expected["fake-backend-proves-filtering-only"], "RELEASE_BLOCKED"
         )
         self.assertEqual(expected["green-worker-unauthorized-criterion"], "ROOT_RED")
         self.assertEqual(expected["reviewer-repeats-unreproduced-count"], "UNKNOWN")
 
-    def test_feedback_packet_awaits_verified_extra_high_before_pro(self) -> None:
+    def test_feedback_packet_preserves_history_and_records_admitted_pro_revision(self) -> None:
         feedback = json.loads(
             (
                 ROOT
@@ -132,8 +148,18 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "supervision-architecture/"
             )
         )
-        self.assertEqual(feedback["status"], "PENDING_VERIFIED_EXTRA_HIGH_REVIEW")
-        self.assertIsNone(feedback["proMetaReview"])
+        self.assertEqual(
+            feedback["historicalStatusAtCommit6ec7380"],
+            "PENDING_VERIFIED_EXTRA_HIGH_REVIEW",
+        )
+        self.assertEqual(
+            feedback["status"], "PRO_REVISE_IMPLEMENTED_DRAFT_TESTS_PASS"
+        )
+        self.assertEqual(feedback["proMetaReview"]["verdict"], "REVISE")
+        self.assertEqual(
+            feedback["proMetaReview"]["completenessDenominatorSelection"],
+            "FORBIDDEN_WITHOUT_OWNER_EXPLICIT",
+        )
         self.assertGreaterEqual(len(feedback["evidenceRefs"]), 4)
 
     def test_unverified_subagent_name_cannot_claim_extra_high_authority(self) -> None:
@@ -168,9 +194,14 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         )
         self.assertFalse(feedback["routing"]["extraHighPacketPrepared"])
         self.assertEqual(
-            feedback["status"], "PENDING_VERIFIED_EXTRA_HIGH_DIAGNOSIS"
+            feedback["status"], "PRO_REVISE_IMPLEMENTED_DRAFT_TESTS_PASS"
+        )
+        self.assertEqual(
+            feedback["historicalStatusAtCommit6ec7380"],
+            "PENDING_VERIFIED_EXTRA_HIGH_DIAGNOSIS",
         )
         self.assertIsNone(feedback["proposedChange"])
+        self.assertEqual(feedback["proMetaReview"]["verdict"], "REVISE")
 
     def test_current_bootstrap_and_pattern_fail_closed(self) -> None:
         bootstrap = (
@@ -188,6 +219,9 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
             "EXECUTOR_PROPOSAL",
             "production-artifact cardinality",
             "independent reviewer",
+            "OWNER_EXPLICIT",
+            "UNAUTHORIZED_CLAIM_PROMOTION",
+            "REASONING-SURFACE-OBSERVATION-RECEIPT",
         )
         for text in (bootstrap, pattern):
             for phrase in required:

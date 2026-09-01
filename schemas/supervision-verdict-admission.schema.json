@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/supervision-verdict-admission.schema.json",
+  "title": "Observation-bound supervision verdict",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "verdictId", "scopeKey", "packetId", "verdict", "reviewRole", "responsePayloadDigest", "reasoningSurfaceReceiptRef", "boundSubjectRefs", "admissionState", "authoritative", "authorizedScope", "prohibitedConsequences", "issuedAt", "admittedAt"],
+  "properties": {
+    "$schema": {"const": "../schemas/supervision-verdict-admission.schema.json"},
+    "schemaVersion": {"const": 1},
+    "verdictId": {"type": "string", "minLength": 1},
+    "scopeKey": {"type": "string", "minLength": 1},
+    "packetId": {"type": "string", "minLength": 1},
+    "verdict": {"enum": ["ACCEPT", "REVISE", "REJECT"]},
+    "reviewRole": {"enum": ["PRO", "EXTRA_HIGH"]},
+    "responsePayloadDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value", "byteLength", "bytesDefinition"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "value": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byteLength": {"type": "integer", "minimum": 0},
+        "bytesDefinition": {"type": "string", "minLength": 1}
+      }
+    },
+    "reasoningSurfaceReceiptRef": {"type": "string", "minLength": 1},
+    "boundSubjectRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "admissionState": {"enum": ["PENDING_RECEIPT", "ADMITTED", "REJECTED_MISMATCH", "REJECTED_REPLAY", "REJECTED_RESPONSE_BINDING", "STALE"]},
+    "authoritative": {"type": "boolean"},
+    "authorizedScope": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "prohibitedConsequences": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "admittedAt": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"admissionState": {"const": "ADMITTED"}}, "required": ["admissionState"]},
+      "then": {"properties": {"authoritative": {"const": true}, "admittedAt": {"type": "string", "format": "date-time"}}},
+      "else": {"properties": {"authoritative": {"const": false}}}
+    }
+  ]
+}

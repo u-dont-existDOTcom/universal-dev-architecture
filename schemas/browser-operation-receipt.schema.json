@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/browser-operation-receipt.schema.json",
+  "title": "Browser operation necessity, ownership, and cleanup receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "browserOperationId", "transactionId", "taskId", "packetId", "purposeClass", "browserNecessity", "necessaryCapability", "nonBrowserAlternatives", "selectedRoute", "decisionRef", "browserSessionRef", "baselineTabs", "maxAgentTransientTabs", "exceptionRef", "actions", "agentOpenedTabIds", "cleanup", "ownerTabsTouched", "verificationState", "failureCodes", "recordedAt"],
+  "properties": {
+    "$schema": {"const": "../schemas/browser-operation-receipt.schema.json"},
+    "schemaVersion": {"const": 1},
+    "browserOperationId": {"type": "string", "minLength": 1},
+    "transactionId": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "packetId": {"type": "string", "minLength": 1},
+    "purposeClass": {"enum": ["CHATGPT_REASONING_SURFACE_OBSERVATION", "INTERACTIVE_AUTHENTICATED_UI", "REPOSITORY_RETRIEVAL", "OTHER"]},
+    "browserNecessity": {"enum": ["REQUIRED", "NOT_REQUIRED", "UNKNOWN"]},
+    "necessaryCapability": {"type": "string", "minLength": 1},
+    "nonBrowserAlternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["route", "availability", "satisfiesCapability", "evidenceRef"],
+        "properties": {
+          "route": {"type": "string", "minLength": 1},
+          "availability": {"enum": ["AVAILABLE", "UNAVAILABLE", "UNKNOWN"]},
+          "satisfiesCapability": {"type": "boolean"},
+          "evidenceRef": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "selectedRoute": {"enum": ["BROWSER", "GITHUB_CLI", "LOCAL_GIT", "OTHER"]},
+    "decisionRef": {"type": "string", "minLength": 1},
+    "browserSessionRef": {"type": "string", "minLength": 1},
+    "baselineTabs": {"type": "array", "items": {"$ref": "#/$defs/tab"}},
+    "maxAgentTransientTabs": {"type": "integer", "minimum": 0},
+    "exceptionRef": {"type": ["string", "null"]},
+    "actions": {"type": "array", "items": {"$ref": "#/$defs/action"}},
+    "agentOpenedTabIds": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "attempted", "results", "remainingAgentTabIds"],
+      "properties": {
+        "policy": {"const": "CLOSE_ONLY_AGENT_OPENED"},
+        "attempted": {"type": "boolean"},
+        "results": {"type": "array", "items": {"type": "object"}},
+        "remainingAgentTabIds": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "ownerTabsTouched": {"type": "boolean"},
+    "verificationState": {"enum": ["VERIFIED", "PARTIAL", "MISMATCH", "UNVERIFIED"]},
+    "failureCodes": {"type": "array", "items": {"enum": ["BROWSER_ROUTE_NOT_JUSTIFIED", "AGENT_TAB_CAP_EXCEEDED", "TAB_OWNERSHIP_UNVERIFIED", "TAB_SESSION_MISMATCH", "PROTECTED_TAB_MUTATION_ATTEMPT", "AGENT_TAB_CLEANUP_INCOMPLETE", "UNNECESSARY_OWNER_BROWSER_MUTATION"]}},
+    "recordedAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "tab": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tabId", "ownershipClass", "protected"],
+      "properties": {
+        "tabId": {"type": "string", "minLength": 1},
+        "ownershipClass": {"enum": ["OWNER_EXISTING", "AGENT_OPENED", "UNKNOWN"]},
+        "protected": {"type": "boolean"}
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "tabId", "ownershipClass", "protected", "browserSessionRef", "transactionId", "result", "closedByActor"],
+      "properties": {
+        "type": {"enum": ["OPEN", "REUSE", "NAVIGATE", "CLOSE", "OBSERVE_PRESENT", "OBSERVE_ABSENT", "OBSERVE_STALE"]},
+        "tabId": {"type": "string", "minLength": 1},
+        "ownershipClass": {"enum": ["OWNER_EXISTING", "AGENT_OPENED", "UNKNOWN"]},
+        "protected": {"type": "boolean"},
+        "browserSessionRef": {"type": "string", "minLength": 1},
+        "transactionId": {"type": "string", "minLength": 1},
+        "result": {"enum": ["SUCCEEDED", "FAILED", "OBSERVED"]},
+        "closedByActor": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

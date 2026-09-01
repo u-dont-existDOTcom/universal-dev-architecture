@@ -1,0 +1,23 @@
+{
+  "$schema": "../schemas/supervision-verdict-admission.schema.json",
+  "schemaVersion": 1,
+  "verdictId": "replace-with-verdict-id",
+  "scopeKey": "replace-with-scope-key",
+  "packetId": "replace-with-packet-id",
+  "verdict": "REVISE",
+  "reviewRole": "PRO",
+  "responsePayloadDigest": {
+    "algorithm": "sha256",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "byteLength": 0,
+    "bytesDefinition": "exact UTF-8 completed assistant-response bytes"
+  },
+  "reasoningSurfaceReceiptRef": "replace-with-reasoning-surface-receipt-id",
+  "boundSubjectRefs": [],
+  "admissionState": "PENDING_RECEIPT",
+  "authoritative": false,
+  "authorizedScope": ["SUPERVISION_DESIGN_META_REVIEW"],
+  "prohibitedConsequences": ["MERGE", "DEPLOY", "INVITATION_ROTATION", "OWNER_SESSION_REPLACEMENT", "PARTICIPANT_CONTACT", "SPENDING", "COMPLETENESS_DENOMINATOR_SELECTION"],
+  "issuedAt": "1970-01-01T00:00:00Z",
+  "admittedAt": null
+}

@@ -157,6 +157,14 @@ Avoid one vague “source of truth.” Each dimension has exactly one authority:
 | Genuine tradeoff decisions | Joel |
 | Dashboard projection | Rebuildable projection from the above; never independent authority |
 
+This table does not define an authority rank. A load-bearing claim may require
+several scoped authorizations at once. Use the conjunctive claim record,
+append-only transition ledger, subject-bound reproduction receipt, and
+reasoning-surface observation/verdict admission controls defined in
+`patterns/supervision-assurance-planes-and-pro-meta-review.md`. A reasoning
+decision cannot substitute for `OWNER_EXPLICIT`, and reproduction cannot
+promote a fact into policy.
+
 ### 4.2 Task-centric, not session-centric
 
 A durable task survives:
@@ -1535,6 +1543,13 @@ Every action displays the plain-language effect before identifiers.
 
 ChatGPT web automation is convenience, not infrastructure truth.
 
+Repository retrieval uses authenticated CLI or local Git whenever those routes
+satisfy the capability. Do not open repository browser tabs merely to acquire
+evidence already available through deterministic tooling. Before any headed
+browser mutation, instantiate `templates/BROWSER-OPERATION-RECEIPT.json` and
+record the needed capability, alternatives, necessity, baseline ownership,
+one-tab transient cap, same-session actions, and cleanup.
+
 The system must still work through:
 
 - generated packet files;
@@ -1570,10 +1585,26 @@ It must not:
 - handle credentials;
 - become the only copy of a review;
 - use a chat response without packet-ID/hash validation.
+- navigate or close an owner-existing, protected, unknown-ownership, or
+  other-session tab;
+- infer who closed a stale or absent tab;
+- exceed one agent-opened transient tab without a recorded necessity exception.
 
 ### 25.4 Model-surface recording
 
-Record the user-visible mode selected, such as `Extra High` or `Pro Extended`, plus timestamp and chat URL. Do not claim an exact hidden backend model identity when the web UI does not expose one.
+Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json` for current browser
+evidence. Bind the signed-in surface and account, exact visible mode before
+submission, transaction and conversation session, exact submitted payload, one
+completed response and response digest, and exact visible mode afterward.
+Then bind the response digest and single-use receipt to
+`templates/SUPERVISION-VERDICT-ADMISSION.json`.
+
+Do not call this UI evidence platform attestation. Agent/subagent names, task or
+role labels, branch/worktree/process/environment names, prompts, and model
+self-description have zero evidentiary weight. A Pro-plan account does not prove
+visible Pro mode, and visible Extra High does not satisfy Pro. Preserve private
+chat URLs and raw session identifiers owner-locally rather than in a public
+repository; commit only sanitized receipt references and non-secret digests.
 
 ---
 

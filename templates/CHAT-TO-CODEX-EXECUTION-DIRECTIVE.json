@@ -42,7 +42,11 @@
     "chatEpoch": "replace-with-chat-epoch",
     "decisionId": "replace-with-reasoning-decision-id",
     "capsuleId": "replace-with-context-capsule-id",
-    "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity"
+    "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity",
+    "reasoningSurfaceObservationReceiptRef": "replace-with-observed-ui-receipt-ref",
+    "verdictAdmissionRef": "replace-with-verdict-admission-ref",
+    "verdictAdmissionState": "PENDING_RECEIPT",
+    "cryptographicPlatformAttestationClaimed": false
   },
   "strategy": {
     "strategyId": "replace-with-strategy-id",
@@ -59,6 +63,10 @@
     "productDecisions": [],
     "releaseConditions": [],
     "loadBearingNumericClaimRefs": [],
+    "requiredAuthorizationRefs": [],
+    "claimTransitionRefs": [],
+    "authorityOrdinalAllowed": false,
+    "requiredAuthorizationsConjunctive": true,
     "restrictedDimensions": [
       "denominators",
       "thresholds",
