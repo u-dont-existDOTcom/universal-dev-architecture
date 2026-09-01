@@ -1,5 +1,6 @@
 name: One-shot direct PM transcript bootstrap
 
+# Attempt 2: exhaustive event summary and union narrowing repaired.
 on:
   push:
     branches:
