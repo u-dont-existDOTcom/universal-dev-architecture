@@ -32,6 +32,72 @@ Do not say `fixed`, `done`, or equivalent unless the requested observable behavi
 
 When an owner says a requirement was previously requested but not fixed, treat that as evidence that task-time activation failed. Repair the active contract and enforcement point before offering another explanation-only closeout.
 
+## Chat reasoning and Work execution authority
+
+The Project Manager Chat or an explicitly selected specialist ChatGPT supervisor owns:
+
+- proposals;
+- methodology;
+- prioritization;
+- spending design;
+- consequential tradeoffs;
+- scientific interpretation;
+- supervisory verdicts;
+- selection of the next strategy.
+
+Codex and Work are execution-only. They may perform bounded repository, browser, terminal, deployment, data-acquisition, test, and artifact operations that Chat cannot execute directly. They may not originate, expand, recommend, or attribute a proposal, methodology, priority, spending plan, or consequential choice.
+
+Before any controlled action, evaluate the request using `lib/chat-work-authority-gate.ts`. A Codex/Work-authored semantic proposal is invalid even if it is inexpensive, technically plausible, or later summarized in a ChatGPT-shaped voice.
+
+A Chat-originated directive must have a source-bound message identity and exact body digest. A Codex summary, copied text, local subagent, chat title, opened browser tab, or assertion that a chat already decided something is not a reasoning receipt. Unknown or mismatched source provenance fails closed.
+
+When Chat can complete the work directly, keep it in Chat. Delegate only the mechanical residue that requires external tools. Every execution result returns automatically to the source reasoning chat; Codex/Work may not decide the next consequential step from its own receipt.
+
+## Spending boundary
+
+A zero-spend owner decision is an active authority state, not merely an execution budget field.
+
+While such a decision is current:
+
+- paid model API inference is forbidden;
+- Codex/Work may not author a paid smoke proposal or pilot ceiling;
+- no older or hypothetical nonzero manifest can revive the path;
+- ChatGPT consumer/Pro/Extra High use remains the default reasoning and evaluation surface when available under the owner's plan;
+- any later nonzero-spend proposal must originate in a verified reasoning chat and still requires a newer explicit owner decision before execution.
+
+A guard that prevents the API call but permits Codex to invent and advocate a paid path is insufficient.
+
+## Internal supervisor routing
+
+Owner-directed routing among the Project Manager Chat, specialist supervisor chats, and Codex/Work is pre-authorized internal control-plane transport.
+
+For a configured internal supervisor route:
+
+- route factual state automatically;
+- preserve the exact packet and digest;
+- capture the destination chat/message identity and response provenance;
+- never ask Joel to relay the packet;
+- never ask Joel to say `send it`;
+- never treat routine internal routing as third-party representational communication requiring another action-time confirmation;
+- never use this exception for an external recipient, publication, purchase, account change, or other genuinely external representational action.
+
+The more-specific standing owner authorization for internal supervision routing controls over generic browser confirmation guidance. If the destination chat is genuinely missing or inaccessible, report that exact transport blocker after attempting the authorized route; do not convert the owner into the courier.
+
+## Completion and continuation
+
+The default is full completion of the owner-requested outcome.
+
+A green subtask, commit, pull request, test run, plan, or prepared artifact triggers the next eligible implementation, verification, deployment, or live-acceptance step. It is not a stopping condition while the parent outcome remains open.
+
+Stop only when:
+
+- the exact owner outcome is live-verified;
+- a genuine owner-only semantic choice remains;
+- an unavailable external capability blocks the remaining path after all nonblocked work is complete; or
+- a safety, security, privacy, or irreversible external-action boundary requires owner confirmation.
+
+Any stop must name the precise unmet outcome, blocker, actor who can clear it, and next executable action. Do not return merely because one bounded slice is complete.
+
 ## Time and timestamp truth
 
 Current wall-clock time is obtainable from a trusted runtime or time service when the active surface exposes one. Do not claim that GPT or ChatGPT has literally no way to know the current time when a system clock, user-time tool, dedicated time tool, authenticated provider timestamp, or authorized operating-system clock is available.
