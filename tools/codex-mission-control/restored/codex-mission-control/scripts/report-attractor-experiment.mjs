@@ -30,6 +30,7 @@ const armReports = [...arms.entries()].map(([arm, planned]) => {
   const passCount = evaluated.filter((item) => item.evaluation.verdict === "PASS").length;
   const failureFamilies = evaluated.filter((item) => item.evaluation.strongestLiteralDefect)
     .map((item) => item.evaluation.strongestLiteralDefect);
+  const dominantFailure = dominantValue(failureFamilies);
   return {
     arm,
     planned: planned.length,
@@ -43,10 +44,14 @@ const armReports = [...arms.entries()].map(([arm, planned]) => {
       ? [Math.min(...recorded.map((run) => run.candidateWordCount)), Math.max(...recorded.map((run) => run.candidateWordCount))]
       : null,
     strongestLiteralDefects: failureFamilies,
+    dominantFailureFamily: dominantFailure.value,
+    dominantFailureFamilyRate: dominantFailure.rate,
     complete: recorded.length === planned.length && evaluated.length === planned.length,
   };
 });
 const allComplete = armReports.every((arm) => arm.complete);
+const modelIdentities = new Set(runs.map((run) => `${run.providerSurface}\u0000${run.modelFamily}\u0000${run.modelMode}`));
+const modelIdentityMatched = runs.length === 0 || modelIdentities.size === 1;
 const provenanceViolations = [
   ...runs.filter((run) => run.runtimeIdentityStatus !== "VERIFIED"
     || run.memoryState !== "DISABLED"
@@ -56,20 +61,46 @@ const provenanceViolations = [
     || evaluation.runtimeIdentityVisibleBeforeVerdict !== false
     || evaluation.verdictFrozenBeforeStateRead !== true),
 ];
+if (!modelIdentityMatched) provenanceViolations.push({ reason: "MODEL_IDENTITY_DIFFERS_ACROSS_MATCHED_ARMS" });
+
+const allEvaluated = evaluations.filter((evaluation) => plan.runs.some((run) => run.runId === evaluation.runId));
+const totalPasses = allEvaluated.filter((evaluation) => evaluation.verdict === "PASS").length;
+const allFailures = allEvaluated.filter((evaluation) => evaluation.strongestLiteralDefect)
+  .map((evaluation) => evaluation.strongestLiteralDefect);
+const overallDominantFailure = dominantValue(allFailures);
+const sharedFailureThreshold = 0.75;
+const sharedAttractorFailure = allComplete && provenanceViolations.length === 0
+  && (totalPasses === 0 || overallDominantFailure.rate >= sharedFailureThreshold);
+
+const decision = !allComplete || provenanceViolations.length > 0
+  ? "INCOMPLETE_OR_INVALID_NO_COMPARATIVE_CLAIM"
+  : sharedAttractorFailure
+    ? "REJECT_ORCHESTRATION_AS_PRIMARY_REMEDY_MOVE_TO_DISTRIBUTION_CONTROL"
+    : "OWNER_EDITORIAL_REVIEW_REQUIRED_NO_AUTOMATIC_ADOPTION";
+
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   experimentId: plan.experimentId,
+  experimentStage: plan.experimentStage,
   runPlanSha256: plan.runPlanSha256,
   generatedAt: new Date().toISOString(),
   complete: allComplete,
   arms: armReports,
+  diagnosisAccuracyCountedAsProgress: false,
+  matchedModelIdentity: modelIdentityMatched,
   duplicateCandidateHashes: duplicateHashes,
   provenanceViolationCount: provenanceViolations.length,
-  decision: allComplete && provenanceViolations.length === 0
-    ? "OWNER_EDITORIAL_REVIEW_REQUIRED_NO_AUTOMATIC_ADOPTION"
-    : "INCOMPLETE_OR_INVALID_NO_COMPARATIVE_CLAIM",
+  overallPassCount: totalPasses,
+  overallDominantFailureFamily: overallDominantFailure.value,
+  overallDominantFailureFamilyRate: overallDominantFailure.rate,
+  sharedAttractorFailure,
+  sharedFailureThreshold,
+  decision,
+  requiredNextStage: sharedAttractorFailure ? plan.decisionRules.sharedFailureNextStage : [],
   automaticAdoptionPerformed: false,
   limitations: [
+    "Accurate self-critique and post-hoc diagnosis are explicitly excluded as progress because they do not demonstrate generative control.",
+    "Execution isolation can reveal state contamination or rare samples; it does not alter model weights, activations, logits, or learned continuation probabilities.",
     "Prompt-assigned behavior cells are exploration controls, not proof of post-generation structural diversity.",
     "Semantic fidelity and post-generation behavior classification require separate blinded records before an arm can be preferred.",
     "Detector output, if separately authorized, is secondary evidence and cannot replace owner editorial judgment."
@@ -93,4 +124,12 @@ function duplicates(values) {
   const duplicate = new Set();
   for (const value of values) seen.has(value) ? duplicate.add(value) : seen.add(value);
   return [...duplicate];
+}
+
+function dominantValue(values) {
+  if (!values.length) return { value: null, count: 0, rate: 0 };
+  const counts = new Map();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  const [value, count] = [...counts.entries()].sort((left, right) => right[1] - left[1] || String(left[0]).localeCompare(String(right[0])))[0];
+  return { value, count, rate: count / values.length };
 }
