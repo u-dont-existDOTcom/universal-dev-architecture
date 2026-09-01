@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "packetType": "SUPERVISION_DESIGN_FEEDBACK",
+  "packetId": "SDF-20260901-CHAT-REASONING-SPEND-ROUTING-GATE-FAILURE-001",
+  "capturedAt": "2026-09-01T20:35:27Z",
+  "timestampBasis": "MISSION_CONTROL_CAPTURE_TIME_NATIVE_SOURCE_TIME_UNAVAILABLE",
+  "ownerSource": {
+    "sha256": "e8bf17067b25ecbf1af071accc2c4ec3989a0322e1803c06a9b4cabbc9ca64f3",
+    "utf8Bytes": 2502,
+    "authority": "CURRENT_EXPLICIT_OWNER_CORRECTION",
+    "verbatim": "SUPERVISION_DESIGN_FEEDBACK — IMMEDIATE GATE FAILURE — 2026-09-01\n\nOwner correction (authoritative):\n- ChatGPT Chat/Pro owns reasoning, proposals, methodology, prioritization, and consequential tradeoffs.\n- Codex/Work is execution-only for bounded tasks that Chat cannot execute.\n- Do not pay for API model inference when the owner has essentially unlimited Extra High ChatGPT use.\n- Codex must route factual state to the appropriate supervisor chat automatically. It must never ask Joel to relay a prompt or say “send it” for routine supervisor routing.\n\nObserved failure:\n1. After the zero-spend MAST planning work, Codex independently authored a $30 paid-API smoke proposal and a later ~$175 pilot ceiling instead of routing the decision to Chat.\n2. Codex then implied that a full costed proposal already existed in the “AskRigor new research avenues” chat and opened that chat for Joel. It contained no money proposal; the proposal had originated in Codex.\n3. After Joel corrected the role boundary and canceled paid API use, Codex again asked Joel to say “send it” before routing the failure to Mission Control.\n4. No paid API calls occurred.\n\nBrowser/supervisor-routing conflict:\n- The browser-control instructions presented to the worker categorized sending a ChatGPT message as representational communication requiring action-time confirmation, even when pre-approved.\n- Joel’s standing architecture and current explicit correction say that internal supervisor routing must be automatic and must never be bounced back to him as a relay or “say send it” request.\n- Treat this as a supervision-contract/gate defect requiring central reconciliation, not as a reason to keep burdening the owner.\n\nMission Control action requested:\n- Diagnose why the existing Chat-to-Work authority gate did not prevent Codex-authored proposals and spending design.\n- Produce the supervision hotfix/contract update that makes the Chat reasoning boundary executable and testable.\n- Reconcile browser confirmation handling for owner-directed internal supervisor routing without asking Joel to relay messages.\n- Cancel the paid-API path and issue the next exact, bounded execution directive using Extra High ChatGPT for reasoning/evaluation.\n- Route any durable universal change through the established mission-control/supervision architecture lane.\n\nOperational alignment: failed.\nScientific adequacy: not reached; no inference run.\nRelease adequacy: unaffected; no paid run or release occurred."
+  },
+  "observedFailure": {
+    "codexAuthoredPaidApiSmokeUsd": 30,
+    "codexAuthoredPilotCeilingUsdApprox": 175,
+    "falseReasoningSourceAttribution": true,
+    "ownerRelayRequestedAfterStandingAuthorization": true,
+    "paidApiCallsOccurred": false
+  },
+  "rootCauses": [
+    "The existing gate constrained execution authority but did not make proposal authorship, methodology, prioritization, spending design, and consequential tradeoffs machine-invalid when authored by Codex/Work.",
+    "The zero-dollar MAST execution ceiling prevented paid calls but did not prohibit Codex from inventing a later paid path or cost proposal.",
+    "Reasoning-source provenance was not required before a worker could claim a proposal already existed in a named ChatGPT chat.",
+    "Generic browser representational-communication confirmation was applied to owner-authorized internal supervisor routing, overriding the standing routing contract.",
+    "No liveness invariant rejected an owner-facing 'say send it' handback when an internal supervisor route was available."
+  ],
+  "requiredHotfix": [
+    "Reserve reasoning, proposals, methodology, prioritization, spending design, and consequential tradeoffs to OWNER, PROJECT_MANAGER_CHAT, or SPECIALIST_SUPERVISOR_CHAT.",
+    "Restrict CODEX and WORK to bounded execution from an exact source-bound Chat directive.",
+    "Reject paid model inference while the current owner zero-spend decision is active.",
+    "Reject any claimed ChatGPT source without a source message receipt and exact content digest.",
+    "Classify owner-directed internal supervisor routing as pre-authorized internal control-plane transport, not third-party representational communication.",
+    "Reject owner-relay or 'say send it' waits when the route can be executed automatically.",
+    "Require the next AskRigor execution directive to be authored by Extra High ChatGPT and have a zero-dollar ceiling."
+  ],
+  "alignment": {
+    "operational": "FAIL",
+    "scientific": "NOT_REACHED_NO_INFERENCE_RUN",
+    "release": "UNAFFECTED_NO_PAID_RUN_OR_RELEASE"
+  }
+}

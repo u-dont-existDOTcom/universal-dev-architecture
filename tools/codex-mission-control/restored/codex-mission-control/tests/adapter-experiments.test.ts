@@ -1,0 +1,118 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+test("Hermes experiment is bounded, non-authoritative, and executable without adopting Hermes", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/hermes/experiment.json"), "utf8"));
+  assert.equal(manifest.status, "READY_EXPERIMENT");
+  assert.equal(manifest.authority.hermesIsAuthoritative, false);
+  assert.equal(manifest.authority.missionControlLedgerRemainsSourceOfTruth, true);
+  assert.equal(manifest.authority.symphonyRoleChanges, false);
+  assert.equal(manifest.bounds.maximumCalendarDays, 7);
+  assert.equal(manifest.scenarios.length, 3);
+  assert.equal(manifest.adoptionGate.defaultDecision, "DO_NOT_ADOPT");
+  const results = path.join(appRoot, "experiments/hermes/results/2026-09-01-provider-independent");
+  const summary = JSON.parse(fs.readFileSync(path.join(results, "summary.json"), "utf8"));
+  assert.equal(summary.runtime.upstreamCommit, "e600507a8f5b88296a617034a905084e655bf0b9");
+  assert.equal(summary.score.runs, 18);
+  assert.equal(summary.score.gates.zeroAuthorityViolations, true);
+  assert.equal(summary.score.gates.noLostOrReorderedLedgerEvents, true);
+  assert.equal(summary.score.passed, false);
+  assert.equal(summary.decision, "DO_NOT_ADOPT_KEEP_BASELINE");
+  assert.equal(summary.automaticAdoptionPerformed, false);
+  assert.equal(fs.readdirSync(results).filter((name) => name !== "summary.json").length, 18);
+  const run = spawnSync(process.execPath, ["scripts/run-hermes-experiment.mjs", "--arm", "baseline", "--scenario", "continuity-after-restart", "--dry-run"], { cwd: appRoot, encoding: "utf8" });
+  assert.equal(run.status, 0, run.stderr);
+  const result = JSON.parse(run.stdout) as { dryRun: boolean; authority: { hermesIsAuthoritative: boolean } };
+  assert.equal(result.dryRun, true);
+  assert.equal(result.authority.hermesIsAuthoritative, false);
+});
+
+test("n8n evaluation is pass-through only and parity comparison fails closed", () => {
+  const evaluation = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/n8n/evaluation.json"), "utf8"));
+  const workflow = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/n8n/pass-through-workflow.json"), "utf8"));
+  assert.equal(evaluation.status, "QUEUED_EVALUATION");
+  assert.equal(evaluation.sourceOfTruth, false);
+  assert.equal(evaluation.reasoningAuthority, false);
+  assert.equal(evaluation.schedulingAuthority, false);
+  assert.equal(evaluation.defaultDecision, "KEEP_DIRECT_ADAPTER");
+  assert.equal(workflow.active, false);
+  assert.equal(workflow.meta.missionControlAuthority, false);
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mission-control-n8n-eval-"));
+  try {
+    const direct = path.join(directory, "direct.jsonl");
+    const matching = path.join(directory, "matching.jsonl");
+    const changed = path.join(directory, "changed.jsonl");
+    const event = { schema_version: 2, event_id: "event:1", data: { type: "worker_message_recorded", body: "same" } };
+    fs.writeFileSync(direct, `${JSON.stringify(event)}\n`);
+    fs.writeFileSync(matching, `${JSON.stringify({ event_id: "event:1", data: { body: "same", type: "worker_message_recorded" }, schema_version: 2 })}\n`);
+    fs.writeFileSync(changed, `${JSON.stringify({ ...event, event_id: "event:2" })}\n`);
+    const pass = spawnSync(process.execPath, ["scripts/evaluate-n8n-adapter.mjs", "--direct", direct, "--candidate", matching], { cwd: appRoot, encoding: "utf8" });
+    assert.equal(pass.status, 0, pass.stderr);
+    assert.equal(JSON.parse(pass.stdout).exactEventParity, true);
+    const fail = spawnSync(process.execPath, ["scripts/evaluate-n8n-adapter.mjs", "--direct", direct, "--candidate", changed], { cwd: appRoot, encoding: "utf8" });
+    assert.equal(fail.status, 1);
+    assert.equal(JSON.parse(fail.stdout).decision, "KEEP_DIRECT_ADAPTER");
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the attractor experiment treats diagnosis as present and orchestration as a bounded isolation diagnostic", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/attractor-independence/experiment.json"), "utf8"));
+  assert.equal(manifest.status, "READY_FOR_BOUNDED_ISOLATION_DIAGNOSTIC");
+  assert.equal(manifest.causalModel.diagnosisAvailable, true);
+  assert.equal(manifest.causalModel.generativeControlAvailableThroughOrdinarySelfCritique, false);
+  assert.equal(manifest.causalModel.diagnosisAccuracyCountsAsProgress, false);
+  assert.equal(manifest.fixedControls.sameExactModelAcrossArms, true);
+  assert.equal(manifest.fixedControls.crossCandidateCommunication, false);
+  assert.equal(manifest.fixedControls.modelDebate, false);
+  assert.equal(manifest.fixedControls.selfDiagnosisReturnedToWriter, false);
+  assert.deepEqual(manifest.arms.map((arm: { id: string }) => arm.id), [
+    "DIRECT_FRESH_PROCESS",
+    "N8N_ISOLATED_EXECUTION",
+  ]);
+  assert.deepEqual(manifest.deferredArms.map((arm: { id: string; disposition: string }) => [arm.id, arm.disposition]), [
+    ["HERMES_ISOLATED_PROFILE_MEMORY_DISABLED", "DEFER_NO_DISTINCT_CONTROL_MECHANISM"],
+  ]);
+  assert.equal(manifest.primaryOutcome, "BLIND_EDITORIAL_PASS_RATE");
+  assert.equal(manifest.authority.detectorIsPrimaryJudge, false);
+  assert.equal(manifest.authority.orchestratorMayAuthorVerdict, false);
+  assert.match(manifest.decisionRules.noMoreDiagnosisLoop, /another critic/i);
+});
+
+test("the real-worker sidecar proves transport but cannot author semantic acknowledgement or reconciliation", () => {
+  const run = spawnSync(process.execPath, [
+    "scripts/run-worker-adapter.mjs", "--worker", "human-design-governance",
+    "--repo", appRoot, "--state-file", "README.md", "--dry-run",
+  ], { cwd: appRoot, encoding: "utf8" });
+  assert.equal(run.status, 0, run.stderr);
+  const result = JSON.parse(run.stdout) as {
+    dryRun: boolean;
+    source: { repository: string; head: string; stateSha256: string };
+    events: Array<{ data: { type: string; state?: string; body?: string } }>;
+  };
+  assert.equal(result.dryRun, true);
+  assert.equal(result.source.repository, appRoot);
+  assert.match(result.source.head, /^[a-f0-9]{40}$/);
+  assert.match(result.source.stateSha256, /^[a-f0-9]{64}$/);
+  assert.ok(result.events.some((event) => event.data.type === "outbound_message_acknowledged"));
+  assert.ok(result.events.some((event) => event.data.type === "worker_connection_observed" && event.data.state === "CONNECTED"));
+  assert.ok(result.events.some((event) => event.data.type === "worker_message_recorded"
+    && event.data.body?.includes("Semantic acknowledgement, queue publication, and reconciliation remain pending")));
+  const forbidden = new Set([
+    "direction_acknowledged",
+    "work_queue_published",
+    "direction_reconciled",
+    "structured_blocker_recorded",
+    "change_proposal_recorded",
+  ]);
+  assert.deepEqual(result.events.filter((event) => forbidden.has(event.data.type)), []);
+});

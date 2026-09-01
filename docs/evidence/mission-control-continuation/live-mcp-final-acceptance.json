@@ -1,0 +1,39 @@
+{
+  "acceptance": "PASS",
+  "checkedAt": "2026-09-01T00:44:43.880Z",
+  "client": "distinct-stdio-mcp-bridge",
+  "protocolVersion": "2025-06-18",
+  "server": {
+    "name": "codex-mission-control",
+    "version": "1.0.0"
+  },
+  "tools": [
+    {
+      "name": "mission_control_get_fleet",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "mission_control_get_worker",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "fleet": {
+    "latestEventId": 99,
+    "hermesQueueState": "DONE",
+    "workerCount": 4
+  },
+  "worker": {
+    "id": "human-design-governance",
+    "directionId": "direction:live-humandesign-acceptance-20260901",
+    "freshness": "CURRENT",
+    "connection": "CONNECTED"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-QUEUED-SLICE-CONTINUITY-001",
+  "createdAt": "2026-08-31T13:13:48Z",
+  "taskId": "askrigor-issue-150-continuation",
+  "workerRunId": "codex-root-20260831-pr148-closeout",
+  "ownerOutcome": {
+    "ownerOutcomeId": "continuous-autonomous-completion",
+    "epoch": 2,
+    "sha256": "9ddb016c76e5f9421469ec4807c6603bf25d4833cac8ef90e231b5e63fca32e0"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-31",
+    "sha256OrCommit": "465b3b3c330189148409d509d5acb21fd898d544"
+  },
+  "type": "DEFECT",
+  "category": "EXECUTOR_HANDOFF_LIVENESS",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "After AskRigor issue #150 cycle A passed, the worker posted the required immutable receipt and ended the owner-facing turn even though the same directive already specified the next local synthetic slice and no owner decision was missing.",
+  "relevantRule": {
+    "path": "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "section": "11. Continue automatically and keep the reasoning handoff live",
+    "excerpt": "Reaching a directive stop or review boundary stops only further substantive execution under that directive. It does not authorize Codex to end the owner-facing loop after merely returning an execution receipt."
+  },
+  "observedOrHypotheticalFailure": "The phrase separate bounded directive was treated as a request for a new owner turn instead of a controller-owned reasoning handoff. Joel had to tell the worker to continue, repeating the owner-as-message-bus failure that the accepted executor-handoff-liveness design was intended to prevent.",
+  "evidenceRefs": [
+    "https://github.com/u-dont-existDOTcom/AskRigor/issues/150#issuecomment-5478690855",
+    "owner-source:sha256:9ddb016c76e5f9421469ec4807c6603bf25d4833cac8ef90e231b5e63fca32e0",
+    "feedback/mission-control/SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001-CORRECTIONS-CLOSURE-VERDICT.json"
+  ],
+  "proposedChange": "Make queued-slice continuity explicit in the shared bootstrap and current-worker migration instruction, add EXECUTOR_CONTINUATION_DROPPED, and change the Mission Control worker projection from STOP_AND_RETURN_TO_REASONING_SUPERVISOR to a nonterminal route-await-resume state.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Keep the current wording and rely on the owner to send continue",
+      "disposition": "REJECTED_OWNER_AS_MESSAGE_BUS"
+    },
+    {
+      "alternative": "Let Codex cross every review boundary without a chat-authored directive",
+      "disposition": "REJECTED_REASONING_EXECUTION_BOUNDARY_LOSS"
+    }
+  ],
+  "risks": [
+    "Automatic continuation must not bypass a genuine owner decision, permission, spending, publication, destructive-action, or unavailable-reasoning boundary.",
+    "The worker UI must distinguish nonterminal review waiting from unauthorized continued execution."
+  ],
+  "workerRecommendation": "Apply the already-accepted closed-loop handoff design consistently: keep later slices queued, have the controller obtain the next reasoning directive, and resume without owner relay unless a genuine owner decision is missing.",
+  "workerUncertainty": "No new strategy is proposed. Pro meta-review should confirm whether EXECUTOR_CONTINUATION_DROPPED is best represented as a new alert code or an alias of EXECUTOR_HANDOFF_DROPPED.",
+  "decisionThatCanChange": "The canonical alert vocabulary and the exact Mission Control projection for a receipt awaiting review while later authorized slices remain.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/2026-08-31"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": "owner-source:sha256:9ddb016c76e5f9421469ec4807c6603bf25d4833cac8ef90e231b5e63fca32e0",
+  "repositoryChangeRefs": [
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "docs/exec-plans/2026-08-31-current-workers-chat-supervisor-migration-instruction.md"
+  ],
+  "testRefs": [
+    "tests/test_executor_handoff_liveness.py::ExecutorHandoffLivenessTests::test_32_review_boundaries_never_require_the_owner_to_restart_queued_slices"
+  ]
+}

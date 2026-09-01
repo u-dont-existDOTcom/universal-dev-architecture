@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "waitId": "replace-with-stable-wait-id",
+  "activeTaskId": "replace-with-active-task-id",
+  "reasonForWait": "replace-with-causal-reason",
+  "blockingBlockerId": "replace-with-applicable-blocker-id-or-null",
+  "reasoningRequestId": null,
+  "causalDependency": "replace-with-exact-task-dependency",
+  "conditionExpectedToChange": {
+    "kind": "replace-with-condition-kind",
+    "identity": "replace-with-workflow-issue-decision-or-request-id",
+    "currentState": "replace-with-current-state",
+    "expectedState": "replace-with-expected-state",
+    "sourceRef": "replace-with-authoritative-condition-source",
+    "actorOrMechanism": "replace-with-actor-or-mechanism-that-can-change-it",
+    "requiredCapabilityOrOperation": "replace-with-exact-blocked-capability-or-operation"
+  },
+  "sourceObservedAt": "1970-01-01T00:00:00Z",
+  "waitStartedAt": "1970-01-01T00:00:01Z",
+  "pollOrNotificationMechanism": {
+    "mode": "NOTIFICATION",
+    "identity": "replace-with-exact-poll-or-notification-mechanism"
+  },
+  "pollingNeeded": false,
+  "nextCheckAt": "1970-01-01T00:01:00Z",
+  "maximumWaitHorizonSeconds": 3600,
+  "stateIfHorizonExpires": "BLOCKED_EXTERNAL",
+  "ownerActionRequired": false,
+  "ownerDecisionId": null,
+  "ownerAction": "NONE",
+  "unrelatedWorkAllowed": true,
+  "allowedStatesIfHorizonExpires": [
+    "BLOCKED_EXTERNAL",
+    "OWNER_DECISION_REQUIRED",
+    "NO_VALID_STRATEGY",
+    "HANDOFF_BLOCKED"
+  ]
+}

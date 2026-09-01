@@ -1,0 +1,435 @@
+ACCEPT_WITH_REVISION
+
+OWNER DECISION REQUIRED: NO
+
+The first-turn architecture is substantially implemented. The explanation-first queue, target-neutral lifecycle, owner-action obligation, scoped continuation policy, Test cleanup projection, contract-repair branch, and AskRigor assurance planes are acceptable.
+
+Two narrow lifecycle invariants remain schema-blocking as stated in this packet. They do not require owner input and do not block routine UI work.
+
+1. Freeze disposition
+Ready to freeze
+
+The following public semantics are ready to freeze:
+
+Target-neutral directive kinds and lifecycle names.
+
+Separation of issuance, delivery, acknowledgement, start, evidence submission, verification, and resolution.
+
+Receiver-bound delivery and digest-bound acknowledgement.
+
+Correction-attempt, assignment-epoch, target, contract, and owner-outcome identity.
+
+Expiring correctionInProgress semantics.
+
+Structured owner-action obligations and fail-closed NONE.
+
+The full DECISION_REQUIRED choice packet.
+
+PAUSE_ALL, SAFE_WITHIN_SCOPE, CONTINUE_UNRESTRICTED, and UNKNOWN.
+
+Contract repair as distinct from worker behavioral redirection.
+
+Independent operational, scientific, and release assurance planes.
+
+Numeric alignment as secondary metadata.
+
+Not yet ready to freeze
+
+The terminal finding-closure and verification-freshness semantics need two additional invariants:
+
+A finding-status event must not be able to bypass correction verification.
+
+Verification must reopen on every declared validity-binding change, not only candidate, contract, or owner-outcome changes.
+
+After those are enforced, this slice can be accepted without another owner decision.
+
+2. Remaining schema-blocking loopholes
+Blocker A — Free-form finding-status transitions could bypass the correction lifecycle
+
+The packet says:
+
+findings start as immutable OPEN records;
+
+finding_status_changed events derive MITIGATED, RESOLVED, INVALIDATED, or REOPENED;
+
+CORRECTION_RESOLVED requires every bound finding to be RESOLVED or INVALIDATED.
+
+That is insufficient unless the store also validates how a finding reached RESOLVED or INVALIDATED.
+
+Otherwise, an emitter could append:
+
+finding_status_changed:
+  OPEN → RESOLVED
+
+without a current CORRECTION_VERIFIED event, thereby satisfying the aggregate resolution gate while bypassing all evidence requirements.
+
+Require every status-change event to carry at least:
+
+finding_id
+from_status
+to_status
+reason_code
+basis_event_ids
+actor_id
+actor_role
+occurred_at
+candidate_digest
+contract_hash
+owner_outcome_hash
+
+Enforce these transition rules:
+
+RESOLVED
+
+Must reference a current, valid CORRECTION_VERIFIED event whose:
+
+finding binding includes this exact finding;
+
+candidate digest matches;
+
+contract hash matches;
+
+owner-outcome hash and epoch match;
+
+evidence-requirement schema matches;
+
+verification policy remains current;
+
+verification receipt has not been invalidated or reopened.
+
+An explicitly authorized non-correction resolution pathway may exist, but it must have an equally strong evidence basis and a distinct reason code. A bare status assertion is invalid.
+
+INVALIDATED
+
+Must reference:
+
+the evidence showing the original finding was unsupported, obsolete, duplicated, or malformed;
+
+an authorized invalidator identity and method;
+
+an invalidation reason code;
+
+any affected directive withdrawal or supersession event.
+
+Invalidation must not project as successful correction.
+
+MITIGATED
+
+Must include:
+
+mitigation evidence;
+
+residual risk;
+
+remaining required response;
+
+next review trigger.
+
+REOPENED
+
+Must reference the exact durable event or binding change that invalidated prior closure.
+
+This is a validation/schema invariant, not merely a UI concern.
+
+Blocker B — Verification invalidation triggers remain incomplete
+
+The packet explicitly implements reopening when the current:
+
+candidate changes;
+
+contract changes;
+
+owner outcome changes.
+
+The first-turn freshness requirement was broader. A previously valid verification can also become invalid when any of the following changes:
+
+verification_policy_hash
+evidence_requirement_schema_hash
+assignment_epoch
+target_epoch
+relevant execution environment
+source snapshot or source corpus
+verifier method version, where policy declares it material
+
+For example, a scientific verification performed under an obsolete AskRigor evidence schema must not remain VERIFIED merely because the report digest did not change.
+
+The robust schema is to make validity dimensions explicit on each verification:
+
+verification_validity_scope:
+  candidate_digest
+  contract_hash
+  owner_outcome_hash
+  verification_policy_hash
+  evidence_requirement_schema_hash
+  assignment_epoch
+  target_epoch
+  environment_bindings
+  source_snapshot_bindings
+  invalidate_on
+
+Any change to a declared validity dimension must:
+
+make verified = false;
+
+make resolved = false;
+
+project CORRECTION_REOPENED;
+
+identify the exact invalidating event;
+
+append a durable reopen event or an equivalent causally linked invalidation record.
+
+A projection-only reopen with no durable causal reference would weaken auditability.
+
+Closure-label safeguard
+
+CORRECTION_RESOLVED should also carry a closure basis:
+
+CORRECTED_AND_VERIFIED
+FINDING_INVALIDATED
+MIXED_RESOLUTION
+
+This prevents an all-invalidated finding set from appearing as though corrective work succeeded. The lifecycle may be closed, but the operator-facing label should be:
+
+CLOSED — FINDING INVALIDATED
+
+not:
+
+CORRECTION COMPLETED
+
+This can be incorporated into Blocker A rather than added as a separate lifecycle state.
+
+Reasonable follow-on hardening, not schema blockers
+
+These improvements are worthwhile but do not prevent freezing after the two invariants above:
+
+Publish a machine-readable transition matrix and property-test illegal transitions.
+
+Add an explicit CORRECTION_PROGRESS_RECORDED or lease-renewal event for long-running corrections. Until then, lease expiry correctly fails closed, so this risks false negatives rather than false claims of progress.
+
+Validate authorized-executor and verifier roles against a durable authorization-policy version rather than trusting a role string.
+
+Test duplicate delivery receipts, replayed acknowledgements, out-of-order events, clock skew, and concurrent predecessor conflicts.
+
+Add historical replay tests proving that the same event stream always produces the same projection.
+
+Show the closure basis and reopening trigger prominently in the detailed audit view.
+
+3. Test cleanup projection
+
+Yes. The current Test cleanup projection avoids the identified false claims and gives the correct operational directive.
+
+At:
+
+DIRECTIVE_DELIVERED
+
+the valid projection is:
+
+REDIRECT DELIVERED — AWAITING ACKNOWLEDGEMENT
+Correction in progress: false
+Acknowledged: false
+Correction started: false
+Evidence submitted: false
+Verified: false
+Resolved: false
+Current path: UNSAFE — STOP
+Owner action: NONE
+
+The card plainly identifies:
+
+the forbidden production-scheduler and caller changes;
+
+why they violate a test-only task;
+
+the absent plan-change reason;
+
+the invalid assumption about production timing semantics;
+
+the exact stop-and-revert directive;
+
+the required revert/diff/test evidence;
+
+the next review trigger.
+
+The continuation semantics are also correct:
+
+Before stop/revert:
+  current path unsafe
+  no permission to continue that path
+
+After stop/revert:
+  SAFE_WITHIN_SCOPE
+  allowed: tests/**, test-support/**
+  forbidden: src/core/**, src/production/**
+
+This correctly separates “the owner need not act” from “the problem requires attention.” owner_action = NONE must not lower the card’s priority.
+
+The only residual dependency is Blocker A: later finding closure must remain impossible without evidence-gated status transitions. It does not undermine the current delivered/unacknowledged projection.
+
+4. Contract repair and AskRigor assurance planes
+Contract repair
+
+Accepted.
+
+The target model correctly permits:
+
+Worker → Contract: GREEN
+Contract → Owner: DIVERGED
+Overall: RED
+Directive kind: CONTRACT_REPAIR
+Target: TASK_CONTRACT
+
+That avoids falsely accusing a worker that faithfully followed a laundered or defective contract.
+
+Supporting work is not automatically accepted merely because worker behavior was conformant. Its continued use remains governed by the scoped continuation policy and later reconciliation against the repaired contract and owner outcome.
+
+The root should remain open until:
+
+the replacement contract has a new immutable hash;
+
+affected workers receive it;
+
+the current or replacement worker run acknowledges or adopts it;
+
+prior artifacts are classified as reusable, requiring rework, or incompatible;
+
+the resulting candidate is verified against the repaired contract and owner outcome.
+
+The reported contract-laundering tests are aligned with that requirement.
+
+AskRigor
+
+Accepted.
+
+The independent planes correctly prevent averaging or laundering one failure through another success:
+
+Operational assurance
+Scientific assurance
+Release assurance
+
+Therefore:
+
+Operational PASS + Scientific FAIL
+
+must remain release-blocking and identify the unsupported inference.
+
+Likewise:
+
+Scientific PASS + Release FAIL
+
+must identify the publication barrier and exact remediation rather than implying scientific weakness.
+
+The stated bindings—candidate, claim span, sources, manifests, protocol rule, evaluator, verification policy, release gate, and reason codes—are sufficient once the broader freshness rule in Blocker B applies to AskRigor verification policy and evidence-schema changes.
+
+5. Owner decision
+
+No owner decision is genuinely required.
+
+The remaining work is deterministic schema enforcement:
+
+evidence-gate every terminal finding-status transition;
+
+add complete declared validity dimensions and automatic reopening;
+
+preserve closure basis so invalidation is not displayed as successful correction.
+
+No competing product policy, UX philosophy, or risk preference needs owner adjudication.
+
+Default if these changes are not implemented:
+
+Do not freeze terminal lifecycle semantics.
+Continue routine UI and non-terminal lifecycle implementation.
+Fail closed on attempted RESOLVED or INVALIDATED finding transitions.
+Treat verification as stale when its current validity cannot be established.
+Final state vector
+scope_key:
+  supervision-architecture/pr42-owner-outcome-dual-alignment
+
+feedback_id:
+  SDF-20260830-DASHBOARD-ACTIONABILITY-001
+
+turn:
+  2 of 2 — substantive chat closed after this response
+
+verdict:
+  ACCEPT_WITH_REVISION
+
+owner_decision_required:
+  false
+
+explanation_first_attention_queue:
+  ACCEPTED
+
+numeric_alignment_secondary:
+  ACCEPTED
+
+test_cleanup_top_viewport:
+  ACCEPTED
+
+test_cleanup_current_status:
+  DIRECTIVE_DELIVERED
+  awaiting_acknowledgement
+  correction_in_progress_false
+  current_path_unsafe_stop
+
+target_neutral_lifecycle:
+  ACCEPTED
+
+normal_and_exception_states:
+  ACCEPTED
+
+owner_action_enum_and_obligation:
+  ACCEPTED
+
+owner_action_none_fail_closed:
+  ACCEPTED
+
+continuation_policy:
+  ACCEPTED
+
+contract_repair_branch:
+  ACCEPTED
+
+askrigor_three_assurance_planes:
+  ACCEPTED
+
+public_schema_freeze:
+  BLOCKED_ONLY_ON:
+    - evidence-gated finding-status transitions
+    - complete verification validity/invalidation dimensions
+    - explicit correction closure basis
+
+routine_ui_implementation:
+  CONTINUE
+
+further_owner_input:
+  NOT_REQUIRED
+Authority and evidence high-water mark
+Architecture authority:
+  u-dont-existDOTcom/universal-dev-architecture
+  e76dc37d7116bfe865f2fbef52299f7d05e1e86d
+
+Local adoption boundary:
+  73962d6546dd0ba585f2fa356226e6db2782f7ea
+
+Deterministic fixture commit:
+  06c2ffb
+
+Attention/correction addendum SHA-256:
+  187fd414a4540fd8f8a39bacd5ef85196bf7706acc86bc0934782d98759b1251
+
+Feedback packet SHA-256:
+  c875ceb66c42f32c11e70bf3bd4ebc947c3265fefe9f5393362994b0533b4bd9
+
+Deterministic UX fixture SHA-256:
+  64fcfcdef451809574fe2f243114b03acb931e1bc55ac46502b226ba5382e3b3
+
+Reported validation high-water mark:
+  npm run typecheck: PASS
+  tests: 37 PASS, 0 FAIL
+  runtime daemon sequence: 67
+  runtime hash chain: valid
+  responsive widths: 1440 and CSS-width 390
+  horizontal overflow: zero
+
+Any further substantive review should move to a fresh Pro chat with the original packet, the complete first-turn response, this follow-up packet, and this complete response preserved verbatim.

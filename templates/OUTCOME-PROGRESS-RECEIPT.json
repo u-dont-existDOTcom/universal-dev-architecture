@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "progressReceiptId": "replace-with-progress-receipt-id",
+  "taskId": "replace-with-task-id",
+  "createdAt": "1970-01-01T00:00:00Z",
+  "ownerOutcome": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256",
+    "targetSummary": "replace-with-owner-target"
+  },
+  "controlPlanes": {
+    "workerToContractAlignment": "UNKNOWN",
+    "contractToOwnerAlignment": "SOURCE_MISSING",
+    "outcomeAdvancement": "UNKNOWN",
+    "overallControlState": "UNKNOWN"
+  },
+  "strategy": {
+    "strategyId": "replace-with-strategy-id",
+    "description": "replace-with-current-method",
+    "causalHypothesis": "replace-with-why-this-method-should-move-the-owner-outcome",
+    "predictedOutcomeChange": "replace-with-prediction",
+    "successThreshold": "replace-with-success-threshold",
+    "failureThreshold": "replace-with-failure-threshold",
+    "measurementTrigger": "replace-with-trigger",
+    "cycleOrBudgetLimit": "replace-with-limit",
+    "completedCycles": 0,
+    "efficacy": "UNCERTAIN",
+    "sameStrategyContinuationAllowed": false,
+    "supersedesStrategyId": null,
+    "supersededByStrategyId": null
+  },
+  "directOutcomeEvidence": {
+    "measurementType": "NUMERIC_OR_EXPLICIT_EVIDENCE_STATE",
+    "direction": "HIGHER_IS_BETTER",
+    "target": null,
+    "baseline": null,
+    "previous": null,
+    "current": null,
+    "best": null,
+    "changeFromBaseline": null,
+    "changeFromPrevious": null,
+    "measurementUnit": null,
+    "exactCandidateOrArtifactRef": null,
+    "evidenceRefs": [],
+    "measuredAt": null,
+    "freshness": "UNKNOWN"
+  },
+  "requiredOutcomes": {
+    "newlyMet": [],
+    "stillUnmet": [],
+    "unknown": []
+  },
+  "workSincePreviousDirectEvidence": [
+    {
+      "workId": "replace-with-work-id",
+      "classification": "ENABLEMENT_PROGRESS",
+      "summary": "replace-with-work-summary",
+      "evidenceRefs": [],
+      "directlyAdvancedOwnerOutcome": false,
+      "informationOrRiskValue": "replace-with-value-or-null"
+    }
+  ],
+  "progressAssessment": {
+    "status": "UNKNOWN",
+    "reason": "replace-with-evidence-linked-assessment",
+    "progressEvidenceOverdue": false,
+    "activityProgressConfusionDetected": false,
+    "supportingWorkDominanceDetected": false,
+    "measurementAvoidanceDetected": false
+  },
+  "intervention": {
+    "required": true,
+    "type": "PROGRESS_EVIDENCE_REQUIRED",
+    "sameStrategyWorkHeld": true,
+    "replacementMethodReviewRoute": "EXTRA_HIGH_OR_PRO",
+    "decisionPacketRef": null,
+    "nextMeasurementOrDecisionTrigger": "replace-with-next-trigger",
+    "ownerActionRequired": false,
+    "ownerAction": null,
+    "safeIndependentWorkMayContinue": true
+  },
+  "historyRefs": [],
+  "notes": []
+}

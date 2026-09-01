@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-VISIBLE-CHATGPT-MESSAGE-TIME-20260901",
+  "recorded_at": "2026-09-01T17:10:27+00:00",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "iu want every message from chatgpt to tell me what time/date it was sent so i can see which chats are old. why is this not being fixed?",
+    "sha256": "62d01646f4d0859e4529c9efd07934217364dbda2c22eb7198916bf0c6f4f5e8",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_TIME_AVAILABLE_BUT_NATIVE_MESSAGE_ID_NOT_EXPOSED"
+  },
+  "normalized_outcome": "Every ChatGPT-originated message visible in Mission Control visibly displays its trustworthy exact source-sent date and time with timezone so the owner can distinguish old and current chats. When native source-sent time is unavailable, the display states that explicitly and may show capture time only under an accurate capture-time label.",
+  "required_outcomes": [
+    {
+      "id": "RO-TIME-001",
+      "terminal_required": true,
+      "observable": "Every Project Manager and supervisory ChatGPT message row visibly shows YYYY-MM-DD HH:MM:SS Africa/Dakar.",
+      "status": "IMPLEMENTED_UNVERIFIED_LIVE",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/components/ReasoningTranscript.tsx",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/reasoning-transcript.test.ts"
+      ]
+    },
+    {
+      "id": "RO-TIME-002",
+      "terminal_required": true,
+      "observable": "The message record distinguishes source-sent time from Mission Control receive/capture time and renders provenance state.",
+      "status": "IMPLEMENTED_UNVERIFIED_LIVE",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/scripts/record-reasoning-message.mjs"
+      ]
+    },
+    {
+      "id": "RO-TIME-003",
+      "terminal_required": true,
+      "observable": "A missing or untrusted source timestamp displays TIMESTAMP UNAVAILABLE and cannot establish chat currentness.",
+      "status": "IMPLEMENTED_UNVERIFIED_LIVE",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/message-time.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/message-time.test.ts"
+      ]
+    },
+    {
+      "id": "RO-TIME-004",
+      "terminal_required": true,
+      "observable": "One live provider-bound Project Manager or supervisory transcript demonstrates ingestion and display of the exact source-sent time without Codex paraphrase.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "an event has occurred_at metadata",
+    "a database row has created_at metadata",
+    "relative age alone",
+    "a hidden tooltip alone",
+    "a timestamp requirement issue or plan exists",
+    "unit tests pass without a live provider-bound transcript",
+    "Mission Control capture time presented as source sent time",
+    "the assistant explains why timestamps were previously missing"
+  ],
+  "next_direct_evidence": "Ingest one exact provider-bound Project Manager or supervisor message with trustworthy sent_at_source, render it in the live Mission Control transcript, and preserve a screenshot or equivalent owner-visible receipt showing absolute Dakar time and provenance."
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001",
+  "reviewedAt": "2026-08-31T01:59:59Z",
+  "sharedProScopeKey": "supervision-architecture/pr42-chat-led-reasoning-execution-separation",
+  "chatUrl": "https://chatgpt.com/c/6a94261e-efec-83e9-b243-4adb13fd340e",
+  "responseIdentity": {
+    "requiredPrefix": "SUPERVISION_DESIGN_VERDICT SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001",
+    "sha256": "7e688a88d4b20ba665dd63e71523d943efdcfaebf730070e4ca35aaa6861cf24",
+    "sizeBytes": 23371
+  },
+  "verdict": "ACCEPT_WITH_REVISION",
+  "ownerDecisionRequired": false,
+  "blocksMissionControlArchitectureAcceptance": true,
+  "blocksActiveSomaticContentLoop": false,
+  "recoveryDisposition": "SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001-RECOVERY-001 is transport-recovery evidence, not a second feedback submission.",
+  "acceptedSemantics": [
+    "a review boundary stops substantive execution, not workflow liveness",
+    "WAITING_FOR_REASONING_REVIEW is nonterminal",
+    "exactly one logical request is outstanding",
+    "polling returns compact PENDING/READY state only",
+    "no repeated polling messages are sent to the chat",
+    "full completed responses are persisted externally when practical",
+    "transport re-read is permitted before durable persistence",
+    "response import and directive application occur exactly once",
+    "a validated directive resumes execution automatically",
+    "owner relay is forbidden",
+    "Pro and Extra High do not boot Codex",
+    "current compatibility may keep the Codex/browser controller alive",
+    "target architecture transfers durable waiting and wake-up to Mission Control",
+    "genuine owner, permission, spending, publication, deployment, and irreversible boundaries remain intact"
+  ],
+  "requiredRevisions": [
+    "preserve a durable executor-handoff lease rather than permanently requiring one model turn to remain open",
+    "provide one logical request and exactly-once import/application while allowing idempotent transport re-read before durable response persistence",
+    "add compact polling envelopes and prohibit full conversation/evidence replay in intermediate polls",
+    "add durable handoff state, Mission Control projection, alerts, hostile fixture, and 15 regression requirements"
+  ],
+  "affectedPaths": [
+    "patterns/chat-led-reasoning-codex-execution-separation.md",
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json",
+    "templates/CODEX-EXECUTION-RECEIPT.json",
+    "templates/EXECUTOR-REASONING-HANDOFF.json",
+    "docs/exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md",
+    "evals/mission-control/executor-handoff-dropped.json",
+    "tests/test_executor_handoff_liveness.py"
+  ],
+  "currentWorkerApprovalsInvalidated": false,
+  "currentSomaticAction": "Continue independently under its existing Pro-authored directives and closed-loop handoff lease.",
+  "nextRequiredAction": "Apply the exact normative and schema changes, run all Universal tests and repository audit, verify hosted CI, return an execution receipt to this shared Pro lane, and continue the active Somatic loop."
+}

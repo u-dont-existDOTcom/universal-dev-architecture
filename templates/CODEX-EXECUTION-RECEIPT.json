@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "receiptId": "replace-with-receipt-id",
+  "createdAt": "1970-01-01T00:00:00Z",
+  "directiveId": "replace-with-directive-id",
+  "directiveRevision": 1,
+  "taskId": "replace-with-task-id",
+  "runId": "replace-with-run-id",
+  "repositoryState": {
+    "repository": "owner/repository",
+    "branch": "replace-with-branch",
+    "startingHead": "replace-with-starting-head",
+    "endingHead": "replace-with-ending-head-or-null",
+    "dirtyState": "CLEAN_OR_DESCRIBE",
+    "workspaceRef": "replace-with-workspace-ref-or-null"
+  },
+  "execution": {
+    "objectiveClaim": "replace-with-factual-description-of-what-was-attempted",
+    "actionsAttempted": [],
+    "commandsRun": [],
+    "filesChanged": [],
+    "artifactsCreated": [],
+    "browserOrExternalActions": [],
+    "startedAt": "1970-01-01T00:00:00Z",
+    "stoppedAt": "1970-01-01T00:00:00Z"
+  },
+  "verification": {
+    "testsAndChecks": [],
+    "measurements": [],
+    "requiredEvidenceCollected": [],
+    "requiredEvidenceMissing": [],
+    "logsAndArtifactRefs": []
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [],
+    "directiveAmbiguities": [],
+    "scopeConflicts": [],
+    "tacticalChoicesMade": []
+  },
+  "blockers": [],
+  "stopTriggerReached": "replace-with-trigger",
+  "executionCompletionClaim": "COMPLETED | PARTIAL | BLOCKED | FAILED",
+  "nextReasoningReviewRequired": true,
+  "reasoningHandoff": {
+    "required": true,
+    "handoffId": "replace-with-handoff-id",
+    "reviewRequestId": "replace-with-request-id",
+    "reviewRequestIdempotencyKey": "replace-with-idempotency-key",
+    "initialState": "RECEIPT_PERSISTED",
+    "terminal": false,
+    "reviewPacketRef": "replace-with-exact-artifact-ref",
+    "reviewPacketSha256": "replace-with-sha256",
+    "leaseOwner": "CODEX_CONTROLLER_OR_MISSION_CONTROL",
+    "nextRequiredState": "REVIEW_REQUEST_SUBMITTED"
+  },
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null
+  },
+  "notes": []
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-FUTURE-OWNER-IMPROVEMENT-INTEGRITY-20260901",
+  "recorded_at": "2026-09-01T17:10:27+00:00",
+  "status": "IMPLEMENTED_FOR_MISSION_CONTROL_TASK_INSTRUCTIONS_NOT_UNIVERSALLY_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "have you fixed that so it won't fail when i ask next time to improve something?",
+    "sha256": "dbd2fb569444fecd3748820845056225e3ba1c70f252386939e3182defbe064f",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_TIME_AVAILABLE_BUT_NATIVE_MESSAGE_ID_NOT_EXPOSED"
+  },
+  "normalized_outcome": "A future owner request to improve or correct Mission Control must automatically become an active, traceable requirement before the next substantive action. Its literal meaning, observable acceptance boundary, non-satisfying proxies, implementation state, and direct verification evidence must remain visible until the requested behavior is actually demonstrated or explicitly superseded by the owner.",
+  "existing_work_reused": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/transformation-preservation-proof.md",
+    "ISO/IEC/IEEE 29148 requirements engineering",
+    "NASA bidirectional requirements traceability and requirements verification matrix"
+  ],
+  "required_outcomes": [
+    {
+      "id": "RO-INTEGRITY-001",
+      "terminal_required": true,
+      "observable": "A new Mission Control owner correction is preserved verbatim with a digest before a worker normalizes or delegates it.",
+      "status": "INSTRUCTION_ACTIVE_NOT_LIVE_DEMONSTRATED",
+      "evidence_refs": [
+        "tools/codex-mission-control/AGENTS.md",
+        "docs/exec-plans/active/2026-09-01-mission-control-owner-request-integrity-active-contract.md"
+      ]
+    },
+    {
+      "id": "RO-INTEGRITY-002",
+      "terminal_required": true,
+      "observable": "The current task records an owner-observable acceptance result and explicit non-satisfying proxies before claiming completion.",
+      "status": "INSTRUCTION_ACTIVE_NOT_LIVE_DEMONSTRATED",
+      "evidence_refs": [
+        "tools/codex-mission-control/AGENTS.md",
+        "docs/requirements/2026-09-01-visible-chat-message-time.owner-requirement.json"
+      ]
+    },
+    {
+      "id": "RO-INTEGRITY-003",
+      "terminal_required": true,
+      "observable": "The workflow refuses fixed/done when only an explanation, plan, issue, schema, tests, PR, or CI result exists but the requested owner-visible behavior has not been demonstrated.",
+      "status": "INSTRUCTION_ACTIVE_NOT_RUNTIME_ENFORCED",
+      "evidence_refs": [
+        "tools/codex-mission-control/AGENTS.md"
+      ]
+    },
+    {
+      "id": "RO-INTEGRITY-004",
+      "terminal_required": true,
+      "observable": "A later fresh owner improvement request traverses the complete capture-to-live-verification path without the owner repeating the requirement.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "the requirement is remembered in chat",
+    "the requirement appears in an issue",
+    "an architecture document explains the desired behavior",
+    "a worker says it incorporated the request",
+    "a helper test passes",
+    "a PR is green",
+    "the owner is asked to repeat the same requirement",
+    "the system explains the prior failure without changing the next action"
+  ],
+  "next_direct_evidence": "Use the next fresh owner-requested Mission Control improvement as a live regression: automatically preserve it, create the acceptance/proxy record, execute the change, and show the owner-visible result without requiring Joel to restate the request."
+}

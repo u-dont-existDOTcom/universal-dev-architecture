@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001",
+  "createdAt": "2026-08-31T01:30:00Z",
+  "taskId": "somatic-r15-clean-continuation-20260830",
+  "workerRunId": "somatic-r15-surface-001",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-SOMATIC-HUMANIZATION-001",
+    "epoch": 1,
+    "verbatim": "the point was to reach 100% human on pangram?",
+    "sha256": "995cdbe516983579c45ac50c997d47550afc7d53a5705cf259f6a58386a8ba97"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_blocks",
+    "capturedAt": "2026-08-31T01:30:00Z",
+    "exactTexts": [
+      "but why did you stop?",
+      "aren't you supposed to wait for the pro chat to give you next task or does it boot you up",
+      "so fix the instructions that led to you stopping",
+      "add that to the codex supervisor workflow, continue"
+    ]
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "pr42-chat-led-reasoning-execution-separation",
+    "sha256OrCommit": "8ccdd97fe08bd07c62be84fafb5fe63c2dca378e"
+  },
+  "type": "DEFECT",
+  "category": "EXECUTOR_HANDOFF_LIVENESS",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "The current bootstrap says Codex must stop new substantive execution when a directive reaches its stop/review boundary and continue automatically once the next directive arrives, but it does not require the active Codex turn to deliver the receipt, remain alive while the assigned reasoning chat responds, retrieve the matching response, and execute the next directive. The worker therefore treated the execution receipt as a terminal user-facing handoff and ended its turn, leaving Joel to restart the loop manually.",
+  "relevantRule": {
+    "path": "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "section": "2. Chat-led reasoning; Codex execution only / 11. Continue automatically / 13. Current-executor receipt",
+    "excerpt": "Stop new substantive execution after preserving evidence and current state. Route the packet to the assigned reasoning chat and resume automatically only after a versioned directive arrives."
+  },
+  "observedOrHypotheticalFailure": "After CHAT-SURFACE-EXPERIMENT-001 reached its exact stop boundary, Codex produced the required mechanical result but ended the user turn instead of transmitting the receipt to the existing Pro article supervisor and waiting for the matching next directive. Joel had to ask why it stopped and whether Pro was supposed to boot it. Pro cannot boot a finished Codex turn, so the architecture produced a dead execution frontier and made the owner the restart/message bus.",
+  "evidenceRefs": [
+    {
+      "type": "project_directive",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "branch": "task/somatic-r15-clean-continuation-20260830",
+      "head": "0e4d6785337def2389b1862ac90b8b3e19f382f8",
+      "path": "tasks/somatic-r15-clean-continuation-20260830/CHAT-SURFACE-EXPERIMENT-001.md"
+    },
+    {
+      "type": "execution_result",
+      "repository": "u-dont-existDOTcom/pangram-humanization-lab",
+      "branch": "task/somatic-r15-exact-recovery-20260830",
+      "head": "c7009e7290546c195f5572ce37716b2721ba746b",
+      "path": "state/experiments/somatic-r15-surface-calibration-building-safety-20260831/RESULT-PACKET.json"
+    },
+    {
+      "type": "owner_observation",
+      "facts": [
+        "Codex ended the turn after returning the mechanical result",
+        "the result had not been routed to the existing Pro supervisor",
+        "no next directive could arrive because Pro does not autonomously reactivate Codex",
+        "Joel had to identify and correct the stalled frontier"
+      ]
+    }
+  ],
+  "proposedChange": "Add an explicit closed-loop handoff-liveness rule: reaching a review boundary stops only unauthorized substantive execution; it does not end the active worker turn. Unless a genuine owner/permission/destructive/spending/publication boundary exists, Codex must deliver the exact execution receipt to the assigned reasoning chat, keep exactly one matching request outstanding, wait and poll that same chat without duplicate submission, retrieve the matching versioned directive, and continue automatically. A receipt waiting for reasoning review is a nonterminal WAITING_FOR_REASONING_REVIEW state. Pro/Extra High chats do not boot or reactivate Codex; the executor owns loop continuity. Ending the turn before routing or while an authorized supervisor response can still be awaited is a supervision failure and should raise EXECUTOR_HANDOFF_DROPPED or REASONING_RESPONSE_NOT_AWAITED. Polling must be token-efficient: intermediate polls return only compact state such as PENDING/READY and the matching request ID, never replay full request or response bodies; retrieve each completed response exactly once, and persist large payloads outside conversation context when practical.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Rely on the existing phrase continue automatically once the directive arrives",
+      "rejectedBecause": "It does not specify who keeps the loop alive or that the worker must wait inside the active turn; the real worker interpreted the receipt as a stopping condition."
+    },
+    {
+      "alternative": "Have the Pro chat boot Codex",
+      "rejectedBecause": "The current ChatGPT conversation cannot autonomously reactivate a completed Codex turn."
+    },
+    {
+      "alternative": "Require Joel to relay every response",
+      "rejectedBecause": "That makes the owner the message bus and contradicts continuous autonomous completion."
+    }
+  ],
+  "risks": [
+    "An unbounded wait can conceal an unavailable or unauthenticated chat surface",
+    "A timeout after send can cause duplicate requests unless exact request-ID recovery is mandatory",
+    "The liveness rule must not authorize execution beyond a directive or bypass genuine owner and irreversible-action boundaries",
+    "Long waits need periodic concise owner-visible progress updates",
+    "Polling that returns full conversation turns can waste substantial context and obscure the active execution frontier"
+  ],
+  "workerRecommendation": "Adopt the closed-loop handoff-liveness rule in the shared bootstrap, the chat-led reasoning/execution pattern, directive and receipt schemas, Mission Control state machine, and regression tests. Migrate the active Somatic worker immediately by routing its pending exact result to the existing article supervisor and waiting for the matching directive in the same active turn.",
+  "workerUncertainty": "The exact polling interval and maximum wait horizon should be specified by the reasoning surface/runtime; the requirement not to drop the handoff is not uncertain.",
+  "decisionThatCanChange": "Whether Codex may end a turn at a chat-review boundary, the required WAITING_FOR_REASONING_REVIEW state, retry/duplicate prevention, Mission Control alerts, and current-worker migration behavior.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/pr42-chat-led-reasoning-execution-separation"
+  },
+  "status": "ACCEPTED_WITH_REVISION",
+  "proMetaReview": {
+    "reviewedAt": "2026-08-31T01:59:59Z",
+    "reviewedIn": "https://chatgpt.com/c/6a94261e-efec-83e9-b243-4adb13fd340e",
+    "scopeKey": "supervision-architecture/pr42-chat-led-reasoning-execution-separation",
+    "verdict": "ACCEPT_WITH_REVISION",
+    "ownerDecisionRequired": false,
+    "blocksMissionControlArchitectureAcceptance": true,
+    "blocksActiveSomaticContentLoop": false,
+    "responseSha256": "7e688a88d4b20ba665dd63e71523d943efdcfaebf730070e4ca35aaa6861cf24",
+    "responseSizeBytes": 23371,
+    "verdictReceipt": "feedback/mission-control/SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001-PRO-VERDICT.json",
+    "summary": "Accept closed-loop handoff liveness with a durable controller-held lease, one logical request, compact polling, idempotent transport recovery before persistence, and exactly-once response import/directive application. Current compatibility may keep Codex/browser alive; target Mission Control owns durable wake-up."
+  },
+  "ownerDecisionRef": "owner-correction-2026-08-31-executor-must-wait-for-supervisor",
+  "repositoryChangeRefs": [
+    "27c520a7a3079af61742a0fe17cb74b697caad9d"
+  ],
+  "testRefs": [
+    "tests/test_executor_handoff_liveness.py",
+    "evals/mission-control/executor-handoff-dropped.json"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "sdf-20260830-owner-outcome-record-boundary",
+  "createdAt": "2026-08-30T23:28:17Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "workerRunId": "codex-root-gap-audit",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 3,
+    "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-30-pr42",
+    "sha256OrCommit": "90a230e85f78063080dc627ec36a0237c3234f72"
+  },
+  "type": "QUESTION",
+  "category": "PROVENANCE",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Should objective reconciliation schema v2 embed the complete owner outcome or reference a separately hashed append-only owner-outcome record?",
+  "relevantRule": {
+    "path": "templates/OBJECTIVE-RECONCILIATION.json",
+    "section": "ownerSource and requirements",
+    "excerpt": "The current template identifies the source and rows but does not carry owner-outcome ID/epoch, verbatim and normalized result, gap ledger, or non-satisfying proxies."
+  },
+  "observedOrHypotheticalFailure": "A reconciliation record can pass shape validation while losing the exact owner-outcome epoch or narrowing context needed to audit the contract and terminal comparator.",
+  "evidenceRefs": [
+    "templates/OBJECTIVE-RECONCILIATION.json",
+    "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json"
+  ],
+  "proposedChange": "Store an append-only owner-outcome record keyed by ID/epoch/hash and require each reconciliation to bind that exact identity; project the necessary normalized/gap fields without duplicating authoritative bytes.",
+  "alternativesConsidered": ["Embed complete owner outcome in every reconciliation", "Extend only the current template with optional prose fields"],
+  "risks": ["Reference-only records can become unusable if the owner-outcome ledger is not atomically retained and verified"],
+  "workerRecommendation": "Use a separately hashed authoritative record with lossless references and validated projection fields.",
+  "workerUncertainty": "The architecture clearly requires the fields but does not yet select the normalization boundary.",
+  "decisionThatCanChange": "The durable schema normalization and migration layout.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/2026-08-30-pr42"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

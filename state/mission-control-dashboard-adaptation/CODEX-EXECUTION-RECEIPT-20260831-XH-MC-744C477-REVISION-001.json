@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "mc-codex-execution-receipt-20260831-xh-mc-744c477-revision-001",
+  "createdAt": "2026-08-31T02:43:43Z",
+  "directiveId": "XH-MC-744C477-REVISION-001",
+  "directiveRevision": 1,
+  "directiveSha256": "ae7c296bf0a6a99cf59dde6955847212b3c9e218789bc9aa4a2b893732776547",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "runId": "codex-root-mission-control-adaptation-xh-mc-744c477-revision-001",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/mission-control-dashboard-adaptation-20260830",
+    "startingHead": "a812c02f15541d4c3047957416d1d9a86fa57727",
+    "implementationHead": "2896cf3e04522ffbad68ed317e8dd3939a818a7f",
+    "endingState": "implementation commit clean; this factual receipt is the only subsequent file before its receipt commit",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/mission-control-slice"
+  },
+  "execution": {
+    "objectiveClaim": "Executed one bounded implementation and verification cycle for the nine frozen hostile controls plus the outcome-progress and chat-led-execution addenda.",
+    "actionsTaken": [
+      "expanded the v2 ledger with reasoning-supervision, execution-directive, Codex-start, execution-receipt, outcome-progress, supervision-alert, and Symphony-diagnostic events",
+      "persisted producer ID/kind and enforced explicit worker/task scopes at the BFF and daemon boundaries",
+      "made SQLite single-writer ownership file-locked and removed singleton/direct-writer application paths",
+      "bound owner outcomes to exact source request/hash and correction epochs to the exact prior outcome hash",
+      "bound turn-three supervision handoffs to the actual durable authority vector and high-water sequence",
+      "made findings, correction attempts, invalidation-only closure, and verification invalidation fail closed",
+      "derived numeric progress from declared direction and exact evidence deltas rather than supplied progress labels",
+      "made the all-worker attention queue and detail strip expose exact problem, reasons, directive, actual lifecycle, next trigger, and owner action",
+      "kept the complete Pro decision packet in both owner-facing views",
+      "persisted unmapped Symphony items as diagnostic-only events excluded from worker projection",
+      "repaired coordinated stack shutdown and verified writer-lock release",
+      "regenerated the exact source-only archive and responsive browser evidence"
+    ],
+    "filesChanged": [
+      "tools/codex-mission-control/restored/codex-mission-control/**",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/README.md",
+      "tools/codex-mission-control/ARCHITECTURE.md",
+      "tools/codex-mission-control/IMPLEMENTATION-SPEC.md",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "docs/evidence/mission-control-adaptation/*current*.png",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-001.json"
+    ],
+    "startedAt": "2026-08-31T01:50:00Z",
+    "stoppedAt": "2026-08-31T02:43:43Z"
+  },
+  "verification": {
+    "checksRun": [
+      {
+        "command": "npm test",
+        "result": "PASS",
+        "summary": "66 tests passed; 0 failed"
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "summary": "tsc --noEmit completed without diagnostics"
+      },
+      {
+        "command": "npm run build",
+        "result": "PASS",
+        "summary": "Next.js 16.3.3 production build, TypeScript, page generation, and route manifest completed"
+      },
+      {
+        "command": "npm start -- -p 3010 with daemon on 4110",
+        "result": "PASS",
+        "summary": "six workers projected in deterministic attention order; daemon health reported a valid 107-event hash chain"
+      },
+      {
+        "command": "unauthenticated daemon and absent external-ingest probes",
+        "result": "PASS",
+        "summary": "daemon POST /events returned 401; no /ingest endpoint exists and external BFF ingestion remains disabled without credentials"
+      },
+      {
+        "command": "desktop/mobile in-app browser inspection",
+        "result": "PASS",
+        "summary": "1440x1100 and 390x844 queue/detail states contained the exact Test problem/directive/lifecycle/owner action; mobile root scrollWidth equaled clientWidth"
+      },
+      {
+        "command": "bash restore-source.sh; unzip -t; diff -qr source tree",
+        "result": "PASS",
+        "summary": "45 source files restored from 23 parts with checksum and byte-for-byte tree equality"
+      },
+      {
+        "command": "TERM coordinated runtime shutdown",
+        "result": "PASS",
+        "summary": "dashboard and daemon exited; ports 3010/4110 closed; writer lock released"
+      }
+    ],
+    "measurements": {
+      "projectedWorkers": 6,
+      "attentionWorkers": 5,
+      "healthyWorkers": 1,
+      "testsPassed": 66,
+      "testsFailed": 0,
+      "archiveFiles": 45,
+      "archiveParts": 23,
+      "archiveSha256": "d3dc55415d57954ef469c44e2a5bc58a613394d3272ddb2153f23bb0f581a0ec",
+      "runtimeLedgerEvents": 107
+    },
+    "evidenceRefs": [
+      "docs/evidence/mission-control-adaptation/dashboard-current-1440.png#sha256=2a988287b7f8d5a4c241c341bb728cd8c9ec88a504bb35770502bce19ea21cd7",
+      "docs/evidence/mission-control-adaptation/dashboard-current-390.png#sha256=f0488e63b0e7259db35f0fd22af3b132a6a32e1f139bf9026fcf9b093777c95b",
+      "docs/evidence/mission-control-adaptation/test-cleanup-detail-current-1440.png#sha256=57d65abab226359c72e9607edbd9cc3e2f9e8518f972820e1d3043690a81ec5c",
+      "docs/evidence/mission-control-adaptation/test-cleanup-detail-current-390.png#sha256=1036e6b191173c67556122fa0a3e279489c9a613fc63d9577fe56b898d4ef35e",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256"
+    ]
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "the first coordinated shutdown waited on persistent server connections and left the writer lock until the process tree was explicitly stopped",
+      "the first 390px detail inspection exposed 16 CSS pixels of horizontal overflow in the timeline",
+      "independent test-gate review found dishonest numeric progress labels, later progress owner-action divergence, diagnostic-only Symphony projection, and generated missing-directive explanation gaps"
+    ],
+    "repairsMade": [
+      "added group-aware coordinated shutdown, daemon connection closure, bounded forced exit, and a verified lock-release probe",
+      "made timeline grid children shrink/wrap and verified mobile root scrollWidth equals clientWidth",
+      "added deterministic derivation/validation and hostile fixtures for all four independent gate findings"
+    ],
+    "scopeConflicts": [],
+    "remainingExecutionBlockers": []
+  },
+  "stopTriggerReached": "EXECUTION_OBJECTIVE_COMPLETED_AND_MEANINGFUL_EXECUTION_CYCLE_LIMIT_REACHED",
+  "executionCompletionClaim": "BOUNDED_EXECUTION_CYCLE_COMPLETE_PENDING_INDEPENDENT_REASONING_REVIEW",
+  "nextReasoningReviewRequired": true,
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null,
+    "ownerEscalationDecision": null,
+    "proEscalationDecision": null,
+    "supervisoryVerdict": null
+  },
+  "notes": [
+    "This receipt records execution facts only and does not classify overall alignment, progress, strategy, owner-outcome achievement, or slice acceptance.",
+    "No push, deployment, publication, merge, rebase, or history rewrite occurred in this cycle."
+  ]
+}

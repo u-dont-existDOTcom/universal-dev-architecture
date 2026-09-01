@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "directiveId": "XH-ISSUE47-001",
+  "taskId": "mission-control-live-slice-issue-47",
+  "reasoningSurface": "EXTRA_HIGH",
+  "reasoningSession": "/root/xhigh_issue47_runtime_slice",
+  "reasoningTurn": 1,
+  "ownerDirective": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/47",
+  "frontier": "USER_VISIBLE_VERTICAL_SLICE_DUE",
+  "objective": "Adapt and run the restored PR #41 dashboard with four persisted scenarios and one current read-only worker evidence source.",
+  "allowedScope": [
+    "tools/codex-mission-control/restored/codex-mission-control/**",
+    "state/mission-control-live-slice/**",
+    "docs/evidence/mission-control-live-slice/**"
+  ],
+  "stopBoundary": "Local dashboard runs, four scenarios are visible, current worker evidence updates through SSE, and screenshots are captured.",
+  "proAdmission": "PRO_DENIED_NOT_REQUIRED",
+  "status": "ACTIVE"
+}

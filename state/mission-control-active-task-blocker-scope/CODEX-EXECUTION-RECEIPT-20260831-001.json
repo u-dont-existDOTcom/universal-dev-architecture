@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 2,
+  "receiptId": "codex-universal-active-task-blocker-scope-20260831-001",
+  "createdAt": "2026-08-31T13:07:49Z",
+  "directiveId": "exec-plan:2026-08-31-mission-control-active-task-authority-and-blocker-scope",
+  "directiveRevision": 1,
+  "taskId": "mission-control-active-task-authority-blocker-scope-20260831",
+  "runId": "codex-active-task-blocker-scope-465b3b3-1bc0e8e",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/active-task-blocker-scope-20260831",
+    "startingHead": "465b3b3c330189148409d509d5acb21fd898d544",
+    "endingHead": "1bc0e8e56cec3d9535cd0ff0da9749b1ed667c01",
+    "dirtyState": "tracked tree clean at implementation commit; untracked .review-handoff contains the derived review patch",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/active-task-blocker-scope"
+  },
+  "execution": {
+    "objectiveClaim": "Mechanically implement the chat-authored active-task authority, blocker-scope, wait-admission, projection, and InnerSignal regression directive on the Universal Mission Control architecture branch.",
+    "actionsAttempted": [
+      "extended the active-task lock and execution directive authority context",
+      "created scoped-blocker and wait-admission templates",
+      "implemented pure authority resolution, blocker applicability, wait admission, and blocker projection",
+      "added the exact InnerSignal stale-global-blocker fixture and 24 executable regressions",
+      "updated the shared bootstrap, active-task, chat-led, Mission Control, template, and index routes",
+      "preserved the prior executor handoff reducer while extending directive validation only"
+    ],
+    "commandsRun": [
+      "python3 scripts/test_efficiency.py start --task-id active-task-blocker-scope-20260831",
+      "python3 scripts/test_efficiency.py run --task-id active-task-blocker-scope-20260831 --scope focused --reason baseline-active-task-and-directive-control-plane -- python3 -m unittest tests.test_exclusive_active_task_pattern tests.test_executor_handoff_liveness -v",
+      "python3 scripts/test_efficiency.py run --task-id active-task-blocker-scope-20260831 --scope focused --reason new-active-task-authority-blocker-scope-and-wait-regressions -- python3 -m unittest tests.test_active_task_authority -v",
+      "python3 scripts/test_efficiency.py run --task-id active-task-blocker-scope-20260831 --scope focused --reason verify-inheritance-alert-repair -- python3 -m unittest tests.test_active_task_authority -v",
+      "python3 scripts/test_efficiency.py run --task-id active-task-blocker-scope-20260831 --scope affected --reason active-task-authority-integration -- python3 -m unittest tests.test_active_task_authority tests.test_exclusive_active_task_pattern tests.test_executor_handoff_liveness tests.test_chat_led_reasoning_codex_execution -v",
+      "python3 scripts/test_efficiency.py run --task-id active-task-blocker-scope-20260831 --scope full --reason verified-Universal-implementation-boundary --full-trigger pre-pr -- python3 -m unittest discover -s tests -v",
+      "python3 scripts/audit_codex_github.py --root . --fail-on error",
+      "python3 -m py_compile scripts/active_task_authority.py scripts/executor_handoff_state.py",
+      "python3 -m json.tool on every changed JSON template and fixture",
+      "git diff --check"
+    ],
+    "filesChanged": [
+      "LESSON-INDEX.md",
+      "docs/INDEX.md",
+      "docs/audits/2026-08-31-active-task-blocker-scope-gap-map.md",
+      "evals/mission-control/innersignal-commons-stale-global-blocker.json",
+      "patterns/chat-led-reasoning-codex-execution-separation.md",
+      "patterns/codex-pro-supervision-mission-control.md",
+      "patterns/exclusive-active-task-locks.md",
+      "scripts/active_task_authority.py",
+      "scripts/executor_handoff_state.py",
+      "templates/ACTIVE-TASK.json",
+      "templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json",
+      "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+      "templates/README.md",
+      "templates/SCOPED-BLOCKER.json",
+      "templates/WAIT-ADMISSION.json",
+      "tests/test_active_task_authority.py"
+    ],
+    "artifactsCreated": [
+      "docs/audits/2026-08-31-active-task-blocker-scope-gap-map.md",
+      "evals/mission-control/innersignal-commons-stale-global-blocker.json",
+      "scripts/active_task_authority.py",
+      "templates/SCOPED-BLOCKER.json",
+      "templates/WAIT-ADMISSION.json",
+      "tests/test_active_task_authority.py",
+      ".review-handoff/active-task-blocker-scope/0001-fix-scope-active-task-blockers-and-waits.patch#sha256=788f2dfdc763f477d5c2c1f5e3841f91f570d1cb010c9e6a8aa64cbe23cebf78"
+    ],
+    "browserOrExternalActions": [
+      "Routed SDF-20260831-CODEX-PREMATURE-TERMINALIZATION-002 to the Mission Control worker at https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/42#issuecomment-5478451771"
+    ],
+    "startedAt": "2026-08-31T12:39:17Z",
+    "stoppedAt": "2026-08-31T13:07:49Z"
+  },
+  "verification": {
+    "testsAndChecks": [
+      "baseline focused: 35 passed",
+      "first new focused run: 22 passed, 2 failed; failure found missing cross-task inheritance alert on the explicit-independence path",
+      "repaired focused: 24 passed",
+      "affected integration: 64 passed",
+      "complete Universal suite: 199 passed",
+      "repository audit: PASS with no findings",
+      "Python compile: PASS",
+      "changed JSON parse: PASS",
+      "git diff --check: PASS"
+    ],
+    "measurements": [
+      "observed test wall time: 4.49 seconds",
+      "test share of task wall time: 0.28 percent",
+      "forced redundant-green reruns: zero",
+      "implementation diff: 16 files, 1533 insertions, 1 deletion"
+    ],
+    "requiredEvidenceCollected": [
+      "exact InnerSignal fixture output keeps REASONING_REVIEW_DUE",
+      "global state relation is STALE_AND_UNRELATED",
+      "issue #4 blocker applicability is NOT_APPLICABLE",
+      "repository global source disposition is SUSPENDED_COMPETING_SOURCE",
+      "unbounded GitHub wait is rejected",
+      "current repository-wide security freeze propagates to affected writes",
+      "release/publication blockers do not leak into local development",
+      "completed CI invalidates its wait",
+      "ignored blockers remain visible in the projection"
+    ],
+    "requiredEvidenceMissing": [
+      "hosted CI on the final pushed provenance head",
+      "matching shared Pro implementation-review verdict"
+    ],
+    "logsAndArtifactRefs": [
+      "state/mission-control-active-task-blocker-scope/CURRENT-STATE.md",
+      "docs/audits/2026-08-31-active-task-blocker-scope-gap-map.md",
+      ".review-handoff/active-task-blocker-scope/0001-fix-scope-active-task-blockers-and-waits.patch#sha256=788f2dfdc763f477d5c2c1f5e3841f91f570d1cb010c9e6a8aa64cbe23cebf78"
+    ]
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "The first new focused run exposed a missing CROSS_TASK_BLOCKER_LEAKAGE alert when higher-precedence task authority explicitly established blocker independence; the same bounded code path was repaired before broader verification.",
+      "The isolated worktree had no Git author identity configured; the repository's existing author identity was applied locally before commit."
+    ],
+    "directiveAmbiguities": [],
+    "scopeConflicts": [],
+    "tacticalChoicesMade": [
+      "Implemented the four specified pure controls in a dedicated scripts/active_task_authority.py module rather than coupling semantic scope inference into the existing reasoning-handoff reducer.",
+      "Extended the existing schema-v2 directive instead of creating a competing directive schema."
+    ]
+  },
+  "blockers": [],
+  "stopTriggerReached": "implementation and local verification complete; reasoning implementation review required",
+  "executionCompletionClaim": "COMPLETED",
+  "nextReasoningReviewRequired": true,
+  "reasoningHandoff": {
+    "required": true,
+    "handoffId": "handoff-active-task-blocker-scope-1bc0e8e-pro-001",
+    "reviewRequestId": "review-active-task-blocker-scope-1bc0e8e-pro-001",
+    "reviewRequestIdempotencyKey": "codex-universal-active-task-blocker-scope-20260831-001:review-active-task-blocker-scope-1bc0e8e-pro-001",
+    "initialState": "RECEIPT_PERSISTED",
+    "terminal": false,
+    "reviewPacketRef": ".review-handoff/active-task-blocker-scope/0001-fix-scope-active-task-blockers-and-waits.patch",
+    "reviewPacketSha256": "788f2dfdc763f477d5c2c1f5e3841f91f570d1cb010c9e6a8aa64cbe23cebf78",
+    "leaseOwner": "CODEX_CONTROLLER",
+    "nextRequiredState": "REVIEW_REQUEST_SUBMITTED"
+  },
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null
+  },
+  "notes": [
+    "This receipt makes only an execution claim. It does not merge PR #42 or authorize any InnerSignal, release, research, participant, or therapy action."
+  ]
+}

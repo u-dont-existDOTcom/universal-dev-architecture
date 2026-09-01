@@ -1,0 +1,21 @@
+# Active-task authority and blocker-scope gap map
+
+Directive: `docs/exec-plans/2026-08-31-mission-control-active-task-authority-and-blocker-scope.md`
+Baseline: `465b3b3c330189148409d509d5acb21fd898d544`
+
+| Required control | Baseline state | Implementation in this slice | Duplication/compatibility disposition |
+|---|---|---|---|
+| Branch-bound exclusive task identity | Solved by `patterns/exclusive-active-task-locks.md` and `templates/ACTIVE-TASK.json` | Extended with exact ref, task-local checkpoint, global-state relation, blocker references, execution frontier, and wait identity | Reuse; no second task-lock system |
+| Owner-outcome and task-local authority | Solved for identity/reconciliation | Added fixed authority precedence, independently verified current owner-source/correction receipt, authenticated owner-stop override, and exact checkpoint path/ref/object/content/outcome binding | Reuse owner-source/receipt and owner-outcome fields; no second owner-authority system and no semantic owner interpretation in code |
+| Repository-global blocker scope | Missing executable control | Added `templates/SCOPED-BLOCKER.json`, explicit operational/non-waivable policy classes, and `evaluate_blocker_applicability` | New integration; generic `BLOCKED` text is never parsed as scope and task independence cannot waive applicable policy |
+| Global-state relation to active task | Missing | Added five-state relation and suspended-competing-source projection | New integration; historical global evidence remains preserved |
+| Wait admission | Reasoning-handoff polling was solved; general waits were not | Added `templates/WAIT-ADMISSION.json` plus exact blocker-unblock, owner-decision, live-handoff, parsed horizon, and continuous lease/transfer coverage validation | Extends and delegates to the accepted handoff record without altering its reducer/resource accounting |
+| Directive binding | Chat directive existed without blocker/wait identity | Added typed action class, `authorityContext`, affected-frontier state, blocker/revalidation/ambiguity identities, and transactional exact comparison with resolver/wait output | Compatible schema-v2 extension; placeholder and self-consistent directive fields remain non-authoritative |
+| Mission Control projection | Blocker concept existed but scope/relation were not separated | Added `project_task_blockers` with active, ignored, revalidation, ambiguity, wait, owner-action, unrelated-work, blocked-capability, and frontier-authorization fields | Read-only deterministic projection; an applicable blocker now blocks its affected operation without becoming a whole-project stop |
+| Exact InnerSignal regression | Missing | Added executable stale-global-blocker fixture and reducer tests | Project facts are a hostile fixture only; InnerSignal code is untouched |
+| Legitimate propagating blockers | Policy prose existed | Added counter-regressions for security freeze, explicit CI dependency, owner decision, release/publication scoping, supersession, and completed conditions | Preserves repository-wide policy controls |
+| Index/bootstrap recovery | Active-task lock was routed, but global-state precedence and wait admission were absent | Updated shared bootstrap, Mission Control/chat-led patterns, template/index routes | No alternate bootstrap or authority doctrine |
+
+No existing baseline implementation supplied equivalent pure authority, blocker-applicability, wait-admission, or projection functions. `scripts/executor_handoff_state.py` remains the closed-loop reasoning-handoff reducer; this slice adds only directive action/authority/frontier authorization there. Reasoning waits consume the existing `EXECUTOR-REASONING-HANDOFF` record and do not alter its transition or resource-accounting behavior.
+
+Pro reviews `review-active-task-blocker-scope-1bc0e8e-pro-001` and `review-active-task-blocker-scope-17d6aca-pro-002` returned `ACCEPT_WITH_REVISION` with no owner decision. Their bounded correction cycles close non-waivable policy override prevention, independent current-owner receipt binding, exact-checkpoint binding, affected-frontier action classes, transactional directive authorization, and continuous reasoning-wait lease enforcement. InnerSignal remains fixture-only and unmodified.

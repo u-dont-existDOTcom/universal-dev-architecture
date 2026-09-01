@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "directiveId": "XH-MC-744C477-REVISION-001",
+  "directiveRevision": 1,
+  "createdAt": "2026-08-31T01:45:21Z",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 4,
+    "sha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1"
+  },
+  "reasoningSupervisor": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_final_review",
+    "chatEpoch": "review-744c477-turn-1",
+    "decisionId": "xh-review-744c477-reject-r1",
+    "capsuleId": "xh-mc-744c477-review-capsule-r1",
+    "reviewedEvidenceBoundary": "source:744c47745c32e6fce440df7739f48c9a59020832;authority:b858b4b5b9a142595d91ac7060e836168ac389b0;state:a812c02f15541d4c3047957416d1d9a86fa57727"
+  },
+  "strategy": {
+    "strategyId": "mc-current-authority-repair-v1",
+    "causalHypothesis": "Closing the nine frozen invariant gaps and adding the two current supervision planes will make the adaptation fail closed under hostile inputs while preserving the accepted attention-first and read-only Symphony behavior.",
+    "predictedOutcomeChange": "The bounded adaptation moves from rejected to independently verifiable without claiming the overall Mission Control outcome complete.",
+    "successThreshold": "Every frozen hostile probe is rejected or correctly projected, all current addendum fixtures pass end to end, and deterministic, type, build, runtime, responsive, and archive checks pass.",
+    "failureThreshold": "Any frozen false-close, hidden-owner-choice, fabricated-lifecycle, stale-verification, cross-worker-ingestion, second-writer, or missing-directive/progress state remains reachable.",
+    "nextDecisionChangingEvidence": "One post-change execution receipt containing hostile-test results, runtime projections, responsive evidence, archive identity, and exact repository state."
+  },
+  "executionObjective": "Perform one bounded implementation and verification cycle that closes all nine frozen blocking findings and implements the current outcome-progress and chat-led-execution addenda end to end.",
+  "reasoningSummary": "Implement the exact frozen controls; preserve existing accepted UX, ledger, and Symphony boundaries. Codex may choose low-level code structure but may not reinterpret owner outcome, strategy, or supervisory verdicts.",
+  "inputs": [
+    {
+      "type": "FILE_OR_ARTIFACT",
+      "ref": "commit:744c47745c32e6fce440df7739f48c9a59020832",
+      "sha256": null
+    },
+    {
+      "type": "FILE_OR_ARTIFACT",
+      "ref": "state/mission-control-dashboard-adaptation/OWNER-REQUEST.md",
+      "sha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef"
+    },
+    {
+      "type": "FILE_OR_ARTIFACT",
+      "ref": "docs/exec-plans/2026-08-31-mission-control-outcome-progress-and-stagnation-addendum.md",
+      "sha256": "4eab00422d245ebbef9b715ffae4f4c9c6ae5cf1871325e577f8eaeb8aef9bac"
+    },
+    {
+      "type": "FILE_OR_ARTIFACT",
+      "ref": "docs/exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md",
+      "sha256": "6da9e7595511f3a3efd689c74659e1145097ce080b986b88bba0f9b2c1c46337"
+    }
+  ],
+  "allowed": {
+    "actions": [
+      "edit the restored Mission Control app and its deterministic fixtures/tests",
+      "record the epoch-4 owner outcome, this directive, and execution receipt",
+      "regenerate adaptation evidence and the exact source archive after verification",
+      "run local deterministic, type, build, runtime, responsive, and archive checks"
+    ],
+    "paths": [
+      "tools/codex-mission-control/restored/codex-mission-control/**",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/README.md",
+      "tools/codex-mission-control/ARCHITECTURE.md",
+      "tools/codex-mission-control/IMPLEMENTATION-SPEC.md",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "state/mission-control-dashboard-adaptation/**",
+      "docs/evidence/mission-control-adaptation/**"
+    ],
+    "commands": [
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "npm start",
+      "git diff",
+      "git status",
+      "git archive",
+      "bash restore-source.sh"
+    ],
+    "tacticalFreedom": "Low-level schemas, factoring, naming, test organization, and presentation details consistent with the exact authority and frozen findings."
+  },
+  "forbidden": {
+    "actions": [
+      "push, deploy, publish, merge, or rewrite history",
+      "add Symphony control, dispatch, retry, scheduling, or tracker mutation",
+      "weaken evidence, closure, terminalization, authentication, or handoff gates",
+      "infer unrecorded lifecycle states"
+    ],
+    "paths": [
+      "patterns/**",
+      "templates/**",
+      "docs/exec-plans/**"
+    ],
+    "decisions": [
+      "change owner outcome",
+      "change task strategy",
+      "classify overall alignment or progress",
+      "author supervisory verdict",
+      "decide owner or Pro escalation",
+      "continue beyond stop trigger"
+    ]
+  },
+  "requiredEvidence": [
+    "before/after evidence for every frozen adversarial probe",
+    "durable epoch-4 owner-source/outcome and directive identity",
+    "execution-only receipt with commands, diffs, measurements, deviations, and ending repository state",
+    "runtime screenshots proving the attention queue and complete owner packet",
+    "exact regenerated archive checksum and restored-tree comparison"
+  ],
+  "requiredTestsOrChecks": [
+    "existing 56 tests plus new hostile fixtures",
+    "RED worker alignment cannot allow root close",
+    "GREEN-base owner decision enters attention queue and renders the full packet",
+    "invalidation-only closure does not fabricate milestones",
+    "verification invalidation reopens the finding and blocks terminalization",
+    "cross-worker producer emissions are rejected for every producer/event family",
+    "unrelated owner-source receipts cannot alter the outcome binding",
+    "turn 3 ACTIVE without a valid handoff capsule is rejected",
+    "daemon exclusivity prevents a second writer",
+    "unmapped Symphony input produces a durable diagnostic without control semantics",
+    "progress/strategy and directive/receipt/review states survive restart and drive control state",
+    "npm test, npm run typecheck, npm run build, runtime responsive inspection, archive restore verification"
+  ],
+  "stopAndReturnTriggers": [
+    "execution objective completed",
+    "material ambiguity affecting semantics or strategy",
+    "scope or forbidden-path conflict",
+    "required input unavailable",
+    "a hostile fixture cannot be satisfied without changing current authority",
+    "a genuine owner or Pro decision is discovered",
+    "declared execution horizon reached"
+  ],
+  "maximumExecutionHorizon": {
+    "type": "MEANINGFUL_EXECUTION_CYCLE",
+    "limit": 1
+  },
+  "ambiguityBehavior": "STOP_AND_REPORT_DECISION_REQUIRED",
+  "ownerDecisionAuthority": "NONE",
+  "proEscalationAuthority": "NONE",
+  "substantiveProseAuthorshipAuthority": "NONE_UNLESS_EXACT_TEXT_OR_TRANSFORMATION_IS_INCLUDED",
+  "status": "ACTIVE"
+}

@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "reconciliationId": "mc-recon-20260831-epoch4-r4-accepted",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "trigger": "XH_REVISION4_ACCEPTANCE_ACCEPT",
+  "reconciledAt": "2026-08-31T05:06:28Z",
+  "ownerSource": {
+    "ownerRequestId": "mission-control-dashboard-adaptation-20260830",
+    "canonicalLocator": "state/mission-control-dashboard-adaptation/OWNER-REQUEST.md",
+    "sha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "capturedAt": "2026-08-31T03:08:42Z",
+    "capturedBy": "/root/xhigh_post_revision_review",
+    "captureMode": "INDEPENDENT_SOURCE_FIRST_REVIEW",
+    "corrections": [
+      "GitHub and routine in-scope execution are pre-authorized; ask only for a genuine material tradeoff.",
+      "Pro and Extra High chat tabs must hand off after at most two to three substantive turns.",
+      "Every owner choice relayed from Pro must include the full question, context, options, benefits, drawbacks, consequences, reasoning, recommendation, and default behavior.",
+      "The all-worker attention queue is the default; RED and YELLOW workers expose the exact problem, evidence-backed reasons, directive, actual lifecycle, next review trigger, and owner action.",
+      "The Test cleanup fixture must plainly identify forbidden production scheduler/caller changes for a test-only task and direct stop, revert, and return to test scope.",
+      "Numeric alignment is secondary and REDIRECT alone never proves correction is underway."
+    ]
+  },
+  "independentSupervisorReceipt": {
+    "receiptId": "mc-owner-source-20260831-e4-xh-r2",
+    "collector": "/root/xhigh_post_revision_review",
+    "sourceSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "workerSuppliedCopySha256": null,
+    "comparison": "INDEPENDENT_SOURCE_VERIFIED",
+    "reviewedHead": "3b9745cb92ee7fd41d6b76fc55db06a920908b32",
+    "reviewedReceiptSha256": "fa038df7d8dae61b137984599f95580cb22ac4c3f79e2a6e397b9ab38c3ddcd2",
+    "limitations": []
+  },
+  "ownerOutcome": {
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "epoch": 4,
+    "sha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1",
+    "normalizedResult": "Complete the bounded Mission Control dashboard adaptation slice by preserving the existing attention-first and owner-outcome controls; adding the now-current outcome-advancement, strategy-efficacy, and chat-led-reasoning/Codex-execution planes; repairing the independently reviewed lifecycle, terminalization, authentication, daemon, and handoff defects; keeping Symphony read-only; and adding no custom orchestration. Do not claim the overall multi-worker Mission Control owner outcome complete.",
+    "sourceReceiptId": "mc-owner-source-20260831-e4-xh-r2",
+    "ownerSourceSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "supersedes": {
+      "ownerOutcomeId": "mission-control-dashboard-adaptation",
+      "epoch": 3,
+      "sha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+      "reconciliationId": "mc-recon-20260830-gap-audit-r1"
+    },
+    "currentGap": "No bounded dashboard-adaptation slice gap remains after fresh Extra High acceptance at receipt HEAD 0c9c7c0ea0be4df000944e2b7abafcecae113d96. The overall multi-worker Mission Control parent outcome remains outside this slice and open.",
+    "unmetOutcomes": [],
+    "unknownOutcomes": [],
+    "nonSatisfyingProxies": [
+      "tests pass",
+      "build passes",
+      "responsive screenshots exist",
+      "execution receipt claims completion",
+      "supervisor verdict without source-first evidence"
+    ]
+  },
+  "taskContract": {
+    "taskContractId": "docs/exec-plans/2026-08-30-mission-control-dashboard-adaptation-slice.md",
+    "revision": 1,
+    "sha256": "8c6ca529672509e0dbae3e8e8f82f8ec978da2eabb4f65703356c36065ca7781",
+    "currentAuthorityRefs": [
+      "docs/exec-plans/2026-08-30-mission-control-attention-and-correction-ux-addendum.md",
+      "docs/exec-plans/2026-08-31-mission-control-outcome-progress-and-stagnation-addendum.md",
+      "docs/exec-plans/2026-08-31-mission-control-chat-reasoning-codex-execution-migration.md",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json"
+    ]
+  },
+  "frozenIndependentReview": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_revision3_acceptance",
+    "chatEpoch": "review-97ebbd7-turn-1",
+    "decisionId": "xh-revision3-97ebbd7-reject-r4",
+    "verdict": "REJECT",
+    "ownerActionRequired": false,
+    "proMetaReviewRequired": false,
+    "sliceMayClose": false,
+    "findings": [
+      "MC-R4-B1-DIRECTIVE-SCOPE-PROVENANCE",
+      "MC-R4-B2-DELETION-SENSITIVE-CARD-PROOF",
+      "MC-R4-B3-TRUTHFUL-EXACT-390-CAPTURE",
+      "MC-R4-B4-REVERIFY-AND-ARCHIVE"
+    ],
+    "nextDirectiveId": "XH-MC-744C477-REVISION-004",
+    "substantiveTurns": 2,
+    "reviewerChatClosed": true,
+    "directiveClarificationId": "xh-revision4-archive-readme-path-clarification",
+    "nextReviewRequired": false,
+    "nextReviewSatisfiedBy": "freshAcceptanceReview"
+  },
+  "freshAcceptanceReview": {
+    "surface": "EXTRA_HIGH",
+    "sessionId": "/root/xhigh_revision4_acceptance",
+    "chatEpoch": "review-0c9c7c0-turn-1",
+    "reviewedHead": "0c9c7c0ea0be4df000944e2b7abafcecae113d96",
+    "reviewedImplementation": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
+    "directiveSha256": "e227fa11d71be43e7fc6d50fa260bcee074dc64de8254affe897ce63431fba50",
+    "receiptSha256": "e589669eea85f4add425a2a146e62a8c81939fd343b115ec7abf8808af50d733",
+    "verdict": "ACCEPT",
+    "sliceMayClose": true,
+    "overallParentOutcomeComplete": false,
+    "ownerActionRequired": false,
+    "proMetaReviewRequired": false,
+    "nextDirectiveRequired": false,
+    "substantiveTurns": 1,
+    "reviewerChatClosed": true,
+    "passedGates": [
+      "revision-3 scope truth and exact revision-4 comparator adoption",
+      "deletion-sensitive rendered proof on AttentionCard and HealthyCard",
+      "truthful nonblank exact-390 Test cleanup evidence",
+      "all-worker queue and Test cleanup lifecycle semantics",
+      "numeric alignment secondary and REDIRECT non-inference",
+      "full owner-choice packet rendering",
+      "Symphony read-only and no custom orchestration",
+      "tests, typecheck, build, runtime, security, responsive layout, and archive",
+      "exact amended changed-path authority and clean repository"
+    ],
+    "evidenceLimit": "Historical same-runtime/tab identity cannot be cryptographically replayed by a later reviewer; acceptance instead combines the screenshot hash and truthful visible-frame inspection with independent current-HEAD reproduction of the directive, lifecycle, and no-overflow behavior."
+  },
+  "requirements": [
+    {
+      "ownerRequirementId": "MC-R1",
+      "ownerRequirementText": "Read current universal architecture authority and reuse PR #41 rather than rebuilding the dashboard.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["744c47745c32e6fce440df7739f48c9a59020832", "docs/audits/2026-08-30-mission-control-pr41-gap-audit.md"]
+    },
+    {
+      "ownerRequirementId": "MC-R2",
+      "ownerRequirementText": "Continue automatically through the bounded adaptation slice while keeping Symphony read-only and adding no custom orchestration.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["2896cf3e04522ffbad68ed317e8dd3939a818a7f", "tools/codex-mission-control/restored/codex-mission-control/lib/symphony-adapter.ts"]
+    },
+    {
+      "ownerRequirementId": "MC-R3",
+      "ownerRequirementText": "Default to the all-worker attention queue with exact RED/YELLOW explanations, directives, actual correction lifecycle, next review, and owner action.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["docs/evidence/mission-control-adaptation/dashboard-queue-exact-390.jpg", "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg", "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json"]
+    },
+    {
+      "ownerRequirementId": "MC-R4",
+      "ownerRequirementText": "Treat numeric alignment as secondary and never infer correction from REDIRECT alone.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts"]
+    },
+    {
+      "ownerRequirementId": "MC-R5",
+      "ownerRequirementText": "Use Extra High checkpoints, shared Pro only for substantive supervision design, and hand off Pro/Extra High chats within two to three substantive turns.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json", "docs/evidence/mission-control-adaptation/pro-attention-ux-final-confirmation.txt"]
+    },
+    {
+      "ownerRequirementId": "MC-R6",
+      "ownerRequirementText": "Relay any Pro owner choice in full rather than as a brief summary.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx", "tools/codex-mission-control/restored/codex-mission-control/components/WorkerDetail.tsx"]
+    },
+    {
+      "ownerRequirementId": "MC-R7",
+      "ownerRequirementText": "Do not claim the overall multi-worker Mission Control owner outcome complete.",
+      "status": "MAPPED_DIRECT",
+      "evidenceRefs": ["state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json"]
+    }
+  ],
+  "completionClaim": {
+    "type": "SUBTASK_COMPLETE_PARENT_OPEN",
+    "proposedTerminal": true,
+    "candidateRef": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
+    "reviewedReceiptHead": "0c9c7c0ea0be4df000944e2b7abafcecae113d96",
+    "evidenceRefs": [
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-002.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-003.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-003.json",
+      "state/mission-control-dashboard-adaptation/EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-004.json",
+      "state/mission-control-dashboard-adaptation/CODEX-EXECUTION-RECEIPT-20260831-XH-MC-744C477-REVISION-004.json",
+      "docs/evidence/mission-control-adaptation/dashboard-exact-390-metrics.json"
+    ]
+  },
+  "result": {
+    "supervisoryVerdict": "ACCEPT",
+    "rootTerminalizationAllowed": false,
+    "boundedSliceTerminalizationAllowed": true,
+    "requiredDirective": "NONE_SLICE_ACCEPTED_PARENT_OPEN",
+    "ownerActionRequired": false,
+    "proMetaReviewRequired": false,
+    "nextReasoningReviewRequired": false,
+    "sliceMayClose": true,
+    "overallParentOutcomeComplete": false,
+    "findings": []
+  },
+  "previousReconciliationId": "mc-recon-20260831-epoch4-r4"
+}

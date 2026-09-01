@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001",
+  "receiptId": "SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001-CORRECTIONS-RECEIPT-001",
+  "createdAt": "2026-08-31T04:26:05Z",
+  "implementationCommit": "c909fdfa70146de445db0fc0afe18bbecb58234e",
+  "branch": "architecture/codex-pro-supervision-mission-control-20260830",
+  "ownerSourceReceipt": {
+    "utf8Bytes": 147,
+    "terminalNewline": false,
+    "sha256": "763a81ba7ed7753733a60bc9711182df5418b61883fd1b5c0b5b201eec7696b6"
+  },
+  "implementedCorrections": [
+    "exact wait and execution accounting windows",
+    "surface, metering-domain, and telemetry-source attribution",
+    "separate wait and execution call counts",
+    "separate wall-clock wait, execution elapsed, and executor-occupied wait seconds",
+    "per-resource telemetry-quality and ratio-status fields",
+    "exact token and exact transport-byte formulas with completeness, comparable-domain, and positive-denominator gates",
+    "transport-byte fallback labeled as volume only, never token, cost, quota, or intelligence accounting",
+    "phase-specific idempotent usage events and idempotent finalization",
+    "accounting rejection that preserves handoff liveness",
+    "exact owner-source block and SHA-256 binding"
+  ],
+  "artifacts": {
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md": "965580ccbb8511c00c9d7e40ced7b883b054307ed5828ec8f4e884a7b11e3dab",
+    "templates/EXECUTOR-REASONING-HANDOFF.json": "cc9716c590aad9711825d4a65f0deac487e07c071d031c0891b0f4f94a524e5c",
+    "scripts/executor_handoff_state.py": "99f21aa81d9e815caf3f6308b8aee01ce13e79cd4e53d62b330d3962dfb900c6",
+    "tests/test_executor_handoff_liveness.py": "b1d411d68668b5381ef2b069545bbab65364287c8963d699352c4ff04987bb6b",
+    "feedback/mission-control/SDF-20260831-WAIT-EXECUTION-RESOURCE-ACCOUNTING-001.json": "460a42726c0e631d20f23661a496cf407703eba4b6e2f2723a90597eb674e18f"
+  },
+  "verification": {
+    "focusedHandoffTests": {
+      "command": "python -m unittest tests.test_executor_handoff_liveness",
+      "result": "PASS",
+      "tests": 26
+    },
+    "fullUniversalSuite": {
+      "command": "python3 -m unittest discover -s tests -v",
+      "result": "PASS",
+      "tests": 170
+    },
+    "pythonCompile": "PASS",
+    "jsonValidation": "PASS",
+    "gitDiffCheck": "PASS",
+    "repositoryAudit": {
+      "command": "python3 scripts/audit_codex_github.py --root . --fail-on error",
+      "result": "PASS_NO_FINDINGS"
+    },
+    "hostedCi": "PENDING_RECEIPT_COMMIT"
+  },
+  "activeSomaticLoopBlocked": false,
+  "ownerActionRequired": false,
+  "status": "READY_FOR_PRO_META_REVIEW"
+}

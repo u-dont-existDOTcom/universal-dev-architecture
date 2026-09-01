@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "mc-codex-execution-receipt-20260831-xh-mc-744c477-revision-002",
+  "createdAt": "2026-08-31T03:22:54Z",
+  "directiveId": "XH-MC-744C477-REVISION-002",
+  "directiveRevision": 2,
+  "directiveSha256": "60798a96a81d382f1e4753640fbd3054197a60325f57e5cb99a64c94089e5c55",
+  "taskId": "mission-control-dashboard-adaptation-20260830",
+  "runId": "codex-root-mission-control-adaptation-xh-mc-744c477-revision-002",
+  "repositoryState": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branch": "task/mission-control-dashboard-adaptation-20260830",
+    "startingHead": "3b9745cb92ee7fd41d6b76fc55db06a920908b32",
+    "implementationHead": "40838d622efacc451f388e60ad53b0dfc927b358",
+    "endingState": "Implementation committed; this factual receipt and its exact pending-review state update are the only subsequent files before the receipt commit.",
+    "workspaceRef": "/mnt/hdd/home/joel/Téléchargements/universal-dev-architecture/mission-control-slice"
+  },
+  "authorityBindings": {
+    "ownerRequestSha256": "b73514c13f7193d20393890426ebd8be146e591f41f174469e0efb3899e95cef",
+    "ownerOutcomeId": "mission-control-dashboard-adaptation",
+    "ownerOutcomeEpoch": 4,
+    "ownerOutcomeSha256": "746fd4ac5e6451f446cd013cdd45020680a5d529234d7c1da284b2865e9d23e1",
+    "priorOwnerOutcomeEpoch": 3,
+    "priorOwnerOutcomeSha256": "9b214d2ff5dc5d277e28e77972f79c398d35e98313b2c8e6bd73aea48df13058",
+    "objectiveReconciliationId": "mc-recon-20260831-epoch4-r2"
+  },
+  "execution": {
+    "objectiveClaim": "Executed one bounded repair and verification cycle for the four frozen revision-2 findings.",
+    "actionsTaken": [
+      "made successor execution directives require a reasoning review whose durable sequence is strictly later than the matching prior directive receipt",
+      "bound every execution directive capsule to the exact selected reasoning-supervision capsule",
+      "validated owner-action source references for supervisor assessments, findings, corrections, and outcome-progress records before append",
+      "required every owner-action source event to exist in the same worker ledger and retained continuation finding/evidence validation",
+      "expanded the compact healthy-worker card with owner target, direct evidence, progress, strategy, supporting work, measurement/intervention, reasoning review, directive, Codex state, receipt/review boundary, Pro escalation, owner action, and next review",
+      "recorded the current independently sourced epoch-4 owner outcome and exact prior-epoch binding without claiming acceptance",
+      "added hostile fixtures for predated review replay, capsule mismatch, valid post-receipt succession, and missing/cross-worker owner-action provenance across all four event families",
+      "regenerated responsive evidence, documentation, and the exact source-only archive"
+    ],
+    "filesChanged": [
+      "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+      "tools/codex-mission-control/restored/codex-mission-control/app/globals.css",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/README.md",
+      "tools/codex-mission-control/source-archive/**",
+      "tools/codex-mission-control/{README.md,ARCHITECTURE.md,IMPLEMENTATION-SPEC.md,SOURCE-ARCHIVE.sha256}",
+      "state/mission-control-dashboard-adaptation/{CURRENT-STATE.md,OBJECTIVE-RECONCILIATION.json,EXECUTION-DIRECTIVE-XH-MC-744C477-REVISION-002.json}",
+      "docs/evidence/mission-control-adaptation/dashboard-healthy-current-*"
+    ],
+    "startedAt": "2026-08-31T02:47:00Z",
+    "stoppedAt": "2026-08-31T03:22:54Z"
+  },
+  "verification": {
+    "checksRun": [
+      {
+        "command": "npm test",
+        "result": "PASS",
+        "summary": "69 tests passed; 0 failed, including the new hostile replay and provenance fixtures"
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "summary": "tsc --noEmit completed without diagnostics"
+      },
+      {
+        "command": "npm run build",
+        "result": "PASS",
+        "summary": "Next.js 16.3.3 production compilation, TypeScript, page generation, and route manifest completed"
+      },
+      {
+        "command": "npm start with daemon on 4100 and dashboard on 3000",
+        "result": "PASS",
+        "summary": "six workers projected; five attention workers and one healthy worker; daemon reported a valid 122-event chain"
+      },
+      {
+        "command": "unauthenticated daemon and absent external-ingest probes",
+        "result": "PASS",
+        "summary": "daemon POST /events returned 401 and POST /ingest returned 404"
+      },
+      {
+        "command": "desktop and 390px Browser inspection",
+        "result": "PASS",
+        "summary": "the actual healthy Auth card rendered every required field; the 390px requested viewport measured root scrollWidth equal to clientWidth with no horizontal overflow"
+      },
+      {
+        "command": "bash restore-source.sh; unzip -t; diff -qr source tree",
+        "result": "PASS",
+        "summary": "45 source files restored from 24 base64 parts with checksum verification, archive integrity, and byte-for-byte tree equality"
+      },
+      {
+        "command": "coordinated runtime shutdown",
+        "result": "PASS",
+        "summary": "dashboard and daemon exited, ports 3000 and 4100 closed, and the writer lock was released"
+      },
+      {
+        "command": "git diff --check",
+        "result": "PASS",
+        "summary": "no whitespace errors"
+      }
+    ],
+    "measurements": {
+      "projectedWorkers": 6,
+      "attentionWorkers": 5,
+      "healthyWorkers": 1,
+      "testsPassed": 69,
+      "testsFailed": 0,
+      "archiveFiles": 45,
+      "archiveParts": 24,
+      "archiveSha256": "bb53453be58db9eebbc2405374d2535617ffadbf6c4eb088c703121cd7a6abb4",
+      "runtimeLedgerEvents": 122,
+      "requestedMobileViewportWidth": 390,
+      "mobileCssViewportWidth": 520,
+      "mobileRootClientWidth": 500,
+      "mobileRootScrollWidth": 500,
+      "mobileBodyScrollWidth": 500
+    },
+    "evidenceRefs": [
+      "docs/evidence/mission-control-adaptation/dashboard-healthy-current-1440.jpg#sha256=2a0e622459ee10c78ca347f6e9081d7f00082fbbf049db925ffc61ee017c3ecb",
+      "docs/evidence/mission-control-adaptation/dashboard-healthy-current-390-rendered.txt#sha256=f8a3da81242266b0497ca722b29c8ba513485feb32ab90989e233b673f26177c",
+      "docs/evidence/mission-control-adaptation/dashboard-current-390.png#sha256=f0488e63b0e7259db35f0fd22af3b132a6a32e1f139bf9026fcf9b093777c95b",
+      "docs/evidence/mission-control-adaptation/test-cleanup-detail-current-390.png#sha256=1036e6b191173c67556122fa0a3e279489c9a613fc63d9577fe56b898d4ef35e",
+      "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+      "state/mission-control-dashboard-adaptation/OBJECTIVE-RECONCILIATION.json"
+    ]
+  },
+  "deviations": {
+    "unexpectedRuntimeFacts": [
+      "The connected Brave browser timed out its five-second CDP capture command for the very long phone-width dashboard after the responsive healthy card had rendered."
+    ],
+    "repairsMade": [
+      "Preserved the successful desktop full-page image, the exact 390px rendered DOM state and width measurements, and the existing phone-width queue/detail screenshots; reset the temporary viewport afterward."
+    ],
+    "scopeConflicts": [],
+    "remainingExecutionBlockers": []
+  },
+  "stopTriggerReached": "ALL_FOUR_REQUIRED_CHANGES_AND_EVIDENCE_COMPLETE",
+  "executionCompletionClaim": "BOUNDED_REVISION_002_EXECUTION_COMPLETE_PENDING_FRESH_INDEPENDENT_EXTRA_HIGH_REVIEW",
+  "nextReasoningReviewRequired": true,
+  "prohibitedAuthorityFields": {
+    "contractToOwnerAlignment": null,
+    "outcomeAdvancement": null,
+    "strategyEfficacy": null,
+    "scientificAdequacy": null,
+    "releaseAdequacy": null,
+    "ownerOutcomeAchieved": null,
+    "ownerEscalationDecision": null,
+    "proEscalationDecision": null,
+    "supervisoryVerdict": null,
+    "sliceAcceptance": null
+  },
+  "notes": [
+    "This is an execution-only receipt. It does not classify any frozen review finding as closed and does not claim slice acceptance or overall Mission Control completion.",
+    "No owner or Pro decision was discovered.",
+    "No push, deployment, publication, merge, rebase, or history rewrite occurred."
+  ]
+}

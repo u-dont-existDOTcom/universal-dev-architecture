@@ -1,0 +1,114 @@
+{
+  "schema_version": 2,
+  "captured_at": "2026-08-31T04:43:13Z",
+  "source_base_head": "97ebbd72dc893b180abfda7a3fb8c4ccab713723",
+  "source_candidate_commit": "b5bc0d069dcc549a68d3995c6f53633966c16c8c",
+  "runtime": {
+    "description": "rebuilt production Mission Control stack with a fresh deterministic fixture database",
+    "ledger_events": 108,
+    "ledger_chain_valid": true,
+    "projected_workers": 6,
+    "attention_workers": 5,
+    "healthy_workers": 1,
+    "application_source_equivalence": "The runtime was built from the exact restored application bytes committed at b5bc0d069dcc549a68d3995c6f53633966c16c8c; the commit adds only the rendered regression test, the revision-4 directive, and this replacement evidence image relative to the running application source."
+  },
+  "exact_390_viewport": {
+    "window_inner_width": 390,
+    "window_inner_height": 844,
+    "device_pixel_ratio": 1,
+    "visual_viewport_width": 390,
+    "document_element_client_width": 390,
+    "document_element_scroll_width": 390,
+    "body_client_width": 390,
+    "body_scroll_width": 390,
+    "horizontal_overflow": false,
+    "calibration": "CDP mobile device-metrics override measured from the rendered page rather than inferred from requested physical dimensions"
+  },
+  "test_cleanup_capture_frame": {
+    "scroll_y": 1312,
+    "first_attention_card_top": 116.59375,
+    "exact_problem_visible": true,
+    "evidence_backed_reason_visible": true,
+    "exact_directive_visible_in_frame": false,
+    "frame_truth": "The nonblank frame shows the Test cleanup card header, alignment planes, exact forbidden-production problem, why-it-matters text, and evidence-backed reasons. The directive exists in the same card DOM below this viewport frame and is not claimed visible in this image."
+  },
+  "exact_390_dom_checks": {
+    "test_cleanup_exact_problem_rendered": true,
+    "test_cleanup_evidence_backed_reason_rendered": true,
+    "test_cleanup_exact_directive_rendered": true,
+    "correction_lifecycle": {
+      "issued": "complete",
+      "delivered": "complete",
+      "acknowledged": "current-not-complete",
+      "started": "pending",
+      "evidenced": "pending",
+      "verified": "pending"
+    },
+    "next_review_rendered": true,
+    "owner_action_none_rendered": true,
+    "attention_card_all_mandatory_labels_rendered": true,
+    "healthy_card_all_mandatory_labels_rendered": true,
+    "auth_current_evidence_rendered": true,
+    "auth_unmet_gap_rendered_separately": true,
+    "problem_before_directive": true,
+    "directive_before_lifecycle": true,
+    "lifecycle_before_operator_row": true,
+    "operator_row_before_secondary_control_metadata": true
+  },
+  "current_desktop_inspection": {
+    "window_inner_width": 1440,
+    "window_inner_height": 1000,
+    "device_pixel_ratio": 0.75,
+    "visual_viewport_width": 1420,
+    "document_element_client_width": 1420,
+    "document_element_scroll_width": 1420,
+    "body_client_width": 1420,
+    "body_scroll_width": 1420,
+    "horizontal_overflow": false,
+    "attention_cards": 5,
+    "healthy_cards": 1,
+    "test_cleanup_exact_problem_rendered": true,
+    "healthy_auth_complete_control_state_rendered": true,
+    "healthy_auth_current_evidence_rendered": true,
+    "healthy_auth_unmet_gap_rendered_separately": true,
+    "note": "The connected external browser applies a 0.75 desktop zoom factor; the CDP dimensions were calibrated until the measured CSS window.innerWidth was exactly 1440."
+  },
+  "replacement_capture": {
+    "path": "docs/evidence/mission-control-adaptation/dashboard-test-cleanup-exact-390.jpg",
+    "sha256": "ef0bc7f738a7e4f8cd3a631afec3d03a7a2d7f9934bf0a77088ab2bf16871aa5",
+    "dimensions": "390x844",
+    "bytes": 83006,
+    "nonblank_visual_inspection": true,
+    "same_runtime_and_tab_as_exact_390_dom_checks": true,
+    "encoding": "The browser-captured exact 390x844 PNG frame was converted lossily to the repository's existing JPEG artifact format without resizing."
+  },
+  "retained_reference_captures": [
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-queue-exact-390.jpg",
+      "sha256": "e6132179c7e9eadaf04dd96dbcd0b014ee4720e18943127807d4b8027a2ecedc",
+      "provenance": "revision-3 retained reference; dashboard runtime source is unchanged by revision 4"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-healthy-auth-exact-390.jpg",
+      "sha256": "81f7ab6d4982e63fd412467f601a9086cf9c714e51f38f887974f497ffd42dbe",
+      "provenance": "revision-3 retained reference; current revision-4 healthy-card content was rechecked live in the DOM"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-queue-current-1440-css.jpg",
+      "sha256": "87e94abdca823ed3ebff73a0c11ef39f08afeba7eb2f147ef51a80c3470bd1fc",
+      "provenance": "revision-3 retained reference; current revision-4 desktop queue was rechecked live"
+    },
+    {
+      "path": "docs/evidence/mission-control-adaptation/dashboard-healthy-auth-current-1440-css.jpg",
+      "sha256": "2b657750360ab25724dc6b407cb675412f98a7931fd2b71f4753e25eb09a5279",
+      "provenance": "revision-3 retained reference; current revision-4 healthy Auth card was rechecked live"
+    }
+  ],
+  "cleanup": {
+    "browser_viewport_override_reset": true,
+    "capture_tab_closed": true,
+    "dashboard_port_3000_closed": true,
+    "daemon_port_4100_closed": true,
+    "writer_lock_remaining": false
+  }
+}

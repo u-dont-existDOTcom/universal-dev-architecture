@@ -1,0 +1,43 @@
+{
+  "name": "codex-mission-control",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/run-stack.mjs dev",
+    "dashboard:dev": "next dev",
+    "daemon": "tsx daemon/server.ts",
+    "build": "next build",
+    "start": "node scripts/run-stack.mjs start",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "supervision:admit": "tsx scripts/check-supervision-admission.ts",
+    "worker:poll": "node scripts/run-worker-adapter.mjs",
+    "worker:verify-live": "node scripts/verify-live-worker-acceptance.mjs",
+    "queue:advance-experiments": "node scripts/advance-experiment-queue.mjs",
+    "auth:verify-live": "node scripts/verify-owner-auth-live.mjs",
+    "mcp:stdio": "node scripts/mcp-stdio.mjs",
+    "mcp:verify-live": "node scripts/verify-mcp-client.mjs",
+    "mcp:tunnel:init": "node scripts/init-secure-mcp-tunnel.mjs",
+    "experiment:hermes": "node scripts/run-hermes-experiment.mjs",
+    "experiment:hermes:matrix": "node scripts/run-hermes-matrix.mjs",
+    "experiment:hermes:record": "node scripts/record-hermes-result.mjs",
+    "evaluate:n8n": "node scripts/evaluate-n8n-adapter.mjs",
+    "experiment:attractor:prepare": "node scripts/prepare-attractor-experiment.mjs",
+    "experiment:attractor:record-run": "node scripts/record-attractor-run.mjs",
+    "experiment:attractor:record-evaluation": "node scripts/record-attractor-evaluation.mjs",
+    "experiment:attractor:report": "node scripts/report-attractor-experiment.mjs"
+  },
+  "dependencies": {
+    "next": "16.3.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "zod": "4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
+  }
+}

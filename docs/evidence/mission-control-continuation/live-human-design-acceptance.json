@@ -1,0 +1,160 @@
+{
+  "acceptance": "PASS",
+  "checkedAt": "2026-09-01T00:35:36.832Z",
+  "worker": "human-design-governance",
+  "directionId": "direction:live-humandesign-acceptance-20260901",
+  "ledgerOrdering": {
+    "ownerRecorded": 81,
+    "delivery": 85,
+    "acknowledged": 87,
+    "queue": 89,
+    "reconciled": 93
+  },
+  "projection": {
+    "freshness": "CURRENT",
+    "connection": {
+      "state": "CONNECTED",
+      "runtimeKind": "POLLING_SIDECAR",
+      "endpointId": "worker:human-design-governance:poll",
+      "observedAt": "2026-09-01T00:33:55.224Z",
+      "leaseExpiresAt": "2026-09-01T00:38:55.224Z",
+      "source": {
+        "repository": "/home/joel/humandesign",
+        "branch": "codex/issue18-release-receipt",
+        "head": "dfbb586d2a49507f7bbe7da22e37865a604194e4",
+        "statePath": "state/CURRENT-STATE.md"
+      },
+      "detail": "Authenticated sidecar poll succeeded and bound live repository state at codex/issue18-release-receipt@dfbb586d."
+    },
+    "queue": [
+      {
+        "worker": "human-design-governance",
+        "directionId": "direction:live-humandesign-acceptance-20260901",
+        "queueRevisionId": "queue:human-design-governance:af25122a544d983317d8",
+        "revision": 1,
+        "projectId": "project:human-design",
+        "taskId": "task:human-design-governance",
+        "itemId": "repo-next:96238e651cbfbfa74117",
+        "title": "Verify and re-review the repair",
+        "detail": "verify and re-review the repair",
+        "status": "READY",
+        "priority": "P0",
+        "ordinal": 0,
+        "dependsOn": [],
+        "createdAt": "2026-09-01T00:33:55.224Z",
+        "updatedAt": "2026-09-01T00:33:55.224Z"
+      },
+      {
+        "worker": "human-design-governance",
+        "directionId": "direction:live-humandesign-acceptance-20260901",
+        "queueRevisionId": "queue:human-design-governance:af25122a544d983317d8",
+        "revision": 1,
+        "projectId": "project:human-design",
+        "taskId": "task:human-design-governance",
+        "itemId": "repo-next:4e6644d4c5bbb38491c1",
+        "title": "Privately stage the verified century cache for Railway with outer ZIP/manifest/shard/engine chec",
+        "detail": "privately stage the verified century cache for Railway with outer ZIP/manifest/shard/engine checks and restart/readback",
+        "status": "PLANNED",
+        "priority": "P1",
+        "ordinal": 1,
+        "dependsOn": [
+          "repo-next:96238e651cbfbfa74117"
+        ],
+        "createdAt": "2026-09-01T00:33:55.224Z",
+        "updatedAt": "2026-09-01T00:33:55.224Z"
+      },
+      {
+        "worker": "human-design-governance",
+        "directionId": "direction:live-humandesign-acceptance-20260901",
+        "queueRevisionId": "queue:human-design-governance:af25122a544d983317d8",
+        "revision": 1,
+        "projectId": "project:human-design",
+        "taskId": "task:human-design-governance",
+        "itemId": "repo-next:79b12a4457c035b53622",
+        "title": "Configure the private interviewer link/model receipt",
+        "detail": "configure the private interviewer link/model receipt",
+        "status": "PLANNED",
+        "priority": "P1",
+        "ordinal": 2,
+        "dependsOn": [
+          "repo-next:4e6644d4c5bbb38491c1"
+        ],
+        "createdAt": "2026-09-01T00:33:55.224Z",
+        "updatedAt": "2026-09-01T00:33:55.224Z"
+      },
+      {
+        "worker": "human-design-governance",
+        "directionId": "direction:live-humandesign-acceptance-20260901",
+        "queueRevisionId": "queue:human-design-governance:af25122a544d983317d8",
+        "revision": 1,
+        "projectId": "project:human-design",
+        "taskId": "task:human-design-governance",
+        "itemId": "repo-next:e9c3e9449d403cf9f1f7",
+        "title": "Deploy only the owner test. Friends remain out of scope until that smoke passes",
+        "detail": "deploy only the owner test. Friends remain out of scope until that smoke passes.",
+        "status": "PLANNED",
+        "priority": "P1",
+        "ordinal": 3,
+        "dependsOn": [
+          "repo-next:79b12a4457c035b53622"
+        ],
+        "createdAt": "2026-09-01T00:33:55.224Z",
+        "updatedAt": "2026-09-01T00:33:55.224Z"
+      }
+    ],
+    "blockers": [
+      {
+        "blockerId": "blocker:human-design-governance:owner-session",
+        "directionId": "direction:live-humandesign-acceptance-20260901",
+        "queueItemId": "repo-next:96238e651cbfbfa74117",
+        "status": "OPEN",
+        "severity": "MATERIAL",
+        "title": "Owner-only acceptance input is pending",
+        "description": "pending the owner's first fresh study using that email",
+        "impact": "The worker can prepare and verify the technical path, but cannot fabricate the owner's private acceptance session.",
+        "blockingScope": [
+          "owner-only acceptance"
+        ],
+        "workaround": null,
+        "requiredActor": {
+          "kind": "OWNER",
+          "id": "owner:primary"
+        },
+        "evidenceRefs": [
+          "file:state/CURRENT-STATE.md",
+          "git:dfbb586d2a49507f7bbe7da22e37865a604194e4"
+        ],
+        "reportedBy": "worker:human-design-governance",
+        "needsOwner": true,
+        "reportedAt": "2026-09-01T00:33:55.224Z"
+      }
+    ],
+    "proposals": [
+      {
+        "proposalId": "proposal:human-design-governance:current-sequence:4fbdab2a24785d4bdac1",
+        "directionId": "direction:live-humandesign-acceptance-20260901",
+        "queueItemId": "repo-next:96238e651cbfbfa74117",
+        "status": "OPEN",
+        "title": "Advance the repository-recorded next executable sequence",
+        "rationale": "verify and re-review the repair; privately stage the verified century cache for Railway with outer ZIP/manifest/shard/engine checks and restart/readback; configure the private interviewer link/model receipt; and deploy only the owner test. Friends remain out of scope until that smoke passes.",
+        "expectedImpact": "Keep worker execution aligned with the latest repository state and owner direction.",
+        "affectedScope": [
+          "Verify and re-review the repair",
+          "Privately stage the verified century cache for Railway with outer ZIP/manifest/shard/engine chec",
+          "Configure the private interviewer link/model receipt",
+          "Deploy only the owner test. Friends remain out of scope until that smoke passes"
+        ],
+        "proposerId": "worker:human-design-governance",
+        "reasoningAuthority": "WORKER_CLAIM",
+        "authorityEffect": "NON_OPERATIVE",
+        "disposition": null,
+        "evidenceRefs": [
+          "file:state/CURRENT-STATE.md",
+          "git:dfbb586d2a49507f7bbe7da22e37865a604194e4"
+        ],
+        "requiresOwnerDecision": false,
+        "reportedAt": "2026-09-01T00:33:55.224Z"
+      }
+    ]
+  }
+}

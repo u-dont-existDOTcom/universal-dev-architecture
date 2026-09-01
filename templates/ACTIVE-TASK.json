@@ -1,29 +1,195 @@
 {
   "schemaVersion": 1,
   "taskId": "replace-with-stable-task-id",
-  "title": "Replace with the exact owner-authorized objective",
+  "title": "Replace with the exact owner-authorized contribution",
   "status": "active",
   "exclusive": true,
+  "activeTaskRef": "path/to/active-task.json",
   "repository": "owner/repository",
   "requiredBranch": "agent/replace-with-task-branch",
+  "requiredRef": "refs/heads/agent/replace-with-task-branch",
   "pullRequest": null,
   "ownerAuthorized": true,
+  "ownerSource": {
+    "ownerRequestId": "replace-with-owner-request-id",
+    "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+    "capturedAt": "1970-01-01T00:00:00Z",
+    "sha256": "replace-with-owner-source-sha256",
+    "independentReceiptId": "replace-with-owner-source-receipt-id",
+    "independentReceiptStatus": "SOURCE_UNAVAILABLE",
+    "appendOnlyCorrectionIds": [],
+    "currentAuthorityProjection": {
+      "sourceRecordId": "replace-with-owner-request-or-correction-id",
+      "sourceKind": "OWNER_REQUEST",
+      "relation": "ROOT",
+      "instructionClass": "CONTINUE",
+      "ownerRequestId": "replace-with-owner-request-id",
+      "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+      "capturedAt": "1970-01-01T00:00:00Z",
+      "sha256": "replace-with-owner-source-sha256",
+      "effectiveEpoch": 1,
+      "taskId": "replace-with-stable-task-id",
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "ownerOutcomeSha256": "replace-with-owner-outcome-sha256",
+      "independentReceiptId": "replace-with-current-owner-source-receipt-id",
+      "independentReceiptStatus": "SOURCE_UNAVAILABLE"
+    },
+    "currentAuthorityReceipt": {
+      "receiptId": "replace-with-current-owner-source-receipt-id",
+      "sourceRecordId": "replace-with-owner-request-or-correction-id",
+      "sourceSha256": "replace-with-owner-source-sha256",
+      "canonicalLocator": "replace-with-canonical-locator-or-immutable-source-block-ref",
+      "capturedAt": "1970-01-01T00:00:00Z",
+      "taskId": "replace-with-stable-task-id",
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "ownerOutcomeEpoch": 1,
+      "ownerOutcomeSha256": "replace-with-owner-outcome-sha256",
+      "collector": "mission-control-or-deterministic-tool-or-extra-high-reader",
+      "capability": "INDEPENDENT_OWNER_SOURCE_RECEIPT",
+      "status": "SOURCE_UNAVAILABLE",
+      "limitations": []
+    }
+  },
+  "ownerOutcome": {
+    "ownerOutcomeId": "replace-with-owner-outcome-id",
+    "epoch": 1,
+    "sha256": "replace-with-owner-outcome-sha256",
+    "sourceRefs": [],
+    "verbatimOwnerRequest": [
+      "Replace with exact owner wording"
+    ],
+    "normalizedResult": "Replace with the exact final result without weakening it",
+    "requiredOutcomeIds": [],
+    "nonSatisfyingProxies": []
+  },
+  "derivation": {
+    "rootOrSubtask": "root",
+    "contributionType": "implement",
+    "parentTaskId": null,
+    "parentRemainsOpen": false,
+    "outcomeCoverageProof": "path/to/outcome-coverage-proof",
+    "objectiveReconciliationRecord": "path/to/objective-reconciliation.json"
+  },
+  "alignment": {
+    "workerToContract": "UNKNOWN",
+    "contractToOwner": "SOURCE_MISSING",
+    "overallTraffic": "UNKNOWN",
+    "unmappedOwnerRequirementIds": [],
+    "contractDivergences": [],
+    "authorizedScopeChanges": []
+  },
   "source": {
     "repository": "owner/source-repository-or-same-repository",
     "mainSha": "replace-with-exact-source-sha"
   },
   "preflightCommand": "npm run task:preflight",
   "completionCommand": "npm run task:acceptance",
-  "completionClaimRule": "Ordinary tests and green CI are prerequisites only. Readiness requires the task-specific acceptance command; completion additionally requires protected integration and an immutable receipt.",
+  "completionClaimRule": "Ordinary tests, green CI, task-specific acceptance, review readiness, and supervisor approval are supporting evidence only. Root completion additionally requires a current independently sourced owner-request receipt, owner-outcome epoch/hash, contract-to-owner MATCH, complete backward traceability, exact-candidate evidence for every terminal-required owner outcome, typed completion claim OWNER_OUTCOME_ACHIEVED, and terminal comparator result OWNER_OUTCOME_SATISFIED. A subtask may finish only as SUBTASK_COMPLETE_PARENT_OPEN while parent outcomes remain.",
+  "completionClaimType": "WORKING",
+  "currentGap": {
+    "metRequiredOutcomeIds": [],
+    "unmetRequiredOutcomeIds": [],
+    "unknownRequiredOutcomeIds": [],
+    "summary": "Replace with the exact current gap to the owner outcome"
+  },
+  "researchAssurance": {
+    "operationalAlignment": "NOT_APPLICABLE",
+    "scientificAdequacy": "NOT_APPLICABLE",
+    "releaseAdequacy": "NOT_APPLICABLE",
+    "verdictRecord": null
+  },
+  "supervisionDesignFeedback": {
+    "feedbackIds": [],
+    "blocksCurrentBoundary": false,
+    "sharedProScopeKey": null,
+    "metaReviewStatus": null
+  },
+  "proposedTerminalState": null,
+  "terminalComparatorResult": null,
+  "lastReconciliation": {
+    "reconciliationId": null,
+    "trigger": null,
+    "reconciledAt": null
+  },
+  "nextReconciliationTrigger": "TASK_START",
+  "taskLocalCheckpoint": {
+    "ref": "path/to/task-local-current-state",
+    "sourcePath": "path/to/task-local-current-state",
+    "gitRef": "refs/heads/agent/replace-with-task-branch",
+    "gitObjectId": "replace-with-exact-commit-or-blob-identity",
+    "contentSha256": "replace-with-task-local-content-sha256",
+    "taskId": "replace-with-stable-task-id",
+    "branch": "agent/replace-with-task-branch",
+    "observedAt": "1970-01-01T00:00:00Z",
+    "ownerOutcome": {
+      "ownerOutcomeId": "replace-with-owner-outcome-id",
+      "epoch": 1,
+      "sha256": "replace-with-owner-outcome-sha256"
+    }
+  },
+  "authorityResolution": {
+    "status": "UNRESOLVED",
+    "repositoryGlobalStateRef": "path/to/repository-global-current-state",
+    "repositoryGlobalStateObservedAt": "1970-01-01T00:00:00Z",
+    "globalStateRelation": "AMBIGUOUS",
+    "selectedExecutionSource": "NONE",
+    "substantiveExecutionAuthorized": false,
+    "reasoningReviewRequired": true,
+    "activeBlockerRefs": [],
+    "ignoredOrUnrelatedBlockerRefs": [],
+    "independentOfBlockerIds": [],
+    "suspendedCompetingSourceRefs": [],
+    "allowedStatuses": [
+      "UNRESOLVED",
+      "VALID",
+      "INVALID",
+      "AMBIGUOUS"
+    ],
+    "allowedGlobalStateRelations": [
+      "CURRENT_AND_APPLICABLE",
+      "CURRENT_BUT_UNRELATED",
+      "STALE_BUT_APPLICABLE_REVALIDATION_REQUIRED",
+      "STALE_AND_UNRELATED",
+      "AMBIGUOUS"
+    ]
+  },
+  "executionFrontier": {
+    "state": "WORKING",
+    "requiredAction": "replace-with-current-chat-authored-action",
+    "operation": "LOCAL_DEVELOPMENT",
+    "requiredCapabilityIds": [],
+    "strategyFamilyId": null,
+    "directiveId": null,
+    "permittedActionClasses": [
+      "SUBSTANTIVE_EXECUTION"
+    ],
+    "authorization": "REASONING_REVIEW_REQUIRED",
+    "blockedCapabilityIds": [],
+    "blockingBlockerIds": [],
+    "independentFrontiersAllowed": false,
+    "allowedAuthorizationStates": [
+      "AUTHORIZED",
+      "BLOCKED_BY_APPLICABLE_BLOCKER",
+      "BLOCKER_REVALIDATION_REQUIRED",
+      "REASONING_REVIEW_REQUIRED",
+      "INVALID_AUTHORITY"
+    ]
+  },
+  "waitAdmissionRef": null,
   "suspendedTaskSources": [
-    "old conversation objectives",
+    "old conversation objectives that conflict with the current owner-outcome epoch",
     "unrelated worktree handoffs",
     "global roadmap selection",
-    "unrelated compliance or release queues"
+    "unrelated compliance or release queues",
+    "downstream checkpoints or supervisor packets that weaken the owner outcome",
+    "worker-polished owner summaries that lack an independent source receipt"
   ],
   "acceptance": {
     "requiredArtifacts": [],
     "requiredDocumentation": [],
-    "requiredCommands": []
+    "requiredCommands": [],
+    "requiredOwnerOutcomeEvidence": [],
+    "requiredObjectiveReconciliation": true,
+    "requiredIndependentOwnerSourceReceipt": true
   }
 }
