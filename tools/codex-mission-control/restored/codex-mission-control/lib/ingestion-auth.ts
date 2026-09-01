@@ -10,7 +10,7 @@ export const authenticatedEventTypes = [
   "owner_source_recorded", "owner_outcome_recorded", "task_contract_recorded", "objective_reconciliation_recorded",
   "worker_checkpoint_recorded", "supervisor_assessment_recorded", "evidence_receipt_recorded", "finding_recorded",
   "finding_status_changed", "correction_lifecycle_recorded", "verification_validity_recorded", "completion_claim_recorded",
-  "owner_decision_recorded", "supervision_route_recorded", "research_verdict_recorded", "reasoning_supervision_recorded",
+  "owner_decision_recorded", "supervision_route_recorded", "research_verdict_recorded", "reasoning_message_recorded", "reasoning_supervision_recorded",
   "execution_directive_recorded", "codex_execution_started", "execution_receipt_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "supervision_design_feedback_recorded", "symphony_runtime_observed",
   "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
@@ -29,7 +29,7 @@ export interface AuthenticatedProducer {
 const authorityEvents = new Set<MissionControlEventV2["type"]>([
   "owner_source_recorded", "owner_outcome_recorded", "task_contract_recorded",
   "objective_reconciliation_recorded", "owner_decision_recorded",
-  "owner_message_recorded",
+  "owner_message_recorded", "reasoning_message_recorded",
 ]);
 const workerEvents = new Set<MissionControlEventV2["type"]>([
   "worker_checkpoint_recorded", "completion_claim_recorded", "codex_execution_started", "execution_receipt_recorded",
@@ -40,10 +40,11 @@ const supervisorEvents = new Set<MissionControlEventV2["type"]>([
   "supervisor_assessment_recorded", "finding_recorded", "finding_status_changed",
   "correction_lifecycle_recorded", "supervision_route_recorded", "supervision_design_feedback_recorded",
   "reasoning_supervision_recorded", "execution_directive_recorded", "outcome_progress_recorded",
-  "supervision_alert_recorded",
+  "supervision_alert_recorded", "reasoning_message_recorded",
 ]);
 const collectorEvents = new Set<MissionControlEventV2["type"]>([
   "evidence_receipt_recorded", "symphony_runtime_observed", "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded",
+  "reasoning_message_recorded",
 ]);
 const verifierEvents = new Set<MissionControlEventV2["type"]>([
   "evidence_receipt_recorded", "verification_validity_recorded", "finding_status_changed",
@@ -88,6 +89,24 @@ function scopeMatches(scopes: string[], value: string | null): boolean {
 }
 
 function embeddedIdentityMatches(producer: AuthenticatedProducer, event: MissionControlEventV2): boolean {
+  if (event.type === "reasoning_message_recorded") {
+    if (event.recorded_by !== producer.id || producer.kind === "WORKER") return false;
+    if (producer.kind === "OWNER_AUTHORITY") {
+      return event.author_role === "OWNER"
+        && event.acquisition_method === "OWNER_ATTESTED"
+        && event.provenance_status === "OWNER_ATTESTED";
+    }
+    if (producer.kind === "SUPERVISOR") {
+      return event.author_role === "ASSISTANT"
+        && event.acquisition_method !== "CODEX_COPIED";
+    }
+    if (producer.kind === "COLLECTOR") {
+      return ["OWNER", "ASSISTANT", "SYSTEM"].includes(event.author_role)
+        && ["PROVIDER_DIRECT", "INDEPENDENT_READER_DIRECT"].includes(event.acquisition_method)
+        && event.provenance_status === "VERIFIED";
+    }
+    return false;
+  }
   if (event.type === "evidence_receipt_recorded") {
     return event.producer_id === producer.id && event.producer_role === producer.kind;
   }

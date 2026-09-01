@@ -254,6 +254,7 @@ function eventSummary(event: StoredEvent): string {
     case "completion_claim_recorded": return `${data.completion_claim_type}: ${data.proposed_terminal_state}`;
     case "owner_decision_recorded": return `${data.decision_kind}: ${data.exact_text}`;
     case "supervision_route_recorded": return `${data.lane} ${data.substantive_response_count}/${data.hard_maximum}: ${data.next_review_trigger}`;
+    case "reasoning_message_recorded": return `${data.surface_role.replaceAll("_", " ")} ${data.author_role} · ${data.provenance_status}: ${data.exact_visible_body ?? data.immutable_provider_locator ?? "message content unavailable"}`;
     case "reasoning_supervision_recorded": return `${data.reasoning_supervisor_surface} ${data.reasoning_supervisor_chat_epoch}: ${data.next_reasoning_review_trigger}`;
     case "execution_directive_recorded": return `${data.status}: ${data.execution_objective}`;
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;

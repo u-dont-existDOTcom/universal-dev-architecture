@@ -5,6 +5,7 @@ import type { WorkerState } from "@/lib/projection";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
 import { formatMessageTimestamp } from "@/lib/message-time";
+import { ReasoningTranscript } from "@/components/ReasoningTranscript";
 
 export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRefresh: () => Promise<void> }) {
   const [kind, setKind] = useState<"CONVERSATION" | "DIRECTION">("CONVERSATION");
@@ -52,6 +53,8 @@ export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRe
       <p>Every ledgered message shows absolute Africa/Dakar time, source UTC time, and relative age. External ChatGPT messages remain <strong>UNVERIFIED</strong> until a provider-bound transcript event is ingested; a chat link or last-review age is not message-level evidence.</p>
     </div>
 
+    <ReasoningTranscript timeline={worker.timeline} />
+
     <div className="channel-grid">
       <div className="conversation-panel">
         <div className="channel-panel-head"><div><p className="eyebrow">CONVERSATION</p><h3>Owner and worker</h3></div><span>{channel.messages.length} messages</span></div>
@@ -71,6 +74,7 @@ export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRe
                   dateTime={timestamp.utcIso ?? undefined}
                   title={timestamp.utcIso ? `${timestamp.utcIso} · source UTC` : "TIMESTAMP_UNVERIFIED"}
                   data-timestamp-verified={timestamp.verified ? "true" : "false"}
+                  suppressHydrationWarning
                 >{timestamp.absolute} · {timestamp.relative}</time>
               </div>
               <p>{message.body}</p>

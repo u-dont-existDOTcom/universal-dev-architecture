@@ -699,6 +699,45 @@ export const reasoningSupervisionRecordedSchema = z.object({
   pro_escalation_state: z.enum(["NOT_REQUIRED", "PENDING", "ACTIVE", "COMPLETE"]),
 });
 
+export const reasoningMessageRecordedSchema = z.object({
+  type: z.literal("reasoning_message_recorded"),
+  worker: WorkerId,
+  message_id: StableId,
+  thread_id: StableId,
+  surface_role: z.enum(["PROJECT_MANAGER", "SUPERVISOR"]),
+  provider_surface: z.enum(["CHATGPT_CONSUMER", "CHATGPT_WORK", "OPENAI_API", "UNKNOWN"]),
+  model_mode: NonEmpty.max(200).default("UNKNOWN"),
+  account_workspace: NonEmpty.max(200).default("UNKNOWN"),
+  author_role: z.enum(["OWNER", "ASSISTANT", "SYSTEM"]),
+  sent_at_source: Timestamp.nullable().default(null),
+  received_at_mission_control: Timestamp,
+  body_sha256: Sha256,
+  exact_visible_body: NonEmpty.max(50_000).nullable().default(null),
+  immutable_provider_locator: Url.nullable().default(null),
+  parent_message_id: StableId.nullable().default(null),
+  owner_direction_id: StableId.nullable().default(null),
+  decision_request_id: StableId.nullable().default(null),
+  acquisition_method: z.enum(["PROVIDER_DIRECT", "INDEPENDENT_READER_DIRECT", "OWNER_ATTESTED", "CODEX_COPIED", "UNKNOWN"]),
+  provenance_status: z.enum(["VERIFIED", "OWNER_ATTESTED", "UNVERIFIED"]),
+  limitations: z.array(NonEmpty).default([]),
+  recorded_by: StableId,
+}).superRefine((message, context) => {
+  if (!message.exact_visible_body && !message.immutable_provider_locator) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["exact_visible_body"], message: "A reasoning message requires exact visible body text or an immutable provider locator." });
+  }
+  if (message.provenance_status === "VERIFIED"
+    && (!message.sent_at_source || message.provider_surface === "UNKNOWN"
+      || !["PROVIDER_DIRECT", "INDEPENDENT_READER_DIRECT"].includes(message.acquisition_method))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["provenance_status"], message: "VERIFIED requires a source timestamp, known provider surface, and provider-direct or independent-reader acquisition." });
+  }
+  if (message.provenance_status === "OWNER_ATTESTED" && message.acquisition_method !== "OWNER_ATTESTED") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["acquisition_method"], message: "OWNER_ATTESTED provenance requires owner-attested acquisition." });
+  }
+  if (message.acquisition_method === "CODEX_COPIED" && message.provenance_status !== "UNVERIFIED") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["provenance_status"], message: "CODEX_COPIED reasoning is UNVERIFIED and cannot acquire ChatGPT authority." });
+  }
+});
+
 export const executionDirectiveRecordedSchema = z.object({
   type: z.literal("execution_directive_recorded"),
   worker: WorkerId,
@@ -1151,7 +1190,7 @@ export const eventSchemaV2 = z.union([
   evidenceReceiptRecordedSchema, findingRecordedSchema, findingStatusChangedSchema, correctionLifecycleRecordedSchema,
   verificationValidityRecordedSchema, completionClaimRecordedSchema, ownerDecisionRecordedSchema,
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
-  reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema, codexExecutionStartedSchema, executionReceiptRecordedSchema,
+  reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema, codexExecutionStartedSchema, executionReceiptRecordedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,
   supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, liveWorkerEvidenceObservedSchema, reviewMarkedSchema,
   symphonyAdapterDiagnosticRecordedSchema,

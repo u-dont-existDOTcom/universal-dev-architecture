@@ -361,6 +361,15 @@ export class EventStore {
     const outcomes = events.filter((event) => event.data.type === "owner_outcome_recorded");
     const contracts = events.filter((event) => event.data.type === "task_contract_recorded");
 
+    if (data.type === "reasoning_message_recorded") {
+      if (data.exact_visible_body && sha256(data.exact_visible_body) !== data.body_sha256) {
+        throw new ContractInvariantError("Reasoning-message body SHA-256 does not match the exact visible body.");
+      }
+      if (data.provenance_status === "VERIFIED" && !data.sent_at_source) {
+        throw new ContractInvariantError("Verified reasoning messages require source send time.");
+      }
+    }
+
     if (data.type === "owner_outcome_recorded") {
       const source = sources.find((event) => event.data.type === "owner_source_recorded" && event.data.receipt_id === data.source_receipt_id);
       if (!source) throw new ContractInvariantError("Record the referenced owner-source receipt before the owner outcome.");
