@@ -14,6 +14,12 @@ Before the next substantive action:
 4. Trace implementation and verification back to the literal request. A summary, issue, plan, schema, test, PR, or CI result is not completion unless that was the requested result.
 5. Continue automatically to the next safe implementation step. Ask the owner only when a real semantic choice remains unresolved.
 
+For durable work, store the requirement under `docs/requirements/*.owner-requirement.json` and validate all current records with:
+
+```sh
+python3 scripts/validate_owner_request_integrity.py docs/requirements/*.owner-requirement.json
+```
+
 A request may be reported only as one of:
 
 - `RECORDED_NOT_IMPLEMENTED`
