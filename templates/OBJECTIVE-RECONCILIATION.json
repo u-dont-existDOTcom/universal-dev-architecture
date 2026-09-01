@@ -61,6 +61,8 @@
         "version": null,
         "digest": {"sha256": null}
       },
+      "authorityRegistryRef": "replace-with-external-authority-registry-ref",
+      "authorityRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
       "currentAuthorities": [
         {
           "authorityClass": "EXECUTOR_PROPOSAL",
@@ -70,7 +72,15 @@
           "status": "CURRENT"
         }
       ],
-      "requiredAuthorizations": [],
+      "requiredAuthorizations": [
+        {
+          "operation": "ASSERT_FACT",
+          "requiredIssuerClass": "ARTIFACT_DERIVED_FACT",
+          "scopeRef": "replace-with-exact-claim-scope-ref",
+          "authorizationSourceRef": null,
+          "status": "MISSING"
+        }
+      ],
       "evidenceRefs": [],
       "derivation": null,
       "reproductionRequirement": "REQUIRED",
@@ -120,6 +130,12 @@
       "SUBJECT_BINDING_STALE",
       "PRODUCTION_REPRODUCTION_MISSING",
       "DEFINITIVE_RENDERING_REJECTED"
+      ,
+      "AUTHORITY_REGISTRY_MISSING",
+      "AUTHORITY_SOURCE_UNREGISTERED",
+      "TRANSITION_VALIDATION_REQUIRED",
+      "REPRODUCTION_BYTES_MISMATCH",
+      "REPRODUCTION_RECEIPT_UNBOUND"
     ],
     "authorityOrdinalAllowed": false,
     "requiredAuthorizationsConjunctive": true,

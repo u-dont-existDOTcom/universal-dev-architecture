@@ -287,7 +287,10 @@ authority to assert a fact, owner authority to promote that fact into a policy,
 and a separately admitted reasoning-surface receipt to author a supervisory
 verdict. Every `requiredAuthorizations` entry for the requested operation must
 be `SATISFIED` by an exact current source with the required issuer class and
-scope.
+scope. The relying party supplies that source through immutable,
+digest-validated `templates/AUTHORITY-SOURCE-REGISTRY.json`; the evaluator must
+not derive authority from the claim's own `currentAuthorities` array. A
+load-bearing `ASSERT_FACT` with no applicable requirement fails closed.
 
 The authority classes are:
 
@@ -372,15 +375,21 @@ source that permits the target policy use, satisfies every required
 authorization conjunctively, and preserves the artifact-derived fact as a
 separate descriptive claim. Corrections append new owner sources and
 transitions; they never rewrite an existing exact owner-source block.
+The use evaluator accepts promotion only after validating the complete
+transition against its from/to claims, canonical digest, prior-transition
+chain, and external authority registry. A caller-supplied
+`{"transitionType":"PROMOTED"}` object has no authorization weight.
 
 ### 7.3 Subject-bound reproduction
 
 Independent reproduction uses
 `templates/CLAIM-REPRODUCTION-RECEIPT.json`. Bind the claim version and digest,
 exact repository commit or other subject, producer evidence, independent trust
-domain, method digest, result digest, freshness, and synthetic/production
-status. Synthetic fixtures can validate a mechanism but cannot satisfy a
-production reproduction requirement.
+domain, exact method bytes and digest, exact canonical result value/bytes and
+digest, claim-listed receipt reference, freshness, and synthetic/production
+status. `reproductionRequirement` on the claim is authoritative; callers
+cannot disable it with an optional evaluation flag. Synthetic fixtures can
+validate a mechanism but cannot satisfy a production reproduction requirement.
 
 Reproduction establishes only the artifact fact. `promotesAuthority` is always
 `false`; policy promotion requires its own qualifying authority source and
@@ -395,8 +404,10 @@ Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`; do not use a
 reasoning-surface attestation template for browser evidence and never claim
 cryptographic platform attestation.
 
-The receipt independently binds the required reviewer role, packet and input
-digests, exact submitted-visible payload or a declared reproducible transform,
+The relying party supplies the required reviewer role, review subject,
+repository head, exact input bytes, exact submitted bytes, and exact response
+bytes independently of the receipt. The receipt independently binds those
+requirements plus packet and input digests, exact submitted-visible payload or a declared reproducible transform,
 admission question, repository heads, signed-in surface, account, exact visible
 mode before submission, conversation session, submission, one completed
 response, response digest, and exact visible mode after response. Every
@@ -410,7 +421,8 @@ GitHub assertions, and model self-description have zero receipt weight. A
 corrected observation gets a new receipt and transaction and references the
 old mismatch; it never overwrites the incident.
 
-Receipts are single-use. Bind the exact completed response to
+Receipts are single-use through an append-only, durable consumption ledger; an
+optional in-memory list of prior receipts is not replay protection. Bind the exact completed response to
 `templates/SUPERVISION-VERDICT-ADMISSION.json`. The verdict cannot become
 authoritative unless the receipt is `VERIFIED_COMPLETE`, unused, same-session,
 payload-matched, and its response digest exactly matches the verdict record.
@@ -434,6 +446,12 @@ REASONING_RECEIPT_PAYLOAD_MISMATCH
 REASONING_RECEIPT_INCOMPLETE
 VERDICT_RECEIPT_BINDING_MISMATCH
 ASSURANCE_CLASS_OVERCLAIM
+AUTHORITY_REGISTRY_MISSING
+AUTHORITY_SOURCE_UNREGISTERED
+TRANSITION_VALIDATION_REQUIRED
+REPRODUCTION_BYTES_MISMATCH
+REPRODUCTION_RECEIPT_UNBOUND
+REASONING_REQUIREMENT_BINDING_MISMATCH
 ```
 
 ---

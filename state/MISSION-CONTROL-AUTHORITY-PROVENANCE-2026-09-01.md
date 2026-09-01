@@ -6,8 +6,11 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 
 - Implement the admitted Pro `REVISE` directive for scope
   `supervision-architecture/a40d413-authority-provenance-v1`.
-- Exact external directive evidence:
-  `u-dont-existDOTcom/humandesign@4ccd140b33f8473fa79e91ff6161caaaaa69323e:state/PRO-META-REVIEW-2026-09-01.md`.
+- Exact external directive evidence is bound through sanitized receipt
+  `feedback/mission-control/PRO-META-A40D413-SANITIZED-EVIDENCE-RECEIPT-20260901.json`
+  to `u-dont-existDOTcom/humandesign@bf8fa12bb133faa042e20a7408a0990aadf72eb6:state/PRO-META-REVIEW-2026-09-01.md`,
+  artifact SHA-256 `c10d68a4b28112f1cf17c2b4cd830ebac98823bf7e8ed2842d645c2461ff9139`.
+  Raw Chat URLs and conversation-session identifiers are excluded.
 - Mission Control branch:
   `feedback/supervision-authority-laundering-20260901`.
 - Pre-mutation remote/head preflight matched
@@ -49,6 +52,20 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
   `MC-PRO-MODE-RECEIPT-MISMATCH-20260901-001`.
 - JSON Schemas, instantiable templates, deterministic evaluator/validator,
   hostile fixtures, and all Pro-required named regressions.
+- Independent-review hardening requires a relying-party-supplied immutable
+  authority registry and complete validated promotion transition; embedded
+  claim authority and transition-type labels have no authorization weight.
+- Reproduction is bound to the claim-listed receipt, exact subject, actual
+  method bytes, canonical result value/bytes, and the claim's own production
+  requirement.
+- Reasoning admission receives the required role, subject, repository head,
+  input/submitted/response bytes externally and records single use in an
+  append-only fsync-backed consumption ledger.
+- Browser ownership requires exact successful `OPEN` equality or a validated
+  immutable prior-receipt proof, then reconciles opened, closed, and remaining
+  tabs with cleanup attempted.
+- Hostile fixtures are executable inputs: the repository validator runs every
+  scenario through the real evaluator and compares actual outcomes.
 
 ## Verification
 
@@ -58,7 +75,14 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Tightened exact-scope/digest/UI/browser regressions: 47/47 passed.
 - Standalone JSON, JSON-Schema subset, template-instantiation, hostile-fixture,
   and incident validation: 13/13 checks passed.
-- Full repository unit suite: 292/292 passed.
+- Initial full repository unit suite: 292/292 passed.
+- Independent-review blocker regressions before repair: 7/7 failed, reproducing
+  all reported trust shortcuts.
+- Post-repair authority/reproduction/reasoning/browser and retained focused
+  suite: 73/73 passed.
+- Post-repair full repository unit suite: 307/307 passed.
+- Post-repair standalone validation: 17/17 checks passed, including execution
+  of 35 hostile scenarios (11 claim, 15 reasoning, 9 browser).
 - Deterministic repository audit: `PASS: no findings.`
 - `python3 -m py_compile scripts/mission_control_provenance.py scripts/validate_mission_control_provenance.py`: passed.
 - `git diff --check`: passed before the final verification checkpoint.
@@ -67,9 +91,8 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 
 ## Remaining / next safe action
 
-1. Run final `git diff --check` after this verification-only checkpoint update.
-2. Review the exact diff, commit locally on the draft PR branch, and report the
+1. Review the exact diff, commit locally on the draft PR branch, and report the
    commit without pushing.
-3. Parent execution must separately finish and verify the authorized Human
+2. Parent execution must separately finish and verify the authorized Human
    Design draft changes. Owner-authority, merge, release, and deployment remain
    open.

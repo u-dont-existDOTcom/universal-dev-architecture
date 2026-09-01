@@ -1,14 +1,17 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "fixtureId": "browser-operation-hostile",
   "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "executionRequired": true,
   "scenarios": [
-    {"id": "repository-browser-with-cli-available", "expected": "BROWSER_ROUTE_NOT_JUSTIFIED"},
-    {"id": "second-transient-tab-no-exception", "expected": "AGENT_TAB_CAP_EXCEEDED"},
-    {"id": "close-other-transaction-tab", "expected": "TAB_SESSION_MISMATCH"},
-    {"id": "close-unknown-stale-tab", "expected": "TAB_OWNERSHIP_UNVERIFIED"},
-    {"id": "navigate-owner-existing-tab", "expected": "PROTECTED_TAB_MUTATION_ATTEMPT"},
-    {"id": "cleanup-leaves-agent-tab", "expected": "AGENT_TAB_CLEANUP_INCOMPLETE"},
-    {"id": "observe-absence-attributes-actor", "expected": "TAB_OWNERSHIP_UNVERIFIED"}
+    {"id": "repository-browser-with-cli-available", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_ROUTE_NOT_JUSTIFIED"},
+    {"id": "second-transient-tab-no-exception", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "AGENT_TAB_CAP_EXCEEDED"},
+    {"id": "close-other-transaction-tab", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "TAB_SESSION_MISMATCH"},
+    {"id": "close-unknown-stale-tab", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "TAB_OWNERSHIP_UNVERIFIED"},
+    {"id": "navigate-owner-existing-tab", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "PROTECTED_TAB_MUTATION_ATTEMPT"},
+    {"id": "cleanup-leaves-agent-tab", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "AGENT_TAB_CLEANUP_INCOMPLETE"},
+    {"id": "observe-absence-attributes-actor", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "TAB_OWNERSHIP_UNVERIFIED"},
+    {"id": "claimed-tab-without-open-or-proof", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_OPEN_ACTION_MISMATCH"},
+    {"id": "cleanup-state-contradicts-actions", "evaluator": "evaluate_browser_operation", "expectedAllowed": false, "expected": "BROWSER_CLEANUP_RECONCILIATION_MISMATCH"}
   ]
 }

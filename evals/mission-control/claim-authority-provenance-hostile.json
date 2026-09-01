@@ -1,14 +1,19 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "fixtureId": "claim-authority-provenance-hostile",
   "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "executionRequired": true,
   "scenarios": [
-    {"id": "reasoning-cannot-satisfy-owner-explicit", "requiredIssuerClass": "OWNER_EXPLICIT", "presentIssuerClass": "REASONING_DECISION", "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"},
-    {"id": "artifact-23-descriptive-only", "value": 23, "authorityClass": "ARTIFACT_DERIVED_FACT", "decisionUse": "DESCRIPTIVE_ONLY", "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
-    {"id": "artifact-76-descriptive-only", "value": 76, "authorityClass": "ARTIFACT_DERIVED_FACT", "decisionUse": "DESCRIPTIVE_ONLY", "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
-    {"id": "rename-cannot-promote", "fromField": "mapped_scoreable_question_count", "toField": "completion_required_question_count", "transition": null, "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
-    {"id": "synthetic-reproduction-not-production", "synthetic": true, "productionRequired": true, "expected": "PRODUCTION_REPRODUCTION_MISSING"},
-    {"id": "subject-commit-changed", "expected": "SUBJECT_BINDING_STALE"},
-    {"id": "load-bearing-worker-false", "workerLoadBearing": false, "useSite": "OWNER_FACING_DEFINITIVE_RENDERING", "expected": "DEFINITIVE_RENDERING_REJECTED"}
+    {"id": "reasoning-cannot-satisfy-owner-explicit", "evaluator": "evaluate_claim_use", "requiredIssuerClass": "OWNER_EXPLICIT", "presentIssuerClass": "REASONING_DECISION", "expectedAllowed": false, "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"},
+    {"id": "artifact-23-descriptive-only", "evaluator": "evaluate_claim_use", "value": 23, "authorityClass": "ARTIFACT_DERIVED_FACT", "decisionUse": "DESCRIPTIVE_ONLY", "expectedAllowed": false, "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
+    {"id": "artifact-76-descriptive-only", "evaluator": "evaluate_claim_use", "value": 76, "authorityClass": "ARTIFACT_DERIVED_FACT", "decisionUse": "DESCRIPTIVE_ONLY", "expectedAllowed": false, "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
+    {"id": "rename-cannot-promote", "evaluator": "evaluate_claim_use", "fromField": "mapped_scoreable_question_count", "toField": "completion_required_question_count", "transition": null, "expectedAllowed": false, "expected": "UNAUTHORIZED_CLAIM_PROMOTION"},
+    {"id": "synthetic-reproduction-not-production", "evaluator": "evaluate_reproduction", "synthetic": true, "productionRequired": true, "expectedAllowed": false, "expected": "PRODUCTION_REPRODUCTION_MISSING"},
+    {"id": "subject-commit-changed", "evaluator": "evaluate_subject_freshness", "expectedAllowed": false, "expected": "SUBJECT_BINDING_STALE"},
+    {"id": "load-bearing-worker-false", "evaluator": "evaluate_claim_use", "workerLoadBearing": false, "useSite": "OWNER_FACING_DEFINITIVE_RENDERING", "expectedAllowed": false, "expected": "DEFINITIVE_RENDERING_REJECTED"},
+    {"id": "embedded-fake-authority-transition", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "AUTHORITY_REGISTRY_MISSING"},
+    {"id": "load-bearing-assert-zero-authorization", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"},
+    {"id": "reproduction-result-bytes-tampered", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_BYTES_MISMATCH"},
+    {"id": "reproduction-receipt-unbound", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_RECEIPT_UNBOUND"}
   ]
 }

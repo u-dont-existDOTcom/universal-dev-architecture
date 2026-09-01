@@ -43,9 +43,11 @@
     "decisionId": "replace-with-reasoning-decision-id",
     "capsuleId": "replace-with-context-capsule-id",
     "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity",
+    "externalReviewRequirementRef": "replace-with-relying-party-role-subject-head-and-payload-requirement-ref",
     "reasoningSurfaceObservationReceiptRef": "replace-with-observed-ui-receipt-ref",
     "verdictAdmissionRef": "replace-with-verdict-admission-ref",
     "verdictAdmissionState": "PENDING_RECEIPT",
+    "receiptConsumptionLedgerRef": "replace-with-durable-append-only-consumption-ledger-ref",
     "cryptographicPlatformAttestationClaimed": false
   },
   "strategy": {

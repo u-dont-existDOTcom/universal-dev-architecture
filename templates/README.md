@@ -14,12 +14,15 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `SCOPED-BLOCKER.json` — explicit blocker scope, non-waivable policy class, source freshness, task/frontier applicability, causal dependency, unblock event, owner action, retry policy, and supersession.
 - `WAIT-ADMISSION.json` — exact active-task wait identity, exact blocker or live reasoning-handoff binding, owner decision/action, changing condition, actor/mechanism, parsed timing, bounded horizon, and nonterminal expiry state.
 - `OBJECTIVE-RECONCILIATION.json` — owner-requirement-to-contract/evidence matrix plus independent owner-source receipt, scoped conjunctive claim authority, append-only transition/reproduction references, and separate worker-to-contract / contract-to-owner alignment.
+- `AUTHORITY-SOURCE-REGISTRY.json` — relying-party-supplied immutable authority sources with per-source and whole-registry digests; claims cannot self-authorize from embedded declarations.
 - `CLAIM-RECORD.json` — versioned, subject-bound claim with conjunctive required authorizations and use-site-derived load-bearing evaluation; no authority rank.
 - `CLAIM-TRANSITION.json` — append-only `DERIVED` / `PROMOTED` / `REVOKED` / `SUPERSEDED` transition ledger entry with digest chaining.
 - `CLAIM-REPRODUCTION-RECEIPT.json` — exact-subject independent reproduction that can verify a fact but can never promote policy authority.
 - `REASONING-SURFACE-OBSERVATION-RECEIPT.json` — single-transaction signed-in UI observation binding account, exact visible mode, session, submission, completed response, post-response mode, and replay protection without claiming platform attestation.
 - `SUPERVISION-VERDICT-ADMISSION.json` — single-use response-digest binding between a reasoning-surface receipt and an admitted supervisory verdict.
+- `RECEIPT-CONSUMPTION-EVENT.json` — append-only durable ledger event that prevents receipt/nonce/transaction replay across process restarts.
 - `BROWSER-OPERATION-RECEIPT.json` — browser necessity, non-browser alternatives, session/transaction tab ownership, one-tab transient cap, protected owner tabs, and cleanup receipt.
+- `BROWSER-OWNERSHIP-REGISTRY.json` — immutable prior successful-OPEN proofs when a browser operation spans more than one receipt in the same session and transaction.
 - `OUTCOME-PROGRESS-RECEIPT.json` — direct-outcome baseline/current/best/target evidence, work classification, outcome advancement, strategy efficacy, intervention, and next decision-changing evidence boundary.
 - `CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json` — versioned chat-authored directive defining typed action class, exact authority/frontier state, execution objective, reasoning decision, strategy identity, scope, inputs, evidence, tests, tactical freedom, and stop/review boundary. Codex cannot start substantive execution without `VALID` authority and an `AUTHORIZED` frontier.
 - `CODEX-EXECUTION-RECEIPT.json` — execution-only receipt containing commands/actions, mutations, tests, measurements, artifacts, runtime facts, deviations, blockers, and stop trigger. It deliberately excludes supervisory authority.

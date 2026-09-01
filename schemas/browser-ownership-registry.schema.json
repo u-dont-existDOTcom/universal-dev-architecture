@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/browser-ownership-registry.schema.json",
+  "title": "Immutable prior browser OPEN ownership proofs",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "registryId", "registryDigest", "proofs"],
+  "properties": {
+    "$schema": {"const": "../schemas/browser-ownership-registry.schema.json"},
+    "schemaVersion": {"const": 1},
+    "registryId": {"type": "string", "minLength": 1},
+    "registryDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "proofs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tabId", "browserSessionRef", "transactionId", "sourceReceiptRef", "sourceReceiptDigest", "sourceReceiptValidationState", "proofDigest"],
+        "properties": {
+          "tabId": {"type": "string", "minLength": 1},
+          "browserSessionRef": {"type": "string", "minLength": 1},
+          "transactionId": {"type": "string", "minLength": 1},
+          "sourceReceiptRef": {"type": "string", "minLength": 1},
+          "sourceReceiptDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "sourceReceiptValidationState": {"const": "VALIDATED"},
+          "proofDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

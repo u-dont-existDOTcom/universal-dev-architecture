@@ -26,6 +26,8 @@
     "version": null,
     "digest": {"sha256": null}
   },
+  "authorityRegistryRef": "replace-with-external-authority-registry-ref",
+  "authorityRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "currentAuthorities": [
     {
       "authorityClass": "ARTIFACT_DERIVED_FACT",

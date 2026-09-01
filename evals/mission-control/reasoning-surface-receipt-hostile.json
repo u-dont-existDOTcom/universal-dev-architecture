@@ -1,17 +1,23 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "fixtureId": "reasoning-surface-receipt-hostile",
   "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "executionRequired": true,
   "scenarios": [
-    {"id": "agent-name-extra-high", "evidenceSourceType": "AGENT_NAME", "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
-    {"id": "model-self-description", "evidenceSourceType": "MODEL_SELF_DESCRIPTION", "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
-    {"id": "prompt-requested-mode", "evidenceSourceType": "PROMPT_REQUEST", "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
-    {"id": "pro-plan-not-pro-mode", "accountObserved": "Pro plan", "modeStatus": "MISSING", "expected": "REASONING_RECEIPT_INCOMPLETE"},
-    {"id": "pro-required-extra-high-observed", "requiredMode": "Pro", "observedMode": "Extra High", "expected": "REASONING_SURFACE_MODE_MISMATCH"},
-    {"id": "transplanted-session", "expected": "REASONING_RECEIPT_SESSION_MISMATCH"},
-    {"id": "receipt-replay", "expected": "REASONING_RECEIPT_REPLAY_REJECTED"},
-    {"id": "unexplained-payload-transform", "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
-    {"id": "response-verdict-digest-mismatch", "expected": "VERDICT_RECEIPT_BINDING_MISMATCH"},
-    {"id": "platform-attestation-overclaim", "expected": "ASSURANCE_CLASS_OVERCLAIM"}
+    {"id": "agent-name-extra-high", "evaluator": "evaluate_reasoning_surface_receipt", "evidenceSourceType": "AGENT_NAME", "expectedAllowed": false, "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
+    {"id": "model-self-description", "evaluator": "evaluate_reasoning_surface_receipt", "evidenceSourceType": "MODEL_SELF_DESCRIPTION", "expectedAllowed": false, "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
+    {"id": "prompt-requested-mode", "evaluator": "evaluate_reasoning_surface_receipt", "evidenceSourceType": "PROMPT_REQUEST", "expectedAllowed": false, "expected": "SELF_ASSERTED_REASONING_IDENTITY_REJECTED"},
+    {"id": "pro-plan-not-pro-mode", "evaluator": "evaluate_reasoning_surface_receipt", "accountObserved": "Pro plan", "modeStatus": "MISSING", "expectedAllowed": false, "expected": "REASONING_RECEIPT_INCOMPLETE"},
+    {"id": "pro-required-extra-high-observed", "evaluator": "evaluate_reasoning_surface_receipt", "requiredMode": "Pro", "observedMode": "Extra High", "expectedAllowed": false, "expected": "REASONING_SURFACE_MODE_MISMATCH"},
+    {"id": "transplanted-session", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_SESSION_MISMATCH"},
+    {"id": "receipt-replay", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_REPLAY_REJECTED"},
+    {"id": "unexplained-payload-transform", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
+    {"id": "response-verdict-digest-mismatch", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "VERDICT_RECEIPT_BINDING_MISMATCH"},
+    {"id": "platform-attestation-overclaim", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "ASSURANCE_CLASS_OVERCLAIM"},
+    {"id": "receipt-self-selects-role", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_REQUIREMENT_BINDING_MISMATCH"},
+    {"id": "external-subject-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_REQUIREMENT_BINDING_MISMATCH"},
+    {"id": "external-repository-head-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_REQUIREMENT_BINDING_MISMATCH"},
+    {"id": "external-input-bytes-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
+    {"id": "external-response-bytes-mismatch", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"}
   ]
 }

@@ -18,8 +18,9 @@
     "subjectBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sourcePacketDigest", "inputPayloadDigest", "submittedVisiblePayloadDigest", "submissionTransform", "admissionQuestionDigest", "boundRepositoryHeads"],
+      "required": ["reviewSubjectRef", "sourcePacketDigest", "inputPayloadDigest", "submittedVisiblePayloadDigest", "submissionTransform", "admissionQuestionDigest", "boundRepositoryHeads"],
       "properties": {
+        "reviewSubjectRef": {"type": "string", "minLength": 1},
         "sourcePacketDigest": {"$ref": "#/$defs/digest"},
         "inputPayloadDigest": {"$ref": "#/$defs/digest"},
         "submittedVisiblePayloadDigest": {"$ref": "#/$defs/digest"},
@@ -34,7 +35,7 @@
           }
         },
         "admissionQuestionDigest": {"$ref": "#/$defs/digest"},
-        "boundRepositoryHeads": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        "boundRepositoryHeads": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
       }
     },
     "conversation": {

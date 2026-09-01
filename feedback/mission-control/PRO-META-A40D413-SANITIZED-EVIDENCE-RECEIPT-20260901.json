@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "PRO-META-A40D413-SANITIZED-EVIDENCE-RECEIPT-20260901",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "packetId": "PRO-META-A40D413-AUTHORITY-PROVENANCE-20260901-v1",
+  "reviewRole": "PRO",
+  "verdict": "REVISE",
+  "admissionState": "ADMITTED_BY_EXTERNAL_SAME_SESSION_UI_RECEIPT",
+  "externalArtifact": {
+    "repository": "u-dont-existDOTcom/humandesign",
+    "commit": "bf8fa12bb133faa042e20a7408a0990aadf72eb6",
+    "path": "state/PRO-META-REVIEW-2026-09-01.md",
+    "artifactDigest": {
+      "algorithm": "sha256",
+      "value": "c10d68a4b28112f1cf17c2b4cd830ebac98823bf7e8ed2842d645c2461ff9139",
+      "byteLength": 35743,
+      "bytesDefinition": "exact Git blob content bytes at the bound commit and path"
+    }
+  },
+  "completedResponseDigest": {
+    "algorithm": "sha256",
+    "value": "bc2ee36999016e2e1ab5d5768a8b492a95857bf8742c9f46be6e92fed0e1ebb1",
+    "byteLength": 33805,
+    "bytesDefinition": "exact UTF-8 completed assistant-response bytes as recorded in the bound external artifact"
+  },
+  "observationSummary": {
+    "surface": "SIGNED_IN_CHATGPT_CHAT",
+    "requiredVisibleMode": "Pro",
+    "preSubmissionModeObserved": true,
+    "sameTransactionSessionObserved": true,
+    "completedResponseObserved": true,
+    "postResponseModeObserved": true,
+    "aggregateState": "VERIFIED_COMPLETE",
+    "cryptographicPlatformAttestation": false
+  },
+  "privacyExclusions": [
+    "RAW_CHAT_URL",
+    "RAW_CONVERSATION_SESSION_ID"
+  ],
+  "recordedAt": "2026-09-01T23:22:30Z"
+}

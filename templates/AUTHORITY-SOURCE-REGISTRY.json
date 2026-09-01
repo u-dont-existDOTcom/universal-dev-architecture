@@ -1,0 +1,16 @@
+{
+  "$schema": "../schemas/authority-source-registry.schema.json",
+  "schemaVersion": 1,
+  "registryId": "replace-with-authority-registry-id",
+  "registryDigest": "9b9b25c0ca5692c335e13779f7593fef4dd57cb2951ce00320eb7508fda0fa68",
+  "sources": [
+    {
+      "authoritySourceRef": "replace-with-authority-source-ref",
+      "authorityClass": "ARTIFACT_DERIVED_FACT",
+      "authorityScope": ["ASSERT_FACT"],
+      "scopeRefs": ["replace-with-scope-ref"],
+      "status": "CURRENT",
+      "sourceRecordDigest": "72d6011212c9a3ebb548abf747bca7d798633abd21ae31c572cb7628aec1a4c6"
+    }
+  ]
+}

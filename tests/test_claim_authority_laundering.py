@@ -46,6 +46,11 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "SUBJECT_BINDING_STALE",
                 "PRODUCTION_REPRODUCTION_MISSING",
                 "DEFINITIVE_RENDERING_REJECTED",
+                "AUTHORITY_REGISTRY_MISSING",
+                "AUTHORITY_SOURCE_UNREGISTERED",
+                "TRANSITION_VALIDATION_REQUIRED",
+                "REPRODUCTION_BYTES_MISMATCH",
+                "REPRODUCTION_RECEIPT_UNBOUND",
             },
         )
 
@@ -60,6 +65,8 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
             "useSiteRefs",
             "loadBearingEvaluation",
             "subjectRef",
+            "authorityRegistryRef",
+            "authorityRegistryDigest",
             "currentAuthorities",
             "requiredAuthorizations",
             "reproductionRequirement",

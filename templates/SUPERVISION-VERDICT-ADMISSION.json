@@ -13,7 +13,7 @@
     "bytesDefinition": "exact UTF-8 completed assistant-response bytes"
   },
   "reasoningSurfaceReceiptRef": "replace-with-reasoning-surface-receipt-id",
-  "boundSubjectRefs": [],
+  "boundSubjectRefs": ["replace-with-external-review-subject-ref"],
   "admissionState": "PENDING_RECEIPT",
   "authoritative": false,
   "authorizedScope": ["SUPERVISION_DESIGN_META_REVIEW"],

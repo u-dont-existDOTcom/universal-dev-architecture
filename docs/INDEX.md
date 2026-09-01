@@ -81,12 +81,15 @@ Run these hostile fixtures:
 Machine-readable supervision templates:
 
 - `../templates/OBJECTIVE-RECONCILIATION.json`
+- `../templates/AUTHORITY-SOURCE-REGISTRY.json`
 - `../templates/CLAIM-RECORD.json`
 - `../templates/CLAIM-TRANSITION.json`
 - `../templates/CLAIM-REPRODUCTION-RECEIPT.json`
 - `../templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`
 - `../templates/SUPERVISION-VERDICT-ADMISSION.json`
+- `../templates/RECEIPT-CONSUMPTION-EVENT.json`
 - `../templates/BROWSER-OPERATION-RECEIPT.json`
+- `../templates/BROWSER-OWNERSHIP-REGISTRY.json`
 - `../templates/OUTCOME-PROGRESS-RECEIPT.json`
 - `../templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
 - `../templates/CODEX-EXECUTION-RECEIPT.json`

@@ -662,6 +662,10 @@ Every agent browser transaction uses
 `scripts/mission_control_provenance.py`. The receipt binds necessity, the exact
 capability, non-browser alternatives, selected route, browser session,
 transaction, baseline tabs, ownership, transient-tab cap, actions, and cleanup.
+Ownership is not established by listing a tab ID. The listing must equal a
+successful `OPEN` action in this receipt or a digest-validated proof from
+`templates/BROWSER-OWNERSHIP-REGISTRY.json` supplied independently by the
+controller.
 
 Repository retrieval defaults to authenticated CLI or local Git whenever that
 route satisfies the capability. Browser navigation is blocked before execution
@@ -701,7 +705,9 @@ be reused as ownership proof.
 At most one agent-opened transient tab is allowed unless `exceptionRef` records
 the concrete necessity. Cleanup uses `CLOSE_ONLY_AGENT_OPENED`; a close failure
 is reported and never authorizes closing an adjacent or guessed tab. Observing
-that a tab is absent does not establish who closed it.
+that a tab is absent does not establish who closed it. When any agent-opened tab
+exists, cleanup must be marked attempted and the successful `CLOSE` actions,
+cleanup results, and remaining IDs must reconcile exactly.
 
 Required browser failure codes are:
 
@@ -713,6 +719,8 @@ TAB_SESSION_MISMATCH
 PROTECTED_TAB_MUTATION_ATTEMPT
 AGENT_TAB_CLEANUP_INCOMPLETE
 UNNECESSARY_OWNER_BROWSER_MUTATION
+BROWSER_OPEN_ACTION_MISMATCH
+BROWSER_CLEANUP_RECONCILIATION_MISMATCH
 ```
 
 ### 14.2 Tab lease record

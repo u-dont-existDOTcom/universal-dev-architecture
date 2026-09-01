@@ -19,6 +19,8 @@
   "selectedRoute": "BROWSER",
   "decisionRef": "replace-with-browser-necessity-decision-ref",
   "browserSessionRef": "replace-with-browser-session-ref",
+  "priorOwnershipRegistryRef": "replace-with-external-browser-ownership-registry-ref",
+  "priorOwnershipRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "baselineTabs": [
     {"tabId": "replace-with-owner-tab-id", "ownershipClass": "OWNER_EXISTING", "protected": true}
   ],

@@ -366,6 +366,13 @@ production claims; synthetic fixtures prove only their bounded mechanics. An
 independent reviewer reproduces each load-bearing cardinality or returns
 `UNKNOWN`.
 
+Resolve claim authority only from a relying-party-supplied immutable
+`AUTHORITY-SOURCE-REGISTRY.json` whose registry and source digests validate.
+Claim-embedded authority is a declaration to compare, not authorization.
+Load-bearing assertions require at least one exact applicable authorization,
+and policy promotion requires validation of the complete append-only
+transition rather than a transition-type label.
+
 Reasoning identity requires
 `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json` and a response-bound
 `templates/SUPERVISION-VERDICT-ADMISSION.json`. Current browser evidence is
@@ -374,7 +381,10 @@ names, role or task labels, branch/worktree/process/environment names, prompts,
 and model self-description have zero receipt weight. Bind exact visible mode,
 account, transaction, conversation session, submission, completed response,
 post-response mode, and response digest. A used or mismatched receipt cannot
-admit a verdict.
+admit a verdict. The relying party supplies the required role, subject,
+repository head, and exact input/response bytes independently. Consume an
+admitted receipt in the durable append-only receipt-consumption ledger; an
+optional caller list is not replay protection.
 
 For AskRigor and comparable research work, keep separate:
 
@@ -513,6 +523,9 @@ For browser automation:
   the capability;
 - record necessity, alternatives, baseline tabs, session/transaction ownership,
   actions, and cleanup in `templates/BROWSER-OPERATION-RECEIPT.json`;
+- require `agentOpenedTabIds` to equal successful current-receipt `OPEN`
+  actions plus independently validated same-session/same-transaction prior
+  proofs, and reconcile successful closes and remaining IDs exactly;
 - reuse only near-term relevant tabs and allow at most one agent-opened transient
   tab unless a recorded necessity exception applies;
 - audit automation-owned tabs about every 30 minutes and at task/account/limit boundaries;

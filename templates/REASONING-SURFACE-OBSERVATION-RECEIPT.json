@@ -9,6 +9,7 @@
   "requiredReviewerRole": "PRO",
   "requirementSourceRef": "replace-with-requirement-source-ref",
   "subjectBinding": {
+    "reviewSubjectRef": "replace-with-external-review-subject-ref",
     "sourcePacketDigest": {
       "algorithm": "sha256",
       "value": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -38,7 +39,7 @@
       "byteLength": 0,
       "bytesDefinition": "exact UTF-8 admission-question bytes"
     },
-    "boundRepositoryHeads": []
+    "boundRepositoryHeads": ["owner/repository@replace-with-exact-commit"]
   },
   "conversation": {
     "surfaceOrigin": "https://chatgpt.com",

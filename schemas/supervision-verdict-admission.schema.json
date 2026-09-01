@@ -25,7 +25,7 @@
       }
     },
     "reasoningSurfaceReceiptRef": {"type": "string", "minLength": 1},
-    "boundSubjectRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "boundSubjectRefs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "admissionState": {"enum": ["PENDING_RECEIPT", "ADMITTED", "REJECTED_MISMATCH", "REJECTED_REPLAY", "REJECTED_RESPONSE_BINDING", "STALE"]},
     "authoritative": {"type": "boolean"},
     "authorizedScope": {"type": "array", "items": {"type": "string", "minLength": 1}},

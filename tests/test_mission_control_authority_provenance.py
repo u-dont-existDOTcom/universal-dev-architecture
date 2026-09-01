@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from uuid import uuid4
 
 from scripts.mission_control_provenance import (
+    DurableReceiptConsumptionStore,
+    ImmutableAuthoritySourceRegistry,
+    ImmutableBrowserOwnershipRegistry,
     _jcs_text,
     append_owner_source_correction,
+    authority_source_digest,
+    browser_ownership_proof_digest,
     claim_digest,
     evaluate_browser_operation,
     evaluate_claim_use,
@@ -26,6 +34,11 @@ ROOT = Path(__file__).resolve().parents[1]
 ZERO = "0" * 64
 ONE = "1" * 64
 TWO = "2" * 64
+INPUT_BYTES = b"exact source packet"
+RESPONSE_BYTES = b"exact completed response"
+REVIEW_SUBJECT = "supervision-architecture/a40d413-authority-provenance-v1"
+REPOSITORY_HEAD = "u-dont-existDOTcom/universal-dev-architecture@156c42d"
+_TEST_LEDGER_DIR = tempfile.TemporaryDirectory()
 
 
 def load_template(name: str) -> dict:
@@ -36,6 +49,75 @@ def refresh_claim_digest(claim: dict) -> None:
     semantics = {key: value for key, value in claim.items() if key != "claimDigest"}
     claim["claimDigest"]["value"] = claim_digest(claim)
     claim["claimDigest"]["byteLength"] = len(_jcs_text(semantics).encode("utf-8"))
+
+
+def make_authority_registry_from_claim(claim: dict) -> ImmutableAuthoritySourceRegistry:
+    records = []
+    for authority in claim["currentAuthorities"]:
+        record = deepcopy(authority)
+        record["sourceRecordDigest"] = authority_source_digest(record)
+        records.append(record)
+    return ImmutableAuthoritySourceRegistry.from_records("authority-registry-v1", records)
+
+
+def bind_claim_registry(claim: dict) -> ImmutableAuthoritySourceRegistry:
+    registry = make_authority_registry_from_claim(claim)
+    claim["authorityRegistryRef"] = registry.registry_id
+    claim["authorityRegistryDigest"] = registry.registry_digest
+    return registry
+
+
+def empty_browser_registry() -> ImmutableBrowserOwnershipRegistry:
+    return ImmutableBrowserOwnershipRegistry.from_records(
+        "browser-ownership-registry-empty-v1", []
+    )
+
+
+def new_consumption_store() -> DurableReceiptConsumptionStore:
+    ledger = Path(_TEST_LEDGER_DIR.name) / f"{uuid4().hex}.jsonl"
+    return DurableReceiptConsumptionStore(ledger)
+
+
+def reasoning_kwargs(
+    *,
+    store: DurableReceiptConsumptionStore | None = None,
+    required_role: str = "PRO",
+    required_subject_ref: str = REVIEW_SUBJECT,
+    required_repository_head: str = REPOSITORY_HEAD,
+    input_bytes: bytes = INPUT_BYTES,
+    submitted_bytes: bytes = INPUT_BYTES,
+    response_bytes: bytes = RESPONSE_BYTES,
+) -> dict:
+    return {
+        "required_role": required_role,
+        "required_subject_ref": required_subject_ref,
+        "required_repository_head": required_repository_head,
+        "input_payload_bytes": input_bytes,
+        "submitted_payload_bytes": submitted_bytes,
+        "response_payload_bytes": response_bytes,
+        "consumption_store": store or new_consumption_store(),
+    }
+
+
+def evaluate_reasoning(receipt: dict, **overrides: object) -> dict:
+    kwargs = reasoning_kwargs()
+    kwargs.update(overrides)
+    return evaluate_reasoning_surface_receipt(receipt, **kwargs)
+
+
+def admit_reasoning(verdict: dict, receipt: dict, **overrides: object) -> dict:
+    kwargs = reasoning_kwargs()
+    kwargs.update(overrides)
+    return admit_supervision_verdict(verdict, receipt, **kwargs)
+
+
+def evaluate_browser(
+    receipt: dict,
+    registry: ImmutableBrowserOwnershipRegistry | None = None,
+) -> dict:
+    return evaluate_browser_operation(
+        receipt, ownership_registry=registry or empty_browser_registry()
+    )
 
 
 def make_claim(
@@ -97,6 +179,8 @@ def make_claim(
             "version": None,
             "digest": {"sha256": None},
         },
+        "authorityRegistryRef": "pending",
+        "authorityRegistryDigest": ZERO,
         "currentAuthorities": authorities,
         "requiredAuthorizations": [
             {
@@ -106,17 +190,26 @@ def make_claim(
                 "authorizationSourceRef": source_ref,
                 "status": status,
             }
+            ,
+            {
+                "operation": "ASSERT_FACT",
+                "requiredIssuerClass": "ARTIFACT_DERIVED_FACT",
+                "scopeRef": "artifact-fact",
+                "authorizationSourceRef": "artifact-source-v1",
+                "status": "SATISFIED",
+            }
         ],
         "evidenceRefs": ["artifact-source-v1"],
         "derivation": {"directiveVersion": "1.0.0"},
         "reproductionRequirement": "REQUIRED",
-        "reproductionReceiptRefs": [],
+        "reproductionReceiptRefs": ["reproduction-1"],
         "verificationState": verification_state,
         "decisionUse": decision_use,
         "createdAt": "2026-09-01T00:00:00Z",
         "expiresAt": None,
         "supersedesClaimRef": None,
     }
+    bind_claim_registry(claim)
     refresh_claim_digest(claim)
     return claim
 
@@ -140,6 +233,7 @@ def promoted_claim(from_claim: dict) -> dict:
     result["verificationState"] = "AUTHORIZED_POLICY"
     result["decisionUse"] = "POLICY_ELIGIBLE"
     result["supersedesClaimRef"] = f"{from_claim['claimId']}@{from_claim['claimVersion']}"
+    bind_claim_registry(result)
     refresh_claim_digest(result)
     return result
 
@@ -175,6 +269,8 @@ def make_transition(from_claim: dict, to_claim: dict) -> dict:
 
 
 def make_reproduction(claim: dict, *, synthetic: bool = False) -> dict:
+    method = "count exact production records"
+    result_bytes = _jcs_text(claim["claimValue"]).encode("utf-8")
     return {
         "schemaVersion": 1,
         "reproductionReceiptId": "reproduction-1",
@@ -192,10 +288,14 @@ def make_reproduction(claim: dict, *, synthetic: bool = False) -> dict:
         },
         "independenceBasis": "Separate deterministic process",
         "methodRef": "method-v1",
-        "methodDigest": ZERO,
-        "commandOrProcedure": "count exact production records",
+        "methodDigest": hashlib.sha256(method.encode("utf-8")).hexdigest(),
+        "methodByteLength": len(method.encode("utf-8")),
+        "methodBytesDefinition": "exact method/procedure UTF-8 bytes",
+        "commandOrProcedure": method,
         "resultValue": claim["claimValue"],
-        "resultDigest": ONE,
+        "resultDigest": hashlib.sha256(result_bytes).hexdigest(),
+        "resultByteLength": len(result_bytes),
+        "resultBytesDefinition": "RFC8785_JCS resultValue UTF-8 bytes",
         "matchState": "MATCH",
         "synthetic": synthetic,
         "reproducedAt": "2026-09-01T00:00:00Z",
@@ -217,7 +317,17 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
         }
     )
     receipt["conversation"]["conversationSessionId"] = "session-1"
-    receipt["responsePayloadDigest"].update({"value": ONE, "byteLength": 8})
+    input_digest = hashlib.sha256(INPUT_BYTES).hexdigest()
+    response_digest = hashlib.sha256(RESPONSE_BYTES).hexdigest()
+    receipt["subjectBinding"]["reviewSubjectRef"] = REVIEW_SUBJECT
+    receipt["subjectBinding"]["boundRepositoryHeads"] = [REPOSITORY_HEAD]
+    for name in ("sourcePacketDigest", "inputPayloadDigest", "submittedVisiblePayloadDigest"):
+        receipt["subjectBinding"][name].update(
+            {"value": input_digest, "byteLength": len(INPUT_BYTES)}
+        )
+    receipt["responsePayloadDigest"].update(
+        {"value": response_digest, "byteLength": len(RESPONSE_BYTES)}
+    )
     receipt["replayProtection"]["admissionNonce"] = "nonce-1"
     values = {
         "surface": "SIGNED_IN_CHATGPT_CHAT",
@@ -225,7 +335,7 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
         "visibleModePreSubmission": observed_mode,
         "conversationSession": "SAME_TRANSACTION_SESSION",
         "submittedMessage": "EXACT_BOUND_PAYLOAD",
-        "completedResponse": ONE,
+        "completedResponse": response_digest,
         "visibleModePostResponse": observed_mode,
     }
     receipt["observations"]["visibleModePreSubmission"]["requiredValue"] = required_mode
@@ -250,7 +360,7 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
     return receipt
 
 
-def make_verdict(receipt: dict, *, response_digest: str = ONE) -> dict:
+def make_verdict(receipt: dict, *, response_digest: str | None = None) -> dict:
     verdict = load_template("SUPERVISION-VERDICT-ADMISSION.json")
     verdict.update(
         {
@@ -259,9 +369,15 @@ def make_verdict(receipt: dict, *, response_digest: str = ONE) -> dict:
             "packetId": receipt["packetId"],
             "reviewRole": receipt["requiredReviewerRole"],
             "reasoningSurfaceReceiptRef": receipt["receiptId"],
+            "boundSubjectRefs": [REVIEW_SUBJECT],
         }
     )
-    verdict["responsePayloadDigest"].update({"value": response_digest, "byteLength": 8})
+    verdict["responsePayloadDigest"].update(
+        {
+            "value": response_digest or hashlib.sha256(RESPONSE_BYTES).hexdigest(),
+            "byteLength": len(RESPONSE_BYTES),
+        }
+    )
     return verdict
 
 
@@ -276,10 +392,27 @@ def make_browser_receipt() -> dict:
             "browserSessionRef": "browser-session-1",
         }
     )
+    registry = empty_browser_registry()
+    receipt["priorOwnershipRegistryRef"] = registry.registry_id
+    receipt["priorOwnershipRegistryDigest"] = registry.registry_digest
     return receipt
 
 
 class ClaimAuthorityProvenanceTests(unittest.TestCase):
+    def test_validated_transition_and_external_registry_authorize_promotion(self) -> None:
+        fact = make_claim()
+        policy = promoted_claim(fact)
+        registry = make_authority_registry_from_claim(policy)
+        transition = make_transition(fact, policy)
+        result = evaluate_claim_use(
+            policy,
+            "PROMOTE_TO_POLICY",
+            authority_registry=registry,
+            promotion_transition=transition,
+            transition_from_claim=fact,
+        )
+        self.assertTrue(result["allowed"])
+
     def test_required_authorizations_are_conjunctive_not_ranked(self) -> None:
         claim = make_claim(owner_authorized=True, decision_use="POLICY_ELIGIBLE", verification_state="AUTHORIZED_POLICY")
         claim["requiredAuthorizations"].append(
@@ -292,14 +425,14 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
             }
         )
         refresh_claim_digest(claim)
-        result = evaluate_claim_use(claim, "PROMOTE_TO_POLICY", promotion_transition={"transitionType": "PROMOTED"})
+        result = evaluate_claim_use(claim, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(claim), promotion_transition={"transitionType": "PROMOTED"})
         self.assertFalse(result["allowed"])
         self.assertIn("AUTHORIZATION_REQUIREMENT_UNSATISFIED", result["failureCodes"])
 
         wrong_scope = make_claim(owner_authorized=True, decision_use="POLICY_ELIGIBLE", verification_state="AUTHORIZED_POLICY")
         wrong_scope["currentAuthorities"][-1]["scopeRefs"] = ["different-policy"]
         refresh_claim_digest(wrong_scope)
-        wrong_scope_result = evaluate_claim_use(wrong_scope, "PROMOTE_TO_POLICY", promotion_transition={"transitionType": "PROMOTED"})
+        wrong_scope_result = evaluate_claim_use(wrong_scope, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(claim), promotion_transition={"transitionType": "PROMOTED"})
         self.assertIn("AUTHORIZATION_REQUIREMENT_UNSATISFIED", wrong_scope_result["failureCodes"])
 
     def test_reasoning_decision_does_not_satisfy_owner_explicit(self) -> None:
@@ -309,33 +442,35 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         )
         claim["requiredAuthorizations"][0].update({"authorizationSourceRef": "reasoning-1", "status": "SATISFIED"})
         refresh_claim_digest(claim)
-        result = evaluate_claim_use(claim, "PROMOTE_TO_POLICY", promotion_transition={"transitionType": "PROMOTED"})
+        result = evaluate_claim_use(claim, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(claim), promotion_transition={"transitionType": "PROMOTED"})
         self.assertIn("AUTHORIZATION_REQUIREMENT_UNSATISFIED", result["failureCodes"])
 
     def test_owner_explicit_can_authorize_owner_acceptance_criterion(self) -> None:
         fact = make_claim()
         policy = promoted_claim(fact)
         transition = make_transition(fact, policy)
-        self.assertTrue(validate_claim_transition(transition, fact, policy)["valid"])
+        self.assertTrue(validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["valid"])
 
     def test_artifact_23_remains_descriptive_only(self) -> None:
-        result = evaluate_claim_use(make_claim(23), "PROMOTE_TO_POLICY")
+        claim = make_claim(23)
+        result = evaluate_claim_use(claim, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(claim))
         self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", result["failureCodes"])
 
     def test_artifact_76_remains_descriptive_only(self) -> None:
-        result = evaluate_claim_use(make_claim(76), "PROMOTE_TO_POLICY")
+        claim = make_claim(76)
+        result = evaluate_claim_use(claim, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(claim))
         self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", result["failureCodes"])
 
     def test_fact_to_policy_copy_requires_promotion_transition(self) -> None:
         policy = promoted_claim(make_claim())
-        result = evaluate_claim_use(policy, "PROMOTE_TO_POLICY")
+        result = evaluate_claim_use(policy, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(policy))
         self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", result["failureCodes"])
 
     def test_field_rename_cannot_bypass_fact_to_policy_transition(self) -> None:
         policy = promoted_claim(make_claim())
         policy["claimText"] = "completion_required_question_count is 23"
         refresh_claim_digest(policy)
-        result = evaluate_claim_use(policy, "PROMOTE_TO_POLICY")
+        result = evaluate_claim_use(policy, "PROMOTE_TO_POLICY", authority_registry=make_authority_registry_from_claim(policy))
         self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", result["failureCodes"])
 
     def test_promotion_requires_new_authority_source(self) -> None:
@@ -344,17 +479,17 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         policy["currentAuthorities"] = deepcopy(fact["currentAuthorities"])
         refresh_claim_digest(policy)
         transition = make_transition(fact, policy)
-        self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", validate_claim_transition(transition, fact, policy)["failureCodes"])
+        self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["failureCodes"])
 
     def test_reproduction_verifies_fact_but_never_promotes_policy(self) -> None:
         claim = make_claim()
-        result = evaluate_reproduction(make_reproduction(claim), claim)
+        result = evaluate_reproduction(make_reproduction(claim), claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"))
         self.assertTrue(result["verifiedFact"])
         self.assertFalse(result["policyPromoted"])
 
     def test_synthetic_fixture_cannot_satisfy_production_reproduction(self) -> None:
         claim = make_claim()
-        result = evaluate_reproduction(make_reproduction(claim, synthetic=True), claim, production_required=True)
+        result = evaluate_reproduction(make_reproduction(claim, synthetic=True), claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"))
         self.assertIn("PRODUCTION_REPRODUCTION_MISSING", result["failureCodes"])
 
     def test_subject_commit_change_marks_claim_stale(self) -> None:
@@ -371,12 +506,12 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         claim = promoted_claim(make_claim())
         claim["currentAuthorities"][-1]["status"] = "REVOKED"
         refresh_claim_digest(claim)
-        result = evaluate_claim_use(claim, "AUTHORIZE_RELEASE")
+        result = evaluate_claim_use(claim, "AUTHORIZE_RELEASE", authority_registry=make_authority_registry_from_claim(claim))
         self.assertIn("AUTHORIZATION_REQUIREMENT_UNSATISFIED", result["failureCodes"])
 
     def test_unregistered_load_bearing_owner_rendering_is_rejected(self) -> None:
         claim = make_claim(use_sites=["OWNER_FACING_DEFINITIVE_RENDERING"])
-        result = evaluate_claim_use(claim, "ASSERT_FACT", use_site="OWNER_FACING_DEFINITIVE_RENDERING")
+        result = evaluate_claim_use(claim, "ASSERT_FACT", authority_registry=make_authority_registry_from_claim(claim), use_site="OWNER_FACING_DEFINITIVE_RENDERING")
         self.assertIn("DEFINITIVE_RENDERING_REJECTED", result["failureCodes"])
 
     def test_claim_transition_digest_chain_detects_mutation(self) -> None:
@@ -384,7 +519,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         policy = promoted_claim(fact)
         transition = make_transition(fact, policy)
         transition["reason"] = "mutated after digest"
-        self.assertIn("SUBJECT_BINDING_STALE", validate_claim_transition(transition, fact, policy)["failureCodes"])
+        self.assertIn("SUBJECT_BINDING_STALE", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["failureCodes"])
 
     def test_owner_source_correction_is_append_only(self) -> None:
         original = [{"sourceId": "owner-1", "exactText": "original"}]
@@ -397,16 +532,55 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         claim = make_claim()
         claim["loadBearingEvaluation"]["result"] = False
         refresh_claim_digest(claim)
-        result = evaluate_claim_use(claim, "ASSERT_FACT", use_site="OWNER_FACING_DEFINITIVE_RENDERING")
+        result = evaluate_claim_use(claim, "ASSERT_FACT", authority_registry=make_authority_registry_from_claim(claim), use_site="OWNER_FACING_DEFINITIVE_RENDERING")
         self.assertTrue(result["loadBearing"])
         self.assertIn("DEFINITIVE_RENDERING_REJECTED", result["failureCodes"])
+
+    def test_load_bearing_assert_with_zero_authorizations_fails_closed(self) -> None:
+        claim = make_claim(use_sites=["ACCEPTANCE_CRITERION"])
+        claim["requiredAuthorizations"] = [
+            requirement
+            for requirement in claim["requiredAuthorizations"]
+            if requirement["operation"] != "ASSERT_FACT"
+        ]
+        refresh_claim_digest(claim)
+        result = evaluate_claim_use(
+            claim,
+            "ASSERT_FACT",
+            authority_registry=make_authority_registry_from_claim(claim),
+            use_site="ACCEPTANCE_CRITERION",
+        )
+        self.assertIn("AUTHORIZATION_REQUIREMENT_UNSATISFIED", result["failureCodes"])
+
+    def test_reproduction_binds_method_result_and_claim_receipt_ref(self) -> None:
+        claim = make_claim()
+        receipt = make_reproduction(claim)
+        wrong_method = evaluate_reproduction(
+            receipt,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"different method",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+        )
+        self.assertIn("REPRODUCTION_BYTES_MISMATCH", wrong_method["failureCodes"])
+        claim["reproductionReceiptRefs"] = []
+        refresh_claim_digest(claim)
+        receipt = make_reproduction(claim)
+        unbound = evaluate_reproduction(
+            receipt,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"count exact production records",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+        )
+        self.assertIn("REPRODUCTION_RECEIPT_UNBOUND", unbound["failureCodes"])
 
 
 class ReasoningSurfaceReceiptTests(unittest.TestCase):
     def _self_asserted(self, evidence_type: str) -> dict:
         receipt = make_reasoning_receipt()
         receipt["observations"]["visibleModePreSubmission"]["evidenceSourceType"] = evidence_type
-        return evaluate_reasoning_surface_receipt(receipt)
+        return evaluate_reasoning(receipt)
 
     def test_agent_name_extra_high_has_zero_receipt_weight(self) -> None:
         self.assertIn("SELF_ASSERTED_REASONING_IDENTITY_REJECTED", self._self_asserted("AGENT_NAME")["failureCodes"])
@@ -421,36 +595,36 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
         receipt = make_reasoning_receipt()
         receipt["observations"]["visibleModePreSubmission"]["status"] = "MISSING"
         receipt["aggregateState"] = "PARTIAL"
-        self.assertIn("REASONING_RECEIPT_INCOMPLETE", evaluate_reasoning_surface_receipt(receipt)["failureCodes"])
+        self.assertIn("REASONING_RECEIPT_INCOMPLETE", evaluate_reasoning(receipt)["failureCodes"])
 
     def test_pro_requirement_rejects_extra_high_observed_mode(self) -> None:
-        result = evaluate_reasoning_surface_receipt(make_reasoning_receipt(observed_mode="Extra High"))
+        result = evaluate_reasoning(make_reasoning_receipt(observed_mode="Extra High"))
         self.assertIn("REASONING_SURFACE_MODE_MISMATCH", result["failureCodes"])
 
     def test_valid_pre_mode_without_completed_response_is_partial(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["observations"]["completedResponse"]["status"] = "MISSING"
         receipt["aggregateState"] = "PARTIAL"
-        self.assertEqual(evaluate_reasoning_surface_receipt(receipt)["aggregateState"], "PARTIAL")
+        self.assertEqual(evaluate_reasoning(receipt)["aggregateState"], "PARTIAL")
 
     def test_missing_post_response_mode_is_partial(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["observations"]["visibleModePostResponse"]["status"] = "MISSING"
         receipt["aggregateState"] = "PARTIAL"
-        self.assertEqual(evaluate_reasoning_surface_receipt(receipt)["aggregateState"], "PARTIAL")
+        self.assertEqual(evaluate_reasoning(receipt)["aggregateState"], "PARTIAL")
 
     def test_post_response_mode_mismatch_rejects_review(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["observations"]["visibleModePostResponse"]["observedValue"] = "Extra High"
         receipt["aggregateState"] = "MISMATCH"
-        self.assertIn("REASONING_SURFACE_MODE_MISMATCH", evaluate_reasoning_surface_receipt(receipt)["failureCodes"])
+        self.assertIn("REASONING_SURFACE_MODE_MISMATCH", evaluate_reasoning(receipt)["failureCodes"])
 
     def test_surface_account_session_submission_and_response_are_independent(self) -> None:
         receipt = make_reasoning_receipt()
         for name in ("conversationSession", "submittedMessage", "completedResponse"):
             receipt["observations"][name]["status"] = "MISSING"
         receipt["aggregateState"] = "PARTIAL"
-        result = evaluate_reasoning_surface_receipt(receipt)
+        result = evaluate_reasoning(receipt)
         self.assertFalse(result["valid"])
         self.assertIn("REASONING_RECEIPT_INCOMPLETE", result["failureCodes"])
 
@@ -458,42 +632,46 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
         receipt = make_reasoning_receipt()
         receipt["observations"]["completedResponse"]["binding"]["conversationSessionId"] = "other-session"
         receipt["aggregateState"] = "MISMATCH"
-        self.assertIn("REASONING_RECEIPT_SESSION_MISMATCH", evaluate_reasoning_surface_receipt(receipt)["failureCodes"])
+        self.assertIn("REASONING_RECEIPT_SESSION_MISMATCH", evaluate_reasoning(receipt)["failureCodes"])
 
     def test_prior_receipt_replay_rejected_for_same_payload(self) -> None:
         receipt = make_reasoning_receipt()
-        result = evaluate_reasoning_surface_receipt(receipt, prior_receipts=[deepcopy(receipt)])
+        store = new_consumption_store()
+        self.assertTrue(admit_reasoning(make_verdict(receipt), receipt, consumption_store=store)["admitted"])
+        result = evaluate_reasoning(receipt, consumption_store=store)
         self.assertIn("REASONING_RECEIPT_REPLAY_REJECTED", result["failureCodes"])
 
     def test_receipt_replay_rejected_for_different_payload(self) -> None:
         prior = make_reasoning_receipt()
+        store = new_consumption_store()
+        self.assertTrue(admit_reasoning(make_verdict(prior), prior, consumption_store=store)["admitted"])
         receipt = make_reasoning_receipt()
         receipt["subjectBinding"]["inputPayloadDigest"]["value"] = TWO
         receipt["subjectBinding"]["submittedVisiblePayloadDigest"]["value"] = TWO
-        result = evaluate_reasoning_surface_receipt(receipt, prior_receipts=[prior])
+        result = evaluate_reasoning(receipt, consumption_store=store)
         self.assertIn("REASONING_RECEIPT_REPLAY_REJECTED", result["failureCodes"])
 
     def test_unexplained_input_to_submitted_digest_change_is_rejected(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["subjectBinding"]["submittedVisiblePayloadDigest"]["value"] = TWO
         receipt["aggregateState"] = "MISMATCH"
-        self.assertIn("REASONING_RECEIPT_PAYLOAD_MISMATCH", evaluate_reasoning_surface_receipt(receipt)["failureCodes"])
+        self.assertIn("REASONING_RECEIPT_PAYLOAD_MISMATCH", evaluate_reasoning(receipt)["failureCodes"])
 
     def test_response_digest_mismatch_rejects_verdict_admission(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["observations"]["completedResponse"]["observedValue"] = TWO
         receipt["aggregateState"] = "MISMATCH"
-        self.assertFalse(admit_supervision_verdict(make_verdict(receipt), receipt)["admitted"])
+        self.assertFalse(admit_reasoning(make_verdict(receipt), receipt)["admitted"])
 
     def test_valid_ui_receipt_cannot_claim_platform_attestation(self) -> None:
         receipt = make_reasoning_receipt()
         receipt["cryptographicPlatformAttestation"] = True
         receipt["aggregateState"] = "PARTIAL"
-        self.assertIn("ASSURANCE_CLASS_OVERCLAIM", evaluate_reasoning_surface_receipt(receipt)["failureCodes"])
+        self.assertIn("ASSURANCE_CLASS_OVERCLAIM", evaluate_reasoning(receipt)["failureCodes"])
 
     def test_mismatch_incident_can_never_be_authoritative(self) -> None:
         receipt = make_reasoning_receipt(observed_mode="Extra High")
-        result = admit_supervision_verdict(make_verdict(receipt), receipt)
+        result = admit_reasoning(make_verdict(receipt), receipt)
         self.assertFalse(result["authoritative"])
 
     def test_corrected_transaction_preserves_prior_mismatch_incident(self) -> None:
@@ -503,14 +681,52 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
         corrected["replayProtection"]["admissionNonce"] = "nonce-2"
         for observation in corrected["observations"].values():
             observation["binding"]["transactionId"] = "transaction-2"
-        result = evaluate_reasoning_surface_receipt(corrected, prior_receipts=[prior])
+        result = evaluate_reasoning(corrected)
         self.assertTrue(result["valid"])
         self.assertEqual(corrected["supersedesReceiptRef"], prior["receiptId"])
 
     def test_valid_receipt_cannot_be_paired_with_another_response(self) -> None:
         receipt = make_reasoning_receipt()
-        result = admit_supervision_verdict(make_verdict(receipt, response_digest=TWO), receipt)
+        result = admit_reasoning(make_verdict(receipt, response_digest=TWO), receipt)
         self.assertIn("VERDICT_RECEIPT_BINDING_MISMATCH", result["failureCodes"])
+
+    def test_external_subject_and_repository_head_override_receipt_self_selection(self) -> None:
+        receipt = make_reasoning_receipt()
+        receipt["subjectBinding"]["reviewSubjectRef"] = "self-selected-subject"
+        self.assertIn(
+            "REASONING_REQUIREMENT_BINDING_MISMATCH",
+            evaluate_reasoning(receipt)["failureCodes"],
+        )
+        receipt = make_reasoning_receipt()
+        receipt["subjectBinding"]["boundRepositoryHeads"] = ["owner/repository@self-selected"]
+        self.assertIn(
+            "REASONING_REQUIREMENT_BINDING_MISMATCH",
+            evaluate_reasoning(receipt)["failureCodes"],
+        )
+
+    def test_external_input_and_response_bytes_override_receipt_digests(self) -> None:
+        receipt = make_reasoning_receipt()
+        self.assertIn(
+            "REASONING_RECEIPT_PAYLOAD_MISMATCH",
+            evaluate_reasoning(receipt, input_payload_bytes=b"different input")["failureCodes"],
+        )
+        self.assertIn(
+            "REASONING_RECEIPT_PAYLOAD_MISMATCH",
+            evaluate_reasoning(receipt, response_payload_bytes=b"different response")["failureCodes"],
+        )
+
+    def test_single_use_consumption_survives_store_reinstantiation(self) -> None:
+        receipt = make_reasoning_receipt()
+        ledger_path = Path(_TEST_LEDGER_DIR.name) / f"{uuid4().hex}.jsonl"
+        first_store = DurableReceiptConsumptionStore(ledger_path)
+        self.assertTrue(
+            admit_reasoning(
+                make_verdict(receipt), receipt, consumption_store=first_store
+            )["admitted"]
+        )
+        restarted_store = DurableReceiptConsumptionStore(ledger_path)
+        result = evaluate_reasoning(receipt, consumption_store=restarted_store)
+        self.assertIn("REASONING_RECEIPT_REPLAY_REJECTED", result["failureCodes"])
 
 
 class BrowserOperationReceiptTests(unittest.TestCase):
@@ -518,55 +734,59 @@ class BrowserOperationReceiptTests(unittest.TestCase):
         receipt = make_browser_receipt()
         receipt.update({"purposeClass": "REPOSITORY_RETRIEVAL", "browserNecessity": "NOT_REQUIRED"})
         receipt["nonBrowserAlternatives"][0]["satisfiesCapability"] = True
-        self.assertIn("BROWSER_ROUTE_NOT_JUSTIFIED", evaluate_browser_operation(receipt)["failureCodes"])
+        self.assertIn("BROWSER_ROUTE_NOT_JUSTIFIED", evaluate_browser(receipt)["failureCodes"])
 
     def test_browser_allowed_for_signed_in_reasoning_surface_observation(self) -> None:
-        self.assertTrue(evaluate_browser_operation(make_browser_receipt())["allowed"])
+        self.assertTrue(evaluate_browser(make_browser_receipt())["allowed"])
 
     def test_second_transient_tab_requires_recorded_exception(self) -> None:
         receipt = make_browser_receipt()
         receipt["agentOpenedTabIds"] = ["agent-1", "agent-2"]
-        self.assertIn("AGENT_TAB_CAP_EXCEEDED", evaluate_browser_operation(receipt)["failureCodes"])
+        self.assertIn("AGENT_TAB_CAP_EXCEEDED", evaluate_browser(receipt)["failureCodes"])
 
     def test_only_same_transaction_agent_tabs_may_be_closed(self) -> None:
         receipt = make_browser_receipt()
         receipt["agentOpenedTabIds"] = ["agent-1"]
         receipt["actions"] = [{"type": "CLOSE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "other-transaction", "result": "SUCCEEDED", "closedByActor": "routing-executor"}]
-        self.assertIn("TAB_SESSION_MISMATCH", evaluate_browser_operation(receipt)["failureCodes"])
+        self.assertIn("TAB_SESSION_MISMATCH", evaluate_browser(receipt)["failureCodes"])
 
     def test_unknown_stale_tab_ownership_fails_closed(self) -> None:
         receipt = make_browser_receipt()
         receipt["actions"] = [{"type": "CLOSE", "tabId": "stale-1", "ownershipClass": "UNKNOWN", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "FAILED", "closedByActor": None}]
-        self.assertIn("TAB_OWNERSHIP_UNVERIFIED", evaluate_browser_operation(receipt)["failureCodes"])
+        self.assertIn("TAB_OWNERSHIP_UNVERIFIED", evaluate_browser(receipt)["failureCodes"])
 
     def test_owner_existing_tabs_are_preserved(self) -> None:
         receipt = make_browser_receipt()
         self.assertTrue(receipt["baselineTabs"][0]["protected"])
-        self.assertTrue(evaluate_browser_operation(receipt)["allowed"])
+        self.assertTrue(evaluate_browser(receipt)["allowed"])
 
     def test_reasoning_conversation_tabs_are_protected(self) -> None:
         receipt = make_browser_receipt()
         tab = receipt["baselineTabs"][0]
         receipt["actions"] = [{"type": "CLOSE", "tabId": tab["tabId"], "ownershipClass": "OWNER_EXISTING", "protected": True, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "FAILED", "closedByActor": None}]
-        self.assertIn("PROTECTED_TAB_MUTATION_ATTEMPT", evaluate_browser_operation(receipt)["failureCodes"])
+        self.assertIn("PROTECTED_TAB_MUTATION_ATTEMPT", evaluate_browser(receipt)["failureCodes"])
 
     def test_tab_id_from_another_browser_session_is_rejected(self) -> None:
         receipt = make_browser_receipt()
         receipt["agentOpenedTabIds"] = ["agent-1"]
         receipt["actions"] = [{"type": "CLOSE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "other-session", "transactionId": "transaction-1", "result": "FAILED", "closedByActor": None}]
-        self.assertIn("TAB_SESSION_MISMATCH", evaluate_browser_operation(receipt)["failureCodes"])
+        self.assertIn("TAB_SESSION_MISMATCH", evaluate_browser(receipt)["failureCodes"])
 
     def test_cleanup_failure_is_reported_without_guessing_other_tabs(self) -> None:
         receipt = make_browser_receipt()
         receipt["agentOpenedTabIds"] = ["agent-1"]
+        receipt["actions"] = [
+            {"type": "OPEN", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": None},
+            {"type": "CLOSE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "FAILED", "closedByActor": "routing-executor"},
+        ]
         receipt["cleanup"].update({"attempted": True, "remainingAgentTabIds": ["agent-1"], "results": [{"tabId": "agent-1", "result": "FAILED"}]})
-        result = evaluate_browser_operation(receipt)
+        result = evaluate_browser(receipt)
         self.assertIn("AGENT_TAB_CLEANUP_INCOMPLETE", result["failureCodes"])
         self.assertNotIn(receipt["baselineTabs"][0]["tabId"], receipt["cleanup"]["remainingAgentTabIds"])
 
     def test_baseline_and_cleanup_states_are_both_recorded(self) -> None:
         receipt = make_browser_receipt()
-        result = evaluate_browser_operation(receipt)
+        result = evaluate_browser(receipt)
         self.assertTrue(receipt["baselineTabs"])
         self.assertIn("attempted", receipt["cleanup"])
         self.assertTrue(result["allowed"])
@@ -574,13 +794,131 @@ class BrowserOperationReceiptTests(unittest.TestCase):
     def test_observed_tab_absence_does_not_attribute_closing_actor(self) -> None:
         receipt = make_browser_receipt()
         receipt["actions"] = [{"type": "OBSERVE_ABSENT", "tabId": "stale-1", "ownershipClass": "UNKNOWN", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "OBSERVED", "closedByActor": "UNKNOWN"}]
-        self.assertTrue(evaluate_browser_operation(receipt)["allowed"])
+        self.assertTrue(evaluate_browser(receipt)["allowed"])
+
+    def test_open_close_and_cleanup_states_reconcile_exactly(self) -> None:
+        receipt = make_browser_receipt()
+        receipt["agentOpenedTabIds"] = ["agent-1"]
+        receipt["actions"] = [
+            {"type": "OPEN", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": None},
+            {"type": "CLOSE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": "routing-executor"},
+        ]
+        receipt["cleanup"].update(
+            {
+                "attempted": True,
+                "results": [{"tabId": "agent-1", "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
+        )
+        self.assertTrue(evaluate_browser(receipt)["allowed"])
+
+    def test_immutable_prior_open_proof_can_authorize_same_transaction_cleanup(self) -> None:
+        proof = {
+            "tabId": "agent-1",
+            "browserSessionRef": "browser-session-1",
+            "transactionId": "transaction-1",
+            "sourceReceiptRef": "prior-browser-receipt",
+            "sourceReceiptDigest": "a" * 64,
+            "sourceReceiptValidationState": "VALIDATED",
+            "proofDigest": ZERO,
+        }
+        proof["proofDigest"] = browser_ownership_proof_digest(proof)
+        registry = ImmutableBrowserOwnershipRegistry.from_records(
+            "prior-browser-registry", [proof]
+        )
+        receipt = make_browser_receipt()
+        receipt["priorOwnershipRegistryRef"] = registry.registry_id
+        receipt["priorOwnershipRegistryDigest"] = registry.registry_digest
+        receipt["agentOpenedTabIds"] = ["agent-1"]
+        receipt["actions"] = [
+            {"type": "CLOSE", "tabId": "agent-1", "ownershipClass": "AGENT_OPENED", "protected": False, "browserSessionRef": "browser-session-1", "transactionId": "transaction-1", "result": "SUCCEEDED", "closedByActor": "routing-executor"}
+        ]
+        receipt["cleanup"].update(
+            {
+                "attempted": True,
+                "results": [{"tabId": "agent-1", "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
+        )
+        self.assertTrue(evaluate_browser(receipt, registry)["allowed"])
 
 
 class ProvenanceSchemaAndFixtureTests(unittest.TestCase):
     def test_all_schemas_templates_incidents_and_hostile_fixtures_validate(self) -> None:
         findings = validate_repository(ROOT)
-        self.assertGreaterEqual(len(findings), 13)
+        self.assertGreaterEqual(len(findings), 17)
+        self.assertTrue(any("claim-authority-provenance-hostile.json:11-executed" in finding for finding in findings))
+        self.assertTrue(any("reasoning-surface-receipt-hostile.json:15-executed" in finding for finding in findings))
+        self.assertTrue(any("browser-operation-hostile.json:9-executed" in finding for finding in findings))
+
+
+class IndependentReviewBlockerRegressionTests(unittest.TestCase):
+    def test_external_evidence_ref_is_bound_to_existing_humandesign_commit(self) -> None:
+        state = (ROOT / "state" / "MISSION-CONTROL-AUTHORITY-PROVENANCE-2026-09-01.md").read_text(encoding="utf-8")
+        feedback = (ROOT / "feedback" / "mission-control" / "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001.json").read_text(encoding="utf-8")
+        self.assertNotIn("4ccd140b33f8473fa79e91ff6161caaaaa69323e", state + feedback)
+        self.assertIn("bf8fa12", state + feedback)
+
+    def test_embedded_authority_and_fake_transition_are_not_authorization(self) -> None:
+        relying_party_registry = make_authority_registry_from_claim(make_claim())
+        claim = make_claim(
+            owner_authorized=True,
+            decision_use="POLICY_ELIGIBLE",
+            verification_state="AUTHORIZED_POLICY",
+        )
+        result = evaluate_claim_use(
+            claim,
+            "PROMOTE_TO_POLICY",
+            authority_registry=relying_party_registry,
+            promotion_transition={"transitionType": "PROMOTED"},
+        )
+        self.assertFalse(result["allowed"])
+
+    def test_reproduction_rejects_unbound_result_digest_and_synthetic_required_receipt(self) -> None:
+        claim = make_claim()
+        receipt = make_reproduction(claim, synthetic=True)
+        receipt["resultDigest"] = TWO
+        result = evaluate_reproduction(
+            receipt,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"count exact production records",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+        )
+        self.assertFalse(result["valid"])
+        self.assertIn("PRODUCTION_REPRODUCTION_MISSING", result["failureCodes"])
+
+    def test_receipt_cannot_self_select_external_required_role(self) -> None:
+        receipt = make_reasoning_receipt(required_mode="Extra High", observed_mode="Extra High")
+        receipt["requiredReviewerRole"] = "EXTRA_HIGH"
+        self.assertFalse(evaluate_reasoning(receipt)["valid"])
+
+    def test_verdict_receipt_is_durably_single_use(self) -> None:
+        receipt = make_reasoning_receipt()
+        verdict = make_verdict(receipt)
+        store = new_consumption_store()
+        self.assertTrue(admit_reasoning(verdict, receipt, consumption_store=store)["admitted"])
+        self.assertFalse(admit_reasoning(verdict, receipt, consumption_store=store)["admitted"])
+
+    def test_claimed_agent_tab_without_open_or_prior_proof_is_rejected(self) -> None:
+        receipt = make_browser_receipt()
+        receipt["agentOpenedTabIds"] = ["ghost-tab"]
+        self.assertFalse(evaluate_browser(receipt)["allowed"])
+
+    def test_cleanup_must_reconcile_opened_closed_and_remaining_tabs(self) -> None:
+        receipt = make_browser_receipt()
+        receipt["agentOpenedTabIds"] = ["agent-1"]
+        receipt["actions"] = [{
+            "type": "OPEN",
+            "tabId": "agent-1",
+            "ownershipClass": "AGENT_OPENED",
+            "protected": False,
+            "browserSessionRef": "browser-session-1",
+            "transactionId": "transaction-1",
+            "result": "SUCCEEDED",
+            "closedByActor": None,
+        }]
+        self.assertFalse(evaluate_browser(receipt)["allowed"])
 
 
 if __name__ == "__main__":

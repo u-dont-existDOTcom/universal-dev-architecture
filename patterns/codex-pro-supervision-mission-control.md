@@ -1548,7 +1548,11 @@ satisfy the capability. Do not open repository browser tabs merely to acquire
 evidence already available through deterministic tooling. Before any headed
 browser mutation, instantiate `templates/BROWSER-OPERATION-RECEIPT.json` and
 record the needed capability, alternatives, necessity, baseline ownership,
-one-tab transient cap, same-session actions, and cleanup.
+one-tab transient cap, same-session actions, and cleanup. The claimed
+`agentOpenedTabIds` must equal successful `OPEN` actions plus exact same-session,
+same-transaction proofs in an immutable
+`templates/BROWSER-OWNERSHIP-REGISTRY.json`; cleanup must reconcile opened,
+successfully closed, and remaining tab IDs exactly.
 
 The system must still work through:
 
@@ -1597,7 +1601,11 @@ evidence. Bind the signed-in surface and account, exact visible mode before
 submission, transaction and conversation session, exact submitted payload, one
 completed response and response digest, and exact visible mode afterward.
 Then bind the response digest and single-use receipt to
-`templates/SUPERVISION-VERDICT-ADMISSION.json`.
+`templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
+`templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.
+Admission receives the required role, subject, repository head, and exact
+input/response bytes from the relying party; receipt-authored values cannot
+select their own requirement.
 
 Do not call this UI evidence platform attestation. Agent/subagent names, task or
 role labels, branch/worktree/process/environment names, prompts, and model

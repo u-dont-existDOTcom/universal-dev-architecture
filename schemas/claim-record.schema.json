@@ -16,6 +16,8 @@
     "useSiteRefs",
     "loadBearingEvaluation",
     "subjectRef",
+    "authorityRegistryRef",
+    "authorityRegistryDigest",
     "currentAuthorities",
     "requiredAuthorizations",
     "evidenceRefs",
@@ -60,6 +62,8 @@
       }
     },
     "subjectRef": {"$ref": "#/$defs/subjectRef"},
+    "authorityRegistryRef": {"type": "string", "minLength": 1},
+    "authorityRegistryDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "currentAuthorities": {
       "type": "array",
       "items": {"$ref": "#/$defs/currentAuthority"}
