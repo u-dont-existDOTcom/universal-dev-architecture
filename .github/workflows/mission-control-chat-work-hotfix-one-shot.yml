@@ -7,6 +7,7 @@ on:
       - task/mission-control-direct-pm-attractor-independence-20260901
     paths:
       - .github/workflows/mission-control-chat-work-hotfix-one-shot.yml
+      - scripts/apply_chat_work_authority_ledger_hotfix.py
       - tools/codex-mission-control/package-source.sh
       - tools/codex-mission-control/restored/codex-mission-control/**
 
@@ -32,6 +33,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Apply Chat-to-Work ledger authority hotfix
+        run: python3 scripts/apply_chat_work_authority_ledger_hotfix.py
+
       - name: Refresh deterministic Mission Control source archive
         run: bash tools/codex-mission-control/package-source.sh
 
@@ -56,16 +60,21 @@ jobs:
           python3 -m unittest discover -s tests -v
           python3 scripts/audit_codex_github.py --root . --fail-on error
 
-      - name: Commit refreshed source archive
+      - name: Commit patched runtime and refreshed source archive
         env:
           TARGET_BRANCH: task/mission-control-direct-pm-attractor-independence-20260901
         run: |
           git config user.name "mission-control-archive-refresh"
           git config user.email "mission-control-archive-refresh@users.noreply.github.com"
-          git add tools/codex-mission-control/source-archive tools/codex-mission-control/SOURCE-ARCHIVE.sha256
+          git add \
+            tools/codex-mission-control/restored/codex-mission-control/lib/ingestion-auth.ts \
+            tools/codex-mission-control/restored/codex-mission-control/lib/store.ts \
+            tools/codex-mission-control/restored/codex-mission-control/tests/worker-channel.test.ts \
+            tools/codex-mission-control/source-archive \
+            tools/codex-mission-control/SOURCE-ARCHIVE.sha256
           if git diff --cached --quiet; then
-            echo "Source archive is already current"
+            echo "Runtime hotfix and source archive are already current"
             exit 0
           fi
-          git commit -m "build(mission-control): refresh Chat-Work authority source archive"
+          git commit -m "fix(mission-control): reject worker-authored proposals at ingestion"
           git push origin "HEAD:${TARGET_BRANCH}"
