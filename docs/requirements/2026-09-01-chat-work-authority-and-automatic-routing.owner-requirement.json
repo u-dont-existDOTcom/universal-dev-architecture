@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CHAT-WORK-AUTHORITY-AUTOMATIC-ROUTING-20260901",
+  "recorded_at": "2026-09-01T20:35:27Z",
+  "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME_NATIVE_SOURCE_TIME_UNAVAILABLE",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim_sha256": "e8bf17067b25ecbf1af071accc2c4ec3989a0322e1803c06a9b4cabbc9ca64f3",
+    "source_type": "owner_chat_message",
+    "source_record": "feedback/mission-control/SDF-20260901-CHAT-REASONING-SPEND-ROUTING-GATE-FAILURE-001.json"
+  },
+  "normalized_outcome": "ChatGPT Project Manager/Pro owns reasoning, proposals, methodology, prioritization, spending design, consequential tradeoffs, scientific interpretation, and supervisory verdicts. Codex/Work performs only source-bound bounded execution that Chat cannot perform. Routine internal supervisor routing is automatic and never asks Joel to relay a packet or say send it. Paid model API inference remains canceled under the active zero-spend owner decision. Work continues through implementation, deployment, and live verification unless a genuine owner-only or external safety boundary remains.",
+  "required_outcomes": [
+    {
+      "id": "RO-AUTH-001",
+      "terminal_required": true,
+      "observable": "Codex/Work-authored proposal, methodology, priority, spending design, consequential tradeoff, or supervisory verdict is rejected before ingestion or execution.",
+      "status": "IMPLEMENTED_HOSTED_VERIFICATION_PENDING_CURRENT_HEAD",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/ingestion-auth.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/chat-work-authority-gate.test.ts"
+      ]
+    },
+    {
+      "id": "RO-AUTH-002",
+      "terminal_required": true,
+      "observable": "A claimed ChatGPT decision without an exact matching source-message identity and body digest cannot acquire reasoning authority.",
+      "status": "IMPLEMENTED_HOSTED_VERIFICATION_PENDING_CURRENT_HEAD",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/reasoning-message-state.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/ingestion-auth.ts"
+      ]
+    },
+    {
+      "id": "RO-AUTH-003",
+      "terminal_required": true,
+      "observable": "Routine owner-authorized Project Manager/specialist-supervisor routing occurs automatically without owner relay, say-send-it, or generic browser confirmation handback.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/chat-work-authority-gate.test.ts"
+      ]
+    },
+    {
+      "id": "RO-AUTH-004",
+      "terminal_required": true,
+      "observable": "The active zero-spend owner decision rejects the $30 smoke path, the approximately $175 pilot path, and any paid model API inference without a newer explicit owner decision.",
+      "status": "IMPLEMENTED_HOSTED_VERIFICATION_PENDING_CURRENT_HEAD",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/chat-work-authority-gate.test.ts"
+      ]
+    },
+    {
+      "id": "RO-AUTH-005",
+      "terminal_required": true,
+      "observable": "A real internal supervisor route and resulting bounded execution complete without Codex-authored reasoning or owner relay.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-AUTH-006",
+      "terminal_required": true,
+      "observable": "The corrected Mission Control build is deployed with persistent ledger storage and the owner-visible supervision surface.",
+      "status": "DEPLOYMENT_IN_PROGRESS",
+      "evidence_refs": [
+        "Railway service mission-control",
+        "Railway volume mission-control-data mounted at /data"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a prose policy says Chat owns reasoning",
+    "Codex prevents the paid API call but still authors the paid proposal",
+    "a chat tab is opened without a source message receipt",
+    "Joel is asked to relay the prompt or say send it",
+    "unit tests pass without a real internal supervisor route",
+    "the service is reachable but uses ephemeral ledger storage",
+    "a pull request is green but not deployed"
+  ],
+  "next_direct_evidence": "Complete current-head hosted CI, merge the Mission Control runtime into canonical main, deploy it to Railway with the /data persistent volume, and execute one real Project Manager-to-specialist route without owner relay."
+}
