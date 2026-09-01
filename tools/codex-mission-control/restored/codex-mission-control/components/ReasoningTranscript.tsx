@@ -2,16 +2,17 @@
 
 import type { StoredEvent } from "@/lib/schema";
 import { formatMessageTimestamp } from "@/lib/message-time";
-
-type ReasoningMessageEvent = Extract<StoredEvent["data"], { type: "reasoning_message_recorded" }>;
-type ReasoningStoredEvent = StoredEvent & { data: ReasoningMessageEvent };
+import {
+  decisionRouteStates,
+  latestVerifiedReasoningMessage,
+  reasoningMessages,
+  type DecisionRouteState,
+} from "@/lib/reasoning-message-state";
 
 export function ReasoningTranscript({ timeline }: { timeline: StoredEvent[] }) {
-  const messages = timeline
-    .filter((event): event is ReasoningStoredEvent => event.data.type === "reasoning_message_recorded")
-    .sort((left, right) => sourceTime(left).localeCompare(sourceTime(right)) || left.sequence - right.sequence);
-  const lastVerified = [...messages].reverse().find((event) => event.data.provenance_status === "VERIFIED"
-    && Boolean(event.data.sent_at_source));
+  const messages = reasoningMessages(timeline);
+  const routes = decisionRouteStates(timeline);
+  const lastVerified = latestVerifiedReasoningMessage(timeline);
   const transcriptState = lastVerified
     ? "VERIFIED MESSAGE-LEVEL SOURCE TIME"
     : messages.length
@@ -23,7 +24,11 @@ export function ReasoningTranscript({ timeline }: { timeline: StoredEvent[] }) {
       <div><p className="eyebrow">PROJECT MANAGER / SUPERVISOR TRANSCRIPT</p><h3>{transcriptState}</h3></div>
       <span>{messages.length} messages</span>
     </div>
+    {lastVerified && <VerifiedMessageTime event={lastVerified} />}
     {messages.length === 0 && <p className="empty-channel">A chat URL, chat label, last-review age, or Codex summary does not establish when a ChatGPT message was sent. Ingest provider-bound or owner-attested message evidence before treating the reasoning surface as current.</p>}
+    {routes.length > 0 && <div className="decision-route-list" aria-label="Owner decision routes">
+      {routes.map((route) => <DecisionRoute key={route.decisionRequestId} route={route} />)}
+    </div>}
     <div className="reasoning-transcript-thread">
       {messages.map((event) => {
         const message = event.data;
@@ -46,6 +51,7 @@ export function ReasoningTranscript({ timeline }: { timeline: StoredEvent[] }) {
             ? <p><a href={message.immutable_provider_locator} target="_blank" rel="noreferrer">Open immutable provider message</a></p>
             : <p className="composer-error">MESSAGE BODY AND PROVIDER LOCATOR UNAVAILABLE</p>}
           <dl>
+            <div><dt>Message ID</dt><dd><code>{message.message_id}</code></dd></div>
             <div><dt>Provider</dt><dd>{message.provider_surface.replaceAll("_", " ")}</dd></div>
             <div><dt>Model / mode</dt><dd>{message.model_mode}</dd></div>
             <div><dt>Account / workspace</dt><dd>{message.account_workspace}</dd></div>
@@ -64,6 +70,38 @@ export function ReasoningTranscript({ timeline }: { timeline: StoredEvent[] }) {
   </section>;
 }
 
-function sourceTime(event: ReasoningStoredEvent): string {
-  return event.data.sent_at_source ?? event.data.received_at_mission_control ?? event.occurredAt;
+function VerifiedMessageTime({ event }: { event: ReturnType<typeof latestVerifiedReasoningMessage> & {} }) {
+  if (!event) return null;
+  const sent = formatMessageTimestamp(event.data.sent_at_source ?? "");
+  return <div className="verified-chat-time" role="status">
+    <span className="field-label">LATEST VERIFIED CHATGPT MESSAGE</span>
+    <time dateTime={sent.utcIso ?? undefined} title={sent.utcIso ?? undefined} suppressHydrationWarning>{sent.absolute} · {sent.relative}</time>
+    <code>{event.data.surface_role} · {event.data.message_id}</code>
+  </div>;
+}
+
+function DecisionRoute({ route }: { route: DecisionRouteState }) {
+  const request = route.request.data;
+  const statusCopy: Record<DecisionRouteState["status"], string> = {
+    OWNER_RESPONSE_REQUIRED: "Joel must answer the exact supervisory question. Codex has no decision authority.",
+    VERBATIM_FORWARD_REQUIRED: "Joel answered through the Project Manager Chat. The exact body hash must be forwarded to the supervisory thread without paraphrase.",
+    SUPERVISOR_RESOLUTION_REQUIRED: "The supervisor has Joel’s exact answer and must issue a new source-bound decision before execution resumes.",
+    RESOLVED: "The supervisor issued a source-bound response after Joel’s exact answer.",
+    INVALID_BINDING: "The response chain is altered, unbound, or ambiguously attributed. Execution must remain stopped.",
+  };
+  return <article className={`decision-route ${route.status.toLowerCase()}`}>
+    <div className="reasoning-message-head">
+      <strong>{route.decisionRequestId}</strong>
+      <span className={`provenance-badge ${route.status === "RESOLVED" ? "verified" : route.status === "INVALID_BINDING" ? "unverified" : "owner_attested"}`}>{route.status.replaceAll("_", " ")}</span>
+    </div>
+    <p>{statusCopy[route.status]}</p>
+    <dl>
+      <div><dt>Request message</dt><dd><code>{request.message_id}</code></dd></div>
+      <div><dt>Request body hash</dt><dd><code>{request.body_sha256}</code></dd></div>
+      {route.projectManagerResponse && <div><dt>PM owner response</dt><dd><code>{route.projectManagerResponse.data.message_id} · {route.projectManagerResponse.data.body_sha256}</code></dd></div>}
+      {route.supervisorResponse && <div><dt>Supervisor-thread owner response</dt><dd><code>{route.supervisorResponse.data.message_id} · {route.supervisorResponse.data.body_sha256}</code></dd></div>}
+      {route.resolution && <div><dt>Supervisor resolution</dt><dd><code>{route.resolution.data.message_id} · {route.resolution.data.body_sha256}</code></dd></div>}
+    </dl>
+    {route.directChatUrl && route.status !== "RESOLVED" && <a href={route.directChatUrl} target="_blank" rel="noreferrer">Open exact supervisory message</a>}
+  </article>;
 }
