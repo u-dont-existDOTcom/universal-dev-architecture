@@ -1,0 +1,128 @@
+name: One-shot Mission Control authority-gate finalization
+
+on:
+  push:
+    branches:
+      - task/mission-control-direct-pm-attractor-independence-20260901
+    paths:
+      - .github/workflows/mission-control-authority-finalize-one-shot.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mission-control-authority-finalize-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-package-and-close:
+    if: github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact task branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: task/mission-control-direct-pm-attractor-independence-20260901
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Capture tested source head
+        run: echo "TESTED_SOURCE_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Refresh deterministic Mission Control source archive
+        run: bash tools/codex-mission-control/package-source.sh
+
+      - name: Install locked Mission Control dependencies
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npm ci --ignore-scripts
+
+      - name: Run focused Chat Work authority tests
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npx tsx --test tests/chat-work-authority-gate.test.ts
+
+      - name: Run full Mission Control tests
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npm test
+
+      - name: Typecheck Mission Control
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npm run typecheck
+
+      - name: Build Mission Control
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npm run build
+
+      - name: Run universal tests and repository audit
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 scripts/audit_codex_github.py --root . --fail-on error
+
+      - name: Verify packaged archive contains the authority gate
+        run: |
+          rm -rf /tmp/mission-control-archive-check
+          mkdir -p /tmp/mission-control-archive-check
+          cat tools/codex-mission-control/source-archive/codex-mission-control.zip.part-* > /tmp/codex-mission-control.zip
+          unzip -q /tmp/codex-mission-control.zip -d /tmp/mission-control-archive-check
+          test -f /tmp/mission-control-archive-check/codex-mission-control/lib/chat-work-authority-gate.ts
+          cmp \
+            tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts \
+            /tmp/mission-control-archive-check/codex-mission-control/lib/chat-work-authority-gate.ts
+
+      - name: Write exact verification receipt
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          digest_line = Path('tools/codex-mission-control/SOURCE-ARCHIVE.sha256').read_text(encoding='utf-8').strip()
+          archive_sha = digest_line.split()[0]
+          receipt = {
+              'schemaVersion': 1,
+              'receiptType': 'mission_control_chat_work_authority_gate_finalization',
+              'testedSourceHead': os.environ['TESTED_SOURCE_HEAD'],
+              'branch': 'task/mission-control-direct-pm-attractor-independence-20260901',
+              'focusedAuthorityGateTests': 'PASS',
+              'fullMissionControlTests': 'PASS',
+              'typecheck': 'PASS',
+              'productionBuild': 'PASS',
+              'universalRepositoryTests': 'PASS',
+              'repositoryAudit': 'PASS',
+              'sourceArchiveSha256': archive_sha,
+              'sourceArchiveContainsExactAuthorityGate': True,
+              'controls': {
+                  'codexWorkSemanticProposalAuthorshipRejected': True,
+                  'paidModelInferenceRejectedUnderZeroSpend': True,
+                  'falseChatgptAttributionRejected': True,
+                  'automaticInternalSupervisorRoutingAllowed': True,
+                  'ownerRelayAndSaySendItRejected': True,
+                  'genericBrowserConfirmationCannotOverrideInternalRoute': True,
+                  'greenSubtaskDoesNotCloseParentOutcome': True,
+              },
+              'liveDeploymentVerified': False,
+              'liveProviderTranscriptVerified': False,
+              'limitations': [
+                  'This receipt proves source, tests, build, audit, and archive parity; Railway deployment and provider-bound transcript evidence remain separate live boundaries.'
+              ],
+          }
+          target = Path('docs/audits/2026-09-01-mission-control-chat-work-authority-gate-finalization.json')
+          target.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Commit package, receipt, and remove one-shot workflow
+        env:
+          TARGET_BRANCH: task/mission-control-direct-pm-attractor-independence-20260901
+        run: |
+          git config user.name "mission-control-authority-finalizer"
+          git config user.email "mission-control-authority-finalizer@users.noreply.github.com"
+          git rm .github/workflows/mission-control-authority-finalize-one-shot.yml
+          git add \
+            tools/codex-mission-control/source-archive \
+            tools/codex-mission-control/SOURCE-ARCHIVE.sha256 \
+            docs/audits/2026-09-01-mission-control-chat-work-authority-gate-finalization.json
+          git commit -m "build(mission-control): finalize Chat Work authority gate"
+          git push origin "HEAD:${TARGET_BRANCH}"
