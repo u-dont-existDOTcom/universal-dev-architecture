@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { WorkerState } from "@/lib/projection";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
+import { formatMessageTimestamp } from "@/lib/message-time";
 
 export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRefresh: () => Promise<void> }) {
   const [kind, setKind] = useState<"CONVERSATION" | "DIRECTION">("CONVERSATION");
@@ -46,16 +47,36 @@ export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRe
     </div>
     {channel.acknowledgementInterpretation && <div className="worker-interpretation"><span className="field-label">WORKER INTERPRETATION</span><p>{channel.acknowledgementInterpretation}</p></div>}
 
+    <div className="timestamp-coverage" role="status">
+      <span className="field-label">MESSAGE TIME COVERAGE</span>
+      <p>Every ledgered message shows absolute Africa/Dakar time, source UTC time, and relative age. External ChatGPT messages remain <strong>UNVERIFIED</strong> until a provider-bound transcript event is ingested; a chat link or last-review age is not message-level evidence.</p>
+    </div>
+
     <div className="channel-grid">
       <div className="conversation-panel">
         <div className="channel-panel-head"><div><p className="eyebrow">CONVERSATION</p><h3>Owner and worker</h3></div><span>{channel.messages.length} messages</span></div>
         <div className="conversation-thread">
           {channel.messages.length === 0 && <p className="empty-channel">No messages yet. A message is informational; a direction changes the active work boundary.</p>}
-          {channel.messages.slice(-20).map((message) => <article key={message.messageId} className={`channel-message ${message.author.toLowerCase()} ${message.kind.toLowerCase()}`}>
-            <div><strong>{message.author} · {message.kind}</strong><time>{new Date(message.recordedAt).toLocaleString()}</time></div>
-            <p>{message.body}</p>
-            {message.author === "OWNER" && <small>{message.priority ? `${message.priority} · EPOCH ${message.authorityEpoch} · ` : ""}{message.deliveryStatus.replaceAll("_", " ")}{message.acknowledged ? " · ACKNOWLEDGED" : ""}{message.incorporated ? " · INCORPORATED" : ""}</small>}
-          </article>)}
+          {channel.messages.slice(-20).map((message) => {
+            const timestamp = formatMessageTimestamp(message.recordedAt);
+            const semanticAcknowledged = message.kind !== "DIRECTION"
+              ? message.acknowledged
+              : message.directionId === channel.latestDirectionId
+                ? Boolean(channel.acknowledgementInterpretation)
+                : message.incorporated;
+            return <article key={message.messageId} className={`channel-message ${message.author.toLowerCase()} ${message.kind.toLowerCase()}`}>
+              <div>
+                <strong>{message.author} · {message.kind}</strong>
+                <time
+                  dateTime={timestamp.utcIso ?? undefined}
+                  title={timestamp.utcIso ? `${timestamp.utcIso} · source UTC` : "TIMESTAMP_UNVERIFIED"}
+                  data-timestamp-verified={timestamp.verified ? "true" : "false"}
+                >{timestamp.absolute} · {timestamp.relative}</time>
+              </div>
+              <p>{message.body}</p>
+              {message.author === "OWNER" && <small>{message.priority ? `${message.priority} · EPOCH ${message.authorityEpoch} · ` : ""}{message.deliveryStatus.replaceAll("_", " ")}{semanticAcknowledged ? " · ACKNOWLEDGED" : ""}{message.incorporated ? " · INCORPORATED" : ""}</small>}
+            </article>;
+          })}
         </div>
         <div className="owner-composer">
           <div className="composer-kind" role="group" aria-label="Message authority">
@@ -140,7 +161,7 @@ function lifecycle(channel: WorkerState["channel"]): Array<[string, boolean, boo
     ["Recorded", Boolean(direction)],
     ["Queued", Boolean(direction && direction.deliveryStatus !== "RECORDED")],
     ["Delivered", delivered],
-    ["Acknowledged", Boolean(direction?.acknowledged)],
+    ["Acknowledged", Boolean(channel.acknowledgementInterpretation)],
     ["Incorporated", Boolean(direction?.incorporated)],
   ];
   const firstIncomplete = steps.findIndex(([, complete]) => !complete);
