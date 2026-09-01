@@ -10,16 +10,26 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
 test("Hermes experiment is bounded, non-authoritative, and executable without adopting Hermes", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/hermes/experiment.json"), "utf8"));
-  assert.equal(manifest.status, "QUEUED_EXPERIMENT");
+  assert.equal(manifest.status, "READY_EXPERIMENT");
   assert.equal(manifest.authority.hermesIsAuthoritative, false);
   assert.equal(manifest.authority.missionControlLedgerRemainsSourceOfTruth, true);
   assert.equal(manifest.authority.symphonyRoleChanges, false);
   assert.equal(manifest.bounds.maximumCalendarDays, 7);
   assert.equal(manifest.scenarios.length, 3);
   assert.equal(manifest.adoptionGate.defaultDecision, "DO_NOT_ADOPT");
+  const results = path.join(appRoot, "experiments/hermes/results/2026-09-01-provider-independent");
+  const summary = JSON.parse(fs.readFileSync(path.join(results, "summary.json"), "utf8"));
+  assert.equal(summary.runtime.upstreamCommit, "e600507a8f5b88296a617034a905084e655bf0b9");
+  assert.equal(summary.score.runs, 18);
+  assert.equal(summary.score.gates.zeroAuthorityViolations, true);
+  assert.equal(summary.score.gates.noLostOrReorderedLedgerEvents, true);
+  assert.equal(summary.score.passed, false);
+  assert.equal(summary.decision, "DO_NOT_ADOPT_KEEP_BASELINE");
+  assert.equal(summary.automaticAdoptionPerformed, false);
+  assert.equal(fs.readdirSync(results).filter((name) => name !== "summary.json").length, 18);
   const run = spawnSync(process.execPath, ["scripts/run-hermes-experiment.mjs", "--arm", "baseline", "--scenario", "continuity-after-restart", "--dry-run"], { cwd: appRoot, encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr);
-  const result = JSON.parse(run.stdout);
+  const result = JSON.parse(run.stdout) as { dryRun: boolean; authority: { hermesIsAuthoritative: boolean } };
   assert.equal(result.dryRun, true);
   assert.equal(result.authority.hermesIsAuthoritative, false);
 });
@@ -53,4 +63,19 @@ test("n8n evaluation is pass-through only and parity comparison fails closed", (
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("the real-worker sidecar derives a direction-bound queue from repository state without writing it", () => {
+  const run = spawnSync(process.execPath, [
+    "scripts/run-worker-adapter.mjs", "--worker", "human-design-governance",
+    "--repo", appRoot, "--state-file", "README.md", "--dry-run",
+  ], { cwd: appRoot, encoding: "utf8" });
+  assert.equal(run.status, 0, run.stderr);
+  const result = JSON.parse(run.stdout) as { dryRun: boolean; source: { repository: string; head: string }; events: Array<{ data: { type: string; state?: string; items?: unknown[] } }> };
+  assert.equal(result.dryRun, true);
+  assert.equal(result.source.repository, appRoot);
+  assert.match(result.source.head, /^[a-f0-9]{40}$/);
+  assert.ok(result.events.some((event) => event.data.type === "worker_connection_observed" && event.data.state === "CONNECTED"));
+  assert.ok(result.events.some((event) => event.data.type === "work_queue_published" && Array.isArray(event.data.items) && event.data.items.length > 0));
+  assert.ok(result.events.some((event) => event.data.type === "direction_reconciled"));
 });

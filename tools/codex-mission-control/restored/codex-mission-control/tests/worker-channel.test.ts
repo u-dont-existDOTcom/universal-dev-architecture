@@ -7,12 +7,13 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FleetQueue, WorkerChannel } from "../components/WorkerChannel";
+import { MissionCard } from "../components/Dashboard";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { producerMayEmit } from "../lib/ingestion-auth";
 import type { MissionControlEventV2 } from "../lib/schema";
 import { ContractInvariantError, EventStore } from "../lib/store";
-import { seedIssue47Store } from "../lib/seed";
-import { projectWorkers } from "../lib/projection";
+import { seedIssue47Store, seedStore } from "../lib/seed";
+import { projectWorkerConnection, projectWorkers } from "../lib/projection";
 import { projectWorkerChannel, pullWorkerOutbox, recordOwnerMessage } from "../lib/worker-channel";
 
 const owner: AuthenticatedProducer = { id: "owner:dashboard", kind: "UI", workerScopes: ["alpha"], taskScopes: ["task:alpha"] };
@@ -40,7 +41,7 @@ test("owner messages are ledgered atomically before delivery is observable", () 
   const channel = projectWorkerChannel(store.workerEvents("alpha"));
   assert.equal(channel.latestDirectionBody, "Run the AstroHD survey first.");
   assert.equal(channel.messages[0].deliveryStatus, "QUEUED");
-  assert.equal(channel.freshness, "DASHBOARD_BEHIND_OWNER");
+  assert.equal(channel.freshness, "AWAITING_DELIVERY");
   store.close();
 });
 
@@ -66,6 +67,7 @@ test("authenticated local or remote workers poll a durable outbox with retry lea
   const first = pullWorkerOutbox(store, "alpha", worker, { now, leaseSeconds: 30 });
   assert.equal(first.deliveries.length, 1);
   assert.equal(projectWorkerChannel(store.workerEvents("alpha")).messages[0].deliveryStatus, "DELIVERED");
+  assert.equal(projectWorkerChannel(store.workerEvents("alpha")).freshness, "NO_DIRECTION");
   assert.equal(pullWorkerOutbox(store, "alpha", worker, { now: "2026-08-31T22:00:20.000Z" }).deliveries.length, 0);
   const retry = pullWorkerOutbox(store, "alpha", worker, { now: "2026-08-31T22:00:31.000Z" });
   assert.equal(retry.deliveries.length, 1);
@@ -81,6 +83,7 @@ test("worker acknowledgement, interpretation, queue, and reconciliation advance 
     ownerEventId: "event:owner-message:alpha:3", deliveryEventId: "event:delivery-queued:alpha:3",
   }, owner);
   pullWorkerOutbox(store, "alpha", worker, { now });
+  assert.equal(projectWorkerChannel(store.workerEvents("alpha")).freshness, "AWAITING_ACKNOWLEDGEMENT");
   const ackAt = "2026-08-31T22:01:00.000Z";
   store.appendMany([
     { event: envelope("event:message-ack:alpha:3", ackAt, {
@@ -137,6 +140,30 @@ test("worker acknowledgement, interpretation, queue, and reconciliation advance 
   assert.equal(revised.queueRevisionId, "queue:alpha:3:rev2");
   assert.deepEqual(revised.queue.map((item) => item.status), ["SUPERSEDED", "WAITING_REVIEW"]);
   assert.equal(pullWorkerOutbox(store, "alpha", worker, { now: "2026-08-31T23:00:00.000Z" }).deliveries.length, 0);
+  store.close();
+});
+
+test("a stale direction overlays GREEN assurance and cannot render READY TO CONTINUE", () => {
+  const store = new EventStore(":memory:");
+  seedStore(store);
+  const authOwner: AuthenticatedProducer = { id: "owner:dashboard", kind: "UI", workerScopes: ["auth"], taskScopes: ["*"] };
+  recordOwnerMessage(store, {
+    worker: "auth", kind: "DIRECTION", body: "Prioritize the fresh owner direction.", now,
+    messageId: "message:auth:stale", directionId: "direction:auth:stale", deliveryId: "delivery:auth:stale",
+    ownerEventId: "event:owner-message:auth:stale", deliveryEventId: "event:delivery-queued:auth:stale",
+  }, authOwner);
+  const projected = projectWorkers(store.allEvents()).find((candidate) => candidate.id === "auth")!;
+  assert.equal(projected.overallTraffic, "GREEN", "the semantic assurance plane remains independent");
+  assert.equal(projected.channel.freshness, "AWAITING_DELIVERY");
+  assert.deepEqual(projected.operatorState, {
+    traffic: "YELLOW",
+    label: "YELLOW · AWAITING DELIVERY — NOT CURRENT",
+    reason: "The latest owner direction is durable but has not reached the worker.",
+    needsAttention: true,
+  });
+  const html = renderToStaticMarkup(createElement(MissionCard, { worker: projected, selected: false }));
+  assert.match(html, /YELLOW · AWAITING DELIVERY — NOT CURRENT/);
+  assert.doesNotMatch(html, /GREEN · READY TO CONTINUE/);
   store.close();
 });
 
@@ -317,6 +344,23 @@ test("worker-channel event families are restricted to their authority lanes", ()
   assert.equal(producerMayEmit(worker, ownerMessage), false);
 });
 
+test("connection projection distinguishes live, expired configured, and fixture-only workers", () => {
+  const store = new EventStore(":memory:");
+  const connectedAt = "2026-08-31T22:00:00.000Z";
+  const connected = envelope("event:connection:alpha", connectedAt, {
+    type: "worker_connection_observed", worker: "alpha", connection_id: "connection:alpha:1",
+    state: "CONNECTED", runtime_kind: "POLLING_SIDECAR", endpoint_id: "worker:alpha:poll",
+    observed_at: connectedAt, lease_expires_at: "2026-08-31T22:05:00.000Z",
+    source: { repository: "/repo/alpha", branch: "main", head: "a".repeat(40), state_path: "state/CURRENT-STATE.md" },
+    detail: "Live authenticated poll succeeded.",
+  });
+  store.append(connected, undefined, worker);
+  assert.equal(projectWorkerConnection(store.allEvents(), new Date("2026-08-31T22:01:00.000Z")).state, "CONNECTED");
+  assert.equal(projectWorkerConnection(store.allEvents(), new Date("2026-08-31T22:06:00.000Z")).state, "OFFLINE_CONFIGURED");
+  assert.equal(projectWorkerConnection([]).state, "FIXTURE_ONLY");
+  store.close();
+});
+
 test("new Next machine routes remain daemon proxies rather than SQLite writers", () => {
   const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   for (const route of [
@@ -346,6 +390,13 @@ test("owner and fleet surfaces render the AstroHD direction, lifecycle, queue, a
   assert.match(fleetHtml, /FLEET WORK QUEUE[\s\S]*human-design-governance[\s\S]*AstroHD/);
   assert.match(fleetHtml, /Worker \/ project[\s\S]*Status[\s\S]*Priority[\s\S]*Sort[\s\S]*Blocked only/);
   assert.match(fleetHtml, /project:human-design[\s\S]*P0/);
+  assert.match(fleetHtml, /mission-control-live-slice[\s\S]*MC-EXP-HERMES-001/);
+  assert.match(fleetHtml, /MC-EVAL-N8N-001[\s\S]*WAITING_DEPENDENCY/);
+  const missionControl = workers.find((item) => item.id === "mission-control-live-slice")!;
+  const hermes = missionControl.channel.queue.find((item) => item.itemId === "MC-EXP-HERMES-001")!;
+  const n8n = missionControl.channel.queue.find((item) => item.itemId === "MC-EVAL-N8N-001")!;
+  assert.deepEqual([hermes.status, hermes.dependsOn], ["PLANNED", ["mc:live-worker-channel"]]);
+  assert.deepEqual([n8n.status, n8n.dependsOn], ["PLANNED", ["mc:recurring-adapter-burden"]]);
   store.close();
 });
 

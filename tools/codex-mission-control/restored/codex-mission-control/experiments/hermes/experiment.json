@@ -1,6 +1,6 @@
 {
   "experimentId": "mission-control-hermes-continuity-v1",
-  "status": "QUEUED_EXPERIMENT",
+  "status": "READY_EXPERIMENT",
   "authority": {
     "hermesIsAuthoritative": false,
     "missionControlLedgerRemainsSourceOfTruth": true,
@@ -31,7 +31,16 @@
     "missed_owner_directions",
     "owner_corrections_required",
     "recovery_seconds",
-    "authority_violations"
+    "authority_violations",
+    "reliability_failures",
+    "latency_milliseconds",
+    "resource_max_rss_kib",
+    "provider_cost_usd",
+    "outstanding_work_recall_percent",
+    "blocker_surfacing_percent",
+    "proposal_surfacing_percent",
+    "outcome_advancement_preserved",
+    "lost_or_reordered_ledger_events"
   ],
   "adoptionGate": {
     "required": [
@@ -41,5 +50,6 @@
       "fewer owner corrections in at least two of three scenarios"
     ],
     "defaultDecision": "DO_NOT_ADOPT"
-  }
+  },
+  "providerIndependentScope": "Official Hermes SessionDB and built-in memory persistence are exercised without importing production credentials."
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { WorkerState } from "@/lib/projection";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
+import { ownerMutationHeaders } from "@/lib/browser-auth";
 
 export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRefresh: () => Promise<void> }) {
   const [kind, setKind] = useState<"CONVERSATION" | "DIRECTION">("CONVERSATION");
@@ -19,7 +20,7 @@ export function WorkerChannel({ worker, onRefresh }: { worker: WorkerState; onRe
     try {
       const response = await fetch(`/api/workers/${encodeURIComponent(worker.id)}/messages`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: ownerMutationHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({ kind, body: body.trim(), priority, mission_id: worker.missionId, idempotency_key: crypto.randomUUID() }),
       });
       if (!response.ok) {
@@ -113,13 +114,13 @@ export function FleetQueue({ queue }: { queue: WorkQueueItemProjection[] }) {
     <div className="fleet-queue-table" role="table">
       <div role="row" className="queue-table-head"><span>Worker / project</span><span>Work item</span><span>Direction</span><span>State</span></div>
       {visible.length === 0 && <p className="empty-channel">No work items match this filter.</p>}
-      {visible.map((item) => <div role="row" className="queue-table-row" key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><strong>{item.worker}<small>{item.projectId}</small></strong><div><b>{item.title}</b><small>{item.detail}</small></div><code>{item.directionId}</code><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></div>)}
+      {visible.map((item) => <div role="row" className="queue-table-row" key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><strong>{item.worker}<small>{item.projectId}</small></strong><div><b>{item.title}</b><code>{item.itemId}</code><small>{item.detail}</small></div><code>{item.directionId}</code><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></div>)}
     </div>
   </section>;
 }
 
 function QueuePanel({ queue, directionId }: { queue: WorkQueueItemProjection[]; directionId: string | null }) {
-  return <section className="queue-panel"><div className="channel-panel-head"><div><p className="eyebrow">DIRECTION-BOUND WORK QUEUE</p><h3>{directionId ?? "Awaiting first direction"}</h3></div><span>{queue.filter((item) => !["DONE", "CANCELED", "SUPERSEDED"].includes(item.status)).length} open</span></div><div className="worker-queue-list">{queue.length === 0 && <p className="empty-channel">The worker has not published a queue for this direction.</p>}{queue.map((item) => <article key={item.itemId}><i>{item.ordinal + 1}</i><div><strong>{item.title}</strong><p>{item.detail}</p>{item.dependsOn.length > 0 && <small>After {item.dependsOn.join(", ")}</small>}</div><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></article>)}</div></section>;
+  return <section className="queue-panel"><div className="channel-panel-head"><div><p className="eyebrow">DIRECTION-BOUND WORK QUEUE</p><h3>{directionId ?? "Awaiting first direction"}</h3></div><span>{queue.filter((item) => !["DONE", "CANCELED", "SUPERSEDED"].includes(item.status)).length} open</span></div><div className="worker-queue-list">{queue.length === 0 && <p className="empty-channel">The worker has not published a queue for this direction.</p>}{queue.map((item) => <article key={item.itemId}><i>{item.ordinal + 1}</i><div><strong>{item.title}</strong><code>{item.itemId}</code><p>{item.detail}</p>{item.dependsOn.length > 0 && <small>After {item.dependsOn.join(", ")}</small>}</div><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></article>)}</div></section>;
 }
 
 function IssuePanel({ title, count, tone, children }: { title: string; count: number; tone: string; children: React.ReactNode }) {

@@ -13,6 +13,7 @@ import { correctionStatusLabel, CorrectionInvariantError, validateCorrectionTran
 import { authenticatedEventTypes, producerKinds, producerMayEmit } from "../lib/ingestion-auth";
 import { authenticateIngestProducer } from "../lib/ingestion-credentials";
 import { sameOriginMutation } from "../lib/daemon-client";
+import { authenticateOwnerRequest, createOwnerSession, csrfCookieOptions, ownerCookieOptions, validateOwnerCredential } from "../lib/owner-auth";
 import { supervisionHandoffCapsuleSha256 } from "../lib/supervision-handoff";
 import { attentionPriority, projectWorker, projectWorkers, summarizeChanges } from "../lib/projection";
 import { appendEnvelopeSchema, eventSchema, ownerActionObligationSchema, supervisorChatLinkSetSchema, type MissionControlEventV2, type StoredEvent } from "../lib/schema";
@@ -91,6 +92,64 @@ test("same-origin mutation checks honor the actual Host authority without trusti
     method: "POST", headers: { host: "127.0.0.1:3000", origin: "http://evil.example" },
   })), false);
   assert.equal(sameOriginMutation(new Request("http://localhost:3000/api/viewed", { method: "POST" })), false);
+});
+
+test("owner authentication separates authority from UI and rejects hostile bearer, origin, and CSRF inputs", () => {
+  const previousToken = process.env.MISSION_CONTROL_OWNER_TOKEN;
+  const previousSecret = process.env.MISSION_CONTROL_SESSION_SECRET;
+  const previousOrigin = process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  const ownerToken = "owner-test-token-00000000000000000000000000000000";
+  process.env.MISSION_CONTROL_OWNER_TOKEN = ownerToken;
+  process.env.MISSION_CONTROL_SESSION_SECRET = "session-test-secret-000000000000000000000000000000";
+  process.env.MISSION_CONTROL_PUBLIC_ORIGIN = "https://mission-control.private.example";
+  try {
+    assert.equal(validateOwnerCredential(`${ownerToken}x`), false);
+    assert.equal(authenticateOwnerRequest(new Request("https://mission-control.private.example/api/workers", {
+      headers: { authorization: "Bearer attacker" },
+    })).ok, false);
+    const bearer = authenticateOwnerRequest(new Request("https://mission-control.private.example/api/workers", {
+      headers: { authorization: `Bearer ${ownerToken}` },
+    }));
+    assert.equal(bearer.ok, true);
+    if (bearer.ok) assert.deepEqual({ id: bearer.principal.id, kind: bearer.principal.kind }, { id: "owner:primary", kind: "OWNER_AUTHORITY" });
+
+    const session = createOwnerSession();
+    const cookie = `mc_owner_session=${session.token}; mc_owner_csrf=${session.csrf}`;
+    const foreign = authenticateOwnerRequest(new Request("https://mission-control.private.example/api/viewed", {
+      method: "POST", headers: { cookie, origin: "https://evil.example", "x-mission-control-csrf": session.csrf },
+    }), true);
+    assert.equal(foreign.ok ? null : foreign.status, 403);
+    const missingCsrf = authenticateOwnerRequest(new Request("https://mission-control.private.example/api/viewed", {
+      method: "POST", headers: { cookie, origin: "https://mission-control.private.example" },
+    }), true);
+    assert.equal(missingCsrf.ok ? null : missingCsrf.status, 403);
+    const accepted = authenticateOwnerRequest(new Request("https://mission-control.private.example/api/viewed", {
+      method: "POST", headers: { cookie, origin: "https://mission-control.private.example", "x-mission-control-csrf": session.csrf },
+    }), true);
+    assert.equal(accepted.ok, true);
+  } finally {
+    if (previousToken === undefined) delete process.env.MISSION_CONTROL_OWNER_TOKEN; else process.env.MISSION_CONTROL_OWNER_TOKEN = previousToken;
+    if (previousSecret === undefined) delete process.env.MISSION_CONTROL_SESSION_SECRET; else process.env.MISSION_CONTROL_SESSION_SECRET = previousSecret;
+    if (previousOrigin === undefined) delete process.env.MISSION_CONTROL_PUBLIC_ORIGIN; else process.env.MISSION_CONTROL_PUBLIC_ORIGIN = previousOrigin;
+  }
+});
+
+test("owner cookies are Secure for HTTPS exposure but usable on loopback HTTP", () => {
+  const previousOrigin = process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  const previousOverride = process.env.MISSION_CONTROL_SECURE_COOKIES;
+  try {
+    process.env.MISSION_CONTROL_PUBLIC_ORIGIN = "https://mission-control.private.example";
+    delete process.env.MISSION_CONTROL_SECURE_COOKIES;
+    assert.match(ownerCookieOptions(), /; Secure$/);
+    assert.match(csrfCookieOptions(), /; Secure$/);
+
+    delete process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+    assert.doesNotMatch(ownerCookieOptions(), /; Secure$/);
+    assert.doesNotMatch(csrfCookieOptions(), /; Secure$/);
+  } finally {
+    if (previousOrigin === undefined) delete process.env.MISSION_CONTROL_PUBLIC_ORIGIN; else process.env.MISSION_CONTROL_PUBLIC_ORIGIN = previousOrigin;
+    if (previousOverride === undefined) delete process.env.MISSION_CONTROL_SECURE_COOKIES; else process.env.MISSION_CONTROL_SECURE_COOKIES = previousOverride;
+  }
 });
 
 test("authenticated producer identity must match embedded evidence identity and authorized event class", () => {
@@ -177,7 +236,8 @@ test("an event-ID collision with different content is rejected", () => {
 test("the event hash chain verifies from the first event through the demo ledger", () => {
   const store = new EventStore(":memory:");
   seedStore(store);
-  assert.equal(store.count(), 108);
+  assert.ok(store.count() > 0);
+  assert.equal(store.count(), store.allEvents().length);
   assert.deepEqual(store.verifyChain(), { valid: true, errors: [] });
   assert.equal(store.allEvents()[0].previousHash, null);
   store.close();

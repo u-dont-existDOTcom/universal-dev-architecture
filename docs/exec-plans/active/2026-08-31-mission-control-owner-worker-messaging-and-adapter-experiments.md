@@ -1,6 +1,6 @@
 # Mission Control owner↔worker messaging and adapter experiments
 
-**Status:** owner channel implemented; Hermes/n8n executable evaluations queued, not adopted
+**Status:** live worker channel verified; Hermes evaluated and not adopted; n8n gated
 
 **Date:** 2026-08-31
 
@@ -64,8 +64,8 @@ publication, permission, and irreversible-action gates continue to apply.
 | --- | --- | --- | --- | --- | --- |
 | 1 | `MC-Q-OWNER-CHANNEL-001` | Ledger-first bidirectional owner↔worker messaging | `IMPLEMENTED_VERIFIED_IN_PR_51` | Existing Mission Control daemon/event ledger | Implemented, not orchestration authority |
 | 2 | `MC-Q-DIRECTION-SYNC-001` | Direction acknowledgement, queue reconciliation, blockers, and proposed changes | `IMPLEMENTED_VERIFIED_IN_PR_51` | Owner channel event/outbox contract | Implemented, worker claims remain evidence |
-| 3 | `MC-EXP-HERMES-001` | Bounded Hermes continuity/supervision comparison | `QUEUED_EXPERIMENT` | Stable worker-channel adapter and preregistered budget | Not adopted |
-| 4 | `MC-EVAL-N8N-001` | Bounded n8n integration/event-routing evaluation | `QUEUED_EVALUATION` | Stable external event API and at least one real adapter burden | Not adopted |
+| 3 | `MC-EXP-HERMES-001` | Bounded Hermes continuity/supervision comparison | `DONE_FAILED_GATE` | Live worker channel; provider-independent official-runtime matrix complete | Do not adopt; keep baseline |
+| 4 | `MC-EVAL-N8N-001` | Bounded n8n integration/event-routing evaluation | `PLANNED_WAITING_DEPENDENCY` | At least one real recurring adapter burden, preferably two credible flows | Not run and not adopted |
 
 The owner-channel foundation is first because both tool experiments need a
 stable, tool-neutral contract. A positive experiment advances only to a later
@@ -390,17 +390,60 @@ Primary sources checked on 2026-08-31:
 - n8n official documentation:
   `https://docs.n8n.io/`
 
+## 2026-09-01 continuation receipt
+
+- The primary operator answer now overlays channel freshness on the independent
+  assurance traffic plane. An unsynchronized direction is never presented as
+  `GREEN · READY TO CONTINUE`; delivery failure is red, and all non-current
+  channel states enter the attention projection.
+- Hermes and n8n are real `work_queue_published` items on the Mission Control
+  lane. Hermes advanced through `READY` to `DONE`; n8n remains visibly
+  `PLANNED`/`WAITING_DEPENDENCY` because no recurring integration burden
+  appeared during this work.
+- A fresh direction was committed for the actual Human Design repository before
+  delivery. The live adapter then polled it, acknowledged it, published a queue
+  derived from the real repository state, surfaced a blocker and proposal, and
+  reconciled it. Ledger sequence was owner record 81, delivery 85,
+  acknowledgement 87, queue 89, reconciliation 93.
+- Connection truth is explicit. Human Design and the active Mission Control
+  worktree were observed through real adapters. Article and InnerSignal remain
+  `FIXTURE_ONLY`; no connectivity is fabricated for absent runtimes.
+- Remote dashboard preparation now has a distinct signed owner principal,
+  short-lived HttpOnly session, double-submit CSRF token, exact-origin checks,
+  scoped machine tokens, loopback-by-default binding, and a refusal to bind
+  remotely without a configured HTTPS public origin. Hostile live authentication
+  checks passed.
+- A separate stdio MCP client called the live HTTP MCP service and successfully
+  read fleet and worker state. The private Secure MCP Tunnel bootstrap is
+  complete; associating a tunnel and ChatGPT developer-mode app remains an
+  owner-account action requiring a tunnel ID and runtime API key.
+- The official Hermes Agent runtime v0.21.0 at upstream commit
+  `e600507a8f5b88296a617034a905084e655bf0b9` ran in an isolated profile for 18
+  matched provider-independent runs. Both arms recovered all state with no
+  missed directions, corrections, authority violations, or reliability
+  failures. Baseline median recovery was 13.461 ms and Hermes was 575.444 ms;
+  the automatic gate failed and recorded `DO_NOT_ADOPT_KEEP_BASELINE`. LLM-backed
+  semantic scenarios remain unavailable without a separate experiment-only
+  inference credential; no production credential was imported.
+- Hosted CI now runs the application tests, TypeScript typecheck, production
+  build, and the existing repository audit. Local release verification passed
+  92/92 application tests, 243/243 repository tests, typecheck, production
+  build, live Human Design, live MCP, live hostile-auth, archive parity, and the
+  repository audit.
+
 ## Next safe actions
 
-1. Publish this implemented channel through the stacked pull request and keep
-   its CI green.
-2. Connect one isolated real VPS/cloud worker through the authenticated outbound
-   polling contract when deployment credentials and TLS/private networking are
-   separately authorized.
-3. Preregister the spend ceiling and scoring sheet before running the bounded
-   Hermes comparison; the executable dry run is not evidence for adoption.
-4. Run the n8n evaluation only when the integration backlog names a real
-   repeated flow; keep the direct adapter unless the measured criteria pass.
+1. Keep pull request #51 hosted checks green and review/merge it through the
+   existing GitHub authority boundary.
+2. In the owner OpenAI account, create or associate the private Secure MCP
+   Tunnel, provide its runtime API key to the isolated Mission Control runtime,
+   run the checked-in bootstrap, and select that tunnel in a ChatGPT
+   developer-mode app.
+3. Run LLM-backed Hermes scenarios only if an experiment-only inference
+   credential and spend ceiling are separately authorized. The current failed
+   gate remains controlling unless new evidence supersedes it.
+4. Run the n8n comparison only after a real repeated integration flow exists;
+   keep the direct adapter otherwise.
 
-Release, merge, deployment, external credentials, and tool installation remain
-separate owner-authorized boundaries.
+Merge, deployment, account credentials, and public exposure remain separate
+owner-authorized boundaries.

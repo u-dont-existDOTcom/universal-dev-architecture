@@ -54,9 +54,10 @@ const server = http.createServer(async (request, response) => {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "codex-mission-control", version: "1.0.0" },
       } });
+      if (body.method === "notifications/initialized" && body.id === undefined) return empty(response, 202);
       if (body.method === "tools/list") return json(response, 200, { jsonrpc: "2.0", id, result: { tools: [
-        { name: "mission_control_get_fleet", description: "Read the current projected Mission Control fleet and work queue.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
-        { name: "mission_control_get_worker", description: "Read one worker's projected state, owner channel, queue, blockers, and proposals.", inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
+        { name: "mission_control_get_fleet", description: "Read the current projected Mission Control fleet and work queue.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: {}, additionalProperties: false } },
+        { name: "mission_control_get_worker", description: "Read one worker's projected state, owner channel, queue, blockers, and proposals.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
       ] } });
       if (body.method === "tools/call") {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
@@ -85,8 +86,9 @@ const server = http.createServer(async (request, response) => {
       return streamEvents(request, response);
     }
     if (request.method === "POST" && url.pathname === "/viewed") {
-      if (authorizeMutation(request).kind !== "UI") return json(response, 403, { error: "Only the dashboard UI may mark a view cursor." });
-      const viewed = store.markViewed(authorizeMutation(request));
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "UI" && producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only an authenticated owner surface may mark a view cursor." });
+      const viewed = store.markViewed(producer);
       notifications.emit("event", { type: "review_marked" });
       return json(response, 200, viewed);
     }
@@ -230,6 +232,11 @@ function streamEvents(request: http.IncomingMessage, response: http.ServerRespon
 function json(response: http.ServerResponse, status: number, value: unknown) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(value));
+}
+
+function empty(response: http.ServerResponse, status: number) {
+  response.writeHead(status);
+  response.end();
 }
 
 async function readJson(request: http.IncomingMessage): Promise<unknown> {

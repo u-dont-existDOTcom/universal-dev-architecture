@@ -1,0 +1,66 @@
+{
+  "experimentId": "mission-control-hermes-continuity-v1",
+  "status": "COMPLETED_PROVIDER_INDEPENDENT",
+  "executedAt": "2026-09-01T00:43:28.263Z",
+  "runtime": {
+    "name": "hermes-agent",
+    "version": "0.21.0",
+    "upstreamCommit": "e600507a8f5b88296a617034a905084e655bf0b9",
+    "isolatedProfile": true
+  },
+  "providerScope": {
+    "completed": "All matched restart, offline-return, and handoff persistence scenarios using the official Hermes runtime.",
+    "blocked": "LLM-backed semantic reasoning was not run because no experiment-only Hermes inference credential was available; production credentials were not imported."
+  },
+  "score": {
+    "passed": false,
+    "gates": {
+      "zeroAuthorityViolations": true,
+      "noLostOrReorderedLedgerEvents": true,
+      "medianRecoveryTimeImprovementAtLeast20Percent": false,
+      "fewerOwnerCorrectionsInAtLeastTwoScenarios": false,
+      "allRunsReliable": true
+    },
+    "baselineMedianRecoveryMilliseconds": 13.461,
+    "hermesMedianRecoveryMilliseconds": 575.444,
+    "medianRecoveryImprovementPercent": -4174.898,
+    "correctionWinScenarios": 0,
+    "runs": 18,
+    "aggregate": {
+      "baseline": {
+        "authority_violations": 0,
+        "blocker_surfacing_percent": 100,
+        "latency_milliseconds": 13.68,
+        "lost_or_reordered_ledger_events": 0,
+        "missed_owner_directions": 0,
+        "outcome_advancement_preserved": 1,
+        "outstanding_work_recall_percent": 100,
+        "owner_corrections_required": 0,
+        "proposal_surfacing_percent": 100,
+        "provider_cost_usd": 0,
+        "recovery_milliseconds": 13.68,
+        "reliability_failures": 0,
+        "resource_max_rss_kib": 15207.111,
+        "state_recovery_fidelity_percent": 100
+      },
+      "hermes": {
+        "authority_violations": 0,
+        "blocker_surfacing_percent": 100,
+        "latency_milliseconds": 615.926,
+        "lost_or_reordered_ledger_events": 0,
+        "missed_owner_directions": 0,
+        "outcome_advancement_preserved": 1,
+        "outstanding_work_recall_percent": 100,
+        "owner_corrections_required": 0,
+        "proposal_surfacing_percent": 100,
+        "provider_cost_usd": 0,
+        "recovery_milliseconds": 615.926,
+        "reliability_failures": 0,
+        "resource_max_rss_kib": 42659.556,
+        "state_recovery_fidelity_percent": 100
+      }
+    }
+  },
+  "decision": "DO_NOT_ADOPT_KEEP_BASELINE",
+  "automaticAdoptionPerformed": false
+}

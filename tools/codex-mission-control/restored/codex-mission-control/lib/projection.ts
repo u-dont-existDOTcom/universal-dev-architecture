@@ -104,6 +104,12 @@ export interface WorkerState {
   workerToContractAlignment: WorkerAlignment;
   contractToOwnerAlignment: ContractOwnerAlignment;
   overallTraffic: Traffic;
+  operatorState: {
+    traffic: Traffic;
+    label: string;
+    reason: string;
+    needsAttention: boolean;
+  };
   alignment: number;
   driftScore: number;
   verdict: OperatorVerdict;
@@ -199,6 +205,7 @@ export interface WorkerState {
     alerts: string[];
   };
   channel: WorkerChannelProjection;
+  connection: WorkerConnectionProjection;
   lastCheckpointAt: string;
   timeline: StoredEvent[];
 }
@@ -270,6 +277,7 @@ function projectV2Worker(
   const supervisorUrl = route?.supervisor_chat_url ?? latestSupervisorLink(events)?.supervisor_chat_url ?? "https://chatgpt.com/";
   const supervisorLabel = route?.supervisor_chat_label ?? latestSupervisorLink(events)?.supervisor_chat_label ?? "Open supervisor chat";
   const lastCheckpoint = checkpointEvent(events) ?? events.at(-1)!;
+  const channel = projectWorkerChannel(events);
 
   return {
     id: contract.worker,
@@ -301,6 +309,7 @@ function projectV2Worker(
     workerToContractAlignment: comparison.workerToContractAlignment,
     contractToOwnerAlignment: comparison.contractToOwnerAlignment,
     overallTraffic: comparison.overallTraffic,
+    operatorState: deriveOperatorState(comparison.overallTraffic, channel),
     alignment: diagnosticIndex,
     driftScore: Math.max(0, 100 - diagnosticIndex),
     verdict: assessment?.operator_verdict ?? "HOLD",
@@ -405,7 +414,8 @@ function projectV2Worker(
         "PROGRESS_EVIDENCE_OVERDUE", "OWNER_OUTCOME_REGRESSING", "STRATEGY_REPLACEMENT_REQUIRED",
       ].includes(code) || code.startsWith("CODEX_") || code === "DIRECTIVE_SCOPE_EXCEEDED" || code === "OWNER_FORCED_PROGRESS_REVIEW"),
     },
-    channel: projectWorkerChannel(events),
+    channel,
+    connection: projectWorkerConnection(events, now),
     lastCheckpointAt: lastCheckpoint.occurredAt,
     timeline: [...events].reverse(),
   };
@@ -624,6 +634,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     unresolvedOwnerObligation: true,
   };
   const supervisorUrl = link?.supervisor_chat_url ?? objective.supervisor_chat_url;
+  const channel = projectWorkerChannel(events);
   return {
     id: objective.worker,
     missionId: last.missionId,
@@ -654,6 +665,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     workerToContractAlignment: workerAlignment,
     contractToOwnerAlignment: "SOURCE_MISSING",
     overallTraffic: overall,
+    operatorState: deriveOperatorState(overall, channel),
     alignment: Math.round((verdict?.alignment ?? 0) * 100),
     driftScore: warnings.reduce((sum, warning) => sum + warning.points, 0),
     verdict: verdict?.verdict ?? "HOLD",
@@ -759,7 +771,8 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       stopBoundary: [], latestReceiptId: null, receiptClaim: "No execution receipt in legacy schema.",
       pendingReasoningReview: true, proEscalationState: "NOT_REQUIRED", alerts: ["SUPERVISION_DIRECTIVE_MISSING"],
     },
-    channel: projectWorkerChannel(events),
+    channel,
+    connection: projectWorkerConnection(events, now),
     lastCheckpointAt: last.occurredAt,
     timeline: [...events].reverse(),
   };
@@ -789,11 +802,106 @@ export function attentionPriority(worker: WorkerState): number {
   if (worker.correction.directiveKind === "WORKER_REDIRECT" && worker.correction.status === "DIRECTIVE_DELIVERED" && !worker.correction.workerAcknowledged) return 30;
   if (worker.contractToOwnerAlignment === "DIVERGED") return 40;
   if (worker.terminal.reasonCodes.some((code) => /EVIDENCE|CANDIDATE/.test(code)) && worker.overallTraffic === "RED") return 50;
-  if (worker.overallTraffic === "RED") return 60;
-  if (worker.overallTraffic === "YELLOW") return 70;
+  if (worker.operatorState.traffic === "RED") return 60;
+  if (worker.operatorState.traffic === "YELLOW") return 70;
   if (worker.status === "blocked") return 80;
-  if (worker.overallTraffic === "UNKNOWN") return 85;
+  if (worker.operatorState.traffic === "UNKNOWN") return 85;
   return 90;
+}
+
+export function deriveOperatorState(overallTraffic: Traffic, channel: WorkerChannelProjection): WorkerState["operatorState"] {
+  const assuranceNeedsAttention = overallTraffic !== "GREEN";
+  switch (channel.freshness) {
+    case "DELIVERY_FAILED":
+      return {
+        traffic: "RED",
+        label: "RED · WORKER UNREACHABLE",
+        reason: "The latest owner direction could not be delivered. The worker must not be treated as current.",
+        needsAttention: true,
+      };
+    case "AWAITING_DELIVERY": {
+      const traffic = higherTraffic(overallTraffic, "YELLOW");
+      return {
+        traffic,
+        label: `${traffic} · AWAITING DELIVERY — NOT CURRENT`,
+        reason: "The latest owner direction is durable but has not reached the worker.",
+        needsAttention: true,
+      };
+    }
+    case "AWAITING_ACKNOWLEDGEMENT": {
+      const traffic = higherTraffic(overallTraffic, "YELLOW");
+      return {
+        traffic,
+        label: `${traffic} · AWAITING ACKNOWLEDGEMENT — NOT CURRENT`,
+        reason: "The latest owner direction was delivered but the worker has not acknowledged it.",
+        needsAttention: true,
+      };
+    }
+    case "DASHBOARD_BEHIND_OWNER": {
+      const traffic = higherTraffic(overallTraffic, "YELLOW");
+      return {
+        traffic,
+        label: `${traffic} · DIRECTION UNSYNCED — NOT CURRENT`,
+        reason: "The worker has not published a reconciled queue for the latest acknowledged owner direction.",
+        needsAttention: true,
+      };
+    }
+    case "CURRENT":
+      return {
+        traffic: overallTraffic,
+        label: `${overallTraffic} · CURRENT`,
+        reason: "The latest owner direction is delivered, acknowledged, and incorporated into the worker queue.",
+        needsAttention: assuranceNeedsAttention,
+      };
+    case "NO_DIRECTION":
+      return {
+        traffic: overallTraffic,
+        label: `${overallTraffic} · NO OWNER DIRECTION`,
+        reason: "No owner direction exists in this worker channel; the assurance traffic remains the primary signal.",
+        needsAttention: assuranceNeedsAttention,
+      };
+  }
+}
+
+function higherTraffic(left: Traffic, floor: Traffic): Traffic {
+  const rank: Record<Traffic, number> = { GREEN: 0, UNKNOWN: 1, YELLOW: 2, RED: 3 };
+  return rank[left] >= rank[floor] ? left : floor;
+}
+
+export interface WorkerConnectionProjection {
+  state: "CONNECTED" | "OFFLINE_CONFIGURED" | "FIXTURE_ONLY";
+  runtimeKind: "POLLING_SIDECAR" | "NATIVE_WORKER" | "FIXTURE";
+  endpointId: string;
+  observedAt: string | null;
+  leaseExpiresAt: string | null;
+  source: { repository: string; branch: string; head: string; statePath: string } | null;
+  detail: string;
+}
+
+export function projectWorkerConnection(events: StoredEvent[], now = new Date()): WorkerConnectionProjection {
+  const observed = [...events].reverse().find((event) => event.data.type === "worker_connection_observed")?.data;
+  if (observed?.type !== "worker_connection_observed") return {
+    state: "FIXTURE_ONLY", runtimeKind: "FIXTURE", endpointId: "fixture:unclassified",
+    observedAt: null, leaseExpiresAt: null, source: null,
+    detail: "No live worker adapter has published connection evidence.",
+  };
+  const expired = observed.state === "CONNECTED" && observed.lease_expires_at
+    ? new Date(observed.lease_expires_at).getTime() <= now.getTime()
+    : false;
+  return {
+    state: expired ? "OFFLINE_CONFIGURED" : observed.state,
+    runtimeKind: observed.runtime_kind,
+    endpointId: observed.endpoint_id,
+    observedAt: observed.observed_at,
+    leaseExpiresAt: observed.lease_expires_at,
+    source: observed.source ? {
+      repository: observed.source.repository,
+      branch: observed.source.branch,
+      head: observed.source.head,
+      statePath: observed.source.state_path,
+    } : null,
+    detail: expired ? `Live lease expired at ${observed.lease_expires_at}; the adapter remains configured but is offline.` : observed.detail,
+  };
 }
 
 function latest<T extends MissionControlEventV2["type"]>(events: StoredEvent[], type: T): Extract<MissionControlEventV2, { type: T }> | undefined {

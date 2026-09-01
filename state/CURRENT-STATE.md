@@ -1,70 +1,70 @@
 # Current State
 
-Updated: 2026-08-31 23:59 UTC
+Updated: 2026-09-01 00:54 UTC
 
 ## Goal
 
-Implement and durably publish the owner-approved Mission Control directive:
-ledger-first bidirectional owner↔worker communication for local and remote
-workers, direction-bound queues/blockers/proposals, machine-readable supervisor
-access, and bounded non-authoritative Hermes/n8n experiments.
+Implement and durably publish the owner-approved Mission Control continuation:
+truthful operator status, event-backed experiment queues, live worker adapters,
+private supervisor MCP access, hardened owner authentication, hosted application
+CI, and evidence-based Hermes/n8n decisions.
 
 ## Authority / baseline
 
 - Working branch:
   `task/mission-control-owner-worker-channel-experiments-20260831`.
-- Baseline: issue #47 live slice at `30c335e`.
-- Owner directive: the 20-item `pasted isntructios` attachment approved in the
-  continuing Mission Control conversation.
-- Symphony remains execution orchestrator. Mission Control owns the event
+- Pull request: #51, stacked on the issue #47 live-slice branch.
+- Requested continuation baseline:
+  `edb63f62a567b89b0e880f257f03e7aba0eed5fc`.
+- Symphony remains execution orchestrator. Mission Control owns its event
   ledger, outbound delivery evidence, projections, and dashboard. Supervising
-  chats retain semantic/reasoning authority; Hermes and n8n remain experiments.
+  chats retain semantic/reasoning authority. Hermes and n8n are not adopted.
 
 ## Completed implementation
 
-- Owner conversation and operative directions now commit to the append-only
-  ledger atomically with durable queued delivery.
-- Authenticated worker-initiated local/VPS polling supports offline persistence,
-  at-least-once retry leases, idempotent message IDs, delivery evidence,
-  acknowledgement, interpretation, and queue reconciliation.
-- Any unreconciled newest direction projects `DASHBOARD_BEHIND_OWNER`; old work
-  cannot remain current merely because it was previously healthy.
-- Workers publish persistent direction-bound queues plus structured blockers
-  and visibly non-operative change proposals. The dashboard exposes both the
-  per-worker channel and a filterable fleet queue.
-- Human Design now leads with the AstroHD survey. The hostile live scenario
-  proved immediate supersession, stale state before reconciliation, and CURRENT
-  only after acknowledgement plus a new queue.
-- Authenticated JSON and MCP-compatible reads expose the same fleet/worker
-  projection to supervisors without scraping the UI.
-- Hermes has an executable seven-day/three-scenario comparison contract and dry
-  runner; n8n has an inactive pass-through workflow and parity evaluator. Both
-  default to non-adoption.
-- The source archive was rebuilt from 61 app source files into 31 base64 parts;
-  SHA-256 `1ecf26dca669b7f9903254412a51da4ca85505c6c4562b61767e14826c2491ae`
-  passes decode, checksum, unzip, and byte-for-byte tree comparison.
+- Added an operator-state overlay without collapsing assurance planes. Stale,
+  awaiting, failed, or unreconciled owner directions cannot appear as the
+  primary green/current answer and now enter the attention projection.
+- Published `MC-EXP-HERMES-001` and `MC-EVAL-N8N-001` as real event-backed Fleet
+  Work Queue items with dependencies and adoption state.
+- Added truthful `CONNECTED`, `OFFLINE_CONFIGURED`, and `FIXTURE_ONLY` worker
+  connection states with expiring connected leases.
+- Added a generic authenticated outbound-polling worker adapter/sidecar. It
+  derives queues and current work from a real repository, emits delivery and
+  direction acknowledgements, publishes blockers/proposals, and reconciles
+  without making Mission Control a scheduler or exposing worker-control ports.
+- Completed a live Human Design/AstroHD acceptance against `/home/joel/humandesign`:
+  owner record sequence 81 preceded delivery 85, acknowledgement 87, real queue
+  publication 89, and reconciliation 93.
+- Added a real owner-auth boundary: distinct owner principal, signed expiring
+  session, HttpOnly/SameSite cookie, double-submit CSRF, exact-origin checks,
+  scoped bearer credentials, loopback default, and HTTPS configuration required
+  before non-loopback binding.
+- Added a distinct stdio MCP bridge/client and verified live
+  `mission_control_get_fleet` and `mission_control_get_worker` calls against the
+  service. Added the private Secure MCP Tunnel bootstrap and deployment notes.
+- Added hosted CI for 92 application tests, TypeScript typecheck, Next.js
+  production build, and the existing 243-test repository audit.
+- Ran 18 matched scenarios through the official isolated Hermes Agent runtime.
+  The automatic adoption gate failed: baseline median recovery 13.461 ms versus
+  Hermes 575.444 ms, with no correction wins. Decision:
+  `DO_NOT_ADOPT_KEEP_BASELINE`.
+- Kept n8n `PLANNED`/`WAITING_DEPENDENCY`; no genuine recurring adapter burden
+  appeared and no connectivity or adoption was fabricated.
+- Rebuilt the lossless application source archive from 95 files into 39 parts.
+  SHA-256: `295cf3bb44f5472d1811dc0c263e39cbfc29d8c732c18ced1edfb17345b11394`.
 
-## Verification complete
+## Verification complete locally
 
-- 87/87 deterministic application tests pass.
-- TypeScript typecheck passes.
-- Next.js production build passes with all new routes.
-- Live HTTP scenario passes: offline owner direction, authenticated poll,
-  delivery, acknowledgement, stale-before-queue behavior, reconciliation,
-  blocker/proposal/fleet visibility, and valid global hash chain.
-- Live MCP initialize/list/worker read passes; unauthenticated access is denied.
-- Embedded-browser desktop and 375px compact acceptance passes with no
-  horizontal overflow. The compact worker page exposes the composer, direction
-  control, AstroHD state, lifecycle, blocker, and proposal.
-
-## Current checkpoint
-
-Implementation, app and repository gates, live acceptance, requirement audit,
-source archive reconstruction, and final diff checks are complete locally.
-Implementation commit `91a3c646f9f3a060acc6b8b800a361b463e41cb4` and
-receipt commit `e65f54b` are pushed. Stacked PR #51 is open against the issue
-#47 live-slice branch. Its required deterministic repository audit passed on
-the receipt head.
+- Focused operator/channel/adapter and hostile-auth tests pass.
+- 92/92 deterministic application tests pass.
+- 243/243 repository tests pass.
+- TypeScript typecheck and Next.js production build pass.
+- Live Human Design worker-channel acceptance passes.
+- Live distinct-client MCP acceptance passes.
+- Live hostile owner-auth acceptance passes.
+- Source archive checksum, unzip integrity, and reconstructed tree parity pass.
+- Repository audit reports no findings.
 
 ## Evidence / artifacts
 
@@ -72,38 +72,58 @@ the receipt head.
   `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
   `tests/test_coverage_before_depth_pattern.py`.
-- Implementation plan:
+- Implementation and experiment plan:
   `docs/exec-plans/active/2026-08-31-mission-control-owner-worker-messaging-and-adapter-experiments.md`
-- 20-item closeout audit:
-  `docs/audits/2026-08-31-mission-control-owner-worker-channel-directive-audit.md`
-- Application:
+- Live receipts:
+  `docs/evidence/mission-control-continuation/`
+- Hermes raw receipts and score:
+  `tools/codex-mission-control/restored/codex-mission-control/experiments/hermes/results/2026-09-01-provider-independent/`
+- Application and adapters:
   `tools/codex-mission-control/restored/codex-mission-control/`
 - Source archive receipt:
   `tools/codex-mission-control/SOURCE-ARCHIVE.sha256`
-- Test-efficiency telemetry:
-  `/tmp/mission-control-full-implementation-20260831.jsonl`
+- Test-efficiency telemetry task:
+  `mission-control-pr51-continuation-20260901`
 
-## Remaining
+## Remaining release work
 
-1. Preserve the final directive-audit closeout in GitHub and confirm its
-   documentation-only CI rerun remains green.
-2. Await review/merge of stacked PR #51; merge is not required to complete this
-   implementation directive.
+1. Commit and push this continuation to PR #51.
+2. Verify the new hosted application job and repository audit are green at the
+   exact pushed head; fix any failure before closeout.
+3. Record the exact final Git head and check-run state in this file.
+
+## Current checkpoint
+
+All implementation and local verification gates are green. The continuation is
+ready for its release commit, push to PR #51, and exact-head hosted CI check.
+
+## External/account-bound follow-up
+
+- ChatGPT consumption through the private Secure MCP Tunnel requires the owner
+  to create or associate a tunnel in the OpenAI platform, provide the tunnel ID
+  and runtime API key to the isolated runtime, and select the tunnel in a
+  developer-mode ChatGPT app. All server, scoped auth, stdio bridge, bootstrap,
+  and local distinct-client acceptance work is complete.
+- LLM-backed Hermes semantic scenarios require an experiment-only inference
+  credential and explicit spend ceiling. Every provider-independent official
+  runtime scenario ran; production credentials were not imported.
+- n8n remains deferred until at least one real recurring burden exists,
+  preferably two credible flows under the recorded adoption gate.
 
 ## Blockers / unresolved
 
-- No implementation or verification blocker is open.
-- A real Hermes run still requires a separately authorized spend ceiling and
-  experiment credentials; this does not block the executable experiment queue.
-- A real n8n comparison still requires a named recurring integration flow; this
-  does not block the executable evaluator.
+- No local implementation or verification blocker remains.
+- ChatGPT tunnel association and LLM-backed Hermes semantic runs remain the
+  explicit account/credential boundaries described above.
 
 ## Next safe action
 
-Push the final audit classification and confirm PR #51 remains green.
+Commit and push the verified continuation, then follow both hosted PR checks to
+terminal green before writing the exact-head closeout receipt.
 
 ## Recovery rule
 
-Resume from the remaining list. Do not reclassify Hermes or n8n as adopted and
-do not move Symphony authority. Do not close out until the audit records exact
-GitHub branch, commit, PR, tests, and CI state.
+Resume from the remaining release work. Do not classify account-bound ChatGPT
+tunnel registration as mechanically complete, do not adopt Hermes after its
+failed gate, do not run n8n without its dependency, and do not claim hosted CI
+green until the exact final head has check-run evidence.

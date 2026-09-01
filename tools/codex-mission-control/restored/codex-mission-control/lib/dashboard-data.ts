@@ -27,6 +27,11 @@ export function snapshotFromStore(store: EventStore) {
       openBlockers: workers.reduce((count, worker) => count + worker.channel.blockers.length, 0),
       openProposals: workers.reduce((count, worker) => count + worker.channel.proposals.length, 0),
     },
+    connectionSummary: {
+      connected: workers.filter((worker) => worker.connection.state === "CONNECTED").length,
+      offlineConfigured: workers.filter((worker) => worker.connection.state === "OFFLINE_CONFIGURED").length,
+      fixtureOnly: workers.filter((worker) => worker.connection.state === "FIXTURE_ONLY").length,
+    },
     liveSource,
     summary: summarizeChanges(events, lastViewedEventId),
     lastViewedEventId,

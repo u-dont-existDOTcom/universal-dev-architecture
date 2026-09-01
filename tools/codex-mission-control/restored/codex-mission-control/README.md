@@ -20,6 +20,15 @@ npm run dev
 
 Open the dashboard route. It seeds six deterministic supervision fixtures into `data/mission-control.db` unless `MISSION_CONTROL_SKIP_SEED=1` is set. Override the database with `MISSION_CONTROL_DB=/absolute/path/mission-control.db` and the daemon with `MISSION_CONTROL_DAEMON_URL=http://127.0.0.1:4100`.
 
+The stack prints a random local owner token when one is not supplied. Use it
+at `/login`. Production operators must provide separate
+`MISSION_CONTROL_OWNER_TOKEN` and `MISSION_CONTROL_SESSION_SECRET` values.
+The signed owner session is HttpOnly and SameSite=Strict; browser mutations
+also require an exact-origin, double-submit CSRF proof. Worker credentials
+cannot open the dashboard. The dashboard binds to loopback by default, and a
+non-loopback bind is refused unless `MISSION_CONTROL_PUBLIC_ORIGIN` is an
+explicit HTTPS origin.
+
 Useful commands:
 
 ```bash
@@ -76,6 +85,7 @@ Important modules:
 - `lib/supervision-handoff.ts`: state-vector-bound three-turn chat handoff identity;
 - `lib/projection.ts`: attention ordering and operator projection;
 - `lib/worker-channel.ts`: ledger-first owner sends, durable polling leases, channel/queue projection, and stale-direction detection;
+- `lib/owner-auth.ts`: distinct owner authority, signed sessions, bearer automation, and CSRF enforcement;
 - `daemon/server.ts`: single-writer HTTP/SSE daemon;
 - `lib/symphony-adapter.ts`: read-only stock Symphony state normalization.
 
@@ -186,12 +196,56 @@ worker then posts a generic message acknowledgement plus any direction
 interpretation, persistent queue revision, response/question, blocker, or
 proposal envelopes. Event IDs make retries exactly idempotent.
 
+### Real worker sidecar
+
+`npm run worker:poll -- --worker <id> --repo <path> --state-file
+state/CURRENT-STATE.md --project-id <id> --task-id <id>` performs one
+authenticated poll. Add `--watch` for the durable polling loop. It reads Git
+and the declared durable state file, never writes the worker repository, and
+publishes a lease-backed connection observation, acknowledgements, a real
+direction-bound queue, blockers/proposals, and reconciliation. The example
+systemd hardening unit is in `deploy/mission-control-worker-adapter.service.example`.
+
+Connection truth is explicit: `CONNECTED` requires a live expiring lease,
+`OFFLINE_CONFIGURED` means a configured adapter is not currently polling, and
+`FIXTURE_ONLY` means no runtime connection is claimed.
+
+### Private supervisor MCP
+
+The HTTP MCP endpoint remains protected by a separately scoped `SUPERVISOR`
+credential. `npm run mcp:stdio` is a distinct stdio bridge for the live
+service, and `npm run mcp:verify-live` exercises initialize, tool discovery,
+fleet read, and worker read without using the browser UI.
+
+For ChatGPT, keep both the dashboard and MCP server private and use OpenAI's
+[Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels):
+
+1. Create a tunnel in Platform tunnel settings, associate the intended
+   ChatGPT workspace, and obtain a runtime API key.
+2. Export `CONTROL_PLANE_API_KEY`, `MISSION_CONTROL_MCP_TOKEN`,
+   `MISSION_CONTROL_MCP_PRODUCER_ID`, and `MISSION_CONTROL_MCP_URL`.
+3. Run `npm run mcp:tunnel:init -- --tunnel-id tunnel_...`, then
+   `tunnel-client run --profile mission-control`.
+4. In ChatGPT developer mode, create an app using **Tunnel** and select that
+   tunnel.
+
+The tunnel is outbound-only; it does not expose an unauthenticated inbound
+service or a worker-control port. Creating/associating the tunnel and issuing
+its runtime key are owner-account actions and are intentionally not automated
+by this repository.
+
 ## Queued adapter experiments
 
-`experiments/hermes/experiment.json` defines a maximum seven-day,
-three-scenario baseline-versus-Hermes continuity experiment. `npm run
-experiment:hermes -- --arm baseline --scenario continuity-after-restart
---dry-run` validates its executable contract without adopting Hermes.
+`experiments/hermes/experiment.json` preregisters a maximum seven-day,
+three-scenario baseline-versus-Hermes continuity experiment. The matrix
+runner uses an isolated official Hermes profile, executes three runs per arm
+per scenario, captures every requested metric, and scores the gate
+automatically. The preserved provider-independent result used Hermes Agent
+0.21.0 at upstream `e600507a…`: all 18 runs were reliable and recovered state
+exactly, but Hermes did not improve recovery time or owner-correction count,
+so the automatic decision was `DO_NOT_ADOPT_KEEP_BASELINE`. Production
+credentials were never imported; LLM-backed semantic runs remain separately
+blocked on an experiment-only inference credential.
 
 `experiments/n8n/` contains an inactive pass-through workflow and an exact
 event/order parity comparator. n8n remains an integration adapter candidate;

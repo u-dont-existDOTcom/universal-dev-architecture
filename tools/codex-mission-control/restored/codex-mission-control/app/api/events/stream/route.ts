@@ -1,9 +1,12 @@
 import { daemonFetch } from "@/lib/daemon-client";
+import { authenticateOwnerRequest, ownerAuthFailure } from "@/lib/owner-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const authentication = authenticateOwnerRequest(request);
+  if (!authentication.ok) return ownerAuthFailure(authentication);
   try {
     const upstream = await daemonFetch("/events/stream", {
       signal: request.signal,

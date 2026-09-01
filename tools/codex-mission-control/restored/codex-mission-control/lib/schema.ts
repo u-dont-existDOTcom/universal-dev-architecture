@@ -1020,6 +1020,31 @@ export const outboundMessageAcknowledgedSchema = z.object({
   acknowledged_at: Timestamp,
 });
 
+export const workerConnectionObservedSchema = z.object({
+  type: z.literal("worker_connection_observed"),
+  worker: WorkerId,
+  connection_id: StableId,
+  state: z.enum(["CONNECTED", "OFFLINE_CONFIGURED", "FIXTURE_ONLY"]),
+  runtime_kind: z.enum(["POLLING_SIDECAR", "NATIVE_WORKER", "FIXTURE"]),
+  endpoint_id: StableId,
+  observed_at: Timestamp,
+  lease_expires_at: Timestamp.nullable().default(null),
+  source: z.object({
+    repository: NonEmpty,
+    branch: NonEmpty,
+    head: z.string().regex(/^[a-f0-9]{40,64}$/),
+    state_path: NonEmpty,
+  }).nullable().default(null),
+  detail: NonEmpty.max(20_000),
+}).superRefine((connection, context) => {
+  if (connection.state === "CONNECTED" && !connection.lease_expires_at) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["lease_expires_at"], message: "CONNECTED requires an expiring live lease." });
+  }
+  if (connection.state === "FIXTURE_ONLY" && connection.runtime_kind !== "FIXTURE") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["runtime_kind"], message: "FIXTURE_ONLY must identify a fixture runtime." });
+  }
+});
+
 const workQueueItemSchema = z.object({
   item_id: StableId,
   title: NonEmpty,
@@ -1132,7 +1157,7 @@ export const eventSchemaV2 = z.union([
   symphonyAdapterDiagnosticRecordedSchema,
   supervisorChatLinkSetSchema,
   ownerMessageRecordedSchema, outboundDeliveryLifecycleRecordedSchema, workerMessageRecordedSchema,
-  directionAcknowledgedSchema, outboundMessageAcknowledgedSchema, workQueuePublishedSchema, directionReconciledSchema,
+  directionAcknowledgedSchema, outboundMessageAcknowledgedSchema, workerConnectionObservedSchema, workQueuePublishedSchema, directionReconciledSchema,
   structuredBlockerRecordedSchema, changeProposalRecordedSchema,
 ]);
 

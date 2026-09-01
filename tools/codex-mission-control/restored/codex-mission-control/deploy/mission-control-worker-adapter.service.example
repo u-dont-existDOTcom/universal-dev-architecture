@@ -1,0 +1,23 @@
+[Unit]
+Description=Mission Control authenticated worker sidecar
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mission-control-worker
+Group=mission-control-worker
+WorkingDirectory=/opt/codex-mission-control
+EnvironmentFile=/etc/mission-control/worker-adapter.env
+ExecStart=/usr/bin/node scripts/run-worker-adapter.mjs --watch --interval-ms 30000 --worker human-design-governance --repo /srv/humandesign --state-file state/CURRENT-STATE.md --base-url https://mission-control.private.example --project-id project:human-design --task-id task:human-design-governance
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadOnlyPaths=/srv/humandesign
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

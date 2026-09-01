@@ -86,6 +86,7 @@ export function seedStore(store: EventStore): boolean {
 export function seedIssue47Store(store: EventStore): boolean {
   if (store.eventByEventId("issue47:v1:seed-complete")) return false;
   for (const worker of issue47Workers()) seedWorker(store, worker);
+  seedIssue47MissionControlQueue(store);
   seedIssue47HumanDesignChannel(store);
   const timestamp = time(70);
   store.append(envelope("issue47:v1:seed-complete", timestamp, {
@@ -99,6 +100,47 @@ export function seedIssue47Store(store: EventStore): boolean {
     shared_pro_scope_key: "not-required-extra-high-default",
   }), timestamp);
   return true;
+}
+
+function seedIssue47MissionControlQueue(store: EventStore) {
+  const workerId = "mission-control-live-slice";
+  const directionAt = time(64);
+  recordOwnerMessage(store, {
+    worker: workerId, missionId, kind: "DIRECTION",
+    body: "Connect the live worker channel, expose authenticated supervisor reads, and evaluate continuity tooling without transferring authority.",
+    now: directionAt, messageId: "message:mission-control:continuation", directionId: "direction:mission-control:continuation",
+    deliveryId: "delivery:mission-control:continuation", ownerEventId: "issue47:owner-message:mission-control:continuation",
+    deliveryEventId: "issue47:delivery-queued:mission-control:continuation",
+  }, { id: "owner:dashboard", kind: "UI", workerScopes: [workerId], taskScopes: [`task:${workerId}`] });
+  const workerProducer = { id: `worker:${workerId}`, kind: "WORKER" as const, workerScopes: [workerId], taskScopes: [`task:${workerId}`] };
+  pullWorkerOutbox(store, workerId, workerProducer, { now: time(65) });
+  store.appendMany([
+    { event: envelope("issue47:message-ack:mission-control:continuation", time(65, 10), {
+      type: "outbound_message_acknowledged", worker: workerId, acknowledgement_id: "ack:message:mission-control:continuation",
+      message_id: "message:mission-control:continuation", delivery_id: "delivery:mission-control:continuation", acknowledged_at: time(65, 10),
+    }), producer: workerProducer },
+    { event: envelope("issue47:direction-ack:mission-control:continuation", time(65, 11), {
+      type: "direction_acknowledged", worker: workerId, acknowledgement_id: "ack:direction:mission-control:continuation",
+      direction_id: "direction:mission-control:continuation", message_id: "message:mission-control:continuation",
+      interpretation: "Connect real workers and private supervisor access first; evaluate Hermes afterward and defer n8n until recurring adapter burden exists.",
+      accepted_scope: ["worker channel adapters", "private supervisor MCP", "bounded Hermes experiment", "n8n dependency gate"], acknowledged_at: time(65, 11),
+    }), producer: workerProducer },
+    { event: envelope("issue47:queue:mission-control:continuation", time(65, 12), {
+      type: "work_queue_published", worker: workerId, project_id: "project:mission-control", task_id: `task:${workerId}`,
+      queue_revision_id: "queue:mission-control:continuation", revision: 1, previous_queue_revision_id: null,
+      direction_id: "direction:mission-control:continuation", published_at: time(65, 12), items: [
+        { item_id: "mc:live-worker-channel", title: "Connect the live HumanDesign worker", detail: "Replace fixture-only acceptance with a real authenticated poll, acknowledgement, queue publication, and reconciliation.", status: "IN_PROGRESS", priority: "P0", ordinal: 0, depends_on: [], created_at: time(65, 12), updated_at: time(65, 12) },
+        { item_id: "MC-EXP-HERMES-001", title: "Run the bounded Hermes continuity experiment", detail: "READY only after live worker-channel acceptance; run matched baseline/Hermes scenarios and score the preregistered gate without automatic adoption.", status: "PLANNED", priority: "P1", ordinal: 1, depends_on: ["mc:live-worker-channel"], created_at: time(65, 12), updated_at: time(65, 12) },
+        { item_id: "MC-EVAL-N8N-001", title: "Evaluate n8n only after recurring adapter burden exists", detail: "WAITING_DEPENDENCY: require at least one recurring real integration burden and preferably two credible flows; otherwise keep the direct adapter.", status: "PLANNED", priority: "P3", ordinal: 2, depends_on: ["mc:recurring-adapter-burden"], created_at: time(65, 12), updated_at: time(65, 12) },
+        { item_id: "mc:recurring-adapter-burden", title: "Establish recurring integration burden", detail: "Evidence gate for n8n: name repeatable production flows and measure direct-adapter operating cost before any n8n run.", status: "BLOCKED", priority: "P3", ordinal: 3, depends_on: [], created_at: time(65, 12), updated_at: time(65, 12) },
+      ],
+    }), producer: workerProducer },
+    { event: envelope("issue47:reconcile:mission-control:continuation", time(65, 13), {
+      type: "direction_reconciled", worker: workerId, reconciliation_id: "reconcile:mission-control:continuation",
+      direction_id: "direction:mission-control:continuation", queue_revision_id: "queue:mission-control:continuation",
+      status: "INCORPORATED", summary: "The real-worker and private MCP prerequisites lead; Hermes is queued behind them and n8n remains dependency-gated.", reconciled_at: time(65, 13),
+    }), producer: workerProducer },
+  ]);
 }
 
 function seedWorker(store: EventStore, seed: DemoWorker) {
@@ -237,6 +279,18 @@ function seedWorker(store: EventStore, seed: DemoWorker) {
   const supervision = supervisionCycle(seed, outcomeId, ownerEpoch, outcomeHash);
   const sourceEvents: MissionControlEventV2[] = [
     ...authorityEvents,
+    {
+      type: "worker_connection_observed",
+      worker: seed.worker,
+      connection_id: `connection:${seed.worker}:fixture`,
+      state: "FIXTURE_ONLY",
+      runtime_kind: "FIXTURE",
+      endpoint_id: `fixture:${seed.worker}`,
+      observed_at: time(seed.baseMinute),
+      lease_expires_at: null,
+      source: null,
+      detail: "Deterministic projection fixture; no live worker process is connected.",
+    },
     ...supervision.slice(0, 3),
     seed.checkpoint,
     ...(seed.evidence ?? []),

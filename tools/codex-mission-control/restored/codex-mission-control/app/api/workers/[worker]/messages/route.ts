@@ -1,16 +1,13 @@
-import { daemonMutationHeaders, relayJson, sameOriginMutation } from "@/lib/daemon-client";
+import { daemonMutationHeaders, relayJson } from "@/lib/daemon-client";
+import { authenticateOwnerRequest, ownerAuthFailure } from "@/lib/owner-auth";
 
 export async function POST(request: Request, context: { params: Promise<{ worker: string }> }) {
-  if (!sameOriginMutation(request)) return Response.json({ error: "Cross-origin mutation rejected." }, { status: 403 });
+  const authentication = authenticateOwnerRequest(request, true);
+  if (!authentication.ok) return ownerAuthFailure(authentication);
   const { worker } = await context.params;
   return relayJson(`/workers/${encodeURIComponent(worker)}/messages`, {
     method: "POST",
-    headers: daemonMutationHeaders({
-      id: "owner:dashboard",
-      kind: "UI",
-      workerScopes: [worker],
-      taskScopes: [`task:${worker}`],
-    }, { "content-type": "application/json" }),
+    headers: daemonMutationHeaders({ ...authentication.principal, workerScopes: [worker], taskScopes: [`task:${worker}`] }, { "content-type": "application/json" }),
     body: await request.text(),
   });
 }

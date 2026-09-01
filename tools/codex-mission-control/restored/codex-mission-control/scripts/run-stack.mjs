@@ -5,10 +5,24 @@ const mode = process.argv[2] === "start" ? "start" : "dev";
 const forwarded = process.argv.slice(3);
 const executable = process.platform === "win32" ? "tsx.cmd" : "tsx";
 const nextExecutable = process.platform === "win32" ? "next.cmd" : "next";
+const hostnameIndex = forwarded.findIndex((value) => value === "-H" || value === "--hostname");
+const requestedHost = hostnameIndex >= 0 ? forwarded[hostnameIndex + 1] : "127.0.0.1";
+const nextArguments = hostnameIndex >= 0 ? [mode, ...forwarded] : [mode, "--hostname", requestedHost, ...forwarded];
+if (!["127.0.0.1", "localhost", "::1"].includes(requestedHost)) {
+  const publicOrigin = process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  if (!publicOrigin || new URL(publicOrigin).protocol !== "https:") {
+    throw new Error("Remote dashboard binding requires an HTTPS MISSION_CONTROL_PUBLIC_ORIGIN. Prefer the private MCP tunnel and keep the dashboard on loopback.");
+  }
+}
 const stackEnv = {
   ...process.env,
   MISSION_CONTROL_INTERNAL_TOKEN: process.env.MISSION_CONTROL_INTERNAL_TOKEN ?? randomBytes(32).toString("hex"),
+  MISSION_CONTROL_OWNER_TOKEN: process.env.MISSION_CONTROL_OWNER_TOKEN ?? randomBytes(32).toString("base64url"),
+  MISSION_CONTROL_SESSION_SECRET: process.env.MISSION_CONTROL_SESSION_SECRET ?? randomBytes(48).toString("base64url"),
 };
+if (!process.env.MISSION_CONTROL_OWNER_TOKEN) {
+  console.error(`Mission Control local owner token: ${stackEnv.MISSION_CONTROL_OWNER_TOKEN}`);
+}
 const daemon = spawn(executable, ["daemon/server.ts"], { stdio: "inherit", env: stackEnv, detached: process.platform !== "win32" });
 let next;
 let closing = false;
@@ -18,7 +32,7 @@ const liveChildren = new Set([daemon]);
 
 try {
   await waitForDaemon();
-  next = spawn(nextExecutable, [mode, ...forwarded], { stdio: "inherit", env: stackEnv, detached: process.platform !== "win32" });
+  next = spawn(nextExecutable, nextArguments, { stdio: "inherit", env: stackEnv, detached: process.platform !== "win32" });
   liveChildren.add(next);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

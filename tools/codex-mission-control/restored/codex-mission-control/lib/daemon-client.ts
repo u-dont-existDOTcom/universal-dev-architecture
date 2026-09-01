@@ -35,6 +35,14 @@ export function sameOriginMutation(request: Request): boolean {
   } catch {
     return false;
   }
+  const configuredOrigin = process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  if (configuredOrigin) {
+    try {
+      return originUrl.origin === new URL(configuredOrigin).origin;
+    } catch {
+      return false;
+    }
+  }
   const requestUrl = new URL(request.url);
   const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
   const effectiveHost = forwardedHost || request.headers.get("host") || requestUrl.host;

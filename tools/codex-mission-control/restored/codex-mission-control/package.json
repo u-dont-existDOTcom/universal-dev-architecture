@@ -10,7 +10,16 @@
     "start": "node scripts/run-stack.mjs start",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "worker:poll": "node scripts/run-worker-adapter.mjs",
+    "worker:verify-live": "node scripts/verify-live-worker-acceptance.mjs",
+    "queue:advance-experiments": "node scripts/advance-experiment-queue.mjs",
+    "auth:verify-live": "node scripts/verify-owner-auth-live.mjs",
+    "mcp:stdio": "node scripts/mcp-stdio.mjs",
+    "mcp:verify-live": "node scripts/verify-mcp-client.mjs",
+    "mcp:tunnel:init": "node scripts/init-secure-mcp-tunnel.mjs",
     "experiment:hermes": "node scripts/run-hermes-experiment.mjs",
+    "experiment:hermes:matrix": "node scripts/run-hermes-matrix.mjs",
+    "experiment:hermes:record": "node scripts/record-hermes-result.mjs",
     "evaluate:n8n": "node scripts/evaluate-n8n-adapter.mjs"
   },
   "dependencies": {

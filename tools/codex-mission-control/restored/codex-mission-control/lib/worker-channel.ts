@@ -303,7 +303,9 @@ export function projectWorkerChannel(events: StoredEvent[]): WorkerChannelProjec
   let freshness: WorkerChannelProjection["freshness"] = "NO_DIRECTION";
   if (latestDirection) {
     if (latestDirection.deliveryStatus === "DELIVERY_FAILED") freshness = "DELIVERY_FAILED";
-    else if (!latestAck || !latestQueue || !latestReconciliation || latestReconciliation.queue_revision_id !== latestQueue.queue_revision_id) freshness = "DASHBOARD_BEHIND_OWNER";
+    else if (["RECORDED", "QUEUED", "DELIVERY_ATTEMPTED"].includes(latestDirection.deliveryStatus)) freshness = "AWAITING_DELIVERY";
+    else if (!latestDirection.acknowledged || !latestAck) freshness = "AWAITING_ACKNOWLEDGEMENT";
+    else if (!latestQueue || !latestReconciliation || latestReconciliation.queue_revision_id !== latestQueue.queue_revision_id) freshness = "DASHBOARD_BEHIND_OWNER";
     else freshness = "CURRENT";
   }
   const blockerMap = new Map<string, Extract<MissionControlEventV2, { type: "structured_blocker_recorded" }>>();

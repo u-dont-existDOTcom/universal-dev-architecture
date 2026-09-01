@@ -7,6 +7,7 @@ import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
+import { ownerMutationHeaders } from "@/lib/browser-auth";
 
 interface Snapshot {
   workers: WorkerState[];
@@ -22,6 +23,7 @@ interface Snapshot {
     openBlockers: number;
     openProposals: number;
   };
+  connectionSummary: { connected: number; offlineConfigured: number; fixtureOnly: number };
   liveSource: {
     worker: string;
     source_kind: "READ_ONLY_FILE_GIT";
@@ -69,7 +71,7 @@ export function Dashboard() {
 
   async function markViewed() {
     setMarking(true);
-    await fetch("/api/viewed", { method: "POST" });
+    await fetch("/api/viewed", { method: "POST", headers: ownerMutationHeaders() });
     await load();
     setMarking(false);
   }
@@ -93,11 +95,11 @@ export function Dashboard() {
 
       <div className="mission-heading">
         <div><p className="eyebrow">USER-VISIBLE VERTICAL SLICE · ISSUE #47</p><h2>Who is advancing, parked, or safe to continue?</h2></div>
-        <span>{workers.filter((worker) => worker.overallTraffic !== "GREEN").length} need attention · owner actions {workers.filter((worker) => worker.correction.ownerActionType !== "NONE").length}</span>
+        <span>{workers.filter((worker) => worker.operatorState.needsAttention).length} need attention · owner actions {workers.filter((worker) => worker.correction.ownerActionType !== "NONE").length}</span>
       </div>
 
       <nav className="scenario-index" aria-label="Worker scenarios">
-        {workers.map((worker) => <button key={worker.id} className={selectedWorkerId === worker.id ? "selected" : ""} onClick={() => setSelectedWorkerId(worker.id)}><StatusDot health={worker.overallTraffic} /><span>{shortName(worker)}</span><strong>{dispositionLabel(worker)}</strong><small>Owner: {ownerActionLabel(worker)}</small></button>)}
+        {workers.map((worker) => <button key={worker.id} className={selectedWorkerId === worker.id ? "selected" : ""} onClick={() => setSelectedWorkerId(worker.id)}><StatusDot health={worker.operatorState.traffic} /><span>{shortName(worker)}</span><strong>{dispositionLabel(worker)}</strong><small>Owner: {ownerActionLabel(worker)}</small></button>)}
       </nav>
 
       <section className="mission-grid" aria-label="All-worker current control projection">
@@ -105,6 +107,9 @@ export function Dashboard() {
       </section>
 
       <section className="channel-fleet-summary" aria-label="Fleet communication status">
+        <div><span>Workers connected</span><strong>{snapshot.connectionSummary.connected}</strong></div>
+        <div><span>Offline configured</span><strong>{snapshot.connectionSummary.offlineConfigured}</strong></div>
+        <div><span>Fixture only</span><strong>{snapshot.connectionSummary.fixtureOnly}</strong></div>
         <div><span>Dashboard behind owner</span><strong>{snapshot.channelSummary.staleDirections}</strong></div>
         <div><span>Awaiting delivery</span><strong>{snapshot.channelSummary.awaitingDelivery}</strong></div>
         <div><span>Awaiting acknowledgement</span><strong>{snapshot.channelSummary.awaitingAcknowledgement}</strong></div>
@@ -138,14 +143,14 @@ function LiveWorkerStrip({ source }: { source: Snapshot["liveSource"] }) {
 
 export function MissionCard({ worker, selected }: { worker: WorkerState; selected: boolean }) {
   const evidenceTime = worker.lastCheckpointAt;
-  return <article className={`mission-card ${worker.overallTraffic.toLowerCase()} ${selected ? "selected" : ""}`} data-worker={worker.id}>
-    <div className="mission-card-head"><div><StatusDot health={worker.overallTraffic} pulse={worker.overallTraffic === "RED"} /><span><small>{worker.status.toUpperCase()}</small><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link></span></div><strong>{dispositionLabel(worker)}</strong></div>
+  return <article className={`mission-card ${worker.operatorState.traffic.toLowerCase()} ${selected ? "selected" : ""}`} data-worker={worker.id}>
+    <div className="mission-card-head"><div><StatusDot health={worker.operatorState.traffic} pulse={worker.operatorState.traffic === "RED"} /><span><small>{worker.status.toUpperCase()} · {worker.connection.state.replaceAll("_", " ")}</small><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link></span></div><strong>{dispositionLabel(worker)}</strong></div>
     <div className="mission-planes"><Plane label="Worker → Contract" value={worker.workerToContractAlignment} /><Plane label="Contract → Owner" value={worker.contractToOwnerAlignment} /><Plane label="Outcome" value={worker.progress.outcomeAdvancement} /><Plane label="Strategy" value={worker.progress.strategyEfficacy} /></div>
     <div className="mission-direction"><span>LATEST OWNER DIRECTION</span><p>{worker.channel.latestDirectionBody ?? "No direction recorded in the worker channel."}</p><strong className={freshnessClass(worker.channel.freshness)}>{worker.channel.freshness.replaceAll("_", " ")}</strong><small>{worker.channel.queue.length} queued item{worker.channel.queue.length === 1 ? "" : "s"} · {worker.channel.blockers.length} blocker{worker.channel.blockers.length === 1 ? "" : "s"} · {worker.channel.proposals.length} proposal{worker.channel.proposals.length === 1 ? "" : "s"}</small></div>
     <div className="mission-decision"><div><span>EXACT PROBLEM</span><p>{worker.primaryProblemSummary ?? "No active problem; direct owner-outcome evidence improved."}</p></div><div><span>CURRENT CORRECTION / NEXT ACTION</span><p>{worker.correction.directive ?? worker.progress.requiredIntervention}</p></div></div>
     <div className="mission-evidence"><span>DIRECT EVIDENCE</span><p><b>Target</b> {worker.progress.targetEvidence} <i>·</i> <b>Baseline</b> {worker.progress.baselineEvidence} <i>·</i> <b>Previous</b> {worker.progress.previousEvidence} <i>·</i> <b>Latest</b> {worker.progress.latestEvidence} <i>·</i> <b>Best</b> {worker.progress.bestEvidence}</p></div>
     <div className="mission-control-row"><div><span>STATE</span><strong>{executionPath(worker)}</strong><small>{worker.correction.statusLabel}</small></div><div><span>OWNER ACTION</span><strong>{ownerActionLabel(worker)}</strong><small>{worker.correction.ownerActionText}</small></div><div><span>REASONING / EXECUTION</span><strong>{worker.executionSupervision.surface} · PRO {worker.executionSupervision.proEscalationState.replaceAll("_", " ")}</strong><small>{worker.executionSupervision.activeDirectiveId ?? "No executable directive"} · Codex {worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}{worker.id === "article-failure" ? " · replacement review PENDING" : ""}</small></div></div>
-    {worker.overallTraffic !== "GREEN" && <div className="mission-lifecycle"><span>LIFECYCLE</span><small>{lifecycleCompact(worker)}</small><span>NEXT REVIEW</span><small>{worker.correction.nextReviewTrigger}</small></div>}
+    {worker.operatorState.needsAttention && <div className="mission-lifecycle"><span>OPERATOR STATE</span><small>{worker.operatorState.reason}</small><span>NEXT REVIEW</span><small>{worker.correction.nextReviewTrigger}</small></div>}
     <div className="mission-card-foot"><span>Evidence {new Date(evidenceTime).toISOString()} · {relativeTime(evidenceTime)}</span><Link href={`/worker/${worker.id}`}>Open evidence trail →</Link></div>
   </article>;
 }
@@ -169,6 +174,7 @@ function shortName(worker: WorkerState): string {
 function dispositionLabel(worker: WorkerState): string {
   if (worker.progress.strategyEfficacy === "EXHAUSTED" && !worker.progress.sameStrategyContinuationAllowed) return "RED · PARKED — NO VALID STRATEGY";
   if (["FAILED", "REPLACEMENT_REQUIRED"].includes(worker.progress.strategyEfficacy) && !worker.progress.sameStrategyContinuationAllowed) return "RED · PARKED — REPLACEMENT REQUIRED";
+  if (worker.channel.freshness !== "CURRENT" && worker.channel.freshness !== "NO_DIRECTION") return worker.operatorState.label;
   return `${worker.overallTraffic} · READY TO CONTINUE`;
 }
 

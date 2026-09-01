@@ -28,3 +28,35 @@ jobs:
 
       - name: Audit repository baseline
         run: python3 scripts/audit_codex_github.py --root . --fail-on error
+
+  mission-control-application:
+    name: Mission Control app · tests, types, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/codex-mission-control/restored/codex-mission-control/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run Mission Control application tests
+        run: npm test
+
+      - name: Check Mission Control TypeScript
+        run: npm run typecheck
+
+      - name: Build Mission Control production bundle
+        run: npm run build

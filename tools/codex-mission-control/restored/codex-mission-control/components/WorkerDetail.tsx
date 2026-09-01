@@ -33,11 +33,11 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
       <Link href="/" className="back-link">← All-worker attention queue</Link>
       <header className="detail-hero">
         <div className="detail-title">
-          <StatusDot health={worker.overallTraffic} pulse={worker.overallTraffic === "RED"} />
-          <div><p className="eyebrow">WORKER / {worker.id.toUpperCase()}</p><h1>{worker.name}</h1><p>{worker.objective.goal}</p></div>
+          <StatusDot health={worker.operatorState.traffic} pulse={worker.operatorState.traffic === "RED"} />
+          <div><p className="eyebrow">WORKER / {worker.id.toUpperCase()} · {worker.connection.state.replaceAll("_", " ")}</p><h1>{worker.name}</h1><p>{worker.objective.goal}</p></div>
         </div>
         <div className="detail-actions">
-          <span className={`verdict-badge ${worker.overallTraffic.toLowerCase()}`}>{worker.verdict.replaceAll("_", " ")} · {worker.overallTraffic}</span>
+          <span className={`verdict-badge ${worker.operatorState.traffic.toLowerCase()}`}>{worker.operatorState.label}</span>
           <span className="diagnostic-caption">Diagnostic index {worker.alignment}/100 · secondary metadata</span>
           <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
         </div>
@@ -46,6 +46,13 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
       <DecisionStrip worker={worker} />
 
       <WorkerChannel worker={worker} onRefresh={load} />
+
+      <section className={`worker-connection ${worker.connection.state.toLowerCase()}`} aria-label="Worker connection evidence">
+        <div><span className="field-label">CONNECTION TRUTH</span><strong>{worker.connection.state.replaceAll("_", " ")}</strong></div>
+        <p>{worker.connection.detail}</p>
+        <code>{worker.connection.runtimeKind} · {worker.connection.endpointId}</code>
+        {worker.connection.source && <small>{worker.connection.source.repository} · {worker.connection.source.branch}@{worker.connection.source.head.slice(0, 8)} · {worker.connection.source.statePath}</small>}
+      </section>
 
       <section className="detail-grid">
         <Panel eyebrow="OWNER AUTHORITY" title="Owner outcome and current gap" className="authority-panel">
@@ -164,7 +171,8 @@ function DecisionStrip({ worker }: { worker: WorkerState }) {
   const evidence = worker.activeFindings.flatMap((finding) => finding.evidenceRefs).slice(0, 5);
   const reasonCodes = worker.activeFindings.flatMap((finding) => finding.reasonCodes);
   return (
-    <section className={`decision-strip ${worker.overallTraffic.toLowerCase()}`} aria-label="Operator decision strip">
+    <section className={`decision-strip ${worker.operatorState.traffic.toLowerCase()}`} aria-label="Operator decision strip">
+      <DecisionCell label="PRIMARY OPERATOR STATE" value={`${worker.operatorState.label} — ${worker.operatorState.reason}`} emphasis />
       <DecisionCell label="WHAT IS WRONG" value={worker.primaryProblemSummary ?? "No active problem."} emphasis />
       <DecisionCell label="WHY IT MATTERS" value={worker.whyItMatters ?? "No owner-outcome consequence recorded."} />
       <div className="decision-cell evidence-cell"><span>EVIDENCE</span>{evidence.length ? <ul>{evidence.map((item) => <li key={item}>{item}</li>)}</ul> : <p>No material finding evidence.</p>}{reasonCodes.length > 0 && <div className="reason-codes">{reasonCodes.map((code) => <code key={code}>{code}</code>)}</div>}</div>
@@ -261,6 +269,7 @@ function eventSummary(event: StoredEvent): string {
     case "outbound_message_acknowledged": return `Message ${data.message_id} acknowledged`;
     case "worker_message_recorded": return `${data.message_kind}: ${data.body}`;
     case "direction_acknowledged": return `Direction ${data.direction_id}: ${data.interpretation}`;
+    case "worker_connection_observed": return `${data.state}: ${data.detail}`;
     case "work_queue_published": return `${data.items.length} items bound to ${data.direction_id}`;
     case "direction_reconciled": return `${data.status}: ${data.summary}`;
     case "structured_blocker_recorded": return `${data.severity} ${data.status}: ${data.title}`;
