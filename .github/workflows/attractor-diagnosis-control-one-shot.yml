@@ -1,5 +1,6 @@
 name: One-shot attractor diagnosis-control archive refresh
 
+# Attempt 2: adapter manifest expectations now match the diagnosis-control protocol.
 on:
   push:
     branches:
