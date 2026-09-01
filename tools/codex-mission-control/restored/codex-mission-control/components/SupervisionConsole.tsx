@@ -234,7 +234,7 @@ export function SupervisionConsole() {
 
     <section className="change-summary secondary-history">
       <div className="summary-title"><span className="scan-icon">⌁</span><p className="eyebrow">INTERFACE TRUTH</p></div>
-      <p>This page now exposes configured overall and specialist chat locators, source-bound transcripts, and the internal routing queue. It does not pretend to be an inline ChatGPT composer. Automatic two-way ChatGPT messaging still requires a registered provider/browser relay that returns exact chat and message receipts. Until that relay exists, routes remain visibly queued rather than being bounced to the owner.</p>
+      <p>This page now exposes configured overall and specialist chat locators, source-bound transcripts, and the internal routing queue. It does not pretend to be an inline ChatGPT composer. Owner→worker messaging is a separate channel on each worker page. Automatic two-way ChatGPT messaging still requires a registered provider/browser relay that returns exact chat and message receipts. Until that relay exists, routes remain visibly queued rather than being bounced to the owner.</p>
       <Link href="/">Return to fleet dashboard →</Link>
     </section>
 
