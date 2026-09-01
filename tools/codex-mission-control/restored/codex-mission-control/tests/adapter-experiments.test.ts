@@ -65,20 +65,27 @@ test("n8n evaluation is pass-through only and parity comparison fails closed", (
   }
 });
 
-test("the attractor-independence experiment holds the model fixed and forbids debate", () => {
+test("the attractor experiment treats diagnosis as present and orchestration as a bounded isolation diagnostic", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(appRoot, "experiments/attractor-independence/experiment.json"), "utf8"));
-  assert.equal(manifest.status, "READY_FOR_MECHANICAL_IMPLEMENTATION");
-  assert.equal(manifest.fixedControls.sameModelFamilyAcrossArms, true);
+  assert.equal(manifest.status, "READY_FOR_BOUNDED_ISOLATION_DIAGNOSTIC");
+  assert.equal(manifest.causalModel.diagnosisAvailable, true);
+  assert.equal(manifest.causalModel.generativeControlAvailableThroughOrdinarySelfCritique, false);
+  assert.equal(manifest.causalModel.diagnosisAccuracyCountsAsProgress, false);
+  assert.equal(manifest.fixedControls.sameExactModelAcrossArms, true);
   assert.equal(manifest.fixedControls.crossCandidateCommunication, false);
   assert.equal(manifest.fixedControls.modelDebate, false);
+  assert.equal(manifest.fixedControls.selfDiagnosisReturnedToWriter, false);
   assert.deepEqual(manifest.arms.map((arm: { id: string }) => arm.id), [
     "DIRECT_FRESH_PROCESS",
     "N8N_ISOLATED_EXECUTION",
-    "HERMES_ISOLATED_PROFILE_MEMORY_DISABLED",
+  ]);
+  assert.deepEqual(manifest.deferredArms.map((arm: { id: string; disposition: string }) => [arm.id, arm.disposition]), [
+    ["HERMES_ISOLATED_PROFILE_MEMORY_DISABLED", "DEFER_NO_DISTINCT_CONTROL_MECHANISM"],
   ]);
   assert.equal(manifest.primaryOutcome, "BLIND_EDITORIAL_PASS_RATE");
   assert.equal(manifest.authority.detectorIsPrimaryJudge, false);
   assert.equal(manifest.authority.orchestratorMayAuthorVerdict, false);
+  assert.match(manifest.decisionRules.noMoreDiagnosisLoop, /another critic/i);
 });
 
 test("the real-worker sidecar proves transport but cannot author semantic acknowledgement or reconciliation", () => {
