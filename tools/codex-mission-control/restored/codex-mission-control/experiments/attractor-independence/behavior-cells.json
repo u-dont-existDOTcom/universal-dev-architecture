@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "cells": [
+    {
+      "id": "LOCAL_UNFINISHED",
+      "positiveCue": "Stay with one local continuation and leave it unfinished."
+    },
+    {
+      "id": "OBSERVATIONAL_TURN",
+      "positiveCue": "Let an observation turn slightly without explaining the turn."
+    },
+    {
+      "id": "UNRESOLVED_PRESSURE",
+      "positiveCue": "Keep one unresolved pressure alive at the end."
+    },
+    {
+      "id": "CONCRETE_RELATION",
+      "positiveCue": "Let a concrete relation between two things carry the paragraph without adding a story."
+    },
+    {
+      "id": "UNEQUAL_SENTENCE_LOAD",
+      "positiveCue": "Use unequal sentence weights and do not smooth them into symmetry."
+    },
+    {
+      "id": "STOP_NOT_CONCLUDE",
+      "positiveCue": "Let the paragraph stop rather than conclude."
+    },
+    {
+      "id": "PLAIN_SEQUENCE",
+      "positiveCue": "Follow plain sequence without balancing two sides."
+    },
+    {
+      "id": "BROKEN_CADENCE",
+      "positiveCue": "Allow the cadence to change when the thought changes pace."
+    }
+  ]
+}
