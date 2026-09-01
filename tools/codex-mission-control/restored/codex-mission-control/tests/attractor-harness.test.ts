@@ -12,7 +12,7 @@ function invoke(script: string, args: string[]) {
   return spawnSync(process.execPath, [script, ...args], { cwd: appRoot, encoding: "utf8" });
 }
 
-test("same-model attractor harness creates matched immutable arms and rejects contaminated state", () => {
+test("diagnosis-control harness keeps only matched direct/n8n arms and rejects contaminated state", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mission-control-attractor-"));
   try {
     const planPath = path.join(directory, "plan.json");
@@ -24,26 +24,58 @@ test("same-model attractor harness creates matched immutable arms and rejects co
       "--seed", "fixed-test-seed-20260901",
     ]);
     assert.equal(prepare.status, 0, prepare.stderr);
-    const prepared = JSON.parse(prepare.stdout) as { status: string; runs: number; paidExecutionAuthorized: boolean };
+    const prepared = JSON.parse(prepare.stdout) as {
+      status: string;
+      stage: string;
+      runs: number;
+      arms: string[];
+      deferredArms: string[];
+      diagnosisAccuracyCountsAsProgress: boolean;
+      paidExecutionAuthorized: boolean;
+    };
     assert.equal(prepared.status, "RUN_PLAN_PREPARED_NOT_EXECUTED");
-    assert.equal(prepared.runs, 24);
+    assert.equal(prepared.stage, "BOUNDED_EXECUTION_STATE_ISOLATION_DIAGNOSTIC");
+    assert.equal(prepared.runs, 16);
+    assert.deepEqual(prepared.arms.sort(), ["DIRECT_FRESH_PROCESS", "N8N_ISOLATED_EXECUTION"]);
+    assert.deepEqual(prepared.deferredArms, ["HERMES_ISOLATED_PROFILE_MEMORY_DISABLED"]);
+    assert.equal(prepared.diagnosisAccuracyCountsAsProgress, false);
     assert.equal(prepared.paidExecutionAuthorized, false);
 
     const plan = JSON.parse(fs.readFileSync(planPath, "utf8")) as {
+      schemaVersion: number;
       runPlanSha256: string;
+      causalModel: {
+        diagnosisAvailable: boolean;
+        generativeControlAvailableThroughOrdinarySelfCritique: boolean;
+        diagnosisAccuracyCountsAsProgress: boolean;
+      };
+      controls: {
+        sameExactModelAcrossArms: boolean;
+        selfDiagnosisReturnedToWriter: boolean;
+        modelDebate: boolean;
+      };
+      deferredArms: Array<{ id: string; disposition: string }>;
+      decisionRules: { sharedFailureNextStage: string[]; noMoreDiagnosisLoop: string };
       runs: Array<{ runId: string; arm: string; behaviorCellId: string; exactWriterInputSha256: string }>;
     };
+    assert.equal(plan.schemaVersion, 2);
     assert.match(plan.runPlanSha256, /^[a-f0-9]{64}$/);
+    assert.equal(plan.causalModel.diagnosisAvailable, true);
+    assert.equal(plan.causalModel.generativeControlAvailableThroughOrdinarySelfCritique, false);
+    assert.equal(plan.causalModel.diagnosisAccuracyCountsAsProgress, false);
+    assert.equal(plan.controls.sameExactModelAcrossArms, true);
+    assert.equal(plan.controls.selfDiagnosisReturnedToWriter, false);
+    assert.equal(plan.controls.modelDebate, false);
+    assert.equal(plan.deferredArms[0]?.disposition, "DEFER_NO_DISTINCT_CONTROL_MECHANISM");
+    assert.ok(plan.decisionRules.sharedFailureNextStage.includes("ACTIVATION_OR_REPRESENTATION_STEERING_ON_AN_OPEN_MODEL"));
+    assert.match(plan.decisionRules.noMoreDiagnosisLoop, /another critic/i);
+
     const arms = [...new Set(plan.runs.map((run) => run.arm))];
-    assert.deepEqual(arms.sort(), [
-      "DIRECT_FRESH_PROCESS",
-      "HERMES_ISOLATED_PROFILE_MEMORY_DISABLED",
-      "N8N_ISOLATED_EXECUTION",
-    ]);
+    assert.deepEqual(arms.sort(), ["DIRECT_FRESH_PROCESS", "N8N_ISOLATED_EXECUTION"]);
+    assert.equal(plan.runs.some((run) => run.arm.includes("HERMES")), false);
     for (const arm of arms) assert.equal(plan.runs.filter((run) => run.arm === arm).length, 8);
     const cellSets = arms.map((arm) => [...new Set(plan.runs.filter((run) => run.arm === arm).map((run) => run.behaviorCellId))].sort());
     assert.deepEqual(cellSets[1], cellSets[0]);
-    assert.deepEqual(cellSets[2], cellSets[0]);
     assert.equal(new Set(plan.runs.map((run) => run.exactWriterInputSha256)).size, 8, "matched arms must reuse the same eight exact writer inputs");
 
     fs.writeFileSync(candidatePath, `${Array.from({ length: 55 }, (_, index) => `word${index + 1}`).join(" ")}.\n`);
@@ -56,7 +88,7 @@ test("same-model attractor harness creates matched immutable arms and rejects co
       "--provider-surface", "CHATGPT_CONSUMER",
       "--model-family", "GPT-5.6",
       "--model-mode", "PRO",
-      "--orchestrator-version", "test-direct-v1",
+      "--orchestrator-version", "test-direct-v2",
       "--started-at", "2026-09-01T13:00:00.000Z",
       "--completed-at", "2026-09-01T13:00:10.000Z",
       "--memory-state", "DISABLED",
