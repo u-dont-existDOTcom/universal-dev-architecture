@@ -3,7 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-const root = path.resolve(import.meta.dirname, "..");
+// npm runs this suite with the Mission Control package as cwd. Avoid
+// import.meta.dirname here because tsx executes this package in CommonJS mode.
+const root = process.cwd();
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), "utf8");
 
 test("the supervision console exposes overall and specialist ChatGPT truth without inventing a composer", () => {
