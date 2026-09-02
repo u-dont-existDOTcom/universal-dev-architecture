@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from types import MappingProxyType
 from uuid import uuid4
 
 from scripts.mission_control_provenance import (
@@ -31,7 +32,11 @@ from scripts.mission_control_provenance import (
     validate_claim_transition,
     validate_owner_source_append_only,
 )
-from scripts.validate_mission_control_provenance import validate_repository
+from scripts.validate_mission_control_provenance import (
+    SchemaError,
+    validate_instance,
+    validate_repository,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1143,12 +1148,122 @@ class ProvenanceSchemaAndFixtureTests(unittest.TestCase):
     def test_all_schemas_templates_incidents_and_hostile_fixtures_validate(self) -> None:
         findings = validate_repository(ROOT)
         self.assertGreaterEqual(len(findings), 17)
-        self.assertTrue(any("claim-authority-provenance-hostile.json:18-executed" in finding for finding in findings))
-        self.assertTrue(any("reasoning-surface-receipt-hostile.json:25-executed" in finding for finding in findings))
+        self.assertTrue(any("claim-authority-provenance-hostile.json:21-executed" in finding for finding in findings))
+        self.assertTrue(any("reasoning-surface-receipt-hostile.json:27-executed" in finding for finding in findings))
         self.assertTrue(any("browser-operation-hostile.json:10-executed" in finding for finding in findings))
 
 
 class IndependentReviewBlockerRegressionTests(unittest.TestCase):
+    def test_all_immutable_registry_public_constructors_and_subclasses_are_sealed(
+        self,
+    ) -> None:
+        constructor_calls = (
+            lambda: ImmutableAuthoritySourceRegistry("forged", ZERO, {}),
+            lambda: ImmutableBrowserOwnershipRegistry("forged", ZERO, {}),
+            lambda: ImmutableReproductionIndependenceRegistry("forged", ZERO, {}),
+            lambda: ImmutableClaimTransitionRegistry(
+                "forged", ZERO, "claim", None, {}
+            ),
+        )
+        registry_types = (
+            ImmutableAuthoritySourceRegistry,
+            ImmutableBrowserOwnershipRegistry,
+            ImmutableReproductionIndependenceRegistry,
+            ImmutableClaimTransitionRegistry,
+        )
+        for call in constructor_calls:
+            with self.subTest(constructor=call):
+                with self.assertRaises(ValueError):
+                    call()
+        for registry_type in registry_types:
+            with self.subTest(subclass=registry_type.__name__):
+                with self.assertRaises(TypeError):
+                    type(f"Forged{registry_type.__name__}", (registry_type,), {})
+
+    def test_unsealed_transition_registry_object_has_no_trust_weight(self) -> None:
+        from_claim, to_claim, _, current, authority_registry, _ = (
+            make_three_version_transition_chain()
+        )
+        forged_digest = "a" * 64
+        forged = object.__new__(ImmutableClaimTransitionRegistry)
+        object.__setattr__(forged, "registry_id", "forged-transition-registry")
+        object.__setattr__(forged, "registry_digest", "b" * 64)
+        object.__setattr__(forged, "claim_id", from_claim["claimId"])
+        object.__setattr__(forged, "head_transition_digest", forged_digest)
+        object.__setattr__(
+            forged,
+            "_records",
+            MappingProxyType(
+                {
+                    forged_digest: _jcs_text(
+                        {"toClaimRef": deepcopy(current["fromClaimRef"])}
+                    )
+                }
+            ),
+        )
+        current["transitionRegistryRef"] = forged.registry_id
+        current["transitionRegistryDigest"] = forged.registry_digest
+        current["previousTransitionDigest"] = forged.head_transition_digest
+        current["transitionDigest"] = transition_digest(current)
+        result = validate_claim_transition(
+            current,
+            from_claim,
+            to_claim,
+            authority_registry=authority_registry,
+            transition_registry=forged,
+        )
+        self.assertFalse(result["valid"])
+        self.assertIn("TRANSITION_REGISTRY_MISSING", result["failureCodes"])
+
+    def test_payload_transform_type_is_sealed_against_override(self) -> None:
+        with self.assertRaises(TypeError):
+            type(
+                "ForgedPayloadTransform",
+                (ImmutablePayloadTransform,),
+                {"apply": lambda self, value: b"unrelated-submitted-bytes"},
+            )
+
+    def test_schema_validator_rejects_invalid_calendar_dates_in_all_three_receipts(
+        self,
+    ) -> None:
+        cases = (
+            (
+                "claim-transition.schema.json",
+                "CLAIM-TRANSITION.json",
+                ("recordedAt",),
+            ),
+            (
+                "claim-reproduction-receipt.schema.json",
+                "CLAIM-REPRODUCTION-RECEIPT.json",
+                ("reproducedAt",),
+            ),
+            (
+                "reasoning-surface-observation-receipt.schema.json",
+                "REASONING-SURFACE-OBSERVATION-RECEIPT.json",
+                ("observations", "surface", "observedAt"),
+            ),
+        )
+        for schema_name, template_name, path in cases:
+            with self.subTest(schema=schema_name):
+                schema = json.loads(
+                    (ROOT / "schemas" / schema_name).read_text(encoding="utf-8")
+                )
+                instance = load_template(template_name)
+                target = instance
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = "2026-02-30T00:00:00Z"
+                if path[0] == "observations":
+                    instance["observations"]["surface"].update(
+                        {
+                            "status": "VERIFIED",
+                            "evidenceRef": "ui-evidence",
+                            "evidenceSourceType": "BROWSER_UI_OBSERVATION",
+                        }
+                    )
+                with self.assertRaises(SchemaError):
+                    validate_instance(instance, schema, root_schema=schema)
+
     def test_same_process_reproduction_cannot_self_assert_independence(self) -> None:
         claim = make_claim()
         receipt = make_reproduction(claim)

@@ -103,6 +103,20 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Reasoning receipt, verdict, and durable consumption event bind a canonical
   externally supplied non-anonymous signed-in account reference; a receipt
   cannot self-select `ANONYMOUS_OR_UNKNOWN` as satisfying signed-in evidence.
+- Fourth-review registry hardening seals authority, transition,
+  reproduction-independence, and browser-ownership runtime types. Only their
+  validated factories can attach the private construction capability;
+  evaluators require the exact concrete type, subclasses are prohibited, and
+  resolution rejects unsealed objects. A public dataclass-style constructor or
+  an immutable-looking caller mapping has no trust weight.
+- Payload-transform subclasses are prohibited. Admission requires the exact
+  transform type and invokes the evaluator-owned declarative implementation
+  directly, so overriding virtual `apply` dispatch cannot substitute unrelated
+  submitted bytes.
+- The repository schema validator now executes `format: date-time` using the
+  same strict RFC3339 real-calendar check as runtime evaluation. Regex-shaped
+  impossible dates such as `2026-02-30T00:00:00Z` fail transition,
+  reproduction, and reasoning-observation schemas.
 
 ## Verification
 
@@ -143,6 +157,17 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Third-review full repository unit suite: 328/328 passed.
 - Third-review standalone validation: 20/20 checks passed, including execution
   of 53 hostile scenarios (18 claim, 25 reasoning, 10 browser).
+- Fourth-review blocker regressions before repair: 5/5 bypasses reproduced
+  against `f4d0814`: direct transition-registry construction, payload-transform
+  subclass override, and invalid calendar-date acceptance in each of the three
+  timestamp schemas.
+- Fourth-review focused sealed-construction/transform/schema regressions: 26/26
+  passed; combined authority-provenance and claim-laundering affected suite:
+  93/93 passed.
+- Fourth-review full repository unit suite: 332/332 passed.
+- Fourth-review standalone validation: 20/20 checks passed, including exact
+  external Git-blob extraction and execution of 58 hostile scenarios (21
+  claim, 27 reasoning, 10 browser).
 - Deterministic repository audit: `PASS: no findings.`
 - `python3 -m py_compile scripts/mission_control_provenance.py scripts/validate_mission_control_provenance.py`: passed.
 - `git diff --check`: passed before the final verification checkpoint.

@@ -21,6 +21,9 @@
     {"id": "complete-predecessor-not-in-trusted-registry", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
     {"id": "claim-use-predecessor-not-in-trusted-registry", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
     {"id": "reproduction-self-asserted-same-process", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_INDEPENDENCE_UNVERIFIED"},
-    {"id": "reproduction-independence-registry-tamper", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "INDEPENDENCE_REGISTRY_MISSING"}
+    {"id": "reproduction-independence-registry-tamper", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "INDEPENDENCE_REGISTRY_MISSING"},
+    {"id": "unsealed-transition-registry-construction", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_REGISTRY_MISSING"},
+    {"id": "transition-schema-invalid-calendar-date", "evaluator": "validate_instance", "expectedAllowed": false, "expected": "SCHEMA_REJECTED"},
+    {"id": "reproduction-schema-invalid-calendar-date", "evaluator": "validate_instance", "expectedAllowed": false, "expected": "SCHEMA_REJECTED"}
   ]
 }

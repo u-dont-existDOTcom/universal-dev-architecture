@@ -292,6 +292,13 @@ digest-validated `templates/AUTHORITY-SOURCE-REGISTRY.json`; the evaluator must
 not derive authority from the claim's own `currentAuthorities` array. A
 load-bearing `ASSERT_FACT` with no applicable requirement fails closed.
 
+Every immutable authority, transition, reproduction-independence, or browser-
+ownership registry is factory-only and exact-type checked. Public dataclass
+construction, subclassing, lookalike objects, or objects allocated without the
+module's validated construction capability have no trust weight. Resolution
+also verifies that capability; frozen or immutable-looking caller state is not
+evidence that registry invariants ran.
+
 The authority classes are:
 
 ```text
@@ -384,7 +391,10 @@ trusted head, that exact predecessor must be a registry member, and its
 `toClaimRef` must equal the current `fromClaimRef`. The registry validates the
 full append-only chain from claim version one. A digest-consistent record
 manufactured by the claimant or caller is not trusted history, even when every
-field is schema-complete. A caller-supplied
+field is schema-complete. The registry itself must be a sealed exact-type
+instance produced by validated `from_records` or `from_document`; invoking a
+public field constructor or fabricating its internal mapping cannot establish
+membership. A caller-supplied
 `{"transitionType":"PROMOTED"}` object has no authorization weight.
 
 ### 7.3 Subject-bound reproduction
@@ -437,10 +447,15 @@ The relying party supplies exact canonical declarative transform-spec bytes.
 The evaluator supports only named fixed implementations, binds the spec digest
 and byte definition, executes the transform repeatedly over the exact input,
 and requires both results to equal the exact submitted bytes. Arbitrary or
-stateful callables have no admission path. Every `VERIFIED` UI observation also
+stateful callables have no admission path. The transform type is sealed against
+subclass overrides, admission requires the exact type, and execution calls the
+evaluator-owned pure implementation directly rather than virtual `apply`
+dispatch. Every `VERIFIED` UI observation also
 requires a nonempty evidence reference and strict RFC3339 timezone-bearing
 observation time; ISO week/ordinal dates and a space in place of `T` fail
-closed.
+closed. The repository schema validator enforces `format: date-time` with the
+same real-calendar RFC3339 check, so regex-shaped dates such as February 30 do
+not pass schemas for transitions, reproduction, or UI observations.
 
 Agent and subagent names, task names, role labels, branch names, worktree paths,
 process names, environment variables, prompt requests, packet-author claims,

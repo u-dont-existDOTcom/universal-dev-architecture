@@ -1606,7 +1606,12 @@ RFC3339 timezone-bearing observation time. The relying party supplies exact
 admission-question bytes and exact canonical declarative transform-spec bytes;
 the evaluator's fixed implementation must reproduce the submitted bytes twice.
 A transform description, output hash, arbitrary callable, or stateful callable
-is insufficient.
+is insufficient. The transform class is non-subclassable, exact-type checked,
+and executed through the evaluator's non-virtual implementation. Registry
+inputs are likewise accepted only from their sealed validated factories; a
+direct field constructor, subclass, or immutable-looking mapping is not a
+registry. Schema `date-time` checks validate the real RFC3339 calendar value,
+not only a matching string shape.
 Then bind the admission-question and response digests and single-use receipt to
 `templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
 `templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.

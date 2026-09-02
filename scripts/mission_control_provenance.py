@@ -13,7 +13,7 @@ import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -156,6 +156,29 @@ def _require(condition: bool, message: str) -> None:
         raise ProvenanceValidationError(message)
 
 
+_SEALED_CONSTRUCTION_CAPABILITY = object()
+
+
+def _construct_sealed(cls: type[Any], **attributes: Any) -> Any:
+    """Create one validated immutable value without exposing a public bypass."""
+
+    instance = object.__new__(cls)
+    for name, value in attributes.items():
+        object.__setattr__(instance, name, value)
+    object.__setattr__(
+        instance, "_construction_capability", _SEALED_CONSTRUCTION_CAPABILITY
+    )
+    return instance
+
+
+def _is_sealed_exact_type(value: Any, expected_type: type[Any]) -> bool:
+    return (
+        type(value) is expected_type
+        and getattr(value, "_construction_capability", None)
+        is _SEALED_CONSTRUCTION_CAPABILITY
+    )
+
+
 def _nonempty(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
@@ -167,7 +190,9 @@ _RFC3339_TIMESTAMP = re.compile(
 )
 
 
-def _valid_timestamp(value: Any) -> bool:
+def is_strict_rfc3339_datetime(value: Any) -> bool:
+    """Return whether value is a real calendar date-time in our RFC3339 profile."""
+
     if not _nonempty(value) or _RFC3339_TIMESTAMP.fullmatch(value) is None:
         return False
     try:
@@ -175,6 +200,10 @@ def _valid_timestamp(value: Any) -> bool:
     except ValueError:
         return False
     return parsed.tzinfo is not None
+
+
+def _valid_timestamp(value: Any) -> bool:
+    return is_strict_rfc3339_datetime(value)
 
 
 def _valid_account_ref(value: Any) -> bool:
@@ -253,7 +282,27 @@ def _bytes_digest(value: bytes, bytes_definition: str) -> dict[str, Any]:
     }
 
 
-@dataclass(frozen=True)
+def _decode_payload_transform_spec(spec_bytes: bytes) -> dict[str, Any]:
+    _require(isinstance(spec_bytes, bytes), "transform spec bytes are required")
+    try:
+        spec = json.loads(spec_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProvenanceValidationError("transform spec must be UTF-8 JSON") from exc
+    _require(
+        isinstance(spec, dict)
+        and set(spec) == {"type", "suffixUtf8"}
+        and spec.get("type") == "UTF8_APPEND_LITERAL_V1"
+        and isinstance(spec.get("suffixUtf8"), str),
+        "unsupported declarative payload transform",
+    )
+    _require(
+        _jcs_text(spec).encode("utf-8") == spec_bytes,
+        "transform spec bytes must be canonical JSON",
+    )
+    return spec
+
+
+@dataclass(frozen=True, slots=True)
 class ImmutablePayloadTransform:
     """Relying-party supplied declarative transform with fixed implementation."""
 
@@ -262,22 +311,10 @@ class ImmutablePayloadTransform:
 
     def __post_init__(self) -> None:
         _require(_nonempty(self.transform_ref), "transform_ref is required")
-        _require(isinstance(self.spec_bytes, bytes), "transform spec bytes are required")
-        try:
-            spec = json.loads(self.spec_bytes.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ProvenanceValidationError("transform spec must be UTF-8 JSON") from exc
-        _require(
-            isinstance(spec, dict)
-            and set(spec) == {"type", "suffixUtf8"}
-            and spec.get("type") == "UTF8_APPEND_LITERAL_V1"
-            and isinstance(spec.get("suffixUtf8"), str),
-            "unsupported declarative payload transform",
-        )
-        _require(
-            _jcs_text(spec).encode("utf-8") == self.spec_bytes,
-            "transform spec bytes must be canonical JSON",
-        )
+        _decode_payload_transform_spec(self.spec_bytes)
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise TypeError("ImmutablePayloadTransform cannot be subclassed")
 
     @property
     def description(self) -> str:
@@ -296,9 +333,21 @@ class ImmutablePayloadTransform:
         return "canonical UTF-8 JSON declarative transform specification bytes"
 
     def apply(self, value: bytes) -> bytes:
-        _require(isinstance(value, bytes), "payload transform input must be bytes")
-        spec = json.loads(self.spec_bytes.decode("utf-8"))
-        return value + spec["suffixUtf8"].encode("utf-8")
+        return _apply_declarative_payload_transform(self, value)
+
+
+def _apply_declarative_payload_transform(
+    transform: ImmutablePayloadTransform, value: bytes
+) -> bytes:
+    """Execute the evaluator-owned implementation without virtual dispatch."""
+
+    _require(
+        type(transform) is ImmutablePayloadTransform,
+        "payload transform must have the exact sealed evaluator type",
+    )
+    _require(isinstance(value, bytes), "payload transform input must be bytes")
+    spec = _decode_payload_transform_spec(transform.spec_bytes)
+    return value + spec["suffixUtf8"].encode("utf-8")
 
 
 def authority_source_digest(source: dict[str, Any]) -> str:
@@ -311,7 +360,7 @@ def authority_source_digest(source: dict[str, Any]) -> str:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ImmutableAuthoritySourceRegistry:
     """Relying-party supplied, digest-bound authority facts.
 
@@ -323,11 +372,24 @@ class ImmutableAuthoritySourceRegistry:
     registry_id: str
     registry_digest: str
     _sources: Mapping[str, str]
+    _construction_capability: object = field(repr=False, compare=False)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise ProvenanceValidationError(
+            "authority registries must be created by from_records/from_document"
+        )
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise TypeError("ImmutableAuthoritySourceRegistry cannot be subclassed")
 
     @classmethod
     def from_records(
         cls, registry_id: str, records: list[dict[str, Any]]
     ) -> "ImmutableAuthoritySourceRegistry":
+        _require(
+            cls is ImmutableAuthoritySourceRegistry,
+            "authority registry subclasses are not admitted",
+        )
         _require(_nonempty(registry_id), "authority registry id is required")
         sources: dict[str, dict[str, Any]] = {}
         for raw in records:
@@ -368,9 +430,18 @@ class ImmutableAuthoritySourceRegistry:
         immutable_sources = {
             ref: _jcs_text(source) for ref, source in sources.items()
         }
-        return cls(registry_id, registry_digest, MappingProxyType(immutable_sources))
+        return _construct_sealed(
+            cls,
+            registry_id=registry_id,
+            registry_digest=registry_digest,
+            _sources=MappingProxyType(immutable_sources),
+        )
 
     def resolve(self, source_ref: str | None) -> dict[str, Any] | None:
+        _require(
+            _is_sealed_exact_type(self, ImmutableAuthoritySourceRegistry),
+            "unsealed authority registry has no trust weight",
+        )
         source = self._sources.get(source_ref) if source_ref is not None else None
         return json.loads(source) if source is not None else None
 
@@ -409,18 +480,33 @@ def reproduction_independence_admission_digest(admission: dict[str, Any]) -> str
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ImmutableReproductionIndependenceRegistry:
     """Relying-party admissions of producer/reproducer independence."""
 
     registry_id: str
     registry_digest: str
     _admissions: Mapping[str, str]
+    _construction_capability: object = field(repr=False, compare=False)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise ProvenanceValidationError(
+            "independence registries must be created by from_records/from_document"
+        )
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise TypeError(
+            "ImmutableReproductionIndependenceRegistry cannot be subclassed"
+        )
 
     @classmethod
     def from_records(
         cls, registry_id: str, records: list[dict[str, Any]]
     ) -> "ImmutableReproductionIndependenceRegistry":
+        _require(
+            cls is ImmutableReproductionIndependenceRegistry,
+            "independence registry subclasses are not admitted",
+        )
         _require(_nonempty(registry_id), "independence registry id is required")
         admissions: dict[str, dict[str, Any]] = {}
         for raw in records:
@@ -500,13 +586,20 @@ class ImmutableReproductionIndependenceRegistry:
         immutable_admissions = {
             ref: _jcs_text(admission) for ref, admission in admissions.items()
         }
-        return cls(
-            registry_id,
-            registry_digest,
-            MappingProxyType(immutable_admissions),
+        return _construct_sealed(
+            cls,
+            registry_id=registry_id,
+            registry_digest=registry_digest,
+            _admissions=MappingProxyType(immutable_admissions),
         )
 
     def resolve(self, admission_ref: str | None) -> dict[str, Any] | None:
+        _require(
+            _is_sealed_exact_type(
+                self, ImmutableReproductionIndependenceRegistry
+            ),
+            "unsealed independence registry has no trust weight",
+        )
         admission = (
             self._admissions.get(admission_ref) if admission_ref is not None else None
         )
@@ -536,18 +629,31 @@ def browser_ownership_proof_digest(proof: dict[str, Any]) -> str:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ImmutableBrowserOwnershipRegistry:
     """Externally validated proof of earlier OPEN actions."""
 
     registry_id: str
     registry_digest: str
     _proofs: Mapping[str, str]
+    _construction_capability: object = field(repr=False, compare=False)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise ProvenanceValidationError(
+            "browser registries must be created by from_records/from_document"
+        )
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise TypeError("ImmutableBrowserOwnershipRegistry cannot be subclassed")
 
     @classmethod
     def from_records(
         cls, registry_id: str, records: list[dict[str, Any]]
     ) -> "ImmutableBrowserOwnershipRegistry":
+        _require(
+            cls is ImmutableBrowserOwnershipRegistry,
+            "browser registry subclasses are not admitted",
+        )
         _require(_nonempty(registry_id), "browser ownership registry id is required")
         proofs: dict[str, dict[str, Any]] = {}
         for raw in records:
@@ -582,9 +688,18 @@ class ImmutableBrowserOwnershipRegistry:
         immutable_proofs = {
             tab_id: _jcs_text(proof) for tab_id, proof in proofs.items()
         }
-        return cls(registry_id, registry_digest, MappingProxyType(immutable_proofs))
+        return _construct_sealed(
+            cls,
+            registry_id=registry_id,
+            registry_digest=registry_digest,
+            _proofs=MappingProxyType(immutable_proofs),
+        )
 
     def resolve(self, tab_id: str | None) -> dict[str, Any] | None:
+        _require(
+            _is_sealed_exact_type(self, ImmutableBrowserOwnershipRegistry),
+            "unsealed browser registry has no trust weight",
+        )
         proof = self._proofs.get(tab_id) if tab_id is not None else None
         return json.loads(proof) if proof is not None else None
 
@@ -727,7 +842,7 @@ def _validate_transition_record_shape(record: dict[str, Any]) -> None:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ImmutableClaimTransitionRegistry:
     """Relying-party supplied append-only claim-transition history."""
 
@@ -736,6 +851,15 @@ class ImmutableClaimTransitionRegistry:
     claim_id: str
     head_transition_digest: str | None
     _records: Mapping[str, str]
+    _construction_capability: object = field(repr=False, compare=False)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise ProvenanceValidationError(
+            "transition registries must be created by from_records/from_document"
+        )
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise TypeError("ImmutableClaimTransitionRegistry cannot be subclassed")
 
     @classmethod
     def from_records(
@@ -744,6 +868,10 @@ class ImmutableClaimTransitionRegistry:
         claim_id: str,
         records: list[dict[str, Any]],
     ) -> "ImmutableClaimTransitionRegistry":
+        _require(
+            cls is ImmutableClaimTransitionRegistry,
+            "transition registry subclasses are not admitted",
+        )
         _require(_nonempty(registry_id), "transition registry id is required")
         _require(_nonempty(claim_id), "transition registry claimId is required")
         _require(isinstance(records, list), "transition registry records are required")
@@ -803,15 +931,20 @@ class ImmutableClaimTransitionRegistry:
         immutable_records = {
             digest: _jcs_text(record) for digest, record in admitted.items()
         }
-        return cls(
-            registry_id,
-            registry_digest,
-            claim_id,
-            head,
-            MappingProxyType(immutable_records),
+        return _construct_sealed(
+            cls,
+            registry_id=registry_id,
+            registry_digest=registry_digest,
+            claim_id=claim_id,
+            head_transition_digest=head,
+            _records=MappingProxyType(immutable_records),
         )
 
     def resolve(self, digest: str | None) -> dict[str, Any] | None:
+        _require(
+            _is_sealed_exact_type(self, ImmutableClaimTransitionRegistry),
+            "unsealed transition registry has no trust weight",
+        )
         record = self._records.get(digest) if digest is not None else None
         return json.loads(record) if record is not None else None
 
@@ -956,7 +1089,9 @@ def evaluate_claim_use(
     )
     failures.extend(freshness["failureCodes"])
 
-    if not isinstance(authority_registry, ImmutableAuthoritySourceRegistry):
+    if not _is_sealed_exact_type(
+        authority_registry, ImmutableAuthoritySourceRegistry
+    ):
         _append_failure(failures, "AUTHORITY_REGISTRY_MISSING")
     elif (
         claim.get("authorityRegistryRef") != authority_registry.registry_id
@@ -974,7 +1109,9 @@ def evaluate_claim_use(
     for requirement in requirements:
         source = (
             authority_registry.resolve(requirement.get("authorizationSourceRef"))
-            if isinstance(authority_registry, ImmutableAuthoritySourceRegistry)
+            if _is_sealed_exact_type(
+                authority_registry, ImmutableAuthoritySourceRegistry
+            )
             else None
         )
         declared = _authority_sources(claim).get(
@@ -1093,7 +1230,9 @@ def validate_claim_transition(
 
     chain_required = from_claim.get("claimVersion", 0) > 1
     trusted_previous: dict[str, Any] | None = None
-    if not isinstance(transition_registry, ImmutableClaimTransitionRegistry):
+    if not _is_sealed_exact_type(
+        transition_registry, ImmutableClaimTransitionRegistry
+    ):
         _append_failure(failures, "TRANSITION_REGISTRY_MISSING")
         _append_failure(failures, "TRANSITION_CHAIN_INVALID")
     else:
@@ -1154,7 +1293,9 @@ def validate_claim_transition(
             or not required_scope_refs <= transition_requirement_refs
         ):
             _append_failure(failures, "UNAUTHORIZED_CLAIM_PROMOTION")
-        if not isinstance(authority_registry, ImmutableAuthoritySourceRegistry):
+        if not _is_sealed_exact_type(
+            authority_registry, ImmutableAuthoritySourceRegistry
+        ):
             _append_failure(failures, "AUTHORITY_REGISTRY_MISSING")
         elif (
             to_claim.get("authorityRegistryRef") != authority_registry.registry_id
@@ -1169,7 +1310,9 @@ def validate_claim_transition(
         ):
             source = (
                 authority_registry.resolve(requirement.get("authorizationSourceRef"))
-                if isinstance(authority_registry, ImmutableAuthoritySourceRegistry)
+                if _is_sealed_exact_type(
+                    authority_registry, ImmutableAuthoritySourceRegistry
+                )
                 else None
             )
             declared = _authority_sources(to_claim).get(
@@ -1271,7 +1414,7 @@ def evaluate_reproduction(
         and _valid_timestamp(receipt.get("reproducedAt"))
     ):
         _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
-    if not isinstance(
+    if not _is_sealed_exact_type(
         independence_registry, ImmutableReproductionIndependenceRegistry
     ):
         _append_failure(failures, "INDEPENDENCE_REGISTRY_MISSING")
@@ -1433,7 +1576,7 @@ def evaluate_reasoning_surface_receipt(
         _append_failure(failures, "ADMISSION_QUESTION_BINDING_MISMATCH")
     transform = binding.get("submissionTransform", {})
     if input_payload_bytes != submitted_payload_bytes:
-        transform_valid = isinstance(payload_transform, ImmutablePayloadTransform)
+        transform_valid = type(payload_transform) is ImmutablePayloadTransform
         if transform_valid:
             expected_transform = {
                 "type": "DECLARED_REPRODUCIBLE_TRANSFORM",
@@ -1444,8 +1587,12 @@ def evaluate_reasoning_surface_receipt(
                 "transformSpecBytesDefinition": payload_transform.spec_bytes_definition,
             }
             try:
-                first_reproduction = payload_transform.apply(input_payload_bytes)
-                second_reproduction = payload_transform.apply(input_payload_bytes)
+                first_reproduction = _apply_declarative_payload_transform(
+                    payload_transform, input_payload_bytes
+                )
+                second_reproduction = _apply_declarative_payload_transform(
+                    payload_transform, input_payload_bytes
+                )
             except Exception:
                 first_reproduction = None
                 second_reproduction = None
@@ -1671,7 +1818,9 @@ def evaluate_browser_operation(
     failures: list[str] = []
     _require(receipt.get("schemaVersion") == 1, "browser receipt schemaVersion must be 1")
     _require(
-        isinstance(ownership_registry, ImmutableBrowserOwnershipRegistry),
+        _is_sealed_exact_type(
+            ownership_registry, ImmutableBrowserOwnershipRegistry
+        ),
         "immutable browser ownership registry is required",
     )
     transaction_id = receipt.get("transactionId")

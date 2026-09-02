@@ -32,6 +32,7 @@ try:
         evaluate_reasoning_surface_receipt,
         evaluate_reproduction,
         evaluate_subject_freshness,
+        is_strict_rfc3339_datetime,
         admit_supervision_verdict,
         parse_all_json,
         reproduction_independence_admission_digest,
@@ -57,6 +58,7 @@ except ModuleNotFoundError:  # Direct script execution places scripts/ on sys.pa
         evaluate_reasoning_surface_receipt,
         evaluate_reproduction,
         evaluate_subject_freshness,
+        is_strict_rfc3339_datetime,
         admit_supervision_verdict,
         parse_all_json,
         reproduction_independence_admission_digest,
@@ -292,6 +294,11 @@ def validate_instance(
             raise SchemaError(f"{path}: string too short")
         if "pattern" in schema and re.search(schema["pattern"], instance) is None:
             raise SchemaError(f"{path}: string does not match {schema['pattern']}")
+        if (
+            schema.get("format") == "date-time"
+            and not is_strict_rfc3339_datetime(instance)
+        ):
+            raise SchemaError(f"{path}: invalid strict RFC3339 date-time")
     if isinstance(instance, (int, float)) and not isinstance(instance, bool):
         if "minimum" in schema and instance < schema["minimum"]:
             raise SchemaError(f"{path}: value below minimum")
@@ -917,6 +924,62 @@ def execute_hostile_scenario(
                 actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
                 independence_registry=_fixture_independence_registry(),
             )
+        if scenario_id == "unsealed-transition-registry-construction":
+            from_claim, to_claim, _, current, registry, _ = (
+                _fixture_transition_chain()
+            )
+            forged_digest = "a" * 64
+            forged = object.__new__(ImmutableClaimTransitionRegistry)
+            object.__setattr__(
+                forged, "registry_id", "fixture-forged-transition-registry"
+            )
+            object.__setattr__(forged, "registry_digest", "b" * 64)
+            object.__setattr__(forged, "claim_id", from_claim["claimId"])
+            object.__setattr__(forged, "head_transition_digest", forged_digest)
+            object.__setattr__(
+                forged,
+                "_records",
+                {
+                    forged_digest: _jcs_text(
+                        {"toClaimRef": deepcopy(current["fromClaimRef"])}
+                    )
+                },
+            )
+            current["transitionRegistryRef"] = forged.registry_id
+            current["transitionRegistryDigest"] = forged.registry_digest
+            current["previousTransitionDigest"] = forged.head_transition_digest
+            current["transitionDigest"] = transition_digest(current)
+            return validate_claim_transition(
+                current,
+                from_claim,
+                to_claim,
+                authority_registry=registry,
+                transition_registry=forged,
+            )
+        if scenario_id in {
+            "transition-schema-invalid-calendar-date",
+            "reproduction-schema-invalid-calendar-date",
+        }:
+            if scenario_id.startswith("transition-"):
+                schema_name = "claim-transition.schema.json"
+                template_name = "CLAIM-TRANSITION.json"
+                timestamp_field = "recordedAt"
+            else:
+                schema_name = "claim-reproduction-receipt.schema.json"
+                template_name = "CLAIM-REPRODUCTION-RECEIPT.json"
+                timestamp_field = "reproducedAt"
+            schema = json.loads(
+                (root / "schemas" / schema_name).read_text(encoding="utf-8")
+            )
+            instance = json.loads(
+                (root / "templates" / template_name).read_text(encoding="utf-8")
+            )
+            instance[timestamp_field] = "2026-02-30T00:00:00Z"
+            try:
+                validate_instance(instance, schema, root_schema=schema)
+            except SchemaError:
+                return {"allowed": False, "failureCodes": ["SCHEMA_REJECTED"]}
+            return {"allowed": True, "failureCodes": []}
 
     if fixture_id == "reasoning-surface-receipt-hostile":
         receipt = _fixture_reasoning_receipt(root)
@@ -1016,6 +1079,66 @@ def execute_hostile_scenario(
             verdict = _fixture_verdict(root, receipt)
             verdict["requiredAccountRef"] = "some-other-signed-in-account"
             return admit_supervision_verdict(verdict, receipt, **kwargs)
+        elif scenario_id == "payload-transform-lookalike-override":
+            submitted = b"unrelated-submitted-bytes"
+            spec_bytes = _jcs_text(
+                {"type": "UTF8_APPEND_LITERAL_V1", "suffixUtf8": "\nreview"}
+            ).encode("utf-8")
+
+            class ForgedPayloadTransform:
+                transform_ref = "fixture-lookalike-transform"
+                description = (
+                    "append the exact UTF-8 suffix declared by "
+                    "UTF8_APPEND_LITERAL_V1"
+                )
+                transform_digest = hashlib.sha256(spec_bytes).hexdigest()
+                spec_byte_length = len(spec_bytes)
+                spec_bytes_definition = (
+                    "canonical UTF-8 JSON declarative transform specification bytes"
+                )
+
+                @staticmethod
+                def apply(value: bytes) -> bytes:
+                    return submitted
+
+            receipt["subjectBinding"]["submittedVisiblePayloadDigest"].update(
+                {
+                    "value": hashlib.sha256(submitted).hexdigest(),
+                    "byteLength": len(submitted),
+                }
+            )
+            forged = ForgedPayloadTransform()
+            receipt["subjectBinding"]["submissionTransform"] = {
+                "type": "DECLARED_REPRODUCIBLE_TRANSFORM",
+                "transformRef": forged.transform_ref,
+                "description": forged.description,
+                "transformDigest": forged.transform_digest,
+                "transformSpecByteLength": forged.spec_byte_length,
+                "transformSpecBytesDefinition": forged.spec_bytes_definition,
+            }
+            kwargs["submitted_payload_bytes"] = submitted
+            kwargs["payload_transform"] = forged
+        elif scenario_id == "observation-schema-invalid-calendar-date":
+            schema = json.loads(
+                (
+                    root
+                    / "schemas"
+                    / "reasoning-surface-observation-receipt.schema.json"
+                ).read_text(encoding="utf-8")
+            )
+            receipt["observations"]["surface"].update(
+                {
+                    "status": "VERIFIED",
+                    "evidenceRef": "fixture-ui-surface",
+                    "evidenceSourceType": "BROWSER_UI_OBSERVATION",
+                    "observedAt": "2026-02-30T00:00:00Z",
+                }
+            )
+            try:
+                validate_instance(receipt, schema, root_schema=schema)
+            except SchemaError:
+                return {"valid": False, "failureCodes": ["SCHEMA_REJECTED"]}
+            return {"valid": True, "failureCodes": []}
         return evaluate_reasoning_surface_receipt(receipt, **kwargs)
 
     if fixture_id == "browser-operation-hostile":

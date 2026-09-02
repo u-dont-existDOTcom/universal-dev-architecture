@@ -39,6 +39,13 @@ only strict RFC3339 observation times, and reproduces any payload change from
 canonical declarative transform-spec bytes with an evaluator-owned fixed
 implementation.
 
+Runtime immutability is admitted only through each registry's validated sealed
+factory and exact concrete type; public field construction, subclasses, and
+lookalike mappings do not inherit registry trust. Declarative payload transforms
+are also non-subclassable and run through evaluator-owned non-virtual logic.
+The repository schema validator applies the same real-calendar strict RFC3339
+check whenever a schema declares `format: date-time`.
+
 Keep these states separate:
 
 ```text
