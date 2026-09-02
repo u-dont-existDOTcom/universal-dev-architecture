@@ -5,6 +5,8 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   CONTINUE_NUDGE_DELAY_MS,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
+  STAGE_LIVENESS_SUMMARY,
+  STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   capabilityControlPrompt,
   chatCapabilityState,
@@ -22,6 +24,7 @@ import {
   resolveMemoryPolicy,
   selectManagedTabClosures,
   sha256,
+  stageReceiptGraceElapsed,
   startedCycleStepStatus,
 } from '../src/core.mjs';
 
@@ -68,93 +71,145 @@ test('capability truth comes only from current Mission Control evidence receipts
   const chat = parseChatDirectory([chatFixture()])[0];
   const future = '2026-09-03T00:00:00.000Z';
   const snapshot = snapshotWithEvidence([
-    evidence('challenge', CAPABILITY_CHALLENGE_SUMMARY, [
+    evidence('challenge', 1, CAPABILITY_CHALLENGE_SUMMARY, [
       'challenge:challenge-spec', 'chat:spec', 'mc_nonce:mc-secret', `github_nonce_sha256:${sha256('gh-secret')}`,
       'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', `expires_at:${future}`,
     ]),
-    evidence('tool-cap', CAPABILITY_VERIFIED_SUMMARY, [
+    evidence('tool-cap', 2, CAPABILITY_VERIFIED_SUMMARY, [
       'challenge:challenge-spec', 'chat:spec', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
     ]),
-    evidence('mode-cap', MODE_CAPABILITY_VERIFIED_SUMMARY, [
+    evidence('mode-cap', 3, MODE_CAPABILITY_VERIFIED_SUMMARY, [
       'chat:spec', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', `expires_at:${future}`,
     ]),
   ]);
   const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z');
   assert.equal(current.challengeAvailable, true);
   assert.equal(current.allCurrent, true);
-  const expired = chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z');
-  assert.equal(expired.allCurrent, false);
+  assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z').allCurrent, false);
 });
 
 test('capability control prompt requires separate MC and GitHub reads without embedding nonce values', () => {
-  const chat = parseChatDirectory([chatFixture()])[0];
-  const prompt = capabilityControlPrompt(chat);
+  const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0]);
   assert.match(prompt, /github_nonce_source/);
   assert.match(prompt, /Mission Control exposes only its hash/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
 });
 
-test('parses and extracts a same-chat supervisory route bound to registered worker/chat', () => {
+test('route extraction binds durable stage-liveness receipts to the exact worker/request', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   const body = supervisoryBody('PRO_ESCALATED');
-  assert.equal(parseSupervisoryCycleRouteBody(body).reasoningLane, 'PRO_ESCALATED');
-  const snapshot = {
-    workers: [{ id: 'worker-a', name: 'Worker A', timeline: [{ eventId: 'e1', data: { type: 'worker_message_recorded', message_id: 'm1', body } }] }],
-  };
-  const routes = extractQueuedRoutes(snapshot, [chat], defaultState());
+  const timeline = [
+    { eventId: 'e1', sequence: 1, occurredAt: '2026-09-02T12:00:00.000Z', data: { type: 'worker_message_recorded', message_id: 'm1', body } },
+    evidence('reader-more', 2, STAGE_LIVENESS_SUMMARY, ['request:r1', 'chat:spec', 'stage:EXTRA_HIGH_READER', 'status:CONTINUE_REQUIRED'], '2026-09-02T12:02:00.000Z'),
+    evidence('reader-done', 3, STAGE_LIVENESS_SUMMARY, ['request:r1', 'chat:spec', 'stage:EXTRA_HIGH_READER', 'status:STAGE_COMPLETE'], '2026-09-02T12:03:00.000Z'),
+    evidence('other-request', 4, STAGE_LIVENESS_SUMMARY, ['request:other', 'chat:spec', 'stage:PRO_REASONER', 'status:CONTINUE_REQUIRED'], '2026-09-02T12:04:00.000Z'),
+  ];
+  const routes = extractQueuedRoutes({ workers: [{ id: 'worker-a', name: 'Worker A', timeline }] }, [chat], defaultState());
   assert.equal(routes.length, 1);
   assert.equal(routes[0].routeKind, 'SUPERVISORY_CYCLE');
-  assert.equal(routes[0].chat.chatId, 'spec');
+  assert.equal(routes[0].stageLiveness.EXTRA_HIGH_READER.latest.status, 'STAGE_COMPLETE');
+  assert.equal(routes[0].stageLiveness.EXTRA_HIGH_READER.continueRequiredCount, 1);
+  assert.equal(routes[0].stageLiveness.PRO_REASONER, undefined);
 });
 
-test('same-chat escalated state machine orders Extra High reader, Pro, Extra High writer, then GitHub receipt', () => {
-  const route = { routeKind: 'SUPERVISORY_CYCLE', decisionReceipt: null, packet: { reasoningLane: 'PRO_ESCALATED' } };
+test('escalated route waits for durable reader liveness before entering Pro', () => {
+  const route = escalatedRoute();
   assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' });
-  assert.equal(nextSupervisoryCycleAction(route, { status: startedCycleStepStatus('EXTRA_HIGH_READER') }).type, 'WAIT_GENERATION');
-  assert.deepEqual(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus('EXTRA_HIGH_READER') }), { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' });
-  assert.deepEqual(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus('PRO_REASONER') }), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' });
-  assert.equal(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus('EXTRA_HIGH_WRITER') }).type, 'WAIT_GITHUB_RECEIPT');
-  assert.equal(nextSupervisoryCycleAction(route, { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
+  assert.equal(nextSupervisoryCycleAction(route, { status: startedCycleStepStatus('EXTRA_HIGH_READER'), cycleStep: 'EXTRA_HIGH_READER' }).type, 'WAIT_GENERATION');
+
+  const readerPrior = completedPrior('EXTRA_HIGH_READER', '2026-09-02T12:00:00.000Z', '2026-09-02T12:04:00.000Z');
+  const waiting = nextSupervisoryCycleAction(route, readerPrior, Date.parse('2026-09-02T12:05:00.000Z'));
+  assert.equal(waiting.type, 'WAIT_GITHUB_RECEIPT');
+  assert.equal(waiting.waitFor, 'STAGE_LIVENESS');
+  assert.equal(waiting.stage, 'EXTRA_HIGH_READER');
+
+  const completeRoute = withStage(route, 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', 'reader-complete', '2026-09-02T12:02:00.000Z');
+  assert.deepEqual(nextSupervisoryCycleAction(completeRoute, readerPrior), {
+    type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO', stageReceiptId: 'reader-complete', livenessStatus: 'STAGE_COMPLETE',
+  });
 });
 
-test('stuck Extra High receipt-writing steps get one delayed same-chat continue nudge and never an automatic loop', () => {
+test('missing reader liveness after grace gets one same-chat reader continue, then waits fail-closed', () => {
+  const route = escalatedRoute();
+  const completedAt = '2026-09-02T12:04:00.000Z';
+  const prior = completedPrior('EXTRA_HIGH_READER', '2026-09-02T12:00:00.000Z', completedAt);
+  const before = Date.parse(completedAt) + STAGE_RECEIPT_GRACE_MS - 1;
+  const after = Date.parse(completedAt) + STAGE_RECEIPT_GRACE_MS;
+  assert.equal(stageReceiptGraceElapsed(prior, before), false);
+  assert.equal(nextSupervisoryCycleAction(route, prior, before).recovery, 'AWAITING_STAGE_RECEIPT');
+  assert.deepEqual(nextSupervisoryCycleAction(route, prior, after), {
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_STAGE_RECEIPT',
+  });
+  assert.equal(cycleControlPrompt(route, 'EXTRA_HIGH_READER_CONTINUE'), 'continue');
+  const afterNudge = completedPrior('EXTRA_HIGH_READER_CONTINUE', '2026-09-02T12:11:00.000Z', '2026-09-02T12:12:00.000Z');
+  const exhausted = nextSupervisoryCycleAction(route, afterNudge, Date.parse('2026-09-02T12:20:00.000Z'));
+  assert.equal(exhausted.type, 'WAIT_GITHUB_RECEIPT');
+  assert.equal(exhausted.recovery, 'MISSING_STAGE_RECEIPT_AFTER_NUDGE');
+});
+
+test('Pro is followed by an Extra High liveness checker before writer admission', () => {
+  const route = escalatedRoute();
+  const proComplete = completedPrior('PRO_REASONER', '2026-09-02T12:10:00.000Z', '2026-09-02T12:15:00.000Z');
+  assert.deepEqual(nextSupervisoryCycleAction(route, proComplete), { type: 'SEND_CONTROL', step: 'PRO_LIVENESS_CHECK', model: 'EXTRA_HIGH' });
+  const prompt = cycleControlPrompt(route, 'PRO_LIVENESS_CHECK');
+  assert.match(prompt, /Do not reinterpret/);
+  assert.match(prompt, /PRO_REASONER/);
+
+  const checkerPrior = completedPrior('PRO_LIVENESS_CHECK', '2026-09-02T12:16:00.000Z', '2026-09-02T12:17:00.000Z');
+  const doneRoute = withStage(route, 'PRO_REASONER', 'STAGE_COMPLETE', 'pro-complete', '2026-09-02T12:16:30.000Z');
+  assert.deepEqual(nextSupervisoryCycleAction(doneRoute, checkerPrior), {
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH', stageReceiptId: 'pro-complete', livenessStatus: 'STAGE_COMPLETE',
+  });
+});
+
+test('CONTINUE_REQUIRED from Pro checker routes back to Pro continue and can repeat until complete', () => {
+  const checkerPrior = completedPrior('PRO_LIVENESS_CHECK', '2026-09-02T12:16:00.000Z', '2026-09-02T12:17:00.000Z');
+  let route = withStage(escalatedRoute(), 'PRO_REASONER', 'CONTINUE_REQUIRED', 'pro-more-1', '2026-09-02T12:16:30.000Z', 1);
+  assert.deepEqual(nextSupervisoryCycleAction(route, checkerPrior), {
+    type: 'SEND_CONTROL', step: 'PRO_REASONER_CONTINUE', model: 'PRO', recovery: 'SEMANTIC_CONTINUE_REQUIRED', stageReceiptId: 'pro-more-1',
+  });
+  assert.equal(cycleControlPrompt(route, 'PRO_REASONER_CONTINUE'), 'continue');
+
+  const proContinued = completedPrior('PRO_REASONER_CONTINUE', '2026-09-02T12:18:00.000Z', '2026-09-02T12:20:00.000Z');
+  assert.deepEqual(nextSupervisoryCycleAction(route, proContinued), { type: 'SEND_CONTROL', step: 'PRO_LIVENESS_CHECK', model: 'EXTRA_HIGH' });
+
+  const checkerAgain = completedPrior('PRO_LIVENESS_CHECK', '2026-09-02T12:21:00.000Z', '2026-09-02T12:22:00.000Z');
+  route = withStage(route, 'PRO_REASONER', 'STAGE_COMPLETE', 'pro-done', '2026-09-02T12:21:30.000Z', 1);
+  assert.equal(nextSupervisoryCycleAction(route, checkerAgain).step, 'EXTRA_HIGH_WRITER');
+});
+
+test('semantic CONTINUE_REQUIRED recovery permits the configured count then stops on the next request', () => {
+  const checkerPrior = completedPrior('PRO_LIVENESS_CHECK', '2026-09-02T12:16:00.000Z', '2026-09-02T12:17:00.000Z');
+  const third = withStage(escalatedRoute(), 'PRO_REASONER', 'CONTINUE_REQUIRED', 'pro-more-3', '2026-09-02T12:16:30.000Z', 3);
+  assert.equal(nextSupervisoryCycleAction(third, checkerPrior, Date.now(), CONTINUE_NUDGE_DELAY_MS, 3).step, 'PRO_REASONER_CONTINUE');
+  const fourth = withStage(escalatedRoute(), 'PRO_REASONER', 'CONTINUE_REQUIRED', 'pro-more-4', '2026-09-02T12:16:30.000Z', 4);
+  const held = nextSupervisoryCycleAction(fourth, checkerPrior, Date.now(), CONTINUE_NUDGE_DELAY_MS, 3);
+  assert.equal(held.type, 'WAIT_GITHUB_RECEIPT');
+  assert.equal(held.recovery, 'SEMANTIC_CONTINUE_LIMIT_REACHED');
+});
+
+test('final Extra High receipt-writing steps retain delayed decision-receipt recovery', () => {
   const completedAt = '2026-09-02T12:00:00.000Z';
   const before = Date.parse(completedAt) + CONTINUE_NUDGE_DELAY_MS - 1;
   const after = Date.parse(completedAt) + CONTINUE_NUDGE_DELAY_MS;
-  const directRoute = {
-    routeKind: 'SUPERVISORY_CYCLE',
-    requestId: 'r1',
-    decisionReceipt: null,
-    packet: { reasoningLane: 'EXTRA_HIGH_DIRECT', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
-  };
-  const directComplete = { status: completedCycleStepStatus('EXTRA_HIGH_DIRECT'), generationCompletedAt: completedAt };
+  const directRoute = directRouteFixture();
+  const directComplete = completedPrior('EXTRA_HIGH_DIRECT', '2026-09-02T11:59:00.000Z', completedAt);
   assert.equal(continueNudgeEligible(directComplete, before), false);
   assert.equal(nextSupervisoryCycleAction(directRoute, directComplete, before).type, 'WAIT_GITHUB_RECEIPT');
   assert.deepEqual(nextSupervisoryCycleAction(directRoute, directComplete, after), {
-    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE',
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_FINAL_RECEIPT',
   });
   assert.equal(cycleControlPrompt(directRoute, 'EXTRA_HIGH_DIRECT_CONTINUE'), 'continue');
-  assert.equal(nextSupervisoryCycleAction(directRoute, { status: startedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE') }, after).type, 'WAIT_GENERATION');
-  assert.deepEqual(nextSupervisoryCycleAction(directRoute, { status: completedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE') }, after), {
-    type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED',
-  });
-  assert.deepEqual(nextSupervisoryCycleAction(directRoute, { status: 'FAILED_RETRYABLE', cycleStep: 'EXTRA_HIGH_DIRECT_CONTINUE' }, after), {
-    type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED',
-  });
 
-  const escalatedRoute = {
-    routeKind: 'SUPERVISORY_CYCLE',
-    requestId: 'r2',
-    decisionReceipt: null,
-    packet: { reasoningLane: 'PRO_ESCALATED', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
-  };
-  assert.deepEqual(nextSupervisoryCycleAction(escalatedRoute, { status: completedCycleStepStatus('PRO_REASONER'), generationCompletedAt: completedAt }, after), {
-    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH',
+  const writerComplete = completedPrior('EXTRA_HIGH_WRITER', '2026-09-02T12:30:00.000Z', '2026-09-02T12:31:00.000Z');
+  const writerAfter = Date.parse(writerComplete.generationCompletedAt) + CONTINUE_NUDGE_DELAY_MS;
+  assert.deepEqual(nextSupervisoryCycleAction(escalatedRoute(), writerComplete, writerAfter), {
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_FINAL_RECEIPT',
   });
-  assert.deepEqual(nextSupervisoryCycleAction(escalatedRoute, { status: completedCycleStepStatus('EXTRA_HIGH_WRITER'), generationCompletedAt: completedAt }, after), {
-    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE',
-  });
-  assert.equal(cycleControlPrompt(escalatedRoute, 'EXTRA_HIGH_WRITER_CONTINUE'), 'continue');
+});
+
+test('ambiguous routes never receive automatic recovery', () => {
+  assert.equal(nextSupervisoryCycleAction(escalatedRoute(), { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
 });
 
 test('tab plan preserves active target then pinned PM and closes LRU', () => {
@@ -175,6 +230,34 @@ test('tab plan preserves active target then pinned PM and closes LRU', () => {
   assert.deepEqual(selectManagedTabClosures({ targets, chats, state, activeTargetId: 'b', pressure: 'NORMAL', maxHotTabs: 3 }), ['spec']);
 });
 
+function escalatedRoute() {
+  return {
+    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r1', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec' },
+    packet: { reasoningLane: 'PRO_ESCALATED', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
+  };
+}
+
+function directRouteFixture() {
+  return {
+    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r-direct', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec' },
+    packet: { reasoningLane: 'EXTRA_HIGH_DIRECT', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
+  };
+}
+
+function withStage(route, stage, status, receiptId, occurredAt, continueRequiredCount = status === 'CONTINUE_REQUIRED' ? 1 : 0) {
+  return {
+    ...route,
+    stageLiveness: {
+      ...(route.stageLiveness ?? {}),
+      [stage]: { latest: { receiptId, requestId: route.requestId, stage, status, occurredAt, sequence: 100 + continueRequiredCount }, continueRequiredCount },
+    },
+  };
+}
+
+function completedPrior(step, generationStartedAt, generationCompletedAt) {
+  return { status: completedCycleStepStatus(step), cycleStep: step, generationStartedAt, generationCompletedAt };
+}
+
 function chatFixture() {
   return {
     scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false,
@@ -182,8 +265,8 @@ function chatFixture() {
   };
 }
 
-function evidence(id, summary, refs) {
-  return { eventId: id, sequence: id === 'challenge' ? 1 : id === 'tool-cap' ? 2 : 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: id, summary, refs, verified: true } };
+function evidence(id, sequence, summary, refs, occurredAt = '2026-09-02T00:00:00.000Z') {
+  return { eventId: id, sequence, occurredAt, data: { type: 'evidence_receipt_recorded', receipt_id: id, summary, refs, verified: true } };
 }
 
 function snapshotWithEvidence(timeline) {
