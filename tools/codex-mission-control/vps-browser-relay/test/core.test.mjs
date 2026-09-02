@@ -3,12 +3,15 @@ import test from 'node:test';
 import {
   CAPABILITY_CHALLENGE_SUMMARY,
   CAPABILITY_VERIFIED_SUMMARY,
+  CONTINUE_NUDGE_DELAY_MS,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   capabilityControlPrompt,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
+  continueNudgeEligible,
+  cycleControlPrompt,
   defaultState,
   extractQueuedRoutes,
   nextSupervisoryCycleAction,
@@ -112,6 +115,46 @@ test('same-chat escalated state machine orders Extra High reader, Pro, Extra Hig
   assert.deepEqual(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus('PRO_REASONER') }), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' });
   assert.equal(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus('EXTRA_HIGH_WRITER') }).type, 'WAIT_GITHUB_RECEIPT');
   assert.equal(nextSupervisoryCycleAction(route, { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
+});
+
+test('stuck Extra High receipt-writing steps get one delayed same-chat continue nudge and never an automatic loop', () => {
+  const completedAt = '2026-09-02T12:00:00.000Z';
+  const before = Date.parse(completedAt) + CONTINUE_NUDGE_DELAY_MS - 1;
+  const after = Date.parse(completedAt) + CONTINUE_NUDGE_DELAY_MS;
+  const directRoute = {
+    routeKind: 'SUPERVISORY_CYCLE',
+    requestId: 'r1',
+    decisionReceipt: null,
+    packet: { reasoningLane: 'EXTRA_HIGH_DIRECT', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
+  };
+  const directComplete = { status: completedCycleStepStatus('EXTRA_HIGH_DIRECT'), generationCompletedAt: completedAt };
+  assert.equal(continueNudgeEligible(directComplete, before), false);
+  assert.equal(nextSupervisoryCycleAction(directRoute, directComplete, before).type, 'WAIT_GITHUB_RECEIPT');
+  assert.deepEqual(nextSupervisoryCycleAction(directRoute, directComplete, after), {
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE',
+  });
+  assert.equal(cycleControlPrompt(directRoute, 'EXTRA_HIGH_DIRECT_CONTINUE'), 'continue');
+  assert.equal(nextSupervisoryCycleAction(directRoute, { status: startedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE') }, after).type, 'WAIT_GENERATION');
+  assert.deepEqual(nextSupervisoryCycleAction(directRoute, { status: completedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE') }, after), {
+    type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED',
+  });
+  assert.deepEqual(nextSupervisoryCycleAction(directRoute, { status: 'FAILED_RETRYABLE', cycleStep: 'EXTRA_HIGH_DIRECT_CONTINUE' }, after), {
+    type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED',
+  });
+
+  const escalatedRoute = {
+    routeKind: 'SUPERVISORY_CYCLE',
+    requestId: 'r2',
+    decisionReceipt: null,
+    packet: { reasoningLane: 'PRO_ESCALATED', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
+  };
+  assert.deepEqual(nextSupervisoryCycleAction(escalatedRoute, { status: completedCycleStepStatus('PRO_REASONER'), generationCompletedAt: completedAt }, after), {
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH',
+  });
+  assert.deepEqual(nextSupervisoryCycleAction(escalatedRoute, { status: completedCycleStepStatus('EXTRA_HIGH_WRITER'), generationCompletedAt: completedAt }, after), {
+    type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE',
+  });
+  assert.equal(cycleControlPrompt(escalatedRoute, 'EXTRA_HIGH_WRITER_CONTINUE'), 'continue');
 });
 
 test('tab plan preserves active target then pinned PM and closes LRU', () => {
