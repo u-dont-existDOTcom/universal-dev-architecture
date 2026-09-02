@@ -15,8 +15,10 @@ import { producerKinds, producerMayEmit, type AuthenticatedProducer, type Produc
 import { parseAppendEnvelope } from "../lib/schema";
 import { pullWorkerOutbox, recordOwnerMessage } from "../lib/worker-channel";
 import {
-  buildGitHubDecisionReceiptEnvelope,
+  ensureConfiguredCapabilityChallenges,
   githubDecisionProducer,
+  ingestGitHubSupervisionCandidate,
+  parseGitHubReceiptPolicy,
   reconcileGitHubDecisionReceipts,
   type GitHubDecisionCandidate,
 } from "../lib/github-decision-receipts";
@@ -32,6 +34,8 @@ if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
   if ((process.env.MISSION_CONTROL_SEED_PROFILE ?? "ISSUE_47") === "ISSUE_47") seedIssue47Store(store);
   else seedStore(store);
 }
+const githubPolicy = parseGitHubReceiptPolicy();
+ensureConfiguredCapabilityChallenges(store, githubPolicy);
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
@@ -64,7 +68,7 @@ const server = http.createServer(async (request, response) => {
       if (body.method === "notifications/initialized" && body.id === undefined) return empty(response, 202);
       if (body.method === "tools/list") return json(response, 200, { jsonrpc: "2.0", id, result: { tools: [
         { name: "mission_control_get_fleet", description: "Read the current projected Mission Control fleet and work queue.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: {}, additionalProperties: false } },
-        { name: "mission_control_get_worker", description: "Read one worker's projected state, owner channel, queue, blockers, and proposals.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
+        { name: "mission_control_get_worker", description: "Read one worker's projected state, owner channel, queue, blockers, proposals, capability challenges, and transport evidence.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
       ] } });
       if (body.method === "tools/call") {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
@@ -84,7 +88,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "POST" && url.pathname === "/events") {
       const producer = authorizeMutation(request);
       const envelope = parseAppendEnvelope(await readJson(request));
-      if (!producerMayEmit(producer, envelope.data)) return json(response, 403, { error: `Producer ${producer} cannot emit ${envelope.data.type}.` });
+      if (!producerMayEmit(producer, envelope.data)) return json(response, 403, { error: `Producer ${producer.id} cannot emit ${envelope.data.type}.` });
       const event = store.append(envelope, undefined, producer);
       notifications.emit("event", event);
       return json(response, 201, { event });
@@ -92,17 +96,16 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "POST" && url.pathname === "/github/decision-receipts") {
       const producer = authorizeMutation(request);
       if (producer.kind !== "SYSTEM" || producer.id !== githubDecisionProducer.id) {
-        return json(response, 403, { error: "Only the authenticated GitHub decision-receipt system producer may use this route." });
+        return json(response, 403, { error: "Only the authenticated GitHub supervision-receipt system producer may use this route." });
       }
       try {
         const candidate = await readJson(request) as GitHubDecisionCandidate;
-        const envelope = buildGitHubDecisionReceiptEnvelope(store.allEvents(), candidate);
-        const event = store.append(envelope, undefined, producer);
-        notifications.emit("event", event);
-        return json(response, 201, { event });
+        const events = ingestGitHubSupervisionCandidate(store, candidate, githubPolicy);
+        if (events.length) notifications.emit("event", events.at(-1));
+        return json(response, events.length ? 201 : 200, { events, duplicate: events.length === 0 });
       } catch (error) {
         if (error instanceof ZodError) throw error;
-        return json(response, 409, { error: error instanceof Error ? error.message : "GitHub decision receipt was rejected." });
+        return json(response, 409, { error: error instanceof Error ? error.message : "GitHub supervision receipt was rejected." });
       }
     }
     if (request.method === "GET" && url.pathname === "/events/stream") {
@@ -159,9 +162,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "GET" && outboxMatch) {
       const producer = authorizeMutation(request);
       const worker = decodeURIComponent(outboxMatch[1]);
-      const result = pullWorkerOutbox(store, worker, producer, {
-        limit: Number(url.searchParams.get("limit") ?? 20),
-      });
+      const result = pullWorkerOutbox(store, worker, producer, { limit: Number(url.searchParams.get("limit") ?? 20) });
       if (result.appended.length) notifications.emit("event", result.appended.at(-1));
       return json(response, 200, { deliveries: result.deliveries, cursor: result.cursor });
     }
@@ -310,7 +311,7 @@ function mcpResult(id: unknown, value: unknown) {
 
 function startGitHubReconciliation(): NodeJS.Timeout | null {
   const token = process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN;
-  if (!token) return null;
+  if (!token || !githubPolicy) return null;
   const configured = Number(process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS ?? 300_000);
   if (!Number.isInteger(configured) || configured < 30_000 || configured > 3_600_000) {
     throw new Error("MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS must be 30000-3600000.");
@@ -320,10 +321,10 @@ function startGitHubReconciliation(): NodeJS.Timeout | null {
     if (running) return;
     running = true;
     try {
-      const events = await reconcileGitHubDecisionReceipts(store, { token });
+      const events = await reconcileGitHubDecisionReceipts(store, { token, policy: githubPolicy });
       for (const event of events) notifications.emit("event", event);
     } catch (error) {
-      console.error("GitHub decision reconciliation failed", error);
+      console.error("GitHub supervision reconciliation failed", error);
     } finally {
       running = false;
     }
