@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "request_id": "decision-request-example",
+  "request_nonce": "request-nonce-example",
+  "chat_id": "registered-chat-id",
+  "stage": "PRO_REASONER",
+  "status": "STAGE_COMPLETE"
+}
