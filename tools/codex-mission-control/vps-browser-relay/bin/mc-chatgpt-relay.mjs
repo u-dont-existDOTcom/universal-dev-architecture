@@ -11,11 +11,7 @@ const command = process.argv[2] ?? 'run';
 
 try {
   const config = await loadConfig();
-  const stateStore = new StateStore({
-    stateFile: config.runtime.stateFile,
-    statusFile: config.runtime.statusFile,
-    lockFile: config.runtime.lockFile,
-  });
+  const stateStore = new StateStore({ stateFile: config.runtime.stateFile, statusFile: config.runtime.statusFile, lockFile: config.runtime.lockFile });
 
   if (command === 'status') {
     const raw = await readFile(config.runtime.statusFile, 'utf8').catch((error) => {
@@ -33,8 +29,13 @@ try {
   installSignalHandlers(stateStore);
 
   if (command === 'doctor') {
-    const result = await runtime.doctor();
-    print({ config: publicConfig(config), ...result });
+    print({ config: publicConfig(config), ...(await runtime.doctor()) });
+  } else if (command === 'capabilities') {
+    const chatId = process.argv[3];
+    if (!chatId) throw new Error('Usage: mc-chatgpt-relay capabilities <registered-chat-id>');
+    const result = await runtime.verifyCapabilities(chatId);
+    print(result);
+    process.exitCode = oneShotExitCode(result);
   } else if (command === 'once') {
     const result = await runtime.cycle();
     print(result);
@@ -51,16 +52,12 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|once|run|status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|capabilities|once|run|status|resolve>');
   }
 
   await stateStore.releaseLock();
 } catch (error) {
-  console.error(JSON.stringify({
-    status: 'FATAL',
-    time: new Date().toISOString(),
-    error: error instanceof Error ? error.message : String(error),
-  }));
+  console.error(JSON.stringify({ status: 'FATAL', time: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));
   process.exitCode = 1;
 }
 
