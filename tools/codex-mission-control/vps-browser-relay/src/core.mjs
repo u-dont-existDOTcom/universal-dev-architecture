@@ -7,6 +7,7 @@ export const CAPABILITY_CHALLENGE_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_CHA
 export const CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1';
 export const MODE_CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1';
 export const RELAY_STAGE_SUMMARY = 'MISSION_CONTROL_RELAY_STAGE_V1';
+export const CONTINUE_NUDGE_DELAY_MS = 300_000;
 
 export function oneShotExitCode(result) {
   return result?.status === 'ERROR' ? 1 : 0;
@@ -241,21 +242,29 @@ export function cycleControlPrompt(route, step) {
   if (step === 'EXTRA_HIGH_WRITER') {
     return `MC ${requestId}: switch back to Extra High. Write the immediately preceding same-chat Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
   }
+  if (isContinueNudgeStep(step)) return 'continue';
   throw new Error(`Unknown supervisory-cycle step: ${step}`);
 }
 
-export function nextSupervisoryCycleAction(route, prior) {
+export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') return null;
   if (route.decisionReceipt) return { type: 'WAIT_GITHUB_RECEIPT' };
   const status = prior?.status ?? 'UNSEEN';
   if (status === 'FAILED_RETRYABLE' && prior?.cycleStep) {
+    if (isContinueNudgeStep(prior.cycleStep)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
     return { type: 'SEND_CONTROL', step: prior.cycleStep, model: prior.cycleStep === 'PRO_REASONER' ? 'PRO' : 'EXTRA_HIGH' };
   }
   if (status === 'AMBIGUOUS_AFTER_RESTART' || status === 'SUBMISSION_INTENT_RECORDED') return null;
   if (route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT') {
     if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' };
     if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT' };
-    if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT')) return { type: 'WAIT_GITHUB_RECEIPT' };
+    if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT')) {
+      return continueNudgeEligible(prior, nowMs, continueDelayMs)
+        ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE' }
+        : { type: 'WAIT_GITHUB_RECEIPT' };
+    }
+    if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT_CONTINUE' };
+    if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE')) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
     return null;
   }
   if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' };
@@ -264,8 +273,24 @@ export function nextSupervisoryCycleAction(route, prior) {
   if (status === startedCycleStepStatus('PRO_REASONER')) return { type: 'WAIT_GENERATION', step: 'PRO_REASONER' };
   if (status === completedCycleStepStatus('PRO_REASONER')) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' };
   if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER' };
-  if (status === completedCycleStepStatus('EXTRA_HIGH_WRITER')) return { type: 'WAIT_GITHUB_RECEIPT' };
+  if (status === completedCycleStepStatus('EXTRA_HIGH_WRITER')) {
+    return continueNudgeEligible(prior, nowMs, continueDelayMs)
+      ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE' }
+      : { type: 'WAIT_GITHUB_RECEIPT' };
+  }
+  if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER_CONTINUE')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER_CONTINUE' };
+  if (status === completedCycleStepStatus('EXTRA_HIGH_WRITER_CONTINUE')) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
   return null;
+}
+
+export function isContinueNudgeStep(step) {
+  return step === 'EXTRA_HIGH_DIRECT_CONTINUE' || step === 'EXTRA_HIGH_WRITER_CONTINUE';
+}
+
+export function continueNudgeEligible(prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS) {
+  if (!prior || !Number.isFinite(nowMs) || !Number.isFinite(continueDelayMs) || continueDelayMs < 0) return false;
+  const completedAt = Date.parse(prior.generationCompletedAt ?? '');
+  return Number.isFinite(completedAt) && nowMs - completedAt >= continueDelayMs;
 }
 
 export function completedCycleStepStatus(step) {
