@@ -230,11 +230,17 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   };
 }
 
-export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
+export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
+  const headers: Record<string, string> = {
+    accept: "application/vnd.github+json",
+    "x-github-api-version": "2022-11-28",
+    "user-agent": "mission-control-supervision-reconciler",
+  };
+  if (options.token?.trim()) headers.authorization = `Bearer ${options.token}`;
   for (const issueNumber of [...new Set([options.policy.decisionIssueNumber, options.policy.capabilityIssueNumber])]) {
     const response = await fetchImpl(`https://api.github.com/repos/${options.policy.repository}/issues/${issueNumber}/comments?per_page=100&sort=created&direction=desc`, {
-      headers: { accept: "application/vnd.github+json", authorization: `Bearer ${options.token}`, "x-github-api-version": "2022-11-28", "user-agent": "mission-control-supervision-reconciler" },
+      headers,
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`GitHub reconciliation failed for ${options.policy.repository}#${issueNumber} with HTTP ${response.status}.`);
