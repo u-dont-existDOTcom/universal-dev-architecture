@@ -2,6 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import { loadConfig, publicConfig } from '../src/config.mjs';
 import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
+import { installStuckRecovery } from '../src/stuck-recovery.mjs';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
@@ -23,7 +24,9 @@ try {
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
-  const browser = new ChromeDevtoolsBrowser(config.browser);
+  const browser = installStuckRecovery(new ChromeDevtoolsBrowser(config.browser), {
+    maxNudges: config.runtime.stuckRecoveryMaxNudges,
+  });
   const runtime = new RelayRuntime({ config, missionControl, browser, stateStore });
   await stateStore.acquireLock();
   installSignalHandlers(stateStore);
