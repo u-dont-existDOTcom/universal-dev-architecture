@@ -310,8 +310,8 @@ function mcpResult(id: unknown, value: unknown) {
 }
 
 function startGitHubReconciliation(): NodeJS.Timeout | null {
+  if (!githubPolicy) return null;
   const token = process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN;
-  if (!token || !githubPolicy) return null;
   const configured = Number(process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS ?? 300_000);
   if (!Number.isInteger(configured) || configured < 30_000 || configured > 3_600_000) {
     throw new Error("MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS must be 30000-3600000.");
