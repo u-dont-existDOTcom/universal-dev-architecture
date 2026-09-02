@@ -104,11 +104,16 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
   externally supplied non-anonymous signed-in account reference; a receipt
   cannot self-select `ANONYMOUS_OR_UNKNOWN` as satisfying signed-in evidence.
 - Fourth-review registry hardening seals authority, transition,
-  reproduction-independence, and browser-ownership runtime types. Only their
-  validated factories can attach the private construction capability;
-  evaluators require the exact concrete type, subclasses are prohibited, and
-  resolution rejects unsealed objects. A public dataclass-style constructor or
-  an immutable-looking caller mapping has no trust weight.
+  reproduction-independence, and browser-ownership runtime types. Public
+  constructors fail, evaluators require the exact concrete type, and subclasses
+  are prohibited.
+- Fifth-review registry hardening removes the transferable private construction
+  capability and its module helper as a trust mechanism. Every evaluator and
+  `resolve` boundary decodes the complete canonical immutable record sequence,
+  reruns exact record and chain semantics through the validated factory,
+  recomputes registry identity/digest/head/order, and requires exact rebuilt
+  state equality. Helper-minted partial authority, transition,
+  reproduction-independence, and browser-ownership objects fail closed.
 - Payload-transform subclasses are prohibited. Admission requires the exact
   transform type and invokes the evaluator-owned declarative implementation
   directly, so overriding virtual `apply` dispatch cannot substitute unrelated
@@ -168,6 +173,17 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Fourth-review standalone validation: 20/20 checks passed, including exact
   external Git-blob extraction and execution of 58 hostile scenarios (21
   claim, 27 reasoning, 10 browser).
+- Fifth-review blocker regressions before repair: 4/4 bypasses reproduced
+  against `b672ae6`: the module helper could manufacture exact registry types
+  carrying incomplete authority, transition, reproduction-independence, and
+  browser-ownership records.
+- Fifth-review focused registry-integrity and fixture suite: 30/30 passed;
+  combined authority-provenance and claim-laundering affected suite: 97/97
+  passed.
+- Fifth-review full repository unit suite: 336/336 passed.
+- Fifth-review standalone validation: 20/20 checks passed, including exact
+  external Git-blob extraction and execution of 61 hostile scenarios (23
+  claim, 27 reasoning, 11 browser).
 - Deterministic repository audit: `PASS: no findings.`
 - `python3 -m py_compile scripts/mission_control_provenance.py scripts/validate_mission_control_provenance.py`: passed.
 - `git diff --check`: passed before the final verification checkpoint.
@@ -176,8 +192,8 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 
 ## Remaining / next safe action
 
-1. Review the exact diff, commit locally on the draft PR branch, and report the
-   commit without pushing.
+1. Report the locally committed fifth-review repair for independent review;
+   do not push, merge, or deploy from this execution lane.
 2. Parent execution must separately finish and verify the authorized Human
    Design draft changes. Owner-authority, merge, release, and deployment remain
    open.

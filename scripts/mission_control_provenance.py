@@ -13,12 +13,11 @@ import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 import fcntl
 
@@ -154,29 +153,6 @@ BROWSER_FAILURE_CODES = {
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ProvenanceValidationError(message)
-
-
-_SEALED_CONSTRUCTION_CAPABILITY = object()
-
-
-def _construct_sealed(cls: type[Any], **attributes: Any) -> Any:
-    """Create one validated immutable value without exposing a public bypass."""
-
-    instance = object.__new__(cls)
-    for name, value in attributes.items():
-        object.__setattr__(instance, name, value)
-    object.__setattr__(
-        instance, "_construction_capability", _SEALED_CONSTRUCTION_CAPABILITY
-    )
-    return instance
-
-
-def _is_sealed_exact_type(value: Any, expected_type: type[Any]) -> bool:
-    return (
-        type(value) is expected_type
-        and getattr(value, "_construction_capability", None)
-        is _SEALED_CONSTRUCTION_CAPABILITY
-    )
 
 
 def _nonempty(value: Any) -> bool:
@@ -360,6 +336,16 @@ def authority_source_digest(source: dict[str, Any]) -> str:
     )
 
 
+_AUTHORITY_SOURCE_FIELDS = {
+    "authoritySourceRef",
+    "authorityClass",
+    "authorityScope",
+    "scopeRefs",
+    "status",
+    "sourceRecordDigest",
+}
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class ImmutableAuthoritySourceRegistry:
     """Relying-party supplied, digest-bound authority facts.
@@ -371,8 +357,7 @@ class ImmutableAuthoritySourceRegistry:
 
     registry_id: str
     registry_digest: str
-    _sources: Mapping[str, str]
-    _construction_capability: object = field(repr=False, compare=False)
+    _sources: tuple[tuple[str, str], ...]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         raise ProvenanceValidationError(
@@ -390,10 +375,18 @@ class ImmutableAuthoritySourceRegistry:
             cls is ImmutableAuthoritySourceRegistry,
             "authority registry subclasses are not admitted",
         )
-        _require(_nonempty(registry_id), "authority registry id is required")
+        _require(
+            type(registry_id) is str and _nonempty(registry_id),
+            "authority registry id is required",
+        )
         sources: dict[str, dict[str, Any]] = {}
         for raw in records:
             source = deepcopy(raw)
+            _require(
+                isinstance(source, dict)
+                and set(source) == _AUTHORITY_SOURCE_FIELDS,
+                "authority source fields are not exact",
+            )
             ref = source.get("authoritySourceRef")
             _require(_nonempty(ref), "registry authoritySourceRef is required")
             _require(ref not in sources, "registry authoritySourceRef must be unique")
@@ -407,12 +400,17 @@ class ImmutableAuthoritySourceRegistry:
             )
             _require(
                 isinstance(source.get("authorityScope"), list)
-                and bool(source["authorityScope"]),
+                and bool(source["authorityScope"])
+                and all(
+                    scope in AUTHORIZATION_OPERATIONS
+                    for scope in source["authorityScope"]
+                ),
                 "registry authorityScope is required",
             )
             _require(
                 isinstance(source.get("scopeRefs"), list)
-                and bool(source["scopeRefs"]),
+                and bool(source["scopeRefs"])
+                and all(_nonempty(scope_ref) for scope_ref in source["scopeRefs"]),
                 "registry scopeRefs are required",
             )
             _sha256(source.get("sourceRecordDigest"), "sourceRecordDigest")
@@ -427,22 +425,28 @@ class ImmutableAuthoritySourceRegistry:
                 "sources": [sources[ref] for ref in sorted(sources)],
             }
         )
-        immutable_sources = {
-            ref: _jcs_text(source) for ref, source in sources.items()
-        }
-        return _construct_sealed(
-            cls,
-            registry_id=registry_id,
-            registry_digest=registry_digest,
-            _sources=MappingProxyType(immutable_sources),
+        immutable_sources = tuple(
+            (ref, _jcs_text(sources[ref])) for ref in sorted(sources)
         )
+        instance = object.__new__(cls)
+        object.__setattr__(instance, "registry_id", registry_id)
+        object.__setattr__(instance, "registry_digest", registry_digest)
+        object.__setattr__(instance, "_sources", immutable_sources)
+        return instance
 
     def resolve(self, source_ref: str | None) -> dict[str, Any] | None:
         _require(
-            _is_sealed_exact_type(self, ImmutableAuthoritySourceRegistry),
-            "unsealed authority registry has no trust weight",
+            _authority_registry_integrity_valid(self),
+            "authority registry integrity validation failed",
         )
-        source = self._sources.get(source_ref) if source_ref is not None else None
+        source = next(
+            (
+                serialized
+                for ref, serialized in self._sources
+                if source_ref is not None and ref == source_ref
+            ),
+            None,
+        )
         return json.loads(source) if source is not None else None
 
     @classmethod
@@ -486,8 +490,7 @@ class ImmutableReproductionIndependenceRegistry:
 
     registry_id: str
     registry_digest: str
-    _admissions: Mapping[str, str]
-    _construction_capability: object = field(repr=False, compare=False)
+    _admissions: tuple[tuple[str, str], ...]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         raise ProvenanceValidationError(
@@ -507,7 +510,10 @@ class ImmutableReproductionIndependenceRegistry:
             cls is ImmutableReproductionIndependenceRegistry,
             "independence registry subclasses are not admitted",
         )
-        _require(_nonempty(registry_id), "independence registry id is required")
+        _require(
+            type(registry_id) is str and _nonempty(registry_id),
+            "independence registry id is required",
+        )
         admissions: dict[str, dict[str, Any]] = {}
         for raw in records:
             admission = deepcopy(raw)
@@ -583,25 +589,27 @@ class ImmutableReproductionIndependenceRegistry:
                 "admissions": [admissions[ref] for ref in sorted(admissions)],
             }
         )
-        immutable_admissions = {
-            ref: _jcs_text(admission) for ref, admission in admissions.items()
-        }
-        return _construct_sealed(
-            cls,
-            registry_id=registry_id,
-            registry_digest=registry_digest,
-            _admissions=MappingProxyType(immutable_admissions),
+        immutable_admissions = tuple(
+            (ref, _jcs_text(admissions[ref])) for ref in sorted(admissions)
         )
+        instance = object.__new__(cls)
+        object.__setattr__(instance, "registry_id", registry_id)
+        object.__setattr__(instance, "registry_digest", registry_digest)
+        object.__setattr__(instance, "_admissions", immutable_admissions)
+        return instance
 
     def resolve(self, admission_ref: str | None) -> dict[str, Any] | None:
         _require(
-            _is_sealed_exact_type(
-                self, ImmutableReproductionIndependenceRegistry
-            ),
-            "unsealed independence registry has no trust weight",
+            _independence_registry_integrity_valid(self),
+            "independence registry integrity validation failed",
         )
-        admission = (
-            self._admissions.get(admission_ref) if admission_ref is not None else None
+        admission = next(
+            (
+                serialized
+                for ref, serialized in self._admissions
+                if admission_ref is not None and ref == admission_ref
+            ),
+            None,
         )
         return json.loads(admission) if admission is not None else None
 
@@ -629,14 +637,24 @@ def browser_ownership_proof_digest(proof: dict[str, Any]) -> str:
     )
 
 
+_BROWSER_OWNERSHIP_PROOF_FIELDS = {
+    "tabId",
+    "browserSessionRef",
+    "transactionId",
+    "sourceReceiptRef",
+    "sourceReceiptDigest",
+    "sourceReceiptValidationState",
+    "proofDigest",
+}
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class ImmutableBrowserOwnershipRegistry:
     """Externally validated proof of earlier OPEN actions."""
 
     registry_id: str
     registry_digest: str
-    _proofs: Mapping[str, str]
-    _construction_capability: object = field(repr=False, compare=False)
+    _proofs: tuple[tuple[str, str], ...]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         raise ProvenanceValidationError(
@@ -654,10 +672,18 @@ class ImmutableBrowserOwnershipRegistry:
             cls is ImmutableBrowserOwnershipRegistry,
             "browser registry subclasses are not admitted",
         )
-        _require(_nonempty(registry_id), "browser ownership registry id is required")
+        _require(
+            type(registry_id) is str and _nonempty(registry_id),
+            "browser ownership registry id is required",
+        )
         proofs: dict[str, dict[str, Any]] = {}
         for raw in records:
             proof = deepcopy(raw)
+            _require(
+                isinstance(proof, dict)
+                and set(proof) == _BROWSER_OWNERSHIP_PROOF_FIELDS,
+                "browser ownership proof fields are not exact",
+            )
             tab_id = proof.get("tabId")
             _require(_nonempty(tab_id), "browser proof tabId is required")
             _require(tab_id not in proofs, "browser proof tabId must be unique")
@@ -685,22 +711,28 @@ class ImmutableBrowserOwnershipRegistry:
                 "proofs": [proofs[tab_id] for tab_id in sorted(proofs)],
             }
         )
-        immutable_proofs = {
-            tab_id: _jcs_text(proof) for tab_id, proof in proofs.items()
-        }
-        return _construct_sealed(
-            cls,
-            registry_id=registry_id,
-            registry_digest=registry_digest,
-            _proofs=MappingProxyType(immutable_proofs),
+        immutable_proofs = tuple(
+            (tab_id, _jcs_text(proofs[tab_id])) for tab_id in sorted(proofs)
         )
+        instance = object.__new__(cls)
+        object.__setattr__(instance, "registry_id", registry_id)
+        object.__setattr__(instance, "registry_digest", registry_digest)
+        object.__setattr__(instance, "_proofs", immutable_proofs)
+        return instance
 
     def resolve(self, tab_id: str | None) -> dict[str, Any] | None:
         _require(
-            _is_sealed_exact_type(self, ImmutableBrowserOwnershipRegistry),
-            "unsealed browser registry has no trust weight",
+            _browser_registry_integrity_valid(self),
+            "browser registry integrity validation failed",
         )
-        proof = self._proofs.get(tab_id) if tab_id is not None else None
+        proof = next(
+            (
+                serialized
+                for ref, serialized in self._proofs
+                if tab_id is not None and ref == tab_id
+            ),
+            None,
+        )
         return json.loads(proof) if proof is not None else None
 
     @classmethod
@@ -850,8 +882,7 @@ class ImmutableClaimTransitionRegistry:
     registry_digest: str
     claim_id: str
     head_transition_digest: str | None
-    _records: Mapping[str, str]
-    _construction_capability: object = field(repr=False, compare=False)
+    _records: tuple[tuple[str, str], ...]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         raise ProvenanceValidationError(
@@ -872,8 +903,14 @@ class ImmutableClaimTransitionRegistry:
             cls is ImmutableClaimTransitionRegistry,
             "transition registry subclasses are not admitted",
         )
-        _require(_nonempty(registry_id), "transition registry id is required")
-        _require(_nonempty(claim_id), "transition registry claimId is required")
+        _require(
+            type(registry_id) is str and _nonempty(registry_id),
+            "transition registry id is required",
+        )
+        _require(
+            type(claim_id) is str and _nonempty(claim_id),
+            "transition registry claimId is required",
+        )
         _require(isinstance(records, list), "transition registry records are required")
         admitted: dict[str, dict[str, Any]] = {}
         previous: dict[str, Any] | None = None
@@ -928,24 +965,30 @@ class ImmutableClaimTransitionRegistry:
                 "transitions": list(admitted.values()),
             }
         )
-        immutable_records = {
-            digest: _jcs_text(record) for digest, record in admitted.items()
-        }
-        return _construct_sealed(
-            cls,
-            registry_id=registry_id,
-            registry_digest=registry_digest,
-            claim_id=claim_id,
-            head_transition_digest=head,
-            _records=MappingProxyType(immutable_records),
+        immutable_records = tuple(
+            (digest, _jcs_text(record)) for digest, record in admitted.items()
         )
+        instance = object.__new__(cls)
+        object.__setattr__(instance, "registry_id", registry_id)
+        object.__setattr__(instance, "registry_digest", registry_digest)
+        object.__setattr__(instance, "claim_id", claim_id)
+        object.__setattr__(instance, "head_transition_digest", head)
+        object.__setattr__(instance, "_records", immutable_records)
+        return instance
 
     def resolve(self, digest: str | None) -> dict[str, Any] | None:
         _require(
-            _is_sealed_exact_type(self, ImmutableClaimTransitionRegistry),
-            "unsealed transition registry has no trust weight",
+            _transition_registry_integrity_valid(self),
+            "transition registry integrity validation failed",
         )
-        record = self._records.get(digest) if digest is not None else None
+        record = next(
+            (
+                serialized
+                for record_digest, serialized in self._records
+                if digest is not None and record_digest == digest
+            ),
+            None,
+        )
         return json.loads(record) if record is not None else None
 
     @classmethod
@@ -970,6 +1013,149 @@ class ImmutableClaimTransitionRegistry:
             "transition registry digest does not match its records",
         )
         return registry
+
+
+def _canonical_registry_records(
+    serialized_records: Any, *, record_key: str
+) -> list[dict[str, Any]]:
+    """Decode an exact immutable record sequence without invoking resolution."""
+
+    _require(
+        type(serialized_records) is tuple,
+        "registry records must use an immutable tuple",
+    )
+    records: list[dict[str, Any]] = []
+    observed_keys: set[str] = set()
+    for item in serialized_records:
+        _require(
+            type(item) is tuple and len(item) == 2,
+            "registry record tuple entry is invalid",
+        )
+        key, serialized = item
+        _require(
+            type(key) is str and _nonempty(key),
+            "registry record key is required",
+        )
+        _require(key not in observed_keys, "registry record key must be unique")
+        observed_keys.add(key)
+        _require(type(serialized) is str, "registry record must be serialized JSON")
+        try:
+            record = json.loads(serialized)
+        except json.JSONDecodeError as exc:
+            raise ProvenanceValidationError("registry record is not JSON") from exc
+        _require(isinstance(record, dict), "registry record must be an object")
+        _require(
+            _jcs_text(record) == serialized,
+            "registry record must use canonical JSON serialization",
+        )
+        _require(
+            record.get(record_key) == key,
+            "registry mapping key does not match record identity",
+        )
+        records.append(record)
+    return records
+
+
+def _authority_registry_integrity_valid(value: Any) -> bool:
+    if type(value) is not ImmutableAuthoritySourceRegistry:
+        return False
+    try:
+        _require(type(value.registry_id) is str, "registry id type is invalid")
+        _require(
+            type(value.registry_digest) is str,
+            "registry digest type is invalid",
+        )
+        _sha256(value.registry_digest, "registry digest")
+        records = _canonical_registry_records(
+            value._sources, record_key="authoritySourceRef"
+        )
+        rebuilt = ImmutableAuthoritySourceRegistry.from_records(
+            value.registry_id, records
+        )
+        return (
+            value.registry_digest == rebuilt.registry_digest
+            and value._sources == rebuilt._sources
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def _independence_registry_integrity_valid(value: Any) -> bool:
+    if type(value) is not ImmutableReproductionIndependenceRegistry:
+        return False
+    try:
+        _require(type(value.registry_id) is str, "registry id type is invalid")
+        _require(
+            type(value.registry_digest) is str,
+            "registry digest type is invalid",
+        )
+        _sha256(value.registry_digest, "registry digest")
+        records = _canonical_registry_records(
+            value._admissions, record_key="independenceAdmissionRef"
+        )
+        rebuilt = ImmutableReproductionIndependenceRegistry.from_records(
+            value.registry_id, records
+        )
+        return (
+            value.registry_digest == rebuilt.registry_digest
+            and value._admissions == rebuilt._admissions
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def _browser_registry_integrity_valid(value: Any) -> bool:
+    if type(value) is not ImmutableBrowserOwnershipRegistry:
+        return False
+    try:
+        _require(type(value.registry_id) is str, "registry id type is invalid")
+        _require(
+            type(value.registry_digest) is str,
+            "registry digest type is invalid",
+        )
+        _sha256(value.registry_digest, "registry digest")
+        records = _canonical_registry_records(value._proofs, record_key="tabId")
+        rebuilt = ImmutableBrowserOwnershipRegistry.from_records(
+            value.registry_id, records
+        )
+        return (
+            value.registry_digest == rebuilt.registry_digest
+            and value._proofs == rebuilt._proofs
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def _transition_registry_integrity_valid(value: Any) -> bool:
+    if type(value) is not ImmutableClaimTransitionRegistry:
+        return False
+    try:
+        _require(type(value.registry_id) is str, "registry id type is invalid")
+        _require(type(value.claim_id) is str, "registry claim id type is invalid")
+        _require(
+            type(value.registry_digest) is str,
+            "registry digest type is invalid",
+        )
+        _sha256(value.registry_digest, "registry digest")
+        if value.head_transition_digest is not None:
+            _require(
+                type(value.head_transition_digest) is str,
+                "registry head digest type is invalid",
+            )
+            _sha256(value.head_transition_digest, "registry head digest")
+        records = _canonical_registry_records(
+            value._records, record_key="transitionDigest"
+        )
+        rebuilt = ImmutableClaimTransitionRegistry.from_records(
+            value.registry_id, value.claim_id, records
+        )
+        return (
+            value.registry_digest == rebuilt.registry_digest
+            and value.head_transition_digest == rebuilt.head_transition_digest
+            and value._records == rebuilt._records
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
 
 
 def _authority_sources(claim: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -1089,9 +1275,7 @@ def evaluate_claim_use(
     )
     failures.extend(freshness["failureCodes"])
 
-    if not _is_sealed_exact_type(
-        authority_registry, ImmutableAuthoritySourceRegistry
-    ):
+    if not _authority_registry_integrity_valid(authority_registry):
         _append_failure(failures, "AUTHORITY_REGISTRY_MISSING")
     elif (
         claim.get("authorityRegistryRef") != authority_registry.registry_id
@@ -1109,9 +1293,7 @@ def evaluate_claim_use(
     for requirement in requirements:
         source = (
             authority_registry.resolve(requirement.get("authorizationSourceRef"))
-            if _is_sealed_exact_type(
-                authority_registry, ImmutableAuthoritySourceRegistry
-            )
+            if _authority_registry_integrity_valid(authority_registry)
             else None
         )
         declared = _authority_sources(claim).get(
@@ -1230,9 +1412,7 @@ def validate_claim_transition(
 
     chain_required = from_claim.get("claimVersion", 0) > 1
     trusted_previous: dict[str, Any] | None = None
-    if not _is_sealed_exact_type(
-        transition_registry, ImmutableClaimTransitionRegistry
-    ):
+    if not _transition_registry_integrity_valid(transition_registry):
         _append_failure(failures, "TRANSITION_REGISTRY_MISSING")
         _append_failure(failures, "TRANSITION_CHAIN_INVALID")
     else:
@@ -1293,9 +1473,7 @@ def validate_claim_transition(
             or not required_scope_refs <= transition_requirement_refs
         ):
             _append_failure(failures, "UNAUTHORIZED_CLAIM_PROMOTION")
-        if not _is_sealed_exact_type(
-            authority_registry, ImmutableAuthoritySourceRegistry
-        ):
+        if not _authority_registry_integrity_valid(authority_registry):
             _append_failure(failures, "AUTHORITY_REGISTRY_MISSING")
         elif (
             to_claim.get("authorityRegistryRef") != authority_registry.registry_id
@@ -1310,9 +1488,7 @@ def validate_claim_transition(
         ):
             source = (
                 authority_registry.resolve(requirement.get("authorizationSourceRef"))
-                if _is_sealed_exact_type(
-                    authority_registry, ImmutableAuthoritySourceRegistry
-                )
+                if _authority_registry_integrity_valid(authority_registry)
                 else None
             )
             declared = _authority_sources(to_claim).get(
@@ -1414,9 +1590,7 @@ def evaluate_reproduction(
         and _valid_timestamp(receipt.get("reproducedAt"))
     ):
         _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
-    if not _is_sealed_exact_type(
-        independence_registry, ImmutableReproductionIndependenceRegistry
-    ):
+    if not _independence_registry_integrity_valid(independence_registry):
         _append_failure(failures, "INDEPENDENCE_REGISTRY_MISSING")
         _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
     elif (
@@ -1817,12 +1991,9 @@ def evaluate_browser_operation(
 ) -> dict[str, Any]:
     failures: list[str] = []
     _require(receipt.get("schemaVersion") == 1, "browser receipt schemaVersion must be 1")
-    _require(
-        _is_sealed_exact_type(
-            ownership_registry, ImmutableBrowserOwnershipRegistry
-        ),
-        "immutable browser ownership registry is required",
-    )
+    registry_valid = _browser_registry_integrity_valid(ownership_registry)
+    if not registry_valid:
+        _append_failure(failures, "TAB_OWNERSHIP_UNVERIFIED")
     transaction_id = receipt.get("transactionId")
     session_ref = receipt.get("browserSessionRef")
     _require(_nonempty(transaction_id), "browser transactionId is required")
@@ -1854,14 +2025,15 @@ def evaluate_browser_operation(
     if len(successful_open_actions) != len(opened_by_actions):
         _append_failure(failures, "BROWSER_OPEN_ACTION_MISMATCH")
     if (
-        receipt.get("priorOwnershipRegistryRef") != ownership_registry.registry_id
+        receipt.get("priorOwnershipRegistryRef")
+        != getattr(ownership_registry, "registry_id", None)
         or receipt.get("priorOwnershipRegistryDigest")
-        != ownership_registry.registry_digest
+        != getattr(ownership_registry, "registry_digest", None)
     ):
         _append_failure(failures, "TAB_OWNERSHIP_UNVERIFIED")
     prior_proven: set[str] = set()
     for tab_id in claimed_agent_tabs - opened_by_actions:
-        proof = ownership_registry.resolve(tab_id)
+        proof = ownership_registry.resolve(tab_id) if registry_valid else None
         if (
             proof is not None
             and proof.get("browserSessionRef") == session_ref

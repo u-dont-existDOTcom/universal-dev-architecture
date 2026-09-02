@@ -293,11 +293,15 @@ not derive authority from the claim's own `currentAuthorities` array. A
 load-bearing `ASSERT_FACT` with no applicable requirement fails closed.
 
 Every immutable authority, transition, reproduction-independence, or browser-
-ownership registry is factory-only and exact-type checked. Public dataclass
-construction, subclassing, lookalike objects, or objects allocated without the
-module's validated construction capability have no trust weight. Resolution
-also verifies that capability; frozen or immutable-looking caller state is not
-evidence that registry invariants ran.
+ownership registry is exact-type checked. Its validated factories are the only
+public construction API, but factory origin, an underscore helper, or a private
+construction token is never treated as trust evidence. Every evaluator and
+`resolve` boundary must decode the complete canonical immutable record sequence,
+rerun all record and chain semantics without calling `resolve`, recompute the
+registry identity/digest/head/order, and compare the rebuilt immutable state
+exactly. Public dataclass construction, subclassing, lookalike objects, partial
+records, helper-minted instances, or immutable-looking caller state therefore
+have no trust weight.
 
 The authority classes are:
 
@@ -391,10 +395,11 @@ trusted head, that exact predecessor must be a registry member, and its
 `toClaimRef` must equal the current `fromClaimRef`. The registry validates the
 full append-only chain from claim version one. A digest-consistent record
 manufactured by the claimant or caller is not trusted history, even when every
-field is schema-complete. The registry itself must be a sealed exact-type
-instance produced by validated `from_records` or `from_document`; invoking a
-public field constructor or fabricating its internal mapping cannot establish
-membership. A caller-supplied
+field is schema-complete. The registry must be an exact-type instance whose
+complete canonical records, claim identity, digest, trusted head, order, and
+chain semantics reproduce through the validated factory at the use boundary;
+invoking a public field constructor or fabricating a partial internal mapping
+cannot establish membership. A caller-supplied
 `{"transitionType":"PROMOTED"}` object has no authorization weight.
 
 ### 7.3 Subject-bound reproduction

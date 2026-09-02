@@ -1608,10 +1608,13 @@ the evaluator's fixed implementation must reproduce the submitted bytes twice.
 A transform description, output hash, arbitrary callable, or stateful callable
 is insufficient. The transform class is non-subclassable, exact-type checked,
 and executed through the evaluator's non-virtual implementation. Registry
-inputs are likewise accepted only from their sealed validated factories; a
-direct field constructor, subclass, or immutable-looking mapping is not a
-registry. Schema `date-time` checks validate the real RFC3339 calendar value,
-not only a matching string shape.
+inputs are exact-type checked and their complete canonical records, identity,
+digest, head, and order are deterministically rebuilt and compared at every
+evaluator and resolution boundary. A factory label or transferable construction
+token is not evidence of trust; a direct field constructor, subclass, partial
+record, or immutable-looking mapping is not a registry. Schema `date-time`
+checks validate the real RFC3339 calendar value, not only a matching string
+shape.
 Then bind the admission-question and response digests and single-use receipt to
 `templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
 `templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.

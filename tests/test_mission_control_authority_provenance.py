@@ -6,8 +6,9 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from types import MappingProxyType
 from uuid import uuid4
+
+import scripts.mission_control_provenance as provenance
 
 from scripts.mission_control_provenance import (
     DurableReceiptConsumptionStore,
@@ -1148,9 +1149,9 @@ class ProvenanceSchemaAndFixtureTests(unittest.TestCase):
     def test_all_schemas_templates_incidents_and_hostile_fixtures_validate(self) -> None:
         findings = validate_repository(ROOT)
         self.assertGreaterEqual(len(findings), 17)
-        self.assertTrue(any("claim-authority-provenance-hostile.json:21-executed" in finding for finding in findings))
+        self.assertTrue(any("claim-authority-provenance-hostile.json:23-executed" in finding for finding in findings))
         self.assertTrue(any("reasoning-surface-receipt-hostile.json:27-executed" in finding for finding in findings))
-        self.assertTrue(any("browser-operation-hostile.json:10-executed" in finding for finding in findings))
+        self.assertTrue(any("browser-operation-hostile.json:11-executed" in finding for finding in findings))
 
 
 class IndependentReviewBlockerRegressionTests(unittest.TestCase):
@@ -1193,12 +1194,13 @@ class IndependentReviewBlockerRegressionTests(unittest.TestCase):
         object.__setattr__(
             forged,
             "_records",
-            MappingProxyType(
-                {
-                    forged_digest: _jcs_text(
+            (
+                (
+                    forged_digest,
+                    _jcs_text(
                         {"toClaimRef": deepcopy(current["fromClaimRef"])}
-                    )
-                }
+                    ),
+                ),
             ),
         )
         current["transitionRegistryRef"] = forged.registry_id
@@ -1214,6 +1216,120 @@ class IndependentReviewBlockerRegressionTests(unittest.TestCase):
         )
         self.assertFalse(result["valid"])
         self.assertIn("TRANSITION_REGISTRY_MISSING", result["failureCodes"])
+        with self.assertRaises(ValueError):
+            forged.resolve(forged_digest)
+
+    def test_no_transferable_module_registry_minting_helper_remains(self) -> None:
+        self.assertFalse(hasattr(provenance, "_construct_sealed"))
+
+    def test_forged_authority_registry_records_are_revalidated_on_use(self) -> None:
+        claim = make_claim()
+        source = deepcopy(claim["currentAuthorities"][0])
+        forged = object.__new__(ImmutableAuthoritySourceRegistry)
+        object.__setattr__(forged, "registry_id", "forged-authority-registry")
+        object.__setattr__(forged, "registry_digest", "a" * 64)
+        object.__setattr__(
+            forged,
+            "_sources",
+            (
+                (source["authoritySourceRef"], _jcs_text(source)),
+            ),
+        )
+        claim["authorityRegistryRef"] = forged.registry_id
+        claim["authorityRegistryDigest"] = forged.registry_digest
+        refresh_claim_digest(claim)
+        result = evaluate_claim_use(
+            claim, "ASSERT_FACT", authority_registry=forged
+        )
+        self.assertFalse(result["allowed"])
+        self.assertIn("AUTHORITY_REGISTRY_MISSING", result["failureCodes"])
+        with self.assertRaises(ValueError):
+            forged.resolve(source["authoritySourceRef"])
+
+    def test_forged_independence_registry_records_are_revalidated_on_use(
+        self,
+    ) -> None:
+        claim = make_claim()
+        receipt = make_reproduction(claim)
+        admission_digest = "d" * 64
+        incomplete_admission = {
+            "producerEvidenceRef": receipt["producerEvidenceRef"],
+            "reproducer": deepcopy(receipt["reproducer"]),
+            "independenceBasis": receipt["independenceBasis"],
+            "status": "ADMITTED",
+            "admissionDigest": admission_digest,
+        }
+        forged = object.__new__(ImmutableReproductionIndependenceRegistry)
+        object.__setattr__(forged, "registry_id", "forged-independence-registry")
+        object.__setattr__(forged, "registry_digest", "e" * 64)
+        object.__setattr__(
+            forged,
+            "_admissions",
+            (
+                (
+                    receipt["independenceAdmissionRef"],
+                    _jcs_text(incomplete_admission),
+                ),
+            ),
+        )
+        receipt["independenceRegistryRef"] = forged.registry_id
+        receipt["independenceRegistryDigest"] = forged.registry_digest
+        receipt["independenceAdmissionDigest"] = admission_digest
+        result = evaluate_reproduction(
+            receipt,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"count exact production records",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=forged,
+        )
+        self.assertFalse(result["valid"])
+        self.assertIn("INDEPENDENCE_REGISTRY_MISSING", result["failureCodes"])
+        with self.assertRaises(ValueError):
+            forged.resolve(receipt["independenceAdmissionRef"])
+
+    def test_forged_browser_registry_proof_is_revalidated_before_close(self) -> None:
+        receipt = make_browser_receipt()
+        tab_id = "agent-1"
+        incomplete_proof = {
+            "browserSessionRef": receipt["browserSessionRef"],
+            "transactionId": receipt["transactionId"],
+        }
+        forged = object.__new__(ImmutableBrowserOwnershipRegistry)
+        object.__setattr__(forged, "registry_id", "forged-browser-registry")
+        object.__setattr__(forged, "registry_digest", "f" * 64)
+        object.__setattr__(
+            forged,
+            "_proofs",
+            ((tab_id, _jcs_text(incomplete_proof)),),
+        )
+        receipt["priorOwnershipRegistryRef"] = forged.registry_id
+        receipt["priorOwnershipRegistryDigest"] = forged.registry_digest
+        receipt["agentOpenedTabIds"] = [tab_id]
+        receipt["actions"] = [
+            {
+                "type": "CLOSE",
+                "tabId": tab_id,
+                "ownershipClass": "AGENT_OPENED",
+                "protected": False,
+                "browserSessionRef": receipt["browserSessionRef"],
+                "transactionId": receipt["transactionId"],
+                "result": "SUCCEEDED",
+                "closedByActor": "routing-executor",
+            }
+        ]
+        receipt["cleanup"].update(
+            {
+                "attempted": True,
+                "results": [{"tabId": tab_id, "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
+        )
+        result = evaluate_browser_operation(receipt, ownership_registry=forged)
+        self.assertFalse(result["allowed"])
+        self.assertIn("TAB_OWNERSHIP_UNVERIFIED", result["failureCodes"])
+        with self.assertRaises(ValueError):
+            forged.resolve(tab_id)
 
     def test_payload_transform_type_is_sealed_against_override(self) -> None:
         with self.assertRaises(TypeError):

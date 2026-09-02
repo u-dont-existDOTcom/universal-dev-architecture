@@ -956,6 +956,72 @@ def execute_hostile_scenario(
                 authority_registry=registry,
                 transition_registry=forged,
             )
+        if scenario_id == "forged-authority-registry-records":
+            claim, _ = _fixture_claim()
+            source = deepcopy(claim["currentAuthorities"][0])
+            forged = object.__new__(ImmutableAuthoritySourceRegistry)
+            object.__setattr__(
+                forged, "registry_id", "fixture-forged-authority-registry"
+            )
+            object.__setattr__(forged, "registry_digest", "c" * 64)
+            object.__setattr__(
+                forged,
+                "_sources",
+                (
+                    (source["authoritySourceRef"], _jcs_text(source)),
+                ),
+            )
+            claim["authorityRegistryRef"] = forged.registry_id
+            claim["authorityRegistryDigest"] = forged.registry_digest
+            semantics = {
+                key: value for key, value in claim.items() if key != "claimDigest"
+            }
+            claim["claimDigest"]["value"] = claim_digest(claim)
+            claim["claimDigest"]["byteLength"] = len(
+                _jcs_text(semantics).encode("utf-8")
+            )
+            return evaluate_claim_use(
+                claim, "ASSERT_FACT", authority_registry=forged
+            )
+        if scenario_id == "forged-independence-registry-records":
+            claim, _ = _fixture_claim()
+            receipt = _fixture_reproduction(claim, synthetic=False)
+            admission_digest = "d" * 64
+            incomplete_admission = {
+                "producerEvidenceRef": receipt["producerEvidenceRef"],
+                "reproducer": deepcopy(receipt["reproducer"]),
+                "independenceBasis": receipt["independenceBasis"],
+                "status": "ADMITTED",
+                "admissionDigest": admission_digest,
+            }
+            forged = object.__new__(
+                ImmutableReproductionIndependenceRegistry
+            )
+            object.__setattr__(
+                forged, "registry_id", "fixture-forged-independence-registry"
+            )
+            object.__setattr__(forged, "registry_digest", "e" * 64)
+            object.__setattr__(
+                forged,
+                "_admissions",
+                (
+                    (
+                        receipt["independenceAdmissionRef"],
+                        _jcs_text(incomplete_admission),
+                    ),
+                ),
+            )
+            receipt["independenceRegistryRef"] = forged.registry_id
+            receipt["independenceRegistryDigest"] = forged.registry_digest
+            receipt["independenceAdmissionDigest"] = admission_digest
+            return evaluate_reproduction(
+                receipt,
+                claim,
+                current_subject=deepcopy(claim["subjectRef"]),
+                actual_method_bytes=b"count exact production records",
+                actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                independence_registry=forged,
+            )
         if scenario_id in {
             "transition-schema-invalid-calendar-date",
             "reproduction-schema-invalid-calendar-date",
@@ -1183,6 +1249,39 @@ def execute_hostile_scenario(
                 "results": [{"tabId": "agent-1", "result": "SUCCEEDED"}],
                 "remainingAgentTabIds": [],
             }
+        elif scenario_id == "forged-two-field-prior-proof":
+            tab_id = "agent-1"
+            forged = object.__new__(ImmutableBrowserOwnershipRegistry)
+            object.__setattr__(
+                forged, "registry_id", "fixture-forged-browser-registry"
+            )
+            object.__setattr__(forged, "registry_digest", "f" * 64)
+            object.__setattr__(
+                forged,
+                "_proofs",
+                (
+                    (
+                        tab_id,
+                        _jcs_text(
+                            {
+                                "browserSessionRef": receipt["browserSessionRef"],
+                                "transactionId": receipt["transactionId"],
+                            }
+                        ),
+                    ),
+                ),
+            )
+            receipt["priorOwnershipRegistryRef"] = forged.registry_id
+            receipt["priorOwnershipRegistryDigest"] = forged.registry_digest
+            receipt["agentOpenedTabIds"] = [tab_id]
+            receipt["actions"] = [_browser_action("CLOSE", tab_id)]
+            receipt["cleanup"] = {
+                "policy": "CLOSE_ONLY_AGENT_OPENED",
+                "attempted": True,
+                "results": [{"tabId": tab_id, "result": "SUCCEEDED"}],
+                "remainingAgentTabIds": [],
+            }
+            return evaluate_browser_operation(receipt, ownership_registry=forged)
         return evaluate_browser_operation(receipt, ownership_registry=registry)
 
     raise SchemaError(f"unimplemented hostile scenario {fixture_id}:{scenario_id}")
