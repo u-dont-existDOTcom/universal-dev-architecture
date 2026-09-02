@@ -3,7 +3,7 @@
 Date: 2026-09-02
 Branch: `task/mission-control-vps-browser-relay-20260902`
 Base: `main` at `764be99e4c7e9a324ea497d495d274b644b4694a`
-Status: OUTBOUND IMPLEMENTED; HOSTINGER LIVE ACCEPTANCE PENDING
+Status: OUTBOUND IMPLEMENTED; MACHINE CREDENTIAL PROVISIONED; HOSTINGER LIVE ACCEPTANCE PENDING
 
 ## Owner outcome
 
@@ -17,7 +17,7 @@ The intended mechanism was one persistent remote browser profile serving the Pro
 
 ## Existing-work disposition
 
-- **Reuse:** Mission Control's deployed MCP fleet read model, exact internal-supervisor route packet, chat directory, durable request IDs, provenance model, and Chat/Work admission boundary.
+- **Reuse:** Mission Control's deployed scoped MCP worker read, exact internal-supervisor route packet, chat directory, durable request IDs, provenance model, and Chat/Work admission boundary.
 - **Reuse:** Chrome DevTools Protocol target activation, creation, closure, runtime evaluation, and exact input insertion rather than inventing a browser-control protocol.
 - **Adapt:** systemd user services and cgroup `MemoryHigh`, `MemoryMax`, and `MemorySwapMax` limits into a 16 GB VPS operating envelope.
 - **Invent narrowly:** the Mission-Control-specific route parser, exact-body send journal, ambiguity/replay guard, registered-tab lifecycle, and memory-pressure policy.
@@ -33,7 +33,7 @@ Current OpenAI individual-use terms prohibit automatically or programmatically e
 
 The package is dependency-free and uses Node.js 22 or later. It includes:
 
-- exact Mission Control MCP fleet reader;
+- exact Mission Control `mission_control_get_worker` reader for explicitly configured worker IDs only;
 - canonical `MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1` parser;
 - configured exact `https://chatgpt.com/c/<conversation-id>` allowlist;
 - loopback-only Chrome DevTools transport;
@@ -49,6 +49,8 @@ The package is dependency-free and uses Node.js 22 or later. It includes:
 - installer, doctor, one-cycle, status, continuous-run, and explicit ambiguity-resolution commands;
 - six-hour T0/H1-H6 memory-trial procedure.
 
+The relay does not request the all-worker fleet projection. Its configured chat directory supplies the exact worker IDs to read, and the client rejects missing or mismatched worker snapshots.
+
 ## Default 16 GB bounds
 
 - system available-memory soft floor: 4096 MB;
@@ -63,6 +65,27 @@ The package is dependency-free and uses Node.js 22 or later. It includes:
 - combined browser/relay slice `MemoryMax`: 12 GB.
 
 Submission is disabled by default. A live send cannot begin until the Hostinger profile is authenticated, exact chat locators are configured, and doctor/dry-run checks pass.
+
+## Machine credential receipt
+
+A dedicated credential was added to the Railway production Mission Control service under producer ID:
+
+```text
+system:chatgpt-relay-reader
+```
+
+Its current scopes are intentionally narrow:
+
+```text
+workers: mission-control-live-slice only
+tasks: non-operative relay-read placeholder only
+```
+
+The producer kind `SYSTEM` is a compatibility choice in the current credential schema; it is not a ChatGPT or semantic-authority receipt. The token is not stored in GitHub. A private owner-only environment file was created separately for transfer to the Hostinger VPS.
+
+Railway configuration deployment `6b0e057b-24dd-4882-b26e-abcbdf233c41` completed with `SUCCESS` against unchanged application commit `764be99e4c7e9a324ea497d495d274b644b4694a`.
+
+A direct authenticated request from the implementation workspace was attempted after deployment, but this workspace could not resolve the Railway hostname (`EAI_AGAIN`). Therefore the credential's external request path is not claimed as independently exercised here. Railway deployment health succeeded; the first authoritative MCP authentication test remains part of Hostinger `doctor`.
 
 ## Verification receipts
 
@@ -86,20 +109,21 @@ target activation: PASS
 
 No live ChatGPT message was submitted. The protocol smoke used `about:blank`; it verifies the transport substrate, not authenticated ChatGPT behavior or current DOM selectors.
 
-Hosted CI now contains a separate `vps-browser-relay` job for locked install, 17 deterministic tests, JavaScript syntax, shell syntax, and required service assets.
+Hosted CI contains a separate `vps-browser-relay` job for locked install, 17 deterministic tests, JavaScript syntax, shell syntax, and required service assets. The existing Mission Control application tests/build and deterministic repository audit remain required alongside it.
 
 ## Acceptance still required on Hostinger
 
 1. Install the package under a non-root VPS user.
-2. Authenticate the dedicated browser profile through the Hostinger graphical desktop.
-3. Register one Project Manager and one harmless specialist chat.
-4. Run doctor and one dry-run cycle with submission disabled.
-5. Enable one harmless exact outbound route.
-6. Verify single submission, local receipt, no laptop browser involvement, and no automatic duplicate after injected interruption.
-7. Run T0 and H1-H6 memory samples with one PM plus two specialist chats, then increase only if headroom remains stable.
+2. Copy the private credential environment file into the owner-only relay configuration directory.
+3. Authenticate the dedicated browser profile through the Hostinger graphical desktop.
+4. Register one Project Manager and one harmless specialist chat, binding the specialist to `mission-control-live-slice`.
+5. Run doctor and one dry-run cycle with submission disabled; this is also the first external MCP credential test.
+6. Enable one harmless exact outbound route.
+7. Verify single submission, local receipt, no laptop browser involvement, and no automatic duplicate after injected interruption.
+8. Run T0 and H1-H6 memory samples with one PM plus two specialist chats, then increase only if headroom remains stable.
 
 ## Current claim
 
-`VPS_BROWSER_RELAY_OUTBOUND_IMPLEMENTED_NOT_LIVE_ACCEPTED`
+`VPS_BROWSER_RELAY_OUTBOUND_IMPLEMENTED_CREDENTIAL_PROVISIONED_NOT_LIVE_ACCEPTED`
 
-The repository implementation is complete for the bounded outbound slice. It is not evidence that the Hostinger browser is installed, authenticated, connected, or within memory limits under real ChatGPT workloads. No merge, Railway redeploy, paid API inference, account upgrade, or 32 GB VPS purchase is implied.
+The repository implementation and production-side credential provisioning are complete for the bounded outbound slice. They are not evidence that the Hostinger browser is installed, authenticated, connected, or within memory limits under real ChatGPT workloads. No merge, paid API inference, account upgrade, or 32 GB VPS purchase is implied.
