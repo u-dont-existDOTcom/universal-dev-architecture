@@ -6,6 +6,7 @@
   "packetId": "replace-with-packet-id",
   "verdict": "REVISE",
   "reviewRole": "PRO",
+  "requiredAccountRef": "replace-with-required-signed-in-account-ref",
   "responsePayloadDigest": {
     "algorithm": "sha256",
     "value": "0000000000000000000000000000000000000000000000000000000000000000",

@@ -84,6 +84,25 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
   digest and require exact prior `toClaimRef` to current `fromClaimRef`
   continuity. Reproduction evaluates all required independence fields at
   runtime, not only at schema-validation time.
+- Third-review transition repair replaces caller-supplied predecessor trust
+  with a relying-party-supplied immutable transition registry. Each current
+  transition binds the registry identity/digest, its previous digest must equal
+  the trusted head, and that exact head member must terminate at the current
+  `fromClaimRef`; schema-complete caller-manufactured history has no weight.
+- Reproduction receipts bind an external immutable independence registry and
+  exact admission digest. Its admitted producer/reproducer identities and
+  trust domains must be distinct, the basis cannot assert the same producer or
+  process, and the admitting relying party is distinct from both identities.
+- Mission Control timestamps now use a strict RFC3339 profile with explicit
+  timezone and reject ISO week dates, ordinal dates, space separators, and
+  missing timezones in transition, reproduction, and verified-observation
+  evaluation paths.
+- Payload transforms are canonical declarative spec bytes interpreted only by
+  an evaluator-owned fixed implementation and reproduced twice. Arbitrary or
+  stateful callables cannot enter the admission path.
+- Reasoning receipt, verdict, and durable consumption event bind a canonical
+  externally supplied non-anonymous signed-in account reference; a receipt
+  cannot self-select `ANONYMOUS_OR_UNKNOWN` as satisfying signed-in evidence.
 
 ## Verification
 
@@ -113,6 +132,17 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Second-review standalone validation: 18/18 checks passed, including exact
   external Git-blob extraction and execution of 44 hostile scenarios (14
   claim, 20 reasoning, 10 browser).
+- Third-review blocker regressions before repair: 6/6 failed against
+  `34b2c47`, reproducing complete fabricated predecessor admission (direct and
+  through claim use), ISO week-date acceptance, same-process independence
+  self-assertion, stateful callable transform admission, and anonymous account
+  self-selection.
+- Third-review focused authority/reproduction/reasoning/browser/schema suite:
+  83/83 passed; combined authority-provenance and claim-laundering affected
+  suite: 89/89 passed.
+- Third-review full repository unit suite: 328/328 passed.
+- Third-review standalone validation: 20/20 checks passed, including execution
+  of 53 hostile scenarios (18 claim, 25 reasoning, 10 browser).
 - Deterministic repository audit: `PASS: no findings.`
 - `python3 -m py_compile scripts/mission_control_provenance.py scripts/validate_mission_control_provenance.py`: passed.
 - `git diff --check`: passed before the final verification checkpoint.

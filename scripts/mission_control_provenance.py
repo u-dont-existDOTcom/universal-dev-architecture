@@ -12,12 +12,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import dataclass
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping
 
 import fcntl
 
@@ -119,6 +120,8 @@ CLAIM_FAILURE_CODES = {
     "REPRODUCTION_RECEIPT_UNBOUND",
     "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
     "TRANSITION_CHAIN_INVALID",
+    "TRANSITION_REGISTRY_MISSING",
+    "INDEPENDENCE_REGISTRY_MISSING",
 }
 REASONING_FAILURE_CODES = {
     "SELF_ASSERTED_REASONING_IDENTITY_REJECTED",
@@ -132,6 +135,7 @@ REASONING_FAILURE_CODES = {
     "REASONING_REQUIREMENT_BINDING_MISMATCH",
     "ADMISSION_QUESTION_BINDING_MISMATCH",
     "REASONING_OBSERVATION_EVIDENCE_INVALID",
+    "REASONING_ACCOUNT_BINDING_MISMATCH",
 }
 BROWSER_FAILURE_CODES = {
     "BROWSER_ROUTE_NOT_JUSTIFIED",
@@ -156,14 +160,30 @@ def _nonempty(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+_RFC3339_TIMESTAMP = re.compile(
+    r"^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])"
+    r"T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
+    r"(?:\.[0-9]+)?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"
+)
+
+
 def _valid_timestamp(value: Any) -> bool:
-    if not _nonempty(value):
+    if not _nonempty(value) or _RFC3339_TIMESTAMP.fullmatch(value) is None:
         return False
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return False
     return parsed.tzinfo is not None
+
+
+def _valid_account_ref(value: Any) -> bool:
+    return _nonempty(value) and value.strip().casefold() not in {
+        "anonymous",
+        "unknown",
+        "anonymous_or_unknown",
+        "anonymous-or-unknown",
+    }
 
 
 def _sha256(value: Any, field: str) -> str:
@@ -235,31 +255,50 @@ def _bytes_digest(value: bytes, bytes_definition: str) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class ImmutablePayloadTransform:
-    """Relying-party supplied transform that must reproduce submitted bytes."""
+    """Relying-party supplied declarative transform with fixed implementation."""
 
     transform_ref: str
-    description: str
-    _implementation: Callable[[bytes], bytes]
+    spec_bytes: bytes
 
     def __post_init__(self) -> None:
         _require(_nonempty(self.transform_ref), "transform_ref is required")
-        _require(_nonempty(self.description), "transform description is required")
-        _require(callable(self._implementation), "transform implementation is required")
+        _require(isinstance(self.spec_bytes, bytes), "transform spec bytes are required")
+        try:
+            spec = json.loads(self.spec_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ProvenanceValidationError("transform spec must be UTF-8 JSON") from exc
+        _require(
+            isinstance(spec, dict)
+            and set(spec) == {"type", "suffixUtf8"}
+            and spec.get("type") == "UTF8_APPEND_LITERAL_V1"
+            and isinstance(spec.get("suffixUtf8"), str),
+            "unsupported declarative payload transform",
+        )
+        _require(
+            _jcs_text(spec).encode("utf-8") == self.spec_bytes,
+            "transform spec bytes must be canonical JSON",
+        )
+
+    @property
+    def description(self) -> str:
+        return "append the exact UTF-8 suffix declared by UTF8_APPEND_LITERAL_V1"
 
     @property
     def transform_digest(self) -> str:
-        return canonical_sha256(
-            {
-                "transformRef": self.transform_ref,
-                "description": self.description,
-                "contract": "external implementation executed over exact input bytes",
-            }
-        )
+        return hashlib.sha256(self.spec_bytes).hexdigest()
+
+    @property
+    def spec_byte_length(self) -> int:
+        return len(self.spec_bytes)
+
+    @property
+    def spec_bytes_definition(self) -> str:
+        return "canonical UTF-8 JSON declarative transform specification bytes"
 
     def apply(self, value: bytes) -> bytes:
-        transformed = self._implementation(value)
-        _require(isinstance(transformed, bytes), "payload transform must return bytes")
-        return transformed
+        _require(isinstance(value, bytes), "payload transform input must be bytes")
+        spec = json.loads(self.spec_bytes.decode("utf-8"))
+        return value + spec["suffixUtf8"].encode("utf-8")
 
 
 def authority_source_digest(source: dict[str, Any]) -> str:
@@ -344,6 +383,149 @@ class ImmutableAuthoritySourceRegistry:
         _require(
             document.get("registryDigest") == registry.registry_digest,
             "authority registry digest does not match its immutable records",
+        )
+        return registry
+
+
+_INDEPENDENCE_ADMISSION_FIELDS = {
+    "independenceAdmissionRef",
+    "producerEvidenceRef",
+    "producer",
+    "reproducer",
+    "independenceBasis",
+    "admittedByRef",
+    "status",
+    "admissionDigest",
+}
+
+
+def reproduction_independence_admission_digest(admission: dict[str, Any]) -> str:
+    return canonical_sha256(
+        {
+            key: deepcopy(value)
+            for key, value in admission.items()
+            if key != "admissionDigest"
+        }
+    )
+
+
+@dataclass(frozen=True)
+class ImmutableReproductionIndependenceRegistry:
+    """Relying-party admissions of producer/reproducer independence."""
+
+    registry_id: str
+    registry_digest: str
+    _admissions: Mapping[str, str]
+
+    @classmethod
+    def from_records(
+        cls, registry_id: str, records: list[dict[str, Any]]
+    ) -> "ImmutableReproductionIndependenceRegistry":
+        _require(_nonempty(registry_id), "independence registry id is required")
+        admissions: dict[str, dict[str, Any]] = {}
+        for raw in records:
+            admission = deepcopy(raw)
+            _require(
+                isinstance(admission, dict)
+                and set(admission) == _INDEPENDENCE_ADMISSION_FIELDS,
+                "independence admission fields are not exact",
+            )
+            ref = admission.get("independenceAdmissionRef")
+            producer = admission.get("producer")
+            reproducer = admission.get("reproducer")
+            _require(_nonempty(ref), "independenceAdmissionRef is required")
+            _require(ref not in admissions, "independenceAdmissionRef must be unique")
+            _require(_nonempty(admission.get("producerEvidenceRef")), "producerEvidenceRef is required")
+            _require(isinstance(producer, dict), "producer identity is required")
+            _require(isinstance(reproducer, dict), "reproducer identity is required")
+            _require(
+                set(producer) == {"identityRef", "trustDomain"},
+                "producer identity fields are not exact",
+            )
+            _require(
+                set(reproducer) == {"identityRef", "type", "trustDomain"},
+                "reproducer identity fields are not exact",
+            )
+            for identity, label in ((producer, "producer"), (reproducer, "reproducer")):
+                _require(_nonempty(identity.get("identityRef")), f"{label} identityRef is required")
+                _require(_nonempty(identity.get("trustDomain")), f"{label} trustDomain is required")
+            _require(
+                reproducer.get("type") == "HUMAN_OR_INDEPENDENT_PROCESS",
+                "reproducer type is invalid",
+            )
+            _require(
+                producer["identityRef"].casefold()
+                != reproducer["identityRef"].casefold(),
+                "producer and reproducer identities must be distinct",
+            )
+            _require(
+                producer["trustDomain"].casefold()
+                != reproducer["trustDomain"].casefold(),
+                "producer and reproducer trust domains must be distinct",
+            )
+            basis = admission.get("independenceBasis")
+            _require(_nonempty(basis), "independenceBasis is required")
+            normalized_basis = " ".join(basis.casefold().split())
+            _require(
+                not any(
+                    phrase in normalized_basis
+                    for phrase in ("not independent", "same producer", "same process")
+                ),
+                "independenceBasis contradicts independence",
+            )
+            admitted_by = admission.get("admittedByRef")
+            _require(_nonempty(admitted_by), "admittedByRef is required")
+            _require(
+                admitted_by.casefold()
+                not in {
+                    producer["identityRef"].casefold(),
+                    reproducer["identityRef"].casefold(),
+                },
+                "independence admission must come from a distinct relying party",
+            )
+            _require(admission.get("status") == "ADMITTED", "independence admission is not current")
+            _sha256(admission.get("admissionDigest"), "admissionDigest")
+            _require(
+                admission["admissionDigest"]
+                == reproduction_independence_admission_digest(admission),
+                "admissionDigest does not match independence admission",
+            )
+            admissions[ref] = admission
+        registry_digest = canonical_sha256(
+            {
+                "registryId": registry_id,
+                "admissions": [admissions[ref] for ref in sorted(admissions)],
+            }
+        )
+        immutable_admissions = {
+            ref: _jcs_text(admission) for ref, admission in admissions.items()
+        }
+        return cls(
+            registry_id,
+            registry_digest,
+            MappingProxyType(immutable_admissions),
+        )
+
+    def resolve(self, admission_ref: str | None) -> dict[str, Any] | None:
+        admission = (
+            self._admissions.get(admission_ref) if admission_ref is not None else None
+        )
+        return json.loads(admission) if admission is not None else None
+
+    @classmethod
+    def from_document(
+        cls, document: dict[str, Any]
+    ) -> "ImmutableReproductionIndependenceRegistry":
+        _require(
+            document.get("schemaVersion") == 1,
+            "independence registry schemaVersion must be 1",
+        )
+        registry = cls.from_records(
+            document.get("registryId"), document.get("admissions", [])
+        )
+        _require(
+            document.get("registryDigest") == registry.registry_digest,
+            "independence registry digest does not match its admissions",
         )
         return registry
 
@@ -478,6 +660,185 @@ def transition_digest(transition: dict[str, Any]) -> str:
     )
 
 
+_TRANSITION_RECORD_FIELDS = {
+    "schemaVersion",
+    "transitionId",
+    "claimId",
+    "fromClaimRef",
+    "toClaimRef",
+    "transitionType",
+    "requestedByRef",
+    "requiredAuthorizationRefs",
+    "authoritySourceRefs",
+    "evidenceRefs",
+    "reason",
+    "recordedAt",
+    "previousTransitionDigest",
+    "transitionRegistryRef",
+    "transitionRegistryDigest",
+    "transitionDigest",
+    "status",
+}
+
+def _validate_transition_record_shape(record: dict[str, Any]) -> None:
+    _require(isinstance(record, dict), "transition registry record must be an object")
+    _require(
+        set(record) == _TRANSITION_RECORD_FIELDS,
+        "transition registry record fields are not exact",
+    )
+    _require(record.get("schemaVersion") == 1, "transition schemaVersion must be 1")
+    _require(_nonempty(record.get("transitionId")), "transitionId is required")
+    _require(_nonempty(record.get("claimId")), "transition claimId is required")
+    _require(record.get("transitionType") in TRANSITION_TYPES, "transitionType is invalid")
+    _require(record.get("status") == "APPLIED", "registry transitions must be applied")
+    _require(_nonempty(record.get("requestedByRef")), "requestedByRef is required")
+    _require(_nonempty(record.get("reason")), "transition reason is required")
+    _require(_valid_timestamp(record.get("recordedAt")), "recordedAt must be strict RFC3339")
+    for field in ("requiredAuthorizationRefs", "authoritySourceRefs", "evidenceRefs"):
+        _require(
+            isinstance(record.get(field), list)
+            and all(_nonempty(item) for item in record[field]),
+            f"{field} must contain only nonempty references",
+        )
+    for ref_name in ("fromClaimRef", "toClaimRef"):
+        ref = record.get(ref_name)
+        _require(isinstance(ref, dict), f"{ref_name} is required")
+        _require(ref.get("claimId") == record.get("claimId"), f"{ref_name} claimId mismatch")
+        _require(
+            isinstance(ref.get("claimVersion"), int)
+            and ref.get("claimVersion") >= 1,
+            f"{ref_name} claimVersion is invalid",
+        )
+        _sha256(ref.get("claimDigest"), f"{ref_name}.claimDigest")
+    _require(
+        record["toClaimRef"]["claimVersion"]
+        == record["fromClaimRef"]["claimVersion"] + 1,
+        "transition claim versions must be consecutive",
+    )
+    previous = record.get("previousTransitionDigest")
+    if previous is not None:
+        _sha256(previous, "previousTransitionDigest")
+    _require(_nonempty(record.get("transitionRegistryRef")), "transitionRegistryRef is required")
+    _sha256(record.get("transitionRegistryDigest"), "transitionRegistryDigest")
+    _sha256(record.get("transitionDigest"), "transitionDigest")
+    _require(
+        transition_digest(record) == record["transitionDigest"],
+        "transitionDigest does not match transition record",
+    )
+
+
+@dataclass(frozen=True)
+class ImmutableClaimTransitionRegistry:
+    """Relying-party supplied append-only claim-transition history."""
+
+    registry_id: str
+    registry_digest: str
+    claim_id: str
+    head_transition_digest: str | None
+    _records: Mapping[str, str]
+
+    @classmethod
+    def from_records(
+        cls,
+        registry_id: str,
+        claim_id: str,
+        records: list[dict[str, Any]],
+    ) -> "ImmutableClaimTransitionRegistry":
+        _require(_nonempty(registry_id), "transition registry id is required")
+        _require(_nonempty(claim_id), "transition registry claimId is required")
+        _require(isinstance(records, list), "transition registry records are required")
+        admitted: dict[str, dict[str, Any]] = {}
+        previous: dict[str, Any] | None = None
+        transition_ids: set[str] = set()
+        for raw in records:
+            record = deepcopy(raw)
+            _validate_transition_record_shape(record)
+            digest = record["transitionDigest"]
+            _require(record["claimId"] == claim_id, "transition registry claimId mismatch")
+            _require(digest not in admitted, "transition digest must be unique")
+            _require(
+                record["transitionId"] not in transition_ids,
+                "transitionId must be unique",
+            )
+            if previous is None:
+                _require(
+                    record["fromClaimRef"]["claimVersion"] == 1
+                    and record["previousTransitionDigest"] is None,
+                    "transition registry must start at claim version 1",
+                )
+            else:
+                _require(
+                    record["previousTransitionDigest"]
+                    == previous["transitionDigest"]
+                    and record["fromClaimRef"] == previous["toClaimRef"],
+                    "transition registry chain is discontinuous",
+                )
+            expected_prior_registry_digest = canonical_sha256(
+                {
+                    "registryId": record["transitionRegistryRef"],
+                    "claimId": claim_id,
+                    "headTransitionDigest": (
+                        previous["transitionDigest"] if previous is not None else None
+                    ),
+                    "transitions": list(admitted.values()),
+                }
+            )
+            _require(
+                record["transitionRegistryDigest"]
+                == expected_prior_registry_digest,
+                "transition does not bind the exact prior registry snapshot",
+            )
+            admitted[digest] = record
+            transition_ids.add(record["transitionId"])
+            previous = record
+        head = previous["transitionDigest"] if previous is not None else None
+        registry_digest = canonical_sha256(
+            {
+                "registryId": registry_id,
+                "claimId": claim_id,
+                "headTransitionDigest": head,
+                "transitions": list(admitted.values()),
+            }
+        )
+        immutable_records = {
+            digest: _jcs_text(record) for digest, record in admitted.items()
+        }
+        return cls(
+            registry_id,
+            registry_digest,
+            claim_id,
+            head,
+            MappingProxyType(immutable_records),
+        )
+
+    def resolve(self, digest: str | None) -> dict[str, Any] | None:
+        record = self._records.get(digest) if digest is not None else None
+        return json.loads(record) if record is not None else None
+
+    @classmethod
+    def from_document(
+        cls, document: dict[str, Any]
+    ) -> "ImmutableClaimTransitionRegistry":
+        _require(
+            document.get("schemaVersion") == 1,
+            "transition registry schemaVersion must be 1",
+        )
+        registry = cls.from_records(
+            document.get("registryId"),
+            document.get("claimId"),
+            document.get("transitions", []),
+        )
+        _require(
+            document.get("headTransitionDigest") == registry.head_transition_digest,
+            "transition registry head does not match its records",
+        )
+        _require(
+            document.get("registryDigest") == registry.registry_digest,
+            "transition registry digest does not match its records",
+        )
+        return registry
+
+
 def _authority_sources(claim: dict[str, Any]) -> dict[str, dict[str, Any]]:
     sources: dict[str, dict[str, Any]] = {}
     for authority in claim.get("currentAuthorities", []):
@@ -583,7 +944,7 @@ def evaluate_claim_use(
     current_directive_version: str | None = None,
     promotion_transition: dict[str, Any] | None = None,
     transition_from_claim: dict[str, Any] | None = None,
-    previous_transition: dict[str, Any] | None = None,
+    transition_registry: ImmutableClaimTransitionRegistry | None = None,
 ) -> dict[str, Any]:
     """Evaluate exact scoped authorizations conjunctively."""
 
@@ -653,7 +1014,7 @@ def evaluate_claim_use(
                 transition_from_claim,
                 claim,
                 authority_registry=authority_registry,
-                previous_transition=previous_transition,
+                transition_registry=transition_registry,
             )
             if not transition_result["valid"]:
                 _append_failure(failures, "TRANSITION_VALIDATION_REQUIRED")
@@ -699,7 +1060,7 @@ def validate_claim_transition(
     to_claim: dict[str, Any],
     *,
     authority_registry: ImmutableAuthoritySourceRegistry,
-    previous_transition: dict[str, Any] | None = None,
+    transition_registry: ImmutableClaimTransitionRegistry,
 ) -> dict[str, Any]:
     validate_claim_record(from_claim)
     validate_claim_record(to_claim)
@@ -707,6 +1068,10 @@ def validate_claim_transition(
     _require(transition.get("schemaVersion") == 1, "transition schemaVersion must be 1")
     _require(transition.get("transitionType") in TRANSITION_TYPES, "transitionType is invalid")
     _require(transition.get("status") in TRANSITION_STATUSES, "transition status is invalid")
+    _require(
+        _valid_timestamp(transition.get("recordedAt")),
+        "transition recordedAt must be strict RFC3339",
+    )
     _sha256(transition.get("transitionDigest"), "transitionDigest")
 
     from_ref = transition.get("fromClaimRef", {})
@@ -727,31 +1092,30 @@ def validate_claim_transition(
         _append_failure(failures, "SUBJECT_BINDING_STALE")
 
     chain_required = from_claim.get("claimVersion", 0) > 1
-    if chain_required and previous_transition is None:
+    trusted_previous: dict[str, Any] | None = None
+    if not isinstance(transition_registry, ImmutableClaimTransitionRegistry):
+        _append_failure(failures, "TRANSITION_REGISTRY_MISSING")
         _append_failure(failures, "TRANSITION_CHAIN_INVALID")
-    if not chain_required and previous_transition is not None:
-        _append_failure(failures, "TRANSITION_CHAIN_INVALID")
-    if previous_transition is not None:
-        previous_digest = previous_transition.get("transitionDigest")
-        previous_from_ref = previous_transition.get("fromClaimRef")
-        previous_to_ref = previous_transition.get("toClaimRef")
-        previous_record_valid = (
-            previous_transition.get("schemaVersion") == 1
-            and previous_transition.get("claimId") == transition.get("claimId")
-            and previous_transition.get("transitionType") in TRANSITION_TYPES
-            and previous_transition.get("status") == "APPLIED"
-            and isinstance(previous_from_ref, dict)
-            and isinstance(previous_to_ref, dict)
-            and previous_to_ref == from_ref
-            and isinstance(previous_digest, str)
-            and len(previous_digest) == 64
-            and transition_digest(previous_transition) == previous_digest
+    else:
+        if (
+            transition.get("transitionRegistryRef") != transition_registry.registry_id
+            or transition.get("transitionRegistryDigest")
+            != transition_registry.registry_digest
+            or transition_registry.claim_id != transition.get("claimId")
+        ):
+            _append_failure(failures, "TRANSITION_REGISTRY_MISSING")
+        trusted_previous = transition_registry.resolve(
+            transition_registry.head_transition_digest
         )
-        if not previous_record_valid:
+        if (
+            transition.get("previousTransitionDigest")
+            != transition_registry.head_transition_digest
+        ):
             _append_failure(failures, "TRANSITION_CHAIN_INVALID")
-        if transition.get("previousTransitionDigest") != previous_digest:
+    if chain_required:
+        if trusted_previous is None or trusted_previous.get("toClaimRef") != from_ref:
             _append_failure(failures, "TRANSITION_CHAIN_INVALID")
-    elif transition.get("previousTransitionDigest") is not None:
+    elif trusted_previous is not None:
         _append_failure(failures, "TRANSITION_CHAIN_INVALID")
     if transition_digest(transition) != transition.get("transitionDigest"):
         _append_failure(failures, "SUBJECT_BINDING_STALE")
@@ -869,6 +1233,7 @@ def evaluate_reproduction(
     current_subject: dict[str, Any],
     actual_method_bytes: bytes,
     actual_result_bytes: bytes,
+    independence_registry: ImmutableReproductionIndependenceRegistry,
 ) -> dict[str, Any]:
     validate_claim_record(claim)
     failures: list[str] = []
@@ -906,6 +1271,34 @@ def evaluate_reproduction(
         and _valid_timestamp(receipt.get("reproducedAt"))
     ):
         _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
+    if not isinstance(
+        independence_registry, ImmutableReproductionIndependenceRegistry
+    ):
+        _append_failure(failures, "INDEPENDENCE_REGISTRY_MISSING")
+        _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
+    elif (
+        receipt.get("independenceRegistryRef") != independence_registry.registry_id
+        or receipt.get("independenceRegistryDigest")
+        != independence_registry.registry_digest
+    ):
+        _append_failure(failures, "INDEPENDENCE_REGISTRY_MISSING")
+        _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
+    else:
+        admission = independence_registry.resolve(
+            receipt.get("independenceAdmissionRef")
+        )
+        if not (
+            admission is not None
+            and receipt.get("independenceAdmissionDigest")
+            == admission.get("admissionDigest")
+            and admission.get("producerEvidenceRef")
+            == receipt.get("producerEvidenceRef")
+            and admission.get("reproducer") == reproducer
+            and admission.get("independenceBasis")
+            == receipt.get("independenceBasis")
+            and admission.get("status") == "ADMITTED"
+        ):
+            _append_failure(failures, "REPRODUCTION_INDEPENDENCE_UNVERIFIED")
     method_digest = _bytes_digest(
         actual_method_bytes, "exact method/procedure UTF-8 bytes"
     )
@@ -953,6 +1346,7 @@ def evaluate_reasoning_surface_receipt(
     receipt: dict[str, Any],
     *,
     required_role: str,
+    required_account_ref: str,
     required_subject_ref: str,
     required_repository_head: str,
     input_payload_bytes: bytes,
@@ -968,6 +1362,10 @@ def evaluate_reasoning_surface_receipt(
     _require(receipt.get("schemaVersion") == 1, "reasoning receipt schemaVersion must be 1")
     _require(receipt.get("assuranceClass") == "OBSERVED_UI_RECEIPT", "assuranceClass must be OBSERVED_UI_RECEIPT")
     _require(required_role in {"PRO", "EXTRA_HIGH"}, "required role is invalid")
+    _require(
+        _valid_account_ref(required_account_ref),
+        "external signed-in account reference is required",
+    )
     _require(_nonempty(required_subject_ref), "external required subject is required")
     _require(_nonempty(required_repository_head), "external repository head is required")
     _require(isinstance(consumption_store, DurableReceiptConsumptionStore), "durable consumption store is required")
@@ -989,10 +1387,13 @@ def evaluate_reasoning_surface_receipt(
     binding = receipt.get("subjectBinding", {})
     if (
         role != required_role
+        or receipt.get("requiredAccountRef") != required_account_ref
         or binding.get("reviewSubjectRef") != required_subject_ref
         or binding.get("boundRepositoryHeads") != [required_repository_head]
     ):
         _append_failure(failures, "REASONING_REQUIREMENT_BINDING_MISMATCH")
+    if receipt.get("requiredAccountRef") != required_account_ref:
+        _append_failure(failures, "REASONING_ACCOUNT_BINDING_MISMATCH")
 
     replay = receipt.get("replayProtection", {})
     nonce = replay.get("admissionNonce")
@@ -1039,14 +1440,19 @@ def evaluate_reasoning_surface_receipt(
                 "transformRef": payload_transform.transform_ref,
                 "description": payload_transform.description,
                 "transformDigest": payload_transform.transform_digest,
+                "transformSpecByteLength": payload_transform.spec_byte_length,
+                "transformSpecBytesDefinition": payload_transform.spec_bytes_definition,
             }
             try:
-                reproduced_submission = payload_transform.apply(input_payload_bytes)
+                first_reproduction = payload_transform.apply(input_payload_bytes)
+                second_reproduction = payload_transform.apply(input_payload_bytes)
             except Exception:
-                reproduced_submission = None
+                first_reproduction = None
+                second_reproduction = None
             transform_valid = (
                 transform == expected_transform
-                and reproduced_submission == submitted_payload_bytes
+                and first_reproduction == submitted_payload_bytes
+                and second_reproduction == submitted_payload_bytes
             )
         if not transform_valid:
             _append_failure(failures, "REASONING_RECEIPT_PAYLOAD_MISMATCH")
@@ -1058,6 +1464,8 @@ def evaluate_reasoning_surface_receipt(
             "transformRef": None,
             "description": None,
             "transformDigest": None,
+            "transformSpecByteLength": None,
+            "transformSpecBytesDefinition": None,
         }
     ):
         _append_failure(failures, "REASONING_RECEIPT_PAYLOAD_MISMATCH")
@@ -1072,8 +1480,15 @@ def evaluate_reasoning_surface_receipt(
         "visibleModePostResponse",
     )
     observations = receipt.get("observations", {})
+    account_observation = observations.get("account", {})
+    if (
+        account_observation.get("requiredValue") != required_account_ref
+        or account_observation.get("observedValue") != required_account_ref
+    ):
+        _append_failure(failures, "REASONING_ACCOUNT_BINDING_MISMATCH")
     canonical_requirements = {
         "surface": "SIGNED_IN_CHATGPT_CHAT",
+        "account": required_account_ref,
         "conversationSession": "SAME_TRANSACTION_SESSION",
         "submittedMessage": "EXACT_BOUND_PAYLOAD",
         "completedResponse": "ONE_COMPLETE_ASSISTANT_RESPONSE",
@@ -1152,6 +1567,7 @@ def admit_supervision_verdict(
     receipt: dict[str, Any],
     *,
     required_role: str,
+    required_account_ref: str,
     required_subject_ref: str,
     required_repository_head: str,
     input_payload_bytes: bytes,
@@ -1164,6 +1580,7 @@ def admit_supervision_verdict(
     receipt_result = evaluate_reasoning_surface_receipt(
         receipt,
         required_role=required_role,
+        required_account_ref=required_account_ref,
         required_subject_ref=required_subject_ref,
         required_repository_head=required_repository_head,
         input_payload_bytes=input_payload_bytes,
@@ -1195,6 +1612,11 @@ def admit_supervision_verdict(
         or verdict.get("reviewRole") != required_role
     ):
         _append_failure(failures, "VERDICT_RECEIPT_BINDING_MISMATCH")
+    if (
+        receipt.get("requiredAccountRef") != required_account_ref
+        or verdict.get("requiredAccountRef") != required_account_ref
+    ):
+        _append_failure(failures, "REASONING_ACCOUNT_BINDING_MISMATCH")
     if verdict.get("scopeKey") != receipt.get("scopeKey") or verdict.get("packetId") != receipt.get("packetId"):
         _append_failure(failures, "VERDICT_RECEIPT_BINDING_MISMATCH")
     if verdict.get("boundSubjectRefs") != [required_subject_ref]:
@@ -1224,6 +1646,7 @@ def admit_supervision_verdict(
         "admissionQuestionDigest": hashlib.sha256(
             admission_question_bytes
         ).hexdigest(),
+        "requiredAccountRef": required_account_ref,
     }
     if not consumption_store.consume(consumption_event):
         return {

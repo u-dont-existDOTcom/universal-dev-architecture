@@ -12,7 +12,9 @@ from scripts.mission_control_provenance import (
     DurableReceiptConsumptionStore,
     ImmutableAuthoritySourceRegistry,
     ImmutableBrowserOwnershipRegistry,
+    ImmutableClaimTransitionRegistry,
     ImmutablePayloadTransform,
+    ImmutableReproductionIndependenceRegistry,
     _jcs_text,
     append_owner_source_correction,
     authority_source_digest,
@@ -25,6 +27,7 @@ from scripts.mission_control_provenance import (
     evaluate_subject_freshness,
     admit_supervision_verdict,
     transition_digest,
+    reproduction_independence_admission_digest,
     validate_claim_transition,
     validate_owner_source_append_only,
 )
@@ -38,6 +41,7 @@ TWO = "2" * 64
 INPUT_BYTES = b"exact source packet"
 RESPONSE_BYTES = b"exact completed response"
 ADMISSION_QUESTION_BYTES = b"accept, revise, or reject this bounded review packet"
+ACCOUNT_REF = "signed-in-account-primary"
 REVIEW_SUBJECT = "supervision-architecture/a40d413-authority-provenance-v1"
 REPOSITORY_HEAD = "u-dont-existDOTcom/universal-dev-architecture@156c42d"
 _TEST_LEDGER_DIR = tempfile.TemporaryDirectory()
@@ -75,6 +79,38 @@ def empty_browser_registry() -> ImmutableBrowserOwnershipRegistry:
     )
 
 
+def empty_transition_registry(claim_id: str) -> ImmutableClaimTransitionRegistry:
+    return ImmutableClaimTransitionRegistry.from_records(
+        f"transition-registry-empty-{claim_id}", claim_id, []
+    )
+
+
+def standard_independence_registry() -> ImmutableReproductionIndependenceRegistry:
+    admission = {
+        "independenceAdmissionRef": "independence-admission-1",
+        "producerEvidenceRef": "producer-evidence",
+        "producer": {
+            "identityRef": "producer-process",
+            "trustDomain": "producer-domain",
+        },
+        "reproducer": {
+            "identityRef": "independent-process",
+            "type": "HUMAN_OR_INDEPENDENT_PROCESS",
+            "trustDomain": "independent-domain",
+        },
+        "independenceBasis": "Separate deterministic process",
+        "admittedByRef": "relying-party-validator",
+        "status": "ADMITTED",
+        "admissionDigest": ZERO,
+    }
+    admission["admissionDigest"] = reproduction_independence_admission_digest(
+        admission
+    )
+    return ImmutableReproductionIndependenceRegistry.from_records(
+        "independence-registry-v1", [admission]
+    )
+
+
 def new_consumption_store() -> DurableReceiptConsumptionStore:
     ledger = Path(_TEST_LEDGER_DIR.name) / f"{uuid4().hex}.jsonl"
     return DurableReceiptConsumptionStore(ledger)
@@ -84,6 +120,7 @@ def reasoning_kwargs(
     *,
     store: DurableReceiptConsumptionStore | None = None,
     required_role: str = "PRO",
+    required_account_ref: str = ACCOUNT_REF,
     required_subject_ref: str = REVIEW_SUBJECT,
     required_repository_head: str = REPOSITORY_HEAD,
     input_bytes: bytes = INPUT_BYTES,
@@ -94,6 +131,7 @@ def reasoning_kwargs(
 ) -> dict:
     return {
         "required_role": required_role,
+        "required_account_ref": required_account_ref,
         "required_subject_ref": required_subject_ref,
         "required_repository_head": required_repository_head,
         "input_payload_bytes": input_bytes,
@@ -244,7 +282,12 @@ def promoted_claim(from_claim: dict) -> dict:
     return result
 
 
-def make_transition(from_claim: dict, to_claim: dict) -> dict:
+def make_transition(
+    from_claim: dict,
+    to_claim: dict,
+    transition_registry: ImmutableClaimTransitionRegistry | None = None,
+) -> dict:
+    registry = transition_registry or empty_transition_registry(from_claim["claimId"])
     transition = {
         "schemaVersion": 1,
         "transitionId": "transition-1",
@@ -267,6 +310,8 @@ def make_transition(from_claim: dict, to_claim: dict) -> dict:
         "reason": "Owner explicitly promoted the criterion.",
         "recordedAt": "2026-09-01T00:00:00Z",
         "previousTransitionDigest": None,
+        "transitionRegistryRef": registry.registry_id,
+        "transitionRegistryDigest": registry.registry_digest,
         "transitionDigest": ZERO,
         "status": "APPLIED",
     }
@@ -274,9 +319,51 @@ def make_transition(from_claim: dict, to_claim: dict) -> dict:
     return transition
 
 
+def make_three_version_transition_chain() -> tuple[
+    dict,
+    dict,
+    dict,
+    dict,
+    ImmutableAuthoritySourceRegistry,
+    ImmutableClaimTransitionRegistry,
+]:
+    version_one = make_claim()
+    version_two = deepcopy(version_one)
+    version_two["claimVersion"] = 2
+    version_two["supersedesClaimRef"] = f"{version_one['claimId']}@1"
+    bind_claim_registry(version_two)
+    refresh_claim_digest(version_two)
+    version_three = promoted_claim(version_two)
+    registry = make_authority_registry_from_claim(version_three)
+    prior = make_transition(version_one, version_two)
+    prior["transitionType"] = "DERIVED"
+    prior["transitionDigest"] = transition_digest(prior)
+    transition_registry = ImmutableClaimTransitionRegistry.from_records(
+        "transition-registry-version-two",
+        version_one["claimId"],
+        [prior],
+    )
+    current = make_transition(version_two, version_three, transition_registry)
+    current["previousTransitionDigest"] = transition_registry.head_transition_digest
+    current["transitionDigest"] = transition_digest(current)
+    return (
+        version_two,
+        version_three,
+        prior,
+        current,
+        registry,
+        transition_registry,
+    )
+
+
 def make_reproduction(claim: dict, *, synthetic: bool = False) -> dict:
     method = "count exact production records"
     result_bytes = _jcs_text(claim["claimValue"]).encode("utf-8")
+    independence_registry = standard_independence_registry()
+    independence_admission = independence_registry.resolve(
+        "independence-admission-1"
+    )
+    assert independence_admission is not None
     return {
         "schemaVersion": 1,
         "reproductionReceiptId": "reproduction-1",
@@ -287,6 +374,10 @@ def make_reproduction(claim: dict, *, synthetic: bool = False) -> dict:
         },
         "subjectRef": deepcopy(claim["subjectRef"]),
         "producerEvidenceRef": "producer-evidence",
+        "independenceRegistryRef": independence_registry.registry_id,
+        "independenceRegistryDigest": independence_registry.registry_digest,
+        "independenceAdmissionRef": "independence-admission-1",
+        "independenceAdmissionDigest": independence_admission["admissionDigest"],
         "reproducer": {
             "identityRef": "independent-process",
             "type": "HUMAN_OR_INDEPENDENT_PROCESS",
@@ -320,6 +411,7 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
             "scopeKey": "scope-1",
             "packetId": "packet-1",
             "requiredReviewerRole": "PRO",
+            "requiredAccountRef": ACCOUNT_REF,
         }
     )
     receipt["conversation"]["conversationSessionId"] = "session-1"
@@ -343,7 +435,7 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
     receipt["replayProtection"]["admissionNonce"] = "nonce-1"
     values = {
         "surface": "SIGNED_IN_CHATGPT_CHAT",
-        "account": receipt["observations"]["account"]["requiredValue"],
+        "account": ACCOUNT_REF,
         "visibleModePreSubmission": observed_mode,
         "conversationSession": "SAME_TRANSACTION_SESSION",
         "submittedMessage": "EXACT_BOUND_PAYLOAD",
@@ -352,6 +444,7 @@ def make_reasoning_receipt(*, required_mode: str = "Pro", observed_mode: str = "
     }
     receipt["observations"]["visibleModePreSubmission"]["requiredValue"] = required_mode
     receipt["observations"]["visibleModePostResponse"]["requiredValue"] = required_mode
+    receipt["observations"]["account"]["requiredValue"] = ACCOUNT_REF
     for name, observation in receipt["observations"].items():
         observation.update(
             {
@@ -380,6 +473,7 @@ def make_verdict(receipt: dict, *, response_digest: str | None = None) -> dict:
             "scopeKey": receipt["scopeKey"],
             "packetId": receipt["packetId"],
             "reviewRole": receipt["requiredReviewerRole"],
+            "requiredAccountRef": ACCOUNT_REF,
             "reasoningSurfaceReceiptRef": receipt["receiptId"],
             "boundSubjectRefs": [REVIEW_SUBJECT],
         }
@@ -425,6 +519,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
             authority_registry=registry,
             promotion_transition=transition,
             transition_from_claim=fact,
+            transition_registry=empty_transition_registry(fact["claimId"]),
         )
         self.assertTrue(result["allowed"])
 
@@ -464,7 +559,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         fact = make_claim()
         policy = promoted_claim(fact)
         transition = make_transition(fact, policy)
-        self.assertTrue(validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["valid"])
+        self.assertTrue(validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy), transition_registry=empty_transition_registry(fact["claimId"]))["valid"])
 
     def test_artifact_23_remains_descriptive_only(self) -> None:
         claim = make_claim(23)
@@ -494,17 +589,17 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         policy["currentAuthorities"] = deepcopy(fact["currentAuthorities"])
         refresh_claim_digest(policy)
         transition = make_transition(fact, policy)
-        self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["failureCodes"])
+        self.assertIn("UNAUTHORIZED_CLAIM_PROMOTION", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy), transition_registry=empty_transition_registry(fact["claimId"]))["failureCodes"])
 
     def test_reproduction_verifies_fact_but_never_promotes_policy(self) -> None:
         claim = make_claim()
-        result = evaluate_reproduction(make_reproduction(claim), claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"))
+        result = evaluate_reproduction(make_reproduction(claim), claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"), independence_registry=standard_independence_registry())
         self.assertTrue(result["verifiedFact"])
         self.assertFalse(result["policyPromoted"])
 
     def test_synthetic_fixture_cannot_satisfy_production_reproduction(self) -> None:
         claim = make_claim()
-        result = evaluate_reproduction(make_reproduction(claim, synthetic=True), claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"))
+        result = evaluate_reproduction(make_reproduction(claim, synthetic=True), claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"), independence_registry=standard_independence_registry())
         self.assertIn("PRODUCTION_REPRODUCTION_MISSING", result["failureCodes"])
 
     def test_subject_commit_change_marks_claim_stale(self) -> None:
@@ -534,7 +629,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         policy = promoted_claim(fact)
         transition = make_transition(fact, policy)
         transition["reason"] = "mutated after digest"
-        self.assertIn("SUBJECT_BINDING_STALE", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy))["failureCodes"])
+        self.assertIn("SUBJECT_BINDING_STALE", validate_claim_transition(transition, fact, policy, authority_registry=make_authority_registry_from_claim(policy), transition_registry=empty_transition_registry(fact["claimId"]))["failureCodes"])
 
     def test_transition_chain_requires_valid_prior_record_and_exact_claim_link(self) -> None:
         version_one = make_claim()
@@ -551,21 +646,30 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
         prior["transitionDigest"] = transition_digest(prior)
         current = make_transition(version_two, version_three)
 
+        empty_registry = empty_transition_registry(version_two["claimId"])
         missing = validate_claim_transition(
-            current, version_two, version_three, authority_registry=registry
-        )
-        self.assertIn("TRANSITION_CHAIN_INVALID", missing["failureCodes"])
-
-        fabricated = validate_claim_transition(
             current,
             version_two,
             version_three,
             authority_registry=registry,
-            previous_transition={"transitionDigest": "a" * 64},
+            transition_registry=empty_registry,
         )
-        self.assertIn("TRANSITION_CHAIN_INVALID", fabricated["failureCodes"])
+        self.assertIn("TRANSITION_CHAIN_INVALID", missing["failureCodes"])
 
-        current["previousTransitionDigest"] = prior["transitionDigest"]
+        trusted_registry = ImmutableClaimTransitionRegistry.from_records(
+            "transition-registry-version-two", version_two["claimId"], [prior]
+        )
+        unbound_registry = validate_claim_transition(
+            current,
+            version_two,
+            version_three,
+            authority_registry=registry,
+            transition_registry=trusted_registry,
+        )
+        self.assertIn("TRANSITION_REGISTRY_MISSING", unbound_registry["failureCodes"])
+
+        current = make_transition(version_two, version_three, trusted_registry)
+        current["previousTransitionDigest"] = trusted_registry.head_transition_digest
         current["transitionDigest"] = transition_digest(current)
         self.assertTrue(
             validate_claim_transition(
@@ -573,7 +677,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
                 version_two,
                 version_three,
                 authority_registry=registry,
-                previous_transition=prior,
+                transition_registry=trusted_registry,
             )["valid"]
         )
 
@@ -617,6 +721,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
             current_subject=deepcopy(claim["subjectRef"]),
             actual_method_bytes=b"different method",
             actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=standard_independence_registry(),
         )
         self.assertIn("REPRODUCTION_BYTES_MISMATCH", wrong_method["failureCodes"])
         claim["reproductionReceiptRefs"] = []
@@ -628,6 +733,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
             current_subject=deepcopy(claim["subjectRef"]),
             actual_method_bytes=b"count exact production records",
             actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=standard_independence_registry(),
         )
         self.assertIn("REPRODUCTION_RECEIPT_UNBOUND", unbound["failureCodes"])
 
@@ -649,6 +755,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
                     current_subject=deepcopy(claim["subjectRef"]),
                     actual_method_bytes=b"count exact production records",
                     actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                    independence_registry=standard_independence_registry(),
                 )
                 self.assertIn(
                     "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
@@ -664,6 +771,7 @@ class ClaimAuthorityProvenanceTests(unittest.TestCase):
                     current_subject=deepcopy(claim["subjectRef"]),
                     actual_method_bytes=b"count exact production records",
                     actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                    independence_registry=standard_independence_registry(),
                 )
                 self.assertIn(
                     "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
@@ -766,6 +874,8 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
             "transformRef": "magic-transform",
             "description": "magic",
             "transformDigest": hashlib.sha256(submitted).hexdigest(),
+            "transformSpecByteLength": len(submitted),
+            "transformSpecBytesDefinition": "untrusted ad hoc bytes",
         }
         result = evaluate_reasoning(receipt, submitted_payload_bytes=submitted)
         self.assertIn("REASONING_RECEIPT_PAYLOAD_MISMATCH", result["failureCodes"])
@@ -773,8 +883,9 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
     def test_external_transform_is_executed_and_bound(self) -> None:
         transform = ImmutablePayloadTransform(
             "append-review-question-v1",
-            "append the bounded review question",
-            lambda value: value + b"\nreview",
+            _jcs_text(
+                {"type": "UTF8_APPEND_LITERAL_V1", "suffixUtf8": "\nreview"}
+            ).encode("utf-8"),
         )
         submitted = transform.apply(INPUT_BYTES)
         receipt = make_reasoning_receipt()
@@ -789,6 +900,8 @@ class ReasoningSurfaceReceiptTests(unittest.TestCase):
             "transformRef": transform.transform_ref,
             "description": transform.description,
             "transformDigest": transform.transform_digest,
+            "transformSpecByteLength": transform.spec_byte_length,
+            "transformSpecBytesDefinition": transform.spec_bytes_definition,
         }
         self.assertTrue(
             evaluate_reasoning(
@@ -1030,12 +1143,221 @@ class ProvenanceSchemaAndFixtureTests(unittest.TestCase):
     def test_all_schemas_templates_incidents_and_hostile_fixtures_validate(self) -> None:
         findings = validate_repository(ROOT)
         self.assertGreaterEqual(len(findings), 17)
-        self.assertTrue(any("claim-authority-provenance-hostile.json:14-executed" in finding for finding in findings))
-        self.assertTrue(any("reasoning-surface-receipt-hostile.json:20-executed" in finding for finding in findings))
+        self.assertTrue(any("claim-authority-provenance-hostile.json:18-executed" in finding for finding in findings))
+        self.assertTrue(any("reasoning-surface-receipt-hostile.json:25-executed" in finding for finding in findings))
         self.assertTrue(any("browser-operation-hostile.json:10-executed" in finding for finding in findings))
 
 
 class IndependentReviewBlockerRegressionTests(unittest.TestCase):
+    def test_same_process_reproduction_cannot_self_assert_independence(self) -> None:
+        claim = make_claim()
+        receipt = make_reproduction(claim)
+        receipt["producerEvidenceRef"] = "same-process"
+        receipt["reproducer"].update(
+            {"identityRef": "same-process", "trustDomain": "same-process"}
+        )
+        receipt["independenceBasis"] = "not independent; same producer and process"
+        result = evaluate_reproduction(
+            receipt,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"count exact production records",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=standard_independence_registry(),
+        )
+        self.assertFalse(result["valid"])
+
+    def test_stateful_ad_hoc_payload_transform_is_rejected(self) -> None:
+        class StatefulTransform:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def __call__(self, value: bytes) -> bytes:
+                self.calls += 1
+                return value + b"\nreview" if self.calls == 1 else b"different"
+
+        with self.assertRaises(TypeError):
+            ImmutablePayloadTransform(
+                "stateful-transform", "stateful ad hoc callable", StatefulTransform()
+            )
+
+    def test_anonymous_account_cannot_self_select_signed_in_requirement(self) -> None:
+        receipt = make_reasoning_receipt()
+        receipt["requiredAccountRef"] = "ANONYMOUS_OR_UNKNOWN"
+        receipt["observations"]["account"].update(
+            {
+                "requiredValue": "ANONYMOUS_OR_UNKNOWN",
+                "observedValue": "ANONYMOUS_OR_UNKNOWN",
+            }
+        )
+        result = evaluate_reasoning(receipt)
+        self.assertFalse(result["valid"])
+        self.assertIn("REASONING_ACCOUNT_BINDING_MISMATCH", result["failureCodes"])
+        with self.assertRaises(ValueError):
+            evaluate_reasoning(
+                make_reasoning_receipt(),
+                required_account_ref="ANONYMOUS_OR_UNKNOWN",
+            )
+
+    def test_verdict_cannot_change_external_signed_in_account(self) -> None:
+        receipt = make_reasoning_receipt()
+        verdict = make_verdict(receipt)
+        verdict["requiredAccountRef"] = "different-signed-in-account"
+        result = admit_reasoning(verdict, receipt)
+        self.assertFalse(result["admitted"])
+        self.assertIn("REASONING_ACCOUNT_BINDING_MISMATCH", result["failureCodes"])
+
+    def test_reproduction_receipt_binds_external_admission_digest(self) -> None:
+        claim = make_claim()
+        receipt = make_reproduction(claim)
+        receipt["independenceAdmissionDigest"] = "f" * 64
+        result = evaluate_reproduction(
+            receipt,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"count exact production records",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=standard_independence_registry(),
+        )
+        self.assertFalse(result["valid"])
+        self.assertIn(
+            "REPRODUCTION_INDEPENDENCE_UNVERIFIED", result["failureCodes"]
+        )
+
+    def test_independence_registry_rejects_same_actor_domain_or_process_basis(self) -> None:
+        registry = standard_independence_registry()
+        admitted = registry.resolve("independence-admission-1")
+        self.assertIsNotNone(admitted)
+        mutations = (
+            ("same-identity", lambda value: value["reproducer"].update(
+                {"identityRef": value["producer"]["identityRef"]}
+            )),
+            ("same-domain", lambda value: value["reproducer"].update(
+                {"trustDomain": value["producer"]["trustDomain"]}
+            )),
+            ("same-process-basis", lambda value: value.update(
+                {"independenceBasis": "not independent; same producer and process"}
+            )),
+        )
+        for label, mutate in mutations:
+            with self.subTest(label=label):
+                candidate = deepcopy(admitted)
+                mutate(candidate)
+                candidate["admissionDigest"] = (
+                    reproduction_independence_admission_digest(candidate)
+                )
+                with self.assertRaises(ValueError):
+                    ImmutableReproductionIndependenceRegistry.from_records(
+                        f"invalid-{label}", [candidate]
+                    )
+
+    def test_complete_caller_fabricated_predecessor_is_not_trusted_history(self) -> None:
+        from_claim, to_claim, prior, current, authority_registry, transition_registry = (
+            make_three_version_transition_chain()
+        )
+        fabricated = deepcopy(prior)
+        fabricated["transitionId"] = "fabricated-transition"
+        fabricated["reason"] = "caller-manufactured history"
+        fabricated["transitionDigest"] = transition_digest(fabricated)
+        current["previousTransitionDigest"] = fabricated["transitionDigest"]
+        current["transitionDigest"] = transition_digest(current)
+        result = validate_claim_transition(
+            current,
+            from_claim,
+            to_claim,
+            authority_registry=authority_registry,
+            transition_registry=transition_registry,
+        )
+        self.assertFalse(result["valid"])
+
+    def test_transition_registry_validates_each_prior_snapshot_digest(self) -> None:
+        _, _, prior, _, _, _ = make_three_version_transition_chain()
+        fabricated = deepcopy(prior)
+        fabricated["transitionRegistryDigest"] = "f" * 64
+        fabricated["transitionDigest"] = transition_digest(fabricated)
+        with self.assertRaises(ValueError):
+            ImmutableClaimTransitionRegistry.from_records(
+                "registry-with-fabricated-prior-snapshot",
+                fabricated["claimId"],
+                [fabricated],
+            )
+
+    def test_claim_use_rejects_caller_fabricated_transition_history(self) -> None:
+        from_claim, to_claim, prior, current, authority_registry, transition_registry = (
+            make_three_version_transition_chain()
+        )
+        fabricated = deepcopy(prior)
+        fabricated["transitionId"] = "fabricated-transition"
+        fabricated["reason"] = "caller-manufactured history"
+        fabricated["transitionDigest"] = transition_digest(fabricated)
+        current["previousTransitionDigest"] = fabricated["transitionDigest"]
+        current["transitionDigest"] = transition_digest(current)
+        result = evaluate_claim_use(
+            to_claim,
+            "PROMOTE_TO_POLICY",
+            authority_registry=authority_registry,
+            promotion_transition=current,
+            transition_from_claim=from_claim,
+            transition_registry=transition_registry,
+        )
+        self.assertFalse(result["allowed"])
+
+    def test_non_rfc3339_observation_timestamp_variants_fail_closed(self) -> None:
+        invalid_timestamps = (
+            "2026-W36-2T00:00:00+00:00",
+            "2026-244T00:00:00+00:00",
+            "2026-09-01 00:00:00+00:00",
+            "2026-09-01T00:00:00",
+        )
+        for timestamp in invalid_timestamps:
+            with self.subTest(timestamp=timestamp):
+                receipt = make_reasoning_receipt()
+                receipt["observations"]["account"]["observedAt"] = timestamp
+                result = evaluate_reasoning(receipt)
+                self.assertFalse(result["valid"])
+                self.assertIn(
+                    "REASONING_OBSERVATION_EVIDENCE_INVALID",
+                    result["failureCodes"],
+                )
+        for timestamp in (
+            "2026-09-01T00:00:00Z",
+            "2026-09-01T01:02:03.456+01:00",
+        ):
+            with self.subTest(valid_timestamp=timestamp):
+                receipt = make_reasoning_receipt()
+                receipt["observations"]["account"]["observedAt"] = timestamp
+                self.assertTrue(evaluate_reasoning(receipt)["valid"])
+
+    def test_transition_and_reproduction_reject_iso_week_dates(self) -> None:
+        from_claim, to_claim, _, current, authority_registry, transition_registry = (
+            make_three_version_transition_chain()
+        )
+        current["recordedAt"] = "2026-W36-2T00:00:00+00:00"
+        current["transitionDigest"] = transition_digest(current)
+        with self.assertRaises(ValueError):
+            validate_claim_transition(
+                current,
+                from_claim,
+                to_claim,
+                authority_registry=authority_registry,
+                transition_registry=transition_registry,
+            )
+
+        claim = make_claim()
+        reproduction = make_reproduction(claim)
+        reproduction["reproducedAt"] = "2026-W36-2T00:00:00+00:00"
+        result = evaluate_reproduction(
+            reproduction,
+            claim,
+            current_subject=deepcopy(claim["subjectRef"]),
+            actual_method_bytes=b"count exact production records",
+            actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=standard_independence_registry(),
+        )
+        self.assertIn(
+            "REPRODUCTION_INDEPENDENCE_UNVERIFIED", result["failureCodes"]
+        )
+
     def test_sanitized_response_digest_binds_exact_external_artifact_slice(self) -> None:
         receipt = json.loads(
             (
@@ -1135,6 +1457,7 @@ class IndependentReviewBlockerRegressionTests(unittest.TestCase):
             current_subject=deepcopy(claim["subjectRef"]),
             actual_method_bytes=b"count exact production records",
             actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+            independence_registry=standard_independence_registry(),
         )
         self.assertFalse(result["valid"])
         self.assertIn("PRODUCTION_REPRODUCTION_MISSING", result["failureCodes"])

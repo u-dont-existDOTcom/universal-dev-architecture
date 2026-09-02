@@ -1597,17 +1597,21 @@ It must not:
 ### 25.4 Model-surface recording
 
 Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json` for current browser
-evidence. Bind the signed-in surface and account, exact visible mode before
+evidence. Bind the signed-in surface and externally supplied canonical,
+non-anonymous account reference, exact visible mode before
 submission, transaction and conversation session, exact submitted payload, one
 completed response and response digest, and exact visible mode afterward.
-Each verified observation needs a nonempty evidence reference and valid
-timezone-bearing observation time. The relying party supplies exact
-admission-question bytes and executes any declared input-to-submission
-transform; a transform description and output hash alone are insufficient.
+Each verified observation needs a nonempty evidence reference and strict
+RFC3339 timezone-bearing observation time. The relying party supplies exact
+admission-question bytes and exact canonical declarative transform-spec bytes;
+the evaluator's fixed implementation must reproduce the submitted bytes twice.
+A transform description, output hash, arbitrary callable, or stateful callable
+is insufficient.
 Then bind the admission-question and response digests and single-use receipt to
 `templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
 `templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.
-Admission receives the required role, subject, repository head, exact
+Admission receives the required role, signed-in account reference, subject,
+repository head, exact
 input/submitted/admission-question/response bytes, and any executable transform
 from the relying party; receipt-authored values cannot
 select their own requirement.

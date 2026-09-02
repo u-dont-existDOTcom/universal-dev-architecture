@@ -7,6 +7,7 @@
   "scopeKey": "replace-with-scope-key",
   "packetId": "replace-with-packet-id",
   "requiredReviewerRole": "PRO",
+  "requiredAccountRef": "replace-with-required-signed-in-account-ref",
   "requirementSourceRef": "replace-with-requirement-source-ref",
   "subjectBinding": {
     "reviewSubjectRef": "replace-with-external-review-subject-ref",
@@ -32,7 +33,9 @@
       "type": "NONE",
       "transformRef": null,
       "description": null,
-      "transformDigest": null
+      "transformDigest": null,
+      "transformSpecByteLength": null,
+      "transformSpecBytesDefinition": null
     },
     "admissionQuestionDigest": {
       "algorithm": "sha256",
@@ -48,7 +51,7 @@
   },
   "observations": {
     "surface": {"requiredValue": "SIGNED_IN_CHATGPT_CHAT", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
-    "account": {"requiredValue": "replace-with-required-account-alias-or-visible-label", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
+    "account": {"requiredValue": "replace-with-required-signed-in-account-ref", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
     "visibleModePreSubmission": {"requiredValue": "Pro", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
     "conversationSession": {"requiredValue": "SAME_TRANSACTION_SESSION", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},
     "submittedMessage": {"requiredValue": "EXACT_BOUND_PAYLOAD", "observedValue": null, "status": "MISSING", "evidenceRef": null, "evidenceSourceType": null, "observedAt": null, "binding": {"transactionId": null, "conversationSessionId": null}},

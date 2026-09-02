@@ -376,27 +376,36 @@ authorization conjunctively, and preserves the artifact-derived fact as a
 separate descriptive claim. Corrections append new owner sources and
 transitions; they never rewrite an existing exact owner-source block.
 The use evaluator accepts promotion only after validating the complete
-transition against its from/to claims, canonical digest, prior-transition
-chain, and external authority registry. When the from-claim version is greater
-than one, the prior transition record is mandatory: its own canonical digest
-must validate, its `toClaimRef` must equal the current `fromClaimRef` exactly,
-and the current `previousTransitionDigest` must equal that validated record.
-A digest-shaped caller assertion is not a prior transition. A caller-supplied
+transition against its from/to claims, canonical digest, external authority
+registry, and a separately supplied immutable
+`templates/CLAIM-TRANSITION-REGISTRY.json`. The transition binds the registry
+identity and digest. Its `previousTransitionDigest` must equal the registry's
+trusted head, that exact predecessor must be a registry member, and its
+`toClaimRef` must equal the current `fromClaimRef`. The registry validates the
+full append-only chain from claim version one. A digest-consistent record
+manufactured by the claimant or caller is not trusted history, even when every
+field is schema-complete. A caller-supplied
 `{"transitionType":"PROMOTED"}` object has no authorization weight.
 
 ### 7.3 Subject-bound reproduction
 
 Independent reproduction uses
 `templates/CLAIM-REPRODUCTION-RECEIPT.json`. Bind the claim version and digest,
-exact repository commit or other subject, producer evidence, independent trust
-domain, exact method bytes and digest, exact canonical result value/bytes and
-digest, claim-listed receipt reference, freshness, and synthetic/production
-status. `reproductionRequirement` on the claim is authoritative; callers
+exact repository commit or other subject, producer evidence, exact method bytes
+and digest, exact canonical result value/bytes and digest, claim-listed receipt
+reference, freshness, and synthetic/production status. Bind the receipt to a
+separately supplied immutable
+`templates/REPRODUCTION-INDEPENDENCE-REGISTRY.json`: its admission identifies
+distinct producer/reproducer identities and trust domains, an independent
+reproducer type, the exact evidence and basis, and a distinct relying-party
+admitter. The registry and admission digests are immutable inputs rather than
+receipt-authored proof. `reproductionRequirement` on the claim is authoritative; callers
 cannot disable it with an optional evaluation flag. Synthetic fixtures can
 validate a mechanism but cannot satisfy a production reproduction requirement.
 The evaluator validates the required producer-evidence reference, independent
 reproducer identity/type/trust domain, independence basis, method reference,
-and timezone-bound reproduction timestamp; absent or empty fields fail closed.
+and strict RFC3339 timezone-bound reproduction timestamp; absent, self-
+contradictory, same-producer/process, or registry-unbound evidence fails closed.
 
 Reproduction establishes only the artifact fact. `promotesAuthority` is always
 `false`; policy promotion requires its own qualifying authority source and
@@ -411,7 +420,8 @@ Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`; do not use a
 reasoning-surface attestation template for browser evidence and never claim
 cryptographic platform attestation.
 
-The relying party supplies the required reviewer role, review subject,
+The relying party supplies the required reviewer role, canonical non-anonymous
+signed-in account reference, review subject,
 repository head, exact input bytes, exact submitted bytes, admission-question
 bytes, and exact response bytes independently of the receipt. The receipt independently binds those
 requirements plus packet and input digests, exact submitted-visible payload or a declared reproducible transform,
@@ -423,10 +433,14 @@ mode equality is required: a Pro-plan account does not prove visible Pro mode,
 and visible Extra High does not satisfy Pro.
 
 A declared payload transform is not proved by a description and output hash.
-The relying party supplies an immutable transform descriptor and executable;
-admission executes it over the exact input bytes and requires its output to
-equal the exact submitted bytes. Every `VERIFIED` UI observation also requires
-a nonempty evidence reference and valid timezone-bearing observation time.
+The relying party supplies exact canonical declarative transform-spec bytes.
+The evaluator supports only named fixed implementations, binds the spec digest
+and byte definition, executes the transform repeatedly over the exact input,
+and requires both results to equal the exact submitted bytes. Arbitrary or
+stateful callables have no admission path. Every `VERIFIED` UI observation also
+requires a nonempty evidence reference and strict RFC3339 timezone-bearing
+observation time; ISO week/ordinal dates and a space in place of `T` fail
+closed.
 
 Agent and subagent names, task names, role labels, branch names, worktree paths,
 process names, environment variables, prompt requests, packet-author claims,
@@ -438,8 +452,9 @@ Receipts are single-use through an append-only, durable consumption ledger; an
 optional in-memory list of prior receipts is not replay protection. Bind the exact completed response to
 `templates/SUPERVISION-VERDICT-ADMISSION.json`. The verdict cannot become
 authoritative unless the receipt is `VERIFIED_COMPLETE`, unused, same-session,
-payload-matched, and its response and admission-question digests exactly match
-the verdict record. The durable consumption event binds both digests.
+payload-matched, account-matched, and its response and admission-question
+digests exactly match the verdict record. The durable consumption event binds
+the externally required account and both digests.
 Only `admissionState: ADMITTED` permits `authoritative: true`.
 
 Executable reference controls are in

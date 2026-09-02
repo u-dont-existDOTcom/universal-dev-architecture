@@ -14,6 +14,10 @@
     "digest": {"sha256": null}
   },
   "producerEvidenceRef": "replace-with-producer-evidence-ref",
+  "independenceRegistryRef": "replace-with-external-independence-registry-ref",
+  "independenceRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "independenceAdmissionRef": "replace-with-independence-admission-ref",
+  "independenceAdmissionDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "reproducer": {
     "identityRef": "replace-with-independent-reproducer-ref",
     "type": "HUMAN_OR_INDEPENDENT_PROCESS",

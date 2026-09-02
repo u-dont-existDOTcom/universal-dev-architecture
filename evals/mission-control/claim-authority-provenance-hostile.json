@@ -17,6 +17,10 @@
     {"id": "reproduction-receipt-unbound", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_RECEIPT_UNBOUND"},
     {"id": "transition-fabricated-prior", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
     {"id": "transition-required-prior-missing", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
-    {"id": "reproduction-independence-missing", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_INDEPENDENCE_UNVERIFIED"}
+    {"id": "reproduction-independence-missing", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_INDEPENDENCE_UNVERIFIED"},
+    {"id": "complete-predecessor-not-in-trusted-registry", "evaluator": "validate_claim_transition", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
+    {"id": "claim-use-predecessor-not-in-trusted-registry", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "TRANSITION_CHAIN_INVALID"},
+    {"id": "reproduction-self-asserted-same-process", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "REPRODUCTION_INDEPENDENCE_UNVERIFIED"},
+    {"id": "reproduction-independence-registry-tamper", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "INDEPENDENCE_REGISTRY_MISSING"}
   ]
 }

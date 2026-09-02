@@ -23,6 +23,11 @@
     {"id": "admission-question-verdict-tampered", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "ADMISSION_QUESTION_BINDING_MISMATCH"},
     {"id": "declared-transform-unreproduced", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
     {"id": "verified-observation-empty-evidence-ref", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
-    {"id": "verified-observation-invalid-observed-at", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"}
+    {"id": "verified-observation-invalid-observed-at", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "verified-observation-week-date", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "verified-observation-ordinal-date", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "verified-observation-space-date", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "anonymous-account-self-selected", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_ACCOUNT_BINDING_MISMATCH"},
+    {"id": "verdict-account-mismatch", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "REASONING_ACCOUNT_BINDING_MISMATCH"}
   ]
 }

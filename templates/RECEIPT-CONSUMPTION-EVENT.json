@@ -4,5 +4,6 @@
   "transactionId": "replace-with-transaction-id",
   "verdictId": "replace-with-verdict-id",
   "responseDigest": "0000000000000000000000000000000000000000000000000000000000000000",
-  "admissionQuestionDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+  "admissionQuestionDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "requiredAccountRef": "replace-with-required-signed-in-account-ref"
 }

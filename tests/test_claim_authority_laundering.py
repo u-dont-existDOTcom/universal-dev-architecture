@@ -47,6 +47,8 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "PRODUCTION_REPRODUCTION_MISSING",
                 "DEFINITIVE_RENDERING_REJECTED",
                 "AUTHORITY_REGISTRY_MISSING",
+                "TRANSITION_REGISTRY_MISSING",
+                "INDEPENDENCE_REGISTRY_MISSING",
                 "AUTHORITY_SOURCE_UNREGISTERED",
                 "TRANSITION_VALIDATION_REQUIRED",
                 "TRANSITION_CHAIN_INVALID",
@@ -54,6 +56,12 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
                 "REPRODUCTION_RECEIPT_UNBOUND",
                 "REPRODUCTION_INDEPENDENCE_UNVERIFIED",
             },
+        )
+        self.assertTrue(template["claimTransitionRegistryRef"])
+        self.assertRegex(template["claimTransitionRegistryDigest"], r"^[0-9a-f]{64}$")
+        self.assertTrue(template["reproductionIndependenceRegistryRef"])
+        self.assertRegex(
+            template["reproductionIndependenceRegistryDigest"], r"^[0-9a-f]{64}$"
         )
 
         claim = template["claimRegistry"][0]

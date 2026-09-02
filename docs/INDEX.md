@@ -30,6 +30,15 @@ Reserve Pro especially for therapy-answer semantics, AskRigor methodological/con
 
 Before preserving an existing task contract, acceptance criterion, checkpoint, or completion boundary, recover the original owner request independently and compare the downstream contract directly against it. A derived contract may refine or decompose the owner outcome but may not weaken, omit, replace, or terminally bypass it without an explicit owner decision. Every reasoning checkpoint and packet must carry the owner-source receipt, owner-outcome identity, current gap, objective-reconciliation record, alignment states, typed completion claim, outcome-progress receipt, strategy state, active execution directive, and reviewed evidence boundary.
 
+For load-bearing authority provenance, use external immutable authority,
+claim-transition, and reproduction-independence registries. A transition's
+predecessor must be the exact trusted registry head, and reproduction identity
+or independence cannot be self-asserted by the receipt. Reasoning admission
+receives its non-anonymous signed-in account requirement externally, accepts
+only strict RFC3339 observation times, and reproduces any payload change from
+canonical declarative transform-spec bytes with an evaluator-owned fixed
+implementation.
+
 Keep these states separate:
 
 ```text
@@ -84,7 +93,9 @@ Machine-readable supervision templates:
 - `../templates/AUTHORITY-SOURCE-REGISTRY.json`
 - `../templates/CLAIM-RECORD.json`
 - `../templates/CLAIM-TRANSITION.json`
+- `../templates/CLAIM-TRANSITION-REGISTRY.json`
 - `../templates/CLAIM-REPRODUCTION-RECEIPT.json`
+- `../templates/REPRODUCTION-INDEPENDENCE-REGISTRY.json`
 - `../templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`
 - `../templates/SUPERVISION-VERDICT-ADMISSION.json`
 - `../templates/RECEIPT-CONSUMPTION-EVENT.json`

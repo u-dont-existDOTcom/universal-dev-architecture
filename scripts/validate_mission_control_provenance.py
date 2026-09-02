@@ -21,6 +21,8 @@ try:
         DurableReceiptConsumptionStore,
         ImmutableAuthoritySourceRegistry,
         ImmutableBrowserOwnershipRegistry,
+        ImmutableClaimTransitionRegistry,
+        ImmutableReproductionIndependenceRegistry,
         REASONING_FAILURE_CODES,
         _jcs_text,
         authority_source_digest,
@@ -32,6 +34,7 @@ try:
         evaluate_subject_freshness,
         admit_supervision_verdict,
         parse_all_json,
+        reproduction_independence_admission_digest,
         validate_claim_record,
         validate_claim_transition,
         transition_digest,
@@ -43,6 +46,8 @@ except ModuleNotFoundError:  # Direct script execution places scripts/ on sys.pa
         DurableReceiptConsumptionStore,
         ImmutableAuthoritySourceRegistry,
         ImmutableBrowserOwnershipRegistry,
+        ImmutableClaimTransitionRegistry,
+        ImmutableReproductionIndependenceRegistry,
         REASONING_FAILURE_CODES,
         _jcs_text,
         authority_source_digest,
@@ -54,6 +59,7 @@ except ModuleNotFoundError:  # Direct script execution places scripts/ on sys.pa
         evaluate_subject_freshness,
         admit_supervision_verdict,
         parse_all_json,
+        reproduction_independence_admission_digest,
         validate_claim_record,
         validate_claim_transition,
         transition_digest,
@@ -211,6 +217,18 @@ def validate_instance(
             path=path,
         )
         return
+    if "not" in schema:
+        try:
+            validate_instance(
+                instance,
+                schema["not"],
+                root_schema=root_schema,
+                path=path,
+            )
+        except SchemaError:
+            pass
+        else:
+            raise SchemaError(f"{path}: value matches forbidden schema")
     for branch in schema.get("allOf", []):
         validate_instance(instance, branch, root_schema=root_schema, path=path)
     if "if" in schema:
@@ -282,6 +300,8 @@ def validate_instance(
 SCHEMA_TEMPLATE_PAIRS = {
     "authority-source-registry.schema.json": "AUTHORITY-SOURCE-REGISTRY.json",
     "browser-ownership-registry.schema.json": "BROWSER-OWNERSHIP-REGISTRY.json",
+    "claim-transition-registry.schema.json": "CLAIM-TRANSITION-REGISTRY.json",
+    "reproduction-independence-registry.schema.json": "REPRODUCTION-INDEPENDENCE-REGISTRY.json",
     "receipt-consumption-event.schema.json": "RECEIPT-CONSUMPTION-EVENT.json",
     "claim-record.schema.json": "CLAIM-RECORD.json",
     "claim-transition.schema.json": "CLAIM-TRANSITION.json",
@@ -295,6 +315,7 @@ SCHEMA_TEMPLATE_PAIRS = {
 _FIXTURE_INPUT = b"fixture source packet"
 _FIXTURE_RESPONSE = b"fixture completed response"
 _FIXTURE_ADMISSION_QUESTION = b"accept, revise, or reject this fixture packet"
+_FIXTURE_ACCOUNT = "fixture-signed-in-account"
 _FIXTURE_SUBJECT = "supervision-architecture/a40d413-authority-provenance-v1"
 _FIXTURE_HEAD = "u-dont-existDOTcom/universal-dev-architecture@fixture-head"
 
@@ -403,9 +424,41 @@ def _fixture_claim(
     return claim, registry
 
 
+def _fixture_independence_registry() -> ImmutableReproductionIndependenceRegistry:
+    admission = {
+        "independenceAdmissionRef": "fixture-independence-admission",
+        "producerEvidenceRef": "fixture-producer",
+        "producer": {
+            "identityRef": "fixture-production-process",
+            "trustDomain": "fixture-production-domain",
+        },
+        "reproducer": {
+            "identityRef": "fixture-independent-process",
+            "type": "HUMAN_OR_INDEPENDENT_PROCESS",
+            "trustDomain": "fixture-independent-domain",
+        },
+        "independenceBasis": "Separate fixture process",
+        "admittedByRef": "fixture-relying-party-validator",
+        "status": "ADMITTED",
+        "admissionDigest": "0" * 64,
+    }
+    admission["admissionDigest"] = reproduction_independence_admission_digest(
+        admission
+    )
+    return ImmutableReproductionIndependenceRegistry.from_records(
+        "fixture-independence-registry-v1", [admission]
+    )
+
+
 def _fixture_reproduction(claim: dict[str, Any], *, synthetic: bool) -> dict[str, Any]:
     method = b"count exact production records"
     result = _jcs_text(claim["claimValue"]).encode("utf-8")
+    independence_registry = _fixture_independence_registry()
+    independence_admission = independence_registry.resolve(
+        "fixture-independence-admission"
+    )
+    if independence_admission is None:
+        raise SchemaError("fixture independence admission is missing")
     return {
         "schemaVersion": 1,
         "reproductionReceiptId": "fixture-reproduction",
@@ -416,6 +469,10 @@ def _fixture_reproduction(claim: dict[str, Any], *, synthetic: bool) -> dict[str
         },
         "subjectRef": deepcopy(claim["subjectRef"]),
         "producerEvidenceRef": "fixture-producer",
+        "independenceRegistryRef": independence_registry.registry_id,
+        "independenceRegistryDigest": independence_registry.registry_digest,
+        "independenceAdmissionRef": "fixture-independence-admission",
+        "independenceAdmissionDigest": independence_admission["admissionDigest"],
         "reproducer": {
             "identityRef": "fixture-independent-process",
             "type": "HUMAN_OR_INDEPENDENT_PROCESS",
@@ -445,6 +502,7 @@ def _fixture_transition_chain() -> tuple[
     dict[str, Any],
     dict[str, Any],
     ImmutableAuthoritySourceRegistry,
+    ImmutableClaimTransitionRegistry,
 ]:
     version_one, _ = _fixture_claim()
     version_two = deepcopy(version_one)
@@ -494,11 +552,16 @@ def _fixture_transition_chain() -> tuple[
         ).encode("utf-8")
     )
 
+    empty_registry = ImmutableClaimTransitionRegistry.from_records(
+        "fixture-transition-registry-empty", "fixture-claim", []
+    )
+
     def make_record(
         transition_id: str,
         from_claim: dict[str, Any],
         to_claim: dict[str, Any],
         transition_type: str,
+        transition_registry: ImmutableClaimTransitionRegistry,
     ) -> dict[str, Any]:
         record = {
             "schemaVersion": 1,
@@ -521,16 +584,29 @@ def _fixture_transition_chain() -> tuple[
             "evidenceRefs": [],
             "reason": "Fixture transition",
             "recordedAt": "2026-09-01T00:00:00Z",
-            "previousTransitionDigest": None,
+            "previousTransitionDigest": transition_registry.head_transition_digest,
+            "transitionRegistryRef": transition_registry.registry_id,
+            "transitionRegistryDigest": transition_registry.registry_digest,
             "transitionDigest": "0" * 64,
             "status": "APPLIED",
         }
         record["transitionDigest"] = transition_digest(record)
         return record
 
-    prior = make_record("fixture-transition-1", version_one, version_two, "DERIVED")
-    current = make_record("fixture-transition-2", version_two, version_three, "PROMOTED")
-    return version_two, version_three, prior, current, registry
+    prior = make_record(
+        "fixture-transition-1", version_one, version_two, "DERIVED", empty_registry
+    )
+    transition_registry = ImmutableClaimTransitionRegistry.from_records(
+        "fixture-transition-registry-v1", "fixture-claim", [prior]
+    )
+    current = make_record(
+        "fixture-transition-2",
+        version_two,
+        version_three,
+        "PROMOTED",
+        transition_registry,
+    )
+    return version_two, version_three, prior, current, registry, transition_registry
 
 
 def _fixture_reasoning_receipt(root: Path) -> dict[str, Any]:
@@ -547,8 +623,10 @@ def _fixture_reasoning_receipt(root: Path) -> dict[str, Any]:
             "scopeKey": _FIXTURE_SUBJECT,
             "packetId": "fixture-packet",
             "requiredReviewerRole": "PRO",
+            "requiredAccountRef": _FIXTURE_ACCOUNT,
         }
     )
+    receipt["observations"]["account"]["requiredValue"] = _FIXTURE_ACCOUNT
     receipt["subjectBinding"]["reviewSubjectRef"] = _FIXTURE_SUBJECT
     receipt["subjectBinding"]["boundRepositoryHeads"] = [_FIXTURE_HEAD]
     input_descriptor = {
@@ -599,6 +677,7 @@ def _fixture_reasoning_receipt(root: Path) -> dict[str, Any]:
 def _fixture_reasoning_kwargs(store: DurableReceiptConsumptionStore) -> dict[str, Any]:
     return {
         "required_role": "PRO",
+        "required_account_ref": _FIXTURE_ACCOUNT,
         "required_subject_ref": _FIXTURE_SUBJECT,
         "required_repository_head": _FIXTURE_HEAD,
         "input_payload_bytes": _FIXTURE_INPUT,
@@ -622,6 +701,7 @@ def _fixture_verdict(root: Path, receipt: dict[str, Any]) -> dict[str, Any]:
             "scopeKey": receipt["scopeKey"],
             "packetId": receipt["packetId"],
             "reviewRole": "PRO",
+            "requiredAccountRef": _FIXTURE_ACCOUNT,
             "reasoningSurfaceReceiptRef": receipt["receiptId"],
             "boundSubjectRefs": [_FIXTURE_SUBJECT],
         }
@@ -699,7 +779,14 @@ def execute_hostile_scenario(
         if scenario_id == "synthetic-reproduction-not-production":
             claim, _ = _fixture_claim()
             receipt = _fixture_reproduction(claim, synthetic=True)
-            return evaluate_reproduction(receipt, claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"))
+            return evaluate_reproduction(
+                receipt,
+                claim,
+                current_subject=deepcopy(claim["subjectRef"]),
+                actual_method_bytes=b"count exact production records",
+                actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                independence_registry=_fixture_independence_registry(),
+            )
         if scenario_id == "subject-commit-changed":
             claim, _ = _fixture_claim()
             changed = deepcopy(claim["subjectRef"])
@@ -733,23 +820,58 @@ def execute_hostile_scenario(
                 claim["claimDigest"]["byteLength"] = len(_jcs_text(semantics).encode("utf-8"))
                 receipt["claimRef"]["claimDigest"] = claim["claimDigest"]["value"]
                 result_bytes = _jcs_text(claim["claimValue"]).encode("utf-8")
-            return evaluate_reproduction(receipt, claim, current_subject=deepcopy(claim["subjectRef"]), actual_method_bytes=b"count exact production records", actual_result_bytes=result_bytes)
+            return evaluate_reproduction(
+                receipt,
+                claim,
+                current_subject=deepcopy(claim["subjectRef"]),
+                actual_method_bytes=b"count exact production records",
+                actual_result_bytes=result_bytes,
+                independence_registry=_fixture_independence_registry(),
+            )
         if scenario_id in {
             "transition-fabricated-prior",
             "transition-required-prior-missing",
+            "complete-predecessor-not-in-trusted-registry",
         }:
-            from_claim, to_claim, _, current, registry = _fixture_transition_chain()
-            previous = (
-                {"transitionDigest": "a" * 64}
-                if scenario_id == "transition-fabricated-prior"
-                else None
+            from_claim, to_claim, prior, current, registry, transition_registry = (
+                _fixture_transition_chain()
             )
+            if scenario_id in {
+                "transition-fabricated-prior",
+                "complete-predecessor-not-in-trusted-registry",
+            }:
+                fabricated = deepcopy(prior)
+                fabricated["transitionId"] = "caller-fabricated-predecessor"
+                fabricated["reason"] = "Caller-manufactured complete history"
+                fabricated["transitionDigest"] = transition_digest(fabricated)
+                current["previousTransitionDigest"] = fabricated["transitionDigest"]
+            else:
+                current["previousTransitionDigest"] = None
+            current["transitionDigest"] = transition_digest(current)
             return validate_claim_transition(
                 current,
                 from_claim,
                 to_claim,
                 authority_registry=registry,
-                previous_transition=previous,
+                transition_registry=transition_registry,
+            )
+        if scenario_id == "claim-use-predecessor-not-in-trusted-registry":
+            from_claim, to_claim, prior, current, registry, transition_registry = (
+                _fixture_transition_chain()
+            )
+            fabricated = deepcopy(prior)
+            fabricated["transitionId"] = "caller-fabricated-claim-use-predecessor"
+            fabricated["reason"] = "Caller-manufactured claim-use history"
+            fabricated["transitionDigest"] = transition_digest(fabricated)
+            current["previousTransitionDigest"] = fabricated["transitionDigest"]
+            current["transitionDigest"] = transition_digest(current)
+            return evaluate_claim_use(
+                to_claim,
+                "PROMOTE_TO_POLICY",
+                authority_registry=registry,
+                promotion_transition=current,
+                transition_from_claim=from_claim,
+                transition_registry=transition_registry,
             )
         if scenario_id == "reproduction-independence-missing":
             claim, _ = _fixture_claim()
@@ -761,6 +883,39 @@ def execute_hostile_scenario(
                 current_subject=deepcopy(claim["subjectRef"]),
                 actual_method_bytes=b"count exact production records",
                 actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                independence_registry=_fixture_independence_registry(),
+            )
+        if scenario_id == "reproduction-self-asserted-same-process":
+            claim, _ = _fixture_claim()
+            receipt = _fixture_reproduction(claim, synthetic=False)
+            receipt["reproducer"].update(
+                {
+                    "identityRef": "fixture-production-process",
+                    "trustDomain": "fixture-production-domain",
+                }
+            )
+            receipt["independenceBasis"] = (
+                "not independent; same producer and process"
+            )
+            return evaluate_reproduction(
+                receipt,
+                claim,
+                current_subject=deepcopy(claim["subjectRef"]),
+                actual_method_bytes=b"count exact production records",
+                actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                independence_registry=_fixture_independence_registry(),
+            )
+        if scenario_id == "reproduction-independence-registry-tamper":
+            claim, _ = _fixture_claim()
+            receipt = _fixture_reproduction(claim, synthetic=False)
+            receipt["independenceRegistryDigest"] = "f" * 64
+            return evaluate_reproduction(
+                receipt,
+                claim,
+                current_subject=deepcopy(claim["subjectRef"]),
+                actual_method_bytes=b"count exact production records",
+                actual_result_bytes=_jcs_text(claim["claimValue"]).encode("utf-8"),
+                independence_registry=_fixture_independence_registry(),
             )
 
     if fixture_id == "reasoning-surface-receipt-hostile":
@@ -829,12 +984,38 @@ def execute_hostile_scenario(
                 "transformRef": "magic-transform",
                 "description": "magic",
                 "transformDigest": hashlib.sha256(submitted).hexdigest(),
+                "transformSpecByteLength": len(submitted),
+                "transformSpecBytesDefinition": "caller-selected opaque bytes",
             }
             kwargs["submitted_payload_bytes"] = submitted
         elif scenario_id == "verified-observation-empty-evidence-ref":
             receipt["observations"]["account"]["evidenceRef"] = ""
         elif scenario_id == "verified-observation-invalid-observed-at":
             receipt["observations"]["completedResponse"]["observedAt"] = "not-a-time"
+        elif scenario_id == "verified-observation-week-date":
+            receipt["observations"]["completedResponse"]["observedAt"] = (
+                "2026-W36-2T00:00:00+00:00"
+            )
+        elif scenario_id == "verified-observation-ordinal-date":
+            receipt["observations"]["completedResponse"]["observedAt"] = (
+                "2026-244T00:00:00+00:00"
+            )
+        elif scenario_id == "verified-observation-space-date":
+            receipt["observations"]["completedResponse"]["observedAt"] = (
+                "2026-09-01 00:00:00+00:00"
+            )
+        elif scenario_id == "anonymous-account-self-selected":
+            receipt["requiredAccountRef"] = "ANONYMOUS_OR_UNKNOWN"
+            receipt["observations"]["account"].update(
+                {
+                    "requiredValue": "ANONYMOUS_OR_UNKNOWN",
+                    "observedValue": "ANONYMOUS_OR_UNKNOWN",
+                }
+            )
+        elif scenario_id == "verdict-account-mismatch":
+            verdict = _fixture_verdict(root, receipt)
+            verdict["requiredAccountRef"] = "some-other-signed-in-account"
+            return admit_supervision_verdict(verdict, receipt, **kwargs)
         return evaluate_reasoning_surface_receipt(receipt, **kwargs)
 
     if fixture_id == "browser-operation-hostile":
@@ -910,6 +1091,20 @@ def validate_repository(
     ImmutableAuthoritySourceRegistry.from_document(authority_registry_document)
     browser_registry_document = json.loads((root / "templates" / "BROWSER-OWNERSHIP-REGISTRY.json").read_text(encoding="utf-8"))
     ImmutableBrowserOwnershipRegistry.from_document(browser_registry_document)
+    transition_registry_document = json.loads(
+        (root / "templates" / "CLAIM-TRANSITION-REGISTRY.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    ImmutableClaimTransitionRegistry.from_document(transition_registry_document)
+    independence_registry_document = json.loads(
+        (root / "templates" / "REPRODUCTION-INDEPENDENCE-REGISTRY.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    ImmutableReproductionIndependenceRegistry.from_document(
+        independence_registry_document
+    )
     findings.append("template-instantiation:immutable-registries:PASS")
 
     with tempfile.TemporaryDirectory() as temporary:
@@ -918,6 +1113,7 @@ def validate_repository(
         reasoning_result = evaluate_reasoning_surface_receipt(
             reasoning,
             required_role="PRO",
+            required_account_ref=reasoning["requiredAccountRef"],
             required_subject_ref=reasoning["subjectBinding"]["reviewSubjectRef"],
             required_repository_head=reasoning["subjectBinding"]["boundRepositoryHeads"][0],
             input_payload_bytes=b"",

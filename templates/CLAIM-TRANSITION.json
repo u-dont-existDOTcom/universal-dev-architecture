@@ -21,6 +21,8 @@
   "reason": "Replace with the exact authorized transition reason",
   "recordedAt": "1970-01-01T00:00:00Z",
   "previousTransitionDigest": null,
+  "transitionRegistryRef": "replace-with-external-transition-registry-ref",
+  "transitionRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "transitionDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "status": "APPLIED"
 }

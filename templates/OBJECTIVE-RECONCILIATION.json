@@ -93,7 +93,11 @@
     }
   ],
   "claimTransitions": [],
+  "claimTransitionRegistryRef": "replace-with-external-transition-registry-ref",
+  "claimTransitionRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "reproductionReceipts": [],
+  "reproductionIndependenceRegistryRef": "replace-with-external-independence-registry-ref",
+  "reproductionIndependenceRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "claimAuthorityPolicy": {
     "authorityClasses": [
       "OWNER_EXPLICIT",
@@ -131,6 +135,8 @@
       "PRODUCTION_REPRODUCTION_MISSING",
       "DEFINITIVE_RENDERING_REJECTED",
       "AUTHORITY_REGISTRY_MISSING",
+      "TRANSITION_REGISTRY_MISSING",
+      "INDEPENDENCE_REGISTRY_MISSING",
       "AUTHORITY_SOURCE_UNREGISTERED",
       "TRANSITION_VALIDATION_REQUIRED",
       "TRANSITION_CHAIN_INVALID",
