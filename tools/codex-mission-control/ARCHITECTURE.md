@@ -79,7 +79,24 @@ escalated:  Extra High read -> same-chat Pro reason -> same-chat Extra High exac
 
 The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation-complete controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
 
-Every configured supervisor chat fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are registered with passed capability-test receipts. Every canonical decision receipt binds the request ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale or mismatched GitHub receipts do not enter the ledger.
+Every configured supervisor chat fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current capability-test receipts. Every canonical decision receipt binds the request ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale or mismatched GitHub receipts do not enter the ledger.
+
+### Bounded Extra High recovery
+
+A generic mission-guard `CONTINUE` verdict remains forbidden. Separately, the browser relay may use the exact one-word prompt `continue` as a non-semantic same-chat recovery nudge when an already-authorized Extra High receipt-writing turn appears stuck.
+
+The recovery rule is deliberately narrow:
+
+- only `EXTRA_HIGH_DIRECT` and `EXTRA_HIGH_WRITER` qualify because they have an objective expected durable GitHub decision receipt;
+- the original generation must have completed and the receipt must still be absent after the recovery grace period;
+- the relay stays in the same registered chat and exact Extra High UI label;
+- at most one automatic `continue` nudge is permitted for that logical step;
+- the recovery turn gets ordinary no-content STARTED/COMPLETE transport receipts;
+- a failed or ambiguous nudge is never automatically replayed;
+- after the nudge is exhausted, the route waits/fails closed rather than looping;
+- Pro never receives the generic nudge, and the nudge cannot bypass owner, admission, spend/access, release, safety, or ambiguity gates.
+
+Thus `continue` is transport recovery for an existing Chat objective, not semantic authorization for Work/Codex or a new Mission Control execution cycle.
 
 ## Chat and Work governance
 
