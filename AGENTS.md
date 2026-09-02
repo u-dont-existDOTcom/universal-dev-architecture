@@ -62,6 +62,18 @@ When multiple safe in-scope execution approaches achieve the same outcome, choos
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
 
+## Chat / Work execution routing
+
+Follow `patterns/chat-work-execution-routing-threshold.md`.
+
+**Chat owns reasoning and ordinary GitHub work. Work/Codex is an execution surface, not a preferred reasoning surface.** Do not hand work off merely because Work would help, because the task mentions GitHub, because Work has GitHub/terminal tools, or because the repository is large.
+
+Keep in Chat when Chat can safely perform the next bounded action, including architecture, strategy, methodology, prioritization, supervisory judgment, owner-intent interpretation, substantive prose, ordinary GitHub reads/writes, issue/PR updates, bounded GitHub file edits, and code/diff review.
+
+Use Work/Codex only when the next bounded action materially requires terminal/local filesystem/SSH/browser/computer execution, local builds/tests/runtime inspection, deployment mechanics, or a genuinely long-range stateful repository operation. For mixed tasks, Chat reasons first, authors the exact execution directive and stop boundary, Work/Codex executes only that residue, and Chat reviews the receipt and decides the next consequential step.
+
+GitHub access by itself is not a reason to delegate. Work/Codex must not author methodology, project strategy, prioritization, supervisory verdicts, owner decisions, scientific/safety conclusions, or substantive supervisory prose.
+
 ## Browser-control efficiency
 
 For browser automation or browser control, default to **headless mode**. Use a headed/visible browser only when the task materially depends on visible browser or OS interaction, headed-only behavior, extension UI, native dialogs, window/focus behavior, WebAuthn/passkeys, visual debugging, or another capability that cannot be reproduced reliably headlessly. When deviating from headless mode, preserve the reason in the task record when one exists.
@@ -74,7 +86,7 @@ Create a fresh page/context/session only when there is a concrete need for isola
 
 In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.
 
-On first use in a response—or again after a topic shift when the referent could be unclear—state the plain-language object or function first and put the identifier second, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78`. When several identifiers are involved, explain their substantive relationship in ordinary language instead of presenting a bare chain such as `PR #35 → PR #78`.
+On first use in a response—or again after a topic shift when the referent could be unclear—state the plain-language object or function first and put the identifier in parentheses, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78`. When several identifiers are involved, explain their substantive relationship in ordinary language instead of presenting a bare chain such as `PR #35 → PR #78`.
 
 When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
 
