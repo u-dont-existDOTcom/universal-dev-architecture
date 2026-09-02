@@ -77,26 +77,26 @@ escalated:  Extra High read -> same-chat Pro reason -> same-chat Extra High exac
                                       -> periodic GitHub polling if the webhook was missed
 ```
 
-The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation-complete controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
+The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
 
 Every configured supervisor chat fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current capability-test receipts. Every canonical decision receipt binds the request ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale or mismatched GitHub receipts do not enter the ledger.
 
-### Bounded Extra High recovery
+### Model-agnostic stuck-chat recovery
 
-A generic mission-guard `CONTINUE` verdict remains forbidden. Separately, the browser relay may use the exact one-word prompt `continue` as a non-semantic same-chat recovery nudge when an already-authorized Extra High receipt-writing turn appears stuck.
+A generic mission-guard `CONTINUE` verdict remains forbidden. Separately, the browser relay may send the exact one-word prompt `continue` as **non-semantic transport recovery** for any already-authorized supervisor turn that is observably stuck, regardless of whether the current model is Extra High or Pro and regardless of whether the registered conversation is a Project Manager or specialist chat.
 
-The recovery rule is deliberately narrow:
+The browser has two no-content stuck signals:
 
-- only `EXTRA_HIGH_DIRECT` and `EXTRA_HIGH_WRITER` qualify because they have an objective expected durable GitHub decision receipt;
-- the original generation must have completed and the receipt must still be absent after the recovery grace period;
-- the relay stays in the same registered chat and exact Extra High UI label;
-- at most one automatic `continue` nudge is permitted for that logical step;
-- the recovery turn gets ordinary no-content STARTED/COMPLETE transport receipts;
-- a failed or ambiguous nudge is never automatically replayed;
-- after the nudge is exhausted, the route waits/fails closed rather than looping;
-- Pro never receives the generic nudge, and the nudge cannot bypass owner, admission, spend/access, release, safety, or ambiguity gates.
+- **active generation timeout:** the generation UI remains active for the full configured generation timeout (15 minutes by default). The relay invokes the visible Stop-generation control, waits for a safe idle composer, sends `continue` in the same conversation/current model, then resumes waiting;
+- **recoverable idle control:** after the composer returns idle, a visible button/control is exactly labeled `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`. The relay sends `continue` in the same conversation/current model instead of treating the turn as semantically complete.
 
-Thus `continue` is transport recovery for an existing Chat objective, not semantic authorization for Work/Codex or a new Mission Control execution cycle.
+The detector uses only composer/generation/recovery controls; it never searches assistant response text. Consecutive transport recoveries are capped (`MC_RELAY_STUCK_RECOVERY_MAX_NUDGES`, default 3, maximum 20), a failed or ambiguous recovery is not automatically replayed, and recovery cannot bypass owner, admission, spend/access, release, safety, or ambiguity gates.
+
+The final Extra High receipt-writing steps retain a second objective signal: if their UI turn finishes but the required canonical GitHub decision receipt remains absent, the same-chat state machine can issue its bounded missing-receipt `continue` fallback.
+
+A visually normal idle turn with no recovery control still does **not** prove semantic stage completion. Mission Control therefore treats browser `GENERATION_COMPLETE` as transport evidence only. Intermediate reasoning stages need explicit durable stage-completion/continue-required receipts to close that remaining liveness gap without assistant-output extraction.
+
+Thus every `continue` described here resumes an existing admitted Chat objective; it is never semantic authorization for Work/Codex or a new Mission Control execution cycle.
 
 ## Chat and Work governance
 
