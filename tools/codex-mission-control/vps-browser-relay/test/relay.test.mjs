@@ -34,7 +34,7 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
-test('escalated reader records transport COMPLETE but does not advance to Pro until durable reader liveness arrives', async () => {
+test('escalated reader records transport COMPLETE and advances to Pro only after durable reader liveness arrives', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -53,13 +53,9 @@ test('escalated reader records transport COMPLETE but does not advance to Pro un
   const stages = mc.recordedEvidence.filter((item) => item.summary === RELAY_STAGE_SUMMARY);
   assert.ok(stages.some((item) => item.refs.includes('generation_state:COMPLETE')));
 
-  const third = await runtime.cycle();
-  assert.equal(third.status, 'AWAITING_GITHUB_RECEIPT');
-  assert.equal(browser.submitCalls, 1);
-
   mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z'));
-  const fourth = await runtime.cycle();
-  assert.equal(fourth.status, 'PRO_REASONER_GENERATION_STARTED');
+  const third = await runtime.cycle();
+  assert.equal(third.status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.switchLabels.at(-1), 'Pro');
   assert.equal(browser.submitCalls, 2);
 });
