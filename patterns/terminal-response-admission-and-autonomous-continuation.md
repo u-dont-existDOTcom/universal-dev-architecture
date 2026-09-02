@@ -81,7 +81,7 @@ requiredNextAction:<durably derived next action>
 
 A `409` means the worker must not emit a terminal handoff. It must execute or route the returned safe next action within existing authority.
 
-The gate reuses the canonical Mission Control terminal comparator rather than creating a second completion model. It additionally checks current READY/IN_PROGRESS queue work, durable checkpoint next steps, structured blocker ownership/workarounds, recoverable wait conditions, and whether a required reasoning-review stop has actually been routed.
+The gate reuses the canonical Mission Control terminal comparator rather than creating a second completion model. It additionally checks current READY/IN_PROGRESS queue work, durable checkpoint next steps, structured blocker ownership/workarounds, recoverable wait conditions, whether a required reasoning-review route is newer than the stop/blocker it claims to satisfy, and whether an owner-decision pause is backed by the authoritative Mission Control owner-obligation projection rather than merely a worker-authored `needsOwner` assertion.
 
 ## Legitimate pause semantics
 
@@ -91,7 +91,7 @@ Use precise semantics:
 - `ALLOW_OWNER_CANCELLATION` — current owner authority canceled the outcome.
 - `ALLOW_OWNER_DECISION_PAUSE` — a current owner obligation exists and no independent safe work remains.
 - `ALLOW_EXTERNAL_BLOCKED_PAUSE` — a genuine external blocker prevents all remaining authorized work, with no workaround.
-- `ALLOW_REASONING_HANDOFF_PAUSE` — the current bounded execution turn stopped for reasoning and the exact factual handoff is already durably routed.
+- `ALLOW_REASONING_HANDOFF_PAUSE` — the current bounded execution turn stopped for reasoning and the exact factual handoff is already durably routed after the current stop receipt.
 
 All pause states except root close/cancellation leave the root task open.
 
@@ -105,6 +105,7 @@ REJECT_RECOVERABLE_WAIT_TERMINALIZATION
 REJECT_UNROUTED_REASONING_STOP
 REJECT_SELF_OWNED_BLOCKER
 REJECT_BLOCKER_WITH_WORKAROUND
+REJECT_OWNER_DECISION_AUTHORITY_MISSING
 REJECT_UNVERIFIED_BLOCKED_STATE
 REJECT_TERMINAL_PROOF_MISSING
 ```
