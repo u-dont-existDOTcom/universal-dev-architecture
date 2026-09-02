@@ -13,6 +13,7 @@
     "supervision:admit": "tsx scripts/check-supervision-admission.ts",
     "supervision:admit:runtime": "node scripts/require-supervision-admission.mjs",
     "worker:poll": "node scripts/run-worker-adapter.mjs",
+    "worker:finalize:check": "node scripts/require-final-response-admission.mjs",
     "worker:verify-live": "node scripts/verify-live-worker-acceptance.mjs",
     "queue:advance-experiments": "node scripts/advance-experiment-queue.mjs",
     "auth:verify-live": "node scripts/verify-owner-auth-live.mjs",
