@@ -1149,9 +1149,9 @@ class ProvenanceSchemaAndFixtureTests(unittest.TestCase):
     def test_all_schemas_templates_incidents_and_hostile_fixtures_validate(self) -> None:
         findings = validate_repository(ROOT)
         self.assertGreaterEqual(len(findings), 17)
-        self.assertTrue(any("claim-authority-provenance-hostile.json:23-executed" in finding for finding in findings))
-        self.assertTrue(any("reasoning-surface-receipt-hostile.json:27-executed" in finding for finding in findings))
-        self.assertTrue(any("browser-operation-hostile.json:11-executed" in finding for finding in findings))
+        self.assertTrue(any("claim-authority-provenance-hostile.json:25-executed" in finding for finding in findings))
+        self.assertTrue(any("reasoning-surface-receipt-hostile.json:31-executed" in finding for finding in findings))
+        self.assertTrue(any("browser-operation-hostile.json:12-executed" in finding for finding in findings))
 
 
 class IndependentReviewBlockerRegressionTests(unittest.TestCase):
@@ -1339,7 +1339,7 @@ class IndependentReviewBlockerRegressionTests(unittest.TestCase):
                 {"apply": lambda self, value: b"unrelated-submitted-bytes"},
             )
 
-    def test_schema_validator_rejects_invalid_calendar_dates_in_all_three_receipts(
+    def test_schema_validator_rejects_invalid_calendar_dates_in_all_fields(
         self,
     ) -> None:
         cases = (
@@ -1357,6 +1357,36 @@ class IndependentReviewBlockerRegressionTests(unittest.TestCase):
                 "reasoning-surface-observation-receipt.schema.json",
                 "REASONING-SURFACE-OBSERVATION-RECEIPT.json",
                 ("observations", "surface", "observedAt"),
+            ),
+            (
+                "reasoning-surface-observation-receipt.schema.json",
+                "REASONING-SURFACE-OBSERVATION-RECEIPT.json",
+                ("observedAt",),
+            ),
+            (
+                "claim-record.schema.json",
+                "CLAIM-RECORD.json",
+                ("createdAt",),
+            ),
+            (
+                "claim-record.schema.json",
+                "CLAIM-RECORD.json",
+                ("expiresAt",),
+            ),
+            (
+                "browser-operation-receipt.schema.json",
+                "BROWSER-OPERATION-RECEIPT.json",
+                ("recordedAt",),
+            ),
+            (
+                "supervision-verdict-admission.schema.json",
+                "SUPERVISION-VERDICT-ADMISSION.json",
+                ("issuedAt",),
+            ),
+            (
+                "supervision-verdict-admission.schema.json",
+                "SUPERVISION-VERDICT-ADMISSION.json",
+                ("admittedAt",),
             ),
         )
         for schema_name, template_name, path in cases:
@@ -1379,6 +1409,97 @@ class IndependentReviewBlockerRegressionTests(unittest.TestCase):
                     )
                 with self.assertRaises(SchemaError):
                     validate_instance(instance, schema, root_schema=schema)
+
+        registry_schema = json.loads(
+            (
+                ROOT / "schemas" / "claim-transition-registry.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        registry_instance = load_template("CLAIM-TRANSITION-REGISTRY.json")
+        nested_transition = load_template("CLAIM-TRANSITION.json")
+        nested_transition.pop("$schema")
+        nested_transition["recordedAt"] = "2026-02-30T00:00:00Z"
+        registry_instance["transitions"] = [nested_transition]
+        with self.assertRaises(SchemaError):
+            validate_instance(
+                registry_instance,
+                registry_schema,
+                root_schema=registry_schema,
+            )
+
+    def test_claim_runtime_rejects_invalid_created_and_expiry_dates(self) -> None:
+        for field in ("createdAt", "expiresAt"):
+            with self.subTest(field=field):
+                claim = make_claim()
+                registry = bind_claim_registry(claim)
+                claim[field] = "2026-02-30T00:00:00Z"
+                refresh_claim_digest(claim)
+                with self.assertRaises(ValueError):
+                    evaluate_claim_use(
+                        claim, "ASSERT_FACT", authority_registry=registry
+                    )
+
+    def test_reasoning_runtime_rejects_top_level_and_nonverified_bad_dates(
+        self,
+    ) -> None:
+        top_level = make_reasoning_receipt()
+        top_level["observedAt"] = "2026-02-30T00:00:00Z"
+        top_result = evaluate_reasoning(top_level)
+        self.assertFalse(top_result["valid"])
+        self.assertIn(
+            "REASONING_OBSERVATION_EVIDENCE_INVALID",
+            top_result["failureCodes"],
+        )
+
+        nested = make_reasoning_receipt()
+        nested["observations"]["account"].update(
+            {
+                "status": "MISSING",
+                "observedAt": "2026-02-30T00:00:00Z",
+            }
+        )
+        nested["aggregateState"] = "PARTIAL"
+        nested_result = evaluate_reasoning(nested)
+        self.assertFalse(nested_result["valid"])
+        self.assertIn(
+            "REASONING_OBSERVATION_EVIDENCE_INVALID",
+            nested_result["failureCodes"],
+        )
+
+    def test_browser_runtime_rejects_invalid_recorded_at(self) -> None:
+        receipt = make_browser_receipt()
+        receipt["recordedAt"] = "2026-02-30T00:00:00Z"
+        result = evaluate_browser(receipt)
+        self.assertFalse(result["allowed"])
+        self.assertIn("BROWSER_TIMESTAMP_INVALID", result["failureCodes"])
+
+    def test_verdict_runtime_rejects_invalid_dates_before_consumption(self) -> None:
+        for field in ("issuedAt", "admittedAt"):
+            with self.subTest(field=field):
+                receipt = make_reasoning_receipt()
+                verdict = make_verdict(receipt)
+                verdict[field] = "2026-02-30T00:00:00Z"
+                store = new_consumption_store()
+                result = admit_reasoning(
+                    verdict,
+                    receipt,
+                    consumption_store=store,
+                )
+                self.assertFalse(result["admitted"])
+                self.assertIn(
+                    "VERDICT_TIMESTAMP_INVALID", result["failureCodes"]
+                )
+                self.assertFalse(
+                    store.is_consumed(
+                        {
+                            "receiptId": receipt["receiptId"],
+                            "admissionNonce": receipt["replayProtection"][
+                                "admissionNonce"
+                            ],
+                            "transactionId": receipt["transactionId"],
+                        }
+                    )
+                )
 
     def test_same_process_reproduction_cannot_self_assert_independence(self) -> None:
         claim = make_claim()

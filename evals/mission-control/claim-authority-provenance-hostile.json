@@ -26,6 +26,8 @@
     {"id": "transition-schema-invalid-calendar-date", "evaluator": "validate_instance", "expectedAllowed": false, "expected": "SCHEMA_REJECTED"},
     {"id": "reproduction-schema-invalid-calendar-date", "evaluator": "validate_instance", "expectedAllowed": false, "expected": "SCHEMA_REJECTED"},
     {"id": "forged-authority-registry-records", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "AUTHORITY_REGISTRY_MISSING"},
-    {"id": "forged-independence-registry-records", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "INDEPENDENCE_REGISTRY_MISSING"}
+    {"id": "forged-independence-registry-records", "evaluator": "evaluate_reproduction", "expectedAllowed": false, "expected": "INDEPENDENCE_REGISTRY_MISSING"},
+    {"id": "claim-created-at-invalid-calendar", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "CLAIM_TIMESTAMP_INVALID"},
+    {"id": "claim-expires-at-invalid-calendar", "evaluator": "evaluate_claim_use", "expectedAllowed": false, "expected": "CLAIM_TIMESTAMP_INVALID"}
   ]
 }

@@ -122,6 +122,13 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
   same strict RFC3339 real-calendar check as runtime evaluation. Regex-shaped
   impossible dates such as `2026-02-30T00:00:00Z` fail transition,
   reproduction, and reasoning-observation schemas.
+- Sixth-review timestamp hardening applies that same runtime check to every
+  schema-declared date-time before use: claim `createdAt`/optional `expiresAt`,
+  transition `recordedAt`, reproduction `reproducedAt`, top-level reasoning
+  `observedAt`, every non-null nested observation `observedAt`, verdict
+  `issuedAt`/optional `admittedAt`, and top-level browser-receipt `recordedAt`.
+  Invalid verdict timestamps fail before the durable consumption write. Browser
+  actions have no schema-declared timestamp field.
 
 ## Verification
 
@@ -184,6 +191,17 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 - Fifth-review standalone validation: 20/20 checks passed, including exact
   external Git-blob extraction and execution of 61 hostile scenarios (23
   claim, 27 reasoning, 11 browser).
+- Sixth-review blocker regressions before repair reproduced six uncovered
+  runtime admissions against `df2fd25`: invalid-calendar browser-receipt
+  `recordedAt`, claim `createdAt`/`expiresAt`, reasoning-receipt top-level
+  `observedAt`, and verdict `issuedAt`/`admittedAt`. Both invalid verdict cases
+  wrote the durable receipt-consumption event.
+- Sixth-review focused timestamp/schema/fixture suite: 34/34 passed; combined
+  authority-provenance and claim-laundering affected suite: 101/101 passed.
+- Sixth-review full repository unit suite: 340/340 passed.
+- Sixth-review standalone validation: 20/20 checks passed, including exact
+  external Git-blob extraction and execution of 68 hostile scenarios (25
+  claim, 31 reasoning, 12 browser).
 - Deterministic repository audit: `PASS: no findings.`
 - `python3 -m py_compile scripts/mission_control_provenance.py scripts/validate_mission_control_provenance.py`: passed.
 - `git diff --check`: passed before the final verification checkpoint.
@@ -192,7 +210,7 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 
 ## Remaining / next safe action
 
-1. Report the locally committed fifth-review repair for independent review;
+1. Report the locally committed sixth-review repair for independent review;
    do not push, merge, or deploy from this execution lane.
 2. Parent execution must separately finish and verify the authorized Human
    Design draft changes. Owner-authority, merge, release, and deployment remain

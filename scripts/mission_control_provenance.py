@@ -103,6 +103,7 @@ INVALID_REASONING_EVIDENCE_TYPES = {
 }
 
 CLAIM_FAILURE_CODES = {
+    "CLAIM_TIMESTAMP_INVALID",
     "UNAUTHORIZED_ADDITION",
     "INFERRED_NUMERIC_SCOPE",
     "DERIVATION_UNVERIFIED",
@@ -135,8 +136,10 @@ REASONING_FAILURE_CODES = {
     "ADMISSION_QUESTION_BINDING_MISMATCH",
     "REASONING_OBSERVATION_EVIDENCE_INVALID",
     "REASONING_ACCOUNT_BINDING_MISMATCH",
+    "VERDICT_TIMESTAMP_INVALID",
 }
 BROWSER_FAILURE_CODES = {
+    "BROWSER_TIMESTAMP_INVALID",
     "BROWSER_ROUTE_NOT_JUSTIFIED",
     "AGENT_TAB_CAP_EXCEEDED",
     "TAB_OWNERSHIP_UNVERIFIED",
@@ -1178,6 +1181,15 @@ def validate_claim_record(claim: dict[str, Any]) -> None:
     _require(claim.get("claimKind") in CLAIM_KINDS, "claimKind is invalid")
     _require(claim.get("verificationState") in VERIFICATION_STATES, "verificationState is invalid")
     _require(claim.get("decisionUse") in DECISION_USES, "decisionUse is invalid")
+    _require(
+        _valid_timestamp(claim.get("createdAt")),
+        "CLAIM_TIMESTAMP_INVALID: claim createdAt must be strict RFC3339",
+    )
+    _require(
+        claim.get("expiresAt") is None
+        or _valid_timestamp(claim.get("expiresAt")),
+        "CLAIM_TIMESTAMP_INVALID: claim expiresAt must be null or strict RFC3339",
+    )
     _require(_nonempty(claim.get("authorityRegistryRef")), "authorityRegistryRef is required")
     _sha256(claim.get("authorityRegistryDigest"), "authorityRegistryDigest")
     for forbidden in ("authorityRank", "currentAuthority", "requiredAuthority", "authorityCeiling"):
@@ -1690,6 +1702,8 @@ def evaluate_reasoning_surface_receipt(
         _append_failure(failures, "SELF_ASSERTED_REASONING_IDENTITY_REJECTED")
     if receipt.get("cryptographicPlatformAttestation") is not False:
         _append_failure(failures, "ASSURANCE_CLASS_OVERCLAIM")
+    if not _valid_timestamp(receipt.get("observedAt")):
+        _append_failure(failures, "REASONING_OBSERVATION_EVIDENCE_INVALID")
 
     transaction_id = receipt.get("transactionId")
     session_id = receipt.get("conversation", {}).get("conversationSessionId")
@@ -1823,6 +1837,9 @@ def evaluate_reasoning_surface_receipt(
         status = observation.get("status")
         _require(status in REASONING_OBSERVATION_STATES, f"{name}.status is invalid")
         evidence_type = observation.get("evidenceSourceType")
+        observed_at = observation.get("observedAt")
+        if observed_at is not None and not _valid_timestamp(observed_at):
+            _append_failure(failures, "REASONING_OBSERVATION_EVIDENCE_INVALID")
         if status == "VERIFIED" and (
             evidence_type in INVALID_REASONING_EVIDENCE_TYPES
             or evidence_type != "BROWSER_UI_OBSERVATION"
@@ -1830,7 +1847,7 @@ def evaluate_reasoning_surface_receipt(
             _append_failure(failures, "SELF_ASSERTED_REASONING_IDENTITY_REJECTED")
         if status == "VERIFIED" and not (
             _nonempty(observation.get("evidenceRef"))
-            and _valid_timestamp(observation.get("observedAt"))
+            and _valid_timestamp(observed_at)
         ):
             _append_failure(failures, "REASONING_OBSERVATION_EVIDENCE_INVALID")
         if status != "VERIFIED":
@@ -1912,6 +1929,11 @@ def admit_supervision_verdict(
         consumption_store=consumption_store,
     )
     failures = list(receipt_result["failureCodes"])
+    if not _valid_timestamp(verdict.get("issuedAt")) or (
+        verdict.get("admittedAt") is not None
+        and not _valid_timestamp(verdict.get("admittedAt"))
+    ):
+        _append_failure(failures, "VERDICT_TIMESTAMP_INVALID")
     verdict_digest = verdict.get("responsePayloadDigest", {})
     receipt_digest = receipt.get("responsePayloadDigest", {})
     question_digest = _bytes_digest(
@@ -1991,6 +2013,8 @@ def evaluate_browser_operation(
 ) -> dict[str, Any]:
     failures: list[str] = []
     _require(receipt.get("schemaVersion") == 1, "browser receipt schemaVersion must be 1")
+    if not _valid_timestamp(receipt.get("recordedAt")):
+        _append_failure(failures, "BROWSER_TIMESTAMP_INVALID")
     registry_valid = _browser_registry_integrity_valid(ownership_registry)
     if not registry_valid:
         _append_failure(failures, "TAB_OWNERSHIP_UNVERIFIED")

@@ -1614,7 +1614,10 @@ evaluator and resolution boundary. A factory label or transferable construction
 token is not evidence of trust; a direct field constructor, subclass, partial
 record, or immutable-looking mapping is not a registry. Schema `date-time`
 checks validate the real RFC3339 calendar value, not only a matching string
-shape.
+shape. Runtime use applies that same check to every declared timestamp,
+including claim creation/expiry, transition and reproduction times, receipt and
+nested observation times, verdict issue/admission, and the top-level browser
+receipt `recordedAt`; invalid verdict time fails before durable consumption.
 Then bind the admission-question and response digests and single-use receipt to
 `templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
 `templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.

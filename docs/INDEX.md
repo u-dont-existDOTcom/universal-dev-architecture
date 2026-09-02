@@ -46,8 +46,11 @@ factory and compares the registry identity, digest, head, order, and immutable
 state exactly; public field construction, subclasses, partial records, and
 lookalike mappings do not inherit registry trust. Declarative payload transforms
 are also non-subclassable and run through evaluator-owned non-virtual logic.
-The repository schema validator applies the same real-calendar strict RFC3339
-check whenever a schema declares `format: date-time`.
+The repository schema validator and the runtime path that admits or uses each
+field apply the same real-calendar strict RFC3339 check whenever a schema
+declares `format: date-time`. This covers claim creation/expiry, transition,
+reproduction, receipt and nested observation evidence, verdict issue/admission,
+and browser-receipt timestamps; verdict validation precedes durable consumption.
 
 Keep these states separate:
 

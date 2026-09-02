@@ -1023,6 +1023,35 @@ def execute_hostile_scenario(
                 independence_registry=forged,
             )
         if scenario_id in {
+            "claim-created-at-invalid-calendar",
+            "claim-expires-at-invalid-calendar",
+        }:
+            claim, registry = _fixture_claim()
+            field = (
+                "createdAt"
+                if scenario_id == "claim-created-at-invalid-calendar"
+                else "expiresAt"
+            )
+            claim[field] = "2026-02-30T00:00:00Z"
+            semantics = {
+                key: value for key, value in claim.items() if key != "claimDigest"
+            }
+            claim["claimDigest"]["value"] = claim_digest(claim)
+            claim["claimDigest"]["byteLength"] = len(
+                _jcs_text(semantics).encode("utf-8")
+            )
+            try:
+                return evaluate_claim_use(
+                    claim, "ASSERT_FACT", authority_registry=registry
+                )
+            except ValueError as exc:
+                if "CLAIM_TIMESTAMP_INVALID" not in str(exc):
+                    raise
+                return {
+                    "allowed": False,
+                    "failureCodes": ["CLAIM_TIMESTAMP_INVALID"],
+                }
+        if scenario_id in {
             "transition-schema-invalid-calendar-date",
             "reproduction-schema-invalid-calendar-date",
         }:
@@ -1184,6 +1213,36 @@ def execute_hostile_scenario(
             }
             kwargs["submitted_payload_bytes"] = submitted
             kwargs["payload_transform"] = forged
+        elif scenario_id == "receipt-top-level-invalid-observed-at":
+            receipt["observedAt"] = "2026-02-30T00:00:00Z"
+        elif scenario_id == "nonverified-observation-invalid-observed-at":
+            receipt["observations"]["account"].update(
+                {
+                    "status": "MISSING",
+                    "observedAt": "2026-02-30T00:00:00Z",
+                }
+            )
+            receipt["aggregateState"] = "PARTIAL"
+        elif scenario_id in {
+            "verdict-issued-at-invalid-calendar",
+            "verdict-admitted-at-invalid-calendar",
+        }:
+            verdict = _fixture_verdict(root, receipt)
+            field = (
+                "issuedAt"
+                if scenario_id == "verdict-issued-at-invalid-calendar"
+                else "admittedAt"
+            )
+            verdict[field] = "2026-02-30T00:00:00Z"
+            result = admit_supervision_verdict(verdict, receipt, **kwargs)
+            consumption_key = {
+                "receiptId": receipt["receiptId"],
+                "admissionNonce": receipt["replayProtection"]["admissionNonce"],
+                "transactionId": receipt["transactionId"],
+            }
+            if store.is_consumed(consumption_key):
+                result["admitted"] = True
+            return result
         elif scenario_id == "observation-schema-invalid-calendar-date":
             schema = json.loads(
                 (
@@ -1282,6 +1341,8 @@ def execute_hostile_scenario(
                 "remainingAgentTabIds": [],
             }
             return evaluate_browser_operation(receipt, ownership_registry=forged)
+        elif scenario_id == "browser-recorded-at-invalid-calendar":
+            receipt["recordedAt"] = "2026-02-30T00:00:00Z"
         return evaluate_browser_operation(receipt, ownership_registry=registry)
 
     raise SchemaError(f"unimplemented hostile scenario {fixture_id}:{scenario_id}")

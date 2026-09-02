@@ -30,6 +30,10 @@
     {"id": "anonymous-account-self-selected", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_ACCOUNT_BINDING_MISMATCH"},
     {"id": "verdict-account-mismatch", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "REASONING_ACCOUNT_BINDING_MISMATCH"},
     {"id": "payload-transform-lookalike-override", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_RECEIPT_PAYLOAD_MISMATCH"},
-    {"id": "observation-schema-invalid-calendar-date", "evaluator": "validate_instance", "expectedAllowed": false, "expected": "SCHEMA_REJECTED"}
+    {"id": "observation-schema-invalid-calendar-date", "evaluator": "validate_instance", "expectedAllowed": false, "expected": "SCHEMA_REJECTED"},
+    {"id": "receipt-top-level-invalid-observed-at", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "nonverified-observation-invalid-observed-at", "evaluator": "evaluate_reasoning_surface_receipt", "expectedAllowed": false, "expected": "REASONING_OBSERVATION_EVIDENCE_INVALID"},
+    {"id": "verdict-issued-at-invalid-calendar", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "VERDICT_TIMESTAMP_INVALID"},
+    {"id": "verdict-admitted-at-invalid-calendar", "evaluator": "admit_supervision_verdict", "expectedAllowed": false, "expected": "VERDICT_TIMESTAMP_INVALID"}
   ]
 }

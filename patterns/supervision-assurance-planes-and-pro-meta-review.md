@@ -458,9 +458,13 @@ evaluator-owned pure implementation directly rather than virtual `apply`
 dispatch. Every `VERIFIED` UI observation also
 requires a nonempty evidence reference and strict RFC3339 timezone-bearing
 observation time; ISO week/ordinal dates and a space in place of `T` fail
-closed. The repository schema validator enforces `format: date-time` with the
-same real-calendar RFC3339 check, so regex-shaped dates such as February 30 do
-not pass schemas for transitions, reproduction, or UI observations.
+closed. Every non-null field declared as schema `format: date-time` must receive
+the same real-calendar RFC3339 validation in the runtime path that admits or
+uses it: claim creation/expiry, transition recording, reproduction, receipt and
+nested observation evidence, verdict issue/admission, and browser receipt
+recording. Verdict timestamps fail before durable receipt consumption. The
+repository schema validator enforces the same check, so regex-shaped dates such
+as February 30 cannot pass either boundary.
 
 Agent and subagent names, task names, role labels, branch names, worktree paths,
 process names, environment variables, prompt requests, packet-author claims,
