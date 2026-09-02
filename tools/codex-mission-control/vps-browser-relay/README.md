@@ -40,25 +40,26 @@ The conversation history is the handoff between Extra High and Pro. The relay ne
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
 
-## Long-running Extra High recovery
+## Model-agnostic stuck-chat recovery
 
-Extra High can occasionally stop before finishing already-authorized long work. For the two same-chat steps with an objective durable completion signal—`EXTRA_HIGH_DIRECT` and `EXTRA_HIGH_WRITER`—the relay uses a bounded recovery rule:
+Long ChatGPT turns can stop making progress after extended reasoning or many tool calls even though the admitted objective is not finished. Recovery is a transport concern and applies to **any current model or registered supervisor chat**, including Extra High, Pro, Project Manager, and specialist turns.
 
-1. the original Extra High generation completes;
-2. the expected canonical GitHub decision receipt remains absent;
-3. after the recovery grace interval (currently 5 minutes), the relay sends exactly:
+The relay uses two non-content UI signals:
 
-```text
-continue
-```
+1. **active generation stall** — the turn remains continuously in generation state for the full `MC_RELAY_GENERATION_TIMEOUT_MS` interval (default 15 minutes). The relay safely invokes the visible Stop-generation control, waits for the composer to become idle, then sends exactly `continue` in the same conversation and current model;
+2. **recoverable idle control** — the turn returns to an idle composer but a visible control is exactly labeled `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`. The relay treats that as unfinished and sends `continue` without changing model.
 
-4. the same Extra High chat/model is retained;
-5. the nudge receives its own no-content transport-stage receipts;
-6. no second automatic `continue` is sent for that logical step.
+The relay never searches transcript text to make this determination. It examines only composer/generation controls and exact known recovery-control labels.
 
-If the nudge is ambiguous or fails, it is not automatically replayed. If the durable decision receipt remains absent afterward, Mission Control waits/fails closed rather than creating a continuation loop.
+Recovery is capped by `MC_RELAY_STUCK_RECOVERY_MAX_NUDGES` (default 3, configurable 1–20) for one continuously stalled turn. This prevents an unbounded quota-burning loop. A failed or ambiguous recovery send is not automatically replayed.
 
-This is a same-chat recovery nudge, not a Mission Control execution verdict. It is never sent to Pro and never bypasses owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
+Separately, the two Extra High decision-writing steps (`EXTRA_HIGH_DIRECT` and `EXTRA_HIGH_WRITER`) have an objective durable completion signal: the canonical GitHub decision receipt. If their normal UI turn ends but that receipt is still absent after five minutes, the same-chat state machine may issue its one bounded `continue` fallback.
+
+These `continue` messages are transport recovery, **not** Mission Control guard verdicts. They never grant execution authority or bypass owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
+
+### Remaining semantic-liveness boundary
+
+A visually normal idle turn with no recovery control can still be semantically incomplete. Browser UI state cannot prove otherwise without reading assistant content, which this relay deliberately does not do. Mission Control therefore must not equate `GENERATION_COMPLETE` with semantic task completion. Durable task/stage receipts are the correct completion signal; the next control-plane slice adds stage-completion/continue-required receipts for intermediate same-chat stages.
 
 ## Capability proof
 
@@ -74,7 +75,7 @@ Use the dedicated harmless command while normal task sends remain disabled:
 
 ```bash
 MC_RELAY_CAPABILITY_TEST_ENABLED=1 \
-~/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs verify-capabilities <chat-id>
+~/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs capabilities <chat-id>
 ```
 
 `MC_RELAY_SUBMIT_ENABLED=0` may remain unchanged during this test.
@@ -104,7 +105,7 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 
 For Pro escalation, Mission Control labels the Pro-content provenance `SAME_CHAT_WRITER_ATTESTED` with `independent_pro_observation:false`. The browser does not independently observe Pro output.
 
-Webhook ingestion is the fast path. Periodic GitHub issue polling is reconciliation for missed webhooks.
+Webhook ingestion is the fast path. Periodic GitHub issue polling is reconciliation for missed webhooks. Public repositories can use low-frequency reconciliation without a GitHub token.
 
 ## Memory policy
 
@@ -175,6 +176,7 @@ MC_RELAY_TOKEN=<dedicated 32+ character token>
 MC_RELAY_SUBMIT_ENABLED=0
 MC_RELAY_CAPABILITY_TEST_ENABLED=0
 MC_RELAY_MEMORY_PROFILE=AUTO
+MC_RELAY_STUCK_RECOVERY_MAX_NUDGES=3
 ```
 
 ### Register exact chats
@@ -230,7 +232,7 @@ After the central Mission Control challenge is configured:
 ```bash
 sed -i 's/^MC_RELAY_CAPABILITY_TEST_ENABLED=.*/MC_RELAY_CAPABILITY_TEST_ENABLED=1/' \
   ~/.config/mission-control-chatgpt-relay/env
-$relay verify-capabilities <chat-id>
+$relay capabilities <chat-id>
 ```
 
 Confirm the GitHub capability receipt was ingested and Mission Control reports current read/read/write + mode-switch capabilities. Then disable capability-test sending again if desired.
@@ -260,7 +262,7 @@ journalctl --user -u mission-control-chatgpt-relay.service -f
 cat ~/.local/state/mission-control-chatgpt-relay/status.json
 ```
 
-The status record reports hashes, queue state, browser/memory state, capability state, and ambiguity state. It does not contain ChatGPT response content.
+The status record reports hashes, queue state, browser/memory state, capability state, stuck-recovery metadata, and ambiguity state. It does not contain ChatGPT response content.
 
 ### Ambiguous submissions
 
