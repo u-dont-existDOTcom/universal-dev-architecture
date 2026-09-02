@@ -79,5 +79,13 @@ jobs:
       - name: Run relay tests
         run: npm test
 
-      - name: Check relay syntax
+      - name: Check relay JavaScript syntax
         run: npm run check
+
+      - name: Check relay shell and service assets
+        run: |
+          bash -n scripts/install-user-service.sh
+          bash -n scripts/launch-browser.sh
+          test -s systemd/user/mission-control-chatgpt.slice
+          test -s systemd/user/mission-control-chatgpt-browser.service
+          test -s systemd/user/mission-control-chatgpt-relay.service
