@@ -67,6 +67,28 @@ Chat reasons first
 
 Do not send the whole task to Work and ask it to decide the architecture while implementing it.
 
+## Long-running Extra High recovery
+
+A long-running Extra High supervisory chat can occasionally stop before completing its already-authorized work. When there is an objective durable completion signal and that signal is still missing after the normal retry/grace interval, Mission Control may send the exact one-word message:
+
+```text
+continue
+```
+
+This is a **same-chat recovery nudge**, not an execution verdict or mission-guard `CONTINUE` decision.
+
+Apply it conservatively:
+
+- only to an Extra High turn that was already authorized and is still pursuing the same bounded objective;
+- only when the expected durable completion artifact/state transition has not appeared;
+- keep the same chat and same model/mode;
+- send at most one automatic `continue` nudge for that logical step;
+- record the nudge as transport/recovery evidence, without claiming semantic content or model identity beyond the visible UI label;
+- if the expected completion artifact is still absent after that recovery turn, mark the step stalled and return control to Chat rather than creating an automatic loop;
+- never use `continue` to bypass an owner decision, Mission Control admission gate, safety/release gate, ambiguity state, spend/access boundary, or a required model switch.
+
+For same-chat Personal Pro escalation, the strongest objective use is after an Extra High step that is expected to create a durable GitHub receipt. A Pro reasoning turn must not receive this generic recovery nudge merely because it is slow or difficult.
+
 ## Work authority exclusions
 
 Work/Codex must not author or acquire authority for:
