@@ -25,6 +25,7 @@ function worker(overrides: Record<string, unknown> = {}): WorkerState {
       blockers: [],
       messages: [],
     },
+    timeline: [],
   };
   return deepMerge(base, overrides) as unknown as WorkerState;
 }
@@ -70,24 +71,23 @@ function blocker(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function routedMessage() {
+function routeEvent(sequence: number) {
   return {
-    messageId: "message:supervision-route",
-    directionId: null,
-    threadId: "thread:supervision-route:askrigor-mast",
-    author: "WORKER",
-    kind: "QUESTION",
-    body: `${internalSupervisorRoutePrefix}{"packetKind":"FACTUAL_STATE_ONLY"}`,
-    replyToMessageId: null,
-    recordedAt: "2026-09-02T22:00:00.000Z",
-    deliveryId: null,
-    deliveryStatus: "RECORDED",
-    acknowledged: true,
-    incorporated: false,
-    priority: null,
-    scope: null,
-    authorityEpoch: null,
+    sequence,
+    data: {
+      type: "worker_message_recorded",
+      message_kind: "QUESTION",
+      body: `${internalSupervisorRoutePrefix}{"packetKind":"FACTUAL_STATE_ONLY"}`,
+    },
   };
+}
+
+function receiptEvent(sequence: number) {
+  return { sequence, data: { type: "execution_receipt_recorded" } };
+}
+
+function blockerEvent(sequence: number, blockerId = "blocker:provider") {
+  return { sequence, data: { type: "structured_blocker_recorded", blocker_id: blockerId } };
 }
 
 test("ordinal 29 checkpoint cannot terminally hand off when ordinal 30 is already scheduled", () => {
@@ -121,14 +121,16 @@ test("a bare blocked checkpoint cannot self-authorize a final response", () => {
   assert.equal(result.decision, "REJECT_UNVERIFIED_BLOCKED_STATE");
 });
 
-test("directive stop for reasoning cannot hand off terminally until the internal reasoning route is durable", () => {
+test("directive stop for reasoning cannot hand off terminally until a post-receipt internal route is durable", () => {
   const result = evaluateFinalResponseAdmission(worker({
     nextSteps: [],
     terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
     executionSupervision: { codexExecutionState: "STOPPED_FOR_REASONING_REVIEW", pendingReasoningReview: true },
+    timeline: [receiptEvent(20), routeEvent(10)],
   }));
   assert.equal(result.terminalResponseAllowed, false);
   assert.equal(result.decision, "REJECT_UNROUTED_REASONING_STOP");
+  assert.ok(result.reasonCodes.some((reason) => /stale route/i.test(reason)));
 });
 
 test("a routed directive stop may end only the current execution turn while the root task remains open", () => {
@@ -136,7 +138,7 @@ test("a routed directive stop may end only the current execution turn while the 
     nextSteps: [],
     terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
     executionSupervision: { codexExecutionState: "STOPPED_FOR_REASONING_REVIEW", pendingReasoningReview: true },
-    channel: { messages: [routedMessage()] },
+    timeline: [routeEvent(30), receiptEvent(20)],
   }));
   assert.equal(result.terminalResponseAllowed, true);
   assert.equal(result.mustContinue, false);
@@ -188,6 +190,38 @@ test("a blocker owned by the execution worker is unfinished work rather than an 
   }));
   assert.equal(result.terminalResponseAllowed, false);
   assert.equal(result.decision, "REJECT_SELF_OWNED_BLOCKER");
+});
+
+test("a worker blocker cannot manufacture owner-decision authority", () => {
+  const result = evaluateFinalResponseAdmission(worker({
+    nextSteps: [],
+    terminal: { decision: "HOLD_COMPLETION_EVIDENCE", unresolvedOwnerObligation: false },
+    channel: { blockers: [blocker({ needsOwner: true, requiredActor: { kind: "OWNER", id: "owner:joel" } })] },
+  }));
+  assert.equal(result.terminalResponseAllowed, false);
+  assert.equal(result.decision, "REJECT_OWNER_DECISION_AUTHORITY_MISSING");
+});
+
+test("a reasoning blocker requires a route later than the current blocker record", () => {
+  const result = evaluateFinalResponseAdmission(worker({
+    nextSteps: [],
+    terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
+    channel: { blockers: [blocker({ requiredActor: { kind: "SUPERVISOR", id: "chat:askrigor" } })] },
+    timeline: [blockerEvent(20), routeEvent(10)],
+  }));
+  assert.equal(result.terminalResponseAllowed, false);
+  assert.equal(result.decision, "REJECT_UNROUTED_REASONING_STOP");
+});
+
+test("a current routed reasoning blocker may pause the execution turn without closing the task", () => {
+  const result = evaluateFinalResponseAdmission(worker({
+    nextSteps: [],
+    terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
+    channel: { blockers: [blocker({ requiredActor: { kind: "SUPERVISOR", id: "chat:askrigor" } })] },
+    timeline: [routeEvent(30), blockerEvent(20)],
+  }));
+  assert.equal(result.terminalResponseAllowed, true);
+  assert.equal(result.decision, "ALLOW_EXTERNAL_BLOCKED_PAUSE");
 });
 
 test("a current owner obligation with no safe independent work admits a bounded owner-decision pause", () => {
