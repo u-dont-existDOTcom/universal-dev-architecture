@@ -293,7 +293,12 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   if (route.decisionReceipt) return { type: 'WAIT_GITHUB_RECEIPT' };
   const status = prior?.status ?? 'UNSEEN';
   if (status === 'FAILED_RETRYABLE' && prior?.cycleStep) {
-    if (isContinueNudgeStep(prior.cycleStep)) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage: semanticStageForStep(prior.cycleStep), recovery: 'CONTINUE_NUDGE_FAILED' };
+    if (isContinueNudgeStep(prior.cycleStep)) {
+      const stage = semanticStageForStep(prior.cycleStep);
+      return stage
+        ? { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'CONTINUE_NUDGE_FAILED' }
+        : { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_FAILED' };
+    }
     return { type: 'SEND_CONTROL', step: prior.cycleStep, model: modelForStep(prior.cycleStep) };
   }
   if (status === 'AMBIGUOUS_AFTER_RESTART' || status === 'SUBMISSION_INTENT_RECORDED') return null;
@@ -352,7 +357,7 @@ function stageReceiptAction({ route, prior, stage, completeAction, continueStep,
   const continueRequiredCount = stageState?.continueRequiredCount ?? 0;
   if (currentReceipt?.status === 'STAGE_COMPLETE') return { ...completeAction, stageReceiptId: currentReceipt.receiptId, livenessStatus: currentReceipt.status };
   if (currentReceipt?.status === 'CONTINUE_REQUIRED') {
-    if (continueRequiredCount >= maxSemanticNudges) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'SEMANTIC_CONTINUE_LIMIT_REACHED' };
+    if (continueRequiredCount > maxSemanticNudges) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'SEMANTIC_CONTINUE_LIMIT_REACHED' };
     return { type: 'SEND_CONTROL', step: continueStep, model: continueModel, recovery: 'SEMANTIC_CONTINUE_REQUIRED', stageReceiptId: currentReceipt.receiptId };
   }
   if (stageReceiptGraceElapsed(prior, nowMs)) {
