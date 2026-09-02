@@ -56,3 +56,28 @@ jobs:
 
       - name: Build Mission Control production bundle
         run: npm run build
+
+  vps-browser-relay:
+    name: VPS browser relay · tests and syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: tools/codex-mission-control/vps-browser-relay
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Confirm test-runner Node.js
+        run: node -e 'const major = Number(process.versions.node.split(".")[0]); if (major < 20) throw new Error(`Node.js 20+ required for tests, got ${process.version}`); console.log(process.version)'
+
+      - name: Install locked relay package
+        run: npm ci --ignore-scripts
+
+      - name: Run relay tests
+        run: npm test
+
+      - name: Check relay syntax
+        run: npm run check
