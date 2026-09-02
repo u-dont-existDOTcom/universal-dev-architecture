@@ -17,13 +17,18 @@ import {
   startedCycleStepStatus,
 } from './core.mjs';
 import { readMemoryMetrics } from './memory.mjs';
+import { GlobalSubmissionPacer, isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
 
 export class RelayRuntime {
-  constructor({ config, missionControl, browser, stateStore, memoryReader = readMemoryMetrics, logger = console }) {
+  constructor({ config, missionControl, browser, stateStore, submissionPacer = null, memoryReader = readMemoryMetrics, logger = console }) {
     this.config = config;
     this.missionControl = missionControl;
     this.browser = browser;
     this.stateStore = stateStore;
+    this.submissionPacer = submissionPacer ?? new GlobalSubmissionPacer({
+      stateStore,
+      minIntervalMs: config.runtime.minSubmissionIntervalMs ?? 60_000,
+    });
     this.memoryReader = memoryReader;
     this.logger = logger;
   }
@@ -44,6 +49,7 @@ export class RelayRuntime {
       checkedAt: new Date().toISOString(),
       submitEnabled: this.config.runtime.submitEnabled,
       capabilityTestEnabled: this.config.runtime.capabilityTestEnabled,
+      submissionPacing: this.submissionPacer.status(state),
       browser,
       memory,
       missionControl: { workerCount: snapshot.workers.length, generatedAt: snapshot.generatedAt ?? null },
@@ -114,7 +120,14 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus('CAPABILITY_SUBMISSION_AMBIGUOUS', state, { chatId, capability, memory });
     }
     if (prior?.status === 'CAPABILITY_GENERATION_STARTED') {
-      const complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: true });
+      let complete;
+      try {
+        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: true });
+      } catch (error) {
+        if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, memory }, error);
+        throw error;
+      }
+      state = await this.stateStore.read();
       state.deliveries[key] = { ...prior, status: 'CAPABILITY_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
       snapshot = await this.missionControl.fetchFleet();
@@ -129,30 +142,45 @@ export class RelayRuntime {
 
     const prompt = capabilityControlPrompt(chat);
     const observed = await this.browser.switchModel(target, { expectedUrl: chat.url, label: chat.modelLabels.extraHigh });
-    const intentAt = new Date().toISOString();
-    state.deliveries[key] = {
-      status: 'SUBMISSION_INTENT_RECORDED',
-      chatId: chat.chatId,
-      conversationUrl: chat.url,
-      capabilityChallengeId: chat.capabilityChallengeId,
-      bodySha256: sha256(prompt),
-      modelUiLabel: observed.observedLabel,
-      intentRecordedAt: intentAt,
-      lastAttemptAt: intentAt,
-    };
-    state = await this.stateStore.write(state);
     try {
-      const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) });
+      const start = await this.submissionPacer.submit({
+        beforeSubmit: async () => {
+          const intentAt = new Date().toISOString();
+          state = await this.stateStore.read();
+          state.deliveries[key] = {
+            status: 'SUBMISSION_INTENT_RECORDED',
+            chatId: chat.chatId,
+            conversationUrl: chat.url,
+            capabilityChallengeId: chat.capabilityChallengeId,
+            bodySha256: sha256(prompt),
+            modelUiLabel: observed.observedLabel,
+            intentRecordedAt: intentAt,
+            lastAttemptAt: intentAt,
+          };
+          state = await this.stateStore.write(state);
+        },
+        submit: () => this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) }),
+      });
+      state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'CAPABILITY_GENERATION_STARTED', generationStart: start, startedAt: start.startedAtObserved };
       state = await this.stateStore.write(state);
-      const complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: start.generationStarted });
+      let complete;
+      try {
+        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: start.generationStarted });
+      } catch (error) {
+        if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, mode, memory }, error);
+        throw error;
+      }
+      state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'CAPABILITY_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
       snapshot = await this.missionControl.fetchFleet();
       capability = chatCapabilityState(snapshot, chat);
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     } catch (error) {
+      if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, mode, memory }, error);
       const stage = error?.relayStage ?? 'UNKNOWN';
+      state = await this.stateStore.read();
       state.deliveries[key] = {
         ...state.deliveries[key],
         status: stage === 'CLICKED' ? 'AMBIGUOUS_AFTER_RESTART' : 'FAILED_RETRYABLE',
@@ -248,6 +276,7 @@ export class RelayRuntime {
 
       return this.#processSupervisoryCycle(candidate, routes, state, memory);
     } catch (error) {
+      if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, {}, error);
       state.health.lastError = redactError(error);
       state.health.pausedReason = null;
       state = await this.stateStore.write(state);
@@ -297,6 +326,7 @@ export class RelayRuntime {
       await this.#ensureStartEvidence(route, action.step, prior);
       const observation = await this.browser.waitForGenerationComplete(target, { expectedUrl: route.chat.url, generationStarted: prior?.generationStarted === true });
       await this.#recordRelayStage(route, action.step, prior.modelUiLabel, prior.promptSha256, 'COMPLETE', observation.completedAtObserved, null);
+      state = await this.stateStore.read();
       state.deliveries[route.routeKey] = {
         ...prior,
         status: completedCycleStepStatus(action.step),
@@ -314,29 +344,36 @@ export class RelayRuntime {
     const model = await this.browser.switchModel(target, { expectedUrl: route.chat.url, label: desiredLabel });
     if (model.observedLabel !== desiredLabel) throw new Error(`Exact model UI label mismatch: expected ${desiredLabel}, observed ${model.observedLabel ?? 'UNKNOWN'}.`);
     const promptSha256 = sha256(prompt);
-    const intentAt = new Date().toISOString();
-    state.deliveries[route.routeKey] = {
-      ...prior,
-      status: 'SUBMISSION_INTENT_RECORDED',
-      requestId: route.requestId,
-      workerId: route.workerId,
-      chatId: route.chat.chatId,
-      conversationUrl: route.chat.url,
-      cycleStep: action.step,
-      reasoningLane: route.packet.reasoningLane,
-      modelUiLabel: model.observedLabel,
-      promptSha256,
-      bodySha256: promptSha256,
-      bodyLength: prompt.length,
-      targetId: target.id,
-      attempt: (prior?.attempt ?? 0) + 1,
-      intentRecordedAt: intentAt,
-      lastAttemptAt: intentAt,
-      lastError: null,
-    };
-    state = await this.stateStore.write(state);
     try {
-      const start = await this.browser.submitExactMessage(target, { expectedUrl: route.chat.url, body: prompt, bodySha256: promptSha256 });
+      const start = await this.submissionPacer.submit({
+        beforeSubmit: async () => {
+          const intentAt = new Date().toISOString();
+          state = await this.stateStore.read();
+          const current = state.deliveries[route.routeKey] ?? prior;
+          state.deliveries[route.routeKey] = {
+            ...current,
+            status: 'SUBMISSION_INTENT_RECORDED',
+            requestId: route.requestId,
+            workerId: route.workerId,
+            chatId: route.chat.chatId,
+            conversationUrl: route.chat.url,
+            cycleStep: action.step,
+            reasoningLane: route.packet.reasoningLane,
+            modelUiLabel: model.observedLabel,
+            promptSha256,
+            bodySha256: promptSha256,
+            bodyLength: prompt.length,
+            targetId: target.id,
+            attempt: (current?.attempt ?? 0) + 1,
+            intentRecordedAt: intentAt,
+            lastAttemptAt: intentAt,
+            lastError: null,
+          };
+          state = await this.stateStore.write(state);
+        },
+        submit: () => this.browser.submitExactMessage(target, { expectedUrl: route.chat.url, body: prompt, bodySha256: promptSha256 }),
+      });
+      state = await this.stateStore.read();
       state.deliveries[route.routeKey] = {
         ...state.deliveries[route.routeKey],
         status: startedCycleStepStatus(action.step),
@@ -348,8 +385,10 @@ export class RelayRuntime {
       await this.#recordRelayStage(route, action.step, model.observedLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal);
       return this.#writeStandaloneStatus(startedCycleStepStatus(action.step), state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), generationStart: start });
     } catch (error) {
+      if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) }, error);
       const stage = error?.relayStage ?? 'UNKNOWN';
       const afterClick = stage === 'CLICKED';
+      state = await this.stateStore.read();
       state.deliveries[route.routeKey] = {
         ...state.deliveries[route.routeKey],
         status: afterClick ? 'AMBIGUOUS_AFTER_RESTART' : 'FAILED_RETRYABLE',
@@ -432,9 +471,19 @@ export class RelayRuntime {
   }
 
   async #writeStandaloneStatus(status, state, detail = {}) {
-    const value = { schemaVersion: 1, status, generatedAt: new Date().toISOString(), pid: process.pid, submitEnabled: this.config.runtime.submitEnabled, capabilityTestEnabled: this.config.runtime.capabilityTestEnabled, health: state.health, unresolvedAmbiguities: unresolvedAmbiguities(state), ...detail };
+    const value = { schemaVersion: 1, status, generatedAt: new Date().toISOString(), pid: process.pid, submitEnabled: this.config.runtime.submitEnabled, capabilityTestEnabled: this.config.runtime.capabilityTestEnabled, submissionPacing: this.submissionPacer.status(state), health: state.health, unresolvedAmbiguities: unresolvedAmbiguities(state), ...detail };
     await this.stateStore.writeStatus(value);
     return value;
+  }
+
+  async #cooldownStatus(state, detail, error) {
+    state = await this.stateStore.read();
+    return this.#writeStandaloneStatus('GLOBAL_SUBMISSION_COOLDOWN', state, {
+      ...detail,
+      submissionPacing: publicCooldown(error),
+      retryAfterMs: error.retryAfterMs,
+      nextSubmissionAt: error.nextSubmissionAt,
+    });
   }
 
   #log(level, event, detail) {

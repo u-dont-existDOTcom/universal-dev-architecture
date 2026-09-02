@@ -39,6 +39,9 @@ The conversation history is the handoff between Extra High and Pro. The relay ne
 - Browser control does not claim hidden backend model identity; it records only the exact visible UI label.
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
+- Every actual ChatGPT message send shares one persisted global cooldown. The default minimum interval is 60 seconds, configurable with `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` from 15,000 through 600,000 ms.
+- Capability prompts, Extra High reader/direct/writer prompts, Pro reasoner prompts, liveness-check prompts, and every automatic `continue` use the same gate. The relay-wide process lock and a narrow in-process serialized gate allow only one send path to cross at once.
+- Cooldown checks never sleep inside the state machine. They return `GLOBAL_SUBMISSION_COOLDOWN` with `retryAfterMs` and `nextSubmissionAt`, and no click or route-authority mutation occurs.
 
 ## Model-agnostic stuck-chat recovery
 
@@ -56,6 +59,8 @@ Recovery is capped by `MC_RELAY_STUCK_RECOVERY_MAX_NUDGES` (default 3, configura
 Separately, the two Extra High decision-writing steps (`EXTRA_HIGH_DIRECT` and `EXTRA_HIGH_WRITER`) have an objective durable completion signal: the canonical GitHub decision receipt. If their normal UI turn ends but that receipt is still absent after five minutes, the same-chat state machine may issue its one bounded `continue` fallback.
 
 These `continue` messages are transport recovery, **not** Mission Control guard verdicts. They never grant execution authority or bypass owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
+
+All recovery nudges pass through the same global submission cooldown as normal supervision and capability testing. A relay restart retains the last successful click/generation-start boundary in `state.json`, so restart cannot create an immediate burst.
 
 ### Remaining semantic-liveness boundary
 
@@ -263,6 +268,8 @@ cat ~/.local/state/mission-control-chatgpt-relay/status.json
 ```
 
 The status record reports hashes, queue state, browser/memory state, capability state, stuck-recovery metadata, and ambiguity state. It does not contain ChatGPT response content.
+
+`submissionPacing` appears in doctor/status output with the configured minimum interval, persisted last-submission time, remaining delay, and next eligible submission time. `GLOBAL_SUBMISSION_COOLDOWN` is a normal fail-safe retry state; the outer relay loop retries on its next poll instead of blocking inside a send.
 
 ### Ambiguous submissions
 

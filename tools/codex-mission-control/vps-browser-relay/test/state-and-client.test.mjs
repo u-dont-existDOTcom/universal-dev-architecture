@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
+import { loadConfig, publicConfig } from '../src/config.mjs';
 
 test('state store is atomic, owner-only, and rejects a concurrent relay', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-state-'));
@@ -20,7 +21,11 @@ test('state store is atomic, owner-only, and rejects a concurrent relay', async 
     await assert.rejects(() => second.acquireLock(), /Another relay process/);
     const state = await first.read();
     state.deliveries['request:r-1'] = { status: 'SUBMITTED_CONFIRMED', bodySha256: 'a'.repeat(64) };
+    state.submissionPacing.lastSubmissionAt = '2026-09-02T12:00:00.000Z';
     await first.write(state);
+    const staleWriter = { ...state, submissionPacing: { lastSubmissionAt: null } };
+    await first.write(staleWriter);
+    assert.equal((await first.read()).submissionPacing.lastSubmissionAt, '2026-09-02T12:00:00.000Z');
     const raw = await readFile(paths.stateFile, 'utf8');
     assert.match(raw, /SUBMITTED_CONFIRMED/);
     assert.doesNotMatch(raw, /MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1/);
@@ -88,3 +93,51 @@ test('Mission Control client fails closed on an unscoped or mismatched worker re
   await assert.rejects(() => client.fetchWorkers(['worker-a']), /invalid scoped worker snapshot/);
   await assert.rejects(() => client.fetchWorkers([]), /At least one scoped/);
 });
+
+test('submission interval config defaults to 60000 and exposes the public value', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const config = await loadConfig(configEnv(chatsFile));
+    assert.equal(config.runtime.minSubmissionIntervalMs, 60_000);
+    assert.equal(publicConfig(config).minSubmissionIntervalMs, 60_000);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('submission interval config accepts only 15000 through 600000', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-range-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '15000' })).runtime.minSubmissionIntervalMs, 15_000);
+    assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600000' })).runtime.minSubmissionIntervalMs, 600_000);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '14999' }), /15000-600000/);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600001' }), /15000-600000/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+function configEnv(chatsFile) {
+  return {
+    MC_RELAY_CHATS_FILE: chatsFile,
+    MC_RELAY_MISSION_CONTROL_URL: 'https://mission-control.example',
+    MC_RELAY_PRODUCER_ID: 'collector:test-relay',
+    MC_RELAY_TOKEN: 'x'.repeat(32),
+  };
+}
+
+function configuredChat() {
+  return {
+    scope: 'SPECIALIST',
+    chatId: 'spec',
+    label: 'Specialist',
+    url: 'https://chatgpt.com/c/spec-chat',
+    workerId: 'worker-a',
+    capabilityChallengeId: 'challenge-spec',
+    modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
+  };
+}

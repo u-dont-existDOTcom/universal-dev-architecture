@@ -7,6 +7,7 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
 import { oneShotExitCode } from '../src/core.mjs';
+import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const command = process.argv[2] ?? 'run';
 
@@ -24,10 +25,17 @@ try {
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
-  const browser = installStuckRecovery(new ChromeDevtoolsBrowser(config.browser), {
-    maxNudges: config.runtime.stuckRecoveryMaxNudges,
+  const rawBrowser = new ChromeDevtoolsBrowser(config.browser);
+  const submissionPacer = new GlobalSubmissionPacer({
+    stateStore,
+    minIntervalMs: config.runtime.minSubmissionIntervalMs,
   });
-  const runtime = new RelayRuntime({ config, missionControl, browser, stateStore });
+  const browser = installStuckRecovery(rawBrowser, {
+    maxNudges: config.runtime.stuckRecoveryMaxNudges,
+    submitMessage: (target, input) => submissionPacer.submit({ submit: () => rawBrowser.submitExactMessage(target, input) }),
+    beforeRecoverySend: () => submissionPacer.assertReady(),
+  });
+  const runtime = new RelayRuntime({ config, missionControl, browser, stateStore, submissionPacer });
   await stateStore.acquireLock();
   installSignalHandlers(stateStore);
 

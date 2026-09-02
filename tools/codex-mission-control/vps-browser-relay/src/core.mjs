@@ -412,6 +412,7 @@ export function defaultState(now = new Date().toISOString()) {
     updatedAt: now,
     deliveries: {},
     tabs: {},
+    submissionPacing: { lastSubmissionAt: null },
     health: { lastCycleAt: null, lastSuccessfulPollAt: null, lastError: null, pressure: 'UNKNOWN', metrics: null, pausedReason: null },
   };
 }
@@ -424,6 +425,9 @@ export function normalizeState(value, now = new Date().toISOString()) {
     updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : now,
     deliveries: isRecord(value.deliveries) ? value.deliveries : {},
     tabs: isRecord(value.tabs) ? value.tabs : {},
+    submissionPacing: isRecord(value.submissionPacing) && Number.isFinite(Date.parse(value.submissionPacing.lastSubmissionAt ?? ''))
+      ? { lastSubmissionAt: value.submissionPacing.lastSubmissionAt }
+      : { lastSubmissionAt: null },
     health: isRecord(value.health) ? {
       lastCycleAt: typeof value.health.lastCycleAt === 'string' ? value.health.lastCycleAt : null,
       lastSuccessfulPollAt: typeof value.health.lastSuccessfulPollAt === 'string' ? value.health.lastSuccessfulPollAt : null,

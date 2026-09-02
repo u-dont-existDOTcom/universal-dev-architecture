@@ -10,6 +10,7 @@ import {
   defaultState,
 } from '../src/core.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
+import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const normalMetrics = { totalMb: 7941, availableMb: 5400, usedMb: 2541, swapTotalMb: 2048, swapUsedMb: 2, browserRssMb: 1700, sampledAt: '2026-09-02T00:00:00.000Z' };
 
@@ -115,6 +116,49 @@ test('capability challenge send is independently gated and resumes from generati
   assert.equal(browser.submitCalls, 1);
 });
 
+test('capability challenge obeys the persisted global cooldown without creating delivery authority', async () => {
+  const state = defaultState('2026-09-02T00:00:00.000Z');
+  state.submissionPacing.lastSubmissionAt = '2026-09-02T00:00:00.000Z';
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({ evidence: [challengeEvidence()] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({
+    store,
+    mc,
+    browser,
+    submitEnabled: false,
+    capabilityTestEnabled: true,
+    now: () => Date.parse('2026-09-02T00:00:30.000Z'),
+  });
+  const result = await runtime.verifyCapabilities('spec');
+  assert.equal(result.status, 'GLOBAL_SUBMISSION_COOLDOWN');
+  assert.equal(result.retryAfterMs, 30_000);
+  assert.equal(browser.submitCalls, 0);
+  assert.deepEqual(store.state.deliveries, {});
+});
+
+test('same-chat mode stages are globally paced and retry later without semantic mutation', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  const now = { value: Date.parse('2026-09-02T00:00:01.000Z') };
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, now: () => now.value });
+
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_COMPLETE');
+  mc.evidence.push(stageLivenessEvidence('reader-complete-paced', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z'));
+  const before = structuredClone(store.state.deliveries['request:r-1']);
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'GLOBAL_SUBMISSION_COOLDOWN');
+  assert.equal(blocked.retryAfterMs, 60_000);
+  assert.equal(browser.submitCalls, 1);
+  assert.deepEqual(store.state.deliveries['request:r-1'], before);
+
+  now.value += 60_000;
+  assert.equal((await runtime.cycle()).status, 'PRO_REASONER_GENERATION_STARTED');
+  assert.equal(browser.submitCalls, 2);
+});
+
 test('hard memory pressure performs no submission', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
@@ -125,16 +169,17 @@ test('hard memory pressure performs no submission', async () => {
   assert.equal(browser.submitCalls, 0);
 });
 
-function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics }) {
+function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now }) {
   const config = {
     missionControl: {},
     browser: { profileDir: '/tmp/test-profile' },
     runtime: {
-      chats: [chat()], workerIds: ['worker-a'], submitEnabled, capabilityTestEnabled, retryDelayMs: 300_000, maxHotTabs: 3,
+      chats: [chat()], workerIds: ['worker-a'], submitEnabled, capabilityTestEnabled, pollIntervalMs: 15_000, minSubmissionIntervalMs: 60_000, retryDelayMs: 300_000, maxHotTabs: 3,
     },
     memory: { profile: 'AUTO', overrides: {} },
   };
-  return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, memoryReader, logger: { log() {}, warn() {}, error() {} } });
+  const submissionPacer = new GlobalSubmissionPacer({ stateStore: store, minIntervalMs: config.runtime.minSubmissionIntervalMs, now });
+  return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, submissionPacer, memoryReader, logger: { log() {}, warn() {}, error() {} } });
 }
 
 class MemoryStateStore {

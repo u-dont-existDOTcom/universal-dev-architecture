@@ -253,6 +253,7 @@ export class ChromeDevtoolsBrowser {
   async submitExactMessage(target, { expectedUrl, body, bodySha256 }) {
     if (!body || typeof body !== 'string') throw new Error('Cannot submit an empty message.');
     let relayStage = 'CONNECTING';
+    let clickedAtObserved = null;
     try {
       return await this.#withPageClient(target, async (client) => {
         relayStage = 'PREPARING';
@@ -279,6 +280,7 @@ export class ChromeDevtoolsBrowser {
         const send = await client.callFunction(CLICK_SEND_FN, []);
         if (!send?.ok) throw new Error(`ChatGPT send control is unavailable: ${send?.reason ?? 'UNKNOWN'}.`);
         relayStage = 'CLICKED';
+        clickedAtObserved = new Date().toISOString();
 
         let started;
         try {
@@ -301,6 +303,7 @@ export class ChromeDevtoolsBrowser {
           conversationUrl: normalized,
           bodySha256,
           bodyLength: body.length,
+          clickedAtObserved,
           generationStarted: true,
           startSignal: started.startSignal,
           startedAtObserved: new Date().toISOString(),
@@ -313,7 +316,10 @@ export class ChromeDevtoolsBrowser {
         };
       });
     } catch (error) {
-      if (error && typeof error === 'object') error.relayStage = relayStage;
+      if (error && typeof error === 'object') {
+        error.relayStage = relayStage;
+        if (clickedAtObserved) error.clickedAtObserved = clickedAtObserved;
+      }
       throw error;
     }
   }

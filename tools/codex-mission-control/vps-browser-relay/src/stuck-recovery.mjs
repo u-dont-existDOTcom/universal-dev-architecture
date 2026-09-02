@@ -68,6 +68,8 @@ const RECOVERABLE_CONTROL_FN = `function(expectedUrl) {
 export function installStuckRecovery(browser, {
   maxNudges = 3,
   logger = console,
+  submitMessage = null,
+  beforeRecoverySend = null,
   stopStalledGeneration = null,
   inspectRecoverableControl = null,
 } = {}) {
@@ -77,6 +79,7 @@ export function installStuckRecovery(browser, {
   if (!Number.isInteger(maxNudges) || maxNudges < 1 || maxNudges > 20) throw new Error('maxNudges must be an integer from 1 to 20.');
 
   const originalWait = browser.waitForGenerationComplete.bind(browser);
+  const submitFn = submitMessage ?? ((target, input) => browser.submitExactMessage(target, input));
   const stopFn = stopStalledGeneration ?? ((target, expectedUrl) => interruptStalledGeneration(browser, target, expectedUrl));
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
 
@@ -90,7 +93,8 @@ export function installStuckRecovery(browser, {
           if (recoveries.length >= maxNudges) {
             throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
           }
-          const recovery = await sendContinue(browser, target, options, recoveries.length + 1, maxNudges, logger, {
+          if (beforeRecoverySend) await beforeRecoverySend();
+          const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
             source: 'RECOVERABLE_UI_CONTROL',
             controlLabel: control.controlLabel,
             interruption: { stoppedGeneration: false, stopReason: 'ALREADY_IDLE', inspectedAssistantOutput: false },
@@ -110,8 +114,9 @@ export function installStuckRecovery(browser, {
         };
       } catch (error) {
         if (!isGenerationStallTimeout(error) || recoveries.length >= maxNudges) throw error;
+        if (beforeRecoverySend) await beforeRecoverySend();
         const interruption = await stopFn(target, options.expectedUrl);
-        const recovery = await sendContinue(browser, target, options, recoveries.length + 1, maxNudges, logger, {
+        const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
           source: 'ACTIVE_GENERATION_TIMEOUT',
           controlLabel: null,
           interruption,
@@ -130,10 +135,10 @@ export function isGenerationStallTimeout(error) {
   return message.includes('ChatGPT generation did not reach a stable complete UI state.');
 }
 
-async function sendContinue(browser, target, options, index, maxNudges, logger, context) {
+async function sendContinue(submitMessage, target, options, index, maxNudges, logger, context) {
   const recoveredAt = new Date().toISOString();
   const body = 'continue';
-  const start = await browser.submitExactMessage(target, {
+  const start = await submitMessage(target, {
     expectedUrl: options.expectedUrl,
     body,
     bodySha256: sha256(body),

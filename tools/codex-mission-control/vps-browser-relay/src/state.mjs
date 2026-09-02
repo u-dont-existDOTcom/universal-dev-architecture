@@ -53,7 +53,13 @@ export class StateStore {
   }
 
   async write(state) {
-    const next = { ...state, updatedAt: new Date().toISOString() };
+    const current = await this.read();
+    const currentSubmissionMs = Date.parse(current.submissionPacing?.lastSubmissionAt ?? '');
+    const proposedSubmissionMs = Date.parse(state.submissionPacing?.lastSubmissionAt ?? '');
+    const lastSubmissionAt = Number.isFinite(currentSubmissionMs) && (!Number.isFinite(proposedSubmissionMs) || currentSubmissionMs > proposedSubmissionMs)
+      ? current.submissionPacing.lastSubmissionAt
+      : state.submissionPacing?.lastSubmissionAt ?? null;
+    const next = { ...state, submissionPacing: { lastSubmissionAt }, updatedAt: new Date().toISOString() };
     await atomicJsonWrite(this.stateFile, next, 0o600);
     return next;
   }
