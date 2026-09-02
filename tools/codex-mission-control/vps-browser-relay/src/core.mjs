@@ -145,8 +145,10 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!parsed) continue;
       const key = `${workerId}:${parsed.requestId}`;
       const current = livenessByWorkerRequest.get(key) ?? {};
-      const existing = current[parsed.stage];
-      if (!existing || parsed.sequence > existing.sequence) current[parsed.stage] = parsed;
+      const stageState = current[parsed.stage] ?? { latest: null, continueRequiredCount: 0 };
+      if (parsed.status === 'CONTINUE_REQUIRED') stageState.continueRequiredCount += 1;
+      if (!stageState.latest || parsed.sequence > stageState.latest.sequence) stageState.latest = parsed;
+      current[parsed.stage] = stageState;
       livenessByWorkerRequest.set(key, current);
     }
   }
@@ -290,9 +292,8 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   if (route.routeKind !== 'SUPERVISORY_CYCLE') return null;
   if (route.decisionReceipt) return { type: 'WAIT_GITHUB_RECEIPT' };
   const status = prior?.status ?? 'UNSEEN';
-  const semanticContinueCount = Number.isInteger(prior?.semanticContinueCount) ? prior.semanticContinueCount : 0;
   if (status === 'FAILED_RETRYABLE' && prior?.cycleStep) {
-    if (isContinueNudgeStep(prior.cycleStep)) return { type: 'WAIT_STAGE_RECEIPT', stage: semanticStageForStep(prior.cycleStep), recovery: 'CONTINUE_NUDGE_FAILED' };
+    if (isContinueNudgeStep(prior.cycleStep)) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage: semanticStageForStep(prior.cycleStep), recovery: 'CONTINUE_NUDGE_FAILED' };
     return { type: 'SEND_CONTROL', step: prior.cycleStep, model: modelForStep(prior.cycleStep) };
   }
   if (status === 'AMBIGUOUS_AFTER_RESTART' || status === 'SUBMISSION_INTENT_RECORDED') return null;
@@ -314,7 +315,7 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     return { type: 'WAIT_GENERATION', step: prior.cycleStep };
   }
   if (status === completedCycleStepStatus('EXTRA_HIGH_READER') || status === completedCycleStepStatus('EXTRA_HIGH_READER_CONTINUE')) {
-    return stageReceiptAction({ route, prior, stage: 'EXTRA_HIGH_READER', completeAction: { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' }, continueStep: 'EXTRA_HIGH_READER_CONTINUE', continueModel: 'EXTRA_HIGH', nowMs, maxSemanticNudges, semanticContinueCount });
+    return stageReceiptAction({ route, prior, stage: 'EXTRA_HIGH_READER', completeAction: { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' }, continueStep: 'EXTRA_HIGH_READER_CONTINUE', continueModel: 'EXTRA_HIGH', nowMs, maxSemanticNudges });
   }
 
   if (status === startedCycleStepStatus('PRO_REASONER') || status === startedCycleStepStatus('PRO_REASONER_CONTINUE')) {
@@ -328,7 +329,7 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     return { type: 'WAIT_GENERATION', step: prior.cycleStep };
   }
   if (status === completedCycleStepStatus('PRO_LIVENESS_CHECK') || status === completedCycleStepStatus('PRO_LIVENESS_CHECK_CONTINUE')) {
-    return stageReceiptAction({ route, prior, stage: 'PRO_REASONER', completeAction: { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' }, continueStep: 'PRO_REASONER_CONTINUE', continueModel: 'PRO', missingReceiptContinueStep: 'PRO_LIVENESS_CHECK_CONTINUE', nowMs, maxSemanticNudges, semanticContinueCount });
+    return stageReceiptAction({ route, prior, stage: 'PRO_REASONER', completeAction: { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' }, continueStep: 'PRO_REASONER_CONTINUE', continueModel: 'PRO', missingReceiptContinueStep: 'PRO_LIVENESS_CHECK_CONTINUE', missingReceiptContinueModel: 'EXTRA_HIGH', nowMs, maxSemanticNudges });
   }
 
   if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER' };
@@ -342,18 +343,23 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   return null;
 }
 
-function stageReceiptAction({ route, prior, stage, completeAction, continueStep, continueModel, missingReceiptContinueStep = continueStep, nowMs, maxSemanticNudges, semanticContinueCount }) {
-  const receipt = route.stageLiveness?.[stage] ?? null;
-  const isNewReceipt = receipt && receipt.receiptId !== prior?.handledStageReceiptId;
-  if (isNewReceipt && receipt.status === 'STAGE_COMPLETE') return { ...completeAction, stageReceiptId: receipt.receiptId, livenessStatus: receipt.status };
-  if (isNewReceipt && receipt.status === 'CONTINUE_REQUIRED') {
-    if (semanticContinueCount >= maxSemanticNudges) return { type: 'WAIT_STAGE_RECEIPT', stage, recovery: 'SEMANTIC_CONTINUE_LIMIT_REACHED' };
-    return { type: 'SEND_CONTROL', step: continueStep, model: continueModel, recovery: 'SEMANTIC_CONTINUE_REQUIRED', stageReceiptId: receipt.receiptId };
+function stageReceiptAction({ route, prior, stage, completeAction, continueStep, continueModel, missingReceiptContinueStep = continueStep, missingReceiptContinueModel = continueModel, nowMs, maxSemanticNudges }) {
+  const stageState = route.stageLiveness?.[stage] ?? null;
+  const receipt = stageState?.latest ?? null;
+  const currentAttemptStartedAt = Date.parse(prior?.generationStartedAt ?? '');
+  const receiptAt = Date.parse(receipt?.occurredAt ?? '');
+  const currentReceipt = receipt && Number.isFinite(currentAttemptStartedAt) && Number.isFinite(receiptAt) && receiptAt >= currentAttemptStartedAt ? receipt : null;
+  const continueRequiredCount = stageState?.continueRequiredCount ?? 0;
+  if (currentReceipt?.status === 'STAGE_COMPLETE') return { ...completeAction, stageReceiptId: currentReceipt.receiptId, livenessStatus: currentReceipt.status };
+  if (currentReceipt?.status === 'CONTINUE_REQUIRED') {
+    if (continueRequiredCount >= maxSemanticNudges) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'SEMANTIC_CONTINUE_LIMIT_REACHED' };
+    return { type: 'SEND_CONTROL', step: continueStep, model: continueModel, recovery: 'SEMANTIC_CONTINUE_REQUIRED', stageReceiptId: currentReceipt.receiptId };
   }
-  if (stageReceiptGraceElapsed(prior, nowMs) && semanticContinueCount < maxSemanticNudges) {
-    return { type: 'SEND_CONTROL', step: missingReceiptContinueStep, model: modelForStep(missingReceiptContinueStep), recovery: 'MISSING_STAGE_RECEIPT' };
+  if (stageReceiptGraceElapsed(prior, nowMs)) {
+    if (prior?.cycleStep === missingReceiptContinueStep) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'MISSING_STAGE_RECEIPT_AFTER_NUDGE' };
+    return { type: 'SEND_CONTROL', step: missingReceiptContinueStep, model: missingReceiptContinueModel, recovery: 'MISSING_STAGE_RECEIPT' };
   }
-  return { type: 'WAIT_STAGE_RECEIPT', stage, recovery: isNewReceipt ? 'STAGE_RECEIPT_UNHANDLED' : 'AWAITING_STAGE_RECEIPT' };
+  return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'AWAITING_STAGE_RECEIPT' };
 }
 
 export function isContinueNudgeStep(step) {
