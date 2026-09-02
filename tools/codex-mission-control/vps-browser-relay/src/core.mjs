@@ -7,7 +7,9 @@ export const CAPABILITY_CHALLENGE_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_CHA
 export const CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1';
 export const MODE_CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1';
 export const RELAY_STAGE_SUMMARY = 'MISSION_CONTROL_RELAY_STAGE_V1';
+export const STAGE_LIVENESS_SUMMARY = 'MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1';
 export const CONTINUE_NUDGE_DELAY_MS = 300_000;
+export const STAGE_RECEIPT_GRACE_MS = 360_000;
 
 export function oneShotExitCode(result) {
   return result?.status === 'ERROR' ? 1 : 0;
@@ -128,13 +130,24 @@ export function parseSupervisoryCycleRouteBody(body) {
 export function extractQueuedRoutes(snapshot, chats, state) {
   if (!isRecord(snapshot) || !Array.isArray(snapshot.workers)) throw new Error('Mission Control fleet response does not contain workers.');
   const chatById = new Map(chats.map((entry) => [entry.chatId, entry]));
-  const receiptByRequestId = new Map();
+  const receiptByWorkerRequest = new Map();
+  const livenessByWorkerRequest = new Map();
   for (const worker of snapshot.workers) {
     if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
+    const workerId = typeof worker.id === 'string' ? worker.id : 'unknown-worker';
     for (const event of worker.timeline) {
-      if (isRecord(event?.data) && event.data.type === 'github_decision_receipt_ingested' && typeof event.data.request_id === 'string') {
-        receiptByRequestId.set(event.data.request_id, event.data);
+      if (!isRecord(event?.data)) continue;
+      if (event.data.type === 'github_decision_receipt_ingested' && typeof event.data.request_id === 'string') {
+        receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}`, event.data);
+        continue;
       }
+      const parsed = parseStageLivenessEvidence(event);
+      if (!parsed) continue;
+      const key = `${workerId}:${parsed.requestId}`;
+      const current = livenessByWorkerRequest.get(key) ?? {};
+      const existing = current[parsed.stage];
+      if (!existing || parsed.sequence > existing.sequence) current[parsed.stage] = parsed;
+      livenessByWorkerRequest.set(key, current);
     }
   }
   const routes = [];
@@ -151,6 +164,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
       if (prior && ['SUBMITTED_CONFIRMED', 'DISCARDED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
+      const workerRequestKey = `${workerId}:${packet.requestId}`;
       routes.push({
         routeKey,
         requestId: packet.requestId,
@@ -161,7 +175,8 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         chat,
         packet,
         routeKind: packet.packetKind === 'SAME_CHAT_SUPERVISORY_CYCLE' ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
-        decisionReceipt: receiptByRequestId.get(packet.requestId) ?? null,
+        decisionReceipt: receiptByWorkerRequest.get(workerRequestKey) ?? null,
+        stageLiveness: livenessByWorkerRequest.get(workerRequestKey) ?? {},
         body: event.data.body,
         bodySha256: sha256(event.data.body),
         queuedAt: packet.queuedAt,
@@ -170,6 +185,27 @@ export function extractQueuedRoutes(snapshot, chats, state) {
     }
   }
   return routes.sort((left, right) => left.queuedAt.localeCompare(right.queuedAt) || left.routeKey.localeCompare(right.routeKey));
+}
+
+function parseStageLivenessEvidence(event) {
+  if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'evidence_receipt_recorded' || event.data.summary !== STAGE_LIVENESS_SUMMARY || event.data.verified !== true || !Array.isArray(event.data.refs)) return null;
+  const requestId = refValue(event.data.refs, 'request:');
+  const stage = refValue(event.data.refs, 'stage:');
+  const status = refValue(event.data.refs, 'status:');
+  if (!requestId || !['EXTRA_HIGH_READER', 'PRO_REASONER'].includes(stage) || !['STAGE_COMPLETE', 'CONTINUE_REQUIRED'].includes(status)) return null;
+  return {
+    receiptId: event.data.receipt_id,
+    requestId,
+    stage,
+    status,
+    occurredAt: event.occurredAt ?? null,
+    sequence: Number.isInteger(event.sequence) ? event.sequence : -1,
+  };
+}
+
+function refValue(refs, prefix) {
+  const ref = refs.find((value) => typeof value === 'string' && value.startsWith(prefix));
+  return ref ? ref.slice(prefix.length) : null;
 }
 
 export function chatCapabilityState(snapshot, chat, now = new Date().toISOString()) {
@@ -230,29 +266,34 @@ export function cycleControlPrompt(route, step) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Control prompts require a supervisory-cycle route.');
   const requestId = route.requestId;
   const location = `${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.issueNumber}`;
+  const chatId = route.chat.chatId;
   if (step === 'EXTRA_HIGH_DIRECT') {
     return `MC ${requestId}: remain in Extra High. Read the registered Mission Control/GitHub evidence, make the bounded decision, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
   }
   if (step === 'EXTRA_HIGH_READER') {
-    return `MC ${requestId}: remain in Extra High. Read the registered Mission Control and GitHub evidence into this same chat context. Do not decide and do not write a decision yet.`;
+    return `MC ${requestId}: remain in Extra High. Read the registered Mission Control and GitHub evidence fully into this same chat context. Do not decide. When this reader-stage objective is fully complete, read the current stage_receipt_target from Mission Control and write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 with request_id ${requestId}, the request_nonce from the pending Mission Control route, chat_id ${chatId}, stage EXTRA_HIGH_READER, status STAGE_COMPLETE. If you can determine that more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Do not delegate to Work.`;
   }
   if (step === 'PRO_REASONER') {
     return `MC ${requestId}: switch to Pro. Adjudicate using the evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
   }
+  if (step === 'PRO_LIVENESS_CHECK') {
+    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Read the current stage_receipt_target and request_nonce from Mission Control, then write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 with request_id ${requestId}, chat_id ${chatId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
+  }
   if (step === 'EXTRA_HIGH_WRITER') {
-    return `MC ${requestId}: switch back to Extra High. Write the immediately preceding same-chat Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
+    return `MC ${requestId}: remain in Extra High. The immediately preceding Pro stage has a durable STAGE_COMPLETE liveness receipt. Write that same-chat Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
   }
   if (isContinueNudgeStep(step)) return 'continue';
   throw new Error(`Unknown supervisory-cycle step: ${step}`);
 }
 
-export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS) {
+export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS, maxSemanticNudges = 3) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') return null;
   if (route.decisionReceipt) return { type: 'WAIT_GITHUB_RECEIPT' };
   const status = prior?.status ?? 'UNSEEN';
+  const semanticContinueCount = Number.isInteger(prior?.semanticContinueCount) ? prior.semanticContinueCount : 0;
   if (status === 'FAILED_RETRYABLE' && prior?.cycleStep) {
-    if (isContinueNudgeStep(prior.cycleStep)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
-    return { type: 'SEND_CONTROL', step: prior.cycleStep, model: prior.cycleStep === 'PRO_REASONER' ? 'PRO' : 'EXTRA_HIGH' };
+    if (isContinueNudgeStep(prior.cycleStep)) return { type: 'WAIT_STAGE_RECEIPT', stage: semanticStageForStep(prior.cycleStep), recovery: 'CONTINUE_NUDGE_FAILED' };
+    return { type: 'SEND_CONTROL', step: prior.cycleStep, model: modelForStep(prior.cycleStep) };
   }
   if (status === 'AMBIGUOUS_AFTER_RESTART' || status === 'SUBMISSION_INTENT_RECORDED') return null;
   if (route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT') {
@@ -260,22 +301,40 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT' };
     if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT')) {
       return continueNudgeEligible(prior, nowMs, continueDelayMs)
-        ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE' }
+        ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_FINAL_RECEIPT' }
         : { type: 'WAIT_GITHUB_RECEIPT' };
     }
     if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT_CONTINUE' };
     if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE')) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
     return null;
   }
+
   if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' };
-  if (status === startedCycleStepStatus('EXTRA_HIGH_READER')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_READER' };
-  if (status === completedCycleStepStatus('EXTRA_HIGH_READER')) return { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' };
-  if (status === startedCycleStepStatus('PRO_REASONER')) return { type: 'WAIT_GENERATION', step: 'PRO_REASONER' };
-  if (status === completedCycleStepStatus('PRO_REASONER')) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' };
+  if (status === startedCycleStepStatus('EXTRA_HIGH_READER') || status === startedCycleStepStatus('EXTRA_HIGH_READER_CONTINUE')) {
+    return { type: 'WAIT_GENERATION', step: prior.cycleStep };
+  }
+  if (status === completedCycleStepStatus('EXTRA_HIGH_READER') || status === completedCycleStepStatus('EXTRA_HIGH_READER_CONTINUE')) {
+    return stageReceiptAction({ route, prior, stage: 'EXTRA_HIGH_READER', completeAction: { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' }, continueStep: 'EXTRA_HIGH_READER_CONTINUE', continueModel: 'EXTRA_HIGH', nowMs, maxSemanticNudges, semanticContinueCount });
+  }
+
+  if (status === startedCycleStepStatus('PRO_REASONER') || status === startedCycleStepStatus('PRO_REASONER_CONTINUE')) {
+    return { type: 'WAIT_GENERATION', step: prior.cycleStep };
+  }
+  if (status === completedCycleStepStatus('PRO_REASONER') || status === completedCycleStepStatus('PRO_REASONER_CONTINUE')) {
+    return { type: 'SEND_CONTROL', step: 'PRO_LIVENESS_CHECK', model: 'EXTRA_HIGH' };
+  }
+
+  if (status === startedCycleStepStatus('PRO_LIVENESS_CHECK') || status === startedCycleStepStatus('PRO_LIVENESS_CHECK_CONTINUE')) {
+    return { type: 'WAIT_GENERATION', step: prior.cycleStep };
+  }
+  if (status === completedCycleStepStatus('PRO_LIVENESS_CHECK') || status === completedCycleStepStatus('PRO_LIVENESS_CHECK_CONTINUE')) {
+    return stageReceiptAction({ route, prior, stage: 'PRO_REASONER', completeAction: { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' }, continueStep: 'PRO_REASONER_CONTINUE', continueModel: 'PRO', missingReceiptContinueStep: 'PRO_LIVENESS_CHECK_CONTINUE', nowMs, maxSemanticNudges, semanticContinueCount });
+  }
+
   if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER' };
   if (status === completedCycleStepStatus('EXTRA_HIGH_WRITER')) {
     return continueNudgeEligible(prior, nowMs, continueDelayMs)
-      ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'CONTINUE_NUDGE' }
+      ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_FINAL_RECEIPT' }
       : { type: 'WAIT_GITHUB_RECEIPT' };
   }
   if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER_CONTINUE')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER_CONTINUE' };
@@ -283,14 +342,44 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   return null;
 }
 
+function stageReceiptAction({ route, prior, stage, completeAction, continueStep, continueModel, missingReceiptContinueStep = continueStep, nowMs, maxSemanticNudges, semanticContinueCount }) {
+  const receipt = route.stageLiveness?.[stage] ?? null;
+  const isNewReceipt = receipt && receipt.receiptId !== prior?.handledStageReceiptId;
+  if (isNewReceipt && receipt.status === 'STAGE_COMPLETE') return { ...completeAction, stageReceiptId: receipt.receiptId, livenessStatus: receipt.status };
+  if (isNewReceipt && receipt.status === 'CONTINUE_REQUIRED') {
+    if (semanticContinueCount >= maxSemanticNudges) return { type: 'WAIT_STAGE_RECEIPT', stage, recovery: 'SEMANTIC_CONTINUE_LIMIT_REACHED' };
+    return { type: 'SEND_CONTROL', step: continueStep, model: continueModel, recovery: 'SEMANTIC_CONTINUE_REQUIRED', stageReceiptId: receipt.receiptId };
+  }
+  if (stageReceiptGraceElapsed(prior, nowMs) && semanticContinueCount < maxSemanticNudges) {
+    return { type: 'SEND_CONTROL', step: missingReceiptContinueStep, model: modelForStep(missingReceiptContinueStep), recovery: 'MISSING_STAGE_RECEIPT' };
+  }
+  return { type: 'WAIT_STAGE_RECEIPT', stage, recovery: isNewReceipt ? 'STAGE_RECEIPT_UNHANDLED' : 'AWAITING_STAGE_RECEIPT' };
+}
+
 export function isContinueNudgeStep(step) {
-  return step === 'EXTRA_HIGH_DIRECT_CONTINUE' || step === 'EXTRA_HIGH_WRITER_CONTINUE';
+  return typeof step === 'string' && step.endsWith('_CONTINUE');
+}
+
+function semanticStageForStep(step) {
+  if (step?.startsWith('EXTRA_HIGH_READER')) return 'EXTRA_HIGH_READER';
+  if (step?.startsWith('PRO_REASONER') || step?.startsWith('PRO_LIVENESS_CHECK')) return 'PRO_REASONER';
+  return null;
+}
+
+function modelForStep(step) {
+  return step?.startsWith('PRO_REASONER') ? 'PRO' : 'EXTRA_HIGH';
 }
 
 export function continueNudgeEligible(prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS) {
   if (!prior || !Number.isFinite(nowMs) || !Number.isFinite(continueDelayMs) || continueDelayMs < 0) return false;
   const completedAt = Date.parse(prior.generationCompletedAt ?? '');
   return Number.isFinite(completedAt) && nowMs - completedAt >= continueDelayMs;
+}
+
+export function stageReceiptGraceElapsed(prior, nowMs = Date.now(), graceMs = STAGE_RECEIPT_GRACE_MS) {
+  if (!prior || !Number.isFinite(nowMs) || !Number.isFinite(graceMs) || graceMs < 0) return false;
+  const completedAt = Date.parse(prior.generationCompletedAt ?? '');
+  return Number.isFinite(completedAt) && nowMs - completedAt >= graceMs;
 }
 
 export function completedCycleStepStatus(step) {
