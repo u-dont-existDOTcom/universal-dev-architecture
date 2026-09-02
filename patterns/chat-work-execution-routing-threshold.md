@@ -67,27 +67,35 @@ Chat reasons first
 
 Do not send the whole task to Work and ask it to decide the architecture while implementing it.
 
-## Long-running Extra High recovery
+## Long-running ChatGPT recovery
 
-A long-running Extra High supervisory chat can occasionally stop before completing its already-authorized work. When there is an objective durable completion signal and that signal is still missing after the normal retry/grace interval, Mission Control may send the exact one-word message:
+Any already-authorized long-running supervisor chat can stop making progress before its current objective is finished, including Extra High, Pro, Project Manager, and specialist turns. Mission Control may use the exact one-word message:
 
 ```text
 continue
 ```
 
-This is a **same-chat recovery nudge**, not an execution verdict or mission-guard `CONTINUE` decision.
+as a **same-chat transport recovery nudge**. It is not an execution verdict or mission-guard `CONTINUE` decision.
 
-Apply it conservatively:
+Use objective non-content liveness signals where available:
 
-- only to an Extra High turn that was already authorized and is still pursuing the same bounded objective;
-- only when the expected durable completion artifact/state transition has not appeared;
-- keep the same chat and same model/mode;
-- send at most one automatic `continue` nudge for that logical step;
-- record the nudge as transport/recovery evidence, without claiming semantic content or model identity beyond the visible UI label;
-- if the expected completion artifact is still absent after that recovery turn, mark the step stalled and return control to Chat rather than creating an automatic loop;
+- a turn remains in active generation state beyond the configured liveness timeout;
+- ChatGPT exposes a visible recovery control such as `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`;
+- a stage with an expected durable completion artifact returns to idle but that artifact remains absent after its grace interval.
+
+Recovery preserves the current conversation and current model/mode unless the admitted workflow itself requires a model switch. Do not infer semantic completion merely because the composer is idle.
+
+Apply bounded recovery:
+
+- the underlying Chat objective must already be authorized;
+- send only the minimal `continue` message; do not rewrite the task or introduce new semantic direction;
+- record recovery as transport evidence without claiming assistant content or hidden backend model identity;
+- cap consecutive automatic nudges to prevent quota-burning loops;
+- a failed or ambiguous nudge is not automatically replayed;
+- when liveness remains unresolved after the recovery ceiling, return control to Chat rather than silently replanning in Work;
 - never use `continue` to bypass an owner decision, Mission Control admission gate, safety/release gate, ambiguity state, spend/access boundary, or a required model switch.
 
-For same-chat Personal Pro escalation, the strongest objective use is after an Extra High step that is expected to create a durable GitHub receipt. A Pro reasoning turn must not receive this generic recovery nudge merely because it is slow or difficult.
+For consumer ChatGPT surfaces where assistant output is not programmatically extracted, durable stage-completion/continue-required receipts are preferred when UI liveness alone cannot distinguish a normal idle-but-incomplete turn from true semantic completion.
 
 ## Work authority exclusions
 
