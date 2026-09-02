@@ -7,10 +7,12 @@ import type { EventStore } from "./store";
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
 export const canonicalDecisionCommentPrefix = "MISSION_CONTROL_CANONICAL_DECISION_V1\n";
 export const capabilityReceiptCommentPrefix = "MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1\n";
+export const stageReceiptCommentPrefix = "MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1\n";
 export const capabilityChallengeSummary = "MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1";
 export const capabilityVerifiedSummary = "MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1";
 export const modeCapabilityVerifiedSummary = "MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1";
 export const relayStageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
+export const stageLivenessSummary = "MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1";
 export const sameChatWriterAttestationSummary = "MISSION_CONTROL_SAME_CHAT_WRITER_ATTESTED_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
@@ -20,6 +22,7 @@ export interface GitHubReceiptPolicy {
   repository: string;
   decisionIssueNumber: number;
   capabilityIssueNumber: number;
+  stageIssueNumber: number;
   authorizedWriterLogins: string[];
   capabilityChallenges: CapabilityChallenge[];
 }
@@ -42,6 +45,14 @@ interface CapabilityReceiptBody {
   schemaVersion: 1; challengeId: string; chatId: string; mcNonce: string; githubNonce: string;
   capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"];
 }
+export interface StageReceiptBody {
+  schemaVersion: 1;
+  requestId: string;
+  requestNonce: string;
+  chatId: string;
+  stage: "EXTRA_HIGH_READER" | "PRO_REASONER";
+  status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED";
+}
 
 export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON): GitHubReceiptPolicy | null {
   if (!raw?.trim()) return null;
@@ -51,6 +62,7 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
   const repository = repositoryName(root.repository, "repository");
   const decisionIssueNumber = positiveInteger(root.decisionIssueNumber, "decisionIssueNumber");
   const capabilityIssueNumber = positiveInteger(root.capabilityIssueNumber, "capabilityIssueNumber");
+  const stageIssueNumber = positiveInteger(root.stageIssueNumber, "stageIssueNumber");
   if (!Array.isArray(root.authorizedWriterLogins) || root.authorizedWriterLogins.length === 0) throw new Error("GitHub receipt policy requires at least one authorizedWriterLogin.");
   const authorizedWriterLogins = root.authorizedWriterLogins.map((item, i) => requiredString(item, `authorizedWriterLogins[${i}]`).toLowerCase());
   if (!Array.isArray(root.capabilityChallenges)) throw new Error("capabilityChallenges must be an array.");
@@ -68,7 +80,7 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
     };
   });
   if (new Set(capabilityChallenges.map((c) => c.chatId)).size !== capabilityChallenges.length) throw new Error("Capability challenge chat IDs must be unique.");
-  return { repository, decisionIssueNumber, capabilityIssueNumber, authorizedWriterLogins, capabilityChallenges };
+  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges };
 }
 
 export function validateConfiguredDecisionLocation(repository: string, issueNumber: number, policy: GitHubReceiptPolicy | null) {
@@ -123,6 +135,26 @@ export function parseCapabilityReceiptComment(body: string): CapabilityReceiptBo
   };
 }
 
+export function parseStageReceiptComment(body: string): StageReceiptBody {
+  if (!body.startsWith(stageReceiptCommentPrefix)) throw new Error("Not a chat stage receipt.");
+  let parsed: unknown;
+  try { parsed = JSON.parse(body.slice(stageReceiptCommentPrefix.length)); } catch { throw new Error("Chat stage receipt contains invalid JSON."); }
+  const root = record(parsed, "chat stage receipt");
+  const stage = requiredString(root.stage, "stage");
+  const status = requiredString(root.status, "status");
+  if (root.schema_version !== 1) throw new Error("Chat stage receipt schema_version must be 1.");
+  if (stage !== "EXTRA_HIGH_READER" && stage !== "PRO_REASONER") throw new Error("Chat stage receipt has an unsupported stage.");
+  if (status !== "STAGE_COMPLETE" && status !== "CONTINUE_REQUIRED") throw new Error("Chat stage receipt has an unsupported status.");
+  return {
+    schemaVersion: 1,
+    requestId: requiredString(root.request_id, "request_id"),
+    requestNonce: requiredString(root.request_nonce, "request_nonce"),
+    chatId: requiredString(root.chat_id, "chat_id"),
+    stage,
+    status,
+  };
+}
+
 export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: GitHubReceiptPolicy | null, now = new Date().toISOString()) {
   if (!policy) return [];
   const events = store.allEvents(), appended: StoredEvent[] = [];
@@ -136,6 +168,7 @@ export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: 
         `github_nonce_sha256:${sha256(challenge.githubNonce)}`,
         `github_nonce_source:https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`,
         `receipt_target:https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`,
+        `stage_receipt_target:https://github.com/${policy.repository}/issues/${policy.stageIssueNumber}`,
         `expires_at:${challenge.expiresAt}`, `extra_high_label:${challenge.extraHighLabel}`, `pro_label:${challenge.proLabel}`,
       ],
     }), now, githubReceiptCollector));
@@ -175,6 +208,36 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
       refs: [`challenge:${challenge.challengeId}`, `chat:${challenge.chatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", `expires_at:${challenge.expiresAt}`, `github_comment:${candidate.immutableUrl}`],
     }), ingestedAt, githubReceiptCollector)];
   }
+  if (candidate.body.startsWith(stageReceiptCommentPrefix)) {
+    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.stageIssueNumber) throw new Error("Stage receipt arrived outside the configured GitHub stage-liveness channel.");
+    const stage = parseStageReceiptComment(candidate.body);
+    const matches = pendingDecisionRequests(events).filter((request) => request.requestId === stage.requestId);
+    if (matches.length !== 1) throw new Error(`Expected one pending supervisory request for stage receipt ${stage.requestId}; found ${matches.length}.`);
+    const request = matches[0]!;
+    if (request.reasoningLane !== "PRO_ESCALATED") throw new Error("Stage liveness receipts are only valid for escalated same-chat supervision.");
+    if (stage.requestNonce !== request.nonce || stage.chatId !== request.chatId) throw new Error("Stage receipt does not match the pending request nonce/chat binding.");
+    const created = Date.parse(candidate.createdAt);
+    if (created < Date.parse(request.queuedAt) || created > Date.parse(request.expiresAt)) throw new Error("Stage receipt is stale for the pending request window.");
+    const receiptId = `chat-stage:${stage.requestId}:${stage.stage}:${candidate.commentId}`;
+    if (events.some((e) => e.data.type === "evidence_receipt_recorded" && e.data.receipt_id === receiptId)) return [];
+    return [store.append(evidenceEnvelope({
+      worker: request.worker,
+      receiptId,
+      producer: githubReceiptCollector,
+      summary: stageLivenessSummary,
+      occurredAt: candidate.createdAt,
+      verified: true,
+      refs: [
+        `request:${stage.requestId}`,
+        `request_nonce_sha256:${sha256(stage.requestNonce)}`,
+        `chat:${stage.chatId}`,
+        `stage:${stage.stage}`,
+        `status:${stage.status}`,
+        `github_comment:${candidate.immutableUrl}`,
+        "semantic_authority:false",
+      ],
+    }), ingestedAt, githubReceiptCollector)];
+  }
   throw new Error("GitHub comment is not a recognized Mission Control supervision receipt.");
 }
 
@@ -209,6 +272,7 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     throw new Error("GitHub decision receipt is stale against the current owner-outcome epoch.");
   }
   assertCurrentChatCapabilities(events, request, candidate.createdAt, policy);
+  assertSemanticStageCompletion(events, request, candidate.createdAt);
   assertOrderedRelayStages(events, request, candidate.createdAt, policy);
   return {
     schema_version: 2,
@@ -238,7 +302,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
     "user-agent": "mission-control-supervision-reconciler",
   };
   if (options.token?.trim()) headers.authorization = `Bearer ${options.token}`;
-  for (const issueNumber of [...new Set([options.policy.decisionIssueNumber, options.policy.capabilityIssueNumber])]) {
+  for (const issueNumber of [...new Set([options.policy.decisionIssueNumber, options.policy.capabilityIssueNumber, options.policy.stageIssueNumber])]) {
     const response = await fetchImpl(`https://api.github.com/repos/${options.policy.repository}/issues/${issueNumber}/comments?per_page=100&sort=created&direction=desc`, {
       headers,
       signal: AbortSignal.timeout(30_000),
@@ -248,7 +312,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
     if (!Array.isArray(comments)) throw new Error("GitHub reconciliation returned a non-array comment payload.");
     for (const value of [...comments].reverse()) {
       const comment = record(value, "GitHub issue comment");
-      if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix))) continue;
+      if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix))) continue;
       const user = record(comment.user, "comment.user");
       const candidate: GitHubDecisionCandidate = {
         repository: options.policy.repository, issueNumber, commentId: positiveInteger(comment.id, "comment.id"), immutableUrl: httpsUrl(comment.html_url, "comment.html_url"),
@@ -269,6 +333,25 @@ function assertCurrentChatCapabilities(events: StoredEvent[], request: PendingDe
   }
   if (!latestEvidence(events, modeCapabilityVerifiedSummary, request.chatId, at, ["capability:modeSwitching", `extra_high_label:${challenge.extraHighLabel}`, `pro_label:${challenge.proLabel}`])) {
     throw new Error(`Chat ${request.chatId} lacks a current exact model-label switching receipt.`);
+  }
+}
+
+function assertSemanticStageCompletion(events: StoredEvent[], request: PendingDecisionRequest, at: string) {
+  if (request.reasoningLane !== "PRO_ESCALATED") return;
+  let minimumSequence = -1;
+  for (const stage of ["EXTRA_HIGH_READER", "PRO_REASONER"] as const) {
+    const receipts = events.filter((event) => event.sequence > minimumSequence && event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === stageLivenessSummary && event.data.verified
+      && event.data.refs.includes(`request:${request.requestId}`)
+      && event.data.refs.includes(`chat:${request.chatId}`)
+      && event.data.refs.includes(`stage:${stage}`)
+      && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+      && Date.parse(event.occurredAt) <= Date.parse(at));
+    const latest = receipts.at(-1);
+    if (!latest || latest.data.type !== "evidence_receipt_recorded" || !latest.data.refs.includes("status:STAGE_COMPLETE")) {
+      throw new Error(`Missing current semantic stage completion ${stage} for ${request.requestId}.`);
+    }
+    minimumSequence = latest.sequence;
   }
 }
 
