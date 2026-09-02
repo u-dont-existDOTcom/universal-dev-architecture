@@ -1,6 +1,6 @@
 # Mission Control authority-provenance repair — 2026-09-01
 
-Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
+Status: `OWNER_CORRECTION_REPAIR_VERIFIED_DRAFT` (draft branch only; not merged)
 
 ## Goal and authority
 
@@ -22,18 +22,27 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 
 - No authority rank; required authorizations are exact, scoped, and
   conjunctive.
-- Neither 23 nor 76 nor another Human Design completeness denominator is
-  authorized without `OWNER_EXPLICIT` promotion.
+- The owner correction establishes that no Human Design completion policy or pending
+  denominator decision existed. Do not replace the invented 76 rule with a fake
+  23-versus-76 owner choice.
+- `OWNER_DECISION_REQUIRED` needs an exact current owner-contract source proving that
+  the decision surface exists. Otherwise remove the unsupported constraint and return
+  `INVENTED_OWNER_DECISION`.
 - Browser UI evidence is `OBSERVED_UI_RECEIPT`, never cryptographic platform
   attestation.
 - GitHub/repository retrieval defaults to authenticated CLI or local Git.
 - Close only same-session, same-transaction `AGENT_OPENED` tabs. Unknown,
   owner-existing, protected, and reasoning-conversation tabs fail closed.
 - Do not infer who closed a stale or absent tab.
-- No merge, push, deploy, participant contact, spending, session replacement,
+- No merge, deploy, participant contact, spending, session replacement,
   or browser-tab closure is authorized by this task.
 
 ## Implemented candidate
+
+- Owner-correction delta: reject laundering an unauthorized inference into a missing
+  policy, owner-choice menu, or approval blocker; exact regression coverage now treats
+  the earlier Extra High/Pro conclusion as superseded premise evidence rather than
+  current Human Design authority.
 
 - Versioned claim record with exact scope references and conjunctive required
   authorizations.
@@ -210,8 +219,6 @@ Status: `TESTS_PASS` (draft branch only; not merged or pushed by this execution)
 
 ## Remaining / next safe action
 
-1. Report the locally committed sixth-review repair for independent review;
-   do not push, merge, or deploy from this execution lane.
-2. Parent execution must separately finish and verify the authorized Human
-   Design draft changes. Owner-authority, merge, release, and deployment remain
-   open.
+1. Save the verified owner-correction delta to draft PR #52.
+2. Save the separately verified Human Design correction to draft PR #23.
+   Merge, release, and deployment remain closed.

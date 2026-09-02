@@ -165,6 +165,11 @@ reasoning-surface observation/verdict admission controls defined in
 decision cannot substitute for `OWNER_EXPLICIT`, and reproduction cannot
 promote a fact into policy.
 
+An unsupported fact-to-policy inference also cannot manufacture a new owner
+decision. `OWNER_DECISION_REQUIRED` is valid only when an exact current owner
+source establishes the decision surface; otherwise remove the invented
+constraint and record `INVENTED_OWNER_DECISION`.
+
 ### 4.2 Task-centric, not session-centric
 
 A durable task survives:

@@ -33,12 +33,14 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         self.assertTrue(policy["promotionRequiresAppendOnlyTransition"])
         self.assertFalse(policy["reproductionMayPromotePolicy"])
         self.assertFalse(policy["artifactFactMaySelectScientificCriterion"])
+        self.assertFalse(policy["unauthorizedInferenceMayCreateOwnerDecision"])
         self.assertFalse(policy["unregisteredDefinitiveRenderingAllowed"])
         self.assertEqual(
             set(policy["reconciliationFailureStates"]),
             {
                 "UNAUTHORIZED_ADDITION",
                 "INFERRED_NUMERIC_SCOPE",
+                "INVENTED_OWNER_DECISION",
                 "DERIVATION_UNVERIFIED",
                 "DIRECTIVE_SCOPE_EXCEEDED",
                 "UNAUTHORIZED_CLAIM_PROMOTION",
@@ -94,6 +96,11 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         criteria = directive["authorizedCriteria"]
         self.assertFalse(criteria["executorMayAddOrChange"])
         self.assertEqual(criteria["onUnlistedChange"], "DIRECTIVE_SCOPE_EXCEEDED")
+        self.assertFalse(criteria["executorMayInventOwnerDecision"])
+        self.assertEqual(
+            criteria["onUnsupportedOwnerDecisionBoundary"],
+            "INVENTED_OWNER_DECISION",
+        )
         self.assertEqual(
             set(criteria["restrictedDimensions"]),
             {
@@ -118,7 +125,7 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         self.assertEqual(fixture["observedFacts"]["uniqueMappedQuestionIds"], 23)
         self.assertEqual(
             fixture["scientificCompletenessCriterion"]["status"],
-            "SCIENTIFIC_SCOPE_UNRESOLVED",
+            "NONEXISTENT_IN_OWNER_CONTRACT",
         )
         self.assertIsNone(
             fixture["scientificCompletenessCriterion"]["authorizedValue"]
@@ -127,17 +134,25 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
             scenario["id"]: scenario["expected"]
             for scenario in fixture["scenarios"]
         }
-        self.assertEqual(len(expected), 10)
+        self.assertEqual(len(expected), 12)
         self.assertEqual(
-            expected["owner-complete-profile-executor-infers-76"],
+            expected["owner-contract-has-no-policy-executor-infers-76"],
             "SCIENTIFIC_SCOPE_UNAUTHORIZED",
         )
         self.assertEqual(
-            expected["contract-76-production-23"], "CONTRACT_ARTIFACT_MISMATCH"
+            expected["executor-turns-rejected-76-into-owner-choice"],
+            "INVENTED_OWNER_DECISION",
         )
         self.assertEqual(
-            expected["extra-high-versioned-directive-authorizes-76"],
-            "AUTHORIZATION_REQUIREMENT_UNSATISFIED",
+            expected["reasoning-supervisor-inherits-fake-owner-choice"],
+            "INVENTED_OWNER_DECISION",
+        )
+        self.assertEqual(
+            expected["owner-corrects-nonexistent-policy"],
+            "REMOVE_INVENTED_CONSTRAINT",
+        )
+        self.assertEqual(
+            expected["contract-76-production-23"], "CONTRACT_ARTIFACT_MISMATCH"
         )
         self.assertEqual(
             expected["fake-backend-proves-filtering-only"], "RELEASE_BLOCKED"
@@ -169,15 +184,32 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
             feedback["historicalStatusAtCommit6ec7380"],
             "PENDING_VERIFIED_EXTRA_HIGH_REVIEW",
         )
-        self.assertEqual(
-            feedback["status"], "PRO_REVISE_IMPLEMENTED_DRAFT_TESTS_PASS"
-        )
+        self.assertEqual(feedback["status"], "OWNER_CORRECTION_REPAIR_VERIFIED_DRAFT")
         self.assertEqual(feedback["proMetaReview"]["verdict"], "REVISE")
+        self.assertFalse(feedback["ownerCorrection"]["completionPolicyExists"])
         self.assertEqual(
-            feedback["proMetaReview"]["completenessDenominatorSelection"],
-            "FORBIDDEN_WITHOUT_OWNER_EXPLICIT",
+            feedback["ownerCorrection"]["requiredDisposition"],
+            "REMOVE_INVENTED_CONSTRAINT",
         )
         self.assertGreaterEqual(len(feedback["evidenceRefs"]), 4)
+
+        incident = json.loads(
+            (
+                ROOT
+                / "feedback"
+                / "mission-control"
+                / "MC-INVENTED-OWNER-DECISION-20260902-001.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertFalse(incident["ownerCorrection"]["completionPolicyExists"])
+        self.assertEqual(incident["status"], "OWNER_CORRECTION_REPAIR_VERIFIED_DRAFT")
+        self.assertEqual(
+            incident["requiredControl"]["failureCode"],
+            "INVENTED_OWNER_DECISION",
+        )
+        self.assertFalse(
+            incident["requiredControl"]["supervisorRepetitionCreatesAuthority"]
+        )
 
     def test_unverified_subagent_name_cannot_claim_extra_high_authority(self) -> None:
         fixture = json.loads(
@@ -230,6 +262,7 @@ class ClaimAuthorityLaunderingTests(unittest.TestCase):
         required = (
             "UNAUTHORIZED_ADDITION",
             "INFERRED_NUMERIC_SCOPE",
+            "INVENTED_OWNER_DECISION",
             "DERIVATION_UNVERIFIED",
             "DIRECTIVE_SCOPE_EXCEEDED",
             "ARTIFACT_DERIVED_FACT",

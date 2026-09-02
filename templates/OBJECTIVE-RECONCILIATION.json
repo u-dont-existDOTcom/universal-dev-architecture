@@ -127,6 +127,7 @@
     "reconciliationFailureStates": [
       "UNAUTHORIZED_ADDITION",
       "INFERRED_NUMERIC_SCOPE",
+      "INVENTED_OWNER_DECISION",
       "DERIVATION_UNVERIFIED",
       "DIRECTIVE_SCOPE_EXCEEDED",
       "UNAUTHORIZED_CLAIM_PROMOTION",
@@ -149,6 +150,7 @@
     "promotionRequiresAppendOnlyTransition": true,
     "reproductionMayPromotePolicy": false,
     "artifactFactMaySelectScientificCriterion": false,
+    "unauthorizedInferenceMayCreateOwnerDecision": false,
     "unregisteredDefinitiveRenderingAllowed": false
   },
   "alignment": {

@@ -347,6 +347,13 @@ versioned reasoning-chat directive explicitly authorizes it. Directives must
 enumerate the authorized criteria and load-bearing numeric claim references;
 silence grants no authority.
 
+Do not convert a rejected or unsupported inference into a fake owner decision.
+Before emitting `OWNER_DECISION_REQUIRED`, a missing-policy blocker, or a menu
+of values for the owner, cite the exact current owner-contract source that
+establishes that decision surface. If no such source exists, remove the
+invented constraint and return `INVENTED_OWNER_DECISION`. Extra High or Pro
+repetition cannot create the missing decision surface.
+
 Re-run objective reconciliation automatically whenever any registered
 acceptance count, threshold, evidence class, validation phase, scientific
 criterion, product decision, or release condition changes. Invalidate prior
@@ -784,28 +791,29 @@ At minimum, test:
 16. A nonblocking design suggestion does not stop unrelated task execution.
 17. An immediate-risk design defect is not delayed for batching.
 18. A Pro meta-review verdict cannot silently rewrite the architecture without repository change and tests.
-19. Owner says “complete profile”; executor infers 76 and receives `SCIENTIFIC_SCOPE_UNAUTHORIZED`.
-20. Owner explicitly says 76 with a current receipt, a new qualifying source, and an append-only `PROMOTED` transition; the new policy claim is accepted.
-21. Extra High issues a versioned 76-item recommendation, but the claim still requires `OWNER_EXPLICIT` and receives `AUTHORIZATION_REQUIREMENT_UNSATISFIED`.
-22. A contract says 76 while the exact production artifact exposes 23 and receives `CONTRACT_ARTIFACT_MISMATCH`.
-23. A fake backend proves phase filtering without proving production cardinality and release remains blocked.
-24. Worker-to-contract GREEN plus an unauthorized scientific criterion yields root RED.
-25. Tests pass while owner-facing numeric prose lacks claim provenance and definitive rendering is rejected.
-26. A mapping identity, subject commit, or directive-version change marks the prior claim `SUBJECT_BINDING_STALE` automatically.
-27. An executor receipt attempts to choose a denominator or populate scientific adequacy and schema admission fails.
-28. A reviewer repeats a producer-supplied cardinality without reproduction and review remains `UNKNOWN`.
-29. A copied or renamed fact cannot become policy without an append-only `PROMOTED` transition and new authority source.
-30. A synthetic reproduction verifies fixture behavior but cannot satisfy production reproduction.
-31. A worker marks a claim non-load-bearing, but a definitive owner-facing use site still triggers the rendering gate.
-32. An agent or subagent name contains `extra_high`; its receipt weight remains zero.
-33. A model says it is Pro; self-description remains zero-weight evidence.
-34. A Pro-plan account with no verified visible Pro mode leaves the receipt partial.
-35. Required Pro plus observed Extra High produces `REASONING_SURFACE_MODE_MISMATCH`.
-36. A completed response from another session cannot be paired with the current receipt.
-37. A previously used receipt cannot admit the same or a different response.
-38. An unexplained input-to-submitted digest change fails payload binding.
-39. A valid observation receipt paired with a different response digest rejects verdict admission.
-40. Browser-observed evidence claiming cryptographic platform attestation fails.
+19. Owner source defines no completion policy; executor infers 76 and receives `SCIENTIFIC_SCOPE_UNAUTHORIZED`.
+20. Executor reacts to that rejection by blocking on a supposed 23-versus-76 owner choice and receives `INVENTED_OWNER_DECISION`.
+21. Extra High or Pro inherits that fake choice without an owner-contract source and still receives `INVENTED_OWNER_DECISION`.
+22. Owner explicitly creates a 76-item policy with a current receipt, a new qualifying source, and an append-only `PROMOTED` transition; only that new policy claim is accepted.
+23. A contract says 76 while the exact production artifact exposes 23 and receives `CONTRACT_ARTIFACT_MISMATCH`.
+24. A fake backend proves phase filtering without proving production cardinality and release remains blocked.
+25. Worker-to-contract GREEN plus an unauthorized scientific criterion yields root RED.
+26. Tests pass while owner-facing numeric prose lacks claim provenance and definitive rendering is rejected.
+27. A mapping identity, subject commit, or directive-version change marks the prior claim `SUBJECT_BINDING_STALE` automatically.
+28. An executor receipt attempts to choose a denominator or populate scientific adequacy and schema admission fails.
+29. A reviewer repeats a producer-supplied cardinality without reproduction and review remains `UNKNOWN`.
+30. A copied or renamed fact cannot become policy without an append-only `PROMOTED` transition and new authority source.
+31. A synthetic reproduction verifies fixture behavior but cannot satisfy production reproduction.
+32. A worker marks a claim non-load-bearing, but a definitive owner-facing use site still triggers the rendering gate.
+33. An agent or subagent name contains `extra_high`; its receipt weight remains zero.
+34. A model says it is Pro; self-description remains zero-weight evidence.
+35. A Pro-plan account with no verified visible Pro mode leaves the receipt partial.
+36. Required Pro plus observed Extra High produces `REASONING_SURFACE_MODE_MISMATCH`.
+37. A completed response from another session cannot be paired with the current receipt.
+38. A previously used receipt cannot admit the same or a different response.
+39. An unexplained input-to-submitted digest change fails payload binding.
+40. A valid observation receipt paired with a different response digest rejects verdict admission.
+41. Browser-observed evidence claiming cryptographic platform attestation fails.
 
 The article-humanization `13.82% Human` fixture must explicitly demonstrate:
 

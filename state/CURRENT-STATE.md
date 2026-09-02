@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-09-01
+Updated: 2026-09-02
 
 ## Active draft task checkpoint
 
@@ -9,8 +9,14 @@ Updated: 2026-09-01
   `state/MISSION-CONTROL-AUTHORITY-PROVENANCE-2026-09-01.md`.
 - Its exact pre-mutation branch boundary was
   `6ec73802cf9439be7160f9ac2eea58c7bb95e683`.
+- The owner corrected that Human Design never had a completion policy; Codex invented
+  both the 76-item rule and the later 23-versus-76 owner-decision boundary. The active
+  repair adds `INVENTED_OWNER_DECISION`: an owner decision may be requested only when
+  an exact current owner-contract source establishes that decision surface.
+- The verified Extra High and Pro receipts remain valid identity/routing evidence but
+  their inherited completion-policy premise is superseded by the current owner source.
 - This draft task does not supersede canonical `main`, authorize a Human Design
-  completeness denominator, or authorize merge, push, deployment, spending,
+  denominator or policy, or authorize merge, deployment, spending,
   participant contact, session replacement, or browser-tab closure.
 
 ## Goal

@@ -1,9 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "fixtureId": "executor-inferred-scientific-scope-authority-laundering",
   "origin": {
     "repository": "u-dont-existDOTcom/humandesign",
-    "commit": "69c2d57",
+    "initialCommit": "69c2d57",
+    "ownerCorrectionDate": "2026-09-02",
     "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001"
   },
   "observedFacts": {
@@ -13,35 +14,50 @@
     "uniqueMappedQuestionIds": 23,
     "validationQuestionIdsMapped": 0
   },
+  "ownerContract": {
+    "completionPolicyExists": false,
+    "denominatorDecisionExists": false,
+    "correction": "there was never a completion policy. that was invented nonsense by codex"
+  },
   "scientificCompletenessCriterion": {
-    "status": "SCIENTIFIC_SCOPE_UNRESOLVED",
+    "status": "NONEXISTENT_IN_OWNER_CONTRACT",
     "authorizedValue": null,
-    "disallowedInference": "Neither 23 nor 76 may be selected from artifact facts alone."
+    "disallowedInference": "Neither an artifact count nor rejection of that count creates an owner policy decision."
   },
   "scenarios": [
     {
-      "id": "owner-complete-profile-executor-infers-76",
-      "ownerSource": "Complete the profile.",
+      "id": "owner-contract-has-no-policy-executor-infers-76",
+      "ownerSourceDefinesCompletionPolicy": false,
       "claim": 76,
       "claimAuthority": "EXECUTOR_PROPOSAL",
       "expected": "SCIENTIFIC_SCOPE_UNAUTHORIZED"
     },
     {
-      "id": "owner-explicitly-authorizes-76",
+      "id": "executor-turns-rejected-76-into-owner-choice",
+      "ownerDecisionSurfaceSourceRef": null,
+      "proposedOwnerChoices": [23, 76],
+      "expected": "INVENTED_OWNER_DECISION"
+    },
+    {
+      "id": "reasoning-supervisor-inherits-fake-owner-choice",
+      "ownerDecisionSurfaceSourceRef": null,
+      "claimAuthority": "REASONING_DECISION",
+      "expected": "INVENTED_OWNER_DECISION"
+    },
+    {
+      "id": "owner-corrects-nonexistent-policy",
+      "ownerSourceReceipt": "CURRENT_MATCH",
+      "ownerCorrection": "NO_COMPLETION_POLICY_EXISTED",
+      "expected": "REMOVE_INVENTED_CONSTRAINT"
+    },
+    {
+      "id": "owner-explicitly-creates-new-76-policy",
       "ownerSource": "Require all 76 non-validation items.",
       "claim": 76,
       "claimAuthority": "OWNER_EXPLICIT",
       "ownerSourceReceipt": "CURRENT_MATCH",
       "promotionTransition": "CURRENT_APPEND_ONLY_MATCH",
       "expected": "AUTHORIZED_POLICY"
-    },
-    {
-      "id": "extra-high-versioned-directive-authorizes-76",
-      "claim": 76,
-      "claimAuthority": "REASONING_DECISION",
-      "directive": "CURRENT_VERSIONED_MATCH",
-      "requiredIssuerClass": "OWNER_EXPLICIT",
-      "expected": "AUTHORIZATION_REQUIREMENT_UNSATISFIED"
     },
     {
       "id": "contract-76-production-23",

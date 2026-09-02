@@ -66,6 +66,7 @@
     "releaseConditions": [],
     "loadBearingNumericClaimRefs": [],
     "requiredAuthorizationRefs": [],
+    "ownerDecisionSurfaceSourceRefs": [],
     "claimTransitionRefs": [],
     "authorityOrdinalAllowed": false,
     "requiredAuthorizationsConjunctive": true,
@@ -77,6 +78,8 @@
       "evidence sufficiency"
     ],
     "executorMayAddOrChange": false,
+    "executorMayInventOwnerDecision": false,
+    "onUnsupportedOwnerDecisionBoundary": "INVENTED_OWNER_DECISION",
     "onUnlistedChange": "DIRECTIVE_SCOPE_EXCEEDED"
   },
   "inputs": [
@@ -101,6 +104,7 @@
       "classify overall alignment or progress",
       "author supervisory verdict",
       "decide owner or Pro escalation",
+      "convert an unsupported executor or supervisor inference into an owner decision, missing-policy blocker, or approval request",
       "add or change an unlisted denominator, threshold, sample size, validation phase, evidence-sufficiency rule, scientific criterion, product decision, or release condition",
       "continue beyond stop trigger",
       "treat a reasoning-review boundary or pending response as task termination"

@@ -355,8 +355,16 @@ Codex adding or changing an unlisted denominator, threshold, sample size,
 validation phase, evidence-sufficiency rule, scientific criterion, product
 decision, or release condition is `DIRECTIVE_SCOPE_EXCEEDED`.
 
+An unauthorized inference does not create an owner decision. Before returning
+`OWNER_DECISION_REQUIRED`, blocking on a missing policy, or asking the owner to
+select among values, identify the exact current owner-contract source that
+establishes that decision surface. If none exists, remove the unsupported
+criterion and return `INVENTED_OWNER_DECISION`; do not launder an executor or
+supervisor proposal into owner authority merely by escalating it.
+
 Use reconciliation failures `UNAUTHORIZED_ADDITION`,
 `INFERRED_NUMERIC_SCOPE`, `DERIVATION_UNVERIFIED`,
+`INVENTED_OWNER_DECISION`,
 `AUTHORIZATION_REQUIREMENT_UNSATISFIED`, `SUBJECT_BINDING_STALE`,
 `PRODUCTION_REPRODUCTION_MISSING`, and `DEFINITIVE_RENDERING_REJECTED`. Rerun objective
 reconciliation whenever a load-bearing acceptance count, threshold, evidence
