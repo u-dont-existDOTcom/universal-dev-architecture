@@ -5,6 +5,7 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   defaultState,
 } from '../src/core.mjs';
@@ -33,7 +34,7 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
-test('one escalated step records no-content STARTED then COMPLETE stage evidence before advancing', async () => {
+test('escalated reader records transport COMPLETE but does not advance to Pro until durable reader liveness arrives', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -53,7 +54,12 @@ test('one escalated step records no-content STARTED then COMPLETE stage evidence
   assert.ok(stages.some((item) => item.refs.includes('generation_state:COMPLETE')));
 
   const third = await runtime.cycle();
-  assert.equal(third.status, 'PRO_REASONER_GENERATION_STARTED');
+  assert.equal(third.status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal(browser.submitCalls, 1);
+
+  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z'));
+  const fourth = await runtime.cycle();
+  assert.equal(fourth.status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.switchLabels.at(-1), 'Pro');
   assert.equal(browser.submitCalls, 2);
 });
@@ -190,7 +196,7 @@ function challengeEvidence() {
   return {
     eventId: 'challenge', sequence: 1, occurredAt: '2026-09-02T00:00:00.000Z', data: {
       type: 'evidence_receipt_recorded', receipt_id: 'challenge', summary: CAPABILITY_CHALLENGE_SUMMARY, verified: true,
-      refs: ['challenge:challenge-spec', 'chat:spec', 'mc_nonce:mc-secret', 'github_nonce_sha256:deadbeef', 'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', 'expires_at:2026-09-03T00:00:00.000Z'],
+      refs: ['challenge:challenge-spec', 'chat:spec', 'mc_nonce:mc-secret', 'github_nonce_sha256:deadbeef', 'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', 'stage_receipt_target:https://github.com/o/r/issues/3', 'expires_at:2026-09-03T00:00:00.000Z'],
     },
   };
 }
@@ -201,6 +207,15 @@ function capabilityEvidence() {
     { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2026-09-03T00:00:00.000Z'] } },
     { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', 'expires_at:2026-09-03T00:00:00.000Z'] } },
   ];
+}
+
+function stageLivenessEvidence(id, stage, status, occurredAt) {
+  return {
+    eventId: id, sequence: 40, occurredAt, data: {
+      type: 'evidence_receipt_recorded', receipt_id: id, summary: STAGE_LIVENESS_SUMMARY, verified: true,
+      refs: ['request:r-1', 'chat:spec', `stage:${stage}`, `status:${status}`, 'semantic_authority:false'],
+    },
+  };
 }
 
 function routeEvent() {
