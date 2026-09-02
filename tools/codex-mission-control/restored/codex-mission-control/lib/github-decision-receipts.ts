@@ -113,7 +113,8 @@ export function parseCapabilityReceiptComment(body: string): CapabilityReceiptBo
   try { parsed = JSON.parse(body.slice(capabilityReceiptCommentPrefix.length)); } catch { throw new Error("Chat capability receipt contains invalid JSON."); }
   const root = record(parsed, "chat capability receipt");
   const required = ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"] as const;
-  if (root.schema_version !== 1 || !Array.isArray(root.capabilities) || root.capabilities.length !== required.length || required.some((item, i) => root.capabilities![i] !== item)) {
+  const capabilities = root.capabilities;
+  if (root.schema_version !== 1 || !Array.isArray(capabilities) || capabilities.length !== required.length || required.some((item, i) => capabilities[i] !== item)) {
     throw new Error("Chat capability receipt must attest the exact ordered read/read/write capability set.");
   }
   return {
@@ -310,7 +311,8 @@ function evidenceEnvelope(input: { worker: string; receiptId: string; producer: 
 }
 function assertAuthorizedWriter(candidate: GitHubDecisionCandidate, policy: GitHubReceiptPolicy) {
   if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase()) throw new Error("Unauthorized GitHub repository for supervision receipt.");
-  if (!policy.authorizedWriterLogins.includes(candidate.authorLogin.toLowerCase())) throw new Error(`GitHub writer ${candidate.authorLogin} is not authorized for supervisory receipts.`);
+  const candidateLogin = candidate.authorLogin.toLowerCase();
+  if (!policy.authorizedWriterLogins.some((login) => login.toLowerCase() === candidateLogin)) throw new Error(`GitHub writer ${candidate.authorLogin} is not authorized for supervisory receipts.`);
 }
 function assertEqual(actual: unknown, expected: unknown, field: string) { if (actual !== expected) throw new Error(`Canonical decision ${field} does not match the pending request.`); }
 function record(value: unknown, field: string): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`); return value as Record<string, unknown>; }
