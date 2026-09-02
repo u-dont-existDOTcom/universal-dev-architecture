@@ -1,0 +1,7 @@
+[Unit]
+Description=Mission Control ChatGPT browser and relay resource envelope
+
+[Slice]
+MemoryHigh=10G
+MemoryMax=12G
+MemorySwapMax=1G
