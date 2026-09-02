@@ -39,7 +39,38 @@ const IDLE_STATE_FN = `function(expectedUrl) {
   };
 }`;
 
-export function installStuckRecovery(browser, { maxNudges = 3, logger = console, stopStalledGeneration = null } = {}) {
+const RECOVERABLE_CONTROL_FN = `function(expectedUrl) {
+  const normalize = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalize(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
+  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
+  const normalizeLabel = (value) => String(value || '').trim().replace(/\\s+/g, ' ').toLowerCase();
+  const accepted = new Map([
+    ['continue', 'Continue'],
+    ['continue generating', 'Continue generating'],
+    ['resume', 'Resume'],
+    ['retry', 'Retry'],
+    ['try again', 'Try again'],
+  ]);
+  for (const element of [...document.querySelectorAll('button, [role="button"]')].filter(visible)) {
+    const raw = element.getAttribute('aria-label') || element.innerText || '';
+    const canonical = accepted.get(normalizeLabel(raw));
+    if (canonical) return { urlMismatch: false, recoverable: true, controlLabel: canonical };
+  }
+  return { urlMismatch: false, recoverable: false, controlLabel: null };
+}`;
+
+export function installStuckRecovery(browser, {
+  maxNudges = 3,
+  logger = console,
+  stopStalledGeneration = null,
+  inspectRecoverableControl = null,
+} = {}) {
   if (!browser || typeof browser.waitForGenerationComplete !== 'function' || typeof browser.submitExactMessage !== 'function') {
     throw new Error('A ChromeDevtoolsBrowser-compatible instance is required for stuck recovery.');
   }
@@ -47,12 +78,27 @@ export function installStuckRecovery(browser, { maxNudges = 3, logger = console,
 
   const originalWait = browser.waitForGenerationComplete.bind(browser);
   const stopFn = stopStalledGeneration ?? ((target, expectedUrl) => interruptStalledGeneration(browser, target, expectedUrl));
+  const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
 
   browser.waitForGenerationComplete = async (target, options) => {
     const recoveries = [];
     for (;;) {
       try {
         const completed = await originalWait(target, options);
+        const control = await inspectFn(target, options.expectedUrl);
+        if (control?.recoverable) {
+          if (recoveries.length >= maxNudges) {
+            throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
+          }
+          const recovery = await sendContinue(browser, target, options, recoveries.length + 1, maxNudges, logger, {
+            source: 'RECOVERABLE_UI_CONTROL',
+            controlLabel: control.controlLabel,
+            interruption: { stoppedGeneration: false, stopReason: 'ALREADY_IDLE', inspectedAssistantOutput: false },
+          });
+          recoveries.push(recovery);
+          options = { ...options, generationStarted: true };
+          continue;
+        }
         return recoveries.length === 0 ? completed : {
           ...completed,
           stuckRecovery: {
@@ -64,32 +110,13 @@ export function installStuckRecovery(browser, { maxNudges = 3, logger = console,
         };
       } catch (error) {
         if (!isGenerationStallTimeout(error) || recoveries.length >= maxNudges) throw error;
-        const recoveredAt = new Date().toISOString();
         const interruption = await stopFn(target, options.expectedUrl);
-        const body = 'continue';
-        const start = await browser.submitExactMessage(target, {
-          expectedUrl: options.expectedUrl,
-          body,
-          bodySha256: sha256(body),
-        });
-        const recovery = {
-          index: recoveries.length + 1,
-          recoveredAt,
+        const recovery = await sendContinue(browser, target, options, recoveries.length + 1, maxNudges, logger, {
+          source: 'ACTIVE_GENERATION_TIMEOUT',
+          controlLabel: null,
           interruption,
-          continueGenerationStartedAt: start.startedAtObserved,
-          modelChanged: false,
-          assistantContentObserved: false,
-        };
+        });
         recoveries.push(recovery);
-        logger.warn?.(JSON.stringify({
-          time: recoveredAt,
-          event: 'chat_generation_stuck_continue_sent',
-          recoveryIndex: recovery.index,
-          maxNudges,
-          targetId: target.id,
-          conversationUrl: normalizeConversationUrl(options.expectedUrl),
-          assistantContentObserved: false,
-        }));
         options = { ...options, generationStarted: true };
       }
     }
@@ -103,13 +130,51 @@ export function isGenerationStallTimeout(error) {
   return message.includes('ChatGPT generation did not reach a stable complete UI state.');
 }
 
+async function sendContinue(browser, target, options, index, maxNudges, logger, context) {
+  const recoveredAt = new Date().toISOString();
+  const body = 'continue';
+  const start = await browser.submitExactMessage(target, {
+    expectedUrl: options.expectedUrl,
+    body,
+    bodySha256: sha256(body),
+  });
+  const recovery = {
+    index,
+    recoveredAt,
+    source: context.source,
+    observedControl: context.controlLabel,
+    interruption: context.interruption,
+    continueGenerationStartedAt: start.startedAtObserved,
+    modelChanged: false,
+    assistantContentObserved: false,
+  };
+  logger.warn?.(JSON.stringify({
+    time: recoveredAt,
+    event: 'chat_generation_stuck_continue_sent',
+    recoveryIndex: recovery.index,
+    recoverySource: recovery.source,
+    observedControl: recovery.observedControl,
+    maxNudges,
+    targetId: target.id,
+    conversationUrl: normalizeConversationUrl(options.expectedUrl),
+    assistantContentObserved: false,
+  }));
+  return recovery;
+}
+
+async function detectRecoverableControl(browser, target, expectedUrl) {
+  const { client, normalized } = await openRecoveryClient(browser, target, expectedUrl);
+  try {
+    const result = await client.callFunction(RECOVERABLE_CONTROL_FN, [normalized]);
+    if (result?.urlMismatch) throw new Error(`Chat target changed while checking recovery controls: ${result.currentUrl}`);
+    return result ?? { recoverable: false, controlLabel: null };
+  } finally {
+    client.close();
+  }
+}
+
 async function interruptStalledGeneration(browser, target, expectedUrl) {
-  const normalized = normalizeConversationUrl(expectedUrl);
-  const targetWithSocket = target.webSocketDebuggerUrl
-    ? target
-    : (await browser.listTargets()).find((candidate) => candidate.id === target.id);
-  if (!targetWithSocket?.webSocketDebuggerUrl) throw new Error(`Page target ${target.id} has no debugging WebSocket for stuck recovery.`);
-  const client = await PageClient.connect(targetWithSocket.webSocketDebuggerUrl, browser.WebSocketImpl ?? WebSocket);
+  const { client, normalized } = await openRecoveryClient(browser, target, expectedUrl);
   try {
     const before = await client.callFunction(IDLE_STATE_FN, [normalized]);
     if (before?.urlMismatch) throw new Error(`Chat target changed before stuck recovery: ${before.currentUrl}`);
@@ -132,6 +197,16 @@ async function interruptStalledGeneration(browser, target, expectedUrl) {
   } finally {
     client.close();
   }
+}
+
+async function openRecoveryClient(browser, target, expectedUrl) {
+  const normalized = normalizeConversationUrl(expectedUrl);
+  const targetWithSocket = target.webSocketDebuggerUrl
+    ? target
+    : (await browser.listTargets()).find((candidate) => candidate.id === target.id);
+  if (!targetWithSocket?.webSocketDebuggerUrl) throw new Error(`Page target ${target.id} has no debugging WebSocket for stuck recovery.`);
+  const client = await PageClient.connect(targetWithSocket.webSocketDebuggerUrl, browser.WebSocketImpl ?? WebSocket);
+  return { client, normalized };
 }
 
 class PageClient {
@@ -185,9 +260,14 @@ class PageClient {
     try { this.socket.close(); } catch { /* ignore */ }
   }
 
-  #onMessage(event) {
+  async #onMessage(event) {
+    let raw = event.data;
+    if (raw instanceof ArrayBuffer) raw = Buffer.from(raw).toString('utf8');
+    else if (ArrayBuffer.isView(raw)) raw = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength).toString('utf8');
+    else if (typeof raw !== 'string' && raw?.text) raw = await raw.text();
+    if (typeof raw !== 'string') return;
     let message;
-    try { message = JSON.parse(event.data); } catch { return; }
+    try { message = JSON.parse(raw); } catch { return; }
     if (!message?.id || !this.pending.has(message.id)) return;
     const pending = this.pending.get(message.id);
     this.pending.delete(message.id);
