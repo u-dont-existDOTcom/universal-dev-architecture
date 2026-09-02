@@ -14,15 +14,14 @@ export async function loadConfig(env = process.env) {
     throw error;
   });
   const chats = parseChatDirectory(JSON.parse(chatRaw));
-  const workerIds = [...new Set(chats.map((chat) => chat.workerId).filter(Boolean))];
-  if (workerIds.length === 0) {
-    throw new Error('At least one chat entry must bind a workerId for scoped Mission Control reads.');
-  }
+  const workerIds = [...new Set(chats.map((chat) => chat.workerId))];
 
   const missionControlUrl = normalizeBaseUrl(required(env.MC_RELAY_MISSION_CONTROL_URL, 'MC_RELAY_MISSION_CONTROL_URL'));
   const producerId = required(env.MC_RELAY_PRODUCER_ID, 'MC_RELAY_PRODUCER_ID');
   const token = required(env.MC_RELAY_TOKEN, 'MC_RELAY_TOKEN');
   if (token.length < 32) throw new Error('MC_RELAY_TOKEN must contain at least 32 characters.');
+  const memoryProfile = env.MC_RELAY_MEMORY_PROFILE ?? 'AUTO';
+  if (!['AUTO', '8GB', '16GB'].includes(memoryProfile)) throw new Error('MC_RELAY_MEMORY_PROFILE must be AUTO, 8GB, or 16GB.');
 
   return {
     missionControl: {
@@ -45,6 +44,7 @@ export async function loadConfig(env = process.env) {
       workerIds,
       chatsFile,
       submitEnabled: env.MC_RELAY_SUBMIT_ENABLED === '1',
+      capabilityTestEnabled: env.MC_RELAY_CAPABILITY_TEST_ENABLED === '1',
       pollIntervalMs: integer(env.MC_RELAY_POLL_INTERVAL_MS, 15_000, 2_000, 300_000),
       retryDelayMs: integer(env.MC_RELAY_RETRY_DELAY_MS, 300_000, 30_000, 86_400_000),
       maxHotTabs: integer(env.MC_RELAY_MAX_HOT_TABS, 3, 1, 12),
@@ -53,12 +53,15 @@ export async function loadConfig(env = process.env) {
       lockFile: resolve(expandHome(env.MC_RELAY_LOCK_FILE ?? `${stateDir}/relay.lock`, home)),
     },
     memory: {
-      softAvailableMb: integer(env.MC_RELAY_MEMORY_SOFT_AVAILABLE_MB, 4096, 512, 65_536),
-      hardAvailableMb: integer(env.MC_RELAY_MEMORY_HARD_AVAILABLE_MB, 2048, 256, 65_536),
-      softBrowserRssMb: integer(env.MC_RELAY_BROWSER_SOFT_RSS_MB, 7168, 512, 65_536),
-      hardBrowserRssMb: integer(env.MC_RELAY_BROWSER_HARD_RSS_MB, 9216, 1024, 65_536),
-      softSwapUsedMb: integer(env.MC_RELAY_SWAP_SOFT_USED_MB, 512, 0, 65_536),
-      hardSwapUsedMb: integer(env.MC_RELAY_SWAP_HARD_USED_MB, 1536, 0, 65_536),
+      profile: memoryProfile,
+      overrides: {
+        softAvailableMb: optionalInteger(env.MC_RELAY_MEMORY_SOFT_AVAILABLE_MB, 256, 65_536),
+        hardAvailableMb: optionalInteger(env.MC_RELAY_MEMORY_HARD_AVAILABLE_MB, 256, 65_536),
+        softBrowserRssMb: optionalInteger(env.MC_RELAY_BROWSER_SOFT_RSS_MB, 512, 65_536),
+        hardBrowserRssMb: optionalInteger(env.MC_RELAY_BROWSER_HARD_RSS_MB, 512, 65_536),
+        softSwapUsedMb: optionalInteger(env.MC_RELAY_SWAP_SOFT_USED_MB, 0, 65_536),
+        hardSwapUsedMb: optionalInteger(env.MC_RELAY_SWAP_HARD_USED_MB, 0, 65_536),
+      },
     },
   };
 }
@@ -71,9 +74,9 @@ export function publicConfig(config) {
     profileDir: config.browser.profileDir,
     chatsFile: config.runtime.chatsFile,
     chatCount: config.runtime.chats.length,
-    capabilityReadyChats: config.runtime.chats.filter((chat) => Object.values(chat.capabilities).every((capability) => capability.testStatus === 'PASSED')).length,
     workerIds: config.runtime.workerIds,
     submitEnabled: config.runtime.submitEnabled,
+    capabilityTestEnabled: config.runtime.capabilityTestEnabled,
     pollIntervalMs: config.runtime.pollIntervalMs,
     maxHotTabs: config.runtime.maxHotTabs,
     memory: config.memory,
@@ -90,9 +93,14 @@ function required(value, name) {
 function integer(value, fallback, minimum, maximum) {
   if (value == null || value === '') return fallback;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
-    throw new Error(`Invalid integer ${value}; expected ${minimum}-${maximum}.`);
-  }
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) throw new Error(`Invalid integer ${value}; expected ${minimum}-${maximum}.`);
+  return parsed;
+}
+
+function optionalInteger(value, minimum, maximum) {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) throw new Error(`Invalid integer ${value}; expected ${minimum}-${maximum}.`);
   return parsed;
 }
 
