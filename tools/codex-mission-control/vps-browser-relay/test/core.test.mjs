@@ -6,12 +6,19 @@ import {
   defaultState,
   extractQueuedRoutes,
   normalizeConversationUrl,
+  oneShotExitCode,
   parseChatDirectory,
   parseInternalSupervisorRouteBody,
   selectManagedTabClosures,
   shouldAttemptRoute,
   sha256,
 } from '../src/core.mjs';
+
+test('one-shot command fails the process when the cycle reports an error', () => {
+  assert.equal(oneShotExitCode({ status: 'ERROR' }), 1);
+  assert.equal(oneShotExitCode({ status: 'IDLE' }), 0);
+  assert.equal(oneShotExitCode({ status: 'DRY_RUN_ROUTE_READY' }), 0);
+});
 
 test('normalizes only concrete chatgpt conversation URLs', () => {
   assert.equal(normalizeConversationUrl('https://chatgpt.com/c/abc_123/?x=1#y'), 'https://chatgpt.com/c/abc_123');

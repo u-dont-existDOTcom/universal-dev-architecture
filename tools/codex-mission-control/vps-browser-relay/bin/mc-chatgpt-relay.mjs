@@ -5,6 +5,7 @@ import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
+import { oneShotExitCode } from '../src/core.mjs';
 
 const command = process.argv[2] ?? 'run';
 
@@ -35,7 +36,9 @@ try {
     const result = await runtime.doctor();
     print({ config: publicConfig(config), ...result });
   } else if (command === 'once') {
-    print(await runtime.cycle());
+    const result = await runtime.cycle();
+    print(result);
+    process.exitCode = oneShotExitCode(result);
   } else if (command === 'run') {
     for (;;) {
       const result = await runtime.cycle();

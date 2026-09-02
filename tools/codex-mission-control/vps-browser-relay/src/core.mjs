@@ -3,6 +3,10 @@ import { createHash } from 'node:crypto';
 export const INTERNAL_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n';
 export const STATE_VERSION = 1;
 
+export function oneShotExitCode(result) {
+  return result?.status === 'ERROR' ? 1 : 0;
+}
+
 export function sha256(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
