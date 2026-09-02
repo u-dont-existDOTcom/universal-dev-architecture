@@ -451,6 +451,30 @@ export class EventStore {
         throw new ContractInvariantError("New reasoning supervision must bind the current exact owner-outcome ID, epoch, and hash.");
       }
     }
+    if (data.type === "github_decision_receipt_ingested") {
+      const currentOutcome = outcomes.at(-1)?.data;
+      if (currentOutcome?.type !== "owner_outcome_recorded"
+        || currentOutcome.owner_outcome_id !== data.owner_outcome_id
+        || currentOutcome.epoch !== data.owner_outcome_epoch
+        || currentOutcome.owner_outcome_sha256 !== data.owner_outcome_sha256) {
+        throw new ContractInvariantError("GitHub decision receipts must bind the current exact owner-outcome ID, epoch, and hash.");
+      }
+      if (sha256(data.decision_block.exact_text) !== data.decision_block.sha256) {
+        throw new ContractInvariantError("GitHub decision receipt digest must bind the exact canonical decision text.");
+      }
+      if (data.pro_decision_block.used
+        && (!data.pro_decision_block.exact_text
+          || sha256(data.pro_decision_block.exact_text) !== data.pro_decision_block.sha256)) {
+        throw new ContractInvariantError("The Pro decision digest must bind the exact Pro decision text.");
+      }
+      if (data.pro_decision_block.used
+        && (data.pro_decision_block.exact_text !== data.decision_block.exact_text
+          || data.pro_decision_block.sha256 !== data.decision_block.sha256)) {
+        throw new ContractInvariantError("The writer must preserve the exact Pro decision bytes without reinterpretation.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "request_id", data.request_id);
+      this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id);
+    }
     if (data.type === "execution_directive_recorded") {
       const currentOutcome = outcomes.at(-1)?.data;
       const reasoningEvent = [...events].reverse().find((event) => event.data.type === "reasoning_supervision_recorded");

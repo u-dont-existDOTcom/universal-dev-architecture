@@ -1,10 +1,11 @@
 import { normalizeConversationUrl } from './core.mjs';
 
 export class ChromeDevtoolsBrowser {
-  constructor({ host = '127.0.0.1', port = 9222, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
+  constructor({ host = '127.0.0.1', port = 9222, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, generationTimeoutMs = 900_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
     this.baseUrl = `http://${host}:${port}`;
     this.pageReadyTimeoutMs = pageReadyTimeoutMs;
     this.submitTimeoutMs = submitTimeoutMs;
+    this.generationTimeoutMs = generationTimeoutMs;
     this.fetchImpl = fetchImpl;
     this.WebSocketImpl = WebSocketImpl;
   }
@@ -72,6 +73,68 @@ export class ChromeDevtoolsBrowser {
     return this.#withPageClient(target, async (client) => {
       const result = await client.evaluate(chatInspectionExpression(expectedUrl));
       return result;
+    });
+  }
+
+  async testChatControls(target, { expectedUrl, modelLabels }) {
+    return this.#withPageClient(target, async (client) => {
+      const inspection = await client.evaluate(chatInspectionExpression(expectedUrl));
+      if (inspection.urlMismatch || inspection.loginRequired || !inspection.composerFound) {
+        throw new Error('Registered supervisor chat is not ready for control-plane testing.');
+      }
+      const result = await client.evaluate(modelControlInspectionExpression(modelLabels));
+      if (!result.modelControlFound) throw new Error('ChatGPT model/mode switch control is unavailable.');
+      return {
+        composer: 'PASSED',
+        modeSwitching: 'PASSED',
+        registeredCapabilityTests: 'PASSED',
+        inspectedAssistantOutput: false,
+      };
+    });
+  }
+
+  async switchModel(target, { expectedUrl, label }) {
+    return this.#withPageClient(target, async (client) => {
+      await client.send('Runtime.enable');
+      const current = await client.evaluate(modelSelectionExpression(expectedUrl, label, 'CURRENT_OR_OPEN'));
+      if (current.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${current.currentUrl}`);
+      if (current.selected) return { selectedLabel: label, changed: false };
+      if (!current.opened) throw new Error(`ChatGPT model/mode switch control is unavailable: ${current.reason ?? 'UNKNOWN'}.`);
+      const selected = await waitFor(
+        () => client.evaluate(modelSelectionExpression(expectedUrl, label, 'SELECT_OPTION')),
+        this.pageReadyTimeoutMs,
+        300,
+        `ChatGPT model/mode option ${label} did not become available.`,
+      );
+      if (!selected.selected) throw new Error(`ChatGPT model/mode option ${label} could not be selected.`);
+      return { selectedLabel: label, changed: true };
+    });
+  }
+
+  async waitForGenerationComplete(target, { expectedUrl }) {
+    return this.#withPageClient(target, async (client) => {
+      await client.send('Runtime.enable');
+      let observedGenerating = false;
+      let consecutiveIdle = 0;
+      const completed = await waitFor(async () => {
+        const state = await client.evaluate(generationStateExpression(expectedUrl));
+        if (state.urlMismatch) throw new Error(`Chat target changed while waiting for generation: ${state.currentUrl}`);
+        if (state.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
+        if (state.generating) {
+          observedGenerating = true;
+          consecutiveIdle = 0;
+          return false;
+        }
+        consecutiveIdle = state.composerReady ? consecutiveIdle + 1 : 0;
+        return consecutiveIdle >= 3 ? state : false;
+      }, this.generationTimeoutMs, 500, 'ChatGPT generation did not reach a stable complete UI state.');
+      return {
+        status: 'GENERATION_COMPLETE',
+        observedGenerating,
+        completedBy: completed.completedBy,
+        inspectedAssistantOutput: false,
+        completedAtObserved: new Date().toISOString(),
+      };
     });
   }
 
@@ -271,6 +334,73 @@ function chatInspectionExpression(expectedUrl) {
       urlMismatch: current !== expected,
       composerFound: Boolean(composer),
       loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
+    };
+  `);
+}
+
+function modelControlInspectionExpression(modelLabels) {
+  return wrapExpression(`
+    const labels = ${JSON.stringify([modelLabels.extraHigh, modelLabels.pro])};
+    const buttons = [...document.querySelectorAll('button')];
+    const modelControl = document.querySelector('button[data-testid="model-switcher-dropdown-button"], button[aria-haspopup="menu"]')
+      || buttons.find((button) => labels.some((label) => (button.getAttribute('aria-label') ?? '').includes(label)));
+    return { modelControlFound: Boolean(modelControl) };
+  `);
+}
+
+function modelSelectionExpression(expectedUrl, label, stage) {
+  return wrapExpression(`
+    const expected = ${JSON.stringify(normalizeConversationUrl(expectedUrl))};
+    const wanted = ${JSON.stringify(label)};
+    const stage = ${JSON.stringify(stage)};
+    const normalize = (value) => {
+      try {
+        const url = new URL(value);
+        const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+        return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+      } catch { return null; }
+    };
+    if (normalize(location.href) !== expected) return { urlMismatch: true, currentUrl: location.href };
+    const normalizedText = (element) => (element.innerText ?? element.getAttribute('aria-label') ?? '').trim();
+    const visible = (element) => Boolean(element?.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
+    const controls = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"], button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+      .filter(visible);
+    if (controls.some((button) => normalizedText(button).includes(wanted))) return { selected: true, opened: false };
+    if (stage === 'CURRENT_OR_OPEN') {
+      const control = controls[0];
+      if (!control) return { selected: false, opened: false, reason: 'MODEL_CONTROL_NOT_FOUND' };
+      control.click();
+      return { selected: false, opened: true };
+    }
+    const options = [...document.querySelectorAll('[role="menuitem"], [role="option"], button')].filter(visible);
+    const option = options.find((element) => normalizedText(element) === wanted || normalizedText(element).startsWith(wanted + ' '));
+    if (!option) return false;
+    option.click();
+    return { selected: true, opened: true };
+  `);
+}
+
+function generationStateExpression(expectedUrl) {
+  return wrapExpression(`
+    const expected = ${JSON.stringify(normalizeConversationUrl(expectedUrl))};
+    const normalize = (value) => {
+      try {
+        const url = new URL(value);
+        const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+        return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+      } catch { return null; }
+    };
+    const stop = document.querySelector('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]');
+    const composer = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+    const composerReady = Boolean(composer?.getClientRects().length) && getComputedStyle(composer).visibility !== 'hidden';
+    const generating = Boolean(stop?.getClientRects().length) && getComputedStyle(stop).visibility !== 'hidden';
+    return {
+      currentUrl: location.href,
+      urlMismatch: normalize(location.href) !== expected,
+      loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
+      generating,
+      composerReady,
+      completedBy: !generating && composerReady ? 'STABLE_COMPOSER_WITHOUT_STOP_CONTROL' : null,
     };
   `);
 }

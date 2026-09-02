@@ -4,7 +4,9 @@ Status: bounded outbound implementation for a 16 GB Hostinger VPS.
 
 This package moves the persistent ChatGPT supervision browser off the owner laptop. It reads only already-authorized `MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1` packets from Mission Control, opens the exact registered `chatgpt.com/c/...` conversation in one dedicated VPS browser profile, submits the exact queued bytes, and records a local transport receipt.
 
-It is deliberately **outbound-only**. It does not read, copy, summarize, or import assistant output. Mission Control remains the ledger and admission boundary; ChatGPT remains the reasoning surface; this process is only a transport mechanism.
+It is deliberately **outbound-browser-only**. It does not read, copy, summarize, hash, parse, or import assistant output. Mission Control remains the ledger and admission boundary; ChatGPT remains the reasoning surface; this process is only a control and transport mechanism. The return path is a direct ChatGPT-to-GitHub write followed by GitHub webhook ingestion or periodic reconciliation polling.
+
+For an ordinary decision the relay selects Extra High once and sends one tiny read/reason/write control prompt. For an admitted escalated decision it advances a persisted same-chat state machine: Extra High reader prompt, generation-complete observation, Pro reasoner prompt, generation-complete observation, Extra High writer prompt, generation-complete observation, then Mission Control receipt polling. It never moves response text between turns because all turns share one conversation context.
 
 ## Implemented invariants
 
@@ -22,6 +24,9 @@ It is deliberately **outbound-only**. It does not read, copy, summarize, or impo
 - New sends stop at the hard memory boundary. The browser cgroup supplies an independent hard backstop.
 - Tokens, cookies, prompt bodies, and assistant output are never written to logs. Local state stores hashes and metadata, not queued body text.
 - Mission Control reads are limited to worker IDs explicitly bound in `chats.json`; the relay never requests the all-worker fleet projection.
+- Every supervisor chat registers passed test receipts for Mission Control read, GitHub read, GitHub write, and model/mode switching. Missing or untested capabilities fail configuration and doctor checks closed.
+- Model/mode switching and generation completion are observed only through controls and busy/stop/composer state; assistant message nodes and response text are never inspected.
+- The Extra High writer is instructed to use `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY` with no reinterpretation.
 
 ## 16 GB operating envelope
 
@@ -100,7 +105,7 @@ Edit:
 nano ~/.config/mission-control-chatgpt-relay/chats.json
 ```
 
-Each `chatId` must exactly match the `destinationChatId` used by Mission Control. Each URL must be a concrete `https://chatgpt.com/c/<conversation-id>` URL. Set `workerId` on the specialist entry for every worker to be read. The Project Manager chat is pinned; inactive specialist chats may be closed and reopened by URL.
+Each `chatId` must exactly match the `destinationChatId` used by Mission Control. Each URL must be a concrete `https://chatgpt.com/c/<conversation-id>` URL. Set `workerId` on the specialist entry for every worker to be read. Register the exact current UI labels for Extra High and Pro. Record a passed capability-test receipt for Mission Control read, GitHub read, GitHub write, and mode switching; placeholders or untested capabilities prevent startup. The Project Manager chat is pinned; inactive specialist chats may be closed and reopened by URL.
 
 ### 3. Authenticate the dedicated browser profile
 
@@ -208,6 +213,6 @@ A hard-pressure pause is a successful safety action, not permission to raise lim
 - The relay does not infer or attest the hidden backend model. It records only the registered chat URL and its own observed transport facts.
 - Keep the Machine credential scoped to exact disposable/approved worker IDs. A credential kind in Mission Control is not a semantic authority receipt.
 
-## Known boundary
+## Return-path boundary
 
-This implementation proves VPS-hosted **outbound** transport and resource behavior. It does not complete the full two-way Mission Control round trip. Assistant-response acquisition remains excluded from this package; the next return path must use a provider-supported source or an explicit manual/source-bound import rather than silent DOM output extraction.
+This package remains browser-outbound-only even though the supervisory round trip is complete. It waits for Mission Control to expose a validated `github_decision_receipt_ingested` event; it never acquires the assistant response itself. GitHub issue comments must use `MISSION_CONTROL_CANONICAL_DECISION_V1`, and Mission Control accepts them only when request, nonce, evidence capsule/hash, current owner-outcome epoch/hash, reasoning lane, repository/issue, decision hashes, time window, and no-reinterpretation writer contract all match.

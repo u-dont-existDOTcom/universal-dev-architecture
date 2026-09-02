@@ -1,7 +1,15 @@
 import { createHash } from 'node:crypto';
 
 export const INTERNAL_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n';
+export const SUPERVISORY_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n';
 export const STATE_VERSION = 1;
+
+export const REQUIRED_CHAT_CAPABILITIES = [
+  'missionControlRead',
+  'githubRead',
+  'githubWrite',
+  'modeSwitching',
+];
 
 export function oneShotExitCode(result) {
   return result?.status === 'ERROR' ? 1 : 0;
@@ -47,6 +55,8 @@ function parseChatEntry(item, index) {
   const label = boundedString(item.label, `Chat entry ${index} label`, 300);
   const workerId = item.workerId == null ? null : boundedString(item.workerId, `Chat entry ${index} workerId`, 180);
   const pinned = item.pinned === true || scope === 'PROJECT_MANAGER';
+  const capabilities = parseChatCapabilities(item.capabilities, index);
+  const modelLabels = parseModelLabels(item.modelLabels, index);
   return {
     scope,
     chatId,
@@ -54,6 +64,38 @@ function parseChatEntry(item, index) {
     url: normalizeConversationUrl(boundedString(item.url, `Chat entry ${index} url`, 1000)),
     workerId,
     pinned,
+    capabilities,
+    modelLabels,
+  };
+}
+
+function parseChatCapabilities(value, index) {
+  if (!isRecord(value)) throw new Error(`Chat entry ${index} capabilities must be an object.`);
+  return Object.fromEntries(REQUIRED_CHAT_CAPABILITIES.map((name) => {
+    const capability = value[name];
+    if (!isRecord(capability)
+      || capability.registered !== true
+      || capability.testStatus !== 'PASSED'
+      || typeof capability.testedAt !== 'string'
+      || !Number.isFinite(Date.parse(capability.testedAt))
+      || typeof capability.evidenceRef !== 'string'
+      || capability.evidenceRef.trim() === '') {
+      throw new Error(`Chat entry ${index} capability ${name} must be registered with a PASSED test receipt.`);
+    }
+    return [name, {
+      registered: true,
+      testStatus: 'PASSED',
+      testedAt: capability.testedAt,
+      evidenceRef: capability.evidenceRef,
+    }];
+  }));
+}
+
+function parseModelLabels(value, index) {
+  if (!isRecord(value)) throw new Error(`Chat entry ${index} modelLabels must be an object.`);
+  return {
+    extraHigh: boundedString(value.extraHigh, `Chat entry ${index} modelLabels.extraHigh`, 100),
+    pro: boundedString(value.pro, `Chat entry ${index} modelLabels.pro`, 100),
   };
 }
 
@@ -84,11 +126,59 @@ export function parseInternalSupervisorRouteBody(body) {
   }
 }
 
+export function parseSupervisoryCycleRouteBody(body) {
+  if (typeof body !== 'string' || !body.startsWith(SUPERVISORY_CYCLE_ROUTE_PREFIX)) return null;
+  try {
+    const value = JSON.parse(body.slice(SUPERVISORY_CYCLE_ROUTE_PREFIX.length));
+    if (!isRecord(value)
+      || value.schemaVersion !== 2
+      || value.packetKind !== 'SAME_CHAT_SUPERVISORY_CYCLE'
+      || typeof value.requestId !== 'string'
+      || typeof value.nonce !== 'string'
+      || (value.reasoningLane !== 'EXTRA_HIGH_DIRECT' && value.reasoningLane !== 'PRO_ESCALATED')
+      || typeof value.destinationChatId !== 'string'
+      || value.providerDeliveryState !== 'QUEUED_FOR_PROVIDER_RELAY'
+      || typeof value.queuedAt !== 'string'
+      || typeof value.expiresAt !== 'string'
+      || !Number.isFinite(Date.parse(value.queuedAt))
+      || !Number.isFinite(Date.parse(value.expiresAt))
+      || Date.parse(value.expiresAt) <= Date.parse(value.queuedAt)
+      || !isRecord(value.evidenceCapsule)
+      || typeof value.evidenceCapsule.id !== 'string'
+      || !isSha256(value.evidenceCapsule.sha256)
+      || !isRecord(value.ownerOutcome)
+      || typeof value.ownerOutcome.id !== 'string'
+      || !Number.isInteger(value.ownerOutcome.epoch)
+      || value.ownerOutcome.epoch < 1
+      || !isSha256(value.ownerOutcome.sha256)
+      || !isRecord(value.githubReceipt)
+      || typeof value.githubReceipt.repository !== 'string'
+      || !Number.isInteger(value.githubReceipt.issueNumber)
+      || value.githubReceipt.issueNumber < 1) {
+      return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export function extractQueuedRoutes(snapshot, chats, state) {
   if (!isRecord(snapshot) || !Array.isArray(snapshot.workers)) {
     throw new Error('Mission Control fleet response does not contain workers.');
   }
   const chatById = new Map(chats.map((entry) => [entry.chatId, entry]));
+  const receiptByRequestId = new Map();
+  for (const worker of snapshot.workers) {
+    if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
+    for (const event of worker.timeline) {
+      if (isRecord(event?.data)
+        && event.data.type === 'github_decision_receipt_ingested'
+        && typeof event.data.request_id === 'string') {
+        receiptByRequestId.set(event.data.request_id, event.data);
+      }
+    }
+  }
   const routes = [];
   for (const worker of snapshot.workers) {
     if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
@@ -96,7 +186,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
     const workerName = typeof worker.name === 'string' ? worker.name : workerId;
     for (const event of worker.timeline) {
       if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'worker_message_recorded') continue;
-      const packet = parseInternalSupervisorRouteBody(event.data.body);
+      const packet = parseSupervisoryCycleRouteBody(event.data.body) ?? parseInternalSupervisorRouteBody(event.data.body);
       if (!packet) continue;
       const chat = chatById.get(packet.destinationChatId);
       if (!chat) continue;
@@ -112,6 +202,8 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         workerName,
         chat,
         packet,
+        routeKind: packet.packetKind === 'SAME_CHAT_SUPERVISORY_CYCLE' ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
+        decisionReceipt: receiptByRequestId.get(packet.requestId) ?? null,
         body: event.data.body,
         bodySha256: sha256(event.data.body),
         queuedAt: packet.queuedAt,
@@ -120,6 +212,59 @@ export function extractQueuedRoutes(snapshot, chats, state) {
     }
   }
   return routes.sort((left, right) => left.queuedAt.localeCompare(right.queuedAt) || left.routeKey.localeCompare(right.routeKey));
+}
+
+export function cycleControlPrompt(route, step) {
+  if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Control prompts require a supervisory-cycle route.');
+  const requestId = route.requestId;
+  const location = `${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.issueNumber}`;
+  if (step === 'EXTRA_HIGH_DIRECT') {
+    return `MC ${requestId}: read the registered evidence, decide in Extra High, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Use the exact-copy/structured-transform writer contract; do not delegate to Work.`;
+  }
+  if (step === 'EXTRA_HIGH_READER') {
+    return `MC ${requestId}: in Extra High, read the registered Mission Control and GitHub evidence into this chat. Do not decide or write yet.`;
+  }
+  if (step === 'PRO_REASONER') {
+    return `MC ${requestId}: in Pro, adjudicate from the evidence already in this chat and produce the canonical decision block. Do not delegate to Work.`;
+  }
+  if (step === 'EXTRA_HIGH_WRITER') {
+    return `MC ${requestId}: in Extra High, write the immediately preceding Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Exact copy or structured transformation only; no reinterpretation.`;
+  }
+  throw new Error(`Unknown supervisory-cycle step: ${step}`);
+}
+
+export function nextSupervisoryCycleAction(route, prior) {
+  if (route.routeKind !== 'SUPERVISORY_CYCLE') return null;
+  const status = prior?.status ?? 'UNSEEN';
+  if ((status === 'FAILED_RETRYABLE' || status === 'RETRY_AUTHORIZED') && prior?.cycleStep) {
+    return {
+      type: 'SEND_CONTROL',
+      step: prior.cycleStep,
+      model: prior.cycleStep === 'PRO_REASONER' ? 'PRO' : 'EXTRA_HIGH',
+    };
+  }
+  if (route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT') {
+    if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' };
+    if (status === 'EXTRA_HIGH_DIRECT_PROMPT_SUBMITTED') return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT' };
+    if (status === 'EXTRA_HIGH_DIRECT_COMPLETE') return { type: 'WAIT_GITHUB_RECEIPT' };
+    return null;
+  }
+  if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' };
+  if (status === 'EXTRA_HIGH_READER_PROMPT_SUBMITTED') return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_READER' };
+  if (status === 'EXTRA_HIGH_READER_COMPLETE') return { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' };
+  if (status === 'PRO_REASONER_PROMPT_SUBMITTED') return { type: 'WAIT_GENERATION', step: 'PRO_REASONER' };
+  if (status === 'PRO_REASONER_COMPLETE') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' };
+  if (status === 'EXTRA_HIGH_WRITER_PROMPT_SUBMITTED') return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER' };
+  if (status === 'EXTRA_HIGH_WRITER_COMPLETE') return { type: 'WAIT_GITHUB_RECEIPT' };
+  return null;
+}
+
+export function completedCycleStepStatus(step) {
+  return `${step}_COMPLETE`;
+}
+
+export function submittedCycleStepStatus(step) {
+  return `${step}_PROMPT_SUBMITTED`;
 }
 
 export function defaultState(now = new Date().toISOString()) {
@@ -237,4 +382,8 @@ function boundedString(value, field, max) {
 
 function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isSha256(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 }

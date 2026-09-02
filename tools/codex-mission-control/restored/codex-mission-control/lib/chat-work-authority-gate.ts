@@ -11,6 +11,11 @@ export type ControlledAction =
   | "SET_PRIORITY"
   | "DESIGN_SPEND"
   | "CHOOSE_CONSEQUENTIAL_TRADEOFF"
+  | "AUTHOR_ARCHITECTURE_DECISION"
+  | "AUTHOR_REVIEW"
+  | "AUTHOR_SUPERVISORY_VERDICT"
+  | "AUTHOR_OWNER_DECISION"
+  | "AUTHOR_SUBSTANTIVE_SUPERVISORY_PROSE"
   | "EXECUTE_BOUNDED_TASK"
   | "ROUTE_INTERNAL_SUPERVISOR"
   | "SEND_EXTERNAL_REPRESENTATIONAL_MESSAGE";
@@ -53,6 +58,7 @@ export interface ChatWorkAuthorityRequest {
   sourceReceipt: ReasoningSourceReceipt | null;
   boundedExecution: boolean;
   taskRequiresExecutionOutsideChat: boolean;
+  executionScope: ExecutionScope | null;
   spend: SpendRequest | null;
   internalRoute: InternalSupervisorRoute | null;
   ownerPolicy: {
@@ -60,6 +66,16 @@ export interface ChatWorkAuthorityRequest {
     activeZeroSpendDecisionId: string | null;
   };
 }
+
+export type ExecutionScope =
+  | "TERMINAL_OR_COMPUTER_WORK"
+  | "GENUINELY_LONG_RANGE_REPOSITORY_OPERATION"
+  | "ROUTINE_GITHUB_READ_WRITE"
+  | "ISSUE_OR_PR_UPDATE"
+  | "ARCHITECTURE_DECISION"
+  | "REVIEW"
+  | "SUPERVISORY_REASONING"
+  | "SUBSTANTIVE_SUPERVISORY_PROSE";
 
 export type AuthorityGateDecision =
   | "ALLOW_CHAT_REASONING"
@@ -69,6 +85,7 @@ export type AuthorityGateDecision =
   | "REJECT_UNVERIFIED_REASONING_SOURCE"
   | "REJECT_UNBOUNDED_EXECUTION"
   | "REJECT_CHAT_EXECUTABLE_TASK_SUBSTITUTION"
+  | "REJECT_CHAT_OWNED_EXECUTION_SCOPE"
   | "REJECT_PAID_MODEL_INFERENCE"
   | "REJECT_NONZERO_SPEND_WITHOUT_OWNER_MANIFEST"
   | "REJECT_OWNER_RELAY_FOR_INTERNAL_ROUTE"
@@ -89,6 +106,16 @@ const semanticActions = new Set<ControlledAction>([
   "SET_PRIORITY",
   "DESIGN_SPEND",
   "CHOOSE_CONSEQUENTIAL_TRADEOFF",
+  "AUTHOR_ARCHITECTURE_DECISION",
+  "AUTHOR_REVIEW",
+  "AUTHOR_SUPERVISORY_VERDICT",
+  "AUTHOR_OWNER_DECISION",
+  "AUTHOR_SUBSTANTIVE_SUPERVISORY_PROSE",
+]);
+
+const workEligibleExecutionScopes = new Set<ExecutionScope>([
+  "TERMINAL_OR_COMPUTER_WORK",
+  "GENUINELY_LONG_RANGE_REPOSITORY_OPERATION",
 ]);
 
 const chatAuthorities = new Set<AuthorityActor>([
@@ -220,6 +247,16 @@ export function evaluateChatWorkAuthorityGate(
         "Keep the task in Chat; delegate only the mechanical residue Chat cannot execute.",
       );
     }
+    if (!request.executionScope || !workEligibleExecutionScopes.has(request.executionScope)) {
+      return reject(
+        "REJECT_CHAT_OWNED_EXECUTION_SCOPE",
+        [
+          `${request.executionScope ?? "UNDECLARED"} remains in Chat.`,
+          "Routine GitHub reads/writes, issue or pull-request updates, architecture decisions, reviews, supervisory reasoning, and substantive supervisory prose are not Work execution residue.",
+        ],
+        "Keep this action in Chat; use Work only for terminal/computer work or a genuinely long-range repository operation.",
+      );
+    }
     if (!new Set<AuthorityActor>(["CODEX", "WORK"]).has(request.actor)) {
       return reject(
         "REJECT_UNBOUNDED_EXECUTION",
@@ -304,6 +341,9 @@ function validateRequestShape(request: ChatWorkAuthorityRequest): string[] {
   }
   if (request.internalRoute && !request.internalRoute.destinationChatId.trim()) {
     errors.push("internalRoute.destinationChatId is required.");
+  }
+  if (request.action === "EXECUTE_BOUNDED_TASK" && !request.executionScope) {
+    errors.push("executionScope is required for bounded execution.");
   }
   return errors;
 }

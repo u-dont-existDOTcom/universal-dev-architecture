@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   INTERNAL_ROUTE_PREFIX,
+  SUPERVISORY_CYCLE_ROUTE_PREFIX,
   classifyMemoryPressure,
+  cycleControlPrompt,
   defaultState,
   extractQueuedRoutes,
   normalizeConversationUrl,
+  nextSupervisoryCycleAction,
   oneShotExitCode,
   parseChatDirectory,
   parseInternalSupervisorRouteBody,
@@ -28,14 +32,14 @@ test('normalizes only concrete chatgpt conversation URLs', () => {
 
 test('chat directory pins project manager and rejects duplicate IDs', () => {
   const chats = parseChatDirectory([
-    { scope: 'PROJECT_MANAGER', chatId: 'pm', label: 'PM', url: 'https://chatgpt.com/c/pm-chat', workerId: null },
-    { scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a' },
+    chatEntry({ scope: 'PROJECT_MANAGER', chatId: 'pm', label: 'PM', url: 'https://chatgpt.com/c/pm-chat', workerId: null }),
+    chatEntry({ scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a' }),
   ]);
   assert.equal(chats[0].pinned, true);
   assert.equal(chats[1].pinned, false);
   assert.throws(() => parseChatDirectory([
-    { scope: 'SPECIALIST', chatId: 'same', label: 'A', url: 'https://chatgpt.com/c/a' },
-    { scope: 'SPECIALIST', chatId: 'same', label: 'B', url: 'https://chatgpt.com/c/b' },
+    chatEntry({ scope: 'SPECIALIST', chatId: 'same', label: 'A', url: 'https://chatgpt.com/c/a' }),
+    chatEntry({ scope: 'SPECIALIST', chatId: 'same', label: 'B', url: 'https://chatgpt.com/c/b' }),
   ]), /unique/);
 });
 
@@ -44,7 +48,7 @@ test('extracts only canonical queued route packets bound to configured chats', (
   assert.equal(parseInternalSupervisorRouteBody(body).requestId, 'r-1');
   assert.equal(parseInternalSupervisorRouteBody('not a route'), null);
   const chats = parseChatDirectory([
-    { scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a' },
+    chatEntry({ scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a' }),
   ]);
   const snapshot = {
     workers: [{
@@ -64,7 +68,7 @@ test('extracts only canonical queued route packets bound to configured chats', (
 });
 
 test('completed and discarded routes do not re-enter the local queue', () => {
-  const chats = parseChatDirectory([{ scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat' }]);
+  const chats = parseChatDirectory([chatEntry({ scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat' })]);
   const body = routeBody({ requestId: 'r-1', destinationChatId: 'spec' });
   const snapshot = { workers: [{ id: 'w', name: 'W', timeline: [{ eventId: 'e', data: { type: 'worker_message_recorded', body } }] }] };
   const state = defaultState();
@@ -91,10 +95,10 @@ test('memory pressure uses hard limits before soft limits', () => {
 
 test('tab plan preserves active target, then pinned PM, and closes LRU', () => {
   const chats = parseChatDirectory([
-    { scope: 'PROJECT_MANAGER', chatId: 'pm', label: 'PM', url: 'https://chatgpt.com/c/pm' },
-    { scope: 'SPECIALIST', chatId: 'a', label: 'A', url: 'https://chatgpt.com/c/a' },
-    { scope: 'SPECIALIST', chatId: 'b', label: 'B', url: 'https://chatgpt.com/c/b' },
-    { scope: 'SPECIALIST', chatId: 'c', label: 'C', url: 'https://chatgpt.com/c/c' },
+    chatEntry({ scope: 'PROJECT_MANAGER', chatId: 'pm', label: 'PM', url: 'https://chatgpt.com/c/pm' }),
+    chatEntry({ scope: 'SPECIALIST', chatId: 'a', label: 'A', url: 'https://chatgpt.com/c/a' }),
+    chatEntry({ scope: 'SPECIALIST', chatId: 'b', label: 'B', url: 'https://chatgpt.com/c/b' }),
+    chatEntry({ scope: 'SPECIALIST', chatId: 'c', label: 'C', url: 'https://chatgpt.com/c/c' }),
   ]);
   const targets = chats.map((chat) => ({ id: chat.chatId, type: 'page', url: chat.url }));
   const state = defaultState();
@@ -115,6 +119,51 @@ test('route retry policy blocks ambiguous replay and honors explicit retry', () 
   assert.equal(shouldAttemptRoute({ status: 'RETRY_AUTHORIZED' }, now, 1000), true);
   assert.equal(shouldAttemptRoute({ status: 'FAILED_RETRYABLE', lastAttemptAt: new Date(now - 2000).toISOString() }, now, 1000), true);
   assert.equal(shouldAttemptRoute({ status: 'FAILED_RETRYABLE', lastAttemptAt: new Date(now - 100).toISOString() }, now, 1000), false);
+});
+
+test('chat capability registration fails closed unless all four capabilities have passed tests', () => {
+  const invalid = chatEntry({ scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec' });
+  invalid.capabilities.githubWrite.testStatus = 'UNTESTED';
+  assert.throws(() => parseChatDirectory([invalid]), /githubWrite.*PASSED/);
+  delete invalid.capabilities.modeSwitching;
+  assert.throws(() => parseChatDirectory([invalid]), /githubWrite|modeSwitching/);
+});
+
+test('same-chat Pro route advances reader, reasoner, writer, then GitHub receipt without assistant output transport', () => {
+  const chats = parseChatDirectory([chatEntry({
+    scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a',
+  })]);
+  const snapshot = { workers: [{ id: 'worker-a', name: 'Worker A', timeline: [{
+    eventId: 'cycle-event', data: { type: 'worker_message_recorded', body: cycleRouteBody() },
+  }] }] };
+  const route = extractQueuedRoutes(snapshot, chats, defaultState())[0];
+  assert.equal(route.routeKind, 'SUPERVISORY_CYCLE');
+  assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' });
+  assert.deepEqual(nextSupervisoryCycleAction(route, { status: 'EXTRA_HIGH_READER_COMPLETE' }), { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' });
+  assert.deepEqual(nextSupervisoryCycleAction(route, { status: 'PRO_REASONER_COMPLETE' }), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' });
+  assert.deepEqual(nextSupervisoryCycleAction(route, { status: 'EXTRA_HIGH_WRITER_COMPLETE' }), { type: 'WAIT_GITHUB_RECEIPT' });
+  assert.match(cycleControlPrompt(route, 'EXTRA_HIGH_WRITER'), /immediately preceding Pro decision/);
+  assert.doesNotMatch(cycleControlPrompt(route, 'EXTRA_HIGH_WRITER'), /copy.*assistant response text/i);
+});
+
+test('ordinary route keeps read, reasoning, and GitHub write in Extra High', () => {
+  const chats = parseChatDirectory([chatEntry({
+    scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a',
+  })]);
+  const snapshot = { workers: [{ id: 'worker-a', name: 'Worker A', timeline: [{
+    eventId: 'cycle-event', data: { type: 'worker_message_recorded', body: cycleRouteBody('EXTRA_HIGH_DIRECT') },
+  }] }] };
+  const route = extractQueuedRoutes(snapshot, chats, defaultState())[0];
+  assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' });
+  assert.deepEqual(nextSupervisoryCycleAction(route, { status: 'EXTRA_HIGH_DIRECT_COMPLETE' }), { type: 'WAIT_GITHUB_RECEIPT' });
+  assert.match(cycleControlPrompt(route, 'EXTRA_HIGH_DIRECT'), /do not delegate to Work/);
+});
+
+test('browser control source contains no assistant-message selector or response extraction path', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /data-message-author-role=["']assistant["']/);
+  assert.doesNotMatch(source, /assistantMessages|assistantText|responseText|extractAssistant/i);
+  assert.match(source, /STABLE_COMPOSER_WITHOUT_STOP_CONTROL/);
 });
 
 function routeBody({ requestId, destinationChatId }) {
@@ -142,4 +191,40 @@ function routeBody({ requestId, destinationChatId }) {
     },
     queuedAt: '2026-09-02T00:00:00.000Z',
   });
+}
+
+function cycleRouteBody(reasoningLane = 'PRO_ESCALATED') {
+  return SUPERVISORY_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 2,
+    packetKind: 'SAME_CHAT_SUPERVISORY_CYCLE',
+    requestId: 'cycle-request-1',
+    nonce: 'nonce-1',
+    destinationChatId: 'spec',
+    providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    queuedAt: '2026-09-02T00:00:00.000Z',
+    expiresAt: '2026-09-03T00:00:00.000Z',
+    reasoningLane,
+    evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) },
+    ownerOutcome: { id: 'outcome-1', epoch: 2, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'u-dont-existDOTcom/universal-dev-architecture', issueNumber: 58 },
+  });
+}
+
+function chatEntry(overrides) {
+  const capability = (name) => ({
+    registered: true,
+    testStatus: 'PASSED',
+    testedAt: '2026-09-02T00:00:00.000Z',
+    evidenceRef: `capability-test:${name}`,
+  });
+  return {
+    capabilities: {
+      missionControlRead: capability('mission-control-read'),
+      githubRead: capability('github-read'),
+      githubWrite: capability('github-write'),
+      modeSwitching: capability('mode-switching'),
+    },
+    modelLabels: { extraHigh: 'Thinking', pro: 'Pro' },
+    ...overrides,
+  };
 }

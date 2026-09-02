@@ -1,4 +1,15 @@
-import { classifyMemoryPressure, extractQueuedRoutes, redactError, selectManagedTabClosures, shouldAttemptRoute } from './core.mjs';
+import {
+  classifyMemoryPressure,
+  completedCycleStepStatus,
+  cycleControlPrompt,
+  extractQueuedRoutes,
+  nextSupervisoryCycleAction,
+  redactError,
+  selectManagedTabClosures,
+  sha256,
+  shouldAttemptRoute,
+  submittedCycleStepStatus,
+} from './core.mjs';
 import { readMemoryMetrics } from './memory.mjs';
 
 export class RelayRuntime {
@@ -21,6 +32,21 @@ export class RelayRuntime {
     ]);
     const pressure = classifyMemoryPressure(metrics, this.config.memory);
     const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
+    const chatCapabilities = [];
+    for (const chat of this.config.runtime.chats) {
+      const target = await this.browser.findOrCreateChatTarget(chat.url);
+      const controls = await this.browser.testChatControls(target, {
+        expectedUrl: chat.url,
+        modelLabels: chat.modelLabels,
+      });
+      chatCapabilities.push({
+        chatId: chat.chatId,
+        registered: chat.capabilities,
+        controls,
+        status: 'PASSED',
+      });
+      if (target.created && !chat.pinned) await this.browser.closeTarget(target.id);
+    }
     const result = {
       status: 'READY',
       checkedAt: new Date().toISOString(),
@@ -32,6 +58,7 @@ export class RelayRuntime {
         generatedAt: snapshot.generatedAt ?? null,
       },
       queue: summarizeRoutes(routes, state),
+      chatCapabilities,
       unresolvedAmbiguities: unresolvedAmbiguities(state),
     };
     await this.stateStore.writeStatus(result);
@@ -90,7 +117,9 @@ export class RelayRuntime {
       }
 
       const nowMs = Date.now();
-      const candidate = routes.find((route) => shouldAttemptRoute(state.deliveries[route.routeKey], nowMs, this.config.runtime.retryDelayMs));
+      const candidate = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE'
+        ? shouldProcessSupervisoryCycle(route, state.deliveries[route.routeKey], nowMs, this.config.runtime.retryDelayMs)
+        : shouldAttemptRoute(state.deliveries[route.routeKey], nowMs, this.config.runtime.retryDelayMs));
       if (!candidate) {
         state.health.lastError = null;
         state.health.pausedReason = null;
@@ -115,6 +144,10 @@ export class RelayRuntime {
         });
         await this.stateStore.writeStatus(status);
         return status;
+      }
+
+      if (candidate.routeKind === 'SUPERVISORY_CYCLE') {
+        return this.#processSupervisoryCycle(candidate, routes, state, metrics, pressure);
       }
 
       const target = await this.browser.findOrCreateChatTarget(candidate.chat.url);
@@ -264,14 +297,20 @@ export class RelayRuntime {
   async #reconcileAmbiguous(route, state) {
     const target = await this.browser.findOrCreateChatTarget(route.chat.url);
     this.#rememberTarget(state, route.chat, target);
+    const delivery = state.deliveries[route.routeKey];
+    const body = route.routeKind === 'SUPERVISORY_CYCLE' && delivery?.cycleStep
+      ? cycleControlPrompt(route, delivery.cycleStep)
+      : route.body;
     const present = await this.browser.outboundMessagePresent(target, {
       expectedUrl: route.chat.url,
-      body: route.body,
+      body,
     });
     if (present) {
       state.deliveries[route.routeKey] = {
         ...state.deliveries[route.routeKey],
-        status: 'SUBMITTED_CONFIRMED',
+        status: route.routeKind === 'SUPERVISORY_CYCLE'
+          ? submittedCycleStepStatus(delivery.cycleStep)
+          : 'SUBMITTED_CONFIRMED',
         confirmedAt: new Date().toISOString(),
         resolution: 'AUTOMATIC_EXACT_USER_MESSAGE_RECONCILIATION',
         lastError: null,
@@ -306,6 +345,137 @@ export class RelayRuntime {
       }
     }
     return closures;
+  }
+
+  async #processSupervisoryCycle(route, routes, state, metrics, pressure) {
+    const prior = state.deliveries[route.routeKey] ?? null;
+    const action = nextSupervisoryCycleAction(route, prior);
+    if (!action) {
+      state.health.lastError = null;
+      state = await this.stateStore.write(state);
+      const status = this.#status('IDLE', state, { queue: summarizeRoutes(routes, state), route: publicRoute(route) });
+      await this.stateStore.writeStatus(status);
+      return status;
+    }
+
+    if (action.type === 'WAIT_GITHUB_RECEIPT') {
+      const receipt = route.decisionReceipt;
+      state.deliveries[route.routeKey] = {
+        ...prior,
+        status: receipt ? 'DECISION_RECEIPT_INGESTED' : prior.status,
+        receiptEventId: receipt?.receipt_id ?? prior.receiptEventId ?? null,
+        lastReceiptPollAt: new Date().toISOString(),
+      };
+      state.health.lastError = null;
+      state.health.pausedReason = receipt ? null : `Waiting for canonical GitHub decision receipt for ${route.requestId}.`;
+      state = await this.stateStore.write(state);
+      const status = this.#status(receipt ? 'DECISION_RECEIPT_INGESTED' : 'AWAITING_GITHUB_RECEIPT', state, {
+        memory: { metrics, ...pressure },
+        queue: summarizeRoutes(routes, state),
+        route: publicRoute(route),
+        receipt: receipt ? publicDecisionReceipt(receipt) : null,
+      });
+      await this.stateStore.writeStatus(status);
+      return status;
+    }
+
+    const target = await this.browser.findOrCreateChatTarget(route.chat.url);
+    this.#rememberTarget(state, route.chat, target);
+    metrics = await this.memoryReader(this.config.browser.profileDir);
+    pressure = classifyMemoryPressure(metrics, this.config.memory);
+    const closedTargets = await this.#applyTabBudget(await this.browser.listTargets(), state, pressure.pressure, target.id);
+    if (pressure.pressure === 'HARD') {
+      if (target.created) await this.browser.closeTarget(target.id).catch(() => {});
+      state.health.metrics = metrics;
+      state.health.pressure = pressure.pressure;
+      state.health.pausedReason = `Opening ${route.chat.label} crossed the hard memory boundary: ${pressure.reasons.join('; ')}`;
+      state = await this.stateStore.write(state);
+      const status = this.#status('PAUSED_MEMORY_AFTER_TAB_OPEN', state, {
+        memory: { metrics, ...pressure }, queue: summarizeRoutes(routes, state), route: publicRoute(route), closedTargets,
+      });
+      await this.stateStore.writeStatus(status);
+      return status;
+    }
+
+    if (action.type === 'WAIT_GENERATION') {
+      const observation = await this.browser.waitForGenerationComplete(target, { expectedUrl: route.chat.url });
+      state.deliveries[route.routeKey] = {
+        ...prior,
+        status: completedCycleStepStatus(action.step),
+        generationCompletedAt: new Date().toISOString(),
+        generationObservation: observation,
+      };
+      state.health.lastError = null;
+      state.health.pausedReason = null;
+      state = await this.stateStore.write(state);
+      const status = this.#status(completedCycleStepStatus(action.step), state, {
+        memory: { metrics, ...pressure }, queue: summarizeRoutes(routes, state), route: publicRoute(route), observation,
+      });
+      await this.stateStore.writeStatus(status);
+      return status;
+    }
+
+    const prompt = cycleControlPrompt(route, action.step);
+    const modelLabel = action.model === 'PRO' ? route.chat.modelLabels.pro : route.chat.modelLabels.extraHigh;
+    await this.browser.switchModel(target, { expectedUrl: route.chat.url, label: modelLabel });
+    const intentAt = new Date().toISOString();
+    state.deliveries[route.routeKey] = {
+      ...prior,
+      status: 'SUBMISSION_INTENT_RECORDED',
+      requestId: route.requestId,
+      workerId: route.workerId,
+      chatId: route.chat.chatId,
+      conversationUrl: route.chat.url,
+      cycleStep: action.step,
+      reasoningLane: route.packet.reasoningLane,
+      bodySha256: sha256(prompt),
+      bodyLength: prompt.length,
+      targetId: target.id,
+      attempt: (prior?.attempt ?? 0) + 1,
+      intentRecordedAt: intentAt,
+      lastAttemptAt: intentAt,
+      lastError: null,
+    };
+    state = await this.stateStore.write(state);
+    try {
+      const confirmation = await this.browser.submitExactMessage(target, {
+        expectedUrl: route.chat.url,
+        body: prompt,
+        bodySha256: sha256(prompt),
+      });
+      state.deliveries[route.routeKey] = {
+        ...state.deliveries[route.routeKey],
+        status: submittedCycleStepStatus(action.step),
+        confirmedAt: new Date().toISOString(),
+        confirmation,
+      };
+      state.health.lastError = null;
+      state.health.pausedReason = null;
+      state = await this.stateStore.write(state);
+      const status = this.#status(submittedCycleStepStatus(action.step), state, {
+        memory: { metrics, ...pressure }, queue: summarizeRoutes(routes, state), route: publicRoute(route),
+      });
+      await this.stateStore.writeStatus(status);
+      return status;
+    } catch (error) {
+      const stage = error?.relayStage ?? 'UNKNOWN';
+      const afterClick = stage === 'CLICKED' || stage === 'CONFIRMED';
+      state.deliveries[route.routeKey] = {
+        ...state.deliveries[route.routeKey],
+        status: afterClick ? 'AMBIGUOUS_AFTER_RESTART' : 'FAILED_RETRYABLE',
+        failedAt: new Date().toISOString(),
+        failureStage: stage,
+        lastError: redactError(error),
+      };
+      state.health.lastError = redactError(error);
+      state.health.pausedReason = afterClick ? 'A control prompt may have been submitted; automatic replay is blocked until outbound-only reconciliation.' : null;
+      state = await this.stateStore.write(state);
+      const status = this.#status(afterClick ? 'SUBMISSION_AMBIGUOUS' : 'SUBMISSION_FAILED_RETRYABLE', state, {
+        memory: { metrics, ...pressure }, queue: summarizeRoutes(routes, state), route: publicRoute(route), failureStage: stage,
+      });
+      await this.stateStore.writeStatus(status);
+      return status;
+    }
   }
 
   #rememberTarget(state, chat, target) {
@@ -381,5 +551,25 @@ function publicRoute(route) {
     queuedAt: route.queuedAt,
     bodySha256: route.bodySha256,
     bodyLength: route.body.length,
+    routeKind: route.routeKind,
+    reasoningLane: route.packet.reasoningLane ?? null,
+  };
+}
+
+function shouldProcessSupervisoryCycle(route, prior, nowMs, retryDelayMs) {
+  if (prior?.status === 'DECISION_RECEIPT_INGESTED') return false;
+  if (prior?.status === 'FAILED_RETRYABLE' && !shouldAttemptRoute(prior, nowMs, retryDelayMs)) return false;
+  return Boolean(route.decisionReceipt || nextSupervisoryCycleAction(route, prior));
+}
+
+function publicDecisionReceipt(receipt) {
+  return {
+    receiptId: receipt.receipt_id,
+    requestId: receipt.request_id,
+    reasoningLane: receipt.reasoning_lane,
+    repository: receipt.github_receipt?.repository ?? null,
+    issueNumber: receipt.github_receipt?.issue_number ?? null,
+    commentId: receipt.github_receipt?.comment_id ?? null,
+    immutableUrl: receipt.github_receipt?.immutable_url ?? null,
   };
 }

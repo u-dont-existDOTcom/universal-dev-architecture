@@ -5,6 +5,7 @@ import { loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chat
 import {
   evaluateSupervisionAdmission,
   internalSupervisorRoutePrefix,
+  supervisoryCycleRoutePrefix,
   parseInternalSupervisorRouteBody,
 } from "../lib/supervision-admission-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
@@ -26,6 +27,7 @@ function input(overrides: Record<string, unknown> = {}) {
     sourceReceipt: null,
     boundedExecution: false,
     taskRequiresExecutionOutsideChat: false,
+    executionScope: null,
     spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 30, ownerApprovedNonzeroSpendManifestId: null },
     internalRoute: {
       destination: "SPECIALIST_SUPERVISOR_CHAT",
@@ -137,6 +139,7 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
       },
       boundedExecution: true,
       taskRequiresExecutionOutsideChat: true,
+      executionScope: "TERMINAL_OR_COMPUTER_WORK",
       spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 0, ownerApprovedNonzeroSpendManifestId: null },
       internalRoute: null,
     },
@@ -145,6 +148,34 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
   assert.equal(result.admitted, true);
   assert.equal(result.mayExecute, true);
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
+});
+
+test("a registered same-chat cycle is emitted with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({
+    factualPacket: {
+      packetId: "packet:askrigor:mast:cycle",
+      taskId: "task:askrigor:mast",
+      exactFactualState: "Exact factual state is stored in the registered evidence capsule.",
+      evidenceRefs: ["github:u-dont-existDOTcom/universal-dev-architecture#58"],
+      decisionRequested: "Return the bounded canonical decision.",
+      supervisoryCycle: {
+        nonce: "nonce-cycle-1",
+        evidenceCapsule: { id: "capsule-cycle-1", sha256: "b".repeat(64) },
+        ownerOutcome: { id: "owner-outcome-cycle-1", epoch: 3, sha256: "c".repeat(64) },
+        reasoningLane: "PRO_ESCALATED",
+        githubReceipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issueNumber: 58 },
+        expiresAt: "2026-09-03T00:00:00.000Z",
+      },
+    },
+  }), "2026-09-02T00:00:00.000Z");
+  assert.ok(result.routeEnvelope?.data.type === "worker_message_recorded");
+  if (result.routeEnvelope?.data.type !== "worker_message_recorded") return;
+  assert.ok(result.routeEnvelope.data.body.startsWith(supervisoryCycleRoutePrefix));
+  const packet = JSON.parse(result.routeEnvelope.data.body.slice(supervisoryCycleRoutePrefix.length));
+  assert.equal(packet.requestId, "admission:askrigor:mast:1");
+  assert.equal(packet.nonce, "nonce-cycle-1");
+  assert.equal(packet.reasoningLane, "PRO_ESCALATED");
+  assert.equal(packet.writerContract.reinterpretationAllowed, false);
 });
 
 test("configured chat locators are exposed without pretending provider verification or relay", () => {

@@ -65,6 +65,28 @@ are in
 | Worker work queue | worker-published projection bound to the exact owner direction |
 | Dashboard | rebuildable projection only |
 
+## Personal Pro same-chat supervisory cycle
+
+The registered supervisor conversation is the handoff medium. Ordinary decisions remain entirely in Extra High. Only an admitted escalated decision switches that same conversation to Pro, then returns it to Extra High for the GitHub write:
+
+```text
+ordinary:   Extra High read -> reason -> GitHub write
+escalated:  Extra High read -> same-chat Pro reason -> same-chat Extra High exact writer
+                                      -> GitHub issue comment
+                                      -> signed webhook -> Mission Control ledger
+                                      -> periodic GitHub polling if the webhook was missed
+```
+
+The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation-complete controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
+
+Every configured supervisor chat fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are registered with passed capability-test receipts. Every canonical decision receipt binds the request ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale or mismatched GitHub receipts do not enter the ledger.
+
+## Chat and Work governance
+
+Chat is the reasoning authority and the normal GitHub surface. Routine repository reads/writes, issue and pull-request updates, architecture decisions, reviews, supervisory reasoning, methodology, strategy, prioritization, verdicts, owner decisions, and substantive supervisory prose stay in Chat.
+
+Work is execution-only. Mission Control may admit it only for terminal/computer work or a genuinely long-range repository operation under an exact source-bound directive. Convenience, GitHub access, or the ability to run tools does not transfer reasoning authority to Work.
+
 Worker-to-contract and contract-to-owner alignment are never averaged. A worker can be GREEN against a laundered contract while the task remains overall RED and routes to contract repair.
 
 ## Correction invariants

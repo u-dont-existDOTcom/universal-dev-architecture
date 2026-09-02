@@ -14,6 +14,12 @@ import { CorrectionInvariantError } from "../lib/correction-lifecycle";
 import { producerKinds, producerMayEmit, type AuthenticatedProducer, type ProducerKind } from "../lib/ingestion-auth";
 import { parseAppendEnvelope } from "../lib/schema";
 import { pullWorkerOutbox, recordOwnerMessage } from "../lib/worker-channel";
+import {
+  buildGitHubDecisionReceiptEnvelope,
+  githubDecisionProducer,
+  reconcileGitHubDecisionReceipts,
+  type GitHubDecisionCandidate,
+} from "../lib/github-decision-receipts";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -32,6 +38,7 @@ const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env
     worktreePath: process.env.MISSION_CONTROL_LIVE_WORKTREE,
   }, (event) => notifications.emit("event", event))
   : null;
+const githubReconciliationTimer = startGitHubReconciliation();
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -81,6 +88,22 @@ const server = http.createServer(async (request, response) => {
       const event = store.append(envelope, undefined, producer);
       notifications.emit("event", event);
       return json(response, 201, { event });
+    }
+    if (request.method === "POST" && url.pathname === "/github/decision-receipts") {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "SYSTEM" || producer.id !== githubDecisionProducer.id) {
+        return json(response, 403, { error: "Only the authenticated GitHub decision-receipt system producer may use this route." });
+      }
+      try {
+        const candidate = await readJson(request) as GitHubDecisionCandidate;
+        const envelope = buildGitHubDecisionReceiptEnvelope(store.allEvents(), candidate);
+        const event = store.append(envelope, undefined, producer);
+        notifications.emit("event", event);
+        return json(response, 201, { event });
+      } catch (error) {
+        if (error instanceof ZodError) throw error;
+        return json(response, 409, { error: error instanceof Error ? error.message : "GitHub decision receipt was rejected." });
+      }
     }
     if (request.method === "GET" && url.pathname === "/events/stream") {
       return streamEvents(request, response);
@@ -205,6 +228,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     shuttingDown = true;
     server.close(() => {
       liveSourceWatcher?.close();
+      if (githubReconciliationTimer) clearInterval(githubReconciliationTimer);
       store.close();
       process.exit(0);
     });
@@ -282,4 +306,30 @@ function parseScopes(value: string | string[] | undefined): string[] {
 
 function mcpResult(id: unknown, value: unknown) {
   return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value } };
+}
+
+function startGitHubReconciliation(): NodeJS.Timeout | null {
+  const token = process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN;
+  if (!token) return null;
+  const configured = Number(process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS ?? 300_000);
+  if (!Number.isInteger(configured) || configured < 30_000 || configured > 3_600_000) {
+    throw new Error("MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS must be 30000-3600000.");
+  }
+  let running = false;
+  const reconcile = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const events = await reconcileGitHubDecisionReceipts(store, { token });
+      for (const event of events) notifications.emit("event", event);
+    } catch (error) {
+      console.error("GitHub decision reconciliation failed", error);
+    } finally {
+      running = false;
+    }
+  };
+  const timer = setInterval(() => void reconcile(), configured);
+  timer.unref();
+  void reconcile();
+  return timer;
 }

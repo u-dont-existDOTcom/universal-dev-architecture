@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { INTERNAL_ROUTE_PREFIX, defaultState } from '../src/core.mjs';
+import { INTERNAL_ROUTE_PREFIX, SUPERVISORY_CYCLE_ROUTE_PREFIX, defaultState } from '../src/core.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 
 const normalMetrics = {
@@ -130,14 +130,58 @@ test('hard memory pressure closes inactive managed tabs and performs no queue su
   assert.deepEqual(browser.closedTargets, ['target-spec']);
 });
 
-function makeRuntime({ store, browser, submitEnabled, retryDelayMs = 300_000, memoryReader = async () => normalMetrics }) {
+test('escalated same-chat cycle switches Extra High to Pro to Extra High and waits for GitHub ingestion', async () => {
+  const store = new MemoryStateStore();
+  const browser = new FakeBrowser();
+  let receiptAvailable = false;
+  const runtime = makeRuntime({
+    store,
+    browser,
+    submitEnabled: true,
+    snapshotProvider: () => cycleFleetSnapshot(receiptAvailable),
+  });
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_PROMPT_SUBMITTED');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'PRO_REASONER_PROMPT_SUBMITTED');
+  assert.equal((await runtime.cycle()).status, 'PRO_REASONER_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_WRITER_PROMPT_SUBMITTED');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_WRITER_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.deepEqual(browser.modelSwitches, ['Thinking', 'Pro', 'Thinking']);
+  assert.equal(browser.submitCalls, 3);
+  assert.equal(browser.generationWaits, 3);
+  assert.match(browser.submittedBodies[2], /Exact copy or structured transformation only/);
+  assert.equal(browser.assistantOutputReads, 0);
+
+  receiptAvailable = true;
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(store.state.deliveries['request:cycle-r-1'].status, 'DECISION_RECEIPT_INGESTED');
+});
+
+test('ordinary same-chat cycle never selects Pro', async () => {
+  const store = new MemoryStateStore();
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({
+    store,
+    browser,
+    submitEnabled: true,
+    snapshotProvider: () => cycleFleetSnapshot(false, 'EXTRA_HIGH_DIRECT'),
+  });
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_DIRECT_PROMPT_SUBMITTED');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_DIRECT_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.deepEqual(browser.modelSwitches, ['Thinking']);
+  assert.equal(browser.submitCalls, 1);
+});
+
+function makeRuntime({ store, browser, submitEnabled, retryDelayMs = 300_000, memoryReader = async () => normalMetrics, snapshotProvider = fleetSnapshot }) {
   const config = {
     missionControl: {},
     browser: { profileDir: '/tmp/test-profile' },
     runtime: {
       chats: [
-        { scope: 'PROJECT_MANAGER', chatId: 'pm', label: 'PM', url: 'https://chatgpt.com/c/pm-chat', workerId: null, pinned: true },
-        { scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false },
+        relayChat({ scope: 'PROJECT_MANAGER', chatId: 'pm', label: 'PM', url: 'https://chatgpt.com/c/pm-chat', workerId: null, pinned: true }),
+        relayChat({ scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false }),
       ],
       submitEnabled,
       retryDelayMs,
@@ -154,7 +198,7 @@ function makeRuntime({ store, browser, submitEnabled, retryDelayMs = 300_000, me
   };
   return new RelayRuntime({
     config,
-    missionControl: { fetchFleet: async () => fleetSnapshot() },
+    missionControl: { fetchFleet: async () => snapshotProvider() },
     browser,
     stateStore: store,
     memoryReader,
@@ -185,6 +229,10 @@ class FakeBrowser {
     this.findCalls = 0;
     this.submitCalls = 0;
     this.outboundChecks = 0;
+    this.generationWaits = 0;
+    this.assistantOutputReads = 0;
+    this.modelSwitches = [];
+    this.submittedBodies = [];
     this.closedTargets = [];
   }
   async doctor() { return { browser: 'Fake', targetCount: this.targets.length }; }
@@ -205,11 +253,20 @@ class FakeBrowser {
   }
   async submitExactMessage(target, input) {
     this.submitCalls += 1;
+    this.submittedBodies.push(input.body);
     return this.onSubmit ? this.onSubmit(target, input) : { status: 'SUBMITTED_CONFIRMED', targetId: target.id, bodySha256: input.bodySha256 };
   }
   async outboundMessagePresent() {
     this.outboundChecks += 1;
     return this.outboundPresent;
+  }
+  async switchModel(_target, input) {
+    this.modelSwitches.push(input.label);
+    return { selectedLabel: input.label, changed: true };
+  }
+  async waitForGenerationComplete() {
+    this.generationWaits += 1;
+    return { status: 'GENERATION_COMPLETE', inspectedAssistantOutput: false };
   }
 }
 
@@ -250,4 +307,64 @@ function routeBody() {
       decisionRequested: 'Return a bounded decision.',
     },
   });
+}
+
+function cycleFleetSnapshot(receiptAvailable, reasoningLane = 'PRO_ESCALATED') {
+  const timeline = [{
+    eventId: 'event-cycle-r-1',
+    occurredAt: '2026-09-02T00:00:00.000Z',
+    data: {
+      type: 'worker_message_recorded',
+      message_id: 'message-cycle-r-1',
+      body: cycleRouteBody(reasoningLane),
+    },
+  }];
+  if (receiptAvailable) timeline.unshift({
+    eventId: 'receipt-cycle-r-1',
+    occurredAt: '2026-09-02T00:10:00.000Z',
+    data: {
+      type: 'github_decision_receipt_ingested',
+      receipt_id: 'github-comment:1',
+      request_id: 'cycle-r-1',
+      reasoning_lane: reasoningLane,
+      github_receipt: {
+        repository: 'u-dont-existDOTcom/universal-dev-architecture',
+        issue_number: 58,
+        comment_id: 1,
+        immutable_url: 'https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/58#issuecomment-1',
+      },
+    },
+  });
+  return { generatedAt: '2026-09-02T00:00:00.000Z', workers: [{ id: 'worker-a', name: 'Worker A', timeline }] };
+}
+
+function cycleRouteBody(reasoningLane) {
+  return SUPERVISORY_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 2,
+    packetKind: 'SAME_CHAT_SUPERVISORY_CYCLE',
+    requestId: 'cycle-r-1',
+    nonce: 'nonce-1',
+    destinationChatId: 'spec',
+    providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    queuedAt: '2026-09-02T00:00:00.000Z',
+    expiresAt: '2026-09-03T00:00:00.000Z',
+    reasoningLane,
+    evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) },
+    ownerOutcome: { id: 'outcome-1', epoch: 2, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'u-dont-existDOTcom/universal-dev-architecture', issueNumber: 58 },
+  });
+}
+
+function relayChat(overrides) {
+  const receipt = { registered: true, testStatus: 'PASSED', testedAt: '2026-09-02T00:00:00.000Z', evidenceRef: 'test' };
+  return {
+    capabilities: {
+      missionControlRead: receipt,
+      githubRead: receipt,
+      githubWrite: receipt,
+      modeSwitching: receipt,
+    },
+    modelLabels: { extraHigh: 'Thinking', pro: 'Pro' },
+    ...overrides,
+  };
 }

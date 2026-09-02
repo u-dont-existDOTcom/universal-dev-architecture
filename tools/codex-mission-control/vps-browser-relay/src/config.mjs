@@ -38,6 +38,7 @@ export async function loadConfig(env = process.env) {
       profileDir,
       pageReadyTimeoutMs: integer(env.MC_RELAY_PAGE_READY_TIMEOUT_MS, 90_000, 5_000, 300_000),
       submitTimeoutMs: integer(env.MC_RELAY_SUBMIT_TIMEOUT_MS, 30_000, 5_000, 120_000),
+      generationTimeoutMs: integer(env.MC_RELAY_GENERATION_TIMEOUT_MS, 900_000, 30_000, 3_600_000),
     },
     runtime: {
       chats,
@@ -70,6 +71,7 @@ export function publicConfig(config) {
     profileDir: config.browser.profileDir,
     chatsFile: config.runtime.chatsFile,
     chatCount: config.runtime.chats.length,
+    capabilityReadyChats: config.runtime.chats.filter((chat) => Object.values(chat.capabilities).every((capability) => capability.testStatus === 'PASSED')).length,
     workerIds: config.runtime.workerIds,
     submitEnabled: config.runtime.submitEnabled,
     pollIntervalMs: config.runtime.pollIntervalMs,
