@@ -150,12 +150,14 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
     const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
+    if (envelope.data.type !== "github_decision_receipt_ingested") throw new Error("Canonical decision envelope has an unexpected event type.");
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
+    const decisionData = envelope.data;
     const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
     const attestation = store.append(evidenceEnvelope({
-      worker: envelope.data.worker, receiptId: `same-chat-writer-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
+      worker: decisionData.worker, receiptId: `same-chat-writer-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
       summary: sameChatWriterAttestationSummary, occurredAt: candidate.createdAt, verified: true,
-      refs: [`request:${envelope.data.request_id}`, `reasoning_lane:${envelope.data.reasoning_lane}`, `github_comment:${candidate.immutableUrl}`, "provenance:SAME_CHAT_WRITER_ATTESTED", "independent_pro_observation:false"],
+      refs: [`request:${decisionData.request_id}`, `reasoning_lane:${decisionData.reasoning_lane}`, `github_comment:${candidate.immutableUrl}`, "provenance:SAME_CHAT_WRITER_ATTESTED", "independent_pro_observation:false"],
     }), ingestedAt, githubReceiptCollector);
     return [decision, attestation];
   }
@@ -282,10 +284,12 @@ function assertOrderedRelayStages(events: StoredEvent[], request: PendingDecisio
 }
 
 function latestEvidence(events: StoredEvent[], summary: string, chatId: string, at: string, requiredRefs: string[]) {
-  return [...events].reverse().find((e) => {
-    if (e.data.type !== "evidence_receipt_recorded" || e.data.summary !== summary || !e.data.verified || !e.data.refs.includes(`chat:${chatId}`) || requiredRefs.some((ref) => !e.data.refs.includes(ref))) return false;
-    const expiry = e.data.refs.find((ref) => ref.startsWith("expires_at:"))?.slice("expires_at:".length);
-    return Boolean(expiry && Date.parse(expiry) >= Date.parse(at) && Date.parse(e.occurredAt) <= Date.parse(at));
+  return [...events].reverse().find((event) => {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded") return false;
+    if (data.summary !== summary || !data.verified || !data.refs.includes(`chat:${chatId}`) || requiredRefs.some((ref) => !data.refs.includes(ref))) return false;
+    const expiry = data.refs.find((ref) => ref.startsWith("expires_at:"))?.slice("expires_at:".length);
+    return Boolean(expiry && Date.parse(expiry) >= Date.parse(at) && Date.parse(event.occurredAt) <= Date.parse(at));
   }) ?? null;
 }
 
