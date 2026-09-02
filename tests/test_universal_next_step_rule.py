@@ -74,7 +74,7 @@ class UniversalNextStepRuleTests(unittest.TestCase):
             "mustContinue:true",
             "REJECT_SAFE_WORK_REMAINS",
             "ALLOW_REASONING_HANDOFF_PAUSE",
-            "task remains open",
+            "root task open",
         )
         for behavior in required_behavior:
             with self.subTest(behavior=behavior):
