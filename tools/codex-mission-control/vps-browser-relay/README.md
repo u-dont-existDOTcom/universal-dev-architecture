@@ -21,6 +21,7 @@ It is deliberately **outbound-only**. It does not read, copy, summarize, or impo
 - At most three registered tabs remain hot by default. Inactive managed tabs are closed least-recently-used under pressure.
 - New sends stop at the hard memory boundary. The browser cgroup supplies an independent hard backstop.
 - Tokens, cookies, prompt bodies, and assistant output are never written to logs. Local state stores hashes and metadata, not queued body text.
+- Mission Control reads are limited to worker IDs explicitly bound in `chats.json`; the relay never requests the all-worker fleet projection.
 
 ## 16 GB operating envelope
 
@@ -48,9 +49,11 @@ Defaults:
 - Brave, Google Chrome, or Chromium.
 - A graphical Hostinger cloud-browser/desktop session for the first ChatGPT login. `xvfb-run` is an acceptable unattended display after the profile is authenticated.
 - Mission Control reachable by HTTPS.
-- A dedicated machine credential registered in Mission Control's `MISSION_CONTROL_INGEST_CREDENTIALS` and permitted to call the existing read-only MCP fleet tool.
+- A dedicated machine credential registered in Mission Control's `MISSION_CONTROL_INGEST_CREDENTIALS`. Use producer kind `SYSTEM`, bind it only to the worker IDs listed in `chats.json`, and give it a distinct token. The relay calls only the existing scoped `mission_control_get_worker` MCP tool; it does not request the all-worker fleet projection.
 
-The current Mission Control MCP reader class is typed as `SUPERVISOR`. For the first smoke test, scope that credential only to `mission-control-live-slice`; do not reuse a human supervisor's token. The credential type is transport access, not proof of a ChatGPT supervisor identity.
+The producer kind is a compatibility choice for the current Mission Control credential schema, not proof of a system or ChatGPT reasoning identity. The first smoke credential is scoped only to `mission-control-live-slice`; do not reuse an owner, UI, worker, or human-supervisor token.
+
+Every chat entry used as a route source must set `workerId`. A Project Manager chat may remain pinned, but at least one entry in the directory must bind each worker whose route packets the relay is allowed to read.
 
 ## Install on the Hostinger VPS
 
@@ -81,15 +84,15 @@ Edit:
 nano ~/.config/mission-control-chatgpt-relay/env
 ```
 
-Set the real token and leave submission disabled:
+Set the dedicated token and leave submission disabled:
 
 ```text
-MC_RELAY_PRODUCER_ID=supervisor:chatgpt-relay-reader
+MC_RELAY_PRODUCER_ID=system:chatgpt-relay-reader
 MC_RELAY_TOKEN=<dedicated 32+ character token>
 MC_RELAY_SUBMIT_ENABLED=0
 ```
 
-### 2. Register exact chats
+### 2. Register exact chats and scoped workers
 
 Edit:
 
@@ -97,7 +100,7 @@ Edit:
 nano ~/.config/mission-control-chatgpt-relay/chats.json
 ```
 
-Each `chatId` must exactly match the `destinationChatId` used by Mission Control. Each URL must be a concrete `https://chatgpt.com/c/<conversation-id>` URL. The Project Manager chat is pinned; inactive specialist chats may be closed and reopened by URL.
+Each `chatId` must exactly match the `destinationChatId` used by Mission Control. Each URL must be a concrete `https://chatgpt.com/c/<conversation-id>` URL. Set `workerId` on the specialist entry for every worker to be read. The Project Manager chat is pinned; inactive specialist chats may be closed and reopened by URL.
 
 ### 3. Authenticate the dedicated browser profile
 
@@ -203,6 +206,7 @@ A hard-pressure pause is a successful safety action, not permission to raise lim
 - Do not rotate proxy/IP identity, clone authenticated profiles, or run multiple concurrent relays.
 - Do not use this package for rate-limit circumvention, account sharing, or unattended high-volume messaging.
 - The relay does not infer or attest the hidden backend model. It records only the registered chat URL and its own observed transport facts.
+- Keep the Machine credential scoped to exact disposable/approved worker IDs. A credential kind in Mission Control is not a semantic authority receipt.
 
 ## Known boundary
 
