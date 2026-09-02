@@ -14,6 +14,10 @@ export async function loadConfig(env = process.env) {
     throw error;
   });
   const chats = parseChatDirectory(JSON.parse(chatRaw));
+  const workerIds = [...new Set(chats.map((chat) => chat.workerId).filter(Boolean))];
+  if (workerIds.length === 0) {
+    throw new Error('At least one chat entry must bind a workerId for scoped Mission Control reads.');
+  }
 
   const missionControlUrl = normalizeBaseUrl(required(env.MC_RELAY_MISSION_CONTROL_URL, 'MC_RELAY_MISSION_CONTROL_URL'));
   const producerId = required(env.MC_RELAY_PRODUCER_ID, 'MC_RELAY_PRODUCER_ID');
@@ -25,6 +29,7 @@ export async function loadConfig(env = process.env) {
       url: missionControlUrl,
       producerId,
       token,
+      workerIds,
       requestTimeoutMs: integer(env.MC_RELAY_HTTP_TIMEOUT_MS, 30_000, 1_000, 120_000),
     },
     browser: {
@@ -36,6 +41,7 @@ export async function loadConfig(env = process.env) {
     },
     runtime: {
       chats,
+      workerIds,
       chatsFile,
       submitEnabled: env.MC_RELAY_SUBMIT_ENABLED === '1',
       pollIntervalMs: integer(env.MC_RELAY_POLL_INTERVAL_MS, 15_000, 2_000, 300_000),
@@ -64,6 +70,7 @@ export function publicConfig(config) {
     profileDir: config.browser.profileDir,
     chatsFile: config.runtime.chatsFile,
     chatCount: config.runtime.chats.length,
+    workerIds: config.runtime.workerIds,
     submitEnabled: config.runtime.submitEnabled,
     pollIntervalMs: config.runtime.pollIntervalMs,
     maxHotTabs: config.runtime.maxHotTabs,
