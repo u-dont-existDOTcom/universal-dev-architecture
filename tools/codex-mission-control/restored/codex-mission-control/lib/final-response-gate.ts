@@ -12,6 +12,7 @@ export type FinalResponseGateDecision =
   | "REJECT_UNROUTED_REASONING_STOP"
   | "REJECT_SELF_OWNED_BLOCKER"
   | "REJECT_BLOCKER_WITH_WORKAROUND"
+  | "REJECT_OWNER_DECISION_AUTHORITY_MISSING"
   | "REJECT_UNVERIFIED_BLOCKED_STATE"
   | "REJECT_TERMINAL_PROOF_MISSING";
 
@@ -52,19 +53,23 @@ export function evaluateFinalResponseAdmission(worker: WorkerState): FinalRespon
   }
 
   const activeQueue = worker.channel.queue.filter((item) => executableQueueStatuses.has(item.status));
-  const latestInternalRoute = [...worker.channel.messages].reverse().find((message) =>
-    message.author === "WORKER"
-      && message.kind === "QUESTION"
-      && (message.body.startsWith(internalSupervisorRoutePrefix) || message.body.startsWith(supervisoryCycleRoutePrefix)));
+  const timeline = worker.timeline ?? [];
+  const latestInternalRouteEvent = timeline.find((event) => event.data.type === "worker_message_recorded"
+    && event.data.message_kind === "QUESTION"
+    && (event.data.body.startsWith(internalSupervisorRoutePrefix) || event.data.body.startsWith(supervisoryCycleRoutePrefix)));
+  const latestExecutionReceiptEvent = timeline.find((event) => event.data.type === "execution_receipt_recorded");
   const reasoningStopped = ["STOPPED_FOR_REASONING_REVIEW", "PARKED"].includes(worker.executionSupervision.codexExecutionState)
     && worker.executionSupervision.pendingReasoningReview;
+  const currentReasoningRoute = Boolean(latestInternalRouteEvent
+    && (!latestExecutionReceiptEvent || latestInternalRouteEvent.sequence > latestExecutionReceiptEvent.sequence));
 
   if (reasoningStopped) {
-    if (!latestInternalRoute) {
+    if (!currentReasoningRoute) {
       return reject(
         "REJECT_UNROUTED_REASONING_STOP",
         [
-          "Execution stopped for a required reasoning review, but no current internal supervisor route is durably recorded.",
+          "Execution stopped for a required reasoning review, but no current post-receipt internal supervisor route is durably recorded.",
+          "A prior/stale route cannot satisfy a new reasoning stop.",
           "A stop boundary is a control-plane handoff, not permission to hand the unfinished task back to the owner.",
         ],
         "Route the exact factual receipt to the configured reasoning chat automatically, then remain resumable for the next source-bound directive.",
@@ -75,7 +80,7 @@ export function evaluateFinalResponseAdmission(worker: WorkerState): FinalRespon
       "ALLOW_REASONING_HANDOFF_PAUSE",
       [
         "The current directive-bound execution has stopped for reasoning review.",
-        "The factual state has already been routed through the durable internal supervisor channel.",
+        "A post-receipt factual route is durably recorded in the internal supervisor channel.",
       ],
       "End only the current execution turn while the task remains open; resume automatically when the next admitted directive arrives.",
       terminalHash,
@@ -138,16 +143,34 @@ export function evaluateFinalResponseAdmission(worker: WorkerState): FinalRespon
         terminalHash,
       );
     }
-    const reasoningActor = /CHAT|SUPERVISOR|PROJECT_MANAGER/.test(actorKind);
-    if (reasoningActor && !latestInternalRoute) {
+    if (blocker.needsOwner && !worker.terminal.unresolvedOwnerObligation) {
       return reject(
-        "REJECT_UNROUTED_REASONING_STOP",
+        "REJECT_OWNER_DECISION_AUTHORITY_MISSING",
         [
-          `Open blocker ${blocker.blockerId} requires ${blocker.requiredActor.kind}, but no durable internal supervisor route is recorded.`,
+          `Open blocker ${blocker.blockerId} asserts that the owner is needed, but the authoritative terminal projection has no current owner obligation.`,
+          "A worker-authored blocker cannot manufacture owner-decision authority.",
         ],
-        "Route the exact blocker facts automatically to the configured reasoning chat before ending the execution turn.",
+        "Route the exact factual ambiguity to the authorized reasoning surface or continue other admitted work; do not ask the owner yet.",
         terminalHash,
       );
+    }
+    const reasoningActor = /CHAT|SUPERVISOR|PROJECT_MANAGER/.test(actorKind);
+    if (reasoningActor) {
+      const blockerEvent = timeline.find((event) => event.data.type === "structured_blocker_recorded"
+        && event.data.blocker_id === blocker.blockerId);
+      const routeAfterBlocker = Boolean(latestInternalRouteEvent && blockerEvent
+        && latestInternalRouteEvent.sequence > blockerEvent.sequence);
+      if (!routeAfterBlocker) {
+        return reject(
+          "REJECT_UNROUTED_REASONING_STOP",
+          [
+            `Open blocker ${blocker.blockerId} requires ${blocker.requiredActor.kind}, but no later durable internal supervisor route is recorded.`,
+            "A stale route from an earlier reasoning cycle cannot satisfy the current blocker.",
+          ],
+          "Route the exact blocker facts automatically to the configured reasoning chat before ending the execution turn.",
+          terminalHash,
+        );
+      }
     }
     return allow(
       blocker.needsOwner ? "ALLOW_OWNER_DECISION_PAUSE" : "ALLOW_EXTERNAL_BLOCKED_PAUSE",
@@ -156,7 +179,7 @@ export function evaluateFinalResponseAdmission(worker: WorkerState): FinalRespon
         "No independently executable READY/IN_PROGRESS queue item or admitted workaround remains.",
       ],
       blocker.needsOwner
-        ? "Return only the exact owner action required by the structured blocker; keep the task open."
+        ? "Return only the exact owner action required by the current Mission Control owner obligation; keep the task open."
         : "End only the current execution turn with the source-bound blocker recorded; keep the task open and resume automatically when the blocking condition clears.",
       terminalHash,
     );
