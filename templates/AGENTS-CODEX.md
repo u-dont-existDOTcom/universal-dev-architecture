@@ -65,6 +65,16 @@ For active long-running work, update the declared current-state checkpoint at me
 
 After interruption, a fresh thread, context compaction, or model switch: inspect actual repository state and recent relevant commits/artifacts first; identify exactly what survived; repair stale checkpoint data; resume from the latest verified durable boundary without repeating completed work.
 
+## Pre-final continuation gate
+
+On a Mission Control-managed exclusive active task, immediately before any owner-facing terminal response run the current deterministic final-response admission check (for the Mission Control package, `npm run worker:finalize:check -- --worker <worker>`). The check reads Mission Control's own projected ledger; do not self-report completion or blocked status as a substitute.
+
+If the gate returns `terminalResponseAllowed:false`, `mustContinue:true`, or exits with code 75, do **not** send a terminal handoff. Execute or route its `requiredNextAction` within existing authority, then check again only at the next genuine final-response boundary.
+
+Context compaction, response/token pressure, many tool calls, browser/tab cleanup, a checkpoint commit, the end of a batch with a known next ordinal, provider cooldown, retry/backoff, and other recoverable execution pressure are recovery events rather than terminal conditions. Persist state and continue from the first missing/stale action without repeating verified work. During an admitted wait, advance independent safe in-scope work and continue bounded checks of the changing condition.
+
+A permitted reasoning-review or external-blocker pause ends only the current execution turn and leaves the root task open/resumable. See `patterns/terminal-response-admission-and-autonomous-continuation.md`.
+
 ## Completion gate
 
 Before reporting substantive work complete:
