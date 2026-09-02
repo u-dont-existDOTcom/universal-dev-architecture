@@ -49,35 +49,42 @@ test('stale lock is recovered without deleting a live lock', async () => {
   }
 });
 
-test('Mission Control client uses the MCP fleet tool and returns structured content', async () => {
-  let request;
+test('Mission Control client reads only explicitly scoped worker snapshots', async () => {
+  const requests = [];
   const client = new MissionControlClient({
     url: 'https://mission-control.example',
-    producerId: 'supervisor:relay-reader',
+    producerId: 'system:chatgpt-relay-reader',
     token: 'x'.repeat(32),
+    workerIds: ['worker-a', 'worker-a', 'worker-b'],
     fetchImpl: async (url, options) => {
-      request = { url, options };
+      const requestBody = JSON.parse(options.body);
+      requests.push({ url, options, requestBody });
+      const worker = requestBody.params.arguments.worker;
       return new Response(JSON.stringify({
         jsonrpc: '2.0',
-        id: 'x',
-        result: { structuredContent: { workers: [], generatedAt: '2026-09-02T00:00:00Z' } },
+        id: requestBody.id,
+        result: { structuredContent: { id: worker, timeline: [] } },
       }), { status: 200, headers: { 'content-type': 'application/json' } });
     },
   });
-  const fleet = await client.fetchFleet();
-  assert.deepEqual(fleet.workers, []);
-  assert.equal(request.url, 'https://mission-control.example/api/mcp');
-  assert.equal(request.options.headers.authorization, `Bearer ${'x'.repeat(32)}`);
-  const body = JSON.parse(request.options.body);
-  assert.equal(body.params.name, 'mission_control_get_fleet');
+  const snapshot = await client.fetchFleet();
+  assert.deepEqual(snapshot.workers.map((worker) => worker.id), ['worker-a', 'worker-b']);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].url, 'https://mission-control.example/api/mcp');
+  assert.equal(requests[0].options.headers.authorization, `Bearer ${'x'.repeat(32)}`);
+  assert.equal(requests[0].requestBody.params.name, 'mission_control_get_worker');
+  assert.equal(requests[0].requestBody.params.arguments.worker, 'worker-a');
 });
 
-test('Mission Control client fails closed on malformed structured content', async () => {
+test('Mission Control client fails closed on an unscoped or mismatched worker response', async () => {
   const client = new MissionControlClient({
     url: 'https://mission-control.example',
-    producerId: 'supervisor:relay-reader',
+    producerId: 'system:chatgpt-relay-reader',
     token: 'x'.repeat(32),
-    fetchImpl: async () => new Response(JSON.stringify({ result: { structuredContent: {} } }), { status: 200 }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      result: { structuredContent: { id: 'different-worker', timeline: [] } },
+    }), { status: 200 }),
   });
-  await assert.rejects(() => client.fetchFleet(), /missing structured fleet/);
+  await assert.rejects(() => client.fetchWorkers(['worker-a']), /invalid scoped worker snapshot/);
+  await assert.rejects(() => client.fetchWorkers([]), /At least one scoped/);
 });
