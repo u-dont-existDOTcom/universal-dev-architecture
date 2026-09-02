@@ -122,23 +122,25 @@ test("wrong stage label/order cannot acquire authority", () => {
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()), /PRO_REASONER/);
 });
 
-test("reconciliation polls only centrally configured issues and can ingest a missed capability receipt", async () => {
+test("public reconciliation polls only centrally configured issues without requiring an Authorization header", async () => {
   const p = policy();
   const store = fakeStore([]);
   ensureConfiguredCapabilityChallenges(store, p, "2026-09-02T00:00:00.000Z");
   const urls: string[] = [];
+  const authorizationHeaders: Array<string | null> = [];
   const result = await reconcileGitHubDecisionReceipts(store, {
-    token: "token",
     policy: p,
     now: "2026-09-02T00:02:00.000Z",
-    fetchImpl: async (url) => {
+    fetchImpl: async (url, init) => {
       urls.push(String(url));
+      authorizationHeaders.push(new Headers(init?.headers).get("authorization"));
       const issue = String(url).includes(`/issues/${p.capabilityIssueNumber}/`);
       return new Response(JSON.stringify(issue ? [webhookPayload(capabilityReceiptBody("mc-nonce", "github-only-nonce"), p.capabilityIssueNumber).comment] : []), { status: 200 });
     },
   });
   assert.equal(urls.length, 2);
   assert.ok(urls.every((url) => url.includes(`/repos/${p.repository}/issues/`)));
+  assert.deepEqual(authorizationHeaders, [null, null]);
   assert.equal(result.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === capabilityVerifiedSummary), true);
 });
 
