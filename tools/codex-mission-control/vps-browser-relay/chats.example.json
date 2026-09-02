@@ -1,0 +1,18 @@
+[
+  {
+    "scope": "PROJECT_MANAGER",
+    "chatId": "project-manager-primary",
+    "label": "Mission Control Project Manager",
+    "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_CONVERSATION_ID",
+    "workerId": null,
+    "pinned": true
+  },
+  {
+    "scope": "SPECIALIST",
+    "chatId": "specialist-relay-smoke",
+    "label": "Mission Control relay smoke-test specialist",
+    "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_CONVERSATION_ID",
+    "workerId": "mission-control-live-slice",
+    "pinned": false
+  }
+]
