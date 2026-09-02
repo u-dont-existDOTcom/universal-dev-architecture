@@ -1,0 +1,7 @@
+{
+  "$schema": "../schemas/browser-ownership-registry.schema.json",
+  "schemaVersion": 1,
+  "registryId": "replace-with-browser-ownership-registry-id",
+  "registryDigest": "50d82736242d49a39f769feb3c551be43f1c0a36ca6cd30b3adca4bf4f6faa3e",
+  "proofs": []
+}

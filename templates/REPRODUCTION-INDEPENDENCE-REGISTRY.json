@@ -1,0 +1,7 @@
+{
+  "$schema": "../schemas/reproduction-independence-registry.schema.json",
+  "schemaVersion": 1,
+  "registryId": "replace-with-reproduction-independence-registry-id",
+  "registryDigest": "7191ad5b2e0536e7d94d4e0e128dbe8902cb1d205c297c7da2ba171a14182b80",
+  "admissions": []
+}

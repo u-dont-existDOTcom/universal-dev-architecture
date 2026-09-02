@@ -1,0 +1,9 @@
+{
+  "$schema": "../schemas/claim-transition-registry.schema.json",
+  "schemaVersion": 1,
+  "registryId": "replace-with-claim-transition-registry-id",
+  "registryDigest": "cdc7aca918e91fe99c52ff1817cfcd689f98af62f7d829c38489690ef3335b4e",
+  "claimId": "replace-with-claim-id",
+  "headTransitionDigest": null,
+  "transitions": []
+}

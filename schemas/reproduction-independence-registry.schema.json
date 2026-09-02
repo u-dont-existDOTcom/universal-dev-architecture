@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/reproduction-independence-registry.schema.json",
+  "title": "Immutable relying-party reproduction independence registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "registryId", "registryDigest", "admissions"],
+  "properties": {
+    "$schema": {"const": "../schemas/reproduction-independence-registry.schema.json"},
+    "schemaVersion": {"const": 1},
+    "registryId": {"type": "string", "minLength": 1},
+    "registryDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "admissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["independenceAdmissionRef", "producerEvidenceRef", "producer", "reproducer", "independenceBasis", "admittedByRef", "status", "admissionDigest"],
+        "properties": {
+          "independenceAdmissionRef": {"type": "string", "minLength": 1},
+          "producerEvidenceRef": {"type": "string", "minLength": 1},
+          "producer": {"$ref": "#/$defs/identity"},
+          "reproducer": {
+            "allOf": [
+              {"$ref": "#/$defs/identity"},
+              {"properties": {"type": {"const": "HUMAN_OR_INDEPENDENT_PROCESS"}}, "required": ["type"]}
+            ]
+          },
+          "independenceBasis": {"type": "string", "minLength": 1},
+          "admittedByRef": {"type": "string", "minLength": 1},
+          "status": {"const": "ADMITTED"},
+          "admissionDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityRef", "trustDomain"],
+      "properties": {
+        "identityRef": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "minLength": 1},
+        "trustDomain": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

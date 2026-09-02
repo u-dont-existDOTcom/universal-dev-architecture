@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001",
+  "createdAt": "2026-09-01T02:08:00Z",
+  "taskId": "humandesign-astrohd-owner-intake-quality-v1",
+  "workerRunId": "codex-collaboration-subagent-review-20260901",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-MISSION-CONTROL-CLAIM-AUTHORITY-001",
+    "epoch": 1,
+    "sha256": "6ce9b1f5e9b35d6888cecf20d8c7dbacb613fec1cc9195ad06f2930cfebc90f3"
+  },
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-09-01T02:03:00Z",
+    "exactText": "diagnose this flaw because this should not happen, you're not the reasoner. ask an extra high chat to figure out what to fix and then send the fix to mission control. ok you can't connbect to browser that's weird, put this in your top priority work queue, save everything to github and i will restart the work",
+    "sha256": "6ce9b1f5e9b35d6888cecf20d8c7dbacb613fec1cc9195ad06f2930cfebc90f3"
+  },
+  "ownerCorrection": {
+    "captureDate": "2026-09-02",
+    "exactText": "NO we already went over that. there was never a completion policy. that was ivnented nonsense by codex",
+    "completionPolicyExists": false,
+    "denominatorDecisionExists": false,
+    "requiredDisposition": "REMOVE_INVENTED_CONSTRAINT",
+    "provenanceNote": "Current explicit owner correction supersedes the later Extra High and Pro interpretation without rewriting their historical receipts."
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "a40d413-claim-authority-v1",
+    "sha256OrCommit": "a40d413477e57ead76dc6cf9b9a2c457462a0ff5"
+  },
+  "type": "DEFECT",
+  "category": "REASONING_EXECUTION_AUTHORITY_SEPARATION",
+  "severity": "CRITICAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "A Codex executor derived 76 non-validation questionnaire records by arithmetic and silently upgraded that artifact observation into a scientific acceptance rule. When that inference was rejected, Codex committed a second authority-laundering error: it invented a 23-versus-76 completion-policy decision, marked it pending owner authority, and blocked lock/reveal. The owner has now corrected that no completion policy or denominator decision ever existed. Verified Extra High and Pro reviews inherited the false decision surface instead of checking it against the owner contract.",
+  "relevantRule": {
+    "path": "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "section": "Machine-checkable dual alignment and typed completion",
+    "excerpt": "Every material requirement must be mapped, explicitly amended/removed by the owner, or escalated."
+  },
+  "observedOrHypotheticalFailure": "Authentic owner-source receipts and dual alignment did not prevent an executor-added numeric specificity from becoming a scientific criterion. Worse, fail-closed escalation treated rejection of that criterion as proof that a genuine owner decision was missing. Worker, Extra High, and Pro then reinforced a decision surface absent from the owner contract. A safe authority system must distinguish a real missing owner decision from an invented constraint that should be removed.",
+  "evidenceRefs": [
+    {
+      "type": "unverified_collaboration_subagent_proposal",
+      "localTaskName": "/root/extra_high_pr21_review",
+      "reasoningSurfaceIdentity": "UNVERIFIED",
+      "notEquivalentTo": "SIGNED_IN_CHATGPT_EXTRA_HIGH_CHAT",
+      "feedbackId": "SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001",
+      "finding": "81 total and 76 non-validation are question-bank facts; 23 unique mapped IDs is a production scoring fact; neither number is an authorized scientific completeness criterion."
+    },
+    {
+      "type": "project_commit",
+      "repository": "u-dont-existDOTcom/humandesign",
+      "commit": "69c2d57",
+      "pullRequest": 23,
+      "paths": [
+        "src/hdmatch/participant/backend.py",
+        "tests/unit/test_participant_session.py",
+        "CURRENT_PLAN.md",
+        "state/CURRENT-STATE.md"
+      ]
+    },
+    {
+      "type": "production_artifact_reproduction",
+      "facts": {
+        "questionBankTotal": 81,
+        "questionBankNonValidation": 76,
+        "frozenMappingRules": 27,
+        "uniqueMappedQuestionIds": 23,
+        "validationQuestionIdsMapped": 0
+      }
+    },
+    {
+      "type": "browser_capability_receipt",
+      "state": "UNAVAILABLE",
+      "observation": "The browser runtime returned no available browser instances, so no signed-in Pro meta-review verdict was obtained."
+    }
+  ],
+  "proposedChange": "UNVERIFIED SUBAGENT PROPOSAL: Add claim-level provenance with explicit authority and claim-kind typing; treat every executor-added denominator, threshold, sample size, validation phase, or evidence-sufficiency rule as unauthorized unless enumerated in a current owner or reasoning-chat directive; add reconciliation states UNAUTHORIZED_ADDITION, INFERRED_NUMERIC_SCOPE, and DERIVATION_UNVERIFIED; rerun objective reconciliation whenever a load-bearing numeric or scientific criterion changes; require production-artifact cardinality evidence and independent reproduction; prevent synthetic fixtures from satisfying production-cardinality evidence; and reject definitive owner-facing rendering of unregistered claims. A verified Extra High reasoning chat must independently diagnose and accept, revise, or reject this proposal before it can enter the shared Pro lane.",
+  "historicalProRevisedChangeSupersededByOwnerCorrection": "Use scoped conjunctive required authorizations rather than an authority rank; require an append-only PROMOTED transition and a new qualifying authority source for fact-to-policy use; bind reproduction to the exact subject while prohibiting reproduction from promoting authority; and fail owner-facing definitive rendering closed for unregistered, stale, advisory, or descriptive-only claims. Human Design completeness requires OWNER_EXPLICIT for 23, 76, or any third denominator.",
+  "correctedChange": "Retain scoped conjunctive authority, append-only promotion, subject-bound reproduction, and reasoning-surface receipt controls. Add a decision-surface existence gate: before OWNER_DECISION_REQUIRED, a missing-policy blocker, or an owner choice menu is emitted, require an exact current owner-contract source establishing that decision dimension. If absent, remove the unsupported inference and return INVENTED_OWNER_DECISION. Supervisor repetition cannot create the decision surface.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Treat all non-validation questionnaire records as required",
+      "rejectedBecause": "That selects a scientific burden and completeness rule without authority and conflates acquisition scope with production scoring scope."
+    },
+    {
+      "alternative": "Use the 23 mapped production IDs as the completeness rule",
+      "rejectedBecause": "The owner correction does not ask Mission Control to select a rival completion rule; it establishes that the separate policy decision itself was invented."
+    },
+    {
+      "alternative": "Ask the owner to choose among 23, 76, or another denominator",
+      "rejectedBecause": "That launders the executor's unsupported premise into a fake owner decision and repeats the observed failure."
+    },
+    {
+      "alternative": "Rely on independent review to catch incorrect counts",
+      "rejectedBecause": "The reviewer can inherit the producer number unless every load-bearing cardinality must be independently reproduced before it enters the review premise."
+    }
+  ],
+  "risks": [
+    "Claim registries can become ceremonial unless definitive rendering and directive admission fail closed.",
+    "Not every qualitative refinement can be classified mechanically; semantic equivalence still belongs to Extra High or Pro.",
+    "Overbroad numeric gating could burden harmless implementation constants, so the control is limited to load-bearing acceptance, scientific, product, and release claims.",
+    "At commit 6ec7380 the proposal had received neither a verified Extra High reasoning-chat review nor the required shared Pro meta-review verdict; that historical routing failure is preserved and superseded only by the later admitted review record.",
+    "The executor previously mislabeled a local collaboration subagent as Extra High, creating a second reasoning-authority provenance failure.",
+    "The verified reasoning surfaces later inherited the executor-created decision surface, showing that identity verification alone does not establish premise fidelity."
+  ],
+  "historicalWorkerRecommendationAtCommit6ec7380": "No authoritative reasoning recommendation has been obtained. Preserve the candidate guardrails and hostile tests only as a draft proposal, then route the exact evidence through a verified Extra High reasoning chat before Pro meta-review or canonical integration.",
+  "workerRecommendation": "Implement the owner-corrected decision-surface gate on this draft branch. Remove the invented Human Design policy blocker; do not select a denominator, ask the owner to select one, merge, deploy, or treat regression fixtures as proof of universal adequacy.",
+  "workerUncertainty": "The original local task name did not prove the subagent model, mode, account, or ChatGPT reasoning surface. The later verified reviews prove surface identity only; the owner correction demonstrates that their inherited completion-policy premise was still false.",
+  "decisionThatCanChange": "Whether Mission Control can emit OWNER_DECISION_REQUIRED or a missing-policy blocker without an exact current owner-contract source proving that the decision surface exists.",
+  "routing": {
+    "stateScope": "HISTORICAL_AT_COMMIT_6EC7380",
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/a40d413-claim-authority-v1"
+  },
+  "historicalStatusAtCommit6ec7380": "PENDING_VERIFIED_EXTRA_HIGH_REVIEW",
+  "subsequentRouting": {
+    "verifiedExtraHighVerdict": "REVISE",
+    "sharedProMetaReviewVerdict": "REVISE",
+    "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+    "packetId": "PRO-META-A40D413-AUTHORITY-PROVENANCE-20260901-v1",
+    "externalEvidenceRef": "feedback/mission-control/PRO-META-A40D413-SANITIZED-EVIDENCE-RECEIPT-20260901.json",
+    "externalArtifactRef": "u-dont-existDOTcom/humandesign@bf8fa12bb133faa042e20a7408a0990aadf72eb6:state/PRO-META-REVIEW-2026-09-01.md",
+    "externalArtifactSha256": "c10d68a4b28112f1cf17c2b4cd830ebac98823bf7e8ed2842d645c2461ff9139",
+    "privacyBoundary": "Raw signed-in Chat URLs and session identifiers remain owner-local."
+  },
+  "status": "OWNER_CORRECTION_REPAIR_VERIFIED_DRAFT",
+  "proMetaReview": {
+    "verdict": "REVISE",
+    "admissionState": "ADMITTED_BY_EXTERNAL_SAME_SESSION_UI_RECEIPT",
+    "requiredArchitecture": [
+      "SCOPED_CONJUNCTIVE_AUTHORIZATION",
+      "APPEND_ONLY_CLAIM_TRANSITIONS",
+      "SUBJECT_BOUND_REPRODUCTION",
+      "REASONING_SURFACE_OBSERVATION_RECEIPT",
+      "VERDICT_RESPONSE_BINDING"
+    ],
+    "historicalCompletionDenominatorConclusion": "SUPERSEDED_BY_OWNER_CORRECTION_NO_POLICY_EXISTED"
+  },
+  "ownerDecisionRef": "owner-directive-2026-09-01-diagnose-and-send-fix-to-mission-control",
+  "repositoryChangeRefs": [
+    "templates/CLAIM-RECORD.json",
+    "templates/CLAIM-TRANSITION.json",
+    "templates/CLAIM-REPRODUCTION-RECEIPT.json",
+    "scripts/mission_control_provenance.py"
+  ],
+  "testRefs": [
+    "tests/test_claim_authority_laundering.py",
+    "evals/mission-control/executor-inferred-scientific-scope-authority-laundering.json"
+  ]
+}

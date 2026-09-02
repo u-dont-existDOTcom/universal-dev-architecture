@@ -487,7 +487,15 @@ Codex may automate browser execution only under a chat-authored directive, for e
 - submit once;
 - recover the exact response;
 - switch an authorized account through a verified ordinary flow;
-- close stale automation-owned tabs.
+- close only a tab proven agent-opened in the same browser session and
+  transaction.
+
+Every browser mutation requires the browser-operation receipt. Repository
+retrieval defaults to authenticated CLI/local Git when those routes satisfy the
+capability. Unknown, owner-existing, protected, and other-session tab ownership
+fails closed; an absent tab does not prove who closed it. At most one
+agent-opened transient tab is permitted unless a recorded necessity exception
+applies.
 
 Codex does not author the substantive packet or decide which chat/model should answer it. The reasoning supervisor or deterministic routing controller does.
 

@@ -42,7 +42,13 @@
     "chatEpoch": "replace-with-chat-epoch",
     "decisionId": "replace-with-reasoning-decision-id",
     "capsuleId": "replace-with-context-capsule-id",
-    "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity"
+    "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity",
+    "externalReviewRequirementRef": "replace-with-relying-party-role-subject-head-and-payload-requirement-ref",
+    "reasoningSurfaceObservationReceiptRef": "replace-with-observed-ui-receipt-ref",
+    "verdictAdmissionRef": "replace-with-verdict-admission-ref",
+    "verdictAdmissionState": "PENDING_RECEIPT",
+    "receiptConsumptionLedgerRef": "replace-with-durable-append-only-consumption-ledger-ref",
+    "cryptographicPlatformAttestationClaimed": false
   },
   "strategy": {
     "strategyId": "replace-with-strategy-id",
@@ -54,6 +60,28 @@
   },
   "executionObjective": "replace-with-exact-bounded-execution-objective",
   "reasoningSummary": "replace-with-bounded-chat-authored-rationale; Codex must not reinterpret this as authority to change strategy",
+  "authorizedCriteria": {
+    "scientificCriteria": [],
+    "productDecisions": [],
+    "releaseConditions": [],
+    "loadBearingNumericClaimRefs": [],
+    "requiredAuthorizationRefs": [],
+    "ownerDecisionSurfaceSourceRefs": [],
+    "claimTransitionRefs": [],
+    "authorityOrdinalAllowed": false,
+    "requiredAuthorizationsConjunctive": true,
+    "restrictedDimensions": [
+      "denominators",
+      "thresholds",
+      "sample sizes",
+      "validation phases",
+      "evidence sufficiency"
+    ],
+    "executorMayAddOrChange": false,
+    "executorMayInventOwnerDecision": false,
+    "onUnsupportedOwnerDecisionBoundary": "INVENTED_OWNER_DECISION",
+    "onUnlistedChange": "DIRECTIVE_SCOPE_EXCEEDED"
+  },
   "inputs": [
     {
       "type": "FILE_OR_ARTIFACT",
@@ -76,6 +104,8 @@
       "classify overall alignment or progress",
       "author supervisory verdict",
       "decide owner or Pro escalation",
+      "convert an unsupported executor or supervisor inference into an owner decision, missing-policy blocker, or approval request",
+      "add or change an unlisted denominator, threshold, sample size, validation phase, evidence-sufficiency rule, scientific criterion, product decision, or release condition",
       "continue beyond stop trigger",
       "treat a reasoning-review boundary or pending response as task termination"
     ]

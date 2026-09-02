@@ -157,6 +157,19 @@ Avoid one vague “source of truth.” Each dimension has exactly one authority:
 | Genuine tradeoff decisions | Joel |
 | Dashboard projection | Rebuildable projection from the above; never independent authority |
 
+This table does not define an authority rank. A load-bearing claim may require
+several scoped authorizations at once. Use the conjunctive claim record,
+append-only transition ledger, subject-bound reproduction receipt, and
+reasoning-surface observation/verdict admission controls defined in
+`patterns/supervision-assurance-planes-and-pro-meta-review.md`. A reasoning
+decision cannot substitute for `OWNER_EXPLICIT`, and reproduction cannot
+promote a fact into policy.
+
+An unsupported fact-to-policy inference also cannot manufacture a new owner
+decision. `OWNER_DECISION_REQUIRED` is valid only when an exact current owner
+source establishes the decision surface; otherwise remove the invented
+constraint and record `INVENTED_OWNER_DECISION`.
+
 ### 4.2 Task-centric, not session-centric
 
 A durable task survives:
@@ -1535,6 +1548,17 @@ Every action displays the plain-language effect before identifiers.
 
 ChatGPT web automation is convenience, not infrastructure truth.
 
+Repository retrieval uses authenticated CLI or local Git whenever those routes
+satisfy the capability. Do not open repository browser tabs merely to acquire
+evidence already available through deterministic tooling. Before any headed
+browser mutation, instantiate `templates/BROWSER-OPERATION-RECEIPT.json` and
+record the needed capability, alternatives, necessity, baseline ownership,
+one-tab transient cap, same-session actions, and cleanup. The claimed
+`agentOpenedTabIds` must equal successful `OPEN` actions plus exact same-session,
+same-transaction proofs in an immutable
+`templates/BROWSER-OWNERSHIP-REGISTRY.json`; cleanup must reconcile opened,
+successfully closed, and remaining tab IDs exactly.
+
 The system must still work through:
 
 - generated packet files;
@@ -1570,10 +1594,50 @@ It must not:
 - handle credentials;
 - become the only copy of a review;
 - use a chat response without packet-ID/hash validation.
+- navigate or close an owner-existing, protected, unknown-ownership, or
+  other-session tab;
+- infer who closed a stale or absent tab;
+- exceed one agent-opened transient tab without a recorded necessity exception.
 
 ### 25.4 Model-surface recording
 
-Record the user-visible mode selected, such as `Extra High` or `Pro Extended`, plus timestamp and chat URL. Do not claim an exact hidden backend model identity when the web UI does not expose one.
+Use `templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json` for current browser
+evidence. Bind the signed-in surface and externally supplied canonical,
+non-anonymous account reference, exact visible mode before
+submission, transaction and conversation session, exact submitted payload, one
+completed response and response digest, and exact visible mode afterward.
+Each verified observation needs a nonempty evidence reference and strict
+RFC3339 timezone-bearing observation time. The relying party supplies exact
+admission-question bytes and exact canonical declarative transform-spec bytes;
+the evaluator's fixed implementation must reproduce the submitted bytes twice.
+A transform description, output hash, arbitrary callable, or stateful callable
+is insufficient. The transform class is non-subclassable, exact-type checked,
+and executed through the evaluator's non-virtual implementation. Registry
+inputs are exact-type checked and their complete canonical records, identity,
+digest, head, and order are deterministically rebuilt and compared at every
+evaluator and resolution boundary. A factory label or transferable construction
+token is not evidence of trust; a direct field constructor, subclass, partial
+record, or immutable-looking mapping is not a registry. Schema `date-time`
+checks validate the real RFC3339 calendar value, not only a matching string
+shape. Runtime use applies that same check to every declared timestamp,
+including claim creation/expiry, transition and reproduction times, receipt and
+nested observation times, verdict issue/admission, and the top-level browser
+receipt `recordedAt`; invalid verdict time fails before durable consumption.
+Then bind the admission-question and response digests and single-use receipt to
+`templates/SUPERVISION-VERDICT-ADMISSION.json` and persist one
+`templates/RECEIPT-CONSUMPTION-EVENT.json` in an append-only durable ledger.
+Admission receives the required role, signed-in account reference, subject,
+repository head, exact
+input/submitted/admission-question/response bytes, and any executable transform
+from the relying party; receipt-authored values cannot
+select their own requirement.
+
+Do not call this UI evidence platform attestation. Agent/subagent names, task or
+role labels, branch/worktree/process/environment names, prompts, and model
+self-description have zero evidentiary weight. A Pro-plan account does not prove
+visible Pro mode, and visible Extra High does not satisfy Pro. Preserve private
+chat URLs and raw session identifiers owner-locally rather than in a public
+repository; commit only sanitized receipt references and non-secret digests.
 
 ---
 

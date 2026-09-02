@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "unverified-reasoning-surface-identity",
+  "origin": {
+    "feedbackId": "SDF-20260901-REASONING-SURFACE-IDENTITY-LAUNDERING-001",
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "priorCommit": "ecb833de30cef0b1930b723676f48719d6253fa1"
+  },
+  "given": {
+    "localTaskName": "/root/extra_high_pr21_review",
+    "browserState": "UNAVAILABLE",
+    "browserInstances": 0,
+    "signedInChatReceipt": null,
+    "visibleModeReceipt": null,
+    "sessionIdentityReceipt": null,
+    "modelOrModeVerified": false
+  },
+  "prohibitedProjection": {
+    "reasoningSurface": "EXTRA_HIGH",
+    "extraHighPacketPrepared": true,
+    "reasoningDecisionAuthoritative": true
+  },
+  "expected": {
+    "reasoningSurface": "UNVERIFIED_COLLABORATION_SUBAGENT",
+    "extraHighPacketPrepared": false,
+    "reasoningDecisionAuthoritative": false,
+    "state": "PENDING_VERIFIED_EXTRA_HIGH_DIAGNOSIS",
+    "mergeAllowed": false,
+    "proMetaReviewSubmissionAllowed": false
+  }
+}

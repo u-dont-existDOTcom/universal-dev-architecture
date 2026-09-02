@@ -1,0 +1,41 @@
+{
+  "$schema": "../schemas/claim-reproduction-receipt.schema.json",
+  "schemaVersion": 1,
+  "reproductionReceiptId": "replace-with-reproduction-receipt-id",
+  "claimRef": {
+    "claimId": "replace-with-claim-id",
+    "claimVersion": 1,
+    "claimDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "subjectRef": {
+    "subjectType": "GIT_COMMIT",
+    "repository": "owner/repository",
+    "ref": "replace-with-exact-commit",
+    "digest": {"sha256": null}
+  },
+  "producerEvidenceRef": "replace-with-producer-evidence-ref",
+  "independenceRegistryRef": "replace-with-external-independence-registry-ref",
+  "independenceRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "independenceAdmissionRef": "replace-with-independence-admission-ref",
+  "independenceAdmissionDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "reproducer": {
+    "identityRef": "replace-with-independent-reproducer-ref",
+    "type": "HUMAN_OR_INDEPENDENT_PROCESS",
+    "trustDomain": "replace-with-independent-trust-domain"
+  },
+  "independenceBasis": "Replace with the exact independence basis",
+  "methodRef": "replace-with-method-ref",
+  "methodDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "methodByteLength": 0,
+  "methodBytesDefinition": "exact method/procedure UTF-8 bytes",
+  "commandOrProcedure": "Replace with the exact command or procedure",
+  "resultValue": null,
+  "resultDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "resultByteLength": 0,
+  "resultBytesDefinition": "RFC8785_JCS resultValue UTF-8 bytes",
+  "matchState": "INCONCLUSIVE",
+  "synthetic": false,
+  "reproducedAt": "1970-01-01T00:00:00Z",
+  "freshnessState": "CURRENT",
+  "promotesAuthority": false
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "../schemas/claim-transition.schema.json",
+  "schemaVersion": 1,
+  "transitionId": "replace-with-transition-id",
+  "claimId": "replace-with-claim-id",
+  "fromClaimRef": {
+    "claimId": "replace-with-claim-id",
+    "claimVersion": 1,
+    "claimDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "toClaimRef": {
+    "claimId": "replace-with-claim-id",
+    "claimVersion": 2,
+    "claimDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "transitionType": "PROMOTED",
+  "requestedByRef": "replace-with-request-ref",
+  "requiredAuthorizationRefs": ["replace-with-required-authorization-ref"],
+  "authoritySourceRefs": ["replace-with-new-authority-source-ref"],
+  "evidenceRefs": [],
+  "reason": "Replace with the exact authorized transition reason",
+  "recordedAt": "1970-01-01T00:00:00Z",
+  "previousTransitionDigest": null,
+  "transitionRegistryRef": "replace-with-external-transition-registry-ref",
+  "transitionRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "transitionDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "status": "APPLIED"
+}

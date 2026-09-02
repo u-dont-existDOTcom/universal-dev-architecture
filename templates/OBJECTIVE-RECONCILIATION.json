@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "reconciliationId": "replace-with-reconciliation-id",
   "taskId": "replace-with-task-id",
   "trigger": "TASK_START",
@@ -33,6 +33,125 @@
     "taskContractId": "replace-with-contract-id",
     "revision": 1,
     "sha256": "replace-with-task-contract-sha256"
+  },
+  "claimRegistry": [
+    {
+      "claimId": "replace-with-claim-id",
+      "claimVersion": 1,
+      "claimDigest": {
+        "algorithm": "sha256",
+        "canonicalization": "RFC8785_JCS",
+        "digestScope": "CLAIM_SEMANTICS",
+        "value": "0000000000000000000000000000000000000000000000000000000000000000",
+        "byteLength": 0
+      },
+      "claimText": "Replace with the exact load-bearing claim",
+      "claimValue": null,
+      "claimKind": "FACT",
+      "useSiteRefs": ["ACCEPTANCE_CRITERION"],
+      "loadBearingEvaluation": {
+        "rulesetVersion": "authority-provenance-v1",
+        "result": true,
+        "reasons": ["Referenced by an acceptance criterion"]
+      },
+      "subjectRef": {
+        "subjectType": "GIT_COMMIT",
+        "repository": "owner/repository",
+        "ref": "replace-with-exact-commit",
+        "version": null,
+        "digest": {"sha256": null}
+      },
+      "authorityRegistryRef": "replace-with-external-authority-registry-ref",
+      "authorityRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "currentAuthorities": [
+        {
+          "authorityClass": "EXECUTOR_PROPOSAL",
+          "authoritySourceRef": "replace-with-executor-proposal-ref",
+          "authorityScope": ["ASSERT_FACT"],
+          "scopeRefs": ["replace-with-exact-claim-scope-ref"],
+          "status": "CURRENT"
+        }
+      ],
+      "requiredAuthorizations": [
+        {
+          "operation": "ASSERT_FACT",
+          "requiredIssuerClass": "ARTIFACT_DERIVED_FACT",
+          "scopeRef": "replace-with-exact-claim-scope-ref",
+          "authorizationSourceRef": null,
+          "status": "MISSING"
+        }
+      ],
+      "evidenceRefs": [],
+      "derivation": null,
+      "reproductionRequirement": "REQUIRED",
+      "reproductionReceiptRefs": [],
+      "verificationState": "UNVERIFIED",
+      "decisionUse": "FORBIDDEN",
+      "createdAt": "1970-01-01T00:00:00Z",
+      "expiresAt": null,
+      "supersedesClaimRef": null
+    }
+  ],
+  "claimTransitions": [],
+  "claimTransitionRegistryRef": "replace-with-external-transition-registry-ref",
+  "claimTransitionRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "reproductionReceipts": [],
+  "reproductionIndependenceRegistryRef": "replace-with-external-independence-registry-ref",
+  "reproductionIndependenceRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "claimAuthorityPolicy": {
+    "authorityClasses": [
+      "OWNER_EXPLICIT",
+      "OWNER_CORRECTION",
+      "REASONING_DECISION",
+      "ARTIFACT_DERIVED_FACT",
+      "OBSERVED_PLATFORM_STATE",
+      "EXECUTOR_PROPOSAL"
+    ],
+    "authorizationOperations": [
+      "ASSERT_FACT",
+      "PROMOTE_TO_POLICY",
+      "AUTHOR_SUPERVISORY_VERDICT",
+      "AUTHORIZE_EXECUTION",
+      "AUTHORIZE_RELEASE"
+    ],
+    "loadBearingClaimKinds": [
+      "FACT",
+      "IMPLEMENTATION_DETAIL",
+      "SCIENTIFIC_CRITERION",
+      "PRODUCT_DECISION",
+      "RELEASE_CONDITION",
+      "OWNER_ACCEPTANCE_CRITERION",
+      "SUPERVISORY_VERDICT",
+      "IDENTITY_ASSERTION"
+    ],
+    "reconciliationFailureStates": [
+      "UNAUTHORIZED_ADDITION",
+      "INFERRED_NUMERIC_SCOPE",
+      "INVENTED_OWNER_DECISION",
+      "DERIVATION_UNVERIFIED",
+      "DIRECTIVE_SCOPE_EXCEEDED",
+      "UNAUTHORIZED_CLAIM_PROMOTION",
+      "AUTHORIZATION_REQUIREMENT_UNSATISFIED",
+      "SUBJECT_BINDING_STALE",
+      "PRODUCTION_REPRODUCTION_MISSING",
+      "DEFINITIVE_RENDERING_REJECTED",
+      "AUTHORITY_REGISTRY_MISSING",
+      "TRANSITION_REGISTRY_MISSING",
+      "INDEPENDENCE_REGISTRY_MISSING",
+      "AUTHORITY_SOURCE_UNREGISTERED",
+      "TRANSITION_VALIDATION_REQUIRED",
+      "TRANSITION_CHAIN_INVALID",
+      "REPRODUCTION_BYTES_MISMATCH",
+      "REPRODUCTION_RECEIPT_UNBOUND",
+      "REPRODUCTION_INDEPENDENCE_UNVERIFIED"
+    ],
+    "authorityOrdinalAllowed": false,
+    "requiredAuthorizationsConjunctive": true,
+    "promotionRequiresAppendOnlyTransition": true,
+    "reproductionMayPromotePolicy": false,
+    "artifactFactMaySelectScientificCriterion": false,
+    "unauthorizedInferenceMayCreateOwnerDecision": false,
+    "unregisteredDefinitiveRenderingAllowed": false
   },
   "alignment": {
     "workerToContract": {

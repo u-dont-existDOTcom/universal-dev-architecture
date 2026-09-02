@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "PRO-META-A40D413-SANITIZED-EVIDENCE-RECEIPT-20260901",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "packetId": "PRO-META-A40D413-AUTHORITY-PROVENANCE-20260901-v1",
+  "reviewRole": "PRO",
+  "verdict": "REVISE",
+  "admissionState": "ADMITTED_BY_EXTERNAL_SAME_SESSION_UI_RECEIPT",
+  "externalArtifact": {
+    "repository": "u-dont-existDOTcom/humandesign",
+    "commit": "bf8fa12bb133faa042e20a7408a0990aadf72eb6",
+    "path": "state/PRO-META-REVIEW-2026-09-01.md",
+    "artifactDigest": {
+      "algorithm": "sha256",
+      "value": "c10d68a4b28112f1cf17c2b4cd830ebac98823bf7e8ed2842d645c2461ff9139",
+      "byteLength": 35743,
+      "bytesDefinition": "exact Git blob content bytes at the bound commit and path"
+    }
+  },
+  "completedResponseDigest": {
+    "algorithm": "sha256",
+    "value": "73abbb661ad2e6acf0caf13c4c425a33f283bf13d2c1dd3c404e97d48e9d6a2e",
+    "byteLength": 33847,
+    "bytesDefinition": "exact contiguous Git blob bytes strictly after the unique UTF-8 marker through end of artifact, with no normalization",
+    "extraction": {
+      "algorithm": "UNIQUE_UTF8_MARKER_SUFFIX_V1",
+      "marker": "## Complete response\n\n",
+      "requiredMarkerOccurrences": 1,
+      "startBoundary": "EXCLUSIVE_END_OF_MARKER",
+      "endBoundary": "END_OF_ARTIFACT",
+      "normalization": "NONE"
+    }
+  },
+  "observationSummary": {
+    "surface": "SIGNED_IN_CHATGPT_CHAT",
+    "requiredVisibleMode": "Pro",
+    "preSubmissionModeObserved": true,
+    "sameTransactionSessionObserved": true,
+    "completedResponseObserved": true,
+    "postResponseModeObserved": true,
+    "aggregateState": "VERIFIED_COMPLETE",
+    "cryptographicPlatformAttestation": false
+  },
+  "privacyExclusions": [
+    "RAW_CHAT_URL",
+    "RAW_CONVERSATION_SESSION_ID"
+  ],
+  "recordedAt": "2026-09-01T23:22:30Z"
+}

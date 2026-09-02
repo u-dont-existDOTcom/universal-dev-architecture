@@ -30,6 +30,28 @@ Reserve Pro especially for therapy-answer semantics, AskRigor methodological/con
 
 Before preserving an existing task contract, acceptance criterion, checkpoint, or completion boundary, recover the original owner request independently and compare the downstream contract directly against it. A derived contract may refine or decompose the owner outcome but may not weaken, omit, replace, or terminally bypass it without an explicit owner decision. Every reasoning checkpoint and packet must carry the owner-source receipt, owner-outcome identity, current gap, objective-reconciliation record, alignment states, typed completion claim, outcome-progress receipt, strategy state, active execution directive, and reviewed evidence boundary.
 
+For load-bearing authority provenance, use external immutable authority,
+claim-transition, and reproduction-independence registries. A transition's
+predecessor must be the exact trusted registry head, and reproduction identity
+or independence cannot be self-asserted by the receipt. Reasoning admission
+receives its non-anonymous signed-in account requirement externally, accepts
+only strict RFC3339 observation times, and reproduces any payload change from
+canonical declarative transform-spec bytes with an evaluator-owned fixed
+implementation.
+
+Registry runtime inputs must have the exact concrete type, but factory origin
+or a transferable private token is not trusted. Every evaluator and resolution
+boundary reconstructs the complete canonical records through the validated
+factory and compares the registry identity, digest, head, order, and immutable
+state exactly; public field construction, subclasses, partial records, and
+lookalike mappings do not inherit registry trust. Declarative payload transforms
+are also non-subclassable and run through evaluator-owned non-virtual logic.
+The repository schema validator and the runtime path that admits or uses each
+field apply the same real-calendar strict RFC3339 check whenever a schema
+declares `format: date-time`. This covers claim creation/expiry, transition,
+reproduction, receipt and nested observation evidence, verdict issue/admission,
+and browser-receipt timestamps; verdict validation precedes durable consumption.
+
 Keep these states separate:
 
 ```text
@@ -74,10 +96,24 @@ Run these hostile fixtures:
 - `../evals/mission-control/contract-laundering-article-humanization-13.82.json`
 - `../evals/mission-control/outcome-regression-somatic-r15.json`
 - `../evals/mission-control/codex-self-supervision-articles-failure.json`
+- `../evals/mission-control/claim-authority-provenance-hostile.json`
+- `../evals/mission-control/reasoning-surface-receipt-hostile.json`
+- `../evals/mission-control/browser-operation-hostile.json`
 
 Machine-readable supervision templates:
 
 - `../templates/OBJECTIVE-RECONCILIATION.json`
+- `../templates/AUTHORITY-SOURCE-REGISTRY.json`
+- `../templates/CLAIM-RECORD.json`
+- `../templates/CLAIM-TRANSITION.json`
+- `../templates/CLAIM-TRANSITION-REGISTRY.json`
+- `../templates/CLAIM-REPRODUCTION-RECEIPT.json`
+- `../templates/REPRODUCTION-INDEPENDENCE-REGISTRY.json`
+- `../templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json`
+- `../templates/SUPERVISION-VERDICT-ADMISSION.json`
+- `../templates/RECEIPT-CONSUMPTION-EVENT.json`
+- `../templates/BROWSER-OPERATION-RECEIPT.json`
+- `../templates/BROWSER-OWNERSHIP-REGISTRY.json`
 - `../templates/OUTCOME-PROGRESS-RECEIPT.json`
 - `../templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
 - `../templates/CODEX-EXECUTION-RECEIPT.json`
@@ -85,6 +121,13 @@ Machine-readable supervision templates:
 - `../templates/SUPERVISION-DESIGN-FEEDBACK.json`
 - `../templates/SCOPED-BLOCKER.json`
 - `../templates/WAIT-ADMISSION.json`
+
+Validate the authority-provenance JSON Schemas, template instances, incidents,
+and hostile-fixture vocabulary with:
+
+```bash
+python3 scripts/validate_mission_control_provenance.py --root .
+```
 
 Resolve the current active-task lock and matching task-local checkpoint before consuming repository-global execution status. A global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label is not transitive across task IDs; it affects the active frontier only through a current scoped blocker and causal dependency. A wait additionally requires an exact changing condition, actor or mechanism, and bounded horizon.
 

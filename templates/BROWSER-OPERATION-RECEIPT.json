@@ -1,0 +1,41 @@
+{
+  "$schema": "../schemas/browser-operation-receipt.schema.json",
+  "schemaVersion": 1,
+  "browserOperationId": "replace-with-browser-operation-id",
+  "transactionId": "replace-with-transaction-id",
+  "taskId": "replace-with-task-id",
+  "packetId": "replace-with-packet-id",
+  "purposeClass": "CHATGPT_REASONING_SURFACE_OBSERVATION",
+  "browserNecessity": "REQUIRED",
+  "necessaryCapability": "Observe the signed-in Chat surface, visible mode, session-bound submission, completed response, and post-response mode",
+  "nonBrowserAlternatives": [
+    {
+      "route": "GITHUB_CLI",
+      "availability": "AVAILABLE",
+      "satisfiesCapability": false,
+      "evidenceRef": "GitHub CLI cannot observe the signed-in ChatGPT UI"
+    }
+  ],
+  "selectedRoute": "BROWSER",
+  "decisionRef": "replace-with-browser-necessity-decision-ref",
+  "browserSessionRef": "replace-with-browser-session-ref",
+  "priorOwnershipRegistryRef": "replace-with-external-browser-ownership-registry-ref",
+  "priorOwnershipRegistryDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "baselineTabs": [
+    {"tabId": "replace-with-owner-tab-id", "ownershipClass": "OWNER_EXISTING", "protected": true}
+  ],
+  "maxAgentTransientTabs": 1,
+  "exceptionRef": null,
+  "actions": [],
+  "agentOpenedTabIds": [],
+  "cleanup": {
+    "policy": "CLOSE_ONLY_AGENT_OPENED",
+    "attempted": false,
+    "results": [],
+    "remainingAgentTabIds": []
+  },
+  "ownerTabsTouched": false,
+  "verificationState": "VERIFIED",
+  "failureCodes": [],
+  "recordedAt": "1970-01-01T00:00:00Z"
+}

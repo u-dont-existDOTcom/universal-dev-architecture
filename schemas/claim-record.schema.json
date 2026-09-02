@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/claim-record.schema.json",
+  "title": "Mission Control versioned claim record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "claimId",
+    "claimVersion",
+    "claimDigest",
+    "claimText",
+    "claimValue",
+    "claimKind",
+    "useSiteRefs",
+    "loadBearingEvaluation",
+    "subjectRef",
+    "authorityRegistryRef",
+    "authorityRegistryDigest",
+    "currentAuthorities",
+    "requiredAuthorizations",
+    "evidenceRefs",
+    "derivation",
+    "reproductionRequirement",
+    "reproductionReceiptRefs",
+    "verificationState",
+    "decisionUse",
+    "createdAt",
+    "expiresAt",
+    "supersedesClaimRef"
+  ],
+  "properties": {
+    "$schema": {"const": "../schemas/claim-record.schema.json"},
+    "schemaVersion": {"const": 3},
+    "claimId": {"type": "string", "minLength": 1},
+    "claimVersion": {"type": "integer", "minimum": 1},
+    "claimDigest": {"$ref": "#/$defs/claimDigest"},
+    "claimText": {"type": "string", "minLength": 1},
+    "claimValue": true,
+    "claimKind": {
+      "enum": [
+        "FACT",
+        "IMPLEMENTATION_DETAIL",
+        "SCIENTIFIC_CRITERION",
+        "PRODUCT_DECISION",
+        "RELEASE_CONDITION",
+        "OWNER_ACCEPTANCE_CRITERION",
+        "SUPERVISORY_VERDICT",
+        "IDENTITY_ASSERTION"
+      ]
+    },
+    "useSiteRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "loadBearingEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rulesetVersion", "result", "reasons"],
+      "properties": {
+        "rulesetVersion": {"type": "string", "minLength": 1},
+        "result": {"type": "boolean"},
+        "reasons": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "subjectRef": {"$ref": "#/$defs/subjectRef"},
+    "authorityRegistryRef": {"type": "string", "minLength": 1},
+    "authorityRegistryDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "currentAuthorities": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/currentAuthority"}
+    },
+    "requiredAuthorizations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/requiredAuthorization"}
+    },
+    "evidenceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "derivation": {"type": ["object", "null"]},
+    "reproductionRequirement": {"enum": ["REQUIRED", "NOT_REQUIRED"]},
+    "reproductionReceiptRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "verificationState": {
+      "enum": ["UNVERIFIED", "VERIFIED_FACT_ONLY", "AUTHORIZED_POLICY", "ADVISORY_ONLY", "MISMATCH", "STALE", "REVOKED", "REJECTED"]
+    },
+    "decisionUse": {"enum": ["DESCRIPTIVE_ONLY", "ADVISORY_ONLY", "POLICY_ELIGIBLE", "EXECUTION_ELIGIBLE", "FORBIDDEN"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": ["string", "null"], "format": "date-time"},
+    "supersedesClaimRef": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "claimDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "canonicalization", "digestScope", "value", "byteLength"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "canonicalization": {"const": "RFC8785_JCS"},
+        "digestScope": {"const": "CLAIM_SEMANTICS"},
+        "value": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byteLength": {"type": "integer", "minimum": 0}
+      }
+    },
+    "subjectRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subjectType", "repository", "ref", "version", "digest"],
+      "properties": {
+        "subjectType": {"type": "string", "minLength": 1},
+        "repository": {"type": ["string", "null"]},
+        "ref": {"type": "string", "minLength": 1},
+        "version": {"type": ["string", "null"]},
+        "digest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256"],
+          "properties": {"sha256": {"$ref": "#/$defs/sha256"}}
+        }
+      }
+    },
+    "operation": {"enum": ["ASSERT_FACT", "PROMOTE_TO_POLICY", "AUTHOR_SUPERVISORY_VERDICT", "AUTHORIZE_EXECUTION", "AUTHORIZE_RELEASE"]},
+    "authorityClass": {"enum": ["OWNER_EXPLICIT", "OWNER_CORRECTION", "REASONING_DECISION", "ARTIFACT_DERIVED_FACT", "OBSERVED_PLATFORM_STATE", "EXECUTOR_PROPOSAL"]},
+    "currentAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorityClass", "authoritySourceRef", "authorityScope", "scopeRefs", "status"],
+      "properties": {
+        "authorityClass": {"$ref": "#/$defs/authorityClass"},
+        "authoritySourceRef": {"type": "string", "minLength": 1},
+        "authorityScope": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/operation"}},
+        "scopeRefs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "status": {"enum": ["CURRENT", "REVOKED", "SUPERSEDED", "STALE"]}
+      }
+    },
+    "requiredAuthorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "requiredIssuerClass", "scopeRef", "authorizationSourceRef", "status"],
+      "properties": {
+        "operation": {"$ref": "#/$defs/operation"},
+        "requiredIssuerClass": {"$ref": "#/$defs/authorityClass"},
+        "scopeRef": {"type": "string", "minLength": 1},
+        "authorizationSourceRef": {"type": ["string", "null"]},
+        "status": {"enum": ["SATISFIED", "MISSING", "MISMATCH", "STALE", "REVOKED"]}
+      }
+    }
+  }
+}

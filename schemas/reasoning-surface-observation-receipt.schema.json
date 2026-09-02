@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/mission-control/reasoning-surface-observation-receipt.schema.json",
+  "title": "Reasoning-surface UI observation receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "receiptId", "transactionId", "reviewRequirementId", "scopeKey", "packetId", "requiredReviewerRole", "requiredAccountRef", "requirementSourceRef", "subjectBinding", "conversation", "observations", "responsePayloadDigest", "observer", "evidenceSourceType", "assuranceClass", "cryptographicPlatformAttestation", "observedAt", "freshnessPolicyRef", "aggregateState", "mismatchReasons", "supersedesReceiptRef", "incidentRefs", "replayProtection"],
+  "properties": {
+    "$schema": {"const": "../schemas/reasoning-surface-observation-receipt.schema.json"},
+    "schemaVersion": {"const": 1},
+    "receiptId": {"type": "string", "minLength": 1},
+    "transactionId": {"type": "string", "minLength": 1},
+    "reviewRequirementId": {"type": "string", "minLength": 1},
+    "scopeKey": {"type": "string", "minLength": 1},
+    "packetId": {"type": "string", "minLength": 1},
+    "requiredReviewerRole": {"enum": ["PRO", "EXTRA_HIGH"]},
+    "requiredAccountRef": {"type": "string", "minLength": 1, "not": {"enum": ["ANONYMOUS_OR_UNKNOWN", "anonymous", "unknown"]}},
+    "requirementSourceRef": {"type": "string", "minLength": 1},
+    "subjectBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewSubjectRef", "sourcePacketDigest", "inputPayloadDigest", "submittedVisiblePayloadDigest", "submissionTransform", "admissionQuestionDigest", "boundRepositoryHeads"],
+      "properties": {
+        "reviewSubjectRef": {"type": "string", "minLength": 1},
+        "sourcePacketDigest": {"$ref": "#/$defs/digest"},
+        "inputPayloadDigest": {"$ref": "#/$defs/digest"},
+        "submittedVisiblePayloadDigest": {"$ref": "#/$defs/digest"},
+        "submissionTransform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "transformRef", "description", "transformDigest", "transformSpecByteLength", "transformSpecBytesDefinition"],
+          "properties": {
+            "type": {"enum": ["NONE", "DECLARED_REPRODUCIBLE_TRANSFORM"]},
+            "transformRef": {"type": ["string", "null"], "minLength": 1},
+            "description": {"type": ["string", "null"]},
+            "transformDigest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+            "transformSpecByteLength": {"type": ["integer", "null"], "minimum": 1},
+            "transformSpecBytesDefinition": {"type": ["string", "null"], "minLength": 1}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"type": {"const": "NONE"}}, "required": ["type"]},
+              "then": {"properties": {"transformRef": {"type": "null"}, "description": {"type": "null"}, "transformDigest": {"type": "null"}, "transformSpecByteLength": {"type": "null"}, "transformSpecBytesDefinition": {"type": "null"}}},
+              "else": {"properties": {"transformRef": {"type": "string", "minLength": 1}, "description": {"type": "string", "minLength": 1}, "transformDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "transformSpecByteLength": {"type": "integer", "minimum": 1}, "transformSpecBytesDefinition": {"const": "canonical UTF-8 JSON declarative transform specification bytes"}}}
+            }
+          ]
+        },
+        "admissionQuestionDigest": {"$ref": "#/$defs/digest"},
+        "boundRepositoryHeads": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "conversation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaceOrigin", "conversationSessionId"],
+      "properties": {
+        "surfaceOrigin": {"const": "https://chatgpt.com"},
+        "conversationSessionId": {"type": "string", "minLength": 1}
+      }
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "account", "visibleModePreSubmission", "conversationSession", "submittedMessage", "completedResponse", "visibleModePostResponse"],
+      "properties": {
+        "surface": {"$ref": "#/$defs/observation"},
+        "account": {"$ref": "#/$defs/observation"},
+        "visibleModePreSubmission": {"$ref": "#/$defs/observation"},
+        "conversationSession": {"$ref": "#/$defs/observation"},
+        "submittedMessage": {"$ref": "#/$defs/observation"},
+        "completedResponse": {"$ref": "#/$defs/observation"},
+        "visibleModePostResponse": {"$ref": "#/$defs/observation"}
+      }
+    },
+    "responsePayloadDigest": {"$ref": "#/$defs/nullableDigest"},
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observerId", "observerType", "trustDomain", "relationToReviewedWorker"],
+      "properties": {
+        "observerId": {"type": "string", "minLength": 1},
+        "observerType": {"const": "ROUTING_EXECUTOR"},
+        "trustDomain": {"type": "string", "minLength": 1},
+        "relationToReviewedWorker": {"type": "string", "minLength": 1}
+      }
+    },
+    "evidenceSourceType": {"const": "BROWSER_UI_OBSERVATION"},
+    "assuranceClass": {"const": "OBSERVED_UI_RECEIPT"},
+    "cryptographicPlatformAttestation": {"const": false},
+    "observedAt": {"type": "string", "format": "date-time"},
+    "freshnessPolicyRef": {"type": "string", "minLength": 1},
+    "aggregateState": {"enum": ["VERIFIED_COMPLETE", "PARTIAL", "MISMATCH", "UNVERIFIED", "STALE", "REPLAY_REJECTED"]},
+    "mismatchReasons": {"type": "array", "items": {"type": "string"}},
+    "supersedesReceiptRef": {"type": ["string", "null"]},
+    "incidentRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "replayProtection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["singleUse", "admissionNonce", "usedByVerdictRef"],
+      "properties": {
+        "singleUse": {"const": true},
+        "admissionNonce": {"type": "string", "minLength": 1},
+        "usedByVerdictRef": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value", "byteLength", "bytesDefinition"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "value": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byteLength": {"type": "integer", "minimum": 0},
+        "bytesDefinition": {"type": "string", "minLength": 1}
+      }
+    },
+    "nullableDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value", "byteLength", "bytesDefinition"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "value": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "byteLength": {"type": ["integer", "null"], "minimum": 0},
+        "bytesDefinition": {"type": "string", "minLength": 1}
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredValue", "observedValue", "status", "evidenceRef", "evidenceSourceType", "observedAt", "binding"],
+      "properties": {
+        "requiredValue": {"type": "string", "minLength": 1},
+        "observedValue": {"type": ["string", "null"]},
+        "status": {"enum": ["VERIFIED", "MISSING", "MISMATCH", "UNVERIFIED", "STALE"]},
+        "evidenceRef": {"type": ["string", "null"]},
+        "evidenceSourceType": {"type": ["string", "null"]},
+        "observedAt": {"type": ["string", "null"], "format": "date-time"},
+        "binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["transactionId", "conversationSessionId"],
+          "properties": {
+            "transactionId": {"type": ["string", "null"]},
+            "conversationSessionId": {"type": ["string", "null"]}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "VERIFIED"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "evidenceRef": {"type": "string", "minLength": 1},
+              "evidenceSourceType": {"const": "BROWSER_UI_OBSERVATION"},
+              "observedAt": {"type": "string", "minLength": 1, "format": "date-time", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}
