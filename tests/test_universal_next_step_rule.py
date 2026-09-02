@@ -57,6 +57,29 @@ class UniversalNextStepRuleTests(unittest.TestCase):
                     with self.subTest(boundary=boundary):
                         self.assertIn(boundary, text)
 
+    def test_exclusive_tasks_require_terminal_response_admission(self) -> None:
+        """A routine checkpoint/context boundary must not become a terminal handoff."""
+        pattern = (
+            ROOT / "patterns" / "terminal-response-admission-and-autonomous-continuation.md"
+        ).read_text(encoding="utf-8")
+        required_behavior = (
+            "ending a response is a controlled terminal action",
+            "context compaction or context-window pressure",
+            "response/token-budget pressure",
+            "a checkpoint or recovery commit",
+            "provider cooldown",
+            "advance independent safe in-scope work",
+            "GET /api/worker-channel/<worker>/finalization",
+            "409 terminalResponseAllowed:false",
+            "mustContinue:true",
+            "REJECT_SAFE_WORK_REMAINS",
+            "ALLOW_REASONING_HANDOFF_PAUSE",
+            "task remains open",
+        )
+        for behavior in required_behavior:
+            with self.subTest(behavior=behavior):
+                self.assertIn(behavior, pattern)
+
     def test_lesson_index_routes_continuous_next_step_advancement(self) -> None:
         """The lesson index must make the universal behavior discoverable."""
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
