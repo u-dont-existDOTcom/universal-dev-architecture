@@ -4,14 +4,12 @@
     "chatId": "project-manager-primary",
     "label": "Mission Control Project Manager",
     "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_CONVERSATION_ID",
-    "workerId": null,
+    "workerId": "mission-control-live-slice",
     "pinned": true,
-    "modelLabels": { "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL", "pro": "REPLACE_EXACT_PRO_UI_LABEL" },
-    "capabilities": {
-      "missionControlRead": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_MC_READ_TEST_RECEIPT" },
-      "githubRead": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_GITHUB_READ_TEST_RECEIPT" },
-      "githubWrite": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_GITHUB_WRITE_TEST_RECEIPT" },
-      "modeSwitching": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_MODE_SWITCH_TEST_RECEIPT" }
+    "capabilityChallengeId": "pm-capability-v1",
+    "modelLabels": {
+      "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
+      "pro": "REPLACE_EXACT_PRO_UI_LABEL"
     }
   },
   {
@@ -21,12 +19,10 @@
     "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_CONVERSATION_ID",
     "workerId": "mission-control-live-slice",
     "pinned": false,
-    "modelLabels": { "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL", "pro": "REPLACE_EXACT_PRO_UI_LABEL" },
-    "capabilities": {
-      "missionControlRead": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_MC_READ_TEST_RECEIPT" },
-      "githubRead": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_GITHUB_READ_TEST_RECEIPT" },
-      "githubWrite": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_GITHUB_WRITE_TEST_RECEIPT" },
-      "modeSwitching": { "registered": true, "testStatus": "PASSED", "testedAt": "REPLACE_ISO_TIMESTAMP", "evidenceRef": "REPLACE_MODE_SWITCH_TEST_RECEIPT" }
+    "capabilityChallengeId": "specialist-capability-v1",
+    "modelLabels": {
+      "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
+      "pro": "REPLACE_EXACT_PRO_UI_LABEL"
     }
   }
 ]
