@@ -260,17 +260,8 @@ function earliestExpiry(...events) {
   return values.sort()[0] ?? null;
 }
 
-export function capabilityChallengeUrl(missionControlBaseUrl, challengeId) {
-  const base = new URL(missionControlBaseUrl);
-  base.pathname = `${base.pathname.replace(/\/$/, '')}/api/capability-challenges/${encodeURIComponent(challengeId)}`;
-  base.search = '';
-  base.hash = '';
-  return base.toString();
-}
-
-export function capabilityControlPrompt(chat, missionControlBaseUrl) {
-  const challengeUrl = capabilityChallengeUrl(missionControlBaseUrl, chat.capabilityChallengeId);
-  return `Mission Control capability challenge ${chat.capabilityChallengeId} for chat ${chat.chatId}: remain in Extra High. Fetch and read ${challengeUrl}. Extract its exact mc_nonce, github_nonce_sha256, github_nonce_source, receipt_target, and expires_at. Fail closed if the challenge_id or chat_id does not exactly match this challenge/chat, or if expires_at has passed. Follow github_nonce_source and reread the raw GitHub nonce. Compute its SHA-256 and verify that it exactly equals github_nonce_sha256 before writing. Then write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 receipt to the exact receipt_target with schema_version 1, challenge_id, chat_id, mc_nonce, github_nonce, and the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Fail closed without writing if any value, source, hash, binding, or expiry check fails. Do not delegate to Work and do not make a substantive project decision.`;
+export function capabilityControlPrompt(chat) {
+  return `Mission Control capability challenge ${chat.capabilityChallengeId} for chat ${chat.chatId}: remain in Extra High. Use the custom app named exactly Mission Control and call get_capability_challenge with challenge_id ${chat.capabilityChallengeId} and chat_id ${chat.chatId}. Extract its exact mc_nonce, github_nonce_sha256, github_nonce_source, receipt_target, and expires_at. Fail closed if the challenge_id or chat_id does not exactly match this challenge/chat, or if expires_at has passed. Follow github_nonce_source with GitHub and reread the raw GitHub nonce. Compute its SHA-256 and verify that it exactly equals github_nonce_sha256 before writing. Then write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 receipt to the exact receipt_target with schema_version 1, challenge_id, chat_id, mc_nonce, github_nonce, and the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Fail closed without writing if any value, source, hash, binding, or expiry check fails. Do not delegate to Work and do not make a substantive project decision.`;
 }
 
 export function cycleControlPrompt(route, step) {
@@ -279,19 +270,19 @@ export function cycleControlPrompt(route, step) {
   const location = `${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.issueNumber}`;
   const chatId = route.chat.chatId;
   if (step === 'EXTRA_HIGH_DIRECT') {
-    return `MC ${requestId}: remain in Extra High. Read the registered Mission Control/GitHub evidence, make the bounded decision, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. Before reasoning, use the custom app named exactly Mission Control and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}; fail closed if the exact current binding is unavailable or mismatched. Use GitHub for the substantive evidence and canonical receipt write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} using only the MCP-returned request binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
   }
   if (step === 'EXTRA_HIGH_READER') {
-    return `MC ${requestId}: remain in Extra High. Read the registered Mission Control and GitHub evidence fully into this same chat context. Do not decide. When this reader-stage objective is fully complete, read the current stage_receipt_target from Mission Control and write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 with request_id ${requestId}, the request_nonce from the pending Mission Control route, chat_id ${chatId}, stage EXTRA_HIGH_READER, status STAGE_COMPLETE. If you can determine that more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. Before reasoning, use the custom app named exactly Mission Control and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}; fail closed if the exact current binding is unavailable or mismatched. Use GitHub for the substantive evidence and read it fully into this same chat context. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the MCP-returned stage_receipt_target with the MCP-returned request_nonce, request_id ${requestId}, chat_id ${chatId}, stage EXTRA_HIGH_READER, status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Do not delegate to Work.`;
   }
   if (step === 'PRO_REASONER') {
-    return `MC ${requestId}: switch to Pro. Adjudicate using the evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
+    return `MC ${requestId}: switch to Pro. Before reasoning, use the custom app named exactly Mission Control and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}; fail closed if the exact current binding is unavailable or mismatched. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
   }
   if (step === 'PRO_LIVENESS_CHECK') {
-    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Read the current stage_receipt_target and request_nonce from Mission Control, then write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 with request_id ${requestId}, chat_id ${chatId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
+    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Do not reinterpret, improve, replace, or summarize the Pro decision. Use the custom app named exactly Mission Control: call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}, then call get_stage_liveness_state with those exact IDs; fail closed if either exact current read is unavailable or mismatched. Determine only whether the requested Pro reasoning stage is actually complete. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the MCP-returned stage_receipt_target with the MCP-returned request_nonce, request_id ${requestId}, chat_id ${chatId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
   }
   if (step === 'EXTRA_HIGH_WRITER') {
-    return `MC ${requestId}: remain in Extra High. The immediately preceding Pro stage has a durable STAGE_COMPLETE liveness receipt. Write that same-chat Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
+    return `MC ${requestId}: remain in Extra High. Use the custom app named exactly Mission Control and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}, then get_stage_liveness_state with those exact IDs; fail closed unless the exact current binding and durable PRO_REASONER STAGE_COMPLETE receipt are present. Use GitHub for the canonical receipt write. Write that same-chat Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} using the MCP-returned request binding. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
   }
   if (isContinueNudgeStep(step)) return 'continue';
   throw new Error(`Unknown supervisory-cycle step: ${step}`);

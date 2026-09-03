@@ -70,17 +70,24 @@ A visually normal idle turn with no recovery control can still be semantically i
 
 A chat starts UNVERIFIED. The capability challenge is intentionally two-source:
 
-- Mission Control exposes an MC nonce plus the SHA-256 and source location of a GitHub nonce through `GET /api/capability-challenges/<challenge-id>`;
+- the ChatGPT custom app named `Mission Control` exposes an MC nonce plus the
+  SHA-256 and source location of a GitHub nonce through the exact-bound
+  `get_capability_challenge` MCP tool;
 - the raw GitHub nonce exists only in the configured GitHub capability issue;
 - Extra High must read both systems and write one canonical capability receipt back to GitHub;
 - Mission Control validates the two nonces, exact chat/challenge binding, authorized GitHub writer, and expiry;
 - the relay separately proves the exact visible Extra High and Pro labels by a mode-selection round trip.
 
-The public challenge route is exact-ID, GET-only, uncached, and returns only the
-disposable challenge fields needed for this proof. It does not expose worker
-state, timelines, credentials, owner sessions, tasks, decisions, or arbitrary
-evidence references. The authenticated `/api/workers/<worker>` route remains
-the only outer route for a worker snapshot.
+The diagnostic public HTTP challenge route remains exact-ID, GET-only,
+uncached, and returns only the same disposable challenge fields. The relay
+prompt requires the MCP app tool, not that HTTP route. Neither public read path
+exposes worker state, timelines, credentials, owner sessions, task or decision
+content, or arbitrary evidence references. The authenticated
+`/api/workers/<worker>` route remains the only outer route for a worker
+snapshot. Ordinary and escalated prompts first call
+`get_supervisory_request_binding`; the Extra High liveness/writer steps call
+`get_stage_liveness_state` when current stage metadata is required. Substantive
+evidence and every canonical write remain in GitHub.
 
 Use the dedicated harmless command while normal task sends remain disabled:
 

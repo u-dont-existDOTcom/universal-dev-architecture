@@ -9,7 +9,6 @@ import {
   STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   capabilityControlPrompt,
-  capabilityChallengeUrl,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
@@ -89,18 +88,30 @@ test('capability truth comes only from current Mission Control evidence receipts
   assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z').allCurrent, false);
 });
 
-test('capability control prompt provides the exact public MC URL and separate hash-bound GitHub read without embedding nonce values', () => {
-  assert.equal(
-    capabilityChallengeUrl('https://mission-control.example/base/', 'challenge/spec'),
-    'https://mission-control.example/base/api/capability-challenges/challenge%2Fspec',
-  );
-  const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0], 'https://mission-control.example');
-  assert.match(prompt, /https:\/\/mission-control\.example\/api\/capability-challenges\/challenge-spec/);
+test('capability control prompt requires the exact Mission Control app tool and separate hash-bound GitHub read without embedding nonce values', () => {
+  const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0]);
+  assert.match(prompt, /custom app named exactly Mission Control/);
+  assert.match(prompt, /get_capability_challenge/);
+  assert.match(prompt, /challenge_id challenge-spec and chat_id spec/);
   assert.match(prompt, /github_nonce_source/);
   assert.match(prompt, /Compute its SHA-256/);
   assert.match(prompt, /expires_at has passed/);
   assert.match(prompt, /exact ordered capabilities/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
+});
+
+test('every substantive cycle prompt reads the exact MCP request binding before reasoning or writing', () => {
+  const route = escalatedRoute();
+  for (const step of ['EXTRA_HIGH_READER', 'PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
+    const prompt = cycleControlPrompt(route, step);
+    assert.match(prompt, /Mission Control/);
+    assert.match(prompt, /get_supervisory_request_binding/);
+    assert.match(prompt, /request_id r1 and chat_id spec/);
+    assert.doesNotMatch(prompt, /request_nonce n1/);
+  }
+  assert.match(cycleControlPrompt(route, 'PRO_LIVENESS_CHECK'), /get_stage_liveness_state/);
+  assert.match(cycleControlPrompt(route, 'EXTRA_HIGH_WRITER'), /get_stage_liveness_state/);
+  assert.match(cycleControlPrompt(directRouteFixture(), 'EXTRA_HIGH_DIRECT'), /get_supervisory_request_binding/);
 });
 
 test('route extraction binds durable stage-liveness receipts to the exact worker/request', () => {
