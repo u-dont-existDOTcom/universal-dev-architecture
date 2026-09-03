@@ -3,6 +3,7 @@ import {
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   RELAY_STAGE_SUMMARY,
   capabilityControlPrompt,
+  appSelectionForMessage,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
@@ -160,7 +161,11 @@ export class RelayRuntime {
           };
           state = await this.stateStore.write(state);
         },
-        submit: () => this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) }),
+        submit: async () => {
+          const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) });
+          return { ...start, messageApps };
+        },
       });
       state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'CAPABILITY_GENERATION_STARTED', generationStart: start, startedAt: start.startedAtObserved };
@@ -260,7 +265,11 @@ export class RelayRuntime {
           };
           state = await this.stateStore.write(state);
         },
-        submit: () => this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) }),
+        submit: async () => {
+          const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) });
+          return { ...start, messageApps };
+        },
       });
       state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'MCP_PREFLIGHT_GENERATION_STARTED', generationStart: start, startedAt: start.startedAtObserved };
@@ -464,7 +473,11 @@ export class RelayRuntime {
           };
           state = await this.stateStore.write(state);
         },
-        submit: () => this.browser.submitExactMessage(target, { expectedUrl: route.chat.url, body: prompt, bodySha256: promptSha256 }),
+        submit: async () => {
+          const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(route.chat, action.step));
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: route.chat.url, body: prompt, bodySha256: promptSha256 });
+          return { ...start, messageApps };
+        },
       });
       state = await this.stateStore.read();
       state.deliveries[route.routeKey] = {

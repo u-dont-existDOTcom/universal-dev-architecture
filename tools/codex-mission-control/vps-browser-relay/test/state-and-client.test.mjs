@@ -143,5 +143,6 @@ function configuredChat() {
     workerId: 'worker-a',
     capabilityChallengeId: 'challenge-spec',
     modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
+    requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
 }

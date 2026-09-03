@@ -8,6 +8,7 @@ import {
   STAGE_LIVENESS_SUMMARY,
   STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
+  appSelectionForMessage,
   capabilityControlPrompt,
   chatCapabilityState,
   classifyMemoryPressure,
@@ -42,6 +43,20 @@ test('chat directory is registration-only and ignores attempted capability self-
   assert.equal(Object.hasOwn(chat, 'capabilities'), false);
   assert.throws(() => parseChatDirectory([{ ...chatFixture(), workerId: null }]), /workerId/);
   assert.throws(() => parseChatDirectory([{ ...chatFixture(), url: 'https://example.com/c/x' }]), /chatgpt\.com/);
+  assert.throws(() => parseChatDirectory([{ ...chatFixture(), requiredApps: null }]), /requiredApps/);
+});
+
+test('message app requirements are exact and step-specific', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  assert.deepEqual(appSelectionForMessage(chat, 'CAPABILITY'), {
+    knownLabels: ['Mission Control', 'GitHub'],
+    requiredLabels: ['Mission Control'],
+    referencedLabels: ['GitHub'],
+  });
+  assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, ['Mission Control']);
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, ['GitHub']);
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER_CONTINUE').requiredLabels, []);
 });
 
 test('normalizes only concrete chatgpt conversation URLs', () => {
@@ -89,21 +104,20 @@ test('capability truth comes only from current Mission Control evidence receipts
   assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z').allCurrent, false);
 });
 
-test('capability control prompt requires the exact Mission Control app tool and separate hash-bound GitHub read without embedding nonce values', () => {
+test('capability control prompt preserves the owner-approved fresh-chat intent without embedding nonce values', () => {
   const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0]);
-  assert.match(prompt, /custom app named exactly Mission Control/);
+  assert.match(prompt, /Use the selected Mission Control app/);
   assert.match(prompt, /get_capability_challenge/);
-  assert.match(prompt, /challenge_id challenge-spec and chat_id spec/);
+  assert.match(prompt, /challenge challenge-spec and chat spec/);
   assert.match(prompt, /github_nonce_source/);
-  assert.match(prompt, /Compute its SHA-256/);
-  assert.match(prompt, /expires_at has passed/);
+  assert.match(prompt, /verify its SHA-256 equals the live github_nonce_sha256/);
   assert.match(prompt, /exact ordered capabilities/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
 });
 
 test('MCP preflight prompt is exact-bound and cannot authorize GitHub or Mission Control writes', () => {
   const prompt = mcpReadPreflightPrompt(parseChatDirectory([chatFixture()])[0]);
-  assert.match(prompt, /custom app named exactly Mission Control/);
+  assert.match(prompt, /selected Mission Control app/);
   assert.match(prompt, /get_capability_challenge/);
   assert.match(prompt, /challenge_id challenge-spec and chat_id spec/);
   assert.match(prompt, /do not use GitHub/);
@@ -262,14 +276,14 @@ test('tab plan preserves active target then pinned PM and closes LRU', () => {
 
 function escalatedRoute() {
   return {
-    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r1', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec' },
+    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r1', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
     packet: { reasoningLane: 'PRO_ESCALATED', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
   };
 }
 
 function directRouteFixture() {
   return {
-    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r-direct', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec' },
+    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r-direct', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
     packet: { reasoningLane: 'EXTRA_HIGH_DIRECT', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
   };
 }
@@ -292,6 +306,7 @@ function chatFixture() {
   return {
     scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false,
     capabilityChallengeId: 'challenge-spec', modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
+    requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
 }
 

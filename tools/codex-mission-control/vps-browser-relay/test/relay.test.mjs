@@ -109,11 +109,12 @@ test('capability challenge send is independently gated and resumes from generati
   assert.equal(first.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
-  assert.match(browser.lastSubmittedBody, /custom app named exactly Mission Control/);
+  assert.match(browser.lastSubmittedBody, /selected Mission Control app/);
   assert.match(browser.lastSubmittedBody, /get_capability_challenge/);
   assert.match(browser.lastSubmittedBody, /github_nonce_source/);
   assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
+  assert.deepEqual(browser.selectAppsCalls, [{ knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] }]);
   const second = await runtime.verifyCapabilities('spec');
   assert.equal(second.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);
@@ -134,6 +135,7 @@ test('MCP preflight is a separately paced read-only send and never replays after
   assert.match(browser.lastSubmittedBody, /do not write or mutate anything/);
   assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
+  assert.deepEqual(browser.selectAppsCalls, [{ knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] }]);
   const second = await runtime.verifyMcpReadPreflight('spec');
   assert.equal(second.status, 'MCP_PREFLIGHT_GENERATION_COMPLETE');
   assert.equal(browser.submitCalls, 1);
@@ -180,6 +182,11 @@ test('same-chat mode stages are globally paced and retry later without semantic 
   now.value += 60_000;
   assert.equal((await runtime.cycle()).status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
+  assert.deepEqual(browser.selectAppsCalls, [
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+  ]);
+  assert.deepEqual(browser.appSelectionEvidence[1].clearedPriorLabels, ['Mission Control']);
 });
 
 test('hard memory pressure performs no submission', async () => {
@@ -232,6 +239,7 @@ class FakeBrowser {
   constructor({ submitErrorStage = null } = {}) {
     this.submitErrorStage = submitErrorStage;
     this.submitCalls = 0; this.waitCalls = 0; this.modeRoundTripCalls = 0; this.switchLabels = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
+    this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = [];
   }
   async doctor() { return { browser: 'Fake', targetCount: this.targets.length }; }
   async listTargets() { return structuredClone(this.targets); }
@@ -244,6 +252,16 @@ class FakeBrowser {
   }
   async verifyModelRoundTrip() { this.modeRoundTripCalls += 1; return { status: 'MODE_ROUND_TRIP_VERIFIED', extraHighObserved: 'Extra High', proObserved: 'Pro' }; }
   async switchModel(target, { label }) { this.switchLabels.push(label); return { selectedLabel: label, observedLabel: label, changed: true }; }
+  async selectAppsForMessage(target, input) {
+    this.selectAppsCalls.push(structuredClone(input));
+    const evidence = {
+      status: 'MESSAGE_APPS_SELECTED', requiredLabels: [...input.requiredLabels], selectedLabels: [...input.requiredLabels],
+      clearedPriorLabels: [...this.selectedApps], verifiedChipCounts: Object.fromEntries(input.knownLabels.map((label) => [label, input.requiredLabels.includes(label) ? 1 : 0])), inspectedAssistantOutput: false,
+    };
+    this.selectedApps = [...input.requiredLabels];
+    this.appSelectionEvidence.push(evidence);
+    return evidence;
+  }
   async submitExactMessage(target, input) {
     this.submitCalls += 1; this.lastSubmittedBody = input.body;
     if (this.submitErrorStage) { const error = new Error('simulated send uncertainty'); error.relayStage = this.submitErrorStage; throw error; }
@@ -253,7 +271,7 @@ class FakeBrowser {
 }
 
 function chat() {
-  return { scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false, capabilityChallengeId: 'challenge-spec', modelLabels: { extraHigh: 'Extra High', pro: 'Pro' } };
+  return { scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false, capabilityChallengeId: 'challenge-spec', modelLabels: { extraHigh: 'Extra High', pro: 'Pro' }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
 }
 
 function challengeEvidence() {

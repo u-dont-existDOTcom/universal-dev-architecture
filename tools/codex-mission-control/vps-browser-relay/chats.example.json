@@ -10,6 +10,10 @@
     "modelLabels": {
       "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
       "pro": "REPLACE_EXACT_PRO_UI_LABEL"
+    },
+    "requiredApps": {
+      "missionControl": "Mission Control",
+      "github": "GitHub"
     }
   },
   {
@@ -23,6 +27,10 @@
     "modelLabels": {
       "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
       "pro": "REPLACE_EXACT_PRO_UI_LABEL"
+    },
+    "requiredApps": {
+      "missionControl": "Mission Control",
+      "github": "GitHub"
     }
   }
 ]

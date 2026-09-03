@@ -37,6 +37,7 @@ The conversation history is the handoff between Extra High and Pro. The relay ne
 - A generation turn cannot become COMPLETE unless a real post-submit generation-start transition was observed first.
 - No transcript/message selectors are used after submission. A clicked-but-unverified submission remains ambiguous and blocks replay.
 - Browser control does not claim hidden backend model identity; it records only the exact visible UI label.
+- Every message clears any prior configured app chips, then reselects and verifies the exact Mission Control chip when fresh MCP data is required. The current ChatGPT Tools catalog exposes app choices as one radio selection, so GitHub is kept as an exact configured label and explicitly referenced in GitHub-reading/writing prompts rather than replacing the required Mission Control chip. App state is never treated as conversation-sticky or as semantic authority.
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
 - Every actual ChatGPT message send shares one persisted global cooldown. The default minimum interval is 60 seconds, configurable with `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` from 15,000 through 600,000 ms.
@@ -218,6 +219,7 @@ Each entry must contain:
 - exact `workerId`;
 - unique `capabilityChallengeId`;
 - exact current visible Extra High and Pro labels.
+- exact visible Mission Control and GitHub app labels under `requiredApps`.
 
 Do not put PASS/FAIL capability claims in this file; Mission Control evidence determines capability truth.
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { modelMenuSelectionState } from '../src/cdp.mjs';
+import { appSelectionState, modelMenuSelectionState } from '../src/cdp.mjs';
 
 function currentPowerMenu(overrides = {}) {
   return {
@@ -83,4 +83,19 @@ test('browser control code does not use generic transcript-editable selectors', 
   assert.doesNotMatch(source, /textarea\[placeholder\]/);
   assert.match(source, /document\.querySelector\('\#prompt-textarea'\)/);
   assert.match(source, /\[role="menu"\], \[role="listbox"\], \[role="dialog"\]/);
+});
+
+test('exact app selection walks Tools then More then one exact app option', () => {
+  const base = { composerFormFound: true, toolsControlCount: 1, chipMatchCount: 0, appMatchCount: 0, moreMatchCount: 0 };
+  assert.deepEqual(appSelectionState(base, 'Mission Control'), { type: 'OPEN_TOOLS' });
+  assert.deepEqual(appSelectionState({ ...base, moreMatchCount: 1 }, 'Mission Control'), { type: 'OPEN_MORE' });
+  assert.deepEqual(appSelectionState({ ...base, renderedAppMatchCount: 1 }, 'Mission Control'), { type: 'FOCUS_APP', label: 'Mission Control' });
+  assert.deepEqual(appSelectionState({ ...base, appMatchCount: 1 }, 'Mission Control'), { type: 'APP_OPTION', label: 'Mission Control' });
+});
+
+test('app selection fails closed on missing or ambiguous exact controls', () => {
+  const base = { composerFormFound: true, toolsControlCount: 1, chipMatchCount: 0, appMatchCount: 0, moreMatchCount: 0 };
+  assert.throws(() => appSelectionState({ ...base, toolsControlCount: 0 }, 'Mission Control'), /unavailable/);
+  assert.throws(() => appSelectionState({ ...base, appMatchCount: 2 }, 'Mission Control'), /ambiguous/);
+  assert.throws(() => appSelectionState({ ...base, chipMatchCount: 2 }, 'Mission Control'), /chip.*ambiguous/);
 });

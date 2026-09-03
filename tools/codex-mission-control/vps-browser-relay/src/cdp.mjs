@@ -199,6 +199,69 @@ export function modelMenuSelectionState(observation, labelWanted) {
   };
 }
 
+const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
+  const rect = (element) => {
+    const value = element.getBoundingClientRect();
+    return { x: value.x, y: value.y, width: value.width, height: value.height };
+  };
+  const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')].filter(visible);
+  const composer = composers.length === 1 ? composers[0] : null;
+  const composerForm = composer?.closest('form') || null;
+  if (!composerForm) return { composerFound: composers.length > 0, composerAmbiguous: composers.length > 1, composerFormFound: false };
+  const controls = [...composerForm.querySelectorAll('button[data-testid="composer-plus-btn"]')].filter(visible);
+  const chipCounts = Object.fromEntries(knownLabels.map((label) => [label, [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === label + ', click to remove').length]));
+  const chipMatches = labelWanted == null ? [] : [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === labelWanted + ', click to remove');
+  const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
+  const items = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitem"], [role="menuitemradio"], [role="option"], button')].filter(visible));
+  const renderedAppMatches = labelWanted == null ? [] : [...document.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter((element) => accessibleLabel(element) === labelWanted);
+  const appMatches = renderedAppMatches.filter(visible);
+  const moreMatches = items.filter((element) => accessibleLabel(element) === 'More' && element.getAttribute('role') === 'menuitem');
+  return {
+    composerFound: true,
+    composerFormFound: true,
+    toolsControlCount: controls.length,
+    toolsExpanded: controls.length === 1 && controls[0].getAttribute('aria-expanded') === 'true',
+    toolsRect: controls.length === 1 ? rect(controls[0]) : null,
+    chipCounts,
+    chipMatchCount: chipMatches.length,
+    chipRect: chipMatches.length === 1 ? rect(chipMatches[0]) : null,
+    visibleMenuCount: roots.length,
+    moreMatchCount: moreMatches.length,
+    moreRect: moreMatches.length === 1 ? rect(moreMatches[0]) : null,
+    appMatchCount: appMatches.length,
+    renderedAppMatchCount: renderedAppMatches.length,
+    appRect: appMatches.length === 1 ? rect(appMatches[0]) : null,
+    availableAppLabels: items.filter((element) => ['menuitemradio', 'option'].includes(element.getAttribute('role'))).map(accessibleLabel).filter(Boolean),
+  };
+}`;
+
+const FOCUS_APP_OPTION_FN = `function(labelWanted) {
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
+  const matches = [...document.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter((element) => accessibleLabel(element) === labelWanted);
+  if (matches.length !== 1) return { focused: false, matchCount: matches.length };
+  matches[0].focus();
+  return { focused: document.activeElement === matches[0], matchCount: 1 };
+}`;
+
+export function appSelectionState(observation, labelWanted) {
+  if (!observation?.composerFormFound) throw new Error('ChatGPT composer form is unavailable for app selection.');
+  if (observation.toolsControlCount !== 1) throw new Error(`ChatGPT Tools control is ${observation.toolsControlCount > 1 ? 'ambiguous' : 'unavailable'}.`);
+  if ((observation.chipMatchCount ?? 0) > 1) throw new Error(`Selected app chip ${labelWanted} is ambiguous.`);
+  if ((observation.appMatchCount ?? 0) > 1) throw new Error(`Exact app label ${labelWanted} is ambiguous.`);
+  if ((observation.renderedAppMatchCount ?? 0) > 1) throw new Error(`Exact rendered app label ${labelWanted} is ambiguous.`);
+  if ((observation.appMatchCount ?? 0) === 1) return { type: 'APP_OPTION', label: labelWanted };
+  if ((observation.renderedAppMatchCount ?? 0) === 1) return { type: 'FOCUS_APP', label: labelWanted };
+  if ((observation.moreMatchCount ?? 0) > 1) throw new Error('ChatGPT Tools More control is ambiguous.');
+  if ((observation.moreMatchCount ?? 0) === 1) return { type: 'OPEN_MORE' };
+  return { type: 'OPEN_TOOLS' };
+}
+
 const PREPARE_COMPOSER_FN = `function(expectedBody) {
   const element = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   if (!element) return { ok: false, reason: 'COMPOSER_NOT_FOUND' };
@@ -339,6 +402,76 @@ export class ChromeDevtoolsBrowser {
     });
   }
 
+  async selectAppsForMessage(target, { knownLabels, requiredLabels }) {
+    if (!Array.isArray(knownLabels) || !Array.isArray(requiredLabels)) throw new Error('App selection requires knownLabels and requiredLabels arrays.');
+    if (new Set(knownLabels).size !== knownLabels.length || new Set(requiredLabels).size !== requiredLabels.length) throw new Error('App labels must be unique.');
+    if (requiredLabels.some((label) => !knownLabels.includes(label))) throw new Error('Every required app label must be present in knownLabels.');
+    return this.#withPageClient(target, async (client) => {
+      const removedLabels = [];
+      for (const label of knownLabels) {
+        const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+        appSelectionState(observation, label);
+        if (observation.chipMatchCount === 1) {
+          await this.#clickRect(client, observation.chipRect);
+          await waitFor(async () => {
+            const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+            appSelectionState(next, label);
+            return next.chipMatchCount === 0 ? next : false;
+          }, this.pageReadyTimeoutMs, 150, `Selected app chip ${label} did not clear before per-message reselection.`);
+          removedLabels.push(label);
+        }
+      }
+
+      const selectedLabels = [];
+      for (const label of requiredLabels) {
+        for (;;) {
+          const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+          const action = appSelectionState(observation, label);
+          if (observation.chipMatchCount === 1) break;
+          if (action.type === 'OPEN_TOOLS') {
+            await this.#clickRect(client, observation.toolsRect);
+          } else if (action.type === 'OPEN_MORE') {
+            await this.#clickRect(client, observation.moreRect);
+          } else if (action.type === 'FOCUS_APP') {
+            const focused = await client.callFunction(FOCUS_APP_OPTION_FN, [label]);
+            if (!focused?.focused || focused.matchCount !== 1) throw new Error(`Could not focus exact app label ${label}.`);
+            await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+            await client.send('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+            await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+          } else {
+            await this.#clickRect(client, observation.appRect);
+          }
+          const selected = await waitFor(async () => {
+            const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+            appSelectionState(next, label);
+            if (next.chipMatchCount === 1) return next;
+            if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
+            if (action.type === 'OPEN_MORE') return next.renderedAppMatchCount === 1 ? next : false;
+            if (action.type === 'FOCUS_APP') return next.chipMatchCount === 1 ? next : false;
+            return false;
+          }, this.pageReadyTimeoutMs, 150, `ChatGPT did not expose or select exact app label ${label}.`);
+          if (selected.chipMatchCount === 1) break;
+        }
+        selectedLabels.push(label);
+      }
+
+      const verified = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, null]);
+      appSelectionState(verified, null);
+      for (const label of knownLabels) {
+        const expected = requiredLabels.includes(label) ? 1 : 0;
+        if (verified.chipCounts?.[label] !== expected) throw new Error(`Per-message app chip verification failed for exact label ${label}.`);
+      }
+      return {
+        status: 'MESSAGE_APPS_SELECTED',
+        requiredLabels,
+        selectedLabels,
+        clearedPriorLabels: removedLabels,
+        verifiedChipCounts: verified.chipCounts,
+        inspectedAssistantOutput: false,
+      };
+    });
+  }
+
   async verifyModelRoundTrip(target, { expectedUrl, extraHighLabel, proLabel }) {
     const normalized = normalizeConversationUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
@@ -456,6 +589,17 @@ export class ChromeDevtoolsBrowser {
   async #closeModelMenu(client) {
     await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
     await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  }
+
+  async #clickRect(client, rect) {
+    if (!rect || !Number.isFinite(rect.x) || !Number.isFinite(rect.y) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
+      throw new Error('Browser control did not expose a usable click rectangle.');
+    }
+    const x = rect.x + rect.width / 2;
+    const y = rect.y + rect.height / 2;
+    await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+    await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
   }
 
   async submitExactMessage(target, { expectedUrl, body, bodySha256 }) {
