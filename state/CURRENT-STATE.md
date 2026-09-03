@@ -20,6 +20,8 @@ capability, ordinary synthetic, and escalated same-chat acceptance cycles.
   `docs/requirements/2026-09-02-global-chatgpt-submission-pacing.owner-requirement.json`.
 - Structured-output requirement:
   `docs/requirements/2026-09-03-structured-output-failure-boundary.owner-requirement.json`.
+- Model-picker compatibility requirement:
+  `docs/requirements/2026-09-03-model-menu-selector-compatibility.owner-requirement.json`.
 - Assurance lane: release-grade branch/hotfix/Hostinger acceptance boundary.
   Production service `e1db3d50-b963-42d2-a21d-b52601fcfb92` is forbidden.
   Do not inspect assistant output or redesign authority semantics.
@@ -72,11 +74,20 @@ inspection. No semantic design decision is delegated to this execution task.
 
 ## Current checkpoint
 
-The pacing patch, universal structured-output boundary, calendar-independent
-relay fixtures, and live MCP wrapper compatibility repair are locally verified
-on top of the latest remote task-branch work. A new exact final head must be
-pushed and used for the final hosted checkpoint, hotfix deployment, and
-Hostinger/live acceptance.
+Accepted head `5c35dd4273db8f58559c25b664491e848a63a129` passed its hosted checkpoint,
+hotfix deployment, Hostinger installation, and doctor. Live capability stopped
+fail-closed before submission because the current ChatGPT picker exposes power
+levels through a composer-scoped Radix menu and ARIA slider instead of flat
+`menuitem`/`option` entries.
+
+The narrow compatibility candidate now scopes the trigger to the actual
+composer, binds the open menu to that trigger, retains exact direct-option
+support, and discovers slider values only by stepping the semantic Power
+control and observing exact displayed labels. It does not encode ordinal-to-
+model mappings. The candidate has already exercised the authenticated live
+browser without sending a message and returned exact `Extra High -> Pro ->
+Extra High`; installation of a committed/pushed SHA and the capability challenge
+remain pending.
 
 ## Preserved repository-wide completion gate
 
@@ -104,29 +115,31 @@ depth requirement or its promotion evidence:
 - Exact owner requirement:
   `docs/requirements/2026-09-02-global-chatgpt-submission-pacing.owner-requirement.json`.
 - Test-efficiency telemetry task:
-  `mission-control-pr58-global-submission-pacing-20260902`.
+  `mission-control-pr58-model-menu-selector-20260903`.
 
 ## Blockers / unresolved
 
-- Local implementation has no known blocker.
-- Final validation/commit/push, hotfix deployment, and Hostinger execution
-  remain pending.
+- Local selector implementation has no known blocker.
+- Commit/push, one hosted CI checkpoint, exact-SHA Hostinger installation,
+  doctor, and the harmless capability receipt remain pending.
 - Interactive ChatGPT login is an explicit stop boundary if encountered.
 
 ## Remaining
 
-1. Finish exact diff/static review, then push the exact final head and obtain
+1. Finish focused relay validation and exact diff review, commit/push, and obtain
    one normal hosted CI checkpoint.
-2. Update and verify the Railway hotfix exact-SHA build without touching
-   production.
-3. Install the exact commit on Hostinger, apply the safe environment, and run
-   doctor, capability, and only the admitted bounded synthetic cycles.
-4. Reconcile GitHub receipts, leave normal sending disabled, and update PR #58.
+2. Install the exact commit on Hostinger without touching Railway production;
+   update the isolated hotfix backend only if exact-SHA coupling is mechanically
+   required.
+3. Keep normal submission disabled, rerun doctor and the visible mode round trip,
+   then run only the harmless capability challenge if the preflight passes.
+4. Reconcile the capability receipt and stop unless the already-authorized queue
+   can continue without a new policy choice.
 
 ## Next safe action
 
-Review and push the exact final branch head, wait for its single hosted CI
-checkpoint, then update only the Railway hotfix exact-SHA build.
+Commit and push the selector compatibility candidate, then wait for its single
+hosted CI checkpoint before exact-SHA Hostinger installation.
 
 ## Recovery rule
 

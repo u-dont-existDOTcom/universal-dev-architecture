@@ -8,7 +8,7 @@ const PAGE_INSPECTION_FN = `function(expectedUrl) {
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
-  const composer = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   return {
     currentUrl: location.href,
     urlMismatch: normalize(location.href) !== expectedUrl,
@@ -26,48 +26,181 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
     } catch { return null; }
   };
   if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
-  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const candidates = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"], button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')].filter(visible);
-  const control = candidates.find((element) => element.matches('button[data-testid="model-switcher-dropdown-button"]')) || candidates[0] || null;
-  return { urlMismatch: false, controlFound: Boolean(control), label: control ? label(control) : null };
-}`;
-
-const OPEN_MODEL_MENU_FN = `function(expectedUrl) {
-  const normalizeUrl = (value) => {
-    try {
-      const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
-      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
-    } catch { return null; }
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
   };
-  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
-  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const candidates = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"], button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')].filter(visible);
-  const control = candidates.find((element) => element.matches('button[data-testid="model-switcher-dropdown-button"]')) || candidates[0] || null;
-  if (!control) return { opened: false, reason: 'MODEL_CONTROL_NOT_FOUND' };
-  control.click();
-  return { opened: true };
+  const visibleLabel = (element) => ((element && (element.innerText || element.getAttribute('aria-label'))) || '').trim().replace(/\\s+/g, ' ');
+  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
+  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const composerForm = composer?.closest('form') || null;
+  const scoped = composerForm
+    ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+      .filter(visible)
+      .filter((element) => visibleLabel(element))
+      .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn')
+    : [];
+  const candidates = tested.length ? tested : scoped;
+  if (candidates.length !== 1) {
+    return { urlMismatch: false, controlFound: false, ambiguous: candidates.length > 1, reason: candidates.length ? 'MODEL_CONTROL_AMBIGUOUS' : 'MODEL_CONTROL_NOT_FOUND' };
+  }
+  const control = candidates[0];
+  const rect = control.getBoundingClientRect();
+  return {
+    urlMismatch: false,
+    controlFound: true,
+    label: visibleLabel(control),
+    controlId: control.id || null,
+    expanded: control.getAttribute('aria-expanded') === 'true',
+    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+  };
 }`;
 
-const MODEL_OPTION_LABELS_FN = `function() {
-  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  return [...document.querySelectorAll('[role="menuitem"], [role="option"]')].filter(visible).map(label).filter(Boolean);
+const OPEN_MODEL_MENU_FN = CURRENT_MODEL_FN;
+
+const MODEL_MENU_STATE_FN = `function(labelWanted) {
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const visibleLabel = (element) => ((element && element.innerText) || '').trim().replace(/\\s+/g, ' ');
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
+  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
+  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const composerForm = composer?.closest('form') || null;
+  const scoped = composerForm
+    ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+      .filter(visible)
+      .filter((element) => visibleLabel(element) || element.getAttribute('aria-label'))
+      .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn')
+    : [];
+  const controls = tested.length ? tested : scoped;
+  if (controls.length !== 1) return { menuFound: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_CONTROL_AMBIGUOUS' : 'MODEL_CONTROL_NOT_FOUND' };
+  const control = controls[0];
+  const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
+  const controlledId = control.getAttribute('aria-controls');
+  const related = roots.filter((root) => (
+    (controlledId && root.id === controlledId)
+    || (control.id && (root.getAttribute('aria-labelledby') || '').split(/\\s+/).includes(control.id))
+  ));
+  const fallback = control.getAttribute('aria-expanded') === 'true'
+    ? roots.filter((root) => ['menu', 'listbox'].includes(root.getAttribute('role')))
+    : [];
+  const candidates = related.length ? related : (fallback.length === 1 ? fallback : []);
+  if (candidates.length !== 1) return { menuFound: false, ambiguous: roots.length > 1, reason: roots.length ? 'MODEL_MENU_AMBIGUOUS_OR_UNRELATED' : 'MODEL_MENU_NOT_FOUND' };
+  const menu = candidates[0];
+  const selectable = [...menu.querySelectorAll('button, [role="menuitem"], [role="menuitemradio"], [role="option"]')].filter(visible);
+  const directMatches = labelWanted == null ? [] : selectable.filter((element) => accessibleLabel(element) === labelWanted);
+  const powerControls = [...menu.querySelectorAll('[role="menuitem"][aria-label="Power"]')].filter(visible);
+  const powerIndicators = [...menu.querySelectorAll('[role="menuitem"][aria-label="Select model"]')].filter(visible);
+  const sliders = powerControls.length === 1 ? [...powerControls[0].querySelectorAll('[role="slider"]')] : [];
+  const slider = sliders.length === 1 ? sliders[0] : null;
+  return {
+    menuFound: true,
+    menuRole: menu.getAttribute('role'),
+    directMatchCount: directMatches.length,
+    availableLabels: selectable.map(accessibleLabel).filter(Boolean),
+    powerControlCount: powerControls.length,
+    powerIndicatorCount: powerIndicators.length,
+    sliderCount: sliders.length,
+    currentPowerLabel: powerIndicators.length === 1 ? visibleLabel(powerIndicators[0]) : null,
+    sliderPosition: slider ? Number(slider.getAttribute('aria-valuenow')) : null,
+    sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
+    sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
+  };
 }`;
 
 const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
-  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const options = [...document.querySelectorAll('[role="menuitem"], [role="option"]')].filter(visible);
-  const option = options.find((element) => label(element) === labelWanted) || null;
-  if (!option) return { selected: false, availableLabels: options.map(label).filter(Boolean) };
-  option.click();
-  return { selected: true, selectedLabel: label(option) };
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const visibleLabel = (element) => ((element && element.innerText) || '').trim().replace(/\\s+/g, ' ');
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
+  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
+  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const composerForm = composer?.closest('form') || null;
+  const scoped = composerForm
+    ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+      .filter(visible)
+      .filter((element) => visibleLabel(element) || element.getAttribute('aria-label'))
+      .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn')
+    : [];
+  const controls = tested.length ? tested : scoped;
+  if (controls.length !== 1) return { selected: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_CONTROL_AMBIGUOUS' : 'MODEL_CONTROL_NOT_FOUND' };
+  const control = controls[0];
+  const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
+  const controlledId = control.getAttribute('aria-controls');
+  const related = roots.filter((root) => (
+    (controlledId && root.id === controlledId)
+    || (control.id && (root.getAttribute('aria-labelledby') || '').split(/\\s+/).includes(control.id))
+  ));
+  const fallback = control.getAttribute('aria-expanded') === 'true'
+    ? roots.filter((root) => ['menu', 'listbox'].includes(root.getAttribute('role')))
+    : [];
+  const menus = related.length ? related : (fallback.length === 1 ? fallback : []);
+  if (menus.length !== 1) return { selected: false, ambiguous: roots.length > 1, reason: roots.length ? 'MODEL_MENU_AMBIGUOUS_OR_UNRELATED' : 'MODEL_MENU_NOT_FOUND' };
+  const options = [...menus[0].querySelectorAll('button, [role="menuitem"], [role="menuitemradio"], [role="option"]')].filter(visible);
+  const matches = options.filter((element) => accessibleLabel(element) === labelWanted);
+  if (matches.length !== 1) return { selected: false, ambiguous: matches.length > 1, reason: matches.length ? 'MODEL_OPTION_AMBIGUOUS' : 'MODEL_OPTION_NOT_FOUND', availableLabels: options.map(accessibleLabel).filter(Boolean) };
+  matches[0].click();
+  return { selected: true, selectedLabel: accessibleLabel(matches[0]) };
 }`;
 
+const FOCUS_MODEL_POWER_FN = `function() {
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const menus = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
+  const controls = menus.flatMap((menu) => [...menu.querySelectorAll('[role="menuitem"][aria-label="Power"]')].filter(visible));
+  if (controls.length !== 1) return { focused: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_POWER_CONTROL_AMBIGUOUS' : 'MODEL_POWER_CONTROL_NOT_FOUND' };
+  controls[0].focus();
+  return { focused: document.activeElement === controls[0] };
+}`;
+
+export function modelMenuSelectionState(observation, labelWanted) {
+  if (!observation?.menuFound) {
+    throw new Error(`ChatGPT model menu is unavailable: ${observation?.reason ?? 'UNKNOWN'}.`);
+  }
+  if (observation.directMatchCount > 1) {
+    throw new Error(`Exact model UI label ${labelWanted} is ambiguous inside the model menu.`);
+  }
+  if (observation.directMatchCount === 1) return { type: 'DIRECT_OPTION', observedLabels: [labelWanted] };
+
+  const sliderBoundsValid = Number.isInteger(observation.sliderPosition)
+    && Number.isInteger(observation.sliderMinimum)
+    && Number.isInteger(observation.sliderMaximum)
+    && observation.sliderMinimum <= observation.sliderPosition
+    && observation.sliderPosition <= observation.sliderMaximum;
+  const sliderStructureExact = observation.powerControlCount === 1
+    && observation.powerIndicatorCount === 1
+    && observation.sliderCount === 1
+    && sliderBoundsValid
+    && typeof observation.currentPowerLabel === 'string'
+    && observation.currentPowerLabel.length > 0;
+  if (!sliderStructureExact) {
+    throw new Error(`Exact model UI label ${labelWanted} was not found in one supported model-menu control.`);
+  }
+  if (observation.currentPowerLabel === labelWanted) {
+    return { type: 'POWER_CURRENT', observedLabels: [observation.currentPowerLabel] };
+  }
+  return {
+    type: 'POWER_SEARCH',
+    initialLabel: observation.currentPowerLabel,
+    position: observation.sliderPosition,
+    minimum: observation.sliderMinimum,
+    maximum: observation.sliderMaximum,
+    observedLabels: [observation.currentPowerLabel],
+  };
+}
+
 const PREPARE_COMPOSER_FN = `function(expectedBody) {
-  const element = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+  const element = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   if (!element) return { ok: false, reason: 'COMPOSER_NOT_FOUND' };
   const visible = Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
   if (!visible) return { ok: false, reason: 'COMPOSER_NOT_VISIBLE' };
@@ -78,7 +211,7 @@ const PREPARE_COMPOSER_FN = `function(expectedBody) {
 }`;
 
 const VERIFY_COMPOSER_FN = `function(expectedBody) {
-  const element = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+  const element = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   if (!element) return { exact: false, length: null };
   const value = typeof element.value === 'string' ? element.value : (element.textContent || '');
   return { exact: value === expectedBody, length: value.length };
@@ -109,7 +242,7 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
   const stop = document.querySelector('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]');
-  const composer = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
@@ -186,30 +319,23 @@ export class ChromeDevtoolsBrowser {
 
   async currentModelLabel(target, expectedUrl) {
     return this.#withPageClient(target, async (client) => {
-      const result = await client.callFunction(CURRENT_MODEL_FN, [normalizeConversationUrl(expectedUrl)]);
-      if (result?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${result.currentUrl}`);
-      return result?.label ?? null;
+      const result = await this.#currentModel(client, normalizeConversationUrl(expectedUrl));
+      return result.label;
     });
   }
 
   async switchModel(target, { expectedUrl, label }) {
     const normalized = normalizeConversationUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
-      const current = await client.callFunction(CURRENT_MODEL_FN, [normalized]);
-      if (current?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${current.currentUrl}`);
+      const current = await this.#currentModel(client, normalized);
       if (current?.label === label) return { selectedLabel: label, observedLabel: current.label, changed: false };
-      const opened = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
-      if (opened?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${opened.currentUrl}`);
-      if (!opened?.opened) throw new Error(`ChatGPT model/mode switch control is unavailable: ${opened?.reason ?? 'UNKNOWN'}.`);
-      const selected = await waitFor(async () => {
-        const result = await client.callFunction(SELECT_MODEL_OPTION_FN, [label]);
-        return result?.selected ? result : false;
-      }, this.pageReadyTimeoutMs, 300, `ChatGPT model/mode option ${label} did not become available.`);
+      await this.#openModelMenu(client, normalized);
+      const selected = await this.#selectOpenModelMenu(client, label);
       const verified = await waitFor(async () => {
-        const result = await client.callFunction(CURRENT_MODEL_FN, [normalized]);
+        const result = await this.#currentModel(client, normalized);
         return result?.label === label ? result : false;
       }, this.pageReadyTimeoutMs, 300, `ChatGPT model/mode control did not report exact label ${label}.`);
-      return { selectedLabel: label, observedLabel: verified.label, changed: true, menuSelectedLabel: selected.selectedLabel };
+      return { selectedLabel: label, observedLabel: verified.label, changed: true, menuSelectedLabel: selected.selectedLabel, selectionMechanism: selected.mechanism };
     });
   }
 
@@ -220,24 +346,23 @@ export class ChromeDevtoolsBrowser {
       if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
         throw new Error('Registered supervisor chat is not ready for model capability verification.');
       }
-      const opened = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
-      if (!opened?.opened) throw new Error('ChatGPT model/mode switch control is unavailable.');
-      const availableLabels = await waitFor(async () => {
-        const labels = await client.callFunction(MODEL_OPTION_LABELS_FN, []);
-        return Array.isArray(labels) && labels.includes(extraHighLabel) && labels.includes(proLabel) ? labels : false;
-      }, this.pageReadyTimeoutMs, 300, 'Exact Extra High and Pro UI labels were not both observable.');
-      // Close the open menu by selecting Extra High, then perform a full exact-label round trip.
-      const selectExtra = await client.callFunction(SELECT_MODEL_OPTION_FN, [extraHighLabel]);
-      if (!selectExtra?.selected) throw new Error(`Could not select exact Extra High UI label ${extraHighLabel}.`);
-      await waitFor(() => client.callFunction(CURRENT_MODEL_FN, [normalized]).then((value) => value?.label === extraHighLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Extra High label did not become current.');
-      const openedPro = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
-      if (!openedPro?.opened) throw new Error('Could not reopen model switcher for Pro verification.');
-      const selectPro = await waitFor(() => client.callFunction(SELECT_MODEL_OPTION_FN, [proLabel]).then((value) => value?.selected ? value : false), this.pageReadyTimeoutMs, 300, `Could not select exact Pro UI label ${proLabel}.`);
-      const proCurrent = await waitFor(() => client.callFunction(CURRENT_MODEL_FN, [normalized]).then((value) => value?.label === proLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Pro label did not become current.');
-      const openedRestore = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
-      if (!openedRestore?.opened) throw new Error('Could not reopen model switcher to restore Extra High.');
-      const restore = await waitFor(() => client.callFunction(SELECT_MODEL_OPTION_FN, [extraHighLabel]).then((value) => value?.selected ? value : false), this.pageReadyTimeoutMs, 300, `Could not restore exact Extra High UI label ${extraHighLabel}.`);
-      const extraCurrent = await waitFor(() => client.callFunction(CURRENT_MODEL_FN, [normalized]).then((value) => value?.label === extraHighLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Extra High label did not become current after round trip.');
+      await this.#openModelMenu(client, normalized);
+      const selectExtra = await this.#selectOpenModelMenu(client, extraHighLabel);
+      await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === extraHighLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Extra High label did not become current.');
+      await this.#openModelMenu(client, normalized);
+      const selectPro = await this.#selectOpenModelMenu(client, proLabel);
+      const proCurrent = await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === proLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Pro label did not become current.');
+      await this.#openModelMenu(client, normalized);
+      const restore = await this.#selectOpenModelMenu(client, extraHighLabel);
+      const extraCurrent = await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === extraHighLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Extra High label did not become current after round trip.');
+      const availableLabels = [...new Set([
+        ...selectExtra.observedLabels,
+        ...selectPro.observedLabels,
+        ...restore.observedLabels,
+      ])];
+      if (!availableLabels.includes(extraHighLabel) || !availableLabels.includes(proLabel)) {
+        throw new Error('Exact Extra High and Pro UI labels were not both observable.');
+      }
       return {
         status: 'MODE_ROUND_TRIP_VERIFIED',
         availableLabels,
@@ -245,9 +370,92 @@ export class ChromeDevtoolsBrowser {
         proObserved: proCurrent.label,
         restoredObserved: extraCurrent.label,
         menuSelections: [selectExtra.selectedLabel, selectPro.selectedLabel, restore.selectedLabel],
+        selectionMechanisms: [selectExtra.mechanism, selectPro.mechanism, restore.mechanism],
         inspectedAssistantOutput: false,
       };
     });
+  }
+
+  async #currentModel(client, normalized) {
+    const result = await client.callFunction(CURRENT_MODEL_FN, [normalized]);
+    if (result?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${result.currentUrl}`);
+    if (!result?.controlFound) throw new Error(`ChatGPT model/mode switch control is unavailable: ${result?.reason ?? 'UNKNOWN'}.`);
+    return result;
+  }
+
+  async #openModelMenu(client, normalized) {
+    const control = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
+    if (control?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${control.currentUrl}`);
+    if (!control?.rect) throw new Error(`ChatGPT model/mode switch control is unavailable: ${control?.reason ?? 'UNKNOWN'}.`);
+    if (!control.expanded) {
+      const x = control.rect.x + control.rect.width / 2;
+      const y = control.rect.y + control.rect.height / 2;
+      await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+      await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+      await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+    }
+    return waitFor(async () => {
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null]);
+      return observation?.menuFound ? observation : false;
+    }, this.pageReadyTimeoutMs, 200, 'ChatGPT model/mode menu did not open.');
+  }
+
+  async #selectOpenModelMenu(client, labelWanted) {
+    let observation = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted]);
+    const selection = modelMenuSelectionState(observation, labelWanted);
+    if (selection.type === 'DIRECT_OPTION') {
+      const selected = await client.callFunction(SELECT_MODEL_OPTION_FN, [labelWanted]);
+      if (!selected?.selected) throw new Error(`Could not select exact model UI label ${labelWanted}: ${selected?.reason ?? 'UNKNOWN'}.`);
+      return { selectedLabel: selected.selectedLabel, observedLabels: selection.observedLabels, mechanism: 'DIRECT_MENU_OPTION' };
+    }
+
+    const observedLabels = new Set(selection.observedLabels);
+    const initialLabel = observation.currentPowerLabel;
+    if (selection.type === 'POWER_CURRENT') {
+      await this.#closeModelMenu(client);
+      return { selectedLabel: labelWanted, observedLabels: [...observedLabels], mechanism: 'POWER_SLIDER_EXACT_LABEL' };
+    }
+
+    const step = async (direction) => {
+      const focus = await client.callFunction(FOCUS_MODEL_POWER_FN, []);
+      if (!focus?.focused) throw new Error(`ChatGPT model Power control is unavailable: ${focus?.reason ?? 'UNKNOWN'}.`);
+      const before = observation.sliderPosition;
+      const key = direction > 0 ? 'ArrowRight' : 'ArrowLeft';
+      const code = direction > 0 ? 39 : 37;
+      await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
+      await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
+      observation = await waitFor(async () => {
+        const next = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted]);
+        modelMenuSelectionState(next, labelWanted);
+        return next.sliderPosition !== before ? next : false;
+      }, Math.min(this.pageReadyTimeoutMs, 5_000), 100, `ChatGPT model Power control did not move ${key}.`);
+      observedLabels.add(observation.currentPowerLabel);
+      return observation.currentPowerLabel === labelWanted;
+    };
+
+    while (observation.sliderPosition < observation.sliderMaximum) {
+      if (await step(1)) {
+        await this.#closeModelMenu(client);
+        return { selectedLabel: labelWanted, observedLabels: [...observedLabels], mechanism: 'POWER_SLIDER_EXACT_LABEL' };
+      }
+    }
+    while (observation.sliderPosition > observation.sliderMinimum) {
+      if (await step(-1)) {
+        await this.#closeModelMenu(client);
+        return { selectedLabel: labelWanted, observedLabels: [...observedLabels], mechanism: 'POWER_SLIDER_EXACT_LABEL' };
+      }
+    }
+
+    while (observation.currentPowerLabel !== initialLabel && observation.sliderPosition < observation.sliderMaximum) {
+      await step(1);
+    }
+    await this.#closeModelMenu(client);
+    throw new Error(`Exact model UI label ${labelWanted} was not observable in the model Power control.`);
+  }
+
+  async #closeModelMenu(client) {
+    await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+    await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   }
 
   async submitExactMessage(target, { expectedUrl, body, bodySha256 }) {
