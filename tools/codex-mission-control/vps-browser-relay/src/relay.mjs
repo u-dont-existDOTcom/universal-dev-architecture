@@ -140,7 +140,7 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     }
 
-    const prompt = capabilityControlPrompt(chat);
+    const prompt = capabilityControlPrompt(chat, this.config.missionControl.url);
     const observed = await this.browser.switchModel(target, { expectedUrl: chat.url, label: chat.modelLabels.extraHigh });
     try {
       const start = await this.submissionPacer.submit({

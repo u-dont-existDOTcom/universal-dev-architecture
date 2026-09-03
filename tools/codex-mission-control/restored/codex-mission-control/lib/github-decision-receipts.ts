@@ -30,6 +30,16 @@ export interface CapabilityChallenge {
   challengeId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
   expiresAt: string; extraHighLabel: string; proLabel: string;
 }
+export interface PublicCapabilityChallenge {
+  schema_version: 1;
+  challenge_id: string;
+  chat_id: string;
+  mc_nonce: string;
+  github_nonce_sha256: string;
+  github_nonce_source: string;
+  receipt_target: string;
+  expires_at: string;
+}
 interface PendingDecisionRequest {
   worker: string; taskId: string; requestId: string; chatId: string; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
@@ -80,6 +90,7 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
     };
   });
   if (new Set(capabilityChallenges.map((c) => c.chatId)).size !== capabilityChallenges.length) throw new Error("Capability challenge chat IDs must be unique.");
+  if (new Set(capabilityChallenges.map((c) => c.challengeId)).size !== capabilityChallenges.length) throw new Error("Capability challenge IDs must be unique.");
   return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges };
 }
 
@@ -88,6 +99,27 @@ export function validateConfiguredDecisionLocation(repository: string, issueNumb
   if (repository.toLowerCase() !== policy.repository.toLowerCase() || issueNumber !== policy.decisionIssueNumber) {
     throw new Error("Supervisory decision route does not match the centrally configured GitHub receipt channel.");
   }
+}
+
+export function publicCapabilityChallenge(
+  policy: GitHubReceiptPolicy | null,
+  challengeId: string,
+  now = new Date().toISOString(),
+): PublicCapabilityChallenge | null {
+  if (!policy || !Number.isFinite(Date.parse(now))) return null;
+  const challenge = policy.capabilityChallenges.find((item) => item.challengeId === challengeId);
+  if (!challenge || Date.parse(challenge.expiresAt) <= Date.parse(now)) return null;
+  const capabilityChannel = `https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`;
+  return {
+    schema_version: 1,
+    challenge_id: challenge.challengeId,
+    chat_id: challenge.chatId,
+    mc_nonce: challenge.mcNonce,
+    github_nonce_sha256: sha256(challenge.githubNonce),
+    github_nonce_source: capabilityChannel,
+    receipt_target: capabilityChannel,
+    expires_at: challenge.expiresAt,
+  };
 }
 
 export function verifyGitHubWebhookSignature(secret: string | undefined, rawBody: string, signature: string | null): boolean {

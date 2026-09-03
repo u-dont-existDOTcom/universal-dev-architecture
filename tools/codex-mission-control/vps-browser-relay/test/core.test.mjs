@@ -9,6 +9,7 @@ import {
   STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   capabilityControlPrompt,
+  capabilityChallengeUrl,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
@@ -88,10 +89,17 @@ test('capability truth comes only from current Mission Control evidence receipts
   assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z').allCurrent, false);
 });
 
-test('capability control prompt requires separate MC and GitHub reads without embedding nonce values', () => {
-  const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0]);
+test('capability control prompt provides the exact public MC URL and separate hash-bound GitHub read without embedding nonce values', () => {
+  assert.equal(
+    capabilityChallengeUrl('https://mission-control.example/base/', 'challenge/spec'),
+    'https://mission-control.example/base/api/capability-challenges/challenge%2Fspec',
+  );
+  const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0], 'https://mission-control.example');
+  assert.match(prompt, /https:\/\/mission-control\.example\/api\/capability-challenges\/challenge-spec/);
   assert.match(prompt, /github_nonce_source/);
-  assert.match(prompt, /Mission Control exposes only its hash/);
+  assert.match(prompt, /Compute its SHA-256/);
+  assert.match(prompt, /expires_at has passed/);
+  assert.match(prompt, /exact ordered capabilities/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
 });
 

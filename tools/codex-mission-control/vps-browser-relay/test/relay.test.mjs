@@ -109,7 +109,9 @@ test('capability challenge send is independently gated and resumes from generati
   assert.equal(first.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
+  assert.match(browser.lastSubmittedBody, /https:\/\/mission-control\.example\/api\/capability-challenges\/challenge-spec/);
   assert.match(browser.lastSubmittedBody, /github_nonce_source/);
+  assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
   const second = await runtime.verifyCapabilities('spec');
   assert.equal(second.status, 'AWAITING_CAPABILITY_RECEIPT');
@@ -171,7 +173,7 @@ test('hard memory pressure performs no submission', async () => {
 
 function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now }) {
   const config = {
-    missionControl: {},
+    missionControl: { url: 'https://mission-control.example' },
     browser: { profileDir: '/tmp/test-profile' },
     runtime: {
       chats: [chat()], workerIds: ['worker-a'], submitEnabled, capabilityTestEnabled, pollIntervalMs: 15_000, minSubmissionIntervalMs: 60_000, retryDelayMs: 300_000, maxHotTabs: 3,

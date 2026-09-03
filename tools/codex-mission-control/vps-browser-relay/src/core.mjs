@@ -260,8 +260,17 @@ function earliestExpiry(...events) {
   return values.sort()[0] ?? null;
 }
 
-export function capabilityControlPrompt(chat) {
-  return `Mission Control capability challenge ${chat.capabilityChallengeId} for chat ${chat.chatId}: remain in Extra High. Read the current MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1 receipt from Mission Control. Use its mc_nonce. Follow its github_nonce_source and read the raw GitHub nonce there; Mission Control exposes only its hash. Then write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 receipt to the challenge receipt_target with challenge_id, chat_id, mc_nonce, github_nonce, and the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Do not delegate to Work and do not make a substantive project decision.`;
+export function capabilityChallengeUrl(missionControlBaseUrl, challengeId) {
+  const base = new URL(missionControlBaseUrl);
+  base.pathname = `${base.pathname.replace(/\/$/, '')}/api/capability-challenges/${encodeURIComponent(challengeId)}`;
+  base.search = '';
+  base.hash = '';
+  return base.toString();
+}
+
+export function capabilityControlPrompt(chat, missionControlBaseUrl) {
+  const challengeUrl = capabilityChallengeUrl(missionControlBaseUrl, chat.capabilityChallengeId);
+  return `Mission Control capability challenge ${chat.capabilityChallengeId} for chat ${chat.chatId}: remain in Extra High. Fetch and read ${challengeUrl}. Extract its exact mc_nonce, github_nonce_sha256, github_nonce_source, receipt_target, and expires_at. Fail closed if the challenge_id or chat_id does not exactly match this challenge/chat, or if expires_at has passed. Follow github_nonce_source and reread the raw GitHub nonce. Compute its SHA-256 and verify that it exactly equals github_nonce_sha256 before writing. Then write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 receipt to the exact receipt_target with schema_version 1, challenge_id, chat_id, mc_nonce, github_nonce, and the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Fail closed without writing if any value, source, hash, binding, or expiry check fails. Do not delegate to Work and do not make a substantive project decision.`;
 }
 
 export function cycleControlPrompt(route, step) {
