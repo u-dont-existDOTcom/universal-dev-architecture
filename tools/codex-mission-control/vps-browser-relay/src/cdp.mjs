@@ -388,15 +388,22 @@ export class ChromeDevtoolsBrowser {
   }
 
   async createFreshChatTarget() {
-    const created = await this.#json(`/json/new?${encodeURIComponent('https://chatgpt.com/')}`, { method: 'PUT' });
+    const freshUrl = 'https://chatgpt.com/';
+    const created = await this.#json(`/json/new?${encodeURIComponent(freshUrl)}`, { method: 'PUT' });
     if (!created?.id || !created?.webSocketDebuggerUrl) throw new Error('Chrome did not create a debuggable fresh-chat page target.');
     await this.activateTarget(created.id);
-    const target = { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url: 'https://chatgpt.com/', webSocketDebuggerUrl: created.webSocketDebuggerUrl, created: true };
+    const target = { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url: freshUrl, webSocketDebuggerUrl: created.webSocketDebuggerUrl, created: true };
     await this.#withPageClient(target, async (client) => {
+      // Brave can acknowledge /json/new before applying its query-string URL,
+      // leaving a durable about:blank target. Make the requested navigation an
+      // explicit CDP operation so a fresh supervisory cycle is never bound to
+      // an uninitialized provider surface.
+      const navigation = await client.send('Page.navigate', { url: freshUrl });
+      if (navigation?.errorText) throw new Error(`Fresh ChatGPT navigation failed: ${navigation.errorText}`);
       await waitFor(async () => {
-        const result = await client.callFunction(PAGE_INSPECTION_FN, ['https://chatgpt.com/']);
+        const result = await client.callFunction(PAGE_INSPECTION_FN, [freshUrl]);
         if (result?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
-        if (result?.urlMismatch) throw new Error(`Fresh-chat target navigated to an unexpected URL: ${result.currentUrl}`);
+        if (result?.urlMismatch) return false;
         return result?.composerFound ? result : false;
       }, this.pageReadyTimeoutMs, 500, 'Fresh ChatGPT composer did not become ready.');
     });

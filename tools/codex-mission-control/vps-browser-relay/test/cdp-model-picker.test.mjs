@@ -85,6 +85,12 @@ test('browser control code does not use generic transcript-editable selectors', 
   assert.match(source, /\[role="menu"\], \[role="listbox"\], \[role="dialog"\]/);
 });
 
+test('fresh provider conversations use an explicit CDP navigation instead of trusting json/new', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  assert.match(source, /client\.send\('Page\.navigate', \{ url: freshUrl \}\)/);
+  assert.match(source, /Fresh ChatGPT navigation failed/);
+});
+
 test('exact app selection walks Tools then More then one exact app option', () => {
   const base = { composerFormFound: true, toolsControlCount: 1, chipMatchCount: 0, appMatchCount: 0, moreMatchCount: 0 };
   assert.deepEqual(appSelectionState(base, 'Mission Control'), { type: 'OPEN_TOOLS' });
