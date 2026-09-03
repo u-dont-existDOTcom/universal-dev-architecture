@@ -20,12 +20,19 @@ For multi-worker Codex operation with ChatGPT semantic supervision, load all eig
 6. `../patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
 7. `../patterns/supervision-assurance-planes-and-pro-meta-review.md`
 8. `../patterns/outcome-advancement-and-strategy-efficacy.md`
+9. `../patterns/structured-output-failure-boundary.md`
 
 **Controlling separation:** chats perform the reasoning; Codex performs only bounded execution that chats cannot reliably perform. Extra High is the default reasoning supervisor, Pro handles the highest-intelligence decisions, and Codex acts only from a current chat-authored execution directive. Codex may collect evidence and make tactical execution choices, but it may not choose strategy, interpret the owner outcome, author substantive prose, classify alignment/progress/adequacy/completion, decide Pro or owner escalation, or supervise itself.
 
 **Pre-action admission:** before Codex/Work forms or acts on a proposal, methodology, priority, spending design, consequential tradeoff, or execution plan, it must pass the authenticated Mission Control runtime gate. Work begins only from `mayExecute: true` bound to the exact current Chat-authored directive. A denied Chat-owned action automatically queues the exact factual packet to the authorized internal supervisor and stops that action. It must never become a request for Joel to paste, relay, approve transmission, or say “send it.” Generic browser representational-action confirmation does not apply to the narrower owner-preauthorized internal supervisor route; external third-party communication retains its applicable confirmation boundary. `QUEUED_FOR_PROVIDER_RELAY` is not delivery and must remain visibly undelivered until an exact provider receipt exists.
 
 Together the patterns separate ChatGPT reasoning, Symphony execution orchestration, Linear work state, GitHub authority, deterministic evidence, Codex local execution, Pro escalation, immutable/versioned owner-outcome authority, contract integrity, direct outcome advancement, strategy efficacy, and shared Pro meta-review.
+
+Malformed structured evaluator artifacts use the universal
+`../patterns/structured-output-failure-boundary.md` rule and
+`../templates/STRUCTURED-OUTPUT-FAILURE.json` state template. This boundary
+preserves source-fixed attempt ceilings and keeps serialization failure distinct
+from semantic or scientific judgment.
 
 Maintain a logical reasoning-supervision lane per task rather than one always-active Pro chat per Codex session. Every nontrivial Codex run must be bound to `../templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json` and return `../templates/CODEX-EXECUTION-RECEIPT.json`. A Codex checkpoint or self-review is only an execution claim for independent chat review; it is never the supervisory judgment.
 

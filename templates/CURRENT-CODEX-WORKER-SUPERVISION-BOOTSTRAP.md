@@ -61,6 +61,7 @@ Required companions:
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
 - `patterns/outcome-advancement-and-strategy-efficacy.md`
 - `patterns/chat-led-reasoning-codex-execution-separation.md`
+- `patterns/structured-output-failure-boundary.md`
 
 Machine-readable baselines:
 
@@ -68,6 +69,16 @@ Machine-readable baselines:
 - `templates/OUTCOME-PROGRESS-RECEIPT.json`
 - `templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
 - `templates/CODEX-EXECUTION-RECEIPT.json`
+- `templates/STRUCTURED-OUTPUT-FAILURE.json`
+
+When strict parsing rejects a required structured artifact, record
+`STRUCTURED_OUTPUT_SYNTAX_FAILURE` under the structured-output failure boundary.
+Preserve the raw artifact reference, exact parser position/fingerprint, packet
+hash, model/mode, attempt number, and validator result. Never exceed a
+source-fixed attempt ceiling or silently repair, clean, reparse, substitute, or
+semantically correct the artifact without a new source-bound directive.
+Dependent comparison, scoring, metrics, aggregation, unblinding, and
+substitution remain blocked while no valid admitted artifact exists.
 
 ## 2. Chat-led reasoning; Codex execution only
 

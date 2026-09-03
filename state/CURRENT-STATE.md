@@ -1,23 +1,28 @@
 # Current State
 
-Updated: 2026-09-02 21:27 UTC
+Updated: 2026-09-03
 
 ## Goal
 
-Execute the owner-accepted global browser-submission pacing correction on the
-existing Mission Control browser-relay branch, push the exact patch, install
-that exact commit on Hostinger, and run only doctor plus the harmless
-`mc-hotfix-specialist` capability smoke.
+Complete the owner-authored execution-only closeout queue for the Mission
+Control Hostinger bridge and PR #58 in order: preserve the global browser-send
+pacing patch, add the settled universal structured-output failure boundary,
+validate and checkpoint the exact branch, deploy the exact final SHA only to
+the Railway hotfix service, install it on Hostinger, and run bounded doctor,
+capability, ordinary synthetic, and escalated same-chat acceptance cycles.
 
 ## Authority / baseline
 
 - Branch: `task/mission-control-vps-browser-relay-20260902`.
-- Exact starting head: `c3994fe5c032a39e08326e951bc7c9b2b898940b`.
+- Reviewed candidate baseline: `c3994fe5c032a39e08326e951bc7c9b2b898940b`.
+- Pacing commit already pushed at recovery: `c0c6d8c65189c555c41cacae6ee1cbe427f98457`.
 - Owner requirement:
   `docs/requirements/2026-09-02-global-chatgpt-submission-pacing.owner-requirement.json`.
-- Assurance lane: owner-requested execution/checkpoint boundary; do not merge,
-  touch Railway production, send real supervision work, read assistant output,
-  or redesign authority semantics.
+- Structured-output requirement:
+  `docs/requirements/2026-09-03-structured-output-failure-boundary.owner-requirement.json`.
+- Assurance lane: release-grade branch/hotfix/Hostinger acceptance boundary.
+  Production service `e1db3d50-b963-42d2-a21d-b52601fcfb92` is forbidden.
+  Do not inspect assistant output or redesign authority semantics.
 
 ## Active lesson contract
 
@@ -28,7 +33,11 @@ that exact commit on Hostinger, and run only doctor plus the harmless
 - Browser safety: clicked-but-unverified sends remain ambiguous; failure is an
   automatic replay or a pacing timestamp lost after restart.
 - Live boundary: Hostinger normal submission remains disabled; failure is a
-  continuous task sender or a non-capability prompt.
+  continuous task sender outside the explicitly bounded synthetic acceptance
+  routes.
+- Structured-output boundary: serialization/interface failure stays distinct
+  from semantic/scientific failure; failure is any attempt-ceiling bypass,
+  silent repair, lost parser evidence, or dependent scoring without admission.
 
 All four controls are mechanically enforced by code/tests or live environment
 inspection. No semantic design decision is delegated to this execution task.
@@ -46,16 +55,21 @@ inspection. No semantic design decision is delegated to this execution task.
 - Added deterministic cross-route, same-chat, capability, continue, restart,
   config-range, and no-semantic-mutation tests.
 - Updated `.env.example` and relay README.
-- Focused relay suite: 42/42 passing.
-- Repository suite: 248/248 passing; deterministic audit: no findings.
-- Mission Control application suite: 35/35 passing; TypeScript typecheck and
+- Relay suite: 42/42 passing; JavaScript syntax checks pass.
+- Repository suite: 253/253 passing; deterministic audit: no findings.
+- Mission Control application suite: 156/156 passing; TypeScript typecheck and
   production build pass.
-- Relay syntax and shell/service asset checks pass.
+- Owner-request integrity validator: 5/5 current records pass.
+- Added the settled universal `STRUCTURED_OUTPUT_SYNTAX_FAILURE` guidance,
+  machine-readable state template, index/bootstrap routing, and deterministic
+  regression tests. AskRigor methodology and repository state were not changed.
 
 ## Current checkpoint
 
-Implementation is locally test-green and the new owner-requirement record
-validates. Exact diff review, commit, push, and Hostinger update/smoke remain.
+The recovered pacing commit is pushed. The universal structured-output boundary
+and calendar-independent relay fixtures are implemented and locally verified on
+top of the latest remote task-branch work. Push, hosted CI, exact-SHA hotfix
+deployment, and Hostinger/live acceptance remain.
 
 ## Preserved repository-wide completion gate
 
@@ -88,24 +102,28 @@ depth requirement or its promotion evidence:
 ## Blockers / unresolved
 
 - Local implementation has no known blocker.
-- Push and Hostinger execution remain pending.
+- Final validation/commit/push, hotfix deployment, and Hostinger execution
+  remain pending.
 - Interactive ChatGPT login is an explicit stop boundary if encountered.
 
 ## Remaining
 
-1. Finish exact diff review and local audit.
-2. Commit and push the pacing-only patch.
-3. Install the exact commit on Hostinger, apply the required safe environment,
-   and run doctor plus the harmless capability command.
-4. Return exact commit, tests, live status, pacing state, and memory metrics.
+1. Finish exact diff/static review, then push the exact final head and obtain
+   one normal hosted CI checkpoint.
+2. Update and verify the Railway hotfix exact-SHA build without touching
+   production.
+3. Install the exact commit on Hostinger, apply the safe environment, and run
+   doctor, capability, and only the admitted bounded synthetic cycles.
+4. Reconcile GitHub receipts, leave normal sending disabled, and update PR #58.
 
 ## Next safe action
 
-Review the exact diff, commit/push it, then connect to the existing Hostinger
-execution surface without enabling normal task submissions.
+Review and push the exact final branch head, wait for its single hosted CI
+checkpoint, then update only the Railway hotfix exact-SHA build.
 
 ## Recovery rule
 
-Resume from the current branch/worktree. Do not repeat completed local design
-work, broaden the patch, regenerate unrelated Mission Control artifacts, merge
-PR #58, deploy Railway, enable continuous sending, or inspect assistant output.
+Resume from the current branch/worktree. Do not repeat completed pacing design,
+broaden AskRigor methodology, regenerate unrelated Mission Control artifacts,
+touch Railway production, enable continuous sending, merge before every live
+criterion passes, or inspect assistant output.
