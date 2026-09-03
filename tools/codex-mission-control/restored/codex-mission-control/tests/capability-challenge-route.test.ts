@@ -69,6 +69,7 @@ test("ambiguous duplicate challenge IDs fail configuration closed instead of sel
   const configured = policy();
   configured.capabilityChallenges.push({
     ...configured.capabilityChallenges[0]!,
+    supervisorId: "other-supervisor",
     chatId: "other-chat",
   });
   assert.throws(() => parseGitHubReceiptPolicy(JSON.stringify(configured)), /challenge IDs must be unique/);
@@ -136,6 +137,7 @@ function policy(expiresAt = "2099-09-05T00:00:00.000Z"): GitHubReceiptPolicy {
     authorizedWriterLogins: ["u-dont-existDOTcom"],
     capabilityChallenges: [{
       challengeId: "challenge-spec",
+      supervisorId: "spec",
       chatId: "spec",
       worker: "mission-control-live-slice",
       mcNonce: "mc-nonce",

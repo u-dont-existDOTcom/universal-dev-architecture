@@ -1,13 +1,17 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 export const INTERNAL_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n';
 export const SUPERVISORY_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n';
+export const PROVIDER_SESSION_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n';
 export const STATE_VERSION = 1;
 export const CAPABILITY_CHALLENGE_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1';
 export const CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1';
 export const MODE_CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1';
 export const RELAY_STAGE_SUMMARY = 'MISSION_CONTROL_RELAY_STAGE_V1';
 export const STAGE_LIVENESS_SUMMARY = 'MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1';
+export const PROVIDER_SESSION_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_V1';
+export const PROVIDER_SESSION_MODEL_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1';
+export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1';
 export const CONTINUE_NUDGE_DELAY_MS = 300_000;
 export const STAGE_RECEIPT_GRACE_MS = 360_000;
 
@@ -17,6 +21,11 @@ export function oneShotExitCode(result) {
 
 export function sha256(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+export function newProviderSessionId(uuid = randomUUID()) {
+  if (typeof uuid !== 'string' || !/^[A-Za-z0-9_-]+(?:-[A-Za-z0-9_-]+)*$/.test(uuid)) throw new Error('Provider session UUID must be a non-empty URL-safe identifier.');
+  return `provider-session:${uuid}`;
 }
 
 export function normalizeConversationUrl(value) {
@@ -33,9 +42,9 @@ export function normalizeConversationUrl(value) {
 export function parseChatDirectory(value) {
   if (!Array.isArray(value) || value.length === 0) throw new Error('Chat directory must be a non-empty JSON array.');
   const entries = value.map((item, index) => parseChatEntry(item, index));
-  const ids = new Set(entries.map((entry) => entry.chatId));
-  if (ids.size !== entries.length) throw new Error('Chat IDs must be unique.');
-  const challenges = new Set(entries.map((entry) => entry.capabilityChallengeId));
+  const ids = new Set(entries.map((entry) => entry.supervisorId));
+  if (ids.size !== entries.length) throw new Error('Supervisor IDs must be unique.');
+  const challenges = new Set(entries.map((entry) => entry.bootstrapCapability.challengeId));
   if (challenges.size !== entries.length) throw new Error('Capability challenge IDs must be unique.');
   if (entries.filter((entry) => entry.scope === 'PROJECT_MANAGER').length > 1) {
     throw new Error('Only one Project Manager chat may be configured.');
@@ -47,14 +56,22 @@ function parseChatEntry(item, index) {
   if (!isRecord(item)) throw new Error(`Chat entry ${index} must be an object.`);
   const scope = item.scope;
   if (scope !== 'PROJECT_MANAGER' && scope !== 'SPECIALIST') throw new Error(`Chat entry ${index} has an invalid scope.`);
+  const supervisorId = boundedString(item.supervisorId ?? item.chatId, `Chat entry ${index} supervisorId`, 300);
+  const bootstrap = isRecord(item.bootstrapCapability) ? item.bootstrapCapability : item;
+  const bootstrapChatId = boundedString(bootstrap.chatId, `Chat entry ${index} bootstrapCapability.chatId`, 300);
+  const bootstrapUrl = normalizeConversationUrl(boundedString(bootstrap.url, `Chat entry ${index} bootstrapCapability.url`, 1000));
+  const bootstrapChallengeId = boundedString(bootstrap.challengeId ?? bootstrap.capabilityChallengeId, `Chat entry ${index} bootstrapCapability.challengeId`, 180);
   return {
     scope,
-    chatId: boundedString(item.chatId, `Chat entry ${index} chatId`, 300),
+    supervisorId,
     label: boundedString(item.label, `Chat entry ${index} label`, 300),
-    url: normalizeConversationUrl(boundedString(item.url, `Chat entry ${index} url`, 1000)),
     workerId: boundedString(item.workerId, `Chat entry ${index} workerId`, 180),
     pinned: item.pinned === true || scope === 'PROJECT_MANAGER',
-    capabilityChallengeId: boundedString(item.capabilityChallengeId, `Chat entry ${index} capabilityChallengeId`, 180),
+    bootstrapCapability: {
+      chatId: bootstrapChatId,
+      url: bootstrapUrl,
+      challengeId: bootstrapChallengeId,
+    },
     modelLabels: parseModelLabels(item.modelLabels, index),
     requiredApps: parseRequiredApps(item.requiredApps, index),
   };
@@ -102,16 +119,21 @@ export function parseInternalSupervisorRouteBody(body) {
 }
 
 export function parseSupervisoryCycleRouteBody(body) {
-  if (typeof body !== 'string' || !body.startsWith(SUPERVISORY_CYCLE_ROUTE_PREFIX)) return null;
+  if (typeof body !== 'string') return null;
+  const version = body.startsWith(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 3
+    : body.startsWith(SUPERVISORY_CYCLE_ROUTE_PREFIX) ? 2
+      : null;
+  if (!version) return null;
   try {
-    const value = JSON.parse(body.slice(SUPERVISORY_CYCLE_ROUTE_PREFIX.length));
+    const prefix = version === 3 ? PROVIDER_SESSION_CYCLE_ROUTE_PREFIX : SUPERVISORY_CYCLE_ROUTE_PREFIX;
+    const value = JSON.parse(body.slice(prefix.length));
     if (!isRecord(value)
-      || value.schemaVersion !== 2
-      || value.packetKind !== 'SAME_CHAT_SUPERVISORY_CYCLE'
+      || value.schemaVersion !== version
+      || value.packetKind !== (version === 3 ? 'PROVIDER_SESSION_SUPERVISORY_CYCLE' : 'SAME_CHAT_SUPERVISORY_CYCLE')
       || typeof value.requestId !== 'string'
       || typeof value.nonce !== 'string'
       || (value.reasoningLane !== 'EXTRA_HIGH_DIRECT' && value.reasoningLane !== 'PRO_ESCALATED')
-      || typeof value.destinationChatId !== 'string'
+      || (version === 3 ? typeof value.destinationSupervisorId !== 'string' : typeof value.destinationChatId !== 'string')
       || value.providerDeliveryState !== 'QUEUED_FOR_PROVIDER_RELAY'
       || typeof value.queuedAt !== 'string'
       || typeof value.expiresAt !== 'string'
@@ -130,7 +152,7 @@ export function parseSupervisoryCycleRouteBody(body) {
       || typeof value.githubReceipt.repository !== 'string'
       || !Number.isInteger(value.githubReceipt.issueNumber)
       || value.githubReceipt.issueNumber < 1) return null;
-    return value;
+    return { ...value, routeSchemaVersion: version, destinationSupervisorId: version === 3 ? value.destinationSupervisorId : value.destinationChatId };
   } catch {
     return null;
   }
@@ -138,21 +160,33 @@ export function parseSupervisoryCycleRouteBody(body) {
 
 export function extractQueuedRoutes(snapshot, chats, state) {
   if (!isRecord(snapshot) || !Array.isArray(snapshot.workers)) throw new Error('Mission Control fleet response does not contain workers.');
-  const chatById = new Map(chats.map((entry) => [entry.chatId, entry]));
+  const chatById = new Map(chats.map((entry) => [entry.supervisorId, entry]));
   const receiptByWorkerRequest = new Map();
   const livenessByWorkerRequest = new Map();
+  const mcpByWorkerRequest = new Map();
   for (const worker of snapshot.workers) {
     if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
     const workerId = typeof worker.id === 'string' ? worker.id : 'unknown-worker';
     for (const event of worker.timeline) {
       if (!isRecord(event?.data)) continue;
       if (event.data.type === 'github_decision_receipt_ingested' && typeof event.data.request_id === 'string') {
-        receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}`, event.data);
+        const providerSessionId = typeof event.data.provider_session_id === 'string' ? event.data.provider_session_id : 'LEGACY_UNBOUND';
+        receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}:${providerSessionId}`, event.data);
+        continue;
+      }
+      if (event.data.type === 'evidence_receipt_recorded' && event.data.summary === PROVIDER_SESSION_MCP_SUMMARY
+        && event.data.verified === true && Array.isArray(event.data.refs)) {
+        const requestId = refValue(event.data.refs, 'request:');
+        const supervisorId = refValue(event.data.refs, 'supervisor:');
+        const providerSessionId = refValue(event.data.refs, 'provider_session:');
+        if (requestId && supervisorId && providerSessionId && event.data.refs.includes('tool:get_supervisory_request_binding') && event.data.refs.includes('status:OK')) {
+          mcpByWorkerRequest.set(`${workerId}:${requestId}:${providerSessionId}`, { receiptId: event.data.receipt_id, supervisorId, providerSessionId, occurredAt: event.occurredAt });
+        }
         continue;
       }
       const parsed = parseStageLivenessEvidence(event);
       if (!parsed) continue;
-      const key = `${workerId}:${parsed.requestId}`;
+      const key = `${workerId}:${parsed.requestId}:${parsed.providerSessionId ?? 'LEGACY_UNBOUND'}`;
       const current = livenessByWorkerRequest.get(key) ?? {};
       const stageState = current[parsed.stage] ?? { latest: null, continueRequiredCount: 0 };
       if (parsed.status === 'CONTINUE_REQUIRED') stageState.continueRequiredCount += 1;
@@ -170,12 +204,14 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'worker_message_recorded') continue;
       const packet = parseSupervisoryCycleRouteBody(event.data.body) ?? parseInternalSupervisorRouteBody(event.data.body);
       if (!packet) continue;
-      const chat = chatById.get(packet.destinationChatId);
+      const chat = chatById.get(packet.destinationSupervisorId);
       if (!chat || chat.workerId !== workerId) continue;
+      if (packet.routeSchemaVersion !== 3) continue;
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
       if (prior && ['SUBMITTED_CONFIRMED', 'DISCARDED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
-      const workerRequestKey = `${workerId}:${packet.requestId}`;
+      const providerSessionId = prior?.providerSessionId ?? null;
+      const workerRequestKey = `${workerId}:${packet.requestId}:${providerSessionId ?? 'UNASSIGNED'}`;
       routes.push({
         routeKey,
         requestId: packet.requestId,
@@ -184,9 +220,12 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         workerId,
         workerName,
         chat,
+        supervisorId: packet.destinationSupervisorId,
+        providerSessionId,
         packet,
-        routeKind: packet.packetKind === 'SAME_CHAT_SUPERVISORY_CYCLE' ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
+        routeKind: packet.routeSchemaVersion === 3 ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
         decisionReceipt: receiptByWorkerRequest.get(workerRequestKey) ?? null,
+        firstTurnMcpReceipt: mcpByWorkerRequest.get(workerRequestKey) ?? null,
         stageLiveness: livenessByWorkerRequest.get(workerRequestKey) ?? {},
         body: event.data.body,
         bodySha256: sha256(event.data.body),
@@ -201,12 +240,16 @@ export function extractQueuedRoutes(snapshot, chats, state) {
 function parseStageLivenessEvidence(event) {
   if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'evidence_receipt_recorded' || event.data.summary !== STAGE_LIVENESS_SUMMARY || event.data.verified !== true || !Array.isArray(event.data.refs)) return null;
   const requestId = refValue(event.data.refs, 'request:');
+  const supervisorId = refValue(event.data.refs, 'supervisor:');
+  const providerSessionId = refValue(event.data.refs, 'provider_session:');
   const stage = refValue(event.data.refs, 'stage:');
   const status = refValue(event.data.refs, 'status:');
-  if (!requestId || !['EXTRA_HIGH_READER', 'PRO_REASONER'].includes(stage) || !['STAGE_COMPLETE', 'CONTINUE_REQUIRED'].includes(status)) return null;
+  if (!requestId || !supervisorId || !providerSessionId || !['EXTRA_HIGH_READER', 'PRO_REASONER'].includes(stage) || !['STAGE_COMPLETE', 'CONTINUE_REQUIRED'].includes(status)) return null;
   return {
     receiptId: event.data.receipt_id,
     requestId,
+    supervisorId,
+    providerSessionId,
     stage,
     status,
     occurredAt: event.occurredAt ?? null,
@@ -223,25 +266,26 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
   const worker = snapshot?.workers?.find((item) => item?.id === chat.workerId);
   const timeline = Array.isArray(worker?.timeline) ? worker.timeline : [];
   const challenge = latestEvidence(timeline, CAPABILITY_CHALLENGE_SUMMARY, [
-    `challenge:${chat.capabilityChallengeId}`,
-    `chat:${chat.chatId}`,
+    `challenge:${chat.bootstrapCapability.challengeId}`,
+    `chat:${chat.bootstrapCapability.chatId}`,
   ], now, false);
   const capability = latestEvidence(timeline, CAPABILITY_VERIFIED_SUMMARY, [
-    `challenge:${chat.capabilityChallengeId}`,
-    `chat:${chat.chatId}`,
+    `challenge:${chat.bootstrapCapability.challengeId}`,
+    `chat:${chat.bootstrapCapability.chatId}`,
     'capability:missionControlRead',
     'capability:githubRead',
     'capability:githubWrite',
   ], now, true);
   const mode = latestEvidence(timeline, MODE_CAPABILITY_VERIFIED_SUMMARY, [
-    `chat:${chat.chatId}`,
+    `chat:${chat.bootstrapCapability.chatId}`,
     'capability:modeSwitching',
     `extra_high_label:${chat.modelLabels.extraHigh}`,
     `pro_label:${chat.modelLabels.pro}`,
   ], now, true);
   return {
-    chatId: chat.chatId,
-    challengeId: chat.capabilityChallengeId,
+    supervisorId: chat.supervisorId,
+    chatId: chat.bootstrapCapability.chatId,
+    challengeId: chat.bootstrapCapability.challengeId,
     challengeAvailable: Boolean(challenge),
     missionControlRead: Boolean(capability),
     githubRead: Boolean(capability),
@@ -270,11 +314,11 @@ function earliestExpiry(...events) {
 }
 
 export function capabilityControlPrompt(chat) {
-  return `Mission Control capability test for challenge ${chat.capabilityChallengeId} and chat ${chat.chatId}. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge for exactly that challenge_id and chat_id. Do not infer or reuse any nonce from this prompt or prior context. Then follow the returned github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
+  return `Mission Control capability test for challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge for exactly that challenge_id and chat_id. Do not infer or reuse any nonce from this prompt or prior context. Then follow the returned github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
 }
 
 export function mcpReadPreflightPrompt(chat) {
-  return `Mission Control read-only MCP preflight for capability challenge ${chat.capabilityChallengeId} and chat ${chat.chatId}: remain in Extra High. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge with challenge_id ${chat.capabilityChallengeId} and chat_id ${chat.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
+  return `Mission Control read-only MCP preflight for capability challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}: remain in Extra High. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge with challenge_id ${chat.bootstrapCapability.challengeId} and chat_id ${chat.bootstrapCapability.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
 }
 
 export function appSelectionForMessage(chat, step) {
@@ -286,16 +330,11 @@ export function appSelectionForMessage(chat, step) {
     'MCP_PREFLIGHT',
     'EXTRA_HIGH_DIRECT',
     'EXTRA_HIGH_READER',
-    'PRO_REASONER',
-    'PRO_LIVENESS_CHECK',
-    'EXTRA_HIGH_WRITER',
   ]);
   const githubSteps = new Set([
     'CAPABILITY',
     'EXTRA_HIGH_DIRECT',
     'EXTRA_HIGH_READER',
-    'PRO_LIVENESS_CHECK',
-    'EXTRA_HIGH_WRITER',
   ]);
   const requiredLabels = [];
   const referencedLabels = [];
@@ -308,23 +347,25 @@ export function cycleControlPrompt(route, step) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Control prompts require a supervisory-cycle route.');
   const requestId = route.requestId;
   const location = `${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.issueNumber}`;
-  const chatId = route.chat.chatId;
+  const supervisorId = route.supervisorId ?? route.chat.supervisorId;
+  const providerSessionId = route.providerSessionId;
+  if (!providerSessionId) throw new Error('A provider session must be allocated before constructing a supervisory-cycle prompt.');
   const missionControl = route.chat.requiredApps.missionControl;
   const github = route.chat.requiredApps.github;
   if (step === 'EXTRA_HIGH_DIRECT') {
-    return `MC ${requestId}: remain in Extra High. Before reasoning, use the selected ${missionControl} app and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}; fail closed if the exact current binding is unavailable or mismatched. Use the selected ${github} app for the substantive evidence and canonical receipt write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} using only the MCP-returned request binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. This is the first turn of provider session ${providerSessionId} for stable supervisor ${supervisorId}. Before reasoning, use the selected ${missionControl} app exactly once and call get_supervisory_request_binding with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}; fail closed if the exact current binding is unavailable or mismatched. Use ${github} for the substantive evidence and canonical receipt write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the exact supervisor_id and provider_session_id from the binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
   }
   if (step === 'EXTRA_HIGH_READER') {
-    return `MC ${requestId}: remain in Extra High. Before reasoning, use the selected ${missionControl} app and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}; fail closed if the exact current binding is unavailable or mismatched. Use the selected ${github} app for the substantive evidence and read it fully into this same chat context. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the MCP-returned stage_receipt_target with the MCP-returned request_nonce, request_id ${requestId}, chat_id ${chatId}, stage EXTRA_HIGH_READER, status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. This is the first turn of provider session ${providerSessionId} for stable supervisor ${supervisorId}. Before reasoning, use the selected ${missionControl} app exactly once and call get_supervisory_request_binding with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}; fail closed if the exact current binding is unavailable or mismatched. Use ${github} for the substantive evidence and read it fully into this same conversation together with the returned request binding. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the returned stage_receipt_target as schema_version 2 with the returned request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage EXTRA_HIGH_READER, and status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Preserve the binding in this conversation for all later stages; do not delegate to Work.`;
   }
   if (step === 'PRO_REASONER') {
-    return `MC ${requestId}: switch to Pro. Before reasoning, use the selected ${missionControl} app and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}; fail closed if the exact current binding is unavailable or mismatched. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
+    return `MC ${requestId}: switch to Pro. Use the Mission Control request binding already loaded by the first Extra High turn in this same provider session ${providerSessionId}. Do not request new Mission Control data, do not invoke or reselect ${missionControl}, and do not alter the bound supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
   }
   if (step === 'PRO_LIVENESS_CHECK') {
-    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Do not reinterpret, improve, replace, or summarize the Pro decision. Use the selected ${missionControl} app: call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}, then call get_stage_liveness_state with those exact IDs; fail closed if either exact current read is unavailable or mismatched. Determine only whether the requested Pro reasoning stage is actually complete. Use the selected ${github} app to write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the MCP-returned stage_receipt_target with the MCP-returned request_nonce, request_id ${requestId}, chat_id ${chatId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
+    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Use the request binding already present in this same provider session ${providerSessionId} and current GitHub stage receipts. Do not invoke or reselect ${missionControl}; no new Mission Control data is required. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the stage_receipt_target already loaded in this conversation as schema_version 2 with the already-bound request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
   }
   if (step === 'EXTRA_HIGH_WRITER') {
-    return `MC ${requestId}: remain in Extra High. Use the selected ${missionControl} app and call get_supervisory_request_binding with request_id ${requestId} and chat_id ${chatId}, then get_stage_liveness_state with those exact IDs; fail closed unless the exact current binding and durable PRO_REASONER STAGE_COMPLETE receipt are present. Use the selected ${github} app for the canonical receipt write. Write that same-chat Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} using the MCP-returned request binding. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
+    return `MC ${requestId}: remain in Extra High. Use the existing request binding in this same provider session ${providerSessionId}; do not refresh it and do not invoke or reselect ${missionControl}. Use the current GitHub PRO_REASONER STAGE_COMPLETE receipt and the immediately preceding completed Pro decision already present in this conversation. Write that Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the already-bound supervisor_id ${supervisorId} and provider_session_id ${providerSessionId}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
   }
   if (isContinueNudgeStep(step)) return 'continue';
   throw new Error(`Unknown supervisory-cycle step: ${step}`);
@@ -453,6 +494,7 @@ export function defaultState(now = new Date().toISOString()) {
     createdAt: now,
     updatedAt: now,
     deliveries: {},
+    providerSessions: {},
     tabs: {},
     submissionPacing: { lastSubmissionAt: null },
     health: { lastCycleAt: null, lastSuccessfulPollAt: null, lastError: null, pressure: 'UNKNOWN', metrics: null, pausedReason: null },
@@ -466,6 +508,7 @@ export function normalizeState(value, now = new Date().toISOString()) {
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : now,
     updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : now,
     deliveries: isRecord(value.deliveries) ? value.deliveries : {},
+    providerSessions: isRecord(value.providerSessions) ? value.providerSessions : {},
     tabs: isRecord(value.tabs) ? value.tabs : {},
     submissionPacing: isRecord(value.submissionPacing) && Number.isFinite(Date.parse(value.submissionPacing.lastSubmissionAt ?? ''))
       ? { lastSubmissionAt: value.submissionPacing.lastSubmissionAt }
@@ -509,18 +552,20 @@ export function classifyMemoryPressure(metrics, policy) {
 }
 
 export function selectManagedTabClosures({ targets, chats, state, activeTargetId = null, pressure = 'NORMAL', maxHotTabs = 3 }) {
-  const chatByUrl = new Map(chats.map((chat) => [chat.url, chat]));
+  const bootstrapByUrl = new Map(chats.map((chat) => [chat.bootstrapCapability.url, chat]));
+  const rememberedByTarget = new Map(Object.values(state.tabs ?? {}).filter(isRecord).map((entry) => [entry.targetId, entry]));
   const managed = targets.flatMap((target) => {
     if (target.type !== 'page' || typeof target.url !== 'string') return [];
     let normalized;
     try { normalized = normalizeConversationUrl(target.url); } catch { return []; }
-    const chat = chatByUrl.get(normalized);
-    if (!chat) return [];
-    const remembered = Object.values(state.tabs ?? {}).find((entry) => isRecord(entry) && entry.targetId === target.id);
+    const remembered = rememberedByTarget.get(target.id);
+    const chat = bootstrapByUrl.get(normalized);
+    if (!chat && !remembered) return [];
     return [{
       targetId: target.id,
-      chatId: chat.chatId,
-      pinned: chat.pinned,
+      chatId: remembered?.chatId ?? chat?.bootstrapCapability.chatId ?? null,
+      providerSessionId: remembered?.providerSessionId ?? null,
+      pinned: remembered?.pinned === true || chat?.pinned === true,
       lastUsedAt: typeof remembered?.lastUsedAt === 'string' ? remembered.lastUsedAt : '1970-01-01T00:00:00.000Z',
       active: target.id === activeTargetId,
     }];

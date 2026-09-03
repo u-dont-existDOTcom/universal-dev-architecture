@@ -65,13 +65,14 @@ are in
 | Worker work queue | worker-published projection bound to the exact owner direction |
 | Dashboard | rebuildable projection only |
 
-## Personal Pro same-chat supervisory cycle
+## Stable supervisor with a fresh provider session per cycle
 
-The registered supervisor conversation is the handoff medium. Ordinary decisions remain entirely in Extra High. Only an admitted escalated decision switches that same conversation to Pro, then returns it to Extra High for the GitHub write:
+The registered identity is the supervisor, not one permanent browser conversation. Each admitted cycle opens a genuinely fresh ChatGPT conversation, verifies the exact visible model round trip, and selects Mission Control only on the first Extra High turn. That turn reads the exact session-local request binding. Ordinary decisions remain entirely in Extra High. An admitted escalated decision keeps later turns in that same fresh conversation, switches to Pro, then returns to Extra High for the GitHub write without another Mission Control selection or read:
 
 ```text
-ordinary:   Extra High read -> reason -> GitHub write
-escalated:  Extra High read -> same-chat Pro reason -> same-chat Extra High exact writer
+ordinary:   fresh chat -> Extra High MCP binding + evidence -> reason -> GitHub write
+escalated:  fresh chat -> Extra High MCP binding + evidence -> same-chat Pro reason
+                                      -> same-chat Extra High liveness + exact writer
                                       -> GitHub issue comment
                                       -> signed webhook -> Mission Control ledger
                                       -> periodic GitHub polling if the webhook was missed
@@ -79,7 +80,7 @@ escalated:  Extra High read -> same-chat Pro reason -> same-chat Extra High exac
 
 The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
 
-Every configured supervisor chat fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current capability-test receipts. Every canonical decision receipt binds the request ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale or mismatched GitHub receipts do not enter the ledger.
+Every stable supervisor fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current bootstrap capability receipts. Every cycle also requires a fresh active provider-session record, exact conversation URL, session-local model proof, first-turn MCP telemetry, and session-bound transport/stage receipts. Every canonical decision receipt binds the request ID, stable supervisor ID, provider-session ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale, mismatched, or cross-session GitHub receipts do not enter the ledger.
 
 ### Model-agnostic stuck-chat recovery
 

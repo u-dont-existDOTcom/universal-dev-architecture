@@ -4,7 +4,8 @@ import type { AuthenticatedProducer } from "./ingestion-auth";
 import { parseCanonicalDecisionEnvelope, type AppendEnvelope, type CanonicalDecisionEnvelope, type StoredEvent } from "./schema";
 import type { EventStore } from "./store";
 
-export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
+export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
+export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
 export const canonicalDecisionCommentPrefix = "MISSION_CONTROL_CANONICAL_DECISION_V1\n";
 export const capabilityReceiptCommentPrefix = "MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1\n";
 export const stageReceiptCommentPrefix = "MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1\n";
@@ -14,6 +15,9 @@ export const modeCapabilityVerifiedSummary = "MISSION_CONTROL_CHAT_MODE_CAPABILI
 export const relayStageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
 export const stageLivenessSummary = "MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1";
 export const sameChatWriterAttestationSummary = "MISSION_CONTROL_SAME_CHAT_WRITER_ATTESTED_V1";
+export const providerSessionSummary = "MISSION_CONTROL_PROVIDER_SESSION_V1";
+export const providerSessionModelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
+export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
@@ -27,7 +31,7 @@ export interface GitHubReceiptPolicy {
   capabilityChallenges: CapabilityChallenge[];
 }
 export interface CapabilityChallenge {
-  challengeId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
+  challengeId: string; supervisorId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
   expiresAt: string; extraHighLabel: string; proLabel: string;
 }
 export interface PublicCapabilityChallenge {
@@ -40,8 +44,8 @@ export interface PublicCapabilityChallenge {
   receipt_target: string;
   expires_at: string;
 }
-interface PendingDecisionRequest {
-  worker: string; taskId: string; requestId: string; chatId: string; nonce: string;
+export interface PendingDecisionRequest {
+  worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
   reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
@@ -56,10 +60,12 @@ interface CapabilityReceiptBody {
   capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"];
 }
 export interface StageReceiptBody {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   requestId: string;
   requestNonce: string;
-  chatId: string;
+  chatId: string | null;
+  supervisorId: string | null;
+  providerSessionId: string | null;
   stage: "EXTRA_HIGH_READER" | "PRO_REASONER";
   status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED";
 }
@@ -80,6 +86,7 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
     const c = record(item, `capabilityChallenges[${i}]`);
     return {
       challengeId: requiredString(c.challengeId, `capabilityChallenges[${i}].challengeId`),
+      supervisorId: requiredString(c.supervisorId ?? c.chatId, `capabilityChallenges[${i}].supervisorId`),
       chatId: requiredString(c.chatId, `capabilityChallenges[${i}].chatId`),
       worker: requiredString(c.worker, `capabilityChallenges[${i}].worker`),
       mcNonce: requiredString(c.mcNonce, `capabilityChallenges[${i}].mcNonce`),
@@ -89,7 +96,7 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
       proLabel: requiredString(c.proLabel, `capabilityChallenges[${i}].proLabel`),
     };
   });
-  if (new Set(capabilityChallenges.map((c) => c.chatId)).size !== capabilityChallenges.length) throw new Error("Capability challenge chat IDs must be unique.");
+  if (new Set(capabilityChallenges.map((c) => c.supervisorId)).size !== capabilityChallenges.length) throw new Error("Capability challenge supervisor IDs must be unique.");
   if (new Set(capabilityChallenges.map((c) => c.challengeId)).size !== capabilityChallenges.length) throw new Error("Capability challenge IDs must be unique.");
   return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges };
 }
@@ -174,14 +181,16 @@ export function parseStageReceiptComment(body: string): StageReceiptBody {
   const root = record(parsed, "chat stage receipt");
   const stage = requiredString(root.stage, "stage");
   const status = requiredString(root.status, "status");
-  if (root.schema_version !== 1) throw new Error("Chat stage receipt schema_version must be 1.");
+  if (root.schema_version !== 1 && root.schema_version !== 2) throw new Error("Chat stage receipt schema_version must be 1 or 2.");
   if (stage !== "EXTRA_HIGH_READER" && stage !== "PRO_REASONER") throw new Error("Chat stage receipt has an unsupported stage.");
   if (status !== "STAGE_COMPLETE" && status !== "CONTINUE_REQUIRED") throw new Error("Chat stage receipt has an unsupported status.");
   return {
-    schemaVersion: 1,
+    schemaVersion: root.schema_version,
     requestId: requiredString(root.request_id, "request_id"),
     requestNonce: requiredString(root.request_nonce, "request_nonce"),
-    chatId: requiredString(root.chat_id, "chat_id"),
+    chatId: root.schema_version === 1 ? requiredString(root.chat_id, "chat_id") : null,
+    supervisorId: root.schema_version === 2 ? requiredString(root.supervisor_id, "supervisor_id") : null,
+    providerSessionId: root.schema_version === 2 ? requiredString(root.provider_session_id, "provider_session_id") : null,
     stage,
     status,
   };
@@ -197,6 +206,7 @@ export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: 
       worker: challenge.worker, receiptId, producer: githubReceiptCollector, summary: capabilityChallengeSummary, occurredAt: now, verified: true,
       refs: [
         `challenge:${challenge.challengeId}`, `chat:${challenge.chatId}`, `mc_nonce:${challenge.mcNonce}`,
+        `supervisor:${challenge.supervisorId}`,
         `github_nonce_sha256:${sha256(challenge.githubNonce)}`,
         `github_nonce_source:https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`,
         `receipt_target:https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`,
@@ -222,7 +232,7 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
     const attestation = store.append(evidenceEnvelope({
       worker: decisionData.worker, receiptId: `same-chat-writer-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
       summary: sameChatWriterAttestationSummary, occurredAt: candidate.createdAt, verified: true,
-      refs: [`request:${decisionData.request_id}`, `reasoning_lane:${decisionData.reasoning_lane}`, `github_comment:${candidate.immutableUrl}`, "provenance:SAME_CHAT_WRITER_ATTESTED", "independent_pro_observation:false"],
+      refs: [`request:${decisionData.request_id}`, ...(decisionData.supervisor_id ? [`supervisor:${decisionData.supervisor_id}`] : []), ...(decisionData.provider_session_id ? [`provider_session:${decisionData.provider_session_id}`] : []), `reasoning_lane:${decisionData.reasoning_lane}`, `github_comment:${candidate.immutableUrl}`, "provenance:SAME_CHAT_WRITER_ATTESTED", "independent_pro_observation:false"],
     }), ingestedAt, githubReceiptCollector);
     return [decision, attestation];
   }
@@ -237,7 +247,7 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
     if (events.some((e) => e.data.type === "evidence_receipt_recorded" && e.data.receipt_id === receiptId)) return [];
     return [store.append(evidenceEnvelope({
       worker: challenge.worker, receiptId, producer: githubReceiptCollector, summary: capabilityVerifiedSummary, occurredAt: candidate.createdAt, verified: true,
-      refs: [`challenge:${challenge.challengeId}`, `chat:${challenge.chatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", `expires_at:${challenge.expiresAt}`, `github_comment:${candidate.immutableUrl}`],
+      refs: [`challenge:${challenge.challengeId}`, `supervisor:${challenge.supervisorId}`, `chat:${challenge.chatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", `expires_at:${challenge.expiresAt}`, `github_comment:${candidate.immutableUrl}`],
     }), ingestedAt, githubReceiptCollector)];
   }
   if (candidate.body.startsWith(stageReceiptCommentPrefix)) {
@@ -247,7 +257,14 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
     if (matches.length !== 1) throw new Error(`Expected one pending supervisory request for stage receipt ${stage.requestId}; found ${matches.length}.`);
     const request = matches[0]!;
     if (request.reasoningLane !== "PRO_ESCALATED") throw new Error("Stage liveness receipts are only valid for escalated same-chat supervision.");
-    if (stage.requestNonce !== request.nonce || stage.chatId !== request.chatId) throw new Error("Stage receipt does not match the pending request nonce/chat binding.");
+    if (stage.requestNonce !== request.nonce) throw new Error("Stage receipt does not match the pending request nonce binding.");
+    if (request.routeSchemaVersion === 3 && (stage.schemaVersion !== 2 || stage.supervisorId !== request.supervisorId || !stage.providerSessionId)) {
+      throw new Error("Stage receipt does not match the pending supervisor/provider-session binding.");
+    }
+    if (request.routeSchemaVersion === 3 && !findOpenProviderSession(events, request, stage.providerSessionId!, candidate.createdAt)) {
+      throw new Error("Stage receipt does not match the current active provider-session binding.");
+    }
+    if (request.routeSchemaVersion === 2 && stage.chatId !== request.supervisorId) throw new Error("Stage receipt does not match the pending request chat binding.");
     const created = Date.parse(candidate.createdAt);
     if (created < Date.parse(request.queuedAt) || created > Date.parse(request.expiresAt)) throw new Error("Stage receipt is stale for the pending request window.");
     const receiptId = `chat-stage:${stage.requestId}:${stage.stage}:${candidate.commentId}`;
@@ -262,7 +279,9 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
       refs: [
         `request:${stage.requestId}`,
         `request_nonce_sha256:${sha256(stage.requestNonce)}`,
-        `chat:${stage.chatId}`,
+        ...(stage.chatId ? [`chat:${stage.chatId}`] : []),
+        ...(stage.supervisorId ? [`supervisor:${stage.supervisorId}`] : []),
+        ...(stage.providerSessionId ? [`provider_session:${stage.providerSessionId}`] : []),
         `stage:${stage.stage}`,
         `status:${stage.status}`,
         `github_comment:${candidate.immutableUrl}`,
@@ -276,7 +295,8 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
   return events.flatMap((event) => {
-    if (event.data.type !== "worker_message_recorded" || !event.data.body.startsWith(supervisoryCycleRoutePrefix)) return [];
+    if (event.data.type !== "worker_message_recorded"
+      || (!event.data.body.startsWith(supervisoryCycleRoutePrefix) && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
     const request = parseCycleRequest(event.data.body, event.data.worker);
     return request && !completed.has(request.requestId) ? [request] : [];
   });
@@ -295,6 +315,10 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   assertEqual(decision.owner_outcome.epoch, request.ownerOutcome.epoch, "owner-outcome epoch");
   assertEqual(decision.owner_outcome.sha256, request.ownerOutcome.sha256, "owner-outcome digest");
   assertEqual(decision.reasoning_lane, request.reasoningLane, "reasoning lane");
+  if (request.routeSchemaVersion === 3) {
+    if (decision.schema_version !== 2) throw new Error("A provider-session supervisory cycle requires canonical decision schema_version 2.");
+    assertEqual(decision.supervisor_id, request.supervisorId, "supervisor ID");
+  }
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");
   const created = Date.parse(candidate.createdAt);
@@ -304,6 +328,10 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     throw new Error("GitHub decision receipt is stale against the current owner-outcome epoch.");
   }
   assertCurrentChatCapabilities(events, request, candidate.createdAt, policy);
+  if (request.routeSchemaVersion === 3 && decision.schema_version === 2) {
+    const session = assertCurrentProviderSession(events, request, candidate.createdAt);
+    assertEqual(decision.provider_session_id, session.providerSessionId, "provider session ID");
+  }
   assertSemanticStageCompletion(events, request, candidate.createdAt);
   assertOrderedRelayStages(events, request, candidate.createdAt, policy);
   return {
@@ -313,7 +341,9 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     occurred_at: candidate.createdAt,
     data: {
       type: "github_decision_receipt_ingested", worker: request.worker, task_id: request.taskId, receipt_id: `github-comment:${candidate.commentId}`,
-      request_id: request.requestId, nonce: request.nonce, evidence_capsule: request.evidenceCapsule,
+      request_id: request.requestId, supervisor_id: decision.schema_version === 2 ? decision.supervisor_id : null,
+      provider_session_id: decision.schema_version === 2 ? decision.provider_session_id : null,
+      nonce: request.nonce, evidence_capsule: request.evidenceCapsule,
       owner_outcome_id: request.ownerOutcome.id, owner_outcome_epoch: request.ownerOutcome.epoch, owner_outcome_sha256: request.ownerOutcome.sha256,
       reasoning_lane: request.reasoningLane, decision_block: decision.decision_block, pro_decision_block: decision.pro_decision_block,
       writer_contract: decision.writer_contract, canonical_envelope_sha256: sha256(canonicalJson(decision)),
@@ -358,13 +388,13 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
 }
 
 function assertCurrentChatCapabilities(events: StoredEvent[], request: PendingDecisionRequest, at: string, policy: GitHubReceiptPolicy) {
-  const challenge = policy.capabilityChallenges.find((c) => c.chatId === request.chatId);
-  if (!challenge) throw new Error(`No central capability challenge is configured for chat ${request.chatId}.`);
-  if (!latestEvidence(events, capabilityVerifiedSummary, request.chatId, at, ["capability:missionControlRead", "capability:githubRead", "capability:githubWrite"])) {
-    throw new Error(`Chat ${request.chatId} lacks a current Mission Control/GitHub capability receipt.`);
+  const challenge = policy.capabilityChallenges.find((c) => c.supervisorId === request.supervisorId);
+  if (!challenge) throw new Error(`No central capability challenge is configured for supervisor ${request.supervisorId}.`);
+  if (!latestEvidence(events, capabilityVerifiedSummary, challenge.chatId, at, ["capability:missionControlRead", "capability:githubRead", "capability:githubWrite"])) {
+    throw new Error(`Supervisor ${request.supervisorId} lacks a current Mission Control/GitHub capability receipt.`);
   }
-  if (!latestEvidence(events, modeCapabilityVerifiedSummary, request.chatId, at, ["capability:modeSwitching", `extra_high_label:${challenge.extraHighLabel}`, `pro_label:${challenge.proLabel}`])) {
-    throw new Error(`Chat ${request.chatId} lacks a current exact model-label switching receipt.`);
+  if (!latestEvidence(events, modeCapabilityVerifiedSummary, challenge.chatId, at, ["capability:modeSwitching", `extra_high_label:${challenge.extraHighLabel}`, `pro_label:${challenge.proLabel}`])) {
+    throw new Error(`Supervisor ${request.supervisorId} lacks a current exact model-label switching receipt.`);
   }
 }
 
@@ -375,7 +405,10 @@ function assertSemanticStageCompletion(events: StoredEvent[], request: PendingDe
     const receipts = events.filter((event) => event.sequence > minimumSequence && event.data.type === "evidence_receipt_recorded"
       && event.data.summary === stageLivenessSummary && event.data.verified
       && event.data.refs.includes(`request:${request.requestId}`)
-      && event.data.refs.includes(`chat:${request.chatId}`)
+      && (request.routeSchemaVersion === 2
+        ? event.data.refs.includes(`chat:${request.supervisorId}`)
+        : (event.data.refs.includes(`supervisor:${request.supervisorId}`)
+          && event.data.refs.includes(`provider_session:${currentProviderSessionId(events, request, at)}`)))
       && event.data.refs.includes(`stage:${stage}`)
       && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
       && Date.parse(event.occurredAt) <= Date.parse(at));
@@ -388,16 +421,22 @@ function assertSemanticStageCompletion(events: StoredEvent[], request: PendingDe
 }
 
 function assertOrderedRelayStages(events: StoredEvent[], request: PendingDecisionRequest, at: string, policy: GitHubReceiptPolicy) {
-  const challenge = policy.capabilityChallenges.find((c) => c.chatId === request.chatId);
-  if (!challenge) throw new Error(`No capability policy exists for chat ${request.chatId}.`);
+  const challenge = policy.capabilityChallenges.find((c) => c.supervisorId === request.supervisorId);
+  if (!challenge) throw new Error(`No capability policy exists for supervisor ${request.supervisorId}.`);
+  const providerSessionId = request.routeSchemaVersion === 3 ? currentProviderSessionId(events, request, at) : null;
   const required = request.reasoningLane === "PRO_ESCALATED"
     ? [["EXTRA_HIGH_READER", challenge.extraHighLabel], ["PRO_REASONER", challenge.proLabel], ["EXTRA_HIGH_WRITER", challenge.extraHighLabel]] as const
     : [["EXTRA_HIGH_DIRECT", challenge.extraHighLabel]] as const;
   let minimumSequence = -1;
   for (const [step, label] of required) {
+    const appSelectionAttempted = step === "EXTRA_HIGH_DIRECT" || step === "EXTRA_HIGH_READER";
     const receipt = events.find((e) => e.sequence > minimumSequence && e.data.type === "evidence_receipt_recorded" && e.data.summary === relayStageSummary && e.data.verified
-      && e.data.refs.includes(`request:${request.requestId}`) && e.data.refs.includes(`chat:${request.chatId}`) && e.data.refs.includes(`step:${step}`)
+      && e.data.refs.includes(`request:${request.requestId}`) && e.data.refs.includes(`step:${step}`)
+      && (request.routeSchemaVersion === 2
+        ? e.data.refs.includes(`chat:${request.supervisorId}`)
+        : (e.data.refs.includes(`supervisor:${request.supervisorId}`) && e.data.refs.includes(`provider_session:${providerSessionId}`)))
       && e.data.refs.includes(`model_ui_label:${label}`) && e.data.refs.includes("generation_state:COMPLETE")
+      && (request.routeSchemaVersion === 2 || e.data.refs.includes(`app_selection_attempted:${appSelectionAttempted}`))
       && e.data.refs.includes("assistant_content_observed:false") && Date.parse(e.occurredAt) >= Date.parse(request.queuedAt) && Date.parse(e.occurredAt) <= Date.parse(at));
     if (!receipt) throw new Error(`Missing ordered relay stage receipt ${step} for ${request.requestId}.`);
     minimumSequence = receipt.sequence;
@@ -414,12 +453,79 @@ function latestEvidence(events: StoredEvent[], summary: string, chatId: string, 
   }) ?? null;
 }
 
+export function findOpenProviderSession(
+  events: StoredEvent[],
+  request: PendingDecisionRequest,
+  providerSessionId: string,
+  at: string,
+) {
+  if (request.routeSchemaVersion !== 3 || !Number.isFinite(Date.parse(at))) return null;
+  const session = [...events].reverse().find((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionSummary && event.data.verified
+    && event.data.refs.includes(`request:${request.requestId}`)
+    && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+    && event.data.refs.includes(`provider_session:${providerSessionId}`)
+    && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+    && Date.parse(event.occurredAt) <= Date.parse(at));
+  return session?.data.type === "evidence_receipt_recorded" && session.data.refs.includes("lifecycle_status:ACTIVE") ? session : null;
+}
+
+function assertCurrentProviderSession(events: StoredEvent[], request: PendingDecisionRequest, at: string) {
+  const sessionEvents = events.filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionSummary && event.data.verified
+    && event.data.refs.includes(`request:${request.requestId}`)
+    && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+    && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+    && Date.parse(event.occurredAt) <= Date.parse(at));
+  const sessionIds = new Set(sessionEvents.flatMap((event) => event.data.type === "evidence_receipt_recorded" ? [refValue(event.data.refs, "provider_session:")] : []).filter((value): value is string => Boolean(value)));
+  const activeIds = [...sessionIds].filter((providerSessionId) => {
+    const latest = [...sessionEvents].reverse().find((event) => event.data.type === "evidence_receipt_recorded" && event.data.refs.includes(`provider_session:${providerSessionId}`));
+    return latest?.data.type === "evidence_receipt_recorded"
+      && latest.data.refs.includes("lifecycle_status:ACTIVE")
+      && latest.data.refs.includes("url_binding_status:EXACT")
+      && latest.data.refs.some((ref) => ref.startsWith("conversation_url:https://chatgpt.com/c/"));
+  });
+  if (activeIds.length !== 1) throw new Error(`Expected one exact active provider session for ${request.requestId}; found ${activeIds.length}.`);
+  const providerSessionId = activeIds[0]!;
+  if (!events.some((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionModelSummary && event.data.verified
+    && event.data.refs.includes(`request:${request.requestId}`)
+    && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+    && event.data.refs.includes(`provider_session:${providerSessionId}`)
+    && event.data.refs.includes("round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH")
+    && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+    && Date.parse(event.occurredAt) <= Date.parse(at))) {
+    throw new Error(`Provider session ${providerSessionId} lacks exact model round-trip evidence.`);
+  }
+  if (!events.some((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionMcpSummary && event.data.verified
+    && event.data.refs.includes(`request:${request.requestId}`)
+    && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+    && event.data.refs.includes(`provider_session:${providerSessionId}`)
+    && event.data.refs.includes("tool:get_supervisory_request_binding")
+    && event.data.refs.includes("status:OK")
+    && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+    && Date.parse(event.occurredAt) <= Date.parse(at))) {
+    throw new Error(`Provider session ${providerSessionId} lacks its first-turn MCP request-binding read receipt.`);
+  }
+  return { providerSessionId };
+}
+
+function currentProviderSessionId(events: StoredEvent[], request: PendingDecisionRequest, at: string) {
+  return assertCurrentProviderSession(events, request, at).providerSessionId;
+}
+
 function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
   try {
-    const root = record(JSON.parse(body.slice(supervisoryCycleRoutePrefix.length)), "cycle request"), evidence = record(root.evidenceCapsule, "evidenceCapsule"), outcome = record(root.ownerOutcome, "ownerOutcome"), github = record(root.githubReceipt, "githubReceipt"), factual = record(root.factualPacket, "factualPacket");
-    if (root.schemaVersion !== 2 || root.packetKind !== "SAME_CHAT_SUPERVISORY_CYCLE" || (root.reasoningLane !== "EXTRA_HIGH_DIRECT" && root.reasoningLane !== "PRO_ESCALATED")) return null;
+    const current = body.startsWith(supervisoryCycleRoutePrefix);
+    const prefix = current ? supervisoryCycleRoutePrefix : legacySupervisoryCycleRoutePrefix;
+    const root = record(JSON.parse(body.slice(prefix.length)), "cycle request"), evidence = record(root.evidenceCapsule, "evidenceCapsule"), outcome = record(root.ownerOutcome, "ownerOutcome"), github = record(root.githubReceipt, "githubReceipt"), factual = record(root.factualPacket, "factualPacket");
+    if ((current && (root.schemaVersion !== 3 || root.packetKind !== "PROVIDER_SESSION_SUPERVISORY_CYCLE"))
+      || (!current && (root.schemaVersion !== 2 || root.packetKind !== "SAME_CHAT_SUPERVISORY_CYCLE"))
+      || (root.reasoningLane !== "EXTRA_HIGH_DIRECT" && root.reasoningLane !== "PRO_ESCALATED")) return null;
+    const supervisorId = requiredString(current ? root.destinationSupervisorId : root.destinationChatId, current ? "destinationSupervisorId" : "destinationChatId");
     return {
-      worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), chatId: requiredString(root.destinationChatId, "destinationChatId"), nonce: requiredString(root.nonce, "nonce"),
+      worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: current ? 3 : 2, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },
       reasoningLane: root.reasoningLane, repository: repositoryName(github.repository, "githubReceipt.repository"), issueNumber: positiveInteger(github.issueNumber, "githubReceipt.issueNumber"),
@@ -447,3 +553,4 @@ function digest(value: unknown, field: string): string { const result = required
 function positiveInteger(value: unknown, field: string): number { if (!Number.isInteger(value) || Number(value) < 1) throw new Error(`${field} must be a positive integer.`); return Number(value); }
 function timestamp(value: unknown, field: string): string { const result = requiredString(value, field); if (!Number.isFinite(Date.parse(result))) throw new Error(`${field} must be an ISO timestamp.`); return result; }
 function httpsUrl(value: unknown, field: string): string { const result = requiredString(value, field), url = new URL(result); if (url.protocol !== "https:") throw new Error(`${field} must use HTTPS.`); return result; }
+function refValue(refs: string[], prefix: string) { return refs.find((ref) => ref.startsWith(prefix))?.slice(prefix.length) ?? null; }

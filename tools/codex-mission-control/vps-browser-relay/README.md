@@ -85,10 +85,12 @@ prompt requires the MCP app tool, not that HTTP route. Neither public read path
 exposes worker state, timelines, credentials, owner sessions, task or decision
 content, or arbitrary evidence references. The authenticated
 `/api/workers/<worker>` route remains the only outer route for a worker
-snapshot. Ordinary and escalated prompts first call
-`get_supervisory_request_binding`; the Extra High liveness/writer steps call
-`get_stage_liveness_state` when current stage metadata is required. Substantive
-evidence and every canonical write remain in GitHub.
+snapshot. Every admitted cycle gets a fresh provider conversation. Its first
+Extra High turn selects Mission Control and calls `get_supervisory_request_binding`
+exactly once for the request, stable supervisor, and provider session. Later
+Pro, liveness, continue, and writer turns reuse that same-chat binding and do
+not select or invoke Mission Control. Substantive evidence and every canonical
+write remain in GitHub.
 
 Use the dedicated harmless command while normal task sends remain disabled:
 
@@ -120,9 +122,11 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 - request ID and one-time nonce;
 - evidence capsule ID/hash;
 - current owner-outcome ID/epoch/hash;
-- registered chat ID and reasoning lane;
+- stable supervisor ID, fresh provider-session ID, exact conversation URL, and reasoning lane;
 - current Mission Control/GitHub capability receipt;
-- current exact visible model-switch receipt;
+- a session-local exact visible Extra High → Pro → Extra High model-switch receipt;
+- a server-observed first-turn MCP request-binding read for the same provider session;
+- session-bound ordered transport/stage receipts, so old-session evidence cannot replay;
 - ordered no-content browser-stage receipts;
 - central GitHub repository/issue/writer policy;
 - receipt creation time inside the admitted window;
@@ -214,10 +218,9 @@ nano ~/.config/mission-control-chatgpt-relay/chats.json
 
 Each entry must contain:
 
-- exact `chatId` matching Mission Control `destinationChatId`;
-- exact `https://chatgpt.com/c/<conversation-id>` URL;
+- stable `supervisorId` matching Mission Control `destinationSupervisorId`;
+- `bootstrapCapability.chatId`, `.url`, and `.challengeId` for the existing capability proof only;
 - exact `workerId`;
-- unique `capabilityChallengeId`;
 - exact current visible Extra High and Pro labels.
 - exact visible Mission Control and GitHub app labels under `requiredApps`.
 

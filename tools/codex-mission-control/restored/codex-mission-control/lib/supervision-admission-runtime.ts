@@ -15,7 +15,8 @@ import type { AuthenticatedProducer } from "./ingestion-auth";
 import type { AppendEnvelope } from "./schema";
 
 export const internalSupervisorRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
-export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
+export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
+export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
 
 export interface SupervisoryCycleRequest {
   nonce: string;
@@ -183,14 +184,14 @@ function buildRouteEnvelope(
     throw admissionError(400, "A same-chat supervisory cycle must expire after its queue time.");
   }
   const body = (cycle ? supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
-    schemaVersion: cycle ? 2 : 1,
-    packetKind: cycle ? "SAME_CHAT_SUPERVISORY_CYCLE" : "FACTUAL_STATE_ONLY",
+    schemaVersion: cycle ? 3 : 1,
+    packetKind: cycle ? "PROVIDER_SESSION_SUPERVISORY_CYCLE" : "FACTUAL_STATE_ONLY",
     requestId: input.request.requestId,
     actionBlockedOrRouted: input.request.action,
     worker,
     producerId: producer.id,
     destination: route.destination,
-    destinationChatId: route.destinationChatId,
+    ...(cycle ? { destinationSupervisorId: route.destinationChatId } : { destinationChatId: route.destinationChatId }),
     standingOwnerAuthorization: route.standingOwnerAuthorization,
     ownerRelayRequired: false,
     actionTimeConfirmationRequired: false,

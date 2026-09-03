@@ -243,9 +243,10 @@ private ChatGPT developer-mode smoke app. It never advertises the private
 fleet/worker tools from `/api/mcp`. Its complete tool surface is:
 
 - `get_capability_challenge` — exact current challenge/chat only;
-- `get_supervisory_request_binding` — exact current pending request/chat only;
+- `get_supervisory_request_binding` — exact current pending request/stable-supervisor/provider-session only;
 - `get_stage_liveness_state` — non-semantic receipt status/ID/time only for an
-  exact current escalated request/chat.
+  exact current escalated provider session (diagnostic only; accepted follow-up
+  turns use same-conversation context and GitHub, not another MCP call).
 
 There is no search, list-all, worker timeline, evidence-body, assistant-content,
 credential, environment, or write tool. Each tool advertises read-only,

@@ -137,11 +137,10 @@ function configEnv(chatsFile) {
 function configuredChat() {
   return {
     scope: 'SPECIALIST',
-    chatId: 'spec',
+    supervisorId: 'spec',
     label: 'Specialist',
-    url: 'https://chatgpt.com/c/spec-chat',
     workerId: 'worker-a',
-    capabilityChallengeId: 'challenge-spec',
+    bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' },
     modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };

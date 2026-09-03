@@ -11,7 +11,9 @@ const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   return {
     currentUrl: location.href,
-    urlMismatch: normalize(location.href) !== expectedUrl,
+    urlMismatch: expectedUrl === 'https://chatgpt.com/'
+      ? new URL(location.href).origin !== 'https://chatgpt.com' || new URL(location.href).pathname !== '/'
+      : normalize(location.href) !== expectedUrl,
     composerFound: Boolean(composer),
     loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
   };
@@ -25,7 +27,11 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
-  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
+  const current = new URL(location.href);
+  const mismatch = expectedUrl === 'https://chatgpt.com/'
+    ? current.origin !== 'https://chatgpt.com' || current.pathname !== '/'
+    : normalizeUrl(location.href) !== expectedUrl;
+  if (mismatch) return { urlMismatch: true, currentUrl: location.href };
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
@@ -262,6 +268,14 @@ export function appSelectionState(observation, labelWanted) {
   return { type: 'OPEN_TOOLS' };
 }
 
+function normalizeExpectedSurfaceUrl(value) {
+  const url = new URL(value);
+  if (url.protocol === 'https:' && url.hostname === 'chatgpt.com' && !url.username && !url.password && url.pathname === '/') {
+    return 'https://chatgpt.com/';
+  }
+  return normalizeConversationUrl(value);
+}
+
 const PREPARE_COMPOSER_FN = `function(expectedBody) {
   const element = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
   if (!element) return { ok: false, reason: 'COMPOSER_NOT_FOUND' };
@@ -309,9 +323,15 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
+  const normalizedCurrent = normalizeUrl(location.href);
+  const current = new URL(location.href);
+  const creatingConversation = expectedUrl === 'https://chatgpt.com/';
   return {
     currentUrl: location.href,
-    urlMismatch: normalizeUrl(location.href) !== expectedUrl,
+    conversationUrl: normalizedCurrent,
+    urlMismatch: creatingConversation
+      ? current.origin !== 'https://chatgpt.com' || (current.pathname !== '/' && !normalizedCurrent)
+      : normalizedCurrent !== expectedUrl,
     loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
     stopVisible,
     composerVisible,
@@ -367,6 +387,22 @@ export class ChromeDevtoolsBrowser {
     return { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url: normalized, webSocketDebuggerUrl: created.webSocketDebuggerUrl, created: true };
   }
 
+  async createFreshChatTarget() {
+    const created = await this.#json(`/json/new?${encodeURIComponent('https://chatgpt.com/')}`, { method: 'PUT' });
+    if (!created?.id || !created?.webSocketDebuggerUrl) throw new Error('Chrome did not create a debuggable fresh-chat page target.');
+    await this.activateTarget(created.id);
+    const target = { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url: 'https://chatgpt.com/', webSocketDebuggerUrl: created.webSocketDebuggerUrl, created: true };
+    await this.#withPageClient(target, async (client) => {
+      await waitFor(async () => {
+        const result = await client.callFunction(PAGE_INSPECTION_FN, ['https://chatgpt.com/']);
+        if (result?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
+        if (result?.urlMismatch) throw new Error(`Fresh-chat target navigated to an unexpected URL: ${result.currentUrl}`);
+        return result?.composerFound ? result : false;
+      }, this.pageReadyTimeoutMs, 500, 'Fresh ChatGPT composer did not become ready.');
+    });
+    return target;
+  }
+
   async activateTarget(targetId) {
     return this.#withBrowserClient((client) => client.send('Target.activateTarget', { targetId }));
   }
@@ -388,7 +424,7 @@ export class ChromeDevtoolsBrowser {
   }
 
   async switchModel(target, { expectedUrl, label }) {
-    const normalized = normalizeConversationUrl(expectedUrl);
+    const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
       const current = await this.#currentModel(client, normalized);
       if (current?.label === label) return { selectedLabel: label, observedLabel: current.label, changed: false };
@@ -473,7 +509,7 @@ export class ChromeDevtoolsBrowser {
   }
 
   async verifyModelRoundTrip(target, { expectedUrl, extraHighLabel, proLabel }) {
-    const normalized = normalizeConversationUrl(expectedUrl);
+    const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
       const inspection = await client.callFunction(PAGE_INSPECTION_FN, [normalized]);
       if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
@@ -611,7 +647,7 @@ export class ChromeDevtoolsBrowser {
         relayStage = 'PREPARING';
         await client.send('Runtime.enable');
         await client.send('Page.enable');
-        const normalized = normalizeConversationUrl(expectedUrl);
+        const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
         await waitFor(async () => {
           const result = await client.callFunction(PAGE_INSPECTION_FN, [normalized]);
           if (result?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${result.currentUrl}`);
@@ -640,6 +676,7 @@ export class ChromeDevtoolsBrowser {
             const state = await client.callFunction(GENERATION_STATE_FN, [normalized]);
             if (state?.urlMismatch) throw new Error(`Chat target changed during submission: ${state.currentUrl}`);
             if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
+            if (normalized === 'https://chatgpt.com/' && !state?.conversationUrl) return false;
             return state?.generating && state?.startSignal ? state : false;
           }, this.submitTimeoutMs, 200, 'GENERATION_START_UNVERIFIED');
         } catch (error) {
@@ -652,7 +689,7 @@ export class ChromeDevtoolsBrowser {
         return {
           status: 'GENERATION_STARTED',
           targetId: target.id,
-          conversationUrl: normalized,
+          conversationUrl: normalized === 'https://chatgpt.com/' ? started.conversationUrl : normalized,
           bodySha256,
           bodyLength: body.length,
           clickedAtObserved,

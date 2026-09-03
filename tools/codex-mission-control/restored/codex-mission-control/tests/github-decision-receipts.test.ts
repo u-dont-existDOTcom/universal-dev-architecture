@@ -14,6 +14,11 @@ import {
   githubDecisionCandidateFromWebhook,
   ingestGitHubSupervisionCandidate,
   modeCapabilityVerifiedSummary,
+  parseCanonicalDecisionComment,
+  parseStageReceiptComment,
+  providerSessionMcpSummary,
+  providerSessionModelSummary,
+  providerSessionSummary,
   reconcileGitHubDecisionReceipts,
   relayStageSummary,
   stageLivenessSummary,
@@ -30,6 +35,9 @@ import type { EventStore } from "../lib/store";
 const outcomeSha = "a".repeat(64);
 const evidenceSha = "b".repeat(64);
 const decisionText = "Use the bounded implementation and preserve the stated stop boundary.";
+const supervisorId = "spec";
+const bootstrapChatId = "spec-bootstrap";
+const providerSessionId = "provider-session:current";
 
 test("GitHub webhook authentication and issue-comment normalization fail closed", () => {
   const secret = "s".repeat(32);
@@ -86,9 +94,9 @@ test("capability receipt proves MC read + GitHub read + GitHub write only with b
   assert.throws(() => ingestGitHubSupervisionCandidate(badStore, capabilityCandidate(capabilityReceiptBody("mc-nonce", "wrong")), p), /nonce mismatch/);
 });
 
-test("stage liveness receipt binds exact request, nonce, chat, issue and status without semantic authority", () => {
+test("stage liveness receipt binds exact request, nonce, stable supervisor, provider session, issue and status without semantic authority", () => {
   const p = policy();
-  const store = fakeStore(pendingEvents());
+  const store = fakeStore([...pendingEvents(), ...providerSessionEvents()]);
   const events = ingestGitHubSupervisionCandidate(
     store,
     stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", "STAGE_COMPLETE")),
@@ -105,8 +113,9 @@ test("stage liveness receipt binds exact request, nonce, chat, issue and status 
   assert.ok(event.data.refs.includes("semantic_authority:false"));
 
   const wrongNonce = stageReceiptBody("EXTRA_HIGH_READER", "STAGE_COMPLETE", "wrong-nonce");
-  assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore(pendingEvents()), stageCandidate(wrongNonce), p), /nonce\/chat binding/);
-  assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore(pendingEvents()), { ...stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", "STAGE_COMPLETE")), issueNumber: p.capabilityIssueNumber }, p), /stage-liveness channel/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore([...pendingEvents(), ...providerSessionEvents()]), stageCandidate(wrongNonce), p), /nonce binding/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore([...pendingEvents(), ...providerSessionEvents()]), stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", "STAGE_COMPLETE", "nonce-1", "provider-session:old")), p), /provider-session binding/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore([...pendingEvents(), ...providerSessionEvents()]), { ...stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", "STAGE_COMPLETE")), issueNumber: p.capabilityIssueNumber }, p), /stage-liveness channel/);
 });
 
 test("canonical Pro decision is rejected until capabilities, semantic liveness, and ordered transport stages exist", () => {
@@ -114,9 +123,12 @@ test("canonical Pro decision is rejected until capabilities, semantic liveness, 
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(pendingEvents(), candidate(), p), /capability receipt/);
 
   const capabilityOnly = [...pendingEvents(), ...capabilityEvents()];
-  assert.throws(() => buildGitHubDecisionReceiptEnvelope(capabilityOnly, candidate(), p), /semantic stage completion EXTRA_HIGH_READER/);
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(capabilityOnly, candidate(), p), /active provider session/);
 
-  const semanticOnly = [...capabilityOnly, ...semanticStageEvents()];
+  const sessionOnly = [...capabilityOnly, ...providerSessionEvents()];
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(sessionOnly, candidate(), p), /semantic stage completion EXTRA_HIGH_READER/);
+
+  const semanticOnly = [...sessionOnly, ...semanticStageEvents()];
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(semanticOnly, candidate(), p), /Missing ordered relay stage/);
 
   const complete = boundEvents();
@@ -130,9 +142,9 @@ test("canonical Pro decision is rejected until capabilities, semantic liveness, 
 
 test("a later CONTINUE_REQUIRED stage receipt blocks decision admission until a later STAGE_COMPLETE", () => {
   const events = boundEvents();
-  events.push(livenessEvent("pro-needs-more", 11, "PRO_REASONER", "CONTINUE_REQUIRED", "2026-09-02T00:08:00.000Z"));
+  events.push(livenessEvent("pro-needs-more", 14, "PRO_REASONER", "CONTINUE_REQUIRED", "2026-09-02T00:09:00.000Z"));
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()), /semantic stage completion PRO_REASONER/);
-  events.push(livenessEvent("pro-complete-again", 12, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:09:00.000Z"));
+  events.push(livenessEvent("pro-complete-again", 15, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:10:00.000Z"));
   assert.doesNotThrow(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()));
 });
 
@@ -156,6 +168,60 @@ test("wrong transport model label/order cannot acquire authority", () => {
   if (!stage || stage.data.type !== "evidence_receipt_recorded") return;
   stage.data.refs = stage.data.refs.filter((ref) => ref !== "model_ui_label:Pro").concat("model_ui_label:Extra High");
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()), /PRO_REASONER/);
+});
+
+test("old provider-session MCP, transport, stage, and canonical receipts cannot satisfy a new cycle", () => {
+  const oldSession = "provider-session:old";
+  const events = boundEvents();
+  for (const event of events) {
+    if (event.data.type !== "evidence_receipt_recorded" || event.data.summary !== providerSessionMcpSummary) continue;
+    event.data.refs = event.data.refs.map((ref) => ref === `provider_session:${providerSessionId}` ? `provider_session:${oldSession}` : ref);
+  }
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()), /first-turn MCP/);
+
+  const oldDecision = { ...decisionEnvelope(), provider_session_id: oldSession };
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(boundEvents(), { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(oldDecision)}` }, policy()), /provider session ID/);
+
+  const oldStages = boundEvents().map((event) => {
+    if (event.data.type !== "evidence_receipt_recorded" || event.data.summary !== stageLivenessSummary) return event;
+    const copy = structuredClone(event);
+    if (copy.data.type === "evidence_receipt_recorded") {
+      copy.data.refs = copy.data.refs.map((ref) => ref === `provider_session:${providerSessionId}` ? `provider_session:${oldSession}` : ref);
+    }
+    return copy;
+  });
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(oldStages, candidate(), policy()), /semantic stage completion/);
+});
+
+test("ordinary provider-session admission needs one first-turn MCP receipt and no follow-up stage receipt", () => {
+  const events = pendingEvents().map((event) => {
+    if (event.data.type !== "worker_message_recorded") return event;
+    const packet = JSON.parse(event.data.body.slice(supervisoryCycleRoutePrefix.length));
+    packet.reasoningLane = "EXTRA_HIGH_DIRECT";
+    const copy = structuredClone(event);
+    if (copy.data.type === "worker_message_recorded") copy.data.body = supervisoryCycleRoutePrefix + JSON.stringify(packet);
+    return copy;
+  });
+  events.push(...capabilityEvents(), ...providerSessionEvents(), transportStage("direct", 9, "EXTRA_HIGH_DIRECT", "Extra High", "2026-09-02T00:04:00.000Z"));
+  const direct = {
+    ...decisionEnvelope(),
+    reasoning_lane: "EXTRA_HIGH_DIRECT" as const,
+    pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+  };
+  const result = buildGitHubDecisionReceiptEnvelope(events, { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(direct)}` }, policy());
+  assert.equal(result.data.type, "github_decision_receipt_ingested");
+});
+
+test("legacy receipt schemas remain parseable without being relabeled as provider-session evidence", () => {
+  const legacyDecision = { ...decisionEnvelope(), schema_version: 1 as const } as Record<string, unknown>;
+  delete legacyDecision.supervisor_id;
+  delete legacyDecision.provider_session_id;
+  const parsedDecision = parseCanonicalDecisionComment(`${canonicalDecisionCommentPrefix}${JSON.stringify(legacyDecision)}`);
+  assert.equal(parsedDecision.schema_version, 1);
+  assert.equal("provider_session_id" in parsedDecision, false);
+  const parsedStage = parseStageReceiptComment(`${stageReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, request_id: "legacy-request", request_nonce: "legacy-nonce", chat_id: "legacy-chat", stage: "PRO_REASONER", status: "STAGE_COMPLETE" })}`);
+  assert.equal(parsedStage.schemaVersion, 1);
+  assert.equal(parsedStage.providerSessionId, null);
 });
 
 test("public reconciliation polls all centrally configured buses without requiring Authorization", async () => {
@@ -188,7 +254,7 @@ function policy(): GitHubReceiptPolicy {
     stageIssueNumber: 60,
     authorizedWriterLogins: ["u-dont-existDOTcom"],
     capabilityChallenges: [{
-      challengeId: "challenge-spec", chatId: "spec", worker: "mission-control-live-slice",
+      challengeId: "challenge-spec", supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
       mcNonce: "mc-nonce", githubNonce: "github-only-nonce", expiresAt: "2026-09-03T00:00:00.000Z",
       extraHighLabel: "Extra High", proLabel: "Pro",
     }],
@@ -203,7 +269,7 @@ function pendingEvents(): StoredEvent[] {
     required_outcomes: [{ id: "outcome-1", text: "Result", terminal_required: true, status: "UNMET", direct_evidence_receipt_ids: [] }], non_satisfying_proxies: [], supersedes: null, supersedes_outcome_sha256: null,
   } as StoredEvent["data"], "owner-outcome", 1, "2026-09-02T00:00:00.000Z");
   const packet = {
-    schemaVersion: 2, packetKind: "SAME_CHAT_SUPERVISORY_CYCLE", requestId: "decision-request-1", destinationChatId: "spec", nonce: "nonce-1", reasoningLane: "PRO_ESCALATED",
+    schemaVersion: 3, packetKind: "PROVIDER_SESSION_SUPERVISORY_CYCLE", requestId: "decision-request-1", destinationSupervisorId: supervisorId, nonce: "nonce-1", reasoningLane: "PRO_ESCALATED",
     providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY", evidenceCapsule: { id: "capsule-1", sha256: evidenceSha }, ownerOutcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha },
     githubReceipt: { repository: policy().repository, issueNumber: policy().decisionIssueNumber }, factualPacket: { taskId: "task-1" }, queuedAt: "2026-09-02T00:01:00.000Z", expiresAt: "2026-09-03T00:00:00.000Z",
   };
@@ -216,16 +282,25 @@ function pendingEvents(): StoredEvent[] {
 
 function capabilityEvents(): StoredEvent[] {
   return [
-    evidenceEvent("challenge", 3, capabilityChallengeSummary, ["challenge:challenge-spec", "chat:spec", "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`, "expires_at:2026-09-03T00:00:00.000Z"]),
-    evidenceEvent("tools", 4, capabilityVerifiedSummary, ["challenge:challenge-spec", "chat:spec", "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", "expires_at:2026-09-03T00:00:00.000Z"]),
-    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, ["chat:spec", "capability:modeSwitching", "extra_high_label:Extra High", "pro_label:Pro", "expires_at:2026-09-03T00:00:00.000Z"]),
+    evidenceEvent("challenge", 3, capabilityChallengeSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`, "expires_at:2026-09-03T00:00:00.000Z"]),
+    evidenceEvent("tools", 4, capabilityVerifiedSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", "expires_at:2026-09-03T00:00:00.000Z"]),
+    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, [`chat:${bootstrapChatId}`, "capability:modeSwitching", "extra_high_label:Extra High", "pro_label:Pro", "expires_at:2026-09-03T00:00:00.000Z"]),
+  ];
+}
+
+function providerSessionEvents(): StoredEvent[] {
+  const common = ["request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`];
+  return [
+    evidenceEvent("provider-session", 6, providerSessionSummary, [...common, "conversation_url:https://chatgpt.com/c/current-session", "url_binding_status:EXACT", "lifecycle_status:ACTIVE", "semantic_authority:false"], "2026-09-02T00:02:10.000Z"),
+    evidenceEvent("provider-model", 7, providerSessionModelSummary, [...common, "round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH", "extra_high_label:Extra High", "pro_label:Pro", "assistant_content_observed:false"], "2026-09-02T00:02:20.000Z"),
+    evidenceEvent("provider-mcp", 8, providerSessionMcpSummary, [...common, "tool:get_supervisory_request_binding", "status:OK"], "2026-09-02T00:03:10.000Z"),
   ];
 }
 
 function semanticStageEvents(): StoredEvent[] {
   return [
-    livenessEvent("reader-live", 7, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:04:00.000Z"),
-    livenessEvent("pro-live", 9, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:06:00.000Z"),
+    livenessEvent("reader-live", 10, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:05:00.000Z"),
+    livenessEvent("pro-live", 12, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:07:00.000Z"),
   ];
 }
 
@@ -233,24 +308,25 @@ function boundEvents(): StoredEvent[] {
   return [
     ...pendingEvents(),
     ...capabilityEvents(),
-    transportStage("reader", 6, "EXTRA_HIGH_READER", "Extra High", "2026-09-02T00:03:00.000Z"),
-    livenessEvent("reader-live", 7, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:04:00.000Z"),
-    transportStage("pro", 8, "PRO_REASONER", "Pro", "2026-09-02T00:05:00.000Z"),
-    livenessEvent("pro-live", 9, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:06:00.000Z"),
-    transportStage("writer", 10, "EXTRA_HIGH_WRITER", "Extra High", "2026-09-02T00:07:00.000Z"),
+    ...providerSessionEvents(),
+    transportStage("reader", 9, "EXTRA_HIGH_READER", "Extra High", "2026-09-02T00:04:00.000Z"),
+    livenessEvent("reader-live", 10, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:05:00.000Z"),
+    transportStage("pro", 11, "PRO_REASONER", "Pro", "2026-09-02T00:06:00.000Z"),
+    livenessEvent("pro-live", 12, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:07:00.000Z"),
+    transportStage("writer", 13, "EXTRA_HIGH_WRITER", "Extra High", "2026-09-02T00:08:00.000Z"),
   ];
 }
 
 function transportStage(id: string, sequence: number, step: string, model: string, occurredAt: string): StoredEvent {
   return evidenceEvent(id, sequence, relayStageSummary, [
-    "request:decision-request-1", "chat:spec", `step:${step}`, `model_ui_label:${model}`, `prompt_sha256:${"c".repeat(64)}`,
-    "generation_state:COMPLETE", `observed_at:${occurredAt}`, "assistant_content_observed:false", "backend_model_identity_claimed:false",
+    "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`, `conversation_url:https://chatgpt.com/c/current-session`, `step:${step}`, `model_ui_label:${model}`, `prompt_sha256:${"c".repeat(64)}`,
+    "generation_state:COMPLETE", `app_selection_attempted:${step === "EXTRA_HIGH_READER" || step === "EXTRA_HIGH_DIRECT"}`, `observed_at:${occurredAt}`, "assistant_content_observed:false", "backend_model_identity_claimed:false",
   ], occurredAt);
 }
 
 function livenessEvent(id: string, sequence: number, stage: string, status: string, occurredAt: string): StoredEvent {
   return evidenceEvent(id, sequence, stageLivenessSummary, [
-    "request:decision-request-1", `request_nonce_sha256:${sha256("nonce-1")}`, "chat:spec", `stage:${stage}`, `status:${status}`,
+    "request:decision-request-1", `request_nonce_sha256:${sha256("nonce-1")}`, `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`, `stage:${stage}`, `status:${status}`,
     `github_comment:https://github.com/${policy().repository}/issues/${policy().stageIssueNumber}#issuecomment-${sequence}`, "semantic_authority:false",
   ], occurredAt);
 }
@@ -266,7 +342,7 @@ function candidate(): GitHubDecisionCandidate {
   return {
     repository: policy().repository, issueNumber: policy().decisionIssueNumber, commentId: 9001,
     immutableUrl: `https://github.com/${policy().repository}/issues/${policy().decisionIssueNumber}#issuecomment-9001`,
-    createdAt: "2026-09-02T00:10:00.000Z", authorLogin: "u-dont-existDOTcom", deliveryId: "delivery-1", body: decisionBody(), ingestionMethod: "GITHUB_WEBHOOK",
+    createdAt: "2026-09-02T00:15:00.000Z", authorLogin: "u-dont-existDOTcom", deliveryId: "delivery-1", body: decisionBody(), ingestionMethod: "GITHUB_WEBHOOK",
   };
 }
 
@@ -288,14 +364,14 @@ function stageCandidate(body: string): GitHubDecisionCandidate {
 
 function decisionBody() { return `${canonicalDecisionCommentPrefix}${JSON.stringify(decisionEnvelope())}`; }
 function capabilityReceiptBody(mcNonce: string, githubNonce: string) {
-  return `${capabilityReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, challenge_id: "challenge-spec", chat_id: "spec", mc_nonce: mcNonce, github_nonce: githubNonce, capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"] })}`;
+  return `${capabilityReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, challenge_id: "challenge-spec", chat_id: bootstrapChatId, mc_nonce: mcNonce, github_nonce: githubNonce, capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"] })}`;
 }
-function stageReceiptBody(stage: "EXTRA_HIGH_READER" | "PRO_REASONER", status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED", nonce = "nonce-1") {
-  return `${stageReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, request_id: "decision-request-1", request_nonce: nonce, chat_id: "spec", stage, status })}`;
+function stageReceiptBody(stage: "EXTRA_HIGH_READER" | "PRO_REASONER", status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED", nonce = "nonce-1", sessionId = providerSessionId) {
+  return `${stageReceiptCommentPrefix}${JSON.stringify({ schema_version: 2, request_id: "decision-request-1", request_nonce: nonce, supervisor_id: supervisorId, provider_session_id: sessionId, stage, status })}`;
 }
 function decisionEnvelope(): CanonicalDecisionEnvelope {
   return {
-    schema_version: 1, envelope_kind: "MISSION_CONTROL_CANONICAL_DECISION", request_id: "decision-request-1", nonce: "nonce-1",
+    schema_version: 2, envelope_kind: "MISSION_CONTROL_CANONICAL_DECISION", request_id: "decision-request-1", supervisor_id: supervisorId, provider_session_id: providerSessionId, nonce: "nonce-1",
     evidence_capsule: { id: "capsule-1", sha256: evidenceSha }, owner_outcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha }, reasoning_lane: "PRO_ESCALATED",
     decision_block: { decision_id: "decision-1", exact_text: decisionText, sha256: sha256(decisionText) },
     pro_decision_block: { used: true, model_mode: "PRO", exact_text: decisionText, sha256: sha256(decisionText) },

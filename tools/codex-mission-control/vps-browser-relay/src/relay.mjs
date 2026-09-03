@@ -1,6 +1,8 @@
 import {
   CAPABILITY_CHALLENGE_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
+  PROVIDER_SESSION_MODEL_SUMMARY,
+  PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   capabilityControlPrompt,
   appSelectionForMessage,
@@ -10,6 +12,7 @@ import {
   cycleControlPrompt,
   extractQueuedRoutes,
   mcpReadPreflightPrompt,
+  newProviderSessionId,
   nextSupervisoryCycleAction,
   redactError,
   resolveMemoryPolicy,
@@ -66,7 +69,7 @@ export class RelayRuntime {
   async verifyCapabilities(chatId) {
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
-    const chat = this.config.runtime.chats.find((entry) => entry.chatId === chatId);
+    const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
     if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
     let snapshot = await this.missionControl.fetchFleet();
     let capability = chatCapabilityState(snapshot, chat);
@@ -78,21 +81,21 @@ export class RelayRuntime {
     const memory = this.#memoryState(metrics);
     if (memory.pressure === 'HARD') return this.#writeStandaloneStatus('PAUSED_MEMORY_HARD', state, { chatId, memory, capability });
 
-    const target = await this.browser.findOrCreateChatTarget(chat.url);
-    this.#rememberTarget(state, chat, target);
+    const target = await this.browser.findOrCreateChatTarget(chat.bootstrapCapability.url);
+    this.#rememberTarget(state, chat, target, null, chat.bootstrapCapability.url);
     const mode = await this.browser.verifyModelRoundTrip(target, {
-      expectedUrl: chat.url,
+      expectedUrl: chat.bootstrapCapability.url,
       extraHighLabel: chat.modelLabels.extraHigh,
       proLabel: chat.modelLabels.pro,
     });
     const challengeExpiry = findChallengeExpiry(snapshot, chat);
-    if (!challengeExpiry) throw new Error(`Capability challenge ${chat.capabilityChallengeId} has no usable expiry.`);
+    if (!challengeExpiry) throw new Error(`Capability challenge ${chat.bootstrapCapability.challengeId} has no usable expiry.`);
     await this.missionControl.recordEvidence(chat.workerId, {
-      receiptId: `chat-mode-capability:${chat.chatId}:${Date.now()}`,
+      receiptId: `chat-mode-capability:${chat.bootstrapCapability.chatId}:${Date.now()}`,
       summary: MODE_CAPABILITY_VERIFIED_SUMMARY,
       refs: [
-        `challenge:${chat.capabilityChallengeId}`,
-        `chat:${chat.chatId}`,
+        `challenge:${chat.bootstrapCapability.challengeId}`,
+        `chat:${chat.bootstrapCapability.chatId}`,
         'capability:modeSwitching',
         `extra_high_label:${chat.modelLabels.extraHigh}`,
         `pro_label:${chat.modelLabels.pro}`,
@@ -116,7 +119,7 @@ export class RelayRuntime {
       });
     }
 
-    const key = `capability:${chat.chatId}:${chat.capabilityChallengeId}`;
+    const key = `capability:${chat.bootstrapCapability.chatId}:${chat.bootstrapCapability.challengeId}`;
     const prior = state.deliveries[key] ?? null;
     if (prior?.status === 'AMBIGUOUS_AFTER_RESTART') {
       return this.#writeStandaloneStatus('CAPABILITY_SUBMISSION_AMBIGUOUS', state, { chatId, capability, memory });
@@ -124,7 +127,7 @@ export class RelayRuntime {
     if (prior?.status === 'CAPABILITY_GENERATION_STARTED') {
       let complete;
       try {
-        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: true });
+        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.bootstrapCapability.url, generationStarted: true });
       } catch (error) {
         if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, memory }, error);
         throw error;
@@ -143,7 +146,7 @@ export class RelayRuntime {
     }
 
     const prompt = capabilityControlPrompt(chat);
-    const observed = await this.browser.switchModel(target, { expectedUrl: chat.url, label: chat.modelLabels.extraHigh });
+    const observed = await this.browser.switchModel(target, { expectedUrl: chat.bootstrapCapability.url, label: chat.modelLabels.extraHigh });
     try {
       const start = await this.submissionPacer.submit({
         beforeSubmit: async () => {
@@ -151,9 +154,9 @@ export class RelayRuntime {
           state = await this.stateStore.read();
           state.deliveries[key] = {
             status: 'SUBMISSION_INTENT_RECORDED',
-            chatId: chat.chatId,
-            conversationUrl: chat.url,
-            capabilityChallengeId: chat.capabilityChallengeId,
+            chatId: chat.bootstrapCapability.chatId,
+            conversationUrl: chat.bootstrapCapability.url,
+            capabilityChallengeId: chat.bootstrapCapability.challengeId,
             bodySha256: sha256(prompt),
             modelUiLabel: observed.observedLabel,
             intentRecordedAt: intentAt,
@@ -163,7 +166,7 @@ export class RelayRuntime {
         },
         submit: async () => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt) });
           return { ...start, messageApps };
         },
       });
@@ -172,7 +175,7 @@ export class RelayRuntime {
       state = await this.stateStore.write(state);
       let complete;
       try {
-        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: start.generationStarted });
+        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.bootstrapCapability.url, generationStarted: start.generationStarted });
       } catch (error) {
         if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, mode, memory }, error);
         throw error;
@@ -202,7 +205,7 @@ export class RelayRuntime {
   async verifyMcpReadPreflight(chatId) {
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
-    const chat = this.config.runtime.chats.find((entry) => entry.chatId === chatId);
+    const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
     if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
     const snapshot = await this.missionControl.fetchFleet();
     const capability = chatCapabilityState(snapshot, chat);
@@ -222,9 +225,9 @@ export class RelayRuntime {
       });
     }
 
-    const target = await this.browser.findOrCreateChatTarget(chat.url);
-    this.#rememberTarget(state, chat, target);
-    const key = `mcp-preflight:${chat.chatId}:${chat.capabilityChallengeId}`;
+    const target = await this.browser.findOrCreateChatTarget(chat.bootstrapCapability.url);
+    this.#rememberTarget(state, chat, target, null, chat.bootstrapCapability.url);
+    const key = `mcp-preflight:${chat.bootstrapCapability.chatId}:${chat.bootstrapCapability.challengeId}`;
     const prior = state.deliveries[key] ?? null;
     if (prior?.status === 'AMBIGUOUS_AFTER_RESTART') {
       return this.#writeStandaloneStatus('MCP_PREFLIGHT_SUBMISSION_AMBIGUOUS', state, { chatId, capability, memory });
@@ -235,7 +238,7 @@ export class RelayRuntime {
     if (prior?.status === 'MCP_PREFLIGHT_GENERATION_STARTED') {
       let complete;
       try {
-        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: true });
+        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.bootstrapCapability.url, generationStarted: true });
       } catch (error) {
         if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, memory }, error);
         throw error;
@@ -247,7 +250,7 @@ export class RelayRuntime {
     }
 
     const prompt = mcpReadPreflightPrompt(chat);
-    const observed = await this.browser.switchModel(target, { expectedUrl: chat.url, label: chat.modelLabels.extraHigh });
+    const observed = await this.browser.switchModel(target, { expectedUrl: chat.bootstrapCapability.url, label: chat.modelLabels.extraHigh });
     try {
       const start = await this.submissionPacer.submit({
         beforeSubmit: async () => {
@@ -255,9 +258,9 @@ export class RelayRuntime {
           state = await this.stateStore.read();
           state.deliveries[key] = {
             status: 'SUBMISSION_INTENT_RECORDED',
-            chatId: chat.chatId,
-            conversationUrl: chat.url,
-            capabilityChallengeId: chat.capabilityChallengeId,
+            chatId: chat.bootstrapCapability.chatId,
+            conversationUrl: chat.bootstrapCapability.url,
+            capabilityChallengeId: chat.bootstrapCapability.challengeId,
             bodySha256: sha256(prompt),
             modelUiLabel: observed.observedLabel,
             intentRecordedAt: intentAt,
@@ -267,14 +270,14 @@ export class RelayRuntime {
         },
         submit: async () => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt) });
           return { ...start, messageApps };
         },
       });
       state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'MCP_PREFLIGHT_GENERATION_STARTED', generationStart: start, startedAt: start.startedAtObserved };
       state = await this.stateStore.write(state);
-      const complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: start.generationStarted });
+      const complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.bootstrapCapability.url, generationStarted: start.generationStarted });
       state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'MCP_PREFLIGHT_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
@@ -325,6 +328,19 @@ export class RelayRuntime {
       const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
       const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
       if (withReceipt) {
+        const providerSessionId = withReceipt.decisionReceipt.provider_session_id;
+        const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
+        if (!session || session.requestId !== withReceipt.requestId || session.supervisorId !== withReceipt.supervisorId) {
+          throw new Error(`Canonical receipt for ${withReceipt.requestId} is not bound to its active provider session.`);
+        }
+        session.status = 'COMPLETE';
+        session.completedAt = new Date().toISOString();
+        state.providerSessions[providerSessionId] = session;
+        await this.#recordProviderSession({ ...withReceipt, providerSessionId, providerSession: session }, session, 'EXACT');
+        if (session.targetId) {
+          await this.browser.closeTarget(session.targetId).catch((error) => this.#log('warn', 'completed_session_tab_close_failed', { providerSessionId, error: redactError(error) }));
+          for (const [key, tab] of Object.entries(state.tabs)) if (tab?.targetId === session.targetId) delete state.tabs[key];
+        }
         state.deliveries[withReceipt.routeKey] = {
           ...(state.deliveries[withReceipt.routeKey] ?? {}),
           status: 'DECISION_RECEIPT_INGESTED',
@@ -364,7 +380,7 @@ export class RelayRuntime {
 
       const capability = chatCapabilityState(snapshot, candidate.chat);
       if (!capability.allCurrent) {
-        state.health.pausedReason = `Registered chat ${candidate.chat.chatId} lacks current live capability receipts.`;
+        state.health.pausedReason = `Stable supervisor ${candidate.chat.supervisorId} lacks current bootstrap capability receipts.`;
         state = await this.stateStore.write(state);
         return this.#writeStandaloneStatus('CAPABILITY_NOT_VERIFIED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate), capability });
       }
@@ -403,7 +419,7 @@ export class RelayRuntime {
   }
 
   async #processSupervisoryCycle(route, routes, state, memory) {
-    const prior = state.deliveries[route.routeKey] ?? null;
+    let prior = state.deliveries[route.routeKey] ?? null;
     const action = nextSupervisoryCycleAction(route, prior);
     if (!action) return this.#writeStandaloneStatus('IDLE', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     if (action.type === 'WAIT_GITHUB_RECEIPT') {
@@ -412,22 +428,109 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus('AWAITING_GITHUB_RECEIPT', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     }
 
-    const target = await this.browser.findOrCreateChatTarget(route.chat.url);
-    this.#rememberTarget(state, route.chat, target);
+    let session = prior?.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
+    if (session && prior?.status === 'FAILED_RETRYABLE' && session.status === 'FAILED') session = null;
+    let target;
+    let expectedUrl;
+    if (!session) {
+      if (prior && !['UNSEEN', 'RETRY_AUTHORIZED', 'FAILED_RETRYABLE'].includes(prior.status)) {
+        throw new Error(`Route ${route.requestId} reached ${prior.status} without a bound provider session.`);
+      }
+      const providerSessionId = newProviderSessionId();
+      const openedAt = new Date().toISOString();
+      target = await this.browser.createFreshChatTarget();
+      const mode = await this.browser.verifyModelRoundTrip(target, {
+        expectedUrl: 'https://chatgpt.com/',
+        extraHighLabel: route.chat.modelLabels.extraHigh,
+        proLabel: route.chat.modelLabels.pro,
+      });
+      const modelReceiptId = `provider-session-model:${providerSessionId}:${sha256(openedAt).slice(0, 12)}`;
+      await this.missionControl.recordEvidence(route.workerId, {
+        receiptId: modelReceiptId,
+        summary: PROVIDER_SESSION_MODEL_SUMMARY,
+        refs: [
+          `request:${route.requestId}`,
+          `supervisor:${route.supervisorId}`,
+          `provider_session:${providerSessionId}`,
+          `extra_high_label:${route.chat.modelLabels.extraHigh}`,
+          `pro_label:${route.chat.modelLabels.pro}`,
+          'round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH',
+          'assistant_content_observed:false',
+          'backend_model_identity_claimed:false',
+          `opened_at:${openedAt}`,
+        ],
+        occurredAt: openedAt,
+      });
+      session = {
+        providerSessionId,
+        supervisorId: route.supervisorId,
+        requestId: route.requestId,
+        workerId: route.workerId,
+        conversationUrl: null,
+        openedAt,
+        status: 'ACTIVE',
+        modelReceiptId,
+        firstTurnMcpReceiptId: null,
+        targetId: target.id,
+      };
+      state.providerSessions[providerSessionId] = session;
+      state.deliveries[route.routeKey] = {
+        ...(prior ?? {}),
+        status: prior?.status ?? 'UNSEEN',
+        requestId: route.requestId,
+        workerId: route.workerId,
+        supervisorId: route.supervisorId,
+        providerSessionId,
+      };
+      this.#rememberTarget(state, route.chat, target, providerSessionId, 'https://chatgpt.com/');
+      state = await this.stateStore.write(state);
+      await this.#recordProviderSession(route, session, 'PENDING_PROVIDER_ASSIGNMENT');
+      prior = state.deliveries[route.routeKey];
+      expectedUrl = 'https://chatgpt.com/';
+    } else {
+      if (session.requestId !== route.requestId || session.supervisorId !== route.supervisorId || session.status !== 'ACTIVE') {
+        throw new Error(`Provider session ${session.providerSessionId ?? prior.providerSessionId} is not the active exact session for request ${route.requestId}.`);
+      }
+      if (session.conversationUrl) {
+        target = await this.browser.findOrCreateChatTarget(session.conversationUrl);
+        expectedUrl = session.conversationUrl;
+      } else {
+        const existing = (await this.browser.listTargets()).find((candidate) => candidate.id === session.targetId && candidate.type === 'page' && candidate.url === 'https://chatgpt.com/');
+        if (!existing) throw new Error(`Pending provider session ${session.providerSessionId} lost its fresh-chat target before first send.`);
+        await this.browser.activateTarget(existing.id);
+        target = { ...existing, created: false };
+        expectedUrl = 'https://chatgpt.com/';
+      }
+      this.#rememberTarget(state, route.chat, target, session.providerSessionId, expectedUrl);
+    }
+    if (route.firstTurnMcpReceipt && !session.firstTurnMcpReceiptId) {
+      if (route.firstTurnMcpReceipt.supervisorId !== route.supervisorId || route.firstTurnMcpReceipt.providerSessionId !== session.providerSessionId) {
+        throw new Error(`First-turn MCP receipt does not match provider session ${session.providerSessionId}.`);
+      }
+      session = { ...session, firstTurnMcpReceiptId: route.firstTurnMcpReceipt.receiptId };
+      state.providerSessions[session.providerSessionId] = session;
+      state = await this.stateStore.write(state);
+      await this.#recordProviderSession(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
+    }
+    route = { ...route, providerSessionId: session.providerSessionId, providerSession: session };
     const postOpenMetrics = await this.memoryReader(this.config.browser.profileDir);
     memory = this.#memoryState(postOpenMetrics);
     const closedTargets = await this.#applyTabBudget(await this.browser.listTargets(), state, memory.pressure, target.id);
     if (memory.pressure === 'HARD') {
       if (target.created) await this.browser.closeTarget(target.id).catch(() => {});
-      state.health.pausedReason = `Opening ${route.chat.label} crossed the hard memory boundary: ${memory.reasons.join('; ')}`;
+      session.status = 'FAILED';
+      session.failedAt = new Date().toISOString();
+      state.providerSessions[session.providerSessionId] = session;
+      await this.#recordProviderSession(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
+      state.health.pausedReason = `Opening a fresh provider session for ${route.chat.label} crossed the hard memory boundary: ${memory.reasons.join('; ')}`;
       state = await this.stateStore.write(state);
       return this.#writeStandaloneStatus('PAUSED_MEMORY_AFTER_TAB_OPEN', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), closedTargets });
     }
 
     if (action.type === 'WAIT_GENERATION') {
       await this.#ensureStartEvidence(route, action.step, prior);
-      const observation = await this.browser.waitForGenerationComplete(target, { expectedUrl: route.chat.url, generationStarted: prior?.generationStarted === true });
-      await this.#recordRelayStage(route, action.step, prior.modelUiLabel, prior.promptSha256, 'COMPLETE', observation.completedAtObserved, null);
+      const observation = await this.browser.waitForGenerationComplete(target, { expectedUrl, generationStarted: prior?.generationStarted === true });
+      await this.#recordRelayStage(route, action.step, prior.modelUiLabel, prior.promptSha256, 'COMPLETE', observation.completedAtObserved, null, prior.generationStart?.messageApps ?? null);
       state = await this.stateStore.read();
       state.deliveries[route.routeKey] = {
         ...prior,
@@ -443,9 +546,10 @@ export class RelayRuntime {
 
     const prompt = cycleControlPrompt(route, action.step);
     const desiredLabel = action.model === 'PRO' ? route.chat.modelLabels.pro : route.chat.modelLabels.extraHigh;
-    const model = await this.browser.switchModel(target, { expectedUrl: route.chat.url, label: desiredLabel });
+    const model = await this.browser.switchModel(target, { expectedUrl, label: desiredLabel });
     if (model.observedLabel !== desiredLabel) throw new Error(`Exact model UI label mismatch: expected ${desiredLabel}, observed ${model.observedLabel ?? 'UNKNOWN'}.`);
     const promptSha256 = sha256(prompt);
+    let generationStarted = false;
     try {
       const start = await this.submissionPacer.submit({
         beforeSubmit: async () => {
@@ -457,8 +561,9 @@ export class RelayRuntime {
             status: 'SUBMISSION_INTENT_RECORDED',
             requestId: route.requestId,
             workerId: route.workerId,
-            chatId: route.chat.chatId,
-            conversationUrl: route.chat.url,
+            supervisorId: route.supervisorId,
+            providerSessionId: session.providerSessionId,
+            conversationUrl: session.conversationUrl,
             cycleStep: action.step,
             reasoningLane: route.packet.reasoningLane,
             modelUiLabel: model.observedLabel,
@@ -474,27 +579,55 @@ export class RelayRuntime {
           state = await this.stateStore.write(state);
         },
         submit: async () => {
-          const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(route.chat, action.step));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: route.chat.url, body: prompt, bodySha256: promptSha256 });
+          const appPlan = appSelectionForMessage(route.chat, action.step);
+          const messageApps = appPlan.requiredLabels.length > 0
+            ? await this.browser.selectAppsForMessage(target, appPlan)
+            : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
+          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256 });
           return { ...start, messageApps };
         },
       });
+      generationStarted = true;
       state = await this.stateStore.read();
+      session = state.providerSessions[session.providerSessionId];
+      if (!session) throw new Error(`Provider session ${route.providerSessionId} disappeared after submission.`);
+      if (!session.conversationUrl) {
+        session = { ...session, conversationUrl: start.conversationUrl, targetId: target.id, urlBoundAt: start.startedAtObserved };
+        state.providerSessions[session.providerSessionId] = session;
+        this.#rememberTarget(state, route.chat, target, session.providerSessionId, session.conversationUrl);
+        state = await this.stateStore.write(state);
+        await this.#recordProviderSession(route, session, 'EXACT');
+      } else if (session.conversationUrl !== start.conversationUrl) {
+        throw new Error(`Provider session URL changed from ${session.conversationUrl} to ${start.conversationUrl}.`);
+      }
+      route = { ...route, providerSession: session };
       state.deliveries[route.routeKey] = {
         ...state.deliveries[route.routeKey],
         status: startedCycleStepStatus(action.step),
         generationStarted: true,
         generationStartedAt: start.startedAtObserved,
         generationStart: start,
+        conversationUrl: session.conversationUrl,
       };
       state = await this.stateStore.write(state);
-      await this.#recordRelayStage(route, action.step, model.observedLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal);
+      await this.#recordRelayStage(route, action.step, model.observedLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal, start.messageApps ?? null);
       return this.#writeStandaloneStatus(startedCycleStepStatus(action.step), state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), generationStart: start });
     } catch (error) {
       if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) }, error);
       const stage = error?.relayStage ?? 'UNKNOWN';
-      const afterClick = stage === 'CLICKED';
+      const afterClick = generationStarted || stage === 'CLICKED';
       state = await this.stateStore.read();
+      session = state.providerSessions[route.providerSessionId] ?? session;
+      if (session) {
+        session = {
+          ...session,
+          status: afterClick ? 'AMBIGUOUS' : 'FAILED',
+          failedAt: new Date().toISOString(),
+          failureStage: stage,
+        };
+        state.providerSessions[session.providerSessionId] = session;
+        await this.#recordProviderSession(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
+      }
       state.deliveries[route.routeKey] = {
         ...state.deliveries[route.routeKey],
         status: afterClick ? 'AMBIGUOUS_AFTER_RESTART' : 'FAILED_RETRYABLE',
@@ -513,13 +646,15 @@ export class RelayRuntime {
     if (!prior?.generationStarted || !prior?.generationStartedAt || !prior?.modelUiLabel || !prior?.promptSha256) {
       throw new Error(`Generation-start evidence is incomplete for ${route.requestId}/${step}.`);
     }
-    await this.#recordRelayStage(route, step, prior.modelUiLabel, prior.promptSha256, 'STARTED', prior.generationStartedAt, prior.generationStart?.startSignal ?? null);
+    await this.#recordRelayStage(route, step, prior.modelUiLabel, prior.promptSha256, 'STARTED', prior.generationStartedAt, prior.generationStart?.startSignal ?? null, prior.generationStart?.messageApps ?? null);
   }
 
-  async #recordRelayStage(route, step, modelUiLabel, promptSha256, generationState, observedAt, startSignal) {
+  async #recordRelayStage(route, step, modelUiLabel, promptSha256, generationState, observedAt, startSignal, messageApps) {
     const refs = [
       `request:${route.requestId}`,
-      `chat:${route.chat.chatId}`,
+      `supervisor:${route.supervisorId}`,
+      `provider_session:${route.providerSessionId}`,
+      `conversation_url:${route.providerSession?.conversationUrl ?? 'PENDING_PROVIDER_ASSIGNMENT'}`,
       `step:${step}`,
       `model_ui_label:${modelUiLabel}`,
       `prompt_sha256:${promptSha256}`,
@@ -527,6 +662,8 @@ export class RelayRuntime {
       `observed_at:${observedAt}`,
       'assistant_content_observed:false',
       'backend_model_identity_claimed:false',
+      `app_selection_attempted:${messageApps?.status === 'APP_SELECTION_NOT_ATTEMPTED' ? 'false' : 'true'}`,
+      `app_selection_status:${messageApps?.status ?? 'UNKNOWN'}`,
     ];
     if (startSignal) refs.push(`generation_start_signal:${startSignal}`);
     return this.missionControl.recordEvidence(route.workerId, {
@@ -534,6 +671,27 @@ export class RelayRuntime {
       summary: RELAY_STAGE_SUMMARY,
       refs,
       occurredAt: observedAt,
+    });
+  }
+
+  async #recordProviderSession(route, session, urlBindingStatus) {
+    const occurredAt = session.completedAt ?? session.failedAt ?? session.urlBoundAt ?? session.openedAt;
+    return this.missionControl.recordEvidence(route.workerId, {
+      receiptId: `provider-session:${session.providerSessionId}:${session.status}:${sha256(`${urlBindingStatus}:${occurredAt}`).slice(0, 12)}`,
+      summary: PROVIDER_SESSION_SUMMARY,
+      refs: [
+        `request:${route.requestId}`,
+        `supervisor:${route.supervisorId}`,
+        `provider_session:${session.providerSessionId}`,
+        `conversation_url:${session.conversationUrl ?? 'PENDING_PROVIDER_ASSIGNMENT'}`,
+        `url_binding_status:${urlBindingStatus}`,
+        `opened_at:${session.openedAt}`,
+        `lifecycle_status:${session.status}`,
+        `model_receipt:${session.modelReceiptId}`,
+        `first_turn_mcp_receipt:${session.firstTurnMcpReceiptId ?? 'PENDING'}`,
+        'semantic_authority:false',
+      ],
+      occurredAt,
     });
   }
 
@@ -567,8 +725,17 @@ export class RelayRuntime {
     return closures;
   }
 
-  #rememberTarget(state, chat, target) {
-    state.tabs[chat.chatId] = { chatId: chat.chatId, targetId: target.id, url: chat.url, pinned: chat.pinned, lastUsedAt: new Date().toISOString() };
+  #rememberTarget(state, chat, target, providerSessionId = null, url = null) {
+    const key = providerSessionId ?? `bootstrap:${chat.bootstrapCapability.chatId}`;
+    state.tabs[key] = {
+      chatId: providerSessionId ? null : chat.bootstrapCapability.chatId,
+      supervisorId: chat.supervisorId,
+      providerSessionId,
+      targetId: target.id,
+      url: url ?? chat.bootstrapCapability.url,
+      pinned: providerSessionId ? false : chat.pinned,
+      lastUsedAt: new Date().toISOString(),
+    };
   }
 
   #forgetMissingTargets(state, targets) {
@@ -604,8 +771,8 @@ function findChallengeExpiry(snapshot, chat) {
   const timeline = Array.isArray(worker?.timeline) ? worker.timeline : [];
   const challenge = [...timeline].reverse().find((event) => event?.data?.type === 'evidence_receipt_recorded'
     && event.data.summary === CAPABILITY_CHALLENGE_SUMMARY
-    && event.data.refs?.includes(`challenge:${chat.capabilityChallengeId}`)
-    && event.data.refs?.includes(`chat:${chat.chatId}`));
+    && event.data.refs?.includes(`challenge:${chat.bootstrapCapability.challengeId}`)
+    && event.data.refs?.includes(`chat:${chat.bootstrapCapability.chatId}`));
   const expiry = challenge?.data?.refs?.find((ref) => typeof ref === 'string' && ref.startsWith('expires_at:'))?.slice('expires_at:'.length);
   return expiry && Number.isFinite(Date.parse(expiry)) ? expiry : null;
 }
@@ -613,7 +780,7 @@ function findChallengeExpiry(snapshot, chat) {
 function unresolvedAmbiguities(state) {
   return Object.entries(state.deliveries)
     .filter(([, delivery]) => delivery?.status === 'AMBIGUOUS_AFTER_RESTART')
-    .map(([routeKey, delivery]) => ({ routeKey, chatId: delivery.chatId, bodySha256: delivery.bodySha256, lastAttemptAt: delivery.lastAttemptAt ?? null, status: delivery.status }));
+    .map(([routeKey, delivery]) => ({ routeKey, supervisorId: delivery.supervisorId ?? null, providerSessionId: delivery.providerSessionId ?? null, bodySha256: delivery.bodySha256, lastAttemptAt: delivery.lastAttemptAt ?? null, status: delivery.status }));
 }
 
 function summarizeRoutes(routes, state) {
@@ -631,7 +798,8 @@ function publicRoute(route) {
     requestId: route.requestId,
     workerId: route.workerId,
     workerName: route.workerName,
-    destinationChatId: route.chat.chatId,
+    destinationSupervisorId: route.supervisorId,
+    providerSessionId: route.providerSessionId,
     destinationLabel: route.chat.label,
     queuedAt: route.queuedAt,
     bodySha256: route.bodySha256,

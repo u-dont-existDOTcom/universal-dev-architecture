@@ -14,10 +14,14 @@ interface Snapshot {
 
 interface ConfiguredSupervisorChat {
   scope: "PROJECT_MANAGER" | "SPECIALIST";
+  supervisorId: string;
   chatId: string;
   label: string;
   url: string;
   workerId: string | null;
+  requiredApp: string;
+  expectedModels: { extraHigh: string; pro: string };
+  bootstrapCapability: { chatId: string; url: string; challengeId: string };
   locatorVerification: "OWNER_CONFIGURED_UNVERIFIED";
 }
 
@@ -42,7 +46,7 @@ interface InternalRoutePacket {
   requestId: string;
   actionBlockedOrRouted: string;
   destination: string;
-  destinationChatId: string;
+  destinationSupervisorId: string;
   providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY";
   queuedAt: string;
   factualPacket: {
@@ -65,6 +69,7 @@ const emptyDirectory: ConfiguredSupervisorDirectory = {
   error: null,
 };
 const internalRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
+const providerSessionRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
 
 export function SupervisionConsole() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -166,13 +171,13 @@ export function SupervisionConsole() {
           && (row.event.data.immutable_provider_locator === entry.url || row.worker.id === entry.workerId));
         const latest = latestMessage(matchingRows);
         const verified = matchingRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
-        const queued = routeRows.filter((row) => row.packet.destinationChatId === entry.chatId).length;
-        return <article key={entry.chatId} className="healthy-card">
+        const queued = routeRows.filter((row) => row.packet.destinationSupervisorId === entry.supervisorId).length;
+        return <article key={entry.supervisorId} className="healthy-card">
           <div className="healthy-card-head">
             <div><StatusDot health={verified > 0 ? "GREEN" : "YELLOW"} /><h3>{entry.label}</h3></div>
             <span>{verified > 0 ? "SOURCE-BOUND CHAT" : "CONFIGURED LOCATOR"}</span>
           </div>
-          <p>{entry.workerId ? `Worker ${entry.workerId}` : "Specialist supervisor"} · provider relay {directory.providerRelayState.replaceAll("_", " ")}</p>
+          <p>{entry.workerId ? `Worker ${entry.workerId}` : "Specialist supervisor"} · stable identity {entry.supervisorId} · provider relay {directory.providerRelayState.replaceAll("_", " ")}</p>
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{matchingRows.length}</strong></span>
@@ -180,7 +185,7 @@ export function SupervisionConsole() {
             <span>Locator <strong>OWNER CONFIGURED</strong></span>
           </div>
           {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No provider-bound specialist message has been ingested. The configured URL remains directly usable but unverified by Mission Control.</p>}
-          <div className="detail-actions"><a href={entry.url} target="_blank" rel="noreferrer">Open specialist chat →</a></div>
+          <div className="detail-actions"><a href={entry.bootstrapCapability.url} target="_blank" rel="noreferrer">Open bootstrap capability chat →</a></div>
         </article>;
       })}
     </section>}
@@ -220,14 +225,14 @@ export function SupervisionConsole() {
       {routeRows.length === 0
         ? <p className="empty-channel">No pre-action supervisor route packets are recorded.</p>
         : routeRows.slice(0, 20).map((row) => {
-          const locator = directory.entries.find((entry) => entry.chatId === row.packet.destinationChatId)?.url ?? null;
+          const locator = directory.entries.find((entry) => entry.supervisorId === row.packet.destinationSupervisorId)?.bootstrapCapability.url ?? null;
           return <div className="gap-callout" key={row.event.eventId}>
             <span className="field-label">{row.packet.providerDeliveryState.replaceAll("_", " ")}</span>
             <p><strong>{row.worker.name}</strong> · blocked/routed action {row.packet.actionBlockedOrRouted.replaceAll("_", " ")}</p>
             <p>{row.packet.factualPacket.exactFactualState}</p>
             <p><strong>Decision requested:</strong> {row.packet.factualPacket.decisionRequested}</p>
-            <code>{row.packet.requestId} · {row.packet.destinationChatId} · {formatMessageTimestamp(row.packet.queuedAt).absolute}</code>
-            {locator && <a href={locator} target="_blank" rel="noreferrer">Open destination chat →</a>}
+            <code>{row.packet.requestId} · {row.packet.destinationSupervisorId} · {formatMessageTimestamp(row.packet.queuedAt).absolute}</code>
+            {locator && <a href={locator} target="_blank" rel="noreferrer">Open bootstrap capability chat →</a>}
           </div>;
         })}
     </section>
@@ -264,11 +269,14 @@ function realSupervisorLink(worker: WorkerState | undefined): string | null {
 }
 
 function parseInternalRoutePacket(body: string): InternalRoutePacket | null {
-  if (!body.startsWith(internalRoutePrefix)) return null;
+  const providerSession = body.startsWith(providerSessionRoutePrefix);
+  const prefix = providerSession ? providerSessionRoutePrefix : internalRoutePrefix;
+  if (!body.startsWith(prefix)) return null;
   try {
-    const value = JSON.parse(body.slice(internalRoutePrefix.length)) as Partial<InternalRoutePacket>;
+    const raw = JSON.parse(body.slice(prefix.length)) as Partial<InternalRoutePacket> & { destinationChatId?: string };
+    const value = { ...raw, destinationSupervisorId: providerSession ? raw.destinationSupervisorId : raw.destinationChatId };
     if (typeof value.requestId !== "string" || typeof value.actionBlockedOrRouted !== "string"
-      || typeof value.destination !== "string" || typeof value.destinationChatId !== "string"
+      || typeof value.destination !== "string" || typeof value.destinationSupervisorId !== "string"
       || value.providerDeliveryState !== "QUEUED_FOR_PROVIDER_RELAY" || typeof value.queuedAt !== "string"
       || !value.factualPacket || typeof value.factualPacket.taskId !== "string"
       || typeof value.factualPacket.exactFactualState !== "string" || typeof value.factualPacket.decisionRequested !== "string") return null;

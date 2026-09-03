@@ -150,7 +150,7 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
 });
 
-test("a registered same-chat cycle is emitted with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {
+test("a registered provider-session cycle is emitted for the stable supervisor with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {
   const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({
     factualPacket: {
       packetId: "packet:askrigor:mast:cycle",
@@ -172,23 +172,36 @@ test("a registered same-chat cycle is emitted with exact nonce, evidence, owner 
   if (result.routeEnvelope?.data.type !== "worker_message_recorded") return;
   assert.ok(result.routeEnvelope.data.body.startsWith(supervisoryCycleRoutePrefix));
   const packet = JSON.parse(result.routeEnvelope.data.body.slice(supervisoryCycleRoutePrefix.length));
+  assert.equal(packet.schemaVersion, 3);
+  assert.equal(packet.packetKind, "PROVIDER_SESSION_SUPERVISORY_CYCLE");
+  assert.equal(packet.destinationSupervisorId, "chat:askrigor:new-research-avenues");
+  assert.equal(Object.hasOwn(packet, "destinationChatId"), false);
   assert.equal(packet.requestId, "admission:askrigor:mast:1");
   assert.equal(packet.nonce, "nonce-cycle-1");
   assert.equal(packet.reasoningLane, "PRO_ESCALATED");
   assert.equal(packet.writerContract.reinterpretationAllowed, false);
 });
 
-test("configured chat locators are exposed without pretending provider verification or relay", () => {
+test("configured stable supervisor identity is distinct from its bootstrap conversation locator", () => {
   const directory = loadConfiguredSupervisorChats(JSON.stringify([
     {
       scope: "PROJECT_MANAGER",
-      chatId: "chat:mission-control:project-manager",
+      supervisorId: "mc-hotfix-specialist",
       label: "Mission Control overall supervisor",
-      url: "https://chatgpt.com/c/6a944d7a-3350-83e9-8302-5c011835fd77",
       workerId: null,
+      requiredApp: "Mission Control",
+      expectedModels: { extraHigh: "Extra High", pro: "Pro" },
+      bootstrapCapability: {
+        chatId: "mc-hotfix-specialist-v2",
+        url: "https://chatgpt.com/c/6a944d7a-3350-83e9-8302-5c011835fd77",
+        challengeId: "challenge-bootstrap",
+      },
     },
   ]));
   assert.equal(directory.configurationState, "CONFIGURED");
   assert.equal(directory.providerRelayState, "NOT_CONNECTED");
+  assert.equal(directory.entries[0]?.supervisorId, "mc-hotfix-specialist");
+  assert.equal(directory.entries[0]?.bootstrapCapability.chatId, "mc-hotfix-specialist-v2");
+  assert.notEqual(directory.entries[0]?.supervisorId, directory.entries[0]?.bootstrapCapability.chatId);
   assert.equal(directory.entries[0]?.locatorVerification, "OWNER_CONFIGURED_UNVERIFIED");
 });

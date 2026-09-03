@@ -4,6 +4,7 @@ import {
   CAPABILITY_CHALLENGE_SUMMARY,
   CAPABILITY_VERIFIED_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
+  PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   RELAY_STAGE_SUMMARY,
   STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
@@ -35,7 +36,7 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
-test('escalated reader records transport COMPLETE and advances to Pro only after durable reader liveness arrives', async () => {
+test('escalated route creates a fresh provider session, selects Mission Control only for the reader, then advances in the same chat', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -44,9 +45,12 @@ test('escalated reader records transport COMPLETE and advances to Pro only after
   const first = await runtime.cycle();
   assert.equal(first.status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.freshChatCalls, 1);
+  assert.match(store.state.deliveries['request:r-1'].conversationUrl, /^https:\/\/chatgpt\.com\/c\/fresh-/);
   assert.equal(mc.recordedEvidence.filter((item) => item.summary === RELAY_STAGE_SUMMARY).length, 1);
-  assert.ok(mc.recordedEvidence[0].refs.includes('generation_state:STARTED'));
-  assert.ok(mc.recordedEvidence[0].refs.includes('assistant_content_observed:false'));
+  const firstStage = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY);
+  assert.ok(firstStage.refs.includes('generation_state:STARTED'));
+  assert.ok(firstStage.refs.includes('assistant_content_observed:false'));
 
   const second = await runtime.cycle();
   assert.equal(second.status, 'EXTRA_HIGH_READER_COMPLETE');
@@ -54,11 +58,17 @@ test('escalated reader records transport COMPLETE and advances to Pro only after
   const stages = mc.recordedEvidence.filter((item) => item.summary === RELAY_STAGE_SUMMARY);
   assert.ok(stages.some((item) => item.refs.includes('generation_state:COMPLETE')));
 
-  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z'));
+  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', store.state.deliveries['request:r-1'].providerSessionId));
   const third = await runtime.cycle();
   assert.equal(third.status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.switchLabels.at(-1), 'Pro');
   assert.equal(browser.submitCalls, 2);
+  assert.equal(browser.freshChatCalls, 1);
+  assert.deepEqual(browser.selectAppsCalls, [
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
+  ]);
+  const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
+  assert.ok(proStart.refs.includes('app_selection_attempted:false'));
 });
 
 test('click without an observed generation-start transition becomes ambiguous and cannot replay', async () => {
@@ -78,7 +88,7 @@ test('click without an observed generation-start transition becomes ambiguous an
 
 test('restart after pre-click intent marks route ambiguous without browser reconciliation', async () => {
   const state = defaultState();
-  state.deliveries['request:r-1'] = { status: 'SUBMISSION_INTENT_RECORDED', chatId: 'spec', bodySha256: 'a'.repeat(64), lastAttemptAt: '2026-09-02T00:00:00Z' };
+  state.deliveries['request:r-1'] = { status: 'SUBMISSION_INTENT_RECORDED', supervisorId: 'spec', providerSessionId: 'provider-session:interrupted', bodySha256: 'a'.repeat(64), lastAttemptAt: '2026-09-02T00:00:00Z' };
   const store = new MemoryStateStore(state);
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -162,7 +172,7 @@ test('capability challenge obeys the persisted global cooldown without creating 
   assert.deepEqual(store.state.deliveries, {});
 });
 
-test('same-chat mode stages are globally paced and retry later without semantic mutation', async () => {
+test('fresh-session creation and every same-chat send share the global pacing gate without reselection', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -170,8 +180,9 @@ test('same-chat mode stages are globally paced and retry later without semantic 
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, now: () => now.value });
 
   assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_COMPLETE');
-  mc.evidence.push(stageLivenessEvidence('reader-complete-paced', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z'));
+  const completed = await runtime.cycle();
+  assert.equal(completed.status, 'EXTRA_HIGH_READER_COMPLETE', JSON.stringify(completed));
+  mc.evidence.push(stageLivenessEvidence('reader-complete-paced', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', store.state.deliveries['request:r-1'].providerSessionId));
   const before = structuredClone(store.state.deliveries['request:r-1']);
   const blocked = await runtime.cycle();
   assert.equal(blocked.status, 'GLOBAL_SUBMISSION_COOLDOWN');
@@ -184,9 +195,8 @@ test('same-chat mode stages are globally paced and retry later without semantic 
   assert.equal(browser.submitCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
   ]);
-  assert.deepEqual(browser.appSelectionEvidence[1].clearedPriorLabels, ['Mission Control']);
+  assert.equal(browser.appSelectionEvidence.length, 1);
 });
 
 test('hard memory pressure performs no submission', async () => {
@@ -197,6 +207,46 @@ test('hard memory pressure performs no submission', async () => {
   const result = await runtime.cycle();
   assert.equal(result.status, 'PAUSED_MEMORY_HARD');
   assert.equal(browser.submitCalls, 0);
+});
+
+test('an admitted canonical receipt completes the provider session and closes its browser tab', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  const targetId = store.state.providerSessions[providerSessionId].targetId;
+  mc.evidence.push({
+    eventId: 'decision-current-session', sequence: 99, occurredAt: '2026-09-02T00:10:00.000Z', data: {
+      type: 'github_decision_receipt_ingested', request_id: 'r-1', provider_session_id: providerSessionId,
+      supervisor_id: 'spec', receipt_id: 'github-comment:1', reasoning_lane: 'PRO_ESCALATED',
+      github_receipt: { repository: 'o/r', issue_number: 1, comment_id: 1, immutable_url: 'https://github.com/o/r/issues/1#issuecomment-1' },
+    },
+  });
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(store.state.providerSessions[providerSessionId].status, 'COMPLETE');
+  assert.ok(browser.closedTargets.includes(targetId));
+  assert.equal(Object.values(store.state.tabs).some((tab) => tab?.providerSessionId === providerSessionId), false);
+});
+
+test('each admitted route gets a different fresh provider session and conversation', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  const firstSession = store.state.deliveries['request:r-1'].providerSessionId;
+  const firstUrl = store.state.deliveries['request:r-1'].conversationUrl;
+  mc.evidence.push({ eventId: 'decision-r1', sequence: 90, occurredAt: '2026-09-02T00:10:00.000Z', data: { type: 'github_decision_receipt_ingested', request_id: 'r-1', provider_session_id: firstSession, supervisor_id: 'spec', receipt_id: 'github-comment:r1', reasoning_lane: 'PRO_ESCALATED', github_receipt: {} } });
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  mc.routes.push(routeEvent('r-2', 'route-2'));
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  const secondSession = store.state.deliveries['request:r-2'].providerSessionId;
+  const secondUrl = store.state.deliveries['request:r-2'].conversationUrl;
+  assert.notEqual(secondSession, firstSession);
+  assert.notEqual(secondUrl, firstUrl);
+  assert.equal(browser.freshChatCalls, 2);
 });
 
 function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now }) {
@@ -220,9 +270,9 @@ class MemoryStateStore {
 }
 
 class FakeMissionControl {
-  constructor({ evidence = [] } = {}) { this.evidence = [...evidence]; this.recordedEvidence = []; this.sequence = 50; }
+  constructor({ evidence = [], routes = [routeEvent()] } = {}) { this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50; }
   async fetchFleet() {
-    const timeline = [routeEvent(), ...this.evidence, ...this.recordedEvidence.map((item) => ({
+    const timeline = [...this.routes, ...this.evidence, ...this.recordedEvidence.map((item) => ({
       eventId: `evidence-${item.receiptId}`, sequence: ++this.sequence, occurredAt: item.occurredAt ?? '2026-09-02T00:00:01.000Z', data: {
         type: 'evidence_receipt_recorded', receipt_id: item.receiptId, summary: item.summary, refs: item.refs, verified: true,
       },
@@ -238,12 +288,19 @@ class FakeMissionControl {
 class FakeBrowser {
   constructor({ submitErrorStage = null } = {}) {
     this.submitErrorStage = submitErrorStage;
-    this.submitCalls = 0; this.waitCalls = 0; this.modeRoundTripCalls = 0; this.switchLabels = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
+    this.submitCalls = 0; this.waitCalls = 0; this.modeRoundTripCalls = 0; this.freshChatCalls = 0; this.switchLabels = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = [];
   }
   async doctor() { return { browser: 'Fake', targetCount: this.targets.length }; }
   async listTargets() { return structuredClone(this.targets); }
   async closeTarget(id) { this.closedTargets.push(id); this.targets = this.targets.filter((target) => target.id !== id); return true; }
+  async activateTarget() { return true; }
+  async createFreshChatTarget() {
+    this.freshChatCalls += 1;
+    const target = { id: `target-fresh-${this.freshChatCalls}`, type: 'page', url: 'https://chatgpt.com/', created: true, webSocketDebuggerUrl: 'ws://fake' };
+    this.targets.push(target);
+    return target;
+  }
   async findOrCreateChatTarget(url) {
     const existing = this.targets.find((target) => target.url === url);
     if (existing) return { ...existing, created: false, webSocketDebuggerUrl: 'ws://fake' };
@@ -265,20 +322,21 @@ class FakeBrowser {
   async submitExactMessage(target, input) {
     this.submitCalls += 1; this.lastSubmittedBody = input.body;
     if (this.submitErrorStage) { const error = new Error('simulated send uncertainty'); error.relayStage = this.submitErrorStage; throw error; }
-    return { status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE', startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256 };
+    if (target.url === 'https://chatgpt.com/') target.url = `https://chatgpt.com/c/fresh-${this.freshChatCalls}`;
+    return { status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE', startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256, conversationUrl: target.url };
   }
   async waitForGenerationComplete() { this.waitCalls += 1; return { status: 'GENERATION_COMPLETE', generationStarted: true, completedAtObserved: `2026-09-02T00:00:1${this.waitCalls}.000Z`, inspectedAssistantOutput: false }; }
 }
 
 function chat() {
-  return { scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false, capabilityChallengeId: 'challenge-spec', modelLabels: { extraHigh: 'Extra High', pro: 'Pro' }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
+  return { scope: 'SPECIALIST', supervisorId: 'spec', label: 'Specialist', workerId: 'worker-a', pinned: false, bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' }, modelLabels: { extraHigh: 'Extra High', pro: 'Pro' }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
 }
 
 function challengeEvidence() {
   return {
     eventId: 'challenge', sequence: 1, occurredAt: '2026-09-02T00:00:00.000Z', data: {
       type: 'evidence_receipt_recorded', receipt_id: 'challenge', summary: CAPABILITY_CHALLENGE_SUMMARY, verified: true,
-      refs: ['challenge:challenge-spec', 'chat:spec', 'mc_nonce:mc-secret', 'github_nonce_sha256:deadbeef', 'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', 'stage_receipt_target:https://github.com/o/r/issues/3', 'expires_at:2099-09-03T00:00:00.000Z'],
+      refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', 'github_nonce_sha256:deadbeef', 'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', 'stage_receipt_target:https://github.com/o/r/issues/3', 'expires_at:2099-09-03T00:00:00.000Z'],
     },
   };
 }
@@ -286,27 +344,27 @@ function challengeEvidence() {
 function capabilityEvidence() {
   return [
     challengeEvidence(),
-    { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
-    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec-bootstrap', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', 'expires_at:2099-09-03T00:00:00.000Z'] } },
   ];
 }
 
-function stageLivenessEvidence(id, stage, status, occurredAt) {
+function stageLivenessEvidence(id, stage, status, occurredAt, providerSessionId) {
   return {
     eventId: id, sequence: 40, occurredAt, data: {
       type: 'evidence_receipt_recorded', receipt_id: id, summary: STAGE_LIVENESS_SUMMARY, verified: true,
-      refs: ['request:r-1', 'chat:spec', `stage:${stage}`, `status:${status}`, 'semantic_authority:false'],
+      refs: ['request:r-1', 'supervisor:spec', `provider_session:${providerSessionId}`, `stage:${stage}`, `status:${status}`, 'semantic_authority:false'],
     },
   };
 }
 
-function routeEvent() {
-  const body = SUPERVISORY_CYCLE_ROUTE_PREFIX + JSON.stringify({
-    schemaVersion: 2, packetKind: 'SAME_CHAT_SUPERVISORY_CYCLE', requestId: 'r-1', nonce: 'nonce-1', reasoningLane: 'PRO_ESCALATED',
-    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationChatId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+function routeEvent(requestId = 'r-1', eventId = 'route') {
+  const body = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane: 'PRO_ESCALATED',
+    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'outcome-1', epoch: 1, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 1 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2099-09-03T00:00:00.000Z',
   });
-  return { eventId: 'route', sequence: 10, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: 'message-1', body } };
+  return { eventId, sequence: requestId === 'r-1' ? 10 : 11, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: `message-${requestId}`, body } };
 }

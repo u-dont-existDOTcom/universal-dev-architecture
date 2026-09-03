@@ -5,6 +5,7 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   CONTINUE_NUDGE_DELAY_MS,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
+  PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGE_LIVENESS_SUMMARY,
   STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
@@ -18,6 +19,7 @@ import {
   defaultState,
   extractQueuedRoutes,
   mcpReadPreflightPrompt,
+  newProviderSessionId,
   nextSupervisoryCycleAction,
   normalizeConversationUrl,
   oneShotExitCode,
@@ -38,11 +40,12 @@ test('one-shot command fails only explicit cycle errors', () => {
 
 test('chat directory is registration-only and ignores attempted capability self-attestation', () => {
   const [chat] = parseChatDirectory([{ ...chatFixture(), capabilities: { githubWrite: { testStatus: 'PASSED' } } }]);
-  assert.equal(chat.chatId, 'spec');
-  assert.equal(chat.capabilityChallengeId, 'challenge-spec');
+  assert.equal(chat.supervisorId, 'spec');
+  assert.equal(chat.bootstrapCapability.chatId, 'spec-bootstrap');
+  assert.equal(chat.bootstrapCapability.challengeId, 'challenge-spec');
   assert.equal(Object.hasOwn(chat, 'capabilities'), false);
   assert.throws(() => parseChatDirectory([{ ...chatFixture(), workerId: null }]), /workerId/);
-  assert.throws(() => parseChatDirectory([{ ...chatFixture(), url: 'https://example.com/c/x' }]), /chatgpt\.com/);
+  assert.throws(() => parseChatDirectory([{ ...chatFixture(), bootstrapCapability: { ...chatFixture().bootstrapCapability, url: 'https://example.com/c/x' } }]), /chatgpt\.com/);
   assert.throws(() => parseChatDirectory([{ ...chatFixture(), requiredApps: null }]), /requiredApps/);
 });
 
@@ -54,9 +57,20 @@ test('message app requirements are exact and step-specific', () => {
     referencedLabels: ['GitHub'],
   });
   assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, ['GitHub']);
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER_CONTINUE').requiredLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT_CONTINUE').requiredLabels, []);
+});
+
+test('provider sessions are new transport identities and never reuse the stable supervisor ID', () => {
+  const first = newProviderSessionId('cycle-one');
+  const second = newProviderSessionId('cycle-two');
+  assert.equal(first, 'provider-session:cycle-one');
+  assert.equal(second, 'provider-session:cycle-two');
+  assert.notEqual(first, second);
+  assert.notEqual(first, 'spec');
 });
 
 test('normalizes only concrete chatgpt conversation URLs', () => {
@@ -88,14 +102,14 @@ test('capability truth comes only from current Mission Control evidence receipts
   const future = '2026-09-03T00:00:00.000Z';
   const snapshot = snapshotWithEvidence([
     evidence('challenge', 1, CAPABILITY_CHALLENGE_SUMMARY, [
-      'challenge:challenge-spec', 'chat:spec', 'mc_nonce:mc-secret', `github_nonce_sha256:${sha256('gh-secret')}`,
+      'challenge:challenge-spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', `github_nonce_sha256:${sha256('gh-secret')}`,
       'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', `expires_at:${future}`,
     ]),
     evidence('tool-cap', 2, CAPABILITY_VERIFIED_SUMMARY, [
-      'challenge:challenge-spec', 'chat:spec', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
+      'challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
     ]),
     evidence('mode-cap', 3, MODE_CAPABILITY_VERIFIED_SUMMARY, [
-      'chat:spec', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', `expires_at:${future}`,
+      'chat:spec-bootstrap', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', `expires_at:${future}`,
     ]),
   ]);
   const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z');
@@ -108,7 +122,7 @@ test('capability control prompt preserves the owner-approved fresh-chat intent w
   const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0]);
   assert.match(prompt, /Use the selected Mission Control app/);
   assert.match(prompt, /get_capability_challenge/);
-  assert.match(prompt, /challenge challenge-spec and chat spec/);
+  assert.match(prompt, /challenge challenge-spec and chat spec-bootstrap/);
   assert.match(prompt, /github_nonce_source/);
   assert.match(prompt, /verify its SHA-256 equals the live github_nonce_sha256/);
   assert.match(prompt, /exact ordered capabilities/);
@@ -119,23 +133,22 @@ test('MCP preflight prompt is exact-bound and cannot authorize GitHub or Mission
   const prompt = mcpReadPreflightPrompt(parseChatDirectory([chatFixture()])[0]);
   assert.match(prompt, /selected Mission Control app/);
   assert.match(prompt, /get_capability_challenge/);
-  assert.match(prompt, /challenge_id challenge-spec and chat_id spec/);
+  assert.match(prompt, /challenge_id challenge-spec and chat_id spec-bootstrap/);
   assert.match(prompt, /do not use GitHub/);
   assert.match(prompt, /do not write or mutate anything/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
 });
 
-test('every substantive cycle prompt reads the exact MCP request binding before reasoning or writing', () => {
+test('only the first cycle turn reads Mission Control; same-session follow-ups reuse the bound context', () => {
   const route = escalatedRoute();
-  for (const step of ['EXTRA_HIGH_READER', 'PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
+  const reader = cycleControlPrompt(route, 'EXTRA_HIGH_READER');
+  assert.match(reader, /get_supervisory_request_binding/);
+  assert.match(reader, /request_id r1, supervisor_id spec, and provider_session_id provider-session:test/);
+  for (const step of ['PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
     const prompt = cycleControlPrompt(route, step);
-    assert.match(prompt, /Mission Control/);
-    assert.match(prompt, /get_supervisory_request_binding/);
-    assert.match(prompt, /request_id r1 and chat_id spec/);
-    assert.doesNotMatch(prompt, /request_nonce n1/);
+    assert.doesNotMatch(prompt, /get_supervisory_request_binding|get_stage_liveness_state/);
+    assert.match(prompt, /do not (invoke or reselect|refresh)/i);
   }
-  assert.match(cycleControlPrompt(route, 'PRO_LIVENESS_CHECK'), /get_stage_liveness_state/);
-  assert.match(cycleControlPrompt(route, 'EXTRA_HIGH_WRITER'), /get_stage_liveness_state/);
   assert.match(cycleControlPrompt(directRouteFixture(), 'EXTRA_HIGH_DIRECT'), /get_supervisory_request_binding/);
 });
 
@@ -144,11 +157,13 @@ test('route extraction binds durable stage-liveness receipts to the exact worker
   const body = supervisoryBody('PRO_ESCALATED');
   const timeline = [
     { eventId: 'e1', sequence: 1, occurredAt: '2026-09-02T12:00:00.000Z', data: { type: 'worker_message_recorded', message_id: 'm1', body } },
-    evidence('reader-more', 2, STAGE_LIVENESS_SUMMARY, ['request:r1', 'chat:spec', 'stage:EXTRA_HIGH_READER', 'status:CONTINUE_REQUIRED'], '2026-09-02T12:02:00.000Z'),
-    evidence('reader-done', 3, STAGE_LIVENESS_SUMMARY, ['request:r1', 'chat:spec', 'stage:EXTRA_HIGH_READER', 'status:STAGE_COMPLETE'], '2026-09-02T12:03:00.000Z'),
-    evidence('other-request', 4, STAGE_LIVENESS_SUMMARY, ['request:other', 'chat:spec', 'stage:PRO_REASONER', 'status:CONTINUE_REQUIRED'], '2026-09-02T12:04:00.000Z'),
+    evidence('reader-more', 2, STAGE_LIVENESS_SUMMARY, ['request:r1', 'supervisor:spec', 'provider_session:provider-session:test', 'stage:EXTRA_HIGH_READER', 'status:CONTINUE_REQUIRED'], '2026-09-02T12:02:00.000Z'),
+    evidence('reader-done', 3, STAGE_LIVENESS_SUMMARY, ['request:r1', 'supervisor:spec', 'provider_session:provider-session:test', 'stage:EXTRA_HIGH_READER', 'status:STAGE_COMPLETE'], '2026-09-02T12:03:00.000Z'),
+    evidence('other-request', 4, STAGE_LIVENESS_SUMMARY, ['request:other', 'supervisor:spec', 'provider_session:provider-session:test', 'stage:PRO_REASONER', 'status:CONTINUE_REQUIRED'], '2026-09-02T12:04:00.000Z'),
   ];
-  const routes = extractQueuedRoutes({ workers: [{ id: 'worker-a', name: 'Worker A', timeline }] }, [chat], defaultState());
+  const state = defaultState();
+  state.deliveries['request:r1'] = { status: 'EXTRA_HIGH_READER_COMPLETE', providerSessionId: 'provider-session:test' };
+  const routes = extractQueuedRoutes({ workers: [{ id: 'worker-a', name: 'Worker A', timeline }] }, [chat], state);
   assert.equal(routes.length, 1);
   assert.equal(routes[0].routeKind, 'SUPERVISORY_CYCLE');
   assert.equal(routes[0].stageLiveness.EXTRA_HIGH_READER.latest.status, 'STAGE_COMPLETE');
@@ -257,13 +272,8 @@ test('ambiguous routes never receive automatic recovery', () => {
 });
 
 test('tab plan preserves active target then pinned PM and closes LRU', () => {
-  const chats = parseChatDirectory([
-    { ...chatFixture(), scope: 'PROJECT_MANAGER', chatId: 'pm', url: 'https://chatgpt.com/c/pm', capabilityChallengeId: 'c-pm', pinned: true },
-    chatFixture(),
-    { ...chatFixture(), chatId: 'b', url: 'https://chatgpt.com/c/b', capabilityChallengeId: 'c-b' },
-    { ...chatFixture(), chatId: 'c', url: 'https://chatgpt.com/c/c', capabilityChallengeId: 'c-c' },
-  ]);
-  const targets = chats.map((chat) => ({ id: chat.chatId, type: 'page', url: chat.url }));
+  const chats = parseChatDirectory([chatFixture('pm', 'PROJECT_MANAGER'), chatFixture(), chatFixture('b'), chatFixture('c')]);
+  const targets = chats.map((chat) => ({ id: chat.supervisorId, type: 'page', url: chat.bootstrapCapability.url }));
   const state = defaultState();
   state.tabs = {
     pm: { targetId: 'pm', lastUsedAt: '2026-01-01T00:00:00Z' },
@@ -276,14 +286,14 @@ test('tab plan preserves active target then pinned PM and closes LRU', () => {
 
 function escalatedRoute() {
   return {
-    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r1', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
+    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r1', supervisorId: 'spec', providerSessionId: 'provider-session:test', decisionReceipt: null, stageLiveness: {}, chat: { supervisorId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
     packet: { reasoningLane: 'PRO_ESCALATED', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
   };
 }
 
 function directRouteFixture() {
   return {
-    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r-direct', decisionReceipt: null, stageLiveness: {}, chat: { chatId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
+    routeKind: 'SUPERVISORY_CYCLE', requestId: 'r-direct', supervisorId: 'spec', providerSessionId: 'provider-session:test-direct', decisionReceipt: null, stageLiveness: {}, chat: { supervisorId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
     packet: { reasoningLane: 'EXTRA_HIGH_DIRECT', githubReceipt: { repository: 'o/r', issueNumber: 1 } },
   };
 }
@@ -302,10 +312,11 @@ function completedPrior(step, generationStartedAt, generationCompletedAt) {
   return { status: completedCycleStepStatus(step), cycleStep: step, generationStartedAt, generationCompletedAt };
 }
 
-function chatFixture() {
+function chatFixture(supervisorId = 'spec', scope = 'SPECIALIST') {
   return {
-    scope: 'SPECIALIST', chatId: 'spec', label: 'Specialist', url: 'https://chatgpt.com/c/spec-chat', workerId: 'worker-a', pinned: false,
-    capabilityChallengeId: 'challenge-spec', modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
+    scope, supervisorId, label: 'Specialist', workerId: 'worker-a', pinned: scope === 'PROJECT_MANAGER',
+    bootstrapCapability: { chatId: `${supervisorId}-bootstrap`, url: `https://chatgpt.com/c/${supervisorId}-chat`, challengeId: `challenge-${supervisorId}` },
+    modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
 }
@@ -319,9 +330,9 @@ function snapshotWithEvidence(timeline) {
 }
 
 function supervisoryBody(lane) {
-  return SUPERVISORY_CYCLE_ROUTE_PREFIX + JSON.stringify({
-    schemaVersion: 2, packetKind: 'SAME_CHAT_SUPERVISORY_CYCLE', requestId: 'r1', nonce: 'n1', reasoningLane: lane,
-    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationChatId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+  return PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId: 'r1', nonce: 'n1', reasoningLane: lane,
+    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 1 }, factualPacket: { packetId: 'p1', taskId: 't1', exactFactualState: 'x', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2026-09-03T00:00:00.000Z',

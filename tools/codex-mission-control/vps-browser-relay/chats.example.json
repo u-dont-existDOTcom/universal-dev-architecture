@@ -1,12 +1,15 @@
 [
   {
     "scope": "PROJECT_MANAGER",
-    "chatId": "project-manager-primary",
+    "supervisorId": "project-manager-primary",
     "label": "Mission Control Project Manager",
-    "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_CONVERSATION_ID",
     "workerId": "mission-control-live-slice",
     "pinned": true,
-    "capabilityChallengeId": "pm-capability-v1",
+    "bootstrapCapability": {
+      "chatId": "project-manager-bootstrap-v1",
+      "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_BOOTSTRAP_CONVERSATION_ID",
+      "challengeId": "pm-capability-v1"
+    },
     "modelLabels": {
       "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
       "pro": "REPLACE_EXACT_PRO_UI_LABEL"
@@ -18,12 +21,15 @@
   },
   {
     "scope": "SPECIALIST",
-    "chatId": "specialist-relay-smoke",
+    "supervisorId": "specialist-relay-smoke",
     "label": "Mission Control relay smoke-test specialist",
-    "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_CONVERSATION_ID",
     "workerId": "mission-control-live-slice",
     "pinned": false,
-    "capabilityChallengeId": "specialist-capability-v1",
+    "bootstrapCapability": {
+      "chatId": "specialist-bootstrap-v1",
+      "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_BOOTSTRAP_CONVERSATION_ID",
+      "challengeId": "specialist-capability-v1"
+    },
     "modelLabels": {
       "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
       "pro": "REPLACE_EXACT_PRO_UI_LABEL"

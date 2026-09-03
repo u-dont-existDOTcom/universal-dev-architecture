@@ -699,8 +699,7 @@ export const reasoningSupervisionRecordedSchema = z.object({
   pro_escalation_state: z.enum(["NOT_REQUIRED", "PENDING", "ACTIVE", "COMPLETE"]),
 });
 
-export const canonicalDecisionEnvelopeSchema = z.object({
-  schema_version: z.literal(1),
+const canonicalDecisionEnvelopeFields = {
   envelope_kind: z.literal("MISSION_CONTROL_CANONICAL_DECISION"),
   request_id: StableId,
   nonce: StableId,
@@ -729,7 +728,17 @@ export const canonicalDecisionEnvelopeSchema = z.object({
     mode: z.literal("EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY"),
     reinterpretation_allowed: z.literal(false),
   }),
-}).superRefine((envelope, context) => {
+};
+
+export const canonicalDecisionEnvelopeSchema = z.union([
+  z.object({ schema_version: z.literal(1), ...canonicalDecisionEnvelopeFields }),
+  z.object({
+    schema_version: z.literal(2),
+    supervisor_id: StableId,
+    provider_session_id: StableId,
+    ...canonicalDecisionEnvelopeFields,
+  }),
+]).superRefine((envelope, context) => {
   const proRequired = envelope.reasoning_lane === "PRO_ESCALATED";
   if (envelope.pro_decision_block.used !== proRequired) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block", "used"], message: "Pro usage must exactly match the admitted reasoning lane." });
@@ -754,6 +763,8 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   task_id: StableId,
   receipt_id: StableId,
   request_id: StableId,
+  supervisor_id: StableId.nullable().default(null),
+  provider_session_id: StableId.nullable().default(null),
   nonce: StableId,
   evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
   owner_outcome_id: StableId,
