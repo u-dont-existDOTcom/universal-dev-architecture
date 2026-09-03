@@ -63,13 +63,20 @@ inspection. No semantic design decision is delegated to this execution task.
 - Added the settled universal `STRUCTURED_OUTPUT_SYNTAX_FAILURE` guidance,
   machine-readable state template, index/bootstrap routing, and deterministic
   regression tests. AskRigor methodology and repository state were not changed.
+- The first hotfix doctor reached authenticated Mission Control and exposed a
+  live response-shape mismatch: the daemon wraps a worker snapshot as
+  `{ worker, generatedAt }`, while the relay accepted only a bare snapshot.
+  The client now accepts the canonical wrapper and legacy bare shape while
+  still rejecting a mismatched scoped worker ID; focused and full relay tests
+  pass after the compatibility repair.
 
 ## Current checkpoint
 
-The recovered pacing commit is pushed. The universal structured-output boundary
-and calendar-independent relay fixtures are implemented and locally verified on
-top of the latest remote task-branch work. Push, hosted CI, exact-SHA hotfix
-deployment, and Hostinger/live acceptance remain.
+The pacing patch, universal structured-output boundary, calendar-independent
+relay fixtures, and live MCP wrapper compatibility repair are locally verified
+on top of the latest remote task-branch work. A new exact final head must be
+pushed and used for the final hosted checkpoint, hotfix deployment, and
+Hostinger/live acceptance.
 
 ## Preserved repository-wide completion gate
 

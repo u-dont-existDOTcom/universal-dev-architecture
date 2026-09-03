@@ -68,7 +68,11 @@ test('Mission Control client reads only explicitly scoped worker snapshots', asy
       return new Response(JSON.stringify({
         jsonrpc: '2.0',
         id: requestBody.id,
-        result: { structuredContent: { id: worker, timeline: [] } },
+        result: {
+          structuredContent: worker === 'worker-a'
+            ? { worker: { id: worker, timeline: [] }, generatedAt: '2026-09-03T00:00:00.000Z' }
+            : { id: worker, timeline: [] },
+        },
       }), { status: 200, headers: { 'content-type': 'application/json' } });
     },
   });
@@ -87,7 +91,7 @@ test('Mission Control client fails closed on an unscoped or mismatched worker re
     producerId: 'system:chatgpt-relay-reader',
     token: 'x'.repeat(32),
     fetchImpl: async () => new Response(JSON.stringify({
-      result: { structuredContent: { id: 'different-worker', timeline: [] } },
+      result: { structuredContent: { worker: { id: 'different-worker', timeline: [] } } },
     }), { status: 200 }),
   });
   await assert.rejects(() => client.fetchWorkers(['worker-a']), /invalid scoped worker snapshot/);

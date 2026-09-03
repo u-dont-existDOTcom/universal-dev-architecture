@@ -19,10 +19,13 @@ export class MissionControlClient {
     const workers = [];
     for (const worker of [...new Set(workerIds)]) {
       const structured = await this.#callTool('mission_control_get_worker', { worker });
-      if (!structured || typeof structured !== 'object' || Array.isArray(structured) || structured.id !== worker) {
+      const snapshot = structured?.worker && typeof structured.worker === 'object' && !Array.isArray(structured.worker)
+        ? structured.worker
+        : structured;
+      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot) || snapshot.id !== worker) {
         throw new Error(`Mission Control returned an invalid scoped worker snapshot for ${worker}.`);
       }
-      workers.push(structured);
+      workers.push(snapshot);
     }
     return { generatedAt: new Date().toISOString(), workers };
   }
