@@ -102,6 +102,10 @@ inspection. No semantic design decision is delegated to this execution task.
   client also proved initialize, tool discovery, and one safe challenge call
   against a live local Next.js `/mcp` route, with external telemetry containing
   only tool/challenge/chat/status/time.
+- Added a distinct `mcp-preflight` one-shot relay command. It sends only the
+  exact-bound `get_capability_challenge` read in Extra High, shares the durable
+  global pacing/ambiguity boundary, forbids GitHub and all writes, and cannot
+  replay after generation completion. The full relay suite now passes 51/51.
 
 ## Current checkpoint
 
@@ -111,12 +115,17 @@ installed on Hostinger, and live-verified for exact visible `Extra High -> Pro
 receipt because the supervisor had no sanctioned direct URL for the live
 Mission Control nonce.
 
-The public MCP candidate is locally protocol- and security-verified. The
-existing diagnostic `GET /api/capability-challenges/<challenge-id>` route and
-the authenticated `/api/mcp` and worker APIs remain unchanged. Commit/push and
-the single hosted CI/CodeQL checkpoint remain pending; no live configuration,
-Railway service, Hostinger browser, or GitHub receipt has yet been changed in
-this continuation.
+Public MCP head `c983f311b5b0e81172044661d07bb6c750d01365` is pushed and locally
+protocol/security verified. Its first hosted checkpoint passed the repository
+audit, Mission Control tests/types/build, and all CodeQL lanes; the relay lane
+found one stale test assertion that still expected the retired diagnostic HTTP
+URL. The assertion is corrected and the required distinct read-only preflight
+path is now locally green, but this follow-up commit/push and its hosted
+checkpoint remain pending. The existing diagnostic
+`GET /api/capability-challenges/<challenge-id>` route and authenticated
+`/api/mcp` and worker APIs remain unchanged. No live configuration, Railway
+service, Hostinger browser, or GitHub receipt has yet been changed in this
+continuation.
 
 ## Preserved repository-wide completion gate
 
@@ -149,15 +158,15 @@ depth requirement or its promotion evidence:
 ## Blockers / unresolved
 
 - Local public MCP implementation has no known blocker.
-- Commit/push, one hosted CI/CodeQL checkpoint, exact-SHA hotfix deployment,
+- Follow-up commit/push and hosted checkpoint, exact-SHA hotfix deployment,
   direct live MCP scan, Hostinger private app registration, a fresh challenge,
   MCP preflight, doctor/mode proof, and live acceptance remain pending.
 - Interactive ChatGPT login is an explicit stop boundary if encountered.
 
 ## Remaining
 
-1. Commit/push the exact reviewed candidate and obtain one normal hosted CI and
-   CodeQL checkpoint without a redundant local full-suite run.
+1. Commit/push the relay assertion/preflight follow-up and obtain its normal
+   hosted CI and CodeQL checkpoint without a redundant local full-suite run.
 2. Rotate the disposable challenge and GitHub raw nonce consistently, deploy
    only the isolated Railway hotfix from the exact SHA, and verify the public
    route response and exact build/daemon/health evidence.
@@ -174,8 +183,8 @@ depth requirement or its promotion evidence:
 
 ## Next safe action
 
-Commit and push the public MCP candidate, then wait for its single hosted
-CI/CodeQL checkpoint before rotating live challenge data or deploying.
+Commit and push the relay assertion/preflight follow-up, then wait for its
+hosted CI/CodeQL checkpoint before rotating live challenge data or deploying.
 
 ## Recovery rule
 

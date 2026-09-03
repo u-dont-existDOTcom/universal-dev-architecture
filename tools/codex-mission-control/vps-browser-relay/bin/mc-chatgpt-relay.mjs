@@ -41,6 +41,12 @@ try {
 
   if (command === 'doctor') {
     print({ config: publicConfig(config), ...(await runtime.doctor()) });
+  } else if (command === 'mcp-preflight') {
+    const chatId = process.argv[3];
+    if (!chatId) throw new Error('Usage: mc-chatgpt-relay mcp-preflight <registered-chat-id>');
+    const result = await runtime.verifyMcpReadPreflight(chatId);
+    print(result);
+    process.exitCode = oneShotExitCode(result);
   } else if (command === 'capabilities') {
     const chatId = process.argv[3];
     if (!chatId) throw new Error('Usage: mc-chatgpt-relay capabilities <registered-chat-id>');
@@ -63,7 +69,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|capabilities|once|run|status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|mcp-preflight|capabilities|once|run|status|resolve>');
   }
 
   await stateStore.releaseLock();

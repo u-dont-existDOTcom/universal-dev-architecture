@@ -16,6 +16,7 @@ import {
   cycleControlPrompt,
   defaultState,
   extractQueuedRoutes,
+  mcpReadPreflightPrompt,
   nextSupervisoryCycleAction,
   normalizeConversationUrl,
   oneShotExitCode,
@@ -97,6 +98,16 @@ test('capability control prompt requires the exact Mission Control app tool and 
   assert.match(prompt, /Compute its SHA-256/);
   assert.match(prompt, /expires_at has passed/);
   assert.match(prompt, /exact ordered capabilities/);
+  assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
+});
+
+test('MCP preflight prompt is exact-bound and cannot authorize GitHub or Mission Control writes', () => {
+  const prompt = mcpReadPreflightPrompt(parseChatDirectory([chatFixture()])[0]);
+  assert.match(prompt, /custom app named exactly Mission Control/);
+  assert.match(prompt, /get_capability_challenge/);
+  assert.match(prompt, /challenge_id challenge-spec and chat_id spec/);
+  assert.match(prompt, /do not use GitHub/);
+  assert.match(prompt, /do not write or mutate anything/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
 });
 

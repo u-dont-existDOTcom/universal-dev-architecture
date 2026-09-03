@@ -8,6 +8,7 @@ import {
   completedCycleStepStatus,
   cycleControlPrompt,
   extractQueuedRoutes,
+  mcpReadPreflightPrompt,
   nextSupervisoryCycleAction,
   redactError,
   resolveMemoryPolicy,
@@ -190,6 +191,98 @@ export class RelayRuntime {
       };
       state = await this.stateStore.write(state);
       return this.#writeStandaloneStatus(stage === 'CLICKED' ? 'CAPABILITY_SUBMISSION_AMBIGUOUS' : 'CAPABILITY_SUBMISSION_FAILED', state, { chatId, capability, mode, memory, error: redactError(error) });
+    }
+  }
+
+  async verifyMcpReadPreflight(chatId) {
+    let state = await this.stateStore.read();
+    state = await this.#markInterruptedIntents(state);
+    const chat = this.config.runtime.chats.find((entry) => entry.chatId === chatId);
+    if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
+    const snapshot = await this.missionControl.fetchFleet();
+    const capability = chatCapabilityState(snapshot, chat);
+    if (!capability.challengeAvailable) {
+      return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_MISSING', state, { chatId, capability });
+    }
+
+    const metrics = await this.memoryReader(this.config.browser.profileDir);
+    const memory = this.#memoryState(metrics);
+    if (memory.pressure === 'HARD') return this.#writeStandaloneStatus('PAUSED_MEMORY_HARD', state, { chatId, memory, capability });
+    if (!this.config.runtime.capabilityTestEnabled) {
+      return this.#writeStandaloneStatus('MCP_PREFLIGHT_READY', state, {
+        chatId,
+        capability,
+        memory,
+        nextAction: 'Set MC_RELAY_CAPABILITY_TEST_ENABLED=1 only for the harmless read-only MCP preflight.',
+      });
+    }
+
+    const target = await this.browser.findOrCreateChatTarget(chat.url);
+    this.#rememberTarget(state, chat, target);
+    const key = `mcp-preflight:${chat.chatId}:${chat.capabilityChallengeId}`;
+    const prior = state.deliveries[key] ?? null;
+    if (prior?.status === 'AMBIGUOUS_AFTER_RESTART') {
+      return this.#writeStandaloneStatus('MCP_PREFLIGHT_SUBMISSION_AMBIGUOUS', state, { chatId, capability, memory });
+    }
+    if (prior?.status === 'MCP_PREFLIGHT_GENERATION_COMPLETE') {
+      return this.#writeStandaloneStatus('MCP_PREFLIGHT_GENERATION_COMPLETE', state, { chatId, capability, memory });
+    }
+    if (prior?.status === 'MCP_PREFLIGHT_GENERATION_STARTED') {
+      let complete;
+      try {
+        complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: true });
+      } catch (error) {
+        if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, memory }, error);
+        throw error;
+      }
+      state = await this.stateStore.read();
+      state.deliveries[key] = { ...prior, status: 'MCP_PREFLIGHT_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus('MCP_PREFLIGHT_GENERATION_COMPLETE', state, { chatId, capability, memory });
+    }
+
+    const prompt = mcpReadPreflightPrompt(chat);
+    const observed = await this.browser.switchModel(target, { expectedUrl: chat.url, label: chat.modelLabels.extraHigh });
+    try {
+      const start = await this.submissionPacer.submit({
+        beforeSubmit: async () => {
+          const intentAt = new Date().toISOString();
+          state = await this.stateStore.read();
+          state.deliveries[key] = {
+            status: 'SUBMISSION_INTENT_RECORDED',
+            chatId: chat.chatId,
+            conversationUrl: chat.url,
+            capabilityChallengeId: chat.capabilityChallengeId,
+            bodySha256: sha256(prompt),
+            modelUiLabel: observed.observedLabel,
+            intentRecordedAt: intentAt,
+            lastAttemptAt: intentAt,
+          };
+          state = await this.stateStore.write(state);
+        },
+        submit: () => this.browser.submitExactMessage(target, { expectedUrl: chat.url, body: prompt, bodySha256: sha256(prompt) }),
+      });
+      state = await this.stateStore.read();
+      state.deliveries[key] = { ...state.deliveries[key], status: 'MCP_PREFLIGHT_GENERATION_STARTED', generationStart: start, startedAt: start.startedAtObserved };
+      state = await this.stateStore.write(state);
+      const complete = await this.browser.waitForGenerationComplete(target, { expectedUrl: chat.url, generationStarted: start.generationStarted });
+      state = await this.stateStore.read();
+      state.deliveries[key] = { ...state.deliveries[key], status: 'MCP_PREFLIGHT_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus('MCP_PREFLIGHT_GENERATION_COMPLETE', state, { chatId, capability, memory });
+    } catch (error) {
+      if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, memory }, error);
+      const stage = error?.relayStage ?? 'UNKNOWN';
+      state = await this.stateStore.read();
+      state.deliveries[key] = {
+        ...state.deliveries[key],
+        status: stage === 'CLICKED' ? 'AMBIGUOUS_AFTER_RESTART' : 'FAILED_RETRYABLE',
+        failureStage: stage,
+        failedAt: new Date().toISOString(),
+        lastError: redactError(error),
+      };
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus(stage === 'CLICKED' ? 'MCP_PREFLIGHT_SUBMISSION_AMBIGUOUS' : 'MCP_PREFLIGHT_SUBMISSION_FAILED', state, { chatId, capability, memory, error: redactError(error) });
     }
   }
 

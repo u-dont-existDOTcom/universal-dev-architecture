@@ -264,6 +264,10 @@ export function capabilityControlPrompt(chat) {
   return `Mission Control capability challenge ${chat.capabilityChallengeId} for chat ${chat.chatId}: remain in Extra High. Use the custom app named exactly Mission Control and call get_capability_challenge with challenge_id ${chat.capabilityChallengeId} and chat_id ${chat.chatId}. Extract its exact mc_nonce, github_nonce_sha256, github_nonce_source, receipt_target, and expires_at. Fail closed if the challenge_id or chat_id does not exactly match this challenge/chat, or if expires_at has passed. Follow github_nonce_source with GitHub and reread the raw GitHub nonce. Compute its SHA-256 and verify that it exactly equals github_nonce_sha256 before writing. Then write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 receipt to the exact receipt_target with schema_version 1, challenge_id, chat_id, mc_nonce, github_nonce, and the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Fail closed without writing if any value, source, hash, binding, or expiry check fails. Do not delegate to Work and do not make a substantive project decision.`;
 }
 
+export function mcpReadPreflightPrompt(chat) {
+  return `Mission Control read-only MCP preflight for capability challenge ${chat.capabilityChallengeId} and chat ${chat.chatId}: remain in Extra High. Use the custom app named exactly Mission Control and call get_capability_challenge with challenge_id ${chat.capabilityChallengeId} and chat_id ${chat.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
+}
+
 export function cycleControlPrompt(route, step) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Control prompts require a supervisory-cycle route.');
   const requestId = route.requestId;

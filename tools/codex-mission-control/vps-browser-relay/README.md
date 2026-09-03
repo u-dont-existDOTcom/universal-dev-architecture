@@ -93,10 +93,16 @@ Use the dedicated harmless command while normal task sends remain disabled:
 
 ```bash
 MC_RELAY_CAPABILITY_TEST_ENABLED=1 \
+~/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs mcp-preflight <chat-id>
+
+MC_RELAY_CAPABILITY_TEST_ENABLED=1 \
 ~/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs capabilities <chat-id>
 ```
 
 `MC_RELAY_SUBMIT_ENABLED=0` may remain unchanged during this test.
+The first command performs only the paced, Extra High, read-only MCP tool call. Verify
+that call in the Mission Control access telemetry before running the second command,
+which performs the distinct GitHub capability receipt proof.
 
 For this repository the machine-readable buses are:
 

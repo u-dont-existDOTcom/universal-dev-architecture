@@ -109,12 +109,33 @@ test('capability challenge send is independently gated and resumes from generati
   assert.equal(first.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
-  assert.match(browser.lastSubmittedBody, /https:\/\/mission-control\.example\/api\/capability-challenges\/challenge-spec/);
+  assert.match(browser.lastSubmittedBody, /custom app named exactly Mission Control/);
+  assert.match(browser.lastSubmittedBody, /get_capability_challenge/);
   assert.match(browser.lastSubmittedBody, /github_nonce_source/);
   assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
   const second = await runtime.verifyCapabilities('spec');
   assert.equal(second.status, 'AWAITING_CAPABILITY_RECEIPT');
+  assert.equal(browser.submitCalls, 1);
+});
+
+test('MCP preflight is a separately paced read-only send and never replays after generation completion', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: [challengeEvidence()] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, capabilityTestEnabled: true });
+  const first = await runtime.verifyMcpReadPreflight('spec');
+  assert.equal(first.status, 'MCP_PREFLIGHT_GENERATION_COMPLETE');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.waitCalls, 1);
+  assert.equal(browser.switchLabels.at(-1), 'Extra High');
+  assert.match(browser.lastSubmittedBody, /get_capability_challenge/);
+  assert.match(browser.lastSubmittedBody, /do not use GitHub/);
+  assert.match(browser.lastSubmittedBody, /do not write or mutate anything/);
+  assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
+  assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
+  const second = await runtime.verifyMcpReadPreflight('spec');
+  assert.equal(second.status, 'MCP_PREFLIGHT_GENERATION_COMPLETE');
   assert.equal(browser.submitCalls, 1);
 });
 
