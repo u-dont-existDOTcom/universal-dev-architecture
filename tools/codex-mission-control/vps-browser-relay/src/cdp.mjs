@@ -695,7 +695,10 @@ export class ChromeDevtoolsBrowser {
         try {
           started = await waitFor(async () => {
             const state = await client.callFunction(GENERATION_STATE_FN, [normalized]);
-            if (state?.urlMismatch) throw new Error(`Chat target changed during submission: ${state.currentUrl}`);
+            if (state?.urlMismatch) {
+              if (normalized === 'https://chatgpt.com/') return false;
+              throw new Error(`Chat target changed during submission: ${state.currentUrl}`);
+            }
             if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
             if (normalized === 'https://chatgpt.com/' && !state?.conversationUrl) return false;
             return state?.generating && state?.startSignal ? state : false;
