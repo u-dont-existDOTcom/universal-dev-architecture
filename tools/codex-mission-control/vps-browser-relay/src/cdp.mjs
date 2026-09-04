@@ -566,19 +566,26 @@ export class ChromeDevtoolsBrowser {
   }
 
   async #openModelMenu(client, normalized) {
-    const control = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
-    if (control?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${control.currentUrl}`);
-    if (!control?.rect) throw new Error(`ChatGPT model/mode switch control is unavailable: ${control?.reason ?? 'UNKNOWN'}.`);
-    if (!control.expanded) {
-      const x = control.rect.x + control.rect.width / 2;
-      const y = control.rect.y + control.rect.height / 2;
-      await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
-      await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
-      await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
-    }
+    let lastClickAt = 0;
+    const clickIfClosed = async () => {
+      const control = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
+      if (control?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${control.currentUrl}`);
+      if (!control?.rect) throw new Error(`ChatGPT model/mode switch control is unavailable: ${control?.reason ?? 'UNKNOWN'}.`);
+      if (!control.expanded && Date.now() - lastClickAt >= 1_000) {
+        const x = control.rect.x + control.rect.width / 2;
+        const y = control.rect.y + control.rect.height / 2;
+        await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+        await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+        await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+        lastClickAt = Date.now();
+      }
+    };
+    await clickIfClosed();
     return waitFor(async () => {
       const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null]);
-      return observation?.menuFound ? observation : false;
+      if (observation?.menuFound) return observation;
+      await clickIfClosed();
+      return false;
     }, this.pageReadyTimeoutMs, 200, 'ChatGPT model/mode menu did not open.');
   }
 
