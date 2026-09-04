@@ -90,6 +90,7 @@ test('fresh provider conversations use an explicit CDP navigation instead of tru
   assert.match(source, /client\.send\('Page\.navigate', \{ url: freshUrl \}\)/);
   assert.match(source, /Fresh ChatGPT navigation failed/);
   assert.match(source, /Fresh ChatGPT model control did not become ready/);
+  assert.match(source, /conversationAssigned \? 'CONVERSATION_URL_ASSIGNED'/);
 });
 
 test('exact app selection walks Tools then More then one exact app option', () => {

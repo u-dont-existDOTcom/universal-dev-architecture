@@ -326,6 +326,7 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const normalizedCurrent = normalizeUrl(location.href);
   const current = new URL(location.href);
   const creatingConversation = expectedUrl === 'https://chatgpt.com/';
+  const conversationAssigned = creatingConversation && Boolean(normalizedCurrent);
   return {
     currentUrl: location.href,
     conversationUrl: normalizedCurrent,
@@ -336,9 +337,9 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
     stopVisible,
     composerVisible,
     composerDisabled,
-    generating: stopVisible || !composerVisible || composerDisabled,
+    generating: conversationAssigned || stopVisible || !composerVisible || composerDisabled,
     idleReady: !stopVisible && composerVisible && !composerDisabled,
-    startSignal: stopVisible ? 'STOP_CONTROL_VISIBLE' : (!composerVisible ? 'COMPOSER_UNAVAILABLE' : (composerDisabled ? 'COMPOSER_DISABLED' : null)),
+    startSignal: conversationAssigned ? 'CONVERSATION_URL_ASSIGNED' : (stopVisible ? 'STOP_CONTROL_VISIBLE' : (!composerVisible ? 'COMPOSER_UNAVAILABLE' : (composerDisabled ? 'COMPOSER_DISABLED' : null))),
   };
 }`;
 
