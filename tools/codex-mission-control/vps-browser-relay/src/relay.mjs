@@ -24,6 +24,9 @@ import {
 import { readMemoryMetrics } from './memory.mjs';
 import { GlobalSubmissionPacer, isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
 
+const FIRST_TURN_MCP_RECEIPT_GRACE_MS = 30_000;
+const PROVIDER_SESSION_PROJECTION_TIMEOUT_MS = 30_000;
+
 export class RelayRuntime {
   constructor({ config, missionControl, browser, stateStore, submissionPacer = null, memoryReader = readMemoryMetrics, logger = console }) {
     this.config = config;
@@ -420,6 +423,33 @@ export class RelayRuntime {
 
   async #processSupervisoryCycle(route, routes, state, memory) {
     let prior = state.deliveries[route.routeKey] ?? null;
+    const firstTurnStep = route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT' ? 'EXTRA_HIGH_DIRECT' : 'EXTRA_HIGH_READER';
+    if (prior?.status === completedCycleStepStatus(firstTurnStep) && !route.firstTurnMcpReceipt) {
+      const completedAt = Date.parse(prior.generationCompletedAt ?? '');
+      if (!Number.isFinite(completedAt) || Date.now() - completedAt < FIRST_TURN_MCP_RECEIPT_GRACE_MS) {
+        state.health.pausedReason = `Waiting for the required first-turn MCP request-binding receipt for ${route.requestId}.`;
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus('AWAITING_FIRST_TURN_MCP_RECEIPT', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
+      }
+      const session = prior.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
+      const failedAt = new Date().toISOString();
+      if (session) {
+        const failedSession = { ...session, status: 'FAILED', failedAt, failureStage: 'FIRST_TURN_MCP_RECEIPT_MISSING' };
+        state.providerSessions[session.providerSessionId] = failedSession;
+        await this.#recordProviderSession(route, failedSession, failedSession.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
+      }
+      state.deliveries[route.routeKey] = {
+        ...prior,
+        status: 'FAILED_RETRYABLE',
+        failedAt,
+        failureStage: 'FIRST_TURN_MCP_RECEIPT_MISSING',
+        lastError: 'The first provider turn completed without a server-observed get_supervisory_request_binding receipt; no follow-up message was sent.',
+      };
+      state.health.lastError = state.deliveries[route.routeKey].lastError;
+      state.health.pausedReason = null;
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus('FIRST_TURN_MCP_RECEIPT_MISSING', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
+    }
     const action = nextSupervisoryCycleAction(route, prior);
     if (!action) return this.#writeStandaloneStatus('IDLE', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     if (action.type === 'WAIT_GITHUB_RECEIPT') {
@@ -429,7 +459,7 @@ export class RelayRuntime {
     }
 
     let session = prior?.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
-    if (session && prior?.status === 'FAILED_RETRYABLE' && session.status === 'FAILED') session = null;
+    if (session && (prior?.status === 'FAILED_RETRYABLE' || prior?.status === 'RETRY_AUTHORIZED') && session.status === 'FAILED') session = null;
     let target;
     let expectedUrl;
     if (!session) {
@@ -503,6 +533,7 @@ export class RelayRuntime {
       }
       this.#rememberTarget(state, route.chat, target, session.providerSessionId, expectedUrl);
     }
+    await this.#waitForProviderSessionProjection(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
     if (route.firstTurnMcpReceipt && !session.firstTurnMcpReceiptId) {
       if (route.firstTurnMcpReceipt.supervisorId !== route.supervisorId || route.firstTurnMcpReceipt.providerSessionId !== session.providerSessionId) {
         throw new Error(`First-turn MCP receipt does not match provider session ${session.providerSessionId}.`);
@@ -693,6 +724,27 @@ export class RelayRuntime {
       ],
       occurredAt,
     });
+  }
+
+  async #waitForProviderSessionProjection(route, session, urlBindingStatus) {
+    const deadline = Date.now() + PROVIDER_SESSION_PROJECTION_TIMEOUT_MS;
+    for (;;) {
+      const snapshot = await this.missionControl.fetchFleet();
+      const worker = snapshot?.workers?.find((item) => item?.id === route.workerId);
+      const visible = worker?.timeline?.some((event) => event?.data?.type === 'evidence_receipt_recorded'
+        && event.data.summary === PROVIDER_SESSION_SUMMARY
+        && event.data.verified === true
+        && event.data.refs?.includes(`request:${route.requestId}`)
+        && event.data.refs?.includes(`supervisor:${route.supervisorId}`)
+        && event.data.refs?.includes(`provider_session:${session.providerSessionId}`)
+        && event.data.refs?.includes(`url_binding_status:${urlBindingStatus}`)
+        && event.data.refs?.includes('lifecycle_status:ACTIVE'));
+      if (visible) return;
+      if (Date.now() >= deadline) {
+        throw new Error(`Provider session ${session.providerSessionId} was not visible in Mission Control before first send.`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
   }
 
   async #markInterruptedIntents(state) {

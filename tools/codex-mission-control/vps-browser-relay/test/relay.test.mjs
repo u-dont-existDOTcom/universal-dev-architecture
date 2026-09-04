@@ -5,6 +5,7 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
+  PROVIDER_SESSION_MCP_SUMMARY,
   RELAY_STAGE_SUMMARY,
   STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
@@ -69,6 +70,36 @@ test('escalated route creates a fresh provider session, selects Mission Control 
   ]);
   const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
   assert.ok(proStart.refs.includes('app_selection_attempted:false'));
+});
+
+test('fresh provider session is visible in Mission Control before the first send', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), projectionLagReads: 2 });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.ok(mc.fetchFleetCalls >= 3);
+  assert.equal(browser.submitCalls, 1);
+});
+
+test('completed first turn without its MCP binding receipt fails before any follow-up and retries in a fresh session', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), autoFirstTurnMcp: false });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  const failedSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'FIRST_TURN_MCP_RECEIPT_MISSING');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(store.state.providerSessions[failedSessionId].status, 'FAILED');
+  await runtime.resolve('request:r-1', 'retry');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal(browser.submitCalls, 2);
+  assert.equal(browser.freshChatCalls, 2);
+  assert.notEqual(store.state.deliveries['request:r-1'].providerSessionId, failedSessionId);
 });
 
 test('click without an observed generation-start transition becomes ambiguous and cannot replay', async () => {
@@ -270,9 +301,14 @@ class MemoryStateStore {
 }
 
 class FakeMissionControl {
-  constructor({ evidence = [], routes = [routeEvent()] } = {}) { this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50; }
+  constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0 } = {}) {
+    this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50;
+    this.autoFirstTurnMcp = autoFirstTurnMcp; this.projectionLagReads = projectionLagReads; this.fetchFleetCalls = 0;
+  }
   async fetchFleet() {
-    const timeline = [...this.routes, ...this.evidence, ...this.recordedEvidence.map((item) => ({
+    this.fetchFleetCalls += 1;
+    const visibleRecordedEvidence = this.fetchFleetCalls <= this.projectionLagReads ? [] : this.recordedEvidence;
+    const timeline = [...this.routes, ...this.evidence, ...visibleRecordedEvidence.map((item) => ({
       eventId: `evidence-${item.receiptId}`, sequence: ++this.sequence, occurredAt: item.occurredAt ?? '2026-09-02T00:00:01.000Z', data: {
         type: 'evidence_receipt_recorded', receipt_id: item.receiptId, summary: item.summary, refs: item.refs, verified: true,
       },
@@ -281,6 +317,16 @@ class FakeMissionControl {
   }
   async recordEvidence(worker, input) {
     this.recordedEvidence.push({ worker, ...structuredClone(input) });
+    if (this.autoFirstTurnMcp && input.summary === RELAY_STAGE_SUMMARY && input.refs.includes('generation_state:STARTED')
+      && (input.refs.includes('step:EXTRA_HIGH_DIRECT') || input.refs.includes('step:EXTRA_HIGH_READER'))) {
+      const request = input.refs.find((ref) => ref.startsWith('request:'));
+      const supervisor = input.refs.find((ref) => ref.startsWith('supervisor:'));
+      const providerSession = input.refs.find((ref) => ref.startsWith('provider_session:'));
+      this.evidence.push({ eventId: `mcp-${request}`, sequence: ++this.sequence, occurredAt: input.occurredAt, data: {
+        type: 'evidence_receipt_recorded', receipt_id: `mcp-${request}`, summary: PROVIDER_SESSION_MCP_SUMMARY,
+        refs: [request, supervisor, providerSession, 'tool:get_supervisory_request_binding', 'status:OK', 'server_observed:true'], verified: true,
+      } });
+    }
     return { eventId: `stored-${input.receiptId}` };
   }
 }
