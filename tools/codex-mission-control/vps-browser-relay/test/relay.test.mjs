@@ -37,7 +37,7 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
-test('escalated route creates a fresh provider session, selects required first-turn apps, then advances without reselection in the same chat', async () => {
+test('escalated route creates a fresh provider session, selects Mission Control for the reader, then advances without reselection in the same chat', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -66,7 +66,7 @@ test('escalated route creates a fresh provider session, selects required first-t
   assert.equal(browser.submitCalls, 2);
   assert.equal(browser.freshChatCalls, 1);
   assert.deepEqual(browser.selectAppsCalls, [
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control', 'GitHub'], referencedLabels: [] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
   ]);
   const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
   assert.ok(proStart.refs.includes('app_selection_attempted:false'));
@@ -225,7 +225,7 @@ test('fresh-session creation and every same-chat send share the global pacing ga
   assert.equal((await runtime.cycle()).status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control', 'GitHub'], referencedLabels: [] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
   ]);
   assert.equal(browser.appSelectionEvidence.length, 1);
 });

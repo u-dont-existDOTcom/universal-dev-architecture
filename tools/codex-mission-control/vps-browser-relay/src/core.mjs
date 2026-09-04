@@ -339,8 +339,7 @@ export function appSelectionForMessage(chat, step) {
   const requiredLabels = [];
   const referencedLabels = [];
   if (missionControlSteps.has(step)) requiredLabels.push(missionControl);
-  if (step === 'EXTRA_HIGH_DIRECT' || step === 'EXTRA_HIGH_READER') requiredLabels.push(github);
-  else if (githubSteps.has(step)) referencedLabels.push(github);
+  if (githubSteps.has(step)) referencedLabels.push(github);
   return { knownLabels, requiredLabels, referencedLabels };
 }
 

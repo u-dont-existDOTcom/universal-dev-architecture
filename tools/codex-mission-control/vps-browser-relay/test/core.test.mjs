@@ -57,8 +57,8 @@ test('message app requirements are exact and step-specific', () => {
     referencedLabels: ['GitHub'],
   });
   assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, ['Mission Control', 'GitHub']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, ['Mission Control', 'GitHub']);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, ['Mission Control']);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, ['Mission Control']);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, []);

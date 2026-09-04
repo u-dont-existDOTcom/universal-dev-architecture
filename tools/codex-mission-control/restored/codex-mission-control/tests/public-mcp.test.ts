@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   handlePublicMissionControlMcpRequest,
+  publicMcpBindingTransportAttempt,
   publicMcpToolNames,
   publicStageLivenessState,
   publicSupervisoryRequestBinding,
@@ -23,6 +24,22 @@ const chatId = "mc-hotfix-specialist-v2";
 const providerSessionId = "provider-session:session-safe-1";
 const requestId = "request-safe-1";
 const workerId = "mission-control-live-slice";
+
+test("public MCP transport recognizes only exact request-binding tool attempts without exposing arguments", () => {
+  assert.deepEqual(publicMcpBindingTransportAttempt({
+    jsonrpc: "2.0", id: "x", method: "tools/call", params: {
+      name: "get_supervisory_request_binding",
+      arguments: { provider_session_id: providerSessionId, request_id: requestId, supervisor_id: supervisorId },
+    },
+  }), {
+    request_id: requestId,
+    supervisor_id: supervisorId,
+    provider_session_id: providerSessionId,
+    argument_keys: ["provider_session_id", "request_id", "supervisor_id"],
+  });
+  assert.equal(publicMcpBindingTransportAttempt({ method: "initialize", params: {} }), null);
+  assert.equal(publicMcpBindingTransportAttempt({ method: "tools/call", params: { name: "get_supervisory_request_binding", arguments: { request_id: requestId } } }), null);
+});
 
 test("public MCP initializes and advertises exactly three read-only noauth non-enumerating tools", async () => {
   const initialized = await mcpCall(dependencies(), "initialize", {

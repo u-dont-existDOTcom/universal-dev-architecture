@@ -38,6 +38,30 @@ export interface PublicMcpAccessEvent {
   occurred_at: string;
 }
 
+export interface PublicMcpBindingTransportAttempt {
+  request_id: string;
+  supervisor_id: string;
+  provider_session_id: string;
+  argument_keys: string[];
+}
+
+export function publicMcpBindingTransportAttempt(value: unknown): PublicMcpBindingTransportAttempt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const request = value as Record<string, unknown>;
+  const params = request.params;
+  if (request.method !== "tools/call" || !params || typeof params !== "object" || Array.isArray(params)) return null;
+  const call = params as Record<string, unknown>;
+  if (call.name !== "get_supervisory_request_binding" || !call.arguments || typeof call.arguments !== "object" || Array.isArray(call.arguments)) return null;
+  const args = call.arguments as Record<string, unknown>;
+  if (typeof args.request_id !== "string" || typeof args.supervisor_id !== "string" || typeof args.provider_session_id !== "string") return null;
+  return {
+    request_id: args.request_id,
+    supervisor_id: args.supervisor_id,
+    provider_session_id: args.provider_session_id,
+    argument_keys: Object.keys(args).sort(),
+  };
+}
+
 export interface PublicSupervisoryRequestBinding {
   schema_version: 2;
   request_id: string;
