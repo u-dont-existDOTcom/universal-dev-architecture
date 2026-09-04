@@ -406,6 +406,11 @@ export class ChromeDevtoolsBrowser {
         if (result?.urlMismatch) return false;
         return result?.composerFound ? result : false;
       }, this.pageReadyTimeoutMs, 500, 'Fresh ChatGPT composer did not become ready.');
+      await waitFor(async () => {
+        const result = await client.callFunction(CURRENT_MODEL_FN, [freshUrl]);
+        if (result?.urlMismatch) return false;
+        return result?.controlFound ? result : false;
+      }, this.pageReadyTimeoutMs, 300, 'Fresh ChatGPT model control did not become ready.');
     });
     return target;
   }

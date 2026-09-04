@@ -89,6 +89,7 @@ test('fresh provider conversations use an explicit CDP navigation instead of tru
   const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
   assert.match(source, /client\.send\('Page\.navigate', \{ url: freshUrl \}\)/);
   assert.match(source, /Fresh ChatGPT navigation failed/);
+  assert.match(source, /Fresh ChatGPT model control did not become ready/);
 });
 
 test('exact app selection walks Tools then More then one exact app option', () => {
