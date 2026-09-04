@@ -583,7 +583,15 @@ export class ChromeDevtoolsBrowser {
   }
 
   async #selectOpenModelMenu(client, labelWanted) {
-    let observation = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted]);
+    let observation = await waitFor(async () => {
+      const candidate = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted]);
+      try {
+        modelMenuSelectionState(candidate, labelWanted);
+        return candidate;
+      } catch {
+        return false;
+      }
+    }, this.pageReadyTimeoutMs, 200, `ChatGPT model menu did not become ready for exact label ${labelWanted}.`);
     const selection = modelMenuSelectionState(observation, labelWanted);
     if (selection.type === 'DIRECT_OPTION') {
       const selected = await client.callFunction(SELECT_MODEL_OPTION_FN, [labelWanted]);
