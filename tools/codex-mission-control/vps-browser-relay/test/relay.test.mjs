@@ -5,6 +5,7 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
+  STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   PROVIDER_SESSION_MCP_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
@@ -121,6 +122,30 @@ test('ordinary direct work starts only after preload in a distinct GitHub-first-
   assert.ok(mc.recordedEvidence.some((item) => item.summary === PROVIDER_SESSION_SUMMARY
     && item.refs.includes('session_role:MC_BINDING_PRELOAD_SESSION') && item.refs.includes('lifecycle_status:COMPLETE')
     && item.refs.some((ref) => ref.startsWith('binding_preload_receipt:mcp-'))));
+});
+
+test('new direct Pro route uses only preload then one fresh first-message Pro decision session', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [directRouteEvent('r-1', 'route', 'PRO_ESCALATED')] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'PRO_DECISION_GENERATION_STARTED');
+  assert.equal(browser.switchLabels.at(-1), 'Pro');
+  assert.equal(browser.submitCalls, 2);
+  assert.equal(browser.freshChatCalls, 2);
+  assert.deepEqual(browser.selectAppsCalls, [
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+  ]);
+  const directStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY
+    && item.refs.includes('step:PRO_DECISION') && item.refs.includes('generation_state:STARTED'));
+  assert.ok(directStart.refs.includes('decision_provider_session:' + store.state.deliveries['request:r-1'].providerSessionId));
+  assert.ok(directStart.refs.includes('app_selection_attempted:false'));
+  assert.equal(directStart.refs.includes('selected_app:Mission Control'), false);
+  assert.match(browser.lastSubmittedBody, /VISIBLE_PRO_SESSION_GITHUB_ATTESTED/);
+  assert.match(browser.lastSubmittedBody, /No later writer, reader, liveness, continue, or follow-up tool turn is permitted/);
 });
 
 test('fresh provider session is visible in Mission Control before the first send', async () => {
@@ -483,8 +508,19 @@ function genericMcpContactEvidence(providerSessionId) {
 }
 
 function routeEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 'PRO_ESCALATED') {
-  const body = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+  const body = STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
     schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane,
+    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'outcome-1', epoch: 1, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },
+    queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2099-09-03T00:00:00.000Z',
+  });
+  return { eventId, sequence: requestId === 'r-1' ? 10 : 11, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: `message-${requestId}`, body } };
+}
+
+function directRouteEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 'PRO_ESCALATED') {
+  const body = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 4, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane,
     destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'outcome-1', epoch: 1, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },

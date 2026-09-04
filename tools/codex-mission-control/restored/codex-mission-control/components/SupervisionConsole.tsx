@@ -69,7 +69,10 @@ const emptyDirectory: ConfiguredSupervisorDirectory = {
   error: null,
 };
 const internalRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
-const providerSessionRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
+const providerSessionRoutePrefixes = [
+  "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n",
+  "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n",
+] as const;
 
 export function SupervisionConsole() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -269,8 +272,9 @@ function realSupervisorLink(worker: WorkerState | undefined): string | null {
 }
 
 function parseInternalRoutePacket(body: string): InternalRoutePacket | null {
-  const providerSession = body.startsWith(providerSessionRoutePrefix);
-  const prefix = providerSession ? providerSessionRoutePrefix : internalRoutePrefix;
+  const providerSessionPrefix = providerSessionRoutePrefixes.find((candidate) => body.startsWith(candidate));
+  const providerSession = Boolean(providerSessionPrefix);
+  const prefix = providerSessionPrefix ?? internalRoutePrefix;
   if (!body.startsWith(prefix)) return null;
   try {
     const raw = JSON.parse(body.slice(prefix.length)) as Partial<InternalRoutePacket> & { destinationChatId?: string };

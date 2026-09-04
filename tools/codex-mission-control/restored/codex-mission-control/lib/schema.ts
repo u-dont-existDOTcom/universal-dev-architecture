@@ -763,6 +763,19 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable(),
     ...canonicalDecisionEnvelopeFields,
   }),
+  z.object({
+    schema_version: z.literal(3),
+    supervisor_id: StableId,
+    binding_provider_session_id: StableId,
+    decision_provider_session_id: StableId,
+    binding_envelope: bindingCapsuleSchema,
+    binding_envelope_sha256: Sha256,
+    decision_session_provenance: z.enum([
+      "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+      "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
+    ]),
+    ...canonicalDecisionEnvelopeFields,
+  }),
 ]).superRefine((envelope, context) => {
   const proRequired = envelope.reasoning_lane === "PRO_ESCALATED";
   if (envelope.pro_decision_block.used !== proRequired) {
@@ -786,6 +799,14 @@ export const canonicalDecisionEnvelopeSchema = z.union([
   if (envelope.schema_version === 2 && envelope.staged_provenance !== (proRequired ? "DURABLE_STAGE_RECEIPT_ATTESTED" : null)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["staged_provenance"], message: "Staged Pro provenance must exactly match the admitted reasoning lane." });
   }
+  if (envelope.schema_version === 3 && envelope.binding_provider_session_id === envelope.decision_provider_session_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "A direct decision must use a provider session distinct from the binding preload session." });
+  }
+  if (envelope.schema_version === 3 && envelope.decision_session_provenance !== (proRequired
+    ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
+    : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED")) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Direct decision provenance must exactly match the admitted visible reasoning lane." });
+  }
 });
 
 export const githubDecisionReceiptIngestedSchema = z.object({
@@ -798,9 +819,16 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   provider_session_id: StableId.nullable().default(null),
   binding_provider_session_id: StableId.nullable().default(null),
   stage_provider_session_id: StableId.nullable().default(null),
+  decision_provider_session_id: StableId.nullable().default(null),
   binding_capsule: bindingCapsuleSchema.nullable().default(null),
   binding_capsule_sha256: Sha256.nullable().default(null),
   staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable().default(null),
+  binding_envelope: bindingCapsuleSchema.nullable().default(null),
+  binding_envelope_sha256: Sha256.nullable().default(null),
+  decision_session_provenance: z.enum([
+    "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+    "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
+  ]).nullable().default(null),
   nonce: StableId,
   evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
   owner_outcome_id: StableId,
@@ -838,6 +866,19 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   if (proRequired && (receipt.pro_decision_block.exact_text !== receipt.decision_block.exact_text
     || receipt.pro_decision_block.sha256 !== receipt.decision_block.sha256)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_block"], message: "The ingested decision block must preserve the exact Pro decision bytes." });
+  }
+  const direct = receipt.decision_provider_session_id !== null;
+  if (direct && (!receipt.binding_provider_session_id || !receipt.binding_envelope
+    || !receipt.binding_envelope_sha256 || !receipt.decision_session_provenance)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "A direct split-session receipt requires its exact binding envelope and decision-session provenance." });
+  }
+  if (direct && receipt.binding_provider_session_id === receipt.decision_provider_session_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "Binding and decision provider sessions must be distinct." });
+  }
+  if (direct && receipt.decision_session_provenance !== (proRequired
+    ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
+    : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED")) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Ingested direct provenance must exactly match the visible reasoning lane." });
   }
 });
 

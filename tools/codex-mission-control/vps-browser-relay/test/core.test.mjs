@@ -8,6 +8,7 @@ import {
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
+  STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGE_LIVENESS_SUMMARY,
   STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
@@ -67,6 +68,10 @@ test('message app requirements are exact and step-specific', () => {
   for (const step of ['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_READER', 'PRO_REASONER', 'EXTRA_HIGH_WRITER']) {
     assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, ['GitHub']);
     assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, []);
+  }
+  for (const step of ['EXTRA_HIGH_DECISION', 'PRO_DECISION']) {
+    assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, []);
+    assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, ['GitHub']);
   }
 });
 
@@ -159,7 +164,7 @@ test('binding preload and every mandatory GitHub write use distinct fresh first-
   assert.match(reader, /first and only message/);
   assert.match(reader, /binding_provider_session_id/);
   assert.match(reader, /binding_capsule_sha256/);
-  assert.match(reader, /selected GitHub app/);
+  assert.match(reader, /connected GitHub tool/);
   for (const step of ['EXTRA_HIGH_READER', 'PRO_REASONER', 'EXTRA_HIGH_WRITER']) {
     const prompt = cycleControlPrompt(route, step);
     assert.doesNotMatch(prompt, /get_supervisory_request_binding|get_stage_liveness_state/);
@@ -291,6 +296,58 @@ test('missing final receipts replay the same immutable stage in a fresh first me
   });
 });
 
+test('new direct routes contain only fresh preload and first-message decision stages', () => {
+  for (const [lane, step, model, provenance] of [
+    ['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_DECISION', 'EXTRA_HIGH', 'VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED'],
+    ['PRO_ESCALATED', 'PRO_DECISION', 'PRO', 'VISIBLE_PRO_SESSION_GITHUB_ATTESTED'],
+  ]) {
+    const route = directV4Route(lane);
+    assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: MCP_BINDING_PRELOAD_STEP, model: 'EXTRA_HIGH' });
+    const bound = { ...route, firstTurnMcpReceipt: { receiptId: 'binding-current' } };
+    assert.deepEqual(nextSupervisoryCycleAction(bound, { status: completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP), cycleStep: MCP_BINDING_PRELOAD_STEP }), {
+      type: 'SEND_CONTROL', step, model,
+    });
+    const prompt = cycleControlPrompt(route, step);
+    assert.match(prompt, /schema_version 3/);
+    assert.match(prompt, /decision_provider_session_id/);
+    assert.match(prompt, /binding envelope/);
+    assert.match(prompt, new RegExp(provenance));
+    assert.match(prompt, /first and only message/);
+    assert.match(prompt, /selectable composer chip is not required/);
+    assert.doesNotMatch(prompt, /MISSION_CONTROL_CHAT_STAGE_RECEIPT|EXTRA_HIGH_READER|EXTRA_HIGH_WRITER|get_stage_liveness_state/);
+    assert.match(prompt, /Do not use or call Mission Control/);
+  }
+});
+
+test('new direct decision stage fails closed after one clean attempt without continue or automatic retry', () => {
+  const route = directV4Route('PRO_ESCALATED');
+  const completedAt = '2026-09-02T12:00:00.000Z';
+  const prior = {
+    status: completedCycleStepStatus('PRO_DECISION'), cycleStep: 'PRO_DECISION', providerSessionId: 'provider-session:decision',
+    generationStartedAt: '2026-09-02T11:59:00.000Z', generationCompletedAt: completedAt, stageAttempts: { PRO_DECISION: 1 },
+  };
+  assert.equal(nextSupervisoryCycleAction(route, prior, Date.parse(completedAt) + CONTINUE_NUDGE_DELAY_MS - 1).recovery, 'AWAITING_MANDATORY_DECISION_RECEIPT');
+  assert.deepEqual(nextSupervisoryCycleAction(route, prior, Date.parse(completedAt) + CONTINUE_NUDGE_DELAY_MS), {
+    type: 'WAIT_GITHUB_RECEIPT', recovery: 'MANDATORY_DECISION_RECEIPT_MISSING_NO_AUTOMATIC_RETRY',
+  });
+  assert.deepEqual(nextSupervisoryCycleAction(route, { ...prior, status: 'FAILED_RETRYABLE' }), {
+    type: 'WAIT_GITHUB_RECEIPT', recovery: 'MANDATORY_DECISION_STAGE_FAILED_NO_AUTOMATIC_RETRY',
+  });
+});
+
+test('new schema v4 parses and extracts without changing staged schema v3 compatibility', () => {
+  assert.equal(parseSupervisoryCycleRouteBody(directSupervisoryBody('PRO_ESCALATED')).routeSchemaVersion, 4);
+  assert.equal(parseSupervisoryCycleRouteBody(supervisoryBody('PRO_ESCALATED')).routeSchemaVersion, 3);
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const routes = extractQueuedRoutes({ workers: [{
+    id: 'worker-a', name: 'Worker A', timeline: [
+      { eventId: 'direct-route', sequence: 1, occurredAt: '2026-09-02T12:00:00.000Z', data: { type: 'worker_message_recorded', message_id: 'm1', body: directSupervisoryBody('PRO_ESCALATED') } },
+    ],
+  }] }, [chat], defaultState());
+  assert.equal(routes.length, 1);
+  assert.equal(routes[0].packet.routeSchemaVersion, 4);
+});
+
 test('ambiguous routes never receive automatic recovery', () => {
   assert.equal(nextSupervisoryCycleAction(escalatedRoute(), { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
 });
@@ -352,12 +409,17 @@ function directRouteFixture() {
   return routeFixture('r-direct', 'EXTRA_HIGH_DIRECT', 'provider-session:direct');
 }
 
-function routeFixture(requestId, reasoningLane, providerSessionId) {
+function directV4Route(reasoningLane) {
+  return routeFixture('r1', reasoningLane, 'provider-session:decision', 4);
+}
+
+function routeFixture(requestId, reasoningLane, providerSessionId, routeSchemaVersion = 3) {
   const base = {
     routeKind: 'SUPERVISORY_CYCLE', requestId, supervisorId: 'spec', workerId: 'worker-a', providerSessionId,
     bindingProviderSessionId: 'provider-session:binding', decisionReceipt: null, stageLiveness: {},
     chat: { supervisorId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
     packet: {
+      routeSchemaVersion,
       nonce: 'n1', reasoningLane, queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2026-09-03T00:00:00.000Z',
       evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
       githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 },
@@ -409,8 +471,18 @@ function snapshotWithEvidence(timeline) {
 }
 
 function supervisoryBody(lane) {
-  return PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+  return STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
     schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId: 'r1', nonce: 'n1', reasoningLane: lane,
+    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'p1', taskId: 't1', exactFactualState: 'x', evidenceRefs: [], decisionRequested: 'decide' },
+    queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2026-09-03T00:00:00.000Z',
+  });
+}
+
+function directSupervisoryBody(lane) {
+  return PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 4, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId: 'r1', nonce: 'n1', reasoningLane: lane,
     destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'p1', taskId: 't1', exactFactualState: 'x', evidenceRefs: [], decisionRequested: 'decide' },

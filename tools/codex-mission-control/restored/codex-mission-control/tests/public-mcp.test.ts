@@ -12,7 +12,8 @@ import {
 import {
   providerSessionSummary,
   stageLivenessSummary,
-  supervisoryCycleRoutePrefix,
+  stagedSupervisoryCycleRoutePrefix as supervisoryCycleRoutePrefix,
+  supervisoryCycleRoutePrefix as directSupervisoryCycleRoutePrefix,
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
 import type { StoredEvent } from "../lib/schema";
@@ -138,6 +139,22 @@ test("request binding fails closed when its server-observed access receipt canno
   await assertToolFailure(deps, "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: providerSessionId });
 });
 
+test("request binding supports the new direct route while stage liveness remains a staged-route compatibility API", async () => {
+  const events = directCurrentEvents("PRO_ESCALATED");
+  const binding = await mcpTool(dependencies({ events }), "get_supervisory_request_binding", {
+    request_id: requestId,
+    supervisor_id: supervisorId,
+    provider_session_id: providerSessionId,
+  });
+  assert.equal(binding.structuredContent.request_id, requestId);
+  assert.equal(binding.structuredContent.reasoning_lane, "PRO_ESCALATED");
+  await assertToolFailure(dependencies({ events }), "get_stage_liveness_state", {
+    request_id: requestId,
+    supervisor_id: supervisorId,
+    provider_session_id: providerSessionId,
+  });
+});
+
 test("stage state contains only non-semantic receipt metadata and rejects non-current or non-escalated requests", async () => {
   const events = currentEvents();
   events.push(stageEvent(3, "reader-continue", "EXTRA_HIGH_READER", "CONTINUE_REQUIRED", "2026-09-03T18:10:00.000Z"));
@@ -221,6 +238,16 @@ function policy(): GitHubReceiptPolicy {
 
 function currentEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED" = "PRO_ESCALATED"): StoredEvent[] {
   return [ownerOutcomeEvent(1, "owner-outcome-safe"), requestEvent(2, lane), providerSessionEvent(3)];
+}
+
+function directCurrentEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): StoredEvent[] {
+  const events = currentEvents(lane).map((item) => structuredClone(item));
+  const route = events[1]!;
+  if (route.data.type !== "worker_message_recorded") throw new Error("expected route event");
+  const packet = JSON.parse(route.data.body.slice(supervisoryCycleRoutePrefix.length));
+  packet.schemaVersion = 4;
+  route.data.body = `${directSupervisoryCycleRoutePrefix}${JSON.stringify(packet)}`;
+  return events;
 }
 
 function ownerOutcomeEvent(sequence: number, id: string): StoredEvent {

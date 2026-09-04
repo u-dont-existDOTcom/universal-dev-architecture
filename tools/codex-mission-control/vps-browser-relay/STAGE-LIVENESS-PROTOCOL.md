@@ -1,6 +1,20 @@
 # Durable fresh-stage receipt protocol
 
-Status: implementation contract
+Status: staged-route compatibility contract
+
+New route schema v4 does not require this protocol. It uses one fresh binding
+preload session followed by one fresh visible Extra High or Pro decision
+session that writes canonical #59 directly in its first message. Canonical
+decision schema v3 binds `binding_provider_session_id` and the distinct
+`decision_provider_session_id` plus the exact binding envelope/hash and uses
+`VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED` or
+`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`. Missing #59 fails the direct stage after
+the bounded reconciliation window; there is no same-chat `continue`, automatic
+semantic retry, reader, liveness, or final-writer stage.
+
+The remainder of this document specifies the preserved route-schema-v3 and
+canonical-schema-v2 compatibility path. Issue #61 remains available for that
+path and diagnostics; it is not a prerequisite for direct route v4.
 
 Browser `GENERATION_COMPLETE` is transport evidence only. It does not prove
 that a provider session completed its admitted reasoning or write objective.

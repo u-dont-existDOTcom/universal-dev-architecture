@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 
 export const INTERNAL_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n';
 export const SUPERVISORY_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n';
-export const PROVIDER_SESSION_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n';
+export const PROVIDER_SESSION_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n';
+export const STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n';
 export const STATE_VERSION = 1;
 export const CAPABILITY_CHALLENGE_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1';
 export const CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1';
@@ -13,6 +14,7 @@ export const PROVIDER_SESSION_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_V1';
 export const PROVIDER_SESSION_MODEL_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1';
 export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1';
 export const BINDING_CAPSULE_SUMMARY = 'MISSION_CONTROL_BINDING_CAPSULE_V1';
+export const BINDING_ENVELOPE_SUMMARY = 'MISSION_CONTROL_BINDING_ENVELOPE_V1';
 export const MCP_BINDING_PRELOAD_STEP = 'MCP_BINDING_PRELOAD';
 export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
 export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
@@ -161,20 +163,23 @@ export function parseInternalSupervisorRouteBody(body) {
 
 export function parseSupervisoryCycleRouteBody(body) {
   if (typeof body !== 'string') return null;
-  const version = body.startsWith(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 3
-    : body.startsWith(SUPERVISORY_CYCLE_ROUTE_PREFIX) ? 2
-      : null;
+  const version = body.startsWith(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 4
+    : body.startsWith(STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 3
+      : body.startsWith(SUPERVISORY_CYCLE_ROUTE_PREFIX) ? 2
+        : null;
   if (!version) return null;
   try {
-    const prefix = version === 3 ? PROVIDER_SESSION_CYCLE_ROUTE_PREFIX : SUPERVISORY_CYCLE_ROUTE_PREFIX;
+    const prefix = version === 4 ? PROVIDER_SESSION_CYCLE_ROUTE_PREFIX
+      : version === 3 ? STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX
+        : SUPERVISORY_CYCLE_ROUTE_PREFIX;
     const value = JSON.parse(body.slice(prefix.length));
     if (!isRecord(value)
       || value.schemaVersion !== version
-      || value.packetKind !== (version === 3 ? 'PROVIDER_SESSION_SUPERVISORY_CYCLE' : 'SAME_CHAT_SUPERVISORY_CYCLE')
+      || value.packetKind !== (version >= 3 ? 'PROVIDER_SESSION_SUPERVISORY_CYCLE' : 'SAME_CHAT_SUPERVISORY_CYCLE')
       || typeof value.requestId !== 'string'
       || typeof value.nonce !== 'string'
       || (value.reasoningLane !== 'EXTRA_HIGH_DIRECT' && value.reasoningLane !== 'PRO_ESCALATED')
-      || (version === 3 ? typeof value.destinationSupervisorId !== 'string' : typeof value.destinationChatId !== 'string')
+      || (version >= 3 ? typeof value.destinationSupervisorId !== 'string' : typeof value.destinationChatId !== 'string')
       || value.providerDeliveryState !== 'QUEUED_FOR_PROVIDER_RELAY'
       || typeof value.queuedAt !== 'string'
       || typeof value.expiresAt !== 'string'
@@ -195,7 +200,7 @@ export function parseSupervisoryCycleRouteBody(body) {
       || value.githubReceipt.issueNumber < 1
       || !Number.isInteger(value.githubReceipt.stageIssueNumber)
       || value.githubReceipt.stageIssueNumber < 1) return null;
-    return { ...value, routeSchemaVersion: version, destinationSupervisorId: version === 3 ? value.destinationSupervisorId : value.destinationChatId };
+    return { ...value, routeSchemaVersion: version, destinationSupervisorId: version >= 3 ? value.destinationSupervisorId : value.destinationChatId };
   } catch {
     return null;
   }
@@ -248,7 +253,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!packet) continue;
       const chat = chatById.get(packet.destinationSupervisorId);
       if (!chat || chat.workerId !== workerId) continue;
-      if (packet.routeSchemaVersion !== 3) continue;
+      if (packet.routeSchemaVersion !== 3 && packet.routeSchemaVersion !== 4) continue;
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
       if (prior && ['SUBMITTED_CONFIRMED', 'DISCARDED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
@@ -268,7 +273,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         bindingProviderSessionId,
         bindingCapsule: prior?.bindingCapsule ?? null,
         packet,
-        routeKind: packet.routeSchemaVersion === 3 ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
+        routeKind: packet.routeSchemaVersion >= 3 ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
         decisionReceipt: receiptByWorkerRequest.get(workerRequestKey) ?? null,
         firstTurnMcpReceipt: bindingProviderSessionId
           ? mcpByWorkerRequest.get(`${workerId}:${packet.requestId}:${bindingProviderSessionId}`) ?? null
@@ -389,6 +394,7 @@ export function appSelectionForMessage(chat, step) {
   const referencedLabels = [];
   if (missionControlSteps.has(step)) requiredLabels.push(missionControl);
   if (githubSteps.has(step)) requiredLabels.push(github);
+  if (step === 'EXTRA_HIGH_DECISION' || step === 'PRO_DECISION') referencedLabels.push(github);
   if (step === 'CAPABILITY') referencedLabels.push(github);
   return { knownLabels, requiredLabels, referencedLabels };
 }
@@ -404,6 +410,15 @@ export function cycleControlPrompt(route, step) {
   const github = route.chat.requiredApps.github;
   if (step === MCP_BINDING_PRELOAD_STEP) {
     return `Mission Control binding preload only. Use the selected ${missionControl} app. Your only action in this turn is to call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not reason, use GitHub, make a decision, write a receipt, or answer from values in this prompt/context instead of calling the tool. If the exact tool call is unavailable or fails, fail closed. After the tool result is loaded into this conversation, stop.`;
+  }
+  if (route.packet.routeSchemaVersion === 4 && (step === 'EXTRA_HIGH_DECISION' || step === 'PRO_DECISION')) {
+    const provenance = step === 'PRO_DECISION'
+      ? 'VISIBLE_PRO_SESSION_GITHUB_ATTESTED'
+      : 'VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED';
+    const laneInstruction = step === 'PRO_DECISION'
+      ? 'Reason directly in the currently visible Pro session and make the final escalated decision.'
+      : 'Reason directly in the currently visible Extra High session and make the ordinary decision.';
+    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}. Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`);
   }
   if (step === 'EXTRA_HIGH_DIRECT') {
     return freshToolStagePrompt(route, step, `Read the substantive evidence only from the immutable GitHub references, make the bounded decision requested, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message. Set stage_provider_session_id to ${providerSessionId}.`);
@@ -425,14 +440,23 @@ function freshToolStagePrompt(route, step, instruction) {
   if (route.bindingCapsule.payload.binding_provider_session_id === route.providerSessionId) throw new Error(`${step} must use a provider session distinct from the binding preload session.`);
   const evidenceRefs = route.packet.factualPacket?.evidenceRefs ?? [];
   const decisionRequested = route.packet.factualPacket?.decisionRequested ?? '';
-  return `Mission Control fresh-first-message stage ${step} for request ${route.requestId}. Use the selected ${route.chat.requiredApps.github} app. This is the first and only message in provider session ${route.providerSessionId}; do not use Mission Control or prior-chat memory. Copy this exact binding capsule into the receipt without alteration: ${canonicalJson(route.bindingCapsule.payload)}. binding_capsule_sha256: ${route.bindingCapsule.sha256}. Immutable GitHub evidence references: ${canonicalJson(evidenceRefs)}. Bounded decision request: ${JSON.stringify(decisionRequested)}. ${instruction} Do not answer with prose instead of attempting the required GitHub write. If GitHub is unavailable, the binding/hash mismatches, or the write fails, fail closed. Do not delegate to Work.`;
+  const direct = route.packet.routeSchemaVersion === 4;
+  const bindingLabel = direct ? 'binding envelope' : 'binding capsule';
+  const digestLabel = direct ? 'binding_envelope_sha256' : 'binding_capsule_sha256';
+  return `Mission Control fresh-first-message stage ${step} for request ${route.requestId}. Use the connected ${route.chat.requiredApps.github} tool; a selectable composer chip is not required. This is the first and only message in provider session ${route.providerSessionId}; do not use Mission Control or prior-chat memory. Copy this exact ${bindingLabel} into the receipt without alteration: ${canonicalJson(route.bindingCapsule.payload)}. ${digestLabel}: ${route.bindingCapsule.sha256}. Immutable GitHub evidence references: ${canonicalJson(evidenceRefs)}. Bounded decision request: ${JSON.stringify(decisionRequested)}. ${instruction} Do not answer with prose instead of attempting the required GitHub write. If GitHub is unavailable, the binding/hash mismatches, or the write fails, fail closed. Do not delegate to Work.`;
 }
 
 export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS, maxSemanticNudges = 3) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') return null;
   if (route.decisionReceipt) return { type: 'WAIT_GITHUB_RECEIPT' };
   const status = prior?.status ?? 'UNSEEN';
+  const directDecisionStep = route.packet.routeSchemaVersion === 4
+    ? (route.packet.reasoningLane === 'PRO_ESCALATED' ? 'PRO_DECISION' : 'EXTRA_HIGH_DECISION')
+    : null;
   if (status === 'FAILED_RETRYABLE' && prior?.cycleStep) {
+    if (directDecisionStep && prior.cycleStep === directDecisionStep) {
+      return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'MANDATORY_DECISION_STAGE_FAILED_NO_AUTOMATIC_RETRY' };
+    }
     if (isContinueNudgeStep(prior.cycleStep)) {
       const stage = semanticStageForStep(prior.cycleStep);
       return stage
@@ -446,6 +470,17 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   if (status === startedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'WAIT_GENERATION', step: MCP_BINDING_PRELOAD_STEP };
   if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP) && !route.firstTurnMcpReceipt) {
     return { type: 'WAIT_MCP_BINDING_RECEIPT', step: MCP_BINDING_PRELOAD_STEP };
+  }
+  if (directDecisionStep) {
+    const model = directDecisionStep === 'PRO_DECISION' ? 'PRO' : 'EXTRA_HIGH';
+    if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'SEND_CONTROL', step: directDecisionStep, model };
+    if (status === startedCycleStepStatus(directDecisionStep)) return { type: 'WAIT_GENERATION', step: directDecisionStep };
+    if (status === completedCycleStepStatus(directDecisionStep)) {
+      return continueNudgeEligible(prior, nowMs, continueDelayMs)
+        ? { type: 'WAIT_GITHUB_RECEIPT', recovery: 'MANDATORY_DECISION_RECEIPT_MISSING_NO_AUTOMATIC_RETRY' }
+        : { type: 'WAIT_GITHUB_RECEIPT', recovery: 'AWAITING_MANDATORY_DECISION_RECEIPT' };
+    }
+    return null;
   }
   if (route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT') {
     if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' };

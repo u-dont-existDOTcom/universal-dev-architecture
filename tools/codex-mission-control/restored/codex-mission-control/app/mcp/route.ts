@@ -36,7 +36,7 @@ async function recordBindingTransportAttempt(request: Request) {
   catch { return; }
   if (!attempt) return;
   const events = await loadEventsFromDaemon();
-  const pending = pendingDecisionRequests(events).find((candidate) => candidate.routeSchemaVersion === 3
+  const pending = pendingDecisionRequests(events).find((candidate) => (candidate.routeSchemaVersion === 3 || candidate.routeSchemaVersion === 4)
     && candidate.requestId === attempt.request_id && candidate.supervisorId === attempt.supervisor_id);
   if (!pending) return;
   const receiptId = `public-mcp-transport:${sha256(`${attempt.request_id}:${attempt.supervisor_id}:${attempt.provider_session_id}:${new Date().toISOString()}`).slice(0, 32)}`;

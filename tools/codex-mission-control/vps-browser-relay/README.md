@@ -126,9 +126,9 @@ which performs the distinct GitHub capability receipt proof.
 
 For this repository the machine-readable buses are:
 
-- canonical decision receipts: GitHub issue #59;
 - harmless capability challenge/receipts: GitHub issue #60.
-- escalated reader and Pro decision stage receipts: GitHub issue #61.
+- canonical ordinary and escalated decisions: GitHub issue #59.
+- legacy/current staged compatibility and diagnostics: GitHub issue #61.
 
 Production policy must centrally allowlist the exact repository, those issue numbers, and authorized GitHub writer login(s). Worker-supplied GitHub destinations never grant authority.
 
@@ -140,21 +140,24 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 - request ID and one-time nonce;
 - evidence capsule ID/hash;
 - current owner-outcome ID/epoch/hash;
-- stable supervisor ID, distinct binding/stage provider-session IDs, exact conversation URLs, and reasoning lane;
+- stable supervisor ID, distinct binding/decision provider-session IDs, exact conversation URLs, and reasoning lane;
 - current Mission Control/GitHub capability receipt;
 - current exact visible Extra High and Pro model-label receipts;
 - a server-observed binding-preload MCP request-binding read in the binding provider session;
-- an exact mechanically derived binding capsule recorded in Mission Control transport state;
-- ordered first-message GitHub transport/stage receipts in distinct provider sessions, so stale or cross-stage evidence cannot replay;
+- an exact mechanically derived binding envelope recorded in Mission Control transport state;
+- one direct first-message decision transport receipt with exact visible Extra High or Pro proof, so stale or cross-session evidence cannot replay;
 - ordered no-content browser-stage receipts;
 - central GitHub repository/issue/writer policy;
 - receipt creation time inside the admitted window;
 - canonical decision digest and no-reinterpretation writer contract.
 
-For Pro escalation, #61 carries the canonical Pro decision block and digest.
-The final Extra High writer may only exact-copy or structurally transform it.
-Mission Control labels this provenance `DURABLE_STAGE_RECEIPT_ATTESTED` with
-`independent_pro_observation:false`; the browser never observes Pro output.
+For new Pro escalation, the fresh visible-Pro session reads immutable GitHub
+evidence and writes canonical #59 directly in its first message. Mission
+Control labels this conservative provenance
+`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`; it binds visible UI/session transport and
+the GitHub receipt without claiming hidden provider-backend model identity.
+Schema-v3 staged #61 flows remain supported for compatibility but are not
+required by the direct route-v4 topology.
 
 Webhook ingestion is the fast path. Periodic GitHub issue polling is reconciliation for missed webhooks. Public repositories can use low-frequency reconciliation without a GitHub token.
 

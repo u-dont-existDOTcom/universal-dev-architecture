@@ -4,7 +4,8 @@ Updated: 2026-09-04
 
 ## Controlling 2026-09-04 continuation
 
-The fresh first-message GitHub write probe passed on issue #60 with probe ID
+Another worker ran the now-superseded fresh first-message GitHub write probe on
+issue #60 with probe ID
 `github-first-message-probe:1bb455ad-f2a1-4c3b-b226-0fdce4ab2b9d` and comment
 `5543346279`. Exactly one message was sent in one reused ChatGPT tab with the
 visible Extra High label and exact GitHub app selection. The GitHub receipt was
@@ -12,31 +13,44 @@ created at `2026-09-04T16:16:12Z`; the send action ran from
 `2026-09-04T16:16:02.359Z` through `2026-09-04T16:16:03.876Z`, generation was
 observed active at `2026-09-04T16:16:11.509Z` and complete by
 `2026-09-04T16:16:27.459Z`, and the one-tab count was reconfirmed at
-`2026-09-04T16:16:33.358Z`. Assistant output was not inspected.
+`2026-09-04T16:16:33.358Z`. Assistant output was not inspected. That durable
+receipt is consumed as existing capability evidence and the cancelled probe
+must not be duplicated.
 
 The working tree now implements the controlling fresh-stage architecture:
 
 - Stage 1 is a fresh Mission Control-only binding preload session.
 - The relay mechanically derives and durably records a bounded hashed binding
-  capsule from the exact current server-side MCP receipt.
-- Every mandatory GitHub operation is the first and only message in a new
-  provider conversation in the same reusable tab.
-- Ordinary decisions use a distinct Extra High direct #59 session.
-- Escalated decisions use distinct Extra High reader, Pro decision, and Extra
-  High final-writer sessions joined through durable #61/#59 receipts.
-- Admission distinguishes `binding_provider_session_id` from each
-  `stage_provider_session_id`, rejects stale/forged/cross-session capsules, and
-  replaces `SAME_CHAT_WRITER_ATTESTED` with
-  `DURABLE_STAGE_RECEIPT_ATTESTED`.
-- Mandatory external-tool stages disable same-chat recovery. Missing receipts
-  and `CONTINUE_REQUIRED` cause only bounded fresh-session replay.
+  envelope from the exact current server-side MCP receipt.
+- New route schema v4 contains exactly two mandatory fresh first-message tool
+  sessions in the same reusable tab: binding preload, then direct decision.
+- Ordinary decisions use a distinct visible Extra High decision session and
+  write canonical #59 directly in that session's first message.
+- Escalated decisions use a distinct visible Pro decision session and write
+  canonical #59 directly in that session's first message. No reader, liveness,
+  `continue`, or Extra High writer stage is part of the new route.
+- Canonical decision schema v3 distinguishes
+  `binding_provider_session_id` from `decision_provider_session_id`, rejects
+  stale/forged/cross-request/cross-supervisor/cross-session envelopes, and uses
+  `VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED` or
+  `VISIBLE_PRO_SESSION_GITHUB_ATTESTED` without claiming backend model identity.
+- Missing mandatory #59 receipts fail closed after one clean semantic attempt;
+  the relay does not send same-chat `continue` or automatically spend a second
+  decision attempt.
+- Route schema v3, canonical schema v2, and #61 remain supported for existing
+  staged compatibility and diagnostics but cannot be relabeled as the new
+  direct-session provenance.
 
-Focused relay, admission, public-MCP, TypeScript, and syntax checks are green.
-The local release checkpoint passed 255 repository tests and the deterministic
-audit with no findings. The next safe action is commit/push followed by exactly
-one hosted CI/CodeQL checkpoint. Only after it is green may the exact SHA be
-installed on `mission-control-hotfix` and Hostinger for the two new live
-acceptance cycles. Production remains forbidden.
+The restorable source is packaged and the single local completion checkpoint is
+green: 177 Mission Control tests, TypeScript and production build; 69 relay
+tests plus JavaScript, shell, and service-asset checks; 255 repository tests;
+the deterministic repository audit; and all 11 owner-request integrity records.
+The next safe action is to commit/push and run exactly one hosted CI/CodeQL
+checkpoint. Railway still has an unrelated shared pending-change set that
+includes forbidden production mutations; do not apply or discard it. Only a
+hotfix-isolated exact-SHA deployment path may be used before installing the same
+head on Hostinger and entering the two new live acceptance cycles. Production
+remains forbidden.
 
 ## Goal
 

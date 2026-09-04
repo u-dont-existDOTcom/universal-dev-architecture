@@ -67,22 +67,22 @@ are in
 
 ## Stable supervisor with a fresh provider session per cycle
 
-The registered identity is the supervisor, not one permanent browser conversation. Each admitted cycle uses **New chat in the current verified reusable ChatGPT tab** for every mandatory external-tool stage. A transport-only `MCP_BINDING_PRELOAD` session selects Mission Control, performs exactly one read of the session-local request binding, and has no semantic authority. After its generation completes and the current server-side tool receipt is visible, the relay derives a bounded hashed binding capsule in Mission Control transport state. Every semantic stage then starts a different provider conversation, selects GitHub, and writes its required durable receipt in that same first message:
+The registered identity is the supervisor, not one permanent browser conversation. Each newly admitted route-v4 cycle uses **New chat in the current verified reusable ChatGPT tab** for exactly two mandatory external-tool stages. A transport-only `MCP_BINDING_PRELOAD` session selects Mission Control, performs exactly one read of the session-local request binding, and has no semantic authority. After its generation completes and the current server-side tool receipt is visible, the relay mechanically derives a bounded hashed binding envelope in Mission Control transport state. The decision then starts one different provider conversation and writes canonical #59 in that same first message. A selectable GitHub composer chip is not required; the authorized #59 receipt is the tool-success evidence:
 
 ```text
 ordinary:   reusable tab -> New chat -> MC binding preload
-                         -> New chat -> Extra High GitHub evidence/reason/#59 write
+                         -> New chat -> visible Extra High GitHub evidence/reason/#59 write
 escalated:  reusable tab -> New chat -> MC binding preload
-                         -> New chat -> Extra High GitHub reader/#61 receipt
-                         -> New chat -> Pro GitHub decision/#61 receipt
-                         -> New chat -> Extra High exact-copy/#59 write
+                         -> New chat -> visible Pro GitHub evidence/reason/#59 write
                                       -> signed webhook -> Mission Control ledger
                                       -> periodic GitHub polling if the webhook was missed
 ```
 
 The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
 
-Every stable supervisor fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current bootstrap capability receipts. Every cycle also requires exact binding and stage provider-session records/URLs, visible model proof, the server-observed `tools/call get_supervisory_request_binding` receipt for Stage 1, an exact mechanically derived binding capsule, and ordered first-message GitHub transport/stage receipts. Generic MCP traffic, app-chip state, prompt prose, and stale provider-session receipts do not satisfy preload. Every canonical decision receipt binds the request ID, stable supervisor ID, distinct binding/stage provider-session IDs, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, reasoning lane, and #59/#61 targets. Stale, mismatched, or cross-session GitHub receipts do not enter the ledger.
+Every stable supervisor fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current bootstrap capability receipts. Every new cycle also requires exact binding and decision provider-session records/URLs, session-local visible Extra High or Pro proof, the server-observed `tools/call get_supervisory_request_binding` receipt for Stage 1, an exact mechanically derived binding envelope, and ordered first-message transport receipts. Generic MCP traffic, app-chip state, prompt prose, and stale provider-session receipts do not satisfy preload. Canonical decision schema v3 binds the request ID, stable supervisor ID, distinct `binding_provider_session_id` and `decision_provider_session_id`, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, reasoning lane, envelope digest, authorized #59 writer/location, and conservative visible-session GitHub-attested provenance. Stale, mismatched, relabeled-old-schema, or cross-session receipts do not enter the ledger.
+
+Existing route schema v3 and canonical decision schema v2 remain readable and admissible for their already-supported staged compatibility path. GitHub issue #61 therefore remains available for legacy/current stage diagnostics, but no new route-v4 ordinary or direct-Pro decision depends on it.
 
 Managed ChatGPT tabs follow the owner-level 1/2/3 discipline: one in steady state, two only during bounded transition or recovery, and three as the absolute hard ceiling. The relay fails closed before opening a fourth. It opens a replacement only after same-target New chat navigation is irrecoverably unusable, verifies the replacement before immediately closing the superseded tab, never fans out duplicate tabs for one task, reports the managed count in doctor/status output, and deterministically cleans completed or superseded sessions back toward one. Bootstrap or pinned automation-owned tabs are not retained merely as history once durable capability evidence exists.
 
@@ -97,7 +97,7 @@ The browser has two no-content stuck signals:
 
 The detector uses only composer/generation/recovery controls; it never searches assistant response text. Consecutive transport recoveries are capped (`MC_RELAY_STUCK_RECOVERY_MAX_NUDGES`, default 3, maximum 20), a failed or ambiguous recovery is not automatically replayed, and recovery cannot bypass owner, admission, spend/access, release, safety, or ambiguity gates.
 
-If a mandatory stage finishes without its required durable receipt, the relay waits through reconciliation and may replay only the same immutable stage as a fresh first message in a new provider conversation. `CONTINUE_REQUIRED` from a Pro stage likewise creates a fresh Pro GitHub stage; it never relies on follow-up tool access.
+If a new direct decision stage finishes without its required durable #59 receipt, the relay waits through the bounded reconciliation window and then fails the stage. It sends no same-chat `continue` and does not automatically spend a second semantic attempt. Any later retry requires an explicit durable fresh-stage retry authorization and a new decision provider session over identical immutable inputs.
 
 A visually normal idle turn with no recovery control still does **not** prove semantic stage completion. Mission Control therefore treats browser `GENERATION_COMPLETE` as transport evidence only. Intermediate reasoning stages need explicit durable stage-completion/continue-required receipts to close that remaining liveness gap without assistant-output extraction.
 

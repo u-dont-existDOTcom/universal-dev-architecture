@@ -172,7 +172,7 @@ test("a registered provider-session cycle is emitted for the stable supervisor w
   if (result.routeEnvelope?.data.type !== "worker_message_recorded") return;
   assert.ok(result.routeEnvelope.data.body.startsWith(supervisoryCycleRoutePrefix));
   const packet = JSON.parse(result.routeEnvelope.data.body.slice(supervisoryCycleRoutePrefix.length));
-  assert.equal(packet.schemaVersion, 3);
+  assert.equal(packet.schemaVersion, 4);
   assert.equal(packet.packetKind, "PROVIDER_SESSION_SUPERVISORY_CYCLE");
   assert.equal(packet.destinationSupervisorId, "chat:askrigor:new-research-avenues");
   assert.equal(Object.hasOwn(packet, "destinationChatId"), false);

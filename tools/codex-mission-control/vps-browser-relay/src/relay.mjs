@@ -1,5 +1,6 @@
 import {
   BINDING_CAPSULE_SUMMARY,
+  BINDING_ENVELOPE_SUMMARY,
   CAPABILITY_CHALLENGE_SUMMARY,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
@@ -342,7 +343,8 @@ export class RelayRuntime {
       const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
       const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
       if (withReceipt) {
-        const providerSessionId = withReceipt.decisionReceipt.stage_provider_session_id;
+        const providerSessionId = withReceipt.decisionReceipt.decision_provider_session_id
+          ?? withReceipt.decisionReceipt.stage_provider_session_id;
         const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
         if (!session || session.requestId !== withReceipt.requestId || session.supervisorId !== withReceipt.supervisorId) {
           throw new Error(`Canonical receipt for ${withReceipt.requestId} is not bound to its active provider session.`);
@@ -518,6 +520,7 @@ export class RelayRuntime {
       // attempt until the universal submission boundary is actually open.
       await this.submissionPacer.assertReady();
       const semanticStage = action.step !== MCP_BINDING_PRELOAD_STEP;
+      const directDecisionStage = route.packet.routeSchemaVersion === 4 && semanticStage;
       if (semanticStage && (!route.bindingCapsule || !route.bindingProviderSessionId)) {
         throw new Error(`Fresh tool stage ${action.step} cannot start before the binding capsule is durably recorded.`);
       }
@@ -543,7 +546,10 @@ export class RelayRuntime {
           `supervisor:${route.supervisorId}`,
           `provider_session:${providerSessionId}`,
           `session_role:${sessionRole}`,
-          ...(semanticStage ? [`binding_provider_session:${route.bindingProviderSessionId}`, `stage_provider_session:${providerSessionId}`] : [`binding_provider_session:${providerSessionId}`]),
+          ...(semanticStage ? [
+            `binding_provider_session:${route.bindingProviderSessionId}`,
+            `${directDecisionStage ? 'decision' : 'stage'}_provider_session:${providerSessionId}`,
+          ] : [`binding_provider_session:${providerSessionId}`]),
           `extra_high_label:${route.chat.modelLabels.extraHigh}`,
           `pro_label:${route.chat.modelLabels.pro}`,
           'round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH',
@@ -579,6 +585,7 @@ export class RelayRuntime {
         workerId: route.workerId,
         supervisorId: route.supervisorId,
         providerSessionId,
+        decisionProviderSessionId: directDecisionStage ? providerSessionId : (prior?.decisionProviderSessionId ?? null),
         bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
         bindingCapsule: route.bindingCapsule,
         stageAttempts,
@@ -759,12 +766,13 @@ export class RelayRuntime {
   async #recordRelayStage(route, step, modelUiLabel, promptSha256, generationState, observedAt, startSignal, messageApps) {
     const bindingProviderSessionId = route.bindingProviderSessionId ?? route.providerSessionId;
     const isBindingSession = step === MCP_BINDING_PRELOAD_STEP;
+    const isDirectDecision = route.packet.routeSchemaVersion === 4 && !isBindingSession;
     const refs = [
       `request:${route.requestId}`,
       `supervisor:${route.supervisorId}`,
       `provider_session:${route.providerSessionId}`,
       `binding_provider_session:${bindingProviderSessionId}`,
-      ...(isBindingSession ? [] : [`stage_provider_session:${route.providerSessionId}`]),
+      ...(isBindingSession ? [] : [`${isDirectDecision ? 'decision' : 'stage'}_provider_session:${route.providerSessionId}`]),
       `conversation_url:${route.providerSession?.conversationUrl ?? 'PENDING_PROVIDER_ASSIGNMENT'}`,
       `step:${step}`,
       'message_ordinal:1',
@@ -800,7 +808,9 @@ export class RelayRuntime {
         `supervisor:${route.supervisorId}`,
         `provider_session:${session.providerSessionId}`,
         `binding_provider_session:${session.bindingProviderSessionId ?? session.providerSessionId}`,
-        ...(session.sessionRole === 'MC_BINDING_PRELOAD_SESSION' ? [] : [`stage_provider_session:${session.providerSessionId}`]),
+        ...(session.sessionRole === 'MC_BINDING_PRELOAD_SESSION' ? [] : [
+          `${route.packet.routeSchemaVersion === 4 ? 'decision' : 'stage'}_provider_session:${session.providerSessionId}`,
+        ]),
         `session_role:${session.sessionRole ?? 'LEGACY'}`,
         `message_ordinal:${session.messageOrdinal ?? 1}`,
         `conversation_url:${session.conversationUrl ?? 'PENDING_PROVIDER_ASSIGNMENT'}`,
@@ -820,7 +830,7 @@ export class RelayRuntime {
     const capsule = bindingCapsule.payload;
     return this.missionControl.recordEvidence(route.workerId, {
       receiptId: `binding-capsule:${route.requestId}:${bindingCapsule.sha256.slice(0, 16)}`,
-      summary: BINDING_CAPSULE_SUMMARY,
+      summary: route.packet.routeSchemaVersion === 4 ? BINDING_ENVELOPE_SUMMARY : BINDING_CAPSULE_SUMMARY,
       refs: [
         `request:${route.requestId}`,
         `supervisor:${route.supervisorId}`,
@@ -828,6 +838,7 @@ export class RelayRuntime {
         `binding_receipt:${capsule.binding_receipt_id}`,
         `binding_capsule_id:${capsule.binding_capsule_id}`,
         `binding_capsule_sha256:${bindingCapsule.sha256}`,
+        ...(route.packet.routeSchemaVersion === 4 ? [`binding_envelope_sha256:${bindingCapsule.sha256}`] : []),
         `request_nonce_sha256:${sha256(capsule.request_nonce)}`,
         `worker:${capsule.worker_id}`,
         `reasoning_lane:${capsule.reasoning_lane}`,
@@ -1001,6 +1012,7 @@ function publicRoute(route) {
     destinationSupervisorId: route.supervisorId,
     providerSessionId: route.providerSessionId,
     bindingProviderSessionId: route.bindingProviderSessionId ?? null,
+    decisionProviderSessionId: route.prior?.decisionProviderSessionId ?? null,
     destinationLabel: route.chat.label,
     queuedAt: route.queuedAt,
     bodySha256: route.bodySha256,
@@ -1028,6 +1040,9 @@ function publicDecisionReceipt(receipt) {
     immutableUrl: receipt.github_receipt?.immutable_url ?? null,
     bindingProviderSessionId: receipt.binding_provider_session_id ?? null,
     stageProviderSessionId: receipt.stage_provider_session_id ?? null,
-    proProvenance: receipt.pro_decision_block?.used ? 'DURABLE_STAGE_RECEIPT_ATTESTED' : null,
+    decisionProviderSessionId: receipt.decision_provider_session_id ?? null,
+    decisionSessionProvenance: receipt.decision_session_provenance ?? null,
+    proProvenance: receipt.decision_session_provenance
+      ?? (receipt.pro_decision_block?.used ? 'DURABLE_STAGE_RECEIPT_ATTESTED' : null),
   };
 }

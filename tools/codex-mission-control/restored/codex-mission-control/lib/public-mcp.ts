@@ -177,7 +177,7 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
       const events = await dependencies.loadEvents();
       const result = publicSupervisoryRequestBinding(events, dependencies.loadPolicy(), request_id, supervisor_id, provider_session_id, now);
       if (!result) {
-        const pending = pendingDecisionRequests(events).find((request) => request.routeSchemaVersion === 3
+        const pending = pendingDecisionRequests(events).find((request) => (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4)
           && request.requestId === request_id && request.supervisorId === supervisor_id);
         await access(dependencies, { tool: publicMcpToolNames[1], request_id, supervisor_id, provider_session_id, worker_id: pending?.worker, status: "NOT_FOUND", occurred_at: now });
         throw notFound();
@@ -260,7 +260,7 @@ export function publicSupervisoryRequestBinding(
 ): PublicSupervisoryRequestBinding | null {
   if (!policy || !Number.isFinite(Date.parse(now))) return null;
   const matches = pendingDecisionRequests(events).filter((request) => request.requestId === requestId
-    && request.routeSchemaVersion === 3 && request.supervisorId === supervisorId);
+    && (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4) && request.supervisorId === supervisorId);
   if (matches.length !== 1) return null;
   const request = matches[0]!;
   if (Date.parse(request.queuedAt) > Date.parse(now) || Date.parse(request.expiresAt) <= Date.parse(now)) return null;

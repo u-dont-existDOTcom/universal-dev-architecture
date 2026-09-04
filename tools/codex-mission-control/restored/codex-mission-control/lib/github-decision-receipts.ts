@@ -4,7 +4,8 @@ import type { AuthenticatedProducer } from "./ingestion-auth";
 import { bindingCapsuleSchema, parseCanonicalDecisionEnvelope, type AppendEnvelope, type BindingCapsule, type CanonicalDecisionEnvelope, type StoredEvent } from "./schema";
 import type { EventStore } from "./store";
 
-export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
+export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
+export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
 export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
 export const canonicalDecisionCommentPrefix = "MISSION_CONTROL_CANONICAL_DECISION_V1\n";
 export const capabilityReceiptCommentPrefix = "MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1\n";
@@ -15,10 +16,12 @@ export const modeCapabilityVerifiedSummary = "MISSION_CONTROL_CHAT_MODE_CAPABILI
 export const relayStageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
 export const stageLivenessSummary = "MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1";
 export const durableStageReceiptAttestationSummary = "MISSION_CONTROL_DURABLE_STAGE_RECEIPT_ATTESTED_V1";
+export const splitDecisionSessionAttestationSummary = "MISSION_CONTROL_SPLIT_DECISION_SESSION_ATTESTED_V1";
 export const providerSessionSummary = "MISSION_CONTROL_PROVIDER_SESSION_V1";
 export const providerSessionModelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
 export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1";
 export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
+export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
@@ -46,7 +49,7 @@ export interface PublicCapabilityChallenge {
   expires_at: string;
 }
 export interface PendingDecisionRequest {
-  worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3; nonce: string;
+  worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
   reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
@@ -161,6 +164,7 @@ export function parseCanonicalDecisionComment(body: string): CanonicalDecisionEn
   if (sha256(envelope.decision_block.exact_text) !== envelope.decision_block.sha256) throw new Error("Canonical decision block digest mismatch.");
   if (envelope.pro_decision_block.used && sha256(envelope.pro_decision_block.exact_text!) !== envelope.pro_decision_block.sha256) throw new Error("Durable stage-receipt-attested Pro block digest mismatch.");
   if (envelope.schema_version === 2 && sha256(canonicalJson(envelope.binding_capsule)) !== envelope.binding_capsule_sha256) throw new Error("Canonical binding capsule digest mismatch.");
+  if (envelope.schema_version === 3 && sha256(canonicalJson(envelope.binding_envelope)) !== envelope.binding_envelope_sha256) throw new Error("Canonical binding envelope digest mismatch.");
   return envelope;
 }
 
@@ -248,10 +252,21 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
     const decisionData = envelope.data;
     const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
+    const directDecision = decisionData.decision_provider_session_id !== null;
     const attestation = store.append(evidenceEnvelope({
       worker: decisionData.worker, receiptId: `durable-stage-receipt-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
-      summary: durableStageReceiptAttestationSummary, occurredAt: candidate.createdAt, verified: true,
-      refs: [`request:${decisionData.request_id}`, ...(decisionData.supervisor_id ? [`supervisor:${decisionData.supervisor_id}`] : []), ...(decisionData.binding_provider_session_id ? [`binding_provider_session:${decisionData.binding_provider_session_id}`] : []), ...(decisionData.stage_provider_session_id ? [`stage_provider_session:${decisionData.stage_provider_session_id}`] : []), `reasoning_lane:${decisionData.reasoning_lane}`, `github_comment:${candidate.immutableUrl}`, ...(decisionData.pro_decision_block.used ? ["provenance:DURABLE_STAGE_RECEIPT_ATTESTED", "independent_pro_observation:false"] : ["provenance:EXTRA_HIGH_DIRECT"] )],
+      summary: directDecision ? splitDecisionSessionAttestationSummary : durableStageReceiptAttestationSummary, occurredAt: candidate.createdAt, verified: true,
+      refs: [
+        `request:${decisionData.request_id}`,
+        ...(decisionData.supervisor_id ? [`supervisor:${decisionData.supervisor_id}`] : []),
+        ...(decisionData.binding_provider_session_id ? [`binding_provider_session:${decisionData.binding_provider_session_id}`] : []),
+        ...(decisionData.stage_provider_session_id ? [`stage_provider_session:${decisionData.stage_provider_session_id}`] : []),
+        ...(decisionData.decision_provider_session_id ? [`decision_provider_session:${decisionData.decision_provider_session_id}`] : []),
+        `reasoning_lane:${decisionData.reasoning_lane}`,
+        `github_comment:${candidate.immutableUrl}`,
+        ...(decisionData.decision_session_provenance ? [`provenance:${decisionData.decision_session_provenance}`, "backend_model_identity_claimed:false"]
+          : decisionData.pro_decision_block.used ? ["provenance:DURABLE_STAGE_RECEIPT_ATTESTED", "independent_pro_observation:false"] : ["provenance:EXTRA_HIGH_DIRECT"]),
+      ],
     }), ingestedAt, githubReceiptCollector);
     return [decision, attestation];
   }
@@ -316,7 +331,9 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
   return events.flatMap((event) => {
     if (event.data.type !== "worker_message_recorded"
-      || (!event.data.body.startsWith(supervisoryCycleRoutePrefix) && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
+      || (!event.data.body.startsWith(supervisoryCycleRoutePrefix)
+        && !event.data.body.startsWith(stagedSupervisoryCycleRoutePrefix)
+        && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
     const request = parseCycleRequest(event.data.body, event.data.worker);
     return request && !completed.has(request.requestId) ? [request] : [];
   });
@@ -342,6 +359,12 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     const finalStep = request.reasoningLane === "PRO_ESCALATED" ? "EXTRA_HIGH_WRITER" : "EXTRA_HIGH_DIRECT";
     assertFreshStageProviderSession(events, request, decision.binding_provider_session_id, decision.stage_provider_session_id, finalStep, candidate.createdAt, policy);
   }
+  if (request.routeSchemaVersion === 4) {
+    if (decision.schema_version !== 3) throw new Error("A direct split-session supervisory cycle requires canonical decision schema_version 3.");
+    assertEqual(decision.supervisor_id, request.supervisorId, "supervisor ID");
+    assertExactBindingCapsule(events, request, decision.binding_envelope, decision.binding_envelope_sha256, decision.binding_provider_session_id, candidate.createdAt);
+    assertFreshDecisionProviderSession(events, request, decision.binding_provider_session_id, decision.decision_provider_session_id, candidate.createdAt, policy);
+  }
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");
   const created = Date.parse(candidate.createdAt);
@@ -360,13 +383,17 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     occurred_at: candidate.createdAt,
     data: {
       type: "github_decision_receipt_ingested", worker: request.worker, task_id: request.taskId, receipt_id: `github-comment:${candidate.commentId}`,
-      request_id: request.requestId, supervisor_id: decision.schema_version === 2 ? decision.supervisor_id : null,
+      request_id: request.requestId, supervisor_id: decision.schema_version === 1 ? null : decision.supervisor_id,
       provider_session_id: null,
-      binding_provider_session_id: decision.schema_version === 2 ? decision.binding_provider_session_id : null,
+      binding_provider_session_id: decision.schema_version === 1 ? null : decision.binding_provider_session_id,
       stage_provider_session_id: decision.schema_version === 2 ? decision.stage_provider_session_id : null,
+      decision_provider_session_id: decision.schema_version === 3 ? decision.decision_provider_session_id : null,
       binding_capsule: decision.schema_version === 2 ? decision.binding_capsule : null,
       binding_capsule_sha256: decision.schema_version === 2 ? decision.binding_capsule_sha256 : null,
       staged_provenance: decision.schema_version === 2 ? decision.staged_provenance : null,
+      binding_envelope: decision.schema_version === 3 ? decision.binding_envelope : null,
+      binding_envelope_sha256: decision.schema_version === 3 ? decision.binding_envelope_sha256 : null,
+      decision_session_provenance: decision.schema_version === 3 ? decision.decision_session_provenance : null,
       nonce: request.nonce, evidence_capsule: request.evidenceCapsule,
       owner_outcome_id: request.ownerOutcome.id, owner_outcome_epoch: request.ownerOutcome.epoch, owner_outcome_sha256: request.ownerOutcome.sha256,
       reasoning_lane: request.reasoningLane, decision_block: decision.decision_block, pro_decision_block: decision.pro_decision_block,
@@ -424,6 +451,12 @@ function assertCurrentChatCapabilities(events: StoredEvent[], request: PendingDe
 
 function assertSemanticStageCompletion(events: StoredEvent[], request: PendingDecisionRequest, at: string, decision?: CanonicalDecisionEnvelope) {
   if (request.reasoningLane !== "PRO_ESCALATED") return;
+  if (request.routeSchemaVersion === 4) {
+    if (decision?.schema_version !== 3 || decision.decision_session_provenance !== "VISIBLE_PRO_SESSION_GITHUB_ATTESTED") {
+      throw new Error("Direct Pro admission requires visible-Pro-session GitHub-attested provenance.");
+    }
+    return;
+  }
   if (request.routeSchemaVersion !== 3) throw new Error("Legacy same-chat stage completion cannot satisfy fresh-stage admission.");
   let minimumSequence = -1;
   for (const stage of ["EXTRA_HIGH_READER", "PRO_DECISION_STAGE"] as const) {
@@ -449,6 +482,11 @@ function assertSemanticStageCompletion(events: StoredEvent[], request: PendingDe
 function assertOrderedRelayStages(events: StoredEvent[], request: PendingDecisionRequest, at: string, policy: GitHubReceiptPolicy, decision?: CanonicalDecisionEnvelope) {
   const challenge = policy.capabilityChallenges.find((c) => c.supervisorId === request.supervisorId);
   if (!challenge) throw new Error(`No capability policy exists for supervisor ${request.supervisorId}.`);
+  if (request.routeSchemaVersion === 4) {
+    if (decision?.schema_version !== 3) throw new Error("Direct split-stage relay ordering requires decision schema_version 3.");
+    assertOrderedDirectRelayStages(events, request, at, challenge, decision);
+    return;
+  }
   if (request.routeSchemaVersion !== 3 || decision?.schema_version !== 2) throw new Error("Fresh-stage relay ordering requires the split-session schema.");
   const bindingProviderSessionId = decision.binding_provider_session_id;
   const semanticStages: Array<readonly [string, string, string]> = request.reasoningLane === "PRO_ESCALATED"
@@ -478,6 +516,41 @@ function assertOrderedRelayStages(events: StoredEvent[], request: PendingDecisio
   }
 }
 
+function assertOrderedDirectRelayStages(
+  events: StoredEvent[],
+  request: PendingDecisionRequest,
+  at: string,
+  challenge: CapabilityChallenge,
+  decision: Extract<CanonicalDecisionEnvelope, { schema_version: 3 }>,
+) {
+  const decisionStep = request.reasoningLane === "PRO_ESCALATED" ? "PRO_DECISION" : "EXTRA_HIGH_DECISION";
+  const decisionLabel = request.reasoningLane === "PRO_ESCALATED" ? challenge.proLabel : challenge.extraHighLabel;
+  const required: Array<readonly [string, string, string]> = [
+    ["MCP_BINDING_PRELOAD", challenge.extraHighLabel, decision.binding_provider_session_id],
+    [decisionStep, decisionLabel, decision.decision_provider_session_id],
+  ];
+  let minimumSequence = -1;
+  for (const [step, label, providerSessionId] of required) {
+    const receipt = events.find((event) => event.sequence > minimumSequence && event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === relayStageSummary && event.data.verified
+      && event.data.refs.includes(`request:${request.requestId}`)
+      && event.data.refs.includes(`step:${step}`)
+      && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+      && event.data.refs.includes(`provider_session:${providerSessionId}`)
+      && event.data.refs.includes(`binding_provider_session:${decision.binding_provider_session_id}`)
+      && event.data.refs.includes(`model_ui_label:${label}`)
+      && event.data.refs.includes("generation_state:COMPLETE")
+      && event.data.refs.includes("message_ordinal:1")
+      && event.data.refs.includes("first_message:true")
+      && event.data.refs.includes("assistant_content_observed:false")
+      && (step === "MCP_BINDING_PRELOAD" || !event.data.refs.includes("selected_app:Mission Control"))
+      && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+      && Date.parse(event.occurredAt) <= Date.parse(at));
+    if (!receipt) throw new Error(`Missing ordered direct relay stage receipt ${step} for ${request.requestId}.`);
+    minimumSequence = receipt.sequence;
+  }
+}
+
 function latestEvidence(events: StoredEvent[], summary: string, chatId: string, at: string, requiredRefs: string[]) {
   return [...events].reverse().find((event) => {
     const data = event.data;
@@ -494,7 +567,7 @@ export function findOpenProviderSession(
   providerSessionId: string,
   at: string,
 ) {
-  if (request.routeSchemaVersion !== 3 || !Number.isFinite(Date.parse(at))) return null;
+  if ((request.routeSchemaVersion !== 3 && request.routeSchemaVersion !== 4) || !Number.isFinite(Date.parse(at))) return null;
   const session = [...events].reverse().find((event) => event.data.type === "evidence_receipt_recorded"
     && event.data.summary === providerSessionSummary && event.data.verified
     && event.data.refs.includes(`request:${request.requestId}`)
@@ -549,12 +622,14 @@ function assertExactBindingCapsule(events: StoredEvent[], request: PendingDecisi
     && event.data.refs.includes("assistant_content_observed:false"))) {
     throw new Error("Binding capsule lacks a first-message Mission Control preload transport receipt.");
   }
-  if (!events.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === bindingCapsuleSummary && event.data.verified
+  const bindingSummary = request.routeSchemaVersion === 4 ? bindingEnvelopeSummary : bindingCapsuleSummary;
+  const bindingDigestRef = request.routeSchemaVersion === 4 ? `binding_envelope_sha256:${capsuleSha256}` : `binding_capsule_sha256:${capsuleSha256}`;
+  if (!events.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === bindingSummary && event.data.verified
     && event.data.refs.includes(`request:${request.requestId}`)
     && event.data.refs.includes(`binding_provider_session:${bindingProviderSessionId}`)
     && event.data.refs.includes(`binding_receipt:${capsule.binding_receipt_id}`)
     && event.data.refs.includes(`binding_capsule_id:${capsule.binding_capsule_id}`)
-    && event.data.refs.includes(`binding_capsule_sha256:${capsuleSha256}`))) {
+    && event.data.refs.includes(bindingDigestRef))) {
     throw new Error("Binding capsule is not durably recorded in Mission Control transport state.");
   }
   return capsule;
@@ -588,6 +663,47 @@ function assertFreshStageProviderSession(events: StoredEvent[], request: Pending
   return relay;
 }
 
+function assertFreshDecisionProviderSession(events: StoredEvent[], request: PendingDecisionRequest, bindingProviderSessionId: string, decisionProviderSessionId: string, at: string, policy: GitHubReceiptPolicy) {
+  if (bindingProviderSessionId === decisionProviderSessionId) throw new Error("Binding and decision provider sessions must be distinct.");
+  const challenge = policy.capabilityChallenges.find((item) => item.supervisorId === request.supervisorId);
+  if (!challenge) throw new Error(`No capability policy exists for supervisor ${request.supervisorId}.`);
+  const step = request.reasoningLane === "PRO_ESCALATED" ? "PRO_DECISION" : "EXTRA_HIGH_DECISION";
+  const expectedLabel = request.reasoningLane === "PRO_ESCALATED" ? challenge.proLabel : challenge.extraHighLabel;
+  const session = [...events].reverse().find((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionSummary && event.data.verified
+    && event.data.refs.includes(`request:${request.requestId}`)
+    && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+    && event.data.refs.includes(`provider_session:${decisionProviderSessionId}`)
+    && event.data.refs.includes(`binding_provider_session:${bindingProviderSessionId}`)
+    && event.data.refs.includes(`decision_provider_session:${decisionProviderSessionId}`)
+    && event.data.refs.includes(`session_role:${step}_SESSION`));
+  if (!session || session.data.type !== "evidence_receipt_recorded"
+    || !session.data.refs.includes("lifecycle_status:COMPLETE")
+    || !session.data.refs.includes("url_binding_status:EXACT")
+    || !session.data.refs.includes("message_ordinal:1")
+    || !session.data.refs.some((ref) => ref.startsWith("conversation_url:https://chatgpt.com/c/"))) {
+    throw new Error(`Fresh decision provider session ${decisionProviderSessionId} is not complete and exact for ${step}.`);
+  }
+  const relay = events.find((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === relayStageSummary && event.data.verified
+    && event.data.refs.includes(`request:${request.requestId}`)
+    && event.data.refs.includes(`supervisor:${request.supervisorId}`)
+    && event.data.refs.includes(`provider_session:${decisionProviderSessionId}`)
+    && event.data.refs.includes(`binding_provider_session:${bindingProviderSessionId}`)
+    && event.data.refs.includes(`decision_provider_session:${decisionProviderSessionId}`)
+    && event.data.refs.includes(`step:${step}`)
+    && event.data.refs.includes(`model_ui_label:${expectedLabel}`)
+    && event.data.refs.includes("generation_state:COMPLETE")
+    && event.data.refs.includes("message_ordinal:1")
+    && event.data.refs.includes("first_message:true")
+    && event.data.refs.includes("assistant_content_observed:false")
+    && !event.data.refs.includes("selected_app:Mission Control")
+    && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
+    && Date.parse(event.occurredAt) <= Date.parse(at));
+  if (!relay) throw new Error(`Fresh decision ${step} lacks a first-message GitHub transport receipt.`);
+  return relay;
+}
+
 function assertUnusedStageProviderSession(events: StoredEvent[], request: PendingDecisionRequest, stageProviderSessionId: string) {
   if (events.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === stageLivenessSummary
     && event.data.refs.includes(`request:${request.requestId}`)
@@ -608,15 +724,21 @@ function stageProviderSessionFor(events: StoredEvent[], request: PendingDecision
 
 function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
   try {
-    const current = body.startsWith(supervisoryCycleRoutePrefix);
-    const prefix = current ? supervisoryCycleRoutePrefix : legacySupervisoryCycleRoutePrefix;
+    const version = body.startsWith(supervisoryCycleRoutePrefix) ? 4
+      : body.startsWith(stagedSupervisoryCycleRoutePrefix) ? 3
+        : body.startsWith(legacySupervisoryCycleRoutePrefix) ? 2
+          : null;
+    if (!version) return null;
+    const prefix = version === 4 ? supervisoryCycleRoutePrefix
+      : version === 3 ? stagedSupervisoryCycleRoutePrefix
+        : legacySupervisoryCycleRoutePrefix;
     const root = record(JSON.parse(body.slice(prefix.length)), "cycle request"), evidence = record(root.evidenceCapsule, "evidenceCapsule"), outcome = record(root.ownerOutcome, "ownerOutcome"), github = record(root.githubReceipt, "githubReceipt"), factual = record(root.factualPacket, "factualPacket");
-    if ((current && (root.schemaVersion !== 3 || root.packetKind !== "PROVIDER_SESSION_SUPERVISORY_CYCLE"))
-      || (!current && (root.schemaVersion !== 2 || root.packetKind !== "SAME_CHAT_SUPERVISORY_CYCLE"))
+    if ((version >= 3 && (root.schemaVersion !== version || root.packetKind !== "PROVIDER_SESSION_SUPERVISORY_CYCLE"))
+      || (version === 2 && (root.schemaVersion !== 2 || root.packetKind !== "SAME_CHAT_SUPERVISORY_CYCLE"))
       || (root.reasoningLane !== "EXTRA_HIGH_DIRECT" && root.reasoningLane !== "PRO_ESCALATED")) return null;
-    const supervisorId = requiredString(current ? root.destinationSupervisorId : root.destinationChatId, current ? "destinationSupervisorId" : "destinationChatId");
+    const supervisorId = requiredString(version >= 3 ? root.destinationSupervisorId : root.destinationChatId, version >= 3 ? "destinationSupervisorId" : "destinationChatId");
     return {
-      worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: current ? 3 : 2, nonce: requiredString(root.nonce, "nonce"),
+      worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: version, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },
       reasoningLane: root.reasoningLane, repository: repositoryName(github.repository, "githubReceipt.repository"), issueNumber: positiveInteger(github.issueNumber, "githubReceipt.issueNumber"), stageIssueNumber: positiveInteger(github.stageIssueNumber, "githubReceipt.stageIssueNumber"),

@@ -5,12 +5,14 @@ import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
 import {
   bindingCapsuleSummary,
+  bindingEnvelopeSummary,
   buildGitHubDecisionReceiptEnvelope,
   canonicalDecisionCommentPrefix,
   capabilityChallengeSummary,
   capabilityReceiptCommentPrefix,
   capabilityVerifiedSummary,
   durableStageReceiptAttestationSummary,
+  splitDecisionSessionAttestationSummary,
   ensureConfiguredCapabilityChallenges,
   githubDecisionCandidateFromWebhook,
   ingestGitHubSupervisionCandidate,
@@ -24,7 +26,8 @@ import {
   relayStageSummary,
   stageLivenessSummary,
   stageReceiptCommentPrefix,
-  supervisoryCycleRoutePrefix,
+  stagedSupervisoryCycleRoutePrefix as supervisoryCycleRoutePrefix,
+  supervisoryCycleRoutePrefix as directSupervisoryCycleRoutePrefix,
   validateConfiguredDecisionLocation,
   verifyGitHubWebhookSignature,
   type GitHubDecisionCandidate,
@@ -43,6 +46,8 @@ const bindingSessionId = "provider-session:binding";
 const readerSessionId = "provider-session:reader";
 const proSessionId = "provider-session:pro";
 const writerSessionId = "provider-session:writer";
+const directDecisionSessionId = "provider-session:direct-decision";
+const directProSessionId = "provider-session:direct-pro-decision";
 const directSessionId = "provider-session:direct";
 const bindingReceiptId = "binding-receipt-1";
 
@@ -234,6 +239,93 @@ test("old same-chat receipt schemas cannot satisfy the split-stage contract", ()
   assert.throws(() => parseStageReceiptComment(`${stageReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, request_id: "legacy", request_nonce: "nonce", chat_id: "chat", stage: "PRO_REASONER", status: "STAGE_COMPLETE" })}`), /schema_version must be 2/);
 });
 
+test("new ordinary direct receipt requires distinct binding and Extra High decision sessions", () => {
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  const result = buildGitHubDecisionReceiptEnvelope(
+    directDecisionEvents("EXTRA_HIGH_DIRECT"),
+    { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` },
+    policy(),
+  );
+  assert.equal(result.data.type, "github_decision_receipt_ingested");
+  if (result.data.type !== "github_decision_receipt_ingested") return;
+  assert.equal(result.data.binding_provider_session_id, bindingSessionId);
+  assert.equal(result.data.decision_provider_session_id, directDecisionSessionId);
+  assert.equal(result.data.decision_session_provenance, "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED");
+  assert.equal(result.data.stage_provider_session_id, null);
+
+  const sameSession = { ...decision, decision_provider_session_id: bindingSessionId };
+  assert.throws(
+    () => parseCanonicalDecisionComment(`${canonicalDecisionCommentPrefix}${JSON.stringify(sameSession)}`),
+    /distinct/,
+  );
+});
+
+test("new escalated route admits one direct visible Pro decision and does not require issue 61 stages", () => {
+  const decision = directDecisionEnvelope("PRO_ESCALATED");
+  const events = directDecisionEvents("PRO_ESCALATED");
+  assert.equal(events.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === stageLivenessSummary), false);
+  const store = fakeStore(events);
+  const appended = ingestGitHubSupervisionCandidate(
+    store,
+    { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` },
+    policy(),
+    "2026-09-02T00:16:00.000Z",
+  );
+  assert.equal(appended.length, 2);
+  const attestation = appended[1];
+  assert.equal(attestation.data.type, "evidence_receipt_recorded");
+  if (attestation.data.type !== "evidence_receipt_recorded") return;
+  assert.equal(attestation.data.summary, splitDecisionSessionAttestationSummary);
+  assert.ok(attestation.data.refs.includes(`decision_provider_session:${directProSessionId}`));
+  assert.ok(attestation.data.refs.includes("provenance:VISIBLE_PRO_SESSION_GITHUB_ATTESTED"));
+  assert.ok(attestation.data.refs.includes("backend_model_identity_claimed:false"));
+});
+
+test("new direct binding envelope rejects forged, stale, cross-supervisor, and cross-session values", () => {
+  const base = directDecisionEvents("PRO_ESCALATED");
+  const mutations: Array<[string, (decision: ReturnType<typeof directDecisionEnvelope>) => void]> = [
+    ["cross-request", (decision) => { decision.binding_envelope.request_id = "another-request"; }],
+    ["cross-supervisor", (decision) => { decision.binding_envelope.supervisor_id = "another-supervisor"; }],
+    ["cross-session", (decision) => { decision.binding_envelope.binding_provider_session_id = "provider-session:other"; }],
+    ["stale", (decision) => { decision.binding_envelope.expires_at = "2026-09-01T00:00:00.000Z"; }],
+  ];
+  for (const [label, mutate] of mutations) {
+    const decision = directDecisionEnvelope("PRO_ESCALATED");
+    mutate(decision);
+    decision.binding_envelope_sha256 = sha256(canonicalJson(decision.binding_envelope));
+    assert.throws(
+      () => buildGitHubDecisionReceiptEnvelope(base, { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` }, policy()),
+      /binding envelope|binding capsule|exactly match|Stage-1/,
+      label,
+    );
+  }
+});
+
+test("new direct admission requires exact visible lane proof and rejects relabeled old provenance", () => {
+  const decision = directDecisionEnvelope("PRO_ESCALATED");
+  const wrongModel = directDecisionEvents("PRO_ESCALATED").map((event) => structuredClone(event));
+  for (const event of wrongModel) {
+    if (event.data.type === "evidence_receipt_recorded" && event.data.refs.includes("step:PRO_DECISION")) {
+      event.data.refs = event.data.refs.map((ref) => ref === "model_ui_label:Pro" ? "model_ui_label:Extra High" : ref);
+    }
+  }
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(wrongModel, { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` }, policy()),
+    /visible|direct relay|transport receipt/,
+  );
+
+  const relabeled = { ...decision, decision_session_provenance: "DURABLE_STAGE_RECEIPT_ATTESTED" } as Record<string, unknown>;
+  assert.throws(
+    () => parseCanonicalDecisionComment(`${canonicalDecisionCommentPrefix}${JSON.stringify(relabeled)}`),
+    /decision_session_provenance|Invalid input/,
+  );
+
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(directDecisionEvents("PRO_ESCALATED"), candidate(), policy()),
+    /schema_version 3/,
+  );
+});
+
 test("public reconciliation polls all centrally configured buses without Authorization", async () => {
   const p = policy();
   const store = fakeStore([]);
@@ -364,6 +456,60 @@ function ordinaryEvents(): StoredEvent[] {
   ];
 }
 
+function directPendingEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): StoredEvent[] {
+  const events = pendingEvents(lane).map((event) => structuredClone(event));
+  const route = events[1]!;
+  if (route.data.type !== "worker_message_recorded") throw new Error("expected route event");
+  const staged = JSON.parse(route.data.body.slice(supervisoryCycleRoutePrefix.length));
+  staged.schemaVersion = 4;
+  route.data.body = `${directSupervisoryCycleRoutePrefix}${JSON.stringify(staged)}`;
+  return events;
+}
+
+function directDecisionEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): StoredEvent[] {
+  const decisionSession = lane === "PRO_ESCALATED" ? directProSessionId : directDecisionSessionId;
+  const step = lane === "PRO_ESCALATED" ? "PRO_DECISION" : "EXTRA_HIGH_DECISION";
+  const label = lane === "PRO_ESCALATED" ? "Pro" : "Extra High";
+  return [
+    ...directPendingEvents(lane),
+    ...capabilityEvents(),
+    ...directBindingEvents(lane),
+    directRelayStage("direct-decision-relay", 20, decisionSession, step, label, "2026-09-02T00:04:00.000Z"),
+    directProviderSessionEvent("direct-decision-complete", 21, decisionSession, step, "2026-09-02T00:04:00.000Z"),
+  ];
+}
+
+function directBindingEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): StoredEvent[] {
+  return bindingEvents(lane).map((event) => {
+    const copy = structuredClone(event);
+    if (copy.data.type !== "evidence_receipt_recorded" || copy.data.summary !== bindingCapsuleSummary) return copy;
+    copy.data.summary = bindingEnvelopeSummary;
+    copy.data.refs = copy.data.refs.map((ref) => ref.replace(/^binding_capsule_sha256:/, "binding_envelope_sha256:"));
+    return copy;
+  });
+}
+
+function directRelayStage(id: string, sequence: number, sessionId: string, step: string, model: string, occurredAt: string): StoredEvent {
+  return evidenceEvent(id, sequence, relayStageSummary, [
+    "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${sessionId}`,
+    `binding_provider_session:${bindingSessionId}`, `decision_provider_session:${sessionId}`,
+    `conversation_url:https://chatgpt.com/c/${sessionId.replaceAll(":", "-")}`, `step:${step}`,
+    `model_ui_label:${model}`, `prompt_sha256:${"c".repeat(64)}`, "generation_state:COMPLETE",
+    "app_selection_attempted:false", "app_selection_status:APP_SELECTION_NOT_ATTEMPTED",
+    "message_ordinal:1", "first_message:true", `observed_at:${occurredAt}`,
+    "assistant_content_observed:false", "backend_model_identity_claimed:false", "semantic_authority:false",
+  ], occurredAt);
+}
+
+function directProviderSessionEvent(id: string, sequence: number, sessionId: string, step: string, occurredAt: string): StoredEvent {
+  return evidenceEvent(id, sequence, providerSessionSummary, [
+    "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${sessionId}`,
+    `binding_provider_session:${bindingSessionId}`, `decision_provider_session:${sessionId}`,
+    `session_role:${step}_SESSION`, `conversation_url:https://chatgpt.com/c/${sessionId.replaceAll(":", "-")}`,
+    "url_binding_status:EXACT", "lifecycle_status:COMPLETE", "message_ordinal:1", "semantic_authority:false",
+  ], occurredAt);
+}
+
 function relayStage(id: string, sequence: number, sessionId: string, step: string, model: string, app: string, occurredAt: string, bindingId = bindingSessionId): StoredEvent {
   return evidenceEvent(id, sequence, relayStageSummary, [
     "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${sessionId}`, `binding_provider_session:${bindingId}`,
@@ -402,6 +548,32 @@ function ordinaryDecisionEnvelope(): Extract<CanonicalDecisionEnvelope, { schema
     ...decisionEnvelope(), binding_provider_session_id: bindingSessionId, stage_provider_session_id: directSessionId,
     binding_capsule: capsule, binding_capsule_sha256: sha256(canonicalJson(capsule)), staged_provenance: null,
     reasoning_lane: "EXTRA_HIGH_DIRECT", pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+  };
+}
+
+function directDecisionEnvelope(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): Extract<CanonicalDecisionEnvelope, { schema_version: 3 }> {
+  const binding = bindingCapsule(lane);
+  const pro = lane === "PRO_ESCALATED";
+  const sessionId = pro ? directProSessionId : directDecisionSessionId;
+  return {
+    schema_version: 3,
+    envelope_kind: "MISSION_CONTROL_CANONICAL_DECISION",
+    request_id: "decision-request-1",
+    supervisor_id: supervisorId,
+    binding_provider_session_id: bindingSessionId,
+    decision_provider_session_id: sessionId,
+    binding_envelope: binding,
+    binding_envelope_sha256: sha256(canonicalJson(binding)),
+    decision_session_provenance: pro ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED" : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+    nonce: "nonce-1",
+    evidence_capsule: { id: "capsule-1", sha256: evidenceSha },
+    owner_outcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha },
+    reasoning_lane: lane,
+    decision_block: { decision_id: "decision-1", exact_text: decisionText, sha256: sha256(decisionText) },
+    pro_decision_block: pro
+      ? { used: true, model_mode: "PRO", exact_text: decisionText, sha256: sha256(decisionText) }
+      : { used: false, model_mode: null, exact_text: null, sha256: null },
+    writer_contract: { mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: false },
   };
 }
 
