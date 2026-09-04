@@ -12,6 +12,7 @@ export const STAGE_LIVENESS_SUMMARY = 'MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1';
 export const PROVIDER_SESSION_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_V1';
 export const PROVIDER_SESSION_MODEL_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1';
 export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1';
+export const BINDING_CAPSULE_SUMMARY = 'MISSION_CONTROL_BINDING_CAPSULE_V1';
 export const MCP_BINDING_PRELOAD_STEP = 'MCP_BINDING_PRELOAD';
 export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
 export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
@@ -25,6 +26,42 @@ export function oneShotExitCode(result) {
 
 export function sha256(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+export function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export function deriveBindingCapsule(route, bindingProviderSessionId, bindingReceiptId) {
+  if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Binding capsules require a supervisory-cycle route.');
+  if (!bindingProviderSessionId || !bindingReceiptId) throw new Error('Binding capsules require an exact binding provider session and receipt.');
+  const stageIssueNumber = route.packet.githubReceipt.stageIssueNumber;
+  if (!Number.isInteger(stageIssueNumber) || stageIssueNumber < 1) throw new Error('Binding capsules require an exact GitHub stage issue number.');
+  const capsule = {
+    schema_version: 1,
+    binding_capsule_id: `binding-capsule:${route.requestId}:${sha256(`${bindingProviderSessionId}:${bindingReceiptId}`).slice(0, 16)}`,
+    request_id: route.requestId,
+    request_nonce: route.packet.nonce,
+    supervisor_id: route.supervisorId,
+    binding_provider_session_id: bindingProviderSessionId,
+    binding_receipt_id: bindingReceiptId,
+    worker_id: route.workerId,
+    reasoning_lane: route.packet.reasoningLane,
+    queued_at: route.packet.queuedAt,
+    expires_at: route.packet.expiresAt,
+    evidence_capsule: { ...route.packet.evidenceCapsule },
+    owner_outcome: { ...route.packet.ownerOutcome },
+    receipt_targets: {
+      repository: route.packet.githubReceipt.repository,
+      decision_issue_number: route.packet.githubReceipt.issueNumber,
+      stage_issue_number: stageIssueNumber,
+    },
+  };
+  return { payload: capsule, sha256: sha256(canonicalJson(capsule)) };
 }
 
 export function newProviderSessionId(uuid = randomUUID()) {
@@ -155,7 +192,9 @@ export function parseSupervisoryCycleRouteBody(body) {
       || !isRecord(value.githubReceipt)
       || typeof value.githubReceipt.repository !== 'string'
       || !Number.isInteger(value.githubReceipt.issueNumber)
-      || value.githubReceipt.issueNumber < 1) return null;
+      || value.githubReceipt.issueNumber < 1
+      || !Number.isInteger(value.githubReceipt.stageIssueNumber)
+      || value.githubReceipt.stageIssueNumber < 1) return null;
     return { ...value, routeSchemaVersion: version, destinationSupervisorId: version === 3 ? value.destinationSupervisorId : value.destinationChatId };
   } catch {
     return null;
@@ -174,8 +213,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
     for (const event of worker.timeline) {
       if (!isRecord(event?.data)) continue;
       if (event.data.type === 'github_decision_receipt_ingested' && typeof event.data.request_id === 'string') {
-        const providerSessionId = typeof event.data.provider_session_id === 'string' ? event.data.provider_session_id : 'LEGACY_UNBOUND';
-        receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}:${providerSessionId}`, event.data);
+        receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}`, event.data);
         continue;
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.summary === PROVIDER_SESSION_MCP_SUMMARY
@@ -190,7 +228,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       }
       const parsed = parseStageLivenessEvidence(event);
       if (!parsed) continue;
-      const key = `${workerId}:${parsed.requestId}:${parsed.providerSessionId ?? 'LEGACY_UNBOUND'}`;
+      const key = `${workerId}:${parsed.requestId}`;
       const current = livenessByWorkerRequest.get(key) ?? {};
       const stageState = current[parsed.stage] ?? { latest: null, continueRequiredCount: 0 };
       if (parsed.status === 'CONTINUE_REQUIRED') stageState.continueRequiredCount += 1;
@@ -215,7 +253,8 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       const prior = state.deliveries?.[routeKey];
       if (prior && ['SUBMITTED_CONFIRMED', 'DISCARDED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
       const providerSessionId = prior?.providerSessionId ?? null;
-      const workerRequestKey = `${workerId}:${packet.requestId}:${providerSessionId ?? 'UNASSIGNED'}`;
+      const bindingProviderSessionId = prior?.bindingProviderSessionId ?? (prior?.cycleStep === MCP_BINDING_PRELOAD_STEP ? providerSessionId : null);
+      const workerRequestKey = `${workerId}:${packet.requestId}`;
       routes.push({
         routeKey,
         requestId: packet.requestId,
@@ -226,10 +265,14 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         chat,
         supervisorId: packet.destinationSupervisorId,
         providerSessionId,
+        bindingProviderSessionId,
+        bindingCapsule: prior?.bindingCapsule ?? null,
         packet,
         routeKind: packet.routeSchemaVersion === 3 ? 'SUPERVISORY_CYCLE' : 'LEGACY_OUTBOUND',
         decisionReceipt: receiptByWorkerRequest.get(workerRequestKey) ?? null,
-        firstTurnMcpReceipt: mcpByWorkerRequest.get(workerRequestKey) ?? null,
+        firstTurnMcpReceipt: bindingProviderSessionId
+          ? mcpByWorkerRequest.get(`${workerId}:${packet.requestId}:${bindingProviderSessionId}`) ?? null
+          : null,
         stageLiveness: livenessByWorkerRequest.get(workerRequestKey) ?? {},
         body: event.data.body,
         bodySha256: sha256(event.data.body),
@@ -245,15 +288,17 @@ function parseStageLivenessEvidence(event) {
   if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'evidence_receipt_recorded' || event.data.summary !== STAGE_LIVENESS_SUMMARY || event.data.verified !== true || !Array.isArray(event.data.refs)) return null;
   const requestId = refValue(event.data.refs, 'request:');
   const supervisorId = refValue(event.data.refs, 'supervisor:');
-  const providerSessionId = refValue(event.data.refs, 'provider_session:');
+  const bindingProviderSessionId = refValue(event.data.refs, 'binding_provider_session:');
+  const stageProviderSessionId = refValue(event.data.refs, 'stage_provider_session:');
   const stage = refValue(event.data.refs, 'stage:');
   const status = refValue(event.data.refs, 'status:');
-  if (!requestId || !supervisorId || !providerSessionId || !['EXTRA_HIGH_READER', 'PRO_REASONER'].includes(stage) || !['STAGE_COMPLETE', 'CONTINUE_REQUIRED'].includes(status)) return null;
+  if (!requestId || !supervisorId || !bindingProviderSessionId || !stageProviderSessionId || !['EXTRA_HIGH_READER', 'PRO_DECISION_STAGE'].includes(stage) || !['STAGE_COMPLETE', 'CONTINUE_REQUIRED'].includes(status)) return null;
   return {
     receiptId: event.data.receipt_id,
     requestId,
     supervisorId,
-    providerSessionId,
+    bindingProviderSessionId,
+    stageProviderSessionId,
     stage,
     status,
     occurredAt: event.occurredAt ?? null,
@@ -335,14 +380,16 @@ export function appSelectionForMessage(chat, step) {
     MCP_BINDING_PRELOAD_STEP,
   ]);
   const githubSteps = new Set([
-    'CAPABILITY',
     'EXTRA_HIGH_DIRECT',
     'EXTRA_HIGH_READER',
+    'PRO_REASONER',
+    'EXTRA_HIGH_WRITER',
   ]);
   const requiredLabels = [];
   const referencedLabels = [];
   if (missionControlSteps.has(step)) requiredLabels.push(missionControl);
-  if (githubSteps.has(step)) referencedLabels.push(github);
+  if (githubSteps.has(step)) requiredLabels.push(github);
+  if (step === 'CAPABILITY') referencedLabels.push(github);
   return { knownLabels, requiredLabels, referencedLabels };
 }
 
@@ -359,22 +406,26 @@ export function cycleControlPrompt(route, step) {
     return `Mission Control binding preload only. Use the selected ${missionControl} app. Your only action in this turn is to call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not reason, use GitHub, make a decision, write a receipt, or answer from values in this prompt/context instead of calling the tool. If the exact tool call is unavailable or fails, fail closed. After the tool result is loaded into this conversation, stop.`;
   }
   if (step === 'EXTRA_HIGH_DIRECT') {
-    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Call the connected ${github} tool for the substantive evidence read and canonical receipt write; do not answer without a successful GitHub issue-comment write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the exact loaded binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
+    return freshToolStagePrompt(route, step, `Read the substantive evidence only from the immutable GitHub references, make the bounded decision requested, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message. Set stage_provider_session_id to ${providerSessionId}.`);
   }
   if (step === 'EXTRA_HIGH_READER') {
-    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Call the connected ${github} tool for the substantive evidence read and stage-receipt write; do not answer without a successful GitHub issue-comment write. Read the evidence fully into this same conversation together with the loaded request binding. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the loaded stage_receipt_target as schema_version 2 with the loaded request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage EXTRA_HIGH_READER, and status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Preserve the binding in this conversation for all later stages; do not delegate to Work.`;
+    return freshToolStagePrompt(route, step, `Read the substantive evidence only from the immutable GitHub references. Do not decide. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to ${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.stageIssueNumber} as schema_version 2 in this same first message, with stage EXTRA_HIGH_READER, stage_provider_session_id ${providerSessionId}, status STAGE_COMPLETE or CONTINUE_REQUIRED, and a compact evidence_reading_capsule with its SHA-256 for downstream Pro construction.`);
   }
   if (step === 'PRO_REASONER') {
-    return `MC ${requestId}: switch to Pro. Use the Mission Control request binding already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not request new Mission Control data, do not invoke or reselect ${missionControl}, and do not alter the bound supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
-  }
-  if (step === 'PRO_LIVENESS_CHECK') {
-    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Use the request binding already present in this same provider session ${providerSessionId} and call the connected ${github} tool for current stage receipts and the stage-receipt write; do not answer without a successful GitHub issue-comment write. Do not invoke or reselect ${missionControl}; no new Mission Control data is required. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the stage_receipt_target already loaded in this conversation as schema_version 2 with the already-bound request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
+    return freshToolStagePrompt(route, step, `Use ${github} to read the current EXTRA_HIGH_READER receipt and its evidence-reading capsule from ${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.stageIssueNumber}. Adjudicate in Pro and write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to that issue as schema_version 2 in this same first message, with stage PRO_DECISION_STAGE, stage_provider_session_id ${providerSessionId}, status STAGE_COMPLETE or CONTINUE_REQUIRED, and the canonical pro_decision_block exact text and SHA-256. Semantic authority belongs only to Pro.`);
   }
   if (step === 'EXTRA_HIGH_WRITER') {
-    return `MC ${requestId}: remain in Extra High. Use the existing request binding in this same provider session ${providerSessionId}; do not refresh it and do not invoke or reselect ${missionControl}. Call the connected ${github} tool for the current PRO_REASONER STAGE_COMPLETE receipt and final canonical issue-comment write; do not answer without a successful GitHub issue-comment write. Use the immediately preceding completed Pro decision already present in this conversation. Write that Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the already-bound supervisor_id ${supervisorId} and provider_session_id ${providerSessionId}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
+    return freshToolStagePrompt(route, step, `Use ${github} to read the current ordered EXTRA_HIGH_READER and PRO_DECISION_STAGE receipts from ${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.stageIssueNumber}. Check completeness without reinterpreting the Pro decision. If complete, write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message, set stage_provider_session_id to ${providerSessionId}, set Pro provenance to DURABLE_STAGE_RECEIPT_ATTESTED, and preserve the Pro decision by exact copy or structured transformation only.`);
   }
-  if (isContinueNudgeStep(step)) return 'continue';
   throw new Error(`Unknown supervisory-cycle step: ${step}`);
+}
+
+function freshToolStagePrompt(route, step, instruction) {
+  if (!route.bindingCapsule?.payload || !route.bindingCapsule?.sha256) throw new Error(`${step} requires a mechanically derived binding capsule.`);
+  if (route.bindingCapsule.payload.binding_provider_session_id === route.providerSessionId) throw new Error(`${step} must use a provider session distinct from the binding preload session.`);
+  const evidenceRefs = route.packet.factualPacket?.evidenceRefs ?? [];
+  const decisionRequested = route.packet.factualPacket?.decisionRequested ?? '';
+  return `Mission Control fresh-first-message stage ${step} for request ${route.requestId}. Use the selected ${route.chat.requiredApps.github} app. This is the first and only message in provider session ${route.providerSessionId}; do not use Mission Control or prior-chat memory. Copy this exact binding capsule into the receipt without alteration: ${canonicalJson(route.bindingCapsule.payload)}. binding_capsule_sha256: ${route.bindingCapsule.sha256}. Immutable GitHub evidence references: ${canonicalJson(evidenceRefs)}. Bounded decision request: ${JSON.stringify(decisionRequested)}. ${instruction} Do not answer with prose instead of attempting the required GitHub write. If GitHub is unavailable, the binding/hash mismatches, or the write fails, fail closed. Do not delegate to Work.`;
 }
 
 export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS, maxSemanticNudges = 3) {
@@ -400,65 +451,66 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' };
     if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT' };
     if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT')) {
-      return continueNudgeEligible(prior, nowMs, continueDelayMs)
-        ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_FINAL_RECEIPT' }
-        : { type: 'WAIT_GITHUB_RECEIPT' };
+      return freshStageReplayAction(prior, 'EXTRA_HIGH_DIRECT', 'EXTRA_HIGH', nowMs, continueDelayMs, maxSemanticNudges, 'MISSING_FINAL_RECEIPT');
     }
-    if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT_CONTINUE' };
-    if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT_CONTINUE')) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
     return null;
   }
 
   if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' };
-  if (status === startedCycleStepStatus('EXTRA_HIGH_READER') || status === startedCycleStepStatus('EXTRA_HIGH_READER_CONTINUE')) {
-    return { type: 'WAIT_GENERATION', step: prior.cycleStep };
+  if (status === startedCycleStepStatus('EXTRA_HIGH_READER')) {
+    return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_READER' };
   }
-  if (status === completedCycleStepStatus('EXTRA_HIGH_READER') || status === completedCycleStepStatus('EXTRA_HIGH_READER_CONTINUE')) {
-    return stageReceiptAction({ route, prior, stage: 'EXTRA_HIGH_READER', completeAction: { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' }, continueStep: 'EXTRA_HIGH_READER_CONTINUE', continueModel: 'EXTRA_HIGH', nowMs, maxSemanticNudges });
-  }
-
-  if (status === startedCycleStepStatus('PRO_REASONER') || status === startedCycleStepStatus('PRO_REASONER_CONTINUE')) {
-    return { type: 'WAIT_GENERATION', step: prior.cycleStep };
-  }
-  if (status === completedCycleStepStatus('PRO_REASONER') || status === completedCycleStepStatus('PRO_REASONER_CONTINUE')) {
-    return { type: 'SEND_CONTROL', step: 'PRO_LIVENESS_CHECK', model: 'EXTRA_HIGH' };
+  if (status === completedCycleStepStatus('EXTRA_HIGH_READER')) {
+    return stageReceiptAction({ route, prior, stage: 'EXTRA_HIGH_READER', completeAction: { type: 'SEND_CONTROL', step: 'PRO_REASONER', model: 'PRO' }, replayStep: 'EXTRA_HIGH_READER', replayModel: 'EXTRA_HIGH', nowMs, graceMs: STAGE_RECEIPT_GRACE_MS, maxAttempts: maxSemanticNudges });
   }
 
-  if (status === startedCycleStepStatus('PRO_LIVENESS_CHECK') || status === startedCycleStepStatus('PRO_LIVENESS_CHECK_CONTINUE')) {
-    return { type: 'WAIT_GENERATION', step: prior.cycleStep };
+  if (status === startedCycleStepStatus('PRO_REASONER')) {
+    return { type: 'WAIT_GENERATION', step: 'PRO_REASONER' };
   }
-  if (status === completedCycleStepStatus('PRO_LIVENESS_CHECK') || status === completedCycleStepStatus('PRO_LIVENESS_CHECK_CONTINUE')) {
-    return stageReceiptAction({ route, prior, stage: 'PRO_REASONER', completeAction: { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' }, continueStep: 'PRO_REASONER_CONTINUE', continueModel: 'PRO', missingReceiptContinueStep: 'PRO_LIVENESS_CHECK_CONTINUE', missingReceiptContinueModel: 'EXTRA_HIGH', nowMs, maxSemanticNudges });
+  if (status === completedCycleStepStatus('PRO_REASONER')) {
+    return stageReceiptAction({ route, prior, stage: 'PRO_DECISION_STAGE', completeAction: { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER', model: 'EXTRA_HIGH' }, replayStep: 'PRO_REASONER', replayModel: 'PRO', nowMs, graceMs: STAGE_RECEIPT_GRACE_MS, maxAttempts: maxSemanticNudges });
   }
 
   if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER' };
   if (status === completedCycleStepStatus('EXTRA_HIGH_WRITER')) {
-    return continueNudgeEligible(prior, nowMs, continueDelayMs)
-      ? { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_WRITER_CONTINUE', model: 'EXTRA_HIGH', recovery: 'MISSING_FINAL_RECEIPT' }
-      : { type: 'WAIT_GITHUB_RECEIPT' };
+    return freshStageReplayAction(prior, 'EXTRA_HIGH_WRITER', 'EXTRA_HIGH', nowMs, continueDelayMs, maxSemanticNudges, 'MISSING_FINAL_RECEIPT');
   }
-  if (status === startedCycleStepStatus('EXTRA_HIGH_WRITER_CONTINUE')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_WRITER_CONTINUE' };
-  if (status === completedCycleStepStatus('EXTRA_HIGH_WRITER_CONTINUE')) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'CONTINUE_NUDGE_EXHAUSTED' };
   return null;
 }
 
-function stageReceiptAction({ route, prior, stage, completeAction, continueStep, continueModel, missingReceiptContinueStep = continueStep, missingReceiptContinueModel = continueModel, nowMs, maxSemanticNudges }) {
+function stageReceiptAction({ route, prior, stage, completeAction, replayStep, replayModel, nowMs, graceMs, maxAttempts }) {
   const stageState = route.stageLiveness?.[stage] ?? null;
   const receipt = stageState?.latest ?? null;
   const currentAttemptStartedAt = Date.parse(prior?.generationStartedAt ?? '');
   const receiptAt = Date.parse(receipt?.occurredAt ?? '');
-  const currentReceipt = receipt && Number.isFinite(currentAttemptStartedAt) && Number.isFinite(receiptAt) && receiptAt >= currentAttemptStartedAt ? receipt : null;
-  const continueRequiredCount = stageState?.continueRequiredCount ?? 0;
+  const currentReceipt = receipt
+    && receipt.bindingProviderSessionId === route.bindingProviderSessionId
+    && receipt.stageProviderSessionId === prior?.providerSessionId
+    && Number.isFinite(currentAttemptStartedAt)
+    && Number.isFinite(receiptAt)
+    && receiptAt >= currentAttemptStartedAt
+    ? receipt
+    : null;
   if (currentReceipt?.status === 'STAGE_COMPLETE') return { ...completeAction, stageReceiptId: currentReceipt.receiptId, livenessStatus: currentReceipt.status };
   if (currentReceipt?.status === 'CONTINUE_REQUIRED') {
-    if (continueRequiredCount > maxSemanticNudges) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'SEMANTIC_CONTINUE_LIMIT_REACHED' };
-    return { type: 'SEND_CONTROL', step: continueStep, model: continueModel, recovery: 'SEMANTIC_CONTINUE_REQUIRED', stageReceiptId: currentReceipt.receiptId };
+    if (stageAttemptCount(prior, replayStep) >= maxAttempts) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'FRESH_STAGE_REPLAY_LIMIT_REACHED' };
+    return { type: 'SEND_CONTROL', step: replayStep, model: replayModel, recovery: 'FRESH_STAGE_CONTINUATION_REQUIRED', stageReceiptId: currentReceipt.receiptId };
   }
-  if (stageReceiptGraceElapsed(prior, nowMs)) {
-    if (prior?.cycleStep === missingReceiptContinueStep) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'MISSING_STAGE_RECEIPT_AFTER_NUDGE' };
-    return { type: 'SEND_CONTROL', step: missingReceiptContinueStep, model: missingReceiptContinueModel, recovery: 'MISSING_STAGE_RECEIPT' };
+  if (stageReceiptGraceElapsed(prior, nowMs, graceMs)) {
+    if (stageAttemptCount(prior, replayStep) >= maxAttempts) return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'FRESH_STAGE_REPLAY_LIMIT_REACHED' };
+    return { type: 'SEND_CONTROL', step: replayStep, model: replayModel, recovery: 'MISSING_STAGE_RECEIPT_FRESH_REPLAY' };
   }
   return { type: 'WAIT_GITHUB_RECEIPT', waitFor: 'STAGE_LIVENESS', stage, recovery: 'AWAITING_STAGE_RECEIPT' };
+}
+
+function freshStageReplayAction(prior, step, model, nowMs, delayMs, maxAttempts, recovery) {
+  if (!continueNudgeEligible(prior, nowMs, delayMs)) return { type: 'WAIT_GITHUB_RECEIPT' };
+  if (stageAttemptCount(prior, step) >= maxAttempts) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'FRESH_STAGE_REPLAY_LIMIT_REACHED' };
+  return { type: 'SEND_CONTROL', step, model, recovery: `${recovery}_FRESH_REPLAY` };
+}
+
+function stageAttemptCount(prior, step) {
+  return Number.isInteger(prior?.stageAttempts?.[step]) ? prior.stageAttempts[step] : 1;
 }
 
 export function isContinueNudgeStep(step) {

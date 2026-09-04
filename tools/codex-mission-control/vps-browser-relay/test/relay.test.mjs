@@ -38,7 +38,7 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
-test('escalated route preloads the binding, then advances reader and Pro without Mission Control reselection in the same chat', async () => {
+test('escalated route uses distinct fresh first-message Mission Control, reader, and Pro sessions', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -67,24 +67,32 @@ test('escalated route preloads the binding, then advances reader and Pro without
   const third = await runtime.cycle();
   assert.equal(third.status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
-  assert.equal(browser.freshChatCalls, 1);
+  assert.equal(browser.freshChatCalls, 2);
   assert.equal(await runtime.cycle().then((result) => result.status), 'EXTRA_HIGH_READER_COMPLETE');
-  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', store.state.deliveries['request:r-1'].providerSessionId));
+  const readerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  const bindingSessionId = store.state.deliveries['request:r-1'].bindingProviderSessionId;
+  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', bindingSessionId, readerSessionId));
   const fifth = await runtime.cycle();
   assert.equal(fifth.status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.switchLabels.at(-1), 'Pro');
   assert.equal(browser.submitCalls, 3);
-  assert.equal(browser.freshChatCalls, 1);
+  assert.equal(browser.freshChatCalls, 3);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
   ]);
   const readerStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:EXTRA_HIGH_READER') && item.refs.includes('generation_state:STARTED'));
-  assert.ok(readerStart.refs.includes('app_selection_attempted:false'));
+  assert.ok(readerStart.refs.includes('app_selection_attempted:true'));
+  assert.ok(readerStart.refs.includes('selected_app:GitHub'));
+  assert.ok(readerStart.refs.includes('first_message:true'));
   const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
-  assert.ok(proStart.refs.includes('app_selection_attempted:false'));
+  assert.ok(proStart.refs.includes('app_selection_attempted:true'));
+  assert.ok(proStart.refs.includes('selected_app:GitHub'));
+  assert.notEqual(readerSessionId, store.state.deliveries['request:r-1'].providerSessionId);
 });
 
-test('ordinary direct work cannot precede preload and starts without a second Mission Control selection', async () => {
+test('ordinary direct work starts only after preload in a distinct GitHub-first-message session', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [routeEvent('r-1', 'route', 'EXTRA_HIGH_DIRECT')] });
   const browser = new FakeBrowser();
@@ -94,20 +102,25 @@ test('ordinary direct work cannot precede preload and starts without a second Mi
   assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_COMPLETE');
   assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_DIRECT_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
-  assert.equal(browser.freshChatCalls, 1);
+  assert.equal(browser.freshChatCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
   ]);
   const directStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY
     && item.refs.includes('step:EXTRA_HIGH_DIRECT') && item.refs.includes('generation_state:STARTED'));
-  assert.ok(directStart.refs.includes('app_selection_attempted:false'));
+  assert.ok(directStart.refs.includes('app_selection_attempted:true'));
+  assert.ok(directStart.refs.includes('selected_app:GitHub'));
+  assert.ok(directStart.refs.includes('message_ordinal:1'));
   assert.ok(directStart.refs.includes('semantic_authority:false'));
   const exactSessionEvidence = mc.recordedEvidence.filter((item) => item.summary === PROVIDER_SESSION_SUMMARY
     && item.refs.includes('url_binding_status:EXACT') && item.refs.includes('lifecycle_status:ACTIVE'));
   assert.equal(exactSessionEvidence.length, 2);
   assert.equal(new Set(exactSessionEvidence.map((item) => item.receiptId)).size, 2);
   assert.ok(exactSessionEvidence.some((item) => item.refs.includes('binding_preload_receipt:PENDING')));
-  assert.ok(exactSessionEvidence.some((item) => item.refs.some((ref) => ref.startsWith('binding_preload_receipt:mcp-'))));
+  assert.ok(mc.recordedEvidence.some((item) => item.summary === PROVIDER_SESSION_SUMMARY
+    && item.refs.includes('session_role:MC_BINDING_PRELOAD_SESSION') && item.refs.includes('lifecycle_status:COMPLETE')
+    && item.refs.some((ref) => ref.startsWith('binding_preload_receipt:mcp-'))));
 });
 
 test('fresh provider session is visible in Mission Control before the first send', async () => {
@@ -242,7 +255,7 @@ test('capability challenge obeys the persisted global cooldown without creating 
   assert.deepEqual(store.state.deliveries, {});
 });
 
-test('fresh-session creation and every same-chat send share the global pacing gate without reselection', async () => {
+test('every fresh stage shares the global pacing gate before allocating a provider session', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -257,15 +270,20 @@ test('fresh-session creation and every same-chat send share the global pacing ga
   assert.equal(blocked.status, 'GLOBAL_SUBMISSION_COOLDOWN');
   assert.equal(blocked.retryAfterMs, 60_000);
   assert.equal(browser.submitCalls, 1);
-  assert.deepEqual(store.state.deliveries['request:r-1'], before);
+  assert.equal(store.state.deliveries['request:r-1'].providerSessionId, before.providerSessionId);
+  assert.deepEqual(store.state.deliveries['request:r-1'].stageAttempts, before.stageAttempts);
+  assert.ok(store.state.deliveries['request:r-1'].bindingCapsule);
+  assert.equal(browser.freshChatCalls, 1);
 
   now.value += 60_000;
   assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
   ]);
-  assert.equal(browser.appSelectionEvidence.length, 1);
+  assert.equal(browser.appSelectionEvidence.length, 2);
+  assert.equal(browser.freshChatCalls, 2);
 });
 
 test('hard memory pressure performs no submission', async () => {
@@ -288,7 +306,8 @@ test('an admitted canonical receipt completes the provider session and retains o
   const targetId = store.state.providerSessions[providerSessionId].targetId;
   mc.evidence.push({
     eventId: 'decision-current-session', sequence: 99, occurredAt: '2026-09-02T00:10:00.000Z', data: {
-      type: 'github_decision_receipt_ingested', request_id: 'r-1', provider_session_id: providerSessionId,
+      type: 'github_decision_receipt_ingested', request_id: 'r-1', stage_provider_session_id: providerSessionId,
+      binding_provider_session_id: providerSessionId,
       supervisor_id: 'spec', receipt_id: 'github-comment:1', reasoning_lane: 'PRO_ESCALATED',
       github_receipt: { repository: 'o/r', issue_number: 1, comment_id: 1, immutable_url: 'https://github.com/o/r/issues/1#issuecomment-1' },
     },
@@ -310,7 +329,7 @@ test('each admitted route gets a different fresh provider session and conversati
   const firstSession = store.state.deliveries['request:r-1'].providerSessionId;
   const firstUrl = store.state.deliveries['request:r-1'].conversationUrl;
   const firstTarget = store.state.providerSessions[firstSession].targetId;
-  mc.evidence.push({ eventId: 'decision-r1', sequence: 90, occurredAt: '2026-09-02T00:10:00.000Z', data: { type: 'github_decision_receipt_ingested', request_id: 'r-1', provider_session_id: firstSession, supervisor_id: 'spec', receipt_id: 'github-comment:r1', reasoning_lane: 'PRO_ESCALATED', github_receipt: {} } });
+  mc.evidence.push({ eventId: 'decision-r1', sequence: 90, occurredAt: '2026-09-02T00:10:00.000Z', data: { type: 'github_decision_receipt_ingested', request_id: 'r-1', stage_provider_session_id: firstSession, binding_provider_session_id: firstSession, supervisor_id: 'spec', receipt_id: 'github-comment:r1', reasoning_lane: 'PRO_ESCALATED', github_receipt: {} } });
   assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
   mc.routes.push(routeEvent('r-2', 'route-2'));
   assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
@@ -445,11 +464,11 @@ function capabilityEvidence() {
   ];
 }
 
-function stageLivenessEvidence(id, stage, status, occurredAt, providerSessionId) {
+function stageLivenessEvidence(id, stage, status, occurredAt, bindingProviderSessionId, stageProviderSessionId) {
   return {
     eventId: id, sequence: 40, occurredAt, data: {
       type: 'evidence_receipt_recorded', receipt_id: id, summary: STAGE_LIVENESS_SUMMARY, verified: true,
-      refs: ['request:r-1', 'supervisor:spec', `provider_session:${providerSessionId}`, `stage:${stage}`, `status:${status}`, 'semantic_authority:false'],
+      refs: ['request:r-1', 'supervisor:spec', `binding_provider_session:${bindingProviderSessionId}`, `stage_provider_session:${stageProviderSessionId}`, `stage:${stage}`, `status:${status}`, 'semantic_authority:false'],
     },
   };
 }
@@ -468,7 +487,7 @@ function routeEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 'PRO_E
     schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane,
     destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'outcome-1', epoch: 1, sha256: 'b'.repeat(64) },
-    githubReceipt: { repository: 'o/r', issueNumber: 1 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2099-09-03T00:00:00.000Z',
   });
   return { eventId, sequence: requestId === 'r-1' ? 10 : 11, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: `message-${requestId}`, body } };

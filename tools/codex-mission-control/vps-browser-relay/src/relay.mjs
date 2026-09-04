@@ -1,4 +1,5 @@
 import {
+  BINDING_CAPSULE_SUMMARY,
   CAPABILITY_CHALLENGE_SUMMARY,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
@@ -12,6 +13,7 @@ import {
   classifyMemoryPressure,
   completedCycleStepStatus,
   cycleControlPrompt,
+  deriveBindingCapsule,
   extractQueuedRoutes,
   mcpReadPreflightPrompt,
   managedChatGptTabTelemetry,
@@ -340,7 +342,7 @@ export class RelayRuntime {
       const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
       const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
       if (withReceipt) {
-        const providerSessionId = withReceipt.decisionReceipt.provider_session_id;
+        const providerSessionId = withReceipt.decisionReceipt.stage_provider_session_id;
         const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
         if (!session || session.requestId !== withReceipt.requestId || session.supervisorId !== withReceipt.supervisorId) {
           throw new Error(`Canonical receipt for ${withReceipt.requestId} is not bound to its active provider session.`);
@@ -382,7 +384,7 @@ export class RelayRuntime {
       }
 
       if (candidate.routeKind !== 'SUPERVISORY_CYCLE') {
-        state.health.pausedReason = 'Legacy factual-packet browser automation is disabled; migrate this route to the same-chat supervisory-cycle protocol.';
+        state.health.pausedReason = 'Legacy factual-packet browser automation is disabled; migrate this route to the provider-session supervisory-cycle protocol.';
         state = await this.stateStore.write(state);
         return this.#writeStandaloneStatus('LEGACY_ROUTE_NOT_AUTOMATED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate) });
       }
@@ -401,7 +403,7 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('DRY_RUN_ROUTE_READY', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate), capability });
       }
 
-      return this.#processSupervisoryCycle(candidate, routes, state, memory);
+      return await this.#processSupervisoryCycle(candidate, routes, state, memory);
     } catch (error) {
       if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, {}, error);
       state.health.lastError = redactError(error);
@@ -429,6 +431,11 @@ export class RelayRuntime {
 
   async #processSupervisoryCycle(route, routes, state, memory) {
     let prior = state.deliveries[route.routeKey] ?? null;
+    route = {
+      ...route,
+      bindingProviderSessionId: prior?.bindingProviderSessionId ?? route.bindingProviderSessionId ?? null,
+      bindingCapsule: prior?.bindingCapsule ?? route.bindingCapsule ?? null,
+    };
     if (prior?.status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP) && !route.firstTurnMcpReceipt) {
       const completedAt = Date.parse(prior.generationCompletedAt ?? '');
       if (!Number.isFinite(completedAt) || Date.now() - completedAt < MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS) {
@@ -455,6 +462,33 @@ export class RelayRuntime {
       state = await this.stateStore.write(state);
       return this.#writeStandaloneStatus('MCP_BINDING_PRELOAD_RECEIPT_MISSING', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     }
+
+    if (route.firstTurnMcpReceipt && !prior?.bindingCapsule
+      && prior?.status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) {
+      const bindingProviderSessionId = prior?.bindingProviderSessionId ?? prior?.providerSessionId;
+      const session = bindingProviderSessionId ? state.providerSessions[bindingProviderSessionId] : null;
+      if (!session || session.sessionRole !== 'MC_BINDING_PRELOAD_SESSION'
+        || route.firstTurnMcpReceipt.supervisorId !== route.supervisorId
+        || route.firstTurnMcpReceipt.providerSessionId !== bindingProviderSessionId) {
+        throw new Error(`First-turn MCP receipt does not match binding provider session ${bindingProviderSessionId ?? 'UNKNOWN'}.`);
+      }
+      const bindingCapsule = deriveBindingCapsule(route, bindingProviderSessionId, route.firstTurnMcpReceipt.receiptId);
+      const completedAt = route.firstTurnMcpReceipt.occurredAt ?? new Date().toISOString();
+      const completedSession = { ...session, status: 'COMPLETE', completedAt, firstTurnMcpReceiptId: route.firstTurnMcpReceipt.receiptId };
+      state.providerSessions[bindingProviderSessionId] = completedSession;
+      state.deliveries[route.routeKey] = {
+        ...prior,
+        bindingProviderSessionId,
+        bindingCapsule,
+      };
+      await this.#recordProviderSession({ ...route, providerSessionId: bindingProviderSessionId, providerSession: completedSession }, completedSession, 'EXACT');
+      await this.#recordBindingCapsule(route, bindingCapsule, completedAt);
+      if (completedSession.targetId) this.#rememberReusableTarget(state, completedSession.targetId, completedSession.conversationUrl);
+      state = await this.stateStore.write(state);
+      prior = state.deliveries[route.routeKey];
+      route = { ...route, bindingProviderSessionId, bindingCapsule };
+    }
+
     const action = nextSupervisoryCycleAction(route, prior);
     if (!action) return this.#writeStandaloneStatus('IDLE', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     if (action.type === 'WAIT_GITHUB_RECEIPT') {
@@ -463,19 +497,35 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus('AWAITING_GITHUB_RECEIPT', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     }
 
-    let session = prior?.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
-    if (session && (prior?.status === 'FAILED_RETRYABLE' || prior?.status === 'RETRY_AUTHORIZED') && session.status === 'FAILED') session = null;
+    let session;
     let target;
     let expectedUrl;
-    if (!session) {
-      if (prior && !['UNSEEN', 'RETRY_AUTHORIZED', 'FAILED_RETRYABLE'].includes(prior.status)) {
-        throw new Error(`Route ${route.requestId} reached ${prior.status} without a bound provider session.`);
+
+    if (action.type === 'WAIT_GENERATION') {
+      session = prior?.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
+      if (!session || session.requestId !== route.requestId || session.supervisorId !== route.supervisorId || session.status !== 'ACTIVE') {
+        throw new Error(`Provider session ${prior?.providerSessionId ?? 'UNKNOWN'} is not active for ${route.requestId}/${action.step}.`);
+      }
+      if (!session.conversationUrl) throw new Error(`Provider session ${session.providerSessionId} lacks its exact conversation URL after generation start.`);
+      target = await this.browser.findOrCreateChatTarget(session.conversationUrl, {
+        reusableTargetId: session.targetId,
+        hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+      });
+      expectedUrl = session.conversationUrl;
+      route = { ...route, providerSessionId: session.providerSessionId, providerSession: session };
+    } else if (action.type === 'SEND_CONTROL') {
+      // Do not allocate a fresh provider session or consume a bounded stage
+      // attempt until the universal submission boundary is actually open.
+      await this.submissionPacer.assertReady();
+      const semanticStage = action.step !== MCP_BINDING_PRELOAD_STEP;
+      if (semanticStage && (!route.bindingCapsule || !route.bindingProviderSessionId)) {
+        throw new Error(`Fresh tool stage ${action.step} cannot start before the binding capsule is durably recorded.`);
       }
       const providerSessionId = newProviderSessionId();
+      if (semanticStage && providerSessionId === route.bindingProviderSessionId) throw new Error('Stage provider session must differ from the binding provider session.');
       const openedAt = new Date().toISOString();
-      const currentTargets = await this.browser.listTargets();
       target = await this.browser.createFreshChatTarget({
-        reusableTargetId: this.#selectReusableTargetId(state, currentTargets),
+        reusableTargetId: this.#selectReusableTargetId(state, await this.browser.listTargets()),
         hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
       });
       const mode = await this.browser.verifyModelRoundTrip(target, {
@@ -484,6 +534,7 @@ export class RelayRuntime {
         proLabel: route.chat.modelLabels.pro,
       });
       const modelReceiptId = `provider-session-model:${providerSessionId}:${sha256(openedAt).slice(0, 12)}`;
+      const sessionRole = action.step === MCP_BINDING_PRELOAD_STEP ? 'MC_BINDING_PRELOAD_SESSION' : `${action.step}_SESSION`;
       await this.missionControl.recordEvidence(route.workerId, {
         receiptId: modelReceiptId,
         summary: PROVIDER_SESSION_MODEL_SUMMARY,
@@ -491,6 +542,8 @@ export class RelayRuntime {
           `request:${route.requestId}`,
           `supervisor:${route.supervisorId}`,
           `provider_session:${providerSessionId}`,
+          `session_role:${sessionRole}`,
+          ...(semanticStage ? [`binding_provider_session:${route.bindingProviderSessionId}`, `stage_provider_session:${providerSessionId}`] : [`binding_provider_session:${providerSessionId}`]),
           `extra_high_label:${route.chat.modelLabels.extraHigh}`,
           `pro_label:${route.chat.modelLabels.pro}`,
           'round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH',
@@ -502,9 +555,13 @@ export class RelayRuntime {
       });
       session = {
         providerSessionId,
+        bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
         supervisorId: route.supervisorId,
         requestId: route.requestId,
         workerId: route.workerId,
+        sessionRole,
+        cycleStep: action.step,
+        messageOrdinal: 1,
         conversationUrl: null,
         openedAt,
         status: 'ACTIVE',
@@ -512,6 +569,8 @@ export class RelayRuntime {
         firstTurnMcpReceiptId: null,
         targetId: target.id,
       };
+      const stageAttempts = { ...(prior?.stageAttempts ?? {}) };
+      stageAttempts[action.step] = (stageAttempts[action.step] ?? 0) + 1;
       state.providerSessions[providerSessionId] = session;
       state.deliveries[route.routeKey] = {
         ...(prior ?? {}),
@@ -520,45 +579,26 @@ export class RelayRuntime {
         workerId: route.workerId,
         supervisorId: route.supervisorId,
         providerSessionId,
+        bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
+        bindingCapsule: route.bindingCapsule,
+        stageAttempts,
       };
       this.#rememberTarget(state, route.chat, target, providerSessionId, 'https://chatgpt.com/');
       state = await this.stateStore.write(state);
+      route = {
+        ...route,
+        providerSessionId,
+        bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
+        providerSession: session,
+      };
       await this.#recordProviderSession(route, session, 'PENDING_PROVIDER_ASSIGNMENT');
+      await this.#waitForProviderSessionProjection(route, session, 'PENDING_PROVIDER_ASSIGNMENT');
       prior = state.deliveries[route.routeKey];
       expectedUrl = 'https://chatgpt.com/';
     } else {
-      if (session.requestId !== route.requestId || session.supervisorId !== route.supervisorId || session.status !== 'ACTIVE') {
-        throw new Error(`Provider session ${session.providerSessionId ?? prior.providerSessionId} is not the active exact session for request ${route.requestId}.`);
-      }
-      if (session.conversationUrl) {
-        target = await this.browser.findOrCreateChatTarget(session.conversationUrl, {
-          reusableTargetId: session.targetId,
-          hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
-        });
-        expectedUrl = session.conversationUrl;
-      } else {
-        const existing = (await this.browser.listTargets()).find((candidate) => candidate.id === session.targetId && candidate.type === 'page' && candidate.url === 'https://chatgpt.com/');
-        if (!existing) throw new Error(`Pending provider session ${session.providerSessionId} lost its fresh-chat target before first send.`);
-        await this.browser.activateTarget(existing.id);
-        target = { ...existing, created: false };
-        expectedUrl = 'https://chatgpt.com/';
-      }
-      this.#rememberTarget(state, route.chat, target, session.providerSessionId, expectedUrl);
+      throw new Error(`Unsupported supervisory-cycle action ${action.type}.`);
     }
-    await this.#waitForProviderSessionProjection(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
-    if (route.firstTurnMcpReceipt && !session.firstTurnMcpReceiptId) {
-      if (route.firstTurnMcpReceipt.supervisorId !== route.supervisorId || route.firstTurnMcpReceipt.providerSessionId !== session.providerSessionId) {
-        throw new Error(`First-turn MCP receipt does not match provider session ${session.providerSessionId}.`);
-      }
-      session = { ...session, firstTurnMcpReceiptId: route.firstTurnMcpReceipt.receiptId };
-      state.providerSessions[session.providerSessionId] = session;
-      state = await this.stateStore.write(state);
-      await this.#recordProviderSession(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
-    }
-    route = { ...route, providerSessionId: session.providerSessionId, providerSession: session };
-    if (['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_READER'].includes(action.step) && !session.firstTurnMcpReceiptId) {
-      throw new Error(`Semantic step ${action.step} cannot start before provider session ${session.providerSessionId} has its admitted MCP binding preload receipt.`);
-    }
+
     const postOpenMetrics = await this.memoryReader(this.config.browser.profileDir);
     memory = this.#memoryState(postOpenMetrics);
     const closedTargets = await this.#applyTabBudget(await this.browser.listTargets(), state, memory.pressure, target.id);
@@ -575,9 +615,20 @@ export class RelayRuntime {
 
     if (action.type === 'WAIT_GENERATION') {
       await this.#ensureStartEvidence(route, action.step, prior);
-      const observation = await this.browser.waitForGenerationComplete(target, { expectedUrl, generationStarted: prior?.generationStarted === true });
+      const observation = await this.browser.waitForGenerationComplete(target, {
+        expectedUrl,
+        generationStarted: prior?.generationStarted === true,
+        // A mandatory external-tool stage must never acquire a follow-up turn.
+        // Missing durable receipts are recovered in a new provider session.
+        allowSameChatRecovery: false,
+      });
       await this.#recordRelayStage(route, action.step, prior.modelUiLabel, prior.promptSha256, 'COMPLETE', observation.completedAtObserved, null, prior.generationStart?.messageApps ?? null);
       state = await this.stateStore.read();
+      session = state.providerSessions[session.providerSessionId] ?? session;
+      session = { ...session, status: 'COMPLETE', completedAt: observation.completedAtObserved };
+      state.providerSessions[session.providerSessionId] = session;
+      await this.#recordProviderSession({ ...route, providerSession: session }, session, 'EXACT');
+      if (session.targetId) this.#rememberReusableTarget(state, session.targetId, session.conversationUrl);
       state.deliveries[route.routeKey] = {
         ...prior,
         status: completedCycleStepStatus(action.step),
@@ -659,7 +710,17 @@ export class RelayRuntime {
       await this.#recordRelayStage(route, action.step, model.observedLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal, start.messageApps ?? null);
       return this.#writeStandaloneStatus(startedCycleStepStatus(action.step), state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), generationStart: start });
     } catch (error) {
-      if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) }, error);
+      if (isGlobalSubmissionCooldown(error)) {
+        state = await this.stateStore.read();
+        session = state.providerSessions[route.providerSessionId] ?? session;
+        if (session) {
+          session = { ...session, status: 'FAILED', failedAt: new Date().toISOString(), failureStage: 'GLOBAL_SUBMISSION_COOLDOWN' };
+          state.providerSessions[session.providerSessionId] = session;
+          await this.#recordProviderSession(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
+          state = await this.stateStore.write(state);
+        }
+        return this.#cooldownStatus(state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) }, error);
+      }
       const stage = error?.relayStage ?? 'UNKNOWN';
       const afterClick = generationStarted || stage === 'CLICKED';
       state = await this.stateStore.read();
@@ -696,12 +757,18 @@ export class RelayRuntime {
   }
 
   async #recordRelayStage(route, step, modelUiLabel, promptSha256, generationState, observedAt, startSignal, messageApps) {
+    const bindingProviderSessionId = route.bindingProviderSessionId ?? route.providerSessionId;
+    const isBindingSession = step === MCP_BINDING_PRELOAD_STEP;
     const refs = [
       `request:${route.requestId}`,
       `supervisor:${route.supervisorId}`,
       `provider_session:${route.providerSessionId}`,
+      `binding_provider_session:${bindingProviderSessionId}`,
+      ...(isBindingSession ? [] : [`stage_provider_session:${route.providerSessionId}`]),
       `conversation_url:${route.providerSession?.conversationUrl ?? 'PENDING_PROVIDER_ASSIGNMENT'}`,
       `step:${step}`,
+      'message_ordinal:1',
+      'first_message:true',
       `model_ui_label:${modelUiLabel}`,
       `prompt_sha256:${promptSha256}`,
       `generation_state:${generationState}`,
@@ -710,6 +777,7 @@ export class RelayRuntime {
       'backend_model_identity_claimed:false',
       `app_selection_attempted:${messageApps?.status === 'APP_SELECTION_NOT_ATTEMPTED' ? 'false' : 'true'}`,
       `app_selection_status:${messageApps?.status ?? 'UNKNOWN'}`,
+      ...((messageApps?.selectedLabels ?? []).map((label) => `selected_app:${label}`)),
       'semantic_authority:false',
     ];
     if (startSignal) refs.push(`generation_start_signal:${startSignal}`);
@@ -731,6 +799,10 @@ export class RelayRuntime {
         `request:${route.requestId}`,
         `supervisor:${route.supervisorId}`,
         `provider_session:${session.providerSessionId}`,
+        `binding_provider_session:${session.bindingProviderSessionId ?? session.providerSessionId}`,
+        ...(session.sessionRole === 'MC_BINDING_PRELOAD_SESSION' ? [] : [`stage_provider_session:${session.providerSessionId}`]),
+        `session_role:${session.sessionRole ?? 'LEGACY'}`,
+        `message_ordinal:${session.messageOrdinal ?? 1}`,
         `conversation_url:${session.conversationUrl ?? 'PENDING_PROVIDER_ASSIGNMENT'}`,
         `url_binding_status:${urlBindingStatus}`,
         `opened_at:${session.openedAt}`,
@@ -738,6 +810,37 @@ export class RelayRuntime {
         `model_receipt:${session.modelReceiptId}`,
         `first_turn_mcp_receipt:${session.firstTurnMcpReceiptId ?? 'PENDING'}`,
         `binding_preload_receipt:${session.firstTurnMcpReceiptId ?? 'PENDING'}`,
+        'semantic_authority:false',
+      ],
+      occurredAt,
+    });
+  }
+
+  async #recordBindingCapsule(route, bindingCapsule, occurredAt) {
+    const capsule = bindingCapsule.payload;
+    return this.missionControl.recordEvidence(route.workerId, {
+      receiptId: `binding-capsule:${route.requestId}:${bindingCapsule.sha256.slice(0, 16)}`,
+      summary: BINDING_CAPSULE_SUMMARY,
+      refs: [
+        `request:${route.requestId}`,
+        `supervisor:${route.supervisorId}`,
+        `binding_provider_session:${capsule.binding_provider_session_id}`,
+        `binding_receipt:${capsule.binding_receipt_id}`,
+        `binding_capsule_id:${capsule.binding_capsule_id}`,
+        `binding_capsule_sha256:${bindingCapsule.sha256}`,
+        `request_nonce_sha256:${sha256(capsule.request_nonce)}`,
+        `worker:${capsule.worker_id}`,
+        `reasoning_lane:${capsule.reasoning_lane}`,
+        `queued_at:${capsule.queued_at}`,
+        `expires_at:${capsule.expires_at}`,
+        `evidence_capsule:${capsule.evidence_capsule.id}`,
+        `evidence_capsule_sha256:${capsule.evidence_capsule.sha256}`,
+        `owner_outcome:${capsule.owner_outcome.id}`,
+        `owner_outcome_epoch:${capsule.owner_outcome.epoch}`,
+        `owner_outcome_sha256:${capsule.owner_outcome.sha256}`,
+        `github_repository:${capsule.receipt_targets.repository}`,
+        `decision_issue:${capsule.receipt_targets.decision_issue_number}`,
+        `stage_issue:${capsule.receipt_targets.stage_issue_number}`,
         'semantic_authority:false',
       ],
       occurredAt,
@@ -897,6 +1000,7 @@ function publicRoute(route) {
     workerName: route.workerName,
     destinationSupervisorId: route.supervisorId,
     providerSessionId: route.providerSessionId,
+    bindingProviderSessionId: route.bindingProviderSessionId ?? null,
     destinationLabel: route.chat.label,
     queuedAt: route.queuedAt,
     bodySha256: route.bodySha256,
@@ -922,6 +1026,8 @@ function publicDecisionReceipt(receipt) {
     issueNumber: receipt.github_receipt?.issue_number ?? null,
     commentId: receipt.github_receipt?.comment_id ?? null,
     immutableUrl: receipt.github_receipt?.immutable_url ?? null,
-    proProvenance: receipt.pro_decision_block?.used ? 'SAME_CHAT_WRITER_ATTESTED' : null,
+    bindingProviderSessionId: receipt.binding_provider_session_id ?? null,
+    stageProviderSessionId: receipt.stage_provider_session_id ?? null,
+    proProvenance: receipt.pro_decision_block?.used ? 'DURABLE_STAGE_RECEIPT_ATTESTED' : null,
   };
 }

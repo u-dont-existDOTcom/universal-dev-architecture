@@ -116,6 +116,13 @@ test("request binding returns only exact current admitted control metadata and r
   await assertToolFailure(dependencies({ events }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: "wrong-supervisor", provider_session_id: providerSessionId });
   await assertToolFailure(dependencies({ events }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: "provider-session:old" });
   await assertToolFailure(dependencies({ events }), "get_supervisory_request_binding", { request_id: "unknown", supervisor_id: supervisorId, provider_session_id: providerSessionId });
+  const semanticSession = structuredClone(events);
+  const session = semanticSession.find((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === providerSessionSummary);
+  assert.ok(session?.data.type === "evidence_receipt_recorded");
+  if (session?.data.type === "evidence_receipt_recorded") {
+    session.data.refs = session.data.refs.filter((ref) => ref !== "session_role:MC_BINDING_PRELOAD_SESSION").concat("session_role:EXTRA_HIGH_DIRECT_SESSION");
+  }
+  await assertToolFailure(dependencies({ events: semanticSession }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: providerSessionId });
   await assertToolFailure(dependencies({ events, currentTime: "2026-09-05T00:00:00.000Z" }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: providerSessionId });
   await assertToolFailure(dependencies({ events: [...events, completedDecisionEvent()] }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: providerSessionId });
   const superseded = structuredClone(events);
@@ -135,18 +142,18 @@ test("stage state contains only non-semantic receipt metadata and rejects non-cu
   const events = currentEvents();
   events.push(stageEvent(3, "reader-continue", "EXTRA_HIGH_READER", "CONTINUE_REQUIRED", "2026-09-03T18:10:00.000Z"));
   events.push(stageEvent(4, "reader-complete", "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-03T18:20:00.000Z"));
-  events.push(stageEvent(5, "pro-complete", "PRO_REASONER", "STAGE_COMPLETE", "2026-09-03T18:25:00.000Z"));
+  events.push(stageEvent(5, "pro-complete", "PRO_DECISION_STAGE", "STAGE_COMPLETE", "2026-09-03T18:25:00.000Z"));
   events.push(privateBodyEvent(6));
   const result = await mcpTool(dependencies({ events }), "get_stage_liveness_state", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: providerSessionId });
   assert.deepEqual(Object.keys(result.structuredContent), [
-    "schema_version", "request_id", "supervisor_id", "provider_session_id", "extra_high_reader", "pro_reasoner", "extra_high_reader_continue_required_count",
-    "pro_reasoner_continue_required_count", "semantic_authority",
+    "schema_version", "request_id", "supervisor_id", "binding_provider_session_id", "extra_high_reader", "pro_decision_stage", "extra_high_reader_continue_required_count",
+    "pro_decision_stage_continue_required_count", "semantic_authority",
   ]);
   assert.deepEqual(result.structuredContent.extra_high_reader, {
-    status: "STAGE_COMPLETE", receipt_id: "reader-complete", occurred_at: "2026-09-03T18:20:00.000Z",
+    status: "STAGE_COMPLETE", receipt_id: "reader-complete", occurred_at: "2026-09-03T18:20:00.000Z", stage_provider_session_id: "provider-session:reader",
   });
   assert.equal(result.structuredContent.extra_high_reader_continue_required_count, 1);
-  assert.equal(result.structuredContent.pro_reasoner_continue_required_count, 0);
+  assert.equal(result.structuredContent.pro_decision_stage_continue_required_count, 0);
   assert.equal(result.structuredContent.semantic_authority, false);
   const serialized = JSON.stringify(result.structuredContent);
   assert.equal(serialized.includes("private-worker-body"), false);
@@ -231,7 +238,7 @@ function requestEvent(sequence: number, lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALAT
     schemaVersion: 3, packetKind: "PROVIDER_SESSION_SUPERVISORY_CYCLE", requestId, destinationSupervisorId: supervisorId,
     nonce: "request-nonce-safe", reasoningLane: lane, providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
     evidenceCapsule: { id: "capsule-safe", sha256: "a".repeat(64) }, ownerOutcome: { id: "owner-outcome-safe", epoch: 1, sha256: "b".repeat(64) },
-    githubReceipt: { repository: policy().repository, issueNumber: policy().decisionIssueNumber },
+    githubReceipt: { repository: policy().repository, issueNumber: policy().decisionIssueNumber, stageIssueNumber: policy().stageIssueNumber },
     factualPacket: { taskId: "task-safe", exactFactualState: "private-worker-body", evidenceRefs: ["railway-secret", "session-cookie", "token-value", "DATABASE_URL"] },
     queuedAt: "2026-09-03T18:00:00.000Z", expiresAt: expiry,
   });
@@ -241,11 +248,12 @@ function requestEvent(sequence: number, lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALAT
   } as StoredEvent["data"]);
 }
 
-function stageEvent(sequence: number, receiptId: string, stage: "EXTRA_HIGH_READER" | "PRO_REASONER", status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED", occurredAt: string): StoredEvent {
+function stageEvent(sequence: number, receiptId: string, stage: "EXTRA_HIGH_READER" | "PRO_DECISION_STAGE", status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED", occurredAt: string): StoredEvent {
+  const stageProviderSessionId = stage === "EXTRA_HIGH_READER" ? "provider-session:reader" : "provider-session:pro";
   return event(sequence, {
     type: "evidence_receipt_recorded", worker: workerId, receipt_id: receiptId, producer_id: "collector:test", producer_role: "COLLECTOR",
     evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
-    summary: stageLivenessSummary, refs: [`request:${requestId}`, `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`, `stage:${stage}`, `status:${status}`, "semantic_authority:false"],
+    summary: stageLivenessSummary, refs: [`request:${requestId}`, `supervisor:${supervisorId}`, `binding_provider_session:${providerSessionId}`, `stage_provider_session:${stageProviderSessionId}`, `stage:${stage}`, `status:${status}`, "semantic_authority:false"],
     verified: true, changed_path_manifest: null,
   } as StoredEvent["data"], occurredAt);
 }
@@ -261,7 +269,7 @@ function providerSessionEvent(sequence: number): StoredEvent {
   return event(sequence, {
     type: "evidence_receipt_recorded", worker: workerId, receipt_id: "provider-session-open", producer_id: "collector:test", producer_role: "COLLECTOR",
     evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
-    summary: providerSessionSummary, refs: [`request:${requestId}`, `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`, "conversation_url:PENDING_PROVIDER_ASSIGNMENT", "url_binding_status:PENDING_PROVIDER_ASSIGNMENT", "lifecycle_status:ACTIVE", "semantic_authority:false"],
+    summary: providerSessionSummary, refs: [`request:${requestId}`, `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`, `binding_provider_session:${providerSessionId}`, "session_role:MC_BINDING_PRELOAD_SESSION", "conversation_url:https://chatgpt.com/c/binding", "url_binding_status:EXACT", "lifecycle_status:ACTIVE", "message_ordinal:1", "semantic_authority:false"],
     verified: true, changed_path_manifest: null,
   } as StoredEvent["data"], "2026-09-03T18:01:00.000Z");
 }

@@ -163,7 +163,7 @@ test("a registered provider-session cycle is emitted for the stable supervisor w
         evidenceCapsule: { id: "capsule-cycle-1", sha256: "b".repeat(64) },
         ownerOutcome: { id: "owner-outcome-cycle-1", epoch: 3, sha256: "c".repeat(64) },
         reasoningLane: "PRO_ESCALATED",
-        githubReceipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issueNumber: 58 },
+        githubReceipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issueNumber: 58, stageIssueNumber: 61 },
         expiresAt: "2026-09-03T00:00:00.000Z",
       },
     },

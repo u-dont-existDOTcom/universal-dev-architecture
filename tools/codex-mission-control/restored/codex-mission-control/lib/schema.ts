@@ -730,12 +730,37 @@ const canonicalDecisionEnvelopeFields = {
   }),
 };
 
+export const bindingCapsuleSchema = z.object({
+  schema_version: z.literal(1),
+  binding_capsule_id: StableId,
+  request_id: StableId,
+  request_nonce: StableId,
+  supervisor_id: StableId,
+  binding_provider_session_id: StableId,
+  binding_receipt_id: StableId,
+  worker_id: WorkerId,
+  reasoning_lane: z.enum(["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"]),
+  queued_at: Timestamp,
+  expires_at: Timestamp,
+  evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
+  owner_outcome: z.object({ id: StableId, epoch: z.number().int().positive(), sha256: Sha256 }),
+  receipt_targets: z.object({
+    repository: NonEmpty,
+    decision_issue_number: z.number().int().positive(),
+    stage_issue_number: z.number().int().positive(),
+  }),
+});
+
 export const canonicalDecisionEnvelopeSchema = z.union([
   z.object({ schema_version: z.literal(1), ...canonicalDecisionEnvelopeFields }),
   z.object({
     schema_version: z.literal(2),
     supervisor_id: StableId,
-    provider_session_id: StableId,
+    binding_provider_session_id: StableId,
+    stage_provider_session_id: StableId,
+    binding_capsule: bindingCapsuleSchema,
+    binding_capsule_sha256: Sha256,
+    staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable(),
     ...canonicalDecisionEnvelopeFields,
   }),
 ]).superRefine((envelope, context) => {
@@ -755,6 +780,12 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     || envelope.pro_decision_block.exact_text !== null || envelope.pro_decision_block.sha256 !== null)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block"], message: "An ordinary Extra High decision must not claim a Pro decision block." });
   }
+  if (envelope.schema_version === 2 && envelope.binding_provider_session_id === envelope.stage_provider_session_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["stage_provider_session_id"], message: "A fresh tool stage must use a provider session distinct from the binding preload session." });
+  }
+  if (envelope.schema_version === 2 && envelope.staged_provenance !== (proRequired ? "DURABLE_STAGE_RECEIPT_ATTESTED" : null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["staged_provenance"], message: "Staged Pro provenance must exactly match the admitted reasoning lane." });
+  }
 });
 
 export const githubDecisionReceiptIngestedSchema = z.object({
@@ -765,6 +796,11 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   request_id: StableId,
   supervisor_id: StableId.nullable().default(null),
   provider_session_id: StableId.nullable().default(null),
+  binding_provider_session_id: StableId.nullable().default(null),
+  stage_provider_session_id: StableId.nullable().default(null),
+  binding_capsule: bindingCapsuleSchema.nullable().default(null),
+  binding_capsule_sha256: Sha256.nullable().default(null),
+  staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable().default(null),
   nonce: StableId,
   evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
   owner_outcome_id: StableId,
@@ -1339,6 +1375,7 @@ export type FindingType = z.infer<typeof findingTypeSchema>;
 export type OutcomeAdvancement = z.infer<typeof outcomeAdvancementSchema>;
 export type StrategyEfficacy = z.infer<typeof strategyEfficacySchema>;
 export type CanonicalDecisionEnvelope = z.infer<typeof canonicalDecisionEnvelopeSchema>;
+export type BindingCapsule = z.infer<typeof bindingCapsuleSchema>;
 
 export interface StoredEvent {
   id: number;

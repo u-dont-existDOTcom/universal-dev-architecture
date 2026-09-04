@@ -23,7 +23,7 @@ export interface SupervisoryCycleRequest {
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
   reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
-  githubReceipt: { repository: string; issueNumber: number };
+  githubReceipt: { repository: string; issueNumber: number; stageIssueNumber: number };
   expiresAt: string;
 }
 
@@ -181,7 +181,7 @@ function buildRouteEnvelope(
   const suffix = randomUUID();
   const cycle = packet.supervisoryCycle;
   if (cycle && Date.parse(cycle.expiresAt) <= Date.parse(now)) {
-    throw admissionError(400, "A same-chat supervisory cycle must expire after its queue time.");
+    throw admissionError(400, "A provider-session supervisory cycle must expire after its queue time.");
   }
   const body = (cycle ? supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
     schemaVersion: cycle ? 3 : 1,
@@ -354,8 +354,9 @@ function parseSupervisoryCycle(value: unknown): SupervisoryCycleRequest {
     throw admissionError(400, "Supervisory-cycle evidence and owner-outcome digests must be lowercase SHA-256 values.");
   }
   if (!Number.isInteger(outcome.epoch) || Number(outcome.epoch) < 1
-    || !Number.isInteger(github.issueNumber) || Number(github.issueNumber) < 1) {
-    throw admissionError(400, "Supervisory-cycle owner epoch and GitHub issue number must be positive integers.");
+    || !Number.isInteger(github.issueNumber) || Number(github.issueNumber) < 1
+    || !Number.isInteger(github.stageIssueNumber) || Number(github.stageIssueNumber) < 1) {
+    throw admissionError(400, "Supervisory-cycle owner epoch and GitHub decision/stage issue numbers must be positive integers.");
   }
   const expiresAt = requiredString(record.expiresAt, "factualPacket.supervisoryCycle.expiresAt", 100);
   if (!Number.isFinite(Date.parse(expiresAt))) throw admissionError(400, "Supervisory-cycle expiry must be an ISO timestamp.");
@@ -374,6 +375,7 @@ function parseSupervisoryCycle(value: unknown): SupervisoryCycleRequest {
     githubReceipt: {
       repository: requiredString(github.repository, "factualPacket.supervisoryCycle.githubReceipt.repository", 300),
       issueNumber: Number(github.issueNumber),
+      stageIssueNumber: Number(github.stageIssueNumber),
     },
     expiresAt,
   };

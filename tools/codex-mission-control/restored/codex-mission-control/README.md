@@ -245,8 +245,9 @@ fleet/worker tools from `/api/mcp`. Its complete tool surface is:
 - `get_capability_challenge` — exact current challenge/chat only;
 - `get_supervisory_request_binding` — exact current pending request/stable-supervisor/provider-session only;
 - `get_stage_liveness_state` — non-semantic receipt status/ID/time only for an
-  exact current escalated provider session (diagnostic only; accepted follow-up
-  turns use same-conversation context and GitHub, not another MCP call).
+  exact current escalated binding provider session. It is diagnostic only;
+  mandatory GitHub writes run as fresh first-message stages joined through
+  durable GitHub receipts, never follow-up turns.
 
 There is no search, list-all, worker timeline, evidence-body, assistant-content,
 credential, environment, or write tool. Each tool advertises read-only,

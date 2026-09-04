@@ -84,6 +84,7 @@ export function installStuckRecovery(browser, {
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
 
   browser.waitForGenerationComplete = async (target, options) => {
+    if (options?.allowSameChatRecovery === false) return originalWait(target, options);
     const recoveries = [];
     for (;;) {
       try {

@@ -12,6 +12,27 @@ test('recognizes only the stable-generation timeout as recoverable', () => {
   assert.equal(isGenerationStallTimeout(new Error('ChatGPT login is required')), false);
 });
 
+test('mandatory external-tool stages disable same-chat recovery completely', async () => {
+  let submits = 0;
+  const browser = {
+    async waitForGenerationComplete() {
+      throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+    },
+    async submitExactMessage() { submits += 1; },
+  };
+  installStuckRecovery(browser, {
+    stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
+    inspectRecoverableControl: noRecoverableControl,
+  });
+  await assert.rejects(
+    () => browser.waitForGenerationComplete({ id: 'mandatory-tool-stage' }, {
+      expectedUrl: 'https://chatgpt.com/c/mandatory-tool-stage', generationStarted: true, allowSameChatRecovery: false,
+    }),
+    /stable complete UI state/,
+  );
+  assert.equal(submits, 0);
+});
+
 test('any model turn that remains actively generating gets same-chat continue and then resumes waiting', async () => {
   let waits = 0;
   const submissions = [];

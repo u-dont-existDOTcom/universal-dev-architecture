@@ -16,15 +16,17 @@ export async function POST(request: Request, context: { params: Promise<{ worker
   }
 
   try {
-    const body = await request.json();
-    const cycleLocation = supervisoryCycleLocation(body);
+    const requestedBody = await request.json();
+    const cycleLocation = supervisoryCycleLocation(requestedBody);
+    const policy = parseGitHubReceiptPolicy();
     if (cycleLocation) {
       validateConfiguredDecisionLocation(
         cycleLocation.repository,
         cycleLocation.issueNumber,
-        parseGitHubReceiptPolicy(),
+        policy,
       );
     }
+    const body = cycleLocation && policy ? withConfiguredStageIssue(requestedBody, policy.stageIssueNumber) : requestedBody;
     const result = evaluateSupervisionAdmission(worker, authentication.producer, body);
     let routeEvent = null;
     if (result.routeEnvelope) {
@@ -54,6 +56,24 @@ export async function POST(request: Request, context: { params: Promise<{ worker
   }
 }
 
+function withConfiguredStageIssue(value: unknown, stageIssueNumber: number): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const root = value as Record<string, unknown>;
+  const factualPacket = root.factualPacket as Record<string, unknown>;
+  const supervisoryCycle = factualPacket.supervisoryCycle as Record<string, unknown>;
+  const githubReceipt = supervisoryCycle.githubReceipt as Record<string, unknown>;
+  return {
+    ...root,
+    factualPacket: {
+      ...factualPacket,
+      supervisoryCycle: {
+        ...supervisoryCycle,
+        githubReceipt: { ...githubReceipt, stageIssueNumber },
+      },
+    },
+  };
+}
+
 function supervisoryCycleLocation(value: unknown): { repository: string; issueNumber: number } | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const factualPacket = (value as Record<string, unknown>).factualPacket;
@@ -65,7 +85,7 @@ function supervisoryCycleLocation(value: unknown): { repository: string; issueNu
   const repository = (githubReceipt as Record<string, unknown>).repository;
   const issueNumber = (githubReceipt as Record<string, unknown>).issueNumber;
   if (typeof repository !== "string" || !Number.isInteger(issueNumber)) {
-    throw new Error("Same-chat supervisory cycles require an exact GitHub repository and issue number.");
+    throw new Error("Provider-session supervisory cycles require an exact GitHub repository and issue number.");
   }
   return { repository, issueNumber: Number(issueNumber) };
 }

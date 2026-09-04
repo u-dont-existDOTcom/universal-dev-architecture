@@ -12,18 +12,22 @@ VPS browser relay = no-content UI orchestration only
 GitHub = durable supervisor decision receipt bus
 ```
 
-The accepted Personal Pro paths are:
+The accepted Personal Pro paths use one reusable browser tab and a new provider
+conversation for every mandatory external-tool stage:
 
 ```text
 ordinary:
-Extra High read -> reason -> GitHub decision write -> Mission Control
+MC binding preload -> fresh Extra High GitHub read/decision/write -> Mission Control
 
-escalated, same conversation:
-Extra High reader -> Pro reasoner -> Extra High exact writer
-                  -> GitHub decision write -> Mission Control
+escalated, durable stage bus:
+MC binding preload -> fresh Extra High GitHub reader -> #61 reader receipt
+                   -> fresh Pro GitHub reasoner -> #61 Pro decision receipt
+                   -> fresh Extra High GitHub exact writer -> #59 -> Mission Control
 ```
 
-The conversation history is the handoff between Extra High and Pro. The relay never reads, copies, hashes, parses, summarizes, or transports assistant response text.
+GitHub is the handoff between stages. Conversation history is never required for
+an external-tool operation. The relay never reads, copies, hashes, parses,
+summarizes, or transports assistant response text.
 
 ## Browser-relay invariants
 
@@ -37,11 +41,11 @@ The conversation history is the handoff between Extra High and Pro. The relay ne
 - A generation turn cannot become COMPLETE unless a real post-submit generation-start transition was observed first.
 - No transcript/message selectors are used after submission. A clicked-but-unverified submission remains ambiguous and blocks replay.
 - Browser control does not claim hidden backend model identity; it records only the exact visible UI label.
-- Every message clears any prior configured app chips, then reselects and verifies the exact Mission Control chip when fresh MCP data is required. The current ChatGPT Tools catalog exposes app choices as one radio selection, so GitHub is kept as an exact configured label and explicitly referenced in GitHub-reading/writing prompts rather than replacing the required Mission Control chip. App state is never treated as conversation-sticky or as semantic authority.
+- Every message clears any prior configured app chips, then reselects and verifies the exact app required by that first-message decision stage: Mission Control for binding preload and GitHub for every downstream mandatory GitHub read/write. The two-source capability probe retains its Mission Control selection and exact GitHub routing reference because the app picker is single-choice. App state is never treated as conversation-sticky or as semantic authority.
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
 - Every actual ChatGPT message send shares one persisted global cooldown. The default minimum interval is 60 seconds, configurable with `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` from 15,000 through 600,000 ms.
-- Capability prompts, Extra High reader/direct/writer prompts, Pro reasoner prompts, liveness-check prompts, and every automatic `continue` use the same gate. The relay-wide process lock and a narrow in-process serialized gate allow only one send path to cross at once.
+- Capability prompts, binding preloads, and every fresh Extra High/Pro GitHub stage use the same gate. The relay-wide process lock and a narrow in-process serialized gate allow only one send path to cross at once.
 - Cooldown checks never sleep inside the state machine. They return `GLOBAL_SUBMISSION_COOLDOWN` with `retryAfterMs` and `nextSubmissionAt`, and no click or route-authority mutation occurs.
 
 ## Model-agnostic stuck-chat recovery
@@ -57,7 +61,11 @@ The relay never searches transcript text to make this determination. It examines
 
 Recovery is capped by `MC_RELAY_STUCK_RECOVERY_MAX_NUDGES` (default 3, configurable 1–20) for one continuously stalled turn. This prevents an unbounded quota-burning loop. A failed or ambiguous recovery send is not automatically replayed.
 
-Separately, the two Extra High decision-writing steps (`EXTRA_HIGH_DIRECT` and `EXTRA_HIGH_WRITER`) have an objective durable completion signal: the canonical GitHub decision receipt. If their normal UI turn ends but that receipt is still absent after five minutes, the same-chat state machine may issue its one bounded `continue` fallback.
+Mandatory external-tool stages opt out of same-chat recovery. If their normal UI
+turn ends without the expected durable #59/#61 receipt, the state machine waits
+for the reconciliation grace period and may replay the immutable stage only as a
+new first message in a fresh provider conversation. The bounded attempt ceiling
+still applies.
 
 These `continue` messages are transport recovery, **not** Mission Control guard verdicts. They never grant execution authority or bypass owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
 
@@ -65,7 +73,7 @@ All recovery nudges pass through the same global submission cooldown as normal s
 
 ### Remaining semantic-liveness boundary
 
-A visually normal idle turn with no recovery control can still be semantically incomplete. Browser UI state cannot prove otherwise without reading assistant content, which this relay deliberately does not do. Mission Control therefore must not equate `GENERATION_COMPLETE` with semantic task completion. Durable task/stage receipts are the correct completion signal; the next control-plane slice adds stage-completion/continue-required receipts for intermediate same-chat stages.
+A visually normal idle turn with no recovery control can still be semantically incomplete. Browser UI state cannot prove otherwise without reading assistant content, which this relay deliberately does not do. Mission Control therefore must not equate `GENERATION_COMPLETE` with semantic task completion. Durable #59/#61 receipts are the completion signal.
 
 ## Capability proof
 
@@ -92,11 +100,14 @@ chat in the current verified reusable ChatGPT tab. A transport-only
 supervisor, and provider session. Semantic direct/reader work is forbidden
 until that turn completes, its server-observed current-session tool receipt is
 visible in Mission Control, and the global submission interval has elapsed.
-Every later direct, reader, Pro, liveness, continue, and writer turn reuses that
-same-chat binding and does not select or invoke Mission Control. Substantive
-evidence and every canonical write remain in GitHub. Generic MCP traffic,
-app-chip state, prose, or a stale provider-session receipt cannot satisfy the
-preload gate.
+The relay then derives a bounded hashed binding capsule in transport state and
+opens a new conversation in the same tab for each downstream stage. Every
+downstream first message selects GitHub and copies the exact capsule; it does not
+select Mission Control. `binding_provider_session_id` names the preload session,
+while each `stage_provider_session_id` names one downstream conversation.
+Substantive evidence and every canonical write remain in GitHub. Generic MCP
+traffic, app-chip state, prose, a stale capsule, or cross-session evidence cannot
+satisfy admission.
 
 Use the dedicated harmless command while normal task sends remain disabled:
 
@@ -117,6 +128,7 @@ For this repository the machine-readable buses are:
 
 - canonical decision receipts: GitHub issue #59;
 - harmless capability challenge/receipts: GitHub issue #60.
+- escalated reader and Pro decision stage receipts: GitHub issue #61.
 
 Production policy must centrally allowlist the exact repository, those issue numbers, and authorized GitHub writer login(s). Worker-supplied GitHub destinations never grant authority.
 
@@ -128,17 +140,21 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 - request ID and one-time nonce;
 - evidence capsule ID/hash;
 - current owner-outcome ID/epoch/hash;
-- stable supervisor ID, fresh provider-session ID, exact conversation URL, and reasoning lane;
+- stable supervisor ID, distinct binding/stage provider-session IDs, exact conversation URLs, and reasoning lane;
 - current Mission Control/GitHub capability receipt;
-- a session-local exact visible Extra High → Pro → Extra High model-switch receipt;
-- a server-observed binding-preload MCP request-binding read for the same provider session;
-- session-bound ordered transport/stage receipts, so old-session evidence cannot replay;
+- current exact visible Extra High and Pro model-label receipts;
+- a server-observed binding-preload MCP request-binding read in the binding provider session;
+- an exact mechanically derived binding capsule recorded in Mission Control transport state;
+- ordered first-message GitHub transport/stage receipts in distinct provider sessions, so stale or cross-stage evidence cannot replay;
 - ordered no-content browser-stage receipts;
 - central GitHub repository/issue/writer policy;
 - receipt creation time inside the admitted window;
 - canonical decision digest and no-reinterpretation writer contract.
 
-For Pro escalation, Mission Control labels the Pro-content provenance `SAME_CHAT_WRITER_ATTESTED` with `independent_pro_observation:false`. The browser does not independently observe Pro output.
+For Pro escalation, #61 carries the canonical Pro decision block and digest.
+The final Extra High writer may only exact-copy or structurally transform it.
+Mission Control labels this provenance `DURABLE_STAGE_RECEIPT_ATTESTED` with
+`independent_pro_observation:false`; the browser never observes Pro output.
 
 Webhook ingestion is the fast path. Periodic GitHub issue polling is reconciliation for missed webhooks. Public repositories can use low-frequency reconciliation without a GitHub token.
 
@@ -334,4 +350,4 @@ A hard-pressure pause is successful safety behavior, not automatic permission to
 - Do not rotate proxy/IP identity, clone authenticated profiles, or run concurrent relays against one profile.
 - Do not use this package for rate-limit circumvention, account sharing, or high-volume unattended messaging.
 - Browser UI evidence is transport evidence, not backend-model attestation.
-- GitHub same-chat writer attestation is not independent provider-direct proof of Pro output.
+- Durable GitHub stage-receipt attestation is not independent browser observation of Pro output.

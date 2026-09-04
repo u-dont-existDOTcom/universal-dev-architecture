@@ -4,8 +4,8 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import {
-  findOpenProviderSession,
   pendingDecisionRequests,
+  providerSessionSummary,
   publicCapabilityChallenge,
   stageLivenessSummary,
   type GitHubReceiptPolicy,
@@ -89,17 +89,18 @@ export interface PublicStageLivenessReceipt {
   status: "STAGE_COMPLETE" | "CONTINUE_REQUIRED";
   receipt_id: string;
   occurred_at: string;
+  stage_provider_session_id: string;
 }
 
 export interface PublicStageLivenessState {
-  schema_version: 2;
+  schema_version: 3;
   request_id: string;
   supervisor_id: string;
-  provider_session_id: string;
+  binding_provider_session_id: string;
   extra_high_reader: PublicStageLivenessReceipt | null;
-  pro_reasoner: PublicStageLivenessReceipt | null;
+  pro_decision_stage: PublicStageLivenessReceipt | null;
   extra_high_reader_continue_required_count: number;
-  pro_reasoner_continue_required_count: number;
+  pro_decision_stage_continue_required_count: number;
   semantic_authority: false;
 }
 
@@ -192,18 +193,18 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
 
   server.registerTool(publicMcpToolNames[2], {
     title: "Get stage liveness state",
-    description: "Read receipt IDs, statuses, timestamps, and CONTINUE_REQUIRED count for one exact current escalated provider session. This optional diagnostic has no semantic authority and contains no decision or assistant content.",
+    description: "Read receipt IDs, stage-provider-session IDs, statuses, timestamps, and CONTINUE_REQUIRED counts for one exact current escalated binding provider session. This optional diagnostic has no semantic authority and contains no decision or assistant content.",
     inputSchema: {
       request_id: exactId("Exact pending Mission Control supervisory request ID."),
       supervisor_id: exactId("Exact stable Mission Control supervisor ID."),
-      provider_session_id: exactId("Exact fresh provider-session ID allocated to this request."),
+      provider_session_id: exactId("Exact binding provider-session ID allocated to this request."),
     },
     outputSchema: {
-      schema_version: z.literal(2), request_id: z.string(), supervisor_id: z.string(), provider_session_id: z.string(),
-      extra_high_reader: z.object({ status: z.enum(["STAGE_COMPLETE", "CONTINUE_REQUIRED"]), receipt_id: z.string(), occurred_at: z.string() }).nullable(),
-      pro_reasoner: z.object({ status: z.enum(["STAGE_COMPLETE", "CONTINUE_REQUIRED"]), receipt_id: z.string(), occurred_at: z.string() }).nullable(),
+      schema_version: z.literal(3), request_id: z.string(), supervisor_id: z.string(), binding_provider_session_id: z.string(),
+      extra_high_reader: z.object({ status: z.enum(["STAGE_COMPLETE", "CONTINUE_REQUIRED"]), receipt_id: z.string(), occurred_at: z.string(), stage_provider_session_id: z.string() }).nullable(),
+      pro_decision_stage: z.object({ status: z.enum(["STAGE_COMPLETE", "CONTINUE_REQUIRED"]), receipt_id: z.string(), occurred_at: z.string(), stage_provider_session_id: z.string() }).nullable(),
       extra_high_reader_continue_required_count: z.number().int().nonnegative(),
-      pro_reasoner_continue_required_count: z.number().int().nonnegative(),
+      pro_decision_stage_continue_required_count: z.number().int().nonnegative(),
       semantic_authority: z.literal(false),
     },
     annotations: readOnlyAnnotations,
@@ -215,7 +216,7 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
       const pending = pendingDecisionRequests(events).find((request) => request.routeSchemaVersion === 3
         && request.requestId === request_id && request.supervisorId === supervisor_id);
       const result = pending?.reasoningLane === "PRO_ESCALATED"
-        && findOpenProviderSession(events, pending, provider_session_id, now)
+        && hasBindingProviderSession(events, request_id, supervisor_id, provider_session_id, pending.queuedAt, now, ["ACTIVE", "COMPLETE"])
         ? publicStageLivenessState(events, request_id, supervisor_id, provider_session_id, pending.queuedAt, pending.expiresAt, now)
         : null;
       if (!result) {
@@ -269,7 +270,7 @@ export function publicSupervisoryRequestBinding(
     || currentOutcome.owner_outcome_id !== request.ownerOutcome.id
     || currentOutcome.epoch !== request.ownerOutcome.epoch
     || currentOutcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) return null;
-  if (!findOpenProviderSession(events, request, providerSessionId, now)) return null;
+  if (!hasBindingProviderSession(events, requestId, supervisorId, providerSessionId, request.queuedAt, now, ["ACTIVE"])) return null;
   const issueBase = `https://github.com/${policy.repository}/issues`;
   return {
     schema_version: 2,
@@ -305,32 +306,50 @@ export function publicStageLivenessState(
   now: string,
 ): PublicStageLivenessState | null {
   if (![queuedAt, expiresAt, now].every((value) => Number.isFinite(Date.parse(value)))) return null;
-  const latest: Partial<Record<"EXTRA_HIGH_READER" | "PRO_REASONER", PublicStageLivenessReceipt>> = {};
-  const continueRequiredCount = { EXTRA_HIGH_READER: 0, PRO_REASONER: 0 };
+  const latest: Partial<Record<"EXTRA_HIGH_READER" | "PRO_DECISION_STAGE", PublicStageLivenessReceipt>> = {};
+  const continueRequiredCount = { EXTRA_HIGH_READER: 0, PRO_DECISION_STAGE: 0 };
   for (const event of [...events].sort((left, right) => left.sequence - right.sequence)) {
     if (event.data.type !== "evidence_receipt_recorded" || event.data.summary !== stageLivenessSummary || !event.data.verified) continue;
     if (!event.data.refs.includes(`request:${requestId}`)
       || !event.data.refs.includes(`supervisor:${supervisorId}`)
-      || !event.data.refs.includes(`provider_session:${providerSessionId}`)) continue;
+      || !event.data.refs.includes(`binding_provider_session:${providerSessionId}`)) continue;
     const occurred = Date.parse(event.occurredAt);
     if (occurred < Date.parse(queuedAt) || occurred > Date.parse(expiresAt) || occurred > Date.parse(now)) continue;
     const stage = refValue(event.data.refs, "stage:");
     const status = refValue(event.data.refs, "status:");
-    if ((stage !== "EXTRA_HIGH_READER" && stage !== "PRO_REASONER") || (status !== "STAGE_COMPLETE" && status !== "CONTINUE_REQUIRED")) continue;
+    const stageProviderSessionId = refValue(event.data.refs, "stage_provider_session:");
+    if ((stage !== "EXTRA_HIGH_READER" && stage !== "PRO_DECISION_STAGE") || !stageProviderSessionId
+      || (status !== "STAGE_COMPLETE" && status !== "CONTINUE_REQUIRED")) continue;
     if (status === "CONTINUE_REQUIRED") continueRequiredCount[stage] += 1;
-    latest[stage] = { status, receipt_id: event.data.receipt_id, occurred_at: event.occurredAt };
+    latest[stage] = { status, receipt_id: event.data.receipt_id, occurred_at: event.occurredAt, stage_provider_session_id: stageProviderSessionId };
   }
   return {
-    schema_version: 2,
+    schema_version: 3,
     request_id: requestId,
     supervisor_id: supervisorId,
-    provider_session_id: providerSessionId,
+    binding_provider_session_id: providerSessionId,
     extra_high_reader: latest.EXTRA_HIGH_READER ?? null,
-    pro_reasoner: latest.PRO_REASONER ?? null,
+    pro_decision_stage: latest.PRO_DECISION_STAGE ?? null,
     extra_high_reader_continue_required_count: continueRequiredCount.EXTRA_HIGH_READER,
-    pro_reasoner_continue_required_count: continueRequiredCount.PRO_REASONER,
+    pro_decision_stage_continue_required_count: continueRequiredCount.PRO_DECISION_STAGE,
     semantic_authority: false,
   };
+}
+
+function hasBindingProviderSession(
+  events: StoredEvent[], requestId: string, supervisorId: string, providerSessionId: string, queuedAt: string, now: string,
+  allowedLifecycles: Array<"ACTIVE" | "COMPLETE">,
+) {
+  const session = [...events].reverse().find((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionSummary && event.data.verified
+    && event.data.refs.includes(`request:${requestId}`) && event.data.refs.includes(`supervisor:${supervisorId}`)
+    && event.data.refs.includes(`provider_session:${providerSessionId}`)
+    && event.data.refs.includes(`binding_provider_session:${providerSessionId}`)
+    && event.data.refs.includes("session_role:MC_BINDING_PRELOAD_SESSION")
+    && Date.parse(event.occurredAt) >= Date.parse(queuedAt) && Date.parse(event.occurredAt) <= Date.parse(now));
+  if (session?.data.type !== "evidence_receipt_recorded") return false;
+  const refs = session.data.refs;
+  return allowedLifecycles.some((status) => refs.includes(`lifecycle_status:${status}`));
 }
 
 function structuredResult<T extends object>(structuredContent: T, message: string) {
