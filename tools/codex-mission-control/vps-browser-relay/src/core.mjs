@@ -334,22 +334,15 @@ export function appSelectionForMessage(chat, step) {
     'MCP_PREFLIGHT',
     MCP_BINDING_PRELOAD_STEP,
   ]);
-  const githubRequiredSteps = new Set([
+  const githubSteps = new Set([
     'CAPABILITY',
     'EXTRA_HIGH_DIRECT',
     'EXTRA_HIGH_READER',
-    'EXTRA_HIGH_DIRECT_CONTINUE',
-    'EXTRA_HIGH_READER_CONTINUE',
-    'PRO_LIVENESS_CHECK',
-    'PRO_LIVENESS_CHECK_CONTINUE',
-    'EXTRA_HIGH_WRITER',
-    'EXTRA_HIGH_WRITER_CONTINUE',
   ]);
   const requiredLabels = [];
   const referencedLabels = [];
   if (missionControlSteps.has(step)) requiredLabels.push(missionControl);
-  if (githubRequiredSteps.has(step) && step !== 'CAPABILITY') requiredLabels.push(github);
-  if (step === 'CAPABILITY') referencedLabels.push(github);
+  if (githubSteps.has(step)) referencedLabels.push(github);
   return { knownLabels, requiredLabels, referencedLabels };
 }
 
@@ -366,19 +359,19 @@ export function cycleControlPrompt(route, step) {
     return `Mission Control binding preload only. Use the selected ${missionControl} app. Your only action in this turn is to call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not reason, use GitHub, make a decision, write a receipt, or answer from values in this prompt/context instead of calling the tool. If the exact tool call is unavailable or fails, fail closed. After the tool result is loaded into this conversation, stop.`;
   }
   if (step === 'EXTRA_HIGH_DIRECT') {
-    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Use ${github} for the substantive evidence and canonical receipt write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the exact loaded binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Call the connected ${github} tool for the substantive evidence read and canonical receipt write; do not answer without a successful GitHub issue-comment write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the exact loaded binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
   }
   if (step === 'EXTRA_HIGH_READER') {
-    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Use ${github} for the substantive evidence and read it fully into this same conversation together with the loaded request binding. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the loaded stage_receipt_target as schema_version 2 with the loaded request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage EXTRA_HIGH_READER, and status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Preserve the binding in this conversation for all later stages; do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Call the connected ${github} tool for the substantive evidence read and stage-receipt write; do not answer without a successful GitHub issue-comment write. Read the evidence fully into this same conversation together with the loaded request binding. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the loaded stage_receipt_target as schema_version 2 with the loaded request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage EXTRA_HIGH_READER, and status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Preserve the binding in this conversation for all later stages; do not delegate to Work.`;
   }
   if (step === 'PRO_REASONER') {
     return `MC ${requestId}: switch to Pro. Use the Mission Control request binding already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not request new Mission Control data, do not invoke or reselect ${missionControl}, and do not alter the bound supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
   }
   if (step === 'PRO_LIVENESS_CHECK') {
-    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Use the request binding already present in this same provider session ${providerSessionId} and current GitHub stage receipts. Do not invoke or reselect ${missionControl}; no new Mission Control data is required. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the stage_receipt_target already loaded in this conversation as schema_version 2 with the already-bound request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
+    return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Use the request binding already present in this same provider session ${providerSessionId} and call the connected ${github} tool for current stage receipts and the stage-receipt write; do not answer without a successful GitHub issue-comment write. Do not invoke or reselect ${missionControl}; no new Mission Control data is required. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the stage_receipt_target already loaded in this conversation as schema_version 2 with the already-bound request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
   }
   if (step === 'EXTRA_HIGH_WRITER') {
-    return `MC ${requestId}: remain in Extra High. Use the existing request binding in this same provider session ${providerSessionId}; do not refresh it and do not invoke or reselect ${missionControl}. Use the current GitHub PRO_REASONER STAGE_COMPLETE receipt and the immediately preceding completed Pro decision already present in this conversation. Write that Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the already-bound supervisor_id ${supervisorId} and provider_session_id ${providerSessionId}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
+    return `MC ${requestId}: remain in Extra High. Use the existing request binding in this same provider session ${providerSessionId}; do not refresh it and do not invoke or reselect ${missionControl}. Call the connected ${github} tool for the current PRO_REASONER STAGE_COMPLETE receipt and final canonical issue-comment write; do not answer without a successful GitHub issue-comment write. Use the immediately preceding completed Pro decision already present in this conversation. Write that Pro decision as MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the already-bound supervisor_id ${supervisorId} and provider_session_id ${providerSessionId}. Set Pro provenance to SAME_CHAT_WRITER_ATTESTED. Exact copy or structured transformation only; no reinterpretation.`;
   }
   if (isContinueNudgeStep(step)) return 'continue';
   throw new Error(`Unknown supervisory-cycle step: ${step}`);

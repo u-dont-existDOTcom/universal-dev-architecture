@@ -77,10 +77,9 @@ test('escalated route preloads the binding, then advances reader and Pro without
   assert.equal(browser.freshChatCalls, 1);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
   ]);
   const readerStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:EXTRA_HIGH_READER') && item.refs.includes('generation_state:STARTED'));
-  assert.ok(readerStart.refs.includes('app_selection_attempted:true'));
+  assert.ok(readerStart.refs.includes('app_selection_attempted:false'));
   const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
   assert.ok(proStart.refs.includes('app_selection_attempted:false'));
 });
@@ -98,11 +97,10 @@ test('ordinary direct work cannot precede preload and starts without a second Mi
   assert.equal(browser.freshChatCalls, 1);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
   ]);
   const directStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY
     && item.refs.includes('step:EXTRA_HIGH_DIRECT') && item.refs.includes('generation_state:STARTED'));
-  assert.ok(directStart.refs.includes('app_selection_attempted:true'));
+  assert.ok(directStart.refs.includes('app_selection_attempted:false'));
   assert.ok(directStart.refs.includes('semantic_authority:false'));
   const exactSessionEvidence = mc.recordedEvidence.filter((item) => item.summary === PROVIDER_SESSION_SUMMARY
     && item.refs.includes('url_binding_status:EXACT') && item.refs.includes('lifecycle_status:ACTIVE'));
@@ -244,7 +242,7 @@ test('capability challenge obeys the persisted global cooldown without creating 
   assert.deepEqual(store.state.deliveries, {});
 });
 
-test('fresh-session creation and every same-chat send share the global pacing gate without Mission Control reselection', async () => {
+test('fresh-session creation and every same-chat send share the global pacing gate without reselection', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
@@ -266,9 +264,8 @@ test('fresh-session creation and every same-chat send share the global pacing ga
   assert.equal(browser.submitCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
     { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [] },
   ]);
-  assert.equal(browser.appSelectionEvidence.length, 2);
+  assert.equal(browser.appSelectionEvidence.length, 1);
 });
 
 test('hard memory pressure performs no submission', async () => {

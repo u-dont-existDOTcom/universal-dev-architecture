@@ -63,16 +63,12 @@ test('message app requirements are exact and step-specific', () => {
   });
   assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
   assert.deepEqual(appSelectionForMessage(chat, MCP_BINDING_PRELOAD_STEP).requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, ['GitHub']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, ['GitHub']);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, []);
-  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').requiredLabels, ['GitHub']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, ['GitHub']);
-  for (const step of ['EXTRA_HIGH_DIRECT_CONTINUE', 'EXTRA_HIGH_READER_CONTINUE', 'PRO_LIVENESS_CHECK_CONTINUE', 'EXTRA_HIGH_WRITER_CONTINUE']) {
-    assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, ['GitHub']);
-    assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, []);
-  }
-  for (const step of ['PRO_REASONER_CONTINUE']) {
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, []);
+  for (const step of ['EXTRA_HIGH_DIRECT_CONTINUE', 'EXTRA_HIGH_READER_CONTINUE', 'PRO_REASONER_CONTINUE', 'PRO_LIVENESS_CHECK_CONTINUE', 'EXTRA_HIGH_WRITER_CONTINUE']) {
     assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, []);
     assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, []);
   }
@@ -164,6 +160,8 @@ test('binding preload is retrieval-only and every semantic turn reuses the loade
   assert.doesNotMatch(preload, /MISSION_CONTROL_CANONICAL_DECISION|MISSION_CONTROL_CHAT_STAGE_RECEIPT|delegate to Work/);
   const reader = cycleControlPrompt(route, 'EXTRA_HIGH_READER');
   assert.match(reader, /already loaded by the preceding binding-only preload/);
+  assert.match(reader, /Call the connected GitHub tool/);
+  assert.match(reader, /do not answer without a successful GitHub issue-comment write/);
   for (const step of ['EXTRA_HIGH_READER', 'PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
     const prompt = cycleControlPrompt(route, step);
     assert.doesNotMatch(prompt, /get_supervisory_request_binding|get_stage_liveness_state/);
@@ -171,6 +169,7 @@ test('binding preload is retrieval-only and every semantic turn reuses the loade
   }
   const direct = cycleControlPrompt(directRouteFixture(), 'EXTRA_HIGH_DIRECT');
   assert.match(direct, /already loaded by the preceding binding-only preload/);
+  assert.match(direct, /Call the connected GitHub tool/);
   assert.doesNotMatch(direct, /get_supervisory_request_binding|get_stage_liveness_state/);
 });
 
