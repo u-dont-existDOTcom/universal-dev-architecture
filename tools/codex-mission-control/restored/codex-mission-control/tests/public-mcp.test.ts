@@ -83,6 +83,12 @@ test("request binding returns only exact current admitted control metadata and r
   }
   assert.deepEqual(events, before, "read-only MCP calls must not mutate the event ledger");
 
+  const failedAccesses: unknown[] = [];
+  const failedDeps = dependencies({ events });
+  failedDeps.recordAccess = (event) => { failedAccesses.push(event); };
+  await assertToolFailure(failedDeps, "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: "provider-session:old" });
+  assert.deepEqual(failedAccesses, [{ event: "mission_control_public_mcp_tool_call", tool: "get_supervisory_request_binding", request_id: requestId, supervisor_id: supervisorId, provider_session_id: "provider-session:old", worker_id: workerId, status: "NOT_FOUND", occurred_at: now }]);
+
   await assertToolFailure(dependencies({ events }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: "wrong-supervisor", provider_session_id: providerSessionId });
   await assertToolFailure(dependencies({ events }), "get_supervisory_request_binding", { request_id: requestId, supervisor_id: supervisorId, provider_session_id: "provider-session:old" });
   await assertToolFailure(dependencies({ events }), "get_supervisory_request_binding", { request_id: "unknown", supervisor_id: supervisorId, provider_session_id: providerSessionId });

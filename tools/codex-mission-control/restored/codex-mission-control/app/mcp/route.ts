@@ -31,11 +31,12 @@ async function handle(request: Request) {
 
 async function recordPublicMcpAccess(event: PublicMcpAccessEvent) {
   console.info(JSON.stringify(event));
-  if (event.tool !== "get_supervisory_request_binding" || event.status !== "OK") return;
+  if (event.tool !== "get_supervisory_request_binding") return;
   if (!event.request_id || !event.supervisor_id || !event.provider_session_id || !event.worker_id) {
-    throw new Error("Successful request-binding access telemetry is missing its exact session binding.");
+    if (event.status === "OK") throw new Error("Successful request-binding access telemetry is missing its exact session binding.");
+    return;
   }
-  const receiptId = `public-mcp-binding:${sha256(`${event.request_id}:${event.supervisor_id}:${event.provider_session_id}:${event.occurred_at}`).slice(0, 32)}`;
+  const receiptId = `public-mcp-binding:${sha256(`${event.request_id}:${event.supervisor_id}:${event.provider_session_id}:${event.status}:${event.occurred_at}`).slice(0, 32)}`;
   const envelope: AppendEnvelope = {
     schema_version: 2,
     event_id: `evidence:${sha256(`${publicMcpAccessCollector.id}:${receiptId}`).slice(0, 32)}`,
@@ -57,7 +58,7 @@ async function recordPublicMcpAccess(event: PublicMcpAccessEvent) {
         `supervisor:${event.supervisor_id}`,
         `provider_session:${event.provider_session_id}`,
         "tool:get_supervisory_request_binding",
-        "status:OK",
+        `status:${event.status}`,
         `observed_at:${event.occurred_at}`,
         "server_observed:true",
         "semantic_authority:false",

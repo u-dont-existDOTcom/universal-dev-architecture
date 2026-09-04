@@ -149,9 +149,12 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
   }, async ({ request_id, supervisor_id, provider_session_id }) => {
     const now = currentTime(dependencies);
     try {
-      const result = publicSupervisoryRequestBinding(await dependencies.loadEvents(), dependencies.loadPolicy(), request_id, supervisor_id, provider_session_id, now);
+      const events = await dependencies.loadEvents();
+      const result = publicSupervisoryRequestBinding(events, dependencies.loadPolicy(), request_id, supervisor_id, provider_session_id, now);
       if (!result) {
-        await access(dependencies, { tool: publicMcpToolNames[1], request_id, supervisor_id, provider_session_id, status: "NOT_FOUND", occurred_at: now });
+        const pending = pendingDecisionRequests(events).find((request) => request.routeSchemaVersion === 3
+          && request.requestId === request_id && request.supervisorId === supervisor_id);
+        await access(dependencies, { tool: publicMcpToolNames[1], request_id, supervisor_id, provider_session_id, worker_id: pending?.worker, status: "NOT_FOUND", occurred_at: now });
         throw notFound();
       }
       await access(dependencies, { tool: publicMcpToolNames[1], request_id, supervisor_id, provider_session_id, worker_id: result.worker_id, status: "OK", occurred_at: now });

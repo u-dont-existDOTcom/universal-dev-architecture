@@ -143,13 +143,17 @@ test('only the first cycle turn reads Mission Control; same-session follow-ups r
   const route = escalatedRoute();
   const reader = cycleControlPrompt(route, 'EXTRA_HIGH_READER');
   assert.match(reader, /get_supervisory_request_binding/);
+  assert.match(reader, /first action MUST be a tool call/);
+  assert.match(reader, /Do not claim that the binding is unavailable or mismatched unless that exact tool call returns such a result/);
   assert.match(reader, /request_id r1, supervisor_id spec, and provider_session_id provider-session:test/);
   for (const step of ['PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
     const prompt = cycleControlPrompt(route, step);
     assert.doesNotMatch(prompt, /get_supervisory_request_binding|get_stage_liveness_state/);
     assert.match(prompt, /do not (invoke or reselect|refresh)/i);
   }
-  assert.match(cycleControlPrompt(directRouteFixture(), 'EXTRA_HIGH_DIRECT'), /get_supervisory_request_binding/);
+  const direct = cycleControlPrompt(directRouteFixture(), 'EXTRA_HIGH_DIRECT');
+  assert.match(direct, /get_supervisory_request_binding/);
+  assert.match(direct, /first action MUST be a tool call/);
 });
 
 test('route extraction binds durable stage-liveness receipts to the exact worker/request', () => {
