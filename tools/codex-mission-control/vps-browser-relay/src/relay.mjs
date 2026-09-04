@@ -723,8 +723,9 @@ export class RelayRuntime {
 
   async #recordProviderSession(route, session, urlBindingStatus) {
     const occurredAt = session.completedAt ?? session.failedAt ?? session.urlBoundAt ?? session.openedAt;
+    const bindingReceiptState = session.firstTurnMcpReceiptId ?? 'PENDING';
     return this.missionControl.recordEvidence(route.workerId, {
-      receiptId: `provider-session:${session.providerSessionId}:${session.status}:${sha256(`${urlBindingStatus}:${occurredAt}`).slice(0, 12)}`,
+      receiptId: `provider-session:${session.providerSessionId}:${session.status}:${sha256(`${urlBindingStatus}:${occurredAt}:${bindingReceiptState}`).slice(0, 12)}`,
       summary: PROVIDER_SESSION_SUMMARY,
       refs: [
         `request:${route.requestId}`,

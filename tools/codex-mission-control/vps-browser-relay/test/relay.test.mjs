@@ -6,6 +6,7 @@ import {
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   PROVIDER_SESSION_MCP_SUMMARY,
+  PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
@@ -101,6 +102,12 @@ test('ordinary direct work cannot precede preload and starts without a second Mi
     && item.refs.includes('step:EXTRA_HIGH_DIRECT') && item.refs.includes('generation_state:STARTED'));
   assert.ok(directStart.refs.includes('app_selection_attempted:false'));
   assert.ok(directStart.refs.includes('semantic_authority:false'));
+  const exactSessionEvidence = mc.recordedEvidence.filter((item) => item.summary === PROVIDER_SESSION_SUMMARY
+    && item.refs.includes('url_binding_status:EXACT') && item.refs.includes('lifecycle_status:ACTIVE'));
+  assert.equal(exactSessionEvidence.length, 2);
+  assert.equal(new Set(exactSessionEvidence.map((item) => item.receiptId)).size, 2);
+  assert.ok(exactSessionEvidence.some((item) => item.refs.includes('binding_preload_receipt:PENDING')));
+  assert.ok(exactSessionEvidence.some((item) => item.refs.some((ref) => ref.startsWith('binding_preload_receipt:mcp-'))));
 });
 
 test('fresh provider session is visible in Mission Control before the first send', async () => {
