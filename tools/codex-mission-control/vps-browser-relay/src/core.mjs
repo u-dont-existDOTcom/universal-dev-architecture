@@ -334,15 +334,22 @@ export function appSelectionForMessage(chat, step) {
     'MCP_PREFLIGHT',
     MCP_BINDING_PRELOAD_STEP,
   ]);
-  const githubSteps = new Set([
+  const githubRequiredSteps = new Set([
     'CAPABILITY',
     'EXTRA_HIGH_DIRECT',
     'EXTRA_HIGH_READER',
+    'EXTRA_HIGH_DIRECT_CONTINUE',
+    'EXTRA_HIGH_READER_CONTINUE',
+    'PRO_LIVENESS_CHECK',
+    'PRO_LIVENESS_CHECK_CONTINUE',
+    'EXTRA_HIGH_WRITER',
+    'EXTRA_HIGH_WRITER_CONTINUE',
   ]);
   const requiredLabels = [];
   const referencedLabels = [];
   if (missionControlSteps.has(step)) requiredLabels.push(missionControl);
-  if (githubSteps.has(step)) referencedLabels.push(github);
+  if (githubRequiredSteps.has(step) && step !== 'CAPABILITY') requiredLabels.push(github);
+  if (step === 'CAPABILITY') referencedLabels.push(github);
   return { knownLabels, requiredLabels, referencedLabels };
 }
 

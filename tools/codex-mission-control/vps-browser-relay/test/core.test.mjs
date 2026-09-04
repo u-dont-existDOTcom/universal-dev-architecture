@@ -63,12 +63,16 @@ test('message app requirements are exact and step-specific', () => {
   });
   assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
   assert.deepEqual(appSelectionForMessage(chat, MCP_BINDING_PRELOAD_STEP).requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, []);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, ['GitHub']);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, ['GitHub']);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, []);
-  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, []);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, []);
-  for (const step of ['EXTRA_HIGH_DIRECT_CONTINUE', 'EXTRA_HIGH_READER_CONTINUE', 'PRO_REASONER_CONTINUE', 'PRO_LIVENESS_CHECK_CONTINUE', 'EXTRA_HIGH_WRITER_CONTINUE']) {
+  assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').requiredLabels, ['GitHub']);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, ['GitHub']);
+  for (const step of ['EXTRA_HIGH_DIRECT_CONTINUE', 'EXTRA_HIGH_READER_CONTINUE', 'PRO_LIVENESS_CHECK_CONTINUE', 'EXTRA_HIGH_WRITER_CONTINUE']) {
+    assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, ['GitHub']);
+    assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, []);
+  }
+  for (const step of ['PRO_REASONER_CONTINUE']) {
     assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, []);
     assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, []);
   }
