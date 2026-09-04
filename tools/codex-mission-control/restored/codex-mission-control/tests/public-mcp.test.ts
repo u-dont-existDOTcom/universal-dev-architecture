@@ -60,6 +60,13 @@ test("public MCP initializes and advertises exactly three read-only noauth non-e
     assert.deepEqual(tool._meta?.securitySchemes, [{ type: "noauth" }]);
     assert.equal(/list|search|write|create|update|delete|mutat/i.test(tool.name), false);
   }
+  const bindingTool = tools.find((tool) => tool.name === "get_supervisory_request_binding");
+  assert.match(bindingTool?.title ?? "", /Always call/i);
+  assert.match(bindingTool?.description ?? "", /ALWAYS call this tool/);
+  assert.match(bindingTool?.description ?? "", /selected Mission Control message/);
+  assert.match(bindingTool?.description ?? "", /Never substitute prompt or context values/);
+  assert.match(bindingTool?.description ?? "", /read-only lookup of the current exact binding/);
+  assert.match(bindingTool?.description ?? "", /no evidence body.*private worker state/);
 });
 
 test("capability tool returns exactly the eight allowlisted disposable fields and fails closed", async () => {

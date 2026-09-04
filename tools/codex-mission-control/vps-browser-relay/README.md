@@ -85,12 +85,18 @@ prompt requires the MCP app tool, not that HTTP route. Neither public read path
 exposes worker state, timelines, credentials, owner sessions, task or decision
 content, or arbitrary evidence references. The authenticated
 `/api/workers/<worker>` route remains the only outer route for a worker
-snapshot. Every admitted cycle gets a fresh provider conversation. Its first
-Extra High turn selects Mission Control and calls `get_supervisory_request_binding`
-exactly once for the request, stable supervisor, and provider session. Later
-Pro, liveness, continue, and writer turns reuse that same-chat binding and do
-not select or invoke Mission Control. Substantive evidence and every canonical
-write remain in GitHub.
+snapshot. Every admitted cycle gets a fresh provider conversation by using New
+chat in the current verified reusable ChatGPT tab. A transport-only
+`MCP_BINDING_PRELOAD` turn selects Mission Control and calls
+`get_supervisory_request_binding` exactly once for the request, stable
+supervisor, and provider session. Semantic direct/reader work is forbidden
+until that turn completes, its server-observed current-session tool receipt is
+visible in Mission Control, and the global submission interval has elapsed.
+Every later direct, reader, Pro, liveness, continue, and writer turn reuses that
+same-chat binding and does not select or invoke Mission Control. Substantive
+evidence and every canonical write remain in GitHub. Generic MCP traffic,
+app-chip state, prose, or a stale provider-session receipt cannot satisfy the
+preload gate.
 
 Use the dedicated harmless command while normal task sends remain disabled:
 
@@ -125,7 +131,7 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 - stable supervisor ID, fresh provider-session ID, exact conversation URL, and reasoning lane;
 - current Mission Control/GitHub capability receipt;
 - a session-local exact visible Extra High → Pro → Extra High model-switch receipt;
-- a server-observed first-turn MCP request-binding read for the same provider session;
+- a server-observed binding-preload MCP request-binding read for the same provider session;
 - session-bound ordered transport/stage receipts, so old-session evidence cannot replay;
 - ordered no-content browser-stage receipts;
 - central GitHub repository/issue/writer policy;
@@ -291,7 +297,7 @@ journalctl --user -u mission-control-chatgpt-relay.service -f
 cat ~/.local/state/mission-control-chatgpt-relay/status.json
 ```
 
-The status record reports hashes, queue state, browser/memory state, capability state, stuck-recovery metadata, and ambiguity state. It does not contain ChatGPT response content.
+The status record reports hashes, queue state, browser/memory state, capability state, stuck-recovery metadata, ambiguity state, and `browserTabs.managedChatGptTabCount` with the 1/2/3 steady/transition/hard limits. It does not contain ChatGPT response content.
 
 `submissionPacing` appears in doctor/status output with the configured minimum interval, persisted last-submission time, remaining delay, and next eligible submission time. `GLOBAL_SUBMISSION_COOLDOWN` is a normal fail-safe retry state; the outer relay loop retries on its next poll instead of blocking inside a send.
 
@@ -309,7 +315,7 @@ Use `retry` only after an operator has independently established that re-submiss
 
 ## Memory trial
 
-Start with the Project Manager plus two specialist tabs, then expand only if headroom remains stable. Capture browser/service memory and relay status during real Extra High and Pro peaks.
+Keep one managed ChatGPT tab in steady state. New provider conversations use New chat in that current verified reusable tab. A bounded transition or replacement recovery may temporarily use two tabs; three is the absolute hard ceiling, and the relay fails closed before opening a fourth. Verify a replacement before immediately closing the superseded automation-owned tab, never fan out duplicate tabs for one task, and clean completed sessions back toward one. Capture browser/service memory and relay status during real Extra High and Pro peaks.
 
 PASS requires:
 

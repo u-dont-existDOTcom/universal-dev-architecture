@@ -48,7 +48,7 @@ export async function loadConfig(env = process.env) {
       pollIntervalMs: integer(env.MC_RELAY_POLL_INTERVAL_MS, 15_000, 2_000, 300_000),
       minSubmissionIntervalMs: integer(env.MC_RELAY_MIN_SUBMISSION_INTERVAL_MS, 60_000, 15_000, 600_000),
       retryDelayMs: integer(env.MC_RELAY_RETRY_DELAY_MS, 300_000, 30_000, 86_400_000),
-      maxHotTabs: integer(env.MC_RELAY_MAX_HOT_TABS, 3, 1, 12),
+      maxHotTabs: integer(env.MC_RELAY_MAX_HOT_TABS, 3, 1, 3),
       stuckRecoveryMaxNudges: integer(env.MC_RELAY_STUCK_RECOVERY_MAX_NUDGES, 3, 1, 20),
       stateFile: resolve(expandHome(env.MC_RELAY_STATE_FILE ?? `${stateDir}/state.json`, home)),
       statusFile: resolve(expandHome(env.MC_RELAY_STATUS_FILE ?? `${stateDir}/status.json`, home)),

@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "request_id": "decision-request-example",
   "request_nonce": "request-nonce-example",
-  "chat_id": "registered-chat-id",
+  "supervisor_id": "registered-supervisor-id",
+  "provider_session_id": "provider-session:example",
   "stage": "PRO_REASONER",
   "status": "STAGE_COMPLETE"
 }

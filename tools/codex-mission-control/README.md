@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-295cf3bb44f5472d1811dc0c263e39cbfc29d8c732c18ced1edfb17345b11394
+eff48a38dd9aa9211e97b7c6cdf668c26b7cac2e2675348b907710eef13e7920
 ```
 
-The checked archive contains 95 source files in 39 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
+The checked archive contains 138 source files in 59 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
 
 ## Current operator model
 
@@ -74,7 +74,7 @@ authoritative, or allowed to change Symphony's role. See the
 
 At the current execution receipt boundary:
 
-- 92 deterministic application tests passed;
+- 173 deterministic application tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;
@@ -87,7 +87,8 @@ At the current execution receipt boundary:
 - hostile live owner-auth checks denied absent/wrong credentials, missing CSRF, and foreign origins while allowing a correctly authenticated same-origin mutation;
 - the actual Human Design repository adapter completed ledger-first direction delivery, acknowledgement, real queue publication, blocker/proposal surfacing, and reconciliation;
 - the 18-run Hermes matrix failed its preregistered gate and automatically retained the baseline;
-- 243 repository tests and the repository audit passed;
+- 255 repository tests and the repository audit passed;
+- 63 relay tests and the relay JavaScript/shell syntax checks passed;
 - stack shutdown released the daemon writer lock;
 - the source archive restored with exact checksum and tree equality.
 

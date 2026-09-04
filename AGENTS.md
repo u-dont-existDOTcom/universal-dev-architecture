@@ -82,6 +82,8 @@ Reuse the existing browser process, context, page, or tab across sequential step
 
 Create a fresh page/context/session only when there is a concrete need for isolation, parallelism, a clean authentication/storage state, cross-account separation, recovery from corrupted/stale page state, or behavior whose correctness depends on a fresh browsing context. Close reusable browser state only when the task is finished or keeping it alive creates a material resource, security, privacy, or state-contamination risk.
 
+For managed ChatGPT browser automation, a fresh conversation means **New chat in the current verified reusable ChatGPT tab**, not a new browser tab. Keep one managed ChatGPT tab in steady state; allow two only during a bounded transition or recovery; three is the absolute hard ceiling, and fail closed before opening a fourth. Open a replacement only after the current tab is irrecoverably unusable, then close the superseded tab immediately after the replacement is verified. Never fan out duplicate tabs for the same task. Doctor/status telemetry must report `managedChatGptTabCount`, and completed or superseded provider-session tabs must be cleaned deterministically back toward one. Do not retain bootstrap or pinned automation-owned tabs merely as history when durable capability and URL evidence already exist.
+
 ## Owner-facing operational references
 
 In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.

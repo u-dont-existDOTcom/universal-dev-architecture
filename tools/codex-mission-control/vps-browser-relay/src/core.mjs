@@ -12,6 +12,10 @@ export const STAGE_LIVENESS_SUMMARY = 'MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1';
 export const PROVIDER_SESSION_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_V1';
 export const PROVIDER_SESSION_MODEL_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1';
 export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1';
+export const MCP_BINDING_PRELOAD_STEP = 'MCP_BINDING_PRELOAD';
+export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
+export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
+export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
 export const CONTINUE_NUDGE_DELAY_MS = 300_000;
 export const STAGE_RECEIPT_GRACE_MS = 360_000;
 
@@ -328,8 +332,7 @@ export function appSelectionForMessage(chat, step) {
   const missionControlSteps = new Set([
     'CAPABILITY',
     'MCP_PREFLIGHT',
-    'EXTRA_HIGH_DIRECT',
-    'EXTRA_HIGH_READER',
+    MCP_BINDING_PRELOAD_STEP,
   ]);
   const githubSteps = new Set([
     'CAPABILITY',
@@ -352,14 +355,17 @@ export function cycleControlPrompt(route, step) {
   if (!providerSessionId) throw new Error('A provider session must be allocated before constructing a supervisory-cycle prompt.');
   const missionControl = route.chat.requiredApps.missionControl;
   const github = route.chat.requiredApps.github;
+  if (step === MCP_BINDING_PRELOAD_STEP) {
+    return `Mission Control binding preload only. Use the selected ${missionControl} app. Your only action in this turn is to call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not reason, use GitHub, make a decision, write a receipt, or answer from values in this prompt/context instead of calling the tool. If the exact tool call is unavailable or fails, fail closed. After the tool result is loaded into this conversation, stop.`;
+  }
   if (step === 'EXTRA_HIGH_DIRECT') {
-    return `MC ${requestId}: remain in Extra High. This is the first turn of provider session ${providerSessionId} for stable supervisor ${supervisorId}. Your first action MUST be a tool call through the selected ${missionControl} app—not prose: call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not claim that the binding is unavailable or mismatched unless that exact tool call returns such a result; otherwise fail closed. Use ${github} for the substantive evidence and canonical receipt write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the exact supervisor_id and provider_session_id from the binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Use ${github} for the substantive evidence and canonical receipt write. Make the bounded decision and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 with the exact loaded binding. Use the exact-copy/structured-transform writer contract. Do not delegate to Work.`;
   }
   if (step === 'EXTRA_HIGH_READER') {
-    return `MC ${requestId}: remain in Extra High. This is the first turn of provider session ${providerSessionId} for stable supervisor ${supervisorId}. Your first action MUST be a tool call through the selected ${missionControl} app—not prose: call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not claim that the binding is unavailable or mismatched unless that exact tool call returns such a result; otherwise fail closed. Use ${github} for the substantive evidence and read it fully into this same conversation together with the returned request binding. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the returned stage_receipt_target as schema_version 2 with the returned request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage EXTRA_HIGH_READER, and status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Preserve the binding in this conversation for all later stages; do not delegate to Work.`;
+    return `MC ${requestId}: remain in Extra High. The exact Mission Control request binding is already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not invoke or reselect ${missionControl}, and do not substitute or alter the loaded supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Use ${github} for the substantive evidence and read it fully into this same conversation together with the loaded request binding. Do not decide. When this reader-stage objective is fully complete, write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the loaded stage_receipt_target as schema_version 2 with the loaded request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage EXTRA_HIGH_READER, and status STAGE_COMPLETE. If more reader work is required before the stage is complete, write status CONTINUE_REQUIRED instead. Preserve the binding in this conversation for all later stages; do not delegate to Work.`;
   }
   if (step === 'PRO_REASONER') {
-    return `MC ${requestId}: switch to Pro. Use the Mission Control request binding already loaded by the first Extra High turn in this same provider session ${providerSessionId}. Do not request new Mission Control data, do not invoke or reselect ${missionControl}, and do not alter the bound supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
+    return `MC ${requestId}: switch to Pro. Use the Mission Control request binding already loaded by the preceding binding-only preload in this same provider session ${providerSessionId}. Do not request new Mission Control data, do not invoke or reselect ${missionControl}, and do not alter the bound supervisor_id, provider_session_id, request_nonce, owner/evidence hashes, or receipt targets. Adjudicate using the substantive GitHub evidence already present in this same conversation and produce the canonical decision block. Do not delegate to Work.`;
   }
   if (step === 'PRO_LIVENESS_CHECK') {
     return `MC ${requestId}: switch to Extra High only to validate liveness of the immediately preceding Pro turn. Use the request binding already present in this same provider session ${providerSessionId} and current GitHub stage receipts. Do not invoke or reselect ${missionControl}; no new Mission Control data is required. Do not reinterpret, improve, replace, or summarize the Pro decision. Determine only whether the requested Pro reasoning stage is actually complete. Write MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1 to the stage_receipt_target already loaded in this conversation as schema_version 2 with the already-bound request_nonce, request_id ${requestId}, supervisor_id ${supervisorId}, provider_session_id ${providerSessionId}, stage PRO_REASONER, and status STAGE_COMPLETE if the Pro stage is complete or CONTINUE_REQUIRED if Pro needs more work. Do not write the canonical decision yet.`;
@@ -385,8 +391,13 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     return { type: 'SEND_CONTROL', step: prior.cycleStep, model: modelForStep(prior.cycleStep) };
   }
   if (status === 'AMBIGUOUS_AFTER_RESTART' || status === 'SUBMISSION_INTENT_RECORDED') return null;
+  if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: MCP_BINDING_PRELOAD_STEP, model: 'EXTRA_HIGH' };
+  if (status === startedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'WAIT_GENERATION', step: MCP_BINDING_PRELOAD_STEP };
+  if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP) && !route.firstTurnMcpReceipt) {
+    return { type: 'WAIT_MCP_BINDING_RECEIPT', step: MCP_BINDING_PRELOAD_STEP };
+  }
   if (route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT') {
-    if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' };
+    if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_DIRECT', model: 'EXTRA_HIGH' };
     if (status === startedCycleStepStatus('EXTRA_HIGH_DIRECT')) return { type: 'WAIT_GENERATION', step: 'EXTRA_HIGH_DIRECT' };
     if (status === completedCycleStepStatus('EXTRA_HIGH_DIRECT')) {
       return continueNudgeEligible(prior, nowMs, continueDelayMs)
@@ -398,7 +409,7 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     return null;
   }
 
-  if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' };
+  if (status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP)) return { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' };
   if (status === startedCycleStepStatus('EXTRA_HIGH_READER') || status === startedCycleStepStatus('EXTRA_HIGH_READER_CONTINUE')) {
     return { type: 'WAIT_GENERATION', step: prior.cycleStep };
   }
@@ -555,30 +566,89 @@ export function selectManagedTabClosures({ targets, chats, state, activeTargetId
   const bootstrapByUrl = new Map(chats.map((chat) => [chat.bootstrapCapability.url, chat]));
   const rememberedByTarget = new Map(Object.values(state.tabs ?? {}).filter(isRecord).map((entry) => [entry.targetId, entry]));
   const managed = targets.flatMap((target) => {
-    if (target.type !== 'page' || typeof target.url !== 'string') return [];
-    let normalized;
-    try { normalized = normalizeConversationUrl(target.url); } catch { return []; }
+    if (!isManagedChatGptTarget(target)) return [];
+    let normalized = null;
+    try { normalized = normalizeConversationUrl(target.url); } catch { /* fresh root is still managed */ }
     const remembered = rememberedByTarget.get(target.id);
     const chat = bootstrapByUrl.get(normalized);
-    if (!chat && !remembered) return [];
     return [{
       targetId: target.id,
       chatId: remembered?.chatId ?? chat?.bootstrapCapability.chatId ?? null,
       providerSessionId: remembered?.providerSessionId ?? null,
-      pinned: remembered?.pinned === true || chat?.pinned === true,
       lastUsedAt: typeof remembered?.lastUsedAt === 'string' ? remembered.lastUsedAt : '1970-01-01T00:00:00.000Z',
       active: target.id === activeTargetId,
     }];
   });
-  const keepBudget = pressure === 'HARD' ? 1 : pressure === 'SOFT' ? Math.min(maxHotTabs, 2) : maxHotTabs;
+  const hardCeiling = Math.min(maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS);
+  if (managed.length > hardCeiling && activeTargetId && !managed.some((entry) => entry.active)) {
+    throw new Error(`Managed ChatGPT tab count ${managed.length} exceeds hard ceiling ${hardCeiling} without the active target.`);
+  }
+  const keepBudget = MANAGED_CHATGPT_STEADY_STATE_TABS;
   if (managed.length <= keepBudget) return [];
   const rankedToKeep = [...managed].sort((left, right) => {
     if (left.active !== right.active) return left.active ? -1 : 1;
-    if (pressure !== 'HARD' && left.pinned !== right.pinned) return left.pinned ? -1 : 1;
     return right.lastUsedAt.localeCompare(left.lastUsedAt);
   });
   const keep = new Set(rankedToKeep.slice(0, keepBudget).map((entry) => entry.targetId));
   return managed.filter((entry) => !keep.has(entry.targetId)).sort((left, right) => left.lastUsedAt.localeCompare(right.lastUsedAt)).map((entry) => entry.targetId);
+}
+
+export function isManagedChatGptTarget(target) {
+  if (target?.type !== 'page' || typeof target.url !== 'string') return false;
+  try {
+    const url = new URL(target.url);
+    return url.protocol === 'https:' && url.hostname === 'chatgpt.com';
+  } catch {
+    return false;
+  }
+}
+
+export function managedChatGptTabTelemetry(targets) {
+  const managedChatGptTabCount = Array.isArray(targets) ? targets.filter(isManagedChatGptTarget).length : 0;
+  return {
+    managedChatGptTabCount,
+    steadyStateTarget: MANAGED_CHATGPT_STEADY_STATE_TABS,
+    transitionMax: MANAGED_CHATGPT_TRANSITION_MAX_TABS,
+    hardCeiling: MANAGED_CHATGPT_HARD_CEILING_TABS,
+    hardCeilingExceeded: managedChatGptTabCount > MANAGED_CHATGPT_HARD_CEILING_TABS,
+  };
+}
+
+export function freshChatTargetPlan(targets, { reusableTargetId = null, reuseFailed = false, hardCeiling = MANAGED_CHATGPT_HARD_CEILING_TABS } = {}) {
+  if (!Number.isInteger(hardCeiling) || hardCeiling < 1 || hardCeiling > MANAGED_CHATGPT_HARD_CEILING_TABS) {
+    throw new Error(`Managed ChatGPT hard ceiling must be 1-${MANAGED_CHATGPT_HARD_CEILING_TABS}.`);
+  }
+  const pages = Array.isArray(targets) ? targets.filter((target) => target?.type === 'page') : [];
+  const managed = pages.filter(isManagedChatGptTarget);
+  const reusable = pages.find((target) => target.id === reusableTargetId) ?? managed[0] ?? null;
+  if (reusable && !reuseFailed) return { type: 'REUSE_CURRENT', targetId: reusable.id, managedChatGptTabCount: managed.length };
+  if (managed.length >= hardCeiling) {
+    throw new Error(`MANAGED_CHATGPT_TAB_HARD_CEILING: refusing to open managed tab ${managed.length + 1}; ceiling is ${hardCeiling}.`);
+  }
+  if (reusable && reuseFailed) {
+    return { type: 'OPEN_REPLACEMENT', supersededTargetId: reusable.id, managedChatGptTabCount: managed.length };
+  }
+  return { type: 'OPEN_INITIAL', supersededTargetId: null, managedChatGptTabCount: managed.length };
+}
+
+export async function replaceUnusableManagedChatGptTarget({
+  targets,
+  reusableTargetId,
+  hardCeiling = MANAGED_CHATGPT_HARD_CEILING_TABS,
+  openReplacement,
+  verifyReplacement,
+  closeTarget,
+}) {
+  const plan = freshChatTargetPlan(targets, { reusableTargetId, reuseFailed: true, hardCeiling });
+  const replacement = await openReplacement();
+  try {
+    await verifyReplacement(replacement);
+  } catch (error) {
+    await closeTarget(replacement.id).catch(() => {});
+    throw error;
+  }
+  if (plan.supersededTargetId) await closeTarget(plan.supersededTargetId);
+  return { ...replacement, created: true, reused: false, replacedTargetId: plan.supersededTargetId };
 }
 
 export function shouldAttemptRoute(prior, nowMs, retryDelayMs) {

@@ -1,5 +1,7 @@
 import {
   CAPABILITY_CHALLENGE_SUMMARY,
+  MANAGED_CHATGPT_HARD_CEILING_TABS,
+  MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_MODEL_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
@@ -12,6 +14,7 @@ import {
   cycleControlPrompt,
   extractQueuedRoutes,
   mcpReadPreflightPrompt,
+  managedChatGptTabTelemetry,
   newProviderSessionId,
   nextSupervisoryCycleAction,
   redactError,
@@ -24,7 +27,7 @@ import {
 import { readMemoryMetrics } from './memory.mjs';
 import { GlobalSubmissionPacer, isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
 
-const FIRST_TURN_MCP_RECEIPT_GRACE_MS = 30_000;
+const MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS = 30_000;
 const PROVIDER_SESSION_PROJECTION_TIMEOUT_MS = 30_000;
 
 export class RelayRuntime {
@@ -84,7 +87,10 @@ export class RelayRuntime {
     const memory = this.#memoryState(metrics);
     if (memory.pressure === 'HARD') return this.#writeStandaloneStatus('PAUSED_MEMORY_HARD', state, { chatId, memory, capability });
 
-    const target = await this.browser.findOrCreateChatTarget(chat.bootstrapCapability.url);
+    const target = await this.browser.findOrCreateChatTarget(chat.bootstrapCapability.url, {
+      reusableTargetId: this.#selectReusableTargetId(state, await this.browser.listTargets()),
+      hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+    });
     this.#rememberTarget(state, chat, target, null, chat.bootstrapCapability.url);
     const mode = await this.browser.verifyModelRoundTrip(target, {
       expectedUrl: chat.bootstrapCapability.url,
@@ -228,7 +234,10 @@ export class RelayRuntime {
       });
     }
 
-    const target = await this.browser.findOrCreateChatTarget(chat.bootstrapCapability.url);
+    const target = await this.browser.findOrCreateChatTarget(chat.bootstrapCapability.url, {
+      reusableTargetId: this.#selectReusableTargetId(state, await this.browser.listTargets()),
+      hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+    });
     this.#rememberTarget(state, chat, target, null, chat.bootstrapCapability.url);
     const key = `mcp-preflight:${chat.bootstrapCapability.chatId}:${chat.bootstrapCapability.challengeId}`;
     const prior = state.deliveries[key] ?? null;
@@ -340,10 +349,7 @@ export class RelayRuntime {
         session.completedAt = new Date().toISOString();
         state.providerSessions[providerSessionId] = session;
         await this.#recordProviderSession({ ...withReceipt, providerSessionId, providerSession: session }, session, 'EXACT');
-        if (session.targetId) {
-          await this.browser.closeTarget(session.targetId).catch((error) => this.#log('warn', 'completed_session_tab_close_failed', { providerSessionId, error: redactError(error) }));
-          for (const [key, tab] of Object.entries(state.tabs)) if (tab?.targetId === session.targetId) delete state.tabs[key];
-        }
+        if (session.targetId) this.#rememberReusableTarget(state, session.targetId, session.conversationUrl);
         state.deliveries[withReceipt.routeKey] = {
           ...(state.deliveries[withReceipt.routeKey] ?? {}),
           status: 'DECISION_RECEIPT_INGESTED',
@@ -423,18 +429,17 @@ export class RelayRuntime {
 
   async #processSupervisoryCycle(route, routes, state, memory) {
     let prior = state.deliveries[route.routeKey] ?? null;
-    const firstTurnStep = route.packet.reasoningLane === 'EXTRA_HIGH_DIRECT' ? 'EXTRA_HIGH_DIRECT' : 'EXTRA_HIGH_READER';
-    if (prior?.status === completedCycleStepStatus(firstTurnStep) && !route.firstTurnMcpReceipt) {
+    if (prior?.status === completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP) && !route.firstTurnMcpReceipt) {
       const completedAt = Date.parse(prior.generationCompletedAt ?? '');
-      if (!Number.isFinite(completedAt) || Date.now() - completedAt < FIRST_TURN_MCP_RECEIPT_GRACE_MS) {
-        state.health.pausedReason = `Waiting for the required first-turn MCP request-binding receipt for ${route.requestId}.`;
+      if (!Number.isFinite(completedAt) || Date.now() - completedAt < MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS) {
+        state.health.pausedReason = `Waiting for the required MCP binding preload receipt for ${route.requestId}.`;
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('AWAITING_FIRST_TURN_MCP_RECEIPT', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
+        return this.#writeStandaloneStatus('AWAITING_MCP_BINDING_PRELOAD_RECEIPT', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
       }
       const session = prior.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
       const failedAt = new Date().toISOString();
       if (session) {
-        const failedSession = { ...session, status: 'FAILED', failedAt, failureStage: 'FIRST_TURN_MCP_RECEIPT_MISSING' };
+        const failedSession = { ...session, status: 'FAILED', failedAt, failureStage: 'MCP_BINDING_PRELOAD_RECEIPT_MISSING' };
         state.providerSessions[session.providerSessionId] = failedSession;
         await this.#recordProviderSession(route, failedSession, failedSession.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
       }
@@ -442,13 +447,13 @@ export class RelayRuntime {
         ...prior,
         status: 'FAILED_RETRYABLE',
         failedAt,
-        failureStage: 'FIRST_TURN_MCP_RECEIPT_MISSING',
-        lastError: 'The first provider turn completed without a server-observed get_supervisory_request_binding receipt; no follow-up message was sent.',
+        failureStage: 'MCP_BINDING_PRELOAD_RECEIPT_MISSING',
+        lastError: 'The binding-only preload completed without a server-observed current-session get_supervisory_request_binding success receipt; no semantic message was sent.',
       };
       state.health.lastError = state.deliveries[route.routeKey].lastError;
       state.health.pausedReason = null;
       state = await this.stateStore.write(state);
-      return this.#writeStandaloneStatus('FIRST_TURN_MCP_RECEIPT_MISSING', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
+      return this.#writeStandaloneStatus('MCP_BINDING_PRELOAD_RECEIPT_MISSING', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
     }
     const action = nextSupervisoryCycleAction(route, prior);
     if (!action) return this.#writeStandaloneStatus('IDLE', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) });
@@ -468,7 +473,11 @@ export class RelayRuntime {
       }
       const providerSessionId = newProviderSessionId();
       const openedAt = new Date().toISOString();
-      target = await this.browser.createFreshChatTarget();
+      const currentTargets = await this.browser.listTargets();
+      target = await this.browser.createFreshChatTarget({
+        reusableTargetId: this.#selectReusableTargetId(state, currentTargets),
+        hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+      });
       const mode = await this.browser.verifyModelRoundTrip(target, {
         expectedUrl: 'https://chatgpt.com/',
         extraHighLabel: route.chat.modelLabels.extraHigh,
@@ -522,7 +531,10 @@ export class RelayRuntime {
         throw new Error(`Provider session ${session.providerSessionId ?? prior.providerSessionId} is not the active exact session for request ${route.requestId}.`);
       }
       if (session.conversationUrl) {
-        target = await this.browser.findOrCreateChatTarget(session.conversationUrl);
+        target = await this.browser.findOrCreateChatTarget(session.conversationUrl, {
+          reusableTargetId: session.targetId,
+          hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+        });
         expectedUrl = session.conversationUrl;
       } else {
         const existing = (await this.browser.listTargets()).find((candidate) => candidate.id === session.targetId && candidate.type === 'page' && candidate.url === 'https://chatgpt.com/');
@@ -544,6 +556,9 @@ export class RelayRuntime {
       await this.#recordProviderSession(route, session, session.conversationUrl ? 'EXACT' : 'PENDING_PROVIDER_ASSIGNMENT');
     }
     route = { ...route, providerSessionId: session.providerSessionId, providerSession: session };
+    if (['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_READER'].includes(action.step) && !session.firstTurnMcpReceiptId) {
+      throw new Error(`Semantic step ${action.step} cannot start before provider session ${session.providerSessionId} has its admitted MCP binding preload receipt.`);
+    }
     const postOpenMetrics = await this.memoryReader(this.config.browser.profileDir);
     memory = this.#memoryState(postOpenMetrics);
     const closedTargets = await this.#applyTabBudget(await this.browser.listTargets(), state, memory.pressure, target.id);
@@ -695,6 +710,7 @@ export class RelayRuntime {
       'backend_model_identity_claimed:false',
       `app_selection_attempted:${messageApps?.status === 'APP_SELECTION_NOT_ATTEMPTED' ? 'false' : 'true'}`,
       `app_selection_status:${messageApps?.status ?? 'UNKNOWN'}`,
+      'semantic_authority:false',
     ];
     if (startSignal) refs.push(`generation_start_signal:${startSignal}`);
     return this.missionControl.recordEvidence(route.workerId, {
@@ -720,6 +736,7 @@ export class RelayRuntime {
         `lifecycle_status:${session.status}`,
         `model_receipt:${session.modelReceiptId}`,
         `first_turn_mcp_receipt:${session.firstTurnMcpReceiptId ?? 'PENDING'}`,
+        `binding_preload_receipt:${session.firstTurnMcpReceiptId ?? 'PENDING'}`,
         'semantic_authority:false',
       ],
       occurredAt,
@@ -779,6 +796,7 @@ export class RelayRuntime {
 
   #rememberTarget(state, chat, target, providerSessionId = null, url = null) {
     const key = providerSessionId ?? `bootstrap:${chat.bootstrapCapability.chatId}`;
+    for (const [existingKey, tab] of Object.entries(state.tabs)) if (tab?.targetId === target.id && existingKey !== key) delete state.tabs[existingKey];
     state.tabs[key] = {
       chatId: providerSessionId ? null : chat.bootstrapCapability.chatId,
       supervisorId: chat.supervisorId,
@@ -790,13 +808,39 @@ export class RelayRuntime {
     };
   }
 
+  #rememberReusableTarget(state, targetId, url) {
+    for (const [key, tab] of Object.entries(state.tabs)) if (tab?.targetId === targetId) delete state.tabs[key];
+    state.tabs['reusable:chatgpt'] = {
+      chatId: null,
+      supervisorId: null,
+      providerSessionId: null,
+      targetId,
+      url: url ?? 'https://chatgpt.com/',
+      pinned: false,
+      reusable: true,
+      lastUsedAt: new Date().toISOString(),
+    };
+  }
+
+  #selectReusableTargetId(state, targets) {
+    const ids = new Set(targets.filter((target) => target?.type === 'page').map((target) => target.id));
+    const explicit = state.tabs?.['reusable:chatgpt'];
+    if (explicit?.targetId && ids.has(explicit.targetId)) return explicit.targetId;
+    const remembered = Object.values(state.tabs ?? {})
+      .filter((tab) => tab?.targetId && ids.has(tab.targetId))
+      .sort((left, right) => (right.lastUsedAt ?? '').localeCompare(left.lastUsedAt ?? ''));
+    return remembered[0]?.targetId ?? null;
+  }
+
   #forgetMissingTargets(state, targets) {
     const ids = new Set(targets.map((target) => target.id));
     for (const [chatId, tab] of Object.entries(state.tabs)) if (!ids.has(tab?.targetId)) delete state.tabs[chatId];
   }
 
   async #writeStandaloneStatus(status, state, detail = {}) {
-    const value = { schemaVersion: 1, status, generatedAt: new Date().toISOString(), pid: process.pid, submitEnabled: this.config.runtime.submitEnabled, capabilityTestEnabled: this.config.runtime.capabilityTestEnabled, submissionPacing: this.submissionPacer.status(state), health: state.health, unresolvedAmbiguities: unresolvedAmbiguities(state), ...detail };
+    const targets = await this.browser.listTargets().catch(() => null);
+    const browserTabs = targets ? managedChatGptTabTelemetry(targets) : { managedChatGptTabCount: null, steadyStateTarget: 1, transitionMax: 2, hardCeiling: 3, hardCeilingExceeded: null };
+    const value = { schemaVersion: 1, status, generatedAt: new Date().toISOString(), pid: process.pid, submitEnabled: this.config.runtime.submitEnabled, capabilityTestEnabled: this.config.runtime.capabilityTestEnabled, submissionPacing: this.submissionPacer.status(state), browserTabs, health: state.health, unresolvedAmbiguities: unresolvedAmbiguities(state), ...detail };
     await this.stateStore.writeStatus(value);
     return value;
   }

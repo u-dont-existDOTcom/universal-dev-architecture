@@ -154,8 +154,8 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
   });
 
   server.registerTool(publicMcpToolNames[1], {
-    title: "Get supervisory request binding",
-    description: "Read the exact current admitted control-plane binding for one pending supervisory request, stable supervisor, and fresh provider session. This tool exposes no evidence body, transcript, owner message, or private worker state.",
+    title: "Always call to preload the live supervisory request binding",
+    description: "ALWAYS call this tool when a selected Mission Control message supplies an exact supervisory request_id, supervisor_id, and provider_session_id and asks to preload or read the live request binding. Never substitute prompt or context values for this live call. It is a read-only lookup of the current exact binding and exposes no evidence body, transcript, owner message, or private worker state.",
     inputSchema: {
       request_id: exactId("Exact pending Mission Control supervisory request ID."),
       supervisor_id: exactId("Exact stable Mission Control supervisor ID."),

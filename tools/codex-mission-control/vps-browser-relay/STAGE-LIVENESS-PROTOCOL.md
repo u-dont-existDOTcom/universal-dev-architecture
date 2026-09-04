@@ -18,16 +18,17 @@ Body:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "request_id": "...",
   "request_nonce": "...",
-  "chat_id": "...",
+  "supervisor_id": "...",
+  "provider_session_id": "provider-session:...",
   "stage": "EXTRA_HIGH_READER | PRO_REASONER",
   "status": "STAGE_COMPLETE | CONTINUE_REQUIRED"
 }
 ```
 
-Mission Control accepts a receipt only from the centrally configured stage-liveness issue and authorized GitHub writer, bound to the exact pending request, nonce, chat, stage, and admitted time window.
+Mission Control accepts a current provider-session receipt only from the centrally configured stage-liveness issue and authorized GitHub writer, bound to the exact pending request, nonce, stable supervisor, provider session, stage, and admitted time window. Legacy schema-version-1 chat receipts remain parseable only for legacy route records; they cannot satisfy a schema-version-3 provider-session cycle.
 
 ## Extra High stage
 

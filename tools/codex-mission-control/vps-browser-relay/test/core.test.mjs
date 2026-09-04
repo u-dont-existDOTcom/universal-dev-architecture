@@ -4,6 +4,8 @@ import {
   CAPABILITY_CHALLENGE_SUMMARY,
   CAPABILITY_VERIFIED_SUMMARY,
   CONTINUE_NUDGE_DELAY_MS,
+  MANAGED_CHATGPT_HARD_CEILING_TABS,
+  MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGE_LIVENESS_SUMMARY,
@@ -18,6 +20,8 @@ import {
   cycleControlPrompt,
   defaultState,
   extractQueuedRoutes,
+  freshChatTargetPlan,
+  managedChatGptTabTelemetry,
   mcpReadPreflightPrompt,
   newProviderSessionId,
   nextSupervisoryCycleAction,
@@ -25,6 +29,7 @@ import {
   oneShotExitCode,
   parseChatDirectory,
   parseSupervisoryCycleRouteBody,
+  replaceUnusableManagedChatGptTarget,
   resolveMemoryPolicy,
   selectManagedTabClosures,
   sha256,
@@ -57,13 +62,16 @@ test('message app requirements are exact and step-specific', () => {
     referencedLabels: ['GitHub'],
   });
   assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, ['Mission Control']);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, ['Mission Control']);
+  assert.deepEqual(appSelectionForMessage(chat, MCP_BINDING_PRELOAD_STEP).requiredLabels, ['Mission Control']);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT').requiredLabels, []);
+  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_READER').requiredLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER').requiredLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'PRO_LIVENESS_CHECK').referencedLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_WRITER').requiredLabels, []);
-  assert.deepEqual(appSelectionForMessage(chat, 'PRO_REASONER_CONTINUE').requiredLabels, []);
-  assert.deepEqual(appSelectionForMessage(chat, 'EXTRA_HIGH_DIRECT_CONTINUE').requiredLabels, []);
+  for (const step of ['EXTRA_HIGH_DIRECT_CONTINUE', 'EXTRA_HIGH_READER_CONTINUE', 'PRO_REASONER_CONTINUE', 'PRO_LIVENESS_CHECK_CONTINUE', 'EXTRA_HIGH_WRITER_CONTINUE']) {
+    assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, []);
+    assert.deepEqual(appSelectionForMessage(chat, step).referencedLabels, []);
+  }
 });
 
 test('provider sessions are new transport identities and never reuse the stable supervisor ID', () => {
@@ -141,21 +149,25 @@ test('MCP preflight prompt is exact-bound and cannot authorize GitHub or Mission
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
 });
 
-test('only the first cycle turn reads Mission Control; same-session follow-ups reuse the bound context', () => {
+test('binding preload is retrieval-only and every semantic turn reuses the loaded binding without Mission Control', () => {
   const route = escalatedRoute();
+  const preload = cycleControlPrompt(route, MCP_BINDING_PRELOAD_STEP);
+  assert.match(preload, /^Mission Control binding preload only\./);
+  assert.match(preload, /get_supervisory_request_binding exactly once/);
+  assert.match(preload, /request_id r1, supervisor_id spec, and provider_session_id provider-session:test/);
+  assert.match(preload, /Do not reason, use GitHub, make a decision, write a receipt/);
+  assert.match(preload, /After the tool result is loaded into this conversation, stop\.$/);
+  assert.doesNotMatch(preload, /MISSION_CONTROL_CANONICAL_DECISION|MISSION_CONTROL_CHAT_STAGE_RECEIPT|delegate to Work/);
   const reader = cycleControlPrompt(route, 'EXTRA_HIGH_READER');
-  assert.match(reader, /get_supervisory_request_binding/);
-  assert.match(reader, /first action MUST be a tool call/);
-  assert.match(reader, /Do not claim that the binding is unavailable or mismatched unless that exact tool call returns such a result/);
-  assert.match(reader, /request_id r1, supervisor_id spec, and provider_session_id provider-session:test/);
-  for (const step of ['PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
+  assert.match(reader, /already loaded by the preceding binding-only preload/);
+  for (const step of ['EXTRA_HIGH_READER', 'PRO_REASONER', 'PRO_LIVENESS_CHECK', 'EXTRA_HIGH_WRITER']) {
     const prompt = cycleControlPrompt(route, step);
     assert.doesNotMatch(prompt, /get_supervisory_request_binding|get_stage_liveness_state/);
     assert.match(prompt, /do not (invoke or reselect|refresh)/i);
   }
   const direct = cycleControlPrompt(directRouteFixture(), 'EXTRA_HIGH_DIRECT');
-  assert.match(direct, /get_supervisory_request_binding/);
-  assert.match(direct, /first action MUST be a tool call/);
+  assert.match(direct, /already loaded by the preceding binding-only preload/);
+  assert.doesNotMatch(direct, /get_supervisory_request_binding|get_stage_liveness_state/);
 });
 
 test('route extraction binds durable stage-liveness receipts to the exact worker/request', () => {
@@ -179,7 +191,10 @@ test('route extraction binds durable stage-liveness receipts to the exact worker
 
 test('escalated route waits for durable reader liveness before entering Pro', () => {
   const route = escalatedRoute();
-  assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' });
+  assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: MCP_BINDING_PRELOAD_STEP, model: 'EXTRA_HIGH' });
+  assert.equal(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP), cycleStep: MCP_BINDING_PRELOAD_STEP }).type, 'WAIT_MCP_BINDING_RECEIPT');
+  const boundRoute = { ...route, firstTurnMcpReceipt: { receiptId: 'binding-current' } };
+  assert.deepEqual(nextSupervisoryCycleAction(boundRoute, { status: completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP), cycleStep: MCP_BINDING_PRELOAD_STEP }), { type: 'SEND_CONTROL', step: 'EXTRA_HIGH_READER', model: 'EXTRA_HIGH' });
   assert.equal(nextSupervisoryCycleAction(route, { status: startedCycleStepStatus('EXTRA_HIGH_READER'), cycleStep: 'EXTRA_HIGH_READER' }).type, 'WAIT_GENERATION');
 
   const readerPrior = completedPrior('EXTRA_HIGH_READER', '2026-09-02T12:00:00.000Z', '2026-09-02T12:04:00.000Z');
@@ -277,7 +292,7 @@ test('ambiguous routes never receive automatic recovery', () => {
   assert.equal(nextSupervisoryCycleAction(escalatedRoute(), { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
 });
 
-test('tab plan preserves active target then pinned PM and closes LRU', () => {
+test('tab plan returns every surplus managed ChatGPT tab toward one-tab steady state without pinning history', () => {
   const chats = parseChatDirectory([chatFixture('pm', 'PROJECT_MANAGER'), chatFixture(), chatFixture('b'), chatFixture('c')]);
   const targets = chats.map((chat) => ({ id: chat.supervisorId, type: 'page', url: chat.bootstrapCapability.url }));
   const state = defaultState();
@@ -287,7 +302,43 @@ test('tab plan preserves active target then pinned PM and closes LRU', () => {
     b: { targetId: 'b', lastUsedAt: '2026-01-03T00:00:00Z' },
     c: { targetId: 'c', lastUsedAt: '2026-01-04T00:00:00Z' },
   };
-  assert.deepEqual(selectManagedTabClosures({ targets, chats, state, activeTargetId: 'b', pressure: 'NORMAL', maxHotTabs: 3 }), ['spec']);
+  assert.deepEqual(selectManagedTabClosures({ targets, chats, state, activeTargetId: 'b', pressure: 'NORMAL', maxHotTabs: 3 }), ['pm', 'spec', 'c']);
+});
+
+test('fresh chat reuses the current managed target and fails closed before opening a fourth tab', () => {
+  const targets = [
+    { id: 'current', type: 'page', url: 'https://chatgpt.com/c/current' },
+    { id: 'transition', type: 'page', url: 'https://chatgpt.com/c/transition' },
+    { id: 'recovery', type: 'page', url: 'https://chatgpt.com/auth/recovery' },
+    { id: 'unmanaged', type: 'page', url: 'https://example.com/' },
+  ];
+  assert.deepEqual(freshChatTargetPlan(targets, { reusableTargetId: 'current' }), {
+    type: 'REUSE_CURRENT', targetId: 'current', managedChatGptTabCount: 3,
+  });
+  assert.throws(() => freshChatTargetPlan(targets, {
+    reusableTargetId: 'current', reuseFailed: true, hardCeiling: MANAGED_CHATGPT_HARD_CEILING_TABS,
+  }), /refusing to open managed tab 4/);
+  assert.deepEqual(managedChatGptTabTelemetry(targets), {
+    managedChatGptTabCount: 3, steadyStateTarget: 1, transitionMax: 2, hardCeiling: 3, hardCeilingExceeded: false,
+  });
+});
+
+test('replacement recovery verifies the replacement before closing the superseded target', async () => {
+  assert.deepEqual(freshChatTargetPlan([
+    { id: 'broken', type: 'page', url: 'https://chatgpt.com/c/broken' },
+  ], { reusableTargetId: 'broken', reuseFailed: true }), {
+    type: 'OPEN_REPLACEMENT', supersededTargetId: 'broken', managedChatGptTabCount: 1,
+  });
+  const operations = [];
+  const replacement = await replaceUnusableManagedChatGptTarget({
+    targets: [{ id: 'broken', type: 'page', url: 'https://chatgpt.com/c/broken' }],
+    reusableTargetId: 'broken',
+    openReplacement: async () => { operations.push('open:replacement'); return { id: 'replacement' }; },
+    verifyReplacement: async () => { operations.push('verify:replacement'); },
+    closeTarget: async (targetId) => { operations.push(`close:${targetId}`); },
+  });
+  assert.equal(replacement.replacedTargetId, 'broken');
+  assert.deepEqual(operations, ['open:replacement', 'verify:replacement', 'close:broken']);
 });
 
 function escalatedRoute() {

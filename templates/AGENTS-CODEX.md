@@ -73,6 +73,8 @@ If the gate returns `terminalResponseAllowed:false`, `mustContinue:true`, or exi
 
 Context compaction, response/token pressure, many tool calls, browser/tab cleanup, a checkpoint commit, the end of a batch with a known next ordinal, provider cooldown, retry/backoff, and other recoverable execution pressure are recovery events rather than terminal conditions. Persist state and continue from the first missing/stale action without repeating verified work. During an admitted wait, advance independent safe in-scope work and continue bounded checks of the changing condition.
 
+For managed ChatGPT browser work, a fresh conversation means New chat in the current verified reusable tab. Keep one managed ChatGPT tab in steady state, allow two only for bounded transition/recovery, and fail closed before opening a fourth because three is the absolute hard ceiling. Replace a tab only when the current one is irrecoverably unusable, then close the superseded automation-owned tab immediately after verifying the replacement. Never fan out duplicate task tabs. Include `managedChatGptTabCount` in doctor/status telemetry and clean completed or superseded provider-session tabs deterministically back toward one; bootstrap or pinned automation-owned tabs are not retained merely for history when durable capability exists.
+
 A permitted reasoning-review or external-blocker pause ends only the current execution turn and leaves the root task open/resumable. See `patterns/terminal-response-admission-and-autonomous-continuation.md`.
 
 ## Completion gate

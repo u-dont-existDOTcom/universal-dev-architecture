@@ -449,6 +449,8 @@ For browser automation:
 - close stale, duplicate, completed, one-time, and superseded automation-owned tabs after preserving state;
 - never close owner/pre-existing/pinned tabs, unsaved forms, pending transfers/results, paid/irreversible actions, or tabs needed to reconcile ambiguity.
 
+For automation-owned ChatGPT tabs specifically, create a fresh conversation with New chat in the current verified reusable tab. Keep one in steady state, allow two only during bounded transition/recovery, and treat three as the absolute hard ceiling: fail closed before opening a fourth. A replacement is allowed only after the current tab is irrecoverably unusable; close the superseded tab immediately once the replacement is verified. Never fan out duplicate tabs for one task. Report `managedChatGptTabCount` in doctor/status telemetry and deterministically clean completed/superseded provider-session tabs back toward one. Bootstrap or pinned automation-owned ChatGPT tabs are not history stores once durable capability and URL records exist.
+
 A persistent chat does not require a persistent open tab. Persist URL, account alias, scope key, epoch, capsule, and last reviewed boundary locally.
 
 ## 11. Continue automatically and keep the reasoning handoff live

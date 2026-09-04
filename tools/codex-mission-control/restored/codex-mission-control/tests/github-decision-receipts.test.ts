@@ -177,7 +177,7 @@ test("old provider-session MCP, transport, stage, and canonical receipts cannot 
     if (event.data.type !== "evidence_receipt_recorded" || event.data.summary !== providerSessionMcpSummary) continue;
     event.data.refs = event.data.refs.map((ref) => ref === `provider_session:${providerSessionId}` ? `provider_session:${oldSession}` : ref);
   }
-  assert.throws(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()), /first-turn MCP/);
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(events, candidate(), policy()), /MCP binding preload/);
 
   const oldDecision = { ...decisionEnvelope(), provider_session_id: oldSession };
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(boundEvents(), { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(oldDecision)}` }, policy()), /provider session ID/);
@@ -193,7 +193,7 @@ test("old provider-session MCP, transport, stage, and canonical receipts cannot 
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(oldStages, candidate(), policy()), /semantic stage completion/);
 });
 
-test("ordinary provider-session admission needs one first-turn MCP receipt and no follow-up stage receipt", () => {
+test("ordinary provider-session admission needs preload transport plus one binding receipt and no follow-up stage receipt", () => {
   const events = pendingEvents().map((event) => {
     if (event.data.type !== "worker_message_recorded") return event;
     const packet = JSON.parse(event.data.body.slice(supervisoryCycleRoutePrefix.length));
@@ -202,7 +202,12 @@ test("ordinary provider-session admission needs one first-turn MCP receipt and n
     if (copy.data.type === "worker_message_recorded") copy.data.body = supervisoryCycleRoutePrefix + JSON.stringify(packet);
     return copy;
   });
-  events.push(...capabilityEvents(), ...providerSessionEvents(), transportStage("direct", 9, "EXTRA_HIGH_DIRECT", "Extra High", "2026-09-02T00:04:00.000Z"));
+  events.push(
+    ...capabilityEvents(),
+    ...providerSessionEvents(),
+    transportStage("preload", 9, "MCP_BINDING_PRELOAD", "Extra High", "2026-09-02T00:03:30.000Z"),
+    transportStage("direct", 10, "EXTRA_HIGH_DIRECT", "Extra High", "2026-09-02T00:04:30.000Z"),
+  );
   const direct = {
     ...decisionEnvelope(),
     reasoning_lane: "EXTRA_HIGH_DIRECT" as const,
@@ -299,8 +304,8 @@ function providerSessionEvents(): StoredEvent[] {
 
 function semanticStageEvents(): StoredEvent[] {
   return [
-    livenessEvent("reader-live", 10, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:05:00.000Z"),
-    livenessEvent("pro-live", 12, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:07:00.000Z"),
+    livenessEvent("reader-live", 11, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:05:00.000Z"),
+    livenessEvent("pro-live", 13, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:07:00.000Z"),
   ];
 }
 
@@ -309,18 +314,19 @@ function boundEvents(): StoredEvent[] {
     ...pendingEvents(),
     ...capabilityEvents(),
     ...providerSessionEvents(),
-    transportStage("reader", 9, "EXTRA_HIGH_READER", "Extra High", "2026-09-02T00:04:00.000Z"),
-    livenessEvent("reader-live", 10, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:05:00.000Z"),
-    transportStage("pro", 11, "PRO_REASONER", "Pro", "2026-09-02T00:06:00.000Z"),
-    livenessEvent("pro-live", 12, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:07:00.000Z"),
-    transportStage("writer", 13, "EXTRA_HIGH_WRITER", "Extra High", "2026-09-02T00:08:00.000Z"),
+    transportStage("preload", 9, "MCP_BINDING_PRELOAD", "Extra High", "2026-09-02T00:03:30.000Z"),
+    transportStage("reader", 10, "EXTRA_HIGH_READER", "Extra High", "2026-09-02T00:04:30.000Z"),
+    livenessEvent("reader-live", 11, "EXTRA_HIGH_READER", "STAGE_COMPLETE", "2026-09-02T00:05:00.000Z"),
+    transportStage("pro", 12, "PRO_REASONER", "Pro", "2026-09-02T00:06:00.000Z"),
+    livenessEvent("pro-live", 13, "PRO_REASONER", "STAGE_COMPLETE", "2026-09-02T00:07:00.000Z"),
+    transportStage("writer", 14, "EXTRA_HIGH_WRITER", "Extra High", "2026-09-02T00:08:00.000Z"),
   ];
 }
 
 function transportStage(id: string, sequence: number, step: string, model: string, occurredAt: string): StoredEvent {
   return evidenceEvent(id, sequence, relayStageSummary, [
     "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${providerSessionId}`, `conversation_url:https://chatgpt.com/c/current-session`, `step:${step}`, `model_ui_label:${model}`, `prompt_sha256:${"c".repeat(64)}`,
-    "generation_state:COMPLETE", `app_selection_attempted:${step === "EXTRA_HIGH_READER" || step === "EXTRA_HIGH_DIRECT"}`, `observed_at:${occurredAt}`, "assistant_content_observed:false", "backend_model_identity_claimed:false",
+    "generation_state:COMPLETE", `app_selection_attempted:${step === "MCP_BINDING_PRELOAD"}`, `observed_at:${occurredAt}`, "assistant_content_observed:false", "backend_model_identity_claimed:false", "semantic_authority:false",
   ], occurredAt);
 }
 

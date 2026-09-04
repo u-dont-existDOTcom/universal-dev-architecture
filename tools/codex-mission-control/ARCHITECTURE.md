@@ -67,11 +67,12 @@ are in
 
 ## Stable supervisor with a fresh provider session per cycle
 
-The registered identity is the supervisor, not one permanent browser conversation. Each admitted cycle opens a genuinely fresh ChatGPT conversation, verifies the exact visible model round trip, and selects Mission Control only on the first Extra High turn. That turn reads the exact session-local request binding. Ordinary decisions remain entirely in Extra High. An admitted escalated decision keeps later turns in that same fresh conversation, switches to Pro, then returns to Extra High for the GitHub write without another Mission Control selection or read:
+The registered identity is the supervisor, not one permanent browser conversation. Each admitted cycle uses **New chat in the current verified reusable ChatGPT tab** to create a genuinely fresh conversation, verifies the exact visible model round trip, and selects Mission Control only for a transport-only `MCP_BINDING_PRELOAD` turn. That turn does exactly one read of the exact session-local request binding and has no semantic authority. Only after its generation completes, the current provider-session tool receipt is visible, and global pacing permits another submission may semantic work begin in the same conversation. Ordinary decisions remain entirely in Extra High after preload. An admitted escalated decision keeps later turns in that same fresh conversation, switches to Pro, then returns to Extra High for the GitHub write without another Mission Control selection or read:
 
 ```text
-ordinary:   fresh chat -> Extra High MCP binding + evidence -> reason -> GitHub write
-escalated:  fresh chat -> Extra High MCP binding + evidence -> same-chat Pro reason
+ordinary:   reusable tab -> New chat -> MCP binding preload -> Extra High evidence/reason/write
+escalated:  reusable tab -> New chat -> MCP binding preload -> Extra High evidence reader
+                                      -> same-chat Pro reason
                                       -> same-chat Extra High liveness + exact writer
                                       -> GitHub issue comment
                                       -> signed webhook -> Mission Control ledger
@@ -80,7 +81,9 @@ escalated:  fresh chat -> Extra High MCP binding + evidence -> same-chat Pro rea
 
 The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
 
-Every stable supervisor fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current bootstrap capability receipts. Every cycle also requires a fresh active provider-session record, exact conversation URL, session-local model proof, first-turn MCP telemetry, and session-bound transport/stage receipts. Every canonical decision receipt binds the request ID, stable supervisor ID, provider-session ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale, mismatched, or cross-session GitHub receipts do not enter the ledger.
+Every stable supervisor fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current bootstrap capability receipts. Every cycle also requires a fresh active provider-session record, exact conversation URL, session-local model proof, the server-observed `tools/call get_supervisory_request_binding` receipt for that exact preload, and session-bound transport/stage receipts. Generic MCP traffic, app-chip state, prompt prose, and stale provider-session receipts do not satisfy preload. Every canonical decision receipt binds the request ID, stable supervisor ID, provider-session ID, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, and reasoning lane. Stale, mismatched, or cross-session GitHub receipts do not enter the ledger.
+
+Managed ChatGPT tabs follow the owner-level 1/2/3 discipline: one in steady state, two only during bounded transition or recovery, and three as the absolute hard ceiling. The relay fails closed before opening a fourth. It opens a replacement only after same-target New chat navigation is irrecoverably unusable, verifies the replacement before immediately closing the superseded tab, never fans out duplicate tabs for one task, reports the managed count in doctor/status output, and deterministically cleans completed or superseded sessions back toward one. Bootstrap or pinned automation-owned tabs are not retained merely as history once durable capability evidence exists.
 
 ### Model-agnostic stuck-chat recovery
 

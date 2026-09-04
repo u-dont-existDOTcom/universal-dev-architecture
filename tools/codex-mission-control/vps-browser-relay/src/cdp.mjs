@@ -1,4 +1,10 @@
-import { normalizeConversationUrl } from './core.mjs';
+import {
+  MANAGED_CHATGPT_HARD_CEILING_TABS,
+  freshChatTargetPlan,
+  managedChatGptTabTelemetry,
+  normalizeConversationUrl,
+  replaceUnusableManagedChatGptTarget,
+} from './core.mjs';
 
 const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
@@ -360,6 +366,7 @@ export class ChromeDevtoolsBrowser {
       browser: version.Browser ?? 'UNKNOWN',
       protocolVersion: version['Protocol-Version'] ?? 'UNKNOWN',
       targetCount: targets.length,
+      ...managedChatGptTabTelemetry(targets),
       webSocketDebuggerUrlPresent: typeof version.webSocketDebuggerUrl === 'string',
     };
   }
@@ -370,7 +377,7 @@ export class ChromeDevtoolsBrowser {
     return value.map((target) => ({ id: target.id, type: target.type, title: target.title, url: target.url, webSocketDebuggerUrl: target.webSocketDebuggerUrl }));
   }
 
-  async findOrCreateChatTarget(chatUrl) {
+  async findOrCreateChatTarget(chatUrl, { reusableTargetId = null, hardCeiling = MANAGED_CHATGPT_HARD_CEILING_TABS } = {}) {
     const normalized = normalizeConversationUrl(chatUrl);
     const targets = await this.listTargets();
     for (const target of targets) {
@@ -382,38 +389,46 @@ export class ChromeDevtoolsBrowser {
         }
       } catch { /* unrelated page */ }
     }
-    const created = await this.#json(`/json/new?${encodeURIComponent(normalized)}`, { method: 'PUT' });
-    if (!created?.id || !created?.webSocketDebuggerUrl) throw new Error('Chrome did not create a debuggable page target.');
-    await this.activateTarget(created.id);
-    return { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url: normalized, webSocketDebuggerUrl: created.webSocketDebuggerUrl, created: true };
+    return replaceUnusableManagedChatGptTarget({
+      targets,
+      reusableTargetId,
+      hardCeiling,
+      openReplacement: () => this.#openTarget(normalized, 'Chrome did not create a debuggable page target.'),
+      verifyReplacement: (replacement) => this.#prepareTarget(replacement, normalized, false),
+      closeTarget: (targetId) => this.closeTarget(targetId),
+    });
   }
 
-  async createFreshChatTarget() {
+  async createFreshChatTarget({ reusableTargetId = null, hardCeiling = MANAGED_CHATGPT_HARD_CEILING_TABS } = {}) {
     const freshUrl = 'https://chatgpt.com/';
-    const created = await this.#json(`/json/new?${encodeURIComponent(freshUrl)}`, { method: 'PUT' });
-    if (!created?.id || !created?.webSocketDebuggerUrl) throw new Error('Chrome did not create a debuggable fresh-chat page target.');
-    await this.activateTarget(created.id);
-    const target = { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url: freshUrl, webSocketDebuggerUrl: created.webSocketDebuggerUrl, created: true };
-    await this.#withPageClient(target, async (client) => {
-      // Brave can acknowledge /json/new before applying its query-string URL,
-      // leaving a durable about:blank target. Make the requested navigation an
-      // explicit CDP operation so a fresh supervisory cycle is never bound to
-      // an uninitialized provider surface.
-      const navigation = await client.send('Page.navigate', { url: freshUrl });
-      if (navigation?.errorText) throw new Error(`Fresh ChatGPT navigation failed: ${navigation.errorText}`);
-      await waitFor(async () => {
-        const result = await client.callFunction(PAGE_INSPECTION_FN, [freshUrl]);
-        if (result?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
-        if (result?.urlMismatch) return false;
-        return result?.composerFound ? result : false;
-      }, this.pageReadyTimeoutMs, 500, 'Fresh ChatGPT composer did not become ready.');
-      await waitFor(async () => {
-        const result = await client.callFunction(CURRENT_MODEL_FN, [freshUrl]);
-        if (result?.urlMismatch) return false;
-        return result?.controlFound ? result : false;
-      }, this.pageReadyTimeoutMs, 300, 'Fresh ChatGPT model control did not become ready.');
-    });
-    return target;
+    const targets = await this.listTargets();
+    const plan = freshChatTargetPlan(targets, { reusableTargetId, hardCeiling });
+    if (plan.type === 'REUSE_CURRENT') {
+      const current = targets.find((target) => target.id === plan.targetId);
+      if (!current) throw new Error(`Reusable ChatGPT target ${plan.targetId} disappeared before New chat navigation.`);
+      const target = { ...current, url: freshUrl, created: false, reused: true };
+      try {
+        await this.#prepareTarget(target, freshUrl, true);
+        return target;
+      } catch (reuseError) {
+        try {
+          return await replaceUnusableManagedChatGptTarget({
+            targets: await this.listTargets(),
+            reusableTargetId: plan.targetId,
+            hardCeiling,
+            openReplacement: () => this.#openTarget(freshUrl, 'Chrome did not create a debuggable replacement fresh-chat page target.'),
+            verifyReplacement: (replacement) => this.#prepareTarget(replacement, freshUrl, true),
+            closeTarget: (targetId) => this.closeTarget(targetId),
+          });
+        } catch (replacementError) {
+          if (replacementError && typeof replacementError === 'object') replacementError.cause = reuseError;
+          throw replacementError;
+        }
+      }
+    }
+    const target = await this.#openTarget(freshUrl, 'Chrome did not create a debuggable fresh-chat page target.');
+    await this.#prepareTarget(target, freshUrl, true);
+    return { ...target, created: true, reused: false, replacedTargetId: null };
   }
 
   async activateTarget(targetId) {
@@ -763,6 +778,36 @@ export class ChromeDevtoolsBrowser {
         inspectedAssistantOutput: false,
         completedAtObserved: new Date().toISOString(),
       };
+    });
+  }
+
+  async #openTarget(url, errorMessage) {
+    const created = await this.#json(`/json/new?${encodeURIComponent(url)}`, { method: 'PUT' });
+    if (!created?.id || !created?.webSocketDebuggerUrl) throw new Error(errorMessage);
+    await this.activateTarget(created.id);
+    return { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url, webSocketDebuggerUrl: created.webSocketDebuggerUrl };
+  }
+
+  async #prepareTarget(target, url, requireModelControl) {
+    await this.activateTarget(target.id);
+    await this.#withPageClient(target, async (client) => {
+      // Brave can acknowledge /json/new before applying its query-string URL.
+      // An explicit same-target navigation implements New chat without tab fan-out.
+      const navigation = await client.send('Page.navigate', { url });
+      if (navigation?.errorText) throw new Error(`ChatGPT navigation failed: ${navigation.errorText}`);
+      await waitFor(async () => {
+        const result = await client.callFunction(PAGE_INSPECTION_FN, [url]);
+        if (result?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
+        if (result?.urlMismatch) return false;
+        return result?.composerFound ? result : false;
+      }, this.pageReadyTimeoutMs, 500, 'ChatGPT composer did not become ready after navigation.');
+      if (requireModelControl) {
+        await waitFor(async () => {
+          const result = await client.callFunction(CURRENT_MODEL_FN, [url]);
+          if (result?.urlMismatch) return false;
+          return result?.controlFound ? result : false;
+        }, this.pageReadyTimeoutMs, 300, 'Fresh ChatGPT model control did not become ready.');
+      }
     });
   }
 

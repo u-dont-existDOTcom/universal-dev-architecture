@@ -37,39 +37,70 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
-test('escalated route creates a fresh provider session, selects Mission Control for the reader, then advances without reselection in the same chat', async () => {
+test('escalated route preloads the binding, then advances reader and Pro without Mission Control reselection in the same chat', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
 
   const first = await runtime.cycle();
-  assert.equal(first.status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal(first.status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  assert.equal(first.browserTabs.managedChatGptTabCount, 1);
+  assert.equal(first.browserTabs.hardCeiling, 3);
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.freshChatCalls, 1);
   assert.match(store.state.deliveries['request:r-1'].conversationUrl, /^https:\/\/chatgpt\.com\/c\/fresh-/);
   assert.equal(mc.recordedEvidence.filter((item) => item.summary === RELAY_STAGE_SUMMARY).length, 1);
   const firstStage = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY);
   assert.ok(firstStage.refs.includes('generation_state:STARTED'));
+  assert.ok(firstStage.refs.includes('step:MCP_BINDING_PRELOAD'));
   assert.ok(firstStage.refs.includes('assistant_content_observed:false'));
+  assert.ok(firstStage.refs.includes('semantic_authority:false'));
 
   const second = await runtime.cycle();
-  assert.equal(second.status, 'EXTRA_HIGH_READER_COMPLETE');
+  assert.equal(second.status, 'MCP_BINDING_PRELOAD_COMPLETE');
   assert.equal(browser.submitCalls, 1);
   const stages = mc.recordedEvidence.filter((item) => item.summary === RELAY_STAGE_SUMMARY);
   assert.ok(stages.some((item) => item.refs.includes('generation_state:COMPLETE')));
 
-  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', store.state.deliveries['request:r-1'].providerSessionId));
   const third = await runtime.cycle();
-  assert.equal(third.status, 'PRO_REASONER_GENERATION_STARTED');
+  assert.equal(third.status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal(browser.submitCalls, 2);
+  assert.equal(browser.freshChatCalls, 1);
+  assert.equal(await runtime.cycle().then((result) => result.status), 'EXTRA_HIGH_READER_COMPLETE');
+  mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', store.state.deliveries['request:r-1'].providerSessionId));
+  const fifth = await runtime.cycle();
+  assert.equal(fifth.status, 'PRO_REASONER_GENERATION_STARTED');
   assert.equal(browser.switchLabels.at(-1), 'Pro');
+  assert.equal(browser.submitCalls, 3);
+  assert.equal(browser.freshChatCalls, 1);
+  assert.deepEqual(browser.selectAppsCalls, [
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+  ]);
+  const readerStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:EXTRA_HIGH_READER') && item.refs.includes('generation_state:STARTED'));
+  assert.ok(readerStart.refs.includes('app_selection_attempted:false'));
+  const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
+  assert.ok(proStart.refs.includes('app_selection_attempted:false'));
+});
+
+test('ordinary direct work cannot precede preload and starts without a second Mission Control selection', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [routeEvent('r-1', 'route', 'EXTRA_HIGH_DIRECT')] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_DIRECT_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
   assert.equal(browser.freshChatCalls, 1);
   assert.deepEqual(browser.selectAppsCalls, [
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
   ]);
-  const proStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY && item.refs.includes('step:PRO_REASONER') && item.refs.includes('generation_state:STARTED'));
-  assert.ok(proStart.refs.includes('app_selection_attempted:false'));
+  const directStart = mc.recordedEvidence.find((item) => item.summary === RELAY_STAGE_SUMMARY
+    && item.refs.includes('step:EXTRA_HIGH_DIRECT') && item.refs.includes('generation_state:STARTED'));
+  assert.ok(directStart.refs.includes('app_selection_attempted:false'));
+  assert.ok(directStart.refs.includes('semantic_authority:false'));
 });
 
 test('fresh provider session is visible in Mission Control before the first send', async () => {
@@ -78,25 +109,26 @@ test('fresh provider session is visible in Mission Control before the first send
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
 
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   assert.ok(mc.fetchFleetCalls >= 3);
   assert.equal(browser.submitCalls, 1);
 });
 
-test('completed first turn without its MCP binding receipt fails before any follow-up and retries in a fresh session', async () => {
+test('completed binding preload without its exact tool receipt fails before semantic work even after generic MCP contact', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence(), autoFirstTurnMcp: false });
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
 
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   const failedSessionId = store.state.deliveries['request:r-1'].providerSessionId;
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_COMPLETE');
-  assert.equal((await runtime.cycle()).status, 'FIRST_TURN_MCP_RECEIPT_MISSING');
+  mc.evidence.push(genericMcpContactEvidence(failedSessionId));
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_RECEIPT_MISSING');
   assert.equal(browser.submitCalls, 1);
   assert.equal(store.state.providerSessions[failedSessionId].status, 'FAILED');
   await runtime.resolve('request:r-1', 'retry');
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
   assert.equal(browser.freshChatCalls, 2);
   assert.notEqual(store.state.deliveries['request:r-1'].providerSessionId, failedSessionId);
@@ -210,10 +242,9 @@ test('fresh-session creation and every same-chat send share the global pacing ga
   const now = { value: Date.parse('2026-09-02T00:00:01.000Z') };
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, now: () => now.value });
 
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   const completed = await runtime.cycle();
-  assert.equal(completed.status, 'EXTRA_HIGH_READER_COMPLETE', JSON.stringify(completed));
-  mc.evidence.push(stageLivenessEvidence('reader-complete-paced', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', store.state.deliveries['request:r-1'].providerSessionId));
+  assert.equal(completed.status, 'MCP_BINDING_PRELOAD_COMPLETE', JSON.stringify(completed));
   const before = structuredClone(store.state.deliveries['request:r-1']);
   const blocked = await runtime.cycle();
   assert.equal(blocked.status, 'GLOBAL_SUBMISSION_COOLDOWN');
@@ -222,10 +253,10 @@ test('fresh-session creation and every same-chat send share the global pacing ga
   assert.deepEqual(store.state.deliveries['request:r-1'], before);
 
   now.value += 60_000;
-  assert.equal((await runtime.cycle()).status, 'PRO_REASONER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
   assert.equal(browser.submitCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
-    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] },
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
   ]);
   assert.equal(browser.appSelectionEvidence.length, 1);
 });
@@ -240,12 +271,12 @@ test('hard memory pressure performs no submission', async () => {
   assert.equal(browser.submitCalls, 0);
 });
 
-test('an admitted canonical receipt completes the provider session and closes its browser tab', async () => {
+test('an admitted canonical receipt completes the provider session and retains one reusable ChatGPT tab', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
   const targetId = store.state.providerSessions[providerSessionId].targetId;
   mc.evidence.push({
@@ -257,8 +288,10 @@ test('an admitted canonical receipt completes the provider session and closes it
   });
   assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
   assert.equal(store.state.providerSessions[providerSessionId].status, 'COMPLETE');
-  assert.ok(browser.closedTargets.includes(targetId));
+  assert.equal(browser.closedTargets.includes(targetId), false);
   assert.equal(Object.values(store.state.tabs).some((tab) => tab?.providerSessionId === providerSessionId), false);
+  assert.equal(store.state.tabs['reusable:chatgpt'].targetId, targetId);
+  assert.equal(browser.targets.length, 1);
 });
 
 test('each admitted route gets a different fresh provider session and conversation', async () => {
@@ -266,18 +299,22 @@ test('each admitted route gets a different fresh provider session and conversati
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   const firstSession = store.state.deliveries['request:r-1'].providerSessionId;
   const firstUrl = store.state.deliveries['request:r-1'].conversationUrl;
+  const firstTarget = store.state.providerSessions[firstSession].targetId;
   mc.evidence.push({ eventId: 'decision-r1', sequence: 90, occurredAt: '2026-09-02T00:10:00.000Z', data: { type: 'github_decision_receipt_ingested', request_id: 'r-1', provider_session_id: firstSession, supervisor_id: 'spec', receipt_id: 'github-comment:r1', reasoning_lane: 'PRO_ESCALATED', github_receipt: {} } });
   assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
   mc.routes.push(routeEvent('r-2', 'route-2'));
-  assert.equal((await runtime.cycle()).status, 'EXTRA_HIGH_READER_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   const secondSession = store.state.deliveries['request:r-2'].providerSessionId;
   const secondUrl = store.state.deliveries['request:r-2'].conversationUrl;
   assert.notEqual(secondSession, firstSession);
   assert.notEqual(secondUrl, firstUrl);
+  assert.equal(store.state.providerSessions[secondSession].targetId, firstTarget);
   assert.equal(browser.freshChatCalls, 2);
+  assert.equal(browser.createdTargetCalls, 1);
+  assert.equal(browser.targets.length, 1);
 });
 
 function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now }) {
@@ -318,7 +355,7 @@ class FakeMissionControl {
   async recordEvidence(worker, input) {
     this.recordedEvidence.push({ worker, ...structuredClone(input) });
     if (this.autoFirstTurnMcp && input.summary === RELAY_STAGE_SUMMARY && input.refs.includes('generation_state:STARTED')
-      && (input.refs.includes('step:EXTRA_HIGH_DIRECT') || input.refs.includes('step:EXTRA_HIGH_READER'))) {
+      && input.refs.includes('step:MCP_BINDING_PRELOAD')) {
       const request = input.refs.find((ref) => ref.startsWith('request:'));
       const supervisor = input.refs.find((ref) => ref.startsWith('supervisor:'));
       const providerSession = input.refs.find((ref) => ref.startsWith('provider_session:'));
@@ -334,15 +371,21 @@ class FakeMissionControl {
 class FakeBrowser {
   constructor({ submitErrorStage = null } = {}) {
     this.submitErrorStage = submitErrorStage;
-    this.submitCalls = 0; this.waitCalls = 0; this.modeRoundTripCalls = 0; this.freshChatCalls = 0; this.switchLabels = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
+    this.submitCalls = 0; this.waitCalls = 0; this.modeRoundTripCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.switchLabels = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = [];
   }
-  async doctor() { return { browser: 'Fake', targetCount: this.targets.length }; }
+  async doctor() { return { browser: 'Fake', targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
   async listTargets() { return structuredClone(this.targets); }
   async closeTarget(id) { this.closedTargets.push(id); this.targets = this.targets.filter((target) => target.id !== id); return true; }
   async activateTarget() { return true; }
-  async createFreshChatTarget() {
+  async createFreshChatTarget({ reusableTargetId = null } = {}) {
     this.freshChatCalls += 1;
+    const reusable = this.targets.find((target) => target.id === reusableTargetId) ?? this.targets.find((target) => target.url.startsWith('https://chatgpt.com/'));
+    if (reusable) {
+      reusable.url = 'https://chatgpt.com/';
+      return { ...reusable, created: false, reused: true, webSocketDebuggerUrl: 'ws://fake' };
+    }
+    this.createdTargetCalls += 1;
     const target = { id: `target-fresh-${this.freshChatCalls}`, type: 'page', url: 'https://chatgpt.com/', created: true, webSocketDebuggerUrl: 'ws://fake' };
     this.targets.push(target);
     return target;
@@ -404,9 +447,18 @@ function stageLivenessEvidence(id, stage, status, occurredAt, providerSessionId)
   };
 }
 
-function routeEvent(requestId = 'r-1', eventId = 'route') {
+function genericMcpContactEvidence(providerSessionId) {
+  return {
+    eventId: 'generic-mcp-contact', sequence: 41, occurredAt: '2026-09-02T00:00:05.000Z', data: {
+      type: 'evidence_receipt_recorded', receipt_id: 'generic-mcp-contact', summary: 'MISSION_CONTROL_PUBLIC_MCP_TRANSPORT_V1', verified: true,
+      refs: ['request:r-1', 'supervisor:spec', `provider_session:${providerSessionId}`, 'jsonrpc_method:initialize', 'server_observed:true', 'semantic_authority:false'],
+    },
+  };
+}
+
+function routeEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 'PRO_ESCALATED') {
   const body = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
-    schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane: 'PRO_ESCALATED',
+    schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane,
     destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'outcome-1', epoch: 1, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 1 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },

@@ -424,12 +424,17 @@ function assertOrderedRelayStages(events: StoredEvent[], request: PendingDecisio
   const challenge = policy.capabilityChallenges.find((c) => c.supervisorId === request.supervisorId);
   if (!challenge) throw new Error(`No capability policy exists for supervisor ${request.supervisorId}.`);
   const providerSessionId = request.routeSchemaVersion === 3 ? currentProviderSessionId(events, request, at) : null;
-  const required = request.reasoningLane === "PRO_ESCALATED"
+  const semanticStages = request.reasoningLane === "PRO_ESCALATED"
     ? [["EXTRA_HIGH_READER", challenge.extraHighLabel], ["PRO_REASONER", challenge.proLabel], ["EXTRA_HIGH_WRITER", challenge.extraHighLabel]] as const
     : [["EXTRA_HIGH_DIRECT", challenge.extraHighLabel]] as const;
+  const required: ReadonlyArray<readonly [string, string]> = request.routeSchemaVersion === 3
+    ? [["MCP_BINDING_PRELOAD", challenge.extraHighLabel], ...semanticStages]
+    : semanticStages;
   let minimumSequence = -1;
   for (const [step, label] of required) {
-    const appSelectionAttempted = step === "EXTRA_HIGH_DIRECT" || step === "EXTRA_HIGH_READER";
+    const appSelectionAttempted = request.routeSchemaVersion === 3
+      ? step === "MCP_BINDING_PRELOAD"
+      : step === "EXTRA_HIGH_DIRECT" || step === "EXTRA_HIGH_READER";
     const receipt = events.find((e) => e.sequence > minimumSequence && e.data.type === "evidence_receipt_recorded" && e.data.summary === relayStageSummary && e.data.verified
       && e.data.refs.includes(`request:${request.requestId}`) && e.data.refs.includes(`step:${step}`)
       && (request.routeSchemaVersion === 2
@@ -506,7 +511,7 @@ function assertCurrentProviderSession(events: StoredEvent[], request: PendingDec
     && event.data.refs.includes("status:OK")
     && Date.parse(event.occurredAt) >= Date.parse(request.queuedAt)
     && Date.parse(event.occurredAt) <= Date.parse(at))) {
-    throw new Error(`Provider session ${providerSessionId} lacks its first-turn MCP request-binding read receipt.`);
+    throw new Error(`Provider session ${providerSessionId} lacks its MCP binding preload request-binding read receipt.`);
   }
   return { providerSessionId };
 }

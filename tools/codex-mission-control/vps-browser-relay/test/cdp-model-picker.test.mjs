@@ -87,8 +87,10 @@ test('browser control code does not use generic transcript-editable selectors', 
 
 test('fresh provider conversations use an explicit CDP navigation instead of trusting json/new', async () => {
   const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
-  assert.match(source, /client\.send\('Page\.navigate', \{ url: freshUrl \}\)/);
-  assert.match(source, /Fresh ChatGPT navigation failed/);
+  assert.match(source, /#prepareTarget\(target, url, requireModelControl\)/);
+  assert.match(source, /client\.send\('Page\.navigate', \{ url \}\)/);
+  assert.match(source, /this\.#prepareTarget\(target, freshUrl, true\)/);
+  assert.match(source, /ChatGPT navigation failed/);
   assert.match(source, /Fresh ChatGPT model control did not become ready/);
   assert.match(source, /conversationAssigned \? 'CONVERSATION_URL_ASSIGNED'/);
   assert.match(source, /model menu did not become ready for exact label/);

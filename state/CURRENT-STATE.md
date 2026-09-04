@@ -1,6 +1,30 @@
 # Current State
 
-Updated: 2026-09-03
+Updated: 2026-09-04
+
+## Controlling 2026-09-04 continuation
+
+Owner requirement
+`docs/requirements/2026-09-04-mission-control-binding-preload-tab-discipline.owner-requirement.json`
+supersedes the earlier first-turn/live-acceptance execution sequence where the
+two conflict. The working tree now implements a transport-only
+`MCP_BINDING_PRELOAD`, admits only the exact current provider-session
+`tools/call get_supervisory_request_binding` success before semantic work,
+keeps all later same-chat turns MCP-free, and applies the universal managed
+ChatGPT 1/2/3 tab discipline with New chat in the reusable tab.
+
+Focused evidence is green: 38 relay state/pacing/tab tests, 20 Mission Control
+MCP/admission tests, two universal tab-policy tests, and the owner-request
+integrity check. The Mission Control source archive is regenerated from 138
+files in 59 parts with SHA-256
+`eff48a38dd9aa9211e97b7c6cdf668c26b7cac2e2675348b907710eef13e7920`.
+No Railway service, Hostinger installation, live browser session, production
+service, or GitHub receipt has been changed yet in this continuation.
+
+The next safe action is the single local release checkpoint, exact-diff review,
+commit/push, then exactly one hosted CI/CodeQL checkpoint. Only after it is
+green may the exact SHA be installed on `mission-control-hotfix` and Hostinger
+for the two new live acceptance cycles. Production remains forbidden.
 
 ## Goal
 
