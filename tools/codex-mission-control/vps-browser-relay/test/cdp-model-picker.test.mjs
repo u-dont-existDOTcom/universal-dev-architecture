@@ -50,6 +50,28 @@ test('existing exact menu-option structure remains supported', () => {
   });
 });
 
+test('configured 6 Pro is an exact visible Power label and is never interchangeable with Pro', () => {
+  assert.deepEqual(modelMenuSelectionState(currentPowerMenu({ currentPowerLabel: '6 Pro' }), '6 Pro'), {
+    type: 'POWER_CURRENT',
+    observedLabels: ['6 Pro'],
+  });
+  for (const [observed, expected] of [['Pro', '6 Pro'], ['6 Pro', 'Pro'], ['6 Pro Plus', '6 Pro'], ['16 Pro', '6 Pro']]) {
+    const result = modelMenuSelectionState(currentPowerMenu({ currentPowerLabel: observed }), expected);
+    assert.equal(result.type, 'POWER_SEARCH');
+    assert.deepEqual(result.observedLabels, [observed]);
+  }
+  for (const position of [0, 1, 2, 3, 4]) {
+    assert.equal(modelMenuSelectionState(currentPowerMenu({ sliderPosition: position }), '6 Pro').type, 'POWER_SEARCH');
+  }
+});
+
+test('unrelated page text 6 Pro cannot satisfy configured 6 Pro', () => {
+  assert.throws(() => modelMenuSelectionState({
+    menuFound: true, directMatchCount: 0, availableLabels: [], outsidePageText: ['6 Pro'],
+    powerControlCount: 0, powerIndicatorCount: 0, sliderCount: 0,
+  }, '6 Pro'), /was not found in one supported model-menu control/);
+});
+
 test('unrelated page text Pro cannot satisfy a model-menu selection', () => {
   assert.throws(() => modelMenuSelectionState({
     menuFound: true,

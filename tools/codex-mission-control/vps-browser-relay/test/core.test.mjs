@@ -75,6 +75,12 @@ test('message app requirements are exact and step-specific', () => {
   }
 });
 
+test('the registered specialist preserves explicitly configured 6 Pro without changing historical Pro configuration', () => {
+  const current = parseChatDirectory([{ ...chatFixture(), modelLabels: { extraHigh: 'Extra High', pro: '6 Pro' } }])[0];
+  assert.deepEqual(current.modelLabels, { extraHigh: 'Extra High', pro: '6 Pro' });
+  assert.equal(parseChatDirectory([chatFixture()])[0].modelLabels.pro, 'Pro');
+});
+
 test('provider sessions are new transport identities and never reuse the stable supervisor ID', () => {
   const first = newProviderSessionId('cycle-one');
   const second = newProviderSessionId('cycle-two');

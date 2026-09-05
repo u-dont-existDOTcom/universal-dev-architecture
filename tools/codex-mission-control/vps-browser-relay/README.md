@@ -35,7 +35,7 @@ summarizes, or transports assistant response text.
 - Chrome DevTools Protocol is loopback-only (`127.0.0.1`).
 - A dedicated non-default browser profile is mandatory.
 - Only registered exact `https://chatgpt.com/c/<conversation-id>` URLs are managed.
-- Chat configuration registers identity, worker binding, challenge ID, and expected visible Extra High/Pro labels; configuration cannot self-declare capability PASS.
+- Chat configuration registers identity, worker binding, challenge ID, and configured exact visible Extra High / Pro-lane labels; configuration cannot self-declare capability PASS.
 - Live capability evidence must prove Mission Control read, GitHub read, GitHub write, and exact visible model-label switching.
 - Model switching and generation state are observed only through non-content controls/UI state.
 - A generation turn cannot become COMPLETE unless a real post-submit generation-start transition was observed first.
@@ -85,7 +85,7 @@ A chat starts UNVERIFIED. The capability challenge is intentionally two-source:
 - the raw GitHub nonce exists only in the configured GitHub capability issue;
 - Extra High must read both systems and write one canonical capability receipt back to GitHub;
 - Mission Control validates the two nonces, exact chat/challenge binding, authorized GitHub writer, and expiry;
-- the relay separately proves the exact visible Extra High and Pro labels by a mode-selection round trip.
+- the relay separately proves the configured exact visible Extra High / Pro-lane labels by a mode-selection round trip.
 
 The diagnostic public HTTP challenge route remains exact-ID, GET-only,
 uncached, and returns only the same disposable challenge fields. The relay
@@ -142,10 +142,10 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 - current owner-outcome ID/epoch/hash;
 - stable supervisor ID, distinct binding/decision provider-session IDs, exact conversation URLs, and reasoning lane;
 - current Mission Control/GitHub capability receipt;
-- current exact visible Extra High and Pro model-label receipts;
+- current configured exact visible Extra High / Pro-lane model-label receipts;
 - a server-observed binding-preload MCP request-binding read in the binding provider session;
 - an exact mechanically derived binding envelope recorded in Mission Control transport state;
-- one direct first-message decision transport receipt with exact visible Extra High or Pro proof, so stale or cross-session evidence cannot replay;
+- one direct first-message decision transport receipt with configured exact visible Extra High or Pro-lane proof, so stale or cross-session evidence cannot replay;
 - ordered no-content browser-stage receipts;
 - central GitHub repository/issue/writer policy;
 - receipt creation time inside the admitted window;
@@ -246,7 +246,7 @@ Each entry must contain:
 - stable `supervisorId` matching Mission Control `destinationSupervisorId`;
 - `bootstrapCapability.chatId`, `.url`, and `.challengeId` for the existing capability proof only;
 - exact `workerId`;
-- exact current visible Extra High and Pro labels.
+- configured exact current visible Extra High / Pro-lane labels.
 - exact visible Mission Control and GitHub app labels under `requiredApps`.
 
 Do not put PASS/FAIL capability claims in this file; Mission Control evidence determines capability truth.
@@ -354,3 +354,7 @@ A hard-pressure pause is successful safety behavior, not automatic permission to
 - Do not use this package for rate-limit circumvention, account sharing, or high-volume unattended messaging.
 - Browser UI evidence is transport evidence, not backend-model attestation.
 - Durable GitHub stage-receipt attestation is not independent browser observation of Pro output.
+
+### Current exact-label policy (2026-09-05)
+
+For `mc-hotfix-specialist`, explicitly configure `modelLabels.extraHigh` as `Extra High` and `modelLabels.pro` as `6 Pro`; coordinate any independent hotfix `expectedModels` policy for that same supervisor. The internal lane remains `PRO_ESCALATED` and provenance remains conservative visible-UI/session provenance. `Pro` and `6 Pro` are not aliases, and neither proves a hidden/backend model identity. A missing or ambiguous exact label fails closed; another live label change during this acceptance run stops the run without another policy rotation. The superseding record is `docs/requirements/2026-09-05-current-exact-pro-label.owner-requirement.json`. The 2026-09-03 owner requirement and old `Pro` receipts remain unchanged historical evidence.
