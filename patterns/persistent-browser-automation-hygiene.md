@@ -12,6 +12,22 @@ For headed browser automation that uses a persistent Chromium-family profile:
 4. treat temporary multi-tab state as execution state, not durable user-facing state;
 5. preserve a special recovery mode only when pre-existing tabs may contain evidence from an already-paid or irreversible action, and clean them after recovery.
 
+### Managed ChatGPT tab discipline
+
+For automation-owned ChatGPT tabs, the following more-specific owner rule is universal:
+
+1. A fresh conversation means selecting **New chat in the current verified reusable ChatGPT tab**. It does not mean opening another browser tab by default.
+2. Steady state is one managed ChatGPT tab.
+3. Two managed ChatGPT tabs are allowed only during a bounded transition or recovery.
+4. Three managed ChatGPT tabs are the absolute hard ceiling. Fail closed before opening a fourth.
+5. A replacement tab is allowed only after the current tab is irrecoverably unusable. Once the replacement is verified, close the superseded automation-owned tab immediately.
+6. Never fan out duplicate tabs for the same task.
+7. Doctor and status telemetry must include `managedChatGptTabCount` plus the one/two/three limits.
+8. On provider-session completion or supersession, clean automation-owned ChatGPT tabs deterministically back toward the one-tab steady state while preserving the surviving tab for reuse.
+9. Do not keep bootstrap or pinned automation-owned tabs open merely for history when durable capability, receipt, and URL records already exist.
+
+These limits apply to automation-managed ChatGPT tabs, not unrelated owner-controlled tabs. An ambiguous paid, destructive, or irreversible action still enters recovery mode before any evidence-bearing tab is closed.
+
 ## Asynchronous GUI completion
 
 Do not infer task completion from a generic marker on the page that initiated an asynchronous action. The application may:

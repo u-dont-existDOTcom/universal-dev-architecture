@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-EXACT-6-PRO-LABEL-20260905",
+  "recorded_at": "2026-09-05T15:54:02.018507+00:00",
+  "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
+  "status": "RECORDED_NOT_IMPLEMENTED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continuing from [Mission Control latest](chatgpt-conversation://6a97740b-71dc-83ea-875e-b0f01e98d20d): EXECUTION-ONLY — SUPERSEDE EXACT VISIBLE PRO LABEL FROM `Pro` TO CURRENT `6 Pro`, THEN FINISH LIVE ACCEPTANCE\n\nRepo: u-dont-existDOTcom/universal-dev-architecture\nPR #58\nBranch: task/mission-control-vps-browser-relay-20260902\nCurrent head last verified: 59d12df35faf1ff40d0d9250572cd1dece1e070f\nLatest blocker comment: PR #58 comment 5548607447.\nCurrent Railway hotfix exact-SHA deployment is already accepted: 905a12ba-4933-4722-a65e-2bc417feeb35. DO NOT repeat Railway deployment repair unless this patch changes hotfix app source or hotfix expected-model configuration and an exact-SHA redeploy is mechanically required.\n\nCHAT SUPERVISORY DECISION\nThe current authenticated Hostinger ChatGPT Power control was observed non-content-only as:\n`Instant -> Medium -> High -> Extra High -> 6 Pro`\nThe old historical owner requirement expected exact visible `Pro` and correctly failed closed when that label disappeared.\n\nThe owner has now explicitly authorized continuation after being informed that the correct fix is to update the CURRENT expected visible UI label to exact `6 Pro`.\n\nThis is NOT an alias mapping:\n- DO NOT encode `Pro == 6 Pro`.\n- DO NOT accept either label interchangeably.\n- DO NOT claim `6 Pro` is a hidden/backend model identity.\n- Internal reasoning lane name remains `PRO_ESCALATED`.\n- Provenance remains conservative visible-UI/session provenance (e.g. existing `VISIBLE_PRO_SESSION_GITHUB_ATTESTED` semantics); its internal constant name need not be renamed merely because the product-facing UI label changed.\n- Historical `Pro` receipts/requirements remain historical; do not rewrite old owner-source verbatim or relabel old evidence as `6 Pro`.\n\nA. DURABLE POLICY UPDATE\n1. Preserve `docs/requirements/2026-09-03-model-menu-selector-compatibility.owner-requirement.json` unchanged as historical evidence.\n2. Add the smallest new superseding requirement/policy record dated 2026-09-05 documenting:\n   - prior expected exact label: `Pro`;\n   - newly observed exact current label: `6 Pro`;\n   - current expected labels for this authenticated specialist are `Extra High` and `6 Pro`;\n   - exact matching only; no aliases/synonyms; ambiguity/missing label fails closed;\n   - no backend identity claim;\n   - if the live label changes again during this run, STOP with a new exact-label blocker rather than chasing it.\n3. Update generic documentation language where needed from hard-coded “Extra High and Pro labels” to “configured exact visible Extra High / Pro-lane labels” or equivalent so docs do not imply the literal string must forever be `Pro`.\n4. Do not globally change default parser fallback `Pro` unless a test shows that fallback itself incorrectly controls this registered live specialist. Prefer explicit configured values over changing generic defaults.\n\nB. LIVE CONFIG COORDINATION\nInspect before changing; do not expose secrets.\n1. Hostinger `~/.config/mission-control-chatgpt-relay/chats.json` for stable supervisor `mc-hotfix-specialist`: set `modelLabels.pro` to exact `6 Pro`; keep `extraHigh` exact `Extra High`.\n2. Inspect hotfix `MISSION_CONTROL_SUPERVISOR_CHATS_JSON` expectedModels/modelLabels for the same stable supervisor. If it independently validates the mode receipt and currently expects exact `Pro`, change only that specialist’s current expected Pro-lane UI label to exact `6 Pro`. Do this service-scoped on `mission-control-hotfix` only; never touch production. Preserve all other JSON fields exactly. Do not print the variable value or unrelated secret variables.\n3. If the hotfix expected-model value is derived dynamically from a route/receipt and no hotfix variable/source change is needed, do not mutate it unnecessarily.\n4. Keep stable supervisor identity, worker binding, bootstrap capability IDs/URLs, GitHub buses, authority and route-v4 schema unchanged.\n\nC. CODE/TEST SCOPE\nInspect current code before editing. The selector is already exact-label generic and `parseModelLabels` takes configured strings. If runtime configuration alone is sufficient, DO NOT make an unnecessary selector/code change.\n\nIf repo changes are necessary only for the new durable requirement/docs/tests:\n- add a regression proving exact label `6 Pro` is accepted when explicitly configured;\n- prove literal `Pro` does NOT satisfy configured `6 Pro`;\n- prove `6 Pro` does NOT satisfy configured `Pro`;\n- unrelated page text remains unable to satisfy the picker;\n- no ordinal mapping or prefix/suffix normalization (e.g. stripping `6 `) is introduced.\n\nRun focused tests first. If code/config-contract files changed, run exactly one normal hosted checkpoint at the resulting head; do not repeat already-green broad checks unnecessarily when only a pure requirement/docs record changed and repository policy does not require them. Follow existing deterministic repo gates.\n\nD. DEPLOY/INSTALL IF HEAD CHANGES\nIf a new git head is created:\n1. Push exact head.\n2. If Mission Control app source changed, deploy ONLY mission-control-hotfix via the now-proven service-scoped fresh-deployment trigger procedure; exact executed codeload SHA + health proof required. Production deployment `6b0e057b-24dd-4882-b26e-abcbdf233c41` remains untouched.\n3. Install the exact new head on Hostinger relay if relay/docs/test package parity requires it.\n4. If no executable source changed and only runtime `chats.json`/hotfix JSON policy changes are needed, do not manufacture an unnecessary deployment.\n\nE. NON-SUBMITTING MODE PROOF FIRST\nWith `MC_RELAY_SUBMIT_ENABLED=0` and capability sends disabled:\n1. One reusable managed tab only.\n2. Run doctor.\n3. Re-observe only current model-picker controls. PASS only if the current exact visible set still contains exact `Extra High` and exact `6 Pro` uniquely.\n4. Perform exact visible round trip:\n`Extra High -> 6 Pro -> Extra High`.\n5. Record a NEW current mode-capability receipt with exact labels `Extra High` and `6 Pro`; do not modify/reuse old `Pro` mode receipts as if current.\n6. If current picker no longer exposes exact `6 Pro`, stop fail-closed and report the newly observed exact label set. No further policy mutation in this Work run.\n\nF. CAPABILITY STATE\nExisting #60 receipt 5532362859 remains the prior MC/GitHub read/write proof if still unexpired/current under its actual scope. Reconcile capability state with the NEW current mode receipt.\nDo not rerun the #60 data-plane challenge merely because the visible model label changed unless Mission Control explicitly requires a fresh capability receipt after expected-label policy rotation or the old receipt is expired/invalid.\n\nG. ORDINARY V4 LIVE ACCEPTANCE\nUse the already queued harmless request `mc-live-acceptance-ordinary-v4-20260905` only if it is still current/unexpired and no provider session has ever been allocated. Otherwise queue one new harmless ordinary v4 fixture; do not duplicate active routes.\n\n1. Fresh binding-preload conversation in same reusable tab, Extra High, exact Mission Control selected.\n2. Actual `get_supervisory_request_binding` success receipt required.\n3. Mechanically derive current binding envelope.\n4. >=60 seconds globally from preceding send.\n5. Fresh distinct Extra High decision conversation; exact visible `Extra High` proof; first-message GitHub evidence read + canonical #59 schema v3 write.\n6. Mission Control admission required with current binding + decision-session transport + expected model policy.\n7. No same-chat tool-recovery `continue` if required #59 is absent. Respect current route-v4 retry policy exactly.\n\nH. PRO V4 LIVE ACCEPTANCE\nOnly after ordinary passes.\n1. Queue one new harmless `PRO_ESCALATED` route v4.\n2. Fresh Extra High binding-preload conversation -> exact MCP receipt.\n3. >=60 seconds globally.\n4. Fresh distinct decision conversation; switch exact visible UI to `6 Pro` before first send; capture exact session-local visible-model proof.\n5. First substantive `6 Pro`-label session message uses connected GitHub, reads immutable evidence, reasons, and writes canonical #59 schema v3 in that SAME first message.\n6. Mission Control admission must use existing conservative Pro-lane provenance (`VISIBLE_PRO_SESSION_GITHUB_ATTESTED` or exact current equivalent) while recording exact visible model label `6 Pro`. Never say backend identity was verified.\n7. No Extra High writer and no #61 requirement for direct v4 topology.\n\nI. GLOBAL CONTROLS\n- >=60 seconds between every actual submission.\n- one reusable ChatGPT tab steady state; 2 transient, 3 hard ceiling; no duplicate fan-out.\n- no assistant-output DOM extraction/copy/hash/parse.\n- native browser sandbox, loopback CDP.\n- AUTO 8GB memory guard; capture T0/peak/final memory and no HARD pressure.\n- provider source timestamp remains null unless genuinely available; do not relabel browser/GitHub times.\n- production untouched.\n\nJ. CLOSEOUT\nUpdate PR #58 and issue #53 with:\n- exact new head if any;\n- superseding exact-label policy and historical-boundary statement;\n- runtime configs updated (`Pro` -> exact `6 Pro`) without disclosing full config/secrets;\n- new exact `Extra High -> 6 Pro -> Extra High` mode receipt;\n- ordinary binding/decision session URLs + #59 receipt + MC admission;\n- Pro binding/decision session URLs + exact visible `6 Pro` proof + #59 receipt + MC admission;\n- pacing/tab/memory/timestamp state;\n- relay/app enablement state;\n- production unchanged proof.\n\nKeep PR draft unless all remaining terminal acceptance passes and merge policy is deterministic. Production promotion remains unauthorized.\n\nRETURN exact remaining blocker if anything fails. Do not ask owner again unless there is a genuinely new semantic/product choice rather than a mechanical execution issue.\n",
+    "sha256": "b917e1d3cfaaba5f54424352bb0f22c4d86bf8ddb6a2b062997bf48bbeda62a3",
+    "source_type": "owner_chat_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "codex-task:01a0723f-60a6-7b71-8a15-69618c727ec2:initial-owner-message",
+    "reasoning_conversation_id": "6a97740b-71dc-83ea-875e-b0f01e98d20d"
+  },
+  "supersedes": {
+    "requirement_id": "REQ-MC-MODEL-MENU-SELECTOR-COMPATIBILITY-20260903",
+    "path": "docs/requirements/2026-09-03-model-menu-selector-compatibility.owner-requirement.json",
+    "scope": "Current exact Pro-lane visible label for mc-hotfix-specialist only; historical owner wording, requirements and receipts remain unchanged."
+  },
+  "current_label_policy": {
+    "supervisor_id": "mc-hotfix-specialist",
+    "prior_expected_exact_pro_label": "Pro",
+    "newly_observed_exact_current_pro_label": "6 Pro",
+    "expected_models": {
+      "extraHigh": "Extra High",
+      "pro": "6 Pro"
+    },
+    "matching": "EXACT_ONLY",
+    "aliases": [],
+    "ambiguity_or_missing": "FAIL_CLOSED",
+    "label_changes_again_during_run": "STOP_WITH_NEW_EXACT_LABEL_BLOCKER_NO_FURTHER_POLICY_MUTATION",
+    "backend_model_identity_claimed": false,
+    "internal_lane": "PRO_ESCALATED",
+    "provenance": "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
+  },
+  "normalized_outcome": "Supersede only the current configured visible Pro-lane label with exact 6 Pro, preserve historical evidence and conservative UI provenance, prove a new non-submitting Extra High -> 6 Pro -> Extra High round trip, then finish ordinary v4 and PRO_ESCALATED v4 live acceptance under all stated controls with production unchanged.",
+  "required_outcomes": [
+    {
+      "id": "RO-6PRO-001",
+      "terminal_required": true,
+      "observable": "Historical 2026-09-03 requirement stays byte-identical; the current specialist explicitly expects Extra High and 6 Pro in relay and any independent hotfix policy.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-6PRO-002",
+      "terminal_required": true,
+      "observable": "Configured 6 Pro is accepted exactly; Pro and 6 Pro cannot satisfy each other; unrelated page text and normalization cannot satisfy the picker.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-6PRO-003",
+      "terminal_required": true,
+      "observable": "New non-submitting current exact Extra High -> 6 Pro -> Extra High mode receipt and capability reconciliation.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-6PRO-004",
+      "terminal_required": true,
+      "observable": "Ordinary v4 uses current unallocated route, fresh separate binding and Extra High decision conversations, actual MCP binding receipt, canonical #59 schema v3 and Mission Control admission.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-6PRO-005",
+      "terminal_required": true,
+      "observable": "Only after ordinary passes, PRO_ESCALATED v4 uses fresh separate binding and exact visible 6 Pro decision conversations, first-message connected GitHub receipt and conservative Mission Control admission.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-6PRO-006",
+      "terminal_required": true,
+      "observable": "Pacing >=60 seconds; one reusable tab; AUTO 8GB with no HARD memory pressure; no assistant-output extraction; truthful timestamps; exact package parity and hotfix-only deployment if required; closeout PR #58 and issue #53 with production unchanged.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Aliasing Pro and 6 Pro or claiming backend model identity",
+    "Rewriting old owner wording or relabeling historical receipts",
+    "Tests, mode proof or prior capability receipt without both live acceptance admissions",
+    "A GitHub evidence fixture without a canonical #59 decision receipt",
+    "Relay configuration alone while hotfix independently expects another label"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md"
+  ],
+  "next_direct_evidence": "Inspect and coordinate exact specialist configuration, run focused exact-match regressions, record current non-submitting mode receipt, reconcile existing #60 scope, then execute ordinary and Pro route-v4 acceptance sequentially."
+}

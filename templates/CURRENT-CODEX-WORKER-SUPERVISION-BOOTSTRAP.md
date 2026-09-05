@@ -61,6 +61,7 @@ Required companions:
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
 - `patterns/outcome-advancement-and-strategy-efficacy.md`
 - `patterns/chat-led-reasoning-codex-execution-separation.md`
+- `patterns/structured-output-failure-boundary.md`
 
 Machine-readable baselines:
 
@@ -68,6 +69,16 @@ Machine-readable baselines:
 - `templates/OUTCOME-PROGRESS-RECEIPT.json`
 - `templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json`
 - `templates/CODEX-EXECUTION-RECEIPT.json`
+- `templates/STRUCTURED-OUTPUT-FAILURE.json`
+
+When strict parsing rejects a required structured artifact, record
+`STRUCTURED_OUTPUT_SYNTAX_FAILURE` under the structured-output failure boundary.
+Preserve the raw artifact reference, exact parser position/fingerprint, packet
+hash, model/mode, attempt number, and validator result. Never exceed a
+source-fixed attempt ceiling or silently repair, clean, reparse, substitute, or
+semantically correct the artifact without a new source-bound directive.
+Dependent comparison, scoring, metrics, aggregation, unblinding, and
+substitution remain blocked while no valid admitted artifact exists.
 
 ## 2. Chat-led reasoning; Codex execution only
 
@@ -437,6 +448,8 @@ For browser automation:
 - audit automation-owned tabs about every 30 minutes and at task/account/limit boundaries;
 - close stale, duplicate, completed, one-time, and superseded automation-owned tabs after preserving state;
 - never close owner/pre-existing/pinned tabs, unsaved forms, pending transfers/results, paid/irreversible actions, or tabs needed to reconcile ambiguity.
+
+For automation-owned ChatGPT tabs specifically, create a fresh conversation with New chat in the current verified reusable tab. Keep one in steady state, allow two only during bounded transition/recovery, and treat three as the absolute hard ceiling: fail closed before opening a fourth. A replacement is allowed only after the current tab is irrecoverably unusable; close the superseded tab immediately once the replacement is verified. Never fan out duplicate tabs for one task. Report `managedChatGptTabCount` in doctor/status telemetry and deterministically clean completed/superseded provider-session tabs back toward one. Bootstrap or pinned automation-owned ChatGPT tabs are not history stores once durable capability and URL records exist.
 
 A persistent chat does not require a persistent open tab. Persist URL, account alias, scope key, epoch, capsule, and last reviewed boundary locally.
 

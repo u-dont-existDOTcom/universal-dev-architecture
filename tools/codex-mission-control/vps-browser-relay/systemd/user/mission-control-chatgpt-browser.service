@@ -1,0 +1,31 @@
+[Unit]
+Description=Dedicated VPS ChatGPT browser for Mission Control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Slice=mission-control-chatgpt.slice
+EnvironmentFile=%h/.config/mission-control-chatgpt-relay/env
+ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/scripts/launch-browser.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillMode=mixed
+MemoryHigh=60%
+MemoryMax=75%
+MemorySwapMax=10%
+OOMPolicy=stop
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/mission-control-chatgpt-profile %h/.cache
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+
+[Install]
+WantedBy=default.target

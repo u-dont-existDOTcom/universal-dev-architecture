@@ -1,0 +1,42 @@
+[
+  {
+    "scope": "PROJECT_MANAGER",
+    "supervisorId": "project-manager-primary",
+    "label": "Mission Control Project Manager",
+    "workerId": "mission-control-live-slice",
+    "pinned": true,
+    "bootstrapCapability": {
+      "chatId": "project-manager-bootstrap-v1",
+      "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_BOOTSTRAP_CONVERSATION_ID",
+      "challengeId": "pm-capability-v1"
+    },
+    "modelLabels": {
+      "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
+      "pro": "REPLACE_EXACT_PRO_UI_LABEL"
+    },
+    "requiredApps": {
+      "missionControl": "Mission Control",
+      "github": "GitHub"
+    }
+  },
+  {
+    "scope": "SPECIALIST",
+    "supervisorId": "specialist-relay-smoke",
+    "label": "Mission Control relay smoke-test specialist",
+    "workerId": "mission-control-live-slice",
+    "pinned": false,
+    "bootstrapCapability": {
+      "chatId": "specialist-bootstrap-v1",
+      "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_BOOTSTRAP_CONVERSATION_ID",
+      "challengeId": "specialist-capability-v1"
+    },
+    "modelLabels": {
+      "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
+      "pro": "REPLACE_EXACT_PRO_UI_LABEL"
+    },
+    "requiredApps": {
+      "missionControl": "Mission Control",
+      "github": "GitHub"
+    }
+  }
+]

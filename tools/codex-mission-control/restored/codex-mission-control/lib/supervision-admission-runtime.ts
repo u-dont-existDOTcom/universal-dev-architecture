@@ -6,6 +6,7 @@ import {
   type AuthorityGateResult,
   type ChatWorkAuthorityRequest,
   type ControlledAction,
+  type ExecutionScope,
   type InternalSupervisorRoute,
   type ReasoningSourceReceipt,
   type SpendRequest,
@@ -14,6 +15,17 @@ import type { AuthenticatedProducer } from "./ingestion-auth";
 import type { AppendEnvelope } from "./schema";
 
 export const internalSupervisorRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
+export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
+export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
+
+export interface SupervisoryCycleRequest {
+  nonce: string;
+  evidenceCapsule: { id: string; sha256: string };
+  ownerOutcome: { id: string; epoch: number; sha256: string };
+  reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
+  githubReceipt: { repository: string; issueNumber: number; stageIssueNumber: number };
+  expiresAt: string;
+}
 
 export interface FactualSupervisorPacket {
   packetId: string;
@@ -21,6 +33,7 @@ export interface FactualSupervisorPacket {
   exactFactualState: string;
   evidenceRefs: string[];
   decisionRequested: string;
+  supervisoryCycle: SupervisoryCycleRequest | null;
 }
 
 export interface SupervisionAdmissionInput {
@@ -53,6 +66,11 @@ const semanticActions = new Set<ControlledAction>([
   "SET_PRIORITY",
   "DESIGN_SPEND",
   "CHOOSE_CONSEQUENTIAL_TRADEOFF",
+  "AUTHOR_ARCHITECTURE_DECISION",
+  "AUTHOR_REVIEW",
+  "AUTHOR_SUPERVISORY_VERDICT",
+  "AUTHOR_OWNER_DECISION",
+  "AUTHOR_SUBSTANTIVE_SUPERVISORY_PROSE",
 ]);
 
 export function evaluateSupervisionAdmission(
@@ -161,15 +179,19 @@ function buildRouteEnvelope(
   const route = input.request.internalRoute!;
   const packet = input.factualPacket!;
   const suffix = randomUUID();
-  const body = internalSupervisorRoutePrefix + JSON.stringify({
-    schemaVersion: 1,
-    packetKind: "FACTUAL_STATE_ONLY",
+  const cycle = packet.supervisoryCycle;
+  if (cycle && Date.parse(cycle.expiresAt) <= Date.parse(now)) {
+    throw admissionError(400, "A provider-session supervisory cycle must expire after its queue time.");
+  }
+  const body = (cycle ? supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
+    schemaVersion: cycle ? 4 : 1,
+    packetKind: cycle ? "PROVIDER_SESSION_SUPERVISORY_CYCLE" : "FACTUAL_STATE_ONLY",
     requestId: input.request.requestId,
     actionBlockedOrRouted: input.request.action,
     worker,
     producerId: producer.id,
     destination: route.destination,
-    destinationChatId: route.destinationChatId,
+    ...(cycle ? { destinationSupervisorId: route.destinationChatId } : { destinationChatId: route.destinationChatId }),
     standingOwnerAuthorization: route.standingOwnerAuthorization,
     ownerRelayRequired: false,
     actionTimeConfirmationRequired: false,
@@ -178,6 +200,18 @@ function buildRouteEnvelope(
     routeDecision: routeDecision.decision,
     factualPacket: packet,
     queuedAt: now,
+    ...(cycle ? {
+      nonce: cycle.nonce,
+      reasoningLane: cycle.reasoningLane,
+      evidenceCapsule: cycle.evidenceCapsule,
+      ownerOutcome: cycle.ownerOutcome,
+      githubReceipt: cycle.githubReceipt,
+      expiresAt: cycle.expiresAt,
+      writerContract: {
+        mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY",
+        reinterpretationAllowed: false,
+      },
+    } : {}),
   });
   if (body.length > 20_000) throw admissionError(400, "The factual supervisor packet exceeds the durable message limit.");
   return {
@@ -239,6 +273,9 @@ function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmissionInp
     sourceReceipt,
     boundedExecution: requiredBoolean(request.boundedExecution, "request.boundedExecution"),
     taskRequiresExecutionOutsideChat: requiredBoolean(request.taskRequiresExecutionOutsideChat, "request.taskRequiresExecutionOutsideChat"),
+    executionScope: request.executionScope === null || request.executionScope === undefined
+      ? null
+      : requiredEnum(request.executionScope, executionScopes, "request.executionScope") as ExecutionScope,
     spend,
     internalRoute,
     ownerPolicy: {
@@ -300,6 +337,47 @@ function parseFactualPacket(value: unknown): FactualSupervisorPacket {
     exactFactualState: requiredString(record.exactFactualState, "factualPacket.exactFactualState", 12_000),
     evidenceRefs: [...record.evidenceRefs],
     decisionRequested: requiredString(record.decisionRequested, "factualPacket.decisionRequested", 2_000),
+    supervisoryCycle: record.supervisoryCycle === null || record.supervisoryCycle === undefined
+      ? null
+      : parseSupervisoryCycle(record.supervisoryCycle),
+  };
+}
+
+function parseSupervisoryCycle(value: unknown): SupervisoryCycleRequest {
+  const record = requiredRecord(value, "factualPacket.supervisoryCycle");
+  const evidence = requiredRecord(record.evidenceCapsule, "factualPacket.supervisoryCycle.evidenceCapsule");
+  const outcome = requiredRecord(record.ownerOutcome, "factualPacket.supervisoryCycle.ownerOutcome");
+  const github = requiredRecord(record.githubReceipt, "factualPacket.supervisoryCycle.githubReceipt");
+  const evidenceSha256 = requiredString(evidence.sha256, "factualPacket.supervisoryCycle.evidenceCapsule.sha256", 64);
+  const outcomeSha256 = requiredString(outcome.sha256, "factualPacket.supervisoryCycle.ownerOutcome.sha256", 64);
+  if (!/^[a-f0-9]{64}$/.test(evidenceSha256) || !/^[a-f0-9]{64}$/.test(outcomeSha256)) {
+    throw admissionError(400, "Supervisory-cycle evidence and owner-outcome digests must be lowercase SHA-256 values.");
+  }
+  if (!Number.isInteger(outcome.epoch) || Number(outcome.epoch) < 1
+    || !Number.isInteger(github.issueNumber) || Number(github.issueNumber) < 1
+    || !Number.isInteger(github.stageIssueNumber) || Number(github.stageIssueNumber) < 1) {
+    throw admissionError(400, "Supervisory-cycle owner epoch and GitHub decision/stage issue numbers must be positive integers.");
+  }
+  const expiresAt = requiredString(record.expiresAt, "factualPacket.supervisoryCycle.expiresAt", 100);
+  if (!Number.isFinite(Date.parse(expiresAt))) throw admissionError(400, "Supervisory-cycle expiry must be an ISO timestamp.");
+  return {
+    nonce: requiredString(record.nonce, "factualPacket.supervisoryCycle.nonce", 180),
+    evidenceCapsule: {
+      id: requiredString(evidence.id, "factualPacket.supervisoryCycle.evidenceCapsule.id", 180),
+      sha256: evidenceSha256,
+    },
+    ownerOutcome: {
+      id: requiredString(outcome.id, "factualPacket.supervisoryCycle.ownerOutcome.id", 180),
+      epoch: Number(outcome.epoch),
+      sha256: outcomeSha256,
+    },
+    reasoningLane: requiredEnum(record.reasoningLane, ["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"] as const, "factualPacket.supervisoryCycle.reasoningLane"),
+    githubReceipt: {
+      repository: requiredString(github.repository, "factualPacket.supervisoryCycle.githubReceipt.repository", 300),
+      issueNumber: Number(github.issueNumber),
+      stageIssueNumber: Number(github.stageIssueNumber),
+    },
+    expiresAt,
   };
 }
 
@@ -352,7 +430,9 @@ export function admissionError(statusCode: 400 | 403, message: string): Error & 
 
 const controlledActions = [
   "AUTHOR_PROPOSAL", "DESIGN_METHODOLOGY", "SET_PRIORITY", "DESIGN_SPEND",
-  "CHOOSE_CONSEQUENTIAL_TRADEOFF", "EXECUTE_BOUNDED_TASK", "ROUTE_INTERNAL_SUPERVISOR",
+  "CHOOSE_CONSEQUENTIAL_TRADEOFF", "AUTHOR_ARCHITECTURE_DECISION", "AUTHOR_REVIEW",
+  "AUTHOR_SUPERVISORY_VERDICT", "AUTHOR_OWNER_DECISION", "AUTHOR_SUBSTANTIVE_SUPERVISORY_PROSE",
+  "EXECUTE_BOUNDED_TASK", "ROUTE_INTERNAL_SUPERVISOR",
   "SEND_EXTERNAL_REPRESENTATIONAL_MESSAGE",
 ] as const;
 const authorityActors = ["OWNER", "PROJECT_MANAGER_CHAT", "SPECIALIST_SUPERVISOR_CHAT", "CODEX", "WORK"] as const;
@@ -360,3 +440,7 @@ const reasoningSurfaces = ["OWNER_DIRECT", "CHATGPT_PROJECT_MANAGER", "CHATGPT_S
 const provenanceStatuses = ["VERIFIED", "OWNER_ATTESTED", "UNVERIFIED"] as const;
 const spendKinds = ["MODEL_API_INFERENCE", "OTHER"] as const;
 const routeDestinations = ["PROJECT_MANAGER_CHAT", "SPECIALIST_SUPERVISOR_CHAT"] as const;
+const executionScopes = [
+  "TERMINAL_OR_COMPUTER_WORK", "GENUINELY_LONG_RANGE_REPOSITORY_OPERATION", "ROUTINE_GITHUB_READ_WRITE",
+  "ISSUE_OR_PR_UPDATE", "ARCHITECTURE_DECISION", "REVIEW", "SUPERVISORY_REASONING", "SUBSTANTIVE_SUPERVISORY_PROSE",
+] as const;

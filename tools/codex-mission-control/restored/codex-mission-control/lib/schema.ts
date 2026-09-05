@@ -699,6 +699,189 @@ export const reasoningSupervisionRecordedSchema = z.object({
   pro_escalation_state: z.enum(["NOT_REQUIRED", "PENDING", "ACTIVE", "COMPLETE"]),
 });
 
+const canonicalDecisionEnvelopeFields = {
+  envelope_kind: z.literal("MISSION_CONTROL_CANONICAL_DECISION"),
+  request_id: StableId,
+  nonce: StableId,
+  evidence_capsule: z.object({
+    id: StableId,
+    sha256: Sha256,
+  }),
+  owner_outcome: z.object({
+    id: StableId,
+    epoch: z.number().int().positive(),
+    sha256: Sha256,
+  }),
+  reasoning_lane: z.enum(["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"]),
+  decision_block: z.object({
+    decision_id: StableId,
+    exact_text: NonEmpty.max(50_000),
+    sha256: Sha256,
+  }),
+  pro_decision_block: z.object({
+    used: z.boolean(),
+    model_mode: z.literal("PRO").nullable(),
+    exact_text: NonEmpty.max(50_000).nullable(),
+    sha256: Sha256.nullable(),
+  }),
+  writer_contract: z.object({
+    mode: z.literal("EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY"),
+    reinterpretation_allowed: z.literal(false),
+  }),
+};
+
+export const bindingCapsuleSchema = z.object({
+  schema_version: z.literal(1),
+  binding_capsule_id: StableId,
+  request_id: StableId,
+  request_nonce: StableId,
+  supervisor_id: StableId,
+  binding_provider_session_id: StableId,
+  binding_receipt_id: StableId,
+  worker_id: WorkerId,
+  reasoning_lane: z.enum(["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"]),
+  queued_at: Timestamp,
+  expires_at: Timestamp,
+  evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
+  owner_outcome: z.object({ id: StableId, epoch: z.number().int().positive(), sha256: Sha256 }),
+  receipt_targets: z.object({
+    repository: NonEmpty,
+    decision_issue_number: z.number().int().positive(),
+    stage_issue_number: z.number().int().positive(),
+  }),
+});
+
+export const canonicalDecisionEnvelopeSchema = z.union([
+  z.object({ schema_version: z.literal(1), ...canonicalDecisionEnvelopeFields }),
+  z.object({
+    schema_version: z.literal(2),
+    supervisor_id: StableId,
+    binding_provider_session_id: StableId,
+    stage_provider_session_id: StableId,
+    binding_capsule: bindingCapsuleSchema,
+    binding_capsule_sha256: Sha256,
+    staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable(),
+    ...canonicalDecisionEnvelopeFields,
+  }),
+  z.object({
+    schema_version: z.literal(3),
+    supervisor_id: StableId,
+    binding_provider_session_id: StableId,
+    decision_provider_session_id: StableId,
+    binding_envelope: bindingCapsuleSchema,
+    binding_envelope_sha256: Sha256,
+    decision_session_provenance: z.enum([
+      "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+      "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
+    ]),
+    ...canonicalDecisionEnvelopeFields,
+  }),
+]).superRefine((envelope, context) => {
+  const proRequired = envelope.reasoning_lane === "PRO_ESCALATED";
+  if (envelope.pro_decision_block.used !== proRequired) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block", "used"], message: "Pro usage must exactly match the admitted reasoning lane." });
+  }
+  if (proRequired && (envelope.pro_decision_block.model_mode !== "PRO"
+    || !envelope.pro_decision_block.exact_text || !envelope.pro_decision_block.sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block"], message: "An escalated decision requires the exact Pro decision block and digest." });
+  }
+  if (proRequired && (envelope.pro_decision_block.exact_text !== envelope.decision_block.exact_text
+    || envelope.pro_decision_block.sha256 !== envelope.decision_block.sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_block"], message: "The canonical decision block must preserve the exact Pro decision bytes." });
+  }
+  if (!proRequired && (envelope.pro_decision_block.model_mode !== null
+    || envelope.pro_decision_block.exact_text !== null || envelope.pro_decision_block.sha256 !== null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block"], message: "An ordinary Extra High decision must not claim a Pro decision block." });
+  }
+  if (envelope.schema_version === 2 && envelope.binding_provider_session_id === envelope.stage_provider_session_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["stage_provider_session_id"], message: "A fresh tool stage must use a provider session distinct from the binding preload session." });
+  }
+  if (envelope.schema_version === 2 && envelope.staged_provenance !== (proRequired ? "DURABLE_STAGE_RECEIPT_ATTESTED" : null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["staged_provenance"], message: "Staged Pro provenance must exactly match the admitted reasoning lane." });
+  }
+  if (envelope.schema_version === 3 && envelope.binding_provider_session_id === envelope.decision_provider_session_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "A direct decision must use a provider session distinct from the binding preload session." });
+  }
+  if (envelope.schema_version === 3 && envelope.decision_session_provenance !== (proRequired
+    ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
+    : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED")) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Direct decision provenance must exactly match the admitted visible reasoning lane." });
+  }
+});
+
+export const githubDecisionReceiptIngestedSchema = z.object({
+  type: z.literal("github_decision_receipt_ingested"),
+  worker: WorkerId,
+  task_id: StableId,
+  receipt_id: StableId,
+  request_id: StableId,
+  supervisor_id: StableId.nullable().default(null),
+  provider_session_id: StableId.nullable().default(null),
+  binding_provider_session_id: StableId.nullable().default(null),
+  stage_provider_session_id: StableId.nullable().default(null),
+  decision_provider_session_id: StableId.nullable().default(null),
+  binding_capsule: bindingCapsuleSchema.nullable().default(null),
+  binding_capsule_sha256: Sha256.nullable().default(null),
+  staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable().default(null),
+  binding_envelope: bindingCapsuleSchema.nullable().default(null),
+  binding_envelope_sha256: Sha256.nullable().default(null),
+  decision_session_provenance: z.enum([
+    "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+    "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
+  ]).nullable().default(null),
+  nonce: StableId,
+  evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
+  owner_outcome_id: StableId,
+  owner_outcome_epoch: z.number().int().positive(),
+  owner_outcome_sha256: Sha256,
+  reasoning_lane: z.enum(["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"]),
+  decision_block: z.object({ decision_id: StableId, exact_text: NonEmpty.max(50_000), sha256: Sha256 }),
+  pro_decision_block: z.object({
+    used: z.boolean(),
+    model_mode: z.literal("PRO").nullable(),
+    exact_text: NonEmpty.max(50_000).nullable(),
+    sha256: Sha256.nullable(),
+  }),
+  writer_contract: z.object({
+    mode: z.literal("EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY"),
+    reinterpretation_allowed: z.literal(false),
+  }),
+  canonical_envelope_sha256: Sha256,
+  github_receipt: z.object({
+    repository: NonEmpty.max(300),
+    issue_number: z.number().int().positive(),
+    comment_id: z.number().int().positive(),
+    immutable_url: Url,
+    github_created_at: Timestamp,
+    github_author_login: NonEmpty.max(180),
+    github_delivery_id: StableId.nullable(),
+  }),
+  ingestion_method: z.enum(["GITHUB_WEBHOOK", "RECONCILIATION_POLL"]),
+  ingested_at: Timestamp,
+}).superRefine((receipt, context) => {
+  const proRequired = receipt.reasoning_lane === "PRO_ESCALATED";
+  if (receipt.pro_decision_block.used !== proRequired) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block", "used"], message: "Pro receipt usage must match the reasoning lane." });
+  }
+  if (proRequired && (receipt.pro_decision_block.exact_text !== receipt.decision_block.exact_text
+    || receipt.pro_decision_block.sha256 !== receipt.decision_block.sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_block"], message: "The ingested decision block must preserve the exact Pro decision bytes." });
+  }
+  const direct = receipt.decision_provider_session_id !== null;
+  if (direct && (!receipt.binding_provider_session_id || !receipt.binding_envelope
+    || !receipt.binding_envelope_sha256 || !receipt.decision_session_provenance)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "A direct split-session receipt requires its exact binding envelope and decision-session provenance." });
+  }
+  if (direct && receipt.binding_provider_session_id === receipt.decision_provider_session_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "Binding and decision provider sessions must be distinct." });
+  }
+  if (direct && receipt.decision_session_provenance !== (proRequired
+    ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
+    : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED")) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Ingested direct provenance must exactly match the visible reasoning lane." });
+  }
+});
+
 export const reasoningMessageRecordedSchema = z.object({
   type: z.literal("reasoning_message_recorded"),
   worker: WorkerId,
@@ -1191,6 +1374,7 @@ export const eventSchemaV2 = z.union([
   verificationValidityRecordedSchema, completionClaimRecordedSchema, ownerDecisionRecordedSchema,
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema, codexExecutionStartedSchema, executionReceiptRecordedSchema,
+  githubDecisionReceiptIngestedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,
   supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, liveWorkerEvidenceObservedSchema, reviewMarkedSchema,
   symphonyAdapterDiagnosticRecordedSchema,
@@ -1231,6 +1415,8 @@ export type CorrectionStatus = z.infer<typeof correctionStatusSchema>;
 export type FindingType = z.infer<typeof findingTypeSchema>;
 export type OutcomeAdvancement = z.infer<typeof outcomeAdvancementSchema>;
 export type StrategyEfficacy = z.infer<typeof strategyEfficacySchema>;
+export type CanonicalDecisionEnvelope = z.infer<typeof canonicalDecisionEnvelopeSchema>;
+export type BindingCapsule = z.infer<typeof bindingCapsuleSchema>;
 
 export interface StoredEvent {
   id: number;
@@ -1259,6 +1445,10 @@ export function parseEventV2(input: unknown): MissionControlEventV2 {
 
 export function parseAppendEnvelope(input: unknown): AppendEnvelope {
   return appendEnvelopeSchema.parse(input);
+}
+
+export function parseCanonicalDecisionEnvelope(input: unknown): CanonicalDecisionEnvelope {
+  return canonicalDecisionEnvelopeSchema.parse(input);
 }
 
 export function eventWorker(data: MissionControlEvent): string | null {

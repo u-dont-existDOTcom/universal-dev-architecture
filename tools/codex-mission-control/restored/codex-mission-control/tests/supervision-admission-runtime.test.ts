@@ -5,6 +5,7 @@ import { loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chat
 import {
   evaluateSupervisionAdmission,
   internalSupervisorRoutePrefix,
+  supervisoryCycleRoutePrefix,
   parseInternalSupervisorRouteBody,
 } from "../lib/supervision-admission-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
@@ -26,6 +27,7 @@ function input(overrides: Record<string, unknown> = {}) {
     sourceReceipt: null,
     boundedExecution: false,
     taskRequiresExecutionOutsideChat: false,
+    executionScope: null,
     spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 30, ownerApprovedNonzeroSpendManifestId: null },
     internalRoute: {
       destination: "SPECIALIST_SUPERVISOR_CHAT",
@@ -137,6 +139,7 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
       },
       boundedExecution: true,
       taskRequiresExecutionOutsideChat: true,
+      executionScope: "TERMINAL_OR_COMPUTER_WORK",
       spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 0, ownerApprovedNonzeroSpendManifestId: null },
       internalRoute: null,
     },
@@ -147,17 +150,58 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
 });
 
-test("configured chat locators are exposed without pretending provider verification or relay", () => {
+test("a registered provider-session cycle is emitted for the stable supervisor with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({
+    factualPacket: {
+      packetId: "packet:askrigor:mast:cycle",
+      taskId: "task:askrigor:mast",
+      exactFactualState: "Exact factual state is stored in the registered evidence capsule.",
+      evidenceRefs: ["github:u-dont-existDOTcom/universal-dev-architecture#58"],
+      decisionRequested: "Return the bounded canonical decision.",
+      supervisoryCycle: {
+        nonce: "nonce-cycle-1",
+        evidenceCapsule: { id: "capsule-cycle-1", sha256: "b".repeat(64) },
+        ownerOutcome: { id: "owner-outcome-cycle-1", epoch: 3, sha256: "c".repeat(64) },
+        reasoningLane: "PRO_ESCALATED",
+        githubReceipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issueNumber: 58, stageIssueNumber: 61 },
+        expiresAt: "2026-09-03T00:00:00.000Z",
+      },
+    },
+  }), "2026-09-02T00:00:00.000Z");
+  assert.ok(result.routeEnvelope?.data.type === "worker_message_recorded");
+  if (result.routeEnvelope?.data.type !== "worker_message_recorded") return;
+  assert.ok(result.routeEnvelope.data.body.startsWith(supervisoryCycleRoutePrefix));
+  const packet = JSON.parse(result.routeEnvelope.data.body.slice(supervisoryCycleRoutePrefix.length));
+  assert.equal(packet.schemaVersion, 4);
+  assert.equal(packet.packetKind, "PROVIDER_SESSION_SUPERVISORY_CYCLE");
+  assert.equal(packet.destinationSupervisorId, "chat:askrigor:new-research-avenues");
+  assert.equal(Object.hasOwn(packet, "destinationChatId"), false);
+  assert.equal(packet.requestId, "admission:askrigor:mast:1");
+  assert.equal(packet.nonce, "nonce-cycle-1");
+  assert.equal(packet.reasoningLane, "PRO_ESCALATED");
+  assert.equal(packet.writerContract.reinterpretationAllowed, false);
+});
+
+test("configured stable supervisor identity is distinct from its bootstrap conversation locator", () => {
   const directory = loadConfiguredSupervisorChats(JSON.stringify([
     {
       scope: "PROJECT_MANAGER",
-      chatId: "chat:mission-control:project-manager",
+      supervisorId: "mc-hotfix-specialist",
       label: "Mission Control overall supervisor",
-      url: "https://chatgpt.com/c/6a944d7a-3350-83e9-8302-5c011835fd77",
       workerId: null,
+      requiredApp: "Mission Control",
+      expectedModels: { extraHigh: "Extra High", pro: "Pro" },
+      bootstrapCapability: {
+        chatId: "mc-hotfix-specialist-v2",
+        url: "https://chatgpt.com/c/6a944d7a-3350-83e9-8302-5c011835fd77",
+        challengeId: "challenge-bootstrap",
+      },
     },
   ]));
   assert.equal(directory.configurationState, "CONFIGURED");
   assert.equal(directory.providerRelayState, "NOT_CONNECTED");
+  assert.equal(directory.entries[0]?.supervisorId, "mc-hotfix-specialist");
+  assert.equal(directory.entries[0]?.bootstrapCapability.chatId, "mc-hotfix-specialist-v2");
+  assert.notEqual(directory.entries[0]?.supervisorId, directory.entries[0]?.bootstrapCapability.chatId);
   assert.equal(directory.entries[0]?.locatorVerification, "OWNER_CONFIGURED_UNVERIFIED");
 });

@@ -13,11 +13,13 @@
     "supervision:admit": "tsx scripts/check-supervision-admission.ts",
     "supervision:admit:runtime": "node scripts/require-supervision-admission.mjs",
     "worker:poll": "node scripts/run-worker-adapter.mjs",
+    "worker:finalize:check": "node scripts/require-final-response-admission.mjs",
     "worker:verify-live": "node scripts/verify-live-worker-acceptance.mjs",
     "queue:advance-experiments": "node scripts/advance-experiment-queue.mjs",
     "auth:verify-live": "node scripts/verify-owner-auth-live.mjs",
     "mcp:stdio": "node scripts/mcp-stdio.mjs",
     "mcp:verify-live": "node scripts/verify-mcp-client.mjs",
+    "mcp:verify-public-live": "node scripts/verify-public-mcp-client.mjs",
     "mcp:tunnel:init": "node scripts/init-secure-mcp-tunnel.mjs",
     "experiment:hermes": "node scripts/run-hermes-experiment.mjs",
     "experiment:hermes:matrix": "node scripts/run-hermes-matrix.mjs",
@@ -29,6 +31,7 @@
     "experiment:attractor:report": "node scripts/report-attractor-experiment.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "next": "16.3.3",
     "react": "19.1.1",
     "react-dom": "19.1.1",

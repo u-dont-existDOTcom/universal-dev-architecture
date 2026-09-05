@@ -1,0 +1,32 @@
+[Unit]
+Description=Mission Control outbound ChatGPT relay
+After=network-online.target mission-control-chatgpt-browser.service
+Wants=network-online.target
+Requires=mission-control-chatgpt-browser.service
+
+[Service]
+Type=simple
+Slice=mission-control-chatgpt.slice
+EnvironmentFile=%h/.config/mission-control-chatgpt-relay/env
+ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs run
+Restart=always
+RestartSec=10
+TimeoutStopSec=20
+MemoryHigh=384M
+MemoryMax=512M
+MemorySwapMax=128M
+OOMPolicy=stop
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=%h/.config/mission-control-chatgpt-relay
+ReadWritePaths=%h/.local/state/mission-control-chatgpt-relay %h/.local/share/mission-control-chatgpt-profile
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+
+[Install]
+WantedBy=default.target

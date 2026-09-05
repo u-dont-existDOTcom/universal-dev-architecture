@@ -737,7 +737,7 @@ Run a system-owned tab audit:
 - every 30 minutes while browser automation is active;
 - at every task completion or major task switch;
 - before and after an account switch;
-- before opening a new tab when the profile already has 6 system-owned tabs;
+- before opening any managed ChatGPT tab when another usable ChatGPT tab exists, and always before the two-tab transition limit or three-tab hard ceiling could be crossed;
 - after a Pro/Codex limit event;
 - before ending a long work session.
 
@@ -767,10 +767,13 @@ Do not claim “browser cleaned up” without a tab inventory.
 - Default browser work remains headless.
 - Headed ChatGPT/interactive work uses the dedicated secondary virtual workspace or monitor.
 - Avoid stealing focus or covering the owner’s current work.
-- Reuse a tab only when account, task scope, and chat epoch match.
-- Do not reuse one ChatGPT tab across unrelated tasks merely to reduce tab count.
+- Reuse the current verified reusable ChatGPT tab across sequential provider sessions in the same authenticated account; start a new conversation with New chat so task/chat epochs remain distinct without tab fan-out.
+- Keep one managed ChatGPT tab in steady state, allow two only for bounded transition/recovery, and fail closed before opening a fourth because three is the absolute ceiling.
+- Open a replacement only when the current tab is irrecoverably unusable, then close the superseded automation-owned tab immediately after verification.
+- Never fan out duplicate ChatGPT tabs for the same task, and include `managedChatGptTabCount` in doctor/status telemetry.
 - Keep the Mission Control dashboard in one stable tab if actively used.
 - Keep no dormant log, documentation, search-result, or duplicate ChatGPT tabs solely because they might be useful someday.
+- Do not retain bootstrap or pinned automation-owned ChatGPT tabs merely for history after durable capability and URL evidence exist.
 - A recorded URL and durable packet are the recovery mechanism; an abandoned open tab is not.
 
 ---

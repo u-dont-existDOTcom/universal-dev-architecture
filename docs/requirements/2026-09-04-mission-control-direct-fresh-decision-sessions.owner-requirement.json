@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-DIRECT-FRESH-DECISION-SESSIONS-20260904",
+  "recorded_at": "2026-09-04T21:09:12Z",
+  "timestamp_basis": "CURRENT_CONVERSATION_CAPTURE_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "EXECUTION-ONLY — PROCEED DIRECTLY TO FRESH-FIRST-MESSAGE DECISION STAGES; DO NOT RUN THE SUPERSEDED PROBE",
+    "sha256": "ce7a9559824ae74e35a5f4d20034f039770370aba6ab67b9e4afdd9b5609ff00",
+    "source_type": "owner_chat_message",
+    "source_ref": "current Codex task continuing chatgpt-conversation://6a97740b-71dc-83ea-875e-b0f01e98d20d",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME",
+    "material_corrections_preserved": [
+      "Mandatory external-tool operations happen only on a fresh conversation's first substantive message; durable receipts bind stages and follow-up tool affinity is forbidden.",
+      "Keep MCP_BINDING_PRELOAD as its own fresh Extra High Mission-Control-selected retrieval-only session and derive an immutable transport-only binding envelope only from its verified current exact MCP receipt.",
+      "Ordinary uses a distinct fresh Extra High decision provider session whose first message reads immutable GitHub evidence and writes canonical issue #59 directly.",
+      "Escalated uses a distinct fresh visible-Pro decision provider session whose first message reads immutable GitHub evidence and writes canonical issue #59 directly; no reader, liveness, or Extra High writer stage is mandatory.",
+      "Use a new backward-compatible receipt schema with explicit binding_provider_session_id and decision_provider_session_id plus binding receipt/envelope identity; do not relabel old schemas or claim same-chat provenance.",
+      "Issue #61 remains available for legacy/current compatibility and diagnostics but is not required by the direct fresh-Pro topology.",
+      "If the mandatory issue #59 receipt is absent after bounded reconciliation, fail the stage; do not send same-chat continue and do not spend a second semantic attempt unless an existing durable retry policy explicitly authorizes a fresh-stage retry.",
+      "Do not require a selectable GitHub composer chip when product mechanics do not expose one; success is the authorized issue #59 receipt. Prefer no Mission Control selection in decision sessions.",
+      "Before edits or browser messages, re-read PR #58 and issue #60; consume newer compatible evidence and never duplicate the cancelled GitHub-only probe.",
+      "Preserve one reusable ChatGPT tab, every actual submission at least 60 seconds apart globally, no assistant-output extraction, no stale receipt reuse, no production mutation, exact-SHA hotfix/Hostinger deployment, and PR draft status until terminal acceptance passes."
+    ]
+  },
+  "normalized_outcome": "Mission Control uses a new direct split-stage route in which a verified fresh binding-preload session mechanically yields a minimal immutable binding envelope and exactly one distinct fresh decision session performs the mandatory GitHub read/write on its first substantive message: visible Extra High for ordinary and visible Pro for escalated. Admission binds the exact current binding receipt/envelope, current decision-session transport and visible model proof, owner/evidence hashes, authorized writer/location, and freshness. Legacy schema and issue #61 paths remain compatible but cannot be relabeled as the new provenance. Focused tests, one hosted checkpoint, exact-SHA hotfix and Hostinger deployment, and ordinary plus escalated live acceptance complete without touching production.",
+  "required_outcomes": [
+    {
+      "id": "RO-DIRECT-SCHEMA-001",
+      "terminal_required": true,
+      "observable": "A new receipt schema requires distinct binding_provider_session_id and decision_provider_session_id, exact current verified binding receipt/envelope identity, and lane-specific fresh decision-session transport plus visible-model proof; forged, stale, cross-request, cross-supervisor, cross-session, and relabeled-old-schema receipts fail closed.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+        "focused github-decision-receipts tests: 16 passed"
+      ]
+    },
+    {
+      "id": "RO-DIRECT-RELAY-002",
+      "terminal_required": true,
+      "observable": "The new route executes exactly two mandatory first-message tool sessions per request: binding preload and direct decision. Ordinary selects visible Extra High; escalated selects visible Pro and writes final issue #59 directly. No mandatory external-tool follow-up, same-chat writer, manufactured reader/liveness stage, or automatic semantic retry exists.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/relay.mjs",
+        "affected relay tests: 69 passed"
+      ]
+    },
+    {
+      "id": "RO-COMPATIBILITY-003",
+      "terminal_required": true,
+      "observable": "Legacy/current schema parsing and issue #61 diagnostics remain supported for their existing routes, while the new direct-Pro route neither requires #61 nor accepts SAME_CHAT_WRITER_ATTESTED or DURABLE_STAGE_RECEIPT_ATTESTED as its provenance.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/public-mcp.ts",
+        "tools/codex-mission-control/vps-browser-relay/STAGE-LIVENESS-PROTOCOL.md"
+      ]
+    },
+    {
+      "id": "RO-FOCUSED-TESTS-004",
+      "terminal_required": true,
+      "observable": "Deterministic focused coverage proves all specified envelope/session/provenance/topology constraints plus assistant-output absence, global 60-second pacing, and one-tab discipline.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts",
+        "tools/codex-mission-control/vps-browser-relay/test/core.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/relay.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-DEPLOY-005",
+      "terminal_required": true,
+      "observable": "One normal hosted audit/Mission-Control/relay/CodeQL checkpoint is green at the exact pushed head; only the isolated hotfix is deployed from exact-SHA codeload and the same head is installed on Hostinger with build/type/daemon/health proof; production is untouched.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LIVE-ORDINARY-006",
+      "terminal_required": true,
+      "observable": "A new harmless ordinary request completes one fresh binding-preload session and, after at least 60 seconds, one distinct fresh visible-Extra-High decision session that writes and admits canonical issue #59 in its first message.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LIVE-PRO-007",
+      "terminal_required": true,
+      "observable": "After ordinary succeeds, a new harmless PRO_ESCALATED request completes one fresh binding-preload session and, after at least 60 seconds, one distinct fresh visible-Pro decision session that writes and admits canonical issue #59 in its first message with conservative visible-session GitHub-attested provenance.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-FINALIZATION-008",
+      "terminal_required": true,
+      "observable": "PR #58 and issue #53 contain the exact final head, schema/provenance, session URLs and receipt IDs, no-follow-up-tool evidence, pacing/tab/memory/timestamp state, CI, exact hotfix deployment, reconciliation, draft/merge boundary, and production-not-authorized boundary.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "the superseded GitHub-only probe is run again or treated as live decision acceptance",
+    "the Stage-1 MCP call is missing, stale, or mismatched but a prompt-supplied binding envelope is accepted",
+    "binding and decision use the same provider session or one generic provider_session_id is presented as both",
+    "an escalated route uses reader, liveness, continue, or Extra High writer stages instead of one direct fresh Pro decision session",
+    "a new direct receipt claims SAME_CHAT_WRITER_ATTESTED or DURABLE_STAGE_RECEIPT_ATTESTED provenance",
+    "issue #61 is made mandatory for the new direct-Pro topology",
+    "a mandatory external-tool action occurs on a follow-up message",
+    "a missing issue #59 receipt triggers an unauthorized same-chat continue or automatic second semantic attempt",
+    "Mission Control or a GitHub composer chip is required in a decision session despite the connected GitHub tool being usable without it",
+    "assistant output is extracted from the browser DOM",
+    "tests, CI, or deployment pass while either ordinary or escalated live acceptance remains unverified",
+    "production is mutated, a stale receipt is reused, submissions are under 60 seconds apart, or duplicate tabs are opened",
+    "browser observation/capture time is relabeled as provider source time",
+    "the draft PR is merged without a deterministic existing merge policy or production is promoted without authorization"
+  ],
+  "active_lesson_contract": [
+    {
+      "source": "current owner correction and PR #58 comment 5543340605",
+      "trigger": "the prior worker implemented a multi-stage escalated flow and ran a cancelled probe",
+      "required_behavior": "consume the resulting evidence without duplication and implement only the direct fresh-Pro topology",
+      "failure_condition": "another probe, reader/liveness/writer stage, or same-chat provenance is added to the new route",
+      "repair_action": "fail closed and remove the noncompliant stage from the new route while retaining legacy compatibility",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "trigger": "implementation, tests, CI, and deployment are supporting evidence rather than the requested live outcome",
+      "required_behavior": "keep deployment and both live cycles open until direct evidence exists",
+      "failure_condition": "supporting evidence is presented as terminal completion",
+      "repair_action": "report the exact remaining owner-outcome gap and continue every safe unblocked step",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "universal browser and pacing requirements",
+      "trigger": "each stage sends a real ChatGPT message in a persistent authenticated browser",
+      "required_behavior": "reuse one tab, allocate fresh conversations, and gate every actual submission by the persisted 60-second interval",
+      "failure_condition": "duplicate tabs or adjacent submissions under 60 seconds",
+      "repair_action": "fail closed before opening/sending and preserve telemetry",
+      "enforcement": "mechanical"
+    }
+  ],
+  "next_direct_evidence": "Implement the new direct route and receipt schema from the current exact head, pass focused deterministic tests, then clear only the isolated hotfix deployment path without applying or discarding unrelated production changes."
+}
