@@ -103,13 +103,13 @@ test("capability receipt proves MC read plus GitHub read/write only with both no
   assert.throws(() => ingestGitHubSupervisionCandidate(badStore, capabilityCandidate(capabilityReceiptBody("mc-nonce", "wrong")), p), /nonce mismatch/);
 });
 
-test("reader receipt is admitted only from a distinct fresh first-message GitHub session", () => {
+test("route-v3 reader admits STARTED < comment < COMPLETE < ingestedAt for one exact first-message session", () => {
   const p = policy();
   const store = fakeStore([
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
   ]);
-  const appended = ingestGitHubSupervisionCandidate(store, stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", readerSessionId)), p, "2026-09-02T00:05:00.000Z");
+  const appended = ingestGitHubSupervisionCandidate(store, stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", readerSessionId)), p, "2026-09-02T00:05:40.000Z");
   assert.equal(appended.length, 1);
   const event = appended[0];
   assert.equal(event.data.type, "evidence_receipt_recorded");
@@ -122,7 +122,7 @@ test("reader receipt is admitted only from a distinct fresh first-message GitHub
 
   const followUpEvents = [
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
   ].map((item) => structuredClone(item));
   const transport = followUpEvents.find((item) => item.data.type === "evidence_receipt_recorded" && item.data.summary === relayStageSummary && item.data.refs.includes(`provider_session:${readerSessionId}`));
   assert.ok(transport && transport.data.type === "evidence_receipt_recorded");
@@ -133,7 +133,7 @@ test("reader receipt is admitted only from a distinct fresh first-message GitHub
 });
 
 test("prompt-forged and stale binding capsules are rejected", () => {
-  const base = [...pendingEvents(), ...capabilityEvents(), ...bindingEvents(), ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z")];
+  const base = [...pendingEvents(), ...capabilityEvents(), ...bindingEvents(), ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z")];
   const forged = structuredClone(bindingCapsule());
   forged.request_nonce = "forged-nonce";
   assert.throws(
@@ -149,12 +149,12 @@ test("prompt-forged and stale binding capsules are rejected", () => {
   );
 });
 
-test("one provider session cannot be reused across durable reader and Pro receipts", () => {
+test("route-v3 compatibility preserves the no-reuse gate across durable reader and Pro receipts", () => {
   const events = [
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z"),
-    stageCompletion("reader-receipt", 22, "EXTRA_HIGH_READER", readerSessionId, "2026-09-02T00:05:00.000Z"),
-    ...semanticSessionEvents(readerSessionId, "PRO_REASONER", "Pro", 23, "2026-09-02T00:06:00.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
+    stageCompletion("reader-receipt", 23, "EXTRA_HIGH_READER", readerSessionId, "2026-09-02T00:05:00.000Z", "2026-09-02T00:05:40.000Z"),
+    ...semanticSessionEvents(readerSessionId, "PRO_REASONER", "Pro", 24, "2026-09-02T00:06:00.000Z", "2026-09-02T00:07:30.000Z"),
   ];
   assert.throws(
     () => ingestGitHubSupervisionCandidate(
@@ -166,12 +166,12 @@ test("one provider session cannot be reused across durable reader and Pro receip
   );
 });
 
-test("escalated decision requires ordered session-bound reader, Pro, and final writer stages", () => {
+test("route-v3 compatibility preserves ordered semantic stages under corrected GitHub transport timing", () => {
   const p = policy();
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(pendingEvents(), candidate(), p), /Stage-1 MCP receipt/);
   assert.throws(() => buildGitHubDecisionReceiptEnvelope([
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "Extra High", 20, "2026-09-02T00:08:00.000Z"),
+    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "Extra High", 20, "2026-09-02T00:08:00.000Z", "2026-09-02T00:15:30.000Z"),
   ], candidate(), p), /semantic stage completion EXTRA_HIGH_READER/);
 
   const complete = escalatedEvents();
@@ -188,10 +188,10 @@ test("escalated decision requires ordered session-bound reader, Pro, and final w
   const proRelay = wrongOrder.find((item) => item.data.type === "evidence_receipt_recorded" && item.data.summary === relayStageSummary && item.data.refs.includes("step:PRO_REASONER"));
   assert.ok(readerRelay && proRelay);
   if (readerRelay && proRelay) [readerRelay.sequence, proRelay.sequence] = [proRelay.sequence, readerRelay.sequence];
-  assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongOrder, candidate(), p), /ordered relay stage/);
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongOrder, candidate(), p), /ordered relay stage|transport window/);
 });
 
-test("durable Pro receipt digest is semantic authority and final writer cannot reinterpret it", () => {
+test("route-v3 compatibility preserves the durable Pro digest and final-writer authority gate", () => {
   const mismatched = decisionEnvelope();
   mismatched.decision_block = { decision_id: "decision-2", exact_text: "A different decision.", sha256: sha256("A different decision.") };
   mismatched.pro_decision_block = { used: true, model_mode: "PRO", exact_text: "A different decision.", sha256: sha256("A different decision.") };
@@ -239,12 +239,15 @@ test("old same-chat receipt schemas cannot satisfy the split-stage contract", ()
   assert.throws(() => parseStageReceiptComment(`${stageReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, request_id: "legacy", request_nonce: "nonce", chat_id: "chat", stage: "PRO_REASONER", status: "STAGE_COMPLETE" })}`), /schema_version must be 2/);
 });
 
-test("new ordinary direct receipt requires distinct binding and Extra High decision sessions", () => {
+test("route-v4 ordinary admits the exact live 13.481-second comment-before-COMPLETE shape", () => {
   const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  const receipt = candidate();
+  assert.equal(Date.parse("2026-09-02T00:15:13.481Z") - Date.parse(receipt.createdAt), 13_481);
   const result = buildGitHubDecisionReceiptEnvelope(
     directDecisionEvents("EXTRA_HIGH_DIRECT"),
-    { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` },
+    { ...receipt, body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` },
     policy(),
+    "2026-09-02T00:15:20.000Z",
   );
   assert.equal(result.data.type, "github_decision_receipt_ingested");
   if (result.data.type !== "github_decision_receipt_ingested") return;
@@ -260,7 +263,7 @@ test("new ordinary direct receipt requires distinct binding and Extra High decis
   );
 });
 
-test("new escalated route admits one direct visible Pro decision and does not require issue 61 stages", () => {
+test("route-v4 Pro uses the same first-message transport window without issue 61 stages", () => {
   const decision = directDecisionEnvelope("PRO_ESCALATED");
   const events = directDecisionEvents("PRO_ESCALATED");
   assert.equal(events.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === stageLivenessSummary), false);
@@ -269,7 +272,7 @@ test("new escalated route admits one direct visible Pro decision and does not re
     store,
     { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` },
     policy(),
-    "2026-09-02T00:16:00.000Z",
+    "2026-09-02T00:15:20.000Z",
   );
   assert.equal(appended.length, 2);
   const attestation = appended[1];
@@ -323,6 +326,159 @@ test("new direct admission requires exact visible lane proof and rejects relabel
   assert.throws(
     () => buildGitHubDecisionReceiptEnvelope(directDecisionEvents("PRO_ESCALATED"), candidate(), policy()),
     /schema_version 3/,
+  );
+});
+
+test("early webhook fails closed, then later reconciliation admits the unchanged comment after COMPLETE", () => {
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  const receipt = { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` };
+  const all = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  const completed = all.filter((event) => event.data.type === "evidence_receipt_recorded"
+    && (event.data.refs.includes("generation_state:COMPLETE") || event.data.refs.includes("lifecycle_status:COMPLETE"))
+    && event.data.refs.includes(`decision_provider_session:${directDecisionSessionId}`));
+  const store = fakeStore(all.filter((event) => !completed.includes(event)));
+
+  assert.throws(
+    () => ingestGitHubSupervisionCandidate(store, receipt, policy(), "2026-09-02T00:15:05.000Z"),
+    /not complete|transport receipt/,
+  );
+  for (const event of completed) store.append(appendEnvelope(event), event.receivedAt);
+  const admitted = ingestGitHubSupervisionCandidate(store, receipt, policy(), "2026-09-02T00:15:20.000Z");
+  assert.equal(admitted[0]?.data.type, "github_decision_receipt_ingested");
+  if (admitted[0]?.data.type === "github_decision_receipt_ingested") {
+    assert.equal(admitted[0].data.github_receipt.comment_id, receipt.commentId);
+    assert.equal(admitted[0].data.github_receipt.github_created_at, receipt.createdAt);
+  }
+});
+
+test("GitHub comment before STARTED fails the exact generation window", () => {
+  const events = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  setRelayOccurredAt(events, "EXTRA_HIGH_DECISION", "STARTED", "2026-09-02T00:15:01.000Z");
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(events, directCandidate("EXTRA_HIGH_DIRECT"), policy(), "2026-09-02T00:15:20.000Z"),
+    /transport receipt|transport window/,
+  );
+});
+
+test("GitHub comment after COMPLETE fails the exact generation window", () => {
+  const events = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  setRelayOccurredAt(events, "EXTRA_HIGH_DECISION", "COMPLETE", "2026-09-02T00:14:59.999Z");
+  const session = events.find((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.refs.includes(`decision_provider_session:${directDecisionSessionId}`)
+    && event.data.refs.includes("lifecycle_status:COMPLETE"));
+  assert.ok(session);
+  if (session) session.occurredAt = "2026-09-02T00:14:59.999Z";
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(events, directCandidate("EXTRA_HIGH_DIRECT"), policy(), "2026-09-02T00:15:20.000Z"),
+    /transport receipt|transport window/,
+  );
+});
+
+test("COMPLETE after ingestedAt fails that admission attempt", () => {
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(
+      directDecisionEvents("EXTRA_HIGH_DIRECT"),
+      directCandidate("EXTRA_HIGH_DIRECT"),
+      policy(),
+      "2026-09-02T00:15:10.000Z",
+    ),
+    /not complete|transport receipt|transport window/,
+  );
+});
+
+test("STARTED and COMPLETE must carry the same exact prompt hash", () => {
+  const events = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  const complete = relayReceipt(events, "EXTRA_HIGH_DECISION", "COMPLETE");
+  replaceRef(complete, "prompt_sha256:", "d".repeat(64));
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(events, directCandidate("EXTRA_HIGH_DIRECT"), policy(), "2026-09-02T00:15:20.000Z"),
+    /transport receipt|transport window/,
+  );
+});
+
+test("STARTED and COMPLETE must match the exact session, step, model, and app contract", () => {
+  const mutations: Array<readonly [string, (event: StoredEvent) => void]> = [
+    ["session", (event) => replaceRef(event, "decision_provider_session:", "provider-session:other")],
+    ["step", (event) => replaceRef(event, "step:", "EXTRA_HIGH_WRITER")],
+    ["model", (event) => replaceRef(event, "model_ui_label:", "6 Pro")],
+    ["app", (event) => {
+      if (event.data.type !== "evidence_receipt_recorded") return;
+      event.data.refs = event.data.refs
+        .filter((ref) => !ref.startsWith("app_selection_attempted:") && !ref.startsWith("app_selection_status:") && !ref.startsWith("selected_app:"))
+        .concat("app_selection_attempted:true", "app_selection_status:MESSAGE_APPS_SELECTED", "selected_app:GitHub");
+    }],
+  ];
+  for (const [label, mutate] of mutations) {
+    const events = directDecisionEvents("EXTRA_HIGH_DIRECT");
+    mutate(relayReceipt(events, "EXTRA_HIGH_DECISION", "COMPLETE"));
+    assert.throws(
+      () => buildGitHubDecisionReceiptEnvelope(events, directCandidate("EXTRA_HIGH_DIRECT"), policy(), "2026-09-02T00:15:20.000Z"),
+      /transport receipt|transport window/,
+      label,
+    );
+  }
+});
+
+test("binding preload COMPLETE must still predate the GitHub decision comment", () => {
+  const events = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  setRelayOccurredAt(events, "MCP_BINDING_PRELOAD", "COMPLETE", "2026-09-02T00:15:01.000Z");
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(events, directCandidate("EXTRA_HIGH_DIRECT"), policy(), "2026-09-02T00:15:20.000Z"),
+    /Stage-1|preload transport/,
+  );
+});
+
+test("later ingestedAt does not rescue stale request, owner, capability, or binding evidence", () => {
+  const lateIngestion = "2026-09-03T00:01:00.000Z";
+
+  const staleRequestEvents = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  setRelayOccurredAt(staleRequestEvents, "EXTRA_HIGH_DECISION", "STARTED", "2026-09-02T23:59:30.000Z");
+  setRelayOccurredAt(staleRequestEvents, "EXTRA_HIGH_DECISION", "COMPLETE", "2026-09-03T00:00:10.000Z");
+  const staleRequestSession = staleRequestEvents.find((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.refs.includes(`decision_provider_session:${directDecisionSessionId}`)
+    && event.data.refs.includes("lifecycle_status:COMPLETE"));
+  assert.ok(staleRequestSession);
+  if (staleRequestSession) staleRequestSession.occurredAt = "2026-09-03T00:00:10.000Z";
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(
+      staleRequestEvents,
+      { ...directCandidate("EXTRA_HIGH_DIRECT"), createdAt: "2026-09-03T00:00:01.000Z" },
+      policy(),
+      lateIngestion,
+    ),
+    /stale for the admitted request window/,
+  );
+
+  const staleOwnerEvents = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  const newerOwner = structuredClone(staleOwnerEvents[0]!);
+  newerOwner.sequence = 100;
+  newerOwner.eventId = "newer-owner-outcome";
+  if (newerOwner.data.type === "owner_outcome_recorded") newerOwner.data.epoch = 8;
+  staleOwnerEvents.push(newerOwner);
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(staleOwnerEvents, directCandidate("EXTRA_HIGH_DIRECT"), policy(), lateIngestion),
+    /stale against the current owner-outcome epoch/,
+  );
+
+  const staleCapabilityEvents = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  for (const event of staleCapabilityEvents) {
+    if (event.data.type === "evidence_receipt_recorded"
+      && (event.data.summary === capabilityVerifiedSummary || event.data.summary === modeCapabilityVerifiedSummary)) {
+      replaceRef(event, "expires_at:", "2026-09-02T00:14:59.999Z");
+    }
+  }
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(staleCapabilityEvents, directCandidate("EXTRA_HIGH_DIRECT"), policy(), lateIngestion),
+    /lacks a current/,
+  );
+
+  const staleBindingEvents = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  const mcp = staleBindingEvents.find((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === providerSessionMcpSummary);
+  assert.ok(mcp);
+  if (mcp) mcp.occurredAt = "2026-09-02T00:15:01.000Z";
+  assert.throws(
+    () => buildGitHubDecisionReceiptEnvelope(staleBindingEvents, directCandidate("EXTRA_HIGH_DIRECT"), policy(), lateIngestion),
+    /Stage-1 MCP receipt/,
   );
 });
 
@@ -419,14 +575,15 @@ function bindingEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED" = "PRO_ESCALA
   ];
 }
 
-function semanticSessionEvents(sessionId: string, step: string, model: string, sequence: number, occurredAt: string): StoredEvent[] {
+function semanticSessionEvents(sessionId: string, step: string, model: string, sequence: number, startedAt: string, completedAt: string): StoredEvent[] {
   return [
-    relayStage(`${step}-relay`, sequence, sessionId, step, model, "GitHub", occurredAt),
-    providerSessionEvent(`${step}-complete`, sequence + 1, sessionId, step, "COMPLETE", occurredAt),
+    relayStage(`${step}-relay-started`, sequence, sessionId, step, model, "GitHub", startedAt, bindingSessionId, "STARTED"),
+    relayStage(`${step}-relay-complete`, sequence + 1, sessionId, step, model, "GitHub", completedAt, bindingSessionId, "COMPLETE"),
+    providerSessionEvent(`${step}-complete`, sequence + 2, sessionId, step, "COMPLETE", completedAt),
   ];
 }
 
-function stageCompletion(id: string, sequence: number, stage: "EXTRA_HIGH_READER" | "PRO_DECISION_STAGE", sessionId: string, occurredAt: string): StoredEvent {
+function stageCompletion(id: string, sequence: number, stage: "EXTRA_HIGH_READER" | "PRO_DECISION_STAGE", sessionId: string, occurredAt: string, receivedAt = occurredAt): StoredEvent {
   const refs = [
     "request:decision-request-1", `request_nonce_sha256:${sha256("nonce-1")}`, `supervisor:${supervisorId}`,
     `binding_provider_session:${bindingSessionId}`, `stage_provider_session:${sessionId}`,
@@ -435,24 +592,24 @@ function stageCompletion(id: string, sequence: number, stage: "EXTRA_HIGH_READER
   ];
   if (stage === "EXTRA_HIGH_READER") refs.push("evidence_reading_capsule:reader-capsule-1", `evidence_reading_capsule_sha256:${sha256(readerText)}`, "semantic_authority:false");
   else refs.push("pro_decision_id:decision-1", `pro_decision_sha256:${sha256(decisionText)}`, "semantic_authority:PRO");
-  return evidenceEvent(id, sequence, stageLivenessSummary, refs, occurredAt);
+  return evidenceEvent(id, sequence, stageLivenessSummary, refs, occurredAt, receivedAt);
 }
 
 function escalatedEvents(): StoredEvent[] {
   return [
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z"),
-    stageCompletion("reader-receipt", 22, "EXTRA_HIGH_READER", readerSessionId, "2026-09-02T00:05:00.000Z"),
-    ...semanticSessionEvents(proSessionId, "PRO_REASONER", "Pro", 23, "2026-09-02T00:06:00.000Z"),
-    stageCompletion("pro-receipt", 25, "PRO_DECISION_STAGE", proSessionId, "2026-09-02T00:07:00.000Z"),
-    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "Extra High", 26, "2026-09-02T00:08:00.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
+    stageCompletion("reader-receipt", 23, "EXTRA_HIGH_READER", readerSessionId, "2026-09-02T00:05:00.000Z", "2026-09-02T00:05:40.000Z"),
+    ...semanticSessionEvents(proSessionId, "PRO_REASONER", "Pro", 24, "2026-09-02T00:06:00.000Z", "2026-09-02T00:07:30.000Z"),
+    stageCompletion("pro-receipt", 27, "PRO_DECISION_STAGE", proSessionId, "2026-09-02T00:07:00.000Z", "2026-09-02T00:07:40.000Z"),
+    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "Extra High", 28, "2026-09-02T00:08:00.000Z", "2026-09-02T00:15:30.000Z"),
   ];
 }
 
 function ordinaryEvents(): StoredEvent[] {
   return [
     ...pendingEvents("EXTRA_HIGH_DIRECT"), ...capabilityEvents(), ...bindingEvents("EXTRA_HIGH_DIRECT"),
-    ...semanticSessionEvents(directSessionId, "EXTRA_HIGH_DIRECT", "Extra High", 20, "2026-09-02T00:04:00.000Z"),
+    ...semanticSessionEvents(directSessionId, "EXTRA_HIGH_DIRECT", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:15:30.000Z"),
   ];
 }
 
@@ -474,8 +631,9 @@ function directDecisionEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): Stor
     ...directPendingEvents(lane),
     ...capabilityEvents(),
     ...directBindingEvents(lane),
-    directRelayStage("direct-decision-relay", 20, decisionSession, step, label, "2026-09-02T00:04:00.000Z"),
-    directProviderSessionEvent("direct-decision-complete", 21, decisionSession, step, "2026-09-02T00:04:00.000Z"),
+    directRelayStage("direct-decision-relay-started", 20, decisionSession, step, label, "2026-09-02T00:14:00.000Z", "STARTED"),
+    directRelayStage("direct-decision-relay-complete", 21, decisionSession, step, label, "2026-09-02T00:15:13.481Z", "COMPLETE"),
+    directProviderSessionEvent("direct-decision-complete", 22, decisionSession, step, "2026-09-02T00:15:13.481Z"),
   ];
 }
 
@@ -489,12 +647,12 @@ function directBindingEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): Store
   });
 }
 
-function directRelayStage(id: string, sequence: number, sessionId: string, step: string, model: string, occurredAt: string): StoredEvent {
+function directRelayStage(id: string, sequence: number, sessionId: string, step: string, model: string, occurredAt: string, generationState: "STARTED" | "COMPLETE"): StoredEvent {
   return evidenceEvent(id, sequence, relayStageSummary, [
     "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${sessionId}`,
     `binding_provider_session:${bindingSessionId}`, `decision_provider_session:${sessionId}`,
     `conversation_url:https://chatgpt.com/c/${sessionId.replaceAll(":", "-")}`, `step:${step}`,
-    `model_ui_label:${model}`, `prompt_sha256:${"c".repeat(64)}`, "generation_state:COMPLETE",
+    `model_ui_label:${model}`, `prompt_sha256:${"c".repeat(64)}`, `generation_state:${generationState}`,
     "app_selection_attempted:false", "app_selection_status:APP_SELECTION_NOT_ATTEMPTED",
     "message_ordinal:1", "first_message:true", `observed_at:${occurredAt}`,
     "assistant_content_observed:false", "backend_model_identity_claimed:false", "semantic_authority:false",
@@ -510,12 +668,12 @@ function directProviderSessionEvent(id: string, sequence: number, sessionId: str
   ], occurredAt);
 }
 
-function relayStage(id: string, sequence: number, sessionId: string, step: string, model: string, app: string, occurredAt: string, bindingId = bindingSessionId): StoredEvent {
+function relayStage(id: string, sequence: number, sessionId: string, step: string, model: string, app: string, occurredAt: string, bindingId = bindingSessionId, generationState: "STARTED" | "COMPLETE" = "COMPLETE"): StoredEvent {
   return evidenceEvent(id, sequence, relayStageSummary, [
     "request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${sessionId}`, `binding_provider_session:${bindingId}`,
     ...(sessionId === bindingId ? [] : [`stage_provider_session:${sessionId}`]),
     `conversation_url:https://chatgpt.com/c/${sessionId.replaceAll(":", "-")}`, `step:${step}`, `model_ui_label:${model}`,
-    `prompt_sha256:${"c".repeat(64)}`, "generation_state:COMPLETE", "app_selection_attempted:true", `selected_app:${app}`,
+    `prompt_sha256:${"c".repeat(64)}`, `generation_state:${generationState}`, "app_selection_attempted:true", "app_selection_status:MESSAGE_APPS_SELECTED", `selected_app:${app}`,
     "message_ordinal:1", "first_message:true", `observed_at:${occurredAt}`, "assistant_content_observed:false", "backend_model_identity_claimed:false", "semantic_authority:false",
   ], occurredAt);
 }
@@ -597,18 +755,54 @@ function capabilityCandidate(body: string): GitHubDecisionCandidate {
 function stageCandidate(body: string): GitHubDecisionCandidate {
   return { ...candidate(), issueNumber: policy().stageIssueNumber, commentId: 9200, immutableUrl: `https://github.com/${policy().repository}/issues/${policy().stageIssueNumber}#issuecomment-9200`, createdAt: "2026-09-02T00:05:00.000Z", body, deliveryId: "delivery-stage" };
 }
+function directCandidate(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): GitHubDecisionCandidate {
+  return { ...candidate(), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(directDecisionEnvelope(lane))}` };
+}
 function decisionBody() { return `${canonicalDecisionCommentPrefix}${JSON.stringify(decisionEnvelope())}`; }
 function capabilityReceiptBody(mcNonce: string, githubNonce: string) { return `${capabilityReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, challenge_id: "challenge-spec", chat_id: bootstrapChatId, mc_nonce: mcNonce, github_nonce: githubNonce, capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"] })}`; }
 function webhookPayload(body: string, issueNumber = policy().decisionIssueNumber) { return { action: "created", repository: { full_name: policy().repository }, issue: { number: issueNumber }, comment: { id: 9001, html_url: `https://github.com/${policy().repository}/issues/${issueNumber}#issuecomment-9001`, created_at: "2026-09-02T00:01:30.000Z", body, user: { login: "u-dont-existDOTcom" } } }; }
 
-function evidenceEvent(id: string, sequence: number, summary: string, refs: string[], occurredAt = "2026-09-02T00:02:00.000Z"): StoredEvent {
-  return storedEvent({ type: "evidence_receipt_recorded", worker: "mission-control-live-slice", receipt_id: id, producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null, summary, refs, verified: true, changed_path_manifest: null }, `event-${id}`, sequence, occurredAt);
+function relayReceipt(events: StoredEvent[], step: string, generationState: "STARTED" | "COMPLETE") {
+  const event = events.find((item) => item.data.type === "evidence_receipt_recorded"
+    && item.data.summary === relayStageSummary
+    && item.data.refs.includes(`step:${step}`)
+    && item.data.refs.includes(`generation_state:${generationState}`));
+  if (!event) throw new Error(`Missing ${step}/${generationState} relay fixture.`);
+  return event;
+}
+
+function replaceRef(event: StoredEvent, prefix: string, value: string) {
+  if (event.data.type !== "evidence_receipt_recorded") throw new Error("Expected an evidence fixture.");
+  const matches = event.data.refs.filter((ref) => ref.startsWith(prefix));
+  if (matches.length !== 1) throw new Error(`Expected one ${prefix} fixture ref; found ${matches.length}.`);
+  event.data.refs = event.data.refs.map((ref) => ref.startsWith(prefix) ? `${prefix}${value}` : ref);
+}
+
+function setRelayOccurredAt(events: StoredEvent[], step: string, generationState: "STARTED" | "COMPLETE", occurredAt: string) {
+  const event = relayReceipt(events, step, generationState);
+  event.occurredAt = occurredAt;
+  event.receivedAt = occurredAt;
+  replaceRef(event, "observed_at:", occurredAt);
+}
+
+function appendEnvelope(event: StoredEvent) {
+  return {
+    schema_version: 2,
+    event_id: event.eventId,
+    mission_id: event.missionId,
+    occurred_at: event.occurredAt,
+    data: event.data,
+  };
+}
+
+function evidenceEvent(id: string, sequence: number, summary: string, refs: string[], occurredAt = "2026-09-02T00:02:00.000Z", receivedAt = occurredAt): StoredEvent {
+  return storedEvent({ type: "evidence_receipt_recorded", worker: "mission-control-live-slice", receipt_id: id, producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null, summary, refs, verified: true, changed_path_manifest: null }, `event-${id}`, sequence, occurredAt, receivedAt);
 }
 function fakeStore(initial: StoredEvent[]) {
   const events = initial.map((event) => structuredClone(event));
   let sequence = Math.max(0, ...events.map((event) => event.sequence));
   return { allEvents: () => events, append: (input: unknown) => { const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] }; const existing = events.find((event) => event.eventId === envelope.event_id); if (existing) return existing; const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at); events.push(stored); return stored; } } as unknown as EventStore;
 }
-function storedEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string): StoredEvent {
-  return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt: occurredAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };
+function storedEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string, receivedAt = occurredAt): StoredEvent {
+  return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };
 }
