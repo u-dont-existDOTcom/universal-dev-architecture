@@ -1,244 +1,178 @@
 # Current State
 
-Updated: 2026-09-04
+Updated: 2026-09-06
 
-## Controlling 2026-09-04 continuation
+## Current authority boundary
 
-Another worker ran the now-superseded fresh first-message GitHub write probe on
-issue #60 with probe ID
-`github-first-message-probe:1bb455ad-f2a1-4c3b-b226-0fdce4ab2b9d` and comment
-`5543346279`. Exactly one message was sent in one reused ChatGPT tab with the
-visible Extra High label and exact GitHub app selection. The GitHub receipt was
-created at `2026-09-04T16:16:12Z`; the send action ran from
-`2026-09-04T16:16:02.359Z` through `2026-09-04T16:16:03.876Z`, generation was
-observed active at `2026-09-04T16:16:11.509Z` and complete by
-`2026-09-04T16:16:27.459Z`, and the one-tab count was reconfirmed at
-`2026-09-04T16:16:33.358Z`. Assistant output was not inspected. That durable
-receipt is consumed as existing capability evidence and the cancelled probe
-must not be duplicated.
+- Chat owns architecture, policy, methodology, prioritization, semantic review,
+  owner-intent interpretation, ordinary GitHub work, and release decisions.
+- Work/Codex is mechanical execution only: terminal/filesystem/SSH/browser/build/
+  deploy mechanics after Chat has resolved the decision.
+- A one-word `continue` is transport/liveness recovery only; it is not new
+  semantic authority.
+- Production promotion is not authorized.
 
-The working tree now implements the controlling fresh-stage architecture:
+## Canonical repository boundary
 
-- Stage 1 is a fresh Mission Control-only binding preload session.
-- The relay mechanically derives and durably records a bounded hashed binding
-  envelope from the exact current server-side MCP receipt.
-- New route schema v4 contains exactly two mandatory fresh first-message tool
-  sessions in the same reusable tab: binding preload, then direct decision.
-- Ordinary decisions use a distinct visible Extra High decision session and
-  write canonical #59 directly in that session's first message.
-- Escalated decisions use a distinct visible Pro decision session and write
-  canonical #59 directly in that session's first message. No reader, liveness,
-  `continue`, or Extra High writer stage is part of the new route.
-- Canonical decision schema v3 distinguishes
-  `binding_provider_session_id` from `decision_provider_session_id`, rejects
-  stale/forged/cross-request/cross-supervisor/cross-session envelopes, and uses
-  `VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED` or
-  `VISIBLE_PRO_SESSION_GITHUB_ATTESTED` without claiming backend model identity.
-- Missing mandatory #59 receipts fail closed after one clean semantic attempt;
-  the relay does not send same-chat `continue` or automatically spend a second
-  decision attempt.
-- Route schema v3, canonical schema v2, and #61 remain supported for existing
-  staged compatibility and diagnostics but cannot be relabeled as the new
-  direct-session provenance.
+- Canonical `main` is
+  `8b322b7c5a80ce437bc8f47da38760325e69848d`.
+- PR #58, **Mission Control: add memory-bounded Hostinger browser relay**, is
+  merged.
+- Exact accepted pre-merge head after final `main` synchronization:
+  `5e91f53ed4404001f59e3af80f5925326b1932f9`.
+- The final base sync added only:
+  - `feedback/mission-control/SDF-20260902-GITHUB-FINAL-HEAD-CHECK-LIVENESS-001.json`
+  - `state/OWNER-CHAT-WORK-MODE-BOUNDARY-20260902.md`
+- No executable relay or Mission Control bytes changed during that sync, so
+  completed browser/live acceptance was not rerun.
+- Exact-head and post-merge checks are green: deterministic repository audit,
+  Mission Control tests/typecheck/build, relay tests/syntax/service assets, and
+  CodeQL Actions/JavaScript-TypeScript/Python.
 
-The restorable source is packaged and the single local completion checkpoint is
-green: 177 Mission Control tests, TypeScript and production build; 69 relay
-tests plus JavaScript, shell, and service-asset checks; 255 repository tests;
-the deterministic repository audit; and all 11 owner-request integrity records.
-The next safe action is to commit/push and run exactly one hosted CI/CodeQL
-checkpoint. Railway still has an unrelated shared pending-change set that
-includes forbidden production mutations; do not apply or discard it. Only a
-hotfix-isolated exact-SHA deployment path may be used before installing the same
-head on Hostinger and entering the two new live acceptance cycles. Production
-remains forbidden.
+## Accepted Mission Control relay topology
 
-## Goal
+Route v4 is the current accepted topology:
 
-Complete the owner-authored execution-only closeout queue for the Mission
-Control Hostinger bridge and PR #58 by adding the settled anonymous read-only
-Streamable HTTP MCP control-plane endpoint, validating and checkpointing the
-exact branch, deploying the exact final SHA only to the Railway hotfix service,
-connecting a private ChatGPT Pro developer-mode app on Hostinger, and running
-the bounded MCP preflight, capability, ordinary synthetic, and escalated
-fresh-stage acceptance cycles.
+```text
+stable supervisor identity
+  -> fresh Extra High Mission Control binding-preload conversation
+  -> verified current binding envelope
+  -> distinct fresh decision conversation in the same reusable browser tab
+       ordinary:  exact visible Extra High
+       escalated: exact visible 6 Pro
+  -> first-message GitHub evidence read + canonical #59 decision write
+  -> Mission Control validation / admission
+```
 
-## Authority / baseline
+Hard invariants:
 
-- Branch: `task/mission-control-vps-browser-relay-20260902`.
-- Reviewed candidate baseline: `c3994fe5c032a39e08326e951bc7c9b2b898940b`.
-- Pacing commit already pushed at recovery: `c0c6d8c65189c555c41cacae6ee1cbe427f98457`.
-- Owner requirement:
-  `docs/requirements/2026-09-02-global-chatgpt-submission-pacing.owner-requirement.json`.
-- Structured-output requirement:
-  `docs/requirements/2026-09-03-structured-output-failure-boundary.owner-requirement.json`.
-- Model-picker compatibility requirement:
-  `docs/requirements/2026-09-03-model-menu-selector-compatibility.owner-requirement.json`.
-- Capability-path requirement:
-  `docs/requirements/2026-09-03-capability-challenge-public-read.owner-requirement.json`.
-- Public MCP/live-acceptance requirement:
-  `docs/requirements/2026-09-03-mission-control-public-mcp-live-acceptance.owner-requirement.json`.
-- Assurance lane: release-grade branch/hotfix/Hostinger acceptance boundary.
-  Production service `e1db3d50-b963-42d2-a21d-b52601fcfb92` is forbidden.
-  Do not inspect assistant output or redesign authority semantics.
+- exact visible model matching only: `Extra High` and `6 Pro`;
+- no `Pro` <-> `6 Pro` alias and no hidden/backend identity claim;
+- escalated internal lane remains `PRO_ESCALATED`;
+- one reusable ChatGPT tab in steady state; temporary two, hard ceiling three;
+- native browser sandbox; never `--no-sandbox`;
+- loopback-only CDP;
+- global minimum 60 seconds between actual ChatGPT submissions;
+- AUTO memory guard uses the measured approximately 8 GB Hostinger envelope;
+- generation STARTED must precede COMPLETE;
+- ambiguous post-click state cannot automatically replay;
+- browser automation does not inspect/copy/hash/parse assistant output;
+- missing first-message GitHub decision receipt does not authorize same-chat
+  semantic retry or a topology change.
 
-## Active lesson contract
+Live ordinary v4 acceptance passed with canonical #59 comment `5553196186`.
+Live escalated v4 acceptance passed with exact visible label `6 Pro`, canonical
+#59 comment `5553905289`, and provenance
+`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`.
 
-- Literal owner correction: every actual browser message send shares one
-  persisted global cooldown; failure is any bypass or per-route-only pacing.
-- Authority preservation: cooldown/no-send status cannot mutate delivery or
-  semantic authority; failure is a route-stage transition without a click.
-- Browser safety: clicked-but-unverified sends remain ambiguous; failure is an
-  automatic replay or a pacing timestamp lost after restart.
-- Live boundary: Hostinger normal submission remains disabled; failure is a
-  continuous task sender outside the explicitly bounded synthetic acceptance
-  routes.
-- Structured-output boundary: serialization/interface failure stays distinct
-  from semantic/scientific failure; failure is any attempt-ceiling bypass,
-  silent repair, lost parser evidence, or dependent scoring without admission.
-- Capability disclosure boundary: the public route may project only the eight
-  disposable challenge fields; failure is any worker/auth/task/decision/ref
-  disclosure, challenge enumeration, stale challenge response, mutation path,
-  or browser-prompt copy of the MC nonce value.
-- Public MCP boundary: `/mcp` may advertise only the three exact-bound read-only
-  control-plane tools; failure is any list/search/write tool, private
-  fleet/worker/evidence/assistant-content disclosure, stale or mismatched
-  binding response, missing noauth/read-only metadata, or browser-prompt copy of
-  the request nonce.
+## Production / hotfix boundary
 
-All five controls are mechanically enforced by code/tests or live environment
-inspection. No semantic design decision is delegated to this execution task.
-
-## Completed locally
-
-- Added `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` with 60,000 ms default and
-  15,000–600,000 ms validation.
-- Added one serialized submission gate shared by supervision, capability, and
-  stuck-recovery `continue` paths.
-- Persisted the last successful CLICKED/generation-start boundary in relay
-  state with monotonic preservation across stale state writers and restart.
-- Added non-blocking `GLOBAL_SUBMISSION_COOLDOWN` status with `retryAfterMs`,
-  `nextSubmissionAt`, and public pacing state.
-- Added deterministic cross-route, same-chat, capability, continue, restart,
-  config-range, and no-semantic-mutation tests.
-- Updated `.env.example` and relay README.
-- Relay suite: 42/42 passing; JavaScript syntax checks pass.
-- Repository suite: 253/253 passing; deterministic audit: no findings.
-- Mission Control application suite: 156/156 passing; TypeScript typecheck and
-  production build pass.
-- Owner-request integrity validator: 5/5 current records pass.
-- Added the settled universal `STRUCTURED_OUTPUT_SYNTAX_FAILURE` guidance,
-  machine-readable state template, index/bootstrap routing, and deterministic
-  regression tests. AskRigor methodology and repository state were not changed.
-- The first hotfix doctor reached authenticated Mission Control and exposed a
-  live response-shape mismatch: the daemon wraps a worker snapshot as
-  `{ worker, generatedAt }`, while the relay accepted only a bare snapshot.
-  The client now accepts the canonical wrapper and legacy bare shape while
-  still rejecting a mismatched scoped worker ID; focused and full relay tests
-  pass after the compatibility repair.
-- Added `/mcp` using `@modelcontextprotocol/sdk` 1.30.0 and the SDK's Web
-  Standard Streamable HTTP transport, distinct from the existing private
-  authenticated `/api/mcp` fleet/worker surface.
-- Added exactly `get_capability_challenge`,
-  `get_supervisory_request_binding`, and `get_stage_liveness_state`, with
-  read-only/non-destructive annotations, noauth metadata, exact-ID/chat lookup,
-  current owner-outcome/expiry checks, per-stage liveness counts, and no
-  enumeration or mutation path.
-- Updated capability, direct, reader, Pro reasoner, liveness checker, and writer
-  prompts to require the exact `Mission Control` app tools while keeping
-  substantive evidence and writes in GitHub and omitting both MC/request nonce
-  values from browser prompts.
-- Focused MCP security tests pass 5/5; focused relay prompt/state tests pass
-  17/17; TypeScript typecheck passes. A standards-compatible official SDK
-  client also proved initialize, tool discovery, and one safe challenge call
-  against a live local Next.js `/mcp` route, with external telemetry containing
-  only tool/challenge/chat/status/time.
-- Added a distinct `mcp-preflight` one-shot relay command. It sends only the
-  exact-bound `get_capability_challenge` read in Extra High, shares the durable
-  global pacing/ambiguity boundary, forbids GitHub and all writes, and cannot
-  replay after generation completion. The full relay suite now passes 51/51.
-
-## Current checkpoint
-
-Accepted head `10a00f9e72000f09bbbaf25013df69d16bf754e6` is pushed, hosted-green,
-installed on Hostinger, and live-verified for exact visible `Extra High -> Pro
--> Extra High`. One paced harmless capability prompt completed without a #60
-receipt because the supervisor had no sanctioned direct URL for the live
-Mission Control nonce.
-
-Public MCP head `c983f311b5b0e81172044661d07bb6c750d01365` is pushed and locally
-protocol/security verified. Its first hosted checkpoint passed the repository
-audit, Mission Control tests/types/build, and all CodeQL lanes; the relay lane
-found one stale test assertion that still expected the retired diagnostic HTTP
-URL. The assertion is corrected and the required distinct read-only preflight
-path is now locally green, but this follow-up commit/push and its hosted
-checkpoint remain pending. The existing diagnostic
-`GET /api/capability-challenges/<challenge-id>` route and authenticated
-`/api/mcp` and worker APIs remain unchanged. No live configuration, Railway
-service, Hostinger browser, or GitHub receipt has yet been changed in this
-continuation.
+- The isolated Railway hotfix and Hostinger acceptance already succeeded before
+  merge and remain the accepted live evidence.
+- Production service remains explicitly outside the authorization boundary.
+- Last verified production deployment remains
+  `6b0e057b-24dd-4882-b26e-abcbdf233c41`.
+- Do not promote, redeploy, mutate production variables, or reinterpret the PR
+  merge as deployment authority.
 
 ## Preserved repository-wide completion gate
 
-This relay correction does not supersede the repository-wide coverage-before-
-depth requirement or its promotion evidence:
+The Mission Control reconciliation does not supersede the repository-wide
+coverage-before-depth requirement or its promotion evidence. Recovery state must
+continue to preserve these exact active completion-gate references:
 
 - `patterns/coverage-before-depth-in-selection.md`
 - `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`
 - `tests/test_coverage_before_depth_pattern.py`
 
-## Live constraints
+This gate remains independent of the Mission Control relay merge and must not be
+dropped merely because the active Mission Control checkpoint is rewritten.
 
-- Set `MC_RELAY_POLL_INTERVAL_MS=90000` on Hostinger.
-- Keep `MC_RELAY_SUBMIT_ENABLED=0`.
-- Enable `MC_RELAY_CAPABILITY_TEST_ENABLED` only for the harmless challenge.
-- Use the existing hotfix-only COLLECTOR credential and
-  `https://mission-control-hotfix-production.up.railway.app`.
-- Stop with `INTERACTIVE_CHATGPT_LOGIN_REQUIRED` if the dedicated browser
-  profile is not already authenticated.
+## Open P0 — issue #53
 
-## Evidence / artifacts
+Issue #53, **first-class ChatGPT message timestamps and direct PM/supervisor
+routing**, remains open with two distinct states.
 
-- Relay implementation and tests:
-  `tools/codex-mission-control/vps-browser-relay/`.
-- Exact owner requirement:
-  `docs/requirements/2026-09-02-global-chatgpt-submission-pacing.owner-requirement.json`.
-- Test-efficiency telemetry task:
-  `mission-control-pr58-remote-mcp-20260903`.
+### Provider source timestamp
 
-## Blockers / unresolved
+Requirement `REQ-MC-VISIBLE-CHATGPT-MESSAGE-TIME-20260901` remains terminal for
+its own feature:
 
-- Local public MCP implementation has no known blocker.
-- Follow-up commit/push and hosted checkpoint, exact-SHA hotfix deployment,
-  direct live MCP scan, Hostinger private app registration, a fresh challenge,
-  MCP preflight, doctor/mode proof, and live acceptance remain pending.
-- Interactive ChatGPT login is an explicit stop boundary if encountered.
+- `completion_allowed=false`;
+- `RO-TIME-004=UNMET`;
+- bounded no-send probe result: `SAFE_TIMESTAMP_ATTRIBUTE_FOUND=false`;
+- exact blocker:
+  `PROVIDER_SOURCE_TIMESTAMP_NOT_EXPOSED_WITHIN_PERMITTED_NON_CONTENT_UI_BOUNDARY`.
 
-## Remaining
+No safe native `<time datetime>`, `data-message-timestamp`, `data-sent-at`,
+`data-created-at`, or `data-timestamp` was exposed on the accepted assistant
+message structural row. GitHub creation time, relay/browser observation time,
+Mission Control receive time, DOM order, or relative labels are not provider
+source time.
 
-1. Commit/push the relay assertion/preflight follow-up and obtain its normal
-   hosted CI and CodeQL checkpoint without a redundant local full-suite run.
-2. Rotate the disposable challenge and GitHub raw nonce consistently, deploy
-   only the isolated Railway hotfix from the exact SHA, and verify the public
-   route response and exact build/daemon/health evidence.
-3. Prove the deployed `/mcp` endpoint with the official SDK client, then use the
-   existing authenticated Hostinger browser profile to register a private
-   developer-mode app named exactly `Mission Control`, accepting it only if the
-   scan shows the intended three read-only tools.
-4. Install the same exact SHA on Hostinger, keep normal submission disabled,
-   rerun doctor/mode proof, then run one harmless MCP-read preflight and the
-   fresh #60 capability challenge under the existing pacing gate.
-5. If capability passes, continue automatically through the one ordinary and
-   one escalated harmless acceptance cycles and collect reconciliation,
-   pacing, memory, and truthful provider-timestamp evidence.
+Do not widen into network/app-state payloads, accessibility text, assistant
+output extraction, OCR, conversation export/JSON, or another content-bearing
+path without a new owner/Chat privacy decision. Missing provider time must
+remain visibly `TIMESTAMP UNAVAILABLE · UNVERIFIED`.
+
+### Direct PM / supervisor owner routing
+
+The repository already implements the reusable mechanics:
+
+- first-class `reasoning_message_recorded` events;
+- producer-authority guards preventing WORKER/Codex from minting ChatGPT
+  Project Manager/supervisor authority;
+- owner decision route states from `OWNER_RESPONSE_REQUIRED` through exact
+  verbatim forwarding and supervisor resolution;
+- exact parent-message and body-SHA binding;
+- direct supervisory locator presentation.
+
+The live provider-bound owner-response return route is still unproven. PR #58
+accepted the specialist `mc-hotfix-specialist`; the global fleet Project Manager
+remains explicitly unregistered. Do not promote that specialist into the PM
+role or invent a PM locator.
+
+The old same-chat Extra High -> Pro -> Extra High assumption is superseded by
+route v4. `Same supervisory lane` now means stable supervisor identity, not the
+same provider conversation. The fresh-session owner-response return mechanism
+must be demonstrated or adapted without weakening provenance or privacy.
+
+Post-merge issue #53 reconciliation is recorded in comment `5560926210`.
+
+## Active bounded maintenance — issue #62 / PR #65
+
+Issue #62 and PR #65 exist only to reconcile durable architecture/state after
+PR #58. Their scope is documentation/state correction:
+
+- update the canonical direct-PM/supervisor architecture to route v4;
+- preserve the timestamp P0 exactly as unmet;
+- preserve the current privacy/browser boundary;
+- preserve the repository-wide coverage-before-depth completion gate;
+- do not invent the still-open owner-response return transport;
+- no executable behavior change;
+- no deployment or production action.
+
+Working branch:
+`task/mission-control-post-pr58-architecture-20260906`.
+
+Issues #63 and #64 were accidental empty connector artifacts, immediately
+closed `not_planned`, and carry no task or semantic authority.
 
 ## Next safe action
 
-Commit and push the relay assertion/preflight follow-up, then wait for its
-hosted CI/CodeQL checkpoint before rotating live challenge data or deploying.
+Obtain one fresh hosted checkpoint for the corrected PR #65 head. Merge only if
+the deterministic repository audit, applicable CodeQL checks, review-thread
+state, and current-main requirement all satisfy the durable merge policy.
+
+After that, return to issue #53. Continue only the independently safe direct
+routing work that can preserve the accepted fresh-session and no-output-
+extraction boundaries. If a concrete Project Manager locator/identity or a new
+privacy acquisition path becomes necessary, stop at that exact owner/Chat
+architecture decision rather than inventing it.
 
 ## Recovery rule
 
-Resume from the current branch/worktree. Do not repeat completed pacing design,
-broaden AskRigor methodology, regenerate unrelated Mission Control artifacts,
-touch Railway production, enable continuous sending, merge before every live
-criterion passes, or inspect assistant output.
+Do not repeat PR #58 hotfix deployment, Hostinger installation, capability
+proof, ordinary acceptance, escalated `6 Pro` acceptance, or source-time probe
+unless a later executable/environment change specifically invalidates that
+accepted evidence. Do not touch production.
