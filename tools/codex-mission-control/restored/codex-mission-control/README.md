@@ -54,6 +54,43 @@ Numeric alignment is secondary metadata. A `REDIRECT` assessment does not prove 
 
 Test cleanup is the hostile default fixture: it states that the worker is changing forbidden production scheduler/caller code for a test-only task and directs it to stop, revert, return to `tests/**` or `test-support/**`, and rerun focused tests.
 
+## Fresh-session owner-response continuation
+
+Add optional `resumeDecisionRequestId` at the root of a worker supervision
+admission request, alongside its ordinary fresh route-v4 cycle. This names the
+original supervisor decision request, not the new cycle request ID. Send intent
+only: Mission Control retrieves authoritative event history and derives the
+continuation. Direct worker event writes are checked again before persistence.
+
+The original ASSISTANT/SUPERVISOR request and the OWNER message delivered to the
+supervisor must both record the exact destination `stable_supervisor_id`. The
+recording CLI accepts `--stable-supervisor-id`; absence has no default and does
+not retroactively assign identities to historical events. The existing router
+must be at `SUPERVISOR_RESOLUTION_REQUIRED`:
+
+- direct: OWNER/SUPERVISOR reply parented to the original request;
+- PM-mediated: OWNER/PROJECT_MANAGER reply parented to the request, followed by
+  an OWNER/SUPERVISOR delivery parented to that owner reply with the same body SHA.
+
+Only the exact OWNER supervisor-delivery text travels in the private fresh
+prompt. PM/assistant output is not transported. Missing exact bytes or a text/hash
+mismatch fails closed; historical message parsing is unchanged. The existing
+20,000-character durable route limit still applies to the enriched packet.
+
+Canonical GitHub decisions echo optional `continuation_binding` and
+`continuation_binding_sha256` as top-level schema-version-3 fields. The historical
+`binding_envelope` and its digest are unchanged. Ingestion rechecks the current
+outcome/evidence binding and causal events, rejects consumed continuations, and
+atomically records both the receipt and the supervisor resolution. Pre-consumption
+retries keep the same causal continuation ID across issue windows.
+
+Resolution text comes from the admitted canonical GitHub decision artifact.
+`GITHUB_SESSION_ATTESTED` acquisition remains `UNVERIFIED`, with
+`sent_at_source=null` and an explicit source-time limitation. Public MCP remains
+metadata-only. This implementation has deterministic test coverage; live routing,
+provider source timestamps, deployments, and production promotion are separate
+boundaries and are not established by these tests.
+
 ## Architecture
 
 ```text

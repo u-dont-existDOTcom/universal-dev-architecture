@@ -142,6 +142,7 @@ export function parseInternalSupervisorRouteBody(body) {
     const value = JSON.parse(body.slice(INTERNAL_ROUTE_PREFIX.length));
     if (!isRecord(value)
       || value.schemaVersion !== 1
+      || ['routeSchemaVersion', 'continuationBinding', 'continuationBindingSha256', 'continuationOwnerResponseExactText'].some((field) => Object.hasOwn(value, field))
       || value.packetKind !== 'FACTUAL_STATE_ONLY'
       || typeof value.requestId !== 'string'
       || typeof value.actionBlockedOrRouted !== 'string'
@@ -200,10 +201,60 @@ export function parseSupervisoryCycleRouteBody(body) {
       || value.githubReceipt.issueNumber < 1
       || !Number.isInteger(value.githubReceipt.stageIssueNumber)
       || value.githubReceipt.stageIssueNumber < 1) return null;
+    validateOwnerResponseContinuation(value, version);
     return { ...value, routeSchemaVersion: version, destinationSupervisorId: version >= 3 ? value.destinationSupervisorId : value.destinationChatId };
   } catch {
     return null;
   }
+}
+
+// This is private prompt transport. It does not extend the historical binding capsule.
+function validateOwnerResponseContinuation(packet, version, workerId, supervisorId = packet.destinationSupervisorId) {
+  const fields = ['continuationBinding', 'continuationBindingSha256', 'continuationOwnerResponseExactText'];
+  if (!fields.some((field) => Object.hasOwn(packet, field))) return null;
+  const fail = () => { throw new Error('Invalid owner-response continuation binding or exact OWNER response text.'); };
+  if (version !== 4 || packet.schemaVersion !== 4 || !fields.every((field) => Object.hasOwn(packet, field))) fail();
+  const binding = packet.continuationBinding;
+  const exactKeys = (value, keys) => isRecord(value)
+    && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+  const identifier = (value) => typeof value === 'string' && value.trim().length > 0;
+  const message = (value, extraKeys = []) => exactKeys(value, ['event_id', 'message_id', 'body_sha256', ...extraKeys])
+    && identifier(value.event_id) && identifier(value.message_id) && isSha256(value.body_sha256);
+  if (!exactKeys(binding, ['schema_version', 'kind', 'continuation_id', 'worker', 'decision_request_id', 'supervisor_id', 'path', 'originating_supervisor_message', 'owner_input', 'supervisor_delivery', 'owner_outcome', 'evidence_capsule', 'issued_at', 'expires_at'])
+    || binding.schema_version !== 1 || binding.kind !== 'OWNER_RESPONSE_CONTINUATION'
+    || !isSha256(binding.continuation_id) || !identifier(binding.worker) || !identifier(binding.decision_request_id)
+    || !identifier(binding.supervisor_id) || binding.supervisor_id !== supervisorId
+    || (workerId !== undefined && binding.worker !== workerId)
+    || !['DIRECT', 'PROJECT_MANAGER'].includes(binding.path)
+    || !message(binding.originating_supervisor_message)
+    || !message(binding.owner_input, ['parent_message_id', 'surface_role'])
+    || !message(binding.supervisor_delivery, ['parent_message_id'])
+    || !exactKeys(binding.owner_outcome, ['id', 'epoch', 'sha256'])
+    || !exactKeys(binding.evidence_capsule, ['id', 'sha256'])
+    || canonicalJson(binding.owner_outcome) !== canonicalJson(packet.ownerOutcome)
+    || canonicalJson(binding.evidence_capsule) !== canonicalJson(packet.evidenceCapsule)
+    || binding.issued_at !== packet.queuedAt || binding.expires_at !== packet.expiresAt
+    || typeof binding.issued_at !== 'string' || !Number.isFinite(Date.parse(binding.issued_at))
+    || typeof binding.expires_at !== 'string' || Date.parse(binding.expires_at) <= Date.parse(binding.issued_at)
+    || !Number.isFinite(Date.parse(binding.expires_at))) fail();
+  const origin = binding.originating_supervisor_message;
+  const input = binding.owner_input;
+  const delivery = binding.supervisor_delivery;
+  if (input.parent_message_id !== origin.message_id || input.body_sha256 !== delivery.body_sha256
+    || origin.message_id === input.message_id || origin.event_id === input.event_id
+    || origin.message_id === delivery.message_id || origin.event_id === delivery.event_id) fail();
+  if (binding.path === 'DIRECT') {
+    if (input.surface_role !== 'SUPERVISOR' || input.event_id !== delivery.event_id
+      || input.message_id !== delivery.message_id || delivery.parent_message_id !== origin.message_id) fail();
+  } else if (input.surface_role !== 'PROJECT_MANAGER' || delivery.parent_message_id !== input.message_id
+    || input.event_id === delivery.event_id || input.message_id === delivery.message_id) fail();
+  const { continuation_id, owner_outcome, evidence_capsule, issued_at, expires_at, ...causalFields } = binding;
+  if (sha256(canonicalJson(causalFields)) !== continuation_id
+    || !isSha256(packet.continuationBindingSha256)
+    || sha256(canonicalJson(binding)) !== packet.continuationBindingSha256
+    || typeof packet.continuationOwnerResponseExactText !== 'string'
+    || sha256(packet.continuationOwnerResponseExactText) !== delivery.body_sha256) fail();
+  return binding;
 }
 
 export function extractQueuedRoutes(snapshot, chats, state) {
@@ -254,6 +305,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       const chat = chatById.get(packet.destinationSupervisorId);
       if (!chat || chat.workerId !== workerId) continue;
       if (packet.routeSchemaVersion !== 3 && packet.routeSchemaVersion !== 4) continue;
+      try { validateOwnerResponseContinuation(packet, packet.routeSchemaVersion, workerId); } catch { continue; }
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
       if (prior && ['SUBMITTED_CONFIRMED', 'DISCARDED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
@@ -418,7 +470,9 @@ export function cycleControlPrompt(route, step) {
     const laneInstruction = step === 'PRO_DECISION'
       ? 'Reason directly in the currently visible Pro session and make the final escalated decision.'
       : 'Reason directly in the currently visible Extra High session and make the ordinary decision.';
-    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}. Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`);
+    const continuationInstruction = route.packet.continuationBinding
+      ? ' Copy the supplied continuation_binding and continuation_binding_sha256 exactly into the canonical schema_version 3 decision as optional top-level fields outside binding_envelope.' : '';
+    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}.${continuationInstruction} Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`);
   }
   if (step === 'EXTRA_HIGH_DIRECT') {
     return freshToolStagePrompt(route, step, `Read the substantive evidence only from the immutable GitHub references, make the bounded decision requested, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message. Set stage_provider_session_id to ${providerSessionId}.`);
@@ -443,7 +497,10 @@ function freshToolStagePrompt(route, step, instruction) {
   const direct = route.packet.routeSchemaVersion === 4;
   const bindingLabel = direct ? 'binding envelope' : 'binding capsule';
   const digestLabel = direct ? 'binding_envelope_sha256' : 'binding_capsule_sha256';
-  return `Mission Control fresh-first-message stage ${step} for request ${route.requestId}. Use the connected ${route.chat.requiredApps.github} tool; a selectable composer chip is not required. This is the first and only message in provider session ${route.providerSessionId}; do not use Mission Control or prior-chat memory. Copy this exact ${bindingLabel} into the receipt without alteration: ${canonicalJson(route.bindingCapsule.payload)}. ${digestLabel}: ${route.bindingCapsule.sha256}. Immutable GitHub evidence references: ${canonicalJson(evidenceRefs)}. Bounded decision request: ${JSON.stringify(decisionRequested)}. ${instruction} Do not answer with prose instead of attempting the required GitHub write. If GitHub is unavailable, the binding/hash mismatches, or the write fails, fail closed. Do not delegate to Work.`;
+  const continuation = validateOwnerResponseContinuation(route.packet, route.packet.routeSchemaVersion, route.workerId, route.supervisorId);
+  const continuationPrompt = continuation
+    ? ` continuation_binding: ${canonicalJson(continuation)}. continuation_binding_sha256: ${route.packet.continuationBindingSha256}. The following exact text is the OWNER-authored response delivered to this supervisor, supplied for this fresh decision.\nBEGIN EXACT OWNER RESPONSE\n${route.packet.continuationOwnerResponseExactText}\nEND EXACT OWNER RESPONSE\n` : '';
+  return `Mission Control fresh-first-message stage ${step} for request ${route.requestId}. Use the connected ${route.chat.requiredApps.github} tool; a selectable composer chip is not required. This is the first and only message in provider session ${route.providerSessionId}; do not use Mission Control or prior-chat memory. Copy this exact ${bindingLabel} into the receipt without alteration: ${canonicalJson(route.bindingCapsule.payload)}. ${digestLabel}: ${route.bindingCapsule.sha256}. Immutable GitHub evidence references: ${canonicalJson(evidenceRefs)}. Bounded decision request: ${JSON.stringify(decisionRequested)}.${continuationPrompt} ${instruction} Do not answer with prose instead of attempting the required GitHub write. If GitHub is unavailable, the binding/hash mismatches, or the write fails, fail closed. Do not delegate to Work.`;
 }
 
 export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), continueDelayMs = CONTINUE_NUDGE_DELAY_MS, maxSemanticNudges = 3) {

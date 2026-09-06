@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ownerResponseContinuationBindingSchema, validateContinuationBinding } from "./owner-response-continuation-schema";
 
 const WorkerId = z.string().min(1).max(80).regex(/^[a-z0-9][a-z0-9_-]*$/);
 const StableId = z.string().min(1).max(180).regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
@@ -768,6 +769,8 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     supervisor_id: StableId,
     binding_provider_session_id: StableId,
     decision_provider_session_id: StableId,
+    continuation_binding: ownerResponseContinuationBindingSchema.optional(),
+    continuation_binding_sha256: Sha256.optional(),
     binding_envelope: bindingCapsuleSchema,
     binding_envelope_sha256: Sha256,
     decision_session_provenance: z.enum([
@@ -777,6 +780,10 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     ...canonicalDecisionEnvelopeFields,
   }),
 ]).superRefine((envelope, context) => {
+  if (envelope.schema_version === 3 && (envelope.continuation_binding !== undefined || envelope.continuation_binding_sha256 !== undefined)) {
+    try { validateContinuationBinding(envelope.continuation_binding, envelope.continuation_binding_sha256); }
+    catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Canonical continuation binding/digest is invalid or incomplete." }); }
+  }
   const proRequired = envelope.reasoning_lane === "PRO_ESCALATED";
   if (envelope.pro_decision_block.used !== proRequired) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block", "used"], message: "Pro usage must exactly match the admitted reasoning lane." });
@@ -825,6 +832,8 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   staged_provenance: z.literal("DURABLE_STAGE_RECEIPT_ATTESTED").nullable().default(null),
   binding_envelope: bindingCapsuleSchema.nullable().default(null),
   binding_envelope_sha256: Sha256.nullable().default(null),
+  continuation_binding: ownerResponseContinuationBindingSchema.optional(),
+  continuation_binding_sha256: Sha256.optional(),
   decision_session_provenance: z.enum([
     "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
     "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
@@ -859,6 +868,11 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   ingestion_method: z.enum(["GITHUB_WEBHOOK", "RECONCILIATION_POLL"]),
   ingested_at: Timestamp,
 }).superRefine((receipt, context) => {
+  if (receipt.continuation_binding !== undefined || receipt.continuation_binding_sha256 !== undefined) {
+    try { validateContinuationBinding(receipt.continuation_binding, receipt.continuation_binding_sha256); }
+    catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Ingested continuation binding/digest is invalid or incomplete." }); }
+    if (!receipt.decision_provider_session_id) context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Continuation requires a direct decision session." });
+  }
   const proRequired = receipt.reasoning_lane === "PRO_ESCALATED";
   if (receipt.pro_decision_block.used !== proRequired) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block", "used"], message: "Pro receipt usage must match the reasoning lane." });
@@ -885,6 +899,7 @@ export const githubDecisionReceiptIngestedSchema = z.object({
 export const reasoningMessageRecordedSchema = z.object({
   type: z.literal("reasoning_message_recorded"),
   worker: WorkerId,
+  stable_supervisor_id: StableId.optional(),
   message_id: StableId,
   thread_id: StableId,
   surface_role: z.enum(["PROJECT_MANAGER", "SUPERVISOR"]),
@@ -900,7 +915,7 @@ export const reasoningMessageRecordedSchema = z.object({
   parent_message_id: StableId.nullable().default(null),
   owner_direction_id: StableId.nullable().default(null),
   decision_request_id: StableId.nullable().default(null),
-  acquisition_method: z.enum(["PROVIDER_DIRECT", "INDEPENDENT_READER_DIRECT", "OWNER_ATTESTED", "CODEX_COPIED", "UNKNOWN"]),
+  acquisition_method: z.enum(["PROVIDER_DIRECT", "INDEPENDENT_READER_DIRECT", "OWNER_ATTESTED", "CODEX_COPIED", "GITHUB_SESSION_ATTESTED", "UNKNOWN"]),
   provenance_status: z.enum(["VERIFIED", "OWNER_ATTESTED", "UNVERIFIED"]),
   limitations: z.array(NonEmpty).default([]),
   recorded_by: StableId,
@@ -915,6 +930,10 @@ export const reasoningMessageRecordedSchema = z.object({
   }
   if (message.provenance_status === "OWNER_ATTESTED" && message.acquisition_method !== "OWNER_ATTESTED") {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["acquisition_method"], message: "OWNER_ATTESTED provenance requires owner-attested acquisition." });
+  }
+  if (message.acquisition_method === "GITHUB_SESSION_ATTESTED"
+    && (message.provenance_status !== "UNVERIFIED" || message.sent_at_source !== null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["provenance_status"], message: "GitHub session attestation has no provider source timestamp and must remain UNVERIFIED." });
   }
   if (message.acquisition_method === "CODEX_COPIED" && message.provenance_status !== "UNVERIFIED") {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["provenance_status"], message: "CODEX_COPIED reasoning is UNVERIFIED and cannot acquire ChatGPT authority." });

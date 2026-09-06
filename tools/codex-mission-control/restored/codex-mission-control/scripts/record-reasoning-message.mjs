@@ -31,6 +31,7 @@ const providerLocator = value("--provider-locator");
 const parentMessageId = value("--parent-message-id");
 const ownerDirectionId = value("--owner-direction-id");
 const decisionRequestId = value("--decision-request-id");
+const stableSupervisorId = value("--stable-supervisor-id");
 const acquisitionMethod = value("--acquisition-method");
 const provenanceStatus = value("--provenance-status");
 const limitations = values("--limitation");
@@ -118,6 +119,7 @@ const envelope = {
     parent_message_id: parentMessageId,
     owner_direction_id: ownerDirectionId,
     decision_request_id: decisionRequestId,
+    ...(stableSupervisorId === null ? {} : { stable_supervisor_id: stableSupervisorId }),
     acquisition_method: acquisitionMethod,
     provenance_status: provenanceStatus,
     limitations,

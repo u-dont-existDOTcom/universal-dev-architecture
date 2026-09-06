@@ -15,7 +15,7 @@ Updated: 2026-09-06
 ## Canonical repository boundary
 
 - Canonical `main` is
-  `8b322b7c5a80ce437bc8f47da38760325e69848d`.
+  `784144be749acbb989de95ef7e91914fcd483fd4` (merged architecture/state PR #65).
 - PR #58, **Mission Control: add memory-bounded Hostinger browser relay**, is
   merged.
 - Exact accepted pre-merge head after final `main` synchronization:
@@ -134,41 +134,45 @@ role or invent a PM locator.
 
 The old same-chat Extra High -> Pro -> Extra High assumption is superseded by
 route v4. `Same supervisory lane` now means stable supervisor identity, not the
-same provider conversation. The fresh-session owner-response return mechanism
-must be demonstrated or adapted without weakening provenance or privacy.
+same provider conversation. The fresh-session owner-response continuation is
+implemented on the task branch below; a live routing demonstration remains open.
 
 Post-merge issue #53 reconciliation is recorded in comment `5560926210`.
 
-## Active bounded maintenance — issue #62 / PR #65
+## Active bounded implementation — issue #53
 
-Issue #62 and PR #65 exist only to reconcile durable architecture/state after
-PR #58. Their scope is documentation/state correction:
+The architecture/state correction (PR #65) merged at the canonical base above.
+The current branch is `task/issue-53-owner-response-continuation-20260906`, under
+`docs/requirements/2026-09-06-owner-response-continuation.owner-requirement.json`.
+The controlling design composes existing primitives (issue #53 comment
+`5561018766`), with the current owner's explicit direct/PM path correction.
 
-- update the canonical direct-PM/supervisor architecture to route v4;
-- preserve the timestamp P0 exactly as unmet;
-- preserve the current privacy/browser boundary;
-- preserve the repository-wide coverage-before-depth completion gate;
-- do not invent the still-open owner-response return transport;
-- no executable behavior change;
-- no deployment or production action.
+Status: `IMPLEMENTED_NOT_LIVE_VERIFIED`.
 
-Working branch:
-`task/mission-control-post-pr58-architecture-20260906`.
+- Optional stable supervisor IDs have no defaults or historical backfill.
+- Server-derived continuation supports direct OWNER replies and PM-mediated
+  forwarding of OWNER bytes; it does not transport PM/assistant output.
+- Admission and persistence validate authoritative causal history; private route
+  metadata remains separate from the historical binding envelope. Public MCP
+  remains metadata-only.
+- Canonical schema-v3 exact continuation echo consumes one causal continuation
+  and atomically records an ASSISTANT/SUPERVISOR resolution from the admitted
+  GitHub artifact. Source time stays null and provenance stays UNVERIFIED.
+- Focused direct/PM, ordinary/Pro, replay, injection, privacy, rollback, and
+  historical-compatibility regressions pass. Final local/hosted checkpoint
+  evidence is attached to the implementation PR at its exact head.
+- No browser/live acceptance, Railway/Hostinger deployment, merge, or production
+  operation is authorized by this implementation task.
 
-Issues #63 and #64 were accidental empty connector artifacts, immediately
-closed `not_planned`, and carry no task or semantic authority.
+Issues #63 and #64 remain closed accidental connector artifacts with no authority.
 
 ## Next safe action
 
-Obtain one fresh hosted checkpoint for the corrected PR #65 head. Merge only if
-the deterministic repository audit, applicable CodeQL checks, review-thread
-state, and current-main requirement all satisfy the durable merge policy.
-
-After that, return to issue #53. Continue only the independently safe direct
-routing work that can preserve the accepted fresh-session and no-output-
-extraction boundaries. If a concrete Project Manager locator/identity or a new
-privacy acquisition path becomes necessary, stop at that exact owner/Chat
-architecture decision rather than inventing it.
+Review the continuation PR and its exact-head repository compliance and CodeQL
+receipts. Do not merge or repeat accepted live work. Any later live routing proof
+needs a new bounded authorization and must preserve the independently unmet
+provider source-timestamp requirement. A real distinct PM identity must be
+available before claiming a live global-PM demonstration.
 
 ## Recovery rule
 
