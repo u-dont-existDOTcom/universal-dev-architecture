@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260902-GITHUB-FINAL-HEAD-CHECK-LIVENESS-001",
+  "createdAt": "2026-09-02T14:21:32Z",
+  "taskId": "mission-control-github-execution-reliability",
+  "workerRunId": "inner-signal-love-horizon-reconciliation-20260902",
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-09-02T14:21:32Z",
+    "exactText": "it sounds like you figured out a real flaw in how github work is done. make sure you send that lesson over to mission control chat.",
+    "sha256": "591df1ed16afd2942c66ecc29fae8ff20c2e5970c91295d0109f2124d33b31ae"
+  },
+  "type": "DEFECT",
+  "category": "GITHUB_FINAL_HEAD_CHECK_LIVENESS_AND_RECONCILIATION",
+  "severity": "HIGH",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "A one-shot GitHub Actions workflow can correctly mutate and clean a task branch yet leave the resulting github-actions[bot]-authored PR head with required pull-request workflows reported as terminal failure/action-required placeholders containing zero jobs. Treating workflow-run labels alone as semantic CI results is unsafe. Separately, canonical reconciliation invalidated tests that had accidentally coupled historical fixtures and proposal-state assumptions to the live graph, and hard-coded inventory literals drifted after legitimate graph growth.",
+  "observedFailure": {
+    "repository": "u-dont-existDOTcom/innerSignalGraph",
+    "pullRequest": 25,
+    "botAuthoredHead": "62e4b9eaa7c7885be5a3768138e92257982dc938",
+    "botHeadFacts": [
+      "Verify, workflow policy, and CodeQL workflow runs were terminal failure/action-required-style placeholders on the bot-authored head.",
+      "The corresponding required-workflow runs had zero jobs, so they were not substantive test failures.",
+      "A subsequent human-authored no-semantic-change commit triggered the protected checks normally on the exact same final tree lineage."
+    ],
+    "finalHumanHead": "d8bc5ef08be880c234b206cd3a48d8ee52e2dafd",
+    "requiredChecks": {
+      "deterministic-package": "success",
+      "workflow-policy": "success",
+      "codeql-javascript": "success"
+    },
+    "mergedMain": "790c50a070aa41775b1beb79b08c96a8b12230e1"
+  },
+  "secondaryLessons": [
+    "Canonical reconciliation changes authority state; proposal tests must transition from pre-reconciliation materialization assertions to post-reconciliation canonical regression assertions.",
+    "Historical immutable packet tests must validate their archived graph/source bundle rather than rebuilding the historical packet from current live authority.",
+    "Inventory assertions such as graph node/edge counts must be updated as part of legitimate reconciliation and should not masquerade as semantic therapy failures.",
+    "Expensive historical fixture rebuilds inside the general protected gate can create runner-liveness failures; immutable fixtures should be reused when the test is not specifically testing the builder.",
+    "A one-shot workflow must remove its own workflow/script before the final authority head is approved; temporary reconciliation machinery must never land on main."
+  ],
+  "proposedChange": "Mission Control should gate GitHub completion on the exact final tree/head and inspect required check-runs/jobs, not workflow-run conclusion strings alone. Add a final-head liveness rule: after any automation/bot-authored self-cleanup mutation, confirm temporary machinery is absent, distinguish zero-job bot placeholders from substantive CI failures, ensure the exact final tree receives real required checks, and merge only after those exact-head checks are green. Reconciliation workflows should also classify test failures as semantic regression versus lifecycle/inventory/fixture coupling before modifying product semantics.",
+  "recommendedInvariants": [
+    "NO_MERGE_WITH_TEMPORARY_ONE_SHOT_MACHINERY",
+    "REQUIRED_CHECKS_MUST_HAVE_REAL_JOBS_ON_EXACT_FINAL_HEAD",
+    "ZERO_JOB_PLACEHOLDER_IS_NOT_A_GREEN_CHECK_AND_NOT_A_SEMANTIC_TEST_FAILURE",
+    "HISTORICAL_FIXTURES_BIND_TO_HISTORICAL_AUTHORITY",
+    "POST_RECONCILE_PROPOSAL_CASES_RUN_AGAINST_CANONICAL_AUTHORITY",
+    "DO_NOT_WEAKEN_SEMANTIC_GATES_TO_FIX_LIFECYCLE_DRIFT"
+  ],
+  "evidenceRefs": [
+    {
+      "repository": "u-dont-existDOTcom/innerSignalGraph",
+      "pullRequest": 25,
+      "mergedCommit": "790c50a070aa41775b1beb79b08c96a8b12230e1"
+    },
+    {
+      "repository": "u-dont-existDOTcom/innerSignalGraph",
+      "head": "d8bc5ef08be880c234b206cd3a48d8ee52e2dafd",
+      "facts": [
+        "deterministic-package success",
+        "workflow-policy success",
+        "codeql-javascript success",
+        "442/442 automated tests passed during final repair sequence"
+      ]
+    },
+    {
+      "repository": "u-dont-existDOTcom/innerSignalGraph",
+      "head": "62e4b9eaa7c7885be5a3768138e92257982dc938",
+      "facts": [
+        "required PR workflows were triggered by github-actions[bot] cleanup commit",
+        "terminal placeholder runs contained zero jobs"
+      ]
+    }
+  ],
+  "risks": [
+    "A blanket rule that rejects every bot-authored final commit would be too broad; the actual invariant is substantive required checks on the exact final tree.",
+    "A synthetic human-authored no-op commit should be a compatibility fallback, not the preferred architecture if GitHub can be made to run checks correctly on the automation-authored head.",
+    "Do not infer semantic product defects from inventory or historical-fixture lifecycle failures."
+  ],
+  "workerRecommendation": "Add this as a Mission Control GitHub execution/reconciliation guard and a hostile regression fixture. The controller should automatically classify zero-job required-workflow placeholders, verify temporary-workflow cleanup, request or create a legitimate final-head check trigger when needed, and refuse merge until the exact final tree has substantive green required checks.",
+  "workerUncertainty": "The exact GitHub platform cause of the zero-job bot-authored PR workflow placeholders is not proven here. The observed behavior and the required fail-safe handling are proven by the execution trace.",
+  "decisionThatCanChange": "Mission Control GitHub completion detection, one-shot workflow handling, reconciliation closeout, and protected-branch merge admission.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": false,
+    "reviewPriority": "NEXT_ARCHITECTURE_MAINTENANCE",
+    "sharedProScopeKey": "github-execution/final-head-check-liveness"
+  },
+  "status": "NEW"
+}
