@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-MODEL-MENU-SELECTOR-COMPATIBILITY-20260903",
+  "recorded_at": "2026-09-03T15:36:36Z",
+  "timestamp_basis": "CURRENT_CONVERSATION_CAPTURE_TIME",
+  "status": "LIVE_VERIFIED",
+  "completion_allowed": true,
+  "owner_source": {
+    "verbatim": "EXECUTION-ONLY FOLLOW-UP — PR #58 model-menu selector compatibility\n\nCurrent accepted head: 5c35dd4273db8f58559c25b664491e848a63a129\nRepo: u-dont-existDOTcom/universal-dev-architecture\nBranch: task/mission-control-vps-browser-relay-20260902\nPR #58 remains draft/unmerged.\n\nEverything except the model-menu selector passed. Do NOT redesign architecture, change authority semantics, weaken capability proof, or invent model mappings.\n\nObserved live blocker on Hostinger:\n- exact registered ChatGPT conversation opened authenticated;\n- composer present;\n- current model control visibly reads `Extra High`;\n- opening the model menu exposed no choices matching the current accepted menu-option selector;\n- therefore `Pro` could not be verified;\n- no ChatGPT message was sent;\n- relay and capability gates currently disabled;\n- browser remains active;\n- doctor passed at 2026-09-03T00:53:56.996Z;\n- exact Hostinger SHA installed: 5c35dd4273db8f58559c25b664491e848a63a129.\n\nGoal: adapt the relay to the CURRENT ChatGPT model picker DOM/ARIA structure while preserving the exact accepted proof semantics: browser may observe only non-content UI state and exact visible model labels; it must still prove exact `Extra High` and exact `Pro` labels and round-trip Extra High -> Pro -> Extra High. No assistant-output DOM access.\n\nRequired execution:\n1. On the existing authenticated Hostinger browser profile, inspect only the model-picker/control DOM/ARIA/roles/attributes/text needed to identify:\n   - the currently selected model control;\n   - the opened model-menu container;\n   - the selectable entries corresponding to visible exact labels `Extra High` and `Pro`.\n   Do NOT inspect assistant transcript/message content.\n2. Determine why the current selector misses the options. Prefer robust semantic selectors (accessible role/name, menu/listbox/dialog descendants, buttons/items with exact visible text) over brittle generated classes. Do not bind to unrelated text nodes elsewhere on the page.\n3. Patch the smallest possible selector logic in `tools/codex-mission-control/vps-browser-relay/src/cdp.mjs` (and helper/tests only if needed).\n4. Preserve fail-closed behavior:\n   - exact label match required;\n   - ambiguous duplicate matches => fail;\n   - missing `Pro` => fail;\n   - no fallback aliases/synonyms;\n   - no backend model identity claim;\n   - no assistant-content selectors.\n5. Add deterministic tests for the newly observed UI structure plus the existing selector structure if supported. Include a regression that unrelated page text `Pro` cannot satisfy the selector.\n6. Run focused relay tests/syntax, then the normal single hosted CI checkpoint for the new head. Do not run unnecessary full-suite duplicates.\n7. Push branch and update Hostinger to the exact new SHA.\n8. Keep `MC_RELAY_SUBMIT_ENABLED=0`.\n9. Run doctor again.\n10. Re-run ONLY visible mode round-trip / capability preflight first. If exact Extra High and Pro controls are now proven, proceed with the already-authorized harmless #60 capability challenge, respecting the existing global 60-second minimum submission interval and 90-second polling. Do not enable normal task sending.\n11. If #60 capability receipt is successfully written and ingested, stop there and report success plus exact receipt and memory/pacing evidence. Do NOT run ordinary #59 or escalated #61 cycles in this follow-up unless the existing Work queue can continue automatically without any new policy choice; if it can, then continue the original accepted queue exactly as previously specified.\n\nHard boundaries:\n- no production Railway changes;\n- hotfix only if backend exact-SHA update becomes mechanically necessary after code change;\n- no PR merge unless all original acceptance criteria pass and existing merge policy explicitly authorizes it;\n- no interactive owner question unless login expired or a genuine non-mechanical ambiguity appears;\n- no model alias invention;\n- no transcript extraction.\n\nReturn: new commit SHA, exact selector change, tests/CI, live visible labels observed, mode round-trip result, #60 capability result/receipt, doctor status, and exact remaining blocker if any.",
+    "sha256": "198a795bd893920e19c994fe215913b252e8ae241226a3f71739514fb2dac731",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME"
+  },
+  "normalized_outcome": "The existing PR #58 relay recognizes the current authenticated ChatGPT model picker through container-scoped semantic controls, proves exact visible Extra High and Pro labels with an Extra High to Pro to Extra High round trip, never inspects assistant content, and then performs only the already-authorized harmless capability challenge while normal submission remains disabled.",
+  "required_outcomes": [
+    {
+      "id": "RO-MODEL-PICKER-001",
+      "terminal_required": true,
+      "observable": "The relay locates the current selected-model control and exact selectable Extra High and Pro controls only inside the opened model-menu/listbox/dialog UI, with missing or duplicate matches failing closed.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/cdp.mjs",
+        "Hostinger authenticated browser preinstall round trip: Extra High -> Pro -> Extra High"
+      ]
+    },
+    {
+      "id": "RO-MODEL-PICKER-002",
+      "terminal_required": true,
+      "observable": "Deterministic tests cover the newly observed picker structure, retain supported prior structure, and prove unrelated page text Pro cannot satisfy selection.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/test/cdp-model-picker.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-MODEL-PICKER-003",
+      "terminal_required": true,
+      "observable": "The exact pushed SHA is installed on Hostinger; doctor passes with 90-second polling and MC_RELAY_SUBMIT_ENABLED=0; the live browser proves exact Extra High to Pro to Extra High; and only then the harmless #60 capability challenge is attempted under the 60-second global pacing gate.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "commit:10a00f9e72000f09bbbaf25013df69d16bf754e6",
+        "workflow:33776204006",
+        "codeql:33776198764",
+        "mode-receipt:chat-mode-capability:mc-hotfix-specialist:1788451530586",
+        "Hostinger doctor:2026-09-03T16:18:08.001Z"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a generic page text node containing Pro is found",
+    "a generated CSS class happens to match one menu build",
+    "an alias or inferred backend model mapping is accepted",
+    "unit tests pass without the live exact-label round trip",
+    "doctor passes but Pro remains unobservable",
+    "a capability message is sent before the exact mode controls are proven",
+    "normal task sending is enabled",
+    "assistant transcript or response content is inspected"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md"
+  ],
+  "next_direct_evidence": "Inspect only the authenticated Hostinger model-picker control/menu semantics, implement the smallest container-scoped exact-label selector repair, run focused relay checks and one hosted CI checkpoint, install the exact SHA on Hostinger, rerun doctor and the visible mode round trip, then attempt only the harmless #60 capability challenge if the preflight passes."
+}

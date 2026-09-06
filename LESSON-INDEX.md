@@ -39,6 +39,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 33. `patterns/supervision-assurance-planes-and-pro-meta-review.md` — separate worker-to-contract from contract-to-owner alignment, require independent owner-source receipts, reconciliation matrices, typed completion, separate AskRigor adequacy planes, and a shared Pro meta-review lane.
 34. `patterns/outcome-advancement-and-strategy-efficacy.md` — separate direct owner-outcome evidence from activity/supporting work, bind target/baseline/current/best evidence, classify flat/regressing/unmeasured states, track strategy hypotheses/limits, and trigger method replacement before the owner asks.
 35. `patterns/chat-led-reasoning-codex-execution-separation.md` — **controlling owner correction:** chats perform the reasoning and Codex performs only bounded execution that chats cannot reliably perform. Extra High owns default strategy, planning, article authoring, progress judgment, and directive composition; Pro handles the highest-intelligence judgments; Codex acts only from a versioned chat-authored directive and returns execution evidence without supervising itself.
+36. `patterns/structured-output-failure-boundary.md` — classify malformed structured artifacts as serialization/interface failures rather than semantic or scientific failures, preserve exact parser/validator evidence, enforce source-fixed attempt ceilings, prohibit silent repair, and block dependent scoring or aggregation until a valid admitted artifact or new source-bound directive exists.
 
 ## Reusable policy templates
 
@@ -59,6 +60,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 - `templates/EXECUTOR-REASONING-HANDOFF.json` — durable closed-loop lease and compact polling record that keeps reasoning-review boundaries nonterminal and resumes one validated directive exactly once.
 - `templates/RESEARCH-SUPERVISION-VERDICT.json` — separate operational, scientific, and release-adequacy judgments.
 - `templates/SUPERVISION-DESIGN-FEEDBACK.json` — structured feedback packet for shared Pro supervisor-design review.
+- `templates/STRUCTURED-OUTPUT-FAILURE.json` — machine-readable serialization-failure evidence, repeated-fingerprint assessment, source-fixed attempt boundary, repair authority, and downstream admission block.
 
 ## Repository compliance worker architecture
 

@@ -256,6 +256,7 @@ function eventSummary(event: StoredEvent): string {
     case "supervision_route_recorded": return `${data.lane} ${data.substantive_response_count}/${data.hard_maximum}: ${data.next_review_trigger}`;
     case "reasoning_message_recorded": return `${data.surface_role.replaceAll("_", " ")} ${data.author_role} · ${data.provenance_status}: ${data.exact_visible_body ?? data.immutable_provider_locator ?? "message content unavailable"}`;
     case "reasoning_supervision_recorded": return `${data.reasoning_supervisor_surface} ${data.reasoning_supervisor_chat_epoch}: ${data.next_reasoning_review_trigger}`;
+    case "github_decision_receipt_ingested": return `${data.reasoning_lane.replaceAll("_", " ")} · ${data.github_receipt.repository}#${data.github_receipt.issue_number}: ${data.decision_block.exact_text}`;
     case "execution_directive_recorded": return `${data.status}: ${data.execution_objective}`;
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
     case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;

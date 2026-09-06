@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260902-TERMINAL-RESPONSE-ADMISSION-001",
+  "sourcePacketType": "SUPERVISION_DESIGN_FEEDBACK",
+  "sourceLane": "supervision-architecture/20260902T225300Z",
+  "sourceTask": "askrigor-external-evaluation-contribution-v1",
+  "severity": "RECURRING_AUTONOMY_FAILURE",
+  "status": "IMPLEMENTED_PENDING_VALIDATION",
+  "ownerCorrection": "The worker must continue automatically whenever safe work remains and must not stop at a routine checkpoint.",
+  "incident": {
+    "projectSpecificFacts": {
+      "checkpointHead": "b724fde186bb507cd1bddf480c3b5f12b0ccd7dd",
+      "validArtifactsAtPrematureStop": 29,
+      "targetArtifacts": 192,
+      "nextKnownOrdinal": 30,
+      "ownerInputRequired": false,
+      "recoverySucceededWithoutOwnerInput": true
+    },
+    "failureClass": "PREMATURE_TERMINAL_RESPONSE_WITH_SAFE_WORK_REMAINING",
+    "immediateCause": "Response/context closure and a durable checkpoint were treated as a terminal handoff boundary.",
+    "controlGap": "The existing continuous-next-step and exclusive-task rules were advisory at final-response time; no mechanical pre-final gate required current completion, source-bound blocking authority, or an explicit owner stop."
+  },
+  "metaReview": {
+    "decision": "ACCEPT",
+    "transferRationale": "The failure mechanism concerns generic execution-session closure, checkpoint semantics, and autonomous task continuity rather than AskRigor scientific content or evaluator methodology.",
+    "nonMutation": [
+      "No deterministic repair of evaluator output is authorized by this lesson.",
+      "No evaluator retry ceiling is changed.",
+      "No third evaluation attempt is authorized.",
+      "No scientific, clinical, arm, family, or result interpretation is introduced."
+    ]
+  },
+  "universalControl": {
+    "pattern": "patterns/terminal-response-admission-and-autonomous-continuation.md",
+    "missionControlGate": "GET /api/worker-channel/<worker>/finalization",
+    "workerCommand": "npm run worker:finalize:check -- --worker <worker>",
+    "rule": "Before an owner-facing terminal response on an exclusive active task, reconcile durable task state and require a current Mission Control terminal/pause proof. A 409/mustContinue response forbids terminal handoff and supplies the next durable action.",
+    "nonTerminalRecoveryEvents": [
+      "context compaction",
+      "response/token pressure",
+      "long tool sequences",
+      "checkpoint commits",
+      "browser/tab cleanup",
+      "known next batch or ordinal",
+      "provider cooldown",
+      "temporary rate limit",
+      "retry/backoff"
+    ],
+    "legitimatePauseClasses": [
+      "source-bound root completion or owner cancellation",
+      "genuine owner decision with no independent safe work",
+      "genuine external blocker with no workaround or independent safe work",
+      "directive-bound reasoning stop already routed automatically to the configured reasoning chat"
+    ]
+  },
+  "implementation": {
+    "files": [
+      "tools/codex-mission-control/restored/codex-mission-control/lib/final-response-gate.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/finalization/route.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/scripts/require-final-response-admission.mjs",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/final-response-gate.test.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/package.json",
+      "patterns/terminal-response-admission-and-autonomous-continuation.md",
+      "templates/AGENTS-CODEX.md",
+      "tests/test_universal_next_step_rule.py"
+    ],
+    "validationState": "PENDING_EXACT_HEAD_CI"
+  },
+  "projectRepairSeparation": "The source worker later reached a distinct legitimate directive-mandated halt after the next ordinal exhausted its source-fixed INVALID_JSON attempt ceiling. That later halt is not evidence against autonomous continuation and is not modified by this universal control."
+}

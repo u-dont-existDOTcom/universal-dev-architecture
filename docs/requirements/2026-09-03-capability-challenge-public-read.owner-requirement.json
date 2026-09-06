@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CAPABILITY-CHALLENGE-PUBLIC-READ-20260903",
+  "recorded_at": "2026-09-03T17:08:13Z",
+  "timestamp_basis": "CURRENT_CONVERSATION_CAPTURE_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "EXECUTION-ONLY FINAL CAPABILITY-PATH FIX — PR #58\n\nCurrent PR: u-dont-existDOTcom/universal-dev-architecture #58\nCurrent branch: task/mission-control-vps-browser-relay-20260902\nCurrent head observed: 10a00f9e72000f09bbbaf25013df69d16bf754e6\nDo not merge until original live acceptance passes.\nProduction Mission Control service remains FORBIDDEN; hotfix only for live proof.\n\nCURRENT LIVE FACTS\n- Model-picker compatibility is FIXED live.\n- Hostinger visible mode preflight passes exact Extra High -> Pro -> Extra High.\n- Mode receipt: chat-mode-capability:mc-hotfix-specialist:1788451530586.\n- Exactly one harmless capability prompt was sent at 2026-09-03T16:05:54.680Z and completed at 2026-09-03T16:15:30.384Z.\n- 60s global send pacing and 90s polling worked; no second submission occurred.\n- No #60 capability receipt was written.\n- Investigation on issue #60 established exact blocker: BLOCKED_MISSING_LIVE_MC_NONCE.\n- GitHub raw nonce side is readable. The supervisor chat lacked a sanctioned direct path to the live Mission Control challenge receipt / mc_nonce.\n- Existing outer /api/workers/<worker> correctly requires owner auth. Do NOT weaken or bypass it.\n\nCHAT-RESOLVED FIX\nAdd a dedicated public READ-ONLY capability-challenge endpoint that exposes ONLY disposable capability-test challenge data necessary for the two-source proof. This is intentionally safe because the MC nonce is a disposable challenge value, not a credential and carries no semantic/execution authority; GitHub nonce is already public, and final receipt still requires authorized GitHub writer + exact challenge/chat binding + expiry.\n\nREQUIRED API\nPrefer a route of the form:\nGET /api/capability-challenges/<challenge-id>\n(or the smallest naming variant consistent with this app)\n\nResponse for a current configured challenge must contain ONLY:\n- schema_version\n- challenge_id\n- chat_id\n- mc_nonce\n- github_nonce_sha256\n- github_nonce_source\n- receipt_target\n- expires_at\n\nIt MUST NOT expose:\n- worker timeline/state\n- credentials/tokens/secrets\n- Railway variables\n- owner session/auth data\n- arbitrary evidence refs\n- task/decision content\n\nBehavior:\n- exact challenge ID lookup only;\n- configured/current challenge only;\n- expired challenge => fail closed (404/410 acceptable, use existing conventions);\n- unknown challenge => 404;\n- GET only / no mutation;\n- no auth requirement for this narrowly scoped disposable challenge route;\n- explicit cache-control no-store if appropriate;\n- rate limiting/security headers consistent with existing public read-only routes;\n- no ability to enumerate all challenges if avoidable.\n\nTESTS\nAdd deterministic tests proving:\n1. correct exact challenge returns only allowlisted fields;\n2. unknown/expired challenge fails closed;\n3. no worker/timeline/credential/task fields leak;\n4. endpoint cannot mutate state;\n5. existing authenticated /api/workers path remains protected;\n6. capability verifier semantics are unchanged.\nRun focused tests then one normal full hosted checkpoint for the final head; no redundant reruns.\n\nCAPABILITY PROMPT UPDATE\nUpdate the relay capability prompt so it gives the supervisor the exact public Mission Control challenge URL derived from configured Mission Control base URL + challenge ID, and instructs it to:\n1. fetch/read that live endpoint in Extra High;\n2. extract exact mc_nonce, github_nonce_sha256, github_nonce_source, receipt_target, expires_at;\n3. follow github_nonce_source and reread the raw GitHub nonce;\n4. verify SHA-256 before writing;\n5. write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to receipt_target with exact ordered capabilities [\"MISSION_CONTROL_READ\",\"GITHUB_READ\",\"GITHUB_WRITE\"];\n6. fail closed if anything mismatches/expires.\nDo not put mc_nonce itself into the browser prompt; the chat must read it from Mission Control.\nDo not weaken authorized-writer or expiry verification.\n\nDEPLOY / LIVE RETEST\n1. Push new exact branch head.\n2. Update ONLY Railway mission-control-hotfix exact-SHA codeload build to that head; production untouched.\n3. Require hotfix build/typecheck/daemon/health success and exact SHA evidence.\n4. Update Hostinger relay to exact same head.\n5. Keep MC_RELAY_SUBMIT_ENABLED=0.\n6. Doctor must pass; exact Extra High -> Pro -> Extra High must still pass.\n7. Enable capability-test gate only.\n8. Respect 60s global minimum pacing and 90s polling.\n9. Run ONE fresh #60 capability challenge. Rotate/reseed challenge nonce if current challenge timing/state requires it; update GitHub raw nonce fixture consistently and preserve source binding. Do not reuse an expired challenge.\n10. Verify exact #60 receipt appears and Mission Control reports missionControlRead=true, githubRead=true, githubWrite=true, modeSwitching=true.\n11. Disable capability-test gate.\n\nIF #60 PASSES\nContinue the previously authorized original acceptance queue automatically, without asking owner:\nA. ONE harmless ordinary Extra High synthetic route -> #59 canonical receipt -> Mission Control ingestion.\nB. ONE harmless PRO_ESCALATED same-chat route -> Extra High reader -> #61 STAGE_COMPLETE -> paced Pro reasoner -> paced Extra High liveness checker -> CONTINUE_REQUIRED handling if needed -> Extra High writer -> #59 final receipt -> Mission Control ingestion.\nC. Verify public low-frequency reconciliation for #59/#60/#61.\nD. Verify provider-bound Mission Control transcript timestamp if the synthetic messages provide the required source-time evidence; do not fabricate sent time if source time unavailable.\nE. Capture actual submission timestamps proving minimum interval >=60s and memory metrics.\nF. Exercise stuck recovery only if naturally triggered or there is an existing deterministic harmless test path; do NOT manufacture a long-running failure solely to consume quota.\n\nFAIL-CLOSED RULES\n- No assistant-output DOM extraction/copy/hash/parse.\n- Browser sees only non-content controls/labels/state.\n- No model alias invention.\n- No production Railway changes.\n- No real project decisions in smoke.\n- No PR merge unless ALL original terminal acceptance is now satisfied AND existing durable merge policy makes merge deterministic; otherwise stop at MERGE_POLICY_DECISION_REQUIRED.\n- No production promotion unless explicitly already authorized; otherwise stop at PRODUCTION_PROMOTION_NOT_YET_AUTHORIZED.\n\nREPORT BACK\n- final head\n- endpoint path/schema/security behavior\n- tests/CI/CodeQL\n- hotfix deployment id + exact SHA\n- Hostinger doctor + exact visible mode proof\n- #60 receipt id and Mission Control capability booleans\n- #59 ordinary receipt\n- #61 escalated stage receipts and final #59 receipt\n- actual send timestamps/minimum observed spacing\n- memory T0/peak/final\n- provider-bound timestamp proof result\n- current relay/service enablement\n- exact remaining blocker, if any.",
+    "sha256": "bba8b359baf743bb2a0f57b4e5a83f55667f8ca68f3ad56d6d370a7ec0a24137",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME"
+  },
+  "normalized_outcome": "The isolated Mission Control hotfix exposes one exact, current capability challenge through a public GET-only no-store route containing only the eight allowlisted disposable proof fields; the relay prompt directs Extra High to read that URL without embedding the Mission Control nonce; the exact pushed SHA is deployed to the hotfix and Hostinger; the fresh capability proof and the previously authorized bounded ordinary and escalated acceptance cycles complete under the existing pacing, authorization, expiry, and non-content browser constraints; production remains untouched and the PR remains unmerged unless the durable merge policy is deterministically satisfied.",
+  "required_outcomes": [
+    {
+      "id": "RO-CAPABILITY-PUBLIC-001",
+      "terminal_required": true,
+      "observable": "GET /api/capability-challenges/<challenge-id> returns exactly the eight allowlisted fields for one current configured exact challenge without owner authentication, enumeration, mutation, caching, or unrelated Mission Control data exposure; unknown and expired challenges fail closed.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/app/api/capability-challenges/[challenge]/route.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/capability-challenge-route.test.ts"
+      ]
+    },
+    {
+      "id": "RO-CAPABILITY-PROMPT-002",
+      "terminal_required": true,
+      "observable": "The browser prompt contains the exact public challenge URL derived from the configured Mission Control base URL and challenge ID, omits mc_nonce, requires GitHub nonce hash verification and the exact ordered capability receipt, and preserves authorized-writer and expiry verification.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/core.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/relay.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-CAPABILITY-DEPLOY-003",
+      "terminal_required": true,
+      "observable": "One final exact branch SHA passes focused and hosted validation, is deployed only to the Railway hotfix and installed on Hostinger, and is proven by build/typecheck/daemon/health and exact-SHA evidence while production stays unchanged.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPABILITY-LIVE-004",
+      "terminal_required": true,
+      "observable": "Doctor and exact Extra High to Pro to Extra High remain live-valid; one fresh capability challenge produces the exact GitHub receipt and all four capability booleans; the capability gate is then disabled.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPABILITY-ACCEPTANCE-005",
+      "terminal_required": true,
+      "observable": "After capability success, one harmless ordinary cycle and one harmless escalated same-chat cycle produce their exact #59/#61 receipts and Mission Control ingestion, public reconciliation is observed, pacing and memory evidence are captured, and provider-bound source time is reported truthfully as verified or unavailable.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "the existing owner-authenticated worker endpoint can be read by the relay but not by the supervisor chat",
+    "the new route returns a challenge plus any worker, timeline, credential, task, decision, session, environment, or arbitrary evidence fields",
+    "the Mission Control nonce is copied into the browser prompt instead of being read from the live endpoint",
+    "unit tests pass but the exact hotfix SHA is not deployed and read live",
+    "the old expired challenge is reused",
+    "a GitHub receipt exists but does not bind the exact challenge, chat, two nonces, authorized writer, or expiry",
+    "capability passes but the ordinary and escalated live acceptance cycles are not run",
+    "continuous normal task sending is enabled",
+    "production Mission Control is changed",
+    "assistant output is inspected or parsed",
+    "the PR is merged without all original terminal acceptance and deterministic merge policy"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md"
+  ],
+  "next_direct_evidence": "Implement and focused-test the allowlisted exact-ID challenge projection and prompt URL, prove the existing worker route remains authenticated and verifier logic unchanged, then run one hosted checkpoint and deploy the exact SHA only to the isolated hotfix and Hostinger before the bounded fresh live acceptance sequence."
+}

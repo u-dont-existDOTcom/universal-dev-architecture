@@ -1,0 +1,18 @@
+{
+  "name": "mission-control-vps-browser-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Memory-bounded outbound relay from Mission Control to registered ChatGPT conversations on a VPS browser.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check bin/mc-chatgpt-relay.mjs && node --check src/*.mjs",
+    "doctor": "node bin/mc-chatgpt-relay.mjs doctor",
+    "once": "node bin/mc-chatgpt-relay.mjs once",
+    "start": "node bin/mc-chatgpt-relay.mjs run",
+    "status": "node bin/mc-chatgpt-relay.mjs status"
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-BINDING-PRELOAD-TAB-DISCIPLINE-20260904",
+  "recorded_at": "2026-09-04T12:19:25Z",
+  "timestamp_basis": "CURRENT_CONVERSATION_CAPTURE_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continuing from [Mission Control latest](chatgpt-conversation://6a97740b-71dc-83ea-875e-b0f01e98d20d): EXECUTION-ONLY — IMPLEMENT TRANSPORT-ONLY MCP BINDING PRELOAD, UNIVERSAL TAB DISCIPLINE, AND FINISH PR #58 LIVE ACCEPTANCE\n\nRepo: u-dont-existDOTcom/universal-dev-architecture\nPR: #58\nBranch: task/mission-control-vps-browser-relay-20260902\nCurrent head last observed in Chat: 89d9fa0b86af561cda1ea5fb35e93dc0a2779014\nControlling Chat comments on PR #58:\n- provider-session topology: comment id 5532925889\n- transport-only preload + universal tab discipline: comment id 5534390444\nTreat 5534390444 as superseding where they conflict.\n\nCURRENT LIVE FACTS\n- Stable supervisor/account-app #60 capability remains current through 2026-09-10T23:59:59Z.\n- Stable supervisor: mc-hotfix-specialist / HumanDesign slice supervisor / worker mission-control-live-slice.\n- Per-cycle provider-session schema v3 and #59/#61 schema v2 binding are implemented.\n- Final ordinary request `mc-live-acceptance-ordinary-v3-final3-20260904` used provider session `provider-session:37a1f32b-b599-4905-a19f-d21474358837`, fresh chat https://chatgpt.com/c/6a9a17cc-8678-83e9-9a77-c296c894562a.\n- Mission Control app chip was selected and `/mcp` received a POST, but there were zero `tools/call get_supervisory_request_binding` attempts. Session failed `FIRST_TURN_MCP_RECEIPT_MISSING`; #59 count remained zero.\n- Production Mission Control service remains untouched.\n\nDO NOT REDESIGN. IMPLEMENT EXACTLY THIS CORRECTION.\n\nA. SPLIT FIRST TURN INTO TRANSPORT-ONLY MCP BINDING PRELOAD\n1. Add explicit provider-session step/state `MCP_BINDING_PRELOAD` or smallest consistent equivalent.\n2. Fresh provider-session sequence:\n   a. create/open fresh conversation in reusable tab;\n   b. exact Extra High/Pro UI proof;\n   c. select exact Mission Control app;\n   d. send one retrieval-only MCP preload prompt;\n   e. wait for generation completion AND server-side current provider-session `tools/call get_supervisory_request_binding` success receipt;\n   f. only after that receipt is visible in Mission Control, respect global pacing and send semantic `EXTRA_HIGH_DIRECT` or `EXTRA_HIGH_READER` in SAME conversation with no app reselection/MCP request.\n3. If preload generation completes without current binding receipt, wait existing bounded receipt grace/reconciliation window, then mark FAILED/FAILED_RETRYABLE. Do not send semantic work.\n4. Generic `/mcp` POST, initialize, tools/list, selected app chip, or prose is insufficient.\n5. Do not reuse the failed final3 request/session for acceptance. Use fresh synthetic request/session.\n\nB. PRELOAD PROMPT MUST BE MINIMAL\nIntent:\n`Mission Control binding preload only. Use the selected Mission Control app. Your only action in this turn is to call get_supervisory_request_binding exactly once with request_id <...>, supervisor_id <...>, and provider_session_id <...>. Do not reason, use GitHub, make a decision, write a receipt, or answer from values in this prompt/context instead of calling the tool. If the exact tool call is unavailable or fails, fail closed. After the tool result is loaded into this conversation, stop.`\n\nNo GitHub task. No #59/#61 write. No substantive reasoning. No Work delegation.\n\nC. SEMANTIC PROMPTS AFTER PRELOAD\n- EXTRA_HIGH_DIRECT: state binding is already loaded by preceding preload; do not invoke/reselect Mission Control. Use GitHub for substantive evidence; make bounded decision; write schema-v2 #59 with exact loaded binding.\n- EXTRA_HIGH_READER: same rule; use loaded binding + GitHub evidence, then write schema-v2 #61 reader receipt. No MCP refresh.\n- Pro reasoner / Extra High liveness checker / continue / writer remain MCP-free and use same-chat binding + GitHub receipts.\n- Preload turn and MCP telemetry have semantic_authority:false.\n\nD. IMPROVE MCP TOOL ROUTING DESCRIPTION ONLY\nFor `get_supervisory_request_binding`, update description/title metadata so it says in substance:\n- ALWAYS call this tool when a selected Mission Control message supplies exact supervisory request_id, supervisor_id, and provider_session_id and asks to preload/read the live request binding.\n- Never substitute prompt/context values for the live call.\n- Read-only current exact binding; no evidence body/private worker state.\nKeep input/output schemas and anonymous read-only security unchanged. No write tools, enumeration, or private data.\n\nE. UNIVERSAL BROWSER TAB DISCIPLINE — DURABLE RULE\nOwner-level universal rule, not worker-local:\n1. Fresh conversation means New chat in CURRENT verified reusable ChatGPT tab, not a new browser tab by default.\n2. Steady state: 1 managed ChatGPT tab.\n3. Temporary transition/recovery max: 2 managed ChatGPT tabs.\n4. Absolute hard ceiling: 3 managed ChatGPT tabs. Fail closed before opening another.\n5. Replacement tab only when current tab irrecoverably unusable; close superseded tab immediately once replacement verified.\n6. Never fan out duplicate tabs for the same task.\n7. Doctor/status telemetry must include managed ChatGPT tab count.\n8. Deterministically clean completed/superseded provider-session tabs so they do not accumulate.\n9. Do not keep bootstrap/pinned tabs open merely for history if durable capability already exists.\n10. Encode this in universal Work/Codex/browser guidance plus regression test so future workers inherit it. Do not overwrite unrelated global provenance/state.\n\nF. TESTS\nAdd focused deterministic tests proving:\n- fresh session uses same reusable tab/New chat instead of new target by default;\n- hard tab ceiling prevents opening a fourth managed ChatGPT tab;\n- completed session cleanup returns toward one-tab steady state;\n- replacement-tab recovery closes superseded tab;\n- preload prompt contains only binding retrieval, no GitHub/decision/stage work;\n- semantic direct/reader cannot send before current-session MCP binding receipt;\n- preload success -> semantic turn only after >=60s global pacing;\n- semantic/direct/reader/pro/checker/continue/writer never reselect Mission Control after preload;\n- generic MCP contact without tools/call cannot satisfy preload;\n- stale provider-session receipt cannot satisfy new session;\n- tool description contains explicit always-call routing language;\n- existing #59/#61 cross-session replay rejection remains green.\n\nRun focused tests first, then exactly one normal final hosted checkpoint if code changed:\n- deterministic repo audit\n- Mission Control tests/types/build\n- relay tests/syntax\n- CodeQL\nNo redundant green reruns.\n\nG. HOTFIX / HOSTINGER\nIf code changes:\n- push exact head\n- deploy ONLY `mission-control-hotfix` via established exact-SHA codeload mechanism\n- prove exact SHA/build/typecheck/daemon/health\n- production untouched\n- install exact same relay head on Hostinger\n\nPreserve authenticated ChatGPT profile, native sandbox, loopback CDP, 90s poll, 60s global minimum submission interval, AUTO→8GB memory profile.\n\nH. LIVE ACCEPTANCE — COMPLETE WITHOUT OWNER RELAY\n1. Verify stable #60 capability still current; do not redo unless expired/invalid.\n2. Queue a NEW harmless ordinary v3 synthetic request (not final3).\n3. Reuse current verified ChatGPT tab, create New chat in same tab, allocate new provider_session_id.\n4. Preload: Mission Control selected; minimal retrieval-only prompt. PASS requires actual server telemetry `tools/call get_supervisory_request_binding` for exact request/supervisor/provider_session and MC receipt admitted.\n5. After >=60s from preload send, semantic Extra High direct turn in same conversation without app reselection. Require #59 canonical receipt admitted.\n6. Clean/reuse tab; do not leave duplicate tabs.\n7. Queue NEW harmless PRO_ESCALATED synthetic request.\n8. Same reusable tab -> New chat; new provider_session_id; preload binding-only turn with actual MCP tool call.\n9. After >=60s, Extra High reader uses existing binding + GitHub and writes #61 reader STAGE_COMPLETE/CONTINUE_REQUIRED.\n10. Continue same-chat Pro reasoner -> paced Extra High liveness checker -> optional paced `continue` -> final Extra High writer, with NO follow-up MCP selection/call.\n11. Require ordered session-bound #61 receipts and final #59 admission.\n12. Verify public missed-webhook reconciliation for #59/#60/#61.\n13. Capture all actual ChatGPT send timestamps; every adjacent actual submission >=60s.\n14. Capture T0/peak/final RAM, available RAM, swap, browser RSS, relay RSS, systemd memory; no HARD pressure.\n15. Provider source timestamp: prove only if genuinely available; never relabel capture/generation time. Record accurately if unavailable.\n16. Do not manufacture a stuck turn solely to test recovery. If naturally triggered, verify same-chat paced recovery.\n\nI. FINALIZATION\nUpdate PR #58 and issue #53 with exact final head, CI, hotfix deploy, ordinary/escalated fresh-session URLs, preload MCP tool-call telemetry, #59/#61 receipts, no-follow-up-MCP evidence, send spacing, tab-count telemetry, memory metrics, timestamp status.\n\nLeave relay normal sends disabled after smoke unless existing durable policy explicitly requires continuous activation.\nDo not invent/register a Project Manager chat.\nDo not delete old conversations; audit locators may remain, but no stale tab needs remain open.\n\nMerge only if all terminal acceptance passes AND existing durable merge policy makes merge deterministic. Otherwise stop `MERGE_POLICY_DECISION_REQUIRED`.\nProduction promotion is NOT authorized; if acceptance otherwise complete, stop `PRODUCTION_PROMOTION_NOT_YET_AUTHORIZED`.\n\nNON-NEGOTIABLES\n- execution only; no architecture redesign\n- no assistant-output DOM extraction/copy/hash/parse\n- no model alias invention\n- no write MCP tools/private anonymous MC data\n- no production Railway changes\n- no manual owner packet relay\n- no stale provider-session receipt reuse\n- no MCP/app reselection after preload within a provider session\n- no duplicate-tab fan-out\n\nRETURN\n- final head\n- universal tab-rule files/tests changed\n- preload topology/status names\n- CI/CodeQL\n- hotfix deployment exact SHA/id\n- ordinary fresh chat URL + preload tool-call telemetry + #59 receipt\n- escalated fresh chat URL + preload telemetry + #61 receipts + final #59\n- proof no follow-up MCP/app selection\n- actual send spacing\n- tab-count telemetry\n- memory metrics\n- timestamp status\n- current relay/app state\n- exact remaining blocker if any.",
+    "sha256": "3489cec24a5f3199b5d6f155c9203144a3931bfb4883e190074160f3e90a923d",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME"
+  },
+  "normalized_outcome": "Each fresh provider session is created with New chat in the current verified reusable ChatGPT tab, performs one minimal transport-only MCP_BINDING_PRELOAD whose exact current-session get_supervisory_request_binding success is admitted before any paced semantic turn, then completes the ordinary or escalated same-chat GitHub receipt flow without any later Mission Control selection or call; universal tab discipline, exact-SHA hotfix/Hostinger deployment, telemetry, and the two new live acceptance cycles are completed without changing production.",
+  "required_outcomes": [
+    {
+      "id": "RO-BINDING-PRELOAD-001",
+      "terminal_required": true,
+      "observable": "The relay exposes an explicit MCP_BINDING_PRELOAD state/step using a retrieval-only prompt and blocks semantic direct/reader work until generation completion plus a current exact provider-session tools/call get_supervisory_request_binding success receipt; generic MCP contact and stale receipts do not advance.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/relay.mjs",
+        "focused relay tests: 38 passed"
+      ]
+    },
+    {
+      "id": "RO-SEMANTIC-NO-MCP-002",
+      "terminal_required": true,
+      "observable": "After preload, semantic direct/reader, Pro reasoner, liveness checker, continue, and writer reuse the same-chat binding and never reselect or reinvoke Mission Control while preserving global submission pacing and schema-v2 #59/#61 session binding.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+        "focused Mission Control admission tests: 20 passed"
+      ]
+    },
+    {
+      "id": "RO-MCP-ROUTING-003",
+      "terminal_required": true,
+      "observable": "The get_supervisory_request_binding title/description explicitly routes exact selected-app preload requests to an always-call live read without any schema, security, enumeration, mutation, or private-data expansion.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/public-mcp.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/public-mcp.test.ts"
+      ]
+    },
+    {
+      "id": "RO-UNIVERSAL-TABS-004",
+      "terminal_required": true,
+      "observable": "Universal Work/Codex/browser guidance and mechanical tests enforce New chat in the reusable tab, one-tab steady state, temporary two-tab transition, fail-closed three-tab ceiling, replacement cleanup, no duplicate fan-out, deterministic completed-session cleanup, and managed ChatGPT tab-count telemetry.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "AGENTS.md",
+        "patterns/persistent-browser-automation-hygiene.md",
+        "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md",
+        "templates/AGENTS-CODEX.md",
+        "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+        "tests/test_universal_chatgpt_tab_discipline.py"
+      ]
+    },
+    {
+      "id": "RO-TEST-DEPLOY-005",
+      "terminal_required": true,
+      "observable": "Focused regressions pass, one final hosted repository/Mission Control/relay/CodeQL checkpoint passes, the exact changed SHA is deployed only to mission-control-hotfix and installed on Hostinger with exact-SHA build/type/daemon/health proof, and production remains untouched.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LIVE-ORDINARY-006",
+      "terminal_required": true,
+      "observable": "A new harmless ordinary request and provider session, distinct from final3, complete preload tool-call admission and a >=60-second-later same-chat Extra High direct turn with no app reselection and an admitted canonical #59 receipt.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LIVE-ESCALATED-007",
+      "terminal_required": true,
+      "observable": "A second new harmless PRO_ESCALATED request/session completes exact preload admission, paced same-chat reader/Pro/checker/optional continue/writer turns with ordered session-bound #61 receipts and final #59 admission, and no follow-up MCP/app selection.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-FINAL-EVIDENCE-008",
+      "terminal_required": true,
+      "observable": "PR #58 and issue #53 record exact final head, CI/CodeQL, hotfix deployment, fresh conversation URLs, MCP telemetry, #59/#61 receipts, send spacing, tab and memory telemetry, truthful timestamp status, reconciliation, disabled normal sends, private app state, and the exact merge or production boundary.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a Mission Control chip, generic /mcp POST, initialize, tools/list, prose, or generation completion without the exact current-session tools/call success",
+    "the failed final3 request/session is retried or accepted",
+    "the preload prompt contains GitHub, decision, receipt-writing, stage, or substantive reasoning work",
+    "semantic work is sent before current-session preload admission or before the 60-second global interval",
+    "Mission Control is selected or invoked again after preload within the provider session",
+    "a stale provider-session receipt satisfies a new session",
+    "fresh conversation is implemented by opening a new browser tab by default",
+    "a fourth managed ChatGPT tab can be opened or duplicate task tabs accumulate",
+    "tests or CI pass but either new live acceptance cycle remains incomplete",
+    "assistant response content is extracted, copied, hashed, or parsed",
+    "production Railway is changed, normal sends remain enabled after smoke, or a Project Manager chat is invented",
+    "capture/generation time is relabeled as provider source time",
+    "the PR is merged or production is promoted without the controlling deterministic boundary"
+  ],
+  "active_lesson_contract": [
+    {
+      "source": "PR #58 comment 5534390444 and this owner message",
+      "trigger": "first-turn MCP routing failed despite generic MCP contact",
+      "required_behavior": "admit only an exact current-session binding tool-call receipt before semantic work",
+      "failure_condition": "generic contact, prose, stale receipt, or preload completion advances the route",
+      "repair_action": "fail the provider session and do not send semantic work",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/persistent-browser-automation-hygiene.md and this owner correction",
+      "trigger": "fresh provider sessions previously accumulated browser tabs",
+      "required_behavior": "reuse the current verified ChatGPT tab via New chat and enforce 1/2/3 tab bounds with cleanup",
+      "failure_condition": "duplicate fan-out, a fourth tab, or completed/superseded tabs left accumulating",
+      "repair_action": "fail closed before opening and deterministically close surplus/superseded tabs",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "docs/requirements/2026-09-02-global-chatgpt-submission-pacing.owner-requirement.json",
+      "trigger": "preload is an actual ChatGPT submission",
+      "required_behavior": "route every preload and semantic/recovery send through the persisted global 60-second gate",
+      "failure_condition": "any adjacent actual submission is under 60 seconds",
+      "repair_action": "return GLOBAL_SUBMISSION_COOLDOWN with no send and retry through the normal loop",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "trigger": "the owner requires terminal live acceptance, not implementation-only progress",
+      "required_behavior": "keep every required live, deployment, telemetry, and finalization outcome open until directly evidenced",
+      "failure_condition": "code/tests/CI/deploy are presented as completion while live ordinary or escalated acceptance is unmet",
+      "repair_action": "preserve supporting work and report the exact remaining owner-outcome gap",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/chat-work-execution-routing-threshold.md",
+      "trigger": "this is a Chat-authored execution-only directive",
+      "required_behavior": "execute exactly the supplied correction without redesign or semantic supervision",
+      "failure_condition": "Codex invents architecture, verdicts, methodology, or owner authority",
+      "repair_action": "stop the unauthorized choice and return the factual execution boundary",
+      "enforcement": "semantic"
+    }
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/chat-work-execution-routing-threshold.md",
+    "patterns/chatgpt-developer-mcp-chat-lifecycle.md",
+    "patterns/persistent-browser-automation-hygiene.md"
+  ],
+  "next_direct_evidence": "Inspect the current relay/provider-session state machine, MCP metadata, and browser target management; implement only the explicit preload and universal tab rules; run focused tests; then complete the single hosted checkpoint, exact-SHA hotfix/Hostinger update, and two new live acceptance cycles."
+}

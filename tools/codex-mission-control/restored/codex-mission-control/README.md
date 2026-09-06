@@ -152,6 +152,8 @@ Dashboard-facing Next.js BFF:
 - `GET /api/worker-channel/:worker/outbox` (authenticated worker)
 - `POST /api/worker-channel/:worker/events` (authenticated worker)
 - `POST /api/mcp` (authenticated, read-only MCP-compatible JSON-RPC tools)
+- `GET|POST /mcp` (anonymous Streamable HTTP MCP exposing only exact-bound,
+  non-sensitive supervisory control metadata)
 
 Daemon:
 
@@ -233,6 +235,33 @@ The tunnel is outbound-only; it does not expose an unauthenticated inbound
 service or a worker-control port. Creating/associating the tunnel and issuing
 its runtime key are owner-account actions and are intentionally not automated
 by this repository.
+
+### Public control-plane MCP for ChatGPT
+
+`/mcp` is a separate anonymous, read-only Streamable HTTP endpoint for the
+private ChatGPT developer-mode smoke app. It never advertises the private
+fleet/worker tools from `/api/mcp`. Its complete tool surface is:
+
+- `get_capability_challenge` — exact current challenge/chat only;
+- `get_supervisory_request_binding` — exact current pending request/stable-supervisor/provider-session only;
+- `get_stage_liveness_state` — non-semantic receipt status/ID/time only for an
+  exact current escalated binding provider session. It is diagnostic only;
+  mandatory GitHub writes run as fresh first-message stages joined through
+  durable GitHub receipts, never follow-up turns.
+
+There is no search, list-all, worker timeline, evidence-body, assistant-content,
+credential, environment, or write tool. Each tool advertises read-only,
+non-destructive annotations and `noauth` security metadata. Unknown, mismatched,
+completed, stale, expired, or superseded bindings fail closed.
+
+Verify a deployed endpoint mechanically without printing either nonce:
+
+```bash
+npm run mcp:verify-public-live -- \
+  --endpoint https://example.invalid/mcp \
+  --challenge-id <exact-challenge-id> \
+  --chat-id <exact-chat-id>
+```
 
 ## Queued adapter experiments
 

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "failureId": "replace-with-failure-id",
+  "recordedAt": "1970-01-01T00:00:00Z",
+  "failureClass": "STRUCTURED_OUTPUT_SYNTAX_FAILURE",
+  "failureDomain": "SERIALIZATION_INTERFACE",
+  "semanticFailure": false,
+  "scientificFailure": false,
+  "workerMisalignment": false,
+  "directive": {
+    "directiveId": "replace-with-source-bound-directive-id",
+    "sourceLocator": "replace-with-immutable-source-locator",
+    "bodySha256": "replace-with-directive-body-sha256",
+    "maxAttempts": 2
+  },
+  "attempt": {
+    "attemptNumber": 2,
+    "model": "replace-with-source-authorized-model",
+    "mode": "replace-with-visible-or-source-authorized-mode",
+    "inputPacketSha256": "replace-with-input-or-packet-sha256",
+    "rawOutputRef": "replace-with-private-immutable-raw-output-reference",
+    "rawOutputSha256": "replace-with-raw-output-sha256",
+    "parserError": "replace-with-exact-parser-error",
+    "parserPosition": {
+      "line": 1,
+      "column": 1,
+      "offset": null
+    },
+    "parserFingerprint": "replace-with-normalized-parser-fingerprint",
+    "validator": {
+      "id": "replace-with-validator-id-and-version",
+      "result": "REJECTED_SYNTAX",
+      "semanticCorrectionApplied": false
+    }
+  },
+  "fingerprintAssessment": {
+    "matchingPriorFailureIds": [],
+    "classification": "LIKELY_SYSTEMATIC_SERIALIZATION_FAILURE",
+    "earlyEscalationAllowed": true,
+    "authorizedAttemptsCancelled": false
+  },
+  "attemptBoundary": {
+    "ceilingExhausted": true,
+    "newSourceBoundDirectiveRequired": true,
+    "prohibitedWithoutNewDirective": [
+      "ADDITIONAL_ATTEMPT",
+      "MODEL_CHANGE",
+      "MODE_CHANGE",
+      "PROMPT_CHANGE",
+      "PACKET_CHANGE",
+      "TRANSPORT_CHANGE",
+      "DETERMINISTIC_REPAIR",
+      "JSON_CLEANUP",
+      "ALTERNATE_PARSER",
+      "SEMANTIC_CORRECTION",
+      "EVALUATOR_SUBSTITUTION"
+    ]
+  },
+  "repairAuthorization": {
+    "authorized": false,
+    "sourceDirectiveId": null,
+    "specificTransform": null
+  },
+  "downstreamAdmission": {
+    "validStructuredArtifactAvailable": false,
+    "blockedOperations": [
+      "COMPARISON",
+      "SCORING",
+      "METRICS",
+      "AGGREGATION",
+      "UNBLINDING",
+      "SUBSTITUTION"
+    ]
+  },
+  "blockedState": {
+    "code": "STRUCTURED_OUTPUT_ARTIFACT_UNAVAILABLE",
+    "meaning": "EXECUTION_PATH_EXHAUSTED_UNDER_CURRENT_DIRECTIVE",
+    "scientificAdequacy": "UNAVAILABLE",
+    "requires": "VALID_ADMITTED_ARTIFACT_OR_NEW_SOURCE_BOUND_DIRECTIVE"
+  }
+}

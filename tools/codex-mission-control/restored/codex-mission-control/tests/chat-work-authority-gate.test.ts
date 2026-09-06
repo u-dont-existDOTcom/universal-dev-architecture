@@ -28,6 +28,7 @@ function request(
     sourceReceipt: extraHighReceipt,
     boundedExecution: true,
     taskRequiresExecutionOutsideChat: true,
+    executionScope: "TERMINAL_OR_COMPUTER_WORK",
     spend: {
       kind: "MODEL_API_INFERENCE",
       ceilingUsd: 0,
@@ -199,4 +200,42 @@ test("Work cannot take over a task the reasoning chat can perform directly", () 
   }));
   assert.equal(result.allowed, false);
   assert.equal(result.decision, "REJECT_CHAT_EXECUTABLE_TASK_SUBSTITUTION");
+});
+
+for (const executionScope of [
+  "ROUTINE_GITHUB_READ_WRITE",
+  "ISSUE_OR_PR_UPDATE",
+  "ARCHITECTURE_DECISION",
+  "REVIEW",
+  "SUPERVISORY_REASONING",
+  "SUBSTANTIVE_SUPERVISORY_PROSE",
+] as const) {
+  test(`Work is rejected for Chat-owned scope ${executionScope}`, () => {
+    const result = evaluateChatWorkAuthorityGate(request({ actor: "WORK", executionScope }));
+    assert.equal(result.allowed, false);
+    assert.equal(result.decision, "REJECT_CHAT_OWNED_EXECUTION_SCOPE");
+    assert.match(result.requiredNextAction, /Keep this action in Chat/);
+  });
+}
+
+test("Work is admitted for a genuinely long-range repository operation under a source-bound directive", () => {
+  const result = evaluateChatWorkAuthorityGate(request({
+    actor: "WORK",
+    executionScope: "GENUINELY_LONG_RANGE_REPOSITORY_OPERATION",
+  }));
+  assert.equal(result.allowed, true);
+  assert.equal(result.decision, "ALLOW_BOUNDED_EXECUTION");
+});
+
+test("Work cannot author reviews, verdicts, owner decisions, or substantive supervisory prose", () => {
+  for (const action of [
+    "AUTHOR_REVIEW",
+    "AUTHOR_SUPERVISORY_VERDICT",
+    "AUTHOR_OWNER_DECISION",
+    "AUTHOR_SUBSTANTIVE_SUPERVISORY_PROSE",
+  ] as const) {
+    const result = evaluateChatWorkAuthorityGate(request({ action, actor: "WORK", sourceReceipt: null }));
+    assert.equal(result.allowed, false);
+    assert.equal(result.decision, "REJECT_CODEX_OR_WORK_SEMANTIC_AUTHORSHIP");
+  }
 });

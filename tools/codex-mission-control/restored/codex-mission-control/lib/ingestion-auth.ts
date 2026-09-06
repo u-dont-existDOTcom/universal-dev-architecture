@@ -17,6 +17,7 @@ export const authenticatedEventTypes = [
   "owner_message_recorded", "outbound_delivery_lifecycle_recorded", "worker_message_recorded",
   "direction_acknowledged", "outbound_message_acknowledged", "work_queue_published", "direction_reconciled",
   "structured_blocker_recorded", "worker_connection_observed",
+  "github_decision_receipt_ingested",
 ] as const satisfies readonly MissionControlEventV2["type"][];
 
 export interface AuthenticatedProducer {
@@ -71,6 +72,7 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
       && !["CORRECTION_VERIFIED", "CORRECTION_EVIDENCE_REJECTED", "CORRECTION_REOPENED"].includes(event.status));
   }
   if (producer.kind === "SYSTEM") {
+    if (event.type === "github_decision_receipt_ingested") return true;
     if (event.type === "outbound_delivery_lifecycle_recorded") return true;
     if (event.type === "worker_connection_observed" && event.state !== "CONNECTED") return true;
     return event.type === "correction_lifecycle_recorded"

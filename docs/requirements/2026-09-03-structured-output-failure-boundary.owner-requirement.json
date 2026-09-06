@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-UNIVERSAL-STRUCTURED-OUTPUT-FAILURE-BOUNDARY-20260903",
+  "recorded_at": "2026-09-03T00:00:00Z",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "B. STRUCTURED-OUTPUT FAILURE RULE — UNIVERSAL SUPERVISION CLOSEOUT\nThe owner supplied a real recurring failure from AskRigor: same sealed 31,189-byte evaluator packet, two fresh GPT-5.6 Sol Extra High consumer chats, both malformed JSON at identical parser locus line 25 column 118; directive max-attempt boundary exhausted; worker correctly halted.\nImplement the already-decided universal rule, without altering AskRigor scientific methodology:\n1. Add a generic `STRUCTURED_OUTPUT_SYNTAX_FAILURE` / structured-output failure boundary to universal supervision guidance/state schema where appropriate.\n2. Required semantics:\n   - separate serialization/interface failure from semantic/scientific failure;\n   - preserve raw output, parser error, parser position, input/packet hash, model/mode, attempt number, validator result;\n   - honor source-fixed max-attempt ceiling absolutely;\n   - no third attempt, model change, prompt change, packet change, deterministic repair, JSON cleanup, alternate parser, or semantic correction after ceiling without NEW source-bound directive;\n   - repeated identical/similar parser fingerprints should be surfaced as likely systematic serialization failure;\n   - identical fingerprints may trigger early escalation even before remaining attempt budget is exhausted, but MUST NOT cancel already authorized attempts by itself;\n   - no silent deterministic repair unless controlling directive explicitly authorizes a specific repair transform;\n   - downstream comparison/scoring/metrics/aggregation/unblinding/substitution remains blocked until a valid admitted artifact or new source-bound directive exists;\n   - blocked state means execution path exhausted under current directive and valid structured evaluator artifact unavailable, NOT scientific hypothesis failure or worker misalignment.\n3. Add regression tests/docs if this repo has deterministic policy tests for universal rules.\n4. Do not modify AskRigor repo/work itself from this queue unless a direct mechanical dependency is required; this is universal architecture only.",
+    "sha256": "4435120df6d38f08e7cbe38dcd15efadb09530948be8faa5f1e6a27a6513011a",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME"
+  },
+  "normalized_outcome": "Universal supervision classifies malformed required structured artifacts as serialization/interface failures, preserves exact evidence, enforces source-fixed attempt ceilings without silent repair, surfaces repeated parser fingerprints, and blocks dependent operations until valid admission or a new source-bound directive, without changing AskRigor methodology.",
+  "required_outcomes": [
+    {
+      "id": "RO-STRUCTURED-OUTPUT-001",
+      "terminal_required": true,
+      "observable": "Current universal guidance defines STRUCTURED_OUTPUT_SYNTAX_FAILURE separately from semantic/scientific failure and preserves the required raw, parser, packet, model/mode, attempt, and validator evidence.",
+      "status": "IMPLEMENTED_LOCAL_VERIFIED",
+      "evidence_refs": [
+        "patterns/structured-output-failure-boundary.md",
+        "templates/STRUCTURED-OUTPUT-FAILURE.json",
+        "tests/test_structured_output_failure_boundary.py"
+      ]
+    },
+    {
+      "id": "RO-STRUCTURED-OUTPUT-002",
+      "terminal_required": true,
+      "observable": "The machine-readable boundary enforces the source-fixed ceiling, prohibits unauthorized retries/changes/repair, preserves early-escalation attempts, and blocks dependent comparison, scoring, metrics, aggregation, unblinding, and substitution.",
+      "status": "IMPLEMENTED_LOCAL_VERIFIED",
+      "evidence_refs": [
+        "templates/STRUCTURED-OUTPUT-FAILURE.json",
+        "tests/test_structured_output_failure_boundary.py"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "documenting the AskRigor incident without adding a universal rule",
+    "classifying malformed JSON as evaluator or scientific failure",
+    "preserving only a summary instead of raw-output and parser evidence",
+    "allowing cleanup or retry after the directive ceiling without new source authority",
+    "surfacing a repeated fingerprint while silently cancelling an authorized attempt",
+    "continuing downstream scoring or aggregation without a valid admitted artifact"
+  ],
+  "next_direct_evidence": "Run the deterministic structured-output boundary tests and the repository-required final test/audit checkpoint, then retain the universal rule without modifying AskRigor methodology or artifacts."
+}

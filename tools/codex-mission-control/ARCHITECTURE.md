@@ -65,6 +65,50 @@ are in
 | Worker work queue | worker-published projection bound to the exact owner direction |
 | Dashboard | rebuildable projection only |
 
+## Stable supervisor with a fresh provider session per cycle
+
+The registered identity is the supervisor, not one permanent browser conversation. Each newly admitted route-v4 cycle uses **New chat in the current verified reusable ChatGPT tab** for exactly two mandatory external-tool stages. A transport-only `MCP_BINDING_PRELOAD` session selects Mission Control, performs exactly one read of the session-local request binding, and has no semantic authority. After its generation completes and the current server-side tool receipt is visible, the relay mechanically derives a bounded hashed binding envelope in Mission Control transport state. The decision then starts one different provider conversation and writes canonical #59 in that same first message. A selectable GitHub composer chip is not required; the authorized #59 receipt is the tool-success evidence:
+
+```text
+ordinary:   reusable tab -> New chat -> MC binding preload
+                         -> New chat -> visible Extra High GitHub evidence/reason/#59 write
+escalated:  reusable tab -> New chat -> MC binding preload
+                         -> New chat -> visible Pro GitHub evidence/reason/#59 write
+                                      -> signed webhook -> Mission Control ledger
+                                      -> periodic GitHub polling if the webhook was missed
+```
+
+The VPS browser relay may select the registered chat, select the registered model/mode, send a tiny control prompt, and observe generation controls. It never reads, copies, parses, hashes, or extracts assistant response text. The writer contract is `EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY`; reinterpretation is forbidden.
+
+Every stable supervisor fails closed unless Mission Control read, GitHub read, GitHub write, and model/mode switching are established by current bootstrap capability receipts. Every new cycle also requires exact binding and decision provider-session records/URLs, session-local visible Extra High or Pro proof, the server-observed `tools/call get_supervisory_request_binding` receipt for Stage 1, an exact mechanically derived binding envelope, and ordered first-message transport receipts. Generic MCP traffic, app-chip state, prompt prose, and stale provider-session receipts do not satisfy preload. Canonical decision schema v3 binds the request ID, stable supervisor ID, distinct `binding_provider_session_id` and `decision_provider_session_id`, nonce, evidence-capsule ID/hash, current owner-outcome ID/epoch/hash, reasoning lane, envelope digest, authorized #59 writer/location, and conservative visible-session GitHub-attested provenance. Stale, mismatched, relabeled-old-schema, or cross-session receipts do not enter the ledger.
+
+Existing route schema v3 and canonical decision schema v2 remain readable and admissible for their already-supported staged compatibility path. GitHub issue #61 therefore remains available for legacy/current stage diagnostics, but no new route-v4 ordinary or direct-Pro decision depends on it.
+
+Managed ChatGPT tabs follow the owner-level 1/2/3 discipline: one in steady state, two only during bounded transition or recovery, and three as the absolute hard ceiling. The relay fails closed before opening a fourth. It opens a replacement only after same-target New chat navigation is irrecoverably unusable, verifies the replacement before immediately closing the superseded tab, never fans out duplicate tabs for one task, reports the managed count in doctor/status output, and deterministically cleans completed or superseded sessions back toward one. Bootstrap or pinned automation-owned tabs are not retained merely as history once durable capability evidence exists.
+
+### Model-agnostic stuck-chat recovery
+
+A generic mission-guard `CONTINUE` verdict remains forbidden. Separately, the browser relay may send the exact one-word prompt `continue` as **non-semantic transport recovery** for an already-authorized, tool-free supervisor turn that is observably stuck. Mandatory external-tool stages explicitly disable this path.
+
+The browser has two no-content stuck signals:
+
+- **active generation timeout:** the generation UI remains active for the full configured generation timeout (15 minutes by default). The relay invokes the visible Stop-generation control, waits for a safe idle composer, sends `continue` in the same conversation/current model, then resumes waiting;
+- **recoverable idle control:** after the composer returns idle, a visible button/control is exactly labeled `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`. The relay sends `continue` in the same conversation/current model instead of treating the turn as semantically complete.
+
+The detector uses only composer/generation/recovery controls; it never searches assistant response text. Consecutive transport recoveries are capped (`MC_RELAY_STUCK_RECOVERY_MAX_NUDGES`, default 3, maximum 20), a failed or ambiguous recovery is not automatically replayed, and recovery cannot bypass owner, admission, spend/access, release, safety, or ambiguity gates.
+
+If a new direct decision stage finishes without its required durable #59 receipt, the relay waits through the bounded reconciliation window and then fails the stage. It sends no same-chat `continue` and does not automatically spend a second semantic attempt. Any later retry requires an explicit durable fresh-stage retry authorization and a new decision provider session over identical immutable inputs.
+
+A visually normal idle turn with no recovery control still does **not** prove semantic stage completion. Mission Control therefore treats browser `GENERATION_COMPLETE` as transport evidence only. Intermediate reasoning stages need explicit durable stage-completion/continue-required receipts to close that remaining liveness gap without assistant-output extraction.
+
+Thus every `continue` described here resumes an existing admitted Chat objective; it is never semantic authorization for Work/Codex or a new Mission Control execution cycle.
+
+## Chat and Work governance
+
+Chat is the reasoning authority and the normal GitHub surface. Routine repository reads/writes, issue and pull-request updates, architecture decisions, reviews, supervisory reasoning, methodology, strategy, prioritization, verdicts, owner decisions, and substantive supervisory prose stay in Chat.
+
+Work is execution-only. Mission Control may admit it only for terminal/computer work or a genuinely long-range repository operation under an exact source-bound directive. Convenience, GitHub access, or the ability to run tools does not transfer reasoning authority to Work.
+
 Worker-to-contract and contract-to-owner alignment are never averaged. A worker can be GREEN against a laundered contract while the task remains overall RED and routes to contract repair.
 
 ## Correction invariants

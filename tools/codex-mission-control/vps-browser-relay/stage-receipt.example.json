@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "request_id": "decision-request-example",
+  "request_nonce": "request-nonce-example",
+  "supervisor_id": "registered-supervisor-id",
+  "binding_provider_session_id": "provider-session:binding-example",
+  "stage_provider_session_id": "provider-session:pro-example",
+  "binding_capsule": {
+    "schema_version": 1,
+    "binding_capsule_id": "binding-capsule:example",
+    "request_id": "decision-request-example",
+    "request_nonce": "request-nonce-example",
+    "supervisor_id": "registered-supervisor-id",
+    "binding_provider_session_id": "provider-session:binding-example",
+    "binding_receipt_id": "public-mcp-binding:example",
+    "worker_id": "worker-example",
+    "reasoning_lane": "PRO_ESCALATED",
+    "queued_at": "2026-09-04T16:00:00.000Z",
+    "expires_at": "2026-09-05T16:00:00.000Z",
+    "evidence_capsule": { "id": "evidence-capsule:example", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    "owner_outcome": { "id": "owner-outcome:example", "epoch": 1, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+    "receipt_targets": { "repository": "owner/repository", "decision_issue_number": 59, "stage_issue_number": 61 }
+  },
+  "binding_capsule_sha256": "03dcc4bac5877ed063dfeb5e47081794c77fdff75c8dffeacd16819cf96f0635",
+  "stage": "PRO_DECISION_STAGE",
+  "status": "STAGE_COMPLETE",
+  "pro_decision_block": {
+    "decision_id": "decision:example",
+    "exact_text": "Canonical Pro decision text.",
+    "sha256": "66dc2cf058e46104d6abffeb4d36fc6aba0196bdeb286eccc1688d206076d0f0"
+  }
+}

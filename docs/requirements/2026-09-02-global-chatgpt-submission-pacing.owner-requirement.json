@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-GLOBAL-CHATGPT-SUBMISSION-PACING-20260902",
+  "recorded_at": "2026-09-02T21:27:21Z",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "EXECUTION-ONLY correction for Mission Control PR #58 plus Hostinger relay pacing. Do not redesign or make reasoning decisions.\n\nAccepted transport correction:\n1. Add a global minimum ChatGPT submission interval for every actual browser message send: capability prompt, Extra High reader, Pro reasoner, Extra High liveness checker/writer, direct Extra High, and any automatic `continue` recovery. Default = 60,000 ms. Config env `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS`, accepted range 15,000–600,000 ms.\n2. The cooldown is measured from the timestamp of the last actual successful browser click/submission attempt that reached CLICKED/generation-start boundary, globally across all chats/routes, not per route. Persist it in relay state so restart cannot immediately burst another request.\n3. Before any send, if cooldown remains, do not sleep/block for the whole interval inside the state machine. Return/write a fail-safe status such as `GLOBAL_SUBMISSION_COOLDOWN` with `retryAfterMs`/`nextSubmissionAt`; the normal loop can retry later. No click should occur during cooldown.\n4. Ensure only one send path can cross the gate at a time. Reuse existing process/relay lock if it already guarantees this; otherwise add a narrow global submission mutex/serialized gate. Do not introduce a new scheduler.\n5. Stuck-recovery `continue` must use the same global cooldown. Do not let recovery bypass pacing.\n6. Add deterministic tests proving: two routes cannot send within the minimum interval; same-chat mode stages are paced; capability tests are paced; `continue` is paced; persisted last-submission time survives restart; no-send statuses do not mutate semantic authority.\n7. Add the variable to `.env.example`, public config/status output, and README. Do not modify Mission Control authority semantics.\n\nImmediate Hostinger mitigation, whether or not code patch is complete yet:\n- set `MC_RELAY_POLL_INTERVAL_MS=90000` in the relay env;\n- keep `MC_RELAY_SUBMIT_ENABLED=0` during the capability smoke;\n- keep `MC_RELAY_CAPABILITY_TEST_ENABLED` only as needed for the harmless challenge;\n- do not enable continuous real-task sending.\n\nUse the exact existing task branch `task/mission-control-vps-browser-relay-20260902`. Start from current branch head. Commit only the pacing change and tests/docs. Run relay test/check suite and the existing repository/mission-control CI checkpoint if mechanically required by the repo. Push branch. Then update the Hostinger relay package to the new exact commit and run doctor + harmless capability smoke for chat `mc-hotfix-specialist` / URL `https://chatgpt.com/c/6a9847f8-3a44-83ea-9b41-181a240b2c26` using the already-provisioned hotfix-only COLLECTOR credential and endpoint `https://mission-control-hotfix-production.up.railway.app`.\n\nDo not merge PR #58, do not touch Railway production, do not send real project supervision prompts, and do not read/parse assistant output. Return exact commit, tests, doctor/capability status, pacing status, and memory metrics. If interactive ChatGPT login is required, stop with `INTERACTIVE_CHATGPT_LOGIN_REQUIRED`.",
+    "sha256": "e5181290084fedab0a6132972ccd8bc17b745c7edf1ef866dd96d9a3a7d23221",
+    "source_type": "owner_chat_message",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME"
+  },
+  "normalized_outcome": "The existing PR #58 relay branch enforces one persisted global 15,000–600,000 ms minimum submission interval (60,000 ms default) across every actual ChatGPT send path without changing semantic authority, is tested and pushed, and the exact resulting package is installed on Hostinger with 90-second polling, normal task submission disabled, and only the harmless capability smoke attempted.",
+  "required_outcomes": [
+    {
+      "id": "RO-PACING-001",
+      "terminal_required": true,
+      "observable": "All normal, capability, same-chat, liveness, and automatic continue sends share one serialized 60-second-default gate and return GLOBAL_SUBMISSION_COOLDOWN without clicking when time remains.",
+      "status": "IMPLEMENTED_LOCAL_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/submission-pacing.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/submission-pacing.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/relay.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/stuck-recovery.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PACING-002",
+      "terminal_required": true,
+      "observable": "The last click/generation-start boundary is persisted across restart and visible with retry timing in public config/status output.",
+      "status": "IMPLEMENTED_LOCAL_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/state.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/config.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/state-and-client.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PACING-003",
+      "terminal_required": true,
+      "observable": "Hostinger runs the exact pushed package with MC_RELAY_POLL_INTERVAL_MS=90000, MC_RELAY_SUBMIT_ENABLED=0, doctor succeeds, and only the harmless mc-hotfix-specialist capability smoke is attempted.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "only the polling interval is increased",
+    "a per-route cooldown is added",
+    "normal routes are paced but capability or continue bypasses the gate",
+    "the state machine sleeps for the entire cooldown",
+    "unit tests pass but the exact commit is not installed on Hostinger",
+    "doctor passes while continuous task submission is enabled",
+    "a real supervision prompt is sent during the harmless capability smoke"
+  ],
+  "next_direct_evidence": "Validate the exact owner-request record, run relay checks and repository/Mission Control checkpoints, push the branch, install that exact commit on Hostinger, prove 90-second polling plus disabled normal submission, and collect doctor/capability/pacing/memory status without reading assistant output."
+}
