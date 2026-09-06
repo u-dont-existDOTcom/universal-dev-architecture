@@ -1,7 +1,10 @@
 import { daemonFetch, daemonMutationHeaders } from "@/lib/daemon-client";
 import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 import { parseGitHubReceiptPolicy, validateConfiguredDecisionLocation } from "@/lib/github-decision-receipts";
-import { evaluateSupervisionAdmission } from "@/lib/supervision-admission-runtime";
+import { continuationIntentForAdmission, parseSupervisionAdmissionInput, evaluateSupervisionAdmission } from "@/lib/supervision-admission-runtime";
+
+import { deriveOwnerResponseContinuation } from "@/lib/owner-response-continuation";
+import type { StoredEvent } from "@/lib/schema";
 
 export async function POST(request: Request, context: { params: Promise<{ worker: string }> }) {
   const { worker } = await context.params;
@@ -27,7 +30,17 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       );
     }
     const body = cycleLocation && policy ? withConfiguredStageIssue(requestedBody, policy.stageIssueNumber) : requestedBody;
-    const result = evaluateSupervisionAdmission(worker, authentication.producer, body);
+    const now = new Date().toISOString();
+    const intent = continuationIntentForAdmission(worker, parseSupervisionAdmissionInput(body), now);
+    let continuation;
+    if (intent) {
+      const history = await daemonFetch("/events");
+      if (!history.ok) throw new Error("Mission Control event history is unavailable for continuation derivation.");
+      const payload = await history.json() as { events?: StoredEvent[] };
+      if (!Array.isArray(payload.events)) throw new Error("Mission Control continuation history is invalid.");
+      continuation = deriveOwnerResponseContinuation(payload.events, intent, now);
+    }
+    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation);
     let routeEvent = null;
     if (result.routeEnvelope) {
       const upstream = await daemonFetch("/events", {

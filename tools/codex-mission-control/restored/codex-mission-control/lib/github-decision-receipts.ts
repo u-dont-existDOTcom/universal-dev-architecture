@@ -3,6 +3,8 @@ import { canonicalJson, sha256 } from "./canonical";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { bindingCapsuleSchema, parseCanonicalDecisionEnvelope, type AppendEnvelope, type BindingCapsule, type CanonicalDecisionEnvelope, type StoredEvent } from "./schema";
 import type { EventStore } from "./store";
+import { parseRouteContinuation, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
+import { validateOwnerResponseContinuation } from "./owner-response-continuation";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -49,6 +51,7 @@ export interface PublicCapabilityChallenge {
   expires_at: string;
 }
 export interface PendingDecisionRequest {
+  continuation?: OwnerResponseContinuation;
   worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
@@ -160,6 +163,12 @@ export function parseCanonicalDecisionComment(body: string): CanonicalDecisionEn
   if (!body.startsWith(canonicalDecisionCommentPrefix)) throw new Error("GitHub comment does not contain the canonical Mission Control decision prefix.");
   let parsed: unknown;
   try { parsed = JSON.parse(body.slice(canonicalDecisionCommentPrefix.length)); } catch { throw new Error("Canonical Mission Control decision comment contains invalid JSON."); }
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const raw = parsed as Record<string, unknown>;
+    if (raw.schema_version !== 3 && (Object.hasOwn(raw, "continuation_binding") || Object.hasOwn(raw, "continuation_binding_sha256"))) {
+      throw new Error("Continuation fields require canonical decision schema_version 3.");
+    }
+  }
   const envelope = parseCanonicalDecisionEnvelope(parsed);
   if (sha256(envelope.decision_block.exact_text) !== envelope.decision_block.sha256) throw new Error("Canonical decision block digest mismatch.");
   if (envelope.pro_decision_block.used && sha256(envelope.pro_decision_block.exact_text!) !== envelope.pro_decision_block.sha256) throw new Error("Durable stage-receipt-attested Pro block digest mismatch.");
@@ -247,13 +256,18 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
   const events = store.allEvents();
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
+    const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
+  && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
+  && event.data.github_receipt.issue_number === candidate.issueNumber
+  && event.data.github_receipt.comment_id === candidate.commentId
+  && event.data.github_receipt.immutable_url === candidate.immutableUrl);
+if (exactDuplicate) return [];
     const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
     if (envelope.data.type !== "github_decision_receipt_ingested") throw new Error("Canonical decision envelope has an unexpected event type.");
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
     const decisionData = envelope.data;
-    const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
     const directDecision = decisionData.decision_provider_session_id !== null;
-    const attestation = store.append(evidenceEnvelope({
+    const attestationEnvelope = evidenceEnvelope({
       worker: decisionData.worker, receiptId: `durable-stage-receipt-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
       summary: directDecision ? splitDecisionSessionAttestationSummary : durableStageReceiptAttestationSummary, occurredAt: candidate.createdAt, verified: true,
       refs: [
@@ -267,7 +281,45 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
         ...(decisionData.decision_session_provenance ? [`provenance:${decisionData.decision_session_provenance}`, "backend_model_identity_claimed:false"]
           : decisionData.pro_decision_block.used ? ["provenance:DURABLE_STAGE_RECEIPT_ATTESTED", "independent_pro_observation:false"] : ["provenance:EXTRA_HIGH_DIRECT"]),
       ],
-    }), ingestedAt, githubReceiptCollector);
+    });
+    if (decisionData.continuation_binding) {
+      const producer: AuthenticatedProducer = {
+        id: "supervisor:github-owner-continuation", kind: "SUPERVISOR",
+        workerScopes: [decisionData.worker], taskScopes: [`task:${decisionData.worker}`],
+      };
+      const resolution: AppendEnvelope = {
+        schema_version: 2, event_id: `github-owner-resolution:${decisionData.continuation_binding.continuation_id}`,
+        mission_id: "mission-control-live", occurred_at: ingestedAt,
+        data: {
+          type: "reasoning_message_recorded", worker: decisionData.worker,
+          stable_supervisor_id: decisionData.supervisor_id!,
+          message_id: `github-owner-resolution:${decisionData.continuation_binding.continuation_id}`,
+          thread_id: decisionData.decision_provider_session_id!,
+          surface_role: "SUPERVISOR", provider_surface: "CHATGPT_CONSUMER",
+          model_mode: "UNKNOWN", account_workspace: "UNKNOWN", author_role: "ASSISTANT",
+          sent_at_source: null, received_at_mission_control: ingestedAt,
+          body_sha256: decisionData.decision_block.sha256, exact_visible_body: decisionData.decision_block.exact_text,
+          immutable_provider_locator: null,
+          parent_message_id: decisionData.continuation_binding.supervisor_delivery.message_id,
+          owner_direction_id: null, decision_request_id: decisionData.continuation_binding.decision_request_id,
+          acquisition_method: "GITHUB_SESSION_ATTESTED", provenance_status: "UNVERIFIED",
+          limitations: [
+            "Provider source timestamp unavailable; sent_at_source remains null.",
+            "Content came from the canonical GitHub session-attested decision artifact admitted by Mission Control, not browser assistant output.",
+            "Session/model evidence is visible UI evidence only; no hidden/backend model identity claim.",
+          ],
+          recorded_by: producer.id,
+        },
+      };
+      // Receipt consumption and the existing router's resolution are one commit.
+      return store.appendMany([
+        { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
+        { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
+        { event: resolution, receivedAt: ingestedAt, producer },
+      ]);
+    }
+    const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
+    const attestation = store.append(attestationEnvelope, ingestedAt, githubReceiptCollector);
     return [decision, attestation];
   }
   if (candidate.body.startsWith(capabilityReceiptCommentPrefix)) {
@@ -344,6 +396,22 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   const matches = pendingDecisionRequests(events).filter((r) => r.requestId === decision.request_id);
   if (matches.length !== 1) throw new Error(`Expected one pending supervisory decision request for ${decision.request_id}; found ${matches.length}.`);
   const request = matches[0]!;
+  if (request.continuation) {
+    if (decision.schema_version !== 3 || !decision.continuation_binding || !decision.continuation_binding_sha256) {
+      throw new Error("Continuation decision must echo the exact continuation binding and digest.");
+    }
+    if (canonicalJson(decision.continuation_binding) !== canonicalJson(request.continuation.binding)
+      || decision.continuation_binding_sha256 !== request.continuation.digest) {
+      throw new Error("Canonical decision continuation binding/digest mismatch.");
+    }
+    validateOwnerResponseContinuation(events, {
+      worker: request.worker, resumeDecisionRequestId: request.continuation.binding.decision_request_id,
+      supervisorId: request.supervisorId, ownerOutcome: request.ownerOutcome, evidenceCapsule: request.evidenceCapsule,
+      issuedAt: request.queuedAt, expiresAt: request.expiresAt,
+    }, request.continuation, ingestedAt);
+  } else if (decision.schema_version === 3 && (decision.continuation_binding !== undefined || decision.continuation_binding_sha256 !== undefined)) {
+    throw new Error("Unexpected continuation on an ordinary decision request.");
+  }
   validateConfiguredDecisionLocation(request.repository, request.issueNumber, policy);
   assertEqual(decision.nonce, request.nonce, "decision nonce");
   assertEqual(decision.evidence_capsule.id, request.evidenceCapsule.id, "evidence capsule ID");
@@ -394,6 +462,10 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
       binding_envelope: decision.schema_version === 3 ? decision.binding_envelope : null,
       binding_envelope_sha256: decision.schema_version === 3 ? decision.binding_envelope_sha256 : null,
       decision_session_provenance: decision.schema_version === 3 ? decision.decision_session_provenance : null,
+      ...(request.continuation ? {
+        continuation_binding: request.continuation.binding,
+        continuation_binding_sha256: request.continuation.digest,
+      } : {}),
       nonce: request.nonce, evidence_capsule: request.evidenceCapsule,
       owner_outcome_id: request.ownerOutcome.id, owner_outcome_epoch: request.ownerOutcome.epoch, owner_outcome_sha256: request.ownerOutcome.sha256,
       reasoning_lane: request.reasoningLane, decision_block: decision.decision_block, pro_decision_block: decision.pro_decision_block,
@@ -862,7 +934,10 @@ function parseCycleRequest(body: string, worker: string): PendingDecisionRequest
       || (version === 2 && (root.schemaVersion !== 2 || root.packetKind !== "SAME_CHAT_SUPERVISORY_CYCLE"))
       || (root.reasoningLane !== "EXTRA_HIGH_DIRECT" && root.reasoningLane !== "PRO_ESCALATED")) return null;
     const supervisorId = requiredString(version >= 3 ? root.destinationSupervisorId : root.destinationChatId, version >= 3 ? "destinationSupervisorId" : "destinationChatId");
+    const continuation = parseRouteContinuation(root);
+    if (continuation && (continuation.binding.worker !== worker || root.worker !== worker)) return null;
     return {
+      ...(continuation ? { continuation } : {}),
       worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: version, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },

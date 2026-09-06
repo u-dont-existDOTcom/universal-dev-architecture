@@ -34,7 +34,12 @@ import {
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
 import type { BindingCapsule, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
-import type { EventStore } from "../lib/store";
+import { EventStore } from "../lib/store";
+import { deriveOwnerResponseContinuation } from "../lib/owner-response-continuation";
+import { continuationId } from "../lib/owner-response-continuation-schema";
+import { decisionRouteStates } from "../lib/reasoning-message-state";
+import { producerMayEmit } from "../lib/ingestion-auth";
+import { publicSupervisoryRequestBinding } from "../lib/public-mcp";
 
 const outcomeSha = "a".repeat(64);
 const evidenceSha = "b".repeat(64);
@@ -806,3 +811,226 @@ function fakeStore(initial: StoredEvent[]) {
 function storedEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string, receivedAt = occurredAt): StoredEvent {
   return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };
 }
+
+
+const continuationIngestedAt = "2026-09-02T00:15:20.000Z";
+
+for (const path of ["DIRECT", "PROJECT_MANAGER"] as const) for (const lane of ["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"] as const) {
+  test(`canonical continuation ${path} ${lane} atomically consumes receipt and resolves existing decision route`, () => {
+    const fixture = continuationFixture(path, lane);
+    const store = continuationStore(fixture.events);
+    try {
+      assert.equal(decisionRouteStates(store.allEvents())[0].status, "SUPERVISOR_RESOLUTION_REQUIRED");
+      const admitted = ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt);
+      assert.equal(admitted.length, 3);
+      const receipt = admitted[0], resolution = admitted[2];
+      assert.equal(receipt.data.type, "github_decision_receipt_ingested");
+      if (receipt.data.type !== "github_decision_receipt_ingested" || resolution.data.type !== "reasoning_message_recorded") throw new Error("Expected continuation events");
+      assert.deepEqual(receipt.data.continuation_binding, fixture.continuation.binding);
+      assert.equal(receipt.data.continuation_binding_sha256, fixture.continuation.digest);
+      assert.equal(resolution.data.exact_visible_body, decisionText);
+      assert.equal(resolution.data.body_sha256, sha256(decisionText));
+      assert.equal(resolution.data.parent_message_id, fixture.continuation.binding.supervisor_delivery.message_id);
+      assert.equal(resolution.data.stable_supervisor_id, supervisorId);
+      assert.equal(resolution.data.sent_at_source, null);
+      assert.equal(resolution.data.provenance_status, "UNVERIFIED");
+      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");
+      assert.equal(resolution.data.immutable_provider_locator, null);
+      assert.equal(resolution.producerKind, "SUPERVISOR");
+      assert.equal(resolution.data.recorded_by, resolution.producerId);
+      assert.equal(producerMayEmit({ id: resolution.producerId, kind: "SUPERVISOR", workerScopes: [resolution.worker!], taskScopes: [`task:${resolution.worker}`] }, resolution.data), true);
+      assert.equal(producerMayEmit({ id: resolution.producerId, kind: "WORKER", workerScopes: [resolution.worker!], taskScopes: ["*"] }, resolution.data), false);
+      assert.match(resolution.data.limitations.join(" "), /Provider source timestamp unavailable/);
+      assert.match(resolution.data.limitations.join(" "), /canonical GitHub session-attested decision artifact/);
+      assert.equal(decisionRouteStates(store.allEvents())[0].status, "RESOLVED");
+      assert.equal(store.verifyChain().valid, true);
+      const count = store.count();
+      assert.deepEqual(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), []);
+const replayCommentId = fixture.candidate.commentId + 1000;
+const replayCandidate = { ...fixture.candidate, commentId: replayCommentId,
+  immutableUrl: fixture.candidate.immutableUrl.replace(/issuecomment-\d+$/, `issuecomment-${replayCommentId}`) };
+assert.throws(() => ingestGitHubSupervisionCandidate(store, replayCandidate, policy(), continuationIngestedAt), /pending|already been consumed/);
+      assert.equal(store.count(), count);
+    } finally { store.close(); }
+  });
+}
+
+test("canonical continuation echo is mandatory, exact, canonical-digest-bound and unexpected fields fail closed", () => {
+  const fixture = continuationFixture("DIRECT");
+  const build = (decision: unknown, events = fixture.events) => buildGitHubDecisionReceiptEnvelope(events,
+    { ...fixture.candidate, body: canonicalDecisionCommentPrefix + JSON.stringify(decision) }, policy(), continuationIngestedAt);
+  assert.doesNotThrow(() => build(fixture.decision));
+  const missing: Partial<typeof fixture.decision> = { ...fixture.decision };
+  delete missing.continuation_binding; delete missing.continuation_binding_sha256;
+  assert.throws(() => build(missing), /must echo/);
+  assert.throws(() => build({ ...fixture.decision, continuation_binding_sha256: undefined }), /invalid or incomplete/);
+  assert.throws(() => build({ ...fixture.decision, continuation_binding_sha256: "0".repeat(64) }), /invalid or incomplete/);
+  const changed = structuredClone(fixture.continuation.binding);
+  changed.evidence_capsule.id = "capsule-other";
+  assert.throws(() => build({ ...fixture.decision, continuation_binding: changed, continuation_binding_sha256: sha256(canonicalJson(changed)) }), /continuation binding\/digest mismatch/);
+  assert.throws(() => build(fixture.decision, directDecisionEvents("EXTRA_HIGH_DIRECT")), /Unexpected continuation/);
+  assert.throws(() => parseCanonicalDecisionComment(canonicalDecisionCommentPrefix + JSON.stringify({ ...decisionEnvelope(), continuation_binding: fixture.continuation.binding })), /schema_version 3/);
+});
+
+test("receipt rederives continuation from authoritative events and rejects forged route metadata, stale outcome and replay", () => {
+  const fixture = continuationFixture("DIRECT");
+  const ingest = (events: StoredEvent[], c = fixture.candidate) => buildGitHubDecisionReceiptEnvelope(events, c, policy(), continuationIngestedAt);
+  const missingOwner = fixture.events.filter((event) => event.eventId !== fixture.continuation.binding.supervisor_delivery.event_id);
+  assert.throws(() => ingest(missingOwner), /OWNER response/);
+  const wrongStable = structuredClone(fixture.events);
+  const owner = wrongStable.find((event) => event.eventId === fixture.continuation.binding.supervisor_delivery.event_id)!;
+  if (owner.data.type !== "reasoning_message_recorded") throw new Error("Expected owner");
+  owner.data.stable_supervisor_id = "wrong-supervisor";
+  assert.throws(() => ingest(wrongStable), /stable supervisor/);
+  const stale = structuredClone(fixture.events);
+  const outcome = structuredClone(stale.find((event) => event.data.type === "owner_outcome_recorded")!);
+  outcome.sequence = 1000;
+  if (outcome.data.type === "owner_outcome_recorded") outcome.data.epoch++;
+  stale.push(outcome);
+  assert.throws(() => ingest(stale), /current owner outcome/);
+  const receipt = ingest(fixture.events);
+  assert.throws(() => ingest([...fixture.events, storedEvent({ ...receipt.data, request_id: "other-retry-request" } as StoredEvent["data"], "consumed-earlier", 1000, continuationIngestedAt)]), /already been consumed/);
+  assert.throws(() => buildGitHubDecisionReceiptEnvelope(fixture.events, fixture.candidate, policy(), "2026-09-03T00:00:01.000Z"), /validity window/);
+
+  const forged = structuredClone(fixture.continuation.binding);
+  forged.originating_supervisor_message.body_sha256 = "f".repeat(64);
+  const { continuation_id: _, ...causal } = forged;
+  forged.continuation_id = continuationId(causal);
+  const digest = sha256(canonicalJson(forged));
+  const tampered = structuredClone(fixture.events);
+  const route = tampered.find((event) => event.data.type === "worker_message_recorded")!;
+  if (route.data.type !== "worker_message_recorded") throw new Error("Expected route");
+  const packet = JSON.parse(route.data.body.slice(directSupervisoryCycleRoutePrefix.length));
+  packet.continuationBinding = forged; packet.continuationBindingSha256 = digest;
+  route.data.body = directSupervisoryCycleRoutePrefix + JSON.stringify(packet);
+  const forgedCandidate = { ...fixture.candidate, body: canonicalDecisionCommentPrefix + JSON.stringify({ ...fixture.decision, continuation_binding: forged, continuation_binding_sha256: digest }) };
+  assert.throws(() => ingest(tampered, forgedCandidate), /authoritative events\/current evidence/);
+});
+
+test("failed resolution append rolls back receipt consumption and permits an unchanged retry", () => {
+  const fixture = continuationFixture("PROJECT_MANAGER"), store = continuationStore(fixture.events);
+  try {
+    const originalAppend = store.append.bind(store), before = store.count();
+    store.append = (input, receivedAt, producer) => {
+      if ((input as { data?: { type?: string } }).data?.type === "reasoning_message_recorded") throw new Error("injected resolution write failure");
+      return originalAppend(input, receivedAt, producer);
+    };
+    assert.throws(() => ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), /injected/);
+    assert.equal(store.count(), before);
+    assert.equal(decisionRouteStates(store.allEvents())[0].status, "SUPERVISOR_RESOLUTION_REQUIRED");
+    store.append = originalAppend;
+    assert.equal(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt).length, 3);
+    assert.equal(store.verifyChain().valid, true);
+  } finally { store.close(); }
+});
+
+test("historical non-continuation schema-v3 canonical bytes and route-v4 binding remain exact", () => {
+  for (const lane of ["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"] as const) {
+    const raw = directDecisionEnvelope(lane);
+    const parsed = parseCanonicalDecisionComment(canonicalDecisionCommentPrefix + JSON.stringify(raw));
+    assert.equal(canonicalJson(parsed), canonicalJson(raw));
+    assert.equal("continuation_binding" in parsed, false);
+    const receipt = buildGitHubDecisionReceiptEnvelope(directDecisionEvents(lane), directCandidate(lane), policy(), continuationIngestedAt);
+    if (receipt.data.type !== "github_decision_receipt_ingested") throw new Error("Expected receipt");
+    assert.equal("continuation_binding" in receipt.data, false);
+    assert.equal("continuation_binding_sha256" in receipt.data, false);
+    assert.equal(receipt.data.binding_envelope_sha256, sha256(canonicalJson(bindingCapsule(lane))));
+  }
+});
+
+function continuationFixture(path: "DIRECT" | "PROJECT_MANAGER", lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED" = "EXTRA_HIGH_DIRECT") {
+  const events = directDecisionEvents(lane);
+  const worker = "mission-control-live-slice", ownerText = "Choose the owner-defined second option.\nPreserve this exact OWNER input.";
+  const message = (eventId: string, sequence: number, author: "ASSISTANT" | "OWNER", surface: "SUPERVISOR" | "PROJECT_MANAGER", parent: string | null, text: string): StoredEvent => storedEvent({
+    type: "reasoning_message_recorded", worker, message_id: eventId, thread_id: "original-supervisor-thread",
+    surface_role: surface, stable_supervisor_id: supervisorId, provider_surface: "CHATGPT_CONSUMER", model_mode: "UNKNOWN", account_workspace: "UNKNOWN",
+    author_role: author, sent_at_source: null, received_at_mission_control: "2026-09-02T00:00:30.000Z",
+    body_sha256: sha256(text), exact_visible_body: text, immutable_provider_locator: null, parent_message_id: parent,
+    owner_direction_id: null, decision_request_id: "original-owner-question", acquisition_method: author === "OWNER" ? "OWNER_ATTESTED" : "UNKNOWN",
+    provenance_status: author === "OWNER" ? "OWNER_ATTESTED" : "UNVERIFIED", limitations: [], recorded_by: author === "OWNER" ? "owner:fixture" : "supervisor:fixture",
+  }, eventId, sequence, "2026-09-02T00:00:30.000Z");
+  events.push(message("original-question", 30, "ASSISTANT", "SUPERVISOR", null, "Owner, choose an option."));
+  if (path === "PROJECT_MANAGER") {
+    events.push(message("pm-owner-input", 31, "OWNER", "PROJECT_MANAGER", "original-question", ownerText));
+    events.push(message("pm-assistant-output", 32, "ASSISTANT", "PROJECT_MANAGER", "pm-owner-input", "PM ASSISTANT OUTPUT MUST NOT TRAVEL"));
+  }
+  events.push(message("supervisor-owner-delivery", 33, "OWNER", "SUPERVISOR", path === "DIRECT" ? "original-question" : "pm-owner-input", ownerText));
+  const continuation = deriveOwnerResponseContinuation(events, {
+    worker, resumeDecisionRequestId: "original-owner-question", supervisorId,
+    ownerOutcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha }, evidenceCapsule: { id: "capsule-1", sha256: evidenceSha },
+    issuedAt: "2026-09-02T00:01:00.000Z", expiresAt: "2026-09-03T00:00:00.000Z",
+  });
+  const route = events.find((event) => event.data.type === "worker_message_recorded")!;
+  if (route.data.type !== "worker_message_recorded") throw new Error("Expected route");
+  const packet = JSON.parse(route.data.body.slice(directSupervisoryCycleRoutePrefix.length));
+  Object.assign(packet, { worker, continuationBinding: continuation.binding, continuationBindingSha256: continuation.digest, continuationOwnerResponseExactText: continuation.exactOwnerResponseText });
+  route.data.body = directSupervisoryCycleRoutePrefix + JSON.stringify(packet);
+  const decision = { ...directDecisionEnvelope(lane), continuation_binding: continuation.binding, continuation_binding_sha256: continuation.digest };
+  return { events, continuation, decision, candidate: { ...candidate(), body: canonicalDecisionCommentPrefix + JSON.stringify(decision) } };
+}
+
+function continuationStore(events: StoredEvent[]) {
+  const store = new EventStore(":memory:");
+  store.append({ schema_version: 2, event_id: "owner-source", mission_id: "mission-control-live", occurred_at: "2026-09-02T00:00:00.000Z", data: {
+    type: "owner_source_recorded", worker: "mission-control-live-slice", receipt_id: "owner-source-1", owner_request_id: "owner-request-1", canonical_locator: "owner-source-fixture",
+    source_sha256: "d".repeat(64), worker_copy_sha256: null, capture_integrity: "VERIFIED", acquisition_mode: "OWNER_REATTESTED", receipt_capability: "OWNER_REATTESTED", comparison: "MATCH", freshness: "CURRENT", limitations: [],
+  } });
+  for (const event of [...events].sort((a, b) => Number(a.data.type !== "reasoning_message_recorded") - Number(b.data.type !== "reasoning_message_recorded"))) {
+    const data = { ...event.data };
+    if (data.type === "owner_outcome_recorded") delete data.supersedes_outcome_sha256;
+    store.append({ ...appendEnvelope(event), data }, event.receivedAt);
+    if (data.type === "owner_outcome_recorded") store.append({ schema_version: 2, event_id: "fixture-contract", mission_id: event.missionId, occurred_at: event.occurredAt, data: {
+      type: "task_contract_recorded", worker: data.worker, worker_name: "Continuation fixture", contract_id: "fixture-contract", revision: 1,
+      task_contract_sha256: "c".repeat(64), owner_outcome_id: data.owner_outcome_id, owner_outcome_epoch: data.epoch, owner_outcome_sha256: data.owner_outcome_sha256,
+      goal: "Resolve the owner response", acceptance_criteria: ["Exact canonical continuation receipt"], allowed_scope: ["fixture"], effective_finish_line: "Canonical continuation resolved",
+      required_owner_outcome_ids: ["outcome-1"], parent_outcome_remains_open: true,
+    } }, event.receivedAt);
+  }
+  return store;
+}
+
+
+test("worker event endpoint cannot bypass authoritative continuation derivation or persistence freshness", () => {
+  const fixture = continuationFixture("DIRECT");
+  const route = fixture.events.find((event) => event.data.type === "worker_message_recorded")!;
+  if (route.data.type !== "worker_message_recorded") throw new Error("Expected route");
+  const missing = continuationStore(fixture.events.filter((event) => event.data.type !== "worker_message_recorded" && event.data.type !== "reasoning_message_recorded"));
+  try {
+    const before = missing.count();
+    assert.throws(() => missing.append(appendEnvelope(route), route.receivedAt), /originating supervisor message/);
+    assert.equal(missing.count(), before);
+  } finally { missing.close(); }
+
+  const store = continuationStore(fixture.events.filter((event) => event.data.type !== "worker_message_recorded"));
+  try {
+    const forged = structuredClone(route);
+    if (forged.data.type !== "worker_message_recorded") throw new Error("Expected route");
+    const packet = JSON.parse(forged.data.body.slice(directSupervisoryCycleRoutePrefix.length));
+    packet.continuationOwnerResponseExactText = "Worker-invented owner input";
+    packet.continuationBinding.owner_input.body_sha256 = sha256(packet.continuationOwnerResponseExactText);
+    packet.continuationBinding.supervisor_delivery.body_sha256 = sha256(packet.continuationOwnerResponseExactText);
+    const { continuation_id: _, ...causal } = packet.continuationBinding;
+    packet.continuationBinding.continuation_id = continuationId(causal);
+    packet.continuationBindingSha256 = sha256(canonicalJson(packet.continuationBinding));
+    forged.data.body = directSupervisoryCycleRoutePrefix + JSON.stringify(packet);
+    assert.throws(() => store.append(appendEnvelope(forged), route.receivedAt), /authoritative events\/current evidence/);
+    assert.throws(() => store.append(appendEnvelope(route), "2026-09-03T00:00:01.000Z"), /validity window/);
+    const outcome = store.allEvents().find((event) => event.data.type === "owner_outcome_recorded")!;
+    if (outcome.data.type !== "owner_outcome_recorded") throw new Error("Expected outcome");
+    store.append({ ...appendEnvelope(outcome), event_id: "new-outcome", data: { ...outcome.data, epoch: 8, supersedes: outcome.data.owner_outcome_id, supersedes_outcome_sha256: outcome.data.owner_outcome_sha256 } }, route.receivedAt);
+    assert.throws(() => store.append(appendEnvelope(route), route.receivedAt), /current owner outcome/);
+  } finally { store.close(); }
+});
+
+
+test("public MCP keeps the historical metadata projection and exposes no continuation OWNER or PM text", () => {
+  const fixture = continuationFixture("PROJECT_MANAGER");
+  const project = (events: StoredEvent[]) => publicSupervisoryRequestBinding(events, policy(), "decision-request-1", supervisorId, bindingSessionId, "2026-09-02T00:02:20.000Z");
+  const publicBinding = project(fixture.events);
+  assert.ok(publicBinding);
+  assert.deepEqual(publicBinding, project(directDecisionEvents("EXTRA_HIGH_DIRECT")));
+  const json = JSON.stringify(publicBinding);
+  assert.equal(json.includes(fixture.continuation.exactOwnerResponseText), false);
+  assert.equal(json.includes("PM ASSISTANT OUTPUT MUST NOT TRAVEL"), false);
+  assert.equal(json.includes("continuationOwnerResponseExactText"), false);
+});

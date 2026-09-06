@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-OWNER-RESPONSE-CONTINUATION-20260906",
+  "recorded_at": "2026-09-06T18:56:14.431486+00:00",
+  "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continuing from [Continue PR Supervision](chatgpt-conversation://6a9d7fa4-8508-83e9-8aeb-d351f2968673): Implement the issue #53 fresh-session owner-response continuation in u-dont-existDOTcom/universal-dev-architecture from canonical main 784144be749acbb989de95ef7e91914fcd483fd4. Chat owns the design below; do not reinterpret it. Create a task branch, make the smallest compatible changes, run focused tests first and one required checkpoint, push, and open a PR. DO NOT merge. DO NOT run browser/live acceptance. DO NOT deploy Railway/Hostinger. NEVER touch production.\n\nArchitecture decision (durably recorded on issue #53): COMPOSE existing Mission Control event/request primitives; no new framework/content channel. Preserve route-v4 exact binding_envelope bytes/hashes for historical cycles. Public MCP remains metadata-only. Browser automation never reads assistant output. Provider source timestamp remains independently UNMET; do not fabricate sent_at_source.\n\nImportant repository correction: reasoning-message-state already supports TWO owner paths. Direct path: OWNER message on SUPERVISOR surface parented to original supervisor request => SUPERVISOR_RESOLUTION_REQUIRED. PM-mediated path: OWNER message on PROJECT_MANAGER surface parented to request, then exact OWNER bytes forwarded to SUPERVISOR surface parented to PM owner message with equal body_sha256 => SUPERVISOR_RESOLUTION_REQUIRED. Do NOT copy or transport PM/assistant output. The continuation uses the OWNER-authored supervisor-surface response bytes only.",
+    "sha256": "22ec8307361e179a10bbae87315ebc85fe717cf597e0f01a0418e3b378aeac6c",
+    "source_type": "owner_chat_message",
+    "source_scope": "Verbatim task authority, architecture boundary, and direct/PM path correction from the current implementation request.",
+    "source_ref": "owner-request:issue-53-owner-response-continuation-20260906",
+    "reasoning_conversation_id": "6a9d7fa4-8508-83e9-8aeb-d351f2968673",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null
+  },
+  "normalized_outcome": "Implement the Chat-specified authoritative fresh-session OWNER continuation from canonical main 784144be749acbb989de95ef7e91914fcd483fd4, preserve historical bytes and provenance, run focused tests and the required checkpoint, push and open a PR. Do not merge, live-test, deploy, or touch production.",
+  "required_outcomes": [
+    {
+      "id": "RO-CONT-001",
+      "observable": "Both direct and PM-mediated OWNER paths derive exact stable-supervisor continuation metadata, text and single-use causal identity solely from authoritative events; missing/mismatched/stale/consumed inputs fail closed.",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/owner-response-continuation.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/owner-response-continuation.test.ts"
+      ],
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
+    },
+    {
+      "id": "RO-CONT-002",
+      "observable": "Worker intent is enriched by server-side history; direct event persistence also revalidates authority; private relay carries OWNER bytes while public MCP stays metadata-only.",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
+        "tools/codex-mission-control/vps-browser-relay/test/owner-response-continuation.test.mjs"
+      ],
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
+    },
+    {
+      "id": "RO-CONT-003",
+      "observable": "Canonical schema-v3 echoes optional continuation fields outside unchanged binding_envelope; admitted receipt and GitHub-artifact supervisor resolution commit atomically with UNVERIFIED provenance and null source time.",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts"
+      ],
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
+    },
+    {
+      "id": "RO-CONT-004",
+      "observable": "Required local tests/types/build, relay tests/syntax/service assets and repository unit/audit checkpoint plus hosted compliance/CodeQL are reported on the exact pushed PR head; no merge/live/deploy action.",
+      "evidence_refs": [
+        ".github/workflows/universal-architecture-tests.yml"
+      ],
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Worker-supplied continuation text or self-consistent hashes without authoritative event derivation",
+    "A schema or queued route without canonical decision echo, replay rejection and supervisor resolution",
+    "Implementation tests presented as live routing proof or satisfaction of provider source-timestamp P0"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/context-compaction-resilience.md"
+  ],
+  "next_direct_evidence": "Exact-head local and hosted PR checkpoint receipts. Any later live routing proof requires separate authorization; provider source timestamp remains independently UNMET."
+}

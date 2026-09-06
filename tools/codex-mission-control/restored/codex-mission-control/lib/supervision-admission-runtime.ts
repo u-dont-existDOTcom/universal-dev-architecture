@@ -13,6 +13,9 @@ import {
 } from "./chat-work-authority-gate";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import type { AppendEnvelope } from "./schema";
+import { canonicalJson, sha256 } from "./canonical";
+import { validateContinuationBinding, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
+import type { OwnerResponseContinuationIntent } from "./owner-response-continuation";
 
 export const internalSupervisorRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
@@ -37,6 +40,7 @@ export interface FactualSupervisorPacket {
 }
 
 export interface SupervisionAdmissionInput {
+  resumeDecisionRequestId?: string;
   request: ChatWorkAuthorityRequest;
   factualPacket: FactualSupervisorPacket | null;
 }
@@ -78,6 +82,7 @@ export function evaluateSupervisionAdmission(
   producer: AuthenticatedProducer,
   input: unknown,
   now = new Date().toISOString(),
+  authoritativeContinuation?: OwnerResponseContinuation,
 ): SupervisionAdmissionResult {
   const parsed = parseSupervisionAdmissionInput(input);
   assertProducerActor(producer, parsed.request.actor);
@@ -86,6 +91,21 @@ export function evaluateSupervisionAdmission(
   }
   if (!scopeIncludes(producer.workerScopes, worker)) {
     throw admissionError(403, "Worker admission scope does not match the authenticated producer.");
+  }
+
+  const intent = continuationIntentForAdmission(worker, parsed, now);
+  if (Boolean(intent) !== Boolean(authoritativeContinuation)) {
+    throw admissionError(400, "Continuation intent requires separate authoritative server derivation.");
+  }
+  if (intent && authoritativeContinuation) {
+    const binding = validateContinuationBinding(authoritativeContinuation.binding, authoritativeContinuation.digest);
+    if (binding.worker !== worker || binding.decision_request_id !== intent.resumeDecisionRequestId
+      || binding.supervisor_id !== intent.supervisorId || binding.issued_at !== now || binding.expires_at !== intent.expiresAt
+      || canonicalJson(binding.owner_outcome) !== canonicalJson(intent.ownerOutcome)
+      || canonicalJson(binding.evidence_capsule) !== canonicalJson(intent.evidenceCapsule)
+      || sha256(authoritativeContinuation.exactOwnerResponseText) !== binding.supervisor_delivery.body_sha256) {
+      throw admissionError(400, "Authoritative continuation does not match admission intent/current cycle.");
+    }
   }
 
   const primaryDecision = evaluateChatWorkAuthorityGate(parsed.request);
@@ -141,7 +161,7 @@ export function evaluateSupervisionAdmission(
     };
   }
 
-  const routeEnvelope = buildRouteEnvelope(worker, producer, parsed, primaryDecision, routeDecision, now);
+  const routeEnvelope = buildRouteEnvelope(worker, producer, parsed, primaryDecision, routeDecision, now, authoritativeContinuation);
   return {
     requestId: parsed.request.requestId,
     action: parsed.request.action,
@@ -175,6 +195,7 @@ function buildRouteEnvelope(
   primaryDecision: AuthorityGateResult,
   routeDecision: AuthorityGateResult,
   now: string,
+  continuation?: OwnerResponseContinuation,
 ): AppendEnvelope {
   const route = input.request.internalRoute!;
   const packet = input.factualPacket!;
@@ -200,6 +221,11 @@ function buildRouteEnvelope(
     routeDecision: routeDecision.decision,
     factualPacket: packet,
     queuedAt: now,
+    ...(continuation ? {
+      continuationBinding: continuation.binding,
+      continuationBindingSha256: continuation.digest,
+      continuationOwnerResponseExactText: continuation.exactOwnerResponseText,
+    } : {}),
     ...(cycle ? {
       nonce: cycle.nonce,
       reasoningLane: cycle.reasoningLane,
@@ -253,8 +279,11 @@ function deniedWithoutRoute(
   };
 }
 
-function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmissionInput {
+export function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmissionInput {
   const root = requiredRecord(value, "Admission body");
+  for (const field of ["continuation", "continuationBinding", "continuationBindingSha256", "continuationOwnerResponseExactText"]) {
+    if (Object.hasOwn(root, field)) throw admissionError(400, "Worker may supply continuation intent only, never authoritative continuation data.");
+  }
   const request = requiredRecord(root.request, "request");
   const action = requiredEnum(request.action, controlledActions, "request.action");
   const actor = requiredEnum(request.actor, authorityActors, "request.actor");
@@ -286,7 +315,21 @@ function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmissionInp
   const factualPacket = root.factualPacket === null || root.factualPacket === undefined
     ? null
     : parseFactualPacket(root.factualPacket);
-  return { request: parsedRequest, factualPacket };
+  return { request: parsedRequest, factualPacket,
+    ...(Object.hasOwn(root, "resumeDecisionRequestId") ? {
+      resumeDecisionRequestId: requiredString(root.resumeDecisionRequestId, "resumeDecisionRequestId", 180),
+    } : {}),
+  };
+}
+
+export function continuationIntentForAdmission(worker: string, input: SupervisionAdmissionInput, now: string): OwnerResponseContinuationIntent | undefined {
+  if (input.resumeDecisionRequestId === undefined) return undefined;
+  const cycle = input.factualPacket?.supervisoryCycle, route = input.request.internalRoute;
+  if (!cycle || !route || input.request.action === "EXECUTE_BOUNDED_TASK") {
+    throw admissionError(400, "Continuation intent requires a fresh supervisory cycle and destination.");
+  }
+  return { worker, resumeDecisionRequestId: input.resumeDecisionRequestId, supervisorId: route.destinationChatId,
+    ownerOutcome: cycle.ownerOutcome, evidenceCapsule: cycle.evidenceCapsule, issuedAt: now, expiresAt: cycle.expiresAt };
 }
 
 function parseReasoningSourceReceipt(value: unknown): ReasoningSourceReceipt {

@@ -5,6 +5,8 @@ import { DatabaseSync } from "node:sqlite";
 import { canonicalJson, sha256 } from "./canonical";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
 import { progressInvariantErrors } from "./progress-invariants";
+import { parseRouteContinuation } from "./owner-response-continuation-schema";
+import { validateOwnerResponseContinuation } from "./owner-response-continuation";
 import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
 import type { AuthenticatedProducer, ProducerKind } from "./ingestion-auth";
@@ -82,7 +84,7 @@ export class EventStore {
     }
 
     this.validateAuthorityInvariants(envelope);
-    this.validateWorkerChannel(envelope, authenticatedProducer);
+    this.validateWorkerChannel(envelope, authenticatedProducer, receivedAt);
     this.validateCorrection(envelope);
     const previousHash = this.latestEventHash();
     const eventHash = calculateEventHash({
@@ -851,7 +853,7 @@ export class EventStore {
     }
   }
 
-  private validateWorkerChannel(envelope: AppendEnvelope, producer: AuthenticatedProducer) {
+  private validateWorkerChannel(envelope: AppendEnvelope, producer: AuthenticatedProducer, receivedAt: string) {
     const data = envelope.data;
     if (data.type === "change_proposal_recorded") {
       throw new ContractInvariantError(
@@ -934,6 +936,27 @@ export class EventStore {
     }
 
     if (data.type === "worker_message_recorded") {
+      // Workers can also use the event endpoint directly. Revalidate here so a
+      // fabricated OWNER continuation never reaches the private relay outbox.
+      const prefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
+      if (data.body.startsWith(prefix)) {
+        let packet: Record<string, unknown> | null = null;
+        try {
+          const parsed: unknown = JSON.parse(data.body.slice(prefix.length));
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) packet = parsed as Record<string, unknown>;
+        } catch { /* Historical malformed ordinary packets still fail at relay parsing. */ }
+        const continuation = packet ? parseRouteContinuation(packet) : undefined;
+        if (continuation && packet) {
+          if (packet.worker !== data.worker || continuation.binding.worker !== data.worker) {
+            throw new ContractInvariantError("Continuation route worker does not match the durable worker.");
+          }
+          validateOwnerResponseContinuation(events, {
+            worker: data.worker, resumeDecisionRequestId: continuation.binding.decision_request_id,
+            supervisorId: continuation.binding.supervisor_id, ownerOutcome: continuation.binding.owner_outcome, evidenceCapsule: continuation.binding.evidence_capsule,
+            issuedAt: continuation.binding.issued_at, expiresAt: continuation.binding.expires_at,
+          }, continuation, receivedAt);
+        }
+      }
       this.assertUniqueDomainId(data.worker, data.type, "message_id", data.message_id);
       if (data.reply_to_message_id && !events.some((event) => (event.data.type === "owner_message_recorded" || event.data.type === "worker_message_recorded")
         && event.data.message_id === data.reply_to_message_id)) {
