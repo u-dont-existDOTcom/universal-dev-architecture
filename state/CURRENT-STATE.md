@@ -8,18 +8,31 @@ Updated: 2026-09-06
   owner-intent interpretation, ordinary GitHub work, and release decisions.
 - Work/Codex is mechanical execution only: terminal/filesystem/SSH/browser/build/
   deploy mechanics after Chat has resolved the decision.
-- A one-word `continue` is transport/liveness recovery only; it is not new
-  semantic authority.
+- A one-word `continue` by itself remains transport/liveness recovery rather than
+  new semantic authority.
+- Separately, the owner's current explicit standing instruction (2026-09-06) is
+  to continue automatically through safe, reversible, in-scope actions and
+  ordinary reviewed GitHub closeout/merge steps without asking for routine
+  confirmation. Stop only at a genuine tradeoff or another non-resolvable owner
+  decision; explain that choice in plain language and give the recommended option
+  first.
 - Production promotion is not authorized.
 
 ## Canonical repository boundary
 
-- Canonical `main` is
-  `e345a65c2ec1058a562e6c9556dfc90c7f609338`, the merge commit for PR #66,
-  **Mission Control: continue owner responses in fresh supervisor sessions**.
-- PR #66 merged the reviewed continuation head
+- The canonical branch is `main`. Resolve its exact current tip from GitHub at
+  action/review time rather than hard-coding a supposed current `main` SHA in this
+  file: merging a state-only PR changes `main` and would make such a self-reference
+  stale immediately.
+- Immutable SHAs below are checkpoint anchors, not a substitute for a fresh
+  current-tip read.
+- PR #66, **Mission Control: continue owner responses in fresh supervisor
+  sessions**, merged at
+  `e345a65c2ec1058a562e6c9556dfc90c7f609338` from reviewed continuation head
   `840e80fad78d607899d7297ea1cd1c3d88c80ceb` onto prior canonical main
   `784144be749acbb989de95ef7e91914fcd483fd4`.
+- PR #67, **Reconcile Mission Control state after PR #66 merge**, subsequently
+  merged at `14bdc2fde41ab281bf44fb161f1e49e57a6982ec`; it was bookkeeping only.
 - PR #58, **Mission Control: add memory-bounded Hostinger browser relay**, is
   merged.
 - Exact accepted pre-merge head after final `main` synchronization for PR #58:
@@ -32,6 +45,8 @@ Updated: 2026-09-06
 - PR #66 exact-head verification was green before merge: deterministic repository
   audit, Mission Control tests/typecheck/build, relay tests/syntax/service assets,
   and CodeQL Actions/JavaScript-TypeScript/Python.
+- PR #66 post-merge checks were also green, and PR #67 exact-head checks were
+  green before its bookkeeping merge.
 
 ## Accepted Mission Control relay topology
 
@@ -77,7 +92,7 @@ Live escalated v4 acceptance passed with exact visible label `6 Pro`, canonical
 - Last verified production deployment remains
   `6b0e057b-24dd-4882-b26e-abcbdf233c41`.
 - Do not promote, redeploy, mutate production variables, or reinterpret the PR
-  #66 merge as deployment authority.
+  #66/#67 merges as deployment authority.
 
 ## Preserved repository-wide completion gate
 
@@ -151,11 +166,12 @@ merged and canonical; a live routing demonstration remains open.
 
 Post-merge issue #53 reconciliation before PR #66 was recorded in comment
 `5560926210`; the PR #66 implementation checkpoint was recorded in comment
-`5562010387`.
+`5562010387`; the owner-authorized PR #66 merge was recorded in comment
+`5562132254`.
 
 ## Merged bounded implementation — issue #53
 
-PR #66 merged at canonical main
+PR #66 merged at
 `e345a65c2ec1058a562e6c9556dfc90c7f609338`. Its reviewed implementation head
 was `840e80fad78d607899d7297ea1cd1c3d88c80ceb`, under
 `docs/requirements/2026-09-06-owner-response-continuation.owner-requirement.json`.
@@ -183,12 +199,17 @@ Issues #63 and #64 remain closed accidental connector artifacts with no authorit
 
 ## Next safe action
 
-Do not repeat the completed PR #66 implementation/review work or accepted PR #58
-live work. The next substantive Mission Control frontier requires a separately
-bounded authorization for live fresh-session owner-response routing proof.
-Provider source timestamp remains independently unmet, and a real distinct PM
-identity must exist before claiming a live global-PM demonstration. Production
-promotion remains unauthorized.
+Continue automatically with the smallest bounded **direct supervisor-path** live
+fresh-session owner-response routing proof once an authorized browser/Hostinger
+execution surface is available. This is verification of the already-merged
+architecture, not permission to redesign it, deploy production, widen privacy
+collection, or fabricate provider timestamps.
+
+The PM-mediated live demonstration remains separate until a real distinct global
+Project Manager identity/locator exists. Provider source timestamp remains
+independently unmet; widening into content-bearing/provider-internal acquisition
+is a privacy tradeoff and requires explicit owner/Chat consideration rather than
+being smuggled into the routing proof.
 
 ## Recovery rule
 
