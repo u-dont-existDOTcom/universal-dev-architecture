@@ -46,7 +46,13 @@ jobs:
           text = owner_path.read_text()
           start_marker = '  const route = decisionRouteStates(related).find((state) => state.decisionRequestId === intent.resumeDecisionRequestId);'
           end_marker = '  const owner = direct ? delivery : route.projectManagerResponse;'
-          replacement = '''  const request = origins[0] as ReasoningMessageStoredEvent;
+          replacement = '''  const seenMessageIds = new Set<string>();
+          for (const event of related) {
+            if (event.data.type !== "reasoning_message_recorded") continue;
+            if (seenMessageIds.has(event.data.message_id)) throw new Error("Continuation message identity is ambiguous.");
+            seenMessageIds.add(event.data.message_id);
+          }
+          const request = origins[0] as ReasoningMessageStoredEvent;
           const laterOwnerMessages = related.filter((event): event is ReasoningMessageStoredEvent => event.data.type === "reasoning_message_recorded"
             && event.data.author_role === "OWNER" && event.sequence > request.sequence);
           const directReplies = laterOwnerMessages.filter((event) => event.data.surface_role === "SUPERVISOR"
