@@ -24,6 +24,18 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          def splice(text: str, start_marker: str, end_marker: str, replacement: str, label: str) -> str:
+              start = text.find(start_marker)
+              if start < 0:
+                  raise SystemExit(f"{label}: start marker missing")
+              end_start = text.find(end_marker, start)
+              if end_start < 0:
+                  raise SystemExit(f"{label}: end marker missing")
+              end = end_start + len(end_marker)
+              if text.find(start_marker, start + 1) >= 0:
+                  raise SystemExit(f"{label}: start marker ambiguous")
+              return text[:start] + replacement + text[end:]
+
           def replace_once(text: str, old: str, new: str, label: str) -> str:
               count = text.count(old)
               if count != 1:
@@ -32,18 +44,9 @@ jobs:
 
           owner_path = Path('tools/codex-mission-control/restored/codex-mission-control/lib/owner-response-continuation.ts')
           text = owner_path.read_text()
-          old = '''  const route = decisionRouteStates(related).find((state) => state.decisionRequestId === intent.resumeDecisionRequestId);
-          if (!route || route.status !== "SUPERVISOR_RESOLUTION_REQUIRED" || !route.supervisorResponse) {
-            throw new Error("Continuation requires an OWNER response with SUPERVISOR_RESOLUTION_REQUIRED routing.");
-          }
-          const request = route.request, delivery = route.supervisorResponse;
-          if (request.data.stable_supervisor_id !== intent.supervisorId || delivery.data.stable_supervisor_id !== intent.supervisorId) {
-            throw new Error("Continuation requires exact stable supervisor identity on request and OWNER delivery.");
-          }
-          const direct = delivery.data.parent_message_id === request.data.message_id;
-          const owner = direct ? delivery : route.projectManagerResponse;
-          '''
-          new = '''  const request = origins[0] as ReasoningMessageStoredEvent;
+          start_marker = '  const route = decisionRouteStates(related).find((state) => state.decisionRequestId === intent.resumeDecisionRequestId);'
+          end_marker = '  const owner = direct ? delivery : route.projectManagerResponse;'
+          replacement = '''  const request = origins[0] as ReasoningMessageStoredEvent;
           const laterOwnerMessages = related.filter((event): event is ReasoningMessageStoredEvent => event.data.type === "reasoning_message_recorded"
             && event.data.author_role === "OWNER" && event.sequence > request.sequence);
           const directReplies = laterOwnerMessages.filter((event) => event.data.surface_role === "SUPERVISOR"
@@ -81,40 +84,28 @@ jobs:
           }
           if (request.data.stable_supervisor_id !== intent.supervisorId || delivery.data.stable_supervisor_id !== intent.supervisorId) {
             throw new Error("Continuation requires exact stable supervisor identity on request and OWNER delivery.");
-          }
-          '''
-          owner_path.write_text(replace_once(text, old, new, 'owner causal cardinality'))
+          }'''
+          owner_path.write_text(splice(text, start_marker, end_marker, replacement, 'owner causal cardinality'))
 
           receipts_path = Path('tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts')
           text = receipts_path.read_text()
-          old = '''    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
-              const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
+          anchor = '    const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);'
+          insertion = '''    const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
+            && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
+            && event.data.github_receipt.issue_number === candidate.issueNumber
+            && event.data.github_receipt.comment_id === candidate.commentId
+            && event.data.github_receipt.immutable_url === candidate.immutableUrl);
+          if (exactDuplicate) return [];
           '''
-          new = '''    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
-              const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
-                && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
-                && event.data.github_receipt.issue_number === candidate.issueNumber
-                && event.data.github_receipt.comment_id === candidate.commentId
-                && event.data.github_receipt.immutable_url === candidate.immutableUrl);
-              if (exactDuplicate) return [];
-              const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
-          '''
-          text = replace_once(text, old, new, 'exact GitHub candidate idempotency')
-          old = '''          body_sha256: decisionData.decision_block.sha256, exact_visible_body: decisionData.decision_block.exact_text,
-                    immutable_provider_locator: candidate.immutableUrl,
-                    parent_message_id: decisionData.continuation_binding.supervisor_delivery.message_id,
-          '''
-          new = '''          body_sha256: decisionData.decision_block.sha256, exact_visible_body: decisionData.decision_block.exact_text,
-                    immutable_provider_locator: null,
-                    parent_message_id: decisionData.continuation_binding.supervisor_delivery.message_id,
-          '''
-          receipts_path.write_text(replace_once(text, old, new, 'GitHub artifact provider locator'))
+          text = replace_once(text, anchor, insertion + anchor, 'exact GitHub candidate idempotency')
+          text = replace_once(text, '          immutable_provider_locator: candidate.immutableUrl,', '          immutable_provider_locator: null,', 'GitHub artifact provider locator')
+          receipts_path.write_text(text)
 
           owner_test_path = Path('tools/codex-mission-control/restored/codex-mission-control/tests/owner-response-continuation.test.ts')
           text = owner_test_path.read_text()
           marker = 'test("current owner outcome uses the latest authoritative worker event and rejects every stale component", () => {'
-          if marker not in text:
-              raise SystemExit('owner ambiguity test insertion marker missing')
+          if text.count(marker) != 1:
+              raise SystemExit('owner ambiguity test insertion marker missing or ambiguous')
           test_block = '''test("continuation fails closed on every ambiguous direct/PM OWNER causal cardinality", () => {
             const multipleDirect = fixture();
             multipleDirect.events.push(reasoning(6, "OWNER", "SUPERVISOR", "Second direct OWNER response.", { parent_message_id: multipleDirect.request.data.message_id }));
@@ -138,31 +129,24 @@ jobs:
 
           receipt_test_path = Path('tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts')
           text = receipt_test_path.read_text()
-          old = '''      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");
-                assert.equal(resolution.producerKind, "SUPERVISOR");
-          '''
-          new = '''      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");
-                assert.equal(resolution.data.immutable_provider_locator, null);
-                assert.equal(resolution.producerKind, "SUPERVISOR");
-          '''
-          text = replace_once(text, old, new, 'resolution locator assertion')
-          old = '''      const count = store.count();
-                assert.throws(() => ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), /pending/);
-                assert.equal(store.count(), count);
-          '''
-          new = '''      const count = store.count();
-                assert.deepEqual(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), []);
-                assert.equal(store.count(), count);
-                const replayCommentId = fixture.candidate.commentId + 1000;
-                const replayCandidate = { ...fixture.candidate, commentId: replayCommentId,
-                  immutableUrl: fixture.candidate.immutableUrl.replace(/issuecomment-\\d+$/, `issuecomment-${replayCommentId}`) };
-                assert.throws(() => ingestGitHubSupervisionCandidate(store, replayCandidate, policy(), continuationIngestedAt), /pending|already been consumed/);
-                assert.equal(store.count(), count);
-          '''
-          receipt_test_path.write_text(replace_once(text, old, new, 'duplicate/replay regression'))
+          text = replace_once(text,
+              '      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");\n      assert.equal(resolution.producerKind, "SUPERVISOR");',
+              '      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");\n      assert.equal(resolution.data.immutable_provider_locator, null);\n      assert.equal(resolution.producerKind, "SUPERVISOR");',
+              'resolution locator assertion')
+          old_duplicate = '''      const count = store.count();
+          assert.throws(() => ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), /pending/);
+          assert.equal(store.count(), count);'''
+          new_duplicate = '''      const count = store.count();
+          assert.deepEqual(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), []);
+          assert.equal(store.count(), count);
+          const replayCommentId = fixture.candidate.commentId + 1000;
+          const replayCandidate = { ...fixture.candidate, commentId: replayCommentId,
+            immutableUrl: fixture.candidate.immutableUrl.replace(/issuecomment-\\d+$/, `issuecomment-${replayCommentId}`) };
+          assert.throws(() => ingestGitHubSupervisionCandidate(store, replayCandidate, policy(), continuationIngestedAt), /pending|already been consumed/);
+          assert.equal(store.count(), count);'''
+          receipt_test_path.write_text(replace_once(text, old_duplicate, new_duplicate, 'duplicate/replay regression'))
 
-          helper = Path('.github/workflows/pr66-semantic-correction.yml')
-          helper.unlink()
+          Path('.github/workflows/pr66-semantic-correction.yml').unlink()
           PY
 
       - name: Focused Mission Control continuation regressions
