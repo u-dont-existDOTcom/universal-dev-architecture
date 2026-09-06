@@ -75,6 +75,19 @@ Live escalated v4 acceptance passed with exact visible label `6 Pro`, canonical
 - Do not promote, redeploy, mutate production variables, or reinterpret the PR
   merge as deployment authority.
 
+## Preserved repository-wide completion gate
+
+The Mission Control reconciliation does not supersede the repository-wide
+coverage-before-depth requirement or its promotion evidence. Recovery state must
+continue to preserve these exact active completion-gate references:
+
+- `patterns/coverage-before-depth-in-selection.md`
+- `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`
+- `tests/test_coverage_before_depth_pattern.py`
+
+This gate remains independent of the Mission Control relay merge and must not be
+dropped merely because the active Mission Control checkpoint is rewritten.
+
 ## Open P0 — issue #53
 
 Issue #53, **first-class ChatGPT message timestamps and direct PM/supervisor
@@ -126,14 +139,15 @@ must be demonstrated or adapted without weakening provenance or privacy.
 
 Post-merge issue #53 reconciliation is recorded in comment `5560926210`.
 
-## Active bounded maintenance — issue #62
+## Active bounded maintenance — issue #62 / PR #65
 
-Issue #62 exists only to reconcile durable architecture/state after PR #58. Its
-scope is documentation/state correction:
+Issue #62 and PR #65 exist only to reconcile durable architecture/state after
+PR #58. Their scope is documentation/state correction:
 
 - update the canonical direct-PM/supervisor architecture to route v4;
 - preserve the timestamp P0 exactly as unmet;
 - preserve the current privacy/browser boundary;
+- preserve the repository-wide coverage-before-depth completion gate;
 - do not invent the still-open owner-response return transport;
 - no executable behavior change;
 - no deployment or production action.
@@ -146,9 +160,9 @@ closed `not_planned`, and carry no task or semantic authority.
 
 ## Next safe action
 
-Finish the issue #62 docs/state-only correction, open a small PR, inspect its
-exact diff, let the normal deterministic repository/CodeQL checks run once, and
-merge only if the durable merge policy is satisfied.
+Obtain one fresh hosted checkpoint for the corrected PR #65 head. Merge only if
+the deterministic repository audit, applicable CodeQL checks, review-thread
+state, and current-main requirement all satisfy the durable merge policy.
 
 After that, return to issue #53. Continue only the independently safe direct
 routing work that can preserve the accepted fresh-session and no-output-
