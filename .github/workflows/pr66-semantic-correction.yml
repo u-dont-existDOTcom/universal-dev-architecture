@@ -133,18 +133,13 @@ jobs:
               '      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");\n      assert.equal(resolution.producerKind, "SUPERVISOR");',
               '      assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");\n      assert.equal(resolution.data.immutable_provider_locator, null);\n      assert.equal(resolution.producerKind, "SUPERVISOR");',
               'resolution locator assertion')
-          old_duplicate = '''      const count = store.count();
-          assert.throws(() => ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), /pending/);
-          assert.equal(store.count(), count);'''
-          new_duplicate = '''      const count = store.count();
-          assert.deepEqual(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), []);
-          assert.equal(store.count(), count);
+          old_line = '      assert.throws(() => ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), /pending/);'
+          new_lines = '''      assert.deepEqual(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), []);
           const replayCommentId = fixture.candidate.commentId + 1000;
           const replayCandidate = { ...fixture.candidate, commentId: replayCommentId,
             immutableUrl: fixture.candidate.immutableUrl.replace(/issuecomment-\\d+$/, `issuecomment-${replayCommentId}`) };
-          assert.throws(() => ingestGitHubSupervisionCandidate(store, replayCandidate, policy(), continuationIngestedAt), /pending|already been consumed/);
-          assert.equal(store.count(), count);'''
-          receipt_test_path.write_text(replace_once(text, old_duplicate, new_duplicate, 'duplicate/replay regression'))
+          assert.throws(() => ingestGitHubSupervisionCandidate(store, replayCandidate, policy(), continuationIngestedAt), /pending|already been consumed/);'''
+          receipt_test_path.write_text(replace_once(text, old_line, new_lines, 'duplicate/replay regression'))
 
           Path('.github/workflows/pr66-semantic-correction.yml').unlink()
           PY
