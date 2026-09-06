@@ -1,7 +1,7 @@
 # Direct project-manager and supervisory-chat control plane
 
 Date: 2026-09-01
-Status: ACTIVE DESIGN CORRECTION · 2026-09-02 TRANSPORT ERRATUM APPLIED
+Status: ACTIVE DESIGN CORRECTION · 2026-09-06 FRESH-SESSION TRANSPORT CORRECTION APPLIED
 Applies to: Mission Control, HumanDesign, Somatic humanization, and other long-running supervised work
 
 ## Failure being corrected
@@ -58,21 +58,39 @@ Owns the substantive reasoning for its assigned domain and returns visible, attr
 - uncertainty and limitations;
 - owner decision request when needed.
 
-When the supervisor requires owner judgment, Mission Control must expose a direct link and the exact question. The owner should normally answer in that supervisory chat. If the owner answers through the Project Manager Chat, the PM forwards the response verbatim and records both message identities; no paraphrase can acquire authority.
+When the supervisor requires owner judgment, Mission Control must expose a direct link and the exact question. The owner should normally answer in that supervisory lane. If the owner answers through the Project Manager Chat, the PM forwards the response verbatim and records both message identities; no paraphrase can acquire authority.
 
-### Personal Pro same-chat escalation
+A **supervisory lane** is the stable supervisor identity and authority scope, not a promise that every turn remains in one provider conversation. Provider-session instances are bounded execution sessions and may be replaced by fresh sessions when the product requires it.
 
-When an ordinary Extra High turn is insufficient, the preferred Personal Pro path keeps the evidence and reasoning handoff inside one conversation context:
+### Current provider-session orchestration
+
+Live acceptance in PR #58 superseded the earlier assumption that the preferred Personal Pro route could rely on one durable same-chat Extra High -> Pro -> Extra High conversation.
+
+The accepted route-v4 topology is:
 
 ```text
-Extra High reader
-  -> same conversation Pro reasoner
-  -> same conversation Extra High writer
-  -> canonical GitHub decision receipt
-  -> Mission Control
+stable supervisor identity
+  -> fresh Extra High Mission Control binding-preload conversation
+  -> verified current binding envelope
+  -> distinct fresh decision conversation in the same reusable browser tab
+       ordinary:  exact visible Extra High
+       escalated: exact visible 6 Pro
+  -> first-message GitHub evidence read + canonical #59 decision write
+  -> Mission Control validation / admission
 ```
 
-The final Extra High writer may perform exact-copy or explicitly structured transformation only. Mission Control records Pro-content provenance as `SAME_CHAT_WRITER_ATTESTED`; without a provider-direct source it must not claim independent observation of the Pro output.
+Required invariants:
+
+- stable supervisor identity is distinct from every concrete provider-session instance;
+- each admitted cycle gets fresh provider sessions for the mandatory first-message tool stages;
+- the binding-preload session uses the Mission Control app only for the current exact request binding;
+- the decision session uses GitHub on its first message and must not depend on a later app re-selection or MCP refresh;
+- visible model matching is exact: `Extra High` and `6 Pro`; there is no `Pro` <-> `6 Pro` alias;
+- the internal escalated lane remains `PRO_ESCALATED`; visible UI evidence does not claim hidden/backend model identity;
+- route-v4 provenance is `VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED` or `VISIBLE_PRO_SESSION_GITHUB_ATTESTED`;
+- one reusable ChatGPT tab is the steady state; fresh conversation does not mean tab fan-out;
+- browser automation may observe non-content transport state but must not extract, copy, parse, summarize, or hash assistant output;
+- route schema v3 / canonical schema v2 / #61 same-chat staging remains compatibility support only and cannot be relabeled as route-v4 proof.
 
 ### Codex / Work
 
@@ -129,22 +147,24 @@ limitations
 
 A chat link, label, copied summary, browser observation, local subagent name, or `lastReviewAt` field is not a provider message receipt.
 
-For the Personal Pro same-chat GitHub return path, Mission Control instead binds the canonical decision artifact to:
+For the accepted route-v4 GitHub return path, Mission Control instead binds the canonical decision artifact to:
 
 ```text
 decision_request_id
 one-time nonce
-evidence capsule ID/hash
+binding envelope ID/hash
 current owner-outcome ID/epoch/hash
-registered chat ID
+stable supervisor ID
+binding provider-session ID
+decision provider-session ID
 reasoning lane
-ordered no-content relay-stage receipts
+ordered no-content transport evidence
+exact visible decision-model label
 GitHub repository / issue / authorized writer
 canonical decision digest
-same-chat writer attestation when Pro was used
 ```
 
-This artifact can authorize the bounded next cycle when all bindings validate, but it does not become independent provider-direct proof of the hidden Pro response.
+This artifact can authorize the bounded next cycle when all bindings validate. `VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED` and `VISIBLE_PRO_SESSION_GITHUB_ATTESTED` mean that the visible provider session itself wrote the canonical GitHub artifact; they do not become provider-direct transcript capture and do not prove hidden/backend model identity.
 
 ## Timestamp invariant
 
@@ -157,6 +177,8 @@ Every visible source message row—owner, Project Manager, supervisor, worker, o
 
 Missing provider source time renders `TIMESTAMP UNAVAILABLE · UNVERIFIED` for provider-message currentness. Relay observation times and GitHub creation times must remain explicitly labeled as observation/artifact times; they cannot be relabeled as provider source timestamps.
 
+The bounded no-send native-row probe completed on 2026-09-06 found no safe provider source-time attribute within the permitted non-content UI boundary: `SAFE_TIMESTAMP_ATTRIBUTE_FOUND=false`, blocker `PROVIDER_SOURCE_TIMESTAMP_NOT_EXPOSED_WITHIN_PERMITTED_NON_CONTENT_UI_BOUNDARY`. Do not widen into provider network/app-state payloads, accessibility text, assistant-output extraction, OCR, conversation export/JSON, or another content-bearing path without a new owner/Chat privacy decision.
+
 ## Decision-request routing
 
 A supervisor request for owner input creates a `decision_request` bound to the exact source or canonical decision artifact. Mission Control then:
@@ -165,8 +187,12 @@ A supervisor request for owner input creates a `decision_request` bound to the e
 2. shows the exact question, options, recommendation, and direct chat link;
 3. prevents Codex/Work from choosing an option;
 4. accepts an owner response only when bound to the request;
-5. returns the exact response to the same supervisory lane;
+5. returns the exact response to the same **stable supervisory lane**;
 6. requires a new supervisor decision receipt before execution resumes.
+
+"Same supervisory lane" does not require the same provider conversation. The accepted fresh-session topology may require a new provider session for the post-owner decision, but that continuation must remain bound to the exact owner response and current request/owner/evidence state.
+
+The live owner-response return transport for this fresh-session topology is still open under issue #53. Do not silently revive the retired same-chat assumption, invent a PM locator, promote the accepted specialist into the fleet Project Manager role, or claim a live route until the owner response is source-bound end to end.
 
 ## Currentness rule
 
