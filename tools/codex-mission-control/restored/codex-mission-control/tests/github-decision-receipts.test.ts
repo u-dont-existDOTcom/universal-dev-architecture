@@ -835,6 +835,7 @@ for (const path of ["DIRECT", "PROJECT_MANAGER"] as const) for (const lane of ["
       assert.equal(resolution.data.sent_at_source, null);
       assert.equal(resolution.data.provenance_status, "UNVERIFIED");
       assert.equal(resolution.data.acquisition_method, "GITHUB_SESSION_ATTESTED");
+      assert.equal(resolution.data.immutable_provider_locator, null);
       assert.equal(resolution.producerKind, "SUPERVISOR");
       assert.equal(resolution.data.recorded_by, resolution.producerId);
       assert.equal(producerMayEmit({ id: resolution.producerId, kind: "SUPERVISOR", workerScopes: [resolution.worker!], taskScopes: [`task:${resolution.worker}`] }, resolution.data), true);
@@ -844,7 +845,11 @@ for (const path of ["DIRECT", "PROJECT_MANAGER"] as const) for (const lane of ["
       assert.equal(decisionRouteStates(store.allEvents())[0].status, "RESOLVED");
       assert.equal(store.verifyChain().valid, true);
       const count = store.count();
-      assert.throws(() => ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), /pending/);
+      assert.deepEqual(ingestGitHubSupervisionCandidate(store, fixture.candidate, policy(), continuationIngestedAt), []);
+const replayCommentId = fixture.candidate.commentId + 1000;
+const replayCandidate = { ...fixture.candidate, commentId: replayCommentId,
+  immutableUrl: fixture.candidate.immutableUrl.replace(/issuecomment-\d+$/, `issuecomment-${replayCommentId}`) };
+assert.throws(() => ingestGitHubSupervisionCandidate(store, replayCandidate, policy(), continuationIngestedAt), /pending|already been consumed/);
       assert.equal(store.count(), count);
     } finally { store.close(); }
   });

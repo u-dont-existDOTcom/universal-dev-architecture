@@ -24,16 +24,51 @@ export function deriveOwnerResponseContinuation(events: StoredEvent[], intent: O
   const origins = related.filter((event) => event.data.type === "reasoning_message_recorded"
     && event.data.author_role === "ASSISTANT" && event.data.surface_role === "SUPERVISOR" && event.data.parent_message_id === null);
   if (origins.length !== 1) throw new Error("Continuation requires one exact worker/decision request originating supervisor message.");
-  const route = decisionRouteStates(related).find((state) => state.decisionRequestId === intent.resumeDecisionRequestId);
-  if (!route || route.status !== "SUPERVISOR_RESOLUTION_REQUIRED" || !route.supervisorResponse) {
-    throw new Error("Continuation requires an OWNER response with SUPERVISOR_RESOLUTION_REQUIRED routing.");
+  const seenMessageIds = new Set<string>();
+for (const event of related) {
+  if (event.data.type !== "reasoning_message_recorded") continue;
+  if (seenMessageIds.has(event.data.message_id)) throw new Error("Continuation message identity is ambiguous.");
+  seenMessageIds.add(event.data.message_id);
+}
+const request = origins[0] as ReasoningMessageStoredEvent;
+const laterOwnerMessages = related.filter((event): event is ReasoningMessageStoredEvent => event.data.type === "reasoning_message_recorded"
+  && event.data.author_role === "OWNER" && event.sequence > request.sequence);
+const directReplies = laterOwnerMessages.filter((event) => event.data.surface_role === "SUPERVISOR"
+  && event.data.parent_message_id === request.data.message_id);
+const projectManagerReplies = laterOwnerMessages.filter((event) => event.data.surface_role === "PROJECT_MANAGER"
+  && event.data.parent_message_id === request.data.message_id);
+if (directReplies.length > 1 || projectManagerReplies.length > 1 || (directReplies.length > 0 && projectManagerReplies.length > 0)) {
+  throw new Error("Continuation OWNER response causality is ambiguous.");
+}
+let direct = false;
+let owner: ReasoningMessageStoredEvent | null = null;
+let delivery: ReasoningMessageStoredEvent | null = null;
+if (directReplies.length === 1) {
+  direct = true;
+  owner = directReplies[0]!;
+  delivery = owner;
+} else if (projectManagerReplies.length === 1) {
+  const projectManagerOwner = projectManagerReplies[0]!;
+  owner = projectManagerOwner;
+  const exactForwards = laterOwnerMessages.filter((event) => event.data.surface_role === "SUPERVISOR"
+    && event.data.parent_message_id === projectManagerOwner.data.message_id
+    && event.data.body_sha256 === projectManagerOwner.data.body_sha256);
+  const alteredForwards = laterOwnerMessages.filter((event) => event.data.surface_role === "SUPERVISOR"
+    && event.data.parent_message_id === projectManagerOwner.data.message_id
+    && event.data.body_sha256 !== projectManagerOwner.data.body_sha256);
+  if (exactForwards.length !== 1 || alteredForwards.length > 0) {
+    throw new Error("Continuation OWNER response causality is ambiguous or invalid.");
   }
-  const request = route.request, delivery = route.supervisorResponse;
-  if (request.data.stable_supervisor_id !== intent.supervisorId || delivery.data.stable_supervisor_id !== intent.supervisorId) {
-    throw new Error("Continuation requires exact stable supervisor identity on request and OWNER delivery.");
-  }
-  const direct = delivery.data.parent_message_id === request.data.message_id;
-  const owner = direct ? delivery : route.projectManagerResponse;
+  delivery = exactForwards[0]!;
+}
+const route = decisionRouteStates(related).find((state) => state.decisionRequestId === intent.resumeDecisionRequestId);
+if (!owner || !delivery || !route || route.status !== "SUPERVISOR_RESOLUTION_REQUIRED"
+  || route.supervisorResponse?.data.message_id !== delivery.data.message_id) {
+  throw new Error("Continuation requires an OWNER response with SUPERVISOR_RESOLUTION_REQUIRED routing.");
+}
+if (request.data.stable_supervisor_id !== intent.supervisorId || delivery.data.stable_supervisor_id !== intent.supervisorId) {
+  throw new Error("Continuation requires exact stable supervisor identity on request and OWNER delivery.");
+}
   if (!owner || owner.sequence <= request.sequence || (!direct && delivery.sequence <= owner.sequence)) {
     throw new Error("Continuation OWNER delivery must follow its causal source.");
   }

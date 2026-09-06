@@ -133,6 +133,24 @@ test("exact worker, decision request, origin role, and unambiguous message ident
   assert.throws(() => deriveOwnerResponseContinuation(duplicate.events, duplicate.intent), /message identity is ambiguous/);
 });
 
+test("continuation fails closed on every ambiguous direct/PM OWNER causal cardinality", () => {
+  const multipleDirect = fixture();
+  multipleDirect.events.push(reasoning(6, "OWNER", "SUPERVISOR", "Second direct OWNER response.", { parent_message_id: multipleDirect.request.data.message_id }));
+  assert.throws(() => deriveOwnerResponseContinuation(multipleDirect.events, multipleDirect.intent), /causality is ambiguous/);
+
+  const directAndPm = fixture("PROJECT_MANAGER");
+  directAndPm.events.push(reasoning(6, "OWNER", "SUPERVISOR", "Competing direct OWNER response.", { parent_message_id: directAndPm.request.data.message_id }));
+  assert.throws(() => deriveOwnerResponseContinuation(directAndPm.events, directAndPm.intent), /causality is ambiguous/);
+
+  const multiplePm = fixture("PROJECT_MANAGER");
+  multiplePm.events.push(reasoning(6, "OWNER", "PROJECT_MANAGER", "Second PM OWNER response.", { parent_message_id: multiplePm.request.data.message_id }));
+  assert.throws(() => deriveOwnerResponseContinuation(multiplePm.events, multiplePm.intent), /causality is ambiguous/);
+
+  const multipleForwards = fixture("PROJECT_MANAGER");
+  multipleForwards.events.push(reasoning(6, "OWNER", "SUPERVISOR", exactOwnerText, { parent_message_id: multipleForwards.owner.data.message_id }));
+  assert.throws(() => deriveOwnerResponseContinuation(multipleForwards.events, multipleForwards.intent), /causality is ambiguous or invalid/);
+});
+
 test("current owner outcome uses the latest authoritative worker event and rejects every stale component", () => {
   for (const outcome of [{ id: "other-outcome" }, { epoch: 99 }, { sha256: "0".repeat(64) }]) {
     const current = fixture();

@@ -256,6 +256,12 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
   const events = store.allEvents();
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
+    const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
+  && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
+  && event.data.github_receipt.issue_number === candidate.issueNumber
+  && event.data.github_receipt.comment_id === candidate.commentId
+  && event.data.github_receipt.immutable_url === candidate.immutableUrl);
+if (exactDuplicate) return [];
     const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
     if (envelope.data.type !== "github_decision_receipt_ingested") throw new Error("Canonical decision envelope has an unexpected event type.");
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
@@ -293,7 +299,7 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
           model_mode: "UNKNOWN", account_workspace: "UNKNOWN", author_role: "ASSISTANT",
           sent_at_source: null, received_at_mission_control: ingestedAt,
           body_sha256: decisionData.decision_block.sha256, exact_visible_body: decisionData.decision_block.exact_text,
-          immutable_provider_locator: candidate.immutableUrl,
+          immutable_provider_locator: null,
           parent_message_id: decisionData.continuation_binding.supervisor_delivery.message_id,
           owner_direction_id: null, decision_request_id: decisionData.continuation_binding.decision_request_id,
           acquisition_method: "GITHUB_SESSION_ATTESTED", provenance_status: "UNVERIFIED",
