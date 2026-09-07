@@ -1,13 +1,19 @@
 {
   "requirement_id": "REQ-MC-GLOBAL-PROJECT-MANAGER-IDENTITY-20260907",
   "date": "2026-09-07",
-  "status": "IDENTITY_AUTHORIZED_LOCATOR_UNREGISTERED",
+  "status": "LOCATOR_OWNER_ATTESTED_CAPABILITY_UNREGISTERED",
   "completion_allowed": false,
   "owner_authority": {
     "authorized_supervisor_id": "mc-project-manager",
     "scope": "PROJECT_MANAGER",
     "specialist_id_preserved": "mc-hotfix-specialist",
     "specialist_is_not_project_manager": true
+  },
+  "owner_attested_locator_evidence": {
+    "path": "docs/evidence/2026-09-07-global-pm-owner-attested-locator.json",
+    "exact_locator_publicly_committed": false,
+    "locator_received": true,
+    "provider_verified": false
   },
   "requirements": [
     {
@@ -22,19 +28,20 @@
     },
     {
       "id": "RO-PM-003",
-      "status": "UNMET",
-      "text": "A dedicated real ChatGPT bootstrap conversation URL/chatId and capability challenge for mc-project-manager are registered and live-verified."
+      "status": "PARTIAL",
+      "text": "The owner supplied a real dedicated ChatGPT conversation locator and conversation ID for mc-project-manager; privacy-safe hashes are durable. Private runtime supervisor-directory registration, a matching capability challenge, and live capability verification remain unmet."
     },
     {
       "id": "RO-PM-004",
       "status": "UNMET",
-      "text": "The PM-mediated exact owner-byte forwarding path is demonstrated live through the registered global Project Manager and a fresh supervisor decision session."
+      "text": "The PM-mediated exact owner-byte forwarding path is demonstrated live through the privately registered global Project Manager and a fresh supervisor decision session."
     }
   ],
   "boundaries": [
     "Do not alias, rename, or promote mc-hotfix-specialist into the global Project Manager role.",
-    "Do not invent or fabricate a ChatGPT conversation locator, bootstrap chatId, capability challenge, provider receipt, or provider source timestamp.",
-    "Identity authorization does not authorize deployment, production mutation, privacy-boundary widening, spending, or publication.",
+    "Do not publish the exact ChatGPT conversation locator or conversation ID in this public repository or public GitHub discussion.",
+    "Do not invent or fabricate a capability challenge, nonce, expiry, model-label receipt, provider receipt, or provider source timestamp.",
+    "Identity/locator authorization does not authorize deployment, production mutation, privacy-boundary widening, spending, or publication.",
     "The provider source timestamp requirement remains a separate blocked feature and must not be substituted with browser, GitHub, or receive time."
   ]
 }
