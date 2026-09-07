@@ -11,13 +11,13 @@ permissions:
 jobs:
   patch-test-commit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
+
       - name: Patch canonical indexes and candidate provenance
         run: |
           python3 - <<'PY'
@@ -52,14 +52,22 @@ jobs:
               raise SystemExit('candidate status line not unique')
           candidate.write_text(text.replace(old, new))
           PY
+
+      - name: Install locked Mission Control dependencies
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npm ci --ignore-scripts
+
       - name: Focused Mission Control identity tests
         working-directory: tools/codex-mission-control/restored/codex-mission-control
         run: npx tsx --test tests/configured-supervisor-chats.test.ts
+
       - name: Mission Control typecheck
         working-directory: tools/codex-mission-control/restored/codex-mission-control
         run: npm run typecheck
+
       - name: Deterministic repository audit
         run: python3 scripts/audit_codex_github.py --root . --fail-on error
+
       - name: Commit durable changes and remove helper
         run: |
           git config user.name github-actions[bot]
