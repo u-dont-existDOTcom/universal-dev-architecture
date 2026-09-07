@@ -64,6 +64,10 @@ An owner answer, correction, upload, or requested clarification is input to the 
 
 **Continuation is goal-directed, not method-directed.** For substantive or iterative work, apply `patterns/outcome-advancement-and-strategy-efficacy.md`: distinguish activity and local improvement from actual owner-outcome progress, and re-test the current strategy's causal premise at meaningful checkpoints. If progress is flat or regressing, key predictions fail, the same failure recurs, fixes become increasingly local/ad hoc, or new evidence undermines the premise, stop materially similar optimization. Preserve useful work, identify the failed assumption, compare materially different alternatives, and switch to the best-supported strategy without waiting for the owner to notice. If persistence versus switching is genuinely unclear, run the cheapest discriminating test. Sunk cost, successful substeps, green tests, and better execution of a failing strategy are not evidence that the strategy should continue. Continue automatically after a strategy switch unless a genuine owner/authority boundary blocks the next step.
 
+When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so.
+
+Adjacent analysis, planning, preparation, or a different method does not count as completion. Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. If a still-valid promised step was displaced by later work, execute it before continuing.
+
 ## Chat / Work execution routing
 
 Follow `patterns/chat-work-execution-routing-threshold.md`.
