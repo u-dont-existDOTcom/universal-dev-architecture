@@ -1,3 +1,5 @@
+export const CANONICAL_PROJECT_MANAGER_ID = "mc-project-manager";
+
 export interface ConfiguredSupervisorChat {
   scope: "PROJECT_MANAGER" | "SPECIALIST";
   supervisorId: string;
@@ -32,8 +34,12 @@ export function loadConfiguredSupervisorChats(
     const entries = parsed.map((item, index) => parseEntry(item, index));
     const ids = new Set(entries.map((entry) => entry.supervisorId));
     if (ids.size !== entries.length) throw new Error("Configured supervisor IDs must be unique.");
-    if (entries.filter((entry) => entry.scope === "PROJECT_MANAGER").length > 1) {
+    const projectManagers = entries.filter((entry) => entry.scope === "PROJECT_MANAGER");
+    if (projectManagers.length > 1) {
       throw new Error("Only one overall Project Manager chat may be configured.");
+    }
+    if (projectManagers.length === 1 && projectManagers[0].supervisorId !== CANONICAL_PROJECT_MANAGER_ID) {
+      throw new Error(`Configured Project Manager supervisorId must be ${CANONICAL_PROJECT_MANAGER_ID}.`);
     }
     return { configurationState: "CONFIGURED", providerRelayState: "NOT_CONNECTED", entries, error: null };
   } catch (error) {

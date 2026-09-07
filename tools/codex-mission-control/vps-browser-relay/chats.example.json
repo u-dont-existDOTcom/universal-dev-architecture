@@ -1,7 +1,7 @@
 [
   {
     "scope": "PROJECT_MANAGER",
-    "supervisorId": "project-manager-primary",
+    "supervisorId": "mc-project-manager",
     "label": "Mission Control Project Manager",
     "workerId": "mission-control-live-slice",
     "pinned": true,

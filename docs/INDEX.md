@@ -12,7 +12,7 @@ For repeated local approval prompts or worker permission setup, use `../patterns
 
 For substantial bespoke method/framework/architecture/metric/algorithm/taxonomy/protocol/evaluation/workflow invention that plausibly overlaps established knowledge, load `../patterns/research-before-reinvention.md` before further investment. When academic literature is material, that orchestration pattern routes to `../patterns/existing-work-scan-and-scholarly-discovery.md`; use a scholarly semantic search system such as SciSpace when available for terminology/literature discovery, then verify load-bearing claims against primary sources. Canonical repository-relative template: `templates/PRIOR-WORK-SCAN.md` (from this directory: `../templates/PRIOR-WORK-SCAN.md`).
 
-For multi-worker Codex operation with ChatGPT semantic supervision, load all eight current Mission Control patterns. The first two are controlling wherever older language is ambiguous:
+For multi-worker Codex operation with ChatGPT semantic supervision, load all current Mission Control patterns. The first two are controlling wherever older language is ambiguous; the reasoning-selection pattern is a supplement and grants no new authority:
 
 1. `../patterns/chat-led-reasoning-codex-execution-separation.md`
 2. `../patterns/runtime-chat-work-authority-admission-and-internal-routing.md`
@@ -23,6 +23,7 @@ For multi-worker Codex operation with ChatGPT semantic supervision, load all eig
 7. `../patterns/supervision-assurance-planes-and-pro-meta-review.md`
 8. `../patterns/outcome-advancement-and-strategy-efficacy.md`
 9. `../patterns/structured-output-failure-boundary.md`
+10. `../patterns/reasoning-selection.md`
 
 **Controlling separation:** chats perform the reasoning; Codex performs only bounded execution that chats cannot reliably perform. Extra High is the default reasoning supervisor, Pro handles the highest-intelligence decisions, and Codex acts only from a current chat-authored execution directive. Codex may collect evidence and make tactical execution choices, but it may not choose strategy, interpret the owner outcome, author substantive prose, classify alignment/progress/adequacy/completion, decide Pro or owner escalation, or supervise itself.
 
