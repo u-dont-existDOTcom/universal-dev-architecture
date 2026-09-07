@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "status": "LIVE_VERIFIED",
   "scope": "DIRECT_SUPERVISOR_PATH_ONLY",
-  "observed_at": "2026-09-07T18:26:39.108Z",
+  "observed_at": "2026-09-07T19:07:58.998Z",
   "canonical_main_before_run": "8484f056b56b9391afd4e4357c1c18acd55aa89e",
   "runtime_revision": "8e49a77d644ed6575fe3911c2e710c37e28d77b2",
   "hotfix_deployment": "a55ec89f-e0ff-4216-812f-5613e945c35c",
@@ -26,7 +26,21 @@
     "complete_event_id": "relay-evidence:10bc6f3d2969bf1ccf8344892f83d61e",
     "owner_event_id": "reasoning:mc53-direct-owner-20260906:owner",
     "owner_event_sequence": 107,
-    "mission_control_received_at": "2026-09-07T18:20:45.031Z"
+    "mission_control_received_at": "2026-09-07T18:20:45.031Z",
+    "started_receipt": {
+      "event_id": "relay-evidence:75dfaeca2a25e5bc23220a484bbf95eb",
+      "sequence": 105,
+      "receipt_id": "direct-owner:mc53-direct-owner-20260906:STARTED",
+      "observed_at": "2026-09-07T18:14:15.269Z",
+      "mission_control_received_at": "2026-09-07T18:19:37.826Z"
+    },
+    "complete_receipt": {
+      "event_id": "relay-evidence:10bc6f3d2969bf1ccf8344892f83d61e",
+      "sequence": 106,
+      "receipt_id": "direct-owner:mc53-direct-owner-20260906:COMPLETE",
+      "observed_at": "2026-09-07T18:14:26.963Z",
+      "mission_control_received_at": "2026-09-07T18:19:37.944Z"
+    }
   },
   "state_before_owner": "OWNER_RESPONSE_REQUIRED",
   "state_after_owner": "SUPERVISOR_RESOLUTION_REQUIRED",
@@ -79,7 +93,101 @@
     "tool_receipt_id": "public-mcp-binding:8efbc95996a723b42d918c8f96a5ac66",
     "binding_envelope_sha256": "bb866d69ce984bcafc5e0c4b7a6c3bdd8da1e2a0dc1ab77690d2d35c238c9ef0",
     "clicked_at_observed": "2026-09-07T18:22:49.187Z",
-    "completed_at_observed": "2026-09-07T18:23:05.701Z"
+    "completed_at_observed": "2026-09-07T18:23:05.701Z",
+    "started_at_observed": "2026-09-07T18:22:52.372Z",
+    "model_receipt": {
+      "event_id": "relay-evidence:e92d90665c16b5bdb34d04da9726e471",
+      "sequence": 109,
+      "receipt_id": "provider-session-model:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a:7d8073638854",
+      "observed_at": "2026-09-07T18:22:36.042Z",
+      "mission_control_received_at": "2026-09-07T18:22:47.354Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "session_role:MC_BINDING_PRELOAD_SESSION",
+        "binding_provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "extra_high_label:Extra High",
+        "pro_label:6 Pro",
+        "round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH",
+        "assistant_content_observed:false",
+        "backend_model_identity_claimed:false",
+        "opened_at:2026-09-07T18:22:36.042Z"
+      ]
+    },
+    "started_receipt": {
+      "event_id": "relay-evidence:53f99007a664a249539b655a03ee40c1",
+      "sequence": 112,
+      "receipt_id": "relay-stage:mc53-direct-owner-20260906-continuation-cycle:MCP_BINDING_PRELOAD:STARTED:4100e32de73b",
+      "observed_at": "2026-09-07T18:22:52.372Z",
+      "mission_control_received_at": "2026-09-07T18:22:52.492Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "binding_provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "conversation_url:https://chatgpt.com/c/6a9f00f8-bc68-83ea-9523-61450d59cd30",
+        "step:MCP_BINDING_PRELOAD",
+        "message_ordinal:1",
+        "first_message:true",
+        "model_ui_label:Extra High",
+        "prompt_sha256:9e64f64a9fcb7e81cd00dc1d4b47cc029120d377807eafbe29536415bff88127",
+        "generation_state:STARTED",
+        "observed_at:2026-09-07T18:22:52.372Z",
+        "assistant_content_observed:false",
+        "backend_model_identity_claimed:false",
+        "app_selection_attempted:true",
+        "app_selection_status:MESSAGE_APPS_SELECTED",
+        "selected_app:Mission Control",
+        "semantic_authority:false",
+        "generation_start_signal:CONVERSATION_URL_ASSIGNED"
+      ]
+    },
+    "tool_receipt": {
+      "event_id": "evidence:9a68bdcaa65f81da89be1919013492fb",
+      "sequence": 114,
+      "receipt_id": "public-mcp-binding:8efbc95996a723b42d918c8f96a5ac66",
+      "observed_at": "2026-09-07T18:22:54.497Z",
+      "mission_control_received_at": "2026-09-07T18:22:54.531Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "tool:get_supervisory_request_binding",
+        "status:OK",
+        "observed_at:2026-09-07T18:22:54.497Z",
+        "server_observed:true",
+        "semantic_authority:false"
+      ]
+    },
+    "complete_receipt": {
+      "event_id": "relay-evidence:7a95acc23149f69d16a0ab4a22bdc17a",
+      "sequence": 115,
+      "receipt_id": "relay-stage:mc53-direct-owner-20260906-continuation-cycle:MCP_BINDING_PRELOAD:COMPLETE:ddaafd0bb2c6",
+      "observed_at": "2026-09-07T18:23:05.701Z",
+      "mission_control_received_at": "2026-09-07T18:23:05.718Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "binding_provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "conversation_url:https://chatgpt.com/c/6a9f00f8-bc68-83ea-9523-61450d59cd30",
+        "step:MCP_BINDING_PRELOAD",
+        "message_ordinal:1",
+        "first_message:true",
+        "model_ui_label:Extra High",
+        "prompt_sha256:9e64f64a9fcb7e81cd00dc1d4b47cc029120d377807eafbe29536415bff88127",
+        "generation_state:COMPLETE",
+        "observed_at:2026-09-07T18:23:05.701Z",
+        "assistant_content_observed:false",
+        "backend_model_identity_claimed:false",
+        "app_selection_attempted:true",
+        "app_selection_status:MESSAGE_APPS_SELECTED",
+        "selected_app:Mission Control",
+        "semantic_authority:false"
+      ]
+    },
+    "public_mcp_metadata_only": true
   },
   "decision_preparation_failure": {
     "provider_session_id": "provider-session:8f37a4fb-9c13-4d4f-a4d7-d7ce332ce2c3",
@@ -134,7 +242,7 @@
     "persistent_capability_gate": 0,
     "unresolved_submission_ambiguities": []
   },
-  "next_action": "After the reviewed composer and operator-only pre-submit recovery fixes are merged and installed with both send gates disabled, run doctor and exact identity checks. Use existing resolve <same-route-key> retry once; it must verify the current authoritative binding and restore the original completed binding. Then normal once creates only a new fresh decision session. Do not repeat OWNER delivery or binding preload.",
+  "next_action": "Direct proof is complete. Keep the consumed fixture closed and both send gates disabled. PM-mediated proof remains separate and requires a distinct authorized PM identity; do not create or promote one in this closeout.",
   "repair_no_send_verification": {
     "observedAt": "2026-09-07T18:37:05.813Z",
     "status": "NO_SEND_REAL_COMPOSER_EXACT_PASS",
@@ -172,5 +280,407 @@
       "workerSnapshot": "18e3ab7ca4ac0776184851da64e67b2bfae4e72a45e4a55d89ebe70d3ac78be9",
       "candidateRelay": "3f58649b537cd7335c5e7257175db13a327d0db1f509a4130b589aef1c41795c"
     }
-  }
+  },
+  "proof_result": "PASS",
+  "canonical_main_at_success": "422b21351fda1b3da538bfa106aa549cd84ef791",
+  "installed_relay_revision": "422b21351fda1b3da538bfa106aa549cd84ef791",
+  "backend_revision_basis": "Hotfix runs 8e49a77; current canonical backend application bytes are identical. PR70 changes relay code only.",
+  "final_decision_route_state": "RESOLVED",
+  "origin": {
+    "github_comment_id": 5562661254,
+    "github_comment_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5562661254",
+    "github_receipt": {
+      "event_id": "github-decision-receipt:2b3d07a6573079cc05542543e5d5018e",
+      "sequence": 101,
+      "receipt_id": "github-comment:5562661254",
+      "observed_at": "2026-09-06T22:35:18Z",
+      "mission_control_received_at": "2026-09-06T22:37:06.102Z"
+    },
+    "reasoning_event": {
+      "event_id": "reasoning:mc53-direct-owner-20260906:origin",
+      "sequence": 103,
+      "receipt_id": null,
+      "observed_at": "2026-09-07T16:23:12.614Z",
+      "mission_control_received_at": "2026-09-07T16:23:12.622Z"
+    },
+    "origin_message_id": "message:mc53-direct-owner-20260906:origin",
+    "sent_at_source": null
+  },
+  "causal_provenance": {
+    "origin_acquisition": "GITHUB_SESSION_ATTESTED",
+    "owner_acquisition": "OWNER_ATTESTED",
+    "owner_author_role": "OWNER",
+    "owner_surface_role": "SUPERVISOR",
+    "owner_parent_message_id": "message:mc53-direct-owner-20260906:origin",
+    "resolution_parent_message_id": "message:mc53-direct-owner-20260906:owner",
+    "limitation": "Parent/event/message IDs are authoritative Mission Control causal records, not native provider message ancestry. OWNER body came from the literal owner chat reply and was byte-verified in the outbound composer; assistant bodies came only from canonical GitHub artifacts."
+  },
+  "server_derivation": {
+    "worker_supplied_resume_decision_request_id": "mc53-direct-owner-20260906",
+    "worker_supplied_owner_body": false,
+    "worker_supplied_continuation_binding": false,
+    "worker_supplied_continuation_digest": false,
+    "actual_admission_input_file_sha256": "52dfa3a4e3ba44ac0a475c0400911a58e2005351248163e37b45fbe684652ed2",
+    "authoritative_derivation_matches_canonical_echo": true
+  },
+  "decision_session": {
+    "provider_session_id": "provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+    "conversation_url": "https://chatgpt.com/c/6a9f0984-3974-83ea-b9ec-f72947d23f8b",
+    "model_label": "Extra High",
+    "model_receipt": {
+      "event_id": "relay-evidence:101352c5279197ea3505fa408772cdff",
+      "sequence": 122,
+      "receipt_id": "provider-session-model:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714:7794b643fb8b",
+      "observed_at": "2026-09-07T18:59:12.770Z",
+      "mission_control_received_at": "2026-09-07T18:59:17.631Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+        "session_role:EXTRA_HIGH_DECISION_SESSION",
+        "binding_provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "decision_provider_session:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+        "extra_high_label:Extra High",
+        "pro_label:6 Pro",
+        "round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH",
+        "assistant_content_observed:false",
+        "backend_model_identity_claimed:false",
+        "opened_at:2026-09-07T18:59:12.770Z"
+      ]
+    },
+    "clicked_at_observed": "2026-09-07T18:59:18.494Z",
+    "started_receipt": {
+      "event_id": "relay-evidence:0cb8ae72878c41b2f6f2bbebeacbc1b0",
+      "sequence": 125,
+      "receipt_id": "relay-stage:mc53-direct-owner-20260906-continuation-cycle:EXTRA_HIGH_DECISION:STARTED:af3d86f70416",
+      "observed_at": "2026-09-07T18:59:21.408Z",
+      "mission_control_received_at": "2026-09-07T18:59:21.500Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+        "binding_provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "decision_provider_session:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+        "conversation_url:https://chatgpt.com/c/6a9f0984-3974-83ea-b9ec-f72947d23f8b",
+        "step:EXTRA_HIGH_DECISION",
+        "message_ordinal:1",
+        "first_message:true",
+        "model_ui_label:Extra High",
+        "prompt_sha256:65d4b241992fd59953c7c1dfa1fa03bd0ebd4ed99b688ea3be3487a42f727f76",
+        "generation_state:STARTED",
+        "observed_at:2026-09-07T18:59:21.408Z",
+        "assistant_content_observed:false",
+        "backend_model_identity_claimed:false",
+        "app_selection_attempted:false",
+        "app_selection_status:APP_SELECTION_NOT_ATTEMPTED",
+        "semantic_authority:false",
+        "generation_start_signal:CONVERSATION_URL_ASSIGNED"
+      ]
+    },
+    "complete_receipt": {
+      "event_id": "relay-evidence:06290e923124e4927f8118c73804f0b4",
+      "sequence": 126,
+      "receipt_id": "relay-stage:mc53-direct-owner-20260906-continuation-cycle:EXTRA_HIGH_DECISION:COMPLETE:abd23c0df3f8",
+      "observed_at": "2026-09-07T19:01:50.071Z",
+      "mission_control_received_at": "2026-09-07T19:01:50.126Z",
+      "refs": [
+        "request:mc53-direct-owner-20260906-continuation-cycle",
+        "supervisor:mc-hotfix-specialist",
+        "provider_session:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+        "binding_provider_session:provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+        "decision_provider_session:provider-session:962e2c22-0f91-4fc6-b850-cea30bac9714",
+        "conversation_url:https://chatgpt.com/c/6a9f0984-3974-83ea-b9ec-f72947d23f8b",
+        "step:EXTRA_HIGH_DECISION",
+        "message_ordinal:1",
+        "first_message:true",
+        "model_ui_label:Extra High",
+        "prompt_sha256:65d4b241992fd59953c7c1dfa1fa03bd0ebd4ed99b688ea3be3487a42f727f76",
+        "generation_state:COMPLETE",
+        "observed_at:2026-09-07T19:01:50.071Z",
+        "assistant_content_observed:false",
+        "backend_model_identity_claimed:false",
+        "app_selection_attempted:false",
+        "app_selection_status:APP_SELECTION_NOT_ATTEMPTED",
+        "semantic_authority:false"
+      ]
+    },
+    "prompt_sha256": "65d4b241992fd59953c7c1dfa1fa03bd0ebd4ed99b688ea3be3487a42f727f76",
+    "prompt_characters": 5220,
+    "actual_continuation_decision_submissions": 1,
+    "github_app_transport": "CONNECTED_GITHUB_REFERENCE",
+    "app_selection_status": "APP_SELECTION_NOT_ATTEMPTED",
+    "owner_accepted_existing_route": true
+  },
+  "canonical_decision": {
+    "schema_version": 3,
+    "github_comment_id": 5574688708,
+    "github_comment_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5574688708",
+    "github_created_at": "2026-09-07T19:01:42Z",
+    "github_updated_at": "2026-09-07T19:01:42Z",
+    "github_time_is_provider_source_time": false,
+    "decision": {
+      "decision_id": "decision:mc53-direct-owner-20260906-continuation-cycle:962e2c22-0f91-4fc6-b850-cea30bac9714",
+      "exact_text": "Use Amber for this single disposable fixture.",
+      "sha256": "426f6c8b4ae8012b91357df4dc3d49f0003cd9c56db021271f6982bcbf9222b5"
+    },
+    "canonical_envelope_sha256": "4cc2151113980c969b690b6a0ccd5c5ec2287735c93e5be024bcbe459271142b",
+    "continuation_binding_exact_match": true,
+    "continuation_digest_exact_match": true,
+    "ingestion_method": "RECONCILIATION_POLL",
+    "receipt": {
+      "event_id": "github-decision-receipt:74a379d21964a4ec1b49cff337f0a002",
+      "sequence": 128,
+      "receipt_id": "github-comment:5574688708",
+      "observed_at": "2026-09-07T19:01:42Z",
+      "mission_control_received_at": "2026-09-07T19:02:09.604Z"
+    },
+    "session_attestation": {
+      "event_id": "evidence:afbd520a8c27e78ad04fca2324575791",
+      "sequence": 129,
+      "receipt_id": "durable-stage-receipt-attestation:5574688708",
+      "observed_at": "2026-09-07T19:01:42Z",
+      "mission_control_received_at": "2026-09-07T19:02:09.604Z"
+    },
+    "supervisor_resolution": {
+      "event_id": "github-owner-resolution:a30fa7450b364ed3569bb691dcd56ca1a0c49cf75205c00c853e58416b4c50d1",
+      "sequence": 130,
+      "receipt_id": null,
+      "observed_at": "2026-09-07T19:02:09.604Z",
+      "mission_control_received_at": "2026-09-07T19:02:09.604Z"
+    },
+    "atomic_event_sequences": [
+      128,
+      129,
+      130
+    ],
+    "receipt_count": 1,
+    "resolution_count": 1,
+    "resolution_sent_at_source": null,
+    "resolution_provenance_status": "UNVERIFIED"
+  },
+  "bounded_fault_checks": {
+    "schemaVersion": 1,
+    "kind": "MC53_CAPTURED_LIVE_CONTINUATION_BOUNDED_VALIDATION",
+    "observedAt": "2026-09-07T19:03:38.443Z",
+    "status": "PASS",
+    "sources": {
+      "candidate": {
+        "sha256": "a0e79a17b3d56b85b7fb28cf6ac912dd6b10c0d408d36f9dc7aee284ffadec39",
+        "bytes": 8557
+      },
+      "policy": {
+        "sha256": "8350c57e845aba9df6e525ec898947d5549fb51ff199ac632cc7725fcf509fba",
+        "bytes": 738
+      },
+      "admission": {
+        "sha256": "52dfa3a4e3ba44ac0a475c0400911a58e2005351248163e37b45fbe684652ed2",
+        "bytes": 3287
+      },
+      "events": {
+        "sha256": "5fcc9fe04fd4ea111e206f39ebccdf87de1edafb80d97116f6e48b4849c40284",
+        "bytes": 164347
+      }
+    },
+    "implementation": {
+      "githubDecisionReceiptsSha256": "a3e76de18a96d1f0cf9a0ed3bb82057546efd65003b5decd95fbda7b3928d8e0",
+      "ownerResponseContinuationSha256": "ff4423efabf1b7ed4a1b60d158c42e8d439d30774798952f30ae3f98b26877aa",
+      "supervisionAdmissionRuntimeSha256": "470e9b6e19ec81759875fcaa049ce956dfec74fb4c8d0ce4026a683c83495f0f"
+    },
+    "actual": {
+      "worker": "mission-control-live-slice",
+      "supervisorId": "mc-hotfix-specialist",
+      "decisionRequestId": "mc53-direct-owner-20260906",
+      "continuationCycleRequestId": "mc53-direct-owner-20260906-continuation-cycle",
+      "continuationId": "a30fa7450b364ed3569bb691dcd56ca1a0c49cf75205c00c853e58416b4c50d1",
+      "continuationBindingSha256": "9de7382bf0a13a4630c96e8f2977abe814d525ffc3787b035866f7bcf46dbd7a",
+      "githubCommentId": 5574688708,
+      "githubCommentUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5574688708",
+      "githubReceiptEventId": "github-decision-receipt:74a379d21964a4ec1b49cff337f0a002",
+      "sessionAttestationEventId": "evidence:afbd520a8c27e78ad04fca2324575791",
+      "supervisorResolutionEventId": "github-owner-resolution:a30fa7450b364ed3569bb691dcd56ca1a0c49cf75205c00c853e58416b4c50d1",
+      "finalDecisionRouteState": "RESOLVED",
+      "admittedAt": "2026-09-07T19:02:09.604Z",
+      "capturedEvents": 73,
+      "capturedEventHistorySha256": "0a1483fe90024077fbaeeee080060e1b3d283f3dc34364f28938b4a4e719d53d"
+    },
+    "positiveControl": {
+      "exactCapturedReceiptReconstructed": true,
+      "serverDerivationMatchesActualBinding": true
+    },
+    "cases": [
+      {
+        "name": "same_actual_immutable_comment_redelivery",
+        "status": "PASS",
+        "appendedEvents": 0,
+        "scope": "LOCAL_REDELIVERY_OF_CAPTURED_LIVE_CANDIDATE"
+      },
+      {
+        "name": "different_comment_id_reusing_consumed_continuation",
+        "status": "PASS",
+        "rejection": "Expected one pending supervisory decision request for mc53-direct-owner-20260906-continuation-cycle; found 0.",
+        "scope": "LOCAL_FAULT_INJECTION_ONLY",
+        "fabricatedCommentId": 5574688709,
+        "appendedEvents": 0
+      },
+      {
+        "name": "fresh_admission_on_actual_resolved_history",
+        "status": "PASS",
+        "rejection": "Continuation requires an OWNER response with SUPERVISOR_RESOLUTION_REQUIRED routing.",
+        "scope": "LOCAL_FRESH_ADMISSION_INPUT_ON_UNALTERED_CAPTURE",
+        "appendedEvents": 0
+      },
+      {
+        "name": "consumed_id_guard_even_without_projected_resolution",
+        "status": "PASS",
+        "rejection": "Continuation has already been consumed by a GitHub decision receipt.",
+        "scope": "LOCAL_FAULT_INJECTION_ONLY",
+        "omittedEventId": "github-owner-resolution:a30fa7450b364ed3569bb691dcd56ca1a0c49cf75205c00c853e58416b4c50d1",
+        "appendedEvents": 0
+      },
+      {
+        "name": "altered_binding_with_correct_recomputed_digest",
+        "status": "PASS",
+        "rejection": "Canonical decision continuation binding/digest mismatch.",
+        "scope": "LOCAL_FAULT_INJECTION_ONLY",
+        "appendedEvents": 0
+      },
+      {
+        "name": "wrong_continuation_digest",
+        "status": "PASS",
+        "rejection": "[\n  {\n    \"code\": \"custom\",\n    \"path\": [\n      \"continuation_binding\"\n    ],\n    \"message\": \"Canonical continuation binding/digest is invalid or incomplete.\"\n  }\n]",
+        "scope": "LOCAL_FAULT_INJECTION_ONLY",
+        "appendedEvents": 0
+      }
+    ],
+    "appendAttempts": 0,
+    "sourceHistoryUnchanged": true,
+    "limits": [
+      "In-memory validation against captured live evidence; not a new live redelivery or HTTP admission.",
+      "Different comment ID, fresh-cycle input, altered binding/digest, and omitted resolution are labeled local fault injections.",
+      "This script makes no remote request and cannot attest a normal daemon reconciliation poll.",
+      "No provider content was extracted by this script; source bodies came only from captured authoritative artifacts/events.",
+      "No actual different GitHub comment or provider duplicate was created. All negative variations were local and made zero writes."
+    ]
+  },
+  "repeat_live_observation": {
+    "first_snapshot_at": "2026-09-07T19:02:40.471Z",
+    "second_snapshot_at": "2026-09-07T19:07:58.998Z",
+    "previous_events_unchanged": true,
+    "additional_closeout_session_lifecycle_event_id": "relay-evidence:88542cddaebd7f77fea5c915b1160953",
+    "receipt_count": 1,
+    "resolution_count": 1,
+    "elapsed_seconds": 318.527,
+    "limit": "Snapshot stability spans the configured five-minute reconciliation interval; no successful zero-event poll receipt exists, so this does not independently attest a specific duplicate poll execution."
+  },
+  "installation_and_recovery": {
+    "repair_pr": 70,
+    "merge_commit": "422b21351fda1b3da538bfa106aa549cd84ef791",
+    "installed_tracked_files_verified": 30,
+    "install_receipt": {
+      "revision": "422b21351fda1b3da538bfa106aa549cd84ef791",
+      "configuration_preserved": true,
+      "registry_preserved": true,
+      "relay_state_preserved": true,
+      "browser_process_preserved": true,
+      "submit_gate": 0,
+      "capability_gate": 0
+    },
+    "operator_recovery_at": "2026-09-07T18:58:17.316Z",
+    "operator_recovery": "Existing explicit resolve retry validated current binding and preserved original completed binding; failed pre-click session remains recorded. No ambiguous send or automatic failed-decision replay occurred."
+  },
+  "execution_checks": {
+    "account_label": "u-dont-exist.com Pro, open profile menu",
+    "account_checked_at": "2026-09-07T18:56:00.602Z",
+    "identity_and_model": {
+      "observedAt": "2026-09-07T18:58:17.068Z",
+      "visibleModelLabel": "Extra High",
+      "supervisorId": "mc-hotfix-specialist",
+      "worker": "mission-control-live-slice",
+      "scope": "SPECIALIST",
+      "backend": "https://mission-control-hotfix-production.up.railway.app",
+      "inspectedAssistantOutput": false
+    },
+    "capability": {
+      "supervisorId": "mc-hotfix-specialist",
+      "chatId": "mc-hotfix-specialist-v2",
+      "challengeId": "mc-hotfix-specialist-capability-v2",
+      "challengeAvailable": true,
+      "missionControlRead": true,
+      "githubRead": true,
+      "githubWrite": true,
+      "modeSwitching": true,
+      "allCurrent": true,
+      "capabilityReceiptId": "chat-capability-verified:mc-hotfix-specialist-v2:5532362859",
+      "modeReceiptId": "chat-mode-capability:mc-hotfix-specialist-v2:1788733695350",
+      "expiresAt": "2026-09-10T23:59:59.000Z"
+    },
+    "pre_send_doctor_at": "2026-09-07T18:56:01.006Z",
+    "final_doctor_at": "2026-09-07T19:07:58.762Z",
+    "final_doctor_status": "READY",
+    "final_relay_status": "DECISION_RECEIPT_INGESTED",
+    "final_relay_observed_at": "2026-09-07T19:07:58.512Z",
+    "submission_pacing": {
+      "minimumIntervalMs": 60000,
+      "lastSubmissionAt": "2026-09-07T18:59:18.494Z",
+      "retryAfterMs": 0,
+      "nextSubmissionAt": "2026-09-07T19:00:18.494Z",
+      "ready": true
+    },
+    "browser": {
+      "browser": "Chrome/152.0.7977.64",
+      "protocolVersion": "1.3",
+      "targetCount": 1,
+      "managedChatGptTabCount": 1,
+      "steadyStateTarget": 1,
+      "transitionMax": 2,
+      "hardCeiling": 3,
+      "hardCeilingExceeded": false,
+      "webSocketDebuggerUrlPresent": true
+    },
+    "memory": {
+      "metrics": {
+        "totalMb": 7940.9,
+        "availableMb": 5142.9,
+        "usedMb": 2798,
+        "swapTotalMb": 4096,
+        "swapUsedMb": 1.300000000000182,
+        "browserRssMb": 1638.7,
+        "sampledAt": "2026-09-07T19:07:58.695Z"
+      },
+      "policy": {
+        "profile": "8GB",
+        "softAvailableMb": 2048,
+        "hardAvailableMb": 1024,
+        "softBrowserRssMb": 4096,
+        "hardBrowserRssMb": 5120,
+        "softSwapUsedMb": 256,
+        "hardSwapUsedMb": 768
+      },
+      "pressure": "NORMAL",
+      "reasons": []
+    },
+    "unresolved_ambiguities": [],
+    "native_browser_sandbox_preserved": true,
+    "cdp_endpoint": "http://127.0.0.1:9222",
+    "dedicated_authenticated_profile_preserved": true,
+    "relay_service": "INACTIVE_DISABLED",
+    "production_deployment_rechecked_unchanged": true,
+    "final_install_state": {
+      "observedAt": "2026-09-07T19:13:56.033663+00:00",
+      "persistentSubmitGate": 0,
+      "persistentCapabilityGate": 0,
+      "relayUserServiceActive": "inactive",
+      "relayUserServiceEnabled": "disabled",
+      "browserSystemServiceActive": "active",
+      "installedRevision": "422b21351fda1b3da538bfa106aa549cd84ef791"
+    }
+  },
+  "limits": [
+    "LIVE_VERIFIED applies only to the direct supervisor path.",
+    "PM-mediated routing and global PM registration are not live verified.",
+    "Provider source timestamp remains independently UNMET: TIMESTAMP UNAVAILABLE · UNVERIFIED.",
+    "Issue #53 as a whole remains open; aggregate owner requirement completion_allowed remains false.",
+    "Replay and negative checks use canonical production functions against captured live data locally, not deliberately duplicated provider submissions or fabricated live comments."
+  ],
+  "issue_checkpoint_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5574768121"
 }

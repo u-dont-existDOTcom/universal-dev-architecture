@@ -22,7 +22,8 @@
       "observable": "Both direct and PM-mediated OWNER paths derive exact stable-supervisor continuation metadata, text and single-use causal identity solely from authoritative events; missing/mismatched/stale/consumed inputs fail closed.",
       "evidence_refs": [
         "tools/codex-mission-control/restored/codex-mission-control/lib/owner-response-continuation.ts",
-        "tools/codex-mission-control/restored/codex-mission-control/tests/owner-response-continuation.test.ts"
+        "tools/codex-mission-control/restored/codex-mission-control/tests/owner-response-continuation.test.ts",
+        "docs/evidence/2026-09-07-direct-owner-continuation-live.json"
       ],
       "terminal_required": true,
       "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
@@ -33,7 +34,8 @@
       "evidence_refs": [
         "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
         "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
-        "tools/codex-mission-control/vps-browser-relay/test/owner-response-continuation.test.mjs"
+        "tools/codex-mission-control/vps-browser-relay/test/owner-response-continuation.test.mjs",
+        "docs/evidence/2026-09-07-direct-owner-continuation-live.json"
       ],
       "terminal_required": true,
       "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
@@ -43,7 +45,8 @@
       "observable": "Canonical schema-v3 echoes optional continuation fields outside unchanged binding_envelope; admitted receipt and GitHub-artifact supervisor resolution commit atomically with UNVERIFIED provenance and null source time.",
       "evidence_refs": [
         "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
-        "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts"
+        "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts",
+        "docs/evidence/2026-09-07-direct-owner-continuation-live.json"
       ],
       "terminal_required": true,
       "status": "IMPLEMENTED_NOT_LIVE_VERIFIED"
@@ -69,9 +72,9 @@
     "patterns/test-efficiency-and-verification-budget.md",
     "patterns/context-compaction-resilience.md"
   ],
-  "next_direct_evidence": "Resume the same direct-path fixture after the reviewed composer newline and operator-only pre-submit recovery fixes; require the fresh canonical GitHub continuation echo, exactly one admission and resolution, RESOLVED, and bounded replay/binding checks. Current live authorization is referenced by latest_execution_checkpoint; original implementation-only owner_source remains historical and unchanged.",
+  "next_direct_evidence": "Direct supervisor path is LIVE_VERIFIED by the recorded single-fixture proof. Do not replay the consumed fixture. PM-mediated live evidence remains separate and requires a distinct authorized PM identity; provider source timestamp remains independently UNMET. The original implementation-only owner_source is historical and unchanged.",
   "latest_execution_checkpoint": {
-    "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+    "status": "LIVE_VERIFIED",
     "scope": "DIRECT_SUPERVISOR_PATH_ONLY",
     "evidence_ref": "docs/evidence/2026-09-07-direct-owner-continuation-live.json",
     "authorization_refs": [
@@ -79,9 +82,14 @@
       "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5562325559"
     ],
     "limits": [
+      "LIVE_VERIFIED applies only to the direct supervisor path; aggregate completion remains false.",
       "PM-mediated path is not live verified; no global PM is registered.",
-      "Provider source timestamp remains independently UNMET.",
-      "The fresh decision stopped before submission; no continuation receipt or supervisor resolution exists yet."
-    ]
+      "Provider source timestamp remains independently UNMET: TIMESTAMP UNAVAILABLE · UNVERIFIED.",
+      "Bounded replay/binding faults passed locally against captured live data; no deliberately duplicated provider submission or live webhook-redelivery claim.",
+      "Mission Control causal parent/message IDs are authoritative event records, not native provider message ancestry."
+    ],
+    "observed_at": "2026-09-07T19:07:58.998Z",
+    "final_decision_route_state": "RESOLVED",
+    "issue_checkpoint_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5574768121"
   }
 }
