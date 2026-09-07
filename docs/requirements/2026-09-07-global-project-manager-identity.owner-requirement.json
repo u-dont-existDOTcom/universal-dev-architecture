@@ -17,7 +17,7 @@
     },
     {
       "id": "RO-PM-002",
-      "status": "IMPLEMENTED_PENDING_MERGE",
+      "status": "IMPLEMENTED",
       "text": "Canonical Mission Control supervisor configuration rejects any configured PROJECT_MANAGER entry whose supervisorId is not mc-project-manager."
     },
     {
