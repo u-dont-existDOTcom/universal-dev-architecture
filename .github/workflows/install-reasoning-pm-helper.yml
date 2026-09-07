@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   patch-test-commit:
-    if: ${{ !contains(github.event.head_commit.message, '[reasoning-pm-helper]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +19,8 @@ jobs:
         with:
           node-version: '24'
       - name: Patch canonical indexes and candidate provenance
-        shell: python
         run: |
+          python3 - <<'PY'
           from pathlib import Path
 
           lesson = Path('LESSON-INDEX.md')
@@ -52,6 +51,7 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit('candidate status line not unique')
           candidate.write_text(text.replace(old, new))
+          PY
       - name: Focused Mission Control identity tests
         working-directory: tools/codex-mission-control/restored/codex-mission-control
         run: npx tsx --test tests/configured-supervisor-chats.test.ts
