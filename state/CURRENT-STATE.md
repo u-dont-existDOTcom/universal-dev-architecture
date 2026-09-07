@@ -171,9 +171,16 @@ the PM-mediated live route remains unproven. PR #58 accepted the specialist
 `mc-hotfix-specialist`. On 2026-09-07 the owner authorized the permanent global
 Project Manager identity exactly as `mc-project-manager`; the current requirement
 and configuration lock that identity while preserving `mc-hotfix-specialist` as
-a distinct specialist. The real Project Manager ChatGPT bootstrap locator,
-bootstrap chat ID, and capability challenge remain unregistered and unverified.
-Do not invent a PM locator or promote the specialist into that role.
+a distinct specialist. The owner has now supplied a real dedicated ChatGPT
+bootstrap locator and conversation ID for `mc-project-manager`. Because this
+repository is public, their exact values are intentionally not committed; the
+privacy-safe hashes and attestation are in
+`docs/evidence/2026-09-07-global-pm-owner-attested-locator.json`. The locator is
+owner-attested, not provider-verified. Private `MISSION_CONTROL_SUPERVISOR_CHATS_JSON`
+registration, a matching fresh capability challenge in
+`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON`, and live capability verification
+remain unmet. Do not publish the private locator, fabricate a challenge, or
+promote the specialist into the PM role.
 
 The old same-chat Extra High -> Pro -> Extra High assumption is superseded by
 route v4. `Same supervisory lane` now means stable supervisor identity, not the
@@ -276,13 +283,15 @@ the consumed fixture closed; do not repeat OWNER delivery, binding preload or
 decision submission. Both send gates stay disabled.
 
 PM-mediated live demonstration remains a separate future step. The permanent
-global Project Manager identity is already owner-authorized as
-`mc-project-manager`; the next PM-routing blocker is obtaining and registering a
-real, dedicated ChatGPT bootstrap locator/capability for that identity and then
-running the PM-mediated live proof. Do not promote `mc-hotfix-specialist` or
-fabricate a locator. Provider source timestamp remains independently unmet;
-widening into content-bearing/provider-internal acquisition is a privacy tradeoff
-requiring explicit owner/Chat consideration. Issue #53 remains open.
+global Project Manager identity is owner-authorized as `mc-project-manager`, and
+a real dedicated ChatGPT locator has now been owner-attested. The next PM-routing
+blocker is private runtime registration of that exact locator together with a
+fresh matching capability challenge, followed by live capability verification
+and the PM-mediated exact OWNER-byte proof. Do not promote `mc-hotfix-specialist`,
+publish the private locator, or fabricate a challenge. Provider source timestamp
+remains independently unmet; widening into content-bearing/provider-internal
+acquisition is a privacy tradeoff requiring explicit owner/Chat consideration.
+Issue #53 remains open.
 
 ## Recovery rule
 
