@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "scope": "DIRECT_SUPERVISOR_PATH_ONLY",
+  "observed_at": "2026-09-07T18:26:39.108Z",
+  "canonical_main_before_run": "8484f056b56b9391afd4e4357c1c18acd55aa89e",
+  "runtime_revision": "8e49a77d644ed6575fe3911c2e710c37e28d77b2",
+  "hotfix_deployment": "a55ec89f-e0ff-4216-812f-5613e945c35c",
+  "production_deployment_unchanged": "6b0e057b-24dd-4882-b26e-abcbdf233c41",
+  "decision_request_id": "mc53-direct-owner-20260906",
+  "origin_cycle_request_id": "mc53-direct-owner-20260906-origin-cycle",
+  "continuation_cycle_request_id": "mc53-direct-owner-20260906-continuation-cycle",
+  "supervisor_id": "mc-hotfix-specialist",
+  "supervisor_scope": "SPECIALIST",
+  "worker": "mission-control-live-slice",
+  "origin_message_id": "message:mc53-direct-owner-20260906:origin",
+  "owner_message_id": "message:mc53-direct-owner-20260906:owner",
+  "owner_body_sha256": "a5b38448600b78ac16d6a2af48fd1fe2c6ab44365175a9dace6435bfcb27ab8e",
+  "owner_utf8_bytes": 70,
+  "owner_delivery": {
+    "conversation_url": "https://chatgpt.com/c/6a9dea5b-55e4-83ea-81bf-cfc11c804238",
+    "clicked_at_observed": "2026-09-07T18:14:15.193Z",
+    "started_at_observed": "2026-09-07T18:14:15.269Z",
+    "completed_at_observed": "2026-09-07T18:14:26.963Z",
+    "started_event_id": "relay-evidence:75dfaeca2a25e5bc23220a484bbf95eb",
+    "complete_event_id": "relay-evidence:10bc6f3d2969bf1ccf8344892f83d61e",
+    "owner_event_id": "reasoning:mc53-direct-owner-20260906:owner",
+    "owner_event_sequence": 107,
+    "mission_control_received_at": "2026-09-07T18:20:45.031Z"
+  },
+  "state_before_owner": "OWNER_RESPONSE_REQUIRED",
+  "state_after_owner": "SUPERVISOR_RESOLUTION_REQUIRED",
+  "route_event_id": "supervision-route-request:bf1d995a-6979-426b-85ec-70b8ed5e1ed7",
+  "route_event_sequence": 108,
+  "route_received_at": "2026-09-07T18:22:00.698Z",
+  "continuation_binding": {
+    "schema_version": 1,
+    "kind": "OWNER_RESPONSE_CONTINUATION",
+    "worker": "mission-control-live-slice",
+    "decision_request_id": "mc53-direct-owner-20260906",
+    "supervisor_id": "mc-hotfix-specialist",
+    "path": "DIRECT",
+    "originating_supervisor_message": {
+      "event_id": "reasoning:mc53-direct-owner-20260906:origin",
+      "message_id": "message:mc53-direct-owner-20260906:origin",
+      "body_sha256": "ec37f358966177e1d7d74f308c191387533b4140f636e577073f20f741b260d6"
+    },
+    "owner_input": {
+      "event_id": "reasoning:mc53-direct-owner-20260906:owner",
+      "message_id": "message:mc53-direct-owner-20260906:owner",
+      "body_sha256": "a5b38448600b78ac16d6a2af48fd1fe2c6ab44365175a9dace6435bfcb27ab8e",
+      "parent_message_id": "message:mc53-direct-owner-20260906:origin",
+      "surface_role": "SUPERVISOR"
+    },
+    "supervisor_delivery": {
+      "event_id": "reasoning:mc53-direct-owner-20260906:owner",
+      "message_id": "message:mc53-direct-owner-20260906:owner",
+      "body_sha256": "a5b38448600b78ac16d6a2af48fd1fe2c6ab44365175a9dace6435bfcb27ab8e",
+      "parent_message_id": "message:mc53-direct-owner-20260906:origin"
+    },
+    "owner_outcome": {
+      "id": "outcome:mission-control-live-slice",
+      "epoch": 4,
+      "sha256": "68fc4c405998f1df7bb53d7c99ccab74cf131044da8e32cc158d57146539780a"
+    },
+    "evidence_capsule": {
+      "id": "evidence:mc53-direct-owner-20260906:execution-contract-5562255699",
+      "sha256": "6d405d3e116b987f9695b9c380aebcc28677b3c61b4ddd2fc33f169edbae4457"
+    },
+    "issued_at": "2026-09-07T18:22:00.698Z",
+    "expires_at": "2026-09-07T22:21:56.822Z",
+    "continuation_id": "a30fa7450b364ed3569bb691dcd56ca1a0c49cf75205c00c853e58416b4c50d1"
+  },
+  "continuation_binding_sha256": "9de7382bf0a13a4630c96e8f2977abe814d525ffc3787b035866f7bcf46dbd7a",
+  "binding_session": {
+    "provider_session_id": "provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+    "conversation_url": "https://chatgpt.com/c/6a9f00f8-bc68-83ea-9523-61450d59cd30",
+    "model_label": "Extra High",
+    "tool_receipt_id": "public-mcp-binding:8efbc95996a723b42d918c8f96a5ac66",
+    "binding_envelope_sha256": "bb866d69ce984bcafc5e0c4b7a6c3bdd8da1e2a0dc1ab77690d2d35c238c9ef0",
+    "clicked_at_observed": "2026-09-07T18:22:49.187Z",
+    "completed_at_observed": "2026-09-07T18:23:05.701Z"
+  },
+  "decision_preparation_failure": {
+    "provider_session_id": "provider-session:8f37a4fb-9c13-4d4f-a4d7-d7ce332ce2c3",
+    "conversation_url": null,
+    "stage": "PREPARING",
+    "status": "FAILED_RETRYABLE",
+    "failed_at": "2026-09-07T18:24:19.943Z",
+    "send_clicked": false,
+    "diagnosis": "Composer textContent omitted four paragraph separators. Browser input also converted one generated instruction-line leading ASCII space to NBSP. OWNER bytes were unchanged. No decision submission occurred.",
+    "no_send_composer_observation": {
+      "observedAt": "2026-09-07T18:26:39.108Z",
+      "url": "https://chatgpt.com/",
+      "tag": "DIV",
+      "expectedLength": 5221,
+      "expectedHash": "d388423bae12cd91f7ffaf67a0d7d7f9486aff3809dedcc4083bf149850abf2e",
+      "textContentLength": 5217,
+      "innerTextLength": 5225,
+      "textContentHash": "1fe8f452934bdd36800b13a29697b8fa2e50de97a382f81b7e635dac51853e11",
+      "innerTextHash": "aa74aa0b07b3373280ff771595007c66e7be1cdfbfc39f11a6904180432bc46e",
+      "children": [
+        {
+          "node": "P",
+          "length": 4083
+        },
+        {
+          "node": "P",
+          "length": 26
+        },
+        {
+          "node": "P",
+          "length": 70
+        },
+        {
+          "node": "P",
+          "length": 24
+        },
+        {
+          "node": "P",
+          "length": 1014
+        }
+      ],
+      "inspectedAssistantOutput": false
+    }
+  },
+  "boundaries": {
+    "assistant_content_inspected": false,
+    "pm_participation": false,
+    "provider_sent_at_source": null,
+    "timestamp_status": "TIMESTAMP UNAVAILABLE · UNVERIFIED",
+    "production_mutated": false,
+    "persistent_submit_gate": 0,
+    "persistent_capability_gate": 0,
+    "unresolved_submission_ambiguities": []
+  },
+  "next_action": "After the reviewed composer and operator-only pre-submit recovery fixes are merged and installed with both send gates disabled, run doctor and exact identity checks. Use existing resolve <same-route-key> retry once; it must verify the current authoritative binding and restore the original completed binding. Then normal once creates only a new fresh decision session. Do not repeat OWNER delivery or binding preload.",
+  "repair_no_send_verification": {
+    "observedAt": "2026-09-07T18:37:05.813Z",
+    "status": "NO_SEND_REAL_COMPOSER_EXACT_PASS",
+    "expectedSha256": "d1ea992717d96a8bafaec1686bf39967b21244f235a0db150c9bae112a369455",
+    "priorPromptSha256": "d388423bae12cd91f7ffaf67a0d7d7f9486aff3809dedcc4083bf149850abf2e",
+    "expectedLength": 5220,
+    "result": {
+      "exact": true,
+      "length": 5220
+    },
+    "candidateCdpSha256": "029865b0ef3a922f5359a56ed44766af327e4ed84baa617fc41a6f4df7444ed6",
+    "assistantContentInspected": false,
+    "providerSubmission": false,
+    "owner_bytes_changed": false,
+    "changes": "Serialize known composer TEXT/P/BR and exact generated autolinks; remove only generated padding before the instruction after the OWNER block. No whitespace normalization."
+  },
+  "lesson_disposition": {
+    "scope": "LOCAL_REGRESSION_ONLY",
+    "reason": "The observed browser input representations are covered by relay-specific tests and a live no-send check; no universal policy promotion is supported."
+  },
+  "operator_recovery_dry_run": {
+    "status": "PASS",
+    "scope": "LOCAL_NO_SEND_DRY_RUN_ON_CAPTURED_LIVE_STATE",
+    "observedAt": "2026-09-07T18:49:04.151Z",
+    "capturedAt": "2026-09-07T18:48:57.934Z",
+    "requestId": "mc53-direct-owner-20260906-continuation-cycle",
+    "bindingProviderSessionId": "provider-session:9fef3b95-028f-472f-a496-8f8437572d8a",
+    "preservedFailedSessionId": "provider-session:8f37a4fb-9c13-4d4f-a4d7-d7ce332ce2c3",
+    "restoredState": "MCP_BINDING_PRELOAD_COMPLETE",
+    "realStateWrites": 0,
+    "providerSubmissions": 0,
+    "evidenceWrites": 0,
+    "sourceHashes": {
+      "relayState": "f3408423ca764f6e6e287fbdfa7cd2af7b4f1185c2bfdbb15b7c2eb346d6b1ac",
+      "workerSnapshot": "18e3ab7ca4ac0776184851da64e67b2bfae4e72a45e4a55d89ebe70d3ac78be9",
+      "candidateRelay": "3f58649b537cd7335c5e7257175db13a327d0db1f509a4130b589aef1c41795c"
+    }
+  }
+}

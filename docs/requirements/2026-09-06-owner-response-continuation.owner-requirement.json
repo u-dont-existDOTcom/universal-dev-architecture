@@ -69,5 +69,19 @@
     "patterns/test-efficiency-and-verification-budget.md",
     "patterns/context-compaction-resilience.md"
   ],
-  "next_direct_evidence": "Exact-head local and hosted PR checkpoint receipts. Any later live routing proof requires separate authorization; provider source timestamp remains independently UNMET."
+  "next_direct_evidence": "Resume the same direct-path fixture after the reviewed composer newline and operator-only pre-submit recovery fixes; require the fresh canonical GitHub continuation echo, exactly one admission and resolution, RESOLVED, and bounded replay/binding checks. Current live authorization is referenced by latest_execution_checkpoint; original implementation-only owner_source remains historical and unchanged.",
+  "latest_execution_checkpoint": {
+    "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+    "scope": "DIRECT_SUPERVISOR_PATH_ONLY",
+    "evidence_ref": "docs/evidence/2026-09-07-direct-owner-continuation-live.json",
+    "authorization_refs": [
+      "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5562304740",
+      "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5562325559"
+    ],
+    "limits": [
+      "PM-mediated path is not live verified; no global PM is registered.",
+      "Provider source timestamp remains independently UNMET.",
+      "The fresh decision stopped before submission; no continuation receipt or supervisor resolution exists yet."
+    ]
+  }
 }

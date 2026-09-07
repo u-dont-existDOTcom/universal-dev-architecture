@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  BINDING_ENVELOPE_SUMMARY,
   CAPABILITY_CHALLENGE_SUMMARY,
   CAPABILITY_VERIFIED_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
@@ -177,6 +178,105 @@ test('completed binding preload without its exact tool receipt fails before sema
   assert.equal(browser.submitCalls, 2);
   assert.equal(browser.freshChatCalls, 2);
   assert.notEqual(store.state.deliveries['request:r-1'].providerSessionId, failedSessionId);
+});
+
+test('explicit retry of a proven-unsent direct decision reuses its verified binding without another preload', async () => {
+  for (const [lane, step] of [['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_DECISION'], ['PRO_ESCALATED', 'PRO_DECISION']]) {
+    const { runtime, store, mc, browser } = await unsentDirectDecision(lane);
+    const failed = structuredClone(store.state.deliveries['request:r-1']);
+    const failedSession = structuredClone(store.state.providerSessions[failed.providerSessionId]);
+    const pacing = structuredClone(store.state.submissionPacing);
+    runtime.config.runtime.retryDelayMs = 0;
+    assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+    assert.equal(browser.submitCalls, 2); // Binding send plus failed preparation call.
+    const evidenceCount = mc.recordedEvidence.length;
+
+    assert.equal((await runtime.resolve('request:r-1', 'retry')).status, 'AMBIGUITY_RESOLVED');
+    const restored = store.state.deliveries['request:r-1'];
+    assert.equal(restored.status, 'MCP_BINDING_PRELOAD_COMPLETE');
+    assert.equal(restored.providerSessionId, failed.bindingProviderSessionId);
+    assert.equal(restored.decisionProviderSessionId, null);
+    assert.deepEqual(restored.bindingCapsule, failed.bindingCapsule);
+    assert.deepEqual(restored.stageAttempts, failed.stageAttempts);
+    assert.equal(restored.operatorRetryHistory[0].providerSessionId, failed.providerSessionId);
+    assert.equal(restored.operatorRetryHistory[0].promptSha256, failed.promptSha256);
+    assert.equal(Object.hasOwn(restored, 'generationStart'), false);
+    assert.equal(Object.hasOwn(restored, 'generationStarted'), false);
+    assert.equal(Object.hasOwn(restored, 'promptSha256'), false);
+    assert.deepEqual(store.state.providerSessions[failed.providerSessionId], failedSession);
+    assert.deepEqual(store.state.submissionPacing, pacing);
+    assert.equal(mc.recordedEvidence.length, evidenceCount);
+    assert.equal(browser.submitCalls, 2);
+
+    browser.submitErrorStage = null;
+    assert.equal((await runtime.cycle()).status, `${step}_GENERATION_STARTED`);
+    const resumed = store.state.deliveries['request:r-1'];
+    assert.notEqual(resumed.providerSessionId, failed.providerSessionId);
+    assert.equal(resumed.bindingProviderSessionId, failed.bindingProviderSessionId);
+    assert.deepEqual(resumed.bindingCapsule, failed.bindingCapsule);
+    assert.equal(browser.submitCalls, 3);
+    assert.equal(browser.freshChatCalls, 3);
+    const starts = [...new Map(mc.recordedEvidence.filter((item) => item.summary === RELAY_STAGE_SUMMARY
+      && item.refs.includes('generation_state:STARTED')).map((item) => [item.receiptId, item])).values()];
+    assert.equal(starts.filter((item) => item.refs.includes('step:MCP_BINDING_PRELOAD')).length, 1);
+    assert.equal(starts.filter((item) => item.refs.includes(`step:${step}`)).length, 1);
+  }
+});
+
+test('unsent direct decision retry fails before mutation for unknown, started, mismatched, or expired evidence', async () => {
+  const mutants = [
+    ['unknown preparation stage', ({ current }) => { current.failureStage = 'UNKNOWN'; }],
+    ['missing failed session', ({ store, current }) => { delete store.state.providerSessions[current.providerSessionId]; }],
+    ['ambiguous failed session', ({ failed }) => { failed.status = 'AMBIGUOUS'; }],
+    ['assigned provider URL', ({ failed }) => { failed.conversationUrl = 'https://chatgpt.com/c/already-sent'; }],
+    ['unknown pacing', ({ store }) => { store.state.submissionPacing.lastSubmissionAt = null; }],
+    ['submission after intent', ({ store, current }) => { store.state.submissionPacing.lastSubmissionAt = current.intentRecordedAt; }],
+    ['wrong failed worker', ({ failed }) => { failed.workerId = 'other-worker'; }],
+    ['wrong binding supervisor', ({ binding }) => { binding.supervisorId = 'other-supervisor'; }],
+    ['incomplete binding', ({ binding }) => { binding.status = 'ACTIVE'; }],
+    ['altered capsule digest', ({ current }) => { current.bindingCapsule.sha256 = '0'.repeat(64); }],
+    ['missing current MCP receipt', ({ mc }) => { mc.evidence = mc.evidence.filter((event) => event.data.summary !== PROVIDER_SESSION_MCP_SUMMARY); }],
+    ['wrong MCP supervisor', ({ mc }) => {
+      for (const receipt of mc.evidence.filter((event) => event.data.summary === PROVIDER_SESSION_MCP_SUMMARY)) {
+        receipt.data.refs = receipt.data.refs.map((ref) => ref.startsWith('supervisor:') ? 'supervisor:other' : ref);
+      }
+    }],
+    ['missing failed-session server receipt', ({ mc, failed }) => {
+      mc.recordedEvidence = mc.recordedEvidence.filter((item) => !(item.summary === PROVIDER_SESSION_SUMMARY
+        && item.refs.includes(`provider_session:${failed.providerSessionId}`) && item.refs.includes('lifecycle_status:FAILED')));
+    }],
+    ['server-observed decision start', ({ mc, failed }) => {
+      mc.evidence.push({ eventId: 'unexpected-start', sequence: 1000, data: { type: 'evidence_receipt_recorded',
+        summary: RELAY_STAGE_SUMMARY, verified: true, refs: [`provider_session:${failed.providerSessionId}`, 'generation_state:STARTED'] } });
+    }],
+    ['server-observed decision completion', ({ mc, failed }) => {
+      mc.evidence.push({ eventId: 'unexpected-complete', sequence: 1000, data: { type: 'evidence_receipt_recorded',
+        summary: RELAY_STAGE_SUMMARY, verified: true, refs: [`provider_session:${failed.providerSessionId}`, 'generation_state:COMPLETE'] } });
+    }],
+    ['missing recorded envelope', ({ mc }) => { mc.recordedEvidence = mc.recordedEvidence.filter((item) => item.summary !== BINDING_ENVELOPE_SUMMARY); }],
+    ['expired current route', ({ mc }) => {
+      const packet = JSON.parse(mc.routes[0].data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+      packet.expiresAt = '2026-09-03T00:00:00.000Z';
+      mc.routes[0].data.body = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify(packet);
+    }],
+    ['ambiguous current route', ({ mc }) => { mc.routes.push(structuredClone(mc.routes[0])); }],
+    ['canonical decision already admitted', ({ mc }) => {
+      mc.evidence.push({ eventId: 'already-admitted', sequence: 1000, data: { type: 'github_decision_receipt_ingested', request_id: 'r-1' } });
+    }],
+  ];
+  for (const [name, mutate] of mutants) {
+    const fixture = await unsentDirectDecision('EXTRA_HIGH_DIRECT');
+    const { store, runtime, mc, browser } = fixture;
+    const current = store.state.deliveries['request:r-1'];
+    mutate({ ...fixture, current, failed: store.state.providerSessions[current.providerSessionId],
+      binding: store.state.providerSessions[current.bindingProviderSessionId] });
+    const unchangedState = structuredClone(store.state);
+    const unchangedEvidence = structuredClone(mc.recordedEvidence);
+    await assert.rejects(runtime.resolve('request:r-1', 'retry'), /Unsent decision retry is not verified/, name);
+    assert.deepEqual(store.state, unchangedState, name);
+    assert.deepEqual(mc.recordedEvidence, unchangedEvidence, name);
+    assert.equal(browser.submitCalls, 2, name);
+  }
 });
 
 test('click without an observed generation-start transition becomes ambiguous and cannot replay', async () => {
@@ -379,6 +479,18 @@ function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled 
   };
   const submissionPacer = new GlobalSubmissionPacer({ stateStore: store, minIntervalMs: config.runtime.minSubmissionIntervalMs, now });
   return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, submissionPacer, memoryReader, logger: { log() {}, warn() {}, error() {} } });
+}
+
+async function unsentDirectDecision(lane) {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [directRouteEvent('r-1', 'route', lane)] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_COMPLETE');
+  browser.submitErrorStage = 'PREPARING';
+  assert.equal((await runtime.cycle()).status, 'SUBMISSION_FAILED_RETRYABLE');
+  return { store, mc, browser, runtime };
 }
 
 class MemoryStateStore {

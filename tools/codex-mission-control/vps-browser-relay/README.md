@@ -41,7 +41,8 @@ summarizes, or transports assistant response text.
 - A generation turn cannot become COMPLETE unless a real post-submit generation-start transition was observed first.
 - No transcript/message selectors are used after submission. A clicked-but-unverified submission remains ambiguous and blocks replay.
 - Browser control does not claim hidden backend model identity; it records only the exact visible UI label.
-- Every message clears any prior configured app chips, then reselects and verifies the exact app required by that first-message decision stage: Mission Control for binding preload and GitHub for every downstream mandatory GitHub read/write. The two-source capability probe retains its Mission Control selection and exact GitHub routing reference because the app picker is single-choice. App state is never treated as conversation-sticky or as semantic authority.
+- Binding preload selects and verifies Mission Control. Downstream route-v4 decision messages reference the connected GitHub tool without selecting a composer chip (`APP_SELECTION_NOT_ATTEMPTED`); this is the accepted backend receipt policy. The two-source capability probe selects Mission Control and references GitHub. App-chip state never supplies semantic authority.
+- Before Send, the relay compares the exact prepared input, including paragraph and line breaks, against the queued prompt. Only known plain-text composer structures are accepted; unsupported markup or a different body fails before submission. This check reads only the input composer, never assistant output.
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
 - Every actual ChatGPT message send shares one persisted global cooldown. The default minimum interval is 60 seconds, configurable with `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` from 15,000 through 600,000 ms.
@@ -70,6 +71,19 @@ still applies.
 These `continue` messages are transport recovery, **not** Mission Control guard verdicts. They never grant execution authority or bypass owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
 
 All recovery nudges pass through the same global submission cooldown as normal supervision and capability testing. A relay restart retains the last successful click/generation-start boundary in `state.json`, so restart cannot create an immediate burst.
+
+### Operator recovery before a direct decision was sent
+
+A failed mandatory route-v4 decision never retries automatically. For an explicit
+`resolve <route-key> retry`, a `FAILED_RETRYABLE` decision may reuse its completed
+binding only when its failure is mechanically `PREPARING`: the failed session has
+no assigned conversation URL or STARTED/COMPLETE evidence, the global pacer is
+older than the attempt, and the current server-observed route, tool receipt and
+binding envelope all match. The operator recovery preserves the failed attempt,
+restores the existing completed-binding state, and lets the normal relay create
+one new decision conversation. It does not repeat the preload or reset pacing.
+Unknown, expired, mismatched or possibly submitted decision evidence fails closed
+before changing state. This is not an automatic retry of missing semantic output.
 
 ### Remaining semantic-liveness boundary
 
@@ -101,9 +115,10 @@ supervisor, and provider session. Semantic direct/reader work is forbidden
 until that turn completes, its server-observed current-session tool receipt is
 visible in Mission Control, and the global submission interval has elapsed.
 The relay then derives a bounded hashed binding capsule in transport state and
-opens a new conversation in the same tab for each downstream stage. Every
-downstream first message selects GitHub and copies the exact capsule; it does not
-select Mission Control. `binding_provider_session_id` names the preload session,
+opens a new conversation in the same tab for each downstream stage. Route-v4
+decision first messages reference the connected GitHub tool and copy the exact
+capsule without a selected composer chip; legacy staged routes still select
+GitHub. Downstream stages do not select Mission Control. `binding_provider_session_id` names the preload session,
 while each `stage_provider_session_id` names one downstream conversation.
 Substantive evidence and every canonical write remain in GitHub. Generic MCP
 traffic, app-chip state, prose, a stale capsule, or cross-session evidence cannot
