@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-07",
+  "supervisor_id": "mc-project-manager",
+  "scope": "PROJECT_MANAGER",
+  "status": "HOTFIX_RUNTIME_REGISTERED_CAPABILITY_NOT_LIVE_VERIFIED",
+  "canonical_main_at_registration": "66205a3cb446a8fa8ac480bc92faaf7fef8bc30d",
+  "railway": {
+    "project": "mission-control",
+    "environment": "production",
+    "service": "mission-control-hotfix",
+    "service_id": "5b593609-ad2a-458c-bed0-ea344b6c6f33",
+    "deployment_id": "d06908fc-bf1a-46a7-8c16-cc7ef2327e76",
+    "deployment_status": "SUCCESS",
+    "backend_revision": "8e49a77d644ed6575fe3911c2e710c37e28d77b2",
+    "healthcheck": "/login PASS",
+    "production_service_untouched": true,
+    "production_deployment_id": "6b0e057b-24dd-4882-b26e-abcbdf233c41"
+  },
+  "runtime_registration": {
+    "supervisor_directory": "DEPLOYED_ON_HOTFIX",
+    "github_receipt_policy": "DEPLOYED_ON_HOTFIX",
+    "exact_locator_publicly_committed": false,
+    "exact_mc_nonce_publicly_committed": false,
+    "specialist_registration_preserved": true,
+    "challenge_id": "mc-project-manager-capability-v1",
+    "logical_chat_id": "mc-project-manager-v1",
+    "public_nonce_comment_id": 5575715479,
+    "expires_at": "2026-09-12T23:59:59.000Z"
+  },
+  "remaining": [
+    "Live capability verification from the dedicated mc-project-manager ChatGPT conversation.",
+    "PM-mediated exact OWNER-byte end-to-end routing proof through a fresh supervisor decision session.",
+    "Provider source timestamp remains a separate blocked feature."
+  ],
+  "boundaries": [
+    "Do not publish the exact ChatGPT locator or private Mission Control nonce.",
+    "Do not treat successful hotfix registration as provider capability verification.",
+    "Do not touch the production mission-control service.",
+    "Do not promote or alias mc-hotfix-specialist into the Project Manager role."
+  ]
+}
