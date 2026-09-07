@@ -166,15 +166,17 @@ fresh-session owner-response continuation:
 - GitHub-session-attested supervisor resolution with `sent_at_source=null`,
   `immutable_provider_locator=null`, and `provenance_status=UNVERIFIED`.
 
-The live provider-bound owner-response return route is still unproven. PR #58
-accepted the specialist `mc-hotfix-specialist`; the global fleet Project Manager
-remains explicitly unregistered. Do not promote that specialist into the PM
+The direct provider-bound OWNER-response return route is now `LIVE_VERIFIED`;
+the PM-mediated live route remains unproven. PR #58 accepted the specialist
+`mc-hotfix-specialist`; the global fleet Project Manager remains explicitly
+unregistered. Do not promote that specialist into the PM
 role or invent a PM locator.
 
 The old same-chat Extra High -> Pro -> Extra High assumption is superseded by
 route v4. `Same supervisory lane` now means stable supervisor identity, not the
 same provider conversation. The fresh-session owner-response continuation is
-merged and canonical; a live routing demonstration remains open.
+merged and canonical; direct-path live proof passed, while PM-mediated live
+demonstration remains open.
 
 Post-merge issue #53 reconciliation before PR #66 was recorded in comment
 `5560926210`; the PR #66 implementation checkpoint was recorded in comment
@@ -190,7 +192,9 @@ was `840e80fad78d607899d7297ea1cd1c3d88c80ceb`, under
 The controlling design composes existing primitives (issue #53 comment
 `5561018766`), with the owner's explicit direct/PM path correction.
 
-Status: `IMPLEMENTED_NOT_LIVE_VERIFIED`.
+Aggregate status: `IMPLEMENTED_NOT_LIVE_VERIFIED`, `completion_allowed:false`.
+The direct supervisor path alone is now `LIVE_VERIFIED`; this does not satisfy
+the dual-path requirement or close issue #53.
 
 - Optional stable supervisor IDs have no defaults or historical backfill.
 - Server-derived continuation supports direct OWNER replies and PM-mediated
@@ -211,47 +215,69 @@ Issues #63 and #64 remain closed accidental connector artifacts with no authorit
 
 ## Direct-path live checkpoint — 2026-09-07
 
-The one disposable fixture `mc53-direct-owner-20260906` has now reached
-`SUPERVISOR_RESOLUTION_REQUIRED`. Its exact 70-byte OWNER reply was delivered once
-on the original SUPERVISOR surface and recorded as the direct child of the
-originating question. No PM participated. Mission Control derived the DIRECT
-continuation from authoritative events and admitted the fresh route; the fresh
-Extra High binding preload and server-observed tool receipt completed.
+Durable issue #53 checkpoint: comment `5574768121`.
 
-The fresh decision stage stopped **before clicking Send** because the composer
-byte check omitted four paragraph separators and the browser converted one
-generated instruction-line leading space to a nonbreaking space. OWNER bytes
-were unchanged. The decision provider session has
-no assigned conversation URL, the global pacer still records only the completed
-binding submission, and no submission ambiguity exists. This is a narrow
-composer serialization defect; continuation authority, exact OWNER bytes,
-historical ordinary prompt bytes, and privacy boundaries remain unchanged. The narrow correction passed against the actual
-unsent composer at `2026-09-07T18:37:05.813Z`, with exact 5,220-character equality
-and no send. The operator-only pre-submit retry correction also passed a local
-no-write dry run against captured live state at `2026-09-07T18:49:04.151Z`; it
-revalidates the current server binding and retains the original completed preload.
-Automatic failed-decision replay remains blocked. Live continuation is not yet verified.
+**Direct supervisor path: LIVE VERIFIED (PASS).** The one disposable fixture
+`mc53-direct-owner-20260906` reached `RESOLVED`. Its exact 70-byte OWNER reply was
+delivered once on the original SUPERVISOR surface and recorded as the direct
+child of the originating question. No PM participated. Mission Control derived
+the DIRECT continuation from authoritative events; a fresh Extra High binding
+preload received its server-observed tool receipt, followed by a distinct fresh
+Extra High decision conversation in the same reusable browser tab.
 
-Exact causal IDs, hashes, observation times, and the no-send diagnosis are in
-`docs/evidence/2026-09-07-direct-owner-continuation-live.json`.
-The hotfix-only recorder credentials were separately authorized by the owner;
-production remains untouched. The owner also accepted the existing connected
+The canonical schema-v3 decision (GitHub #59 comment `5574688708`) selected
+**Amber** and echoed the exact continuation binding and digest. Normal
+reconciliation admitted receipt
+`github-decision-receipt:74a379d21964a4ec1b49cff337f0a002` (128), session attestation
+(129), and supervisor resolution (130) atomically at
+`2026-09-07T19:02:09.604Z`. The receipt and resolution counts remain one in the
+`2026-09-07T19:07:58.998Z` snapshot. No-send relay closeout reports
+`DECISION_RECEIPT_INGESTED`; both send gates remain disabled.
+
+A pre-click composer failure was repaired in PR #70, merged at
+`422b21351fda1b3da538bfa106aa549cd84ef791`, with required local/hosted checks and
+independent review. All 30 installed relay files matched that revision. The
+existing guarded operator recovery preserved the completed binding and failed
+pre-click session; only one actual continuation decision was submitted. No
+submission ambiguity occurred. OWNER bytes, authority and privacy boundaries
+remained unchanged.
+
+Six bounded replay/binding checks passed locally against captured live data with
+zero writes: immutable-comment redelivery, different-comment replay, resolved
+fresh admission, the independent consumed-ID guard, altered binding and wrong
+digest. These are local checks using canonical production functions, not newly
+created live comments, provider duplicates or an attested live webhook replay.
+Repeated live counts span the normal poll interval; a specific zero-event poll
+is not claimed because successful no-op polls have no durable receipt.
+
+Exact causal IDs, binding/digest, provider sessions, model/tool/stage receipts,
+observation times, recovery history and limits are preserved in
+`docs/evidence/2026-09-07-direct-owner-continuation-live.json`. Parent/message IDs
+are authoritative Mission Control causal records, not native provider ancestry.
+Provider `sent_at_source` remains null and provenance remains UNVERIFIED:
+`TIMESTAMP UNAVAILABLE · UNVERIFIED`.
+
+The hotfix-only recorder credentials were separately authorized by the owner.
+Hotfix deployment `a55ec89f-e0ff-4216-812f-5613e945c35c` remains healthy with backend
+application bytes identical to current canonical code; no backend redeploy was
+needed for the relay repair. Production deployment remains unchanged. Final
+doctor is READY with one tab, NORMAL memory and no ambiguities. Native sandbox,
+loopback CDP and the authenticated profile remain intact. Capability receipt is
+current through `2026-09-10T23:59:59.000Z`. The owner accepted the existing connected
 GitHub route without a selected composer chip; do not reopen that settled choice.
 
 ## Next safe action
 
-Continue the **same** direct-path fixture after the narrow composer newline
-verification and operator-only pre-submit retry fixes are reviewed, merged,
-installed with both send gates disabled, and pass no-send diagnostics. Use the
-existing `resolve <same-route-key> retry` once, then resume only the unsent decision
-stage through the normal relay. Do not create a second fixture or repeat the direct OWNER reply or
-completed binding preload. The detailed checkpoint above controls recovery.
+The direct-path live proof is complete. Preserve its durable checkpoint and keep
+the consumed fixture closed; do not repeat OWNER delivery, binding preload or
+decision submission. Both send gates stay disabled.
 
-The PM-mediated live demonstration remains separate until a real distinct global
-Project Manager identity/locator exists. Provider source timestamp remains
-independently unmet; widening into content-bearing/provider-internal acquisition
-is a privacy tradeoff and requires explicit owner/Chat consideration rather than
-being smuggled into the routing proof.
+PM-mediated live demonstration remains a separate future step requiring a real,
+distinct global Project Manager identity and locator. Do not promote the existing
+specialist or create a PM during direct-proof closeout. Choosing a permanent PM
+identity is an owner decision. Provider source timestamp remains independently
+unmet; widening into content-bearing/provider-internal acquisition is a privacy
+tradeoff requiring explicit owner/Chat consideration. Issue #53 remains open.
 
 ## Recovery rule
 
