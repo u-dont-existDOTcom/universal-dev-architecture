@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-07",
+  "supervisor_id": "mc-project-manager",
+  "scope": "PROJECT_MANAGER",
+  "source": "OWNER_ATTESTED_IN_CHAT",
+  "status": "LOCATOR_RECEIVED_NOT_RUNTIME_REGISTERED",
+  "locator": {
+    "exact_value_committed": false,
+    "url_sha256": "a178f3d7feba537c044ebaa0ac1d47edee6bb50b37c355b15e9f71789737428b",
+    "conversation_id_sha256": "aebc748be42abf1db01e948cae89a774002a952a516f0a662475b0c358767522",
+    "reason_exact_value_not_committed": "The canonical repository is public; the exact ChatGPT conversation locator and conversation ID are reserved for private runtime configuration."
+  },
+  "runtime_registration": {
+    "supervisor_directory_variable": "MISSION_CONTROL_SUPERVISOR_CHATS_JSON",
+    "supervisor_directory_status": "UNREGISTERED_PRIVATE_RUNTIME",
+    "github_receipt_policy_variable": "MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON",
+    "capability_challenge_status": "UNREGISTERED",
+    "live_verification_status": "UNMET"
+  },
+  "boundaries": [
+    "The owner-attested locator is evidence that a real dedicated conversation now exists; it is not provider verification.",
+    "Do not publish the exact locator or conversation ID in this public repository or a public issue/PR comment.",
+    "Do not fabricate a capability challenge, nonce, expiry, model-label receipt, provider receipt, or provider source timestamp.",
+    "Do not treat this attestation as completion of the PM-mediated live route.",
+    "Do not promote or alias mc-hotfix-specialist into the Project Manager role."
+  ]
+}
