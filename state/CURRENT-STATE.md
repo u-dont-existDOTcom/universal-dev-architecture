@@ -168,9 +168,12 @@ fresh-session owner-response continuation:
 
 The direct provider-bound OWNER-response return route is now `LIVE_VERIFIED`;
 the PM-mediated live route remains unproven. PR #58 accepted the specialist
-`mc-hotfix-specialist`; the global fleet Project Manager remains explicitly
-unregistered. Do not promote that specialist into the PM
-role or invent a PM locator.
+`mc-hotfix-specialist`. On 2026-09-07 the owner authorized the permanent global
+Project Manager identity exactly as `mc-project-manager`; the current requirement
+and configuration lock that identity while preserving `mc-hotfix-specialist` as
+a distinct specialist. The real Project Manager ChatGPT bootstrap locator,
+bootstrap chat ID, and capability challenge remain unregistered and unverified.
+Do not invent a PM locator or promote the specialist into that role.
 
 The old same-chat Extra High -> Pro -> Extra High assumption is superseded by
 route v4. `Same supervisory lane` now means stable supervisor identity, not the
@@ -272,12 +275,14 @@ The direct-path live proof is complete. Preserve its durable checkpoint and keep
 the consumed fixture closed; do not repeat OWNER delivery, binding preload or
 decision submission. Both send gates stay disabled.
 
-PM-mediated live demonstration remains a separate future step requiring a real,
-distinct global Project Manager identity and locator. Do not promote the existing
-specialist or create a PM during direct-proof closeout. Choosing a permanent PM
-identity is an owner decision. Provider source timestamp remains independently
-unmet; widening into content-bearing/provider-internal acquisition is a privacy
-tradeoff requiring explicit owner/Chat consideration. Issue #53 remains open.
+PM-mediated live demonstration remains a separate future step. The permanent
+global Project Manager identity is already owner-authorized as
+`mc-project-manager`; the next PM-routing blocker is obtaining and registering a
+real, dedicated ChatGPT bootstrap locator/capability for that identity and then
+running the PM-mediated live proof. Do not promote `mc-hotfix-specialist` or
+fabricate a locator. Provider source timestamp remains independently unmet;
+widening into content-bearing/provider-internal acquisition is a privacy tradeoff
+requiring explicit owner/Chat consideration. Issue #53 remains open.
 
 ## Recovery rule
 
