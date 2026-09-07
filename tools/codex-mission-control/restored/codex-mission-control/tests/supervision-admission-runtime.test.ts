@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chats";
+import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chats";
 import {
   evaluateSupervisionAdmission,
   internalSupervisorRoutePrefix,
@@ -186,22 +186,22 @@ test("configured stable supervisor identity is distinct from its bootstrap conve
   const directory = loadConfiguredSupervisorChats(JSON.stringify([
     {
       scope: "PROJECT_MANAGER",
-      supervisorId: "mc-hotfix-specialist",
+      supervisorId: CANONICAL_PROJECT_MANAGER_ID,
       label: "Mission Control overall supervisor",
       workerId: null,
       requiredApp: "Mission Control",
       expectedModels: { extraHigh: "Extra High", pro: "Pro" },
       bootstrapCapability: {
-        chatId: "mc-hotfix-specialist-v2",
-        url: "https://chatgpt.com/c/6a944d7a-3350-83e9-8302-5c011835fd77",
+        chatId: "mc-project-manager-bootstrap-test",
+        url: "https://chatgpt.com/c/mc-project-manager-bootstrap-test",
         challengeId: "challenge-bootstrap",
       },
     },
   ]));
   assert.equal(directory.configurationState, "CONFIGURED");
   assert.equal(directory.providerRelayState, "NOT_CONNECTED");
-  assert.equal(directory.entries[0]?.supervisorId, "mc-hotfix-specialist");
-  assert.equal(directory.entries[0]?.bootstrapCapability.chatId, "mc-hotfix-specialist-v2");
+  assert.equal(directory.entries[0]?.supervisorId, CANONICAL_PROJECT_MANAGER_ID);
+  assert.equal(directory.entries[0]?.bootstrapCapability.chatId, "mc-project-manager-bootstrap-test");
   assert.notEqual(directory.entries[0]?.supervisorId, directory.entries[0]?.bootstrapCapability.chatId);
   assert.equal(directory.entries[0]?.locatorVerification, "OWNER_CONFIGURED_UNVERIFIED");
 });
