@@ -1,0 +1,19 @@
+# Merge these entries into the user config; do not replace unrelated settings.
+# Verified with codex-cli 0.153.4. Do not combine with legacy sandbox_mode.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+default_permissions = "routine-development"
+
+[permissions.routine-development]
+description = "Repository development with network access and automatic risk review"
+extends = ":workspace"
+
+[permissions.routine-development.network]
+enabled = true
+
+[permissions.routine-development.filesystem]
+# Narrow package caches; other external writes still require review.
+"~/.npm" = "write"
+"~/.cache/pip" = "write"
+"~/.cache/uv" = "write"
+"~/.local/share/pnpm/store" = "write"

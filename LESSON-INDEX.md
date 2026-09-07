@@ -41,6 +41,8 @@ Use this file as the entry point for cross-project lesson retrieval.
 35. `patterns/chat-led-reasoning-codex-execution-separation.md` — **controlling owner correction:** chats perform the reasoning and Codex performs only bounded execution that chats cannot reliably perform. Extra High owns default strategy, planning, article authoring, progress judgment, and directive composition; Pro handles the highest-intelligence judgments; Codex acts only from a versioned chat-authored directive and returns execution evidence without supervising itself.
 36. `patterns/structured-output-failure-boundary.md` — classify malformed structured artifacts as serialization/interface failures rather than semantic or scientific failures, preserve exact parser/validator evidence, enforce source-fixed attempt ceilings, prohibit silent repair, and block dependent scoring or aggregation until a valid admitted artifact or new source-bound directive exists.
 
+37. `patterns/codex-worker-permissions.md` — persistent workspace/network permissions, automatic approval review, desktop/task override recovery, protected Git metadata, destructive-operation review, owner-interruption test, and version-specific fresh-worker validation.
+
 ## Reusable policy templates
 
 - `templates/PROJECT-LEARNING-POLICY.md` — paste/adapt into project instructions so agents both activate applicable lessons before work and close the learning loop afterward, while preserving resumable durable state without asking the owner to remind them.
