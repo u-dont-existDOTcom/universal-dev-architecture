@@ -1,6 +1,6 @@
 # Selective reasoning — universal core and project addenda
 
-Version 1.0 · 2026-09-07 · Candidate instruction package; not an installed policy change.
+Version 1.1 · 2026-09-07 · Source package. The universal core, project application boundary, and Mission Control addendum are promoted as current guidance in `patterns/reasoning-selection.md`; the other project addenda remain candidate instructions until their own project authority promotes them.
 
 A standalone project block is the exact concatenation of the universal core, the project application boundary, and its one addendum, separated by blank lines. Append it to existing instructions; do not replace their authority bootstrap.
 
