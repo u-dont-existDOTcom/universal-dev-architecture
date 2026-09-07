@@ -1,0 +1,71 @@
+name: Install reasoning selection and PM identity
+
+on:
+  push:
+    branches:
+      - task/reasoning-selection-global-pm-20260907
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[reasoning-pm-helper]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Patch canonical indexes and candidate provenance
+        shell: python
+        run: |
+          from pathlib import Path
+
+          lesson = Path('LESSON-INDEX.md')
+          text = lesson.read_text()
+          needle = "37. `patterns/codex-worker-permissions.md` — persistent workspace/network permissions, automatic approval review, desktop/task override recovery, protected Git metadata, destructive-operation review, owner-interruption test, and version-specific fresh-worker validation.\n\n## Reusable policy templates"
+          replacement = "37. `patterns/codex-worker-permissions.md` — persistent workspace/network permissions, automatic approval review, desktop/task override recovery, protected Git metadata, destructive-operation review, owner-interruption test, and version-specific fresh-worker validation.\n38. `patterns/reasoning-selection.md` — choose the smallest sufficient reasoning combination by task function; scale effort with stakes, uncertainty and reversibility; distinguish exploration/decision/confirmation/release; test load-bearing premises and strong objections for consequential conclusions; and preserve current project authority and Mission Control hard gates.\n\n## Reusable policy templates"
+          if text.count(needle) != 1:
+              raise SystemExit('LESSON-INDEX insertion point not unique')
+          lesson.write_text(text.replace(needle, replacement))
+
+          docs = Path('docs/INDEX.md')
+          text = docs.read_text()
+          old = 'For multi-worker Codex operation with ChatGPT semantic supervision, load all eight current Mission Control patterns. The first two are controlling wherever older language is ambiguous:'
+          new = 'For multi-worker Codex operation with ChatGPT semantic supervision, load all current Mission Control patterns. The first two are controlling wherever older language is ambiguous; the reasoning-selection pattern is a supplement and grants no new authority:'
+          if text.count(old) != 1:
+              raise SystemExit('docs/INDEX Mission Control heading not unique')
+          text = text.replace(old, new)
+          needle = '9. `../patterns/structured-output-failure-boundary.md`\n\n**Controlling separation:**'
+          replacement = '9. `../patterns/structured-output-failure-boundary.md`\n10. `../patterns/reasoning-selection.md`\n\n**Controlling separation:**'
+          if text.count(needle) != 1:
+              raise SystemExit('docs/INDEX pattern-list insertion point not unique')
+          docs.write_text(text.replace(needle, replacement))
+
+          candidate = Path('docs/exec-plans/2026-09-07-selective-reasoning-instructions.md')
+          text = candidate.read_text()
+          old = 'Version 1.0 · 2026-09-07 · Candidate instruction package; not an installed policy change.'
+          new = 'Version 1.1 · 2026-09-07 · Source package. The universal core, project application boundary, and Mission Control addendum are promoted as current guidance in `patterns/reasoning-selection.md`; the other project addenda remain candidate instructions until their own project authority promotes them.'
+          if text.count(old) != 1:
+              raise SystemExit('candidate status line not unique')
+          candidate.write_text(text.replace(old, new))
+      - name: Focused Mission Control identity tests
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npx tsx --test tests/configured-supervisor-chats.test.ts
+      - name: Mission Control typecheck
+        working-directory: tools/codex-mission-control/restored/codex-mission-control
+        run: npm run typecheck
+      - name: Deterministic repository audit
+        run: python3 scripts/audit_codex_github.py --root . --fail-on error
+      - name: Commit durable changes and remove helper
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          rm .github/workflows/install-reasoning-pm-helper.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "[reasoning-pm-helper] Install reasoning selection and global PM identity"
+          git push origin HEAD:task/reasoning-selection-global-pm-20260907
