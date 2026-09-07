@@ -14,6 +14,7 @@ import {
   parseInternalSupervisorRouteBody,
   sha256,
 } from '../src/core.mjs';
+import { composerTextState } from '../src/cdp.mjs';
 
 const ownerText = 'Keep the existing scope.\r\nUse the OWNER answer exactly: “approved”.  ';
 
@@ -133,6 +134,31 @@ test('fresh direct and Pro decision prompts carry exact OWNER bytes and metadata
   }
 });
 
+test('continuation instruction starts at its line boundary while exact OWNER whitespace remains authoritative', () => {
+  for (const [lane, step] of [['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_DECISION'], ['PRO_ESCALATED', 'PRO_DECISION']]) {
+    const packet = continuationPacket('DIRECT', lane);
+    const prompt = cycleControlPrompt(routeFrom(packet), step);
+    const begin = '\nBEGIN EXACT OWNER RESPONSE\n';
+    const end = '\nEND EXACT OWNER RESPONSE\n';
+    const ownerStart = prompt.indexOf(begin) + begin.length;
+    const ownerEnd = prompt.indexOf(end, ownerStart);
+    assert.notEqual(prompt.indexOf(begin), -1);
+    assert.notEqual(ownerEnd, -1);
+    assert.equal(prompt.slice(ownerStart, ownerEnd), ownerText);
+    assert.equal(sha256(prompt.slice(ownerStart, ownerEnd)), packet.continuationBinding.supervisor_delivery.body_sha256);
+    assert.match(prompt.slice(ownerEnd + end.length), /^Reason directly in the currently visible /);
+    assert.doesNotMatch(prompt.slice(ownerEnd + end.length), /^[ \t\u00a0]/);
+
+    // The formatting fix concerns generated instructions only. A same-length
+    // NBSP substitution inside this synthetic OWNER text remains a byte error.
+    const alteredOwner = ownerText.replace(' ', '\u00a0');
+    const alteredPrompt = prompt.slice(0, ownerStart) + alteredOwner + prompt.slice(ownerEnd);
+    assert.equal(alteredPrompt.length, prompt.length);
+    assert.equal(composerTextState({ tagName: 'TEXTAREA', value: prompt }, prompt).exact, true);
+    assert.equal(composerTextState({ tagName: 'TEXTAREA', value: alteredPrompt }, prompt).exact, false);
+  }
+});
+
 test('historical route-v4 binding envelope bytes and prompt are unchanged by absent continuation', () => {
   const ordinary = routeFrom(basePacket());
   const continuation = routeFrom(continuationPacket());
@@ -144,6 +170,11 @@ test('historical route-v4 binding envelope bytes and prompt are unchanged by abs
   assert.doesNotMatch(prompt, /continuation_binding|OWNER RESPONSE/);
   assert.ok(prompt.includes(`binding_envelope_sha256: ${ordinary.bindingCapsule.sha256}.`));
   assert.match(prompt, /schema_version 3/);
+  // Frozen from the unchanged canonical source before the continuation-only
+  // generated-padding fix; ordinary Extra High and Pro prompt bytes stay exact.
+  assert.equal(sha256(prompt), 'd5dcb75500d8cc11aee313da19404589307f1523e038e8d87bd5dcd8d89cdd1c');
+  assert.equal(sha256(cycleControlPrompt(routeFrom(basePacket('PRO_ESCALATED')), 'PRO_DECISION')),
+    'ff80ddeeca2a8eff8fec67fa746c2b1c6bfe20e3a8c1c006557550a9e8dafdf2');
 });
 
 function basePacket(reasoningLane = 'EXTRA_HIGH_DIRECT') {

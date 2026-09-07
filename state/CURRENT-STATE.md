@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 ## Current authority boundary
 
@@ -197,13 +197,43 @@ Status: `IMPLEMENTED_NOT_LIVE_VERIFIED`.
 
 Issues #63 and #64 remain closed accidental connector artifacts with no authority.
 
+## Direct-path live checkpoint — 2026-09-07
+
+The one disposable fixture `mc53-direct-owner-20260906` has now reached
+`SUPERVISOR_RESOLUTION_REQUIRED`. Its exact 70-byte OWNER reply was delivered once
+on the original SUPERVISOR surface and recorded as the direct child of the
+originating question. No PM participated. Mission Control derived the DIRECT
+continuation from authoritative events and admitted the fresh route; the fresh
+Extra High binding preload and server-observed tool receipt completed.
+
+The fresh decision stage stopped **before clicking Send** because the composer
+byte check omitted four paragraph separators and the browser converted one
+generated instruction-line leading space to a nonbreaking space. OWNER bytes
+were unchanged. The decision provider session has
+no assigned conversation URL, the global pacer still records only the completed
+binding submission, and no submission ambiguity exists. This is a narrow
+composer serialization defect; continuation authority, exact OWNER bytes,
+historical ordinary prompt bytes, and privacy boundaries remain unchanged. The narrow correction passed against the actual
+unsent composer at `2026-09-07T18:37:05.813Z`, with exact 5,220-character equality
+and no send. The operator-only pre-submit retry correction also passed a local
+no-write dry run against captured live state at `2026-09-07T18:49:04.151Z`; it
+revalidates the current server binding and retains the original completed preload.
+Automatic failed-decision replay remains blocked. Live continuation is not yet verified.
+
+Exact causal IDs, hashes, observation times, and the no-send diagnosis are in
+`docs/evidence/2026-09-07-direct-owner-continuation-live.json`.
+The hotfix-only recorder credentials were separately authorized by the owner;
+production remains untouched. The owner also accepted the existing connected
+GitHub route without a selected composer chip; do not reopen that settled choice.
+
 ## Next safe action
 
-Continue automatically with the smallest bounded **direct supervisor-path** live
-fresh-session owner-response routing proof once an authorized browser/Hostinger
-execution surface is available. This is verification of the already-merged
-architecture, not permission to redesign it, deploy production, widen privacy
-collection, or fabricate provider timestamps.
+Continue the **same** direct-path fixture after the narrow composer newline
+verification and operator-only pre-submit retry fixes are reviewed, merged,
+installed with both send gates disabled, and pass no-send diagnostics. Use the
+existing `resolve <same-route-key> retry` once, then resume only the unsent decision
+stage through the normal relay. Do not create a second fixture or repeat the direct OWNER reply or
+completed binding preload. The detailed checkpoint above controls recovery.
 
 The PM-mediated live demonstration remains separate until a real distinct global
 Project Manager identity/locator exists. Provider source timestamp remains

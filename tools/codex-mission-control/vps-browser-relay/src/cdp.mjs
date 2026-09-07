@@ -282,22 +282,85 @@ function normalizeExpectedSurfaceUrl(value) {
   return normalizeConversationUrl(value);
 }
 
-const PREPARE_COMPOSER_FN = `function(expectedBody) {
-  const element = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
-  if (!element) return { ok: false, reason: 'COMPOSER_NOT_FOUND' };
-  const visible = Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  if (!visible) return { ok: false, reason: 'COMPOSER_NOT_VISIBLE' };
-  const value = typeof element.value === 'string' ? element.value : (element.textContent || '');
-  if (value && value !== expectedBody) return { ok: false, reason: 'COMPOSER_CONTAMINATED', length: value.length };
+// Self-contained for execution inside the identified input composer only. Return
+// comparison metadata, never the composer text. textContent loses paragraph
+// breaks; innerText adds layout-dependent breaks, so neither is byte authority.
+export function composerTextState(element, expectedBody) {
+  const unsupported = () => ({ ok: false, reason: 'COMPOSER_MARKUP_UNSUPPORTED', length: null });
+  let value;
+  if (element.tagName === 'TEXTAREA' && typeof element.value === 'string') {
+    value = element.value;
+  } else {
+    if (!['true', 'plaintext-only'].includes(element.getAttribute('contenteditable'))) return unsupported();
+    const inlineText = (nodes) => {
+      let text = '';
+      for (let index = 0; index < nodes.length; index += 1) {
+        const node = nodes[index];
+        if (node.nodeType === 3) { text += node.nodeValue; continue; }
+        if (node.nodeType === 1 && node.tagName === 'A') {
+          const attributes = node.getAttributeNames();
+          const allowed = ['href', 'data-rich-text-autolink', 'data-rich-text-generated-autolink'];
+          const children = [...node.childNodes];
+          if (attributes.length !== allowed.length || !attributes.every((name) => allowed.includes(name))
+            || node.getAttribute('data-rich-text-autolink') !== ''
+            || node.getAttribute('data-rich-text-generated-autolink') !== ''
+            || children.length !== 1 || children[0].nodeType !== 3
+            || !children[0].nodeValue || node.getAttribute('href') !== children[0].nodeValue) return null;
+          // The editor may wrap an inserted URL. Only its exact generated,
+          // undecorated text-only form preserves the submitted plaintext.
+          text += children[0].nodeValue;
+          continue;
+        }
+        if (node.nodeType !== 1 || node.tagName !== 'BR') return null;
+        const last = index === nodes.length - 1;
+        if (node.classList.contains('ProseMirror-trailingBreak')) {
+          if (!last) return null;
+          continue;
+        }
+        // A sole BR is an empty editor placeholder. An unmarked final BR
+        // beside other content is ambiguous; real trailing breaks require the
+        // editor's separate trailingBreak placeholder to disambiguate them.
+        if (nodes.length === 1) continue;
+        if (last) return null;
+        text += '\n';
+      }
+      return text;
+    };
+    const nodes = [...element.childNodes];
+    if (nodes.some((node) => node.nodeType === 1 && node.tagName === 'P')) {
+      if (!nodes.every((node) => node.nodeType === 1 && node.tagName === 'P')) return unsupported();
+      const paragraphs = nodes.map((node) => inlineText([...node.childNodes]));
+      if (paragraphs.some((text) => text === null)) return unsupported();
+      value = paragraphs.join('\n');
+    } else {
+      value = inlineText(nodes);
+      if (value === null) return unsupported();
+    }
+  }
+  return { ok: true, exact: value === expectedBody, empty: value.length === 0, length: value.length };
+}
+
+const COMPOSER_LOOKUP = `
+  const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')];
+  const visible = composers.filter((element) => Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden');
+  if (visible.length !== 1) return { ok: false, exact: false, length: null,
+    reason: visible.length > 1 ? 'COMPOSER_AMBIGUOUS' : (composers.length ? 'COMPOSER_NOT_VISIBLE' : 'COMPOSER_NOT_FOUND') };
+  const element = visible[0];
+`;
+
+export const PREPARE_COMPOSER_FN = `function(expectedBody) {
+  ${COMPOSER_LOOKUP}
+  const state = (${composerTextState.toString()})(element, expectedBody);
+  if (!state.ok) return state;
+  if (!state.empty && !state.exact) return { ok: false, reason: 'COMPOSER_CONTAMINATED', length: state.length };
   element.focus();
-  return { ok: true, alreadyExact: value === expectedBody };
+  return { ok: true, alreadyExact: state.exact };
 }`;
 
-const VERIFY_COMPOSER_FN = `function(expectedBody) {
-  const element = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
-  if (!element) return { exact: false, length: null };
-  const value = typeof element.value === 'string' ? element.value : (element.textContent || '');
-  return { exact: value === expectedBody, length: value.length };
+export const VERIFY_COMPOSER_FN = `function(expectedBody) {
+  ${COMPOSER_LOOKUP}
+  const state = (${composerTextState.toString()})(element, expectedBody);
+  return { exact: state.ok && state.exact, length: state.length, ...(state.ok ? {} : { reason: state.reason }) };
 }`;
 
 const CLICK_SEND_FN = `function() {

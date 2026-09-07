@@ -6,10 +6,12 @@ import {
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_MODEL_SUMMARY,
+  PROVIDER_SESSION_MCP_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   capabilityControlPrompt,
   appSelectionForMessage,
+  canonicalJson,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
@@ -423,12 +425,107 @@ export class RelayRuntime {
       throw new Error(`Route ${routeKey} is ${current.status}; no ambiguity resolution is permitted.`);
     }
     const resolvedAt = new Date().toISOString();
-    if (outcome === 'retry') state.deliveries[routeKey] = { ...current, status: 'RETRY_AUTHORIZED', resolvedAt, resolution: 'OPERATOR_AUTHORIZED_RETRY', lastError: null };
+    if (outcome === 'retry' && current.status === 'FAILED_RETRYABLE'
+      && ['EXTRA_HIGH_DECISION', 'PRO_DECISION'].includes(current.cycleStep)) {
+      state.deliveries[routeKey] = await this.#restoreUnsentDecisionBinding(routeKey, current, state, resolvedAt);
+    } else if (outcome === 'retry') state.deliveries[routeKey] = { ...current, status: 'RETRY_AUTHORIZED', resolvedAt, resolution: 'OPERATOR_AUTHORIZED_RETRY', lastError: null };
     else if (outcome === 'submitted') state.deliveries[routeKey] = { ...current, status: 'SUBMITTED_CONFIRMED', confirmedAt: resolvedAt, resolution: 'OPERATOR_ATTESTED_SUBMITTED', lastError: null };
     else if (outcome === 'discard') state.deliveries[routeKey] = { ...current, status: 'DISCARDED', resolvedAt, resolution: 'OPERATOR_DISCARDED', lastError: null };
     else throw new Error('Resolution outcome must be retry, submitted, or discard.');
     state = await this.stateStore.write(state);
     return this.#writeStandaloneStatus('AMBIGUITY_RESOLVED', state, { routeKey, outcome });
+  }
+
+  async #restoreUnsentDecisionBinding(routeKey, current, state, resolvedAt) {
+    const require = (condition, reason) => {
+      if (!condition) throw new Error(`Unsent decision retry is not verified: ${reason}.`);
+    };
+    require(current.failureStage === 'PREPARING', 'failure was not before the send boundary');
+    const failed = state.providerSessions[current.providerSessionId];
+    const binding = state.providerSessions[current.bindingProviderSessionId];
+    const identityMatches = (session) => session && session.requestId === current.requestId
+      && session.workerId === current.workerId && session.supervisorId === current.supervisorId;
+    require(identityMatches(failed) && failed.providerSessionId === current.providerSessionId
+      && failed.providerSessionId === current.decisionProviderSessionId
+      && failed.bindingProviderSessionId === current.bindingProviderSessionId
+      && failed.cycleStep === current.cycleStep && failed.sessionRole === `${current.cycleStep}_SESSION`
+      && failed.messageOrdinal === 1 && failed.status === 'FAILED' && failed.failureStage === 'PREPARING'
+      && failed.conversationUrl === null && current.conversationUrl === null, 'failed decision session does not match');
+    const intentMs = Date.parse(current.intentRecordedAt ?? '');
+    const lastSubmissionMs = Date.parse(state.submissionPacing?.lastSubmissionAt ?? '');
+    require(Number.isFinite(intentMs) && Number.isFinite(lastSubmissionMs) && lastSubmissionMs < intentMs
+      && Date.parse(failed.openedAt) <= intentMs && Date.parse(failed.failedAt) >= intentMs,
+    'submission timing is unknown or a submission followed the intent');
+    require(identityMatches(binding) && binding.providerSessionId === current.bindingProviderSessionId
+      && binding.providerSessionId !== failed.providerSessionId
+      && binding.bindingProviderSessionId === binding.providerSessionId && binding.status === 'COMPLETE'
+      && binding.cycleStep === MCP_BINDING_PRELOAD_STEP && binding.sessionRole === 'MC_BINDING_PRELOAD_SESSION'
+      && binding.messageOrdinal === 1 && /^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/.test(binding.conversationUrl ?? '')
+      && Date.parse(binding.completedAt) <= Date.parse(failed.openedAt), 'completed binding session does not match');
+
+    const snapshot = await this.missionControl.fetchFleet();
+    const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state).filter((route) => route.routeKey === routeKey);
+    require(routes.length === 1, 'current authoritative route is missing or ambiguous');
+    const route = routes[0];
+    require(route.packet.routeSchemaVersion === 4 && !route.decisionReceipt
+      && route.workerId === current.workerId && route.requestId === current.requestId && route.supervisorId === current.supervisorId
+      && current.cycleStep === (route.packet.reasoningLane === 'PRO_ESCALATED' ? 'PRO_DECISION' : 'EXTRA_HIGH_DECISION')
+      && Date.parse(route.queuedAt) <= Date.parse(resolvedAt) && Date.parse(resolvedAt) < Date.parse(route.packet.expiresAt),
+    'route binding, decision state, or validity window changed');
+    const receipt = route.firstTurnMcpReceipt;
+    require(receipt && receipt.providerSessionId === binding.providerSessionId && receipt.supervisorId === current.supervisorId
+      && receipt.receiptId === binding.firstTurnMcpReceiptId, 'current binding tool receipt does not match');
+    const capsule = deriveBindingCapsule(route, binding.providerSessionId, receipt.receiptId);
+    require(canonicalJson(capsule) === canonicalJson(current.bindingCapsule), 'binding capsule differs from authoritative derivation');
+    const workers = snapshot.workers.filter((worker) => worker.id === current.workerId);
+    require(workers.length === 1, 'authoritative worker history is ambiguous');
+    const evidence = workers[0].timeline.filter((event) => event.data?.type === 'evidence_receipt_recorded');
+    const exactEvidence = (event, summary, fields) => event.data.summary === summary && event.data.verified === true
+      && Array.isArray(event.data.refs) && Object.entries(fields).every(([key, value]) => {
+        const matches = event.data.refs.filter((ref) => ref.startsWith(`${key}:`));
+        return matches.length === 1 && matches[0] === `${key}:${value}`;
+      });
+    const common = { request: current.requestId, supervisor: current.supervisorId };
+    require(evidence.some((event) => exactEvidence(event, PROVIDER_SESSION_SUMMARY, {
+      ...common, provider_session: failed.providerSessionId, binding_provider_session: binding.providerSessionId,
+      decision_provider_session: failed.providerSessionId, session_role: failed.sessionRole, message_ordinal: 1,
+      lifecycle_status: 'FAILED', conversation_url: 'PENDING_PROVIDER_ASSIGNMENT', url_binding_status: 'PENDING_PROVIDER_ASSIGNMENT',
+    })), 'server-observed failed decision session is missing');
+    const failedEvidence = evidence.filter((event) => Array.isArray(event.data.refs)
+      && event.data.refs.some((ref) => ref === `provider_session:${failed.providerSessionId}`
+        || ref === `decision_provider_session:${failed.providerSessionId}`));
+    require(!failedEvidence.some((event) => event.data.refs.some((ref) => ['generation_state:STARTED', 'generation_state:COMPLETE',
+      'lifecycle_status:COMPLETE', 'lifecycle_status:AMBIGUOUS', 'url_binding_status:EXACT'].includes(ref))
+      || event.data.refs.some((ref) => ref.startsWith('conversation_url:') && ref !== 'conversation_url:PENDING_PROVIDER_ASSIGNMENT')),
+    'decision start, completion, or provider URL evidence exists');
+    require(evidence.some((event) => exactEvidence(event, PROVIDER_SESSION_SUMMARY, {
+      ...common, provider_session: binding.providerSessionId, binding_provider_session: binding.providerSessionId,
+      session_role: 'MC_BINDING_PRELOAD_SESSION', lifecycle_status: 'COMPLETE', message_ordinal: 1,
+      conversation_url: binding.conversationUrl, url_binding_status: 'EXACT', first_turn_mcp_receipt: receipt.receiptId,
+    })), 'server-observed completed binding session is missing');
+    require(evidence.some((event) => event.data.receipt_id === receipt.receiptId && exactEvidence(event, PROVIDER_SESSION_MCP_SUMMARY, {
+      ...common, provider_session: binding.providerSessionId, tool: 'get_supervisory_request_binding', status: 'OK', server_observed: true,
+    })), 'server-observed binding tool receipt is missing');
+    require(evidence.some((event) => exactEvidence(event, BINDING_ENVELOPE_SUMMARY, {
+      ...common, binding_provider_session: binding.providerSessionId, binding_receipt: receipt.receiptId,
+      binding_envelope_sha256: capsule.sha256, binding_capsule_sha256: capsule.sha256,
+    })), 'server-observed binding envelope is missing');
+
+    const restored = { ...current, status: completedCycleStepStatus(MCP_BINDING_PRELOAD_STEP),
+      cycleStep: MCP_BINDING_PRELOAD_STEP, providerSessionId: binding.providerSessionId, decisionProviderSessionId: null,
+      conversationUrl: binding.conversationUrl, targetId: binding.targetId, bindingCapsule: capsule,
+      generationCompletedAt: binding.completedAt, resolvedAt, resolution: 'OPERATOR_AUTHORIZED_UNSENT_DECISION_RETRY', lastError: null,
+      operatorRetryHistory: [...(current.operatorRetryHistory ?? []), {
+        providerSessionId: failed.providerSessionId, cycleStep: current.cycleStep, attempt: current.attempt,
+        promptSha256: current.promptSha256, intentRecordedAt: current.intentRecordedAt,
+        failedAt: current.failedAt, failureStage: current.failureStage, resolvedAt,
+      }],
+    };
+    // The previous binding turn's generation fields were inherited by the
+    // failed preparation. They are not evidence that the decision was sent.
+    for (const key of ['generationStarted', 'generationStartedAt', 'generationStart', 'generationCompletion',
+      'modelUiLabel', 'promptSha256', 'bodySha256', 'bodyLength', 'intentRecordedAt', 'lastAttemptAt', 'failedAt', 'failureStage']) delete restored[key];
+    return restored;
   }
 
   async #processSupervisoryCycle(route, routes, state, memory) {
