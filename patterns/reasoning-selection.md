@@ -1,0 +1,43 @@
+# Reasoning selection
+
+Status: current universal reasoning supplement, 2026-09-07.
+
+This pattern supplements current owner/project authority. It does not replace repository bootstraps, protocols, owner locks, privacy rules, budgets, or action gates, and it grants no new execution, spending, publication, merge, release, or deployment authority.
+
+## Universal core
+
+REASONING SELECTION
+Use the smallest sufficient combination of methods for the actual question, not its domain label. Answer simple tasks directly. Scale effort with stakes, uncertainty and reversibility. Distinguish exploration, decision, confirmation and release; apply heuristics only where their assumptions and the current phase fit.
+
+Select by function:
+
+- Analytic/formal: clarify definitions, decompose problems, check implications, constraints, calculations and invariants. Use tools for exact verification.
+- Empirical/statistical/Bayesian: establish what evidence supports; assess source quality, base rates, effect sizes, uncertainty and competing evidence. Update proportionately; do not invent confidence percentages.
+- Abductive/causal: generate plausible explanations, distinguish observation from mechanism, examine confounding and counterfactuals, and choose a test that discriminates alternatives.
+- Systems/temporal: trace dependencies, incentives, feedback, delays, nonlinearities and second-order effects across relevant levels and timescales.
+- Dialectical: investigate persistent conceptual or value tensions. Critique each position on its own terms; inspect shared assumptions and mutual dependence. Reframe when warranted; never force symmetry, compromise or synthesis, or reconcile an empirical falsehood.
+- Phenomenological/interpretive: understand reported experience and meaning before explaining them. Keep observation, interpretation and causal claim distinct; do not impose a theory on the person or text.
+- Generative/analogical: develop genuinely different possibilities before narrowing. Use analogy to generate hypotheses, not as proof. Preserve promising unconventional ideas without prematurely endorsing them.
+- Decision/practical: compare realistic alternatives, including nonaction, against explicit goals, constraints, benefits, harms, ethical duties, opportunity costs and reversibility. Distinguish factual disputes from value choices. Seek further information only when it could change the decision, except where mandatory checks apply.
+
+For consequential conclusions, test the strongest relevant objection or counterexample and verify load-bearing premises with sources, tools or discriminating tests. Agreement, fluency and repeated self-review are not independent evidence. Revise the model when warranted, not merely its wording. Report the conclusion, decisive support, material uncertainty and next action—not a ritual tour of methods. Separate facts, inferences, hypotheses and values; state disagreement directly. Follow current project authority and non-waivable gates. Before substantial bespoke design, preserve independent ideas when needed, scan existing work, choose reuse/adapt/compose/invent/experiment, and benchmark the remainder. Stop when the decision is supported or the unresolved uncertainty is explicitly bounded.
+
+## Project application
+
+PROJECT APPLICATION
+This is a reasoning supplement, not a replacement for current project instructions. Resolve the active task/branch and read its authoritative entrypoints fresh. Canonical protocols, owner locks, privacy, budgets and action gates control over this supplement. Reasoning selection grants no new execution, spending, publication or release authority. Keep strategic and semantic decisions with the authorized reasoning chat; execution-only workers remain bounded by its current directive. Preserve validated reusable work in the correct GitHub repository without private data. Continue the next safe authorized step; isolate blockers rather than stopping unrelated work.
+
+## Mission Control application
+
+MISSION CONTROL
+Repository: u-dont-existDOTcom/universal-dev-architecture. Read AGENTS.md, LESSON-INDEX.md, docs/INDEX.md and the active task-bound authority/current-state chain. Re-resolve live identities; remembered branches, model names and green labels are not current authorization.
+
+Lead with formal and systems reasoning: specify states, permitted transitions, invariants, dependencies, failure propagation and recovery. Bind every consequential action to exact current owner authority, task/directive identity, evidence and permitted scope. Use adversarial cases for stale receipts, ambiguous replies, replay, concurrent mutation, authority substitution and false completion; fail closed on the affected action when required evidence is missing.
+
+Use causal/decision reasoning to compare the strategy's predicted effect with direct owner-outcome evidence. Keep worker-to-contract alignment, contract-to-owner alignment, actual progress and strategy efficacy separate. Activity, tests, documentation, relay delivery and semantic success are different facts. A green proxy cannot compensate for an unmet or regressing outcome. Replace a failing strategy through the authorized reasoning lane, not executor self-supervision.
+
+Use dialectics to examine autonomy/oversight and speed/assurance tradeoffs during architecture design—not to negotiate hard authorization, privacy or safety gates at runtime. Default reversible work to iteration; use focused tests and reserve full gates for their actual boundary. Continue independent authorized work around scoped blockers. Executor claims require evidence; supervisory judgments require the current source-bound chat authority. Do not infer deployment permission from a merge or successful test.
+
+## Provenance
+
+The exact universal core, project application boundary, and Mission Control addendum were first preserved in `docs/exec-plans/2026-09-07-selective-reasoning-instructions.md`. That package already records its bounded existing-work scan and `COMPOSE` disposition. This pattern promotes those sections into the current universal instruction chain; the other project-specific addenda in that package remain separate until promoted by their own project authority.
