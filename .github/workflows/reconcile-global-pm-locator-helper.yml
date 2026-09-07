@@ -1,0 +1,103 @@
+name: Reconcile global PM locator state
+
+on:
+  push:
+    branches:
+      - task/global-pm-locator-attestation-20260907
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-pm-locator-helper-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile privacy-safe locator state and runtime docs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          state = Path('state/CURRENT-STATE.md')
+          text = state.read_text()
+          old = '''The direct provider-bound OWNER-response return route is now `LIVE_VERIFIED`;
+the PM-mediated live route remains unproven. PR #58 accepted the specialist
+`mc-hotfix-specialist`. On 2026-09-07 the owner authorized the permanent global
+Project Manager identity exactly as `mc-project-manager`; the current requirement
+and configuration lock that identity while preserving `mc-hotfix-specialist` as
+a distinct specialist. The real Project Manager ChatGPT bootstrap locator,
+bootstrap chat ID, and capability challenge remain unregistered and unverified.
+Do not invent a PM locator or promote the specialist into that role.'''
+          new = '''The direct provider-bound OWNER-response return route is now `LIVE_VERIFIED`;
+the PM-mediated live route remains unproven. PR #58 accepted the specialist
+`mc-hotfix-specialist`. On 2026-09-07 the owner authorized the permanent global
+Project Manager identity exactly as `mc-project-manager`; the current requirement
+and configuration lock that identity while preserving `mc-hotfix-specialist` as
+a distinct specialist. The owner has now supplied a real dedicated ChatGPT
+bootstrap locator and conversation ID for `mc-project-manager`. Because this
+repository is public, their exact values are intentionally not committed; the
+privacy-safe hashes and attestation are in
+`docs/evidence/2026-09-07-global-pm-owner-attested-locator.json`. The locator is
+owner-attested, not provider-verified. Private `MISSION_CONTROL_SUPERVISOR_CHATS_JSON`
+registration, a matching fresh capability challenge in
+`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON`, and live capability verification
+remain unmet. Do not publish the private locator, fabricate a challenge, or
+promote the specialist into the PM role.'''
+          if text.count(old) != 1:
+              raise SystemExit('PM routing state paragraph not unique')
+          text = text.replace(old, new)
+
+          old = '''PM-mediated live demonstration remains a separate future step. The permanent
+global Project Manager identity is already owner-authorized as
+`mc-project-manager`; the next PM-routing blocker is obtaining and registering a
+real, dedicated ChatGPT bootstrap locator/capability for that identity and then
+running the PM-mediated live proof. Do not promote `mc-hotfix-specialist` or
+fabricate a locator. Provider source timestamp remains independently unmet;
+widening into content-bearing/provider-internal acquisition is a privacy tradeoff
+requiring explicit owner/Chat consideration. Issue #53 remains open.'''
+          new = '''PM-mediated live demonstration remains a separate future step. The permanent
+global Project Manager identity is owner-authorized as `mc-project-manager`, and
+a real dedicated ChatGPT locator has now been owner-attested. The next PM-routing
+blocker is private runtime registration of that exact locator together with a
+fresh matching capability challenge, followed by live capability verification
+and the PM-mediated exact OWNER-byte proof. Do not promote `mc-hotfix-specialist`,
+publish the private locator, or fabricate a challenge. Provider source timestamp
+remains independently unmet; widening into content-bearing/provider-internal
+acquisition is a privacy tradeoff requiring explicit owner/Chat consideration.
+Issue #53 remains open.'''
+          if text.count(old) != 1:
+              raise SystemExit('next-safe-action PM paragraph not unique')
+          state.write_text(text.replace(old, new))
+
+          env = Path('tools/codex-mission-control/restored/codex-mission-control/.env.example')
+          etext = env.read_text()
+          needle = '''# MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON='{\"repository\":\"owner/repo\",\"decisionIssueNumber\":59,\"capabilityIssueNumber\":60,\"authorizedWriterLogins\":[\"owner\"],\"capabilityChallenges\":[]}'\n#\n# Public repositories can use low-frequency reconciliation polling without a\n'''
+          replacement = '''# MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON='{\"repository\":\"owner/repo\",\"decisionIssueNumber\":59,\"capabilityIssueNumber\":60,\"authorizedWriterLogins\":[\"owner\"],\"capabilityChallenges\":[]}'\n#\n# The private supervisor directory binds stable supervisor identities to bootstrap\n# ChatGPT locators. Real conversation URLs/IDs can be sensitive: configure exact\n# values only in the private runtime environment; never commit them to this public\n# repository. The PROJECT_MANAGER entry must use supervisorId mc-project-manager,\n# and bootstrapCapability.challengeId must match a live capabilityChallenges entry\n# in MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON.\n# MISSION_CONTROL_SUPERVISOR_CHATS_JSON='[{\"scope\":\"PROJECT_MANAGER\",\"supervisorId\":\"mc-project-manager\",\"label\":\"Mission Control Project Manager\",\"workerId\":null,\"requiredApp\":\"Mission Control\",\"expectedModels\":{\"extraHigh\":\"Extra High\",\"pro\":\"6 Pro\"},\"bootstrapCapability\":{\"chatId\":\"REPLACE_PRIVATE_CHAT_ID\",\"url\":\"https://chatgpt.com/c/REPLACE_PRIVATE_CONVERSATION_ID\",\"challengeId\":\"REPLACE_MATCHING_LIVE_CHALLENGE_ID\"}}]'\n#\n# Public repositories can use low-frequency reconciliation polling without a\n'''
+          if etext.count(needle) != 1:
+              raise SystemExit('.env.example insertion point not unique')
+          env.write_text(etext.replace(needle, replacement))
+          PY
+
+      - name: Deterministic repository audit
+        run: python3 scripts/audit_codex_github.py --root . --fail-on error
+
+      - name: Commit durable changes and remove helper
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          rm .github/workflows/reconcile-global-pm-locator-helper.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Reconcile owner-attested global PM locator"
+          git push origin HEAD:task/global-pm-locator-attestation-20260907
