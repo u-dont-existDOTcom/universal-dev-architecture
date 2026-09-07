@@ -70,3 +70,7 @@ Never let a stale checkpoint or remembered chat state outrank newer owner instru
 For substantive work, follow the current universal lesson-closeout pattern. Preserve project-specific evidence here and promote genuinely transferable lessons to the universal repository with provenance and limits.
 
 If the universal repository cannot be accessed, do not invent or reconstruct its current contents from memory. Continue only under current local project requirements and this bootstrap, and record the missing dependency for the next worker.
+
+## Routine worker permissions and interruption
+
+Apply the owner-interruption decision test in `patterns/codex-github-operating-system.md`: resolve routine uncertainty from authority, evidence, tests, and cheap reversible experiments; ask only for a genuine unresolved material owner tradeoff. When local approvals recur, load `patterns/codex-worker-permissions.md`, inspect effective desktop/task/config/rule precedence, and verify a scoped persistent repair in a fresh worker. Do not replace review with unrestricted access or invent a supervisor link.

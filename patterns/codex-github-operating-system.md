@@ -146,6 +146,58 @@ Standing grant: delegation, subagents, and parallel investigation are permitted 
 
 An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.
 
+Authorization persists across turns and worker restarts. These pause boundaries
+apply when authority is genuinely missing or the risk cannot safely be resolved,
+not merely because a routine action touches Git, networking, or a new command.
+Use the decision test below. Do not ask for plan approval, technically equivalent
+choices, discoverable facts, or whether to continue.
+
+Resolve ordinary uncertainty in order from repository-canonical instructions and
+handoffs, architecture and owner locks, current code and tests, relevant
+documentation, Git/GitHub history, a cheap reversible discriminating experiment,
+and the most conservative interpretation that still advances the outcome.
+Unfamiliar commands deserve effect/risk analysis, not automatic owner escalation.
+A failed approach calls for premise checking, materially different alternatives,
+and a strategy switch when supported by evidence. Continue after that switch.
+
+### Owner-interruption decision test
+
+Ask for an owner decision only when **all five** conditions hold:
+
+1. The choice materially affects the outcome, product behavior, architecture,
+   safety boundary, irreversible state, external commitment, cost, or owner intent.
+2. At least two meaningfully different reasonable options exist.
+3. Neither repository authority nor existing owner instructions determine it.
+4. Additional investigation or a cheap experiment cannot resolve it.
+5. Choosing autonomously would risk appropriating an owner preference or tradeoff.
+
+Before interrupting, prepare the authorized work into a concrete reviewable
+result. Explain the actual decision and why it cannot be resolved autonomously.
+Put the recommended option first: what it gives, costs, and risks. Present the
+strongest alternative with its gains/losses, reversibility, the consequence of
+no decision, and material time/cost/security/architecture implications. Say when
+the evidence clearly favors one option; do not manufacture false balance.
+
+A non-bypassable platform restriction can still require user action even when
+there is no owner tradeoff. Identify the exact restriction and available safe
+alternatives instead of disguising it as a product decision. Preserve explicit
+stop instructions and genuine missing authority.
+
+Under an applicable supervisor/Mission Control contract, first use the
+owner-authorized internal supervisor route if it can resolve the decision without
+owner input. If the owner decision belongs in that supervisor chat, identify the
+supervisor, say that it is the appropriate decision venue, and include its direct
+chat URL only when resolved from authoritative metadata. If the supervisor exists
+but its URL cannot be verified, say so explicitly. Never invent a supervisor/link
+or make the owner relay material through an already-authorized internal route.
+
+For persistent local technical permissions, use
+[codex-worker-permissions.md](codex-worker-permissions.md). Repair repeated
+routine prompts through effective-config and rule inspection, a narrow persistent
+scope, positive/negative validation, and a fresh-session check. Platform approval
+is not a substitute for reasoning about whether work is routine; a technical
+allow rule is not new authority for consequential external actions.
+
 ---
 
 ## 5. Verification is part of implementation

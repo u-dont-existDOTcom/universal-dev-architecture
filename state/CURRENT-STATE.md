@@ -2,6 +2,18 @@
 
 Updated: 2026-09-07
 
+## Persistent local worker permissions
+
+The 2026-09-07 owner-authorized repair is documented in
+`patterns/codex-worker-permissions.md`; its portable configuration, command rules,
+and actual rule-matcher checks are in `templates/codex-permissions/`.
+The existing GitHub operating-system pattern now owns the explicit five-condition
+owner-interruption test and supervisor-link behavior. This local-worker setup
+preserves existing project and Mission Control authority rather than creating a
+new supervision lane. CLI 0.153.4 and desktop 26.901.41600 behavior is version-bound;
+see the pattern for the desktop override, linked-worktree and review-persistence
+caveats. Private machine configuration/backups are not repository artifacts.
+
 ## Current authority boundary
 
 - Chat owns architecture, policy, methodology, prioritization, semantic review,
