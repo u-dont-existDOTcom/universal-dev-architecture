@@ -2,6 +2,7 @@
 
 **Status:** Proposed reference architecture  
 **Date:** 2026-08-30  
+**Updated:** 2026-09-08
 **Primary operator:** Joel Rosenblum  
 **Scope:** Local supervision of four or more Codex workers, each associated with an independent ChatGPT Pro supervisor, with an optional ChatGPT Extra High repository-reading stage and a shared attention-oriented dashboard.
 
@@ -227,6 +228,18 @@ The main dashboard is an attention allocator. It should answer:
 - What exact decision or intervention is required?
 - What evidence supports the alert?
 - Can all other work continue safely without him?
+
+### 4.8 Capability edges and gates are explicit
+
+Treat every capability as an exact directional source → destination edge with every required user, UI, permission, and authorization gate. Evidence for one edge does not establish a different destination, the reverse direction, autonomous invocation, or availability through another interface.
+
+For the currently established Chat/Work boundary in this architecture:
+
+- **Chat → Work:** requires explicit user acceptance, so unattended task creation is blocked until that user/UI gate is satisfied.
+- **Work ↔ Work:** native coordination exists within Work once the Work tasks exist.
+- **Work → the originating Chat:** unavailable.
+
+Mission Control should therefore reuse native Work-internal coordination, but still own autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through explicit verified routes. This is a current architecture constraint, not a broader product claim. It does not transfer semantic reasoning authority to Mission Control, broaden Work's execution authority, or bypass owner/permission gates. It does not authorize production.
 
 ---
 

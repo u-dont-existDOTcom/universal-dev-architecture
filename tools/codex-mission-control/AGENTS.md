@@ -59,7 +59,7 @@ A Codex/Work-authored semantic proposal is invalid even if it is inexpensive, te
 
 A Chat-originated directive must have a source-bound message identity and exact body digest. A Codex summary, copied text, local subagent, chat title, opened browser tab, or assertion that a chat already decided something is not a reasoning receipt. Unknown or mismatched source provenance fails closed.
 
-When Chat can complete the work directly, keep it in Chat. Routine GitHub reads and writes, issue or pull-request updates, architecture decisions, reviews, supervisory reasoning, and substantive supervisory prose stay in Chat. Delegate to Codex/Work only terminal/computer work or genuinely long-range repository operations. Work must not author methodology, strategy, prioritization, verdicts, owner decisions, or substantive supervisory prose. Every execution result returns automatically to the source reasoning chat; Codex/Work may not decide the next consequential step from its own receipt.
+When Chat can complete the work directly, keep it in Chat. Routine GitHub reads and writes, issue or pull-request updates, architecture decisions, reviews, supervisory reasoning, and substantive supervisory prose stay in Chat. Delegate to Codex/Work only terminal/computer work or genuinely long-range repository operations. Work must not author methodology, strategy, prioritization, verdicts, owner decisions, or substantive supervisory prose. Persist every execution result and route it through the verified Mission Control/controller path; do not infer a native Work → originating Chat return edge. Codex/Work may not decide the next consequential step from its own receipt.
 
 ## Spending boundary
 
@@ -90,6 +90,8 @@ For a configured internal supervisor route:
 - never use this exception for an external recipient, publication, purchase, account change, or other genuinely external representational action.
 
 The more-specific standing owner authorization for internal supervision routing controls over generic browser confirmation guidance. If the destination chat is genuinely missing or inaccessible, report that exact transport blocker after attempting the authorized route; do not convert the owner into the courier.
+
+Model every capability as an exact directional source → destination edge together with its user, UI, permission, and authorization gates. Current architecture facts are: Chat → Work requires explicit user acceptance; native Work ↔ Work coordination exists within Work; Work → the originating Chat is unavailable. Mission Control should reuse native Work-internal coordination, while retaining autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through verified routes. This does not transfer semantic reasoning authority to Mission Control. Its authorized internal routing is a mediated control-plane path, not evidence that the missing native edge exists. A required click or approval blocks unattended automation until satisfied.
 
 ## Completion and continuation
 

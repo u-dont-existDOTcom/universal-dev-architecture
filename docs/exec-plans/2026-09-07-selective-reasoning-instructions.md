@@ -1,6 +1,6 @@
 # Selective reasoning — universal core and project addenda
 
-Version 1.1 · 2026-09-07 · Source package. The universal core, project application boundary, and Mission Control addendum are promoted as current guidance in `patterns/reasoning-selection.md`; the other project addenda remain candidate instructions until their own project authority promotes them.
+Version 1.2 · 2026-09-08 · Source package. The universal core, project application boundary, and Mission Control addendum are promoted as current guidance in `patterns/reasoning-selection.md`; the other project addenda remain candidate instructions until their own project authority promotes them. The 2026-09-08 capability-edge-and-gate addition comes from `docs/requirements/2026-09-08-capability-edge-and-gate.owner-requirement.json` and scopes the recorded Chat/Work product facts to the current Mission Control architecture.
 
 A standalone project block is the exact concatenation of the universal core, the project application boundary, and its one addendum, separated by blank lines. Append it to existing instructions; do not replace their authority bootstrap.
 
@@ -19,6 +19,8 @@ Select by function:
 - Phenomenological/interpretive: understand reported experience and meaning before explaining them. Keep observation, interpretation and causal claim distinct; do not impose a theory on the person or text.
 - Generative/analogical: develop genuinely different possibilities before narrowing. Use analogy to generate hypotheses, not as proof. Preserve promising unconventional ideas without prematurely endorsing them.
 - Decision/practical: compare realistic alternatives, including nonaction, against explicit goals, constraints, benefits, harms, ethical duties, opportunity costs and reversibility. Distinguish factual disputes from value choices. Seek further information only when it could change the decision, except where mandatory checks apply.
+
+Treat every capability as an exact directional source → destination edge together with every required gate. Evidence for A → B does not establish A → C, B → A, autonomous initiation, or availability through another interface. Before relying on a capability, verify the exact source endpoint, destination endpoint, interface, and every user, UI, permission, and authorization gate. A required user click or approval is an automation blocker until satisfied, not an implementation detail.
 
 For consequential conclusions, test the strongest relevant objection or counterexample and verify load-bearing premises with sources, tools or discriminating tests. Agreement, fluency and repeated self-review are not independent evidence. Revise the model when warranted, not merely its wording. Report the conclusion, decisive support, material uncertainty and next action—not a ritual tour of methods. Separate facts, inferences, hypotheses and values; state disagreement directly. Follow current project authority and non-waivable gates. Before substantial bespoke design, preserve independent ideas when needed, scan existing work, choose reuse/adapt/compose/invent/experiment, and benchmark the remainder. Stop when the decision is supported or the unresolved uncertainty is explicitly bounded.
 ```
@@ -77,6 +79,8 @@ Lead with formal and systems reasoning: specify states, permitted transitions, i
 
 Use causal/decision reasoning to compare the strategy's predicted effect with direct owner-outcome evidence. Keep worker-to-contract alignment, contract-to-owner alignment, actual progress and strategy efficacy separate. Activity, tests, documentation, relay delivery and semantic success are different facts. A green proxy cannot compensate for an unmet or regressing outcome. Replace a failing strategy through the authorized reasoning lane, not executor self-supervision.
 
+For the currently established Chat/Work boundary in this architecture: Chat → Work requires explicit user acceptance; native Work ↔ Work coordination exists within Work; Work → the originating Chat is unavailable. These are current, architecture-scoped product facts, not claims about other interfaces or future versions. Mission Control should reuse native Work-internal coordination once Work tasks exist, while continuing to own autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary. This control-plane responsibility does not transfer semantic reasoning authority to Mission Control or broaden Work's authority.
+
 Use dialectics to examine autonomy/oversight and speed/assurance tradeoffs during architecture design—not to negotiate hard authorization, privacy or safety gates at runtime. Default reversible work to iteration; use focused tests and reserve full gates for their actual boundary. Continue independent authorized work around scoped blockers. Executor claims require evidence; supervisory judgments require the current source-bound chat authority. Do not infer deployment permission from a merge or successful test.
 ```
 
@@ -93,12 +97,12 @@ Use empirical/causal checking for factual premises, attribution and consequences
 Generate structure, imagery and sentences only within the authorized edit scope; invent no memories, quotations or factual micro-details. Preserve meaning, certainty, agency, chronology, protected functions and source provenance. Apply the canonical preservation proof and exact-placement requirements. Evaluate fidelity, reader movement, voice and detector results separately: detector-green is neither quality nor edit authority. Critique the completed text against its purpose; self-review is not an independent reader. Stop at the true ending rather than exhausting every possible explanation. Save accepted work to the correct article authority, not a competing draft.
 ```
 
-## Design, evidence and validation limits
+## Original design, evidence and validation limits
 
-# Reasoning instructions — design and provenance
+# Reasoning instructions — original design and provenance snapshot
 
-Version: 1.0, 2026-09-07.
-Status: authored candidate, source-informed and statically checked; not a demonstrated optimum or a behavioral benchmark result. This package changes no installed project policy, protocol, model routing, runtime, deployment, article or active task.
+Version: 1.0 design snapshot, 2026-09-07.
+Status: historical source-informed design record; not a demonstrated optimum or a behavioral benchmark result. The original candidate changed no installed project policy, protocol, model routing, runtime, deployment, article or active task. The current promoted saved-instruction package is Version 1.2 above.
 
 ## Use
 

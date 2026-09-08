@@ -1,6 +1,6 @@
 # Current State
 
-Updated: 2026-09-07
+Updated: 2026-09-08
 
 ## Persistent local worker permissions
 
@@ -29,6 +29,22 @@ caveats. Private machine configuration/backups are not repository artifacts.
   decision; explain that choice in plain language and give the recommended option
   first.
 - Production promotion is not authorized.
+
+## Current Chat / Work capability boundary
+
+- Capability claims are exact directional source → destination edges with every
+  user, UI, permission, and authorization gate. Evidence for one edge does not
+  establish another destination, the reverse direction, autonomous invocation,
+  or cross-interface availability. A required user click or approval is an
+  automation blocker until satisfied.
+- For the currently established architecture, Chat → Work requires explicit user
+  acceptance; native Work ↔ Work coordination exists within Work after the tasks
+  exist; Work → the originating Chat is unavailable.
+- Mission Control should reuse native Work-internal coordination, but retains
+  autonomous control-plane routing of supervision and escalation plus durable
+  control across the Chat/Work boundary through explicit verified routes. This
+  current product constraint does not transfer semantic reasoning authority,
+  broaden Work or Mission Control authority, or authorize production.
 
 ## Canonical repository boundary
 

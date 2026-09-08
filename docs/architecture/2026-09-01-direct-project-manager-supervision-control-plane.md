@@ -28,6 +28,16 @@ OWNER <-> PROJECT MANAGER CHAT
                           +-> terminal, long-range repo work, tests, apps, browsers
 ```
 
+### Native capability boundary
+
+The diagram shows logical control ownership, not native bidirectional product communication. For the currently established Chat/Work boundary in this architecture:
+
+- **Chat → Work:** requires explicit user acceptance; the user-click gate blocks unattended task creation until satisfied.
+- **Work ↔ Work:** native coordination exists within Work once the Work tasks exist.
+- **Work → the originating Chat:** unavailable.
+
+Mission Control should reuse native Work-internal coordination, but must still provide autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through explicit verified controller or relay routes. Do not infer a native return edge from a Mission Control receipt, queue, or relay. These facts are scoped to the current architecture and must not be generalized to other interfaces or future versions without new evidence.
+
 ### Project Manager Chat
 
 Owns:
