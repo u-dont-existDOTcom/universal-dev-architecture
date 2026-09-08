@@ -19,22 +19,24 @@
       "id": "RO-BROWSER-001",
       "terminal_required": true,
       "observable": "Relay startup and target selection persist one exact automation window identity plus exact owned target IDs; no active/latest/first/matching-URL foreign ChatGPT target can be adopted, activated, navigated, submitted into, repurposed or closed.",
-      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
         "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
         "tools/codex-mission-control/vps-browser-relay/bin/mc-chatgpt-relay.mjs",
-        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs"
+        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
+        "docs/evidence/2026-09-08-hostinger-relay-browser-isolation-live-verification.json"
       ]
     },
     {
       "id": "RO-BROWSER-002",
       "terminal_required": true,
       "observable": "A user/manual tab remains ineligible even if it is inside the automation window or already displays the exact registered Mission Control conversation; registered automation conversations remain separate from the owner's manually used tabs.",
-      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
         "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
         "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
-        "tools/codex-mission-control/AGENTS.md"
+        "tools/codex-mission-control/AGENTS.md",
+        "docs/evidence/2026-09-08-hostinger-relay-browser-isolation-live-verification.json"
       ]
     },
     {
@@ -46,15 +48,18 @@
         "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
         "tools/codex-mission-control/vps-browser-relay/src/submission-pacing.mjs",
         "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
-        "tools/codex-mission-control/vps-browser-relay/test/submission-pacing.test.mjs"
+        "tools/codex-mission-control/vps-browser-relay/test/submission-pacing.test.mjs",
+        "docs/evidence/2026-09-08-hostinger-relay-browser-isolation-live-verification.json"
       ]
     },
     {
       "id": "RO-BROWSER-004",
       "terminal_required": true,
       "observable": "An installed live relay demonstrates that foreign/user tabs are untouched during real Mission Control routing and that the rate-limit recovery path behaves as specified when the provider condition actually occurs or through an equivalent owner-authorized live system-UI fixture.",
-      "status": "UNMET",
-      "evidence_refs": []
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "docs/evidence/2026-09-08-hostinger-relay-browser-isolation-live-verification.json"
+      ]
     }
   ],
   "non_satisfying_proxies": [
@@ -74,5 +79,5 @@
     "patterns/persistent-browser-automation-hygiene.md",
     "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md"
   ],
-  "next_direct_evidence": "Pass exact-head relay tests and repository checks, review and merge the bounded source change without production deployment, then install only on an explicitly authorized non-production relay surface before claiming live verification."
+  "next_direct_evidence": "Browser isolation is live-verified on the authorized non-production Hostinger relay. Do not manufacture a provider rate limit; if the genuine supported dialog appears naturally, capture structural evidence that exact Got it acknowledgement, bounded identical retry, global pacing and repeated-failure closure behave as specified."
 }
