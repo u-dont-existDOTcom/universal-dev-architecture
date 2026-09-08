@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-BROWSER-OWNERSHIP-RATE-LIMIT-20260908",
+  "recorded_at": "2026-09-08T11:48:00+00:00",
+  "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "right and also make sure codex can click on \"got it\" when it says too many chat requests are coming too quick, and then retry in 30s. and make sure codex is using tabs that are on its own window not the window i'm on because then sometimes it starts reusing my tabs... altho it also starts reusing my tabs even on its window which shouldn't happen. it sends things to this mssion control chat for example just because it's the latest one, but that should be separate from what i'm using myself",
+    "sha256": "f7557f2a71622d7e5a7052ff43148d9c5894e2e4b08c79c7a50d9ef718046807",
+    "source_type": "owner_chat_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "current-chat:owner-message:2026-09-08T11:48:00+00:00"
+  },
+  "normalized_outcome": "Mission Control browser automation uses only a dedicated automation-owned Chrome window and explicitly persisted automation-owned targets; user/manual tabs are never adopted even when they share a window, URL, profile, recency, or active state. When the exact ChatGPT rate-limit system dialog reports too many chat requests and exposes one Got it control, the relay dismisses it and makes one bounded exact retry after the provider delay while preserving the global submission interval.",
+  "required_outcomes": [
+    {
+      "id": "RO-BROWSER-001",
+      "terminal_required": true,
+      "observable": "Relay startup and target selection persist one exact automation window identity plus exact owned target IDs; no active/latest/first/matching-URL foreign ChatGPT target can be adopted, activated, navigated, submitted into, repurposed or closed.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
+        "tools/codex-mission-control/vps-browser-relay/bin/mc-chatgpt-relay.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-BROWSER-002",
+      "terminal_required": true,
+      "observable": "A user/manual tab remains ineligible even if it is inside the automation window or already displays the exact registered Mission Control conversation; registered automation conversations remain separate from the owner's manually used tabs.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
+        "tools/codex-mission-control/AGENTS.md"
+      ]
+    },
+    {
+      "id": "RO-BROWSER-003",
+      "terminal_required": true,
+      "observable": "For the exact bounded ChatGPT system rate-limit dialog, exactly one visible Got it control is clicked and the same submission is retried once after at least 30 seconds; if the original attempt crossed the submission boundary, the existing 60-second global minimum still controls. Ambiguity or a second rate-limit fails closed.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/submission-pacing.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/submission-pacing.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-BROWSER-004",
+      "terminal_required": true,
+      "observable": "An installed live relay demonstrates that foreign/user tabs are untouched during real Mission Control routing and that the rate-limit recovery path behaves as specified when the provider condition actually occurs or through an equivalent owner-authorized live system-UI fixture.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a documentation-only statement that Codex should use another window",
+    "counting every chatgpt.com page as managed and merely preferring a remembered target",
+    "matching a registered conversation URL in an unowned user tab",
+    "using the newest, first, active, or most recently opened ChatGPT tab as a fallback",
+    "isolating by window while still treating arbitrary user-opened tabs inside that window as relay-owned",
+    "retrying the rate-limit request without clicking the exact Got it control",
+    "sleeping 30 seconds after a clicked submission when the global 60-second send gate still has time remaining",
+    "unit or hosted tests represented as live installed-browser verification",
+    "any assistant-output extraction or privacy-boundary widening used to identify the system rate-limit modal"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/persistent-browser-automation-hygiene.md",
+    "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md"
+  ],
+  "next_direct_evidence": "Pass exact-head relay tests and repository checks, review and merge the bounded source change without production deployment, then install only on an explicitly authorized non-production relay surface before claiming live verification."
+}
