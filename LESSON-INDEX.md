@@ -42,7 +42,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 36. `patterns/structured-output-failure-boundary.md` — classify malformed structured artifacts as serialization/interface failures rather than semantic or scientific failures, preserve exact parser/validator evidence, enforce source-fixed attempt ceilings, prohibit silent repair, and block dependent scoring or aggregation until a valid admitted artifact or new source-bound directive exists.
 
 37. `patterns/codex-worker-permissions.md` — persistent workspace/network permissions, automatic approval review, desktop/task override recovery, protected Git metadata, destructive-operation review, owner-interruption test, and version-specific fresh-worker validation.
-38. `patterns/reasoning-selection.md` — choose the smallest sufficient reasoning combination by task function; scale effort with stakes, uncertainty and reversibility; distinguish exploration/decision/confirmation/release; test load-bearing premises and strong objections for consequential conclusions; and preserve current project authority and Mission Control hard gates.
+38. `patterns/reasoning-selection.md` — choose the smallest sufficient reasoning combination by task function; treat capabilities as exact directional endpoint-specific edges with every user/UI/permission/authorization gate; scale effort with stakes, uncertainty and reversibility; distinguish exploration/decision/confirmation/release; test load-bearing premises and strong objections for consequential conclusions; and preserve current project authority and Mission Control hard gates.
 
 ## Reusable policy templates
 

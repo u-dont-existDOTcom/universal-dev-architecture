@@ -2,6 +2,7 @@
 
 Status: REQUIRED OWNER CORRECTION
 Date: 2026-09-02
+Updated: 2026-09-08
 
 ## Controlling rule
 
@@ -136,7 +137,13 @@ Can Chat make the required judgment and perform the next safe GitHub action dire
 
 ## Mission Control implication
 
-Mission Control should coordinate repeated Chat <-> Work cycles rather than treating Work as the default continuation surface.
+Mission Control coordinates a gated, mediated cycle; do not model it as native Chat ↔ Work bidirectionality. The currently established topology for this architecture is:
+
+- **Chat → Work:** requires explicit user acceptance; until the user accepts, unattended dispatch is blocked.
+- **Work ↔ Work:** native coordination exists within Work once the Work tasks exist.
+- **Work → the originating Chat:** unavailable.
+
+Mission Control should reuse native Work-internal coordination, while continuing to own autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through verified controller or relay routes. A queued, persisted, or delivered Mission Control record is evidence of that mediated route, not proof of a native Work → originating Chat edge. These facts are scoped to the current architecture and must not be generalized to other interfaces or future versions without verification.
 
 A valid Work handoff records:
 
@@ -148,4 +155,4 @@ A valid Work handoff records:
 - required evidence/tests;
 - explicit semantic authority = none beyond the bounded implementation choices.
 
-The returned execution receipt is input to Chat. It is not permission for Work to select the next consequential step.
+The execution receipt becomes input to Chat only through a verified Mission Control/controller route. It is not permission for Work to select the next consequential step.

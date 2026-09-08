@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CAPABILITY-EDGE-AND-GATE-20260908",
+  "recorded_at": "2026-09-08T00:38:29Z",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continuing from [mission control sep 7](chatgpt-conversation://6a9d7fa4-8508-83e9-8aeb-d351f2968673): Implement the capability-edge-and-gate rule in u-dont-existDOTcom/universal-dev-architecture. First read current main, CURRENT-STATE, patterns/reasoning-selection.md, universal saved-instruction sources/templates, and Mission Control architecture/requirements touching Chat/Work boundaries. Add the smallest canonical universal rule that treats capabilities as exact directional source→destination edges with required gates; forbids inferring A→C, reverse direction, autonomy, or cross-interface availability from A→B evidence; requires verification of exact endpoint and user/UI/permission/authorization gates; and treats user-click/approval requirements as automation blockers, not implementation details. Record the currently established product facts for this architecture: Chat→Work requires explicit user acceptance; Work↔Work native coordination exists within Work; Work→originating Chat is unavailable; therefore Mission Control should reuse native Work-internal coordination but still own autonomous supervision/escalation and durable control across the Chat/Work boundary. Preserve existing authority and production boundaries. Do not broaden into speculative product claims. Update tests/docs if the repo has deterministic instruction/pattern checks. Use a focused branch/PR, run available checks, and return exact branch/head/PR/checks. Do not deploy production.",
+    "sha256": "53fd3e93444b36e2658c2bc52a264d25a319a70144e9feb65e96bfe995b3041e",
+    "source_type": "owner_chat_message",
+    "source_record": "chatgpt-conversation://6a9d7fa4-8508-83e9-8aeb-d351f2968673"
+  },
+  "normalized_outcome": "Current universal guidance treats capabilities as exact directional endpoint-specific edges with all required user, UI, permission, and authorization gates. Mission Control records the current Chat/Work topology without generalizing it beyond the established architecture, reuses native Work-internal coordination, and retains autonomous control-plane routing of supervision and escalation plus durable cross-boundary control. Existing authority and production boundaries remain unchanged.",
+  "required_outcomes": [
+    {
+      "id": "RO-CAP-001",
+      "terminal_required": true,
+      "observable": "The canonical universal reasoning pattern and its saved-instruction source encode exact directional capability edges, prohibit unsupported direction/interface/autonomy inference, require exact gate verification, and classify user clicks or approvals as automation blockers.",
+      "status": "VERIFIED",
+      "evidence_refs": [
+        "patterns/reasoning-selection.md",
+        "docs/exec-plans/2026-09-07-selective-reasoning-instructions.md",
+        "templates/MISSION-CONTROL-GLOBAL-PM-BOOTSTRAP.md"
+      ]
+    },
+    {
+      "id": "RO-CAP-002",
+      "terminal_required": true,
+      "observable": "Current Mission Control architecture and recovery guidance record the established Chat→Work, Work↔Work, and Work→originating Chat facts plus the resulting Mission Control responsibility without expanding product claims.",
+      "status": "VERIFIED",
+      "evidence_refs": [
+        "patterns/chat-work-execution-routing-threshold.md",
+        "patterns/codex-pro-supervision-mission-control.md",
+        "docs/architecture/2026-09-01-direct-project-manager-supervision-control-plane.md",
+        "state/CURRENT-STATE.md",
+        "tools/codex-mission-control/AGENTS.md"
+      ]
+    },
+    {
+      "id": "RO-CAP-003",
+      "terminal_required": true,
+      "observable": "Deterministic repository tests reject loss of the universal rule, the architecture-scoped topology, the Mission Control bridge consequence, or the preserved authority and production boundaries.",
+      "status": "VERIFIED",
+      "evidence_refs": [
+        "tests/test_capability_edge_and_gate_rule.py"
+      ]
+    },
+    {
+      "id": "RO-CAP-004",
+      "terminal_required": false,
+      "observable": "A fresh eligible reasoning chat loads the promoted saved instruction and demonstrably preserves the exact capability edges and gates in a later applicable architecture decision.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a prose explanation in the originating ChatGPT conversation without a canonical repository change",
+    "a generic claim that Chat and Work can coordinate without exact source, destination, direction, and gate evidence",
+    "a passing test that checks wording but omits the architecture-scoped Chat/Work facts or production boundary",
+    "a Mission Control transport queue or persisted receipt represented as proof of a native Work→originating Chat edge",
+    "a pull request or green CI run that deploys or otherwise mutates production"
+  ],
+  "next_direct_evidence": "Record the focused pull request and exact-head hosted checks out of band in the pull request/final report without production deployment. Any later behavioral claim requires a fresh eligible reasoning chat to load the promoted instruction and apply the exact capability-edge-and-gate rule at a relevant decision boundary."
+}

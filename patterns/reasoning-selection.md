@@ -1,6 +1,6 @@
 # Reasoning selection
 
-Status: current universal reasoning supplement, 2026-09-07.
+Status: current universal reasoning supplement, updated 2026-09-08.
 
 This pattern supplements current owner/project authority. It does not replace repository bootstraps, protocols, owner locks, privacy rules, budgets, or action gates, and it grants no new execution, spending, publication, merge, release, or deployment authority.
 
@@ -20,6 +20,8 @@ Select by function:
 - Generative/analogical: develop genuinely different possibilities before narrowing. Use analogy to generate hypotheses, not as proof. Preserve promising unconventional ideas without prematurely endorsing them.
 - Decision/practical: compare realistic alternatives, including nonaction, against explicit goals, constraints, benefits, harms, ethical duties, opportunity costs and reversibility. Distinguish factual disputes from value choices. Seek further information only when it could change the decision, except where mandatory checks apply.
 
+Treat every capability as an exact directional source → destination edge together with every required gate. Evidence for A → B does not establish A → C, B → A, autonomous initiation, or availability through another interface. Before relying on a capability, verify the exact source endpoint, destination endpoint, interface, and every user, UI, permission, and authorization gate. A required user click or approval is an automation blocker until satisfied, not an implementation detail.
+
 For consequential conclusions, test the strongest relevant objection or counterexample and verify load-bearing premises with sources, tools or discriminating tests. Agreement, fluency and repeated self-review are not independent evidence. Revise the model when warranted, not merely its wording. Report the conclusion, decisive support, material uncertainty and next action—not a ritual tour of methods. Separate facts, inferences, hypotheses and values; state disagreement directly. Follow current project authority and non-waivable gates. Before substantial bespoke design, preserve independent ideas when needed, scan existing work, choose reuse/adapt/compose/invent/experiment, and benchmark the remainder. Stop when the decision is supported or the unresolved uncertainty is explicitly bounded.
 
 ## Project application
@@ -36,8 +38,12 @@ Lead with formal and systems reasoning: specify states, permitted transitions, i
 
 Use causal/decision reasoning to compare the strategy's predicted effect with direct owner-outcome evidence. Keep worker-to-contract alignment, contract-to-owner alignment, actual progress and strategy efficacy separate. Activity, tests, documentation, relay delivery and semantic success are different facts. A green proxy cannot compensate for an unmet or regressing outcome. Replace a failing strategy through the authorized reasoning lane, not executor self-supervision.
 
+For the currently established Chat/Work boundary in this architecture: Chat → Work requires explicit user acceptance; native Work ↔ Work coordination exists within Work; Work → the originating Chat is unavailable. These are current, architecture-scoped product facts, not claims about other interfaces or future versions. Mission Control should reuse native Work-internal coordination once Work tasks exist, while continuing to own autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary. This control-plane responsibility does not transfer semantic reasoning authority to Mission Control or broaden Work's authority.
+
 Use dialectics to examine autonomy/oversight and speed/assurance tradeoffs during architecture design—not to negotiate hard authorization, privacy or safety gates at runtime. Default reversible work to iteration; use focused tests and reserve full gates for their actual boundary. Continue independent authorized work around scoped blockers. Executor claims require evidence; supervisory judgments require the current source-bound chat authority. Do not infer deployment permission from a merge or successful test.
 
 ## Provenance
 
 The exact universal core, project application boundary, and Mission Control addendum were first preserved in `docs/exec-plans/2026-09-07-selective-reasoning-instructions.md`. That package already records its bounded existing-work scan and `COMPOSE` disposition. This pattern promotes those sections into the current universal instruction chain; the other project-specific addenda in that package remain separate until promoted by their own project authority.
+
+The capability-edge-and-gate rule and the bounded current Chat/Work topology were added on 2026-09-08 from `docs/requirements/2026-09-08-capability-edge-and-gate.owner-requirement.json`. The product facts are deliberately limited to the established Mission Control architecture boundary and must be re-verified before use as claims about another interface or future version.
