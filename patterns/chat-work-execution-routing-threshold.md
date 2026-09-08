@@ -20,6 +20,8 @@ It is:
 
 If the answer is no, keep the action in Chat.
 
+For supervisory/control-plane chats, this is an automation invariant: **when the chat itself can read or write the required GitHub artifact, it must do that GitHub operation directly and must not delegate that operation to Work/Codex.** A Chat -> Work handoff requires explicit user acceptance; delegating a routine GitHub receipt, issue comment, PR update, or evidence read therefore inserts an avoidable human gate and can make an otherwise unattended Mission Control cycle invisible to the owner.
+
 ## Keep in Chat
 
 Chat normally retains:
@@ -39,6 +41,8 @@ Chat normally retains:
 - reviewing Work receipts and selecting the next consequential step.
 
 GitHub availability in Work is **not** an execution requirement when Chat already has adequate GitHub actions.
+
+For a Chat-supervised Mission Control cycle, prefer GitHub as the durable mailbox between reasoning chats and the execution controller: the current chat writes its source-bound artifact to GitHub; Codex/controller waits for that artifact, reads it after the chat turn finishes, transports the exact required data to the next registered reasoning chat, waits for that chat's GitHub artifact, and then continues the authorized route. This is controller-mediated Chat <-> GitHub <-> controller <-> Chat coordination, not native Chat-to-Chat or Work-to-Chat communication. The reasoning chat must not offload its own required GitHub write to Work merely because Work can access GitHub.
 
 ## Use Work / Codex
 
@@ -67,6 +71,8 @@ Chat reasons first
 ```
 
 Do not send the whole task to Work and ask it to decide the architecture while implementing it.
+
+If the current reasoning chat is expected to publish a GitHub decision/receipt as part of a larger controller-mediated cycle, that GitHub publication remains part of the Chat turn. Do not reinterpret the surrounding use of Codex/controller transport as permission to hand the GitHub publication itself to Work.
 
 ## Long-running ChatGPT recovery
 
@@ -124,15 +130,23 @@ Reject these routing rationales:
 "This involves a repo, so hand it to Work."
 "Work can inspect more files, so let it decide what to change."
 "Let Work figure out the architecture and implement it."
+"I'll send the GitHub receipt/write to Work."
 ```
 
 Replace them with a bounded execution test:
 
 ```text
 Can Chat make the required judgment and perform the next safe GitHub action directly?
-  YES -> stay in Chat.
+  YES -> stay in Chat and perform the GitHub action here.
   NO, because terminal/computer execution is required -> delegate only that residue.
   NO, because the repo operation is genuinely long-range/stateful -> delegate bounded execution, keep reasoning in Chat.
+```
+
+For an unattended supervisory cycle, add one more hard check:
+
+```text
+Would this Work handoff create a user-Accept gate for an operation Chat can already perform directly?
+  YES -> do not hand it off.
 ```
 
 ## Mission Control implication
@@ -142,6 +156,9 @@ Mission Control coordinates a gated, mediated cycle; do not model it as native C
 - **Chat → Work:** requires explicit user acceptance; until the user accepts, unattended dispatch is blocked.
 - **Work ↔ Work:** native coordination exists within Work once the Work tasks exist.
 - **Work → the originating Chat:** unavailable.
+- **Chat ↔ GitHub:** ordinary supported GitHub reads/writes are performed directly by the reasoning Chat when available; do not insert Work between Chat and GitHub for routine supervisory artifacts.
+
+The practical Mission Control reasoning loop is therefore controller-mediated: a reasoning Chat publishes an exact durable GitHub artifact; Codex/controller observes it after that Chat turn completes, transports the required source-bound data to the next registered reasoning Chat, waits for that Chat to publish its own GitHub artifact, and continues the admitted route. Codex/controller is a transport/execution coordinator in this loop, not the semantic author of the GitHub decision.
 
 Mission Control should reuse native Work-internal coordination, while continuing to own autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through verified controller or relay routes. A queued, persisted, or delivered Mission Control record is evidence of that mediated route, not proof of a native Work → originating Chat edge. These facts are scoped to the current architecture and must not be generalized to other interfaces or future versions without verification.
 
