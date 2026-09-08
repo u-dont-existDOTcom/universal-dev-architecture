@@ -43,6 +43,7 @@ Use this file as the entry point for cross-project lesson retrieval.
 
 37. `patterns/codex-worker-permissions.md` — persistent workspace/network permissions, automatic approval review, desktop/task override recovery, protected Git metadata, destructive-operation review, owner-interruption test, and version-specific fresh-worker validation.
 38. `patterns/reasoning-selection.md` — choose the smallest sufficient reasoning combination by task function; treat capabilities as exact directional endpoint-specific edges with every user/UI/permission/authorization gate; scale effort with stakes, uncertainty and reversibility; distinguish exploration/decision/confirmation/release; test load-bearing premises and strong objections for consequential conclusions; and preserve current project authority and Mission Control hard gates.
+39. `patterns/platform-native-deployment-before-new-infrastructure.md` — before adding a host, server, API boundary, or deployment layer for a small web surface, inventory the incumbent platform's first-class deployment surfaces and prefer the simpler native path when it meets requirements; for Apps Script/Sheets-backed surveys, evaluate an `HtmlService` Web App before separate hosting and require a concrete unmet constraint to justify the extra infrastructure.
 
 ## Reusable policy templates
 
