@@ -28,6 +28,27 @@ For automation-owned ChatGPT tabs, the following more-specific owner rule is uni
 
 These limits apply to automation-managed ChatGPT tabs, not unrelated owner-controlled tabs. An ambiguous paid, destructive, or irreversible action still enters recovery mode before any evidence-bearing tab is closed.
 
+### Browser-window and target ownership
+
+A persistent profile or a matching application URL is **not** sufficient proof that a tab belongs to automation. For headed automation that shares a browser/account with owner activity:
+
+1. create or designate one explicit automation-owned window and persist its stable browser window identity where the browser protocol supports it;
+2. persist exact automation-owned target/page IDs separately from general browser history or recency;
+3. operate on a page only when both its target ID is explicitly owned and its current browser window identity matches the automation-owned window;
+4. never adopt a tab because it is active, newest, first in target enumeration, already on the desired URL/conversation, or happens to be in the automation window;
+5. a user/manual tab opened inside the automation window remains user/manual unless automation explicitly created or registered that exact target;
+6. never navigate, submit into, repurpose, or close a foreign/unowned tab as cleanup;
+7. if ownership cannot be recovered exactly after restart, create a fresh automation-owned window/target rather than adopting arbitrary existing user state;
+8. telemetry should distinguish automation-owned tabs from foreign/user tabs, and cleanup limits should count only the automation-owned set.
+
+This ownership rule is stronger than generic tab reuse. Reuse is permitted only *within* the verified owned set. It prevents a relay/controller from hijacking the owner's current ChatGPT conversation simply because that conversation is recent, active, or URL-matching.
+
+### Provider rate-limit acknowledgement
+
+When an automated ChatGPT send encounters an exact provider/system rate-limit dialog whose bounded message identifies requests arriving too quickly and which exposes one unambiguous `Got it` control, automation may dismiss that exact system control and retry the identical submission once. Wait at least the provider-requested bounded delay (30 seconds for the observed condition), while preserving any stronger global submission pacing requirement. If the first attempt crossed the actual submission/click boundary, the global minimum interval continues to apply. A second rate-limit result or an ambiguous dialog/button fails closed rather than looping.
+
+System-modal inspection for this recovery is not permission to read assistant output. Keep the existing prohibition on assistant-output extraction and do not widen into accessibility, network, app-state, OCR, export, or arbitrary DOM-content inspection.
+
 ## Asynchronous GUI completion
 
 Do not infer task completion from a generic marker on the page that initiated an asynchronous action. The application may:
@@ -102,12 +123,19 @@ Extended 2026-08-19 from the same incident after a no-repeat recovery run:
 - therefore browser-global history was falsified as an authoritative recovery source for this SPA;
 - the project recovery path moved to authenticated application History DOM/record identities and read-only response discovery, while preserving exact-bound verification and the no-repeat paid-call block.
 
+Extended 2026-09-08 from Mission Control browser-routing failures observed under a shared authenticated ChatGPT browser:
+
+- recency/URL-based target fallback could select the owner's active or manually opened ChatGPT tab rather than the intended automation surface;
+- window separation alone was insufficient because manually opened tabs inside the automation window could still be mistaken for relay-owned state;
+- the repair therefore requires exact persistent window + target ownership and fail-closed replacement rather than adoption;
+- the same incident class established bounded system-UI recovery for the exact ChatGPT request-rate dialog without widening assistant-output inspection.
+
 Project-local exact evidence remains in:
 
 - `state/PANGRAM-LOCAL-TAB-REPORT-INCIDENT-2026-08-18.md`
 - `state/PANGRAM-LOCAL-PLAYWRIGHT-CURRENT-STATE-2026-08-18.md`
 
-on the Pangram local-Playwright task branch.
+on the Pangram local-Playwright task branch, with Mission Control implementation/evidence in its current requirement and relay source/tests.
 
 ## Limits
 
