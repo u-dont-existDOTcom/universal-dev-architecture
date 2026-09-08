@@ -115,6 +115,31 @@ export class AutomationOwnedBrowser {
     return result;
   }
 
+  async inspectChat(target, expectedUrl) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.inspectChat(target, expectedUrl);
+  }
+
+  async currentModelLabel(target, expectedUrl) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.currentModelLabel(target, expectedUrl);
+  }
+
+  async switchModel(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.switchModel(target, input);
+  }
+
+  async selectAppsForMessage(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.selectAppsForMessage(target, input);
+  }
+
+  async verifyModelRoundTrip(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.verifyModelRoundTrip(target, input);
+  }
+
   async submitExactMessage(target, input) {
     await this.#assertOwned(target?.id);
     try {
@@ -137,6 +162,11 @@ export class AutomationOwnedBrowser {
         startedAtObserved: error?.startedAtObserved ?? null,
       });
     }
+  }
+
+  async waitForGenerationComplete(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.waitForGenerationComplete(target, input);
   }
 
   #reusableTarget(ownership, owned, reusableTargetId, wantedUrl, purpose) {
