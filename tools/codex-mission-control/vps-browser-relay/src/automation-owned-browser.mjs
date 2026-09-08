@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { normalizeConversationUrl } from './core.mjs';
+import { managedChatGptTabTelemetry, normalizeConversationUrl } from './core.mjs';
 import { ChatGptRateLimitRetryError } from './submission-pacing.mjs';
 
 const OWNERSHIP_SCHEMA_VERSION = 1;
@@ -8,17 +8,7 @@ const CHATGPT_ROOT = 'https://chatgpt.com/';
 const RATE_LIMIT_RETRY_MS = 30_000;
 
 export function installAutomationOwnedBrowser(rawBrowser, options) {
-  const owned = new AutomationOwnedBrowser(rawBrowser, options);
-  return new Proxy(owned, {
-    get(target, property, receiver) {
-      if (property in target) {
-        const value = Reflect.get(target, property, receiver);
-        return typeof value === 'function' ? value.bind(target) : value;
-      }
-      const value = rawBrowser[property];
-      return typeof value === 'function' ? value.bind(rawBrowser) : value;
-    },
-  });
+  return new AutomationOwnedBrowser(rawBrowser, options);
 }
 
 export class AutomationOwnedBrowser {
@@ -34,8 +24,9 @@ export class AutomationOwnedBrowser {
     if (!rawBrowser || typeof rawBrowser.listTargets !== 'function') throw new Error('Automation-owned browser requires a raw browser client.');
     if (!ownershipFile && !ownershipStore) throw new Error('Automation-owned browser requires an ownership file or store.');
     this.rawBrowser = rawBrowser;
+    this.WebSocketImpl = rawBrowser.WebSocketImpl ?? WebSocketImpl;
     this.ownershipStore = ownershipStore ?? new FileOwnershipStore(ownershipFile);
-    this.protocol = protocol ?? new ChromeOwnershipProtocol({ cdpHost, cdpPort, fetchImpl, WebSocketImpl });
+    this.protocol = protocol ?? new ChromeOwnershipProtocol({ cdpHost, cdpPort, fetchImpl, WebSocketImpl: this.WebSocketImpl });
   }
 
   async doctor() {
@@ -46,7 +37,7 @@ export class AutomationOwnedBrowser {
     const ownership = await this.#ensureOwnership();
     return {
       ...raw,
-      managedChatGptTabCount: owned.length,
+      ...managedChatGptTabTelemetry(owned),
       automationOwnedTabCount: owned.length,
       foreignChatGptTabCount: Math.max(0, allChatGpt.length - owned.length),
       automationWindowId: ownership.windowId,
@@ -100,6 +91,11 @@ export class AutomationOwnedBrowser {
     const candidate = this.#reusableTarget(ownership, owned, reusableTargetId, CHATGPT_ROOT, 'session');
     if (candidate) return this.#navigateOwnedTarget(candidate, CHATGPT_ROOT, 'session');
     return this.#createOwnedTarget(CHATGPT_ROOT, 'session', hardCeiling);
+  }
+
+  async assertOwnedTarget(target) {
+    await this.#assertOwned(target?.id);
+    return true;
   }
 
   async activateTarget(targetId) {
