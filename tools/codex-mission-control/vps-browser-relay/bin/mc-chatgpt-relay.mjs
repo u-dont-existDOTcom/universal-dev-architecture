@@ -2,6 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import { loadConfig, publicConfig } from '../src/config.mjs';
 import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
+import { installAutomationOwnedBrowser } from '../src/automation-owned-browser.mjs';
 import { installStuckRecovery } from '../src/stuck-recovery.mjs';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
@@ -25,7 +26,12 @@ try {
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
-  const rawBrowser = new ChromeDevtoolsBrowser(config.browser);
+  const cdpBrowser = new ChromeDevtoolsBrowser(config.browser);
+  const rawBrowser = installAutomationOwnedBrowser(cdpBrowser, {
+    ownershipFile: `${config.runtime.stateFile}.browser-ownership.json`,
+    cdpHost: config.browser.cdpHost,
+    cdpPort: config.browser.cdpPort,
+  });
   const submissionPacer = new GlobalSubmissionPacer({
     stateStore,
     minIntervalMs: config.runtime.minSubmissionIntervalMs,
