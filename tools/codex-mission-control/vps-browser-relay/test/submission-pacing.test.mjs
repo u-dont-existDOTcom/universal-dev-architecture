@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultState } from '../src/core.mjs';
 import { StateStore } from '../src/state.mjs';
-import { GlobalSubmissionPacer, GLOBAL_SUBMISSION_COOLDOWN } from '../src/submission-pacing.mjs';
+import {
+  CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED,
+  ChatGptRateLimitRetryError,
+  GlobalSubmissionPacer,
+  GLOBAL_SUBMISSION_COOLDOWN,
+} from '../src/submission-pacing.mjs';
 
 test('two routes cannot cross the global send gate inside the minimum interval', async () => {
   const store = new MemoryStateStore();
@@ -49,6 +54,89 @@ test('a cooldown rejection does not run pre-submit semantic state mutation', asy
 
   assert.equal(clicked, false);
   assert.deepEqual(store.state.deliveries, before);
+});
+
+test('provider rate-limit before the send boundary waits exactly 30 seconds then retries once', async () => {
+  const store = new MemoryStateStore();
+  const now = { value: Date.parse('2026-09-08T12:00:00.000Z') };
+  const sleeps = [];
+  const pacer = new GlobalSubmissionPacer({
+    stateStore: store,
+    minIntervalMs: 60_000,
+    now: () => now.value,
+    sleepImpl: async (ms) => { sleeps.push(ms); now.value += ms; },
+  });
+  let attempts = 0;
+
+  const result = await pacer.submit({
+    submit: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new ChatGptRateLimitRetryError({ retryAfterMs: 30_000, relayStage: 'COMPOSER_FILLED' });
+      return { generationStarted: true, clickedAtObserved: new Date(now.value).toISOString() };
+    },
+  });
+
+  assert.equal(result.generationStarted, true);
+  assert.equal(attempts, 2);
+  assert.deepEqual(sleeps, [30_000]);
+  assert.equal(store.state.submissionPacing.lastSubmissionAt, '2026-09-08T12:00:30.000Z');
+});
+
+test('provider rate-limit after click preserves the 60 second global submission gate before retry', async () => {
+  const store = new MemoryStateStore();
+  const now = { value: Date.parse('2026-09-08T12:00:00.000Z') };
+  const sleeps = [];
+  const pacer = new GlobalSubmissionPacer({
+    stateStore: store,
+    minIntervalMs: 60_000,
+    now: () => now.value,
+    sleepImpl: async (ms) => { sleeps.push(ms); now.value += ms; },
+  });
+  let attempts = 0;
+
+  await pacer.submit({
+    submit: async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw new ChatGptRateLimitRetryError({
+          retryAfterMs: 30_000,
+          relayStage: 'CLICKED',
+          clickedAtObserved: '2026-09-08T12:00:00.000Z',
+        });
+      }
+      return { generationStarted: true, clickedAtObserved: new Date(now.value).toISOString() };
+    },
+  });
+
+  assert.equal(attempts, 2);
+  assert.deepEqual(sleeps, [60_000]);
+  assert.equal(store.state.submissionPacing.lastSubmissionAt, '2026-09-08T12:01:00.000Z');
+});
+
+test('a second provider rate-limit fails closed instead of looping', async () => {
+  const store = new MemoryStateStore();
+  const now = { value: Date.parse('2026-09-08T12:00:00.000Z') };
+  const sleeps = [];
+  const pacer = new GlobalSubmissionPacer({
+    stateStore: store,
+    minIntervalMs: 60_000,
+    now: () => now.value,
+    sleepImpl: async (ms) => { sleeps.push(ms); now.value += ms; },
+  });
+  let attempts = 0;
+
+  await assert.rejects(
+    pacer.submit({
+      submit: async () => {
+        attempts += 1;
+        throw new ChatGptRateLimitRetryError({ retryAfterMs: 30_000, relayStage: 'COMPOSER_FILLED' });
+      },
+    }),
+    (error) => error.code === CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED,
+  );
+
+  assert.equal(attempts, 2);
+  assert.deepEqual(sleeps, [30_000]);
 });
 
 test('persisted last-submission time survives a state-store and pacer restart', async () => {
