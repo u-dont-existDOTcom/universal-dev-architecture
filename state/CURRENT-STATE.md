@@ -135,10 +135,13 @@ continue to preserve these exact active completion-gate references:
 This gate remains independent of the Mission Control relay merge and must not be
 dropped merely because the active Mission Control checkpoint is rewritten.
 
-## Open P0 — issue #53
+## Active P0 contract — issue #53
 
 Issue #53, **first-class ChatGPT message timestamps and direct PM/supervisor
-routing**, remains open with two distinct states.
+routing**, is closed in GitHub's issue-state field but has a newer controlling
+execution contract in comment `5594633379`. Treat that exact comment, not the
+older issue-state field or this checkpoint alone, as the current PM-loop
+execution authority. The timestamp and routing outcomes remain distinct.
 
 ### Provider source timestamp
 
@@ -192,11 +195,12 @@ bootstrap locator and conversation ID for `mc-project-manager`. Because this
 repository is public, their exact values are intentionally not committed; the
 privacy-safe hashes and attestation are in
 `docs/evidence/2026-09-07-global-pm-owner-attested-locator.json`. The locator is
-owner-attested, not provider-verified. Private `MISSION_CONTROL_SUPERVISOR_CHATS_JSON`
-registration, a matching fresh capability challenge in
-`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON`, and live capability verification
-remain unmet. Do not publish the private locator, fabricate a challenge, or
-promote the specialist into the PM role.
+owner-attested, not provider-verified. The newer exact contract records the
+private `MISSION_CONTROL_SUPERVISOR_CHATS_JSON` registration, matching fresh
+`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON` challenge, and live PM capability
+verification as already deployed and accepted. Do not repeat those capability
+attempts, publish the private locator, fabricate a challenge, or promote the
+specialist into the PM role.
 
 The old same-chat Extra High -> Pro -> Extra High assumption is superseded by
 route v4. `Same supervisory lane` now means stable supervisor identity, not the
@@ -292,22 +296,40 @@ loopback CDP and the authenticated profile remain intact. Capability receipt is
 current through `2026-09-10T23:59:59.000Z`. The owner accepted the existing connected
 GitHub route without a selected composer chip; do not reopen that settled choice.
 
+## Controller-mediated PM execution checkpoint — 2026-09-09
+
+Issue #53 comment `5594633379` supersedes the obsolete assumption that the PM
+must invoke Mission Control through developer MCP. The smallest accepted path
+keeps GitHub as the semantic mailbox: exact origin reasoning chat -> exact
+origin artifact -> permanent `mc-project-manager` reasoning chat -> exact PM
+artifact -> fresh decision chat on the exact prior origin target -> canonical
+GitHub decision and Mission Control resolution. Each reasoning chat performs
+its own ordinary GitHub reads/writes and may not delegate them to Work/Codex.
+
+The controller implementation in the current release candidate adds an
+owner-only restart ledger, exact immutable-comment reconciliation, explicit
+pre/post-send boundaries, bounded no-replay ambiguity, exact automation target
+and window operations, PM-target force creation, exact OWNER-byte preservation,
+and final GitHub/Mission Control resolution admission. Generation completion is
+transport evidence only. Local focused and complete relay tests pass; hosted
+exact-head verification, reviewed merge, non-production Hostinger installation,
+and one fresh disposable live proof are not yet claimed by this checkpoint.
+Production remains outside authority.
+
 ## Next safe action
 
 The direct-path live proof is complete. Preserve its durable checkpoint and keep
 the consumed fixture closed; do not repeat OWNER delivery, binding preload or
 decision submission. Both send gates stay disabled.
 
-PM-mediated live demonstration remains a separate future step. The permanent
-global Project Manager identity is owner-authorized as `mc-project-manager`, and
-a real dedicated ChatGPT locator has now been owner-attested. The next PM-routing
-blocker is private runtime registration of that exact locator together with a
-fresh matching capability challenge, followed by live capability verification
-and the PM-mediated exact OWNER-byte proof. Do not promote `mc-hotfix-specialist`,
-publish the private locator, or fabricate a challenge. Provider source timestamp
+Complete the controller candidate's release gate and reviewed GitHub merge,
+install that exact merged package on the authorized non-production Hostinger
+relay with rollback preserved, then execute exactly one fresh disposable
+PM-mediated OWNER-byte cycle. Do not repeat browser isolation, direct-path,
+developer-MCP, or capability probes. Do not promote `mc-hotfix-specialist`,
+publish the private PM locator, or touch production. Provider source timestamp
 remains independently unmet; widening into content-bearing/provider-internal
 acquisition is a privacy tradeoff requiring explicit owner/Chat consideration.
-Issue #53 remains open.
 
 ## Recovery rule
 

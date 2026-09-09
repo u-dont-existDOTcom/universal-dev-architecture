@@ -38,8 +38,11 @@ export class GlobalSubmissionPacer {
     return pacing;
   }
 
-  async submit({ beforeSubmit = null, submit }) {
+  async submit({ beforeSubmit = null, recordBoundary = null, submit }) {
     if (typeof submit !== 'function') throw new Error('Global submission pacing requires a submit function.');
+    if (recordBoundary !== null && typeof recordBoundary !== 'function') {
+      throw new Error('Global submission pacing recordBoundary must be a function when provided.');
+    }
     const operation = this.tail.then(async () => {
       let rateLimitRetries = 0;
       for (;;) {
@@ -48,8 +51,15 @@ export class GlobalSubmissionPacer {
         if (!pacing.ready) throw new GlobalSubmissionCooldownError(pacing);
         if (beforeSubmit) await beforeSubmit();
         try {
-          const result = await submit();
-          await this.#recordSubmissionBoundaryOrFailClosed(result?.clickedAtObserved ?? result?.startedAtObserved ?? null);
+          const persistObservedBoundary = (observed) => this.#recordSubmissionBoundaryOrFailClosed(
+            observed?.clickedAtObserved ?? observed?.startedAtObserved ?? null,
+            { result: observed, recordBoundary },
+          );
+          const result = await submit(persistObservedBoundary);
+          await this.#recordSubmissionBoundaryOrFailClosed(
+            result?.clickedAtObserved ?? result?.startedAtObserved ?? null,
+            { result, recordBoundary },
+          );
           return result;
         } catch (error) {
           if (!error?.submissionBoundaryPersistenceAttempted && (error?.relayStage === 'CLICKED' || error?.relayStage === 'GENERATION_STARTED')) {
@@ -75,17 +85,18 @@ export class GlobalSubmissionPacer {
     return operation;
   }
 
-  async #recordSubmissionBoundary(observedAt) {
+  async #recordSubmissionBoundary(observedAt, { result = null, recordBoundary = null } = {}) {
     const observedMs = Date.parse(observedAt ?? '');
     const boundaryAt = Number.isFinite(observedMs) ? new Date(observedMs).toISOString() : new Date(this.now()).toISOString();
     const state = await this.stateStore.read();
     state.submissionPacing = { lastSubmissionAt: boundaryAt };
+    if (recordBoundary) await recordBoundary(state, { boundaryAt, result });
     await this.stateStore.write(state);
   }
 
-  async #recordSubmissionBoundaryOrFailClosed(observedAt) {
+  async #recordSubmissionBoundaryOrFailClosed(observedAt, options = {}) {
     try {
-      await this.#recordSubmissionBoundary(observedAt);
+      await this.#recordSubmissionBoundary(observedAt, options);
     } catch (error) {
       if (error && typeof error === 'object') {
         error.relayStage = 'CLICKED';

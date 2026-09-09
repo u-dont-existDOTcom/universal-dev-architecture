@@ -79,6 +79,169 @@ test('unowned targets cannot be activated or closed through the automation brows
   assert.ok(raw.byId('user'));
 });
 
+test('exact navigation changes only the requested owned target when a foreign tab has the same destination URL', async () => {
+  const raw = new FakeRawBrowser([
+    page('foreign-same-url', chatB, 1),
+    page('owned-exact', chatA, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, { 'owned-exact': record('owned-exact', 'bootstrap', chatA) }));
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol: new FakeProtocol(raw) });
+
+  const target = await browser.navigateExactOwnedTarget({
+    targetId: 'owned-exact',
+    automationWindowId: 7,
+    expectedUrl: chatA,
+    url: chatB,
+  });
+
+  assert.equal(target.id, 'owned-exact');
+  assert.equal(raw.byId('owned-exact').url, chatB);
+  assert.equal(raw.byId('foreign-same-url').url, chatB);
+  assert.deepEqual(raw.activations, ['owned-exact']);
+});
+
+test('an unowned tab inside the automation window cannot satisfy an exact target requirement', async () => {
+  const raw = new FakeRawBrowser([
+    page('manual-in-automation-window', chatA, 7),
+    page('owned', chatB, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatB) }));
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol: new FakeProtocol(raw) });
+
+  await assert.rejects(
+    browser.requireExactOwnedTarget({
+      targetId: 'manual-in-automation-window',
+      automationWindowId: 7,
+      expectedUrl: chatA,
+    }),
+    /UNOWNED_BROWSER_TARGET/,
+  );
+  assert.deepEqual(raw.activations, []);
+});
+
+test('a wrong-window exact target fails without substituting another owned target at the expected URL', async () => {
+  const raw = new FakeRawBrowser([
+    page('requested-wrong-window', chatA, 8),
+    page('other-owned-correct-window', chatA, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    'requested-wrong-window': record('requested-wrong-window', 'bootstrap', chatA),
+    'other-owned-correct-window': record('other-owned-correct-window', 'bootstrap', chatA),
+  }));
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol: new FakeProtocol(raw) });
+
+  await assert.rejects(
+    browser.requireExactOwnedTarget({
+      targetId: 'requested-wrong-window',
+      automationWindowId: 7,
+      expectedUrl: chatA,
+    }),
+    /AUTOMATION_WINDOW_MISMATCH/,
+  );
+  assert.deepEqual(raw.activations, []);
+});
+
+test('an exact target at the wrong URL fails without substituting a same-URL owned target', async () => {
+  const raw = new FakeRawBrowser([
+    page('requested-wrong-url', chatA, 7),
+    page('other-owned-expected-url', chatB, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    'requested-wrong-url': record('requested-wrong-url', 'bootstrap', chatA),
+    'other-owned-expected-url': record('other-owned-expected-url', 'bootstrap', chatB),
+  }));
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol: new FakeProtocol(raw) });
+
+  await assert.rejects(
+    browser.requireExactOwnedTarget({
+      targetId: 'requested-wrong-url',
+      automationWindowId: 7,
+      expectedUrl: chatB,
+    }),
+    /EXACT_BROWSER_TARGET_URL_MISMATCH/,
+  );
+  assert.deepEqual(raw.activations, []);
+});
+
+test('force-create always allocates one new owned target instead of reusing a same-URL target', async () => {
+  const raw = new FakeRawBrowser([
+    page('foreign-same-url', chatA, 1),
+    page('owned-same-url', chatA, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, { 'owned-same-url': record('owned-same-url', 'bootstrap', chatA) }));
+  const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+
+  const target = await browser.forceCreateOwnedTarget({
+    url: chatA, hardCeiling: 3, purpose: 'controller-cycle',
+    anchorTargetId: 'owned-same-url', automationWindowId: 7, anchorExpectedUrl: chatA,
+  });
+
+  assert.equal(target.id, 'created-1');
+  assert.equal(target.created, true);
+  assert.equal(target.reused, false);
+  assert.equal(raw.byId('foreign-same-url').url, chatA);
+  assert.equal(raw.byId('owned-same-url').url, chatA);
+  assert.equal((await store.read()).targets[target.id].purpose, 'controller-cycle');
+});
+
+test('force-create uses the exact anchor and recovers only one exact purpose target', async () => {
+  const raw = new FakeRawBrowser([
+    page('enumerated-first', chatB, 7),
+    page('exact-anchor', chatA, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    'enumerated-first': record('enumerated-first', 'bootstrap', chatB),
+    'exact-anchor': record('exact-anchor', 'controller-origin', chatA),
+  }));
+  const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+  const created = await browser.forceCreateOwnedTarget({
+    url: chatB, hardCeiling: 3, purpose: 'controller-pm:cycle-1',
+    anchorTargetId: 'exact-anchor', automationWindowId: 7, anchorExpectedUrl: chatA,
+  });
+  assert.deepEqual(raw.activations, ['exact-anchor']);
+  assert.equal((await browser.recoverExactOwnedTargetByPurpose({
+    purpose: 'controller-pm:cycle-1', automationWindowId: 7, expectedUrl: chatB,
+  })).id, created.id);
+  assert.equal(await browser.recoverExactOwnedTargetByPurpose({
+    purpose: 'controller-pm:missing', automationWindowId: 7, expectedUrl: chatB,
+  }), null);
+});
+
+test('force-create recovers the unique exact-window target after a crash at the raw creation boundary', async () => {
+  const raw = new FakeRawBrowser([
+    page('foreign-other-window', chatB, 1),
+    page('exact-anchor', chatA, 7),
+  ]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    'exact-anchor': record('exact-anchor', 'controller-origin', chatA),
+  }));
+  const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
+  protocol.failAfterCreateOnce = true;
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+
+  await assert.rejects(browser.forceCreateOwnedTarget({
+    url: chatB, hardCeiling: 3, purpose: 'controller-pm:crash-cycle',
+    anchorTargetId: 'exact-anchor', automationWindowId: 7, anchorExpectedUrl: chatA,
+  }), /simulated process death after raw target creation/);
+
+  const interrupted = await store.read();
+  assert.equal(interrupted.targets['created-1'], undefined, 'raw target is not falsely claimed before durable registration');
+  assert.deepEqual(interrupted.creationIntents['controller-pm:crash-cycle'].baselineTargetIds, ['exact-anchor']);
+  assert.equal(raw.targets.filter((target) => target.windowId === 7).length, 2);
+
+  const recovered = await browser.recoverExactOwnedTargetByPurpose({
+    purpose: 'controller-pm:crash-cycle', automationWindowId: 7, expectedUrl: chatB,
+  });
+  assert.equal(recovered.id, 'created-1');
+  assert.equal(recovered.recovered, true);
+  const completed = await store.read();
+  assert.equal(completed.targets['created-1'].purpose, 'controller-pm:crash-cycle');
+  assert.equal(completed.creationIntents['controller-pm:crash-cycle'], undefined);
+  assert.equal(raw.targets.filter((target) => target.windowId === 7).length, 2, 'recovery does not create a duplicate tab');
+});
+
 test('exact provider rate-limit dialog is dismissed and converted to one bounded retry signal', async () => {
   const raw = new FakeRawBrowser([page('owned', chatA, 7)]);
   raw.submitError = Object.assign(new Error('generation did not start'), {
@@ -127,6 +290,7 @@ class FakeProtocol {
     this.dedicatedWindowCreates = 0;
     this.rateLimitDismissals = 0;
     this.rateLimitResult = { present: false, dismissed: false };
+    this.failAfterCreateOnce = false;
   }
   async getWindowId(targetId) {
     const value = this.windows.get(targetId);
@@ -144,6 +308,10 @@ class FakeProtocol {
     const targetId = `created-${this.nextId++}`;
     this.raw.targets.push(page(targetId, url, this.defaultWindowId));
     this.windows.set(targetId, this.defaultWindowId);
+    if (this.failAfterCreateOnce) {
+      this.failAfterCreateOnce = false;
+      throw new Error('simulated process death after raw target creation');
+    }
     return { targetId };
   }
   async navigate(target, url) { this.raw.byId(target.id).url = url; }

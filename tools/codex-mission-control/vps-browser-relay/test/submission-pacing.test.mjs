@@ -56,6 +56,36 @@ test('a cooldown rejection does not run pre-submit semantic state mutation', asy
   assert.deepEqual(store.state.deliveries, before);
 });
 
+test('the global pacing boundary and caller recovery record commit in one state write', async () => {
+  const store = new MemoryStateStore();
+  const pacer = new GlobalSubmissionPacer({
+    stateStore: store,
+    minIntervalMs: 60_000,
+    now: () => Date.parse('2026-09-09T12:00:00.000Z'),
+  });
+  await pacer.submit({
+    submit: async () => ({
+      generationStarted: true,
+      clickedAtObserved: '2026-09-09T12:00:01.000Z',
+      conversationUrl: 'https://chatgpt.com/c/exact',
+    }),
+    recordBoundary: (state, { boundaryAt, result }) => {
+      state.controllerCycles['cycle-atomic'] = {
+        status: 'BOUNDARY_VERIFIED',
+        boundaryAt,
+        conversationUrl: result.conversationUrl,
+      };
+    },
+  });
+  assert.deepEqual(store.state.controllerCycles['cycle-atomic'], {
+    status: 'BOUNDARY_VERIFIED',
+    boundaryAt: '2026-09-09T12:00:01.000Z',
+    conversationUrl: 'https://chatgpt.com/c/exact',
+  });
+  assert.equal(store.state.submissionPacing.lastSubmissionAt, '2026-09-09T12:00:01.000Z');
+  assert.equal(store.writes, 1);
+});
+
 test('provider rate-limit before the send boundary waits exactly 30 seconds then retries once', async () => {
   const store = new MemoryStateStore();
   const now = { value: Date.parse('2026-09-08T12:00:00.000Z') };
@@ -163,7 +193,7 @@ test('persisted last-submission time survives a state-store and pacer restart', 
 });
 
 class MemoryStateStore {
-  constructor(initial = defaultState()) { this.state = structuredClone(initial); }
+  constructor(initial = defaultState()) { this.state = structuredClone(initial); this.writes = 0; }
   async read() { return structuredClone(this.state); }
-  async write(value) { this.state = structuredClone(value); return structuredClone(value); }
+  async write(value) { this.writes += 1; this.state = structuredClone(value); return structuredClone(value); }
 }

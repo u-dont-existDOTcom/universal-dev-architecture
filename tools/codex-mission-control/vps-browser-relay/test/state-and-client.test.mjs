@@ -21,6 +21,7 @@ test('state store is atomic, owner-only, and rejects a concurrent relay', async 
     await assert.rejects(() => second.acquireLock(), /Another relay process/);
     const state = await first.read();
     state.deliveries['request:r-1'] = { status: 'SUBMITTED_CONFIRMED', bodySha256: 'a'.repeat(64) };
+    state.controllerCycles['cycle:r-1'] = { cycleId: 'cycle:r-1', step: 'WAIT_PM_ARTIFACT' };
     state.submissionPacing.lastSubmissionAt = '2026-09-02T12:00:00.000Z';
     await first.write(state);
     const staleWriter = { ...state, submissionPacing: { lastSubmissionAt: null } };
@@ -28,6 +29,7 @@ test('state store is atomic, owner-only, and rejects a concurrent relay', async 
     assert.equal((await first.read()).submissionPacing.lastSubmissionAt, '2026-09-02T12:00:00.000Z');
     const raw = await readFile(paths.stateFile, 'utf8');
     assert.match(raw, /SUBMITTED_CONFIRMED/);
+    assert.match(raw, /WAIT_PM_ARTIFACT/);
     assert.doesNotMatch(raw, /MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1/);
     await first.releaseLock();
     await second.acquireLock();

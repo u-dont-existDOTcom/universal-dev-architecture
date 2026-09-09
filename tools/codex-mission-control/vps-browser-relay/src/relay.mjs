@@ -321,6 +321,23 @@ export class RelayRuntime {
     state = await this.#markInterruptedIntents(state);
     state.health.lastCycleAt = startedAt;
 
+    const activeControllerCycle = Object.values(state.controllerCycles ?? {})
+      .find((cycle) => cycle?.step !== 'COMPLETE');
+    if (activeControllerCycle) {
+      state.health.lastError = null;
+      state.health.pausedReason = `Controller-mediated PM cycle ${activeControllerCycle.cycleId} must advance through the controller command.`;
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus('CONTROLLER_CYCLE_REQUIRES_CONTROLLER_COMMAND', state, {
+        controllerCycle: {
+          cycleId: activeControllerCycle.cycleId,
+          taskId: activeControllerCycle.taskId,
+          requestId: activeControllerCycle.requestId,
+          step: activeControllerCycle.step,
+          controllerBindingSha256: activeControllerCycle.controllerBindingSha256,
+        },
+      });
+    }
+
     try {
       let metrics = await this.memoryReader(this.config.browser.profileDir);
       let memory = this.#memoryState(metrics);
