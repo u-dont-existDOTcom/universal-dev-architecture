@@ -658,9 +658,12 @@ export class ChromeDevtoolsBrowser {
   async #openModelMenu(client, normalized) {
     let lastClickAt = 0;
     const clickIfClosed = async () => {
-      const control = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
-      if (control?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${control.currentUrl}`);
-      if (!control?.rect) throw new Error(`ChatGPT model/mode switch control is unavailable: ${control?.reason ?? 'UNKNOWN'}.`);
+      const control = await waitFor(async () => {
+        const candidate = await client.callFunction(OPEN_MODEL_MENU_FN, [normalized]);
+        if (candidate?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${candidate.currentUrl}`);
+        if (candidate?.ambiguous) throw new Error('ChatGPT model/mode switch control is ambiguous.');
+        return candidate?.rect ? candidate : false;
+      }, this.pageReadyTimeoutMs, 200, 'ChatGPT model/mode switch control did not become ready after navigation.');
       if (!control.expanded && Date.now() - lastClickAt >= 1_000) {
         const x = control.rect.x + control.rect.width / 2;
         const y = control.rect.y + control.rect.height / 2;

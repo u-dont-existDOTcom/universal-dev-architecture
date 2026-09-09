@@ -121,6 +121,7 @@ test('fresh provider conversations use an explicit CDP navigation instead of tru
   assert.match(source, /this\.#prepareTarget\(target, freshUrl, true\)/);
   assert.match(source, /ChatGPT navigation failed/);
   assert.match(source, /Fresh ChatGPT model control did not become ready/);
+  assert.match(source, /model\/mode switch control did not become ready after navigation/);
   assert.match(source, /conversationAssigned \? 'CONVERSATION_URL_ASSIGNED'/);
   assert.match(source, /model menu did not become ready for exact label/);
   assert.match(source, /if \(normalized === 'https:\/\/chatgpt\.com\/'\) return false/);
