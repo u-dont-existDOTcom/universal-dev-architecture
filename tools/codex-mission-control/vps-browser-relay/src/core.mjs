@@ -451,7 +451,7 @@ export function appSelectionForMessage(chat, step) {
   return { knownLabels, requiredLabels, referencedLabels };
 }
 
-export function cycleControlPrompt(route, step) {
+export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText = false } = {}) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Control prompts require a supervisory-cycle route.');
   const requestId = route.requestId;
   const location = `${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.issueNumber}`;
@@ -472,7 +472,7 @@ export function cycleControlPrompt(route, step) {
       : 'Reason directly in the currently visible Extra High session and make the ordinary decision.';
     const continuationInstruction = route.packet.continuationBinding
       ? ' Copy the supplied continuation_binding and continuation_binding_sha256 exactly into the canonical schema_version 3 decision as optional top-level fields outside binding_envelope.' : '';
-    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}.${continuationInstruction} Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`);
+    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}.${continuationInstruction} Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`, { omitContinuationOwnerExactText });
   }
   if (step === 'EXTRA_HIGH_DIRECT') {
     return freshToolStagePrompt(route, step, `Read the substantive evidence only from the immutable GitHub references, make the bounded decision requested, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message. Set stage_provider_session_id to ${providerSessionId}.`);
@@ -489,7 +489,7 @@ export function cycleControlPrompt(route, step) {
   throw new Error(`Unknown supervisory-cycle step: ${step}`);
 }
 
-function freshToolStagePrompt(route, step, instruction) {
+function freshToolStagePrompt(route, step, instruction, { omitContinuationOwnerExactText = false } = {}) {
   if (!route.bindingCapsule?.payload || !route.bindingCapsule?.sha256) throw new Error(`${step} requires a mechanically derived binding capsule.`);
   if (route.bindingCapsule.payload.binding_provider_session_id === route.providerSessionId) throw new Error(`${step} must use a provider session distinct from the binding preload session.`);
   const evidenceRefs = route.packet.factualPacket?.evidenceRefs ?? [];
@@ -499,7 +499,9 @@ function freshToolStagePrompt(route, step, instruction) {
   const digestLabel = direct ? 'binding_envelope_sha256' : 'binding_capsule_sha256';
   const continuation = validateOwnerResponseContinuation(route.packet, route.packet.routeSchemaVersion, route.workerId, route.supervisorId);
   const continuationPrompt = continuation
-    ? ` continuation_binding: ${canonicalJson(continuation)}. continuation_binding_sha256: ${route.packet.continuationBindingSha256}. The following exact text is the OWNER-authored response delivered to this supervisor, supplied for this fresh decision.\nBEGIN EXACT OWNER RESPONSE\n${route.packet.continuationOwnerResponseExactText}\nEND EXACT OWNER RESPONSE\n` : '';
+    ? ` continuation_binding: ${canonicalJson(continuation)}. continuation_binding_sha256: ${route.packet.continuationBindingSha256}.${omitContinuationOwnerExactText
+      ? ' The exact OWNER response is intentionally not embedded in this prompt; obtain it only from the separately controller-bound immutable GitHub artifact.\n'
+      : ` The following exact text is the OWNER-authored response delivered to this supervisor, supplied for this fresh decision.\nBEGIN EXACT OWNER RESPONSE\n${route.packet.continuationOwnerResponseExactText}\nEND EXACT OWNER RESPONSE\n`}` : '';
   return `Mission Control fresh-first-message stage ${step} for request ${route.requestId}. Use the connected ${route.chat.requiredApps.github} tool; a selectable composer chip is not required. This is the first and only message in provider session ${route.providerSessionId}; do not use Mission Control or prior-chat memory. Copy this exact ${bindingLabel} into the receipt without alteration: ${canonicalJson(route.bindingCapsule.payload)}. ${digestLabel}: ${route.bindingCapsule.sha256}. Immutable GitHub evidence references: ${canonicalJson(evidenceRefs)}. Bounded decision request: ${JSON.stringify(decisionRequested)}.${continuationPrompt || ' '}${instruction} Do not answer with prose instead of attempting the required GitHub write. If GitHub is unavailable, the binding/hash mismatches, or the write fails, fail closed. Do not delegate to Work.`;
 }
 
@@ -649,6 +651,7 @@ export function defaultState(now = new Date().toISOString()) {
     createdAt: now,
     updatedAt: now,
     deliveries: {},
+    controllerCycles: {},
     providerSessions: {},
     tabs: {},
     submissionPacing: { lastSubmissionAt: null },
@@ -663,6 +666,7 @@ export function normalizeState(value, now = new Date().toISOString()) {
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : now,
     updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : now,
     deliveries: isRecord(value.deliveries) ? value.deliveries : {},
+    controllerCycles: isRecord(value.controllerCycles) ? value.controllerCycles : {},
     providerSessions: isRecord(value.providerSessions) ? value.providerSessions : {},
     tabs: isRecord(value.tabs) ? value.tabs : {},
     submissionPacing: isRecord(value.submissionPacing) && Number.isFinite(Date.parse(value.submissionPacing.lastSubmissionAt ?? ''))

@@ -744,10 +744,14 @@ export class ChromeDevtoolsBrowser {
     await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
   }
 
-  async submitExactMessage(target, { expectedUrl, body, bodySha256 }) {
+  async submitExactMessage(target, { expectedUrl, body, bodySha256, onSubmissionBoundary = null }) {
     if (!body || typeof body !== 'string') throw new Error('Cannot submit an empty message.');
+    if (onSubmissionBoundary !== null && typeof onSubmissionBoundary !== 'function') {
+      throw new Error('Submission boundary observer must be a function when provided.');
+    }
     let relayStage = 'CONNECTING';
     let clickedAtObserved = null;
+    let submissionBoundaryPersistenceAttempted = false;
     try {
       return await this.#withPageClient(target, async (client) => {
         relayStage = 'PREPARING';
@@ -775,6 +779,20 @@ export class ChromeDevtoolsBrowser {
         if (!send?.ok) throw new Error(`ChatGPT send control is unavailable: ${send?.reason ?? 'UNKNOWN'}.`);
         relayStage = 'CLICKED';
         clickedAtObserved = new Date().toISOString();
+        if (onSubmissionBoundary) {
+          await onSubmissionBoundary({
+            status: 'CLICKED',
+            targetId: target.id,
+            expectedUrl: normalized,
+            bodySha256,
+            bodyLength: body.length,
+            clickedAtObserved,
+            generationStarted: false,
+            providerSourceTime: null,
+            inspectedAssistantOutput: false,
+          });
+          submissionBoundaryPersistenceAttempted = true;
+        }
 
         let started;
         try {
@@ -817,6 +835,7 @@ export class ChromeDevtoolsBrowser {
       if (error && typeof error === 'object') {
         error.relayStage = relayStage;
         if (clickedAtObserved) error.clickedAtObserved = clickedAtObserved;
+        if (submissionBoundaryPersistenceAttempted) error.submissionBoundaryPersistenceAttempted = true;
       }
       throw error;
     }

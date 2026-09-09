@@ -19,6 +19,22 @@ import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const normalMetrics = { totalMb: 7941, availableMb: 5400, usedMb: 2541, swapTotalMb: 2048, swapUsedMb: 2, browserRssMb: 1700, sampledAt: '2026-09-02T00:00:00.000Z' };
 
+test('ordinary relay refuses to advance while a controller-mediated cycle is nonfinal', async () => {
+  const state = defaultState();
+  state.controllerCycles['controller-1'] = {
+    cycleId: 'controller-1', taskId: 'task-1', requestId: 'r-1',
+    step: 'WAIT_PM_ARTIFACT', controllerBindingSha256: 'a'.repeat(64),
+  };
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'CONTROLLER_CYCLE_REQUIRES_CONTROLLER_COMMAND');
+  assert.equal(browser.submitCalls, 0);
+  assert.equal(mc.fetchFleetCalls, 0);
+});
+
 test('normal supervision fails closed when live tool/mode capability receipts are missing', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: [challengeEvidence()] });

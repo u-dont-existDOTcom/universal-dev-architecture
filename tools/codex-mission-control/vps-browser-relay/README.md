@@ -23,11 +23,24 @@ escalated, durable stage bus:
 MC binding preload -> fresh Extra High GitHub reader -> #61 reader receipt
                    -> fresh Pro GitHub reasoner -> #61 Pro decision receipt
                    -> fresh Extra High GitHub exact writer -> #59 -> Mission Control
+
+controller-mediated Project Manager return:
+completed MC binding preload -> exact origin target -> #61 exact OWNER-byte artifact
+                             -> permanent PM exact target -> #61 exact PM artifact
+                             -> exact prior origin target, fresh decision chat -> #59 -> Mission Control
 ```
 
 GitHub is the handoff between stages. Conversation history is never required for
 an external-tool operation. The relay never reads, copies, hashes, parses,
 summarizes, or transports assistant response text.
+
+The controller-mediated route is an explicit, one-cycle command path. It uses
+GitHub as the only semantic mailbox. Its owner-only restart ledger stores exact
+target/window/session identities, send boundaries, immutable comment identities,
+and content digests, but no prompt or assistant-output bodies. The origin and Project Manager reasoning chats
+perform their own ordinary GitHub reads and writes; the controller never reads
+assistant output. A completed browser generation is transport evidence only and
+cannot advance an artifact state or complete a cycle.
 
 ## Browser-relay invariants
 
@@ -48,6 +61,23 @@ summarizes, or transports assistant response text.
 - Every actual ChatGPT message send shares one persisted global cooldown. The default minimum interval is 60 seconds, configurable with `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` from 15,000 through 600,000 ms.
 - Capability prompts, binding preloads, and every fresh Extra High/Pro GitHub stage use the same gate. The relay-wide process lock and a narrow in-process serialized gate allow only one send path to cross at once.
 - Cooldown checks never sleep inside the state machine. They return `GLOBAL_SUBMISSION_COOLDOWN` with `retryAfterMs` and `nextSubmissionAt`, and no click or route-authority mutation occurs.
+- Controller cycles bind every browser operation to one persisted target ID,
+  automation-window ID, and expected current URL. They never select a target by
+  active/latest/first position or matching URL. Same-URL collisions and unowned
+  targets fail closed.
+- Before any controller send is replayed after restart, the relay reconciles the
+  exact cycle/kind/nonce GitHub artifact across the complete issue history and
+  re-reads the immutable comment by ID. A post-intent send with no exact artifact
+  remains ambiguous and is never replayed automatically.
+- The controller persists its global pacing boundary and cycle-specific click
+  boundary from the immediate post-click browser callback. If the process stops
+  before generation returns, it recovers only through the already-bound exact
+  target/window identity and a causal root-to-conversation transition; it does
+  not select a replacement target.
+- GitHub artifact waits use a durable 90-second polling lease and a lower-bound
+  `since` filter. Rapid controller polling does not amplify unauthenticated API
+  reads, and a global submission cooldown is checked before consumed-artifact
+  revalidation.
 
 ## Model-agnostic stuck-chat recovery
 
@@ -291,6 +321,23 @@ relay=~/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs
 $relay doctor
 $relay once
 ```
+
+For one explicitly admitted controller-mediated PM cycle, create an owner-only
+JSON spec that pins the cycle/task/request, worker/origin/PM identities, exact
+route event and body digest, #61 artifact channel, two unique artifact nonces,
+and authorized GitHub writer login(s). Then use the dedicated commands:
+
+```bash
+$relay controller-init /owner-only/path/exact-cycle-spec.json
+$relay controller-once <cycle-id>
+# or poll the same durable cycle until exact GitHub/Mission Control completion:
+$relay controller-run <cycle-id>
+```
+
+`controller-init` requires an already completed binding preload. While any
+controller cycle is nonfinal, ordinary `once`/`run` refuses to advance that
+route. Keep the normal service disabled and use a narrow one-shot
+`MC_RELAY_SUBMIT_ENABLED=1` override for live acceptance.
 
 Normal pre-live outcomes include `READY`, `IDLE`, `CAPABILITY_NOT_VERIFIED`, and `DRY_RUN_ROUTE_READY`. These are informative fail-closed states, not reasons to enable submission prematurely.
 

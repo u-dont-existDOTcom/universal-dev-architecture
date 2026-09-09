@@ -93,6 +93,126 @@ export class AutomationOwnedBrowser {
     return this.#createOwnedTarget(CHATGPT_ROOT, 'session', hardCeiling);
   }
 
+  async requireExactOwnedTarget({ targetId, automationWindowId, expectedUrl } = {}) {
+    const target = await this.inspectExactOwnedTargetIdentity({ targetId, automationWindowId });
+    const normalizedExpectedUrl = normalizeAutomationTargetUrl(expectedUrl);
+    if (target.url !== normalizedExpectedUrl) {
+      throw new Error(`EXACT_BROWSER_TARGET_URL_MISMATCH: target ${targetId} is at ${target.url ?? 'UNKNOWN'}, expected ${normalizedExpectedUrl}.`);
+    }
+    return target;
+  }
+
+  async inspectExactOwnedTargetIdentity({ targetId, automationWindowId } = {}) {
+    if (typeof targetId !== 'string' || targetId.trim() === '') {
+      throw new Error('EXACT_BROWSER_TARGET_ID_REQUIRED: an exact automation-owned target ID is required.');
+    }
+    if (!Number.isInteger(automationWindowId)) {
+      throw new Error('EXACT_AUTOMATION_WINDOW_ID_REQUIRED: an exact automation window ID is required.');
+    }
+    const ownership = await this.#readOwnership();
+    if (ownership.windowId !== automationWindowId) {
+      throw new Error(`AUTOMATION_WINDOW_ID_MISMATCH: requested window ${automationWindowId} does not match relay window ${ownership.windowId}.`);
+    }
+    if (!ownership.targets[targetId]) {
+      throw new Error(`UNOWNED_BROWSER_TARGET: refusing to operate on target ${targetId}.`);
+    }
+    const target = (await this.rawBrowser.listTargets()).find((candidate) => candidate.id === targetId);
+    if (!target) throw new Error(`EXACT_BROWSER_TARGET_MISSING: target ${targetId} is not live.`);
+    const windowId = await this.protocol.getWindowId(targetId).catch(() => null);
+    if (windowId !== automationWindowId) {
+      throw new Error(`AUTOMATION_WINDOW_MISMATCH: target ${targetId} is in window ${windowId ?? 'UNKNOWN'}, expected ${automationWindowId}.`);
+    }
+    let currentUrl = null;
+    try { currentUrl = normalizeAutomationTargetUrl(target.url); }
+    catch { throw new Error(`EXACT_BROWSER_TARGET_URL_INVALID: target ${targetId} is at ${target.url ?? 'UNKNOWN'}.`); }
+    return {
+      ...target,
+      url: currentUrl,
+      automationOwned: true,
+      automationWindowId,
+    };
+  }
+
+  async navigateExactOwnedTarget({ targetId, automationWindowId, expectedUrl, url, purpose = null } = {}) {
+    const target = await this.requireExactOwnedTarget({ targetId, automationWindowId, expectedUrl });
+    const normalizedUrl = normalizeAutomationTargetUrl(url);
+    if (purpose !== null && (typeof purpose !== 'string' || purpose.trim() === '')) {
+      throw new Error('Automation-owned target purpose must be a non-empty string when provided.');
+    }
+    await this.rawBrowser.activateTarget(targetId);
+    await this.protocol.navigate(target, normalizedUrl);
+    const navigated = await this.requireExactOwnedTarget({
+      targetId,
+      automationWindowId,
+      expectedUrl: normalizedUrl,
+    });
+    const ownership = await this.#readOwnership();
+    ownership.targets[targetId] = {
+      ...ownership.targets[targetId],
+      ...(purpose === null ? {} : { purpose }),
+      assignedUrl: normalizedUrl,
+      lastUsedAt: new Date().toISOString(),
+    };
+    await this.ownershipStore.write(ownership);
+    return { ...navigated, created: false, reused: true };
+  }
+
+  async forceCreateOwnedTarget({ url, hardCeiling = 3, purpose = 'session', anchorTargetId, automationWindowId, anchorExpectedUrl } = {}) {
+    const normalizedUrl = normalizeAutomationTargetUrl(url);
+    if (typeof purpose !== 'string' || purpose.trim() === '') {
+      throw new Error('Automation-owned target purpose must be a non-empty string.');
+    }
+    const anchor = await this.requireExactOwnedTarget({
+      targetId: anchorTargetId,
+      automationWindowId,
+      expectedUrl: anchorExpectedUrl,
+    });
+    return this.#createOwnedTarget(normalizedUrl, purpose, hardCeiling, anchor);
+  }
+
+  async recoverExactOwnedTargetByPurpose({ purpose, automationWindowId, expectedUrl } = {}) {
+    if (typeof purpose !== 'string' || purpose.trim() === '') throw new Error('Exact recovery purpose is required.');
+    if (!Number.isInteger(automationWindowId)) throw new Error('EXACT_AUTOMATION_WINDOW_ID_REQUIRED: an exact automation window ID is required.');
+    const ownership = await this.#readOwnership();
+    if (ownership.windowId !== automationWindowId) throw new Error('AUTOMATION_WINDOW_ID_MISMATCH: exact recovery window changed.');
+    const ids = Object.values(ownership.targets).filter((record) => record?.purpose === purpose).map((record) => record.targetId);
+    if (ids.length === 0) {
+      const intent = ownership.creationIntents?.[purpose];
+      if (!intent) return null;
+      const normalizedExpectedUrl = normalizeAutomationTargetUrl(expectedUrl);
+      if (intent.windowId !== automationWindowId || intent.url !== normalizedExpectedUrl) {
+        throw new Error('OWNED_TARGET_CREATION_INTENT_MISMATCH: exact recovery binding changed.');
+      }
+      const baseline = new Set(intent.baselineTargetIds);
+      const candidates = await this.#waitForCreationDifference(baseline, automationWindowId);
+      if (candidates.length === 0) return null;
+      if (candidates.length !== 1) {
+        throw new Error(`OWNED_TARGET_CREATION_RECOVERY_AMBIGUOUS: found ${candidates.length} post-intent targets in the exact automation window.`);
+      }
+      const target = candidates[0];
+      let currentUrl = null;
+      try { currentUrl = normalizeAutomationTargetUrl(target.url); } catch { /* exact mismatch below */ }
+      if (target.type !== 'page' || currentUrl !== normalizedExpectedUrl) {
+        throw new Error('OWNED_TARGET_CREATION_RECOVERY_MISMATCH: the unique post-intent target does not match the exact requested page and URL.');
+      }
+      const now = new Date().toISOString();
+      ownership.targets[target.id] = {
+        targetId: target.id,
+        purpose,
+        assignedUrl: normalizedExpectedUrl,
+        createdAt: intent.intentRecordedAt,
+        lastUsedAt: now,
+      };
+      delete ownership.creationIntents[purpose];
+      await this.ownershipStore.write(ownership);
+      const ready = await this.#waitForRawTarget(target.id);
+      await this.protocol.waitForReady(ready, normalizedExpectedUrl);
+      return { ...ready, url: normalizedExpectedUrl, created: true, reused: false, recovered: true, automationOwned: true, automationWindowId };
+    }
+    if (ids.length !== 1) throw new Error(`OWNED_TARGET_PURPOSE_AMBIGUOUS: found ${ids.length} targets for ${purpose}.`);
+    return this.requireExactOwnedTarget({ targetId: ids[0], automationWindowId, expectedUrl });
+  }
+
   async assertOwnedTarget(target) {
     await this.#assertOwned(target?.id);
     return true;
@@ -151,12 +271,14 @@ export class AutomationOwnedBrowser {
         blocked.startedAtObserved = error?.startedAtObserved ?? null;
         throw blocked;
       }
-      throw new ChatGptRateLimitRetryError({
+      const retry = new ChatGptRateLimitRetryError({
         retryAfterMs: RATE_LIMIT_RETRY_MS,
         relayStage: error?.relayStage ?? 'UNKNOWN',
         clickedAtObserved: error?.clickedAtObserved ?? null,
         startedAtObserved: error?.startedAtObserved ?? null,
       });
+      if (error?.submissionBoundaryPersistenceAttempted) retry.submissionBoundaryPersistenceAttempted = true;
+      throw retry;
     }
   }
 
@@ -197,13 +319,41 @@ export class AutomationOwnedBrowser {
     return { ...current, url, created: false, reused: true, automationOwned: true, automationWindowId: ownership.windowId };
   }
 
-  async #createOwnedTarget(url, purpose, hardCeiling) {
+  async #createOwnedTarget(url, purpose, hardCeiling, exactAnchor = null) {
     if (!Number.isInteger(hardCeiling) || hardCeiling < 1 || hardCeiling > 3) throw new Error('Automation-owned ChatGPT hard ceiling must be 1-3.');
     const ownership = await this.#ensureOwnership();
     const owned = await this.listTargets();
     if (owned.length >= hardCeiling) throw new Error(`MANAGED_CHATGPT_TAB_HARD_CEILING: refusing to create automation-owned tab ${owned.length + 1}; ceiling is ${hardCeiling}.`);
-    const anchor = owned[0];
+    const anchor = exactAnchor ?? owned[0];
     if (!anchor) throw new Error('Automation-owned window has no anchor target.');
+    if (exactAnchor && !owned.some((target) => target.id === exactAnchor.id)) throw new Error('EXACT_CREATION_ANCHOR_MISSING.');
+    let intentRecordedAt = new Date().toISOString();
+    if (exactAnchor) {
+      ownership.creationIntents ??= {};
+      const priorIntent = ownership.creationIntents[purpose];
+      if (priorIntent) {
+        if (priorIntent.url !== url || priorIntent.windowId !== ownership.windowId || priorIntent.anchorTargetId !== anchor.id) {
+          throw new Error('OWNED_TARGET_CREATION_INTENT_MISMATCH: refusing to reuse a pending creation intent with changed exact bindings.');
+        }
+        intentRecordedAt = priorIntent.intentRecordedAt;
+      } else {
+        const baselineTargetIds = [];
+        for (const target of await this.rawBrowser.listTargets()) {
+          const windowId = await this.protocol.getWindowId(target.id).catch(() => null);
+          if (windowId === ownership.windowId) baselineTargetIds.push(target.id);
+        }
+        intentRecordedAt = new Date().toISOString();
+        ownership.creationIntents[purpose] = {
+          purpose,
+          url,
+          windowId: ownership.windowId,
+          anchorTargetId: anchor.id,
+          baselineTargetIds: baselineTargetIds.sort(),
+          intentRecordedAt,
+        };
+        await this.ownershipStore.write(ownership);
+      }
+    }
     await this.rawBrowser.activateTarget(anchor.id);
     const created = await this.protocol.createTarget(url);
     const windowId = await this.protocol.getWindowId(created.targetId);
@@ -215,9 +365,10 @@ export class AutomationOwnedBrowser {
       targetId: created.targetId,
       purpose,
       assignedUrl: url,
-      createdAt: new Date().toISOString(),
+      createdAt: intentRecordedAt,
       lastUsedAt: new Date().toISOString(),
     };
+    if (exactAnchor) delete ownership.creationIntents[purpose];
     await this.ownershipStore.write(ownership);
     const target = await this.#waitForRawTarget(created.targetId);
     await this.protocol.waitForReady(target, url);
@@ -250,11 +401,19 @@ export class AutomationOwnedBrowser {
           lastUsedAt: new Date().toISOString(),
         },
       },
+      creationIntents: {},
       updatedAt: new Date().toISOString(),
     };
     await this.ownershipStore.write(ownership);
     const target = await this.#waitForRawTarget(created.targetId);
     await this.protocol.waitForReady(target, CHATGPT_ROOT);
+    return ownership;
+  }
+
+  async #readOwnership() {
+    const ownership = await this.ownershipStore.read();
+    if (!ownership) throw new Error('BROWSER_OWNERSHIP_STATE_MISSING: exact target operations require existing ownership state.');
+    validateOwnership(ownership);
     return ownership;
   }
 
@@ -281,6 +440,20 @@ export class AutomationOwnedBrowser {
       await sleep(100);
     }
     throw new Error(`Automation-owned target ${targetId} did not become debuggable.`);
+  }
+
+  async #waitForCreationDifference(baseline, automationWindowId) {
+    const deadline = Date.now() + 2_000;
+    for (;;) {
+      const candidates = [];
+      for (const target of await this.rawBrowser.listTargets()) {
+        if (baseline.has(target.id)) continue;
+        const windowId = await this.protocol.getWindowId(target.id).catch(() => null);
+        if (windowId === automationWindowId) candidates.push(target);
+      }
+      if (candidates.length > 0 || Date.now() >= deadline) return candidates;
+      await sleep(100);
+    }
   }
 }
 
@@ -456,11 +629,32 @@ function validateOwnership(value) {
   for (const [targetId, record] of Object.entries(value.targets)) {
     if (!record || record.targetId !== targetId || typeof record.purpose !== 'string') throw new Error(`BROWSER_OWNERSHIP_STATE_INVALID: target record ${targetId} is malformed.`);
   }
+  if (value.creationIntents !== undefined) {
+    if (!value.creationIntents || typeof value.creationIntents !== 'object' || Array.isArray(value.creationIntents)) {
+      throw new Error('BROWSER_OWNERSHIP_STATE_INVALID: creation intents are malformed.');
+    }
+    for (const [purpose, intent] of Object.entries(value.creationIntents)) {
+      if (!intent || intent.purpose !== purpose || typeof intent.url !== 'string'
+        || !Number.isInteger(intent.windowId) || intent.windowId !== value.windowId
+        || typeof intent.anchorTargetId !== 'string' || intent.anchorTargetId.trim() === ''
+        || !Array.isArray(intent.baselineTargetIds)
+        || intent.baselineTargetIds.some((id) => typeof id !== 'string' || id.trim() === '')
+        || new Set(intent.baselineTargetIds).size !== intent.baselineTargetIds.length
+        || !Number.isFinite(Date.parse(intent.intentRecordedAt ?? ''))) {
+        throw new Error(`BROWSER_OWNERSHIP_STATE_INVALID: creation intent ${purpose} is malformed.`);
+      }
+    }
+  }
 }
 
 function isChatGptPage(target) {
   if (target?.type !== 'page' || typeof target.url !== 'string') return false;
   try { return new URL(target.url).hostname === 'chatgpt.com'; } catch { return false; }
+}
+
+function normalizeAutomationTargetUrl(value) {
+  if (value === CHATGPT_ROOT) return CHATGPT_ROOT;
+  return normalizeConversationUrl(value);
 }
 
 function readinessExpression(expectedUrl) {

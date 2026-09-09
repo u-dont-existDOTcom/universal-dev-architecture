@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CONTROLLER-MEDIATED-PM-GITHUB-LOOP-20260909",
+  "recorded_at": "2026-09-09T13:21:14Z",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continue Mission Control from the current canonical state.\nFresh-read current `main` and issue #53 comment `5594633379`, then execute that NEXT EXECUTION CONTRACT end-to-end.\nDo not repeat browser-isolation proof, direct OWNER-path proof, PM developer-MCP capability attempts, or GitHub capability probes.\nImplement the smallest restart-safe controller-mediated GitHub loop, run focused + hosted verification, install it on the authorized non-production Hostinger relay, then run one fresh disposable PM-mediated exact OWNER-byte live proof.\nUse only automation-owned browser window/targets. Never select tabs by latest/active/matching URL. Reasoning chats must perform their own ordinary GitHub reads/writes and must not delegate those GitHub operations to Work.\nContinue automatically through safe/reversible steps and reviewed GitHub closeout. Production remains untouched. Stop only on a concrete missing field/transition, genuine owner decision, or safety/privacy boundary, and record the exact blocker durably on issue #53.",
+    "sha256": "eb3645064138f710ebdcd0bf3db745ba64473c63786ee96692bf732702826a13",
+    "source_type": "owner_chat_message",
+    "source_scope": "Verbatim continuation authority and end-to-end acceptance boundary.",
+    "source_ref": "current-chat:owner-message:2026-09-09",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null
+  },
+  "canonical_execution_contract": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue_number": 53,
+    "comment_id": 5594633379,
+    "body_sha256": "1a712ce1bb1d58d7faf59d662baf6f00f54fc1ee85e5cf836e7c83603726d87b",
+    "immutable_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5594633379"
+  },
+  "normalized_outcome": "From freshly fetched canonical main, implement and verify the smallest restart-safe controller-mediated GitHub semantic-mailbox loop, merge it through reviewed GitHub closeout, install the exact merged relay package on the authorized non-production Hostinger host with rollback preserved, and complete one new disposable PM-mediated exact OWNER-byte live proof through the permanent mc-project-manager identity and exact automation-owned targets, without touching production or widening browser-content access.",
+  "required_outcomes": [
+    {
+      "id": "RO-PM-LOOP-001",
+      "observable": "The controller persists the complete required state flow, exact cycle/task/request/origin/PM/return bindings, send intents and boundaries, consumed GitHub artifact identities, retry state, and completion receipt; restart reconciliation cannot create duplicate authoritative messages.",
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/controller-mediated-pm.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/controller-mediated-pm.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PM-LOOP-002",
+      "observable": "Origin, PM, and final GitHub artifacts are admitted only by exact configured repository/issue/request/task/schema/hash/nonce/author/source bindings; latest, first, random, stale, wrong-request, and duplicate-substitution paths fail closed.",
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/controller-github-artifacts.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/controller-github-artifacts.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PM-LOOP-003",
+      "observable": "PM and return submissions use the exact cycle-bound automation-owned target and automation window, preserve the global 60-second pacing and bounded one-time rate-limit recovery, and never use recency, activity, enumeration order, or URL coincidence to select a target.",
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/submission-pacing.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/controller-mediated-pm.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PM-LOOP-004",
+      "observable": "The controller transports only exact source-bound factual/control packets and immutable GitHub artifact references; it never reads assistant output from ChatGPT, authors a semantic substitute, or changes semantic payload bytes. Every reasoning-chat prompt requires that chat to perform its own ordinary GitHub reads/writes and forbids delegation of those GitHub operations to Work/Codex.",
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/controller-mediated-pm.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/controller-mediated-pm.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PM-LOOP-005",
+      "observable": "Focused deterministic tests, the repository release gates, exact-head hosted checks, and an independent exact-diff review pass for the pull-request candidate.",
+      "terminal_required": true,
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "state/CURRENT-STATE.md",
+        "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5594633379"
+      ]
+    },
+    {
+      "id": "RO-PM-LOOP-006",
+      "observable": "The exact reviewed/merged package is installed on the authorized non-production Hostinger relay with a concrete rollback copy and preservation of private configuration, registered chats, browser profile, state, and production isolation.",
+      "terminal_required": true,
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-PM-LOOP-007",
+      "observable": "One fresh disposable PM-mediated fixture traverses origin reasoning chat -> exact origin GitHub artifact -> controller -> mc-project-manager -> exact PM GitHub artifact -> controller -> exact prior origin target -> canonical GitHub/Mission Control resolution with exact OWNER bytes once, durable non-secret IDs, and no Codex semantic substitute.",
+      "terminal_required": true,
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-PM-LOOP-008",
+      "observable": "state/CURRENT-STATE.md is reconciled to the accepted private PM registration/challenge facts and controller-mediated next path while the provider source timestamp remains separately TIMESTAMP UNAVAILABLE · UNVERIFIED.",
+      "terminal_required": true,
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Repeating the already accepted browser-isolation or direct OWNER-path proof",
+    "A PM developer-MCP or GitHub capability probe",
+    "Generation completion without the exact expected GitHub artifact",
+    "A matching latest, first, active, same-URL, or otherwise unbound browser tab/comment",
+    "Unit tests, hosted checks, a pull request, a merge, or installation without the fresh end-to-end PM-mediated exact OWNER-byte live proof",
+    "A controller-authored summary or replacement for reasoning-chat semantic bytes",
+    "Any mutation of production Mission Control"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/executable-frontier-coherence.md",
+    "patterns/persistent-browser-automation-hygiene.md",
+    "patterns/chat-led-reasoning-codex-execution-separation.md",
+    "patterns/codex-worker-permissions.md"
+  ],
+  "assurance_lane": "release",
+  "production_authorized": false,
+  "next_direct_evidence": "Hosted exact-head verification and independent exact-diff review, followed by reviewed merge, exact merged-package installation on the authorized non-production Hostinger relay, and one fresh disposable PM-mediated exact OWNER-byte live proof."
+}
