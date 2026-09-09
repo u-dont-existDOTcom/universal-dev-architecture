@@ -107,6 +107,13 @@ test('browser control code does not use generic transcript-editable selectors', 
   assert.match(source, /\[role="menu"\], \[role="listbox"\], \[role="dialog"\]/);
 });
 
+test('model control falls back to one labeled page-wide menu button when ChatGPT moves it outside the composer form', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  assert.equal(source.match(/const pageWide = \[\.\.\.document\.querySelectorAll\('button\[aria-haspopup="menu"\], button\[aria-haspopup="listbox"\]'\)\]/g)?.length, 3);
+  assert.equal(source.match(/tested\.length \? tested : \(scoped\.length \? scoped : pageWide\)/g)?.length, 3);
+  assert.ok((source.match(/data-testid'\) !== 'composer-plus-btn'/g)?.length ?? 0) >= 6);
+});
+
 test('fresh provider conversations use an explicit CDP navigation instead of trusting json/new', async () => {
   const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
   assert.match(source, /#prepareTarget\(target, url, requireModelControl\)/);

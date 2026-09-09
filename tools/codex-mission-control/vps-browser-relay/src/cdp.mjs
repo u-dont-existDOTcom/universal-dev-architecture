@@ -53,7 +53,11 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
       .filter((element) => visibleLabel(element))
       .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn')
     : [];
-  const candidates = tested.length ? tested : scoped;
+  const pageWide = [...document.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+    .filter(visible)
+    .filter((element) => visibleLabel(element))
+    .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn');
+  const candidates = tested.length ? tested : (scoped.length ? scoped : pageWide);
   if (candidates.length !== 1) {
     return { urlMismatch: false, controlFound: false, ambiguous: candidates.length > 1, reason: candidates.length ? 'MODEL_CONTROL_AMBIGUOUS' : 'MODEL_CONTROL_NOT_FOUND' };
   }
@@ -88,7 +92,11 @@ const MODEL_MENU_STATE_FN = `function(labelWanted) {
       .filter((element) => visibleLabel(element) || element.getAttribute('aria-label'))
       .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn')
     : [];
-  const controls = tested.length ? tested : scoped;
+  const pageWide = [...document.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+    .filter(visible)
+    .filter((element) => visibleLabel(element) || element.getAttribute('aria-label'))
+    .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn');
+  const controls = tested.length ? tested : (scoped.length ? scoped : pageWide);
   if (controls.length !== 1) return { menuFound: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_CONTROL_AMBIGUOUS' : 'MODEL_CONTROL_NOT_FOUND' };
   const control = controls[0];
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
@@ -141,7 +149,11 @@ const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
       .filter((element) => visibleLabel(element) || element.getAttribute('aria-label'))
       .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn')
     : [];
-  const controls = tested.length ? tested : scoped;
+  const pageWide = [...document.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
+    .filter(visible)
+    .filter((element) => visibleLabel(element) || element.getAttribute('aria-label'))
+    .filter((element) => element.getAttribute('data-testid') !== 'composer-plus-btn');
+  const controls = tested.length ? tested : (scoped.length ? scoped : pageWide);
   if (controls.length !== 1) return { selected: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_CONTROL_AMBIGUOUS' : 'MODEL_CONTROL_NOT_FOUND' };
   const control = controls[0];
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
