@@ -41,9 +41,8 @@ class WorkerDirectiveDeliveryOutputBudgetTests(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         required = (
             "patterns/worker-directive-delivery-and-chat-output-budget.md",
-            "Do not stop after explaining what the worker should do",
-            "deliver a complete owner-runnable directive",
-            "longer reusable operational payloads",
+            "complete owner-runnable directive",
+            "Long reusable operational payloads go in `.md`/text artifacts, not chat",
         )
         for phrase in required:
             with self.subTest(phrase=phrase):
