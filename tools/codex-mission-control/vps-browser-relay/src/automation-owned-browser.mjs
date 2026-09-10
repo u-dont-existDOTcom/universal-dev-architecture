@@ -241,19 +241,14 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.currentModelLabel(target, expectedUrl);
   }
 
-  async switchModel(target, input) {
-    await this.#assertOwned(target?.id);
-    return this.rawBrowser.switchModel(target, input);
-  }
-
   async selectAppsForMessage(target, input) {
     await this.#assertOwned(target?.id);
     return this.rawBrowser.selectAppsForMessage(target, input);
   }
 
-  async verifyModelRoundTrip(target, input) {
+  async ensureExactConsumerControls(target, input) {
     await this.#assertOwned(target?.id);
-    return this.rawBrowser.verifyModelRoundTrip(target, input);
+    return this.rawBrowser.ensureExactConsumerControls(target, input);
   }
 
   async submitExactMessage(target, input) {

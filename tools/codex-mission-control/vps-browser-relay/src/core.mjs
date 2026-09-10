@@ -21,6 +21,16 @@ export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
 export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
 export const CONTINUE_NUDGE_DELAY_MS = 300_000;
 export const STAGE_RECEIPT_GRACE_MS = 360_000;
+export const CURRENT_CONSUMER_CONTROLS = Object.freeze({
+  modelVisibleLabel: 'GPT-5.6 Sol',
+  thinkingControlLabel: 'Thinking effort',
+  thinkingVisibleLabel: 'Extra High',
+  thinkingOrdinal: '4 of 5',
+  accountPlanLabel: 'Pro',
+  accountPlanRole: 'PROVENANCE_METADATA_ONLY',
+  accountPlanIsReasoningMode: false,
+});
+export const CURRENT_DECISION_SESSION_PROVENANCE = 'VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED';
 
 export function oneShotExitCode(result) {
   return result?.status === 'ERROR' ? 1 : 0;
@@ -87,6 +97,12 @@ export function parseChatDirectory(value) {
   const entries = value.map((item, index) => parseChatEntry(item, index));
   const ids = new Set(entries.map((entry) => entry.supervisorId));
   if (ids.size !== entries.length) throw new Error('Supervisor IDs must be unique.');
+  const registrationIds = new Set(entries.map((entry) => entry.registrationId));
+  if (registrationIds.size !== entries.length) throw new Error('Supervisor registration IDs must be unique.');
+  const bootstrapChatIds = new Set(entries.map((entry) => entry.bootstrapCapability.chatId));
+  if (bootstrapChatIds.size !== entries.length) throw new Error('Bootstrap chat IDs must be unique across supervisors.');
+  const bootstrapUrls = new Set(entries.map((entry) => entry.bootstrapCapability.url));
+  if (bootstrapUrls.size !== entries.length) throw new Error('Bootstrap conversation URLs must be unique across supervisors.');
   const challenges = new Set(entries.map((entry) => entry.bootstrapCapability.challengeId));
   if (challenges.size !== entries.length) throw new Error('Capability challenge IDs must be unique.');
   if (entries.filter((entry) => entry.scope === 'PROJECT_MANAGER').length > 1) {
@@ -104,28 +120,56 @@ function parseChatEntry(item, index) {
   const bootstrapChatId = boundedString(bootstrap.chatId, `Chat entry ${index} bootstrapCapability.chatId`, 300);
   const bootstrapUrl = normalizeConversationUrl(boundedString(bootstrap.url, `Chat entry ${index} bootstrapCapability.url`, 1000));
   const bootstrapChallengeId = boundedString(bootstrap.challengeId ?? bootstrap.capabilityChallengeId, `Chat entry ${index} bootstrapCapability.challengeId`, 180);
+  if (item.ownership !== 'MISSION_CONTROL_ONLY') {
+    throw new Error(`Chat entry ${index} ownership must be explicitly MISSION_CONTROL_ONLY; personal, legacy-unclassified, and ambiguous conversations are not live-send eligible.`);
+  }
+  if (!isRecord(item.registrationProvenance) || item.registrationProvenance.registeredBy !== 'OWNER') {
+    throw new Error(`Chat entry ${index} registrationProvenance.registeredBy must be OWNER.`);
+  }
+  const registeredAt = boundedString(item.registrationProvenance.registeredAt, `Chat entry ${index} registrationProvenance.registeredAt`, 100);
+  if (!Number.isFinite(Date.parse(registeredAt))) throw new Error(`Chat entry ${index} registrationProvenance.registeredAt must be an ISO timestamp.`);
   return {
     scope,
     supervisorId,
     label: boundedString(item.label, `Chat entry ${index} label`, 300),
     workerId: boundedString(item.workerId, `Chat entry ${index} workerId`, 180),
     pinned: item.pinned === true || scope === 'PROJECT_MANAGER',
+    registrationId: boundedString(item.registrationId, `Chat entry ${index} registrationId`, 300),
+    ownership: 'MISSION_CONTROL_ONLY',
+    purpose: boundedString(item.purpose, `Chat entry ${index} purpose`, 500),
+    accountAlias: boundedString(item.accountAlias, `Chat entry ${index} accountAlias`, 180),
+    workspaceAlias: boundedString(item.workspaceAlias, `Chat entry ${index} workspaceAlias`, 180),
+    privateLocatorRef: boundedString(item.privateLocatorRef, `Chat entry ${index} privateLocatorRef`, 500),
+    registrationProvenance: {
+      registeredBy: 'OWNER',
+      registeredAt,
+      sourceRef: boundedString(item.registrationProvenance.sourceRef, `Chat entry ${index} registrationProvenance.sourceRef`, 500),
+    },
     bootstrapCapability: {
       chatId: bootstrapChatId,
       url: bootstrapUrl,
       challengeId: bootstrapChallengeId,
     },
-    modelLabels: parseModelLabels(item.modelLabels, index),
+    consumerControls: parseConsumerControls(item.consumerControls, index),
     requiredApps: parseRequiredApps(item.requiredApps, index),
   };
 }
 
-function parseModelLabels(value, index) {
-  if (!isRecord(value)) throw new Error(`Chat entry ${index} modelLabels must be an object.`);
-  return {
-    extraHigh: boundedString(value.extraHigh, `Chat entry ${index} modelLabels.extraHigh`, 100),
-    pro: boundedString(value.pro, `Chat entry ${index} modelLabels.pro`, 100),
+function parseConsumerControls(value, index) {
+  if (!isRecord(value)) throw new Error(`Chat entry ${index} consumerControls must be an object.`);
+  const controls = {
+    modelVisibleLabel: boundedString(value.modelVisibleLabel, `Chat entry ${index} consumerControls.modelVisibleLabel`, 100),
+    thinkingControlLabel: boundedString(value.thinkingControlLabel, `Chat entry ${index} consumerControls.thinkingControlLabel`, 100),
+    thinkingVisibleLabel: boundedString(value.thinkingVisibleLabel, `Chat entry ${index} consumerControls.thinkingVisibleLabel`, 100),
+    thinkingOrdinal: boundedString(value.thinkingOrdinal, `Chat entry ${index} consumerControls.thinkingOrdinal`, 100),
+    accountPlanLabel: boundedString(value.accountPlanLabel, `Chat entry ${index} consumerControls.accountPlanLabel`, 100),
+    accountPlanRole: boundedString(value.accountPlanRole, `Chat entry ${index} consumerControls.accountPlanRole`, 100),
+    accountPlanIsReasoningMode: value.accountPlanIsReasoningMode,
   };
+  if (canonicalJson(controls) !== canonicalJson(CURRENT_CONSUMER_CONTROLS)) {
+    throw new Error(`Chat entry ${index} consumerControls must exactly match the fixed current GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 disposition; Pro is account-plan provenance only.`);
+  }
+  return controls;
 }
 
 function parseRequiredApps(value, index) {
@@ -385,8 +429,7 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
   const mode = latestEvidence(timeline, MODE_CAPABILITY_VERIFIED_SUMMARY, [
     `chat:${chat.bootstrapCapability.chatId}`,
     'capability:modeSwitching',
-    `extra_high_label:${chat.modelLabels.extraHigh}`,
-    `pro_label:${chat.modelLabels.pro}`,
+    ...consumerControlRefs(chat.consumerControls),
   ], now, true);
   return {
     supervisorId: chat.supervisorId,
@@ -402,6 +445,18 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
     modeReceiptId: mode?.data?.receipt_id ?? null,
     expiresAt: earliestExpiry(capability, mode),
   };
+}
+
+export function consumerControlRefs(controls) {
+  return [
+    `model_visible_label:${controls.modelVisibleLabel}`,
+    `thinking_control_label:${controls.thinkingControlLabel}`,
+    `thinking_visible_label:${controls.thinkingVisibleLabel}`,
+    `thinking_ordinal:${controls.thinkingOrdinal}`,
+    `account_plan_label:${controls.accountPlanLabel}`,
+    `account_plan_role:${controls.accountPlanRole}`,
+    `account_plan_is_reasoning_mode:${controls.accountPlanIsReasoningMode}`,
+  ];
 }
 
 function latestEvidence(timeline, summary, requiredRefs, now, requireCurrent) {
@@ -464,12 +519,10 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
     return `Mission Control binding preload only. Use the selected ${missionControl} app. Your only action in this turn is to call get_supervisory_request_binding exactly once with request_id ${requestId}, supervisor_id ${supervisorId}, and provider_session_id ${providerSessionId}. Do not reason, use GitHub, make a decision, write a receipt, or answer from values in this prompt/context instead of calling the tool. If the exact tool call is unavailable or fails, fail closed. After the tool result is loaded into this conversation, stop.`;
   }
   if (route.packet.routeSchemaVersion === 4 && (step === 'EXTRA_HIGH_DECISION' || step === 'PRO_DECISION')) {
-    const provenance = step === 'PRO_DECISION'
-      ? 'VISIBLE_PRO_SESSION_GITHUB_ATTESTED'
-      : 'VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED';
+    const provenance = CURRENT_DECISION_SESSION_PROVENANCE;
     const laneInstruction = step === 'PRO_DECISION'
-      ? 'Reason directly in the currently visible Pro session and make the final escalated decision.'
-      : 'Reason directly in the currently visible Extra High session and make the ordinary decision.';
+      ? 'Use the escalated semantic decision lane in the fixed visible GPT-5.6 Sol session with Thinking effort Extra High, 4 of 5; Pro is account-plan provenance only, not a reasoning mode.'
+      : 'Use the ordinary semantic decision lane in the fixed visible GPT-5.6 Sol session with Thinking effort Extra High, 4 of 5.';
     const continuationInstruction = route.packet.continuationBinding
       ? ' Copy the supplied continuation_binding and continuation_binding_sha256 exactly into the canonical schema_version 3 decision as optional top-level fields outside binding_envelope.' : '';
     return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}.${continuationInstruction} Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`, { omitContinuationOwnerExactText });
@@ -654,7 +707,7 @@ export function defaultState(now = new Date().toISOString()) {
     controllerCycles: {},
     providerSessions: {},
     tabs: {},
-    submissionPacing: { lastSubmissionAt: null },
+    submissionPacing: { lastSubmissionAt: null, lastAdmissionId: null },
     health: { lastCycleAt: null, lastSuccessfulPollAt: null, lastError: null, pressure: 'UNKNOWN', metrics: null, pausedReason: null },
   };
 }
@@ -670,8 +723,8 @@ export function normalizeState(value, now = new Date().toISOString()) {
     providerSessions: isRecord(value.providerSessions) ? value.providerSessions : {},
     tabs: isRecord(value.tabs) ? value.tabs : {},
     submissionPacing: isRecord(value.submissionPacing) && Number.isFinite(Date.parse(value.submissionPacing.lastSubmissionAt ?? ''))
-      ? { lastSubmissionAt: value.submissionPacing.lastSubmissionAt }
-      : { lastSubmissionAt: null },
+      ? { lastSubmissionAt: value.submissionPacing.lastSubmissionAt, lastAdmissionId: typeof value.submissionPacing.lastAdmissionId === 'string' ? value.submissionPacing.lastAdmissionId : null }
+      : { lastSubmissionAt: null, lastAdmissionId: null },
     health: isRecord(value.health) ? {
       lastCycleAt: typeof value.health.lastCycleAt === 'string' ? value.health.lastCycleAt : null,
       lastSuccessfulPollAt: typeof value.health.lastSuccessfulPollAt === 'string' ? value.health.lastSuccessfulPollAt : null,

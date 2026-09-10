@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 Slice=mission-control-chatgpt.slice
-EnvironmentFile=%h/.config/mission-control-chatgpt-relay/env
+EnvironmentFile=%h/.config/mission-control-chatgpt-relay/browser-env
 ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/scripts/launch-browser.sh
 Restart=on-failure
 RestartSec=5

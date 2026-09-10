@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Defense in depth for an operator who launches this script from a shell that
+# already sourced relay configuration: never pass service credentials or
+# Mission Control authority into Chromium's environment.
+unset MC_RELAY_TOKEN MC_RELAY_SCHEDULER_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL
+
 profile_dir="${MC_RELAY_BROWSER_PROFILE_DIR:-$HOME/.local/share/mission-control-chatgpt-profile}"
 cdp_host="${MC_RELAY_CDP_HOST:-127.0.0.1}"
 cdp_port="${MC_RELAY_CDP_PORT:-9222}"

@@ -231,7 +231,7 @@ function policy(): GitHubReceiptPolicy {
     authorizedWriterLogins: ["u-dont-existDOTcom"],
     capabilityChallenges: [{
       challengeId: "challenge-safe-1", supervisorId, chatId, worker: workerId, mcNonce: "disposable-mc-nonce", githubNonce: "disposable-github-nonce",
-      expiresAt: expiry, extraHighLabel: "Extra High", proLabel: "Pro",
+      expiresAt: expiry, modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
     }],
   };
 }

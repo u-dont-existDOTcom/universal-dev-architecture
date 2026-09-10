@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
 import { loadConfig, publicConfig } from '../src/config.mjs';
+import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 
 test('state store is atomic, owner-only, and rejects a concurrent relay', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-state-'));
@@ -108,20 +109,47 @@ test('submission interval config defaults to 60000 and exposes the public value'
     const config = await loadConfig(configEnv(chatsFile));
     assert.equal(config.runtime.minSubmissionIntervalMs, 60_000);
     assert.equal(publicConfig(config).minSubmissionIntervalMs, 60_000);
+    assert.equal(config.submissionScheduler.url, 'http://127.0.0.1:4300');
+    assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
+    assert.equal(Object.hasOwn(publicConfig(config).submissionHost, 'leaseId'), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test('submission interval config accepts only 15000 through 600000', async () => {
+test('legacy relay config without central scheduler and deployment identity fails closed', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-legacy-config-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const complete = configEnv(chatsFile);
+    for (const field of ['MC_RELAY_SCHEDULER_URL', 'MC_RELAY_SCHEDULER_TOKEN', 'MC_RELAY_HOST_ALIAS', 'MC_RELAY_HOST_ROLE', 'MC_RELAY_DEPLOYMENT_EPOCH', 'MC_RELAY_DEPLOYMENT_LEASE_ID']) {
+      const candidate = { ...complete };
+      delete candidate[field];
+      await assert.rejects(() => loadConfig(candidate), new RegExp(field));
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('relay fails closed when its distinct central scheduler URL is unreachable', async () => {
+  const client = new SubmissionSchedulerClient({
+    url: 'http://127.0.0.1:4300', token: 's'.repeat(32), producerId: 'collector:test-relay',
+    fetchImpl: async () => { throw new Error('unreachable'); },
+  });
+  await assert.rejects(client.admit({}), (error) => error.code === 'CENTRAL_SCHEDULER_UNREACHABLE');
+});
+
+test('submission interval config accepts only 60000 through 600000', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-range-'));
   try {
     const chatsFile = join(root, 'chats.json');
     await writeFile(chatsFile, JSON.stringify([configuredChat()]));
-    assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '15000' })).runtime.minSubmissionIntervalMs, 15_000);
+    assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '60000' })).runtime.minSubmissionIntervalMs, 60_000);
     assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600000' })).runtime.minSubmissionIntervalMs, 600_000);
-    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '14999' }), /15000-600000/);
-    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600001' }), /15000-600000/);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '59999' }), /60000-600000/);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600001' }), /60000-600000/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -133,6 +161,12 @@ function configEnv(chatsFile) {
     MC_RELAY_MISSION_CONTROL_URL: 'https://mission-control.example',
     MC_RELAY_PRODUCER_ID: 'collector:test-relay',
     MC_RELAY_TOKEN: 'x'.repeat(32),
+    MC_RELAY_SCHEDULER_URL: 'http://127.0.0.1:4300',
+    MC_RELAY_SCHEDULER_TOKEN: 's'.repeat(32),
+    MC_RELAY_HOST_ALIAS: 'primary-test',
+    MC_RELAY_HOST_ROLE: 'PRIMARY',
+    MC_RELAY_DEPLOYMENT_EPOCH: '1',
+    MC_RELAY_DEPLOYMENT_LEASE_ID: 'lease-test-1',
   };
 }
 
@@ -142,8 +176,11 @@ function configuredChat() {
     supervisorId: 'spec',
     label: 'Specialist',
     workerId: 'worker-a',
+    registrationId: 'registration:spec:test', ownership: 'MISSION_CONTROL_ONLY', purpose: 'Dedicated test supervisor.',
+    accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec',
+    registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
     bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' },
-    modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
+    consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
 }

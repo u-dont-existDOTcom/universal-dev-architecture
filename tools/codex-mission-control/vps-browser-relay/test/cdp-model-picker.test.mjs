@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { appSelectionState, modelMenuSelectionState } from '../src/cdp.mjs';
+import { appSelectionState, consumerControlSelectionState, modelMenuSelectionState } from '../src/cdp.mjs';
+
+const controls = {
+  modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5',
+  accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false,
+};
 
 function currentPowerMenu(overrides = {}) {
   return {
@@ -13,6 +18,7 @@ function currentPowerMenu(overrides = {}) {
     powerControlCount: 1,
     powerIndicatorCount: 1,
     sliderCount: 1,
+    thinkingControlObservedLabel: 'Thinking effort',
     currentPowerLabel: 'Extra High',
     sliderPosition: 3,
     sliderMinimum: 0,
@@ -21,12 +27,12 @@ function currentPowerMenu(overrides = {}) {
   };
 }
 
-test('current ChatGPT Power slider structure discovers exact labels without a numeric model mapping', () => {
+test('current ChatGPT thinking slider structure discovers the exact visible setting', () => {
   assert.deepEqual(modelMenuSelectionState(currentPowerMenu(), 'Extra High'), {
     type: 'POWER_CURRENT',
     observedLabels: ['Extra High'],
   });
-  assert.deepEqual(modelMenuSelectionState(currentPowerMenu(), 'Pro'), {
+  assert.deepEqual(modelMenuSelectionState(currentPowerMenu(), 'High'), {
     type: 'POWER_SEARCH',
     initialLabel: 'Extra High',
     position: 3,
@@ -36,52 +42,29 @@ test('current ChatGPT Power slider structure discovers exact labels without a nu
   });
 });
 
-test('existing exact menu-option structure remains supported', () => {
+test('the exact GPT-5.6 Sol selector is a direct model option', () => {
   assert.deepEqual(modelMenuSelectionState({
     menuFound: true,
     directMatchCount: 1,
-    availableLabels: ['Extra High', 'Pro'],
+    availableLabels: ['GPT-5.6 Sol', 'GPT-5.5'],
     powerControlCount: 0,
     powerIndicatorCount: 0,
     sliderCount: 0,
-  }, 'Pro'), {
+  }, 'GPT-5.6 Sol'), {
     type: 'DIRECT_OPTION',
-    observedLabels: ['Pro'],
+    observedLabels: ['GPT-5.6 Sol'],
   });
 });
 
-test('configured 6 Pro is an exact visible Power label and is never interchangeable with Pro', () => {
-  assert.deepEqual(modelMenuSelectionState(currentPowerMenu({ currentPowerLabel: '6 Pro' }), '6 Pro'), {
-    type: 'POWER_CURRENT',
-    observedLabels: ['6 Pro'],
+test('fixed controls verify GPT-5.6 Sol plus Thinking effort Extra High, 4 of 5 and treat Pro only as account metadata', () => {
+  const observation = currentPowerMenu({ directMatchCount: 1 });
+  assert.deepEqual(consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, controls), {
+    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED', modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort',
+    thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY',
+    accountPlanIsReasoningMode: false, backendModelIdentityClaimed: false,
   });
-  for (const [observed, expected] of [['Pro', '6 Pro'], ['6 Pro', 'Pro'], ['6 Pro Plus', '6 Pro'], ['16 Pro', '6 Pro']]) {
-    const result = modelMenuSelectionState(currentPowerMenu({ currentPowerLabel: observed }), expected);
-    assert.equal(result.type, 'POWER_SEARCH');
-    assert.deepEqual(result.observedLabels, [observed]);
-  }
-  for (const position of [0, 1, 2, 3, 4]) {
-    assert.equal(modelMenuSelectionState(currentPowerMenu({ sliderPosition: position }), '6 Pro').type, 'POWER_SEARCH');
-  }
-});
-
-test('unrelated page text 6 Pro cannot satisfy configured 6 Pro', () => {
-  assert.throws(() => modelMenuSelectionState({
-    menuFound: true, directMatchCount: 0, availableLabels: [], outsidePageText: ['6 Pro'],
-    powerControlCount: 0, powerIndicatorCount: 0, sliderCount: 0,
-  }, '6 Pro'), /was not found in one supported model-menu control/);
-});
-
-test('unrelated page text Pro cannot satisfy a model-menu selection', () => {
-  assert.throws(() => modelMenuSelectionState({
-    menuFound: true,
-    directMatchCount: 0,
-    availableLabels: [],
-    outsidePageText: ['Pro'],
-    powerControlCount: 0,
-    powerIndicatorCount: 0,
-    sliderCount: 0,
-  }, 'Pro'), /was not found in one supported model-menu control/);
+  assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, { ...observation, currentPowerLabel: 'Pro' }, controls), /thinking label mismatch/);
+  assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, { ...controls, accountPlanIsReasoningMode: true }), /fixed GPT-5.6 Sol/);
 });
 
 test('duplicate exact menu options fail closed as ambiguous', () => {
@@ -92,11 +75,11 @@ test('duplicate exact menu options fail closed as ambiguous', () => {
   }, 'Pro'), /ambiguous inside the model menu/);
 });
 
-test('missing Pro fails closed instead of accepting a nearby label', () => {
+test('missing fixed thinking label fails closed instead of accepting a nearby label', () => {
   assert.throws(() => modelMenuSelectionState(currentPowerMenu({
     currentPowerLabel: '',
     availableLabels: ['Extra High', 'Plus'],
-  }), 'Pro'), /was not found in one supported model-menu control/);
+  }), 'Extra High'), /was not found in one supported model-menu control/);
 });
 
 test('browser control code does not use generic transcript-editable selectors', async () => {

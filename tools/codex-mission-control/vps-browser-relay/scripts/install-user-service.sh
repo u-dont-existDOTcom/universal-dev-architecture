@@ -10,16 +10,22 @@ unit_root="$HOME/.config/systemd/user"
 install -d -m 0700 "$install_root" "$config_root" "$state_root" "$unit_root"
 rm -rf "$install_root"/*
 cp -a "$source_root"/. "$install_root"/
-chmod 0700 "$install_root/bin/mc-chatgpt-relay.mjs" "$install_root/scripts/launch-browser.sh"
+chmod 0700 "$install_root/bin/mc-chatgpt-relay.mjs" "$install_root/bin/mc-submission-scheduler.mjs" "$install_root/scripts/launch-browser.sh"
 
 if [[ ! -f "$config_root/env" ]]; then
   install -m 0600 "$source_root/.env.example" "$config_root/env"
 fi
+if [[ ! -f "$config_root/browser-env" ]]; then
+  install -m 0600 "$source_root/.browser.env.example" "$config_root/browser-env"
+fi
 if [[ ! -f "$config_root/chats.json" ]]; then
   install -m 0600 "$source_root/chats.example.json" "$config_root/chats.json"
 fi
+if [[ ! -f "$config_root/active-lease.json" ]]; then
+  install -m 0600 "$source_root/active-lease.example.json" "$config_root/active-lease.json"
+fi
 
-for unit in mission-control-chatgpt.slice mission-control-chatgpt-browser.service mission-control-chatgpt-relay.service; do
+for unit in mission-control-chatgpt.slice mission-control-chatgpt-browser.service mission-control-submission-scheduler.service mission-control-chatgpt-relay.service; do
   install -m 0644 "$source_root/systemd/user/$unit" "$unit_root/$unit"
 done
 
@@ -30,18 +36,22 @@ Installed Mission Control ChatGPT relay files.
 
 Configuration:
   $config_root/env
+  $config_root/browser-env
   $config_root/chats.json
+  $config_root/active-lease.json
 
 State:
   $state_root
 
 Next executable steps:
-  1. Edit env and chats.json. Keep MC_RELAY_SUBMIT_ENABLED=0 initially.
-  2. From the Hostinger graphical desktop, run:
+  1. Edit env, browser-env, chats.json, and active-lease.json. Keep MC_RELAY_SUBMIT_ENABLED=0 initially.
+  2. From the remote execution host's graphical desktop, run:
        systemctl --user stop mission-control-chatgpt-browser.service
        $install_root/scripts/launch-browser.sh
      Sign in to ChatGPT in that dedicated profile, open the registered chats, then close the browser.
-  3. Start the persistent browser:
+  3. Start the primary scheduler and persistent browser. On a standby, keep the
+     scheduler and relay disabled until controlled failover:
+       systemctl --user enable --now mission-control-submission-scheduler.service
        systemctl --user enable --now mission-control-chatgpt-browser.service
   4. Validate without sending:
        set -a; source $config_root/env; set +a

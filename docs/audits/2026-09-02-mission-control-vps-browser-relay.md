@@ -1,5 +1,9 @@
 # Mission Control VPS browser relay implementation audit
 
+Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**
+This historical audit records one owner's provider, service and topology facts.
+Portable relay rules live in the current patterns and implementation.
+
 Date: 2026-09-02
 Branch: `task/mission-control-vps-browser-relay-20260902`
 Base: `main` at `764be99e4c7e9a324ea497d495d274b644b4694a`

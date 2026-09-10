@@ -1,4 +1,5 @@
 import {
+  CURRENT_CONSUMER_CONTROLS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   freshChatTargetPlan,
   managedChatGptTabTelemetry,
@@ -75,7 +76,7 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
 
 const OPEN_MODEL_MENU_FN = CURRENT_MODEL_FN;
 
-const MODEL_MENU_STATE_FN = `function(labelWanted) {
+const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel) {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
@@ -113,7 +114,7 @@ const MODEL_MENU_STATE_FN = `function(labelWanted) {
   const menu = candidates[0];
   const selectable = [...menu.querySelectorAll('button, [role="menuitem"], [role="menuitemradio"], [role="option"]')].filter(visible);
   const directMatches = labelWanted == null ? [] : selectable.filter((element) => accessibleLabel(element) === labelWanted);
-  const powerControls = [...menu.querySelectorAll('[role="menuitem"][aria-label="Power"]')].filter(visible);
+  const powerControls = [...menu.querySelectorAll('[role="menuitem"]')].filter(visible).filter((element) => accessibleLabel(element) === thinkingControlLabel);
   const powerIndicators = [...menu.querySelectorAll('[role="menuitem"][aria-label="Select model"]')].filter(visible);
   const sliders = powerControls.length === 1 ? [...powerControls[0].querySelectorAll('[role="slider"]')] : [];
   const slider = sliders.length === 1 ? sliders[0] : null;
@@ -125,7 +126,8 @@ const MODEL_MENU_STATE_FN = `function(labelWanted) {
     powerControlCount: powerControls.length,
     powerIndicatorCount: powerIndicators.length,
     sliderCount: sliders.length,
-    currentPowerLabel: powerIndicators.length === 1 ? visibleLabel(powerIndicators[0]) : null,
+    thinkingControlObservedLabel: powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null,
+    currentPowerLabel: slider?.getAttribute('aria-valuetext') || (powerIndicators.length === 1 ? visibleLabel(powerIndicators[0]) : null),
     sliderPosition: slider ? Number(slider.getAttribute('aria-valuenow')) : null,
     sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
     sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
@@ -174,27 +176,29 @@ const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
   return { selected: true, selectedLabel: accessibleLabel(matches[0]) };
 }`;
 
-const FOCUS_MODEL_POWER_FN = `function() {
+const FOCUS_MODEL_POWER_FN = `function(thinkingControlLabel) {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
   };
   const menus = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
-  const controls = menus.flatMap((menu) => [...menu.querySelectorAll('[role="menuitem"][aria-label="Power"]')].filter(visible));
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\s+/g, ' ');
+  const controls = menus.flatMap((menu) => [...menu.querySelectorAll('[role="menuitem"]')].filter(visible).filter((element) => label(element) === thinkingControlLabel));
   if (controls.length !== 1) return { focused: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_POWER_CONTROL_AMBIGUOUS' : 'MODEL_POWER_CONTROL_NOT_FOUND' };
   controls[0].focus();
   return { focused: document.activeElement === controls[0] };
 }`;
 
-export function modelMenuSelectionState(observation, labelWanted) {
+export function modelMenuSelectionState(observation, labelWanted, { allowDirect = true, allowThinkingSlider = true } = {}) {
   if (!observation?.menuFound) {
     throw new Error(`ChatGPT model menu is unavailable: ${observation?.reason ?? 'UNKNOWN'}.`);
   }
   if (observation.directMatchCount > 1) {
     throw new Error(`Exact model UI label ${labelWanted} is ambiguous inside the model menu.`);
   }
-  if (observation.directMatchCount === 1) return { type: 'DIRECT_OPTION', observedLabels: [labelWanted] };
+  if (observation.directMatchCount === 1 && allowDirect) return { type: 'DIRECT_OPTION', observedLabels: [labelWanted] };
+  if (!allowThinkingSlider) throw new Error(`Exact model UI label ${labelWanted} was not found as one direct model-menu option.`);
 
   const sliderBoundsValid = Number.isInteger(observation.sliderPosition)
     && Number.isInteger(observation.sliderMinimum)
@@ -202,7 +206,6 @@ export function modelMenuSelectionState(observation, labelWanted) {
     && observation.sliderMinimum <= observation.sliderPosition
     && observation.sliderPosition <= observation.sliderMaximum;
   const sliderStructureExact = observation.powerControlCount === 1
-    && observation.powerIndicatorCount === 1
     && observation.sliderCount === 1
     && sliderBoundsValid
     && typeof observation.currentPowerLabel === 'string'
@@ -220,6 +223,36 @@ export function modelMenuSelectionState(observation, labelWanted) {
     minimum: observation.sliderMinimum,
     maximum: observation.sliderMaximum,
     observedLabels: [observation.currentPowerLabel],
+  };
+}
+
+export function consumerControlSelectionState(currentModel, observation, controls) {
+  if (!controls || Object.keys(CURRENT_CONSUMER_CONTROLS).some((key) => controls[key] !== CURRENT_CONSUMER_CONTROLS[key])) {
+    throw new Error('Consumer controls do not match the fixed GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 disposition.');
+  }
+  if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
+  if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
+  if (observation.powerControlCount !== 1 || observation.sliderCount !== 1
+    || observation.thinkingControlObservedLabel !== controls.thinkingControlLabel) {
+    throw new Error(`Exact ${controls.thinkingControlLabel} slider is unavailable or ambiguous.`);
+  }
+  if (observation.currentPowerLabel !== controls.thinkingVisibleLabel) throw new Error(`Exact thinking label mismatch: expected ${controls.thinkingVisibleLabel}.`);
+  const ordinal = Number.isInteger(observation.sliderPosition)
+    && Number.isInteger(observation.sliderMinimum)
+    && Number.isInteger(observation.sliderMaximum)
+    ? `${observation.sliderPosition - observation.sliderMinimum + 1} of ${observation.sliderMaximum - observation.sliderMinimum + 1}`
+    : null;
+  if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
+  return {
+    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED',
+    modelVisibleLabel: currentModel.label,
+    thinkingControlLabel: observation.thinkingControlObservedLabel,
+    thinkingVisibleLabel: observation.currentPowerLabel,
+    thinkingOrdinal: ordinal,
+    accountPlanLabel: controls.accountPlanLabel,
+    accountPlanRole: controls.accountPlanRole,
+    accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,
+    backendModelIdentityClaimed: false,
   };
 }
 
@@ -526,21 +559,6 @@ export class ChromeDevtoolsBrowser {
     });
   }
 
-  async switchModel(target, { expectedUrl, label }) {
-    const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
-    return this.#withPageClient(target, async (client) => {
-      const current = await this.#currentModel(client, normalized);
-      if (current?.label === label) return { selectedLabel: label, observedLabel: current.label, changed: false };
-      await this.#openModelMenu(client, normalized);
-      const selected = await this.#selectOpenModelMenu(client, label);
-      const verified = await waitFor(async () => {
-        const result = await this.#currentModel(client, normalized);
-        return result?.label === label ? result : false;
-      }, this.pageReadyTimeoutMs, 300, `ChatGPT model/mode control did not report exact label ${label}.`);
-      return { selectedLabel: label, observedLabel: verified.label, changed: true, menuSelectedLabel: selected.selectedLabel, selectionMechanism: selected.mechanism };
-    });
-  }
-
   async selectAppsForMessage(target, { knownLabels, requiredLabels }) {
     if (!Array.isArray(knownLabels) || !Array.isArray(requiredLabels)) throw new Error('App selection requires knownLabels and requiredLabels arrays.');
     if (new Set(knownLabels).size !== knownLabels.length || new Set(requiredLabels).size !== requiredLabels.length) throw new Error('App labels must be unique.');
@@ -611,40 +629,29 @@ export class ChromeDevtoolsBrowser {
     });
   }
 
-  async verifyModelRoundTrip(target, { expectedUrl, extraHighLabel, proLabel }) {
+  async ensureExactConsumerControls(target, { expectedUrl, controls }) {
     const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
       const inspection = await client.callFunction(PAGE_INSPECTION_FN, [normalized]);
       if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
-        throw new Error('Registered supervisor chat is not ready for model capability verification.');
+        throw new Error('Registered supervisor chat is not ready for fixed consumer-control verification.');
+      }
+      let current = await this.#currentModel(client, normalized);
+      if (current.label !== controls?.modelVisibleLabel) {
+        await this.#openModelMenu(client, normalized);
+        await this.#selectOpenModelMenu(client, controls.modelVisibleLabel, { allowThinkingSlider: false });
+        current = await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === controls.modelVisibleLabel ? value : false), this.pageReadyTimeoutMs, 300, `Exact model label ${controls.modelVisibleLabel} did not become current.`);
       }
       await this.#openModelMenu(client, normalized);
-      const selectExtra = await this.#selectOpenModelMenu(client, extraHighLabel);
-      await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === extraHighLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Extra High label did not become current.');
+      await this.#selectOpenModelMenu(client, controls.thinkingVisibleLabel, {
+        allowDirect: false,
+        thinkingControlLabel: controls.thinkingControlLabel,
+      });
       await this.#openModelMenu(client, normalized);
-      const selectPro = await this.#selectOpenModelMenu(client, proLabel);
-      const proCurrent = await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === proLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Pro label did not become current.');
-      await this.#openModelMenu(client, normalized);
-      const restore = await this.#selectOpenModelMenu(client, extraHighLabel);
-      const extraCurrent = await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === extraHighLabel ? value : false), this.pageReadyTimeoutMs, 300, 'Extra High label did not become current after round trip.');
-      const availableLabels = [...new Set([
-        ...selectExtra.observedLabels,
-        ...selectPro.observedLabels,
-        ...restore.observedLabels,
-      ])];
-      if (!availableLabels.includes(extraHighLabel) || !availableLabels.includes(proLabel)) {
-        throw new Error('Exact Extra High and Pro UI labels were not both observable.');
-      }
-      return {
-        status: 'MODE_ROUND_TRIP_VERIFIED',
-        availableLabels,
-        extraHighObserved: extraCurrent.label,
-        proObserved: proCurrent.label,
-        restoredObserved: extraCurrent.label,
-        menuSelections: [selectExtra.selectedLabel, selectPro.selectedLabel, restore.selectedLabel],
-        selectionMechanisms: [selectExtra.mechanism, selectPro.mechanism, restore.mechanism],
-        inspectedAssistantOutput: false,
-      };
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [controls.modelVisibleLabel, controls.thinkingControlLabel]);
+      const verified = consumerControlSelectionState(current, observation, controls);
+      await this.#closeModelMenu(client);
+      return { ...verified, inspectedAssistantOutput: false };
     });
   }
 
@@ -675,24 +682,24 @@ export class ChromeDevtoolsBrowser {
     };
     await clickIfClosed();
     return waitFor(async () => {
-      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null]);
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null]);
       if (observation?.menuFound) return observation;
       await clickIfClosed();
       return false;
     }, this.pageReadyTimeoutMs, 200, 'ChatGPT model/mode menu did not open.');
   }
 
-  async #selectOpenModelMenu(client, labelWanted) {
+  async #selectOpenModelMenu(client, labelWanted, { allowDirect = true, allowThinkingSlider = true, thinkingControlLabel = null } = {}) {
     let observation = await waitFor(async () => {
-      const candidate = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted]);
+      const candidate = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, thinkingControlLabel]);
       try {
-        modelMenuSelectionState(candidate, labelWanted);
+        modelMenuSelectionState(candidate, labelWanted, { allowDirect, allowThinkingSlider });
         return candidate;
       } catch {
         return false;
       }
     }, this.pageReadyTimeoutMs, 200, `ChatGPT model menu did not become ready for exact label ${labelWanted}.`);
-    const selection = modelMenuSelectionState(observation, labelWanted);
+    const selection = modelMenuSelectionState(observation, labelWanted, { allowDirect, allowThinkingSlider });
     if (selection.type === 'DIRECT_OPTION') {
       const selected = await client.callFunction(SELECT_MODEL_OPTION_FN, [labelWanted]);
       if (!selected?.selected) throw new Error(`Could not select exact model UI label ${labelWanted}: ${selected?.reason ?? 'UNKNOWN'}.`);
@@ -707,7 +714,7 @@ export class ChromeDevtoolsBrowser {
     }
 
     const step = async (direction) => {
-      const focus = await client.callFunction(FOCUS_MODEL_POWER_FN, []);
+      const focus = await client.callFunction(FOCUS_MODEL_POWER_FN, [thinkingControlLabel]);
       if (!focus?.focused) throw new Error(`ChatGPT model Power control is unavailable: ${focus?.reason ?? 'UNKNOWN'}.`);
       const before = observation.sliderPosition;
       const key = direction > 0 ? 'ArrowRight' : 'ArrowLeft';
@@ -715,8 +722,8 @@ export class ChromeDevtoolsBrowser {
       await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
       await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
       observation = await waitFor(async () => {
-        const next = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted]);
-        modelMenuSelectionState(next, labelWanted);
+        const next = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, thinkingControlLabel]);
+        modelMenuSelectionState(next, labelWanted, { allowDirect, allowThinkingSlider });
         return next.sliderPosition !== before ? next : false;
       }, Math.min(this.pageReadyTimeoutMs, 5_000), 100, `ChatGPT model Power control did not move ${key}.`);
       observedLabels.add(observation.currentPowerLabel);
@@ -759,10 +766,13 @@ export class ChromeDevtoolsBrowser {
     await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
   }
 
-  async submitExactMessage(target, { expectedUrl, body, bodySha256, onSubmissionBoundary = null }) {
+  async submitExactMessage(target, { expectedUrl, body, bodySha256, onBeforeSubmissionBoundary = null, onSubmissionBoundary = null }) {
     if (!body || typeof body !== 'string') throw new Error('Cannot submit an empty message.');
     if (onSubmissionBoundary !== null && typeof onSubmissionBoundary !== 'function') {
       throw new Error('Submission boundary observer must be a function when provided.');
+    }
+    if (onBeforeSubmissionBoundary !== null && typeof onBeforeSubmissionBoundary !== 'function') {
+      throw new Error('Pre-click admission validator must be a function when provided.');
     }
     let relayStage = 'CONNECTING';
     let clickedAtObserved = null;
@@ -790,6 +800,7 @@ export class ChromeDevtoolsBrowser {
         if (!verified?.exact) throw new Error(`Composer byte check failed before submission (expected ${body.length} characters, observed ${verified?.length ?? 'unknown'}).`);
 
         relayStage = 'READY_TO_CLICK';
+        if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
         const send = await client.callFunction(CLICK_SEND_FN, []);
         if (!send?.ok) throw new Error(`ChatGPT send control is unavailable: ${send?.reason ?? 'UNKNOWN'}.`);
         relayStage = 'CLICKED';

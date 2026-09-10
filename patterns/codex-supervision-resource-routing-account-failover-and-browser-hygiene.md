@@ -931,9 +931,16 @@ The Mission Control pilot must prove:
 
 ---
 
-## 21. Private owner mapping for this deployment
+## 21. NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT: private owner mapping
 
 The public architecture intentionally omits personal account identifiers.
+
+This section illustrates one deployment's required private mapping. It is not a
+portable default. Provider names, hostnames, service IDs, machine paths and the
+owner's actual host/account topology must follow the repository-wide
+`NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT` isolation rule. Multi-host browser
+relay failover follows `mission-control-multi-host-submission-scheduling.md` and
+must not create two independent send authorities.
 
 The active deployment must create a private owner-only registry mapping:
 

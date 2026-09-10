@@ -9,10 +9,11 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check": "node --check bin/mc-chatgpt-relay.mjs && node --check src/*.mjs",
+    "check": "node --check bin/*.mjs && node --check src/*.mjs",
     "doctor": "node bin/mc-chatgpt-relay.mjs doctor",
     "once": "node bin/mc-chatgpt-relay.mjs once",
     "start": "node bin/mc-chatgpt-relay.mjs run",
+    "scheduler": "node bin/mc-submission-scheduler.mjs",
     "status": "node bin/mc-chatgpt-relay.mjs status"
   }
 }

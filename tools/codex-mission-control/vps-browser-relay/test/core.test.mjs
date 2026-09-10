@@ -56,6 +56,19 @@ test('chat directory is registration-only and ignores attempted capability self-
   assert.throws(() => parseChatDirectory([{ ...chatFixture(), requiredApps: null }]), /requiredApps/);
 });
 
+test('chat directory rejects reuse of a bootstrap chat ID or normalized conversation URL across supervisors', () => {
+  const first = chatFixture('spec-one');
+  const second = chatFixture('spec-two');
+  assert.throws(
+    () => parseChatDirectory([first, { ...second, bootstrapCapability: { ...second.bootstrapCapability, chatId: first.bootstrapCapability.chatId } }]),
+    /Bootstrap chat IDs must be unique/,
+  );
+  assert.throws(
+    () => parseChatDirectory([first, { ...second, bootstrapCapability: { ...second.bootstrapCapability, url: `${first.bootstrapCapability.url}/?source=duplicate#fragment` } }]),
+    /Bootstrap conversation URLs must be unique/,
+  );
+});
+
 test('message app requirements are exact and step-specific', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   assert.deepEqual(appSelectionForMessage(chat, 'CAPABILITY'), {
@@ -75,10 +88,12 @@ test('message app requirements are exact and step-specific', () => {
   }
 });
 
-test('the registered specialist preserves explicitly configured 6 Pro without changing historical Pro configuration', () => {
-  const current = parseChatDirectory([{ ...chatFixture(), modelLabels: { extraHigh: 'Extra High', pro: '6 Pro' } }])[0];
-  assert.deepEqual(current.modelLabels, { extraHigh: 'Extra High', pro: '6 Pro' });
-  assert.equal(parseChatDirectory([chatFixture()])[0].modelLabels.pro, 'Pro');
+test('the registered specialist requires the exact current consumer controls and rejects legacy Pro-mode configuration', () => {
+  const current = parseChatDirectory([chatFixture()])[0];
+  assert.equal(current.consumerControls.modelVisibleLabel, 'GPT-5.6 Sol');
+  assert.equal(current.consumerControls.thinkingOrdinal, '4 of 5');
+  assert.equal(current.consumerControls.accountPlanIsReasoningMode, false);
+  assert.throws(() => parseChatDirectory([{ ...chatFixture(), consumerControls: null, modelLabels: { extraHigh: 'Extra High', pro: '6 Pro' } }]), /consumerControls/);
 });
 
 test('provider sessions are new transport identities and never reuse the stable supervisor ID', () => {
@@ -126,7 +141,7 @@ test('capability truth comes only from current Mission Control evidence receipts
       'challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
     ]),
     evidence('mode-cap', 3, MODE_CAPABILITY_VERIFIED_SUMMARY, [
-      'chat:spec-bootstrap', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', `expires_at:${future}`,
+      'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
     ]),
   ]);
   const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z');
@@ -304,8 +319,8 @@ test('missing final receipts replay the same immutable stage in a fresh first me
 
 test('new direct routes contain only fresh preload and first-message decision stages', () => {
   for (const [lane, step, model, provenance] of [
-    ['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_DECISION', 'EXTRA_HIGH', 'VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED'],
-    ['PRO_ESCALATED', 'PRO_DECISION', 'PRO', 'VISIBLE_PRO_SESSION_GITHUB_ATTESTED'],
+    ['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_DECISION', 'EXTRA_HIGH', 'VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED'],
+    ['PRO_ESCALATED', 'PRO_DECISION', 'PRO', 'VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED'],
   ]) {
     const route = directV4Route(lane);
     assert.deepEqual(nextSupervisoryCycleAction(route, null), { type: 'SEND_CONTROL', step: MCP_BINDING_PRELOAD_STEP, model: 'EXTRA_HIGH' });
@@ -462,8 +477,11 @@ function completedPrior(step, generationStartedAt, generationCompletedAt) {
 function chatFixture(supervisorId = 'spec', scope = 'SPECIALIST') {
   return {
     scope, supervisorId, label: 'Specialist', workerId: 'worker-a', pinned: scope === 'PROJECT_MANAGER',
+    registrationId: `registration:${supervisorId}:test`, ownership: 'MISSION_CONTROL_ONLY', purpose: 'Dedicated test supervisor.',
+    accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: `private-config:supervisors/${supervisorId}`,
+    registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
     bootstrapCapability: { chatId: `${supervisorId}-bootstrap`, url: `https://chatgpt.com/c/${supervisorId}-chat`, challengeId: `challenge-${supervisorId}` },
-    modelLabels: { extraHigh: 'Extra High', pro: 'Pro' },
+    consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
 }

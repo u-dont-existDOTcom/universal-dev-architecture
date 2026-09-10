@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "schema_version": 1,
   "requirement_id": "REQ-MC-EXACT-6-PRO-LABEL-20260905",
   "recorded_at": "2026-09-05T15:54:02.018507+00:00",

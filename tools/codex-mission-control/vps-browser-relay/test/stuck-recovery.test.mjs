@@ -21,6 +21,7 @@ test('mandatory external-tool stages disable same-chat recovery completely', asy
     async submitExactMessage() { submits += 1; },
   };
   installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
     stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
     inspectRecoverableControl: noRecoverableControl,
   });
@@ -48,6 +49,7 @@ test('any model turn that remains actively generating gets same-chat continue an
     },
   };
   installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
     maxNudges: 3,
     logger: { warn() {} },
     stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
@@ -84,6 +86,7 @@ test('idle Continue or Retry UI controls are treated as unfinished without readi
     },
   };
   installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
     maxNudges: 3,
     logger: { warn() {} },
     stopStalledGeneration: async () => ({ stoppedGeneration: true }),
@@ -123,6 +126,7 @@ test('repeated active stalls recover up to the configured ceiling and then fail 
     },
   };
   installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
     maxNudges: 3,
     logger: { warn() {} },
     stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
@@ -149,6 +153,7 @@ test('repeated idle recoverable controls also stop at the configured ceiling', a
     },
   };
   installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
     maxNudges: 2,
     logger: { warn() {} },
     stopStalledGeneration: async () => ({ stoppedGeneration: true }),
@@ -168,6 +173,7 @@ test('non-stall failures are never converted into continue messages', async () =
     async submitExactMessage() { submissions += 1; },
   };
   installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
     maxNudges: 3,
     logger: { warn() {} },
     stopStalledGeneration: async () => ({ stoppedGeneration: true }),

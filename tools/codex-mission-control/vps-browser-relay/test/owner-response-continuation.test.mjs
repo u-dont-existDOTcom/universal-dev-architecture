@@ -146,7 +146,7 @@ test('continuation instruction starts at its line boundary while exact OWNER whi
     assert.notEqual(ownerEnd, -1);
     assert.equal(prompt.slice(ownerStart, ownerEnd), ownerText);
     assert.equal(sha256(prompt.slice(ownerStart, ownerEnd)), packet.continuationBinding.supervisor_delivery.body_sha256);
-    assert.match(prompt.slice(ownerEnd + end.length), /^Reason directly in the currently visible /);
+    assert.match(prompt.slice(ownerEnd + end.length), /^Use the (ordinary|escalated) semantic decision lane in the fixed visible GPT-5\.6 Sol session/);
     assert.doesNotMatch(prompt.slice(ownerEnd + end.length), /^[ \t\u00a0]/);
 
     // The formatting fix concerns generated instructions only. A same-length
@@ -159,7 +159,7 @@ test('continuation instruction starts at its line boundary while exact OWNER whi
   }
 });
 
-test('historical route-v4 binding envelope bytes and prompt are unchanged by absent continuation', () => {
+test('route-v4 binding envelope stays unchanged while fixed-control prompt bytes are explicit', () => {
   const ordinary = routeFrom(basePacket());
   const continuation = routeFrom(continuationPacket());
   assert.deepEqual(deriveBindingCapsule(continuation, 'provider-session:binding', 'binding-receipt'), ordinary.bindingCapsule);
@@ -170,11 +170,11 @@ test('historical route-v4 binding envelope bytes and prompt are unchanged by abs
   assert.doesNotMatch(prompt, /continuation_binding|OWNER RESPONSE/);
   assert.ok(prompt.includes(`binding_envelope_sha256: ${ordinary.bindingCapsule.sha256}.`));
   assert.match(prompt, /schema_version 3/);
-  // Frozen from the unchanged canonical source before the continuation-only
-  // generated-padding fix; ordinary Extra High and Pro prompt bytes stay exact.
-  assert.equal(sha256(prompt), 'd5dcb75500d8cc11aee313da19404589307f1523e038e8d87bd5dcd8d89cdd1c');
+  // Frozen after the source-bound GPT-5.6 Sol / Extra High, 4 of 5 surface
+  // correction; the binding-envelope bytes above remain unchanged.
+  assert.equal(sha256(prompt), '9c8364ba802be3717481313c007e081ae10de8e41520345e241aa839b8f67437');
   assert.equal(sha256(cycleControlPrompt(routeFrom(basePacket('PRO_ESCALATED')), 'PRO_DECISION')),
-    'ff80ddeeca2a8eff8fec67fa746c2b1c6bfe20e3a8c1c006557550a9e8dafdf2');
+    '28cb30625887e00dc1f659f03cec82afda71bd14c2428335675824af0231d30f');
 });
 
 function basePacket(reasoningLane = 'EXTRA_HIGH_DIRECT') {

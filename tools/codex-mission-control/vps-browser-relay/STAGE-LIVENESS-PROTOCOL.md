@@ -3,12 +3,13 @@
 Status: staged-route compatibility contract
 
 New route schema v4 does not require this protocol. It uses one fresh binding
-preload session followed by one fresh visible Extra High or Pro decision
+preload session followed by one fresh decision
 session that writes canonical #59 directly in its first message. Canonical
 decision schema v3 binds `binding_provider_session_id` and the distinct
 `decision_provider_session_id` plus the exact binding envelope/hash and uses
-`VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED` or
-`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`. Missing #59 fails the direct stage after
+`VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED`. The semantic
+lane does not alter the fixed visible controls; Pro is account-plan metadata,
+not a reasoning mode. Missing #59 fails the direct stage after
 the bounded reconciliation window; there is no same-chat `continue`, automatic
 semantic retry, reader, liveness, or final-writer stage.
 

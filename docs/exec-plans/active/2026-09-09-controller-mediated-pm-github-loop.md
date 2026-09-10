@@ -1,5 +1,9 @@
 # Controller-mediated PM GitHub loop execution plan
 
+Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**
+This execution plan records one owner's live host and service topology; it is not
+a reusable deployment template.
+
 Status: ACTIVE
 Assurance lane: RELEASE
 Owner source: `docs/requirements/2026-09-09-controller-mediated-pm-github-loop.owner-requirement.json`

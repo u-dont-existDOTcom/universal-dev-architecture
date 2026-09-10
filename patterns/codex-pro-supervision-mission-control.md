@@ -1657,11 +1657,18 @@ The optional relay may:
 
 - open a known chat URL;
 - create a new chat when explicitly required;
-- place prompt/packet content on the clipboard;
+- place exact prompt/packet bytes directly into an automation-owned remote
+  browser composer through the browser protocol;
 - upload selected packet files;
-- copy the final structured response for import.
+- capture only provider output through a separately authorized, policy-compliant
+  source path when the active project explicitly permits it.
 
 It must not:
+
+- read or write the owner/user clipboard, or use the owner's interactive browser
+  window or tabs, for routine Mission Control transport;
+- copy cookies, authenticated browser profiles, password stores, or clipboard
+  contents between execution hosts;
 
 - scrape hidden reasoning;
 - infer success merely from DOM text;

@@ -1,6 +1,6 @@
 # Mission Control VPS ChatGPT Browser Relay
 
-Status: draft live-acceptance implementation for the Hostinger browser VPS.
+Status: portable active/passive VPS browser relay implementation.
 
 The relay moves persistent ChatGPT supervision tabs off the owner's interactive workstation while preserving the controlling authority split:
 
@@ -17,12 +17,12 @@ conversation for every mandatory external-tool stage:
 
 ```text
 ordinary:
-MC binding preload -> fresh Extra High GitHub read/decision/write -> Mission Control
+MC binding preload -> fresh GPT-5.6 Sol / Extra High 4-of-5 GitHub read/decision/write -> Mission Control
 
 escalated, durable stage bus:
-MC binding preload -> fresh Extra High GitHub reader -> #61 reader receipt
-                   -> fresh Pro GitHub reasoner -> #61 Pro decision receipt
-                   -> fresh Extra High GitHub exact writer -> #59 -> Mission Control
+MC binding preload -> fresh GPT-5.6 Sol / Extra High 4-of-5 GitHub reader -> #61 reader receipt
+                   -> fresh GPT-5.6 Sol / Extra High 4-of-5 semantic reasoner -> #61 decision receipt
+                   -> fresh GPT-5.6 Sol / Extra High 4-of-5 exact writer -> #59 -> Mission Control
 
 controller-mediated Project Manager return:
 completed MC binding preload -> exact origin target -> #61 exact OWNER-byte artifact
@@ -48,7 +48,7 @@ cannot advance an artifact state or complete a cycle.
 - Chrome DevTools Protocol is loopback-only (`127.0.0.1`).
 - A dedicated non-default browser profile is mandatory.
 - Only registered exact `https://chatgpt.com/c/<conversation-id>` URLs are managed.
-- Chat configuration registers identity, worker binding, challenge ID, and configured exact visible Extra High / Pro-lane labels; configuration cannot self-declare capability PASS.
+- Chat configuration registers identity, worker binding, challenge ID, and the fixed visible consumer controls: model `GPT-5.6 Sol`, `Thinking effort` = `Extra High` (`4 of 5`). `Pro` is account-plan provenance only and is never treated as a reasoning-mode control. Configuration cannot self-declare capability PASS.
 - Live capability evidence must prove Mission Control read, GitHub read, GitHub write, and exact visible model-label switching.
 - Model switching and generation state are observed only through non-content controls/UI state.
 - A generation turn cannot become COMPLETE unless a real post-submit generation-start transition was observed first.
@@ -58,8 +58,12 @@ cannot advance an artifact state or complete a cycle.
 - Before Send, the relay compares the exact prepared input, including paragraph and line breaks, against the queued prompt. Only known plain-text composer structures are accepted; unsupported markup or a different body fails before submission. This check reads only the input composer, never assistant output.
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
-- Every actual ChatGPT message send shares one persisted global cooldown. The default minimum interval is 60 seconds, configurable with `MC_RELAY_MIN_SUBMISSION_INTERVAL_MS` from 15,000 through 600,000 ms.
-- Capability prompts, binding preloads, and every fresh Extra High/Pro GitHub stage use the same gate. The relay-wide process lock and a narrow in-process serialized gate allow only one send path to cross at once.
+- Every actual ChatGPT message send requires a durable, single-use admission from
+  the loopback central scheduler. The default and minimum interval is 60 seconds,
+  configurable through 600 seconds.
+- Capability prompts, binding preloads, every fresh reasoning/GitHub stage,
+  controller sends, and stuck-turn recovery use the same durable FIFO queue.
+  Host-local state remains recovery evidence but is not the pacing authority.
 - Cooldown checks never sleep inside the state machine. They return `GLOBAL_SUBMISSION_COOLDOWN` with `retryAfterMs` and `nextSubmissionAt`, and no click or route-authority mutation occurs.
 - Controller cycles bind every browser operation to one persisted target ID,
   automation-window ID, and expected current URL. They never select a target by
@@ -129,7 +133,7 @@ A chat starts UNVERIFIED. The capability challenge is intentionally two-source:
 - the raw GitHub nonce exists only in the configured GitHub capability issue;
 - Extra High must read both systems and write one canonical capability receipt back to GitHub;
 - Mission Control validates the two nonces, exact chat/challenge binding, authorized GitHub writer, and expiry;
-- the relay separately proves the configured exact visible Extra High / Pro-lane labels by a mode-selection round trip.
+- the relay separately proves the fixed model selector and thinking slider immediately before each send; there is no Pro-mode selection or mode round trip.
 
 The diagnostic public HTTP challenge route remains exact-ID, GET-only,
 uncached, and returns only the same disposable challenge fields. The relay
@@ -187,28 +191,76 @@ A GitHub supervisor decision becomes authoritative only when Mission Control val
 - current owner-outcome ID/epoch/hash;
 - stable supervisor ID, distinct binding/decision provider-session IDs, exact conversation URLs, and reasoning lane;
 - current Mission Control/GitHub capability receipt;
-- current configured exact visible Extra High / Pro-lane model-label receipts;
+- current fixed GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 receipts;
 - a server-observed binding-preload MCP request-binding read in the binding provider session;
 - an exact mechanically derived binding envelope recorded in Mission Control transport state;
-- one direct first-message decision transport receipt with configured exact visible Extra High or Pro-lane proof, so stale or cross-session evidence cannot replay;
+- one direct first-message decision transport receipt with the fixed consumer-control proof, so stale or cross-session evidence cannot replay;
 - ordered no-content browser-stage receipts;
 - central GitHub repository/issue/writer policy;
 - receipt creation time inside the admitted window;
 - canonical decision digest and no-reinterpretation writer contract.
 
-For new Pro escalation, the fresh visible-Pro session reads immutable GitHub
-evidence and writes canonical #59 directly in its first message. Mission
-Control labels this conservative provenance
-`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`; it binds visible UI/session transport and
-the GitHub receipt without claiming hidden provider-backend model identity.
+For a new escalated semantic lane, the fresh session uses the same fixed
+GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 controls, reads immutable
+GitHub evidence, and writes canonical #59 directly in its first message.
+Mission Control labels this conservative provenance
+`VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED`; it binds visible
+UI/session transport and the GitHub receipt without claiming hidden provider-
+backend model identity. The account-plan label Pro is metadata only.
 Schema-v3 staged #61 flows remain supported for compatibility but are not
 required by the direct route-v4 topology.
 
 Webhook ingestion is the fast path. Periodic GitHub issue polling is reconciliation for missed webhooks. Public repositories can use low-frequency reconciliation without a GitHub token.
 
+## Central submission scheduler and failover
+
+`mc-submission-scheduler.mjs` is a distinct loopback-only process. It persists a
+FIFO queue, single-use admissions, actual browser boundaries, the global
+cooldown, fresh-session target bindings, and one active deployment lease/epoch.
+The relay fails closed when the scheduler is absent, unreachable, stale, bound
+to another host/epoch, or carrying unresolved ambiguity.
+
+Configure a separate scheduler credential and matching deployment identity in
+`env`, then edit `active-lease.json`. Start the scheduler before any no-send
+doctor check on the active host:
+
+```bash
+systemctl --user enable --now mission-control-submission-scheduler.service
+systemctl --user status mission-control-submission-scheduler.service
+```
+
+Keep a standby's scheduler and relay disabled during ordinary operation. A
+controlled takeover is an operator transaction, never a network-partition
+guess:
+
+1. stop and disable the old relay and scheduler, prove both are quiescent, and
+   leave both disabled through the whole takeover;
+2. reconcile open/ambiguous admissions;
+3. copy the owner-only scheduler ledger to the successor without printing it;
+4. create a successor lease at exactly the prior epoch plus one, binding the
+   prior lease/host and proven quiescence;
+5. bind the takeover record to the exact old `expiresAt`, wait until that old
+   lease has expired, preserve the exact `lastBoundaryAt`, and wait a full minimum interval after
+   the later of that boundary and the quiescence proof, even when pacing state
+   transferred successfully;
+6. start the successor scheduler, verify no-send status, then start its relay.
+
+Takeover durably cancels every unadmitted `QUEUED` or
+`PRECLICK_RETRY_PENDING` item. The successor may re-enqueue only the same
+logical request with its new host-owned target; changed request bytes or target
+ownership fail closed. An admitted-but-unresolved item remains an ambiguity and
+blocks takeover.
+
+Do not perform automatic failover when the prior host cannot be proven stopped.
+A successor rejects activation before the exact prior lease expiry even when
+quiescence and pacing transfer are otherwise proven. This makes an accidental
+restart of the disabled old services fail closed on their stale lease.
+A same-lease renewal may only extend `expiresAt`; changing host, epoch, issue
+time, or takeover evidence requires a new fenced lease.
+
 ## Memory policy
 
-The actual Hostinger browser VPS was observed at roughly 7.9 GB total RAM, so the relay no longer assumes 16 GB.
+The relay detects host memory and does not assume a particular VPS size.
 
 `MC_RELAY_MEMORY_PROFILE=AUTO` selects:
 
@@ -226,14 +278,15 @@ Approximate 8 GB relay boundaries:
 | Swap soft ceiling | 256 MB |
 | Swap hard ceiling | 768 MB |
 
-Systemd templates use RAM-relative limits; the live Hostinger system-manager browser wrapper may remain stricter. Never add `--no-sandbox`.
+Systemd templates use RAM-relative limits; a deployment-specific system-manager
+browser wrapper may remain stricter. Never add `--no-sandbox`.
 
 ## Required environment
 
 - Linux with `/proc` and systemd.
 - Node.js 22+.
 - Brave, Google Chrome, or Chromium.
-- A graphical Hostinger desktop session for the initial ChatGPT login.
+- A graphical session on the remote execution host for the initial ChatGPT login.
 - Mission Control reachable by HTTPS.
 - A dedicated Mission Control machine credential with producer kind `COLLECTOR`, scoped only to the registered worker IDs and required evidence task scope.
 
@@ -267,11 +320,18 @@ Edit:
 nano ~/.config/mission-control-chatgpt-relay/env
 ```
 
-Keep normal sends disabled initially:
+Keep normal sends disabled initially and configure a distinct loopback scheduler
+credential plus the exact host/epoch identity:
 
 ```text
 MC_RELAY_PRODUCER_ID=collector:chatgpt-relay
 MC_RELAY_TOKEN=<dedicated 32+ character token>
+MC_RELAY_SCHEDULER_URL=http://127.0.0.1:4300
+MC_RELAY_SCHEDULER_TOKEN=<different dedicated 32+ character token>
+MC_RELAY_HOST_ALIAS=<portable deployment alias>
+MC_RELAY_HOST_ROLE=PRIMARY
+MC_RELAY_DEPLOYMENT_EPOCH=1
+MC_RELAY_DEPLOYMENT_LEASE_ID=<exact active lease ID>
 MC_RELAY_SUBMIT_ENABLED=0
 MC_RELAY_CAPABILITY_TEST_ENABLED=0
 MC_RELAY_MEMORY_PROFILE=AUTO
@@ -289,21 +349,26 @@ nano ~/.config/mission-control-chatgpt-relay/chats.json
 Each entry must contain:
 
 - stable `supervisorId` matching Mission Control `destinationSupervisorId`;
+- unique `registrationId`, exact `ownership: "MISSION_CONTROL_ONLY"`, dedicated
+  purpose, private account/workspace aliases, private-locator reference, and
+  owner registration provenance;
 - `bootstrapCapability.chatId`, `.url`, and `.challengeId` for the existing capability proof only;
 - exact `workerId`;
-- configured exact current visible Extra High / Pro-lane labels.
+- the configured exact current GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 controls, with Pro recorded only as account-plan provenance.
 - exact visible Mission Control and GitHub app labels under `requiredApps`.
 
-Do not put PASS/FAIL capability claims in this file; Mission Control evidence determines capability truth.
+Personal, shared-purpose, legacy-unclassified, or ambiguous chats are invalid
+even when their URL is syntactically correct. Do not put PASS/FAIL capability
+claims in this file; Mission Control evidence determines capability truth.
 
 ### Authenticate the browser profile
 
-From the Hostinger graphical desktop terminal:
+From the remote execution host's graphical desktop terminal:
 
 ```bash
 systemctl --user stop mission-control-chatgpt-browser.service
 set -a
-source ~/.config/mission-control-chatgpt-relay/env
+source ~/.config/mission-control-chatgpt-relay/browser-env
 set +a
 ~/.local/share/mission-control-chatgpt-relay/app/scripts/launch-browser.sh
 ```
@@ -313,6 +378,7 @@ Sign in manually to the intended ChatGPT account and open the registered chats. 
 ### Start browser and inspect without sending
 
 ```bash
+systemctl --user enable --now mission-control-submission-scheduler.service
 systemctl --user enable --now mission-control-chatgpt-browser.service
 set -a
 source ~/.config/mission-control-chatgpt-relay/env
@@ -372,15 +438,22 @@ sudo loginctl enable-linger "$USER"
 ## Operations
 
 ```bash
+systemctl --user status mission-control-submission-scheduler.service
 systemctl --user status mission-control-chatgpt-browser.service
 systemctl --user status mission-control-chatgpt-relay.service
+journalctl --user -u mission-control-submission-scheduler.service -f
 journalctl --user -u mission-control-chatgpt-relay.service -f
 cat ~/.local/state/mission-control-chatgpt-relay/status.json
 ```
 
 The status record reports hashes, queue state, browser/memory state, capability state, stuck-recovery metadata, ambiguity state, and `browserTabs.managedChatGptTabCount` with the 1/2/3 steady/transition/hard limits. It does not contain ChatGPT response content.
 
-`submissionPacing` appears in doctor/status output with the configured minimum interval, persisted last-submission time, remaining delay, and next eligible submission time. `GLOBAL_SUBMISSION_COOLDOWN` is a normal fail-safe retry state; the outer relay loop retries on its next poll instead of blocking inside a send.
+`centralScheduler` and `submissionPacing` appear in doctor/status output with the
+active host/epoch, durable queue head/depth, unresolved admission, safety halt,
+minimum interval, persisted last-submission time, remaining delay, and next
+eligible submission time. `GLOBAL_SUBMISSION_COOLDOWN` is a normal fail-safe
+retry state; the outer relay loop retries the same immutable queue item on its
+next poll instead of blocking inside a send.
 
 ### Ambiguous submissions
 
@@ -396,7 +469,7 @@ Use `retry` only after an operator has independently established that re-submiss
 
 ## Memory trial
 
-Keep one managed ChatGPT tab in steady state. New provider conversations use New chat in that current verified reusable tab. A bounded transition or replacement recovery may temporarily use two tabs; three is the absolute hard ceiling, and the relay fails closed before opening a fourth. Verify a replacement before immediately closing the superseded automation-owned tab, never fan out duplicate tabs for one task, and clean completed sessions back toward one. Capture browser/service memory and relay status during real Extra High and Pro peaks.
+Keep one managed ChatGPT tab in steady state. New provider conversations use New chat in that current verified reusable tab. A bounded transition or replacement recovery may temporarily use two tabs; three is the absolute hard ceiling, and the relay fails closed before opening a fourth. Verify a replacement before immediately closing the superseded automation-owned tab, never fan out duplicate tabs for one task, and clean completed sessions back toward one. Capture browser/service memory and relay status during representative fixed-control peaks.
 
 PASS requires:
 
@@ -419,4 +492,4 @@ A hard-pressure pause is successful safety behavior, not automatic permission to
 
 ### Current exact-label policy (2026-09-05)
 
-For `mc-hotfix-specialist`, explicitly configure `modelLabels.extraHigh` as `Extra High` and `modelLabels.pro` as `6 Pro`; coordinate any independent hotfix `expectedModels` policy for that same supervisor. The internal lane remains `PRO_ESCALATED` and provenance remains conservative visible-UI/session provenance. `Pro` and `6 Pro` are not aliases, and neither proves a hidden/backend model identity. A missing or ambiguous exact label fails closed; another live label change during this acceptance run stops the run without another policy rotation. The superseding record is `docs/requirements/2026-09-05-current-exact-pro-label.owner-requirement.json`. The 2026-09-03 owner requirement and old `Pro` receipts remain unchanged historical evidence.
+Current live registries must use `consumerControls` exactly as shown in `chats.example.json`: `GPT-5.6 Sol`, `Thinking effort`, `Extra High`, `4 of 5`, and account-plan `Pro` as `PROVENANCE_METADATA_ONLY` with `accountPlanIsReasoningMode=false`. The internal `PRO_ESCALATED` lane is a semantic policy lane, not a selectable UI mode. Old `modelLabels` / `expectedModels`, `6 Pro`, and Pro-mode round-trip records remain historical evidence only and are not live-send eligible. A missing or ambiguous exact control fails closed; another live surface change requires a new source-bound disposition before sending.

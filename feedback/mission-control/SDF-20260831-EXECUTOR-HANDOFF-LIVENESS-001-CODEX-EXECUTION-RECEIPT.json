@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "schemaVersion": 2,
   "receiptId": "SDF-20260831-EXECUTOR-HANDOFF-LIVENESS-001-RECEIPT-001",
   "createdAt": "2026-08-31T02:02:37Z",

@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "evidence_id": "MC-HOSTINGER-BROWSER-ISOLATION-LIVE-20260908",
   "owner_requirement_id": "REQ-MC-BROWSER-OWNERSHIP-RATE-LIMIT-20260908",
   "checked_at": "2026-09-08T14:28:38.381Z",

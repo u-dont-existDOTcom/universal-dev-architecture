@@ -11,6 +11,13 @@
 
 Project-specific current requirements win on genuine conflict.
 
+## Universal and owner-specific infrastructure boundary
+
+Keep patterns/templates portable. Isolate one-owner infrastructure content and
+label it exactly `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`; deleting those
+examples must not break reusable guidance or code. Never commit secrets,
+credentials, private locators/profiles, or owner account identifiers.
+
 ## Validation
 
 Run both exact commands declared in `.github/codex-repository.json` before completion **when the active task is at the repository's merge/release completion boundary**:
@@ -18,7 +25,8 @@ Run both exact commands declared in `.github/codex-repository.json` before compl
 - `python3 -m unittest discover -s tests -v`
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`
 
-Do not reinterpret release/merge completion gates as prerequisites for ordinary experimental iteration. Use the assurance-lane policy below to bind validation to the decision currently being made.
+Release/merge gates are not prerequisites for ordinary iteration; bind
+validation to the assurance lane below.
 
 Use the uniquely named `Universal repository compliance / Deterministic repository audit` GitHub Actions check. Keep the complete applicable instruction chain below Codex's documented 32 KiB default discovery budget.
 

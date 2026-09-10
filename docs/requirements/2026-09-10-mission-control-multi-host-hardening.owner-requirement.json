@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-MULTI-HOST-HARDENING-20260910",
+  "recorded_at": "2026-09-10T16:28:55+00:00",
+  "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
+  "status": "RECORDED_NOT_IMPLEMENTED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continuing from [mission control sep 7](chatgpt-conversation://6a9d7fa4-8508-83e9-8aeb-d351f2968673): Continue Mission Control infrastructure hardening. Use Netcup VPS (16 GB RAM) as primary browser/worker/supervisor execution host and Hostinger VPS (8 GB RAM) as secondary/failover. Do not use Joel's local browser tabs or clipboard for routine MC work. Fresh-read universal-dev-architecture current main and issue #53 before changes. Inspect actual submission pacing/queue logs on the existing Hostinger MC relay and report exact request intervals and whether submissions are admitted through a central queue/permission gate before send. Then implement the smallest deterministic fixes: (1) central submission scheduler/queue with globally enforced minimum interval and explicit admission before every ChatGPT send; (2) dedicated MC-only supervisor chat registry/ownership, never reusing user chats; (3) primary Netcup deployment/copy of the current MC relay/controller stack, Hostinger retained secondary; (4) failover rules; (5) no user clipboard or user browser-window interaction; (6) preserve exact browser ownership isolation and rate-limit handling already merged; (7) no production promotion beyond these owner-authorized MC infrastructure hosts. Keep secrets/credentials private and out of Git. In universal-dev-architecture, document all portable architecture as universal guidance and mark owner-specific hostnames, service IDs, machine paths, and Joel-specific topology explicitly NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT so the repo remains copyable. Also add a general rule: repo content that is specific to one owner's infrastructure must be labeled non-universal and isolated from reusable patterns/templates. Use current standing authority: continue routine safe/reversible steps, tests, PR, review, merge if green; stop only on real owner tradeoff. Durable evidence must include Netcup primary health, Hostinger secondary health, exact pacing log proof, queue admission proof, MC-only chat ownership proof, and confirmation that local/user browser + clipboard are not used.",
+    "sha256": "8516d278e2b372f7ee4874a33fb8d88ca17a6561748e81b565b08e5dd78f5964",
+    "source_type": "owner_chat_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "chatgpt-conversation:6a9d7fa4-8508-83e9-8aeb-d351f2968673:continuation:2026-09-10"
+  },
+  "normalized_outcome": "Mission Control uses one remotely hosted active submission authority on the owner-authorized 16 GB primary VPS and one fail-closed 8 GB standby VPS. Every ChatGPT send is admitted and durably recorded by one central scheduler enforcing the global minimum interval; only explicitly MC-only conversations and automation-owned browser targets are eligible; controlled failover cannot create split brain; the owner computer's browser windows, tabs and clipboard are outside the routine execution path. Portable controls remain reusable while this owner's deployment facts are explicitly isolated and labelled non-universal.",
+  "required_outcomes": [
+    {
+      "id": "RO-MCHOST-001",
+      "terminal_required": true,
+      "observable": "Retained Hostinger relay records yield exact observed ChatGPT click times and intervals, plus a truthful determination of whether the pre-change implementation had a central cross-host queue and per-send admission gate.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-002",
+      "terminal_required": true,
+      "observable": "All relay send paths use one scheduler that serializes the queue, issues a single-use admission before browser mutation, persists the admission and actual send boundary, and enforces the configured global minimum interval.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-003",
+      "terminal_required": true,
+      "observable": "The supervisor registry requires an explicit Mission Control-only ownership classification and registration provenance; personal, ambiguous, legacy-unclassified, wrong-owner and wrong-target conversations fail closed before send.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-004",
+      "terminal_required": true,
+      "observable": "The exact reviewed relay/controller candidate is installed on the 16 GB owner-authorized primary VPS with a private independent browser profile and healthy no-send checks; the 8 GB owner-authorized VPS remains a healthy, disabled standby using the same candidate.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-005",
+      "terminal_required": true,
+      "observable": "Failover is active/passive and fail closed: only one deployment lease/epoch can admit sends, standby cannot submit, takeover requires proven primary quiescence, pacing-state transfer, and a full safety interval after the later of the last possible boundary and quiescence proof; ambiguous partition/split-brain state blocks both sides.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-006",
+      "terminal_required": true,
+      "observable": "Routine Mission Control work uses only the remote execution host's dedicated automation-owned browser/profile and direct browser-protocol text input; no owner-local browser window/tab and no owner/user clipboard read or write is used.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-007",
+      "terminal_required": true,
+      "observable": "The previously merged exact browser-window/target ownership isolation, loopback browser control, native sandbox, one bounded rate-limit acknowledgement/retry, and stronger global minimum interval remain mechanically enforced and regression-tested.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-008",
+      "terminal_required": true,
+      "observable": "Reusable multi-host architecture is documented as portable guidance; every owner-specific provider label, hostname, service ID, machine path and topology fact is isolated under explicit NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT labelling; secrets, credentials and private chat locators are absent from Git.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCHOST-009",
+      "terminal_required": true,
+      "observable": "Mission Control execution workers themselves, not only the browser relay/controller, run on the owner-authorized remote primary with the secondary as failover; the owner's local Codex/Work host is not the routine worker execution surface.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a 60-second timestamp stored independently on each VPS",
+    "one in-process Promise chain represented as a cross-host central scheduler",
+    "a route being admitted upstream without a fresh single-use browser-send permit",
+    "a matching chat URL without Mission Control-only conversation ownership provenance",
+    "automation-owned browser target proof without separate conversation ownership proof",
+    "copying the authenticated Hostinger browser profile or cookies to Netcup",
+    "installing code on Netcup without a healthy independent no-send browser/runtime check",
+    "moving only the browser relay/controller while leaving routine Mission Control execution workers on the owner's local Codex/Work host",
+    "calling Hostinger a failover while it can submit concurrently with Netcup",
+    "documentation or unit tests represented as live host health",
+    "using Joel's local browser or clipboard because the remote browser is unavailable",
+    "placing private hostnames, IPs, credentials, service identifiers, chat locators or machine paths in reusable public templates",
+    "a green pull request without installing the exact reviewed candidate on both authorized hosts",
+    "deploying or mutating Railway production or any third host"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/codex-github-operating-system.md",
+    "patterns/codex-pro-supervision-mission-control.md",
+    "patterns/persistent-browser-automation-hygiene.md",
+    "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md",
+    "patterns/executable-frontier-coherence.md"
+  ],
+  "production_boundary": "Only the two owner-authorized Mission Control infrastructure VPS hosts are in deployment scope; Railway production and every other host remain unauthorized.",
+  "next_direct_evidence": "Create the portable scheduler/lease and MC-only registry candidate, verify all send paths and hostile fail-closed cases, merge the reviewed candidate, install that exact revision on both authorized VPS hosts, and collect privacy-safe no-send health and admission evidence."
+}
