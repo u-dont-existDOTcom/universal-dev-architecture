@@ -43,8 +43,7 @@ class WorkerDirectiveDeliveryOutputBudgetTests(unittest.TestCase):
             "patterns/worker-directive-delivery-and-chat-output-budget.md",
             "Do not stop after explaining what the worker should do",
             "deliver a complete owner-runnable directive",
-            "create a `.md` or appropriate text artifact",
-            "1,200 words or 8,000 characters",
+            "longer reusable operational payloads",
         )
         for phrase in required:
             with self.subTest(phrase=phrase):
