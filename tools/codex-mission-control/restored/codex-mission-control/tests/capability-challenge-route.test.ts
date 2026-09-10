@@ -143,8 +143,7 @@ function policy(expiresAt = "2099-09-05T00:00:00.000Z"): GitHubReceiptPolicy {
       mcNonce: "mc-nonce",
       githubNonce: "github-only-nonce",
       expiresAt,
-      extraHighLabel: "Extra High",
-      proLabel: "Pro",
+      modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
     }],
   };
 }

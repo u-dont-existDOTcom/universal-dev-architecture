@@ -430,7 +430,7 @@ function consumedReceipt(sequence: number, continuation: OwnerResponseContinuati
   return stored(sequence, githubDecisionReceiptIngestedSchema.parse({
     type: "github_decision_receipt_ingested", worker, task_id: "task:continuation", receipt_id: "receipt:consumed", request_id: "request:prior",
     supervisor_id: supervisorId, binding_provider_session_id: "provider-session:binding", decision_provider_session_id: "provider-session:decision",
-    binding_envelope: envelope, binding_envelope_sha256: sha256(canonicalJson(envelope)), decision_session_provenance: "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+    binding_envelope: envelope, binding_envelope_sha256: sha256(canonicalJson(envelope)), decision_session_provenance: "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED",
     nonce: "nonce:prior", evidence_capsule: continuation.binding.evidence_capsule, owner_outcome_id: continuation.binding.owner_outcome.id,
     owner_outcome_epoch: continuation.binding.owner_outcome.epoch, owner_outcome_sha256: continuation.binding.owner_outcome.sha256,
     continuation_binding: continuation.binding, continuation_binding_sha256: continuation.digest, reasoning_lane: "EXTRA_HIGH_DIRECT",

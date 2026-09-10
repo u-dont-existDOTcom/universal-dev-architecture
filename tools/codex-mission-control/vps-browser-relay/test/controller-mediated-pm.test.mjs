@@ -479,8 +479,7 @@ class FakeBrowser {
     return target ? structuredClone(target) : null;
   }
   async closeTarget(id) { this.closed.push(id); this.targets = this.targets.filter((item) => item.id !== id); return true; }
-  async switchModel(target, { label }) { return { observedLabel: label }; }
-  async verifyModelRoundTrip() { return { status: 'MODE_ROUND_TRIP_VERIFIED' }; }
+  async ensureExactConsumerControls(target, { controls }) { return { status: 'FIXED_CONSUMER_CONTROLS_VERIFIED', ...controls }; }
   async selectAppsForMessage(target, input) {
     if (this.failAppSelectionOnce) { this.failAppSelectionOnce = false; throw Object.assign(new Error('simulated pre-click selection failure'), { relayStage: 'PREPARING' }); }
     return { status: 'MESSAGE_APPS_SELECTED', selectedLabels: input.requiredLabels };
@@ -526,6 +525,7 @@ class FakePacer {
     if (!status.ready) throw Object.assign(new Error('GLOBAL_SUBMISSION_COOLDOWN'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', ...status });
     return status;
   }
+  async remoteStatus() { return this.status(); }
   async submit({ beforeSubmit, recordBoundary, submit }) {
     await beforeSubmit?.();
     if (this.failure) throw this.failure;
@@ -620,8 +620,11 @@ function continuationPacket() {
 function chat(scope, supervisorId, chatId) {
   return {
     scope, supervisorId, label: supervisorId, workerId: 'worker-a', pinned: scope === 'PROJECT_MANAGER',
+    registrationId: `registration:${supervisorId}:test`, ownership: 'MISSION_CONTROL_ONLY', purpose: 'Dedicated test supervisor.',
+    accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: `private-config:supervisors/${supervisorId}`,
+    registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
     bootstrapCapability: { chatId, url: `https://chatgpt.com/c/${chatId}`, challengeId: `challenge-${chatId}` },
-    modelLabels: { extraHigh: 'Extra High', pro: 'Pro' }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
+    consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
 }
 

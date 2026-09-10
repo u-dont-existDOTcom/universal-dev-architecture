@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "recorded_at": "2026-09-10T16:28:55Z",
+  "purpose": "Privacy-safe pre-change pacing and queue audit for one owner's existing secondary relay host.",
+  "portable_authority": "patterns/mission-control-multi-host-submission-scheduling.md",
+  "source": {
+    "host_alias": "owner-secondary",
+    "installed_revision": "eb5e12880933ebab89081141b60f410a1ab00888",
+    "owner_only_state_snapshot_sha256": "664e4e92bd54252b42a4deb9b6b8a1491332459cf977f3095a7e8348a9af74fa",
+    "private_hostname_committed": false,
+    "private_ip_committed": false,
+    "private_chat_locator_committed": false,
+    "secret_committed": false,
+    "extraction": "All unique clickedAtObserved values recursively extracted from the live owner-only relay state snapshot, sorted as UTC instants, with adjacent differences computed in milliseconds. No prompt, response, chat locator, credential, hostname or IP was retained."
+  },
+  "observed_click_boundaries": [
+    { "sequence": 1, "at": "2026-09-03T16:05:54.680Z", "interval_from_prior_ms": null },
+    { "sequence": 2, "at": "2026-09-03T17:34:32.087Z", "interval_from_prior_ms": 5317407 },
+    { "sequence": 3, "at": "2026-09-03T19:06:44.930Z", "interval_from_prior_ms": 5532843 },
+    { "sequence": 4, "at": "2026-09-04T00:35:07.091Z", "interval_from_prior_ms": 19702161 },
+    { "sequence": 5, "at": "2026-09-04T00:47:08.114Z", "interval_from_prior_ms": 721023 },
+    { "sequence": 6, "at": "2026-09-04T00:58:52.858Z", "interval_from_prior_ms": 704744 },
+    { "sequence": 7, "at": "2026-09-04T13:05:17.222Z", "interval_from_prior_ms": 43584364 },
+    { "sequence": 8, "at": "2026-09-04T13:16:47.375Z", "interval_from_prior_ms": 690153 },
+    { "sequence": 9, "at": "2026-09-04T13:22:09.151Z", "interval_from_prior_ms": 321776 },
+    { "sequence": 10, "at": "2026-09-04T13:29:28.165Z", "interval_from_prior_ms": 439014 },
+    { "sequence": 11, "at": "2026-09-04T13:32:05.609Z", "interval_from_prior_ms": 157444 },
+    { "sequence": 12, "at": "2026-09-04T13:50:55.429Z", "interval_from_prior_ms": 1129820 },
+    { "sequence": 13, "at": "2026-09-04T13:58:25.287Z", "interval_from_prior_ms": 449858 },
+    { "sequence": 14, "at": "2026-09-04T14:14:31.504Z", "interval_from_prior_ms": 966217 },
+    { "sequence": 15, "at": "2026-09-05T16:27:06.184Z", "interval_from_prior_ms": 94354680 },
+    { "sequence": 16, "at": "2026-09-05T18:23:32.818Z", "interval_from_prior_ms": 6986634 },
+    { "sequence": 17, "at": "2026-09-06T22:34:05.166Z", "interval_from_prior_ms": 101432348 },
+    { "sequence": 18, "at": "2026-09-07T18:14:15.193Z", "interval_from_prior_ms": 70810027 },
+    { "sequence": 19, "at": "2026-09-07T18:59:18.494Z", "interval_from_prior_ms": 2703301 },
+    { "sequence": 20, "at": "2026-09-09T16:58:53.869Z", "interval_from_prior_ms": 165575375 },
+    { "sequence": 21, "at": "2026-09-09T17:12:57.388Z", "interval_from_prior_ms": 843519 },
+    { "sequence": 22, "at": "2026-09-09T17:14:30.316Z", "interval_from_prior_ms": 92928 },
+    { "sequence": 23, "at": "2026-09-09T17:50:58.401Z", "interval_from_prior_ms": 2188085 },
+    { "sequence": 24, "at": "2026-09-09T18:00:53.815Z", "interval_from_prior_ms": 595414 }
+  ],
+  "summary": {
+    "unique_click_boundaries": 24,
+    "adjacent_intervals": 23,
+    "configured_minimum_interval_ms": 60000,
+    "minimum_observed_interval_ms": 92928,
+    "intervals_below_minimum": 0,
+    "latest_persisted_submission_at": "2026-09-09T18:00:53.815Z"
+  },
+  "prechange_queue_audit": {
+    "host_local_route_ordering_present": true,
+    "host_local_process_lock_present": true,
+    "host_local_serial_promise_tail_present": true,
+    "host_local_persisted_last_submission_present": true,
+    "central_cross_host_queue_present": false,
+    "single_active_host_lease_or_fencing_epoch_present": false,
+    "fresh_single_use_admission_before_every_send_present": false,
+    "conclusion": "The retained single-host sends respected the configured floor, but the implementation could not safely admit two concurrently live hosts. Upstream route admission did not create a fresh central permit for every concrete browser send."
+  }
+}

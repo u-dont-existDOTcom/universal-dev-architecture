@@ -8,9 +8,118 @@ import { StateStore } from '../src/state.mjs';
 import {
   CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED,
   ChatGptRateLimitRetryError,
+  CentralSubmissionScheduler,
   GlobalSubmissionPacer,
   GLOBAL_SUBMISSION_COOLDOWN,
 } from '../src/submission-pacing.mjs';
+import { sha256 } from '../src/core.mjs';
+
+test('central admission is durable before every browser mutation and actual boundary is recorded once', async () => {
+  const events = [];
+  const store = new MemoryStateStore();
+  const client = {
+    async status() { return centralStatus(); },
+    async admit(input) { events.push(['admit', input]); return admissionAuthority({ admitted: true, singleUse: true }); },
+    async validateAdmission(input) { events.push(['validate', input]); return admissionAuthority({ valid: true }); },
+    async recordBoundary(input) { events.push(['boundary', input]); return { recorded: true }; },
+    async bindTarget(input) { events.push(['bind', input]); return { bound: true }; },
+    async recordRateLimit(input) { events.push(['rate-limit', input]); return { recorded: true, providerRateLimitCount: 1 }; },
+    async abortBeforeBoundary(input) { events.push(['abort', input]); return { aborted: true }; },
+  };
+  const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: store, host: host(), minIntervalMs: 60_000, now: () => Date.parse('2026-09-10T12:00:00.000Z') });
+  await scheduler.submit({
+    context: context(),
+    beforeSubmit: async () => { events.push(['browser-model-mutation']); },
+    submit: async (onBoundary, _admission, validateBeforeClick) => {
+      events.push(['browser-composer-mutation']);
+      await validateBeforeClick();
+      events.push(['browser-click']);
+      const result = { clickedAtObserved: '2026-09-10T12:00:01.000Z', startedAtObserved: '2026-09-10T12:00:02.000Z', conversationUrl: 'https://chatgpt.com/c/generated' };
+      await onBoundary(result);
+      return result;
+    },
+  });
+  assert.deepEqual(events.map(([name]) => name), ['admit', 'browser-model-mutation', 'browser-composer-mutation', 'validate', 'browser-click', 'boundary']);
+  assert.equal(events[0][1].hostAlias, 'primary');
+  assert.equal(events[0][1].hostRole, 'PRIMARY');
+  assert.equal(events[5][1].admissionId, 'admission:test');
+  assert.equal(events[5][1].boundaryKind, 'GENERATION_STARTED');
+  assert.equal(store.state.submissionPacing.lastAdmissionId, 'admission:test');
+});
+
+test('central scheduler rejection or outage prevents browser mutation', async () => {
+  const store = new MemoryStateStore();
+  for (const error of [Object.assign(new Error('standby'), { code: 'STANDBY_SEND_FORBIDDEN' }), Object.assign(new Error('offline'), { code: 'CENTRAL_SCHEDULER_UNREACHABLE' })]) {
+    let mutated = false;
+    const client = {
+      async status() { return centralStatus(); },
+      async admit() { throw error; },
+      async validateAdmission() {},
+      async recordBoundary() {},
+      async bindTarget() {},
+      async recordRateLimit() {},
+      async abortBeforeBoundary() {},
+    };
+    const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: store, host: host(), minIntervalMs: 60_000 });
+    await assert.rejects(scheduler.submit({ context: context(), beforeSubmit: async () => { mutated = true; }, submit: async () => {} }), (caught) => caught.code === error.code);
+    assert.equal(mutated, false);
+  }
+});
+
+test('mismatched admission authority blocks before any browser mutation', async () => {
+  for (const mismatch of [
+    { minimumIntervalMs: 90_000 },
+    { leaseEpoch: 2 },
+    { hostAlias: 'standby' },
+    { hostRole: 'SECONDARY' },
+  ]) {
+    let mutated = false;
+    const client = {
+      async status() { return centralStatus(); },
+      async admit() { return admissionAuthority({ admitted: true, singleUse: true, ...mismatch }); },
+      async validateAdmission() {}, async recordBoundary() {}, async bindTarget() {}, async recordRateLimit() {}, async abortBeforeBoundary() {},
+    };
+    const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: new MemoryStateStore(), host: host(), minIntervalMs: 60_000 });
+    await assert.rejects(
+      scheduler.submit({ context: context(), beforeSubmit: async () => { mutated = true; }, submit: async () => {} }),
+      (error) => error.code === 'CENTRAL_SCHEDULER_AUTHORITY_MISMATCH',
+    );
+    assert.equal(mutated, false);
+  }
+});
+
+test('final pre-click validation is exact-bound to the live granted admission', async () => {
+  for (const malformed of [
+    { valid: false },
+    { valid: true, admissionId: 'admission:different' },
+    { valid: true, expiresAt: '2031-01-01T00:00:00.000Z' },
+    { valid: true, expiresAt: '2026-09-10T11:59:59.000Z' },
+  ]) {
+    let clicked = false;
+    const client = {
+      async status() { return centralStatus(); },
+      async admit() { return admissionAuthority({ admitted: true, singleUse: true }); },
+      async validateAdmission() { return admissionAuthority(malformed); },
+      async recordBoundary() {}, async bindTarget() {}, async recordRateLimit() {},
+      async abortBeforeBoundary() { return { aborted: true }; },
+    };
+    const scheduler = new CentralSubmissionScheduler({
+      schedulerClient: client,
+      stateStore: new MemoryStateStore(),
+      host: host(),
+      minIntervalMs: 60_000,
+      now: () => Date.parse('2026-09-10T12:00:00.000Z'),
+    });
+    await assert.rejects(scheduler.submit({
+      context: context(),
+      submit: async (_onBoundary, _admission, validateBeforeClick) => {
+        await validateBeforeClick();
+        clicked = true;
+      },
+    }), /CENTRAL_SCHEDULER_INVALID_ADMISSION/);
+    assert.equal(clicked, false);
+  }
+});
 
 test('two routes cannot cross the global send gate inside the minimum interval', async () => {
   const store = new MemoryStateStore();
@@ -196,4 +305,22 @@ class MemoryStateStore {
   constructor(initial = defaultState()) { this.state = structuredClone(initial); this.writes = 0; }
   async read() { return structuredClone(this.state); }
   async write(value) { this.writes += 1; this.state = structuredClone(value); return structuredClone(value); }
+}
+
+function host() { return { alias: 'primary', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' }; }
+
+function context() {
+  return {
+    requestId: 'r-1', queueKey: 'queue:r-1:step:1', sendPath: 'CAPABILITY', supervisorId: 'spec', registrationId: 'registration:spec:test',
+    targetId: 'target-test', targetKind: 'REGISTERED_BOOTSTRAP', targetKey: 'bootstrap-test', expectedUrlSha256: sha256('https://chatgpt.com/c/bootstrap-test'),
+    bodySha256: 'a'.repeat(64), hash: sha256,
+  };
+}
+
+function centralStatus() {
+  return { ready: true, minimumIntervalMs: 60_000, retryAfterMs: 0, activeLease: { epoch: 1, activeHostAlias: 'primary', activeHostRole: 'PRIMARY' } };
+}
+
+function admissionAuthority(overrides = {}) {
+  return { admissionId: 'admission:test', expiresAt: '2030-01-01T00:00:00.000Z', minimumIntervalMs: 60_000, leaseEpoch: 1, hostAlias: 'primary', hostRole: 'PRIMARY', ...overrides };
 }

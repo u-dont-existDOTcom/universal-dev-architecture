@@ -112,7 +112,7 @@ test("route-v3 reader admits STARTED < comment < COMPLETE < ingestedAt for one e
   const p = policy();
   const store = fakeStore([
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "GPT-5.6 Sol", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
   ]);
   const appended = ingestGitHubSupervisionCandidate(store, stageCandidate(stageReceiptBody("EXTRA_HIGH_READER", readerSessionId)), p, "2026-09-02T00:05:40.000Z");
   assert.equal(appended.length, 1);
@@ -127,7 +127,7 @@ test("route-v3 reader admits STARTED < comment < COMPLETE < ingestedAt for one e
 
   const followUpEvents = [
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "GPT-5.6 Sol", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
   ].map((item) => structuredClone(item));
   const transport = followUpEvents.find((item) => item.data.type === "evidence_receipt_recorded" && item.data.summary === relayStageSummary && item.data.refs.includes(`provider_session:${readerSessionId}`));
   assert.ok(transport && transport.data.type === "evidence_receipt_recorded");
@@ -138,7 +138,7 @@ test("route-v3 reader admits STARTED < comment < COMPLETE < ingestedAt for one e
 });
 
 test("prompt-forged and stale binding capsules are rejected", () => {
-  const base = [...pendingEvents(), ...capabilityEvents(), ...bindingEvents(), ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z")];
+  const base = [...pendingEvents(), ...capabilityEvents(), ...bindingEvents(), ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "GPT-5.6 Sol", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z")];
   const forged = structuredClone(bindingCapsule());
   forged.request_nonce = "forged-nonce";
   assert.throws(
@@ -157,9 +157,9 @@ test("prompt-forged and stale binding capsules are rejected", () => {
 test("route-v3 compatibility preserves the no-reuse gate across durable reader and Pro receipts", () => {
   const events = [
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "GPT-5.6 Sol", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
     stageCompletion("reader-receipt", 23, "EXTRA_HIGH_READER", readerSessionId, "2026-09-02T00:05:00.000Z", "2026-09-02T00:05:40.000Z"),
-    ...semanticSessionEvents(readerSessionId, "PRO_REASONER", "Pro", 24, "2026-09-02T00:06:00.000Z", "2026-09-02T00:07:30.000Z"),
+    ...semanticSessionEvents(readerSessionId, "PRO_REASONER", "GPT-5.6 Sol", 24, "2026-09-02T00:06:00.000Z", "2026-09-02T00:07:30.000Z"),
   ];
   assert.throws(
     () => ingestGitHubSupervisionCandidate(
@@ -176,7 +176,7 @@ test("route-v3 compatibility preserves ordered semantic stages under corrected G
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(pendingEvents(), candidate(), p), /Stage-1 MCP receipt/);
   assert.throws(() => buildGitHubDecisionReceiptEnvelope([
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "Extra High", 20, "2026-09-02T00:08:00.000Z", "2026-09-02T00:15:30.000Z"),
+    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "GPT-5.6 Sol", 20, "2026-09-02T00:08:00.000Z", "2026-09-02T00:15:30.000Z"),
   ], candidate(), p), /semantic stage completion EXTRA_HIGH_READER/);
 
   const complete = escalatedEvents();
@@ -258,7 +258,7 @@ test("route-v4 ordinary admits the exact live 13.481-second comment-before-COMPL
   if (result.data.type !== "github_decision_receipt_ingested") return;
   assert.equal(result.data.binding_provider_session_id, bindingSessionId);
   assert.equal(result.data.decision_provider_session_id, directDecisionSessionId);
-  assert.equal(result.data.decision_session_provenance, "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED");
+  assert.equal(result.data.decision_session_provenance, "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED");
   assert.equal(result.data.stage_provider_session_id, null);
 
   const sameSession = { ...decision, decision_provider_session_id: bindingSessionId };
@@ -285,7 +285,7 @@ test("route-v4 Pro uses the same first-message transport window without issue 61
   if (attestation.data.type !== "evidence_receipt_recorded") return;
   assert.equal(attestation.data.summary, splitDecisionSessionAttestationSummary);
   assert.ok(attestation.data.refs.includes(`decision_provider_session:${directProSessionId}`));
-  assert.ok(attestation.data.refs.includes("provenance:VISIBLE_PRO_SESSION_GITHUB_ATTESTED"));
+  assert.ok(attestation.data.refs.includes("provenance:VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED"));
   assert.ok(attestation.data.refs.includes("backend_model_identity_claimed:false"));
 });
 
@@ -314,7 +314,7 @@ test("new direct admission requires exact visible lane proof and rejects relabel
   const wrongModel = directDecisionEvents("PRO_ESCALATED").map((event) => structuredClone(event));
   for (const event of wrongModel) {
     if (event.data.type === "evidence_receipt_recorded" && event.data.refs.includes("step:PRO_DECISION")) {
-      event.data.refs = event.data.refs.map((ref) => ref === "model_ui_label:Pro" ? "model_ui_label:Extra High" : ref);
+      event.data.refs = event.data.refs.map((ref) => ref === "model_ui_label:GPT-5.6 Sol" ? "model_ui_label:GPT-5.5" : ref);
     }
   }
   assert.throws(
@@ -405,7 +405,7 @@ test("STARTED and COMPLETE must match the exact session, step, model, and app co
   const mutations: Array<readonly [string, (event: StoredEvent) => void]> = [
     ["session", (event) => replaceRef(event, "decision_provider_session:", "provider-session:other")],
     ["step", (event) => replaceRef(event, "step:", "EXTRA_HIGH_WRITER")],
-    ["model", (event) => replaceRef(event, "model_ui_label:", "6 Pro")],
+    ["model", (event) => replaceRef(event, "model_ui_label:", "GPT-5.5")],
     ["app", (event) => {
       if (event.data.type !== "evidence_receipt_recorded") return;
       event.data.refs = event.data.refs
@@ -518,7 +518,7 @@ function policy(): GitHubReceiptPolicy {
     capabilityChallenges: [{
       challengeId: "challenge-spec", supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
       mcNonce: "mc-nonce", githubNonce: "github-only-nonce", expiresAt: "2026-09-03T00:00:00.000Z",
-      extraHighLabel: "Extra High", proLabel: "Pro",
+      modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
     }],
   };
 }
@@ -564,7 +564,7 @@ function capabilityEvents(): StoredEvent[] {
   return [
     evidenceEvent("challenge", 3, capabilityChallengeSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`, "expires_at:2026-09-03T00:00:00.000Z"]),
     evidenceEvent("tools", 4, capabilityVerifiedSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", "expires_at:2026-09-03T00:00:00.000Z"]),
-    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, [`chat:${bootstrapChatId}`, "capability:modeSwitching", "extra_high_label:Extra High", "pro_label:Pro", "expires_at:2026-09-03T00:00:00.000Z"]),
+    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, [`chat:${bootstrapChatId}`, "capability:modeSwitching", "model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false", "expires_at:2026-09-03T00:00:00.000Z"]),
   ];
 }
 
@@ -572,8 +572,8 @@ function bindingEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED" = "PRO_ESCALA
   const capsule = bindingCapsule(lane);
   return [
     providerSessionEvent("binding-active", 6, bindingSessionId, "MC_BINDING_PRELOAD", "ACTIVE", "2026-09-02T00:02:00.000Z", bindingSessionId),
-    evidenceEvent("binding-model", 7, providerSessionModelSummary, ["request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${bindingSessionId}`, "model_ui_label:Extra High", "assistant_content_observed:false"], "2026-09-02T00:02:05.000Z"),
-    relayStage("preload", 8, bindingSessionId, "MCP_BINDING_PRELOAD", "Extra High", "Mission Control", "2026-09-02T00:02:10.000Z", bindingSessionId),
+    evidenceEvent("binding-model", 7, providerSessionModelSummary, ["request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${bindingSessionId}`, "model_ui_label:GPT-5.6 Sol", "assistant_content_observed:false"], "2026-09-02T00:02:05.000Z"),
+    relayStage("preload", 8, bindingSessionId, "MCP_BINDING_PRELOAD", "GPT-5.6 Sol", "Mission Control", "2026-09-02T00:02:10.000Z", bindingSessionId),
     evidenceEvent(bindingReceiptId, 9, providerSessionMcpSummary, ["request:decision-request-1", `supervisor:${supervisorId}`, `provider_session:${bindingSessionId}`, "tool:get_supervisory_request_binding", "status:OK"], "2026-09-02T00:02:20.000Z"),
     providerSessionEvent("binding-complete", 10, bindingSessionId, "MC_BINDING_PRELOAD", "COMPLETE", "2026-09-02T00:02:30.000Z", bindingSessionId),
     evidenceEvent("binding-capsule", 11, bindingCapsuleSummary, ["request:decision-request-1", `binding_provider_session:${bindingSessionId}`, `binding_receipt:${bindingReceiptId}`, `binding_capsule_id:${capsule.binding_capsule_id}`, `binding_capsule_sha256:${sha256(canonicalJson(capsule))}`], "2026-09-02T00:02:35.000Z"),
@@ -603,18 +603,18 @@ function stageCompletion(id: string, sequence: number, stage: "EXTRA_HIGH_READER
 function escalatedEvents(): StoredEvent[] {
   return [
     ...pendingEvents(), ...capabilityEvents(), ...bindingEvents(),
-    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
+    ...semanticSessionEvents(readerSessionId, "EXTRA_HIGH_READER", "GPT-5.6 Sol", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:05:30.000Z"),
     stageCompletion("reader-receipt", 23, "EXTRA_HIGH_READER", readerSessionId, "2026-09-02T00:05:00.000Z", "2026-09-02T00:05:40.000Z"),
-    ...semanticSessionEvents(proSessionId, "PRO_REASONER", "Pro", 24, "2026-09-02T00:06:00.000Z", "2026-09-02T00:07:30.000Z"),
+    ...semanticSessionEvents(proSessionId, "PRO_REASONER", "GPT-5.6 Sol", 24, "2026-09-02T00:06:00.000Z", "2026-09-02T00:07:30.000Z"),
     stageCompletion("pro-receipt", 27, "PRO_DECISION_STAGE", proSessionId, "2026-09-02T00:07:00.000Z", "2026-09-02T00:07:40.000Z"),
-    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "Extra High", 28, "2026-09-02T00:08:00.000Z", "2026-09-02T00:15:30.000Z"),
+    ...semanticSessionEvents(writerSessionId, "EXTRA_HIGH_WRITER", "GPT-5.6 Sol", 28, "2026-09-02T00:08:00.000Z", "2026-09-02T00:15:30.000Z"),
   ];
 }
 
 function ordinaryEvents(): StoredEvent[] {
   return [
     ...pendingEvents("EXTRA_HIGH_DIRECT"), ...capabilityEvents(), ...bindingEvents("EXTRA_HIGH_DIRECT"),
-    ...semanticSessionEvents(directSessionId, "EXTRA_HIGH_DIRECT", "Extra High", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:15:30.000Z"),
+    ...semanticSessionEvents(directSessionId, "EXTRA_HIGH_DIRECT", "GPT-5.6 Sol", 20, "2026-09-02T00:04:00.000Z", "2026-09-02T00:15:30.000Z"),
   ];
 }
 
@@ -631,7 +631,7 @@ function directPendingEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): Store
 function directDecisionEvents(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): StoredEvent[] {
   const decisionSession = lane === "PRO_ESCALATED" ? directProSessionId : directDecisionSessionId;
   const step = lane === "PRO_ESCALATED" ? "PRO_DECISION" : "EXTRA_HIGH_DECISION";
-  const label = lane === "PRO_ESCALATED" ? "Pro" : "Extra High";
+  const label = "GPT-5.6 Sol";
   return [
     ...directPendingEvents(lane),
     ...capabilityEvents(),
@@ -727,7 +727,7 @@ function directDecisionEnvelope(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): Ex
     decision_provider_session_id: sessionId,
     binding_envelope: binding,
     binding_envelope_sha256: sha256(canonicalJson(binding)),
-    decision_session_provenance: pro ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED" : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
+    decision_session_provenance: "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED",
     nonce: "nonce-1",
     evidence_capsule: { id: "capsule-1", sha256: evidenceSha },
     owner_outcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha },

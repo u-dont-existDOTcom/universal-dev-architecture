@@ -59,7 +59,10 @@ export class StateStore {
     const lastSubmissionAt = Number.isFinite(currentSubmissionMs) && (!Number.isFinite(proposedSubmissionMs) || currentSubmissionMs > proposedSubmissionMs)
       ? current.submissionPacing.lastSubmissionAt
       : state.submissionPacing?.lastSubmissionAt ?? null;
-    const next = { ...state, submissionPacing: { lastSubmissionAt }, updatedAt: new Date().toISOString() };
+    const lastAdmissionId = lastSubmissionAt === current.submissionPacing?.lastSubmissionAt
+      ? current.submissionPacing?.lastAdmissionId ?? state.submissionPacing?.lastAdmissionId ?? null
+      : state.submissionPacing?.lastAdmissionId ?? null;
+    const next = { ...state, submissionPacing: { lastSubmissionAt, lastAdmissionId }, updatedAt: new Date().toISOString() };
     await atomicJsonWrite(this.stateFile, next, 0o600);
     return next;
   }

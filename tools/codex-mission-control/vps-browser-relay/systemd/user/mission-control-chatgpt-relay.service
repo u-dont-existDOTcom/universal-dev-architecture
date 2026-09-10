@@ -1,8 +1,8 @@
 [Unit]
 Description=Mission Control outbound ChatGPT relay
-After=network-online.target mission-control-chatgpt-browser.service
+After=network-online.target mission-control-submission-scheduler.service mission-control-chatgpt-browser.service
 Wants=network-online.target
-Requires=mission-control-chatgpt-browser.service
+Requires=mission-control-submission-scheduler.service mission-control-chatgpt-browser.service
 
 [Service]
 Type=simple

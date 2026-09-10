@@ -73,13 +73,14 @@ export function installStuckRecovery(browser, {
   stopStalledGeneration = null,
   inspectRecoverableControl = null,
 } = {}) {
-  if (!browser || typeof browser.waitForGenerationComplete !== 'function' || typeof browser.submitExactMessage !== 'function') {
+  if (!browser || typeof browser.waitForGenerationComplete !== 'function') {
     throw new Error('A ChromeDevtoolsBrowser-compatible instance is required for stuck recovery.');
   }
+  if (typeof submitMessage !== 'function') throw new Error('Stuck recovery requires the central-scheduler submitMessage adapter.');
   if (!Number.isInteger(maxNudges) || maxNudges < 1 || maxNudges > 20) throw new Error('maxNudges must be an integer from 1 to 20.');
 
   const originalWait = browser.waitForGenerationComplete.bind(browser);
-  const submitFn = submitMessage ?? ((target, input) => browser.submitExactMessage(target, input));
+  const submitFn = submitMessage;
   const stopFn = stopStalledGeneration ?? ((target, expectedUrl) => interruptStalledGeneration(browser, target, expectedUrl));
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
 
@@ -143,6 +144,7 @@ async function sendContinue(submitMessage, target, options, index, maxNudges, lo
     expectedUrl: options.expectedUrl,
     body,
     bodySha256: sha256(body),
+    schedulerAttemptKey: `nudge:${index}`,
   });
   const recovery = {
     index,

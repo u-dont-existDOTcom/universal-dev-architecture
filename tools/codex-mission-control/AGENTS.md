@@ -1,6 +1,7 @@
 # Mission Control task instructions
 
-These instructions apply to all work under `tools/codex-mission-control/` and supplement the repository root instructions. The nested generated Next.js instructions remain applicable.
+These instructions supplement the repository root; nested Next.js instructions
+also apply.
 
 ## Owner-request integrity gate
 
@@ -97,17 +98,27 @@ Model every capability as an exact directional source → destination edge toget
 
 Mission Control browser automation must operate only on an explicitly automation-owned browser window and explicitly automation-owned targets within that window.
 
-- Persist the automation window identity and owned target IDs across relay cycles/restarts.
-- A target is eligible only when both its exact target ID is in the relay ownership registry and Chrome reports that target in the exact automation-owned window.
-- Never adopt, activate, navigate, repurpose, submit into, or close an unowned ChatGPT tab merely because it is active, newest, first in CDP target order, already on the desired conversation URL, or located inside the automation window.
-- A manually opened/user-owned tab remains ineligible even if the user opened it inside the relay's window. Window membership alone is not ownership.
-- If no live owned target/window remains, create a new dedicated automation window; never recover by adopting an arbitrary existing ChatGPT window or tab.
-- Registered Project Manager/supervisor conversations used by automation remain automation-owned surfaces. The owner's personal/manual ChatGPT tabs and windows are separate and must not be touched.
-- Target-count cleanup and hard-ceiling logic applies to automation-owned targets only. Foreign/user tabs do not become relay-managed merely because they share the authenticated browser profile.
+Persist the exact window and target IDs across restarts. Eligibility requires
+both registry ownership and Chrome membership in that exact window; neither a
+matching URL, target order/activity, nor window membership alone is ownership.
+Never adopt, activate, navigate, repurpose, submit into, close, or count a
+manual/foreign target, even inside the relay profile/window. If owned state is
+lost, create a dedicated automation window rather than adopting another tab.
+Registered supervisor surfaces stay separate from the owner's personal/manual
+tabs and windows.
 
 When the ChatGPT system UI reports the bounded rate-limit condition `too many chat requests are coming too quick`/`too quickly` and exposes exactly one `Got it` control, click that exact control. This is permitted system-UI recovery, not assistant-output inspection. Then retry the exact same submission once after at least 30 seconds. Preserve the global submission gate: if the blocked attempt already crossed the actual click/submission boundary, wait until both the provider retry delay and the repository-wide minimum 60-second submission interval are satisfied. A second rate-limit result, ambiguous dialog/button, or changed target/session fails closed; do not loop or reinterpret the task.
 
 The modal detector may inspect only the bounded provider/system dialog needed to identify this condition and the exact `Got it` control. It must not inspect, copy, hash, parse, or serialize assistant response content, and it does not widen the existing accessibility/network/app-state/OCR/export privacy boundary.
+
+## Multi-host submission and conversation ownership
+
+For multi-host relays, apply
+`patterns/mission-control-multi-host-submission-scheduling.md`: active/passive
+fenced epochs, one durable per-send admission before browser mutation, global
+boundary pacing, `MISSION_CONTROL_ONLY` conversation provenance plus exact
+target ownership, and fail-closed takeover. Use only the designated remote
+browser/profile; never the owner's browser, clipboard, cookies, or profile.
 
 ## Completion and continuation
 

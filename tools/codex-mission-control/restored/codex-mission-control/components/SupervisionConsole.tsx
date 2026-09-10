@@ -20,7 +20,15 @@ interface ConfiguredSupervisorChat {
   url: string;
   workerId: string | null;
   requiredApp: string;
-  expectedModels: { extraHigh: string; pro: string };
+  consumerControls: {
+    modelVisibleLabel: "GPT-5.6 Sol";
+    thinkingControlLabel: "Thinking effort";
+    thinkingVisibleLabel: "Extra High";
+    thinkingOrdinal: "4 of 5";
+    accountPlanLabel: "Pro";
+    accountPlanRole: "PROVENANCE_METADATA_ONLY";
+    accountPlanIsReasoningMode: false;
+  };
   bootstrapCapability: { chatId: string; url: string; challengeId: string };
   locatorVerification: "OWNER_CONFIGURED_UNVERIFIED";
 }

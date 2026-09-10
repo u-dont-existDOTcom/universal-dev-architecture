@@ -4,6 +4,8 @@ import {
   BINDING_ENVELOPE_SUMMARY,
   CAPABILITY_CHALLENGE_SUMMARY,
   CAPABILITY_VERIFIED_SUMMARY,
+  CURRENT_CONSUMER_CONTROLS,
+  CURRENT_DECISION_SESSION_PROVENANCE,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
@@ -92,7 +94,7 @@ test('escalated route uses distinct fresh first-message Mission Control, reader,
   mc.evidence.push(stageLivenessEvidence('reader-complete', 'EXTRA_HIGH_READER', 'STAGE_COMPLETE', '2026-09-02T00:00:05.000Z', bindingSessionId, readerSessionId));
   const fifth = await runtime.cycle();
   assert.equal(fifth.status, 'PRO_REASONER_GENERATION_STARTED');
-  assert.equal(browser.switchLabels.at(-1), 'Pro');
+  assert.equal(browser.controlChecks.at(-1).thinkingOrdinal, '4 of 5');
   assert.equal(browser.submitCalls, 3);
   assert.equal(browser.freshChatCalls, 3);
   assert.deepEqual(browser.selectAppsCalls, [
@@ -150,7 +152,7 @@ test('new direct Pro route uses only preload then one fresh first-message Pro de
   assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
   assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_COMPLETE');
   assert.equal((await runtime.cycle()).status, 'PRO_DECISION_GENERATION_STARTED');
-  assert.equal(browser.switchLabels.at(-1), 'Pro');
+  assert.equal(browser.controlChecks.at(-1).modelVisibleLabel, 'GPT-5.6 Sol');
   assert.equal(browser.submitCalls, 2);
   assert.equal(browser.freshChatCalls, 2);
   assert.deepEqual(browser.selectAppsCalls, [
@@ -161,7 +163,7 @@ test('new direct Pro route uses only preload then one fresh first-message Pro de
   assert.ok(directStart.refs.includes('decision_provider_session:' + store.state.deliveries['request:r-1'].providerSessionId));
   assert.ok(directStart.refs.includes('app_selection_attempted:false'));
   assert.equal(directStart.refs.includes('selected_app:Mission Control'), false);
-  assert.match(browser.lastSubmittedBody, /VISIBLE_PRO_SESSION_GITHUB_ATTESTED/);
+  assert.match(browser.lastSubmittedBody, new RegExp(CURRENT_DECISION_SESSION_PROVENANCE));
   assert.match(browser.lastSubmittedBody, /No later writer, reader, liveness, continue, or follow-up tool turn is permitted/);
 });
 
@@ -329,7 +331,7 @@ test('capability command verifies exact mode labels but does not send challenge 
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, capabilityTestEnabled: false });
   const result = await runtime.verifyCapabilities('spec');
   assert.equal(result.status, 'CAPABILITY_CHALLENGE_READY');
-  assert.equal(browser.modeRoundTripCalls, 1);
+  assert.equal(browser.controlChecks.length, 1);
   assert.equal(browser.submitCalls, 0);
   assert.ok(mc.recordedEvidence.some((item) => item.summary === MODE_CAPABILITY_VERIFIED_SUMMARY));
 });
@@ -363,7 +365,7 @@ test('MCP preflight is a separately paced read-only send and never replays after
   assert.equal(first.status, 'MCP_PREFLIGHT_GENERATION_COMPLETE');
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
-  assert.equal(browser.switchLabels.at(-1), 'Extra High');
+  assert.equal(browser.controlChecks.at(-1).thinkingVisibleLabel, 'Extra High');
   assert.match(browser.lastSubmittedBody, /get_capability_challenge/);
   assert.match(browser.lastSubmittedBody, /do not use GitHub/);
   assert.match(browser.lastSubmittedBody, /do not write or mutate anything/);
@@ -494,6 +496,7 @@ function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled 
     memory: { profile: 'AUTO', overrides: {} },
   };
   const submissionPacer = new GlobalSubmissionPacer({ stateStore: store, minIntervalMs: config.runtime.minSubmissionIntervalMs, now });
+  submissionPacer.remoteStatus = async () => ({ ...submissionPacer.status(await store.read()), activeLease: { epoch: 1, activeHostAlias: 'primary-test', activeHostRole: 'PRIMARY' } });
   return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, submissionPacer, memoryReader, logger: { log() {}, warn() {}, error() {} } });
 }
 
@@ -550,7 +553,7 @@ class FakeMissionControl {
 class FakeBrowser {
   constructor({ submitErrorStage = null } = {}) {
     this.submitErrorStage = submitErrorStage;
-    this.submitCalls = 0; this.waitCalls = 0; this.modeRoundTripCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.switchLabels = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
+    this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = [];
   }
   async doctor() { return { browser: 'Fake', targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
@@ -575,8 +578,7 @@ class FakeBrowser {
     const target = { id: 'target-spec', type: 'page', url, created: true, webSocketDebuggerUrl: 'ws://fake' };
     this.targets.push(target); return target;
   }
-  async verifyModelRoundTrip() { this.modeRoundTripCalls += 1; return { status: 'MODE_ROUND_TRIP_VERIFIED', extraHighObserved: 'Extra High', proObserved: 'Pro' }; }
-  async switchModel(target, { label }) { this.switchLabels.push(label); return { selectedLabel: label, observedLabel: label, changed: true }; }
+  async ensureExactConsumerControls(target, { controls }) { this.controlChecks.push(structuredClone(controls)); return { status: 'FIXED_CONSUMER_CONTROLS_VERIFIED', ...controls }; }
   async selectAppsForMessage(target, input) {
     this.selectAppsCalls.push(structuredClone(input));
     const evidence = {
@@ -597,7 +599,11 @@ class FakeBrowser {
 }
 
 function chat() {
-  return { scope: 'SPECIALIST', supervisorId: 'spec', label: 'Specialist', workerId: 'worker-a', pinned: false, bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' }, modelLabels: { extraHigh: 'Extra High', pro: 'Pro' }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
+  return { scope: 'SPECIALIST', supervisorId: 'spec', label: 'Specialist', workerId: 'worker-a', pinned: false,
+    registrationId: 'registration:spec:test', ownership: 'MISSION_CONTROL_ONLY', purpose: 'Dedicated test supervisor.',
+    accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec',
+    registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
+    bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' }, consumerControls: { ...CURRENT_CONSUMER_CONTROLS }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
 }
 
 function challengeEvidence() {
@@ -613,7 +619,7 @@ function capabilityEvidence() {
   return [
     challengeEvidence(),
     { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
-    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec-bootstrap', 'capability:modeSwitching', 'extra_high_label:Extra High', 'pro_label:Pro', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', 'expires_at:2099-09-03T00:00:00.000Z'] } },
   ];
 }
 

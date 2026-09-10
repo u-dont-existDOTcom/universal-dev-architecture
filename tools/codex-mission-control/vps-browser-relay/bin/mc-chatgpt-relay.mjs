@@ -8,7 +8,9 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
 import { oneShotExitCode } from '../src/core.mjs';
-import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
+import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
+import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
+import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
 
 const command = process.argv[2] ?? 'run';
@@ -27,19 +29,25 @@ try {
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
+  const schedulerClient = new SubmissionSchedulerClient(config.submissionScheduler);
   const cdpBrowser = new ChromeDevtoolsBrowser(config.browser);
   const rawBrowser = installAutomationOwnedBrowser(cdpBrowser, {
     ownershipFile: `${config.runtime.stateFile}.browser-ownership.json`,
     cdpHost: config.browser.cdpHost,
     cdpPort: config.browser.cdpPort,
   });
-  const submissionPacer = new GlobalSubmissionPacer({
+  const submissionPacer = new CentralSubmissionScheduler({
+    schedulerClient,
     stateStore,
+    host: config.runtime.submissionHost,
     minIntervalMs: config.runtime.minSubmissionIntervalMs,
   });
   const browser = installStuckRecovery(rawBrowser, {
     maxNudges: config.runtime.stuckRecoveryMaxNudges,
-    submitMessage: (target, input) => submissionPacer.submit({ submit: () => rawBrowser.submitExactMessage(target, input) }),
+    submitMessage: async (target, input) => submissionPacer.submit({
+      context: await recoverySubmissionContext(config, stateStore, target, input),
+      submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => rawBrowser.submitExactMessage(target, { ...input, onBeforeSubmissionBoundary, onSubmissionBoundary }),
+    }),
     beforeRecoverySend: () => submissionPacer.assertReady(),
   });
   const runtime = new RelayRuntime({ config, missionControl, browser, stateStore, submissionPacer });
@@ -129,4 +137,23 @@ function print(value) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function recoverySubmissionContext(config, stateStore, target, input) {
+  const state = await stateStore.read();
+  const tab = Object.values(state.tabs ?? {}).find((entry) => entry?.targetId === target.id);
+  const session = Object.values(state.providerSessions ?? {}).find((entry) => entry?.targetId === target.id && entry?.conversationUrl === input.expectedUrl);
+  const chat = config.runtime.chats.find((entry) => entry.bootstrapCapability.chatId === tab?.chatId || entry.supervisorId === session?.supervisorId);
+  if (!chat) throw new Error('Stuck recovery target has no current Mission Control-only supervisor registration.');
+  const requestId = session?.requestId ?? `recovery:${chat.supervisorId}`;
+  return submissionSchedulerContext({
+    chat,
+    target,
+    expectedUrl: input.expectedUrl,
+    providerSessionId: session?.providerSessionId ?? tab?.providerSessionId ?? null,
+    requestId,
+    queueKey: `stuck-recovery:${requestId}:${target.id}:${input.schedulerAttemptKey}`,
+    sendPath: 'STUCK_RECOVERY',
+    bodySha256: input.bodySha256,
+  });
 }

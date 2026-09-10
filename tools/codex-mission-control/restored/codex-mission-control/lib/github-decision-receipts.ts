@@ -38,7 +38,9 @@ export interface GitHubReceiptPolicy {
 }
 export interface CapabilityChallenge {
   challengeId: string; supervisorId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
-  expiresAt: string; extraHighLabel: string; proLabel: string;
+  expiresAt: string;
+  modelVisibleLabel: "GPT-5.6 Sol"; thinkingControlLabel: "Thinking effort"; thinkingVisibleLabel: "Extra High";
+  thinkingOrdinal: "4 of 5"; accountPlanLabel: "Pro"; accountPlanRole: "PROVENANCE_METADATA_ONLY"; accountPlanIsReasoningMode: false;
 }
 export interface PublicCapabilityChallenge {
   schema_version: 1;
@@ -103,8 +105,13 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
       mcNonce: requiredString(c.mcNonce, `capabilityChallenges[${i}].mcNonce`),
       githubNonce: requiredString(c.githubNonce, `capabilityChallenges[${i}].githubNonce`),
       expiresAt: timestamp(c.expiresAt, `capabilityChallenges[${i}].expiresAt`),
-      extraHighLabel: requiredString(c.extraHighLabel, `capabilityChallenges[${i}].extraHighLabel`),
-      proLabel: requiredString(c.proLabel, `capabilityChallenges[${i}].proLabel`),
+      modelVisibleLabel: exactString(c.modelVisibleLabel, "GPT-5.6 Sol", `capabilityChallenges[${i}].modelVisibleLabel`),
+      thinkingControlLabel: exactString(c.thinkingControlLabel, "Thinking effort", `capabilityChallenges[${i}].thinkingControlLabel`),
+      thinkingVisibleLabel: exactString(c.thinkingVisibleLabel, "Extra High", `capabilityChallenges[${i}].thinkingVisibleLabel`),
+      thinkingOrdinal: exactString(c.thinkingOrdinal, "4 of 5", `capabilityChallenges[${i}].thinkingOrdinal`),
+      accountPlanLabel: exactString(c.accountPlanLabel, "Pro", `capabilityChallenges[${i}].accountPlanLabel`),
+      accountPlanRole: exactString(c.accountPlanRole, "PROVENANCE_METADATA_ONLY", `capabilityChallenges[${i}].accountPlanRole`),
+      accountPlanIsReasoningMode: exactBoolean(c.accountPlanIsReasoningMode, false, `capabilityChallenges[${i}].accountPlanIsReasoningMode`),
     };
   });
   if (new Set(capabilityChallenges.map((c) => c.supervisorId)).size !== capabilityChallenges.length) throw new Error("Capability challenge supervisor IDs must be unique.");
@@ -243,7 +250,7 @@ export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: 
         `github_nonce_source:https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`,
         `receipt_target:https://github.com/${policy.repository}/issues/${policy.capabilityIssueNumber}`,
         `stage_receipt_target:https://github.com/${policy.repository}/issues/${policy.stageIssueNumber}`,
-        `expires_at:${challenge.expiresAt}`, `extra_high_label:${challenge.extraHighLabel}`, `pro_label:${challenge.proLabel}`,
+        `expires_at:${challenge.expiresAt}`, ...consumerControlRefs(challenge),
       ],
     }), now, githubReceiptCollector));
   }
@@ -516,16 +523,16 @@ function assertCurrentChatCapabilities(events: StoredEvent[], request: PendingDe
   if (!latestEvidence(events, capabilityVerifiedSummary, challenge.chatId, at, ["capability:missionControlRead", "capability:githubRead", "capability:githubWrite"])) {
     throw new Error(`Supervisor ${request.supervisorId} lacks a current Mission Control/GitHub capability receipt.`);
   }
-  if (!latestEvidence(events, modeCapabilityVerifiedSummary, challenge.chatId, at, ["capability:modeSwitching", `extra_high_label:${challenge.extraHighLabel}`, `pro_label:${challenge.proLabel}`])) {
-    throw new Error(`Supervisor ${request.supervisorId} lacks a current exact model-label switching receipt.`);
+  if (!latestEvidence(events, modeCapabilityVerifiedSummary, challenge.chatId, at, ["capability:modeSwitching", ...consumerControlRefs(challenge)])) {
+    throw new Error(`Supervisor ${request.supervisorId} lacks a current fixed consumer-control receipt.`);
   }
 }
 
 function assertSemanticStageCompletion(events: StoredEvent[], request: PendingDecisionRequest, at: string, decision?: CanonicalDecisionEnvelope) {
   if (request.reasoningLane !== "PRO_ESCALATED") return;
   if (request.routeSchemaVersion === 4) {
-    if (decision?.schema_version !== 3 || decision.decision_session_provenance !== "VISIBLE_PRO_SESSION_GITHUB_ATTESTED") {
-      throw new Error("Direct Pro admission requires visible-Pro-session GitHub-attested provenance.");
+    if (decision?.schema_version !== 3 || decision.decision_session_provenance !== "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED") {
+      throw new Error("Direct escalated admission requires fixed GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 GitHub-attested provenance.");
     }
     return;
   }
@@ -563,18 +570,18 @@ function assertOrderedRelayStages(events: StoredEvent[], request: PendingDecisio
   const bindingProviderSessionId = decision.binding_provider_session_id;
   const semanticStages: Array<readonly [string, string, string, string, string]> = request.reasoningLane === "PRO_ESCALATED"
     ? [
-      ["EXTRA_HIGH_READER", challenge.extraHighLabel, stageProviderSessionFor(events, request, "EXTRA_HIGH_READER", at), stageReceiptFor(events, request, "EXTRA_HIGH_READER", at).occurredAt, stageReceiptFor(events, request, "EXTRA_HIGH_READER", at).receivedAt],
-      ["PRO_REASONER", challenge.proLabel, stageProviderSessionFor(events, request, "PRO_DECISION_STAGE", at), stageReceiptFor(events, request, "PRO_DECISION_STAGE", at).occurredAt, stageReceiptFor(events, request, "PRO_DECISION_STAGE", at).receivedAt],
-      ["EXTRA_HIGH_WRITER", challenge.extraHighLabel, decision.stage_provider_session_id, at, ingestedAt],
+      ["EXTRA_HIGH_READER", challenge.modelVisibleLabel, stageProviderSessionFor(events, request, "EXTRA_HIGH_READER", at), stageReceiptFor(events, request, "EXTRA_HIGH_READER", at).occurredAt, stageReceiptFor(events, request, "EXTRA_HIGH_READER", at).receivedAt],
+      ["PRO_REASONER", challenge.modelVisibleLabel, stageProviderSessionFor(events, request, "PRO_DECISION_STAGE", at), stageReceiptFor(events, request, "PRO_DECISION_STAGE", at).occurredAt, stageReceiptFor(events, request, "PRO_DECISION_STAGE", at).receivedAt],
+      ["EXTRA_HIGH_WRITER", challenge.modelVisibleLabel, decision.stage_provider_session_id, at, ingestedAt],
     ]
-    : [["EXTRA_HIGH_DIRECT", challenge.extraHighLabel, decision.stage_provider_session_id, at, ingestedAt]];
+    : [["EXTRA_HIGH_DIRECT", challenge.modelVisibleLabel, decision.stage_provider_session_id, at, ingestedAt]];
   const seenSessions = new Set<string>();
   const preload = findCompletedFirstMessageTransport(events, request, {
     providerSessionId: bindingProviderSessionId,
     bindingProviderSessionId,
     sessionRefPrefix: null,
     step: "MCP_BINDING_PRELOAD",
-    modelLabel: challenge.extraHighLabel,
+    modelLabel: challenge.modelVisibleLabel,
     appSelection: "MISSION_CONTROL_SELECTED",
   }, at, -1);
   let minimumSequence = preload.sequence;
@@ -603,13 +610,13 @@ function assertOrderedDirectRelayStages(
   decision: Extract<CanonicalDecisionEnvelope, { schema_version: 3 }>,
 ) {
   const decisionStep = request.reasoningLane === "PRO_ESCALATED" ? "PRO_DECISION" : "EXTRA_HIGH_DECISION";
-  const decisionLabel = request.reasoningLane === "PRO_ESCALATED" ? challenge.proLabel : challenge.extraHighLabel;
+  const decisionLabel = challenge.modelVisibleLabel;
   const preload = findCompletedFirstMessageTransport(events, request, {
     providerSessionId: decision.binding_provider_session_id,
     bindingProviderSessionId: decision.binding_provider_session_id,
     sessionRefPrefix: null,
     step: "MCP_BINDING_PRELOAD",
-    modelLabel: challenge.extraHighLabel,
+    modelLabel: challenge.modelVisibleLabel,
     appSelection: "MISSION_CONTROL_SELECTED",
   }, at, -1);
   assertFirstMessageGitHubTransportWindow(events, request, {
@@ -695,7 +702,7 @@ function assertExactBindingCapsule(events: StoredEvent[], request: PendingDecisi
       bindingProviderSessionId,
       sessionRefPrefix: null,
       step: "MCP_BINDING_PRELOAD",
-      modelLabel: challenge.extraHighLabel,
+      modelLabel: challenge.modelVisibleLabel,
       appSelection: "MISSION_CONTROL_SELECTED",
       conversationUrl: bindingConversationUrl,
     }, at, -1);
@@ -719,7 +726,7 @@ function assertFreshStageProviderSession(events: StoredEvent[], request: Pending
   if (bindingProviderSessionId === stageProviderSessionId) throw new Error("Binding and stage provider sessions must be distinct.");
   const challenge = policy.capabilityChallenges.find((item) => item.supervisorId === request.supervisorId);
   if (!challenge) throw new Error(`No capability policy exists for supervisor ${request.supervisorId}.`);
-  const expectedLabel = step === "PRO_REASONER" ? challenge.proLabel : challenge.extraHighLabel;
+  const expectedLabel = challenge.modelVisibleLabel;
   const expectedRole = `${step}_SESSION`;
   const session = [...events].reverse().find((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === providerSessionSummary && event.data.verified
     && event.data.refs.includes(`request:${request.requestId}`) && event.data.refs.includes(`supervisor:${request.supervisorId}`)
@@ -752,7 +759,7 @@ function assertFreshDecisionProviderSession(events: StoredEvent[], request: Pend
   const challenge = policy.capabilityChallenges.find((item) => item.supervisorId === request.supervisorId);
   if (!challenge) throw new Error(`No capability policy exists for supervisor ${request.supervisorId}.`);
   const step = request.reasoningLane === "PRO_ESCALATED" ? "PRO_DECISION" : "EXTRA_HIGH_DECISION";
-  const expectedLabel = request.reasoningLane === "PRO_ESCALATED" ? challenge.proLabel : challenge.extraHighLabel;
+  const expectedLabel = challenge.modelVisibleLabel;
   const session = [...events].reverse().find((event) => event.data.type === "evidence_receipt_recorded"
     && event.data.summary === providerSessionSummary && event.data.verified
     && event.data.refs.includes(`request:${request.requestId}`)
@@ -961,6 +968,19 @@ function assertAuthorizedWriter(candidate: GitHubDecisionCandidate, policy: GitH
 function assertEqual(actual: unknown, expected: unknown, field: string) { if (actual !== expected) throw new Error(`Canonical decision ${field} does not match the pending request.`); }
 function record(value: unknown, field: string): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`); return value as Record<string, unknown>; }
 function requiredString(value: unknown, field: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${field} must be a non-empty string.`); return value; }
+function exactString<T extends string>(value: unknown, expected: T, field: string): T { if (value !== expected) throw new Error(`${field} must exactly equal ${expected}.`); return expected; }
+function exactBoolean<T extends boolean>(value: unknown, expected: T, field: string): T { if (value !== expected) throw new Error(`${field} must exactly equal ${expected}.`); return expected; }
+function consumerControlRefs(challenge: CapabilityChallenge): string[] {
+  return [
+    `model_visible_label:${challenge.modelVisibleLabel}`,
+    `thinking_control_label:${challenge.thinkingControlLabel}`,
+    `thinking_visible_label:${challenge.thinkingVisibleLabel}`,
+    `thinking_ordinal:${challenge.thinkingOrdinal}`,
+    `account_plan_label:${challenge.accountPlanLabel}`,
+    `account_plan_role:${challenge.accountPlanRole}`,
+    `account_plan_is_reasoning_mode:${challenge.accountPlanIsReasoningMode}`,
+  ];
+}
 function repositoryName(value: unknown, field: string): string { const result = requiredString(value, field); if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(result)) throw new Error(`${field} must be an owner/name GitHub repository.`); return result; }
 function digest(value: unknown, field: string): string { const result = requiredString(value, field); if (!/^[a-f0-9]{64}$/.test(result)) throw new Error(`${field} must be a lowercase SHA-256 digest.`); return result; }
 function positiveInteger(value: unknown, field: string): number { if (!Number.isInteger(value) || Number(value) < 1) throw new Error(`${field} must be a positive integer.`); return Number(value); }

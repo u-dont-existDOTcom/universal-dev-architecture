@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "schema_version": 1,
   "requirement_id": "REQ-MC-GLOBAL-CHATGPT-SUBMISSION-PACING-20260902",
   "recorded_at": "2026-09-02T21:27:21Z",

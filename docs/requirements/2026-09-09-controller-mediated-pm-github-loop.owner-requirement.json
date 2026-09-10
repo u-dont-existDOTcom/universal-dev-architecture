@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "schema_version": 1,
   "requirement_id": "REQ-MC-CONTROLLER-MEDIATED-PM-GITHUB-LOOP-20260909",
   "recorded_at": "2026-09-09T13:21:14Z",

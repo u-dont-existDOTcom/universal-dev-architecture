@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "schema_version": 1,
   "requirement_id": "REQ-MC-BINDING-PRELOAD-TAB-DISCIPLINE-20260904",
   "recorded_at": "2026-09-04T12:19:25Z",

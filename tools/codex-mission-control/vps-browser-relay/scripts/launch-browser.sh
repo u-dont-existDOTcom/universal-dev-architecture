@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Defense in depth for an operator who launches this script from a shell that
+# already sourced relay configuration: never pass service credentials or
+# Mission Control authority into Chromium's environment.
+unset MC_RELAY_TOKEN MC_RELAY_SCHEDULER_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL
+
 profile_dir="${MC_RELAY_BROWSER_PROFILE_DIR:-$HOME/.local/share/mission-control-chatgpt-profile}"
+browser_config_dir="${MC_RELAY_BROWSER_CONFIG_DIR:-$profile_dir/xdg-config}"
 cdp_host="${MC_RELAY_CDP_HOST:-127.0.0.1}"
 cdp_port="${MC_RELAY_CDP_PORT:-9222}"
 display_value="${MC_RELAY_DISPLAY:-${DISPLAY:-}}"
@@ -25,7 +31,7 @@ if [[ -z "$browser_bin" || ! -x "$browser_bin" ]]; then
   exit 69
 fi
 
-install -d -m 0700 "$profile_dir"
+install -d -m 0700 "$profile_dir" "$browser_config_dir"
 
 args=(
   "--user-data-dir=$profile_dir"
@@ -41,12 +47,25 @@ args=(
   "about:blank"
 )
 
+case "${MC_RELAY_BROWSER_DISABLE_SETUID_SANDBOX:-0}" in
+  0) ;;
+  1)
+    # NoNewPrivileges prevents a setuid helper from elevating. On hosts with
+    # unprivileged user namespaces, select Chromium's native namespace sandbox.
+    args+=("--disable-setuid-sandbox")
+    ;;
+  *)
+    echo "MC_RELAY_BROWSER_DISABLE_SETUID_SANDBOX must be 0 or 1." >&2
+    exit 64
+    ;;
+esac
+
 if [[ -n "$display_value" ]]; then
-  exec env DISPLAY="$display_value" "$browser_bin" "${args[@]}"
+  exec env DISPLAY="$display_value" XDG_CONFIG_HOME="$browser_config_dir" "$browser_bin" "${args[@]}"
 fi
 
 if command -v xvfb-run >/dev/null 2>&1; then
-  exec xvfb-run -a -s "-screen 0 1600x1000x24 -nolisten tcp" "$browser_bin" "${args[@]}"
+  exec env XDG_CONFIG_HOME="$browser_config_dir" xvfb-run -a -s "-screen 0 1600x1000x24 -nolisten tcp" "$browser_bin" "${args[@]}"
 fi
 
 echo "No graphical DISPLAY and no xvfb-run are available. Initial ChatGPT login requires a graphical VPS session." >&2

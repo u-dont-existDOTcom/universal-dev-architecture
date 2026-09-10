@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "acceptance": "PASS",
   "checkedAt": "2026-09-01T00:35:36.832Z",
   "worker": "human-design-governance",

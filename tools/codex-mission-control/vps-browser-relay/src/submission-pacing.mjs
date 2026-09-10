@@ -2,6 +2,198 @@ export const GLOBAL_SUBMISSION_COOLDOWN = 'GLOBAL_SUBMISSION_COOLDOWN';
 export const CHATGPT_RATE_LIMIT_RETRY = 'CHATGPT_RATE_LIMIT_RETRY';
 export const CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED = 'CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED';
 
+export class CentralSubmissionScheduler {
+  constructor({ schedulerClient, stateStore, host, minIntervalMs = 60_000, now = Date.now, sleepImpl = sleep }) {
+    if (!schedulerClient || !['status', 'admit', 'validateAdmission', 'recordBoundary', 'bindTarget', 'recordRateLimit', 'abortBeforeBoundary'].every((method) => typeof schedulerClient[method] === 'function')) {
+      throw new Error('Central submission scheduling requires the dedicated scheduler client.');
+    }
+    if (!stateStore || typeof stateStore.read !== 'function' || typeof stateStore.write !== 'function') throw new Error('Central submission scheduling requires a relay state store.');
+    if (!host || typeof host.alias !== 'string' || !['PRIMARY', 'SECONDARY'].includes(host.role)
+      || !Number.isInteger(host.deploymentEpoch) || host.deploymentEpoch < 1 || typeof host.leaseId !== 'string') {
+      throw new Error('Central submission scheduling requires exact host alias, role, deployment epoch, and lease ID.');
+    }
+    if (!Number.isInteger(minIntervalMs) || minIntervalMs < 60_000 || minIntervalMs > 600_000) throw new Error('minIntervalMs must be an integer from 60000 to 600000.');
+    this.schedulerClient = schedulerClient;
+    this.stateStore = stateStore;
+    this.host = host;
+    this.minIntervalMs = minIntervalMs;
+    this.now = now;
+    this.sleepImpl = sleepImpl;
+    this.tail = Promise.resolve();
+    this.lastCentralStatus = null;
+  }
+
+  status(state, nowMs = this.now()) {
+    const local = localPacingStatus(state, this.minIntervalMs, nowMs);
+    return {
+      ...local,
+      authority: 'CENTRAL_SCHEDULER',
+      centralStatusObserved: this.lastCentralStatus,
+      ready: this.lastCentralStatus?.ready === true && local.ready,
+    };
+  }
+
+  async remoteStatus() {
+    const status = await this.schedulerClient.status();
+    this.#assertCentralIdentity(status);
+    this.lastCentralStatus = status;
+    return status;
+  }
+
+  async assertReady() {
+    const status = await this.remoteStatus();
+    if (!status.ready) {
+      if (status.retryAfterMs > 0) throw new GlobalSubmissionCooldownError(status);
+      const error = new Error('CENTRAL_SCHEDULER_NOT_READY: the lease, queue, or restart-ambiguity gate is closed.');
+      error.code = 'CENTRAL_SCHEDULER_NOT_READY';
+      error.schedulerStatus = status;
+      throw error;
+    }
+    return status;
+  }
+
+  async submit({ context, beforeSubmit = null, recordBoundary = null, submit }) {
+    validateContext(context);
+    if (typeof submit !== 'function') throw new Error('Central submission scheduling requires a submit function.');
+    if (recordBoundary !== null && typeof recordBoundary !== 'function') throw new Error('recordBoundary must be a function when provided.');
+    const operation = this.tail.then(async () => {
+      let activeQueueKey = context.queueKey;
+      for (;;) {
+        const { hash: _hash, ...requestContext } = context;
+        const admission = await this.schedulerClient.admit({
+          ...requestContext,
+          queueKey: activeQueueKey,
+          retryRootKey: context.queueKey,
+          hostAlias: this.host.alias,
+          hostRole: this.host.role,
+          deploymentEpoch: this.host.deploymentEpoch,
+          leaseId: this.host.leaseId,
+        });
+        this.#assertAdmissionAuthority(admission, { requireAdmitted: true });
+        let boundaryRecorded = false;
+        let durableBoundaryAt = null;
+        let submitStarted = false;
+        const persistBoundary = async (observed) => {
+          if (!boundaryRecorded) {
+            const observedAt = observed?.clickedAtObserved ?? observed?.startedAtObserved ?? null;
+            const observedMs = Date.parse(observedAt ?? '');
+            durableBoundaryAt = Number.isFinite(observedMs) ? new Date(observedMs).toISOString() : new Date(this.now()).toISOString();
+            const boundaryKind = observed?.startedAtObserved ? 'GENERATION_STARTED' : 'CLICKED';
+            const conversationUrlSha256 = typeof observed?.conversationUrl === 'string' ? context.hash(observed.conversationUrl) : null;
+            await this.schedulerClient.recordBoundary({ admissionId: admission.admissionId, boundaryAt: durableBoundaryAt, boundaryKind, conversationUrlSha256 });
+            boundaryRecorded = true;
+          }
+          const state = await this.stateStore.read();
+          state.submissionPacing = { lastSubmissionAt: durableBoundaryAt, lastAdmissionId: admission.admissionId };
+          if (recordBoundary) await recordBoundary(state, { boundaryAt: durableBoundaryAt, result: observed, admission });
+          await this.stateStore.write(state);
+        };
+        const validateBeforeClick = async () => {
+          const validation = await this.schedulerClient.validateAdmission({ admissionId: admission.admissionId });
+          this.#assertAdmissionAuthority(validation, {
+            requireValid: true,
+            expectedAdmissionId: admission.admissionId,
+            expectedExpiresAt: admission.expiresAt,
+          });
+          return validation;
+        };
+        const persistTargetBinding = async (result) => {
+          if (context.targetKind !== 'FRESH_PROVIDER_SESSION' || typeof result?.conversationUrl !== 'string') return;
+          await this.schedulerClient.bindTarget({ admissionId: admission.admissionId, conversationUrlSha256: context.hash(result.conversationUrl) });
+        };
+        try {
+          if (beforeSubmit) await beforeSubmit(admission);
+          submitStarted = true;
+          const result = await submit(persistBoundary, admission, validateBeforeClick);
+          await persistBoundary(result);
+          try { await persistTargetBinding(result); }
+          catch (error) {
+            if (error && typeof error === 'object') {
+              error.relayStage = 'GENERATION_STARTED';
+              error.clickedAtObserved = result?.clickedAtObserved ?? durableBoundaryAt;
+              error.startedAtObserved = result?.startedAtObserved ?? null;
+            }
+            throw error;
+          }
+          return result;
+        } catch (error) {
+          const crossed = error?.relayStage === 'CLICKED' || error?.relayStage === 'GENERATION_STARTED'
+            || Number.isFinite(Date.parse(error?.clickedAtObserved ?? '')) || Number.isFinite(Date.parse(error?.startedAtObserved ?? ''));
+          if (!boundaryRecorded && crossed) {
+            try { await persistBoundary(error); }
+            catch (boundaryError) {
+              if (boundaryError && typeof boundaryError === 'object') {
+                boundaryError.relayStage = error?.relayStage ?? 'CLICKED';
+                boundaryError.clickedAtObserved = error?.clickedAtObserved ?? null;
+                boundaryError.submissionBoundaryPersistenceAttempted = true;
+              }
+              throw boundaryError;
+            }
+          }
+          let rateLimitRecord = null;
+          if (!boundaryRecorded) {
+            const stage = !submitStarted ? 'BEFORE_SUBMIT' : (typeof error?.relayStage === 'string' ? error.relayStage : 'UNKNOWN');
+            if (stage === 'UNKNOWN') throw error;
+            rateLimitRecord = await this.schedulerClient.abortBeforeBoundary({
+              admissionId: admission.admissionId,
+              relayStage: stage,
+              failureKind: isChatGptRateLimitRetry(error) ? 'PROVIDER_RATE_LIMIT' : 'PRECLICK_FAILURE',
+            });
+          }
+          if (!isChatGptRateLimitRetry(error)) throw error;
+          if (boundaryRecorded) rateLimitRecord = await this.schedulerClient.recordRateLimit({ admissionId: admission.admissionId });
+          if (rateLimitRecord?.providerRateLimitCount >= 2 || rateLimitRecord?.retryExhausted === true) throw new ChatGptRateLimitRetryExhaustedError({
+            retryAfterMs: error.retryAfterMs,
+            relayStage: error.relayStage,
+            clickedAtObserved: error.clickedAtObserved,
+            startedAtObserved: error.startedAtObserved,
+          });
+          if (boundaryRecorded) activeQueueKey = `${context.queueKey}:provider-rate-limit-retry:1`;
+          const central = await this.remoteStatus();
+          const waitMs = Math.max(error.retryAfterMs, central.retryAfterMs ?? 0);
+          await this.sleepImpl(waitMs);
+        }
+      }
+    });
+    this.tail = operation.catch(() => {});
+    return operation;
+  }
+
+  #assertCentralIdentity(status) {
+    if (status?.minimumIntervalMs !== this.minIntervalMs) throw new Error('CENTRAL_SCHEDULER_INTERVAL_MISMATCH: relay and authority intervals differ.');
+    const lease = status?.activeLease;
+    if (lease && (lease.epoch !== this.host.deploymentEpoch || lease.activeHostAlias !== this.host.alias || lease.activeHostRole !== this.host.role)) {
+      const error = new Error('DEPLOYMENT_LEASE_MISMATCH: central scheduler authority belongs to a different host/epoch.');
+      error.code = this.host.role === 'SECONDARY' && lease.activeHostRole !== 'SECONDARY' ? 'STANDBY_SEND_FORBIDDEN' : 'DEPLOYMENT_LEASE_MISMATCH';
+      throw error;
+    }
+  }
+
+  #assertAdmissionAuthority(value, {
+    requireAdmitted = false,
+    requireValid = false,
+    expectedAdmissionId = null,
+    expectedExpiresAt = null,
+  } = {}) {
+    const expiryMs = Date.parse(value?.expiresAt ?? '');
+    if ((requireAdmitted && (value?.admitted !== true || value?.singleUse !== true))
+      || (requireValid && value?.valid !== true)
+      || typeof value?.admissionId !== 'string'
+      || !Number.isFinite(expiryMs)
+      || expiryMs <= this.now()
+      || (expectedAdmissionId !== null && value.admissionId !== expectedAdmissionId)
+      || (expectedExpiresAt !== null && value.expiresAt !== expectedExpiresAt)) {
+      throw new Error('CENTRAL_SCHEDULER_INVALID_ADMISSION: scheduler did not return an exact single-use admission identity.');
+    }
+    if (value.minimumIntervalMs !== this.minIntervalMs || value.leaseEpoch !== this.host.deploymentEpoch
+      || value.hostAlias !== this.host.alias || value.hostRole !== this.host.role) {
+      const error = new Error('CENTRAL_SCHEDULER_AUTHORITY_MISMATCH: admission authority differs from relay host, epoch, or interval.');
+      error.code = 'CENTRAL_SCHEDULER_AUTHORITY_MISMATCH';
+      throw error;
+    }
+  }
+}
+
 export class GlobalSubmissionPacer {
   constructor({ stateStore, minIntervalMs = 60_000, now = Date.now, sleepImpl = sleep }) {
     if (!stateStore || typeof stateStore.read !== 'function' || typeof stateStore.write !== 'function') {
@@ -160,3 +352,18 @@ export function publicCooldown(error) {
 }
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+function localPacingStatus(state, minIntervalMs, nowMs) {
+  const lastSubmissionAt = state?.submissionPacing?.lastSubmissionAt ?? null;
+  const lastMs = Date.parse(lastSubmissionAt ?? '');
+  const nextMs = Number.isFinite(lastMs) ? lastMs + minIntervalMs : null;
+  const retryAfterMs = nextMs == null ? 0 : Math.max(0, nextMs - nowMs);
+  return { minimumIntervalMs: minIntervalMs, lastSubmissionAt, retryAfterMs, nextSubmissionAt: nextMs == null ? null : new Date(nextMs).toISOString(), ready: retryAfterMs === 0 };
+}
+
+function validateContext(context) {
+  const strings = ['requestId', 'queueKey', 'sendPath', 'supervisorId', 'registrationId', 'targetId', 'targetKind', 'targetKey', 'expectedUrlSha256', 'bodySha256'];
+  if (!context || strings.some((key) => typeof context[key] !== 'string' || context[key].trim() === '') || typeof context.hash !== 'function') {
+    throw new Error('Every browser send requires exact central scheduler context.');
+  }
+}

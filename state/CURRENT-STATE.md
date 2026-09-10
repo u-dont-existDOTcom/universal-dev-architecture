@@ -1,5 +1,10 @@
 # Current State
 
+Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT** where this file
+records actual accounts, hosts, service IDs, machine paths, private locator
+attestations, or live topology. Portable rules remain in `patterns/` and
+`templates/`; no owner secret or private locator belongs here.
+
 Updated: 2026-09-08
 
 ## Persistent local worker permissions
@@ -82,19 +87,20 @@ Route v4 is the current accepted topology:
 
 ```text
 stable supervisor identity
-  -> fresh Extra High Mission Control binding-preload conversation
+  -> fresh GPT-5.6 Sol / Thinking effort Extra High (4 of 5) Mission Control binding-preload conversation
   -> verified current binding envelope
   -> distinct fresh decision conversation in the same reusable browser tab
-       ordinary:  exact visible Extra High
-       escalated: exact visible 6 Pro
+       ordinary/escalated: exact GPT-5.6 Sol / Thinking effort Extra High (4 of 5)
   -> first-message GitHub evidence read + canonical #59 decision write
   -> Mission Control validation / admission
 ```
 
 Hard invariants:
 
-- exact visible model matching only: `Extra High` and `6 Pro`;
-- no `Pro` <-> `6 Pro` alias and no hidden/backend identity claim;
+- exact current visible controls only: model `GPT-5.6 Sol` plus `Thinking effort`
+  `Extra High` (`4 of 5`);
+- `Pro` is account-plan provenance metadata, never a reasoning-mode control;
+- no hidden/backend identity claim;
 - escalated internal lane remains `PRO_ESCALATED`;
 - one reusable ChatGPT tab in steady state; temporary two, hard ceiling three;
 - native browser sandbox; never `--no-sandbox`;
@@ -107,10 +113,12 @@ Hard invariants:
 - missing first-message GitHub decision receipt does not authorize same-chat
   semantic retry or a topology change.
 
-Live ordinary v4 acceptance passed with canonical #59 comment `5553196186`.
-Live escalated v4 acceptance passed with exact visible label `6 Pro`, canonical
+Historical pre-surface-correction ordinary v4 acceptance passed with canonical
+#59 comment `5553196186`.
+Historical pre-surface-correction escalated v4 acceptance passed with exact visible label `6 Pro`, canonical
 #59 comment `5553905289`, and provenance
-`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`.
+`VISIBLE_PRO_SESSION_GITHUB_ATTESTED`. Those controls and provenance are retained
+as evidence only and are ineligible for current sends.
 
 ## Production / hotfix boundary
 
@@ -334,7 +342,8 @@ acquisition is a privacy tradeoff requiring explicit owner/Chat consideration.
 ## Recovery rule
 
 Do not repeat PR #58 hotfix deployment, Hostinger installation, capability
-proof, ordinary acceptance, escalated `6 Pro` acceptance, or source-time probe
+proof, historical ordinary acceptance, historical escalated `6 Pro` acceptance,
+or source-time probe
 unless a later executable/environment change specifically invalidates that
 accepted evidence. Do not repeat PR #66 implementation/review unless a later
 canonical change invalidates it. Do not touch production.

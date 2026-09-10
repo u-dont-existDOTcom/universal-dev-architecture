@@ -774,8 +774,7 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     binding_envelope: bindingCapsuleSchema,
     binding_envelope_sha256: Sha256,
     decision_session_provenance: z.enum([
-      "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
-      "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
+      "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED",
     ]),
     ...canonicalDecisionEnvelopeFields,
   }),
@@ -809,10 +808,8 @@ export const canonicalDecisionEnvelopeSchema = z.union([
   if (envelope.schema_version === 3 && envelope.binding_provider_session_id === envelope.decision_provider_session_id) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "A direct decision must use a provider session distinct from the binding preload session." });
   }
-  if (envelope.schema_version === 3 && envelope.decision_session_provenance !== (proRequired
-    ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
-    : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED")) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Direct decision provenance must exactly match the admitted visible reasoning lane." });
+  if (envelope.schema_version === 3 && envelope.decision_session_provenance !== "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Direct decision provenance must match the fixed visible GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 controls." });
   }
 });
 
@@ -835,8 +832,7 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   continuation_binding: ownerResponseContinuationBindingSchema.optional(),
   continuation_binding_sha256: Sha256.optional(),
   decision_session_provenance: z.enum([
-    "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED",
-    "VISIBLE_PRO_SESSION_GITHUB_ATTESTED",
+    "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED",
   ]).nullable().default(null),
   nonce: StableId,
   evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
@@ -889,10 +885,8 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   if (direct && receipt.binding_provider_session_id === receipt.decision_provider_session_id) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_provider_session_id"], message: "Binding and decision provider sessions must be distinct." });
   }
-  if (direct && receipt.decision_session_provenance !== (proRequired
-    ? "VISIBLE_PRO_SESSION_GITHUB_ATTESTED"
-    : "VISIBLE_EXTRA_HIGH_SESSION_GITHUB_ATTESTED")) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Ingested direct provenance must exactly match the visible reasoning lane." });
+  if (direct && receipt.decision_session_provenance !== "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_session_provenance"], message: "Ingested direct provenance must match the fixed visible GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 controls." });
   }
 });
 

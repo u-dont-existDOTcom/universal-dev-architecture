@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "schema_version": 1,
   "requirement_id": "REQ-MC-OWNER-RESPONSE-CONTINUATION-20260906",
   "recorded_at": "2026-09-06T18:56:14.431486+00:00",

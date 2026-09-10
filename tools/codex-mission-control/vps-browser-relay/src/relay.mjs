@@ -15,6 +15,7 @@ import {
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
+  consumerControlRefs,
   cycleControlPrompt,
   deriveBindingCapsule,
   extractQueuedRoutes,
@@ -30,7 +31,8 @@ import {
   startedCycleStepStatus,
 } from './core.mjs';
 import { readMemoryMetrics } from './memory.mjs';
-import { GlobalSubmissionPacer, isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
+import { isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
+import { submissionSchedulerContext } from './submission-context.mjs';
 
 const MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS = 30_000;
 const PROVIDER_SESSION_PROJECTION_TIMEOUT_MS = 30_000;
@@ -41,10 +43,10 @@ export class RelayRuntime {
     this.missionControl = missionControl;
     this.browser = browser;
     this.stateStore = stateStore;
-    this.submissionPacer = submissionPacer ?? new GlobalSubmissionPacer({
-      stateStore,
-      minIntervalMs: config.runtime.minSubmissionIntervalMs ?? 60_000,
-    });
+    if (!submissionPacer || typeof submissionPacer.remoteStatus !== 'function') {
+      throw new Error('RelayRuntime requires the explicit central submission scheduler; host-local pacing is not live-send eligible.');
+    }
+    this.submissionPacer = submissionPacer;
     this.memoryReader = memoryReader;
     this.logger = logger;
   }
@@ -52,10 +54,11 @@ export class RelayRuntime {
   async doctor() {
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
-    const [metrics, browser, snapshot] = await Promise.all([
+    const [metrics, browser, snapshot, centralScheduler] = await Promise.all([
       this.memoryReader(this.config.browser.profileDir),
       this.browser.doctor(),
       this.missionControl.fetchFleet(),
+      this.submissionPacer.remoteStatus(),
     ]);
     const memory = this.#memoryState(metrics);
     const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
@@ -66,6 +69,7 @@ export class RelayRuntime {
       submitEnabled: this.config.runtime.submitEnabled,
       capabilityTestEnabled: this.config.runtime.capabilityTestEnabled,
       submissionPacing: this.submissionPacer.status(state),
+      centralScheduler,
       browser,
       memory,
       missionControl: { workerCount: snapshot.workers.length, generatedAt: snapshot.generatedAt ?? null },
@@ -97,10 +101,9 @@ export class RelayRuntime {
       hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
     });
     this.#rememberTarget(state, chat, target, null, chat.bootstrapCapability.url);
-    const mode = await this.browser.verifyModelRoundTrip(target, {
+    const mode = await this.browser.ensureExactConsumerControls(target, {
       expectedUrl: chat.bootstrapCapability.url,
-      extraHighLabel: chat.modelLabels.extraHigh,
-      proLabel: chat.modelLabels.pro,
+      controls: chat.consumerControls,
     });
     const challengeExpiry = findChallengeExpiry(snapshot, chat);
     if (!challengeExpiry) throw new Error(`Capability challenge ${chat.bootstrapCapability.challengeId} has no usable expiry.`);
@@ -111,8 +114,7 @@ export class RelayRuntime {
         `challenge:${chat.bootstrapCapability.challengeId}`,
         `chat:${chat.bootstrapCapability.chatId}`,
         'capability:modeSwitching',
-        `extra_high_label:${chat.modelLabels.extraHigh}`,
-        `pro_label:${chat.modelLabels.pro}`,
+        ...consumerControlRefs(chat.consumerControls),
         `expires_at:${challengeExpiry}`,
         'backend_model_identity_claimed:false',
       ],
@@ -160,10 +162,15 @@ export class RelayRuntime {
     }
 
     const prompt = capabilityControlPrompt(chat);
-    const observed = await this.browser.switchModel(target, { expectedUrl: chat.bootstrapCapability.url, label: chat.modelLabels.extraHigh });
+    let observed;
     try {
       const start = await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat, target, expectedUrl: chat.bootstrapCapability.url, requestId: key, queueKey: key,
+          sendPath: 'CAPABILITY', bodySha256: sha256(prompt),
+        }),
         beforeSubmit: async () => {
+          observed = await this.browser.ensureExactConsumerControls(target, { expectedUrl: chat.bootstrapCapability.url, controls: chat.consumerControls });
           const intentAt = new Date().toISOString();
           state = await this.stateStore.read();
           state.deliveries[key] = {
@@ -172,15 +179,15 @@ export class RelayRuntime {
             conversationUrl: chat.bootstrapCapability.url,
             capabilityChallengeId: chat.bootstrapCapability.challengeId,
             bodySha256: sha256(prompt),
-            modelUiLabel: observed.observedLabel,
+            modelUiLabel: observed.modelVisibleLabel,
             intentRecordedAt: intentAt,
             lastAttemptAt: intentAt,
           };
           state = await this.stateStore.write(state);
         },
-        submit: async () => {
+        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt) });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -267,10 +274,15 @@ export class RelayRuntime {
     }
 
     const prompt = mcpReadPreflightPrompt(chat);
-    const observed = await this.browser.switchModel(target, { expectedUrl: chat.bootstrapCapability.url, label: chat.modelLabels.extraHigh });
+    let observed;
     try {
       const start = await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat, target, expectedUrl: chat.bootstrapCapability.url, requestId: key, queueKey: key,
+          sendPath: 'MCP_PREFLIGHT', bodySha256: sha256(prompt),
+        }),
         beforeSubmit: async () => {
+          observed = await this.browser.ensureExactConsumerControls(target, { expectedUrl: chat.bootstrapCapability.url, controls: chat.consumerControls });
           const intentAt = new Date().toISOString();
           state = await this.stateStore.read();
           state.deliveries[key] = {
@@ -279,15 +291,15 @@ export class RelayRuntime {
             conversationUrl: chat.bootstrapCapability.url,
             capabilityChallengeId: chat.bootstrapCapability.challengeId,
             bodySha256: sha256(prompt),
-            modelUiLabel: observed.observedLabel,
+            modelUiLabel: observed.modelVisibleLabel,
             intentRecordedAt: intentAt,
             lastAttemptAt: intentAt,
           };
           state = await this.stateStore.write(state);
         },
-        submit: async () => {
+        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt) });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -645,10 +657,9 @@ export class RelayRuntime {
         reusableTargetId: this.#selectReusableTargetId(state, await this.browser.listTargets()),
         hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
       });
-      const mode = await this.browser.verifyModelRoundTrip(target, {
+      const mode = await this.browser.ensureExactConsumerControls(target, {
         expectedUrl: 'https://chatgpt.com/',
-        extraHighLabel: route.chat.modelLabels.extraHigh,
-        proLabel: route.chat.modelLabels.pro,
+        controls: route.chat.consumerControls,
       });
       const modelReceiptId = `provider-session-model:${providerSessionId}:${sha256(openedAt).slice(0, 12)}`;
       const sessionRole = action.step === MCP_BINDING_PRELOAD_STEP ? 'MC_BINDING_PRELOAD_SESSION' : `${action.step}_SESSION`;
@@ -664,9 +675,7 @@ export class RelayRuntime {
             `binding_provider_session:${route.bindingProviderSessionId}`,
             `${directDecisionStage ? 'decision' : 'stage'}_provider_session:${providerSessionId}`,
           ] : [`binding_provider_session:${providerSessionId}`]),
-          `extra_high_label:${route.chat.modelLabels.extraHigh}`,
-          `pro_label:${route.chat.modelLabels.pro}`,
-          'round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH',
+          ...consumerControlRefs(route.chat.consumerControls),
           'assistant_content_observed:false',
           'backend_model_identity_claimed:false',
           `opened_at:${openedAt}`,
@@ -763,14 +772,18 @@ export class RelayRuntime {
     }
 
     const prompt = cycleControlPrompt(route, action.step);
-    const desiredLabel = action.model === 'PRO' ? route.chat.modelLabels.pro : route.chat.modelLabels.extraHigh;
-    const model = await this.browser.switchModel(target, { expectedUrl, label: desiredLabel });
-    if (model.observedLabel !== desiredLabel) throw new Error(`Exact model UI label mismatch: expected ${desiredLabel}, observed ${model.observedLabel ?? 'UNKNOWN'}.`);
+    let model;
     const promptSha256 = sha256(prompt);
     let generationStarted = false;
     try {
       const start = await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat: route.chat, target, expectedUrl, providerSessionId: session.providerSessionId,
+          requestId: route.requestId, queueKey: `${route.routeKey}:${action.step}:${session.providerSessionId}`, sendPath: `SUPERVISORY_CYCLE_${action.step}`,
+          bodySha256: promptSha256,
+        }),
         beforeSubmit: async () => {
+          model = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: route.chat.consumerControls });
           const intentAt = new Date().toISOString();
           state = await this.stateStore.read();
           const current = state.deliveries[route.routeKey] ?? prior;
@@ -784,7 +797,7 @@ export class RelayRuntime {
             conversationUrl: session.conversationUrl,
             cycleStep: action.step,
             reasoningLane: route.packet.reasoningLane,
-            modelUiLabel: model.observedLabel,
+            modelUiLabel: model.modelVisibleLabel,
             promptSha256,
             bodySha256: promptSha256,
             bodyLength: prompt.length,
@@ -796,12 +809,12 @@ export class RelayRuntime {
           };
           state = await this.stateStore.write(state);
         },
-        submit: async () => {
+        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const appPlan = appSelectionForMessage(route.chat, action.step);
           const messageApps = appPlan.requiredLabels.length > 0
             ? await this.browser.selectAppsForMessage(target, appPlan)
             : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
-          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256 });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -828,7 +841,7 @@ export class RelayRuntime {
         conversationUrl: session.conversationUrl,
       };
       state = await this.stateStore.write(state);
-      await this.#recordRelayStage(route, action.step, model.observedLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal, start.messageApps ?? null);
+      await this.#recordRelayStage(route, action.step, model.modelVisibleLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal, start.messageApps ?? null);
       return this.#writeStandaloneStatus(startedCycleStepStatus(action.step), state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), generationStart: start });
     } catch (error) {
       if (isGlobalSubmissionCooldown(error)) {
@@ -892,6 +905,7 @@ export class RelayRuntime {
       'message_ordinal:1',
       'first_message:true',
       `model_ui_label:${modelUiLabel}`,
+      ...consumerControlRefs(route.chat.consumerControls),
       `prompt_sha256:${promptSha256}`,
       `generation_state:${generationState}`,
       `observed_at:${observedAt}`,

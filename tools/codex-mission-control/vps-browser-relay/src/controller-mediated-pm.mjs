@@ -4,6 +4,7 @@ import {
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   canonicalJson,
+  consumerControlRefs,
   cycleControlPrompt,
   extractQueuedRoutes,
   newProviderSessionId,
@@ -15,6 +16,7 @@ import {
   ControllerGitHubArtifacts,
 } from './controller-github-artifacts.mjs';
 import { isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
+import { submissionSchedulerContext } from './submission-context.mjs';
 
 export const CONTROLLER_STAGE_SUMMARY = 'MISSION_CONTROL_PM_CONTROLLER_STAGE_V1';
 export const CONTROLLER_PM_ID = 'mc-project-manager';
@@ -30,6 +32,7 @@ export class ControllerMediatedPmRuntime {
     this.missionControl = missionControl;
     this.browser = browser;
     this.stateStore = stateStore;
+    if (!submissionPacer || typeof submissionPacer.remoteStatus !== 'function') throw new Error('Controller requires the explicit central submission scheduler.');
     this.submissionPacer = submissionPacer;
     this.githubFactory = githubFactory ?? ((cycle) => new ControllerGitHubArtifacts({
       repository: cycle.artifactChannel.repository,
@@ -377,13 +380,19 @@ export class ControllerMediatedPmRuntime {
 
   async #submitArtifactMessage({ state, cycle, lane, target, expectedUrl, prompt, chat, readyStep, startedStep, waitingStep }) {
     if (cycle.step !== readyStep) throw new Error(`Controller lane ${lane} is not ready to send.`);
-    const model = await this.browser.switchModel(target, { expectedUrl, label: chat.modelLabels.extraHigh });
-    if (model.observedLabel !== chat.modelLabels.extraHigh) throw new Error(`Exact model UI label mismatch for ${lane}.`);
+    let model;
     const promptSha256 = sha256(prompt);
     let start;
     try {
       start = await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat, target, expectedUrl,
+          providerSessionId: lane === 'origin' ? cycle.bindingProviderSessionId : cycle.providerSessions?.[lane],
+          requestId: cycle.requestId, queueKey: `controller:${cycle.cycleId}:${lane}`,
+          sendPath: `CONTROLLER_${lane.toUpperCase()}`, bodySha256: promptSha256,
+        }),
         beforeSubmit: async () => {
+          model = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: chat.consumerControls });
           state = await this.stateStore.read();
           cycle = state.controllerCycles[cycle.cycleId];
           const intentAt = new Date().toISOString();
@@ -430,14 +439,14 @@ export class ControllerMediatedPmRuntime {
           boundaryCycle.lastError = null;
           boundaryState.controllerCycles[boundaryCycle.cycleId] = boundaryCycle;
         },
-        submit: async (onSubmissionBoundary) => {
+        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, {
             knownLabels: [chat.requiredApps.missionControl, chat.requiredApps.github],
             requiredLabels: [chat.requiredApps.github],
             referencedLabels: [],
           });
           const submitted = await this.browser.submitExactMessage(target, {
-            expectedUrl, body: prompt, bodySha256: promptSha256, onSubmissionBoundary,
+            expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary,
           });
           return { ...submitted, messageApps };
         },
@@ -482,10 +491,9 @@ export class ControllerMediatedPmRuntime {
       expectedUrl: ROOT_URL,
     });
     const step = decisionStep(route);
-    await this.browser.verifyModelRoundTrip(target, {
+    await this.browser.ensureExactConsumerControls(target, {
       expectedUrl: ROOT_URL,
-      extraHighLabel: route.chat.modelLabels.extraHigh,
-      proLabel: route.chat.modelLabels.pro,
+      controls: route.chat.consumerControls,
     });
     const sessionId = cycle.providerSessions.return;
     if (!cycle.returnPreparation) {
@@ -509,8 +517,7 @@ export class ControllerMediatedPmRuntime {
       refs: [
         `request:${route.requestId}`, `supervisor:${route.supervisorId}`, `provider_session:${sessionId}`,
         `session_role:${step}_SESSION`, `binding_provider_session:${cycle.bindingProviderSessionId}`,
-        `decision_provider_session:${sessionId}`, `extra_high_label:${route.chat.modelLabels.extraHigh}`,
-        `pro_label:${route.chat.modelLabels.pro}`, 'round_trip:EXTRA_HIGH_PRO_EXTRA_HIGH',
+        `decision_provider_session:${sessionId}`, ...consumerControlRefs(route.chat.consumerControls),
         'assistant_content_observed:false', 'backend_model_identity_claimed:false', `opened_at:${openedAt}`,
       ],
       occurredAt: openedAt,
@@ -602,15 +609,19 @@ export class ControllerMediatedPmRuntime {
       providerSession: state.providerSessions[cycle.providerSessions.return],
       controllerPmArtifact: cycle.consumedArtifacts.pm,
     };
-    const desiredLabel = step === 'PRO_DECISION' ? route.chat.modelLabels.pro : route.chat.modelLabels.extraHigh;
-    const model = await this.browser.switchModel(target, { expectedUrl: ROOT_URL, label: desiredLabel });
-    if (model.observedLabel !== desiredLabel) throw new Error('Exact return model UI label mismatch.');
+    let model;
     const prompt = returnPrompt(cycle, route, step);
     const promptSha256 = sha256(prompt);
     let start;
     try {
       start = await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat: route.chat, target, expectedUrl: ROOT_URL, providerSessionId: cycle.providerSessions.return,
+          requestId: cycle.requestId, queueKey: `controller:${cycle.cycleId}:return`,
+          sendPath: 'CONTROLLER_RETURN', bodySha256: promptSha256,
+        }),
         beforeSubmit: async () => {
+          model = await this.browser.ensureExactConsumerControls(target, { expectedUrl: ROOT_URL, controls: route.chat.consumerControls });
           state = await this.stateStore.read();
           cycle = state.controllerCycles[cycle.cycleId];
           const intentAt = new Date().toISOString();
@@ -628,7 +639,7 @@ export class ControllerMediatedPmRuntime {
             workerId: route.workerId, supervisorId: route.supervisorId,
             providerSessionId: cycle.providerSessions.return, decisionProviderSessionId: cycle.providerSessions.return,
             bindingProviderSessionId: cycle.bindingProviderSessionId, cycleStep: step,
-            reasoningLane: route.packet.reasoningLane, modelUiLabel: model.observedLabel,
+            reasoningLane: route.packet.reasoningLane, modelUiLabel: model.modelVisibleLabel,
             promptSha256, bodySha256: promptSha256, bodyLength: prompt.length,
             targetId: cycle.origin.targetId, intentRecordedAt: intentAt, lastAttemptAt: intentAt,
           };
@@ -681,8 +692,8 @@ export class ControllerMediatedPmRuntime {
             conversationUrl: result.conversationUrl,
           };
         },
-        submit: (onSubmissionBoundary) => this.browser.submitExactMessage(target, {
-          expectedUrl: ROOT_URL, body: prompt, bodySha256: promptSha256, onSubmissionBoundary,
+        submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => this.browser.submitExactMessage(target, {
+          expectedUrl: ROOT_URL, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary,
         }),
       });
     } catch (error) {
@@ -1129,6 +1140,7 @@ export class ControllerMediatedPmRuntime {
         `provider_session:${route.providerSessionId}`, `binding_provider_session:${route.bindingProviderSessionId}`,
         `decision_provider_session:${route.providerSessionId}`, `conversation_url:${route.providerSession.conversationUrl}`,
         `step:${step}`, 'message_ordinal:1', 'first_message:true', `model_ui_label:${modelUiLabel}`,
+        ...consumerControlRefs(route.chat.consumerControls),
         `prompt_sha256:${promptSha256}`, `generation_state:${generationState}`, `observed_at:${occurredAt}`,
         'assistant_content_observed:false', 'backend_model_identity_claimed:false',
         'app_selection_attempted:false', 'app_selection_status:APP_SELECTION_NOT_ATTEMPTED',

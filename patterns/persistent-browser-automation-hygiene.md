@@ -1,5 +1,20 @@
 # Persistent browser automation hygiene
 
+## Mission Control remote-execution boundary
+
+For routine Mission Control browser automation, use only the designated remote
+execution host's independent authenticated profile, automation-owned window and
+exact owned targets. Never fall back to the owner's interactive computer,
+browser windows/tabs, or user clipboard. Insert exact text directly through the
+remote browser protocol. A missing remote login or authentication challenge is a
+fail-closed operator boundary, not permission to copy cookies, profiles,
+password-store data or clipboard contents between machines.
+
+When multiple relay hosts exist, apply
+`mission-control-multi-host-submission-scheduling.md`: exact target ownership is
+necessary but does not replace MC-only conversation ownership, central per-send
+admission, or active/passive host fencing.
+
 ## Rule
 
 Persistent browser profiles should persist **authentication and intentional application state**, not uncontrolled tab/session history.

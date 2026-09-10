@@ -20,8 +20,12 @@ export async function loadConfig(env = process.env) {
   const producerId = required(env.MC_RELAY_PRODUCER_ID, 'MC_RELAY_PRODUCER_ID');
   const token = required(env.MC_RELAY_TOKEN, 'MC_RELAY_TOKEN');
   if (token.length < 32) throw new Error('MC_RELAY_TOKEN must contain at least 32 characters.');
+  const schedulerToken = required(env.MC_RELAY_SCHEDULER_TOKEN, 'MC_RELAY_SCHEDULER_TOKEN');
+  if (schedulerToken.length < 32) throw new Error('MC_RELAY_SCHEDULER_TOKEN must contain at least 32 characters.');
   const memoryProfile = env.MC_RELAY_MEMORY_PROFILE ?? 'AUTO';
   if (!['AUTO', '8GB', '16GB'].includes(memoryProfile)) throw new Error('MC_RELAY_MEMORY_PROFILE must be AUTO, 8GB, or 16GB.');
+  const hostRole = required(env.MC_RELAY_HOST_ROLE, 'MC_RELAY_HOST_ROLE');
+  if (!['PRIMARY', 'SECONDARY'].includes(hostRole)) throw new Error('MC_RELAY_HOST_ROLE must be PRIMARY or SECONDARY.');
 
   return {
     missionControl: {
@@ -30,6 +34,12 @@ export async function loadConfig(env = process.env) {
       token,
       workerIds,
       requestTimeoutMs: integer(env.MC_RELAY_HTTP_TIMEOUT_MS, 30_000, 1_000, 120_000),
+    },
+    submissionScheduler: {
+      url: normalizeBaseUrl(required(env.MC_RELAY_SCHEDULER_URL, 'MC_RELAY_SCHEDULER_URL')),
+      token: schedulerToken,
+      producerId,
+      requestTimeoutMs: integer(env.MC_RELAY_SCHEDULER_TIMEOUT_MS, 10_000, 1_000, 120_000),
     },
     browser: {
       cdpHost: env.MC_RELAY_CDP_HOST ?? '127.0.0.1',
@@ -46,7 +56,13 @@ export async function loadConfig(env = process.env) {
       submitEnabled: env.MC_RELAY_SUBMIT_ENABLED === '1',
       capabilityTestEnabled: env.MC_RELAY_CAPABILITY_TEST_ENABLED === '1',
       pollIntervalMs: integer(env.MC_RELAY_POLL_INTERVAL_MS, 15_000, 2_000, 300_000),
-      minSubmissionIntervalMs: integer(env.MC_RELAY_MIN_SUBMISSION_INTERVAL_MS, 60_000, 15_000, 600_000),
+      minSubmissionIntervalMs: integer(env.MC_RELAY_MIN_SUBMISSION_INTERVAL_MS, 60_000, 60_000, 600_000),
+      submissionHost: {
+        alias: required(env.MC_RELAY_HOST_ALIAS, 'MC_RELAY_HOST_ALIAS'),
+        role: hostRole,
+        deploymentEpoch: integer(required(env.MC_RELAY_DEPLOYMENT_EPOCH, 'MC_RELAY_DEPLOYMENT_EPOCH'), null, 1, Number.MAX_SAFE_INTEGER),
+        leaseId: required(env.MC_RELAY_DEPLOYMENT_LEASE_ID, 'MC_RELAY_DEPLOYMENT_LEASE_ID'),
+      },
       retryDelayMs: integer(env.MC_RELAY_RETRY_DELAY_MS, 300_000, 30_000, 86_400_000),
       maxHotTabs: integer(env.MC_RELAY_MAX_HOT_TABS, 3, 1, 3),
       stuckRecoveryMaxNudges: integer(env.MC_RELAY_STUCK_RECOVERY_MAX_NUDGES, 3, 1, 20),
@@ -71,6 +87,7 @@ export async function loadConfig(env = process.env) {
 export function publicConfig(config) {
   return {
     missionControlUrl: config.missionControl.url,
+    submissionSchedulerUrl: config.submissionScheduler.url,
     producerId: config.missionControl.producerId,
     cdpEndpoint: `http://${config.browser.cdpHost}:${config.browser.cdpPort}`,
     profileDir: config.browser.profileDir,
@@ -81,6 +98,11 @@ export function publicConfig(config) {
     capabilityTestEnabled: config.runtime.capabilityTestEnabled,
     pollIntervalMs: config.runtime.pollIntervalMs,
     minSubmissionIntervalMs: config.runtime.minSubmissionIntervalMs,
+    submissionHost: {
+      alias: config.runtime.submissionHost.alias,
+      role: config.runtime.submissionHost.role,
+      deploymentEpoch: config.runtime.submissionHost.deploymentEpoch,
+    },
     maxHotTabs: config.runtime.maxHotTabs,
     stuckRecoveryMaxNudges: config.runtime.stuckRecoveryMaxNudges,
     memory: config.memory,

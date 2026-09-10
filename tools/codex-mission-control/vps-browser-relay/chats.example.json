@@ -5,14 +5,30 @@
     "label": "Mission Control Project Manager",
     "workerId": "mission-control-live-slice",
     "pinned": true,
+    "registrationId": "registration:mc-project-manager:REPLACE_RANDOM_SUFFIX",
+    "ownership": "MISSION_CONTROL_ONLY",
+    "purpose": "Dedicated Mission Control Project Manager supervision only; never use as a personal or shared-purpose conversation.",
+    "accountAlias": "REPLACE_PRIVATE_ACCOUNT_ALIAS",
+    "workspaceAlias": "REPLACE_PRIVATE_WORKSPACE_ALIAS",
+    "privateLocatorRef": "owner-config:supervisors/mc-project-manager",
+    "registrationProvenance": {
+      "registeredBy": "OWNER",
+      "registeredAt": "REPLACE_ISO_REGISTRATION_TIME",
+      "sourceRef": "REPLACE_OWNER_AUTHORITY_REFERENCE"
+    },
     "bootstrapCapability": {
-      "chatId": "project-manager-bootstrap-v1",
+      "chatId": "REPLACE_UNIQUE_PROJECT_MANAGER_BOOTSTRAP_CHAT_ID",
       "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_BOOTSTRAP_CONVERSATION_ID",
       "challengeId": "pm-capability-v1"
     },
-    "modelLabels": {
-      "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
-      "pro": "REPLACE_EXACT_PRO_UI_LABEL"
+    "consumerControls": {
+      "modelVisibleLabel": "GPT-5.6 Sol",
+      "thinkingControlLabel": "Thinking effort",
+      "thinkingVisibleLabel": "Extra High",
+      "thinkingOrdinal": "4 of 5",
+      "accountPlanLabel": "Pro",
+      "accountPlanRole": "PROVENANCE_METADATA_ONLY",
+      "accountPlanIsReasoningMode": false
     },
     "requiredApps": {
       "missionControl": "Mission Control",
@@ -25,14 +41,30 @@
     "label": "Mission Control relay smoke-test specialist",
     "workerId": "mission-control-live-slice",
     "pinned": false,
+    "registrationId": "registration:specialist-relay-smoke:REPLACE_RANDOM_SUFFIX",
+    "ownership": "MISSION_CONTROL_ONLY",
+    "purpose": "Dedicated Mission Control specialist supervision only; never use as a personal or shared-purpose conversation.",
+    "accountAlias": "REPLACE_PRIVATE_ACCOUNT_ALIAS",
+    "workspaceAlias": "REPLACE_PRIVATE_WORKSPACE_ALIAS",
+    "privateLocatorRef": "owner-config:supervisors/specialist-relay-smoke",
+    "registrationProvenance": {
+      "registeredBy": "OWNER",
+      "registeredAt": "REPLACE_ISO_REGISTRATION_TIME",
+      "sourceRef": "REPLACE_OWNER_AUTHORITY_REFERENCE"
+    },
     "bootstrapCapability": {
-      "chatId": "specialist-bootstrap-v1",
+      "chatId": "REPLACE_UNIQUE_SPECIALIST_BOOTSTRAP_CHAT_ID",
       "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_BOOTSTRAP_CONVERSATION_ID",
       "challengeId": "specialist-capability-v1"
     },
-    "modelLabels": {
-      "extraHigh": "REPLACE_EXACT_EXTRA_HIGH_UI_LABEL",
-      "pro": "REPLACE_EXACT_PRO_UI_LABEL"
+    "consumerControls": {
+      "modelVisibleLabel": "GPT-5.6 Sol",
+      "thinkingControlLabel": "Thinking effort",
+      "thinkingVisibleLabel": "Extra High",
+      "thinkingOrdinal": "4 of 5",
+      "accountPlanLabel": "Pro",
+      "accountPlanRole": "PROVENANCE_METADATA_ONLY",
+      "accountPlanIsReasoningMode": false
     },
     "requiredApps": {
       "missionControl": "Mission Control",
