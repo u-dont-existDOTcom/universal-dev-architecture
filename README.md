@@ -8,7 +8,13 @@ but does not grant write access or a public reuse license; see `LICENSE.md` and
 
 ## Purpose
 
-Project repositories keep their own exact evidence, incident notes, experiments, local decisions, current state, and project-specific instructions. This repository receives only lessons and operating patterns that are genuinely transferable across projects.
+Project repositories keep their own exact evidence, incident notes, experiments, local decisions, current state, and project-specific instructions. This repository primarily receives lessons and operating patterns that are genuinely transferable across projects. When owner-specific deployment continuity must live here, it is explicitly isolated and marked `NON_UNIVERSAL_OWNER_DEPLOYMENT` so a copied repository does not mistake one owner's infrastructure for reusable architecture.
+
+## Portability boundary
+
+This repository is intended to remain structurally useful when copied to another environment. Reusable patterns, templates, schemas, tests, and invariants must not depend on the current owner's concrete hosts, service IDs, machine paths, accounts, or private chat locators.
+
+Owner-specific operational state may be retained only when needed for continuity or live evidence. Such artifacts must be plainly marked `NON_UNIVERSAL_OWNER_DEPLOYMENT`, contain no secrets, and be replaceable or ignorable by another owner. See `patterns/portable-vs-owner-specific-deployment-data.md`.
 
 ## Start here
 
@@ -45,7 +51,7 @@ python3 -m unittest discover -s tests -v
 - Active long-running projects maintain a concise current-state recovery checkpoint.
 - A fresh worker must reconcile checkpoints against actual Git state before resuming.
 - Every substantive finding receives a semantic lesson disposition before completion.
-- Project-specific evidence stays local; transferable lessons are generalized here with provenance and limits.
+- Project-specific evidence stays local by default; any necessary owner-specific continuity retained here is clearly non-universal, while transferable lessons are generalized with provenance and limits.
 - GitHub-hosted controls are never marked verified merely because they are recommended; settings/API evidence is required.
 
 ## Authority

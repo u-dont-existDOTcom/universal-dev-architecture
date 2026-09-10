@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-DUAL-VPS-GLOBAL-SEND-QUEUE-20260910",
+  "classification": "NON_UNIVERSAL_OWNER_DEPLOYMENT_REQUIREMENT_WITH_UNIVERSAL_MECHANISMS",
+  "status": "AUTHORIZED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_outcome": "Run Mission Control workers and supervisors primarily on the owner's 16 GB Netcup VPS and secondarily on the owner's 8 GB Hostinger VPS; eliminate routine use of the owner's workstation browser/clipboard; globally pace and admit all ChatGPT sends; and restrict supervisor routing to dedicated MC-only chats.",
+  "owner_specific": {
+    "primary_host": {
+      "provider": "Netcup",
+      "role": "PRIMARY",
+      "ram_gb_approx": 16
+    },
+    "secondary_host": {
+      "provider": "Hostinger",
+      "role": "SECONDARY_FAILOVER",
+      "ram_gb_approx": 8
+    },
+    "existing_mc_location": "Hostinger",
+    "secrets_in_git_permitted": false,
+    "private_chat_locators_in_git_permitted": false
+  },
+  "universal_mechanisms": {
+    "global_submission_authority": "MISSION_CONTROL_SHARED_QUEUE_LEASE",
+    "local_pacer_role": "DEFENSE_IN_DEPTH_ONLY",
+    "minimum_global_interval_ms_floor": 60000,
+    "authoritative_interval_source": "SHARED_LAST_ACCEPTED_SUBMISSION_BOUNDARY",
+    "active_send_leases_maximum": 1,
+    "require_source_bound_authorization_before_queue_admission": true,
+    "dedicated_supervisor_registry_required": true,
+    "owner_chat_fallback_allowed": false,
+    "owner_clipboard_use_allowed": false,
+    "owner_workstation_browser_use_allowed_for_routine_mc": false,
+    "vps_browser_target_must_be_automation_owned": true,
+    "cross_host_active_active_sends_allowed": false
+  },
+  "queue_admission_contract": {
+    "required_before_send": [
+      "source_bound_task_or_directive_authorization",
+      "durable_queue_item_identity",
+      "mission_control_global_send_lease",
+      "global_minimum_interval_elapsed",
+      "selected_execution_host_healthy",
+      "exact_automation_owned_browser_target",
+      "dedicated_mc_supervisor_registry_match_when_destination_is_supervisor"
+    ],
+    "deny_when": [
+      "another_unexpired_global_send_lease_exists",
+      "minimum_interval_not_elapsed",
+      "provider_rate_limit_active",
+      "authorization_missing_or_stale",
+      "destination_is_non_mc_or_unregistered_supervisor_chat",
+      "browser_target_is_foreign_or_owner_controlled",
+      "host_role_or_health_is_ambiguous"
+    ]
+  },
+  "send_ledger_required_fields": [
+    "opaque_queue_item_id",
+    "authorization_ref",
+    "host_role",
+    "queue_admitted_at",
+    "submission_boundary_at",
+    "previous_global_submission_boundary_at",
+    "inter_send_interval_ms",
+    "minimum_interval_ms",
+    "rate_limit_state",
+    "delivery_status"
+  ],
+  "supervisor_chat_contract": {
+    "scope": "MC_ONLY",
+    "human_title_convention": "MC · <project-or-role> · <purpose>",
+    "title_is_authority": false,
+    "exact_private_registry_identity_is_authority": true,
+    "select_by_recency_allowed": false,
+    "select_by_active_tab_allowed": false,
+    "select_by_matching_url_without_registry_allowed": false,
+    "adopt_owner_chat_allowed": false,
+    "missing_registered_chat_behavior": "FAIL_CLOSED_OR_CREATE_AND_REGISTER_FRESH_MC_ONLY_CHAT"
+  },
+  "host_failover_contract": {
+    "normal_host": "PRIMARY",
+    "secondary_use": "FAILOVER_OR_EXPLICIT_LOAD_SHED_ONLY",
+    "failover_requires_primary_unhealthy": true,
+    "stale_primary_lease_must_be_fenced_before_secondary_send": true,
+    "primary_recovery_must_not_duplicate_secondary_send": true,
+    "browser_ownership_state_is_host_specific": true,
+    "send_authority_state_is_shared": true
+  },
+  "portable_repository_contract": {
+    "universal_pattern": "patterns/portable-vs-owner-specific-deployment-data.md",
+    "owner_specific_state": "state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md",
+    "rule": "Owner-specific infrastructure artifacts must be explicitly marked NON_UNIVERSAL_OWNER_DEPLOYMENT and isolated from portable patterns/templates/tests. The repository must remain useful when such artifacts are ignored or replaced."
+  },
+  "accepted_prior_evidence": {
+    "relay_local_minimum_interval_ms": 60000,
+    "browser_window_target_ownership": "LIVE_VERIFIED",
+    "provider_rate_limit_recovery": "IMPLEMENTED_AND_DETERMINISTICALLY_TESTED_NOT_NATURALLY_LIVE_TRIGGERED"
+  },
+  "non_satisfying_proxies": [
+    "configuration_value_without_live_interval_log",
+    "process_local_pacer_without_shared_cross_host_lease",
+    "unit_tests_without_live_host_proof",
+    "netcup_install_without_primary_health_and_send_authority_proof",
+    "dedicated_chat_title_without_exact_registry_binding",
+    "work_handoff_acceptance_without_durable_execution_receipts"
+  ],
+  "required_live_outcomes": [
+    "recent Hostinger send intervals audited from actual execution evidence",
+    "all live ChatGPT send paths proven to require global queue admission",
+    "Netcup primary MC/controller/browser stack installed and healthy",
+    "Hostinger retained and proven as secondary/failover",
+    "shared cross-host send lease prevents concurrent or too-fast sends",
+    "dedicated MC-only supervisor registry prevents owner-chat reuse",
+    "routine MC execution proven not to use owner workstation browser or clipboard"
+  ],
+  "production_boundary": "No unrelated production promotion or service mutation is authorized by this requirement."
+}
