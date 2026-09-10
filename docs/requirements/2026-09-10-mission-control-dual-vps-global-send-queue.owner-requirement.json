@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "requirement_id": "REQ-MC-DUAL-VPS-GLOBAL-SEND-QUEUE-20260910",
-  "classification": "NON_UNIVERSAL_OWNER_DEPLOYMENT_REQUIREMENT_WITH_UNIVERSAL_MECHANISMS",
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "status": "AUTHORIZED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
   "owner_outcome": "Run Mission Control workers and supervisors primarily on the owner's 16 GB Netcup VPS and secondarily on the owner's 8 GB Hostinger VPS; eliminate routine use of the owner's workstation browser/clipboard; globally pace and admit all ChatGPT sends; and restrict supervisor routing to dedicated MC-only chats.",

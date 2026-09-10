@@ -1,4 +1,4 @@
-# NON_UNIVERSAL_OWNER_DEPLOYMENT — Mission Control topology
+# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT — Mission Control topology
 
 Updated: 2026-09-10
 
