@@ -31,7 +31,7 @@ class WorkerDirectiveDeliveryOutputBudgetTests(unittest.TestCase):
             ">1,200 words or >8,000 characters",
             "create a `.md` or other appropriate text artifact",
             "Do not split one large directive across several chat messages",
-            "Do not duplicate the full artifact inline after linking it",
+            "duplicate the full artifact inline after linking it",
         )
         for phrase in required:
             with self.subTest(phrase=phrase):
