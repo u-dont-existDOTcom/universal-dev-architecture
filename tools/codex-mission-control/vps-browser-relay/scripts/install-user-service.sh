@@ -2,15 +2,7 @@
 set -euo pipefail
 
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-install_root="${MC_RELAY_INSTALL_ROOT:-$HOME/.local/share/mission-control-chatgpt-relay/app}"
-install_root="$(realpath -m -- "$install_root")"
-case "$install_root" in
-  "$HOME"/*) ;;
-  *)
-    echo "MC_RELAY_INSTALL_ROOT must resolve to a directory beneath HOME." >&2
-    exit 64
-    ;;
-esac
+install_root="$(realpath -m -- "$HOME/.local/share/mission-control-chatgpt-relay/app")"
 config_root="${MC_RELAY_CONFIG_ROOT:-$HOME/.config/mission-control-chatgpt-relay}"
 state_root="${MC_RELAY_STATE_ROOT:-$HOME/.local/state/mission-control-chatgpt-relay}"
 browser_profile_root="${MC_RELAY_BROWSER_PROFILE_DIR:-$HOME/.local/share/mission-control-chatgpt-profile}"
