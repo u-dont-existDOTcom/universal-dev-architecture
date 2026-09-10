@@ -1,0 +1,1 @@
+The canonical worker-directive delivery rule is `../patterns/worker-directive-delivery-and-chat-output-budget.md`. Root `AGENTS.md` and `LESSON-INDEX.md` are the authoritative discovery paths.
