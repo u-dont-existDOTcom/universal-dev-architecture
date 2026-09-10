@@ -47,6 +47,19 @@ args=(
   "about:blank"
 )
 
+case "${MC_RELAY_BROWSER_DISABLE_SETUID_SANDBOX:-0}" in
+  0) ;;
+  1)
+    # NoNewPrivileges prevents a setuid helper from elevating. On hosts with
+    # unprivileged user namespaces, select Chromium's native namespace sandbox.
+    args+=("--disable-setuid-sandbox")
+    ;;
+  *)
+    echo "MC_RELAY_BROWSER_DISABLE_SETUID_SANDBOX must be 0 or 1." >&2
+    exit 64
+    ;;
+esac
+
 if [[ -n "$display_value" ]]; then
   exec env DISPLAY="$display_value" XDG_CONFIG_HOME="$browser_config_dir" "$browser_bin" "${args[@]}"
 fi

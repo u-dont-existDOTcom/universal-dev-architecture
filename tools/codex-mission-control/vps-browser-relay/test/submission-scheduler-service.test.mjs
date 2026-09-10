@@ -235,6 +235,8 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
   assert.match(relayEnv, /MC_RELAY_SCHEDULER_TOKEN=/);
   assert.match(launcher, /unset MC_RELAY_TOKEN MC_RELAY_SCHEDULER_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL/);
   assert.match(launcher, /XDG_CONFIG_HOME="\$browser_config_dir"/);
+  assert.match(launcher, /--disable-setuid-sandbox/);
+  assert.doesNotMatch(launcher, /["']--no-sandbox["']/);
   assert.match(installer, /browser_profile_root/);
   assert.match(installer, /"\$HOME\/\.cache"/);
   for (const source of [browserEnv, launcher]) assert.doesNotMatch(source, /clipboard|xclip|xsel/i);
