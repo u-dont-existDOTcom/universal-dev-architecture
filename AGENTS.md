@@ -80,6 +80,16 @@ Use Work/Codex only when the next bounded action materially requires terminal/lo
 
 GitHub access by itself is not a reason to delegate. Work/Codex must not author methodology, project strategy, prioritization, supervisory verdicts, owner decisions, scientific/safety conclusions, or substantive supervisory prose.
 
+## Worker directive delivery and chat output budget
+
+Follow `patterns/worker-directive-delivery-and-chat-output-budget.md` whenever the selected next action is execution by Codex/Work or another worker, or when a reusable operational payload would materially bloat chat history.
+
+**Do not stop after explaining what the worker should do.** In the same turn, either send the complete bounded directive through the appropriate supported handoff or deliver a complete owner-runnable directive. If a direct Work handoff is unavailable or declined but the owner still intends to use an existing worker, deliver the runnable directive through the available artifact surface rather than making the owner ask again.
+
+Keep short directives—roughly a couple of rendered pages or less—in one fenced code block when useful. For longer worker prompts, implementation briefs, migration plans, evaluation protocols, review instructions, or other reusable operational payloads, create a `.md` or appropriate text artifact and give the direct link instead of dumping the payload into chat. As a fallback threshold, prefer an artifact above roughly 1,200 words or 8,000 characters unless the owner explicitly asks for inline text.
+
+Chat must still state the decision, critical caveat, and what was delivered. Do not hide consequential judgment only in a file, and do not duplicate the full artifact inline after linking it.
+
 ## Browser-control efficiency
 
 For browser automation or browser control, default to **headless mode**. Use a headed/visible browser only when the task materially depends on visible browser or OS interaction, headed-only behavior, extension UI, native dialogs, window/focus behavior, WebAuthn/passkeys, visual debugging, or another capability that cannot be reproduced reliably headlessly. When deviating from headless mode, preserve the reason in the task record when one exists.
