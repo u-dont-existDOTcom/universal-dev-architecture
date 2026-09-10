@@ -80,9 +80,7 @@ Use Work/Codex only when the next bounded action materially requires terminal/lo
 
 GitHub access by itself is not a reason to delegate. Work/Codex must not author methodology, project strategy, prioritization, supervisory verdicts, owner decisions, scientific/safety conclusions, or substantive supervisory prose.
 
-## Worker directive delivery and chat output budget
-
-Follow `patterns/worker-directive-delivery-and-chat-output-budget.md`. If worker execution is next, same-turn complete handoff or deliver a complete owner-runnable directive; explanation alone is incomplete. Long reusable operational payloads go in `.md`/text artifacts, not chat.
+Worker handoffs also follow `patterns/worker-directive-delivery-and-chat-output-budget.md`: same-turn runnable directive; long operational payloads go to `.md`/text artifacts.
 
 ## Browser-control efficiency
 
