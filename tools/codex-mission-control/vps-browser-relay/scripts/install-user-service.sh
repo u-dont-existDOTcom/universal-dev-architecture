@@ -5,9 +5,10 @@ source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 install_root="${MC_RELAY_INSTALL_ROOT:-$HOME/.local/share/mission-control-chatgpt-relay/app}"
 config_root="${MC_RELAY_CONFIG_ROOT:-$HOME/.config/mission-control-chatgpt-relay}"
 state_root="${MC_RELAY_STATE_ROOT:-$HOME/.local/state/mission-control-chatgpt-relay}"
+browser_profile_root="${MC_RELAY_BROWSER_PROFILE_DIR:-$HOME/.local/share/mission-control-chatgpt-profile}"
 unit_root="$HOME/.config/systemd/user"
 
-install -d -m 0700 "$install_root" "$config_root" "$state_root" "$unit_root"
+install -d -m 0700 "$install_root" "$config_root" "$state_root" "$browser_profile_root" "$HOME/.cache" "$unit_root"
 rm -rf "$install_root"/*
 cp -a "$source_root"/. "$install_root"/
 chmod 0700 "$install_root/bin/mc-chatgpt-relay.mjs" "$install_root/bin/mc-submission-scheduler.mjs" "$install_root/scripts/launch-browser.sh"

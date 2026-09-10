@@ -229,10 +229,13 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
   const browserEnv = await readFile(new URL('../.browser.env.example', import.meta.url), 'utf8');
   const relayEnv = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
   const launcher = await readFile(new URL('../scripts/launch-browser.sh', import.meta.url), 'utf8');
+  const installer = await readFile(new URL('../scripts/install-user-service.sh', import.meta.url), 'utf8');
   assert.match(unit, /EnvironmentFile=%h\/.config\/mission-control-chatgpt-relay\/browser-env/);
   assert.doesNotMatch(browserEnv, /TOKEN|PRODUCER_ID|MISSION_CONTROL_URL/);
   assert.match(relayEnv, /MC_RELAY_SCHEDULER_TOKEN=/);
   assert.match(launcher, /unset MC_RELAY_TOKEN MC_RELAY_SCHEDULER_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL/);
+  assert.match(installer, /browser_profile_root/);
+  assert.match(installer, /"\$HOME\/\.cache"/);
   for (const source of [browserEnv, launcher]) assert.doesNotMatch(source, /clipboard|xclip|xsel/i);
 });
 
