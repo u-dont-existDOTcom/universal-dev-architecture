@@ -82,7 +82,7 @@ GitHub access by itself is not a reason to delegate. Work/Codex must not author 
 
 ## Worker directive delivery and chat output budget
 
-Follow `patterns/worker-directive-delivery-and-chat-output-budget.md`. **Do not stop after explaining what the worker should do.** If worker execution is next, complete the supported handoff or deliver a complete owner-runnable directive in the same turn. Keep short directives in one code block; put longer reusable operational payloads in a `.md`/text artifact and keep chat to the decision, critical caveat, and link.
+Follow `patterns/worker-directive-delivery-and-chat-output-budget.md`. If worker execution is next, same-turn complete handoff or deliver a complete owner-runnable directive; explanation alone is incomplete. Long reusable operational payloads go in `.md`/text artifacts, not chat.
 
 ## Browser-control efficiency
 
