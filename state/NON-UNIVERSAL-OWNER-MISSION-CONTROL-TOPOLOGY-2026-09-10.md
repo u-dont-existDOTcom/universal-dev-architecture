@@ -86,16 +86,22 @@ For routine MC automation, the owner's workstation is not an execution host. Spe
 
 A future explicitly owner-authorized local recovery operation may override this only for that bounded recovery and must not silently re-enable local execution as normal behavior.
 
-## Current evidence boundary
+## Current verified boundary
 
-Repository code already contains a relay-local 60-second `GlobalSubmissionPacer` and live-verified automation-owned browser isolation. That proves a useful per-process guard, not a cross-host global send queue.
+The privacy-safe receipt is `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 
-The following remain required before this owner deployment can be called complete:
+- The existing Hostinger ledger contained 24 exact retained click boundaries and 23 exact intervals. The minimum was 92,928 ms, with zero intervals below the 60,000 ms floor. Before this change, there was no central cross-host queue, lease, or fresh single-use admission before every send.
+- One reviewed relay tree and package are installed exactly on both authorized VPS hosts. Each host passes 155 relay tests with zero failures.
+- Netcup's dedicated browser service is active and healthy through loopback-only control; relay and scheduler sends remain disabled.
+- Hostinger is retained fail closed: the reviewed code is healthy, but its browser, relay, and scheduler remain disabled because the service sandbox blocks Brave without an owner-approved security relaxation.
+- All six concrete browser-send call sites are mechanically routed through the central durable scheduler. The scheduler persists FIFO queue state, exact single-use admission, final pre-click validation, the crossed boundary and global cooldown. Lease expiry, epoch, quiescence, pacing transfer and split-brain rejection are deterministic tests.
+- Registry validation rejects personal, ambiguous, legacy-unclassified, missing-provenance, duplicate and wrong-target conversations before send. Netcup's placeholder registry and Hostinger's legacy registry both fail closed in live doctor probes; no private chat locators are in Git.
+- This work used SSH/direct file transfer only. No local browser automation or clipboard action occurred; remote clipboard-process counts were zero.
 
-- live inspection of actual recent submission intervals on the existing Hostinger execution surface;
-- proof that every current ChatGPT-send path is queue-admitted rather than bypassing the pacer;
-- implementation and live proof of a shared cross-host send lease;
-- Netcup primary installation/health proof;
-- Hostinger secondary/failover proof;
-- MC-only supervisor-chat registry enforcement proof;
-- proof that routine MC execution no longer touches the owner's workstation browser or clipboard.
+The owner deployment is not complete. It still needs:
+
+- one remote ChatGPT login/MFA on Netcup plus creation and private registration of real dedicated MC-only supervisor conversations;
+- a supported way to run the Mission Control execution workers themselves on the VPS rather than the owner's local Codex/Work host;
+- an owner decision on the Hostinger service-sandbox tradeoff, or a compatible replacement browser runtime.
+
+Until those boundaries are resolved, both schedulers and both relays stay disabled. Hostinger's browser also stays disabled. No production or third host was changed.

@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "evidence_id": "EVIDENCE-MC-MULTI-HOST-HARDENING-20260910",
+  "recorded_at": "2026-09-10T19:16:13Z",
+  "requirement_ref": "docs/requirements/2026-09-10-mission-control-multi-host-hardening.owner-requirement.json",
+  "truthful_disposition": "IMPLEMENTED_PARTIAL_LIVE_VERIFICATION_BLOCKED",
+  "completion_allowed": false,
+  "source_control": {
+    "pull_request": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/91",
+    "reviewed_candidate_revision": "23f732be374cae7ee21c391bc6fabb6a65e06531",
+    "relay_source_tree": "91aa2901715fd205611d8d47cd5c5cf1b66e0c73",
+    "deployment_package_sha256": "953ebfc0f7542d803f50fef6c115e97e4eefd440c9cc336201ce3c354a8437f3",
+    "independent_review": "NO_REMAINING_RELEASE_BLOCKER",
+    "hosted_checks_at_reviewed_candidate": {
+      "mergeable": true,
+      "merge_state": "CLEAN",
+      "codeql_actions": "SUCCESS",
+      "codeql_javascript_typescript": "SUCCESS",
+      "codeql_python": "SUCCESS",
+      "deterministic_repository_audit": "SUCCESS",
+      "mission_control_app_tests_types_build": "SUCCESS",
+      "vps_browser_relay_tests_syntax": "SUCCESS"
+    }
+  },
+  "prechange_pacing_and_queue": {
+    "evidence_ref": "docs/evidence/2026-09-10-owner-deployment-prechange-pacing.json",
+    "exact_click_boundaries": 24,
+    "exact_adjacent_intervals": 23,
+    "minimum_observed_interval_ms": 92928,
+    "configured_floor_ms": 60000,
+    "intervals_below_floor": 0,
+    "latest_boundary": "2026-09-09T18:00:53.815Z",
+    "central_cross_host_queue_before_change": false,
+    "fresh_single_use_admission_before_every_send_before_change": false,
+    "prechange_conclusion": "Retained Hostinger sends respected the local 60-second floor, but admission was only host-local and was not safe for two sending hosts."
+  },
+  "central_queue_and_admission_proof": {
+    "minimum_interval_ms": 60000,
+    "concrete_browser_send_call_sites": 6,
+    "all_call_sites_route_through_central_scheduler": true,
+    "durable_queue_before_admission": true,
+    "single_use_exact_bound_admission_before_browser_mutation": true,
+    "final_pre_click_revalidation": true,
+    "durable_actual_boundary_and_global_cooldown": true,
+    "single_active_lease_and_monotonic_epoch": true,
+    "secondary_takeover_requires_prior_lease_expiry": true,
+    "secondary_takeover_requires_proven_quiescence": true,
+    "secondary_takeover_requires_pacing_state_transfer_and_full_interval": true,
+    "ambiguous_or_split_brain_state_fails_closed": true,
+    "provider_rate_limit_retry_remains_globally_admitted_and_bounded": true,
+    "proof_type": "DETERMINISTIC_SOURCE_EXHAUSTIVENESS_AND_BEHAVIOR_TESTS",
+    "test_file": "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-service.test.mjs",
+    "local_relay_test_result": "155_PASS_0_FAIL",
+    "live_scheduler_enabled": false,
+    "live_scheduler_note": "Both schedulers remain disabled until an authenticated MC-only registry and a supported remote worker runtime exist; therefore no live provider send was represented as acceptance evidence."
+  },
+  "mc_only_supervisor_ownership_proof": {
+    "registry_schema_requires": [
+      "MISSION_CONTROL_ONLY ownership",
+      "owner registration provenance",
+      "explicit Mission Control purpose",
+      "unique registration identity",
+      "unique normalized private conversation locator",
+      "exact automation-owned browser target binding"
+    ],
+    "rejected_classes": [
+      "PERSONAL",
+      "AMBIGUOUS",
+      "LEGACY_UNCLASSIFIED",
+      "MISSING_PROVENANCE",
+      "WRONG_TARGET",
+      "DUPLICATE_CONVERSATION"
+    ],
+    "deterministic_test": "MC-only registry and exact target binding reject legacy, personal, unregistered, and wrong-target sends",
+    "primary_live_config_probe": "FATAL_FAIL_CLOSED_PLACEHOLDER_REGISTRATION_TIMESTAMP",
+    "secondary_live_config_probe": "FATAL_FAIL_CLOSED_LEGACY_UNCLASSIFIED_OWNERSHIP",
+    "live_registered_mc_only_chat_count_verified": 0,
+    "activation_state": "MECHANICALLY_ENFORCED_LIVE_REGISTRATION_PENDING_OWNER_LOGIN_AND_CREATION",
+    "private_chat_locators_recorded_here": false
+  },
+  "host_receipts": {
+    "owner_primary": {
+      "provider_role": "NETCUP_PRIMARY",
+      "mem_total_kib": 16382176,
+      "mem_available_kib_at_probe": 13627784,
+      "reviewed_revision_installed": true,
+      "relay_source_tree_exact": true,
+      "deployment_package_sha256_exact": true,
+      "remote_relay_tests": "155_PASS_0_FAIL",
+      "relay_service": "DISABLED_INACTIVE",
+      "scheduler_service": "DISABLED_INACTIVE",
+      "browser_service": "ENABLED_ACTIVE",
+      "browser_control": "LOOPBACK_ONLY_HEALTHY",
+      "browser_profile": "DEDICATED_PRIVATE_REMOTE_PROFILE",
+      "native_sandbox": true,
+      "no_sandbox_flag_present": false,
+      "clipboard_process_count": 0,
+      "no_send_doctor": "FATAL_FAIL_CLOSED_PENDING_REAL_MC_ONLY_REGISTRY",
+      "health_disposition": "BROWSER_AND_CODE_HEALTHY_SEND_PATH_NOT_ACTIVATED"
+    },
+    "owner_secondary": {
+      "provider_role": "HOSTINGER_SECONDARY_FAILOVER",
+      "mem_total_kib": 8131476,
+      "mem_available_kib_at_probe": 6001616,
+      "reviewed_revision_installed": true,
+      "relay_source_tree_exact": true,
+      "deployment_package_sha256_exact": true,
+      "remote_relay_tests": "155_PASS_0_FAIL",
+      "relay_service": "DISABLED_INACTIVE",
+      "scheduler_service": "DISABLED_INACTIVE",
+      "browser_service": "DISABLED_INACTIVE",
+      "browser_control": "UNAVAILABLE_FAIL_CLOSED",
+      "browser_profile": "DEDICATED_PRIVATE_REMOTE_PROFILE",
+      "native_sandbox_required": true,
+      "no_sandbox_flag_present": false,
+      "clipboard_process_count": 0,
+      "no_send_doctor": "FATAL_FAIL_CLOSED_LEGACY_CHAT_OWNERSHIP",
+      "health_disposition": "CODE_HEALTHY_BROWSER_BLOCKED_BY_HOST_SERVICE_SANDBOX"
+    }
+  },
+  "owner_computer_exclusion": {
+    "execution_transport_used_for_this_change": "SSH_AND_DIRECT_FILE_TRANSFER_ONLY",
+    "local_browser_automation_invocations": 0,
+    "local_browser_tabs_opened_or_reused": 0,
+    "local_clipboard_read_or_write_invocations": 0,
+    "remote_clipboard_process_count_primary": 0,
+    "remote_clipboard_process_count_secondary": 0,
+    "send_source_clipboard_references": 0,
+    "browser_service_receives_relay_or_scheduler_credentials": false,
+    "routine_local_gui_fallback_implemented": false
+  },
+  "deployment_and_recovery": {
+    "exact_reviewed_package_installed_on_both_authorized_hosts": true,
+    "installer_strategy": "NON_DESTRUCTIVE_STAGED_ATOMIC_SWAP_WITH_PRIOR_APP_ROLLBACK",
+    "send_services_kept_disabled_during_and_after_deployment": true,
+    "secondary_kept_fail_closed": true,
+    "production_or_third_host_mutations": 0,
+    "secrets_credentials_profiles_or_private_locators_committed": false
+  },
+  "remaining_activation_boundaries": [
+    {
+      "id": "BOUNDARY-MC-REMOTE-LOGIN-AND-REGISTRY",
+      "why": "Netcup has an independent empty browser profile. Copying Hostinger cookies/profile is forbidden, and real dedicated MC-only conversations do not yet exist in its private registry.",
+      "required_owner_action": "Complete one remote ChatGPT login/MFA session on Netcup, create dedicated MC-only supervisor conversations, and register their exact private identities on both hosts."
+    },
+    {
+      "id": "BOUNDARY-MC-REMOTE-WORKER-RUNTIME",
+      "why": "The available Codex desktop host inventory contains only the owner's local host. Codex Local and Worktree execution are computer-local, while Codex Cloud is OpenAI-managed; no supported arbitrary-VPS Codex Work host was discoverable.",
+      "official_product_reference": "https://learn.chatgpt.com/docs/environments/modes",
+      "required_owner_action": "Provide or authorize a supported remote Mission Control execution-worker runtime/host surface; do not mislabel the browser relay as the worker runtime."
+    },
+    {
+      "id": "BOUNDARY-MC-SECONDARY-BROWSER-SANDBOX",
+      "why": "Hostinger's service sandbox blocks Brave even though direct native-setuid-sandbox launch succeeds. Weakening the protected LockPersonality service control was not authorized, so the secondary browser remains off.",
+      "required_owner_action": "Choose whether to authorize that specific Hostinger service security tradeoff or replace the secondary browser runtime with a compatible supported configuration."
+    }
+  ]
+}

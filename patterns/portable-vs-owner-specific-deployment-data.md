@@ -12,7 +12,7 @@ Owner-specific infrastructure may be preserved when it is needed for continuity,
 
 Every artifact whose meaning materially depends on one owner's actual infrastructure must carry an obvious classification such as:
 
-`NON_UNIVERSAL_OWNER_DEPLOYMENT`
+`NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`
 
 or an equivalent unambiguous heading/field.
 
@@ -32,10 +32,10 @@ Do **not** put passwords, tokens, cookies, private keys, session storage, browse
 When an owner-specific incident produces a generally useful lesson, split the result:
 
 1. put the reusable mechanism/invariant in `patterns/`, `templates/`, tests, or other universal surfaces;
-2. put the owner's concrete deployment/topology/evidence in an explicitly `NON_UNIVERSAL_OWNER_DEPLOYMENT` artifact;
+2. put the owner's concrete deployment/topology/evidence in an explicitly `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT` artifact;
 3. link the two without making the universal rule depend on the owner's identifiers.
 
-A copied repository should remain understandable and useful after all `NON_UNIVERSAL_OWNER_DEPLOYMENT` artifacts are ignored or replaced.
+A copied repository should remain understandable and useful after all `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT` artifacts are ignored or replaced.
 
 ## Mission Control example
 
