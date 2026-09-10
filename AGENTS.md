@@ -80,6 +80,8 @@ Use Work/Codex only when the next bounded action materially requires terminal/lo
 
 GitHub access by itself is not a reason to delegate. Work/Codex must not author methodology, project strategy, prioritization, supervisory verdicts, owner decisions, scientific/safety conclusions, or substantive supervisory prose.
 
+Worker handoffs also follow `patterns/worker-directive-delivery-and-chat-output-budget.md`: same-turn runnable directive; long operational payloads go to `.md`/text artifacts.
+
 ## Browser-control efficiency
 
 For browser automation or browser control, default to **headless mode**. Use a headed/visible browser only when the task materially depends on visible browser or OS interaction, headed-only behavior, extension UI, native dialogs, window/focus behavior, WebAuthn/passkeys, visual debugging, or another capability that cannot be reproduced reliably headlessly. When deviating from headless mode, preserve the reason in the task record when one exists.
