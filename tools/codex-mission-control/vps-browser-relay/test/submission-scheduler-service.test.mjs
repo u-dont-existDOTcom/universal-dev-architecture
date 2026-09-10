@@ -239,14 +239,12 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
   assert.doesNotMatch(launcher, /["']--no-sandbox["']/);
   assert.match(installer, /browser_profile_root/);
   assert.match(installer, /"\$HOME\/\.cache"/);
-  assert.match(installer, /realpath -m/);
-  assert.match(installer, /find "\$install_root" -mindepth 1 -maxdepth 1/);
-  assert.doesNotMatch(installer, /rm -rf "\$install_root"\/\*/);
+  assert.doesNotMatch(installer, /rm\s+-rf/);
   assert.doesNotMatch(installer, /MC_RELAY_INSTALL_ROOT/);
-  assert.match(
-    installer,
-    /install_root="\$\(realpath -m -- "\$HOME\/\.local\/share\/mission-control-chatgpt-relay\/app"\)"/,
-  );
+  assert.match(installer, /canonical_install_parent="\$\(realpath -e -- "\$install_parent"\)"/);
+  assert.match(installer, /staging_root="\$\(mktemp -d "\$install_parent\/\.install-new\.XXXXXX"\)"/);
+  assert.match(installer, /mv -T -- "\$install_root" "\$rollback_root"/);
+  assert.match(installer, /mv -T -- "\$staging_root" "\$install_root"/);
   for (const source of [browserEnv, launcher]) assert.doesNotMatch(source, /clipboard|xclip|xsel/i);
 });
 
