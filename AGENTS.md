@@ -82,13 +82,7 @@ GitHub access by itself is not a reason to delegate. Work/Codex must not author 
 
 ## Worker directive delivery and chat output budget
 
-Follow `patterns/worker-directive-delivery-and-chat-output-budget.md` whenever the selected next action is execution by Codex/Work or another worker, or when a reusable operational payload would materially bloat chat history.
-
-**Do not stop after explaining what the worker should do.** In the same turn, either send the complete bounded directive through the appropriate supported handoff or deliver a complete owner-runnable directive. If a direct Work handoff is unavailable or declined but the owner still intends to use an existing worker, deliver the runnable directive through the available artifact surface rather than making the owner ask again.
-
-Keep short directives—roughly a couple of rendered pages or less—in one fenced code block when useful. For longer worker prompts, implementation briefs, migration plans, evaluation protocols, review instructions, or other reusable operational payloads, create a `.md` or appropriate text artifact and give the direct link instead of dumping the payload into chat. As a fallback threshold, prefer an artifact above roughly 1,200 words or 8,000 characters unless the owner explicitly asks for inline text.
-
-Chat must still state the decision, critical caveat, and what was delivered. Do not hide consequential judgment only in a file, and do not duplicate the full artifact inline after linking it.
+Follow `patterns/worker-directive-delivery-and-chat-output-budget.md`. **Do not stop after explaining what the worker should do.** If worker execution is next, complete the supported handoff or deliver a complete owner-runnable directive in the same turn. Keep short directives in one code block; put longer reusable operational payloads in a `.md`/text artifact and keep chat to the decision, critical caveat, and link.
 
 ## Browser-control efficiency
 
