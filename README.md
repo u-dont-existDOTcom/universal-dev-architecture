@@ -53,6 +53,7 @@ python3 -m unittest discover -s tests -v
 - Every substantive finding receives a semantic lesson disposition before completion.
 - Project-specific evidence stays local by default; any necessary owner-specific continuity retained here is clearly non-universal, while transferable lessons are generalized with provenance and limits.
 - GitHub-hosted controls are never marked verified merely because they are recommended; settings/API evidence is required.
+- A targeted artifact edit preserves all unrelated content and presentation by default. Whole-image or whole-artifact regeneration is not an acceptable substitute when it changes protected people, identity/presentation attributes, wording, layout, style, branding, or other unaffected elements. Use `patterns/targeted-artifact-edit-preservation.md`; broad redesign requires explicit owner authorization.
 
 ## Authority
 
