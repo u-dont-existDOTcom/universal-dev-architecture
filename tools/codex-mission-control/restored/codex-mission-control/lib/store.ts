@@ -185,6 +185,123 @@ export class EventStore {
     return { lastViewedEventId: latest, viewedAt };
   }
 
+  submissionAuthorityState(pacingDomain: string): unknown | null {
+    const row = this.db.prepare(`
+      SELECT state_json FROM provider_submission_authority_state WHERE pacing_domain = ?
+    `).get(pacingDomain) as { state_json: string } | undefined;
+    return row ? JSON.parse(row.state_json) : null;
+  }
+
+  commitSubmissionAuthorityState(pacingDomain: string, state: unknown, ledger: Record<string, unknown>): Record<string, unknown> {
+    const recordedAt = new Date().toISOString();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const previous = this.db.prepare(`
+        SELECT event_hash FROM provider_submission_authority_ledger
+        WHERE pacing_domain = ? ORDER BY sequence DESC LIMIT 1
+      `).get(pacingDomain) as { event_hash: string } | undefined;
+      const payload = {
+        ...ledger,
+        schemaVersion: 1,
+        pacingDomain,
+        recordedAt,
+      };
+      const previousHash = previous?.event_hash ?? null;
+      const eventHash = sha256(canonicalJson({ payload, previousHash }));
+      const result = this.db.prepare(`
+        INSERT INTO provider_submission_authority_ledger(
+          pacing_domain, event_kind, ledger_json, recorded_at, previous_hash, event_hash
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        pacingDomain,
+        String(ledger.eventKind ?? "STATE_COMMITTED"),
+        canonicalJson(payload),
+        recordedAt,
+        previousHash,
+        eventHash,
+      );
+      this.db.prepare(`
+        INSERT INTO provider_submission_authority_state(pacing_domain, state_json, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(pacing_domain) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at
+      `).run(pacingDomain, canonicalJson(state), recordedAt);
+      this.db.exec("COMMIT");
+      return { sequence: Number(result.lastInsertRowid), ...payload, previousHash, eventHash };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  submissionAuthorityLedger(pacingDomain: string, limit = 200): Array<Record<string, unknown>> {
+    const boundedLimit = Number.isFinite(limit) ? Math.min(1000, Math.max(1, Math.trunc(limit))) : 200;
+    const rows = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? ORDER BY sequence DESC LIMIT ?
+    `).all(pacingDomain, boundedLimit) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    return rows.reverse().map((row) => ({
+      sequence: Number(row.sequence),
+      ...JSON.parse(row.ledger_json),
+      previousHash: row.previous_hash,
+      eventHash: row.event_hash,
+    }));
+  }
+
+  submissionAuthorityBoundaryLedger(pacingDomain: string): Array<Record<string, unknown>> {
+    const rows = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? AND event_kind = 'BOUNDARY_RECORDED'
+      ORDER BY sequence
+    `).all(pacingDomain) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    return rows.map((row) => ({
+      sequence: Number(row.sequence),
+      ...JSON.parse(row.ledger_json),
+      previousHash: row.previous_hash,
+      eventHash: row.event_hash,
+    }));
+  }
+
+  verifySubmissionAuthorityLedger(pacingDomain: string): { valid: boolean; errors: string[] } {
+    const persisted = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? ORDER BY sequence
+    `).all(pacingDomain) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    const rows = persisted.map((row) => ({
+      sequence: Number(row.sequence),
+      ...JSON.parse(row.ledger_json),
+      previousHash: row.previous_hash,
+      eventHash: row.event_hash,
+    }));
+    const errors: string[] = [];
+    let previousHash: string | null = null;
+    for (const row of rows) {
+      const { sequence, previousHash: storedPreviousHash, eventHash, ...payload } = row;
+      if (storedPreviousHash !== previousHash) errors.push(`Submission ledger sequence ${sequence} has an invalid previous hash.`);
+      const calculated = sha256(canonicalJson({ payload, previousHash }));
+      if (calculated !== eventHash) errors.push(`Submission ledger sequence ${sequence} has an invalid event hash.`);
+      previousHash = String(eventHash);
+    }
+    return { valid: errors.length === 0, errors };
+  }
+
   getObjective(worker: string) {
     const event = this.workerEvents(worker).find((candidate) => candidate.data.type === "objective_created");
     return event?.data.type === "objective_created" ? event.data : null;
@@ -245,6 +362,22 @@ export class EventStore {
       CREATE INDEX IF NOT EXISTS events_worker_sequence ON events(worker, sequence);
       CREATE INDEX IF NOT EXISTS events_mission_sequence ON events(mission_id, sequence);
       CREATE INDEX IF NOT EXISTS events_type_sequence ON events(type, sequence);
+      CREATE TABLE IF NOT EXISTS provider_submission_authority_state (
+        pacing_domain TEXT PRIMARY KEY,
+        state_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS provider_submission_authority_ledger (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        pacing_domain TEXT NOT NULL,
+        event_kind TEXT NOT NULL,
+        ledger_json TEXT NOT NULL,
+        recorded_at TEXT NOT NULL,
+        previous_hash TEXT,
+        event_hash TEXT NOT NULL UNIQUE
+      );
+      CREATE INDEX IF NOT EXISTS provider_submission_authority_ledger_domain_sequence
+        ON provider_submission_authority_ledger(pacing_domain, sequence);
       PRAGMA user_version = 2;
     `);
     const columns = this.db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
@@ -268,6 +401,16 @@ export class EventStore {
       BEFORE DELETE ON events
       BEGIN
         SELECT RAISE(ABORT, 'mission_control_events_are_append_only');
+      END;
+      CREATE TRIGGER IF NOT EXISTS provider_submission_authority_ledger_reject_update
+      BEFORE UPDATE ON provider_submission_authority_ledger
+      BEGIN
+        SELECT RAISE(ABORT, 'provider_submission_authority_ledger_is_append_only');
+      END;
+      CREATE TRIGGER IF NOT EXISTS provider_submission_authority_ledger_reject_delete
+      BEFORE DELETE ON provider_submission_authority_ledger
+      BEGIN
+        SELECT RAISE(ABORT, 'provider_submission_authority_ledger_is_append_only');
       END;
     `);
   }

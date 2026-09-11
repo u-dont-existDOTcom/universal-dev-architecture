@@ -25,6 +25,7 @@ test('central admission is durable before every browser mutation and actual boun
     async bindTarget(input) { events.push(['bind', input]); return { bound: true }; },
     async recordRateLimit(input) { events.push(['rate-limit', input]); return { recorded: true, providerRateLimitCount: 1 }; },
     async abortBeforeBoundary(input) { events.push(['abort', input]); return { aborted: true }; },
+    async recordOutcome(input) { events.push(['outcome', input]); return { recorded: true }; },
   };
   const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: store, host: host(), minIntervalMs: 60_000, now: () => Date.parse('2026-09-10T12:00:00.000Z') });
   await scheduler.submit({
@@ -39,7 +40,7 @@ test('central admission is durable before every browser mutation and actual boun
       return result;
     },
   });
-  assert.deepEqual(events.map(([name]) => name), ['admit', 'browser-model-mutation', 'browser-composer-mutation', 'validate', 'browser-click', 'boundary']);
+  assert.deepEqual(events.map(([name]) => name), ['admit', 'browser-model-mutation', 'browser-composer-mutation', 'validate', 'browser-click', 'boundary', 'outcome']);
   assert.equal(events[0][1].hostAlias, 'primary');
   assert.equal(events[0][1].hostRole, 'PRIMARY');
   assert.equal(events[5][1].admissionId, 'admission:test');
@@ -59,6 +60,7 @@ test('central scheduler rejection or outage prevents browser mutation', async ()
       async bindTarget() {},
       async recordRateLimit() {},
       async abortBeforeBoundary() {},
+      async recordOutcome() {},
     };
     const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: store, host: host(), minIntervalMs: 60_000 });
     await assert.rejects(scheduler.submit({ context: context(), beforeSubmit: async () => { mutated = true; }, submit: async () => {} }), (caught) => caught.code === error.code);
@@ -77,7 +79,7 @@ test('mismatched admission authority blocks before any browser mutation', async 
     const client = {
       async status() { return centralStatus(); },
       async admit() { return admissionAuthority({ admitted: true, singleUse: true, ...mismatch }); },
-      async validateAdmission() {}, async recordBoundary() {}, async bindTarget() {}, async recordRateLimit() {}, async abortBeforeBoundary() {},
+      async validateAdmission() {}, async recordBoundary() {}, async bindTarget() {}, async recordRateLimit() {}, async abortBeforeBoundary() {}, async recordOutcome() {},
     };
     const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: new MemoryStateStore(), host: host(), minIntervalMs: 60_000 });
     await assert.rejects(
@@ -102,6 +104,7 @@ test('final pre-click validation is exact-bound to the live granted admission', 
       async validateAdmission() { return admissionAuthority(malformed); },
       async recordBoundary() {}, async bindTarget() {}, async recordRateLimit() {},
       async abortBeforeBoundary() { return { aborted: true }; },
+      async recordOutcome() {},
     };
     const scheduler = new CentralSubmissionScheduler({
       schedulerClient: client,
@@ -311,7 +314,7 @@ function host() { return { alias: 'primary', role: 'PRIMARY', deploymentEpoch: 1
 
 function context() {
   return {
-    requestId: 'r-1', queueKey: 'queue:r-1:step:1', sendPath: 'CAPABILITY', supervisorId: 'spec', registrationId: 'registration:spec:test',
+    requestId: 'r-1', authorizationRef: 'r-1', queueKey: 'queue:r-1:step:1', sendPath: 'CAPABILITY', supervisorId: 'spec', registrationId: 'registration:spec:test',
     targetId: 'target-test', targetKind: 'REGISTERED_BOOTSTRAP', targetKey: 'bootstrap-test', expectedUrlSha256: sha256('https://chatgpt.com/c/bootstrap-test'),
     bodySha256: 'a'.repeat(64), hash: sha256,
   };

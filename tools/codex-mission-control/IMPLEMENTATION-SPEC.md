@@ -27,6 +27,18 @@ and does not broaden Mission Control into Symphony-owned orchestration.
 - deterministic Zod schemas and projection/comparator tests;
 - a fixture-tested stock Symphony read-only adapter.
 
+## Shared provider-send authority
+
+Mission Control's daemon is also the sole writer for the provider submission
+authority used by every authorized browser relay host. The authority persists
+one pacing-domain FIFO queue, one active fenced deployment lease, single-use
+pre-click admissions, exact MC-only destination bindings, the latest crossed
+provider boundary, account-wide provider-rate-limit state, and a hash-chained
+append-only privacy-safe send ledger. The Next.js BFF authenticates the relay's
+existing source-bound producer credential; installed VPS packages contain no
+independent scheduler service or scheduler credential. Host-local pacing remains
+defense in depth only.
+
 ## Required public projection
 
 The all-worker queue is the default. Non-green cards must expose the task, execution state, worker-to-contract state, contract-to-owner state, overall traffic/verdict, exact problem, evidence, directive/response, correction lifecycle, next trigger, owner action, continuation boundary, and checkpoint age. Attention and healthy variants share one complete renderer for the owner target/gap, latest/best evidence, strategy, supporting work, next measurement/intervention, reasoning identity/age, directive, Codex state, stop/review boundary, receipt/claim, Pro escalation, owner action, and next review. Numeric alignment is secondary.

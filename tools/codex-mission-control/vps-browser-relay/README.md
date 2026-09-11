@@ -212,38 +212,33 @@ required by the direct route-v4 topology.
 
 Webhook ingestion is the fast path. Periodic GitHub issue polling is reconciliation for missed webhooks. Public repositories can use low-frequency reconciliation without a GitHub token.
 
-## Central submission scheduler and failover
+## Mission Control submission authority and failover
 
-`mc-submission-scheduler.mjs` is a distinct loopback-only process. It persists a
-FIFO queue, single-use admissions, actual browser boundaries, the global
-cooldown, fresh-session target bindings, and one active deployment lease/epoch.
-The relay fails closed when the scheduler is absent, unreachable, stale, bound
-to another host/epoch, or carrying unresolved ambiguity.
+The Mission Control daemon is the only global provider-send authority. Its
+single-writer SQLite store persists the FIFO queue, single-use admissions,
+actual browser boundaries, account-wide provider rate-limit state, exact target
+bindings, active deployment lease/epoch, and hash-chained append-only ledger.
+Both VPS relays call the authenticated `/api/submission-authority` route on the
+same Mission Control origin. No host-local scheduler service or scheduler
+credential exists. The relay fails closed when Mission Control is absent,
+unreachable, stale, bound to another host/epoch, rate-limit paused, or carrying
+unresolved ambiguity.
 
-Configure a separate scheduler credential and matching deployment identity in
-`env`, then edit `active-lease.json`. Start the scheduler before any no-send
-doctor check on the active host:
+Keep the standby relay disabled during ordinary operation. A controlled
+takeover is an operator transaction, never a network-partition guess:
 
-```bash
-systemctl --user enable --now mission-control-submission-scheduler.service
-systemctl --user status mission-control-submission-scheduler.service
-```
-
-Keep a standby's scheduler and relay disabled during ordinary operation. A
-controlled takeover is an operator transaction, never a network-partition
-guess:
-
-1. stop and disable the old relay and scheduler, prove both are quiescent, and
+1. stop and disable the old relay, prove it and its browser are quiescent, and
    leave both disabled through the whole takeover;
 2. reconcile open/ambiguous admissions;
-3. copy the owner-only scheduler ledger to the successor without printing it;
-4. create a successor lease at exactly the prior epoch plus one, binding the
-   prior lease/host and proven quiescence;
+3. read the last boundary and lease from Mission Control without copying or
+   forking that ledger;
+4. activate a successor lease in Mission Control at exactly the prior epoch
+   plus one, binding the prior lease/host and proven quiescence;
 5. bind the takeover record to the exact old `expiresAt`, wait until that old
    lease has expired, preserve the exact `lastBoundaryAt`, and wait a full minimum interval after
    the later of that boundary and the quiescence proof, even when pacing state
    transferred successfully;
-6. start the successor scheduler, verify no-send status, then start its relay.
+6. verify the shared no-send status from the successor, then start its relay.
 
 Takeover durably cancels every unadmitted `QUEUED` or
 `PRECLICK_RETRY_PENDING` item. The successor may re-enqueue only the same
@@ -254,7 +249,7 @@ blocks takeover.
 Do not perform automatic failover when the prior host cannot be proven stopped.
 A successor rejects activation before the exact prior lease expiry even when
 quiescence and pacing transfer are otherwise proven. This makes an accidental
-restart of the disabled old services fail closed on their stale lease.
+restart of the disabled old relay fail closed on its stale lease.
 A same-lease renewal may only extend `expiresAt`; changing host, epoch, issue
 time, or takeover evidence requires a new fenced lease.
 
@@ -320,14 +315,13 @@ Edit:
 nano ~/.config/mission-control-chatgpt-relay/env
 ```
 
-Keep normal sends disabled initially and configure a distinct loopback scheduler
-credential plus the exact host/epoch identity:
+Keep normal sends disabled initially. Configure the source-bound Mission
+Control credential and exact host/epoch identity; the submission-authority URL
+defaults to `/api/submission-authority` on this same Mission Control origin:
 
 ```text
 MC_RELAY_PRODUCER_ID=collector:chatgpt-relay
 MC_RELAY_TOKEN=<dedicated 32+ character token>
-MC_RELAY_SCHEDULER_URL=http://127.0.0.1:4300
-MC_RELAY_SCHEDULER_TOKEN=<different dedicated 32+ character token>
 MC_RELAY_HOST_ALIAS=<portable deployment alias>
 MC_RELAY_HOST_ROLE=PRIMARY
 MC_RELAY_DEPLOYMENT_EPOCH=1
@@ -378,7 +372,6 @@ Sign in manually to the intended ChatGPT account and open the registered chats. 
 ### Start browser and inspect without sending
 
 ```bash
-systemctl --user enable --now mission-control-submission-scheduler.service
 systemctl --user enable --now mission-control-chatgpt-browser.service
 set -a
 source ~/.config/mission-control-chatgpt-relay/env
@@ -438,10 +431,8 @@ sudo loginctl enable-linger "$USER"
 ## Operations
 
 ```bash
-systemctl --user status mission-control-submission-scheduler.service
 systemctl --user status mission-control-chatgpt-browser.service
 systemctl --user status mission-control-chatgpt-relay.service
-journalctl --user -u mission-control-submission-scheduler.service -f
 journalctl --user -u mission-control-chatgpt-relay.service -f
 cat ~/.local/state/mission-control-chatgpt-relay/status.json
 ```
@@ -452,8 +443,10 @@ The status record reports hashes, queue state, browser/memory state, capability 
 active host/epoch, durable queue head/depth, unresolved admission, safety halt,
 minimum interval, persisted last-submission time, remaining delay, and next
 eligible submission time. `GLOBAL_SUBMISSION_COOLDOWN` is a normal fail-safe
-retry state; the outer relay loop retries the same immutable queue item on its
-next poll instead of blocking inside a send.
+retry state. The shared authority ledger additionally reports recent/minimum/
+median observed intervals, violations, rate-limit/retry state, and terminal
+delivery/recovery status. The outer relay loop retries the same immutable queue
+item on its next poll instead of creating a second queue identity.
 
 ### Ambiguous submissions
 

@@ -22,12 +22,14 @@ import {
   reconcileGitHubDecisionReceipts,
   type GitHubDecisionCandidate,
 } from "../lib/github-decision-receipts";
+import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
 const internalToken = process.env.MISSION_CONTROL_INTERNAL_TOKEN;
 if (!internalToken) throw new Error("MISSION_CONTROL_INTERNAL_TOKEN is required; use npm run dev/start or provide a secret for standalone daemon mode.");
 const store = new EventStore();
+const submissionAuthority = new SubmissionAuthorityRuntime(store);
 const notifications = new EventEmitter();
 notifications.setMaxListeners(100);
 if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
@@ -48,7 +50,26 @@ const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `${host}:${port}`}`);
     if (request.method === "GET" && url.pathname === "/health") {
-      return json(response, 200, { status: "ok", latestSequence: store.latestSequence(), chain: store.verifyChain() });
+      return json(response, 200, {
+        status: "ok",
+        latestSequence: store.latestSequence(),
+        chain: store.verifyChain(),
+        submissionAuthorityConfigured: submissionAuthority.enabled,
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/submission-authority/status") {
+      authorizeMutation(request);
+      return json(response, 200, await submissionAuthority.status());
+    }
+    if (request.method === "GET" && url.pathname === "/submission-authority/ledger") {
+      authorizeMutation(request);
+      return json(response, 200, await submissionAuthority.ledger(Number(url.searchParams.get("limit") ?? 200)));
+    }
+    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|boundaries|target-bindings|provider-rate-limits|aborts|outcomes)$/);
+    if (request.method === "POST" && submissionAuthorityMatch) {
+      const producer = authorizeMutation(request);
+      const result = await submissionAuthority.execute(submissionAuthorityMatch[1], await readJson(request), producer);
+      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
       return json(response, 200, snapshotFromStore(store));
@@ -207,8 +228,12 @@ const server = http.createServer(async (request, response) => {
     return json(response, 404, { error: "Not found" });
   } catch (error) {
     if (error instanceof ZodError) return json(response, 400, { error: "Invalid event", issues: error.issues });
-    if (error instanceof Error && "statusCode" in error && (error.statusCode === 401 || error.statusCode === 403)) {
-      return json(response, error.statusCode, { error: error.message });
+    if (error instanceof SubmissionSchedulerError) {
+      return json(response, error.statusCode, { error: error.message, code: error.code, ...error.detail });
+    }
+    if (error instanceof Error && "statusCode" in error
+      && typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode <= 599) {
+      return json(response, error.statusCode, { error: error.message, code: "code" in error ? error.code : undefined });
     }
     if (error instanceof IdempotencyConflictError || error instanceof ContractInvariantError || error instanceof CorrectionInvariantError) {
       return json(response, 409, { error: error.message });
