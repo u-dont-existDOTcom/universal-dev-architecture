@@ -25,6 +25,7 @@ export function submissionSchedulerContext({ chat, target, expectedUrl, provider
   }
   return {
     requestId,
+    authorizationRef: chat.workerId ? `task:${chat.workerId}` : 'task:mission-control',
     queueKey,
     sendPath,
     supervisorId: chat.supervisorId,

@@ -76,6 +76,7 @@ export class StateStore {
       const raw = await readFile(this.lockFile, 'utf8');
       const parsed = JSON.parse(raw);
       if (!Number.isInteger(parsed.pid) || parsed.pid <= 0) return true;
+      if (parsed.pid === process.pid) return false;
       try {
         await access(`/proc/${parsed.pid}`, fsConstants.F_OK);
         return false;

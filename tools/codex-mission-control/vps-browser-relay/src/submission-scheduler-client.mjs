@@ -15,6 +15,8 @@ export class SubmissionSchedulerClient {
   bindTarget(input) { return this.#json('/target-bindings', input); }
   recordRateLimit(input) { return this.#json('/provider-rate-limits', input); }
   abortBeforeBoundary(input) { return this.#json('/aborts', input); }
+  recordOutcome(input) { return this.#json('/outcomes', input); }
+  ledger(limit = 200) { return this.#request(`/ledger?limit=${encodeURIComponent(limit)}`, { method: 'GET' }); }
 
   #json(path, body) {
     return this.#request(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });

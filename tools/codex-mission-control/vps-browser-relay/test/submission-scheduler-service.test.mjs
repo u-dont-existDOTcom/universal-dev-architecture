@@ -1,17 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 import { parseChatDirectory, sha256 } from '../src/core.mjs';
 import {
   CentralSubmissionScheduler,
-  SchedulerStateStore,
   defaultSchedulerState,
   normalizeSchedulerState,
   parseDeploymentLease,
-  startSubmissionSchedulerService,
 } from '../src/submission-scheduler-service.mjs';
 
 const origin = Date.parse('2026-09-10T12:00:00.000Z');
@@ -74,6 +70,18 @@ test('FIFO queue is durable before grant, exposes its head/depth, and protects q
   assert.equal(store.state.queueItems[0].admissionIds.length, 2);
 });
 
+test('concurrent host requests share one serialization point and only one receives an admission', async () => {
+  const now = { value: origin };
+  const scheduler = makeScheduler(new MemoryStore(), now);
+  await scheduler.activateLease(primaryLease());
+  const results = await Promise.allSettled([
+    scheduler.admit(request({ requestId: 'race-a', queueKey: 'queue:race-a' }), 'collector:host-a'),
+    scheduler.admit(request({ requestId: 'race-b', queueKey: 'queue:race-b', bodySha256: 'b'.repeat(64) }), 'collector:host-b'),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'SUBMISSION_QUEUED').length, 1);
+});
+
 test('same-lease renewal may only extend expiry without changing authority', async () => {
   const now = { value: origin };
   const scheduler = makeScheduler(new MemoryStore(), now);
@@ -103,23 +111,6 @@ test('regressing or pre-admission boundary timestamps create a durable safety ha
   assert.equal(store.state.admissions[0].status, 'AMBIGUOUS_INTERVAL_VIOLATION');
   assert.equal(store.state.safetyHalt.code, 'SUBMISSION_BOUNDARY_PRECEDES_ADMISSION');
   await assert.rejects(scheduler.admit(request({ requestId: 'r-after-halt', queueKey: 'queue:halt' }), 'collector:relay'), hasCode('SUBMISSION_SAFETY_HALT'));
-});
-
-test('scheduler lock recovers only a provably dead same-host PID', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mc-scheduler-lock-'));
-  try {
-    const stateFile = join(root, 'scheduler.json');
-    const lockFile = `${stateFile}.lock`;
-    await writeFile(lockFile, JSON.stringify({ pid: 99999999 }));
-    const recovered = new SchedulerStateStore({ stateFile, lockFile });
-    await recovered.acquireLock();
-    await recovered.releaseLock();
-    await writeFile(lockFile, JSON.stringify({ pid: process.pid }));
-    const live = new SchedulerStateStore({ stateFile, lockFile });
-    await assert.rejects(live.acquireLock(), /Another submission scheduler/);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
 });
 
 test('corrupt or downgraded persisted state fails closed instead of resetting the pacing boundary', () => {
@@ -168,42 +159,14 @@ test('every persisted queue, admission, and binding row is schema and referentia
   }
 });
 
-test('scheduler daemon source binds only to loopback addresses', async () => {
-  const daemon = await readFile(new URL('../bin/mc-submission-scheduler.mjs', import.meta.url), 'utf8');
-  assert.match(daemon, /\['127\.0\.0\.1', 'localhost', '::1'\]/);
-  assert.match(daemon, /MC_SCHEDULER_HOST must remain loopback-only/);
-});
-
-test('HTTP health is coarse while status and mutation routes require the scheduler credential', async () => {
-  const now = { value: origin };
-  const store = new LockingMemoryStore();
-  const scheduler = makeScheduler(store, now);
-  const token = 'test-scheduler-token-at-least-32-characters';
-  const server = await startSubmissionSchedulerService({
-    config: { host: '127.0.0.1', port: 0, token, lease: primaryLease() }, scheduler, stateStore: store,
-    logger: { error() {} },
-  });
-  try {
-    const address = server.address();
-    assert.equal(typeof address, 'object');
-    const base = `http://127.0.0.1:${address.port}`;
-    const health = await fetch(`${base}/health`);
-    assert.equal(health.status, 200);
-    assert.deepEqual(await health.json(), { status: 'ok' });
-    assert.equal((await fetch(`${base}/status`)).status, 401);
-    const status = await fetch(`${base}/status`, { headers: { authorization: `Bearer ${token}` } });
-    assert.equal(status.status, 200);
-    const statusBody = await status.json();
-    assert.equal(statusBody.activeLease.epoch, 1);
-    assert.equal(statusBody.activeLease.activeHostAlias, 'primary');
-    assert.equal(Object.hasOwn(statusBody.activeLease, 'leaseId'), false);
-    const mutation = await fetch(`${base}/admissions`, { method: 'POST', body: JSON.stringify(request()) });
-    assert.equal(mutation.status, 401);
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-    await store.releaseLock();
-  }
-  assert.equal(store.locked, false);
+test('the VPS package contains no host-local scheduler authority', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const installer = await readFile(new URL('../scripts/install-user-service.sh', import.meta.url), 'utf8');
+  const relayUnit = await readFile(new URL('../systemd/user/mission-control-chatgpt-relay.service', import.meta.url), 'utf8');
+  assert.equal(Object.hasOwn(manifest.scripts, 'scheduler'), false);
+  assert.doesNotMatch(relayUnit, /mission-control-submission-scheduler/);
+  assert.match(installer, /disable --now mission-control-submission-scheduler\.service/);
+  assert.doesNotMatch(installer, /enable --now mission-control-submission-scheduler\.service/);
 });
 
 test('every concrete ChatGPT send path is wired through central admission and boundary recording', async () => {
@@ -232,8 +195,9 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
   const installer = await readFile(new URL('../scripts/install-user-service.sh', import.meta.url), 'utf8');
   assert.match(unit, /EnvironmentFile=%h\/.config\/mission-control-chatgpt-relay\/browser-env/);
   assert.doesNotMatch(browserEnv, /TOKEN|PRODUCER_ID|MISSION_CONTROL_URL/);
-  assert.match(relayEnv, /MC_RELAY_SCHEDULER_TOKEN=/);
-  assert.match(launcher, /unset MC_RELAY_TOKEN MC_RELAY_SCHEDULER_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL/);
+  assert.doesNotMatch(relayEnv, /MC_RELAY_SCHEDULER_TOKEN=|MC_SCHEDULER_HOST=/);
+  assert.match(relayEnv, /\/api\/submission-authority/);
+  assert.match(launcher, /unset MC_RELAY_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL MC_RELAY_SUBMISSION_AUTHORITY_URL/);
   assert.match(launcher, /XDG_CONFIG_HOME="\$browser_config_dir"/);
   assert.match(launcher, /--disable-setuid-sandbox/);
   assert.doesNotMatch(launcher, /["']--no-sandbox["']/);
@@ -370,10 +334,12 @@ test('provider rate-limit retry count survives scheduler invocations and process
   const exhausted = await scheduler.abortBeforeBoundary({ admissionId: retry.admissionId, relayStage: 'COMPOSER_FILLED', failureKind: 'PROVIDER_RATE_LIMIT' }, 'collector:relay');
   assert.equal(exhausted.retryExhausted, true);
   assert.equal(store.state.queueItems[0].status, 'RATE_LIMIT_RETRY_EXHAUSTED');
-  await assert.rejects(scheduler.admit(request({ queueKey: 'queue:rate' }), 'collector:relay'), hasCode('CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED'));
+  assert.equal(store.state.safetyHalt.code, 'CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED');
+  await assert.rejects(scheduler.admit(request({ queueKey: 'queue:rate' }), 'collector:relay'), hasCode('SUBMISSION_SAFETY_HALT'));
+  await assert.rejects(scheduler.admit(request({ requestId: 'unrelated-after-exhaustion', queueKey: 'queue:unrelated-after-exhaustion' }), 'collector:other-host'), hasCode('SUBMISSION_SAFETY_HALT'));
 });
 
-test('crossed provider rate limit resumes at its durable retry key after restart', async () => {
+test('crossed provider rate limit resumes the same durable queue item after restart', async () => {
   const now = { value: origin };
   const store = new MemoryStore();
   const scheduler = makeScheduler(store, now);
@@ -382,9 +348,27 @@ test('crossed provider rate limit resumes at its durable retry key after restart
   now.value += 1_000;
   await scheduler.recordBoundary({ admissionId: first.admissionId, boundaryAt: new Date(now.value).toISOString(), boundaryKind: 'CLICKED', conversationUrlSha256: null }, 'collector:relay');
   await scheduler.recordRateLimit({ admissionId: first.admissionId }, 'collector:relay');
+  await assert.rejects(scheduler.admit(request({
+    requestId: 'other-during-account-pause', queueKey: 'queue:other-during-account-pause', bodySha256: 'c'.repeat(64),
+  }), 'collector:relay'), hasCode('ACCOUNT_RATE_LIMIT_ACTIVE'));
+  await assert.rejects(scheduler.admit(request({ queueKey: 'queue:crossed-rate' }), 'collector:relay'), hasCode('PROVIDER_RATE_LIMIT_COOLDOWN'));
   now.value += 60_000;
   const resumed = await scheduler.admit(request({ queueKey: 'queue:crossed-rate' }), 'collector:relay');
-  assert.equal(store.state.queueItems.find((item) => item.queueItemId === resumed.queueItemId).queueKey, 'queue:crossed-rate:provider-rate-limit-retry:1');
+  assert.equal(resumed.queueItemId, first.queueItemId);
+  assert.equal(store.state.queueItems.find((item) => item.queueItemId === resumed.queueItemId).queueKey, 'queue:crossed-rate');
+});
+
+test('terminal delivery and recovery outcome is durable and immutable', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const admission = await scheduler.admit(request({ queueKey: 'queue:outcome' }), 'collector:relay');
+  now.value += 1_000;
+  await scheduler.recordBoundary({ admissionId: admission.admissionId, boundaryAt: new Date(now.value).toISOString(), boundaryKind: 'GENERATION_STARTED', conversationUrlSha256: null }, 'collector:relay');
+  await scheduler.recordOutcome({ admissionId: admission.admissionId, deliveryStatus: 'GENERATION_STARTED', recoveryStatus: 'NOT_REQUIRED' }, 'collector:relay');
+  assert.equal(normalizeSchedulerState(store.state).admissions.at(-1).deliveryStatus, 'GENERATION_STARTED');
+  await assert.rejects(scheduler.recordOutcome({ admissionId: admission.admissionId, deliveryStatus: 'FAILED_CLOSED', recoveryStatus: 'FAILED_CLOSED' }, 'collector:relay'), hasCode('SUBMISSION_OUTCOME_CONFLICT'));
 });
 
 test('fresh session binding is separately persisted before a bound-session admission', async () => {
@@ -433,6 +417,9 @@ test('MC-only registry and exact target binding reject legacy, personal, unregis
     await scheduler.activateLease(primaryLease());
     await assert.rejects(scheduler.admit(request(mutation), 'collector:relay'), hasCode(code));
   }
+  const missingAuthorization = makeScheduler(new MemoryStore(), { value: origin });
+  await missingAuthorization.activateLease(primaryLease());
+  await assert.rejects(missingAuthorization.admit(request({ authorizationRef: null }), 'collector:relay'), /authorizationRef/);
 });
 
 function makeScheduler(store, now, overrides = {}) {
@@ -472,7 +459,7 @@ function secondaryTakeoverLease(overrides = {}) {
 
 function request(overrides = {}) {
   return {
-    requestId: 'r-1', queueKey: 'queue:r-1', sendPath: 'CAPABILITY', hostAlias: 'primary', hostRole: 'PRIMARY', deploymentEpoch: 1,
+    requestId: 'r-1', authorizationRef: overrides.authorizationRef ?? overrides.requestId ?? 'r-1', queueKey: 'queue:r-1', sendPath: 'CAPABILITY', hostAlias: 'primary', hostRole: 'PRIMARY', deploymentEpoch: 1,
     leaseId: 'lease-primary-1', supervisorId: 'spec', registrationId: 'registration:spec:test', targetId: 'owned-target-test',
     targetKind: 'REGISTERED_BOOTSTRAP', targetKey: 'bootstrap-test', expectedUrlSha256: sha256('https://chatgpt.com/c/bootstrap-test'), bodySha256: 'a'.repeat(64),
     ...overrides,
@@ -491,10 +478,4 @@ class MemoryStore {
   constructor(state = defaultSchedulerState('2026-09-10T11:00:00.000Z')) { this.state = structuredClone(state); }
   async read() { return structuredClone(this.state); }
   async write(value) { this.state = structuredClone(value); return structuredClone(value); }
-}
-
-class LockingMemoryStore extends MemoryStore {
-  constructor(state) { super(state); this.locked = false; }
-  async acquireLock() { if (this.locked) throw new Error('already locked'); this.locked = true; }
-  async releaseLock() { this.locked = false; }
 }

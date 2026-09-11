@@ -5,7 +5,78 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-08
+Updated: 2026-09-11
+
+## Goal
+
+Complete issue #90 without weakening its frozen requirement: routine Mission
+Control worker/controller/supervisor browser execution runs on the authorized
+primary/secondary VPS topology, every provider send uses one shared Mission
+Control queue/lease/pacing authority, and only exact registered MC-only
+supervisor conversations are eligible.
+
+## Authority / baseline
+
+- Current owner authority is
+  `docs/requirements/2026-09-10-mission-control-dual-vps-global-send-queue.owner-requirement.json`.
+- Canonical baseline at correction start is merge commit
+  `0ac26e4e2f06271c3acad9cc6ad60421ebde1cf9` (PR #91).
+- PR #91 installed separate loopback schedulers and state files on both hosts.
+  That active/passive/manual-transfer design is partial and cannot satisfy the
+  frozen one-shared-authority requirement.
+- Production and all hosts other than the two named owner VPS hosts remain out
+  of scope.
+
+## Current checkpoint
+
+- Active correction branch:
+  `task/mission-control-shared-global-send-authority-20260911`.
+- The authority algorithm is now packaged inside Mission Control's existing
+  single-writer daemon. Its SQLite projection and hash-chained append-only
+  ledger are served through authenticated `/api/submission-authority` routes.
+- Provider rate limiting pauses the pacing domain, the bounded retry retains the
+  same queue item, and a second/ambiguous event fails closed globally.
+- The VPS package no longer contains an executable/service/configuration for a
+  host-local scheduler; its local 60-second guard remains defense in depth.
+- Latest final-source gates are 155/155 relay tests and 266/266 repository
+  tests. The Mission Control dependency-backed test/type/build gate remains for
+  hosted CI because this checkout has no installed npm dependencies.
+
+## Remaining
+
+1. Run the dependency-backed Mission Control tests, TypeScript check, and Next
+   production build through hosted checks (local npm dependencies are absent).
+2. Complete review, merge, and canonical commit verification.
+3. Reattach the authorized private VPS execution surface; audit Hostinger,
+   install the exact merged candidate on Mission Control/Netcup/Hostinger with
+   rollback, and run the frozen live acceptance matrix.
+4. Update requirement/issue truth only from those exact live receipts.
+
+## Blockers / unresolved
+
+- This execution session has no retained SSH/VPS tool, SSH configuration, key,
+  token, or private host locator. No host mutation or new live proof is claimed.
+- Netcup still requires owner-completed ChatGPT login/MFA and exact private
+  MC-only supervisor registration.
+- The available inventory still has no verified supported arbitrary-VPS
+  execution-worker runtime; the browser relay is not worker-runtime proof.
+- Hostinger's last verified browser service remains blocked by the systemd
+  `LockPersonality` sandbox interaction; changing that security control remains
+  an owner tradeoff unless a compatible runtime avoids it.
+
+## Evidence / artifacts
+
+- Active plan:
+  `docs/exec-plans/active/2026-09-10-mission-control-multi-host-hardening.md`.
+- Prior installed-host receipt:
+  `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
+- Prior live pacing audit:
+  `docs/evidence/2026-09-10-owner-deployment-prechange-pacing.json`.
+- Owner-specific current topology:
+  `state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md`.
+- Portable mechanisms:
+  `patterns/shared-provider-submission-queue.md` and
+  `patterns/mission-control-multi-host-submission-scheduling.md`.
 
 ## Persistent local worker permissions
 
@@ -324,7 +395,7 @@ exact-head verification, reviewed merge, non-production Hostinger installation,
 and one fresh disposable live proof are not yet claimed by this checkpoint.
 Production remains outside authority.
 
-## Next safe action
+## Historical next safe action (superseded 2026-09-11)
 
 The direct-path live proof is complete. Preserve its durable checkpoint and keep
 the consumed fixture closed; do not repeat OWNER delivery, binding preload or
@@ -339,7 +410,7 @@ publish the private PM locator, or touch production. Provider source timestamp
 remains independently unmet; widening into content-bearing/provider-internal
 acquisition is a privacy tradeoff requiring explicit owner/Chat consideration.
 
-## Recovery rule
+## Historical recovery rule (superseded 2026-09-11)
 
 Do not repeat PR #58 hotfix deployment, Hostinger installation, capability
 proof, historical ordinary acceptance, historical escalated `6 Pro` acceptance,
