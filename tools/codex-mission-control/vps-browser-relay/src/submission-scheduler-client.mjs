@@ -26,6 +26,7 @@ export class SubmissionSchedulerClient {
   recordRateLimit(input) { return this.#json('/provider-rate-limits', input); }
   abortBeforeBoundary(input) { return this.#json('/aborts', input); }
   recordOutcome(input) { return this.#json('/outcomes', input); }
+  reportHealth(input) { return this.#json('/relay-health', input); }
   ledger(limit = 200) { return this.#request(`/ledger?limit=${encodeURIComponent(limit)}`, { method: 'GET' }); }
 
   #json(path, body) {

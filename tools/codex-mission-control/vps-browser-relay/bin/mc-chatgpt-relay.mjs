@@ -13,6 +13,7 @@ import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mj
 import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
+import { buildRelayHealthReport } from '../src/health-report.mjs';
 
 const command = process.argv[2] ?? 'run';
 
@@ -59,6 +60,11 @@ try {
 
   if (command === 'doctor') {
     print({ config: publicConfig(config), ...(await runtime.doctor()) });
+  } else if (command === 'health-report') {
+    const doctor = await runtime.doctor();
+    const report = buildRelayHealthReport(config, doctor);
+    const receipt = await schedulerClient.reportHealth(report);
+    print({ status: 'HEALTH_REPORTED', hostRole: report.hostRole, observedAt: report.observedAt, expiresAt: receipt.expiresAt });
   } else if (command === 'mcp-preflight') {
     const chatId = process.argv[3];
     if (!chatId) throw new Error('Usage: mc-chatgpt-relay mcp-preflight <registered-chat-id>');
@@ -120,7 +126,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|mcp-preflight|capabilities|provision|once|run|controller-init|controller-once|controller-run|status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|run|controller-init|controller-once|controller-run|status|resolve>');
   }
 
   await stateStore.releaseLock();

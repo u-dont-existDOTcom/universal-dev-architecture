@@ -59,14 +59,12 @@ export interface ConfiguredSupervisorChatProvision {
 
 export interface ConfiguredSupervisorDirectory {
   configurationState: "MISSING" | "CONFIGURED" | "INVALID";
-  providerRelayState: "NOT_CONNECTED";
   entries: ConfiguredSupervisorChat[];
   error: string | null;
 }
 
 export interface ConfiguredSupervisorProvisionDirectory {
   configurationState: "MISSING" | "CONFIGURED" | "INVALID";
-  providerRelayState: "NOT_CONNECTED";
   entries: ConfiguredSupervisorChatProvision[];
   error: string | null;
 }
@@ -75,7 +73,7 @@ export function loadConfiguredSupervisorChats(
   raw = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON,
 ): ConfiguredSupervisorDirectory {
   if (!raw?.trim()) {
-    return { configurationState: "MISSING", providerRelayState: "NOT_CONNECTED", entries: [], error: null };
+    return { configurationState: "MISSING", entries: [], error: null };
   }
   try {
     const parsed = JSON.parse(raw);
@@ -96,11 +94,10 @@ export function loadConfiguredSupervisorChats(
     if (projectManagers.length === 1 && projectManagers[0].supervisorId !== CANONICAL_PROJECT_MANAGER_ID) {
       throw new Error(`Configured Project Manager supervisorId must be ${CANONICAL_PROJECT_MANAGER_ID}.`);
     }
-    return { configurationState: "CONFIGURED", providerRelayState: "NOT_CONNECTED", entries, error: null };
+    return { configurationState: "CONFIGURED", entries, error: null };
   } catch (error) {
     return {
       configurationState: "INVALID",
-      providerRelayState: "NOT_CONNECTED",
       entries: [],
       error: error instanceof Error ? error.message : "Configured supervisor chat directory is invalid.",
     };
@@ -111,7 +108,7 @@ export function loadConfiguredSupervisorChatProvisions(
   raw = process.env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON,
 ): ConfiguredSupervisorProvisionDirectory {
   if (!raw?.trim()) {
-    return { configurationState: "MISSING", providerRelayState: "NOT_CONNECTED", entries: [], error: null };
+    return { configurationState: "MISSING", entries: [], error: null };
   }
   try {
     const parsed = JSON.parse(raw);
@@ -121,11 +118,10 @@ export function loadConfiguredSupervisorChatProvisions(
     assertUnique(entries.map((entry) => entry.registrationId), "Provisioning registration IDs");
     assertUnique(entries.map((entry) => entry.provisioningKey), "Supervisor provisioning keys");
     assertProjectManagerIdentity(entries, "provisioned");
-    return { configurationState: "CONFIGURED", providerRelayState: "NOT_CONNECTED", entries, error: null };
+    return { configurationState: "CONFIGURED", entries, error: null };
   } catch (error) {
     return {
       configurationState: "INVALID",
-      providerRelayState: "NOT_CONNECTED",
       entries: [],
       error: error instanceof Error ? error.message : "Supervisor provisioning directory is invalid.",
     };

@@ -210,7 +210,7 @@ test("configured stable supervisor identity is distinct from its bootstrap conve
     },
   ]));
   assert.equal(directory.configurationState, "CONFIGURED");
-  assert.equal(directory.providerRelayState, "NOT_CONNECTED");
+  assert.equal(Object.hasOwn(directory, "providerRelayState"), false);
   assert.equal(directory.entries[0]?.supervisorId, CANONICAL_PROJECT_MANAGER_ID);
   assert.equal(directory.entries[0]?.bootstrapCapability.chatId, "mc-project-manager-bootstrap-test");
   assert.notEqual(directory.entries[0]?.supervisorId, directory.entries[0]?.bootstrapCapability.chatId);

@@ -416,6 +416,8 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
 test('system-manager compatibility mode keeps browser and relay unprivileged while preserving Chromium sandboxing', async () => {
   const browserUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-browser@.service', import.meta.url), 'utf8');
   const relayUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-relay@.service', import.meta.url), 'utf8');
+  const healthUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-health@.service', import.meta.url), 'utf8');
+  const healthTimer = await readFile(new URL('../systemd/system/mission-control-chatgpt-health@.timer', import.meta.url), 'utf8');
   const installer = await readFile(new URL('../scripts/install-system-services.sh', import.meta.url), 'utf8');
   assert.match(browserUnit, /^User=%i$/m);
   assert.doesNotMatch(browserUnit, /^Group=/m);
@@ -442,6 +444,15 @@ test('system-manager compatibility mode keeps browser and relay unprivileged whi
   assert.match(installer, /browser_profile.*!= "\$target_home\/"\*/);
   assert.match(installer, /ReadWritePaths=\$browser_profile \$target_home\/\.cache/);
   assert.match(installer, /ExecStart=\$node_bin \$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/bin\/mc-chatgpt-relay\.mjs run/);
+  assert.match(installer, /mission-control-chatgpt-health@\.service/);
+  assert.match(installer, /mission-control-chatgpt-health@\.timer/);
+  assert.match(installer, /ExecStart=\$node_bin \$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/bin\/mc-chatgpt-relay\.mjs health-report/);
+  assert.match(healthUnit, /^Type=oneshot$/m);
+  assert.match(healthUnit, /^User=%i$/m);
+  assert.match(healthUnit, /^NoNewPrivileges=true$/m);
+  assert.match(healthUnit, /health-report/);
+  assert.match(healthTimer, /^OnUnitActiveSec=60s$/m);
+  assert.match(healthTimer, /^Persistent=true$/m);
   assert.match(installer, /systemctl daemon-reload/);
   assert.doesNotMatch(installer, /rm\s+-rf|TOKEN|clipboard|xclip|xsel|EnvironmentFile=\/root|ExecStart=\/root/i);
 });

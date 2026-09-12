@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Mission Control relay and browser health (%i)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Persistent=true
+Unit=mission-control-chatgpt-health@%i.service
+
+[Install]
+WantedBy=timers.target

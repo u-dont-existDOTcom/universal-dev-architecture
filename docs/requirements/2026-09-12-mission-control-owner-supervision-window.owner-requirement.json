@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-OWNER-SUPERVISION-WINDOW-20260912",
+  "recorded_at": "2026-09-12T19:58:56+00:00",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "RECORDED_NOT_IMPLEMENTED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "## Owner outcome\n\nAfter issue #90 completed Netcup-primary / Hostinger-secondary connectivity, the owner still lacks one obvious daily supervision window and cannot easily tell where Mission Control is, what is running, what needs attention, or which MC-only reasoning chat owns a task.\n\nThis is a separate owner-facing operations/UX requirement. Do not reopen #90's connectivity work.\n\n## Current verified facts\n\n- Netcup is the healthy PRIMARY and Mission Control is the sole shared authority.\n- The live Mission Control BFF/daemon are intentionally loopback-only on PRIMARY; no owner-friendly external dashboard URL is recorded in the #90 live acceptance evidence.\n- The application already has:\n  - `/` — fleet / OWNER ATTENTION QUEUE;\n  - `/supervision` — Project Manager and specialist supervision control plane;\n  - top navigation between those surfaces;\n  - worker detail/evidence pages;\n  - direct supervisor-chat links where registered.\n- Three `MISSION_CONTROL_ONLY` conversations are live and privately registered.\n- The current `SupervisionConsole` / configured supervisor-directory read model still hard-codes `providerRelayState: NOT_CONNECTED` and contains stale pre-live copy saying automatic two-way ChatGPT transport still requires a relay. That no longer matches issue #90's LIVE_VERIFIED transport state.\n\n## Required owner experience\n\nProvide one stable owner-facing Mission Control entry point that the owner can bookmark/open intentionally. Routine workers must still never use the owner's browser or clipboard.\n\nThe window must make these immediately visible without reading GitHub issues or internal IDs:\n\n1. **Fleet status / attention**\n   - what workers/tasks are active;\n   - GREEN/YELLOW/RED/UNKNOWN state;\n   - exact current problem;\n   - current directive/action;\n   - continuation state;\n   - next review trigger;\n   - whether owner action is required.\n\n2. **Reasoning supervision**\n   - permanent Project Manager chat;\n   - specialist MC-only chats;\n   - exact current supervisor for each task;\n   - direct open-chat link;\n   - latest verified/source-bound reasoning message time and age;\n   - pending internal supervisor routes / decision requests;\n   - whether a worker is waiting on reasoning, executing, awaiting evidence, or finished.\n\n3. **Transport / VPS health**\n   - PRIMARY = Netcup and SECONDARY = Hostinger;\n   - current active epoch/host role;\n   - Mission Control authority health;\n   - browser/worker health per host;\n   - global queue depth;\n   - last provider send boundary;\n   - current minimum interval;\n   - recent/minimum inter-send interval and violations;\n   - current rate-limit/cooldown state;\n   - ledger integrity.\n\n4. **Interface truth**\n   - remove stale `NOT_CONNECTED` provider-relay assumptions from the live supervision projection;\n   - derive displayed transport state from current authenticated Mission Control/submission-authority state;\n   - never label a configured locator/source-bound chat as disconnected when the live transport is verified;\n   - fail closed if live state cannot be established.\n\n5. **Safe owner access**\n   - preserve remote worker/browser execution on VPS only;\n   - owner viewing the dashboard in their own browser is permitted and is not an execution fallback;\n   - do not expose raw private ChatGPT locators, bearer tokens, target IDs, host credentials, or secrets in Git/logs;\n   - prefer a secure, low-friction owner access path. Keep the Mission Control backend private/loopback unless a reviewed authenticated HTTPS/private-network exposure is deliberately selected.\n\n## Access decision\n\nFirst inspect the actual live Netcup deployment and determine the simplest secure owner access already available. Prefer, in order:\n\n1. an existing secure owner-only access/tunnel if one already exists;\n2. a durable SSH/local-forward launcher/bookmark workflow if that gives the owner one-click-ish access without exposing MC publicly;\n3. otherwise a private-network or authenticated HTTPS front door only if it materially improves owner usability without weakening the current security boundary.\n\nDo not change security architecture merely to obtain a pretty URL.\n\n## Acceptance\n\nDo not close this issue until all are true:\n\n- owner can be given one exact stable procedure/entry point to open Mission Control;\n- `/` displays current live fleet/attention state rather than fixture/demo state;\n- `/supervision` accurately reflects the now-live provider/browser transport;\n- permanent PM + specialist chats are directly reachable from the UI using their private registered locators;\n- pending supervisor routes/owner decisions are obvious;\n- host/queue/pacing/rate-limit/ledger health is visible in owner-readable terms;\n- stale UI claims like `provider relay NOT CONNECTED` are eliminated or truthfully derived;\n- owner access was live-tested from an owner viewing context;\n- no worker/browser/clipboard execution returned to the owner's workstation;\n- current tests/type/build plus hosted checks are green;\n- leave a concise owner instruction: `Open Mission Control here / this way; use Fleet for X; use Supervision for Y.`\n\nRelates to completed #90 but is not part of #90 completion.",
+    "sha256": "e955a9028b7fa478589750ba8e4b5d7a659f4225847ad833371f4b7217bf474f",
+    "source_type": "github_issue",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "github-issue:104"
+  },
+  "normalized_outcome": "Joel has one stable secure owner-viewing entry point to a truthful live Mission Control dashboard. Fleet exposes current operational work and attention state; Supervision exposes exact source-bound MC-only reasoning ownership and workflow state; infrastructure health projects authenticated shared-authority, host, queue, pacing, cooldown, and ledger evidence without private identifiers. The live deployment contains no misleading demo workers, remains loopback-private behind owner SSH access, and worker/browser/clipboard execution remains on the VPS topology.",
+  "required_outcomes": [
+    {
+      "id": "RO-MCWINDOW-001",
+      "terminal_required": true,
+      "observable": "One concise, stable, live-tested owner procedure opens the loopback-private Mission Control dashboard without public exposure or credential disclosure.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-002",
+      "terminal_required": true,
+      "observable": "The deployed Fleet root and worker detail pages show current live workers/tasks and attention state rather than demo or fixture workers; authenticated reads and SSE live updates work.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-003",
+      "terminal_required": true,
+      "observable": "The deployed Supervision view derives transport health from current authenticated Mission Control and submission-authority evidence, removing static NOT_CONNECTED and stale pre-live transport copy and failing closed when evidence is unavailable.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-004",
+      "terminal_required": true,
+      "observable": "The permanent Project Manager and specialist MC-only chats are shown with registered, reachable, and source-bound state, current task ownership, latest verified reasoning age, and direct private Open Chat controls without exposing locators in logs or repository state.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-005",
+      "terminal_required": true,
+      "observable": "Fleet and Supervision plainly distinguish running, parked, attention, failed, waiting-for-reasoning, executing, awaiting-evidence, finished, pending supervisor routes, and owner-decision waits with current action and next review trigger.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-006",
+      "terminal_required": true,
+      "observable": "A compact live health area shows active host role and epoch, authority and per-host worker/browser health, queue depth, last boundary, configured/recent/minimum pacing, violations, cooldown/rate-limit state, and ledger integrity without secrets or private target identifiers.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-007",
+      "terminal_required": true,
+      "observable": "Owner viewing remains separate from execution: no Mission Control worker, controller, browser automation, or clipboard operation returns to Joel's workstation.",
+      "status": "UNMET",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MCWINDOW-008",
+      "terminal_required": true,
+      "observable": "The exact deployed candidate passes applicable repository, Mission Control, relay, authentication/security, build, live access/view, review, and hosted merge checks.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a unit test for a dashboard projection without inspecting the deployed views",
+    "a configured supervisor chat URL represented as transport health",
+    "a static CONNECTED label without authenticated authority evidence",
+    "a dashboard reachable only by an undisclosed ad hoc command",
+    "fixture workers rendered attractively but represented as current work",
+    "SSE endpoint existence without a live authenticated update observation",
+    "owner access that publicly exposes the loopback-private backend",
+    "using Joel's browser or clipboard as a worker execution fallback",
+    "green local tests without exact-head hosted checks and live deployment proof",
+    "closing or reimplementing completed issue 90 connectivity"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/outcome-advancement-and-strategy-efficacy.md",
+    "patterns/persistent-browser-automation-hygiene.md",
+    "patterns/mission-control-multi-host-submission-scheduling.md"
+  ],
+  "production_boundary": "Only the already authorized Mission Control deployment on the two owner VPS hosts and a private owner-viewing access workflow are in scope. No public exposure, third host, or unrelated production promotion is authorized.",
+  "next_direct_evidence": "Audit the actual PRIMARY host for existing owner-only access, seed mode, persisted worker records, authenticated root/supervision/detail projections, SSE behavior, and current submission-authority/host health before selecting or changing the access path or UI projection."
+}

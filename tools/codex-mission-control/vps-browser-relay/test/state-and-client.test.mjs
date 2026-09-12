@@ -7,6 +7,7 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
 import { loadConfig, publicConfig } from '../src/config.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
+import { buildRelayHealthReport } from '../src/health-report.mjs';
 
 test('state store is atomic, owner-only, and rejects a concurrent relay', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-state-'));
@@ -161,6 +162,52 @@ test('relay fails closed when the Mission Control submission authority is unreac
     fetchImpl: async () => { throw new Error('unreachable'); },
   });
   await assert.rejects(client.admit({}), (error) => error.code === 'CENTRAL_SCHEDULER_UNREACHABLE');
+});
+
+test('relay health reports use the authenticated authority route and expose no target identity', async () => {
+  const requests = [];
+  const client = new SubmissionSchedulerClient({
+    url: 'https://mission-control.example/api/submission-authority',
+    token: 's'.repeat(32),
+    producerId: 'collector:test-relay',
+    attestorKey: 'a'.repeat(32),
+    pacingDomain: 'account:test',
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return Response.json({ accepted: true, expiresAt: '2026-09-12T12:02:00.000Z' });
+    },
+  });
+  const config = {
+    runtime: { submissionHost: { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 3 } },
+  };
+  const doctor = {
+    status: 'READY',
+    checkedAt: '2026-09-12T12:00:00.000Z',
+    centralScheduler: {
+      authenticatedRelayBinding: {
+        automationWindowId: 101,
+        ownedTargetCount: 1,
+        ownedTargetIdsSha256: 'a'.repeat(64),
+      },
+    },
+    browser: {
+      webSocketDebuggerUrlPresent: true,
+      automationWindowOwnershipEnforced: true,
+      automationWindowId: 101,
+      automationOwnedTabCount: 1,
+      automationOwnedTargetIdsSha256: 'a'.repeat(64),
+    },
+  };
+  const report = buildRelayHealthReport(config, doctor);
+  assert.equal(report.relayWorkerState, 'HEALTHY');
+  assert.equal(report.browserState, 'HEALTHY');
+  assert.equal(report.authorityBindingState, 'BOUND');
+  assert.doesNotMatch(JSON.stringify(report), /targetId|ownedTargetIdsSha256|automationWindowId/);
+
+  await client.reportHealth(report);
+  assert.equal(requests[0].url, 'https://mission-control.example/api/submission-authority/relay-health');
+  assert.equal(requests[0].options.headers.authorization, `Bearer ${'s'.repeat(32)}`);
+  assert.deepEqual(JSON.parse(requests[0].options.body), report);
 });
 
 test('submission interval config accepts only 60000 through 600000', async () => {

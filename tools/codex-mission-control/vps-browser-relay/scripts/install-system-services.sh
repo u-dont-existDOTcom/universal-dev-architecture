@@ -84,7 +84,7 @@ if [[ ! -x "$installed_app/scripts/launch-browser.sh" || ! -x "$installed_app/bi
   exit 69
 fi
 
-for unit in mission-control-chatgpt.slice mission-control-chatgpt-browser@.service mission-control-chatgpt-relay@.service; do
+for unit in mission-control-chatgpt.slice mission-control-chatgpt-browser@.service mission-control-chatgpt-relay@.service mission-control-chatgpt-health@.service mission-control-chatgpt-health@.timer; do
   install -m 0644 "$source_root/systemd/system/$unit" "/etc/systemd/system/$unit"
 done
 
@@ -93,12 +93,14 @@ done
 # drop-in so the service cannot read another account's config or executable.
 browser_dropin="/etc/systemd/system/mission-control-chatgpt-browser@${target_user}.service.d"
 relay_dropin="/etc/systemd/system/mission-control-chatgpt-relay@${target_user}.service.d"
-install -d -m 0755 "$browser_dropin" "$relay_dropin"
+health_dropin="/etc/systemd/system/mission-control-chatgpt-health@${target_user}.service.d"
+install -d -m 0755 "$browser_dropin" "$relay_dropin" "$health_dropin"
 
 browser_override="$(mktemp "$browser_dropin/.home.conf.XXXXXX")"
 relay_override="$(mktemp "$relay_dropin/.home.conf.XXXXXX")"
+health_override="$(mktemp "$health_dropin/.home.conf.XXXXXX")"
 cleanup() {
-  rm -f -- "$browser_override" "$relay_override"
+  rm -f -- "$browser_override" "$relay_override" "$health_override"
 }
 trap cleanup EXIT
 
@@ -124,9 +126,22 @@ printf '%s\n' \
   "ReadWritePaths=$target_home/.local/state/mission-control-chatgpt-relay $target_home/.local/share/mission-control-chatgpt-profile" \
   >"$relay_override"
 
-chmod 0644 "$browser_override" "$relay_override"
+printf '%s\n' \
+  '[Service]' \
+  'EnvironmentFile=' \
+  "EnvironmentFile=$target_home/.config/mission-control-chatgpt-relay/env" \
+  'ExecStart=' \
+  "ExecStart=$node_bin $target_home/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay.mjs health-report" \
+  'ReadOnlyPaths=' \
+  "ReadOnlyPaths=$target_home/.config/mission-control-chatgpt-relay" \
+  'ReadWritePaths=' \
+  "ReadWritePaths=$target_home/.local/state/mission-control-chatgpt-relay $target_home/.local/share/mission-control-chatgpt-profile" \
+  >"$health_override"
+
+chmod 0644 "$browser_override" "$relay_override" "$health_override"
 mv -f -- "$browser_override" "$browser_dropin/home.conf"
 mv -f -- "$relay_override" "$relay_dropin/home.conf"
+mv -f -- "$health_override" "$health_dropin/home.conf"
 systemctl daemon-reload
 
 cat <<OUT
@@ -147,4 +162,7 @@ Start the browser without enabling sends:
 
 After central authority checks pass and the host is active, start the relay:
   systemctl enable --now mission-control-chatgpt-relay@$target_user.service
+
+Enable authenticated health reporting independently of live sending:
+  systemctl enable --now mission-control-chatgpt-health@$target_user.timer
 OUT

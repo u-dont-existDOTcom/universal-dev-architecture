@@ -193,6 +193,58 @@ test("provider rate limiting pauses the account and retries the same durable que
   }
 });
 
+test("authenticated relay health drives owner status and expires fail closed", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const authority = runtime(store, now, {
+      MISSION_CONTROL_PRIMARY_HOST_LABEL: "Primary VPS",
+      MISSION_CONTROL_SECONDARY_HOST_LABEL: "Secondary VPS",
+      MISSION_CONTROL_RELAY_HEALTH_MAX_AGE_MS: "120000",
+    });
+    const report = {
+      schemaVersion: 1,
+      hostAlias: "primary-test",
+      hostRole: "PRIMARY",
+      deploymentEpoch: 1,
+      observedAt: new Date(now.value).toISOString(),
+      relayWorkerState: "HEALTHY",
+      browserState: "HEALTHY",
+      authorityBindingState: "BOUND",
+      detail: "READY",
+    };
+    const accepted = await authority.execute("relay-health", report, producer);
+    assert.equal(accepted.accepted, true);
+
+    const current = await authority.operatorStatus();
+    assert.equal(current.overallState, "HEALTHY");
+    assert.equal(current.providerRelayState, "HEALTHY");
+    assert.equal(current.activeHostLabel, "Primary VPS");
+    assert.equal(current.authority.writer, "MISSION_CONTROL_SINGLE_WRITER");
+    assert.equal(current.authority.ledgerIntegrity, "VALID");
+    assert.equal(current.hosts[0].ownedTargetCount, 1);
+    assert.equal(current.hosts[0].reportFresh, true);
+    assert.doesNotMatch(JSON.stringify(current), /automation-owned-target|primary-test|lease:primary/);
+
+    await assert.rejects(
+      authority.execute("relay-health", { ...report, hostAlias: "secondary-test" }, producer),
+      (error: any) => error.code === "RELAY_HEALTH_HOST_IMPERSONATION",
+    );
+    await assert.rejects(
+      authority.execute("relay-health", { ...report, deploymentEpoch: 2 }, producer),
+      (error: any) => error.code === "RELAY_HEALTH_EPOCH_MISMATCH",
+    );
+
+    now.value += 120_001;
+    const stale = await authority.operatorStatus();
+    assert.equal(stale.providerRelayState, "UNAVAILABLE");
+    assert.equal(stale.hosts[0].reportFresh, false);
+    assert.equal(stale.hosts[0].browserState, "UNAVAILABLE");
+  } finally {
+    store.close();
+  }
+});
+
 test("unconfigured Mission Control authority fails closed", async () => {
   const store = new EventStore(":memory:");
   try {

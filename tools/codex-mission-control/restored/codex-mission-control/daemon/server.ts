@@ -30,6 +30,7 @@ const internalToken = process.env.MISSION_CONTROL_INTERNAL_TOKEN;
 if (!internalToken) throw new Error("MISSION_CONTROL_INTERNAL_TOKEN is required; use npm run dev/start or provide a secret for standalone daemon mode.");
 const store = new EventStore();
 const submissionAuthority = new SubmissionAuthorityRuntime(store);
+const dashboardProjectionOptions = { includeFixtureOnly: process.env.MISSION_CONTROL_SKIP_SEED !== "1" };
 const notifications = new EventEmitter();
 notifications.setMaxListeners(100);
 if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
@@ -68,14 +69,21 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       return json(response, 200, await submissionAuthority.ledger(producer, Number(url.searchParams.get("limit") ?? 200)));
     }
-    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|outcomes)$/);
+    if (request.method === "GET" && url.pathname === "/operator-status") {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY" && producer.kind !== "UI") {
+        return json(response, 403, { error: "Operator status requires an authenticated owner surface." });
+      }
+      return json(response, 200, await submissionAuthority.operatorStatus());
+    }
+    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|outcomes|relay-health)$/);
     if (request.method === "POST" && submissionAuthorityMatch) {
       const producer = authorizeMutation(request);
       const result = await submissionAuthority.execute(submissionAuthorityMatch[1], await readJson(request), producer);
       return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
-      return json(response, 200, snapshotFromStore(store));
+      return json(response, 200, snapshotFromStore(store, dashboardProjectionOptions));
     }
     if (request.method === "GET" && url.pathname === "/events") {
       return json(response, 200, { events: store.allEvents() });
@@ -98,12 +106,12 @@ const server = http.createServer(async (request, response) => {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
         if (params?.name === "mission_control_get_fleet") {
           if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet reads require owner or supervisor scope." });
-          return json(response, 200, mcpResult(id, snapshotFromStore(store)));
+          return json(response, 200, mcpResult(id, snapshotFromStore(store, dashboardProjectionOptions)));
         }
         if (params?.name === "mission_control_get_worker" && typeof params.arguments?.worker === "string") {
           const worker = params.arguments.worker;
           if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
-          const snapshot = workerSnapshotFromStore(store, worker);
+          const snapshot = workerSnapshotFromStore(store, worker, dashboardProjectionOptions);
           return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
         }
       }
@@ -146,7 +154,7 @@ const server = http.createServer(async (request, response) => {
     const workerMatch = url.pathname.match(/^\/workers\/([^/]+)$/);
     if (request.method === "GET" && workerMatch) {
       const worker = decodeURIComponent(workerMatch[1]);
-      const snapshot = workerSnapshotFromStore(store, worker);
+      const snapshot = workerSnapshotFromStore(store, worker, dashboardProjectionOptions);
       return snapshot ? json(response, 200, snapshot) : json(response, 404, { error: "Worker not found" });
     }
     const messageMatch = url.pathname.match(/^\/workers\/([^/]+)\/messages$/);
