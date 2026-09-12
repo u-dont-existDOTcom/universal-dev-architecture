@@ -20,8 +20,14 @@ export async function loadConfig(env = process.env) {
   const producerId = required(env.MC_RELAY_PRODUCER_ID, 'MC_RELAY_PRODUCER_ID');
   const token = required(env.MC_RELAY_TOKEN, 'MC_RELAY_TOKEN');
   if (token.length < 32) throw new Error('MC_RELAY_TOKEN must contain at least 32 characters.');
-  const schedulerToken = required(env.MC_RELAY_SCHEDULER_TOKEN, 'MC_RELAY_SCHEDULER_TOKEN');
-  if (schedulerToken.length < 32) throw new Error('MC_RELAY_SCHEDULER_TOKEN must contain at least 32 characters.');
+  const submissionAuthorityUrl = normalizeBaseUrl(
+    env.MC_RELAY_SUBMISSION_AUTHORITY_URL ?? `${missionControlUrl}/api/submission-authority`,
+  );
+  const missionControlOrigin = new URL(missionControlUrl).origin;
+  const authority = new URL(submissionAuthorityUrl);
+  if (authority.origin !== missionControlOrigin || authority.pathname !== '/api/submission-authority') {
+    throw new Error('Submission authority must be the /api/submission-authority route on the configured Mission Control origin.');
+  }
   const memoryProfile = env.MC_RELAY_MEMORY_PROFILE ?? 'AUTO';
   if (!['AUTO', '8GB', '16GB'].includes(memoryProfile)) throw new Error('MC_RELAY_MEMORY_PROFILE must be AUTO, 8GB, or 16GB.');
   const hostRole = required(env.MC_RELAY_HOST_ROLE, 'MC_RELAY_HOST_ROLE');
@@ -36,10 +42,10 @@ export async function loadConfig(env = process.env) {
       requestTimeoutMs: integer(env.MC_RELAY_HTTP_TIMEOUT_MS, 30_000, 1_000, 120_000),
     },
     submissionScheduler: {
-      url: normalizeBaseUrl(required(env.MC_RELAY_SCHEDULER_URL, 'MC_RELAY_SCHEDULER_URL')),
-      token: schedulerToken,
+      url: submissionAuthorityUrl,
+      token,
       producerId,
-      requestTimeoutMs: integer(env.MC_RELAY_SCHEDULER_TIMEOUT_MS, 10_000, 1_000, 120_000),
+      requestTimeoutMs: integer(env.MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS, 10_000, 1_000, 120_000),
     },
     browser: {
       cdpHost: env.MC_RELAY_CDP_HOST ?? '127.0.0.1',
@@ -87,7 +93,7 @@ export async function loadConfig(env = process.env) {
 export function publicConfig(config) {
   return {
     missionControlUrl: config.missionControl.url,
-    submissionSchedulerUrl: config.submissionScheduler.url,
+    submissionAuthorityUrl: config.submissionScheduler.url,
     producerId: config.missionControl.producerId,
     cdpEndpoint: `http://${config.browser.cdpHost}:${config.browser.cdpPort}`,
     profileDir: config.browser.profileDir,

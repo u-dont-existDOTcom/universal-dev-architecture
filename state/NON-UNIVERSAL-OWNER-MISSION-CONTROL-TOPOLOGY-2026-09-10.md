@@ -1,6 +1,6 @@
 # NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT — Mission Control topology
 
-Updated: 2026-09-10
+Updated: 2026-09-11
 
 This file is **specific to the current repository owner**. It is operational continuity data, not a universal recommendation. A person copying this repository should replace or ignore this file and use the portable architecture in `patterns/portable-vs-owner-specific-deployment-data.md`.
 
@@ -104,4 +104,30 @@ The owner deployment is not complete. It still needs:
 - a supported way to run the Mission Control execution workers themselves on the VPS rather than the owner's local Codex/Work host;
 - an owner decision on the Hostinger service-sandbox tradeoff, or a compatible replacement browser runtime.
 
-Until those boundaries are resolved, both schedulers and both relays stay disabled. Hostinger's browser also stays disabled. No production or third host was changed.
+Until those boundaries are resolved, both legacy host-local schedulers and both
+relays stay disabled. Hostinger's browser also stays disabled. No production or
+third host was changed.
+
+## 2026-09-11 shared-authority correction boundary
+
+The canonical PR #91 installation described above is not the final global-send
+architecture: it placed an independent loopback scheduler and durable state file
+on each VPS and depended on manual state transfer during failover. That is a
+partial implementation, because two installed processes remain possible send
+authorities and the hosts do not observe the same live queue/rate-limit record.
+
+The current correction candidate moves the already-tested admission algorithm
+into Mission Control's existing single-writer SQLite daemon, adds authenticated
+`/api/submission-authority` routes, persists a hash-chained append-only send
+ledger, makes provider rate-limit pause state pacing-domain-wide, retains the
+same durable queue item for its one bounded retry, and removes the VPS-local
+scheduler binary/service/configuration. The per-host relay state keeps only the
+60-second defense-in-depth guard.
+
+This is source-tree evidence only. This execution session has no retained
+authorized SSH/VPS surface or private host locator. Neither owner VPS was
+changed, the Mission Control TypeScript/app gates have not yet run in this
+dependency-empty checkout, and none of the frozen live acceptance outcomes are
+newly claimed. The exact PR #91 services remain the last installed evidence and
+must stay send-disabled until the correction is reviewed, merged, installed,
+and proved live.

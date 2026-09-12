@@ -3,7 +3,8 @@
 ## Rule
 
 When more than one host can run a Mission Control browser relay, keep the hosts
-active/passive behind one durable submission scheduler. A host-local timer,
+active/passive behind one durable submission authority in Mission Control's
+existing single-writer control plane. A host-local scheduler, timer,
 process mutex, promise chain, or reconstructed work list is not a global queue.
 
 Every operation that can submit a ChatGPT message—including capability checks,
@@ -14,7 +15,7 @@ before the first browser mutation that can cross the send boundary.
 ## Portable topology
 
 ```text
-Mission Control authoritative route/event
+source-bound Mission Control authorization
   -> central durable submission queue
   -> single active deployment lease + monotonically increasing epoch
   -> single-use send admission
@@ -84,9 +85,11 @@ boundary. Never create a replacement admission merely because the process or
 browser restarted.
 
 The provider rate-limit recovery rule remains subordinate to the same global
-scheduler. A supported exact retry waits for both its provider delay and the
-global minimum interval, then obtains a new single-use admission for the same
-payload. A second or ambiguous provider limit fails closed.
+authority. Its account/pacing-domain pause is visible to every host. A supported
+exact retry waits for both its provider delay and the global minimum interval,
+then obtains a new single-use admission for the same durable queue item and
+payload. It must not mint a retry queue identity. A second or ambiguous provider
+limit fails closed across all hosts.
 
 ## Active/passive failover
 
@@ -96,10 +99,12 @@ send admission.
 
 Controlled takeover requires all of:
 
-1. stop and disable the current primary relay and scheduler;
-2. prove the primary scheduler and relay are quiescent;
+1. stop and disable the current primary relay and browser sender;
+2. prove the primary relay/browser sender is quiescent while Mission Control's
+   shared authority remains the sole live writer;
 3. reconcile every queued, admitted, crossed and ambiguous item;
-4. transfer or import the maximum durable global send-boundary timestamp;
+4. read the maximum durable global send-boundary timestamp from the shared
+   authority; never export/import or fork it between hosts;
 5. bind the takeover to the exact old lease expiry and wait until that lease has
    expired, so an accidental old-host restart remains stale;
 6. increment the deployment epoch;
@@ -109,8 +114,8 @@ Controlled takeover requires all of:
 9. activate the successor lease; then verify a no-send status before admitting
    work.
 
-If the primary cannot be proven quiescent, the scheduler state cannot be
-transferred, a stale lease may still be live, or both hosts claim active status,
+If the primary cannot be proven quiescent, the shared authority state is
+unavailable, a stale lease may still be live, or both hosts claim active status,
 fail closed. This pattern prefers temporary unavailability over duplicate or
 too-fast provider submissions. Automatic network-partition failover is forbidden
 without an external consensus/fencing authority that can prove single-writer
@@ -176,6 +181,9 @@ last_submission_at
 next_eligible_at
 standby_reason
 ambiguous_count
+provider_account_rate_limit_state
+recent_minimum_median_intervals_ms
+sub_minimum_interval_violation_count
 ```
 
 Durable acceptance requires exact evidence for:
@@ -212,10 +220,11 @@ tests, templates and runbook usable.
 ## Provenance and transfer limits
 
 Origin: a 2026-09-10 Mission Control hardening task found that a correct
-single-host 60-second pacer used a host-local lock and timestamp. Adding a second
-relay host would therefore create independent pacing authorities. The promoted
-lesson is the cross-project control: central single-use admission plus fenced
-active/passive failover.
+single-host 60-second pacer used a host-local lock and timestamp. Its first
+multi-host implementation installed one durable scheduler per host and relied
+on manual state transfer, which still left two possible authorities. The
+corrected cross-project control is one shared Mission Control single-writer,
+central single-use admission, and fenced active/passive browser-host failover.
 
 Transfer limit: this pattern does not prescribe a VPS provider, consensus
 database, automatic failover, browser vendor, interval value, or semantic

@@ -109,7 +109,8 @@ test('submission interval config defaults to 60000 and exposes the public value'
     const config = await loadConfig(configEnv(chatsFile));
     assert.equal(config.runtime.minSubmissionIntervalMs, 60_000);
     assert.equal(publicConfig(config).minSubmissionIntervalMs, 60_000);
-    assert.equal(config.submissionScheduler.url, 'http://127.0.0.1:4300');
+    assert.equal(config.submissionScheduler.url, 'https://mission-control.example/api/submission-authority');
+    assert.equal(publicConfig(config).submissionAuthorityUrl, 'https://mission-control.example/api/submission-authority');
     assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
     assert.equal(Object.hasOwn(publicConfig(config).submissionHost, 'leaseId'), false);
   } finally {
@@ -117,23 +118,27 @@ test('submission interval config defaults to 60000 and exposes the public value'
   }
 });
 
-test('legacy relay config without central scheduler and deployment identity fails closed', async () => {
+test('relay config requires deployment identity and rejects a separate host-local authority', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-legacy-config-'));
   try {
     const chatsFile = join(root, 'chats.json');
     await writeFile(chatsFile, JSON.stringify([configuredChat()]));
     const complete = configEnv(chatsFile);
-    for (const field of ['MC_RELAY_SCHEDULER_URL', 'MC_RELAY_SCHEDULER_TOKEN', 'MC_RELAY_HOST_ALIAS', 'MC_RELAY_HOST_ROLE', 'MC_RELAY_DEPLOYMENT_EPOCH', 'MC_RELAY_DEPLOYMENT_LEASE_ID']) {
+    for (const field of ['MC_RELAY_HOST_ALIAS', 'MC_RELAY_HOST_ROLE', 'MC_RELAY_DEPLOYMENT_EPOCH', 'MC_RELAY_DEPLOYMENT_LEASE_ID']) {
       const candidate = { ...complete };
       delete candidate[field];
       await assert.rejects(() => loadConfig(candidate), new RegExp(field));
     }
+    await assert.rejects(() => loadConfig({
+      ...complete,
+      MC_RELAY_SUBMISSION_AUTHORITY_URL: 'http://127.0.0.1:4300',
+    }), /configured Mission Control origin/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test('relay fails closed when its distinct central scheduler URL is unreachable', async () => {
+test('relay fails closed when the Mission Control submission authority is unreachable', async () => {
   const client = new SubmissionSchedulerClient({
     url: 'http://127.0.0.1:4300', token: 's'.repeat(32), producerId: 'collector:test-relay',
     fetchImpl: async () => { throw new Error('unreachable'); },
@@ -161,8 +166,6 @@ function configEnv(chatsFile) {
     MC_RELAY_MISSION_CONTROL_URL: 'https://mission-control.example',
     MC_RELAY_PRODUCER_ID: 'collector:test-relay',
     MC_RELAY_TOKEN: 'x'.repeat(32),
-    MC_RELAY_SCHEDULER_URL: 'http://127.0.0.1:4300',
-    MC_RELAY_SCHEDULER_TOKEN: 's'.repeat(32),
     MC_RELAY_HOST_ALIAS: 'primary-test',
     MC_RELAY_HOST_ROLE: 'PRIMARY',
     MC_RELAY_DEPLOYMENT_EPOCH: '1',

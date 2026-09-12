@@ -13,7 +13,6 @@
     "doctor": "node bin/mc-chatgpt-relay.mjs doctor",
     "once": "node bin/mc-chatgpt-relay.mjs once",
     "start": "node bin/mc-chatgpt-relay.mjs run",
-    "scheduler": "node bin/mc-submission-scheduler.mjs",
     "status": "node bin/mc-chatgpt-relay.mjs status"
   }
 }

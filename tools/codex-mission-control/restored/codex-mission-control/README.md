@@ -112,10 +112,19 @@ attention queue + worker decision records
 
 The Next.js route handlers proxy the daemon and never open SQLite. SSE is driven by daemon append notifications, not database polling.
 
+The authenticated `/api/submission-authority` routes are the one provider-send
+authority shared by active/passive browser-relay hosts. The daemon stores queue,
+lease, admission, target-binding, pacing, account-rate-limit and terminal
+delivery/recovery state in its single-writer SQLite database. Every transition
+also appends a privacy-safe hash-chained ledger record. If the authority is not
+fully configured, the route fails closed and no relay browser send is eligible.
+
 Important modules:
 
 - `lib/schema.ts`: versioned owner authority, evidence, finding, directive/response, completion, route, research, and Symphony schemas;
 - `lib/store.ts`: append-only SQLite ledger, v1 migration, exact idempotency, authority ordering, and hash-chain verification;
+- `lib/submission-authority-runtime.ts`: source-scoped shared send admission, Mission Control-only registry enforcement, pacing diagnostics, and daemon dispatch;
+- `lib/provider-submission-authority.mjs`: durable FIFO/lease/admission/boundary/rate-limit state machine used only by the Mission Control daemon;
 - `lib/terminal-comparator.ts`: worker→contract and contract→owner comparison plus typed terminal decisions;
 - `lib/progress-invariants.ts`: numeric direction/delta validation and fail-closed outcome/strategy projection;
 - `lib/correction-lifecycle.ts`: fail-closed transition and identity guards;
@@ -189,6 +198,8 @@ Dashboard-facing Next.js BFF:
 - `GET /api/worker-channel/:worker/outbox` (authenticated worker)
 - `POST /api/worker-channel/:worker/events` (authenticated worker)
 - `POST /api/mcp` (authenticated, read-only MCP-compatible JSON-RPC tools)
+- `GET /api/submission-authority/status|ledger` (authenticated relay)
+- `POST /api/submission-authority/admissions|admissions/validate|boundaries|target-bindings|provider-rate-limits|aborts|outcomes` (authenticated relay)
 - `GET|POST /mcp` (anonymous Streamable HTTP MCP exposing only exact-bound,
   non-sensitive supervisory control metadata)
 
@@ -205,6 +216,8 @@ Daemon:
 - `GET /workers/:worker/outbox`
 - `POST /workers/:worker/channel/events`
 - `POST /mcp`
+- matching internal `/submission-authority/*` routes, accessible only through
+  the process-internal bearer and immutable producer headers
 
 ### Authenticated ingestion
 

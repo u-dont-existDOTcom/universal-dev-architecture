@@ -4,7 +4,7 @@ export const CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED = 'CHATGPT_RATE_LIMIT_RETRY_EXHA
 
 export class CentralSubmissionScheduler {
   constructor({ schedulerClient, stateStore, host, minIntervalMs = 60_000, now = Date.now, sleepImpl = sleep }) {
-    if (!schedulerClient || !['status', 'admit', 'validateAdmission', 'recordBoundary', 'bindTarget', 'recordRateLimit', 'abortBeforeBoundary'].every((method) => typeof schedulerClient[method] === 'function')) {
+    if (!schedulerClient || !['status', 'admit', 'validateAdmission', 'recordBoundary', 'bindTarget', 'recordRateLimit', 'abortBeforeBoundary', 'recordOutcome'].every((method) => typeof schedulerClient[method] === 'function')) {
       throw new Error('Central submission scheduling requires the dedicated scheduler client.');
     }
     if (!stateStore || typeof stateStore.read !== 'function' || typeof stateStore.write !== 'function') throw new Error('Central submission scheduling requires a relay state store.');
@@ -57,12 +57,13 @@ export class CentralSubmissionScheduler {
     if (typeof submit !== 'function') throw new Error('Central submission scheduling requires a submit function.');
     if (recordBoundary !== null && typeof recordBoundary !== 'function') throw new Error('recordBoundary must be a function when provided.');
     const operation = this.tail.then(async () => {
-      let activeQueueKey = context.queueKey;
       for (;;) {
+        const localPacing = localPacingStatus(await this.stateStore.read(), this.minIntervalMs, this.now());
+        if (!localPacing.ready) throw new GlobalSubmissionCooldownError(localPacing);
         const { hash: _hash, ...requestContext } = context;
         const admission = await this.schedulerClient.admit({
           ...requestContext,
-          queueKey: activeQueueKey,
+          queueKey: context.queueKey,
           retryRootKey: context.queueKey,
           hostAlias: this.host.alias,
           hostRole: this.host.role,
@@ -115,6 +116,11 @@ export class CentralSubmissionScheduler {
             }
             throw error;
           }
+          await this.schedulerClient.recordOutcome({
+            admissionId: admission.admissionId,
+            deliveryStatus: result?.generationStarted === true ? 'GENERATION_STARTED' : 'DELIVERED',
+            recoveryStatus: admission.providerRateLimitCount > 0 ? 'RECOVERED' : 'NOT_REQUIRED',
+          });
           return result;
         } catch (error) {
           const crossed = error?.relayStage === 'CLICKED' || error?.relayStage === 'GENERATION_STARTED'
@@ -140,15 +146,26 @@ export class CentralSubmissionScheduler {
               failureKind: isChatGptRateLimitRetry(error) ? 'PROVIDER_RATE_LIMIT' : 'PRECLICK_FAILURE',
             });
           }
-          if (!isChatGptRateLimitRetry(error)) throw error;
+          if (!isChatGptRateLimitRetry(error)) {
+            if (boundaryRecorded) await this.schedulerClient.recordOutcome({
+              admissionId: admission.admissionId,
+              deliveryStatus: 'FAILED_CLOSED',
+              recoveryStatus: 'FAILED_CLOSED',
+            });
+            throw error;
+          }
           if (boundaryRecorded) rateLimitRecord = await this.schedulerClient.recordRateLimit({ admissionId: admission.admissionId });
+          await this.schedulerClient.recordOutcome({
+            admissionId: admission.admissionId,
+            deliveryStatus: 'PROVIDER_RATE_LIMITED',
+            recoveryStatus: rateLimitRecord?.retryExhausted === true ? 'FAILED_CLOSED' : 'BOUNDED_RETRY_PENDING',
+          });
           if (rateLimitRecord?.providerRateLimitCount >= 2 || rateLimitRecord?.retryExhausted === true) throw new ChatGptRateLimitRetryExhaustedError({
             retryAfterMs: error.retryAfterMs,
             relayStage: error.relayStage,
             clickedAtObserved: error.clickedAtObserved,
             startedAtObserved: error.startedAtObserved,
           });
-          if (boundaryRecorded) activeQueueKey = `${context.queueKey}:provider-rate-limit-retry:1`;
           const central = await this.remoteStatus();
           const waitMs = Math.max(error.retryAfterMs, central.retryAfterMs ?? 0);
           await this.sleepImpl(waitMs);
