@@ -47,26 +47,33 @@ supervisor conversations are eligible.
   check; Mission Control 232/232 plus TypeScript and production build; relay
   184/184 plus syntax.
 
+## Completed outcome
+
+- PR #102 exact head `0fcbdcebe9f0218737ea4265fb6f72a3873cef4a`
+  passed every repository, Mission Control, relay, and CodeQL hosted gate and
+  merged normally as `09b41482880cb4ca111a76dc3b69d4ac7312fa9f`.
+- Issue #90's frozen dual-VPS requirement, multi-host hardening record, and the
+  Work-access/MC-chat-creation requirement are `LIVE_VERIFIED` with 13/13 live
+  acceptance cases.
+- The historical recovery branch remains exact at
+  `cb89966b83f12db49d974de4ebf402d10d310608`; later unrelated mainline work is
+  preserved.
+
 ## Remaining
 
-1. Commit and push the privacy-safe live receipt on the current-main integration
-   branch.
-2. Open the PR and require every exact-head hosted repository, Mission Control,
-   relay, and CodeQL check.
-3. If all pass with no review blocker, mark the frozen requirements
-   `LIVE_VERIFIED`, merge normally, verify `main`, post the issue receipt, and
-   close issue #90.
+- No issue #90 action remains after the closeout status PR merges and the final
+  issue receipt is posted. Future material topology or authority changes require
+  a new live verification cycle.
 
 ## Blockers / unresolved
 
-- No live host blocker remains. Canonical completion is intentionally withheld
-  only for the exact-head hosted-check, review, merge, and main-verification
-  boundary.
+- No issue #90 implementation, live-host, review, check, merge, or
+  main-verification blocker remains.
 
 ## Evidence / artifacts
 
-- Active release-closeout plan:
-  `docs/exec-plans/active/2026-09-10-mission-control-multi-host-hardening.md`.
+- Completed plan:
+  `docs/exec-plans/completed/2026-09-10-mission-control-multi-host-hardening.md`.
 - Current live acceptance receipt:
   `docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json`.
 - Prior installed-host receipt:

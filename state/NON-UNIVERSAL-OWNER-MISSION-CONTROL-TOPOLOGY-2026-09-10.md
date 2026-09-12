@@ -184,7 +184,7 @@ The privacy-safe live receipt is
   remote clipboard process, credential, or private conversation locator entered
   the execution or Git path.
 
-The live acceptance boundary has passed. Canonical completion remains withheld
-until the current-main integration PR passes all exact-head hosted checks,
-merges normally, and `main` is verified. No production or third host is in
-scope.
+The live acceptance boundary passed 13/13. PR #102 passed the exact-head
+repository, Mission Control, relay, and CodeQL gates and merged normally as
+`09b41482880cb4ca111a76dc3b69d4ac7312fa9f`; canonical `main` was verified at
+that commit. No production or third host is in scope.

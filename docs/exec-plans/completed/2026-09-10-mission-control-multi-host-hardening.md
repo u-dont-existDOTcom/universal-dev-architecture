@@ -5,7 +5,7 @@ The controls promoted to `patterns/mission-control-multi-host-submission-schedul
 are portable. Provider choices, RAM sizes, revisions and live topology below are
 evidence for one owner only.
 
-Status: LIVE_ACCEPTANCE_PASSED_RELEASE_CLOSEOUT_PENDING
+Status: COMPLETE
 Assurance lane: RELEASE (code, merge, two-host installation)
 Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global-send-queue.owner-requirement.json`
 
@@ -71,10 +71,10 @@ Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global
 - Fresh current-main integration gates pass locally: repository 299/299 plus audit/diff check; Mission Control 232/232 plus TypeScript/build; relay 184/184 plus syntax.
 - Durable live receipt: `docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json`.
 
-## Remaining release closeout
+## Closeout
 
-1. Commit and publish the privacy-safe live receipt on the current-main integration branch without changing the historical recovery branch.
-2. Open the pull request and require every exact-head hosted repository, Mission Control, relay, and CodeQL gate.
-3. Only after those checks pass, mark the frozen requirements `LIVE_VERIFIED`, merge normally, verify `main`, post the final issue receipt, and close issue #90.
+1. The privacy-safe live receipt was committed without changing the historical recovery branch.
+2. PR #102 exact head `0fcbdcebe9f0218737ea4265fb6f72a3873cef4a` passed every hosted repository, Mission Control, relay, and CodeQL gate.
+3. PR #102 merged normally as `09b41482880cb4ca111a76dc3b69d4ac7312fa9f`; canonical `main` was verified and the frozen requirements are `LIVE_VERIFIED`.
 
-No live acceptance blocker remains. Do not claim canonical completion before the hosted-check and merge boundary, and do not promote outside the two authorized VPS hosts.
+No live acceptance or release blocker remains. Any later material authority, topology, pacing, browser-ownership, registry, or worker-runtime change must rerun the applicable live matrix. No promotion outside the two authorized VPS hosts occurred.
