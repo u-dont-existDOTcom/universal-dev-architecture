@@ -1,5 +1,17 @@
 # Universal development architecture
 
+## Session-start bootstrap invariants
+
+For every new chat/session governed by this architecture, the **first visible assistant response MUST begin with an explicit date-and-time stamp including a timezone or UTC offset**. This is a pre-answer invariant, not a task-dependent recommendation.
+
+- Apply it before substantive content even for trivial arithmetic, greetings, smoke tests, or prompts that otherwise warrant a direct one-line answer.
+- “Answer simple tasks directly,” reasoning-effort minimization, tool-avoidance heuristics, or a judgment that deeper repository reads are unnecessary **must not waive this invariant**.
+- When current owner instructions require the canonical GitHub bootstrap, complete that bootstrap before substantive reasoning or answering. Tool calls or hidden provider metadata do not substitute for the required visible timestamp.
+- If required GitHub/bootstrap access is unavailable, begin with the timestamp and state the access failure explicitly rather than pretending the bootstrap occurred.
+- Treat failure to emit the timestamp on the first visible response as an instruction-following failure even when the underlying task answer is otherwise correct.
+
+These invariants are intentionally duplicated at the root because they must survive task triage: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies.
+
 ## Authority
 
 1. Current owner and task requirements
