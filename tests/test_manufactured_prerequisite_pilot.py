@@ -8,6 +8,7 @@ ACTIVE_LESSON_TEMPLATE = ROOT / "templates" / "ACTIVE-LESSON-CONTRACT.md"
 METHOD_FORK_CARD = ROOT / "templates" / "METHOD-FORK-CARD.md"
 METHOD_FIXTURE = ROOT / "evals" / "method-premise" / "manufactured-prerequisite-pilot.json"
 ACTIVATION_FIXTURE = ROOT / "evals" / "method-premise" / "universal-activation-wiring-pilot.json"
+ESCAPE_FIXTURE = ROOT / "evals" / "mission-control" / "manufactured-prerequisite-supervision-escape-pilot.json"
 PROPOSAL = ROOT / "proposals" / "2026-09-12-outcome-first-supervision-discussion.md"
 
 
@@ -100,6 +101,21 @@ class ManufacturedPrerequisitePilotTests(unittest.TestCase):
         for needle in required:
             self.assertIn(needle, text)
         self.assertLess(len(text.splitlines()), 80)
+
+    def test_manufactured_prerequisite_is_integrated_into_existing_escape_plane(self) -> None:
+        payload = json.loads(ESCAPE_FIXTURE.read_text(encoding="utf-8"))
+        cases = {case["caseId"]: case for case in payload["cases"]}
+        discovered = cases["owner-discovers-manufactured-prerequisite-after-large-investment"]
+        self.assertEqual(discovered["expected"]["classification"], "SUPERVISION_ESCAPE")
+        self.assertEqual(discovered["expected"]["requiredAction"], "REDESIGN_EXISTING_CONTROL")
+        self.assertEqual(discovered["expected"]["ownerAction"], "NONE")
+        prevented = cases["system-surfaces-method-fork-before-hardening"]
+        self.assertEqual(prevented["expected"]["classification"], "PREVENTED_ESCAPE")
+        explicit = cases["owner-explicitly-requires-the-method"]
+        self.assertEqual(explicit["expected"]["classification"], "NOT_AN_ESCAPE")
+        ambiguous = cases["method-necessity-remains-genuinely-ambiguous"]
+        self.assertEqual(ambiguous["expected"]["requiredAction"], "RUN_BOUNDED_DISCRIMINATING_PROBE")
+        self.assertEqual(ambiguous["expected"]["ownerAction"], "NONE")
 
     def test_proposal_remains_non_activated(self) -> None:
         text = PROPOSAL.read_text(encoding="utf-8")
