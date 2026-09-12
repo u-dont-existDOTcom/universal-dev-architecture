@@ -44,6 +44,15 @@
     "capsuleId": "replace-with-context-capsule-id",
     "reviewedEvidenceBoundary": "replace-with-head-or-artifact-identity"
   },
+  "workReasoningBudget": {
+    "recommendedMinimumLevel": "replace-with-lowest-available-surface-level-expected-to-succeed-or-UNSPECIFIED",
+    "selectionReason": "replace-with-short-reason-based-on-the-residual-execution-task",
+    "preflightRequired": true,
+    "twoSidedMismatchCheckRequired": true,
+    "simpleWorkOverspendCheckRequired": true,
+    "materialityRule": "INTERRUPT_ONLY_FOR_MATERIAL_SUCCESS_RISK_OR_MEANINGFUL_EXPECTED_CREDIT_SAVINGS",
+    "ifCurrentLevelUnobservable": "DO_NOT_INVENT; WARN_ONLY_WHEN_LEVEL_IS_MATERIALLY_DECISION_RELEVANT"
+  },
   "strategy": {
     "strategyId": "replace-with-strategy-id",
     "causalHypothesis": "replace-with-chat-authored-hypothesis",
