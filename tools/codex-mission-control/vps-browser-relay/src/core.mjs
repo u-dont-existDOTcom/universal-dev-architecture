@@ -111,6 +111,67 @@ export function parseChatDirectory(value) {
   return entries;
 }
 
+export function parseChatProvisionDirectory(value) {
+  if (!Array.isArray(value) || value.length === 0) throw new Error('Supervisor provision directory must be a non-empty JSON array.');
+  const entries = value.map((item, index) => parseChatProvisionEntry(item, index));
+  for (const [label, values] of [
+    ['supervisor IDs', entries.map((entry) => entry.supervisorId)],
+    ['registration IDs', entries.map((entry) => entry.registrationId)],
+    ['provisioning keys', entries.map((entry) => entry.provisioningKey)],
+  ]) {
+    if (new Set(values).size !== values.length) throw new Error(`Supervisor provision ${label} must be unique.`);
+  }
+  const projectManagers = entries.filter((entry) => entry.scope === 'PROJECT_MANAGER');
+  if (projectManagers.length > 1) throw new Error('Only one Project Manager chat may be provisioned.');
+  if (projectManagers.length === 1 && projectManagers[0].supervisorId !== 'mc-project-manager') {
+    throw new Error('The provisioned Project Manager supervisorId must be mc-project-manager.');
+  }
+  return entries;
+}
+
+function parseChatProvisionEntry(item, index) {
+  if (!isRecord(item)) throw new Error(`Supervisor provision ${index} must be an object.`);
+  if (item.registrationState !== 'PROVISIONING') throw new Error(`Supervisor provision ${index} registrationState must be PROVISIONING.`);
+  for (const forbidden of ['url', 'chatId', 'challengeId', 'capabilityChallengeId', 'bootstrapCapability']) {
+    if (Object.hasOwn(item, forbidden)) {
+      throw new Error(`Supervisor provision ${index} must not contain a provider conversation locator or bootstrap capability (${forbidden}).`);
+    }
+  }
+  if (!['PROJECT_MANAGER', 'SPECIALIST'].includes(item.scope)) throw new Error(`Supervisor provision ${index} has an invalid scope.`);
+  if (item.ownership !== 'MISSION_CONTROL_ONLY') throw new Error(`Supervisor provision ${index} ownership must be explicitly MISSION_CONTROL_ONLY.`);
+  if (!isRecord(item.provisioningProvenance) || item.provisioningProvenance.authorizedBy !== 'OWNER') {
+    throw new Error(`Supervisor provision ${index} provisioningProvenance.authorizedBy must be OWNER.`);
+  }
+  const authorizedAt = boundedString(item.provisioningProvenance.authorizedAt, `Supervisor provision ${index} provisioningProvenance.authorizedAt`, 100);
+  if (!Number.isFinite(Date.parse(authorizedAt))) throw new Error(`Supervisor provision ${index} provisioningProvenance.authorizedAt must be an ISO timestamp.`);
+  const provisioningKey = boundedString(item.provisioningKey, `Supervisor provision ${index} provisioningKey`, 500);
+  if (!provisioningKey.startsWith('provider-session:provisioning:')) {
+    throw new Error(`Supervisor provision ${index} provisioningKey must use the provider-session:provisioning: namespace.`);
+  }
+  return {
+    registrationState: 'PROVISIONING',
+    scope: item.scope,
+    supervisorId: boundedString(item.supervisorId, `Supervisor provision ${index} supervisorId`, 300),
+    label: boundedString(item.label, `Supervisor provision ${index} label`, 300),
+    workerId: item.workerId == null ? null : boundedString(item.workerId, `Supervisor provision ${index} workerId`, 180),
+    pinned: item.pinned === true || item.scope === 'PROJECT_MANAGER',
+    registrationId: boundedString(item.registrationId, `Supervisor provision ${index} registrationId`, 300),
+    provisioningKey,
+    ownership: 'MISSION_CONTROL_ONLY',
+    purpose: boundedString(item.purpose, `Supervisor provision ${index} purpose`, 500),
+    accountAlias: boundedString(item.accountAlias, `Supervisor provision ${index} accountAlias`, 180),
+    workspaceAlias: boundedString(item.workspaceAlias, `Supervisor provision ${index} workspaceAlias`, 180),
+    privateLocatorRef: boundedString(item.privateLocatorRef, `Supervisor provision ${index} privateLocatorRef`, 500),
+    provisioningProvenance: {
+      authorizedBy: 'OWNER',
+      authorizedAt,
+      sourceRef: boundedString(item.provisioningProvenance.sourceRef, `Supervisor provision ${index} provisioningProvenance.sourceRef`, 500),
+    },
+    consumerControls: parseConsumerControls(item.consumerControls, index),
+    requiredApps: parseRequiredApps(item.requiredApps, index),
+  };
+}
+
 function parseChatEntry(item, index) {
   if (!isRecord(item)) throw new Error(`Chat entry ${index} must be an object.`);
   const scope = item.scope;

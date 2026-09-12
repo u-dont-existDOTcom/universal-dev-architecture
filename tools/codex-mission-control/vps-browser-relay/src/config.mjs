@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { parseChatDirectory } from './core.mjs';
+import { parseChatDirectory, parseChatProvisionDirectory } from './core.mjs';
 
 export async function loadConfig(env = process.env) {
   const home = homedir();
@@ -9,12 +9,25 @@ export async function loadConfig(env = process.env) {
   const stateDir = resolve(expandHome(env.MC_RELAY_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay`, home));
   const profileDir = resolve(expandHome(env.MC_RELAY_BROWSER_PROFILE_DIR ?? `${home}/.local/share/mission-control-chatgpt-profile`, home));
   const chatsFile = resolve(expandHome(env.MC_RELAY_CHATS_FILE ?? `${configDir}/chats.json`, home));
+  const provisionsFile = resolve(expandHome(env.MC_RELAY_PROVISIONS_FILE ?? `${configDir}/provisions.json`, home));
+  const provisionResultsFile = resolve(expandHome(env.MC_RELAY_PROVISION_RESULTS_FILE ?? `${configDir}/provisioned-chats.json`, home));
   const chatRaw = await readFile(chatsFile, 'utf8').catch((error) => {
-    if (error?.code === 'ENOENT') throw new Error(`Chat directory is missing: ${chatsFile}`);
+    if (error?.code === 'ENOENT') return null;
     throw error;
   });
-  const chats = parseChatDirectory(JSON.parse(chatRaw));
-  const workerIds = [...new Set(chats.map((chat) => chat.workerId))];
+  const provisionRaw = await readFile(provisionsFile, 'utf8').catch((error) => {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  });
+  const chatValue = chatRaw === null ? [] : JSON.parse(chatRaw);
+  const provisionValue = provisionRaw === null ? [] : JSON.parse(provisionRaw);
+  const chats = Array.isArray(chatValue) && chatValue.length === 0 ? [] : parseChatDirectory(chatValue);
+  const provisions = Array.isArray(provisionValue) && provisionValue.length === 0 ? [] : parseChatProvisionDirectory(provisionValue);
+  if (chats.length + provisions.length === 0) {
+    throw new Error(`No active or owner-authorized provisioning chat directory is configured (${chatsFile}, ${provisionsFile}).`);
+  }
+  assertCombinedSupervisorDirectory(chats, provisions);
+  const workerIds = [...new Set([...chats, ...provisions].map((chat) => chat.workerId).filter(Boolean))];
 
   const missionControlUrl = normalizeBaseUrl(required(env.MC_RELAY_MISSION_CONTROL_URL, 'MC_RELAY_MISSION_CONTROL_URL'));
   const producerId = required(env.MC_RELAY_PRODUCER_ID, 'MC_RELAY_PRODUCER_ID');
@@ -23,7 +36,14 @@ export async function loadConfig(env = process.env) {
   const submissionAuthorityUrl = normalizeBaseUrl(
     env.MC_RELAY_SUBMISSION_AUTHORITY_URL ?? `${missionControlUrl}/api/submission-authority`,
   );
+  const targetBindingAttestorKey = required(env.MC_RELAY_TARGET_BINDING_ATTESTOR_KEY, 'MC_RELAY_TARGET_BINDING_ATTESTOR_KEY');
+  if (targetBindingAttestorKey.length < 32) throw new Error('MC_RELAY_TARGET_BINDING_ATTESTOR_KEY must contain at least 32 characters.');
+  if (targetBindingAttestorKey === token) throw new Error('MC_RELAY_TARGET_BINDING_ATTESTOR_KEY must differ from MC_RELAY_TOKEN.');
   const missionControlOrigin = new URL(missionControlUrl).origin;
+  const missionControl = new URL(missionControlUrl);
+  if (missionControl.protocol !== 'https:' && !['127.0.0.1', 'localhost', '::1'].includes(missionControl.hostname)) {
+    throw new Error('Mission Control must use HTTPS unless it is reached through an authenticated loopback tunnel.');
+  }
   const authority = new URL(submissionAuthorityUrl);
   if (authority.origin !== missionControlOrigin || authority.pathname !== '/api/submission-authority') {
     throw new Error('Submission authority must be the /api/submission-authority route on the configured Mission Control origin.');
@@ -45,6 +65,8 @@ export async function loadConfig(env = process.env) {
       url: submissionAuthorityUrl,
       token,
       producerId,
+      attestorKey: targetBindingAttestorKey,
+      pacingDomain: required(env.MC_RELAY_SUBMISSION_PACING_DOMAIN, 'MC_RELAY_SUBMISSION_PACING_DOMAIN'),
       requestTimeoutMs: integer(env.MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS, 10_000, 1_000, 120_000),
     },
     browser: {
@@ -57,8 +79,11 @@ export async function loadConfig(env = process.env) {
     },
     runtime: {
       chats,
+      provisions,
       workerIds,
       chatsFile,
+      provisionsFile,
+      provisionResultsFile,
       submitEnabled: env.MC_RELAY_SUBMIT_ENABLED === '1',
       capabilityTestEnabled: env.MC_RELAY_CAPABILITY_TEST_ENABLED === '1',
       pollIntervalMs: integer(env.MC_RELAY_POLL_INTERVAL_MS, 15_000, 2_000, 300_000),
@@ -99,6 +124,7 @@ export function publicConfig(config) {
     profileDir: config.browser.profileDir,
     chatsFile: config.runtime.chatsFile,
     chatCount: config.runtime.chats.length,
+    provisionCount: config.runtime.provisions.length,
     workerIds: config.runtime.workerIds,
     submitEnabled: config.runtime.submitEnabled,
     capabilityTestEnabled: config.runtime.capabilityTestEnabled,
@@ -115,6 +141,21 @@ export function publicConfig(config) {
     stateFile: config.runtime.stateFile,
     statusFile: config.runtime.statusFile,
   };
+}
+
+function assertCombinedSupervisorDirectory(chats, provisions) {
+  const combined = [...chats, ...provisions];
+  for (const [label, values] of [
+    ['supervisor IDs', combined.map((chat) => chat.supervisorId)],
+    ['registration IDs', combined.map((chat) => chat.registrationId)],
+  ]) {
+    if (new Set(values).size !== values.length) throw new Error(`Active and provisioning ${label} must be unique across the combined directory.`);
+  }
+  const projectManagers = combined.filter((chat) => chat.scope === 'PROJECT_MANAGER');
+  if (projectManagers.length > 1) throw new Error('Only one overall Project Manager may exist across active and provisioning registrations.');
+  if (new Set(combined.map((chat) => chat.accountAlias)).size !== 1) {
+    throw new Error('Active and provisioning registrations must identify one exact provider account alias.');
+  }
 }
 
 function required(value, name) {

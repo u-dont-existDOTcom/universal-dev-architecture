@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-CODEX-WORK-ACCESS-MC-CHAT-CREATION-20260912",
+  "recorded_at": "2026-09-12T13:48:00+00:00",
+  "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
+  "status": "IMPLEMENTED_AND_LIVE_VERIFIED_RELEASE_MERGE_PENDING",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "and fix that in the instructions then it should not require my approval to create the chats, and also give work chats complete access, instructing them only to ask me for approval if there's a genuine tradeoff and then explain that tradeoff in plain english and their recommendation (this is already in the universal-dev-architecture but what's different is now you are the one selecting the approval level in the work chats). and when these boxes pop up you should click approve automatically",
+    "sha256": "e2bb550f766a7e5cd052a8988cf21edf716a0511f955b4c67b0599295270adac",
+    "source_type": "owner_chat_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "current-owner-chat:2026-09-12:work-access-and-chat-creation"
+  },
+  "normalized_outcome": "For this owner's Mission Control work, the controller creates and privately registers required dedicated MC-only conversations under standing authority, and each Work task selects the broadest owner-authorized task-scoped access level plus automatic review without asking the owner to choose a routine permission mode. Only a genuine outcome-relevant tradeoff interrupts the owner, with plain-English consequences and a recommendation. A worker does not bypass or self-approve a direct product security gate raised for its own action.",
+  "required_outcomes": [
+    {
+      "id": "RO-WORKACCESS-001",
+      "terminal_required": true,
+      "observable": "Required dedicated MC-only Project Manager and specialist conversations are created and privately registered without another owner approval, while personal/user chats remain excluded.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
+        "tools/codex-mission-control/AGENTS.md",
+        "state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md"
+      ]
+    },
+    {
+      "id": "RO-WORKACCESS-002",
+      "terminal_required": true,
+      "observable": "New owner-authorized Work tasks select Full Access or the broadest task-scoped equivalent and automatic review themselves instead of asking Joel to select a routine permission level.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
+        "AGENTS.md",
+        "patterns/codex-worker-permissions.md"
+      ]
+    },
+    {
+      "id": "RO-WORKACCESS-003",
+      "terminal_required": true,
+      "observable": "An owner interruption occurs only for a genuine unresolved tradeoff or an unavoidable product/security boundary; a tradeoff is explained in plain English with consequences and a recommended default.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
+        "AGENTS.md",
+        "tools/codex-mission-control/AGENTS.md",
+        "patterns/codex-worker-permissions.md"
+      ]
+    },
+    {
+      "id": "RO-WORKACCESS-004",
+      "terminal_required": false,
+      "observable": "Eligible technical escalations use the configured automatic reviewer; a direct app security prompt raised for the worker's own action remains a human security boundary and is never clicked or bypassed by that worker.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
+        "patterns/codex-worker-permissions.md"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "asking the owner to create a Mission Control conversation that the authorized remote controller can create",
+    "asking the owner to choose among routine Work permission profiles",
+    "using Full Access as authority for unrelated spending, publication, destructive changes, external commitments, credential disclosure, or personal-chat adoption",
+    "calling every permission prompt a genuine tradeoff",
+    "automating a direct human security prompt raised for the worker's own action",
+    "documenting the preference without demonstrating it in the live Mission Control and Work paths"
+  ],
+  "active_patterns": [
+    "patterns/codex-worker-permissions.md",
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/chat-work-execution-routing-threshold.md"
+  ],
+  "next_direct_evidence": "Merge the already live-verified instruction changes only after exact-head hosted checks pass, then verify their canonical main projection before setting completion_allowed true."
+}

@@ -10,6 +10,7 @@ Requirements: Node.js 22.5+ and npm.
 
 ```bash
 npm install
+export MISSION_CONTROL_OWNER_TOKEN='<32+ random characters>'
 npm run dev
 ```
 
@@ -20,9 +21,11 @@ npm run dev
 
 Open the dashboard route. It seeds six deterministic supervision fixtures into `data/mission-control.db` unless `MISSION_CONTROL_SKIP_SEED=1` is set. Override the database with `MISSION_CONTROL_DB=/absolute/path/mission-control.db` and the daemon with `MISSION_CONTROL_DAEMON_URL=http://127.0.0.1:4100`.
 
-The stack prints a random local owner token when one is not supplied. Use it
-at `/login`. Production operators must provide separate
-`MISSION_CONTROL_OWNER_TOKEN` and `MISSION_CONTROL_SESSION_SECRET` values.
+The stack never generates or prints an owner token. Supply an owner-only
+`MISSION_CONTROL_OWNER_TOKEN` and use it at `/login`. Production operators
+must also provide distinct `MISSION_CONTROL_INTERNAL_TOKEN`,
+`MISSION_CONTROL_OWNER_ID`, and `MISSION_CONTROL_SESSION_SECRET` values;
+production startup fails closed when any is missing.
 The signed owner session is HttpOnly and SameSite=Strict; browser mutations
 also require an exact-origin, double-submit CSRF proof. Worker credentials
 cannot open the dashboard. The dashboard binds to loopback by default, and a
@@ -118,6 +121,43 @@ lease, admission, target-binding, pacing, account-rate-limit and terminal
 delivery/recovery state in its single-writer SQLite database. Every transition
 also appends a privacy-safe hash-chained ledger record. If the authority is not
 fully configured, the route fails closed and no relay browser send is eligible.
+Each relay credential is additionally bound in
+`MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON` to one host alias/role, one
+initial automation-owned window, and an exact nonempty initial target-ID
+allowlist. Give each host a separate secret in
+`MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON`; every bound relay bearer and
+attestor must be pairwise distinct across both hosts. Mission Control uses the
+configured window and target set only to seed a new database, then durably owns
+the current window, target set, and monotonic revision. Browser target creation,
+confirmed close, unplanned target disappearance, and full window replacement
+use signed two-phase transitions. The persisted begin fences all admissions,
+and the sole SQLite writer commits only the operation's exact post-state.
+Unplanned-loss recovery additionally requires a quiescent queue. A passive
+relay may use those recovery-only operations against the exact active-lease
+snapshot so it can become standby-ready, but it remains forbidden to send or
+perform ordinary target changes. Full replacement creates an unpredictable
+durable marker target first, so crash recovery cannot adopt a personal root tab.
+Unresolved transitions survive restart and block takeover. Status and ledger
+output contain only the target count and canonical set digest, never raw target
+IDs, markers, or attestation proofs. A relay therefore cannot impersonate the
+active host or select a personal/foreign tab even if its ordinary send bearer
+or current lease tuple is known.
+
+### VPS container install
+
+Build the locked `deploy/Dockerfile` from the application root after `npm ci`,
+`npm test`, `npm run typecheck`, and `npm run build` pass. Transfer the exact
+tagged image to the authorized standby rather than rebuilding a different
+source tree. `deploy/compose.example.yaml` runs the daemon and BFF as one
+unprivileged, read-only container with a persistent `/data` volume, loopback
+network binding, dropped capabilities, and a health check covering the daemon,
+BFF, event ledger, and submission-authority ledger. Supply all credentials,
+the MC-only registry, relay-host bindings, and the active lease from an
+owner-only external environment file. Start exactly one container against the
+authoritative SQLite state. The daemon holds an SQLite exclusive writer lock,
+which rejects a concurrent live writer and is released by the operating system
+after abrupt process death. A standby image must remain stopped and must never
+open a copied or stale database while the primary writer is live.
 
 Important modules:
 

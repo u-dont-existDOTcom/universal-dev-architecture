@@ -1,0 +1,24 @@
+services:
+  mission-control:
+    image: codex-mission-control:REPLACE_EXACT_COMMIT
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    network_mode: host
+    env_file:
+      - ${MISSION_CONTROL_ENV_FILE:?set MISSION_CONTROL_ENV_FILE to an owner-only absolute path}
+    read_only: true
+    tmpfs:
+      - /tmp:mode=0700,uid=1000,gid=1000
+    volumes:
+      - mission-control-state:/data
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+
+volumes:
+  mission-control-state:
+    name: codex-mission-control-state

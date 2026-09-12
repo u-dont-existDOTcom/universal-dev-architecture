@@ -1,0 +1,38 @@
+[Unit]
+Description=Dedicated VPS ChatGPT browser for Mission Control (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Slice=mission-control-chatgpt.slice
+EnvironmentFile=%h/.config/mission-control-chatgpt-relay/browser-env
+ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/scripts/launch-browser.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillMode=mixed
+MemoryHigh=60%
+MemoryMax=75%
+MemorySwapMax=10%
+OOMPolicy=stop
+UMask=0077
+# Chromium's SUID sandbox helper must be able to enter its tightly scoped
+# privilege transition. All other hardening remains enforced, and the service
+# still runs as the named unprivileged account.
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/mission-control-chatgpt-profile %h/.cache
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectHostname=true
+ProtectClock=true
+LockPersonality=true
+RestrictRealtime=true
+
+[Install]
+WantedBy=multi-user.target

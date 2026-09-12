@@ -243,14 +243,13 @@ test("the event hash chain verifies from the first event through the demo ledger
   store.close();
 });
 
-test("SQLite triggers reject update and delete even from a second connection", () => {
+test("SQLite triggers reject update and delete through the sole owning connection", () => {
   withTempDatabase((filename) => {
     const store = new EventStore(filename);
     store.append(sourceEnvelope("source:alpha:1"));
-    const second = new DatabaseSync(filename);
-    assert.throws(() => second.exec("UPDATE events SET type = 'tampered' WHERE sequence = 1"), /append_only/);
-    assert.throws(() => second.exec("DELETE FROM events WHERE sequence = 1"), /append_only/);
-    second.close();
+    const ownerConnection = (store as any).db as DatabaseSync;
+    assert.throws(() => ownerConnection.exec("UPDATE events SET type = 'tampered' WHERE sequence = 1"), /append_only/);
+    assert.throws(() => ownerConnection.exec("DELETE FROM events WHERE sequence = 1"), /append_only/);
     store.close();
   });
 });

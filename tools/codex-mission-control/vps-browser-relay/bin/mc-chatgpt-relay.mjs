@@ -12,6 +12,7 @@ import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
+import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 
 const command = process.argv[2] ?? 'run';
 
@@ -42,6 +43,7 @@ try {
     host: config.runtime.submissionHost,
     minIntervalMs: config.runtime.minSubmissionIntervalMs,
   });
+  rawBrowser.setTargetTransitionCoordinator(submissionPacer);
   const browser = installStuckRecovery(rawBrowser, {
     maxNudges: config.runtime.stuckRecoveryMaxNudges,
     submitMessage: async (target, input) => submissionPacer.submit({
@@ -73,6 +75,14 @@ try {
     const result = await runtime.cycle();
     print(result);
     process.exitCode = oneShotExitCode(result);
+  } else if (command === 'provision') {
+    const supervisorId = process.argv[3];
+    const messageFile = process.argv[4];
+    if (!supervisorId || !messageFile) throw new Error('Usage: mc-chatgpt-relay provision <supervisor-id> <message-file>');
+    const provision = config.runtime.provisions.find((entry) => entry.supervisorId === supervisorId);
+    if (!provision) throw new Error('The exact supervisor is absent from the owner-authorized provisioning directory.');
+    const body = await readFile(messageFile, 'utf8');
+    print(await provisionMcOnlyChat({ config, provision, browser: rawBrowser, submissionPacer, body }));
   } else if (command === 'run') {
     for (;;) {
       const result = await runtime.cycle();
@@ -110,7 +120,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|mcp-preflight|capabilities|once|run|controller-init|controller-once|controller-run|status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|mcp-preflight|capabilities|provision|once|run|controller-init|controller-once|controller-run|status|resolve>');
   }
 
   await stateStore.releaseLock();

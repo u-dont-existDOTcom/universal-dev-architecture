@@ -4,11 +4,22 @@ const PROVIDER_ROOT = 'https://chatgpt.com/';
 
 export function submissionSchedulerContext({ chat, target, expectedUrl, providerSessionId = null, requestId, queueKey, sendPath, bodySha256 }) {
   if (!chat || chat.ownership !== 'MISSION_CONTROL_ONLY' || !chat.registrationId) throw new Error('A current Mission Control-only supervisor registration is required before scheduling a send.');
-  if (!target?.id) throw new Error('An exact automation-owned target ID is required before scheduling a send.');
+  if (!target?.id || target.automationOwned !== true || !Number.isInteger(target.automationWindowId)) {
+    throw new Error('An exact automation-owned target and window identity are required before scheduling a send.');
+  }
   let targetKind;
   let targetKey;
   let canonicalUrl;
-  if (expectedUrl === chat.bootstrapCapability.url) {
+  if (chat.registrationState === 'PROVISIONING') {
+    if (sendPath !== 'MC_ONLY_PROVISIONING' || expectedUrl !== PROVIDER_ROOT
+      || providerSessionId !== chat.provisioningKey
+      || !providerSessionId?.startsWith('provider-session:provisioning:')) {
+      throw new Error('A provisioning registration permits only its exact Mission Control-only provider-root send.');
+    }
+    targetKind = 'FRESH_PROVIDER_SESSION';
+    targetKey = providerSessionId;
+    canonicalUrl = PROVIDER_ROOT;
+  } else if (expectedUrl === chat.bootstrapCapability.url) {
     targetKind = 'REGISTERED_BOOTSTRAP';
     targetKey = chat.bootstrapCapability.chatId;
     canonicalUrl = normalizeConversationUrl(expectedUrl);
@@ -31,6 +42,7 @@ export function submissionSchedulerContext({ chat, target, expectedUrl, provider
     supervisorId: chat.supervisorId,
     registrationId: chat.registrationId,
     targetId: target.id,
+    automationWindowId: target.automationWindowId,
     targetKind,
     targetKey,
     expectedUrlSha256: sha256(canonicalUrl),

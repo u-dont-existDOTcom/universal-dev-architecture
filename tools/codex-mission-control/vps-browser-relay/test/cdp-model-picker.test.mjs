@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { appSelectionState, consumerControlSelectionState, modelMenuSelectionState } from '../src/cdp.mjs';
+import {
+  appSelectionState,
+  consumerControlSelectionState,
+  exactModelSelectionState,
+  modelMenuSelectionState,
+} from '../src/cdp.mjs';
 
 const controls = {
   modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5',
@@ -17,6 +22,7 @@ function currentPowerMenu(overrides = {}) {
     availableLabels: ['Select model', 'Power', 'GPT-5.6 Sol', 'GPT-5.5'],
     powerControlCount: 1,
     powerIndicatorCount: 1,
+    thinkingLabelMatchCount: 1,
     sliderCount: 1,
     thinkingControlObservedLabel: 'Thinking effort',
     currentPowerLabel: 'Extra High',
@@ -42,6 +48,26 @@ test('current ChatGPT thinking slider structure discovers the exact visible sett
   });
 });
 
+test('thinking slider search begins from a different supported visible tier', () => {
+  assert.deepEqual(modelMenuSelectionState(currentPowerMenu({
+    thinkingLabelMatchCount: 0,
+    currentPowerLabel: 'Pro',
+    sliderPosition: 4,
+  }), 'Extra High'), {
+    type: 'POWER_SEARCH',
+    initialLabel: 'Pro',
+    position: 4,
+    minimum: 0,
+    maximum: 4,
+    observedLabels: ['Pro'],
+  });
+});
+
+test('current combined model control requires one exact thinking-label segment', () => {
+  const observation = currentPowerMenu({ directMatchCount: 1, thinkingLabelMatchCount: 0 });
+  assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, controls), /thinking label Extra High must appear once/);
+});
+
 test('the exact GPT-5.6 Sol selector is a direct model option', () => {
   assert.deepEqual(modelMenuSelectionState({
     menuFound: true,
@@ -54,6 +80,33 @@ test('the exact GPT-5.6 Sol selector is a direct model option', () => {
     type: 'DIRECT_OPTION',
     observedLabels: ['GPT-5.6 Sol'],
   });
+});
+
+test('nested model menu accepts one semantically selected exact option when the outer control is Thinking effort', () => {
+  assert.deepEqual(exactModelSelectionState({ label: 'Thinking effort' }, {
+    menuFound: true,
+    directMatchCount: 1,
+    selectedModelMatchCount: 1,
+  }, 'GPT-5.6 Sol'), {
+    type: 'SEMANTIC_MENU_SELECTION',
+    selectedLabel: 'GPT-5.6 Sol',
+  });
+});
+
+test('nested model menu requires selection and fails closed on ambiguous selected state', () => {
+  assert.deepEqual(exactModelSelectionState({ label: 'Thinking effort' }, {
+    menuFound: true,
+    directMatchCount: 1,
+    selectedModelMatchCount: 0,
+  }, 'GPT-5.6 Sol'), {
+    type: 'SELECTION_REQUIRED',
+    selectedLabel: null,
+  });
+  assert.throws(() => exactModelSelectionState({ label: 'Thinking effort' }, {
+    menuFound: true,
+    directMatchCount: 1,
+    selectedModelMatchCount: 2,
+  }, 'GPT-5.6 Sol'), /selected model UI label.*ambiguous/);
 });
 
 test('fixed controls verify GPT-5.6 Sol plus Thinking effort Extra High, 4 of 5 and treat Pro only as account metadata', () => {
@@ -108,6 +161,15 @@ test('fresh provider conversations use an explicit CDP navigation instead of tru
   assert.match(source, /conversationAssigned \? 'CONVERSATION_URL_ASSIGNED'/);
   assert.match(source, /model menu did not become ready for exact label/);
   assert.match(source, /if \(normalized === 'https:\/\/chatgpt\.com\/'\) return false/);
+});
+
+test('consumer control verification waits for the post-navigation model control without accepting ambiguity', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  const currentModel = source.slice(source.indexOf('async #currentModel'), source.indexOf('async #openModelMenu'));
+  assert.match(currentModel, /return waitFor\(async \(\) =>/);
+  assert.match(currentModel, /result\?\.ambiguous/);
+  assert.match(currentModel, /return result\?\.controlFound \? result : false/);
+  assert.match(currentModel, /model\/mode switch control did not become ready after navigation/);
 });
 
 test('exact app selection walks Tools then More then one exact app option', () => {

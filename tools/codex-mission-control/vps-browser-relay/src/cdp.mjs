@@ -76,7 +76,7 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
 
 const OPEN_MODEL_MENU_FN = CURRENT_MODEL_FN;
 
-const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel) {
+const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkingLabelWanted) {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
@@ -114,20 +114,48 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel) {
   const menu = candidates[0];
   const selectable = [...menu.querySelectorAll('button, [role="menuitem"], [role="menuitemradio"], [role="option"]')].filter(visible);
   const directMatches = labelWanted == null ? [] : selectable.filter((element) => accessibleLabel(element) === labelWanted);
-  const powerControls = [...menu.querySelectorAll('[role="menuitem"]')].filter(visible).filter((element) => accessibleLabel(element) === thinkingControlLabel);
+  const semanticallySelected = (element) => (
+    element.getAttribute('aria-checked') === 'true'
+    || element.getAttribute('aria-selected') === 'true'
+    || element.getAttribute('data-state') === 'checked'
+    || Boolean(element.querySelector('[aria-checked="true"], [aria-selected="true"], [data-state="checked"]'))
+  );
+  const selectedModelMatches = directMatches.filter(semanticallySelected);
+  const menuItems = [...menu.querySelectorAll('[role="menuitem"]')].filter(visible);
+  const labeledThinkingControls = menuItems.filter((element) => accessibleLabel(element) === thinkingControlLabel);
+  const sliderContainers = menuItems.filter((element) => [...element.querySelectorAll('[role="slider"]')].filter(visible).length === 1);
+  const powerControls = labeledThinkingControls.length ? labeledThinkingControls : sliderContainers;
   const powerIndicators = [...menu.querySelectorAll('[role="menuitem"][aria-label="Select model"]')].filter(visible);
+  const thinkingLabelSegments = powerIndicators.length === 1
+    ? [...powerIndicators[0].querySelectorAll('*')]
+      .filter(visible)
+      .filter((element) => element.children.length === 0)
+      .map((element) => ((element.textContent || '').trim().replace(/\\s+/g, ' ')))
+      .filter(Boolean)
+    : [];
+  const thinkingLabelMatches = thinkingLabelWanted == null
+    ? []
+    : thinkingLabelSegments.filter((label) => label === thinkingLabelWanted);
+  const supportedThinkingLabels = new Set(['Low', 'Medium', 'High', 'Extra High', 'Pro']);
+  const currentThinkingLabels = thinkingLabelSegments.filter((label) => supportedThinkingLabels.has(label));
   const sliders = powerControls.length === 1 ? [...powerControls[0].querySelectorAll('[role="slider"]')] : [];
   const slider = sliders.length === 1 ? sliders[0] : null;
+  const controlThinkingLabel = accessibleLabel(control);
   return {
     menuFound: true,
     menuRole: menu.getAttribute('role'),
     directMatchCount: directMatches.length,
+    selectedModelMatchCount: selectedModelMatches.length,
     availableLabels: selectable.map(accessibleLabel).filter(Boolean),
     powerControlCount: powerControls.length,
     powerIndicatorCount: powerIndicators.length,
+    thinkingLabelMatchCount: thinkingLabelMatches.length,
     sliderCount: sliders.length,
-    thinkingControlObservedLabel: powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null,
-    currentPowerLabel: slider?.getAttribute('aria-valuetext') || (powerIndicators.length === 1 ? visibleLabel(powerIndicators[0]) : null),
+    thinkingControlObservedLabel: controlThinkingLabel === thinkingControlLabel
+      ? controlThinkingLabel
+      : (powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null),
+    currentPowerLabel: slider?.getAttribute('aria-valuetext')
+      || (currentThinkingLabels.length === 1 ? currentThinkingLabels[0] : null),
     sliderPosition: slider ? Number(slider.getAttribute('aria-valuenow')) : null,
     sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
     sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
@@ -183,8 +211,11 @@ const FOCUS_MODEL_POWER_FN = `function(thinkingControlLabel) {
     return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
   };
   const menus = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')].filter(visible);
-  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\s+/g, ' ');
-  const controls = menus.flatMap((menu) => [...menu.querySelectorAll('[role="menuitem"]')].filter(visible).filter((element) => label(element) === thinkingControlLabel));
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
+  const menuItems = menus.flatMap((menu) => [...menu.querySelectorAll('[role="menuitem"]')].filter(visible));
+  const labeledControls = menuItems.filter((element) => label(element) === thinkingControlLabel);
+  const sliderContainers = menuItems.filter((element) => [...element.querySelectorAll('[role="slider"]')].filter(visible).length === 1);
+  const controls = labeledControls.length ? labeledControls : sliderContainers;
   if (controls.length !== 1) return { focused: false, ambiguous: controls.length > 1, reason: controls.length ? 'MODEL_POWER_CONTROL_AMBIGUOUS' : 'MODEL_POWER_CONTROL_NOT_FOUND' };
   controls[0].focus();
   return { focused: document.activeElement === controls[0] };
@@ -226,6 +257,21 @@ export function modelMenuSelectionState(observation, labelWanted, { allowDirect 
   };
 }
 
+export function exactModelSelectionState(currentModel, observation, labelWanted) {
+  if (!observation?.menuFound) {
+    throw new Error(`ChatGPT model menu is unavailable: ${observation?.reason ?? 'UNKNOWN'}.`);
+  }
+  if (observation.directMatchCount !== 1) {
+    throw new Error(`Exact model selector option ${labelWanted} must appear once.`);
+  }
+  if ((observation.selectedModelMatchCount ?? 0) > 1) {
+    throw new Error(`Exact selected model UI label ${labelWanted} is ambiguous.`);
+  }
+  if (currentModel?.label === labelWanted) return { type: 'CURRENT_CONTROL_LABEL', selectedLabel: labelWanted };
+  if (observation.selectedModelMatchCount === 1) return { type: 'SEMANTIC_MENU_SELECTION', selectedLabel: labelWanted };
+  return { type: 'SELECTION_REQUIRED', selectedLabel: null };
+}
+
 export function consumerControlSelectionState(currentModel, observation, controls) {
   if (!controls || Object.keys(CURRENT_CONSUMER_CONTROLS).some((key) => controls[key] !== CURRENT_CONSUMER_CONTROLS[key])) {
     throw new Error('Consumer controls do not match the fixed GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 disposition.');
@@ -237,6 +283,9 @@ export function consumerControlSelectionState(currentModel, observation, control
     throw new Error(`Exact ${controls.thinkingControlLabel} slider is unavailable or ambiguous.`);
   }
   if (observation.currentPowerLabel !== controls.thinkingVisibleLabel) throw new Error(`Exact thinking label mismatch: expected ${controls.thinkingVisibleLabel}.`);
+  if (observation.thinkingLabelMatchCount != null && observation.thinkingLabelMatchCount !== 1) {
+    throw new Error(`Exact thinking label ${controls.thinkingVisibleLabel} must appear once in the model control.`);
+  }
   const ordinal = Number.isInteger(observation.sliderPosition)
     && Number.isInteger(observation.sliderMinimum)
     && Number.isInteger(observation.sliderMaximum)
@@ -636,30 +685,51 @@ export class ChromeDevtoolsBrowser {
       if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
         throw new Error('Registered supervisor chat is not ready for fixed consumer-control verification.');
       }
-      let current = await this.#currentModel(client, normalized);
-      if (current.label !== controls?.modelVisibleLabel) {
-        await this.#openModelMenu(client, normalized);
-        await this.#selectOpenModelMenu(client, controls.modelVisibleLabel, { allowThinkingSlider: false });
-        current = await waitFor(() => this.#currentModel(client, normalized).then((value) => value?.label === controls.modelVisibleLabel ? value : false), this.pageReadyTimeoutMs, 300, `Exact model label ${controls.modelVisibleLabel} did not become current.`);
-      }
+      const current = await this.#ensureExactModelSelection(client, normalized, controls?.modelVisibleLabel);
       await this.#openModelMenu(client, normalized);
       await this.#selectOpenModelMenu(client, controls.thinkingVisibleLabel, {
         allowDirect: false,
         thinkingControlLabel: controls.thinkingControlLabel,
       });
       await this.#openModelMenu(client, normalized);
-      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [controls.modelVisibleLabel, controls.thinkingControlLabel]);
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [controls.modelVisibleLabel, controls.thinkingControlLabel, controls.thinkingVisibleLabel]);
       const verified = consumerControlSelectionState(current, observation, controls);
       await this.#closeModelMenu(client);
       return { ...verified, inspectedAssistantOutput: false };
     });
   }
 
+  async #ensureExactModelSelection(client, normalized, labelWanted) {
+    let current = await this.#currentModel(client, normalized);
+    await this.#openModelMenu(client, normalized);
+    let observation = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, null, null]);
+    let selection = exactModelSelectionState(current, observation, labelWanted);
+    if (selection.type === 'SELECTION_REQUIRED') {
+      await this.#selectOpenModelMenu(client, labelWanted, { allowThinkingSlider: false });
+      current = await this.#currentModel(client, normalized);
+      await this.#openModelMenu(client, normalized);
+      observation = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, null, null]);
+      selection = exactModelSelectionState(current, observation, labelWanted);
+      if (selection.type === 'SELECTION_REQUIRED') {
+        throw new Error(`Exact model label ${labelWanted} did not become semantically selected.`);
+      }
+    }
+    await this.#closeModelMenu(client);
+    return {
+      ...current,
+      label: labelWanted,
+      observedControlLabel: current.label,
+      selectionVerification: selection.type,
+    };
+  }
+
   async #currentModel(client, normalized) {
-    const result = await client.callFunction(CURRENT_MODEL_FN, [normalized]);
-    if (result?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${result.currentUrl}`);
-    if (!result?.controlFound) throw new Error(`ChatGPT model/mode switch control is unavailable: ${result?.reason ?? 'UNKNOWN'}.`);
-    return result;
+    return waitFor(async () => {
+      const result = await client.callFunction(CURRENT_MODEL_FN, [normalized]);
+      if (result?.urlMismatch) throw new Error(`Chat target navigated to an unexpected URL: ${result.currentUrl}`);
+      if (result?.ambiguous) throw new Error('ChatGPT model/mode switch control is ambiguous.');
+      return result?.controlFound ? result : false;
+    }, this.pageReadyTimeoutMs, 200, 'ChatGPT model/mode switch control did not become ready after navigation.');
   }
 
   async #openModelMenu(client, normalized) {
@@ -682,7 +752,7 @@ export class ChromeDevtoolsBrowser {
     };
     await clickIfClosed();
     return waitFor(async () => {
-      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null]);
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null, null]);
       if (observation?.menuFound) return observation;
       await clickIfClosed();
       return false;
@@ -691,7 +761,7 @@ export class ChromeDevtoolsBrowser {
 
   async #selectOpenModelMenu(client, labelWanted, { allowDirect = true, allowThinkingSlider = true, thinkingControlLabel = null } = {}) {
     let observation = await waitFor(async () => {
-      const candidate = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, thinkingControlLabel]);
+      const candidate = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, thinkingControlLabel, thinkingControlLabel ? labelWanted : null]);
       try {
         modelMenuSelectionState(candidate, labelWanted, { allowDirect, allowThinkingSlider });
         return candidate;
@@ -722,7 +792,7 @@ export class ChromeDevtoolsBrowser {
       await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
       await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
       observation = await waitFor(async () => {
-        const next = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, thinkingControlLabel]);
+        const next = await client.callFunction(MODEL_MENU_STATE_FN, [labelWanted, thinkingControlLabel, thinkingControlLabel ? labelWanted : null]);
         modelMenuSelectionState(next, labelWanted, { allowDirect, allowThinkingSlider });
         return next.sliderPosition !== before ? next : false;
       }, Math.min(this.pageReadyTimeoutMs, 5_000), 100, `ChatGPT model Power control did not move ${key}.`);

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 function sha256(value) {
   return createHash('sha256').update(String(value)).digest('hex');
@@ -48,13 +48,16 @@ export class SubmissionSchedulerError extends Error {
 }
 
 export class CentralSubmissionScheduler {
-  constructor({ stateStore, chats, minIntervalMs = MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS, admissionTtlMs = 120_000, now = Date.now }) {
+  constructor({ stateStore, chats, producerBindings, producerAttestors, pacingDomain = null, minIntervalMs = MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS, admissionTtlMs = 120_000, now = Date.now }) {
     if (!stateStore || typeof stateStore.read !== 'function' || typeof stateStore.write !== 'function') throw new Error('A durable scheduler state store is required.');
     if (!Number.isInteger(minIntervalMs) || minIntervalMs < MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS || minIntervalMs > 600_000) {
       throw new Error('The central scheduler interval must be 60000-600000 ms.');
     }
     if (!Number.isInteger(admissionTtlMs) || admissionTtlMs < 30_000 || admissionTtlMs > 600_000) throw new Error('admissionTtlMs must be 30000-600000.');
     if (!Array.isArray(chats) || chats.length === 0) throw new Error('The central scheduler requires a non-empty Mission Control-only supervisor registry.');
+    this.producerBindings = new Map(Object.entries(parseSubmissionRelayBindings(producerBindings)));
+    this.producerAttestors = new Map(Object.entries(parseSubmissionRelayAttestors(producerAttestors, [...this.producerBindings.keys()])));
+    this.pacingDomain = boundedString(pacingDomain, 'pacingDomain', 300);
     this.stateStore = stateStore;
     this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
     this.minIntervalMs = minIntervalMs;
@@ -67,6 +70,7 @@ export class CentralSubmissionScheduler {
     return this.#serialized(async () => {
       const candidate = parseDeploymentLease(rawLease);
       const state = await this.stateStore.read();
+      const relayBindingsInitialized = initializeOrValidateRelayBindings(state, this.producerBindings);
       const previous = state.activeLease;
       const nowMs = this.now();
       if (Date.parse(candidate.issuedAt) > nowMs || Date.parse(candidate.expiresAt) <= nowMs) {
@@ -77,6 +81,7 @@ export class CentralSubmissionScheduler {
           throw new SubmissionSchedulerError('LEASE_HISTORY_MISSING', 'A new scheduler ledger may activate only an epoch-1 lease without takeover claims.');
         }
       } else if (sameLease(previous, candidate)) {
+        if (relayBindingsInitialized) await this.stateStore.write(state);
         return candidate;
       } else if (sameLeaseIdentity(previous, candidate)) {
         if (!sameRenewalFields(previous, candidate) || Date.parse(candidate.expiresAt) <= Date.parse(previous.expiresAt)) {
@@ -104,6 +109,132 @@ export class CentralSubmissionScheduler {
   async status() {
     const state = await this.stateStore.read();
     return schedulerStatus(state, this.minIntervalMs, this.now());
+  }
+
+  async producerBinding(producerId) {
+    const state = await this.stateStore.read();
+    const binding = state.relayBindings[producerId];
+    if (!binding) throw new SubmissionSchedulerError('SUBMISSION_RELAY_BINDING_MISSING', 'The authenticated producer has no durable Mission Control relay-host binding.', 403);
+    return structuredClone(binding);
+  }
+
+  async beginRelayTargetTransition(raw, producerId) {
+    return this.#serialized(async () => {
+      const input = parseRelayTargetTransition(raw, 'BEGIN');
+      this.#verifyRelayTargetTransitionProof(input, producerId);
+      const state = await this.stateStore.read();
+      const binding = requireDurableRelayBinding(state, producerId);
+      assertRelayTransitionAuthority(state.activeLease, binding, input, this.now());
+      const existing = state.relayTargetTransition;
+      if (existing) {
+        if (existing.producerId === producerId && existing.transitionId === input.transitionId
+          && existing.beginFingerprint === relayTransitionFingerprint(input)) {
+          return { begun: true, duplicate: true, transitionId: input.transitionId, binding: publicRelayBinding(binding) };
+        }
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_BUSY', 'A durable relay target transition is already open.');
+      }
+      if (state.admissions.some((item) => item.status === 'ADMITTED' || item.status === 'AMBIGUOUS_AFTER_RESTART')) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_SEND_AMBIGUITY', 'Target transitions require no open or restart-ambiguous admission.');
+      }
+      if (state.safetyHalt) throw new SubmissionSchedulerError('SUBMISSION_SAFETY_HALT', 'A prior boundary inconsistency blocks target transitions.');
+      assertExactTargetSet(input.priorOwnedTargetIds, binding.ownedTargetIds, 'RELAY_TARGET_TRANSITION_PRIOR_SET_MISMATCH');
+      if (input.priorBindingRevision !== binding.bindingRevision) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_REVISION_MISMATCH', 'The target transition names a stale binding revision.');
+      }
+      if (['RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(input.operation)
+        && state.queueItems.some((item) => OPEN_QUEUE_STATUSES.has(item.status))) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_QUEUE_NOT_QUIESCENT', 'Recovery transitions require no nonterminal durable queue item.');
+      }
+      if (input.operation === 'ADD') {
+        if (!binding.ownedTargetIds.includes(input.anchorTargetId)) throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_ANCHOR_MISSING', 'ADD requires an existing exact anchor target.');
+        if (binding.ownedTargetIds.length >= 3) throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_HARD_CEILING', 'ADD would exceed the three-target browser hard ceiling.');
+      } else if (input.operation !== 'WINDOW_REPLACE' && !binding.ownedTargetIds.includes(input.targetId)) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_TARGET_MISSING', 'REMOVE requires an exact currently owned target.');
+      } else if (input.operation !== 'WINDOW_REPLACE'
+        && state.queueItems.some((item) => OPEN_QUEUE_STATUSES.has(item.status) && item.request?.targetId === input.targetId)) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_TARGET_IN_USE', 'REMOVE is blocked while an open durable queue item still binds the target.');
+      }
+      state.relayTargetTransition = {
+        transitionId: input.transitionId,
+        producerId,
+        operation: input.operation,
+        hostAlias: input.hostAlias,
+        hostRole: input.hostRole,
+        deploymentEpoch: input.deploymentEpoch,
+        leaseId: input.leaseId,
+        automationWindowId: input.automationWindowId,
+        priorBindingRevision: input.priorBindingRevision,
+        priorOwnedTargetIds: [...input.priorOwnedTargetIds],
+        anchorTargetId: input.anchorTargetId,
+        targetId: input.targetId,
+        reason: input.reason,
+        beginFingerprint: relayTransitionFingerprint(input),
+        begunAt: new Date(this.now()).toISOString(),
+      };
+      await this.stateStore.write(state);
+      return { begun: true, duplicate: false, transitionId: input.transitionId, binding: publicRelayBinding(binding) };
+    });
+  }
+
+  async commitRelayTargetTransition(raw, producerId) {
+    return this.#serialized(async () => {
+      const input = parseRelayTargetTransition(raw, 'COMMIT');
+      this.#verifyRelayTargetTransitionProof(input, producerId);
+      const state = await this.stateStore.read();
+      const binding = requireDurableRelayBinding(state, producerId);
+      const transition = state.relayTargetTransition;
+      if (!transition) {
+        if (binding.lastTransitionId === input.transitionId
+          && binding.bindingRevision === input.priorBindingRevision + 1
+          && exactTargetSetsEqual(binding.ownedTargetIds, input.postOwnedTargetIds)
+          && binding.automationWindowId === input.postAutomationWindowId) {
+          assertRelayTransitionDuplicateAuthority(state.activeLease, binding, input, this.now());
+          return { committed: true, duplicate: true, transitionId: input.transitionId, binding: publicRelayBinding(binding) };
+        }
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_MISSING', 'No durable target transition is open.');
+      }
+      assertRelayTransitionAuthority(state.activeLease, binding, input, this.now());
+      assertRelayTransitionIdentity(transition, input, producerId);
+      assertExactTargetSet(input.priorOwnedTargetIds, transition.priorOwnedTargetIds, 'RELAY_TARGET_TRANSITION_PRIOR_SET_MISMATCH');
+      assertExactTargetSet(binding.ownedTargetIds, transition.priorOwnedTargetIds, 'RELAY_TARGET_TRANSITION_BINDING_CHANGED');
+      if (binding.bindingRevision !== transition.priorBindingRevision) throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_REVISION_MISMATCH', 'The durable binding revision changed while the transition was open.');
+      assertRelayTargetDelta(transition, input.postOwnedTargetIds, input.transitionedTargetId);
+      if (transition.operation === 'WINDOW_REPLACE') {
+        if (input.postAutomationWindowId === transition.automationWindowId) {
+          throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_DELTA_INVALID', 'WINDOW_REPLACE requires a fresh automation window identity.');
+        }
+        binding.automationWindowId = input.postAutomationWindowId;
+      } else if (input.postAutomationWindowId !== transition.automationWindowId) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_DELTA_INVALID', 'Only WINDOW_REPLACE may change the automation window identity.');
+      }
+      binding.ownedTargetIds = [...input.postOwnedTargetIds];
+      binding.bindingRevision += 1;
+      binding.lastTransitionId = input.transitionId;
+      state.relayTargetTransition = null;
+      await this.stateStore.write(state);
+      return { committed: true, duplicate: false, transitionId: input.transitionId, binding: publicRelayBinding(binding) };
+    });
+  }
+
+  async abortRelayTargetTransition(raw, producerId) {
+    return this.#serialized(async () => {
+      const input = parseRelayTargetTransition(raw, 'ABORT');
+      this.#verifyRelayTargetTransitionProof(input, producerId);
+      const state = await this.stateStore.read();
+      const binding = requireDurableRelayBinding(state, producerId);
+      assertRelayTransitionAuthority(state.activeLease, binding, input, this.now());
+      const transition = state.relayTargetTransition;
+      if (!transition) return { aborted: true, duplicate: true, transitionId: input.transitionId, binding: publicRelayBinding(binding) };
+      assertRelayTransitionIdentity(transition, input, producerId);
+      if (input.observedAutomationWindowId !== transition.automationWindowId) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_ABORT_OBSERVATION_MISMATCH', 'Abort requires the unchanged prior automation window identity.');
+      }
+      assertExactTargetSet(input.observedOwnedTargetIds, transition.priorOwnedTargetIds, 'RELAY_TARGET_TRANSITION_ABORT_OBSERVATION_MISMATCH');
+      assertExactTargetSet(binding.ownedTargetIds, transition.priorOwnedTargetIds, 'RELAY_TARGET_TRANSITION_BINDING_CHANGED');
+      state.relayTargetTransition = null;
+      await this.stateStore.write(state);
+      return { aborted: true, duplicate: false, transitionId: input.transitionId, binding: publicRelayBinding(binding) };
+    });
   }
 
   async validateAdmission(raw, producerId) {
@@ -146,6 +277,11 @@ export class CentralSubmissionScheduler {
       let request = parseAdmission(raw);
       const state = await this.stateStore.read();
       const nowMs = this.now();
+      initializeOrValidateRelayBindings(state, this.producerBindings);
+      assertProducerBinding(state.relayBindings, producerId, request);
+      if (state.relayTargetTransition) {
+        throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_OPEN', 'No send admission is permitted while an exact relay target transition is open.');
+      }
       assertActiveLease(state.activeLease, request, nowMs);
       let chat = assertRegistryTarget(this.chats, state, request);
       for (const admission of state.admissions) {
@@ -188,7 +324,26 @@ export class CentralSubmissionScheduler {
       const logicalFingerprint = logicalRequestFingerprint(request);
       let queueItem = [...state.queueItems].reverse().find((item) => item.queueKey === request.queueKey && item.status !== 'CANCELLED_AT_TAKEOVER');
       if (queueItem && queueItem.requestFingerprint !== fingerprint) {
-        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_KEY_CONFLICT', 'The queue key already binds different immutable send fields.');
+        const takeoverRetry = queueItem.status === 'RATE_LIMIT_RETRY_PENDING'
+          && queueItem.logicalFingerprint === logicalFingerprint
+          && request.deploymentEpoch > queueItem.request.deploymentEpoch
+          && request.deploymentEpoch === state.activeLease.epoch;
+        if (!takeoverRetry) {
+          throw new SubmissionSchedulerError('SUBMISSION_QUEUE_KEY_CONFLICT', 'The queue key already binds different immutable send fields.');
+        }
+        queueItem.takeoverRebindings.push({
+          reboundAt: new Date(nowMs).toISOString(),
+          fromHostAlias: queueItem.request.hostAlias,
+          fromDeploymentEpoch: queueItem.request.deploymentEpoch,
+          fromLeaseId: queueItem.request.leaseId,
+          fromRequestFingerprint: queueItem.requestFingerprint,
+          toHostAlias: request.hostAlias,
+          toDeploymentEpoch: request.deploymentEpoch,
+          toLeaseId: request.leaseId,
+          toRequestFingerprint: fingerprint,
+        });
+        queueItem.request = request;
+        queueItem.requestFingerprint = fingerprint;
       }
       const cancelledPrior = [...state.queueItems].reverse().find((item) => item.queueKey === request.queueKey && item.status === 'CANCELLED_AT_TAKEOVER');
       if (!queueItem && cancelledPrior && cancelledPrior.logicalFingerprint !== logicalFingerprint) {
@@ -207,6 +362,7 @@ export class CentralSubmissionScheduler {
           queuedAt: new Date(nowMs).toISOString(),
           admissionIds: [],
           terminalAt: null,
+          takeoverRebindings: [],
         };
         state.queueItems.push(queueItem);
         await this.stateStore.write(state);
@@ -494,6 +650,19 @@ export class CentralSubmissionScheduler {
     this.tail = result.catch(() => {});
     return result;
   }
+
+  #verifyRelayTargetTransitionProof(input, producerId) {
+    if (input.pacingDomain !== this.pacingDomain || input.producerId !== producerId) {
+      throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_SCOPE_MISMATCH', 'The signed transition scope does not match this authority or producer.', 403);
+    }
+    const secret = this.producerAttestors.get(producerId);
+    if (!secret) throw new SubmissionSchedulerError('RELAY_TARGET_ATTESTOR_MISSING', 'No binding attestor is configured for this producer.', 403);
+    const expected = createHmac('sha256', secret).update(canonicalJson(relayTransitionProofPayload(input))).digest();
+    const supplied = Buffer.from(input.proof, 'hex');
+    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+      throw new SubmissionSchedulerError('RELAY_TARGET_ATTESTATION_INVALID', 'The target transition attestation is invalid.', 403);
+    }
+  }
 }
 
 export function parseDeploymentLease(value) {
@@ -516,8 +685,144 @@ export function parseDeploymentLease(value) {
   };
 }
 
+export function parseSubmissionRelayBindings(value) {
+  const root = requiredRecord(value, 'Submission relay bindings');
+  const entries = Object.entries(root);
+  if (entries.length === 0) throw new Error('Submission relay bindings must contain at least one producer.');
+  const result = Object.create(null);
+  for (const [producerId, raw] of entries) {
+    const binding = requiredRecord(raw, `Submission relay binding ${producerId}`);
+    result[boundedString(producerId, 'producerId', 180)] = {
+      hostAlias: boundedString(binding.hostAlias, `${producerId}.hostAlias`, 100),
+      hostRole: hostRole(binding.hostRole),
+      automationWindowId: positiveInteger(binding.automationWindowId, `${producerId}.automationWindowId`),
+      ownedTargetIds: stringArray(binding.ownedTargetIds, `${producerId}.ownedTargetIds`, 300).sort(),
+      bindingRevision: binding.bindingRevision == null ? 1 : positiveInteger(binding.bindingRevision, `${producerId}.bindingRevision`),
+      lastTransitionId: binding.lastTransitionId == null ? null : boundedString(binding.lastTransitionId, `${producerId}.lastTransitionId`, 300),
+    };
+    if (result[producerId].ownedTargetIds.length === 0) {
+      throw new Error(`${producerId}.ownedTargetIds must contain at least one exact automation-owned target.`);
+    }
+  }
+  return result;
+}
+
+export function parseSubmissionRelayAttestors(value, producerIds) {
+  const root = requiredRecord(value, 'Submission relay attestors');
+  const expected = [...producerIds].sort();
+  const actual = Object.keys(root).sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Submission relay attestors must exactly match the configured relay producer IDs.');
+  const result = Object.create(null);
+  for (const producerId of expected) {
+    result[producerId] = boundedSecret(root[producerId], `Submission relay attestor ${producerId}`);
+  }
+  return result;
+}
+
+function parseSubmissionRelayBindingsAllowEmpty(value) {
+  const root = requiredRecord(value, 'Submission relay bindings');
+  return Object.keys(root).length === 0 ? {} : parseSubmissionRelayBindings(root);
+}
+
+function parseRelayTargetTransition(value, phase) {
+  const root = requiredRecord(value, `Relay target transition ${phase}`);
+  const operation = root.operation;
+  if (!['ADD', 'REMOVE', 'RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(operation)) {
+    throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_INVALID', 'operation must be ADD, REMOVE, RECONCILE_REMOVE, or WINDOW_REPLACE.', 400);
+  }
+  const expectedReason = {
+    ADD: 'AUTOMATION_OWNED_TARGET_CREATE',
+    REMOVE: 'AUTOMATION_OWNED_TARGET_CLOSE',
+    RECONCILE_REMOVE: 'AUTOMATION_OWNED_TARGET_DISAPPEARED',
+    WINDOW_REPLACE: 'AUTOMATION_OWNED_WINDOW_REPLACE',
+  }[operation];
+  if (root.reason !== expectedReason) throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_INVALID', `reason must be ${expectedReason}.`, 400);
+  const common = {
+    phase,
+    pacingDomain: boundedString(root.pacingDomain, 'pacingDomain', 300),
+    producerId: boundedString(root.producerId, 'producerId', 180),
+    transitionId: boundedString(root.transitionId, 'transitionId', 300),
+    operation,
+    reason: expectedReason,
+    hostAlias: boundedString(root.hostAlias, 'hostAlias', 100),
+    hostRole: hostRole(root.hostRole),
+    deploymentEpoch: positiveInteger(root.deploymentEpoch, 'deploymentEpoch'),
+    leaseId: boundedString(root.leaseId, 'leaseId', 300),
+    automationWindowId: positiveInteger(root.automationWindowId, 'automationWindowId'),
+    priorBindingRevision: positiveInteger(root.priorBindingRevision, 'priorBindingRevision'),
+    priorOwnedTargetIds: stringArray(root.priorOwnedTargetIds, 'priorOwnedTargetIds', 300).sort(),
+    anchorTargetId: operation === 'ADD' ? boundedString(root.anchorTargetId, 'anchorTargetId', 300) : null,
+    targetId: ['REMOVE', 'RECONCILE_REMOVE'].includes(operation) ? boundedString(root.targetId, 'targetId', 300) : null,
+  };
+  const phaseFields = phase === 'COMMIT' ? {
+    postAutomationWindowId: positiveInteger(root.postAutomationWindowId, 'postAutomationWindowId'),
+    postOwnedTargetIds: stringArray(root.postOwnedTargetIds, 'postOwnedTargetIds', 300).sort(),
+    transitionedTargetId: boundedString(root.transitionedTargetId, 'transitionedTargetId', 300),
+  } : phase === 'ABORT' ? {
+    observedAutomationWindowId: positiveInteger(root.observedAutomationWindowId, 'observedAutomationWindowId'),
+    observedOwnedTargetIds: stringArray(root.observedOwnedTargetIds, 'observedOwnedTargetIds', 300).sort(),
+  } : {};
+  return { ...common, ...phaseFields, proof: sha(root.proof, 'proof') };
+}
+
+function normalizeRelayTargetTransition(value, relayBindings) {
+  const root = requiredRecord(value, 'relayTargetTransition');
+  const producerId = boundedString(root.producerId, 'relayTargetTransition.producerId', 180);
+  const binding = relayBindings[producerId];
+  if (!binding) throw new Error('relayTargetTransition producer lacks a durable relay binding.');
+  const operation = root.operation;
+  if (!['ADD', 'REMOVE', 'RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(operation)) throw new Error('relayTargetTransition.operation is invalid.');
+  const transition = {
+    transitionId: boundedString(root.transitionId, 'relayTargetTransition.transitionId', 300),
+    producerId,
+    operation,
+    hostAlias: boundedString(root.hostAlias, 'relayTargetTransition.hostAlias', 100),
+    hostRole: hostRole(root.hostRole),
+    deploymentEpoch: positiveInteger(root.deploymentEpoch, 'relayTargetTransition.deploymentEpoch'),
+    leaseId: boundedString(root.leaseId, 'relayTargetTransition.leaseId', 300),
+    automationWindowId: positiveInteger(root.automationWindowId, 'relayTargetTransition.automationWindowId'),
+    priorBindingRevision: positiveInteger(root.priorBindingRevision, 'relayTargetTransition.priorBindingRevision'),
+    priorOwnedTargetIds: stringArray(root.priorOwnedTargetIds, 'relayTargetTransition.priorOwnedTargetIds', 300).sort(),
+    anchorTargetId: root.anchorTargetId == null ? null : boundedString(root.anchorTargetId, 'relayTargetTransition.anchorTargetId', 300),
+    targetId: root.targetId == null ? null : boundedString(root.targetId, 'relayTargetTransition.targetId', 300),
+    reason: boundedString(root.reason, 'relayTargetTransition.reason', 100),
+    beginFingerprint: sha(root.beginFingerprint, 'relayTargetTransition.beginFingerprint'),
+    begunAt: isoTimestamp(root.begunAt, 'relayTargetTransition.begunAt'),
+  };
+  if (transition.hostAlias !== binding.hostAlias || transition.hostRole !== binding.hostRole
+    || transition.automationWindowId !== binding.automationWindowId
+    || transition.priorBindingRevision !== binding.bindingRevision
+    || !exactTargetSetsEqual(transition.priorOwnedTargetIds, binding.ownedTargetIds)) {
+    throw new Error('relayTargetTransition does not match its durable relay binding.');
+  }
+  if ((operation === 'ADD' && (!transition.anchorTargetId || transition.targetId !== null || transition.reason !== 'AUTOMATION_OWNED_TARGET_CREATE'))
+    || (operation === 'REMOVE' && (!transition.targetId || transition.anchorTargetId !== null || transition.reason !== 'AUTOMATION_OWNED_TARGET_CLOSE'))
+    || (operation === 'RECONCILE_REMOVE' && (!transition.targetId || transition.anchorTargetId !== null || transition.reason !== 'AUTOMATION_OWNED_TARGET_DISAPPEARED'))
+    || (operation === 'WINDOW_REPLACE' && (transition.targetId !== null || transition.anchorTargetId !== null || transition.reason !== 'AUTOMATION_OWNED_WINDOW_REPLACE'))) {
+    throw new Error('relayTargetTransition operation fields are inconsistent.');
+  }
+  return transition;
+}
+
+function relayTransitionProofPayload(input) {
+  const { proof: _proof, ...payload } = input;
+  return payload;
+}
+
+function relayTransitionFingerprint(input) {
+  return sha256(canonicalJson(relayTransitionProofPayload(input)));
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 export function defaultSchedulerState(now = new Date().toISOString()) {
-  return { schemaVersion: 1, createdAt: now, updatedAt: now, activeLease: null, leaseHistory: [], lastBoundaryAt: null, nextSequence: 1, nextQueueSequence: 1, queueItems: [], admissions: [], targetBindings: {}, safetyHalt: null };
+  return { schemaVersion: 1, createdAt: now, updatedAt: now, activeLease: null, leaseHistory: [], lastBoundaryAt: null, nextSequence: 1, nextQueueSequence: 1, queueItems: [], admissions: [], targetBindings: {}, relayBindings: {}, relayTargetTransition: null, safetyHalt: null };
 }
 
 export function normalizeSchedulerState(value, now = new Date().toISOString()) {
@@ -541,6 +846,10 @@ export function normalizeSchedulerState(value, now = new Date().toISOString()) {
   if (value.safetyHalt !== null && (!value.safetyHalt || typeof value.safetyHalt !== 'object' || Array.isArray(value.safetyHalt))) {
     throw new Error('Submission scheduler safetyHalt must be an object or null.');
   }
+  const relayBindings = value.relayBindings == null ? {} : parseSubmissionRelayBindingsAllowEmpty(value.relayBindings);
+  const relayTargetTransition = value.relayTargetTransition == null
+    ? null
+    : normalizeRelayTargetTransition(value.relayTargetTransition, relayBindings);
   const leaseHistory = value.leaseHistory.map((item) => parseDeploymentLease(item));
   const queueItems = value.queueItems.map((item, index) => normalizeQueueItem(item, index));
   const admissions = value.admissions.map((item, index) => normalizeAdmissionRecord(item, index));
@@ -604,6 +913,8 @@ export function normalizeSchedulerState(value, now = new Date().toISOString()) {
     queueItems,
     admissions,
     targetBindings,
+    relayBindings,
+    relayTargetTransition,
     safetyHalt,
   };
 }
@@ -628,6 +939,7 @@ function normalizeQueueItem(value, index) {
     admittedAt: optionalTimestamp(root.admittedAt, `queueItems.${index}.admittedAt`),
     lastPreclickAbortAt: optionalTimestamp(root.lastPreclickAbortAt, `queueItems.${index}.lastPreclickAbortAt`),
     cancelledByLeaseId: root.cancelledByLeaseId == null ? null : boundedString(root.cancelledByLeaseId, `queueItems.${index}.cancelledByLeaseId`, 300),
+    takeoverRebindings: normalizeTakeoverRebindings(root.takeoverRebindings, index),
   };
   if (item.queueKey !== request.queueKey || item.retryRootKey !== request.retryRootKey
     || item.requestFingerprint !== requestFingerprint(request) || item.logicalFingerprint !== logicalRequestFingerprint(request)) {
@@ -776,6 +1088,7 @@ function parseAdmission(value) {
     supervisorId: boundedString(root.supervisorId, 'supervisorId', 300),
     registrationId: boundedString(root.registrationId, 'registrationId', 300),
     targetId: boundedString(root.targetId, 'targetId', 300),
+    automationWindowId: positiveInteger(root.automationWindowId, 'automationWindowId'),
     targetKind,
     targetKey: boundedString(root.targetKey, 'targetKey', 500),
     expectedUrlSha256: sha(root.expectedUrlSha256, 'expectedUrlSha256'),
@@ -805,10 +1118,155 @@ function assertActiveLease(lease, request, nowMs) {
   }
 }
 
+function assertProducerBinding(bindings, producerId, request) {
+  const binding = bindings instanceof Map ? bindings.get(producerId) : bindings?.[producerId];
+  if (!binding) {
+    throw new SubmissionSchedulerError('SUBMISSION_RELAY_BINDING_MISSING', 'The authenticated producer has no Mission Control relay-host binding.', 403);
+  }
+  if (request.hostAlias !== binding.hostAlias || request.hostRole !== binding.hostRole) {
+    throw new SubmissionSchedulerError('SUBMISSION_RELAY_HOST_IMPERSONATION', 'The authenticated producer cannot claim another relay host or role.', 403);
+  }
+  if (request.automationWindowId !== binding.automationWindowId || !binding.ownedTargetIds.includes(request.targetId)) {
+    throw new SubmissionSchedulerError('SUBMISSION_TARGET_OWNERSHIP_UNATTESTED', 'The target is not in the authenticated relay host automation-owned window registry.', 403);
+  }
+}
+
+function requireDurableRelayBinding(state, producerId) {
+  const binding = state.relayBindings?.[producerId];
+  if (!binding) throw new SubmissionSchedulerError('SUBMISSION_RELAY_BINDING_MISSING', 'The authenticated producer has no durable Mission Control relay-host binding.', 403);
+  return binding;
+}
+
+function publicRelayBinding(binding) {
+  const ownedTargetIds = [...binding.ownedTargetIds].sort();
+  return {
+    hostAlias: binding.hostAlias,
+    hostRole: binding.hostRole,
+    automationWindowId: binding.automationWindowId,
+    bindingRevision: binding.bindingRevision,
+    ownedTargetCount: ownedTargetIds.length,
+    ownedTargetIdsSha256: sha256(JSON.stringify(ownedTargetIds)),
+  };
+}
+
+function initializeOrValidateRelayBindings(state, configuredBindings) {
+  const configured = Object.fromEntries([...configuredBindings.entries()].map(([producerId, binding]) => [producerId, structuredClone(binding)]));
+  if (Object.keys(state.relayBindings ?? {}).length === 0) {
+    state.relayBindings = configured;
+    return true;
+  }
+  const configuredIds = Object.keys(configured).sort();
+  const durableIds = Object.keys(state.relayBindings).sort();
+  if (JSON.stringify(configuredIds) !== JSON.stringify(durableIds)) {
+    throw new SubmissionSchedulerError('SUBMISSION_RELAY_BINDING_CONFIGURATION_DRIFT', 'Configured and durable relay producer identities differ.');
+  }
+  for (const producerId of configuredIds) {
+    const expected = configured[producerId];
+    const durable = state.relayBindings[producerId];
+    if (expected.hostAlias !== durable.hostAlias || expected.hostRole !== durable.hostRole) {
+      throw new SubmissionSchedulerError('SUBMISSION_RELAY_BINDING_CONFIGURATION_DRIFT', 'Configured relay host identity differs from durable authority state.');
+    }
+  }
+  return false;
+}
+
+function assertRelayTransitionAuthority(lease, binding, input, nowMs) {
+  if (input.hostAlias !== binding.hostAlias || input.hostRole !== binding.hostRole
+    || input.automationWindowId !== binding.automationWindowId) {
+    throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_HOST_MISMATCH', 'The transition host, role, or automation window differs from the durable relay binding.', 403);
+  }
+  if (lease?.activeHostAlias === binding.hostAlias && lease?.activeHostRole === binding.hostRole) {
+    assertActiveLease(lease, input, nowMs);
+    return;
+  }
+  assertPassiveRecoveryLeaseSnapshot(lease, input, nowMs);
+}
+
+function assertRelayTransitionDuplicateAuthority(lease, binding, input, nowMs) {
+  if (input.hostAlias !== binding.hostAlias || input.hostRole !== binding.hostRole) {
+    throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_HOST_MISMATCH', 'The transition host or role differs from the durable relay binding.', 403);
+  }
+  if (lease?.activeHostAlias === binding.hostAlias && lease?.activeHostRole === binding.hostRole) {
+    assertActiveLease(lease, input, nowMs);
+    return;
+  }
+  assertPassiveRecoveryLeaseSnapshot(lease, input, nowMs);
+}
+
+function assertPassiveRecoveryLeaseSnapshot(lease, input, nowMs) {
+  if (!['RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(input.operation)) {
+    throw new SubmissionSchedulerError('STANDBY_TARGET_MUTATION_FORBIDDEN', 'An inactive relay may perform only fail-closed disappearance or full-window recovery.', 403);
+  }
+  if (!lease || lease.splitBrainStatus !== 'SINGLE_ACTIVE_CONFIRMED'
+    || lease.epoch !== input.deploymentEpoch || lease.leaseId !== input.leaseId
+    || Date.parse(lease.issuedAt) > nowMs || Date.parse(lease.expiresAt) <= nowMs) {
+    throw new SubmissionSchedulerError('DEPLOYMENT_LEASE_MISMATCH', 'Passive recovery requires the exact current active-lease snapshot.', 403);
+  }
+}
+
+function assertRelayTransitionIdentity(transition, input, producerId) {
+  if (transition.producerId !== producerId || transition.transitionId !== input.transitionId
+    || transition.operation !== input.operation || transition.reason !== input.reason
+    || transition.hostAlias !== input.hostAlias || transition.hostRole !== input.hostRole
+    || transition.deploymentEpoch !== input.deploymentEpoch || transition.leaseId !== input.leaseId
+    || transition.automationWindowId !== input.automationWindowId
+    || transition.priorBindingRevision !== input.priorBindingRevision
+    || transition.anchorTargetId !== input.anchorTargetId || transition.targetId !== input.targetId) {
+    throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_IDENTITY_MISMATCH', 'The transition does not match the exact durable begin record.', 403);
+  }
+}
+
+function assertRelayTargetDelta(transition, postOwnedTargetIds, transitionedTargetId) {
+  const prior = transition.priorOwnedTargetIds;
+  if (transition.operation === 'WINDOW_REPLACE') {
+    if (postOwnedTargetIds.length !== 1 || postOwnedTargetIds[0] !== transitionedTargetId
+      || prior.includes(transitionedTargetId)) {
+      throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_DELTA_INVALID', 'WINDOW_REPLACE must bind exactly one fresh target in the fresh automation window.');
+    }
+    return;
+  }
+  if (transition.operation === 'ADD') {
+    const added = postOwnedTargetIds.filter((targetId) => !prior.includes(targetId));
+    const removed = prior.filter((targetId) => !postOwnedTargetIds.includes(targetId));
+    if (added.length !== 1 || removed.length !== 0 || postOwnedTargetIds.length > 3
+      || added[0] !== transitionedTargetId) {
+      throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_DELTA_INVALID', 'ADD must retain the prior set and add exactly one target within the hard ceiling.');
+    }
+    return;
+  }
+  const removed = prior.filter((targetId) => !postOwnedTargetIds.includes(targetId));
+  const added = postOwnedTargetIds.filter((targetId) => !prior.includes(targetId));
+  if (removed.length !== 1 || added.length !== 0 || removed[0] !== transition.targetId
+    || removed[0] !== transitionedTargetId || postOwnedTargetIds.length < 1) {
+    throw new SubmissionSchedulerError('RELAY_TARGET_TRANSITION_DELTA_INVALID', `${transition.operation} must delete exactly the named target and retain at least one owned target.`);
+  }
+}
+
+function assertExactTargetSet(actual, expected, code) {
+  if (!exactTargetSetsEqual(actual, expected)) throw new SubmissionSchedulerError(code, 'The exact canonical target set does not match durable authority state.');
+}
+
+function exactTargetSetsEqual(left, right) {
+  return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
+}
+
 function assertRegistryTarget(chats, state, request) {
   const chat = chats.get(request.supervisorId);
   if (!chat) throw new SubmissionSchedulerError('SUPERVISOR_NOT_REGISTERED', 'The supervisor is absent from the current registry.');
   if (chat.ownership !== 'MISSION_CONTROL_ONLY' || chat.registrationId !== request.registrationId) throw new SubmissionSchedulerError('SUPERVISOR_OWNERSHIP_MISMATCH', 'Mission Control-only ownership and registration must match exactly.');
+  if (chat.registrationState === 'PROVISIONING') {
+    if (!chat.purpose || chat.provisioningProvenance?.authorizedBy !== 'OWNER') {
+      throw new SubmissionSchedulerError('SUPERVISOR_PROVENANCE_INVALID', 'Owner provisioning authority and an explicit Mission Control purpose are required.');
+    }
+    if (request.sendPath !== 'MC_ONLY_PROVISIONING' || request.targetKind !== 'FRESH_PROVIDER_SESSION'
+      || request.targetKey !== chat.provisioningKey || request.expectedUrlSha256 !== sha256('https://chatgpt.com/')) {
+      throw new SubmissionSchedulerError('SUPERVISOR_PROVISIONING_SCOPE_MISMATCH', 'A provisioning registration permits only its exact one-time Mission Control-only provider-root send.', 403);
+    }
+    if (state.targetBindings[chat.provisioningKey]) {
+      throw new SubmissionSchedulerError('SUPERVISOR_PROVISIONING_ALREADY_CONSUMED', 'The one-time provisioning key already binds a provider conversation.');
+    }
+    return chat;
+  }
   if (!chat.purpose || chat.registrationProvenance?.registeredBy !== 'OWNER') throw new SubmissionSchedulerError('SUPERVISOR_PROVENANCE_INVALID', 'Owner provenance and an explicit Mission Control purpose are required.');
   if (request.targetKind === 'REGISTERED_BOOTSTRAP') {
     if (request.targetKey !== chat.bootstrapCapability.chatId || request.expectedUrlSha256 !== sha256(chat.bootstrapCapability.url)) throw new SubmissionSchedulerError('SUPERVISOR_TARGET_MISMATCH', 'Bootstrap target does not match the registered conversation.');
@@ -828,6 +1286,7 @@ function validateLeaseTransition(previous, candidate, state, minIntervalMs, nowM
   }
   if (candidate.takeover.priorHostQuiescence !== 'PROVEN' || Date.parse(candidate.takeover.provenAt) > nowMs) throw new SubmissionSchedulerError('PRIMARY_QUIESCENCE_UNPROVEN', 'Takeover requires proven prior-host quiescence.');
   if (state.admissions.some((item) => item.status === 'ADMITTED' || item.status === 'AMBIGUOUS_AFTER_RESTART')) throw new SubmissionSchedulerError('TAKEOVER_SEND_AMBIGUITY', 'Takeover is blocked by an unresolved send admission.');
+  if (state.relayTargetTransition) throw new SubmissionSchedulerError('TAKEOVER_TARGET_TRANSITION_OPEN', 'Takeover requires the prior relay target transition to be resolved under its current lease.');
   if (candidate.takeover.previousLeaseExpiresAt !== previous.expiresAt
     || nowMs < Date.parse(previous.expiresAt)
     || Date.parse(candidate.issuedAt) < Date.parse(previous.expiresAt)) {
@@ -881,8 +1340,8 @@ function schedulerStatus(state, minIntervalMs, nowMs) {
     lastSubmissionAt: state.lastBoundaryAt,
     retryAfterMs: effectiveRetryAfterMs,
     nextSubmissionAt: effectiveRetryAfterMs > 0 ? new Date(nowMs + effectiveRetryAfterMs).toISOString() : null,
-    ready: Boolean(leaseReady && effectiveRetryAfterMs === 0 && !open && !rateLimitItem && !state.safetyHalt),
-    activeLease: state.activeLease ? { epoch: state.activeLease.epoch, activeHostAlias: state.activeLease.activeHostAlias, activeHostRole: state.activeLease.activeHostRole, expiresAt: state.activeLease.expiresAt, splitBrainStatus: state.activeLease.splitBrainStatus } : null,
+    ready: Boolean(leaseReady && effectiveRetryAfterMs === 0 && !open && !rateLimitItem && !state.safetyHalt && !state.relayTargetTransition),
+    activeLease: state.activeLease ? { leaseId: state.activeLease.leaseId, epoch: state.activeLease.epoch, activeHostAlias: state.activeLease.activeHostAlias, activeHostRole: state.activeLease.activeHostRole, expiresAt: state.activeLease.expiresAt, splitBrainStatus: state.activeLease.splitBrainStatus } : null,
     unresolvedAdmission: open ? { admissionId: open.admissionId, admittedAt: open.admittedAt, expiresAt: open.expiresAt, status: open.status } : null,
     queueDepth: queue.length,
     queueHead: queue[0] ? { queueItemId: queue[0].queueItemId, queueKey: queue[0].queueKey, status: queue[0].status, queuedAt: queue[0].queuedAt } : null,
@@ -893,6 +1352,12 @@ function schedulerStatus(state, minIntervalMs, nowMs) {
       observedAt: latestRateLimitAt,
       retryAfterMs: providerRetryAfterMs,
     } : { state: 'CLEAR', queueItemId: null, providerRateLimitCount: 0 },
+    relayTargetTransition: state.relayTargetTransition ? {
+      state: 'OPEN',
+      operation: state.relayTargetTransition.operation,
+      bindingRevision: state.relayTargetTransition.priorBindingRevision,
+      begunAt: state.relayTargetTransition.begunAt,
+    } : { state: 'CLEAR' },
     safetyHalt: state.safetyHalt,
   };
 }
@@ -925,6 +1390,7 @@ function requestFingerprint(request) {
     supervisorId: request.supervisorId,
     registrationId: request.registrationId,
     targetId: request.targetId,
+    automationWindowId: request.automationWindowId,
     targetKind: request.targetKind,
     targetKey: request.targetKey,
     expectedUrlSha256: request.expectedUrlSha256,
@@ -947,6 +1413,25 @@ function logicalRequestFingerprint(request) {
   }));
 }
 
+function normalizeTakeoverRebindings(value, queueIndex) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) throw new Error(`queueItems.${queueIndex}.takeoverRebindings must be an array.`);
+  return value.map((raw, index) => {
+    const root = requiredRecord(raw, `queueItems.${queueIndex}.takeoverRebindings.${index}`);
+    return {
+      reboundAt: isoTimestamp(root.reboundAt, `queueItems.${queueIndex}.takeoverRebindings.${index}.reboundAt`),
+      fromHostAlias: boundedString(root.fromHostAlias, `queueItems.${queueIndex}.takeoverRebindings.${index}.fromHostAlias`, 100),
+      fromDeploymentEpoch: positiveInteger(root.fromDeploymentEpoch, `queueItems.${queueIndex}.takeoverRebindings.${index}.fromDeploymentEpoch`),
+      fromLeaseId: boundedString(root.fromLeaseId, `queueItems.${queueIndex}.takeoverRebindings.${index}.fromLeaseId`, 300),
+      fromRequestFingerprint: sha(root.fromRequestFingerprint, `queueItems.${queueIndex}.takeoverRebindings.${index}.fromRequestFingerprint`),
+      toHostAlias: boundedString(root.toHostAlias, `queueItems.${queueIndex}.takeoverRebindings.${index}.toHostAlias`, 100),
+      toDeploymentEpoch: positiveInteger(root.toDeploymentEpoch, `queueItems.${queueIndex}.takeoverRebindings.${index}.toDeploymentEpoch`),
+      toLeaseId: boundedString(root.toLeaseId, `queueItems.${queueIndex}.takeoverRebindings.${index}.toLeaseId`, 300),
+      toRequestFingerprint: sha(root.toRequestFingerprint, `queueItems.${queueIndex}.takeoverRebindings.${index}.toRequestFingerprint`),
+    };
+  });
+}
+
 function rateLimitCount(state, retryRootKey) {
   return state.admissions.filter((item) => item.retryRootKey === retryRootKey && item.providerRateLimitObservedAt).length;
 }
@@ -958,6 +1443,11 @@ function requiredRecord(value, field) {
 
 function boundedString(value, field, max) {
   if (typeof value !== 'string' || value.trim() === '' || value.length > max) throw new Error(`${field} must be a non-empty string no longer than ${max} characters.`);
+  return value;
+}
+
+function boundedSecret(value, field) {
+  if (typeof value !== 'string' || value.length < 32 || value.length > 4096) throw new Error(`${field} must contain 32-4096 characters.`);
   return value;
 }
 

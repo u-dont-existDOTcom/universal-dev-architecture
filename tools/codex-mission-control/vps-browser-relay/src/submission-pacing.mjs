@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from 'node:crypto';
+
 export const GLOBAL_SUBMISSION_COOLDOWN = 'GLOBAL_SUBMISSION_COOLDOWN';
 export const CHATGPT_RATE_LIMIT_RETRY = 'CHATGPT_RATE_LIMIT_RETRY';
 export const CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED = 'CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED';
@@ -35,13 +37,14 @@ export class CentralSubmissionScheduler {
 
   async remoteStatus() {
     const status = await this.schedulerClient.status();
-    this.#assertCentralIdentity(status);
+    this.#assertCentralContract(status);
     this.lastCentralStatus = status;
     return status;
   }
 
   async assertReady() {
     const status = await this.remoteStatus();
+    this.#assertLocalLease(status);
     if (!status.ready) {
       if (status.retryAfterMs > 0) throw new GlobalSubmissionCooldownError(status);
       const error = new Error('CENTRAL_SCHEDULER_NOT_READY: the lease, queue, or restart-ambiguity gate is closed.');
@@ -50,6 +53,70 @@ export class CentralSubmissionScheduler {
       throw error;
     }
     return status;
+  }
+
+  async prepareTargetTransition({ operation, automationWindowId, priorOwnedTargetIds, anchorTargetId = null, targetId = null }) {
+    if (!['ADD', 'REMOVE', 'RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(operation)) {
+      throw new Error('RELAY_TARGET_TRANSITION_INVALID: unsupported operation.');
+    }
+    const prior = canonicalTargetIds(priorOwnedTargetIds);
+    const status = await this.remoteStatus();
+    const localLease = this.#localLeaseMatches(status);
+    const passiveRecovery = !localLease && ['RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(operation);
+    if (!localLease && !passiveRecovery) this.#assertLocalLease(status);
+    if (passiveRecovery) this.#assertPassiveRecoveryLease(status);
+    const binding = status.authenticatedRelayBinding;
+    if (binding?.automationWindowId !== automationWindowId
+      || binding?.ownedTargetCount !== prior.length
+      || binding?.ownedTargetIdsSha256 !== targetIdsSha256(prior)
+      || !Number.isInteger(binding?.bindingRevision) || binding.bindingRevision < 1) {
+      throw new Error('CENTRAL_SCHEDULER_RELAY_BINDING_MISMATCH: exact pre-transition target set differs from Mission Control.');
+    }
+    if (status.relayTargetTransition?.state !== 'CLEAR') throw new Error('RELAY_TARGET_TRANSITION_BUSY: central target transition is already open.');
+    return {
+      transitionId: randomUUID(),
+      operation,
+      reason: {
+        ADD: 'AUTOMATION_OWNED_TARGET_CREATE',
+        REMOVE: 'AUTOMATION_OWNED_TARGET_CLOSE',
+        RECONCILE_REMOVE: 'AUTOMATION_OWNED_TARGET_DISAPPEARED',
+        WINDOW_REPLACE: 'AUTOMATION_OWNED_WINDOW_REPLACE',
+      }[operation],
+      hostAlias: this.host.alias,
+      hostRole: this.host.role,
+      deploymentEpoch: passiveRecovery ? status.activeLease.epoch : this.host.deploymentEpoch,
+      leaseId: passiveRecovery ? status.activeLease.leaseId : this.host.leaseId,
+      passiveRecovery,
+      automationWindowId,
+      priorBindingRevision: binding.bindingRevision,
+      priorOwnedTargetIds: prior,
+      anchorTargetId: operation === 'ADD' ? requiredTargetId(anchorTargetId, 'anchorTargetId') : null,
+      targetId: ['REMOVE', 'RECONCILE_REMOVE'].includes(operation) ? requiredTargetId(targetId, 'targetId') : null,
+    };
+  }
+
+  async beginTargetTransition(prepared) {
+    this.#assertPreparedTransition(prepared);
+    return this.schedulerClient.beginTargetTransition(prepared);
+  }
+
+  async commitTargetTransition(prepared, { postAutomationWindowId = prepared.automationWindowId, postOwnedTargetIds, transitionedTargetId }) {
+    this.#assertPreparedTransition(prepared);
+    return this.schedulerClient.commitTargetTransition({
+      ...prepared,
+      postAutomationWindowId,
+      postOwnedTargetIds: canonicalTargetIds(postOwnedTargetIds),
+      transitionedTargetId: requiredTargetId(transitionedTargetId, 'transitionedTargetId'),
+    });
+  }
+
+  async abortTargetTransition(prepared, { observedAutomationWindowId = prepared.automationWindowId, observedOwnedTargetIds }) {
+    this.#assertPreparedTransition(prepared);
+    return this.schedulerClient.abortTargetTransition({
+      ...prepared,
+      observedAutomationWindowId,
+      observedOwnedTargetIds: canonicalTargetIds(observedOwnedTargetIds),
+    });
   }
 
   async submit({ context, beforeSubmit = null, recordBoundary = null, submit }) {
@@ -176,12 +243,42 @@ export class CentralSubmissionScheduler {
     return operation;
   }
 
-  #assertCentralIdentity(status) {
+  #assertCentralContract(status) {
+    if (status?.authority !== 'MISSION_CONTROL_SINGLE_WRITER' || status?.ledger?.valid !== true) {
+      throw new Error('CENTRAL_SCHEDULER_INTEGRITY_INVALID: Mission Control did not prove the shared single-writer ledger.');
+    }
     if (status?.minimumIntervalMs !== this.minIntervalMs) throw new Error('CENTRAL_SCHEDULER_INTERVAL_MISMATCH: relay and authority intervals differ.');
+    const binding = status?.authenticatedRelayBinding;
+    if (binding?.hostAlias !== this.host.alias || binding?.hostRole !== this.host.role || !Number.isInteger(binding?.automationWindowId)
+      || !Number.isInteger(binding?.ownedTargetCount) || binding.ownedTargetCount < 1
+      || !/^[a-f0-9]{64}$/.test(binding?.ownedTargetIdsSha256 ?? '')) {
+      throw new Error('CENTRAL_SCHEDULER_RELAY_BINDING_MISMATCH: authenticated relay host/ownership binding is absent or inconsistent.');
+    }
+  }
+
+  #assertLocalLease(status) {
     const lease = status?.activeLease;
-    if (lease && (lease.epoch !== this.host.deploymentEpoch || lease.activeHostAlias !== this.host.alias || lease.activeHostRole !== this.host.role)) {
+    if (!lease || lease.epoch !== this.host.deploymentEpoch || lease.activeHostAlias !== this.host.alias || lease.activeHostRole !== this.host.role) {
       const error = new Error('DEPLOYMENT_LEASE_MISMATCH: central scheduler authority belongs to a different host/epoch.');
-      error.code = this.host.role === 'SECONDARY' && lease.activeHostRole !== 'SECONDARY' ? 'STANDBY_SEND_FORBIDDEN' : 'DEPLOYMENT_LEASE_MISMATCH';
+      error.code = this.host.role === 'SECONDARY' && lease?.activeHostRole !== 'SECONDARY' ? 'STANDBY_SEND_FORBIDDEN' : 'DEPLOYMENT_LEASE_MISMATCH';
+      throw error;
+    }
+  }
+
+  #localLeaseMatches(status) {
+    const lease = status?.activeLease;
+    return Boolean(lease && lease.epoch === this.host.deploymentEpoch
+      && lease.activeHostAlias === this.host.alias && lease.activeHostRole === this.host.role);
+  }
+
+  #assertPassiveRecoveryLease(status) {
+    const lease = status?.activeLease;
+    if (!lease || typeof lease.leaseId !== 'string' || lease.leaseId.length === 0
+      || !Number.isInteger(lease.epoch) || Date.parse(lease.expiresAt ?? '') <= this.now()
+      || lease.splitBrainStatus !== 'SINGLE_ACTIVE_CONFIRMED'
+      || (lease.activeHostAlias === this.host.alias && lease.activeHostRole === this.host.role)) {
+      const error = new Error('PASSIVE_RECOVERY_LEASE_INVALID: inactive relay recovery requires the exact live active-lease snapshot.');
+      error.code = 'PASSIVE_RECOVERY_LEASE_INVALID';
       throw error;
     }
   }
@@ -209,6 +306,34 @@ export class CentralSubmissionScheduler {
       throw error;
     }
   }
+
+  #assertPreparedTransition(value) {
+    const passiveRecovery = value?.passiveRecovery === true
+      && ['RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(value?.operation);
+    if (!value || value.hostAlias !== this.host.alias || value.hostRole !== this.host.role
+      || (!passiveRecovery && (value.deploymentEpoch !== this.host.deploymentEpoch || value.leaseId !== this.host.leaseId))
+      || (passiveRecovery && (!Number.isInteger(value.deploymentEpoch) || typeof value.leaseId !== 'string'))) {
+      throw new Error('RELAY_TARGET_TRANSITION_HOST_MISMATCH: prepared transition does not belong to this relay lease.');
+    }
+  }
+}
+
+function canonicalTargetIds(value) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 3
+    || value.some((targetId) => typeof targetId !== 'string' || targetId.trim() === '')
+    || new Set(value).size !== value.length) {
+    throw new Error('RELAY_TARGET_TRANSITION_INVALID: target IDs must be a unique one-to-three element string array.');
+  }
+  return [...value].sort();
+}
+
+function requiredTargetId(value, field) {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`RELAY_TARGET_TRANSITION_INVALID: ${field} is required.`);
+  return value;
+}
+
+function targetIdsSha256(ids) {
+  return createHash('sha256').update(JSON.stringify([...ids].sort())).digest('hex');
 }
 
 export class GlobalSubmissionPacer {
@@ -380,7 +505,8 @@ function localPacingStatus(state, minIntervalMs, nowMs) {
 
 function validateContext(context) {
   const strings = ['requestId', 'queueKey', 'sendPath', 'supervisorId', 'registrationId', 'targetId', 'targetKind', 'targetKey', 'expectedUrlSha256', 'bodySha256'];
-  if (!context || strings.some((key) => typeof context[key] !== 'string' || context[key].trim() === '') || typeof context.hash !== 'function') {
+  if (!context || strings.some((key) => typeof context[key] !== 'string' || context[key].trim() === '')
+    || !Number.isInteger(context.automationWindowId) || context.automationWindowId < 1 || typeof context.hash !== 'function') {
     throw new Error('Every browser send requires exact central scheduler context.');
   }
 }

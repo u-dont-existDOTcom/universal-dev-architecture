@@ -39,30 +39,26 @@ interface EventHashInput {
 
 export class EventStore {
   private readonly db: DatabaseSync;
-  private readonly writerLockPath: string | null;
-  private readonly writerLockFd: number | null;
 
   constructor(filename = process.env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db")) {
     if (filename !== ":memory:") fs.mkdirSync(path.dirname(filename), { recursive: true });
-    this.writerLockPath = filename === ":memory:" ? null : `${filename}.writer.lock`;
+    let database: DatabaseSync | null = null;
     try {
-      this.writerLockFd = this.writerLockPath === null ? null : fs.openSync(this.writerLockPath, "wx", 0o600);
-    } catch (error) {
-      throw new WriterLockError(`Another Mission Control writer owns ${this.writerLockPath}.`);
-    }
-    try {
-      this.db = new DatabaseSync(filename);
-      this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+      database = new DatabaseSync(filename);
+      database.exec("PRAGMA busy_timeout = 0; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA locking_mode = EXCLUSIVE; BEGIN IMMEDIATE; COMMIT;");
+      this.db = database;
       this.initialize();
     } catch (error) {
-      this.releaseWriterLock();
+      try { database?.close(); } catch {}
+      if (filename !== ":memory:" && isSqliteLockError(error)) {
+        throw new WriterLockError(`Another live Mission Control process owns the SQLite writer lock for ${filename}.`);
+      }
       throw error;
     }
   }
 
   close() {
     this.db.close();
-    this.releaseWriterLock();
   }
 
   count(schemaVersion?: 1 | 2): number {
@@ -1245,14 +1241,10 @@ export class EventStore {
     return row ? toStoredEvent(row) : null;
   }
 
-  private releaseWriterLock() {
-    if (this.writerLockFd !== null) {
-      try { fs.closeSync(this.writerLockFd); } catch {}
-    }
-    if (this.writerLockPath !== null) {
-      try { fs.unlinkSync(this.writerLockPath); } catch {}
-    }
-  }
+}
+
+function isSqliteLockError(error: unknown): boolean {
+  return error instanceof Error && /database is (?:locked|busy)/i.test(error.message);
 }
 
 function sameLogicalEvent(existing: StoredEvent, envelope: AppendEnvelope): boolean {

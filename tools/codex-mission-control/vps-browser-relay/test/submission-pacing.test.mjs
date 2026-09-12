@@ -68,6 +68,45 @@ test('central scheduler rejection or outage prevents browser mutation', async ()
   }
 });
 
+test('passive secondary may prepare only fail-closed recovery against the active lease snapshot', async () => {
+  const calls = [];
+  const status = centralStatus();
+  status.authenticatedRelayBinding = {
+    hostAlias: 'standby', hostRole: 'SECONDARY', automationWindowId: 202,
+    bindingRevision: 4, ownedTargetCount: 1, ownedTargetIdsSha256: sha256(JSON.stringify(['standby-target'])),
+  };
+  const client = {
+    async status() { return status; },
+    async beginTargetTransition(input) { calls.push(['begin', input]); return { begun: true }; },
+    async commitTargetTransition(input) { calls.push(['commit', input]); return { committed: true }; },
+    async abortTargetTransition(input) { calls.push(['abort', input]); return { aborted: true }; },
+    async admit() {}, async validateAdmission() {}, async recordBoundary() {}, async bindTarget() {},
+    async recordRateLimit() {}, async abortBeforeBoundary() {}, async recordOutcome() {},
+  };
+  const scheduler = new CentralSubmissionScheduler({
+    schedulerClient: client,
+    stateStore: new MemoryStateStore(),
+    host: { alias: 'standby', role: 'SECONDARY', deploymentEpoch: 2, leaseId: 'lease-secondary-2' },
+    minIntervalMs: 60_000,
+    now: () => Date.parse('2026-09-10T12:00:00.000Z'),
+  });
+  await assert.rejects(scheduler.prepareTargetTransition({
+    operation: 'ADD', automationWindowId: 202, priorOwnedTargetIds: ['standby-target'], anchorTargetId: 'standby-target',
+  }), (error) => error.code === 'STANDBY_SEND_FORBIDDEN');
+  const prepared = await scheduler.prepareTargetTransition({
+    operation: 'WINDOW_REPLACE', automationWindowId: 202, priorOwnedTargetIds: ['standby-target'],
+  });
+  assert.equal(prepared.passiveRecovery, true);
+  assert.equal(prepared.deploymentEpoch, 1);
+  assert.equal(prepared.leaseId, 'lease-primary-1');
+  await scheduler.beginTargetTransition(prepared);
+  await scheduler.commitTargetTransition(prepared, {
+    postAutomationWindowId: 303, postOwnedTargetIds: ['replacement-target'], transitionedTargetId: 'replacement-target',
+  });
+  assert.deepEqual(calls.map(([name]) => name), ['begin', 'commit']);
+  await assert.rejects(scheduler.assertReady(), (error) => error.code === 'STANDBY_SEND_FORBIDDEN');
+});
+
 test('mismatched admission authority blocks before any browser mutation', async () => {
   for (const mismatch of [
     { minimumIntervalMs: 90_000 },
@@ -315,13 +354,22 @@ function host() { return { alias: 'primary', role: 'PRIMARY', deploymentEpoch: 1
 function context() {
   return {
     requestId: 'r-1', authorizationRef: 'r-1', queueKey: 'queue:r-1:step:1', sendPath: 'CAPABILITY', supervisorId: 'spec', registrationId: 'registration:spec:test',
-    targetId: 'target-test', targetKind: 'REGISTERED_BOOTSTRAP', targetKey: 'bootstrap-test', expectedUrlSha256: sha256('https://chatgpt.com/c/bootstrap-test'),
+    targetId: 'target-test', automationWindowId: 101, targetKind: 'REGISTERED_BOOTSTRAP', targetKey: 'bootstrap-test', expectedUrlSha256: sha256('https://chatgpt.com/c/bootstrap-test'),
     bodySha256: 'a'.repeat(64), hash: sha256,
   };
 }
 
 function centralStatus() {
-  return { ready: true, minimumIntervalMs: 60_000, retryAfterMs: 0, activeLease: { epoch: 1, activeHostAlias: 'primary', activeHostRole: 'PRIMARY' } };
+  return {
+    authority: 'MISSION_CONTROL_SINGLE_WRITER', ready: true, schedulerState: 'ACTIVE_LEASE', minimumIntervalMs: 60_000,
+    retryAfterMs: 0, safetyHalt: null, ledger: { valid: true },
+    authenticatedRelayBinding: { hostAlias: 'primary', hostRole: 'PRIMARY', automationWindowId: 101, bindingRevision: 1, ownedTargetCount: 1, ownedTargetIdsSha256: sha256(JSON.stringify(['target-test'])) },
+    relayTargetTransition: { state: 'CLEAR' },
+    activeLease: {
+      leaseId: 'lease-primary-1', epoch: 1, activeHostAlias: 'primary', activeHostRole: 'PRIMARY',
+      expiresAt: '2030-01-01T00:00:00.000Z', splitBrainStatus: 'SINGLE_ACTIVE_CONFIRMED',
+    },
+  };
 }
 
 function admissionAuthority(overrides = {}) {

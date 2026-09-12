@@ -12,6 +12,7 @@ import {
   PROVIDER_SESSION_MCP_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  sha256,
   STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   defaultState,
@@ -486,17 +487,72 @@ test('each admitted route gets a different fresh provider session and conversati
   assert.equal(browser.targets.length, 1);
 });
 
-function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now }) {
+test('doctor reports a healthy secondary as standby-ready while the primary lease is active', async () => {
+  const store = new MemoryStateStore();
+  const runtime = makeRuntime({
+    store,
+    mc: new FakeMissionControl({ evidence: capabilityEvidence() }),
+    browser: new FakeBrowser(),
+    submitEnabled: false,
+    submissionHost: { alias: 'standby-test', role: 'SECONDARY', deploymentEpoch: 1, leaseId: 'standby-disabled' },
+  });
+  assert.equal((await runtime.doctor()).status, 'STANDBY_READY');
+});
+
+test('doctor never reports ready when the central authority is halted or not ready', async () => {
+  const store = new MemoryStateStore();
+  const runtime = makeRuntime({
+    store,
+    mc: new FakeMissionControl({ evidence: capabilityEvidence() }),
+    browser: new FakeBrowser(),
+    submitEnabled: true,
+  });
+  runtime.submissionPacer.remoteStatus = async () => ({
+    authority: 'MISSION_CONTROL_SINGLE_WRITER', schedulerState: 'ACTIVE_LEASE', ready: false, minimumIntervalMs: 60_000,
+    retryAfterMs: 0, safetyHalt: { code: 'TEST_HALT' }, ledger: { valid: true },
+    authenticatedRelayBinding: { hostAlias: 'primary-test', hostRole: 'PRIMARY', automationWindowId: 101, ownedTargetCount: 1, ownedTargetIdsSha256: sha256(JSON.stringify(['automation-owned-target'])) },
+    activeLease: { epoch: 1, activeHostAlias: 'primary-test', activeHostRole: 'PRIMARY' },
+  });
+  assert.equal((await runtime.doctor()).status, 'CENTRAL_AUTHORITY_NOT_READY');
+});
+
+test('doctor fails closed when the live browser window differs from the authenticated central binding', async () => {
+  const runtime = makeRuntime({
+    store: new MemoryStateStore(),
+    mc: new FakeMissionControl({ evidence: capabilityEvidence() }),
+    browser: new FakeBrowser({ automationWindowId: 999 }),
+    submitEnabled: false,
+  });
+  assert.equal((await runtime.doctor()).status, 'AUTOMATION_WINDOW_BINDING_MISMATCH');
+});
+
+test('doctor fails closed when the live browser target set differs inside the correct window', async () => {
+  const runtime = makeRuntime({
+    store: new MemoryStateStore(),
+    mc: new FakeMissionControl({ evidence: capabilityEvidence() }),
+    browser: new FakeBrowser({ automationOwnedTargetIdsSha256: sha256(JSON.stringify(['different-target'])) }),
+    submitEnabled: false,
+  });
+  assert.equal((await runtime.doctor()).status, 'AUTOMATION_WINDOW_BINDING_MISMATCH');
+});
+
+function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now,
+  submissionHost = { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' } }) {
   const config = {
     missionControl: { url: 'https://mission-control.example' },
     browser: { profileDir: '/tmp/test-profile' },
     runtime: {
       chats: [chat()], workerIds: ['worker-a'], submitEnabled, capabilityTestEnabled, pollIntervalMs: 15_000, minSubmissionIntervalMs: 60_000, retryDelayMs: 300_000, maxHotTabs: 3,
+      submissionHost,
     },
     memory: { profile: 'AUTO', overrides: {} },
   };
   const submissionPacer = new GlobalSubmissionPacer({ stateStore: store, minIntervalMs: config.runtime.minSubmissionIntervalMs, now });
-  submissionPacer.remoteStatus = async () => ({ ...submissionPacer.status(await store.read()), activeLease: { epoch: 1, activeHostAlias: 'primary-test', activeHostRole: 'PRIMARY' } });
+  submissionPacer.remoteStatus = async () => ({
+    ...submissionPacer.status(await store.read()), authority: 'MISSION_CONTROL_SINGLE_WRITER', schedulerState: 'ACTIVE_LEASE', safetyHalt: null,
+    ledger: { valid: true }, authenticatedRelayBinding: { hostAlias: submissionHost.alias, hostRole: submissionHost.role, automationWindowId: 101, ownedTargetCount: 1, ownedTargetIdsSha256: sha256(JSON.stringify(['automation-owned-target'])) },
+    activeLease: { epoch: 1, activeHostAlias: 'primary-test', activeHostRole: 'PRIMARY' },
+  });
   return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, submissionPacer, memoryReader, logger: { log() {}, warn() {}, error() {} } });
 }
 
@@ -551,12 +607,14 @@ class FakeMissionControl {
 }
 
 class FakeBrowser {
-  constructor({ submitErrorStage = null } = {}) {
+  constructor({ submitErrorStage = null, automationWindowId = 101, automationOwnedTargetIdsSha256 = sha256(JSON.stringify(['automation-owned-target'])) } = {}) {
     this.submitErrorStage = submitErrorStage;
+    this.automationWindowId = automationWindowId;
+    this.automationOwnedTargetIdsSha256 = automationOwnedTargetIdsSha256;
     this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = [];
   }
-  async doctor() { return { browser: 'Fake', targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
+  async doctor() { return { browser: 'Fake', automationWindowId: this.automationWindowId, automationOwnedTabCount: 1, automationOwnedTargetIdsSha256: this.automationOwnedTargetIdsSha256, targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
   async listTargets() { return structuredClone(this.targets); }
   async closeTarget(id) { this.closedTargets.push(id); this.targets = this.targets.filter((target) => target.id !== id); return true; }
   async activateTarget() { return true; }
@@ -565,17 +623,17 @@ class FakeBrowser {
     const reusable = this.targets.find((target) => target.id === reusableTargetId) ?? this.targets.find((target) => target.url.startsWith('https://chatgpt.com/'));
     if (reusable) {
       reusable.url = 'https://chatgpt.com/';
-      return { ...reusable, created: false, reused: true, webSocketDebuggerUrl: 'ws://fake' };
+      return { ...reusable, automationOwned: true, automationWindowId: 101, created: false, reused: true, webSocketDebuggerUrl: 'ws://fake' };
     }
     this.createdTargetCalls += 1;
-    const target = { id: `target-fresh-${this.freshChatCalls}`, type: 'page', url: 'https://chatgpt.com/', created: true, webSocketDebuggerUrl: 'ws://fake' };
+    const target = { id: `target-fresh-${this.freshChatCalls}`, type: 'page', url: 'https://chatgpt.com/', automationOwned: true, automationWindowId: 101, created: true, webSocketDebuggerUrl: 'ws://fake' };
     this.targets.push(target);
     return target;
   }
   async findOrCreateChatTarget(url) {
     const existing = this.targets.find((target) => target.url === url);
-    if (existing) return { ...existing, created: false, webSocketDebuggerUrl: 'ws://fake' };
-    const target = { id: 'target-spec', type: 'page', url, created: true, webSocketDebuggerUrl: 'ws://fake' };
+    if (existing) return { ...existing, automationOwned: true, automationWindowId: 101, created: false, webSocketDebuggerUrl: 'ws://fake' };
+    const target = { id: 'target-spec', type: 'page', url, automationOwned: true, automationWindowId: 101, created: true, webSocketDebuggerUrl: 'ws://fake' };
     this.targets.push(target); return target;
   }
   async ensureExactConsumerControls(target, { controls }) { this.controlChecks.push(structuredClone(controls)); return { status: 'FIXED_CONSUMER_CONTROLS_VERIFIED', ...controls }; }

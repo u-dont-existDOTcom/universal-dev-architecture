@@ -1,4 +1,11 @@
-import { loadConfiguredSupervisorChats, type ConfiguredSupervisorChat } from "./configured-supervisor-chats";
+import { createHash } from "node:crypto";
+import {
+  CANONICAL_PROJECT_MANAGER_ID,
+  loadConfiguredSupervisorChatProvisions,
+  loadConfiguredSupervisorChats,
+  type ConfiguredSupervisorChat,
+  type ConfiguredSupervisorChatProvision,
+} from "./configured-supervisor-chats";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import type { EventStore } from "./store";
 
@@ -11,6 +18,8 @@ import {
   defaultSchedulerState,
   normalizeSchedulerState,
   parseDeploymentLease,
+  parseSubmissionRelayAttestors,
+  parseSubmissionRelayBindings,
 } from "./provider-submission-authority.mjs";
 
 type SchedulerState = Record<string, any>;
@@ -53,44 +62,71 @@ export class SubmissionAuthorityRuntime {
   readonly pacingDomain: string | null;
   private readonly scheduler: any | null;
   private readonly initialization: Promise<unknown>;
-  private readonly chats: Map<string, ConfiguredSupervisorChat>;
+  private readonly chats: Map<string, ConfiguredSupervisorChat | ConfiguredSupervisorChatProvision>;
+  private readonly relayBindings: Map<string, Record<string, unknown>>;
+  private readonly minimumIntervalMs: number | null;
 
   constructor(
     private readonly store: EventStore,
-    env: NodeJS.ProcessEnv = process.env,
+    env: Record<string, string | undefined> = process.env,
     now: () => number = Date.now,
   ) {
     const directory = loadConfiguredSupervisorChats(env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON);
+    const provisions = loadConfiguredSupervisorChatProvisions(env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     const leaseRaw = env.MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON;
     const domain = env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN?.trim() || null;
-    const partiallyConfigured = Boolean(leaseRaw || domain || env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS);
+    const partiallyConfigured = Boolean(leaseRaw || domain || env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS
+      || env.MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS || env.MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON
+      || env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON || env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     if (!leaseRaw && !domain && !partiallyConfigured) {
       this.enabled = false;
       this.pacingDomain = null;
       this.scheduler = null;
       this.initialization = Promise.resolve();
       this.chats = new Map();
+      this.relayBindings = new Map();
+      this.minimumIntervalMs = null;
       return;
     }
     if (!leaseRaw || !domain) throw new Error("Mission Control submission authority requires both MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON and MISSION_CONTROL_SUBMISSION_PACING_DOMAIN.");
-    if (directory.configurationState !== "CONFIGURED" || directory.entries.length === 0) {
-      throw new Error(`Mission Control submission authority requires a valid non-empty MISSION_CONTROL_ONLY registry: ${directory.error ?? directory.configurationState}.`);
+    if (directory.configurationState === "INVALID") {
+      throw new Error(`Mission Control submission authority requires a valid MISSION_CONTROL_ONLY registry: ${directory.error}.`);
     }
-    const accountAliases = new Set(directory.entries.map((chat) => chat.accountAlias));
+    if (provisions.configurationState === "INVALID") {
+      throw new Error(`Mission Control submission authority requires a valid MISSION_CONTROL_ONLY provisioning registry: ${provisions.error}.`);
+    }
+    const chats = [...directory.entries, ...provisions.entries];
+    if (chats.length === 0) {
+      throw new Error("Mission Control submission authority requires at least one active or owner-authorized provisioning MISSION_CONTROL_ONLY registration.");
+    }
+    assertCombinedSupervisorRegistry(chats);
+    const accountAliases = new Set(chats.map((chat) => chat.accountAlias));
     if (accountAliases.size !== 1) throw new Error("One pacing domain may contain exactly one provider account alias.");
     const minimumIntervalMs = boundedInteger(env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS, 60_000, 60_000, 600_000);
+    this.minimumIntervalMs = minimumIntervalMs;
     const admissionTtlMs = boundedInteger(env.MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS, 120_000, 30_000, 600_000);
+    const relayBindingsRaw = env.MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON;
+    if (!relayBindingsRaw) throw new Error("Mission Control submission authority requires MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON.");
+    const relayBindings = parseSubmissionRelayBindings(JSON.parse(relayBindingsRaw));
+    const relayAttestorsRaw = env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON;
+    if (!relayAttestorsRaw) throw new Error("Mission Control submission authority requires MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON.");
+    const relayAttestors = parseSubmissionRelayAttestors(JSON.parse(relayAttestorsRaw), Object.keys(relayBindings));
+    assertAttestorsDistinctFromIngestBearers(relayAttestors, env.MISSION_CONTROL_INGEST_CREDENTIALS);
     const stateStore = new MissionControlSubmissionStateStore(store, domain, minimumIntervalMs, now);
     this.scheduler = new CentralSubmissionScheduler({
       stateStore,
-      chats: directory.entries,
+      chats,
+      producerBindings: relayBindings,
+      producerAttestors: relayAttestors,
+      pacingDomain: domain,
       minIntervalMs: minimumIntervalMs,
       admissionTtlMs,
       now,
     });
     this.enabled = true;
     this.pacingDomain = domain;
-    this.chats = new Map(directory.entries.map((chat) => [chat.supervisorId, chat]));
+    this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
+    this.relayBindings = new Map(Object.entries(relayBindings));
     const lease = parseDeploymentLease(JSON.parse(leaseRaw));
     this.initialization = this.scheduler.activateLease(lease).then(
       () => null,
@@ -98,27 +134,48 @@ export class SubmissionAuthorityRuntime {
     );
   }
 
-  async status() {
+  async status(producer: AuthenticatedProducer) {
     const scheduler = await this.requireScheduler();
+    const relayBinding = await this.relayBindingFor(producer, scheduler);
     const status = await scheduler.status();
     return {
       ...status,
       authority: "MISSION_CONTROL_SINGLE_WRITER",
       pacingDomain: this.pacingDomain,
       ledger: this.store.verifySubmissionAuthorityLedger(this.pacingDomain!),
+      authenticatedRelayBinding: publicRelayBinding(relayBinding),
     };
   }
 
-  async ledger(limit = 200) {
-    await this.requireScheduler();
+  async ledger(producer: AuthenticatedProducer, limit = 200) {
+    const scheduler = await this.requireScheduler();
+    const relayBinding = await this.relayBindingFor(producer, scheduler);
     const records = this.store.submissionAuthorityLedger(this.pacingDomain!, limit);
     const boundaryRecords = this.store.submissionAuthorityBoundaryLedger(this.pacingDomain!);
     return {
       authority: "MISSION_CONTROL_SINGLE_WRITER",
       pacingDomain: this.pacingDomain,
       integrity: this.store.verifySubmissionAuthorityLedger(this.pacingDomain!),
-      diagnostics: pacingDiagnostics(boundaryRecords),
+      diagnostics: pacingDiagnostics(boundaryRecords, this.minimumIntervalMs!),
+      authenticatedRelayBinding: publicRelayBinding(relayBinding),
       records,
+    };
+  }
+
+  integrity() {
+    return this.enabled && this.pacingDomain
+      ? this.store.verifySubmissionAuthorityLedger(this.pacingDomain)
+      : null;
+  }
+
+  async health() {
+    if (!this.enabled) return { configured: false, schedulerState: "DISABLED", ledger: null };
+    const scheduler = await this.requireScheduler();
+    const status = await scheduler.status();
+    return {
+      configured: true,
+      schedulerState: status.schedulerState,
+      ledger: this.integrity(),
     };
   }
 
@@ -132,6 +189,9 @@ export class SubmissionAuthorityRuntime {
     if (operation === "admissions") this.assertAdmissionScope(body, producer);
     if (operation === "admissions/validate") return scheduler.validateAdmission(body, producer.id);
     if (operation === "admissions") return scheduler.admit(body, producer.id);
+    if (operation === "relay-target-transitions/begin") return scheduler.beginRelayTargetTransition(body, producer.id);
+    if (operation === "relay-target-transitions/commit") return scheduler.commitRelayTargetTransition(body, producer.id);
+    if (operation === "relay-target-transitions/abort") return scheduler.abortRelayTargetTransition(body, producer.id);
     if (operation === "boundaries") return scheduler.recordBoundary(body, producer.id);
     if (operation === "target-bindings") return scheduler.bindTarget(body, producer.id);
     if (operation === "provider-rate-limits") return scheduler.recordRateLimit(body, producer.id);
@@ -169,6 +229,15 @@ export class SubmissionAuthorityRuntime {
       throw error;
     }
   }
+
+  private async relayBindingFor(producer: AuthenticatedProducer, scheduler: any): Promise<Record<string, unknown>> {
+    if (producer.kind !== "COLLECTOR" || !this.relayBindings.has(producer.id)) {
+      const error = new Error("Submission-authority reads require an authenticated bound relay collector.");
+      Object.assign(error, { statusCode: 403, code: "SUBMISSION_RELAY_READ_FORBIDDEN" });
+      throw error;
+    }
+    return scheduler.producerBinding(producer.id);
+  }
 }
 
 export { SubmissionSchedulerError };
@@ -182,15 +251,42 @@ function boundedInteger(value: string | undefined, fallback: number, minimum: nu
   return parsed;
 }
 
+function assertAttestorsDistinctFromIngestBearers(
+  attestors: Record<string, string>,
+  rawCredentials: string | undefined,
+) {
+  if (!rawCredentials) throw new Error("Mission Control submission authority requires relay ingest credentials.");
+  const credentials = JSON.parse(rawCredentials) as Record<string, { token?: unknown }>;
+  const identities: Array<{ label: string; value: string }> = [];
+  for (const [producerId, attestor] of Object.entries(attestors)) {
+    const bearer = credentials[producerId]?.token;
+    if (typeof bearer !== "string" || bearer.length < 32) {
+      throw new Error(`Submission relay ${producerId} requires its own ordinary ingest bearer.`);
+    }
+    identities.push(
+      { label: `attestor:${producerId}`, value: attestor },
+      { label: `bearer:${producerId}`, value: bearer },
+    );
+  }
+  const seen = new Map<string, string>();
+  for (const identity of identities) {
+    const prior = seen.get(identity.value);
+    if (prior) throw new Error(`Submission relay credentials must be pairwise distinct (${prior} conflicts with ${identity.label}).`);
+    seen.set(identity.value, identity.label);
+  }
+}
+
 function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimumIntervalMs: number): Record<string, unknown> {
   const changedAdmission = findChangedRecord(state.admissions, prior?.admissions ?? [], "admissionId");
   const changedQueueItem = findChangedRecord(state.queueItems, prior?.queueItems ?? [], "queueItemId");
   const admission = changedAdmission ?? null;
+  const changedRelayBinding = findChangedRelayBinding(state.relayBindings ?? {}, prior?.relayBindings ?? {});
+  const relayBinding = changedRelayBinding?.binding ?? null;
   const queueItem = admission
     ? state.queueItems.find((item: SchedulerState) => item.queueItemId === admission.queueItemId) ?? changedQueueItem ?? null
     : changedQueueItem ?? null;
   const previousAdmission = prior?.admissions?.find((item: SchedulerState) => item.admissionId === admission?.admissionId) ?? null;
-  const eventKind = deriveEventKind(prior, state, previousAdmission, admission);
+  const eventKind = deriveEventKind(prior, state, previousAdmission, admission, changedRelayBinding);
   const previousBoundaryAt = admission?.previousGlobalBoundaryAt ?? null;
   const boundaryMs = Date.parse(admission?.boundaryAt ?? "");
   const previousMs = Date.parse(previousBoundaryAt ?? "");
@@ -201,9 +297,9 @@ function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimu
     eventKind,
     queueItemId: queueItem?.queueItemId ?? null,
     authorizationReference: admission?.authorizationRef ?? queueItem?.request?.authorizationRef ?? null,
-    producerId: admission?.producerId ?? null,
-    hostAlias: admission?.hostAlias ?? state.activeLease?.activeHostAlias ?? null,
-    hostRole: admission?.hostRole ?? state.activeLease?.activeHostRole ?? null,
+    producerId: admission?.producerId ?? changedRelayBinding?.producerId ?? state.relayTargetTransition?.producerId ?? prior?.relayTargetTransition?.producerId ?? null,
+    hostAlias: admission?.hostAlias ?? relayBinding?.hostAlias ?? state.activeLease?.activeHostAlias ?? null,
+    hostRole: admission?.hostRole ?? relayBinding?.hostRole ?? state.activeLease?.activeHostRole ?? null,
     deploymentEpoch: admission?.deploymentEpoch ?? state.activeLease?.epoch ?? null,
     host: admission ? {
       alias: admission.hostAlias,
@@ -217,9 +313,13 @@ function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimu
     sendPath: admission?.sendPath ?? queueItem?.request?.sendPath ?? null,
     supervisorId: admission?.supervisorId ?? queueItem?.request?.supervisorId ?? null,
     registrationId: admission?.registrationId ?? queueItem?.request?.registrationId ?? null,
-    targetId: admission?.targetId ?? queueItem?.request?.targetId ?? null,
+    automationWindowId: admission?.automationWindowId ?? queueItem?.request?.automationWindowId ?? relayBinding?.automationWindowId ?? null,
+    relayBindingRevision: relayBinding?.bindingRevision ?? null,
+    relayOwnedTargetCount: Array.isArray(relayBinding?.ownedTargetIds) ? relayBinding.ownedTargetIds.length : null,
+    relayOwnedTargetIdsSha256: Array.isArray(relayBinding?.ownedTargetIds)
+      ? createHash("sha256").update(JSON.stringify([...relayBinding.ownedTargetIds].sort())).digest("hex")
+      : null,
     targetKind: admission?.targetKind ?? queueItem?.request?.targetKind ?? null,
-    targetKey: admission?.targetKey ?? queueItem?.request?.targetKey ?? null,
     bodySha256: admission?.bodySha256 ?? queueItem?.request?.bodySha256 ?? null,
     admittedAt: admission?.admittedAt ?? null,
     expiresAt: admission?.expiresAt ?? null,
@@ -244,8 +344,10 @@ function findChangedRecord(current: SchedulerState[], prior: SchedulerState[], k
   }) ?? null;
 }
 
-function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, previousAdmission: SchedulerState | null, admission: SchedulerState | null): string {
+function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, previousAdmission: SchedulerState | null, admission: SchedulerState | null, changedRelayBinding: SchedulerState | null): string {
   if (!prior || state.leaseHistory.length > prior.leaseHistory.length) return "LEASE_ACTIVATED";
+  if (!prior.relayTargetTransition && state.relayTargetTransition) return "RELAY_TARGET_TRANSITION_BEGUN";
+  if (prior.relayTargetTransition && !state.relayTargetTransition) return changedRelayBinding ? "RELAY_TARGET_TRANSITION_COMMITTED" : "RELAY_TARGET_TRANSITION_ABORTED";
   if (state.queueItems.length > prior.queueItems.length) return "QUEUE_ITEM_DURABLY_ENQUEUED";
   if (state.admissions.length > prior.admissions.length) return "SINGLE_USE_ADMISSION_GRANTED";
   if (admission?.deliveryStatus !== previousAdmission?.deliveryStatus || admission?.recoveryStatus !== previousAdmission?.recoveryStatus) return "DELIVERY_OUTCOME_RECORDED";
@@ -256,7 +358,19 @@ function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, pr
   return "STATE_COMMITTED";
 }
 
-function pacingDiagnostics(records: Array<Record<string, unknown>>) {
+function findChangedRelayBinding(
+  current: Record<string, SchedulerState>,
+  prior: Record<string, SchedulerState>,
+): { producerId: string; binding: SchedulerState } | null {
+  for (const producerId of Object.keys(current).sort()) {
+    if (JSON.stringify(current[producerId]) !== JSON.stringify(prior[producerId])) {
+      return { producerId, binding: current[producerId] };
+    }
+  }
+  return null;
+}
+
+export function pacingDiagnostics(records: Array<Record<string, unknown>>, minimumIntervalMs: number) {
   const intervalsInOrder = records
     .filter((record) => record.eventKind === "BOUNDARY_RECORDED")
     .map((record) => record.interSendIntervalMs)
@@ -270,6 +384,42 @@ function pacingDiagnostics(records: Array<Record<string, unknown>>) {
     minimumObservedIntervalMs: intervals.at(0) ?? null,
     medianObservedIntervalMs: median,
     recentIntervalsMs: intervalsInOrder.slice(-10),
+    configuredMinimumIntervalMs: minimumIntervalMs,
+    violationsBelowConfiguredMinimum: intervals.filter((value) => value < minimumIntervalMs).length,
     violationsBelow60000Ms: intervals.filter((value) => value < 60_000).length,
   };
+}
+
+function publicRelayBinding(binding: Record<string, unknown>) {
+  const ownedTargetIds = Array.isArray(binding.ownedTargetIds)
+    ? binding.ownedTargetIds.filter((value): value is string => typeof value === "string").sort()
+    : [];
+  return {
+    hostAlias: binding.hostAlias,
+    hostRole: binding.hostRole,
+    automationWindowId: binding.automationWindowId,
+    bindingRevision: binding.bindingRevision,
+    ownedTargetCount: ownedTargetIds.length,
+    ownedTargetIdsSha256: createHash("sha256").update(JSON.stringify(ownedTargetIds)).digest("hex"),
+  };
+}
+
+function assertCombinedSupervisorRegistry(
+  chats: Array<ConfiguredSupervisorChat | ConfiguredSupervisorChatProvision>,
+) {
+  for (const [label, values] of [
+    ["supervisor IDs", chats.map((chat) => chat.supervisorId)],
+    ["registration IDs", chats.map((chat) => chat.registrationId)],
+  ] as const) {
+    if (new Set(values).size !== values.length) {
+      throw new Error(`Active and provisioning ${label} must be unique across the combined registry.`);
+    }
+  }
+  const projectManagers = chats.filter((chat) => chat.scope === "PROJECT_MANAGER");
+  if (projectManagers.length > 1) {
+    throw new Error("Only one overall Project Manager may exist across active and provisioning registrations.");
+  }
+  if (projectManagers.length === 1 && projectManagers[0].supervisorId !== CANONICAL_PROJECT_MANAGER_ID) {
+    throw new Error(`Project Manager supervisorId must be ${CANONICAL_PROJECT_MANAGER_ID}.`);
+  }
 }

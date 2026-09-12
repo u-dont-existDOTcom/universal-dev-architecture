@@ -42,6 +42,15 @@ Browser automation may operate only on explicitly automation-owned windows/targe
 
 For the exact ChatGPT rate-limit UI `too many chat requests are coming too quick`/`too quickly` with exactly one `Got it` control, dismiss that control and retry the exact same submission once after at least 30 seconds, while preserving the repository-wide minimum 60-second submission interval after any crossed send boundary. A second/ambiguous/changed result fails closed. Detection may inspect only the bounded provider/system dialog, never assistant response content.
 
+Standing authority includes creating/private-registering a missing
+`MISSION_CONTROL_ONLY` supervisor conversation without repeat approval; retain
+automation ownership, private locators, fixed controls, global pacing, and
+personal-chat exclusion.
+
+Work selects the broadest authorized task-scoped access and automatic reviewer.
+Only an outcome-changing access tradeoff goes to Joel, with plain consequences
+and a recommendation; Work cannot self-approve a product security prompt.
+
 For multi-host relays apply `patterns/mission-control-multi-host-submission-scheduling.md`: active/passive fenced epochs, one durable per-send admission, global pacing, `MISSION_CONTROL_ONLY` conversation provenance, exact target ownership, and fail-closed takeover. Never use the owner's browser, clipboard, cookies, or profile.
 
 ## Completion and continuation

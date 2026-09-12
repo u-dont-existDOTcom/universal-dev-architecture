@@ -1,6 +1,7 @@
 export const CANONICAL_PROJECT_MANAGER_ID = "mc-project-manager";
 
 export interface ConfiguredSupervisorChat {
+  registrationState: "ACTIVE";
   scope: "PROJECT_MANAGER" | "SPECIALIST";
   supervisorId: string;
   /** Backward-compatible UI alias for supervisorId. */
@@ -34,10 +35,39 @@ export interface ConfiguredSupervisorChat {
   locatorVerification: "OWNER_CONFIGURED_UNVERIFIED";
 }
 
+export interface ConfiguredSupervisorChatProvision {
+  registrationState: "PROVISIONING";
+  scope: "PROJECT_MANAGER" | "SPECIALIST";
+  supervisorId: string;
+  label: string;
+  workerId: string | null;
+  requiredApp: string;
+  registrationId: string;
+  provisioningKey: string;
+  ownership: "MISSION_CONTROL_ONLY";
+  purpose: string;
+  accountAlias: string;
+  workspaceAlias: string;
+  privateLocatorRef: string;
+  provisioningProvenance: {
+    authorizedBy: "OWNER";
+    authorizedAt: string;
+    sourceRef: string;
+  };
+  consumerControls: ConfiguredSupervisorChat["consumerControls"];
+}
+
 export interface ConfiguredSupervisorDirectory {
   configurationState: "MISSING" | "CONFIGURED" | "INVALID";
   providerRelayState: "NOT_CONNECTED";
   entries: ConfiguredSupervisorChat[];
+  error: string | null;
+}
+
+export interface ConfiguredSupervisorProvisionDirectory {
+  configurationState: "MISSING" | "CONFIGURED" | "INVALID";
+  providerRelayState: "NOT_CONNECTED";
+  entries: ConfiguredSupervisorChatProvision[];
   error: string | null;
 }
 
@@ -77,6 +107,31 @@ export function loadConfiguredSupervisorChats(
   }
 }
 
+export function loadConfiguredSupervisorChatProvisions(
+  raw = process.env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON,
+): ConfiguredSupervisorProvisionDirectory {
+  if (!raw?.trim()) {
+    return { configurationState: "MISSING", providerRelayState: "NOT_CONNECTED", entries: [], error: null };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error("The supervisor provisioning directory must be a JSON array.");
+    const entries = parsed.map((item, index) => parseProvision(item, index));
+    assertUnique(entries.map((entry) => entry.supervisorId), "Provisioning supervisor IDs");
+    assertUnique(entries.map((entry) => entry.registrationId), "Provisioning registration IDs");
+    assertUnique(entries.map((entry) => entry.provisioningKey), "Supervisor provisioning keys");
+    assertProjectManagerIdentity(entries, "provisioned");
+    return { configurationState: "CONFIGURED", providerRelayState: "NOT_CONNECTED", entries, error: null };
+  } catch (error) {
+    return {
+      configurationState: "INVALID",
+      providerRelayState: "NOT_CONNECTED",
+      entries: [],
+      error: error instanceof Error ? error.message : "Supervisor provisioning directory is invalid.",
+    };
+  }
+}
+
 function parseEntry(value: unknown, index: number): ConfiguredSupervisorChat {
   if (!isRecord(value)) throw new Error(`Configured chat ${index} must be an object.`);
   const scope = value.scope;
@@ -100,6 +155,7 @@ function parseEntry(value: unknown, index: number): ConfiguredSupervisorChat {
   }
   const registeredAt = isoTimestamp(provenance.registeredAt, `Configured chat ${index} registrationProvenance.registeredAt`);
   return {
+    registrationState: "ACTIVE",
     scope,
     supervisorId,
     chatId: supervisorId,
@@ -121,6 +177,56 @@ function parseEntry(value: unknown, index: number): ConfiguredSupervisorChat {
     consumerControls: parseConsumerControls(controls, index),
     bootstrapCapability: { chatId: bootstrapChatId, url, challengeId },
     locatorVerification: "OWNER_CONFIGURED_UNVERIFIED",
+  };
+}
+
+function parseProvision(value: unknown, index: number): ConfiguredSupervisorChatProvision {
+  if (!isRecord(value)) throw new Error(`Supervisor provision ${index} must be an object.`);
+  if (value.registrationState !== "PROVISIONING") {
+    throw new Error(`Supervisor provision ${index} registrationState must be PROVISIONING.`);
+  }
+  for (const forbidden of ["url", "chatId", "challengeId", "capabilityChallengeId", "bootstrapCapability"]) {
+    if (Object.hasOwn(value, forbidden)) {
+      throw new Error(`Supervisor provision ${index} must not contain a provider conversation locator or bootstrap capability (${forbidden}).`);
+    }
+  }
+  const scope = value.scope;
+  if (scope !== "PROJECT_MANAGER" && scope !== "SPECIALIST") throw new Error(`Supervisor provision ${index} has an invalid scope.`);
+  const supervisorId = nonEmpty(value.supervisorId, `Supervisor provision ${index} supervisorId`, 300);
+  const workerId = value.workerId === null || value.workerId === undefined
+    ? null
+    : nonEmpty(value.workerId, `Supervisor provision ${index} workerId`, 180);
+  const provenance = isRecord(value.provisioningProvenance) ? value.provisioningProvenance : {};
+  if (value.ownership !== "MISSION_CONTROL_ONLY") {
+    throw new Error(`Supervisor provision ${index} ownership must be explicitly MISSION_CONTROL_ONLY.`);
+  }
+  if (provenance.authorizedBy !== "OWNER") {
+    throw new Error(`Supervisor provision ${index} provisioningProvenance.authorizedBy must be OWNER.`);
+  }
+  const provisioningKey = nonEmpty(value.provisioningKey, `Supervisor provision ${index} provisioningKey`, 500);
+  if (!provisioningKey.startsWith("provider-session:provisioning:")) {
+    throw new Error(`Supervisor provision ${index} provisioningKey must use the provider-session:provisioning: namespace.`);
+  }
+  return {
+    registrationState: "PROVISIONING",
+    scope,
+    supervisorId,
+    label: nonEmpty(value.label, `Supervisor provision ${index} label`, 300),
+    workerId,
+    requiredApp: nonEmpty(value.requiredApp ?? "Mission Control", `Supervisor provision ${index} requiredApp`, 100),
+    registrationId: nonEmpty(value.registrationId, `Supervisor provision ${index} registrationId`, 300),
+    provisioningKey,
+    ownership: "MISSION_CONTROL_ONLY",
+    purpose: nonEmpty(value.purpose, `Supervisor provision ${index} purpose`, 500),
+    accountAlias: nonEmpty(value.accountAlias, `Supervisor provision ${index} accountAlias`, 180),
+    workspaceAlias: nonEmpty(value.workspaceAlias, `Supervisor provision ${index} workspaceAlias`, 180),
+    privateLocatorRef: nonEmpty(value.privateLocatorRef, `Supervisor provision ${index} privateLocatorRef`, 500),
+    provisioningProvenance: {
+      authorizedBy: "OWNER",
+      authorizedAt: isoTimestamp(provenance.authorizedAt, `Supervisor provision ${index} provisioningProvenance.authorizedAt`),
+      sourceRef: nonEmpty(provenance.sourceRef, `Supervisor provision ${index} provisioningProvenance.sourceRef`, 500),
+    },
+    consumerControls: parseConsumerControls(isRecord(value.consumerControls) ? value.consumerControls : {}, index),
   };
 }
 
@@ -167,4 +273,19 @@ function normalizeConversationUrl(value: string, index: number): string {
   const match = url.pathname.match(/^\/c\/([A-Za-z0-9_-]+)\/?$/);
   if (!match) throw new Error(`Configured chat ${index} must identify one concrete /c/<conversation-id> conversation.`);
   return `https://chatgpt.com/c/${match[1]}`;
+}
+
+function assertUnique(values: unknown[], label: string) {
+  if (new Set(values).size !== values.length) throw new Error(`${label} must be unique.`);
+}
+
+function assertProjectManagerIdentity(
+  entries: Array<{ scope: "PROJECT_MANAGER" | "SPECIALIST"; supervisorId: string }>,
+  disposition: string,
+) {
+  const projectManagers = entries.filter((entry) => entry.scope === "PROJECT_MANAGER");
+  if (projectManagers.length > 1) throw new Error(`Only one overall Project Manager chat may be ${disposition}.`);
+  if (projectManagers.length === 1 && projectManagers[0].supervisorId !== CANONICAL_PROJECT_MANAGER_ID) {
+    throw new Error(`${disposition} Project Manager supervisorId must be ${CANONICAL_PROJECT_MANAGER_ID}.`);
+  }
 }

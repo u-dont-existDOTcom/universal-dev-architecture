@@ -2,25 +2,24 @@
   "schema_version": 1,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "evidence_id": "EVIDENCE-MC-MULTI-HOST-HARDENING-20260910",
-  "recorded_at": "2026-09-10T19:16:13Z",
+  "recorded_at": "2026-09-12T02:59:42Z",
   "requirement_ref": "docs/requirements/2026-09-10-mission-control-multi-host-hardening.owner-requirement.json",
   "truthful_disposition": "IMPLEMENTED_PARTIAL_LIVE_VERIFICATION_BLOCKED",
   "completion_allowed": false,
   "source_control": {
-    "pull_request": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/91",
-    "reviewed_candidate_revision": "23f732be374cae7ee21c391bc6fabb6a65e06531",
-    "relay_source_tree": "91aa2901715fd205611d8d47cd5c5cf1b66e0c73",
-    "deployment_package_sha256": "953ebfc0f7542d803f50fef6c115e97e4eefd440c9cc336201ce3c354a8437f3",
+    "pull_request": null,
+    "candidate_branch": "task/mission-control-shared-global-send-authority-20260911",
+    "reviewed_candidate_revision": "7c990cd1aa440a23a73df8621186c63c92e0ffa5",
+    "relay_source_tree": "897005453ede967fa573f29ab7c6ed9e44702776",
+    "mission_control_source_tree": "a47cc7d5fd0e83c9ee5b495bea62f0f1d90d3a9d",
+    "relay_deployment_package_sha256": "f65c41076230de61b9c9c18d0f4f680029f0425f1923fa6336827660a3ca66ae",
+    "mission_control_deployment_package_sha256": "186a0739fe55185c449afb4d0fab03ca4378f872433669a574c5ebedcd274f67",
+    "exact_head_bundle_sha256": "f14163f15ad8f36459c34e55e0e247c80bc540918e607e4e07fbc8360d288cc3",
     "independent_review": "NO_REMAINING_RELEASE_BLOCKER",
     "hosted_checks_at_reviewed_candidate": {
-      "mergeable": true,
-      "merge_state": "CLEAN",
-      "codeql_actions": "SUCCESS",
-      "codeql_javascript_typescript": "SUCCESS",
-      "codeql_python": "SUCCESS",
-      "deterministic_repository_audit": "SUCCESS",
-      "mission_control_app_tests_types_build": "SUCCESS",
-      "vps_browser_relay_tests_syntax": "SUCCESS"
+      "netcup_primary": "266_REPOSITORY_177_RELAY_SOURCE_147_RELAY_INSTALLED_228_MISSION_CONTROL_TYPES_BUILD_AUDIT_SYNTAX_PASS",
+      "hostinger_secondary": "266_REPOSITORY_177_RELAY_SOURCE_147_RELAY_INSTALLED_228_MISSION_CONTROL_TYPES_BUILD_AUDIT_SYNTAX_PASS",
+      "github_pr_checks": "NOT_RUN_NO_PR_LIVE_ACCEPTANCE_BLOCKED"
     }
   },
   "prechange_pacing_and_queue": {
@@ -51,9 +50,11 @@
     "provider_rate_limit_retry_remains_globally_admitted_and_bounded": true,
     "proof_type": "DETERMINISTIC_SOURCE_EXHAUSTIVENESS_AND_BEHAVIOR_TESTS",
     "test_file": "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-service.test.mjs",
-    "local_relay_test_result": "155_PASS_0_FAIL",
-    "live_scheduler_enabled": false,
-    "live_scheduler_note": "Both schedulers remain disabled until an authenticated MC-only registry and a supported remote worker runtime exist; therefore no live provider send was represented as acceptance evidence."
+    "local_relay_test_result": "177_PASS_0_FAIL",
+    "live_mission_control_authority_enabled": false,
+    "live_cross_host_race_verified": false,
+    "live_restart_and_failover_pacing_verified": false,
+    "live_authority_note": "The exact Mission Control image is installed on both hosts, but no central instance was activated because no real owner-registered MC-only directory, complete pairwise relay binding, or authenticated primary browser exists. No deterministic fixture was misrepresented as live acceptance."
   },
   "mc_only_supervisor_ownership_proof": {
     "registry_schema_requires": [
@@ -73,8 +74,8 @@
       "DUPLICATE_CONVERSATION"
     ],
     "deterministic_test": "MC-only registry and exact target binding reject legacy, personal, unregistered, and wrong-target sends",
-    "primary_live_config_probe": "FATAL_FAIL_CLOSED_PLACEHOLDER_REGISTRATION_TIMESTAMP",
-    "secondary_live_config_probe": "FATAL_FAIL_CLOSED_LEGACY_UNCLASSIFIED_OWNERSHIP",
+    "primary_live_config_probe": "FAIL_CLOSED_ZERO_REAL_OWNER_REGISTRATIONS_MISSING_PRIMARY_ROLE_AND_ATTESTOR",
+    "secondary_live_config_probe": "FAIL_CLOSED_ZERO_REAL_OWNER_REGISTRATIONS_LEGACY_UNCLASSIFIED_AND_MISSING_ATTESTOR",
     "live_registered_mc_only_chat_count_verified": 0,
     "activation_state": "MECHANICALLY_ENFORCED_LIVE_REGISTRATION_PENDING_OWNER_LOGIN_AND_CREATION",
     "private_chat_locators_recorded_here": false
@@ -87,17 +88,26 @@
       "reviewed_revision_installed": true,
       "relay_source_tree_exact": true,
       "deployment_package_sha256_exact": true,
-      "remote_relay_tests": "155_PASS_0_FAIL",
+      "remote_relay_source_tests": "177_PASS_0_FAIL",
+      "remote_installed_relay_tests": "147_PASS_0_FAIL",
+      "remote_repository_tests": "266_PASS_0_FAIL",
+      "remote_mission_control_tests": "228_PASS_0_FAIL",
+      "remote_typescript_and_build": "PASS",
       "relay_service": "DISABLED_INACTIVE",
-      "scheduler_service": "DISABLED_INACTIVE",
+      "host_local_scheduler_processes": 0,
+      "mission_control_container": "NOT_ACTIVE_FAIL_CLOSED",
       "browser_service": "ENABLED_ACTIVE",
       "browser_control": "LOOPBACK_ONLY_HEALTHY",
       "browser_profile": "DEDICATED_PRIVATE_REMOTE_PROFILE",
+      "browser_chatgpt_page_count": 1,
+      "browser_authenticated_session": false,
       "native_sandbox": true,
       "no_sandbox_flag_present": false,
       "clipboard_process_count": 0,
-      "no_send_doctor": "FATAL_FAIL_CLOSED_PENDING_REAL_MC_ONLY_REGISTRY",
-      "health_disposition": "BROWSER_AND_CODE_HEALTHY_SEND_PATH_NOT_ACTIVATED"
+      "configured_primary_role": false,
+      "target_binding_attestor_configured": false,
+      "live_registered_mc_only_chat_count": 0,
+      "health_disposition": "CODE_AND_BROWSER_PROCESS_HEALTHY_LOGIN_CONFIGURATION_AND_SEND_PATH_NOT_ACTIVATED"
     },
     "owner_secondary": {
       "provider_role": "HOSTINGER_SECONDARY_FAILOVER",
@@ -106,16 +116,23 @@
       "reviewed_revision_installed": true,
       "relay_source_tree_exact": true,
       "deployment_package_sha256_exact": true,
-      "remote_relay_tests": "155_PASS_0_FAIL",
+      "remote_relay_source_tests": "177_PASS_0_FAIL",
+      "remote_installed_relay_tests": "147_PASS_0_FAIL",
+      "remote_repository_tests": "266_PASS_0_FAIL",
+      "remote_mission_control_tests": "228_PASS_0_FAIL",
+      "remote_typescript_and_build": "PASS",
       "relay_service": "DISABLED_INACTIVE",
-      "scheduler_service": "DISABLED_INACTIVE",
+      "host_local_scheduler_processes": 0,
+      "mission_control_container": "NOT_ACTIVE_FAIL_CLOSED",
       "browser_service": "DISABLED_INACTIVE",
       "browser_control": "UNAVAILABLE_FAIL_CLOSED",
       "browser_profile": "DEDICATED_PRIVATE_REMOTE_PROFILE",
       "native_sandbox_required": true,
       "no_sandbox_flag_present": false,
       "clipboard_process_count": 0,
-      "no_send_doctor": "FATAL_FAIL_CLOSED_LEGACY_CHAT_OWNERSHIP",
+      "configured_secondary_role": true,
+      "target_binding_attestor_configured": false,
+      "live_registered_mc_only_chat_count": 0,
       "health_disposition": "CODE_HEALTHY_BROWSER_BLOCKED_BY_HOST_SERVICE_SANDBOX"
     }
   },
@@ -132,6 +149,8 @@
   },
   "deployment_and_recovery": {
     "exact_reviewed_package_installed_on_both_authorized_hosts": true,
+    "exact_mission_control_image_installed_on_both_authorized_hosts": true,
+    "vps_access_transport": "AUTHORIZED_SSH_WRAPPERS",
     "installer_strategy": "NON_DESTRUCTIVE_STAGED_ATOMIC_SWAP_WITH_PRIOR_APP_ROLLBACK",
     "send_services_kept_disabled_during_and_after_deployment": true,
     "secondary_kept_fail_closed": true,
@@ -141,8 +160,13 @@
   "remaining_activation_boundaries": [
     {
       "id": "BOUNDARY-MC-REMOTE-LOGIN-AND-REGISTRY",
-      "why": "Netcup has an independent empty browser profile. Copying Hostinger cookies/profile is forbidden, and real dedicated MC-only conversations do not yet exist in its private registry.",
+      "why": "The dedicated Netcup automation profile is live with native sandboxing and loopback CDP, but the ChatGPT session endpoint reports unauthenticated. Both private relay directories contain zero valid real owner registrations, and copying Hostinger cookies/profile is forbidden.",
       "required_owner_action": "Complete one remote ChatGPT login/MFA session on Netcup, create dedicated MC-only supervisor conversations, and register their exact private identities on both hosts."
+    },
+    {
+      "id": "BOUNDARY-MC-CENTRAL-AUTHORITY-CONFIGURATION",
+      "why": "No live Mission Control container is active. The primary role and both host-unique attestors are not fully configured, and exact initial automation target bindings cannot be frozen before authenticated MC-only targets exist.",
+      "required_owner_action": "After the remote login and registrations exist, finish the pairwise relay/attestor/lease bindings and activate the single Netcup Mission Control authority before cross-host racing, restart pacing, and failover evidence."
     },
     {
       "id": "BOUNDARY-MC-REMOTE-WORKER-RUNTIME",

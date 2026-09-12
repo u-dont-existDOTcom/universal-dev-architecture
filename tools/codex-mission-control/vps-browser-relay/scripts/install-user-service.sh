@@ -20,6 +20,12 @@ fi
 
 staging_root="$(mktemp -d "$install_parent/.install-new.XXXXXX")"
 cp -a "$source_root"/. "$staging_root"/
+# The central algorithm shim and its contract tests are repository-source-only.
+# A deployed relay calls Mission Control's authenticated BFF and contains no
+# local copy of the shared scheduler implementation.
+rm -f -- \
+  "$staging_root/src/submission-scheduler-service.mjs" \
+  "$staging_root/test/submission-scheduler-service.test.mjs"
 chmod 0700 "$staging_root/bin/mc-chatgpt-relay.mjs" "$staging_root/scripts/launch-browser.sh"
 
 if [[ ! -f "$config_root/env" ]]; then
@@ -35,10 +41,30 @@ for unit in mission-control-chatgpt.slice mission-control-chatgpt-browser.servic
   install -m 0644 "$staging_root/systemd/user/$unit" "$unit_root/$unit"
 done
 
-# PR #91 installed an independent host-local authority. Stop and remove that
-# exact obsolete unit before installing the Mission-Control-backed relay.
-systemctl --user disable --now mission-control-submission-scheduler.service >/dev/null 2>&1 || true
+# PR #91 installed an independent host-local authority. If it exists, it must
+# stop successfully before any replacement is installed; masking a stop
+# failure could leave two live send authorities.
+if systemctl --user cat mission-control-submission-scheduler.service >/dev/null 2>&1; then
+  systemctl --user disable --now mission-control-submission-scheduler.service
+fi
+if systemctl --user is-active --quiet mission-control-submission-scheduler.service; then
+  echo "Obsolete host-local scheduler is still active; refusing to continue." >&2
+  exit 67
+fi
 rm -f -- "$unit_root/mission-control-submission-scheduler.service"
+
+# Retire the obsolete scheduler-only configuration without printing it. Keep a
+# recoverable owner-only copy outside the active configuration directory.
+retired_config_root="$install_parent/retired-config"
+if [[ -f "$config_root/active-lease.json" ]]; then
+  install -d -m 0700 "$retired_config_root"
+  mv -- "$config_root/active-lease.json" "$retired_config_root/active-lease.$(date -u +%Y%m%dT%H%M%SZ).$$.json"
+fi
+if grep -Eq '^MC_RELAY_SCHEDULER_(URL|TOKEN|TIMEOUT_MS)=' "$config_root/env"; then
+  install -d -m 0700 "$retired_config_root"
+  cp -p -- "$config_root/env" "$retired_config_root/env.before-shared-authority.$(date -u +%Y%m%dT%H%M%SZ).$$"
+  sed -i -E '/^MC_RELAY_SCHEDULER_(URL|TOKEN|TIMEOUT_MS)=/d' "$config_root/env"
+fi
 
 if [[ -e "$install_root" || -L "$install_root" ]]; then
   rollback_root="$install_parent/app.rollback.$(date -u +%Y%m%dT%H%M%SZ).$$"
@@ -64,6 +90,9 @@ Configuration:
   $config_root/env
   $config_root/browser-env
   $config_root/chats.json
+
+Retired legacy scheduler configuration (when present):
+  $retired_config_root
 
 State:
   $state_root

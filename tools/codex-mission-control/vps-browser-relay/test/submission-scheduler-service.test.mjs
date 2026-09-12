@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
+import { createHmac } from 'node:crypto';
 
-import { parseChatDirectory, sha256 } from '../src/core.mjs';
+import { parseChatDirectory, parseChatProvisionDirectory, sha256 } from '../src/core.mjs';
 import {
   CentralSubmissionScheduler,
   defaultSchedulerState,
@@ -75,11 +76,208 @@ test('concurrent host requests share one serialization point and only one receiv
   const scheduler = makeScheduler(new MemoryStore(), now);
   await scheduler.activateLease(primaryLease());
   const results = await Promise.allSettled([
-    scheduler.admit(request({ requestId: 'race-a', queueKey: 'queue:race-a' }), 'collector:host-a'),
-    scheduler.admit(request({ requestId: 'race-b', queueKey: 'queue:race-b', bodySha256: 'b'.repeat(64) }), 'collector:host-b'),
+    scheduler.admit(request({ requestId: 'race-a', queueKey: 'queue:race-a' }), 'collector:relay'),
+    scheduler.admit(request({ requestId: 'race-b', queueKey: 'queue:race-b', bodySha256: 'b'.repeat(64), hostAlias: 'standby', hostRole: 'SECONDARY', automationWindowId: 202, targetId: 'standby-owned-target' }), 'collector:standby'),
   ]);
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
-  assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'SUBMISSION_QUEUED').length, 1);
+  assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'STANDBY_SEND_FORBIDDEN').length, 1);
+});
+
+test('two-phase target-set transition is separately attested, durable, admission-fencing, and exact-delta bound', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const begin = targetTransition('BEGIN', {
+    operation: 'ADD', transitionId: 'transition:add:1', priorOwnedTargetIds: ['owned-target-test'],
+    anchorTargetId: 'owned-target-test', targetId: null,
+  });
+  await assert.rejects(
+    scheduler.beginRelayTargetTransition({ ...begin, proof: '0'.repeat(64) }, 'collector:relay'),
+    hasCode('RELAY_TARGET_ATTESTATION_INVALID'),
+  );
+  assert.equal((await scheduler.beginRelayTargetTransition(signTransition(begin), 'collector:relay')).begun, true);
+  assert.equal((await scheduler.status()).ready, false);
+  await assert.rejects(scheduler.admit(request(), 'collector:relay'), hasCode('RELAY_TARGET_TRANSITION_OPEN'));
+  const persisted = structuredClone(store.state);
+  assert.equal(persisted.relayTargetTransition.transitionId, 'transition:add:1');
+
+  const restarted = makeScheduler(store, now);
+  await restarted.activateLease(primaryLease());
+  assert.equal((await restarted.status()).relayTargetTransition.state, 'OPEN');
+  const commit = targetTransition('COMMIT', {
+    ...begin,
+    postOwnedTargetIds: ['owned-target-test', 'pm-target-test'],
+    transitionedTargetId: 'pm-target-test',
+  });
+  const committed = await restarted.commitRelayTargetTransition(signTransition(commit), 'collector:relay');
+  assert.equal(committed.binding.bindingRevision, 2);
+  assert.equal(committed.binding.ownedTargetCount, 2);
+  assert.equal(Object.hasOwn(committed.binding, 'ownedTargetIds'), false);
+  assert.equal((await restarted.status()).ready, true);
+  assert.deepEqual((await restarted.producerBinding('collector:relay')).ownedTargetIds, ['owned-target-test', 'pm-target-test']);
+  assert.equal((await restarted.commitRelayTargetTransition(signTransition(commit), 'collector:relay')).duplicate, true);
+});
+
+test('target-set removal requires an exact signed delta, rejects in-use targets, and fences removed IDs', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const addBegin = targetTransition('BEGIN', {
+    operation: 'ADD', transitionId: 'transition:add:2', priorOwnedTargetIds: ['owned-target-test'],
+    anchorTargetId: 'owned-target-test', targetId: null,
+  });
+  await scheduler.beginRelayTargetTransition(signTransition(addBegin), 'collector:relay');
+  await scheduler.commitRelayTargetTransition(signTransition(targetTransition('COMMIT', {
+    ...addBegin, postOwnedTargetIds: ['owned-target-test', 'pm-target-test'], transitionedTargetId: 'pm-target-test',
+  })), 'collector:relay');
+
+  const granted = await scheduler.admit(request({ targetId: 'pm-target-test' }), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: granted.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+  const removeBegin = targetTransition('BEGIN', {
+    operation: 'REMOVE', transitionId: 'transition:remove:1', priorBindingRevision: 2,
+    priorOwnedTargetIds: ['owned-target-test', 'pm-target-test'], anchorTargetId: null, targetId: 'pm-target-test',
+  });
+  await assert.rejects(scheduler.beginRelayTargetTransition(signTransition(removeBegin), 'collector:relay'), hasCode('RELAY_TARGET_TRANSITION_TARGET_IN_USE'));
+
+  store.state.queueItems[0].status = 'CANCELLED_AT_TAKEOVER';
+  store.state.queueItems[0].terminalAt = new Date(now.value).toISOString();
+  await scheduler.beginRelayTargetTransition(signTransition(removeBegin), 'collector:relay');
+  await assert.rejects(scheduler.commitRelayTargetTransition(signTransition(targetTransition('COMMIT', {
+    ...removeBegin, postOwnedTargetIds: ['pm-target-test'], transitionedTargetId: 'owned-target-test',
+  })), 'collector:relay'), hasCode('RELAY_TARGET_TRANSITION_DELTA_INVALID'));
+  await scheduler.commitRelayTargetTransition(signTransition(targetTransition('COMMIT', {
+    ...removeBegin, postOwnedTargetIds: ['owned-target-test'], transitionedTargetId: 'pm-target-test',
+  })), 'collector:relay');
+  await assert.rejects(
+    scheduler.admit(request({ requestId: 'removed', queueKey: 'queue:removed', targetId: 'pm-target-test' }), 'collector:relay'),
+    hasCode('SUBMISSION_TARGET_OWNERSHIP_UNATTESTED'),
+  );
+});
+
+test('target transition rejects cross-producer and stale revisions, serializes begin, and blocks takeover', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const first = targetTransition('BEGIN', {
+    operation: 'ADD', transitionId: 'transition:serialized:first', priorOwnedTargetIds: ['owned-target-test'],
+    anchorTargetId: 'owned-target-test', targetId: null,
+  });
+  await assert.rejects(scheduler.beginRelayTargetTransition(signTransition(first), 'collector:standby'), hasCode('RELAY_TARGET_TRANSITION_SCOPE_MISMATCH'));
+  const stale = targetTransition('BEGIN', { ...first, transitionId: 'transition:stale', priorBindingRevision: 2 });
+  await assert.rejects(scheduler.beginRelayTargetTransition(signTransition(stale), 'collector:relay'), hasCode('RELAY_TARGET_TRANSITION_REVISION_MISMATCH'));
+  const second = targetTransition('BEGIN', { ...first, transitionId: 'transition:serialized:second' });
+  const results = await Promise.allSettled([
+    scheduler.beginRelayTargetTransition(signTransition(first), 'collector:relay'),
+    scheduler.beginRelayTargetTransition(signTransition(second), 'collector:relay'),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'RELAY_TARGET_TRANSITION_BUSY').length, 1);
+  now.value = Date.parse('2026-09-10T13:01:00.000Z');
+  await assert.rejects(scheduler.activateLease(secondaryTakeoverLease()), hasCode('TAKEOVER_TARGET_TRANSITION_OPEN'));
+});
+
+test('window replacement is quiescent, crash-durable, exact-window bound, replay-safe, and restart-safe', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const queued = await scheduler.admit(request(), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: queued.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+  const begin = targetTransition('BEGIN', {
+    operation: 'WINDOW_REPLACE', transitionId: 'transition:window:1',
+    priorOwnedTargetIds: ['owned-target-test'], anchorTargetId: null, targetId: null,
+  });
+  await assert.rejects(scheduler.beginRelayTargetTransition(signTransition(begin), 'collector:relay'), hasCode('RELAY_TARGET_TRANSITION_QUEUE_NOT_QUIESCENT'));
+  store.state.queueItems[0].status = 'CANCELLED_AT_TAKEOVER';
+  store.state.queueItems[0].terminalAt = new Date(now.value).toISOString();
+  await scheduler.beginRelayTargetTransition(signTransition(begin), 'collector:relay');
+  now.value = Date.parse('2026-09-10T13:01:00.000Z');
+  await assert.rejects(scheduler.activateLease(secondaryTakeoverLease()), hasCode('TAKEOVER_TARGET_TRANSITION_OPEN'));
+  now.value = origin;
+
+  const restarted = makeScheduler(store, now);
+  await restarted.activateLease(primaryLease());
+  const commit = targetTransition('COMMIT', {
+    ...begin, postAutomationWindowId: 303, postOwnedTargetIds: ['replacement-target'],
+    transitionedTargetId: 'replacement-target',
+  });
+  const result = await restarted.commitRelayTargetTransition(signTransition(commit), 'collector:relay');
+  assert.equal(result.binding.automationWindowId, 303);
+  assert.equal(result.binding.bindingRevision, 2);
+  assert.equal(result.binding.ownedTargetCount, 1);
+  assert.equal((await restarted.commitRelayTargetTransition(signTransition(commit), 'collector:relay')).duplicate, true);
+
+  const afterCommitRestart = makeScheduler(store, now);
+  await afterCommitRestart.activateLease(primaryLease());
+  assert.equal((await afterCommitRestart.producerBinding('collector:relay')).automationWindowId, 303);
+});
+
+test('unexpected target disappearance removes exactly one target and aborts if the exact prior set reappears', async () => {
+  const now = { value: origin };
+  const bindings = {
+    'collector:relay': { hostAlias: 'primary', hostRole: 'PRIMARY', automationWindowId: 101, ownedTargetIds: ['anchor', 'vanished'] },
+    'collector:standby': { hostAlias: 'standby', hostRole: 'SECONDARY', automationWindowId: 202, ownedTargetIds: ['standby-owned-target'] },
+  };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now, { producerBindings: bindings });
+  await scheduler.activateLease(primaryLease());
+  const begin = targetTransition('BEGIN', {
+    operation: 'RECONCILE_REMOVE', transitionId: 'transition:reconcile:1',
+    priorOwnedTargetIds: ['anchor', 'vanished'], targetId: 'vanished', anchorTargetId: null,
+  });
+  await scheduler.beginRelayTargetTransition(signTransition(begin), 'collector:relay');
+  await scheduler.abortRelayTargetTransition(signTransition(targetTransition('ABORT', {
+    ...begin, observedOwnedTargetIds: ['anchor', 'vanished'], observedAutomationWindowId: 101,
+  })), 'collector:relay');
+  assert.equal((await scheduler.status()).relayTargetTransition.state, 'CLEAR');
+
+  const second = targetTransition('BEGIN', { ...begin, transitionId: 'transition:reconcile:2' });
+  await scheduler.beginRelayTargetTransition(signTransition(second), 'collector:relay');
+  await assert.rejects(scheduler.commitRelayTargetTransition(signTransition(targetTransition('COMMIT', {
+    ...second, postOwnedTargetIds: ['vanished'], transitionedTargetId: 'anchor',
+  })), 'collector:relay'), hasCode('RELAY_TARGET_TRANSITION_DELTA_INVALID'));
+  const committed = await scheduler.commitRelayTargetTransition(signTransition(targetTransition('COMMIT', {
+    ...second, postOwnedTargetIds: ['anchor'], transitionedTargetId: 'vanished',
+  })), 'collector:relay');
+  assert.equal(committed.binding.ownedTargetCount, 1);
+  assert.deepEqual((await scheduler.producerBinding('collector:relay')).ownedTargetIds, ['anchor']);
+});
+
+test('passive relay may replace only its own attested window while send authority remains primary', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const standby = {
+    producerId: 'collector:standby', hostAlias: 'standby', hostRole: 'SECONDARY',
+    automationWindowId: 202, deploymentEpoch: 1, leaseId: 'lease-primary-1',
+  };
+  const add = targetTransition('BEGIN', {
+    ...standby, operation: 'ADD', transitionId: 'transition:standby:add',
+    priorOwnedTargetIds: ['standby-owned-target'], anchorTargetId: 'standby-owned-target',
+  });
+  await assert.rejects(
+    scheduler.beginRelayTargetTransition(signTransition(add, 'standby-attestor-test-' + 'b'.repeat(32)), 'collector:standby'),
+    hasCode('STANDBY_TARGET_MUTATION_FORBIDDEN'),
+  );
+  const begin = targetTransition('BEGIN', {
+    ...standby, operation: 'WINDOW_REPLACE', transitionId: 'transition:standby:window',
+    priorOwnedTargetIds: ['standby-owned-target'], anchorTargetId: null, targetId: null,
+  });
+  const standbySecret = 'standby-attestor-test-' + 'b'.repeat(32);
+  await scheduler.beginRelayTargetTransition(signTransition(begin, standbySecret), 'collector:standby');
+  const committed = await scheduler.commitRelayTargetTransition(signTransition(targetTransition('COMMIT', {
+    ...begin, postAutomationWindowId: 404, postOwnedTargetIds: ['standby-replacement'], transitionedTargetId: 'standby-replacement',
+  }), standbySecret), 'collector:standby');
+  assert.equal(committed.binding.automationWindowId, 404);
+  assert.equal((await scheduler.status()).activeLease.activeHostRole, 'PRIMARY');
+  await assert.rejects(scheduler.admit(request({
+    producerId: 'collector:standby', hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 1,
+    leaseId: 'lease-primary-1', automationWindowId: 404, targetId: 'standby-replacement',
+  }), 'collector:standby'), hasCode('STANDBY_SEND_FORBIDDEN'));
 });
 
 test('same-lease renewal may only extend expiry without changing authority', async () => {
@@ -167,6 +365,8 @@ test('the VPS package contains no host-local scheduler authority', async () => {
   assert.doesNotMatch(relayUnit, /mission-control-submission-scheduler/);
   assert.match(installer, /disable --now mission-control-submission-scheduler\.service/);
   assert.doesNotMatch(installer, /enable --now mission-control-submission-scheduler\.service/);
+  assert.match(installer, /staging_root\/src\/submission-scheduler-service\.mjs/);
+  assert.match(installer, /staging_root\/test\/submission-scheduler-service\.test\.mjs/);
 });
 
 test('every concrete ChatGPT send path is wired through central admission and boundary recording', async () => {
@@ -197,7 +397,8 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
   assert.doesNotMatch(browserEnv, /TOKEN|PRODUCER_ID|MISSION_CONTROL_URL/);
   assert.doesNotMatch(relayEnv, /MC_RELAY_SCHEDULER_TOKEN=|MC_SCHEDULER_HOST=/);
   assert.match(relayEnv, /\/api\/submission-authority/);
-  assert.match(launcher, /unset MC_RELAY_TOKEN MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL MC_RELAY_SUBMISSION_AUTHORITY_URL/);
+  assert.match(launcher, /unset MC_RELAY_TOKEN MC_RELAY_TARGET_BINDING_ATTESTOR_KEY MC_RELAY_SUBMISSION_PACING_DOMAIN/);
+  assert.match(launcher, /MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL MC_RELAY_SUBMISSION_AUTHORITY_URL/);
   assert.match(launcher, /XDG_CONFIG_HOME="\$browser_config_dir"/);
   assert.match(launcher, /--disable-setuid-sandbox/);
   assert.doesNotMatch(launcher, /["']--no-sandbox["']/);
@@ -212,10 +413,43 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
   for (const source of [browserEnv, launcher]) assert.doesNotMatch(source, /clipboard|xclip|xsel/i);
 });
 
+test('system-manager compatibility mode keeps browser and relay unprivileged while preserving Chromium sandboxing', async () => {
+  const browserUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-browser@.service', import.meta.url), 'utf8');
+  const relayUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-relay@.service', import.meta.url), 'utf8');
+  const installer = await readFile(new URL('../scripts/install-system-services.sh', import.meta.url), 'utf8');
+  assert.match(browserUnit, /^User=%i$/m);
+  assert.doesNotMatch(browserUnit, /^Group=/m);
+  assert.match(browserUnit, /^NoNewPrivileges=false$/m);
+  assert.match(browserUnit, /^ProtectSystem=strict$/m);
+  assert.match(browserUnit, /^ProtectHome=read-only$/m);
+  assert.doesNotMatch(browserUnit, /--no-sandbox|--disable-setuid-sandbox/);
+  assert.match(relayUnit, /^User=%i$/m);
+  assert.doesNotMatch(relayUnit, /^Group=/m);
+  assert.match(relayUnit, /^NoNewPrivileges=true$/m);
+  assert.match(relayUnit, /Requires=mission-control-chatgpt-browser@%i\.service/);
+  assert.match(installer, /target_uid.*-eq 0/);
+  assert.match(installer, /target_home.*\*\[!a-zA-Z0-9_\.\/-\]\*/);
+  assert.match(installer, /mission-control-chatgpt-browser@\$\{target_user\}\.service\.d/);
+  assert.match(installer, /EnvironmentFile=\$target_home\/\.config\/mission-control-chatgpt-relay\/browser-env/);
+  assert.match(installer, /ExecStart=\$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/scripts\/launch-browser\.sh/);
+  assert.match(installer, /mission-control-chatgpt-relay@\$\{target_user\}\.service\.d/);
+  assert.match(installer, /EnvironmentFile=\$target_home\/\.config\/mission-control-chatgpt-relay\/env/);
+  assert.match(installer, /MC_RELAY_NODE_BIN/);
+  assert.match(installer, /runuser -u "\$target_user" -- "\$node_bin"/);
+  assert.match(installer, /node_major.*-lt 22/);
+  assert.match(installer, /grep -E '\^MC_RELAY_BROWSER_PROFILE_DIR='/);
+  assert.match(installer, /canonical_browser_profile.*realpath -e/);
+  assert.match(installer, /browser_profile.*!= "\$target_home\/"\*/);
+  assert.match(installer, /ReadWritePaths=\$browser_profile \$target_home\/\.cache/);
+  assert.match(installer, /ExecStart=\$node_bin \$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/bin\/mc-chatgpt-relay\.mjs run/);
+  assert.match(installer, /systemctl daemon-reload/);
+  assert.doesNotMatch(installer, /rm\s+-rf|TOKEN|clipboard|xclip|xsel|EnvironmentFile=\/root|ExecStart=\/root/i);
+});
+
 test('standby, wrong alias, wrong epoch, wrong lease, stale lease, and missing lease all fail closed', async () => {
   const cases = [
-    [request({ hostRole: 'SECONDARY', hostAlias: 'standby' }), 'STANDBY_SEND_FORBIDDEN'],
-    [request({ hostAlias: 'wrong-primary' }), 'DEPLOYMENT_LEASE_MISMATCH'],
+    [request({ hostRole: 'SECONDARY', hostAlias: 'standby' }), 'SUBMISSION_RELAY_HOST_IMPERSONATION'],
+    [request({ hostAlias: 'wrong-primary' }), 'SUBMISSION_RELAY_HOST_IMPERSONATION'],
     [request({ deploymentEpoch: 2 }), 'DEPLOYMENT_LEASE_MISMATCH'],
     [request({ leaseId: 'wrong-lease' }), 'DEPLOYMENT_LEASE_MISMATCH'],
   ];
@@ -224,6 +458,13 @@ test('standby, wrong alias, wrong epoch, wrong lease, stale lease, and missing l
     await scheduler.activateLease(primaryLease());
     await assert.rejects(scheduler.admit(candidate, 'collector:relay'), hasCode(code));
   }
+
+  const standby = makeScheduler(new MemoryStore(), { value: origin });
+  await standby.activateLease(primaryLease());
+  await assert.rejects(standby.admit(request({
+    hostAlias: 'standby', hostRole: 'SECONDARY', targetId: 'standby-owned-target', automationWindowId: 202,
+  }), 'collector:standby'), hasCode('STANDBY_SEND_FORBIDDEN'));
+  await assert.rejects(standby.admit(request({ targetId: 'unowned-target' }), 'collector:relay'), hasCode('SUBMISSION_TARGET_OWNERSHIP_UNATTESTED'));
 
   const missing = makeScheduler(new MemoryStore(), { value: origin });
   await assert.rejects(missing.admit(request(), 'collector:relay'), hasCode('DEPLOYMENT_LEASE_MISSING'));
@@ -295,7 +536,8 @@ test('secondary takeover requires exact prior lease, proven quiescence, and paci
   await assert.rejects(scheduler.admit(request({ requestId: 'old-primary', queueKey: 'queue:old-primary' }), 'collector:relay'), hasCode('DEPLOYMENT_LEASE_MISMATCH'));
   const failover = await scheduler.admit(request({
     requestId: 'failover-send', queueKey: 'queue:failover-send', hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2, leaseId: 'lease-secondary-2',
-  }), 'collector:relay');
+    targetId: 'standby-owned-target', automationWindowId: 202,
+  }), 'collector:standby');
   assert.equal(failover.hostAlias, 'standby');
   assert.equal(failover.leaseEpoch, 2);
 });
@@ -312,13 +554,48 @@ test('takeover cancels unadmitted queue state and rebinds only the same logical 
   await scheduler.activateLease(lease);
   assert.equal(store.state.queueItems[0].status, 'CANCELLED_AT_TAKEOVER');
   const rebound = await scheduler.admit(request({
-    queueKey: 'queue:takeover', targetId: 'standby-owned-target', hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2, leaseId: 'lease-secondary-2',
-  }), 'collector:relay');
+    queueKey: 'queue:takeover', targetId: 'standby-owned-target', automationWindowId: 202, hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2, leaseId: 'lease-secondary-2',
+  }), 'collector:standby');
   assert.equal(rebound.hostAlias, 'standby');
-  await scheduler.abortBeforeBoundary({ admissionId: rebound.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: rebound.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:standby');
   await assert.rejects(scheduler.admit(request({
-    requestId: 'changed-request', queueKey: 'queue:takeover', targetId: 'standby-owned-target', hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2, leaseId: 'lease-secondary-2',
-  }), 'collector:relay'), hasCode('SUBMISSION_QUEUE_KEY_CONFLICT'));
+    requestId: 'changed-request', queueKey: 'queue:takeover', targetId: 'standby-owned-target', automationWindowId: 202, hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2, leaseId: 'lease-secondary-2',
+  }), 'collector:standby'), hasCode('SUBMISSION_QUEUE_KEY_CONFLICT'));
+});
+
+test('takeover rebinds a rate-limit retry to the same durable queue item and successor-owned target', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const first = await scheduler.admit(request({ queueKey: 'queue:rate-takeover' }), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: first.admissionId, relayStage: 'COMPOSER_FILLED', failureKind: 'PROVIDER_RATE_LIMIT' }, 'collector:relay');
+  now.value = Date.parse(primaryLease().expiresAt) + 60_000;
+  await scheduler.activateLease(secondaryTakeoverLease({ provenAt: '2026-09-10T12:00:30.000Z', transferredLastBoundaryAt: null }));
+  const retry = await scheduler.admit(request({
+    queueKey: 'queue:rate-takeover', hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2,
+    leaseId: 'lease-secondary-2', targetId: 'standby-owned-target', automationWindowId: 202,
+  }), 'collector:standby');
+  assert.equal(retry.queueItemId, first.queueItemId);
+  assert.equal(retry.providerRateLimitCount, 1);
+  assert.equal(store.state.queueItems[0].takeoverRebindings.length, 1);
+});
+
+test('rate-limit takeover cannot change the durable queue item logical destination', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const first = await scheduler.admit(request({ queueKey: 'queue:rate-logical-target' }), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: first.admissionId, relayStage: 'COMPOSER_FILLED', failureKind: 'PROVIDER_RATE_LIMIT' }, 'collector:relay');
+  now.value = Date.parse(primaryLease().expiresAt) + 60_000;
+  await scheduler.activateLease(secondaryTakeoverLease({ provenAt: '2026-09-10T12:00:30.000Z', transferredLastBoundaryAt: null }));
+  await assert.rejects(scheduler.admit(request({
+    queueKey: 'queue:rate-logical-target', hostAlias: 'standby', hostRole: 'SECONDARY', deploymentEpoch: 2,
+    leaseId: 'lease-secondary-2', targetId: 'standby-owned-target', automationWindowId: 202,
+    targetKind: 'FRESH_PROVIDER_SESSION', targetKey: 'provider-session:changed', expectedUrlSha256: sha256('https://chatgpt.com/'),
+  }), 'collector:standby'), hasCode('SUBMISSION_QUEUE_KEY_CONFLICT'));
+  assert.equal(store.state.queueItems[0].takeoverRebindings.length, 0);
 });
 
 test('provider rate-limit retry count survives scheduler invocations and process-level retry loops', async () => {
@@ -336,7 +613,7 @@ test('provider rate-limit retry count survives scheduler invocations and process
   assert.equal(store.state.queueItems[0].status, 'RATE_LIMIT_RETRY_EXHAUSTED');
   assert.equal(store.state.safetyHalt.code, 'CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED');
   await assert.rejects(scheduler.admit(request({ queueKey: 'queue:rate' }), 'collector:relay'), hasCode('SUBMISSION_SAFETY_HALT'));
-  await assert.rejects(scheduler.admit(request({ requestId: 'unrelated-after-exhaustion', queueKey: 'queue:unrelated-after-exhaustion' }), 'collector:other-host'), hasCode('SUBMISSION_SAFETY_HALT'));
+  await assert.rejects(scheduler.admit(request({ requestId: 'unrelated-after-exhaustion', queueKey: 'queue:unrelated-after-exhaustion' }), 'collector:relay'), hasCode('SUBMISSION_SAFETY_HALT'));
 });
 
 test('crossed provider rate limit resumes the same durable queue item after restart', async () => {
@@ -422,8 +699,106 @@ test('MC-only registry and exact target binding reject legacy, personal, unregis
   await assert.rejects(missingAuthorization.admit(request({ authorizationRef: null }), 'collector:relay'), /authorizationRef/);
 });
 
+test('owner-authorized provisioning is one-time and cannot authorize normal, bootstrap, or bound sends', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const provision = provisionChat();
+  const scheduler = makeScheduler(store, now, { chats: parseChatProvisionDirectory([provision]) });
+  await scheduler.activateLease(primaryLease());
+  const exact = request({
+    requestId: 'provision:spec', authorizationRef: 'task:worker-a', queueKey: 'provision:spec',
+    sendPath: 'MC_ONLY_PROVISIONING', supervisorId: provision.supervisorId,
+    registrationId: provision.registrationId, targetKind: 'FRESH_PROVIDER_SESSION',
+    targetKey: provision.provisioningKey, expectedUrlSha256: sha256('https://chatgpt.com/'),
+  });
+  for (const mutation of [
+    { sendPath: 'SUPERVISOR_MESSAGE' },
+    { targetKind: 'REGISTERED_BOOTSTRAP' },
+    { targetKind: 'BOUND_PROVIDER_SESSION' },
+    { targetKey: 'provider-session:provisioning:wrong' },
+    { expectedUrlSha256: sha256('https://chatgpt.com/c/not-root') },
+  ]) {
+    await assert.rejects(scheduler.admit({ ...exact, ...mutation }, 'collector:relay'), hasCode('SUPERVISOR_PROVISIONING_SCOPE_MISMATCH'));
+  }
+  const admission = await scheduler.admit(exact, 'collector:relay');
+  now.value += 1_000;
+  await scheduler.recordBoundary({
+    admissionId: admission.admissionId,
+    boundaryAt: new Date(now.value).toISOString(),
+    boundaryKind: 'GENERATION_STARTED',
+    conversationUrlSha256: sha256('https://chatgpt.com/c/private-provisioned-chat'),
+  }, 'collector:relay');
+  now.value += 60_000;
+  await assert.rejects(
+    scheduler.admit({ ...exact, requestId: 'provision:again', queueKey: 'provision:again' }, 'collector:relay'),
+    hasCode('SUPERVISOR_PROVISIONING_ALREADY_CONSUMED'),
+  );
+});
+
 function makeScheduler(store, now, overrides = {}) {
-  return new CentralSubmissionScheduler({ stateStore: store, chats: parseChatDirectory([chat()]), minIntervalMs: 60_000, now: () => now.value, ...overrides });
+  return new CentralSubmissionScheduler({
+    stateStore: store,
+    chats: parseChatDirectory([chat()]),
+    producerBindings: {
+      'collector:relay': { hostAlias: 'primary', hostRole: 'PRIMARY', automationWindowId: 101, ownedTargetIds: ['owned-target-test'] },
+      'collector:standby': { hostAlias: 'standby', hostRole: 'SECONDARY', automationWindowId: 202, ownedTargetIds: ['standby-owned-target'] },
+    },
+    producerAttestors: {
+      'collector:relay': 'primary-attestor-test-' + 'a'.repeat(32),
+      'collector:standby': 'standby-attestor-test-' + 'b'.repeat(32),
+    },
+    pacingDomain: 'account:test',
+    minIntervalMs: 60_000,
+    now: () => now.value,
+    ...overrides,
+  });
+}
+
+const primaryAttestor = 'primary-attestor-test-' + 'a'.repeat(32);
+
+function targetTransition(phase, overrides = {}) {
+  const operation = overrides.operation ?? 'ADD';
+  return {
+    phase,
+    pacingDomain: 'account:test',
+    producerId: overrides.producerId ?? 'collector:relay',
+    transitionId: overrides.transitionId ?? 'transition:test',
+    operation,
+    reason: {
+      ADD: 'AUTOMATION_OWNED_TARGET_CREATE',
+      REMOVE: 'AUTOMATION_OWNED_TARGET_CLOSE',
+      RECONCILE_REMOVE: 'AUTOMATION_OWNED_TARGET_DISAPPEARED',
+      WINDOW_REPLACE: 'AUTOMATION_OWNED_WINDOW_REPLACE',
+    }[operation],
+    hostAlias: overrides.hostAlias ?? 'primary',
+    hostRole: overrides.hostRole ?? 'PRIMARY',
+    deploymentEpoch: overrides.deploymentEpoch ?? 1,
+    leaseId: overrides.leaseId ?? 'lease-primary-1',
+    automationWindowId: overrides.automationWindowId ?? 101,
+    priorBindingRevision: overrides.priorBindingRevision ?? 1,
+    priorOwnedTargetIds: [...(overrides.priorOwnedTargetIds ?? ['owned-target-test'])].sort(),
+    anchorTargetId: operation === 'ADD' ? overrides.anchorTargetId ?? 'owned-target-test' : null,
+    targetId: ['REMOVE', 'RECONCILE_REMOVE'].includes(operation) ? overrides.targetId ?? 'pm-target-test' : null,
+    ...(phase === 'COMMIT' ? {
+      postAutomationWindowId: overrides.postAutomationWindowId ?? overrides.automationWindowId ?? 101,
+      postOwnedTargetIds: [...overrides.postOwnedTargetIds].sort(),
+      transitionedTargetId: overrides.transitionedTargetId,
+    } : {}),
+    ...(phase === 'ABORT' ? {
+      observedAutomationWindowId: overrides.observedAutomationWindowId ?? overrides.automationWindowId ?? 101,
+      observedOwnedTargetIds: [...overrides.observedOwnedTargetIds].sort(),
+    } : {}),
+  };
+}
+
+function signTransition(payload, secret = primaryAttestor) {
+  return { ...payload, proof: createHmac('sha256', secret).update(canonicalJson(payload)).digest('hex') };
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
 }
 
 function chat() {
@@ -433,6 +808,20 @@ function chat() {
     accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec',
     registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T11:00:00.000Z', sourceRef: 'owner-requirement:test' },
     bootstrapCapability: { chatId: 'bootstrap-test', url: 'https://chatgpt.com/c/bootstrap-test', challengeId: 'challenge-test' },
+    consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
+    requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
+  };
+}
+
+function provisionChat() {
+  return {
+    registrationState: 'PROVISIONING', scope: 'SPECIALIST', supervisorId: 'spec-provisioning',
+    label: 'Provisioned specialist', workerId: 'worker-a', pinned: false,
+    registrationId: 'registration:spec:provisioning:test',
+    provisioningKey: 'provider-session:provisioning:spec-test', ownership: 'MISSION_CONTROL_ONLY',
+    purpose: 'Owner-authorized Mission Control-only chat provisioning.', accountAlias: 'account:test',
+    workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec-provisioning',
+    provisioningProvenance: { authorizedBy: 'OWNER', authorizedAt: '2026-09-12T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
     consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };
@@ -460,7 +849,7 @@ function secondaryTakeoverLease(overrides = {}) {
 function request(overrides = {}) {
   return {
     requestId: 'r-1', authorizationRef: overrides.authorizationRef ?? overrides.requestId ?? 'r-1', queueKey: 'queue:r-1', sendPath: 'CAPABILITY', hostAlias: 'primary', hostRole: 'PRIMARY', deploymentEpoch: 1,
-    leaseId: 'lease-primary-1', supervisorId: 'spec', registrationId: 'registration:spec:test', targetId: 'owned-target-test',
+    leaseId: 'lease-primary-1', supervisorId: 'spec', registrationId: 'registration:spec:test', targetId: 'owned-target-test', automationWindowId: 101,
     targetKind: 'REGISTERED_BOOTSTRAP', targetKey: 'bootstrap-test', expectedUrlSha256: sha256('https://chatgpt.com/c/bootstrap-test'), bodySha256: 'a'.repeat(64),
     ...overrides,
   };
