@@ -5,6 +5,7 @@ Date: 2026-09-02
 Updated: 2026-09-12
 
 Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json`.
+Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -80,6 +81,7 @@ When a task contains both reasoning and execution:
 Chat reasons first and removes as much semantic/strategic uncertainty as practical
 -> Chat defines the exact bounded residual execution directive and stop conditions
 -> Chat selects the lowest Work/Codex thinking level reasonably expected to execute that residual directive successfully
+-> Work/Codex independently sanity-checks the actual configured thinking level before substantive execution
 -> Work/Codex executes only that residue
 -> Work/Codex returns facts, diffs, logs, tests, and blockers
 -> Chat reviews the receipt and decides what happens next
@@ -106,6 +108,32 @@ Apply these rules:
 7. **Record the choice for consequential handoffs.** A nontrivial Work directive should state the selected reasoning level when the interface supports it and a short reason it is the lowest expected-sufficient level. If the interface does not expose a selectable reasoning level, do not fabricate one; still minimize the semantic burden delegated to Work.
 
 The optimization target is successful execution per credit, not the lowest numerical setting in isolation.
+
+### Work-side thinking-level preflight
+
+The Chat-side budget is not enough by itself. **When Work/Codex receives a nontrivial task, it must independently compare the actual configured reasoning/thinking level, when that setting is observable, with the minimum expected-sufficient level for the residual execution task before substantive execution begins.** This check is two-sided: Work must catch both an underpowered setting and an unnecessarily expensive setting.
+
+Classify the preflight as one of:
+
+- `APPROPRIATE` — the current setting is reasonably matched to the residual task;
+- `TOO_LOW_MATERIAL` — the current setting creates a material risk of execution failure, poor debugging, or incorrect handling of authorized tactical choices;
+- `TOO_HIGH_MATERIAL` — the current setting is materially more expensive than the residual task warrants and lowering it is expected to save meaningful credits without materially reducing success probability;
+- `MISMATCH_IMMATERIAL` — another level might be marginally more efficient or capable, but the expected capability or credit difference is too small to justify interrupting the owner;
+- `LEVEL_UNOBSERVABLE` — Work cannot reliably determine its current configured setting from the execution surface.
+
+Required behavior:
+
+1. **If `TOO_LOW_MATERIAL`:** do not begin substantive execution. Tell the owner the current level is too low for the bounded task, name the lowest level Work expects to be sufficient using only level names actually available on that surface, give the short reason, and ask the owner to change the setting.
+2. **If `TOO_HIGH_MATERIAL`:** do not silently burn credits. Tell the owner the current level is unnecessarily high for this task, name the lower expected-sufficient level, give the short reason, and ask the owner to lower it before execution.
+3. **If `MISMATCH_IMMATERIAL`:** proceed without interrupting the owner. Do not create approval friction for negligible expected savings or negligible capability differences.
+4. **If `APPROPRIATE`:** proceed normally and do not ask for confirmation merely to validate the level.
+5. **If `LEVEL_UNOBSERVABLE`:** do not invent a current setting. If the task is materially sensitive to reasoning level, state that the level cannot be verified and give the recommended minimum; otherwise proceed under the bounded directive without a gratuitous owner interruption.
+
+For **simple deterministic execution**—for example exact file copying, application of an already-authored patch, running specified tests/build/lint/format commands, collecting exact logs, or hash/readback verification with no unresolved design choice—presume that an expensive high reasoning setting is unnecessary unless a concrete execution-side ambiguity or debugging problem justifies it. Work should explicitly warn the owner when such simple work is running at a materially wasteful level.
+
+Do not use a fixed “one level difference” rule. Materiality depends on the expected change in execution reliability and expected credit consumption on the actual surface. Do not invent numeric savings when the platform does not expose them. The threshold is whether changing the level is meaningfully decision-relevant, not whether a different level could theoretically be slightly cheaper.
+
+Re-run this preflight when the nature of the residual execution materially changes—for example when rote execution turns into difficult debugging, or a previously complex task becomes a deterministic replay. A level that was appropriate at task start is not automatically appropriate for every later phase.
 
 ## Long-running ChatGPT recovery
 
@@ -166,6 +194,7 @@ Reject these routing rationales:
 "I'll send the GitHub receipt/write to Work."
 "Chat needed high reasoning, so Work should use high reasoning too."
 "Use maximum Work thinking just to be safe."
+"The task is simple, but leave Work on an expensive level because it is already selected."
 ```
 
 Replace them with a bounded execution test:
@@ -179,6 +208,12 @@ Can Chat make the required judgment and perform the next safe GitHub action dire
 After Chat has reduced the task:
 What is the lowest Work reasoning level reasonably expected to execute the remaining directive correctly?
   -> choose that level, not the original task's apparent difficulty.
+
+When Work receives the task:
+Is the actual configured level materially too low or materially more expensive than this residual execution warrants?
+  TOO LOW -> ask the owner to raise it to the lowest expected-sufficient level.
+  TOO HIGH -> tell the owner they are overspending on this task and ask them to lower it.
+  DIFFERENCE IMMATERIAL -> proceed without interruption.
 ```
 
 For an unattended supervisory cycle, add one more hard check:
@@ -210,6 +245,7 @@ A valid Work handoff records:
 - stop/review triggers;
 - required evidence/tests;
 - selected Work/Codex reasoning level when configurable, plus why it is the lowest expected-sufficient level;
+- explicit Work-side reasoning-level preflight result and recommended level when the current setting is observable;
 - explicit semantic authority = none beyond the bounded implementation choices.
 
 The execution receipt becomes input to Chat only through a verified Mission Control/controller route. It is not permission for Work to select the next consequential step.
