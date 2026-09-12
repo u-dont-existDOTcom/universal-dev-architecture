@@ -22,11 +22,10 @@ class WorkThinkingBudgetPreflightTests(unittest.TestCase):
             "simple deterministic execution",
             "meaningful credits",
             "do not silently burn credits",
-            "Difference immaterial".upper().replace(" ", "_")[:0],
         ):
-            if required:
-                self.assertIn(required, text)
-        self.assertIn("If `MISMATCH_IMMATERIAL`: proceed without interrupting the owner", text)
+            self.assertIn(required, text)
+        self.assertIn("If `MISMATCH_IMMATERIAL`", text)
+        self.assertIn("proceed without interrupting the owner", text)
         self.assertIn("tell the owner they are overspending on this task", text)
 
     def test_execution_directive_carries_expected_minimum_and_preflight(self) -> None:
