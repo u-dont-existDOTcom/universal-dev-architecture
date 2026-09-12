@@ -177,3 +177,41 @@ Chat decides worker execution is next
 ```
 
 A declined direct Work handoff does not erase the obligation to deliver runnable instructions when the owner still wants to use an existing Codex/worker surface. Deliver the owner-runnable directive through the available artifact surface instead.
+
+## Anti-patterns
+
+Reject:
+
+```text
+"I would tell Codex to..."
+"The next worker should..."
+"Here is what the worker needs to cover..."
+"Want me to turn this into Codex instructions?"
+```
+
+when worker execution has already been selected as the next action and enough information exists to author the directive.
+
+Also reject:
+
+```text
+<several screens of worker instructions pasted into ordinary chat>
+```
+
+when the same content can be delivered as a `.md` artifact with a short owner-facing summary.
+
+Also reject attaching or linking a ZIP/folder/multi-file worker packet without an explicit launch instruction naming the controlling entrypoint and required action.
+
+## Completion check
+
+Before sending the final owner-facing response for a worker-bound task, ask internally:
+
+```text
+1. Did I merely discuss the worker instructions, or did I actually deliver them?
+2. Can the worker run from the delivered directive without reconstructing prior chat?
+3. If the directive is packaged, did I name the controlling entrypoint and exact launch action?
+4. Is the payload small enough for inline chat?
+5. If not, did I create/link an artifact instead of bloating scrollback?
+6. Did I keep the consequential decision/caveat visible in chat without duplicating the artifact?
+```
+
+Any `NO` on 1, 2, 3 when applicable, 5, or 6 is a delivery defect that should be repaired before ending the turn.
