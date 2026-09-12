@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "repository": "owner/repository",
+  "branch": "task/example",
+  "operation": "update",
+  "path": "path/to/file.md",
+  "base_commit": "0000000000000000000000000000000000000000",
+  "base_blob": "0000000000000000000000000000000000000000",
+  "payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "payload_bytes": 0,
+  "expected_postimage_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "commit_message": "Update one exact file"
+}
