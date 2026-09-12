@@ -7,8 +7,8 @@
   "requirements": [
     {
       "id": "CHAT-START-TIME-001",
-      "text": "Every new chat must begin with a visible date-and-time stamp so the owner can tell when that chat occurred.",
-      "operationalization": "Place an explicit date and time at the start of the chat's first assistant response. Use the owner's local timezone when known; otherwise include an explicit timezone or UTC offset. Do not rely on hidden provider metadata, conversation ordering, or later historical reconstruction as a substitute for the visible stamp."
+      "text": "Every assistant turn must begin its final user-visible answer with a visible date-and-time stamp so the owner can tell when that turn occurred.",
+      "operationalization": "Place an explicit date and time on the first line of every final user-visible assistant answer. Use the owner's local timezone when known; otherwise include an explicit timezone or UTC offset. A timestamp in reasoning, analysis, tool commentary, scratch work, or another intermediate surface does not count and must be repeated in the final answer. Before finalizing every turn, literally verify that the first line contains the stamp."
     },
     {
       "id": "CHAT-BEFORE-WORK-001",

@@ -25,7 +25,7 @@ class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
         self.assertEqual(set(req), {"CHAT-START-TIME-001", "CHAT-BEFORE-WORK-001", "WORK-MIN-REASONING-001"})
         checks = (
             ("date-and-time stamp", req["CHAT-START-TIME-001"]["text"]),
-            ("first assistant response", req["CHAT-START-TIME-001"]["operationalization"]),
+            ("first line of every final user-visible assistant answer", req["CHAT-START-TIME-001"]["operationalization"]),
             ("as much substantive thinking as practical in Chat first", req["CHAT-BEFORE-WORK-001"]["text"]),
             ("Delegate only the residual execution", req["CHAT-BEFORE-WORK-001"]["operationalization"]),
             ("lowest thinking/reasoning level reasonably expected to succeed", req["WORK-MIN-REASONING-001"]["text"]),
@@ -37,21 +37,37 @@ class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
 
     def test_root_agents_makes_timestamp_a_pre_answer_invariant(self) -> None:
         for phrase in (
-            "Session-start bootstrap invariants",
+            "Per-turn bootstrap invariants",
+            "every assistant turn",
             "first line of the final user-visible assistant answer MUST be",
             "pre-answer invariant",
-            "even for trivial arithmetic",
+            "follow-up acknowledgments",
             "must not waive this invariant",
-            "Treat failure to emit the timestamp as the first line of the final user-visible answer as an instruction-following failure",
+            "Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.agents)
-        self.assertLess(self.agents.index("## Session-start bootstrap invariants"), self.agents.index("## Authority"))
+        self.assertLess(self.agents.index("## Per-turn bootstrap invariants"), self.agents.index("## Authority"))
+
+    def test_root_requires_causal_failure_diagnosis(self) -> None:
+        for phrase in (
+            "## Causal failure diagnosis",
+            "identify the **causal mechanism**",
+            "missing/stale instruction activation",
+            "trigger misclassification",
+            "wrong phase/surface/destination",
+            "Do not use agentic shorthand",
+            "`I chose wrong`",
+            "Repair the generating condition",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.agents)
 
     def test_routing_pattern_operationalizes_the_controls_not_just_the_labels(self) -> None:
         for phrase in (
-            "Every new chat must begin its first assistant response",
+            "Every assistant turn must begin its final user-visible answer",
             "visible date-and-time stamp",
+            "re-fetch the current default-branch root `AGENTS.md` on every user turn",
             "Chat reasons first and removes as much semantic/strategic uncertainty as practical",
             "lowest Work/Codex thinking level reasonably expected",
             "Budget against the residue",
