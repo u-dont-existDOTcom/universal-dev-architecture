@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PRIOR_WORK_TEMPLATE = ROOT / "templates" / "PRIOR-WORK-SCAN.md"
 ACTIVE_LESSON_TEMPLATE = ROOT / "templates" / "ACTIVE-LESSON-CONTRACT.md"
+METHOD_FORK_CARD = ROOT / "templates" / "METHOD-FORK-CARD.md"
 METHOD_FIXTURE = ROOT / "evals" / "method-premise" / "manufactured-prerequisite-pilot.json"
 ACTIVATION_FIXTURE = ROOT / "evals" / "method-premise" / "universal-activation-wiring-pilot.json"
 PROPOSAL = ROOT / "proposals" / "2026-09-12-outcome-first-supervision-discussion.md"
@@ -84,6 +85,21 @@ class ManufacturedPrerequisitePilotTests(unittest.TestCase):
             cases["AW-004-project-requires-guidance-but-contract-stale"]["expected_activation_status"],
             "STALE",
         )
+
+    def test_method_fork_card_is_compact_and_owner_legible(self) -> None:
+        text = METHOD_FORK_CARD.read_text(encoding="utf-8")
+        required = [
+            "## What you asked for",
+            "## What I am additionally assuming",
+            "## Simplest live alternative",
+            "## What would fail without the added method",
+            "## Concrete ordinary case",
+            "Owner action: `NONE | DECISION_REQUIRED`",
+            "Do **not** create this card for routine reversible implementation choices",
+        ]
+        for needle in required:
+            self.assertIn(needle, text)
+        self.assertLess(len(text.splitlines()), 80)
 
     def test_proposal_remains_non_activated(self) -> None:
         text = PROPOSAL.read_text(encoding="utf-8")
