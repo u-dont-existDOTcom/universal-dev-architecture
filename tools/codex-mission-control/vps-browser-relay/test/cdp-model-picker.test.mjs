@@ -48,6 +48,21 @@ test('current ChatGPT thinking slider structure discovers the exact visible sett
   });
 });
 
+test('thinking slider search begins from a different supported visible tier', () => {
+  assert.deepEqual(modelMenuSelectionState(currentPowerMenu({
+    thinkingLabelMatchCount: 0,
+    currentPowerLabel: 'Pro',
+    sliderPosition: 4,
+  }), 'Extra High'), {
+    type: 'POWER_SEARCH',
+    initialLabel: 'Pro',
+    position: 4,
+    minimum: 0,
+    maximum: 4,
+    observedLabels: ['Pro'],
+  });
+});
+
 test('current combined model control requires one exact thinking-label segment', () => {
   const observation = currentPowerMenu({ directMatchCount: 1, thinkingLabelMatchCount: 0 });
   assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, controls), /thinking label Extra High must appear once/);

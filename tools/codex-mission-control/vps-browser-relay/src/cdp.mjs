@@ -136,6 +136,8 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
   const thinkingLabelMatches = thinkingLabelWanted == null
     ? []
     : thinkingLabelSegments.filter((label) => label === thinkingLabelWanted);
+  const supportedThinkingLabels = new Set(['Low', 'Medium', 'High', 'Extra High', 'Pro']);
+  const currentThinkingLabels = thinkingLabelSegments.filter((label) => supportedThinkingLabels.has(label));
   const sliders = powerControls.length === 1 ? [...powerControls[0].querySelectorAll('[role="slider"]')] : [];
   const slider = sliders.length === 1 ? sliders[0] : null;
   const controlThinkingLabel = accessibleLabel(control);
@@ -153,7 +155,7 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
       ? controlThinkingLabel
       : (powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null),
     currentPowerLabel: slider?.getAttribute('aria-valuetext')
-      || (thinkingLabelMatches.length === 1 ? thinkingLabelWanted : null),
+      || (currentThinkingLabels.length === 1 ? currentThinkingLabels[0] : null),
     sliderPosition: slider ? Number(slider.getAttribute('aria-valuenow')) : null,
     sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
     sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
