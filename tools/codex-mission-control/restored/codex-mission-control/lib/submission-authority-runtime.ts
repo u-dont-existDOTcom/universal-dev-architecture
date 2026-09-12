@@ -5,7 +5,6 @@ import type { EventStore } from "./store";
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
 // service host.
-// @ts-ignore JavaScript authority module intentionally has no declaration file.
 import {
   CentralSubmissionScheduler,
   SubmissionSchedulerError,

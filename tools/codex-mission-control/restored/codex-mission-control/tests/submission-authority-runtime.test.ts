@@ -138,7 +138,7 @@ test("provider rate limiting pauses the account and retries the same durable que
 test("unconfigured Mission Control authority fails closed", async () => {
   const store = new EventStore(":memory:");
   try {
-    const authority = new SubmissionAuthorityRuntime(store, {}, () => origin);
+    const authority = new SubmissionAuthorityRuntime(store, { NODE_ENV: "test" }, () => origin);
     await assert.rejects(authority.status(), SubmissionAuthorityDisabledError);
   } finally {
     store.close();
@@ -147,6 +147,7 @@ test("unconfigured Mission Control authority fails closed", async () => {
 
 function runtime(store: EventStore, now: { value: number }) {
   return new SubmissionAuthorityRuntime(store, {
+    NODE_ENV: "test",
     MISSION_CONTROL_SUPERVISOR_CHATS_JSON: JSON.stringify([configuredChat()]),
     MISSION_CONTROL_SUBMISSION_PACING_DOMAIN: "chatgpt:owner-account",
     MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON: JSON.stringify(primaryLease()),

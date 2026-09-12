@@ -229,7 +229,8 @@ const server = http.createServer(async (request, response) => {
   } catch (error) {
     if (error instanceof ZodError) return json(response, 400, { error: "Invalid event", issues: error.issues });
     if (error instanceof SubmissionSchedulerError) {
-      return json(response, error.statusCode, { error: error.message, code: error.code, ...error.detail });
+      const { statusCode, message, code, detail } = error;
+      return json(response, statusCode, { error: message, code, ...detail });
     }
     if (error instanceof Error && "statusCode" in error
       && typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode <= 599) {
