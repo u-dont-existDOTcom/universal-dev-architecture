@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-WORK-THINKING-BUDGET-20260912",
+  "recorded_at": "2026-09-12T01:10:00Z",
+  "status": "ACTIVE",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "when work is given a task, it checks thinking level it's set at is too low or high then asks me to set it correctly unless the difference is minimal cost savings. It should tell me if i'm spending too much on simple work also",
+    "sha256": "placeholder"
+  },
+  "normalized_outcome": "Before Work executes a nontrivial task, compare the currently assigned thinking/reasoning level with the minimum expected-sufficient level for the already-reduced residual execution task. If the current level is materially too low for success or materially too high for the work such that the owner would waste meaningful credits, pause and ask the owner to change the setting. Do not interrupt for a difference whose expected capability/cost effect is minimal.",
+  "required_outcomes": [
+    {
+      "id": "RO-WORK-LEVEL-001",
+      "observable": "Work performs a pre-execution reasoning-level sanity check against the residual task difficulty in both directions: underpowered and unnecessarily expensive.",
+      "status": "UNMET",
+      "terminal_required": true,
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-WORK-LEVEL-002",
+      "observable": "A materially mismatched setting causes a concise owner-facing request to change it before substantive execution; trivial mismatches do not create an interruption.",
+      "status": "UNMET",
+      "terminal_required": true,
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Chat choosing a low Work level without Work performing the preflight",
+    "Only warning when Work is underpowered",
+    "Always asking the owner to confirm the Work level",
+    "Treating every one-step difference as worth interrupting the owner"
+  ],
+  "next_direct_evidence": "Update the universal Work routing/worker instruction chain and add regression coverage that enforces two-sided mismatch detection plus the materiality threshold."
+}
