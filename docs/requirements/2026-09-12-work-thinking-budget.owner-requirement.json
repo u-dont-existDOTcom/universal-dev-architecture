@@ -6,7 +6,7 @@
   "completion_allowed": false,
   "owner_source": {
     "verbatim": "when work is given a task, it checks thinking level it's set at is too low or high then asks me to set it correctly unless the difference is minimal cost savings. It should tell me if i'm spending too much on simple work also",
-    "sha256": "placeholder"
+    "sha256": "51d6cd0fd9d3dd85d26fb1f6f5be5cab7db25bedb936ac34c187010661674aea"
   },
   "normalized_outcome": "Before Work executes a nontrivial task, compare the currently assigned thinking/reasoning level with the minimum expected-sufficient level for the already-reduced residual execution task. If the current level is materially too low for success or materially too high for the work such that the owner would waste meaningful credits, pause and ask the owner to change the setting. Do not interrupt for a difference whose expected capability/cost effect is minimal.",
   "required_outcomes": [
