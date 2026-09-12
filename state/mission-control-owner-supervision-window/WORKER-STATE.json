@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "worker": "mission-control-live-slice",
+  "directiveId": "issue-104-owner-supervision-window",
+  "receiptId": null,
+  "phase": "VERIFYING",
+  "summary": "Issue #104's owner supervision window passed local release gates and is undergoing exact-head VPS deployment, authenticated live-view acceptance, hosted checks, and review."
+}
