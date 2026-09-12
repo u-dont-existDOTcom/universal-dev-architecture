@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
 import { loadConfig, publicConfig } from '../src/config.mjs';
@@ -180,6 +180,7 @@ test('submission interval config accepts only 60000 through 600000', async () =>
 function configEnv(chatsFile) {
   return {
     MC_RELAY_CHATS_FILE: chatsFile,
+    MC_RELAY_PROVISIONS_FILE: join(dirname(chatsFile), 'provisions.json'),
     MC_RELAY_MISSION_CONTROL_URL: 'https://mission-control.example',
     MC_RELAY_PRODUCER_ID: 'collector:test-relay',
     MC_RELAY_TOKEN: 'x'.repeat(32),
