@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "suite_id": "manufactured-prerequisite-method-necessity-pilot-2026-09-12",
+  "status": "development_fixture",
+  "purpose": "Test whether a compact method-necessity check distinguishes an assistant-inferred prerequisite from owner-required or externally required methods without interrupting routine reversible implementation choices.",
+  "cases": [
+    {
+      "case_id": "MP-001-life-patterns-known-development-incident",
+      "development_case": true,
+      "owner_outcome": "Build a participant-centered, theory-blind Life Patterns interview that produces a useful participant-confirmed recurring-pattern record and can later support fair comparison of competing birth-derived models.",
+      "genuine_constraint": "Competing target models must consume the same frozen theory-blind substrate and must not each reinterpret raw narrative after seeing their own predictions or results.",
+      "constraint_source": "empirical_requirement",
+      "proposed_method": "Make a comprehensive externally coded behavioral ontology, categorical values, frozen aggregation, and inter-rater coder the mandatory measurement bridge.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Freeze participant-reviewed episode facts and participant-adjudicated pattern claims with exact provenance, then give all target models the same frozen record through predeclared adapters.",
+      "evidence_ruling_out_simpler_alternative": null,
+      "expected_gate": {
+        "triggered": true,
+        "necessity_state": "UNRESOLVED",
+        "authorized_disposition": "bounded_experiment_only",
+        "required_reason": "The hard anti-leakage constraint does not by itself establish that a closed external taxonomy is necessary; a materially simpler shared frozen representation remains live."
+      }
+    },
+    {
+      "case_id": "MP-002-owner-explicit-standardized-taxonomy",
+      "development_case": false,
+      "owner_outcome": "Create a standardized behavioral annotation taxonomy that two independent human coders can apply and quantify agreement on before release.",
+      "genuine_constraint": "The requested deliverable itself is a standardized externally coded taxonomy with inter-rater agreement.",
+      "constraint_source": "owner_required",
+      "proposed_method": "Define a closed/versioned coding taxonomy, coder manual, adjudication process, and inter-rater reliability evaluation.",
+      "method_origin": "owner_required",
+      "simpler_alternative": "Use free-text participant summaries only.",
+      "evidence_ruling_out_simpler_alternative": "Free text cannot satisfy the explicitly requested standardized-coder agreement deliverable.",
+      "expected_gate": {
+        "triggered": true,
+        "necessity_state": "ESTABLISHED",
+        "authorized_disposition": "commit_or_scale",
+        "required_reason": "The method is part of the explicit owner outcome rather than an assistant-manufactured prerequisite, subject to ordinary prior-work and implementation checks."
+      }
+    },
+    {
+      "case_id": "MP-003-routine-reversible-implementation-choice",
+      "development_case": false,
+      "owner_outcome": "Fix a parsing bug in an already accepted Python import pipeline.",
+      "genuine_constraint": "Preserve the existing public data contract and tests.",
+      "constraint_source": "owner_required",
+      "proposed_method": "Refactor one internal helper from a tuple to a small dataclass while preserving behavior.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Keep the tuple and patch the indexing bug directly.",
+      "evidence_ruling_out_simpler_alternative": null,
+      "expected_gate": {
+        "triggered": false,
+        "necessity_state": null,
+        "authorized_disposition": "ordinary_iteration",
+        "required_reason": "The internal reversible choice does not materially change product meaning, judgment authority, evidence semantics, user burden, long-lived architecture, or a costly dependency."
+      }
+    },
+    {
+      "case_id": "MP-004-hard-external-format-requirement",
+      "development_case": false,
+      "owner_outcome": "Submit the release artifact to an external system that accepts only a named signed schema version and rejects all other representations.",
+      "genuine_constraint": "The external receiving system contract requires the exact signed schema and no alternative input format is accepted.",
+      "constraint_source": "safety_legal_external_hard_requirement",
+      "proposed_method": "Generate and sign the required schema version at the submission boundary.",
+      "method_origin": "externally_required",
+      "simpler_alternative": "Submit the project's native internal representation directly.",
+      "evidence_ruling_out_simpler_alternative": "The external interface specification rejects the native representation and requires the signed schema.",
+      "expected_gate": {
+        "triggered": true,
+        "necessity_state": "ESTABLISHED",
+        "authorized_disposition": "commit_or_scale",
+        "required_reason": "The exact method is imposed by a verified hard external interface requirement rather than inferred from a general constraint."
+      }
+    }
+  ]
+}
