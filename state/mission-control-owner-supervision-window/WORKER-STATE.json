@@ -4,5 +4,5 @@
   "directiveId": "issue-104-owner-supervision-window",
   "receiptId": null,
   "phase": "VERIFYING",
-  "summary": "Issue #104's owner supervision window passed local release gates and is undergoing exact-head VPS deployment, authenticated live-view acceptance, hosted checks, and review."
+  "summary": "Issue #104's owner supervision window passed all local release gates and authenticated two-host live acceptance; exact-head hosted checks, review, final deployment verification, and merge remain."
 }
