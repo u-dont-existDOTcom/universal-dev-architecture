@@ -37,7 +37,7 @@ Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global
 ## Recovery ledger
 
 - Fresh canonical base: `2c6f4da5a49487e77665f25d58a65957b26cd130`.
-- Latest integrated `origin/main` during the task: `6369412b3259b3caa8bb03361776940432fd25b1`.
+- Latest inspected live `origin/main` during the correction: `e8c1279bdb77f4f81f2c9c0f5e2ba6295f7d3696`.
 - Task branch: `task/mission-control-netcup-primary-20260910`.
 - Existing Hostinger installed revision before this task: `eb5e12880933ebab89081141b60f410a1ab00888`.
 - Hostinger pre-change browser service: active; relay service: inactive/disabled; persistent normal and capability gates: disabled.
@@ -49,14 +49,20 @@ Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global
 - Canonical `main` at correction start is merge commit `0ac26e4e2f06271c3acad9cc6ad60421ebde1cf9`; correction branch is `task/mission-control-shared-global-send-authority-20260911`.
 - Correction trigger: PR #91 installed a separate loopback scheduler and durable state file on each host. Manual ledger transfer plus active/passive service discipline did not satisfy the frozen requirement for one shared live Mission Control authority seen identically by both hosts.
 - Current correction candidate relocates the scheduler algorithm into the Mission Control package, stores current authority state plus a hash-chained append-only ledger in the Mission Control SQLite writer, exposes authenticated `/api/submission-authority` routes, reuses one queue item for the bounded rate-limit retry, and removes the deployable VPS scheduler service/binary.
+- Current reviewed correction revision: `7c990cd1aa440a23a73df8621186c63c92e0ffa5`; relay tree `897005453ede967fa573f29ab7c6ed9e44702776`; Mission Control tree `a47cc7d5fd0e83c9ee5b495bea62f0f1d90d3a9d`.
+- Exact inert relay packages and Mission Control images from that revision are installed on both authorized VPS hosts with rollback preserved, no relay process, no host-local scheduler process, and no active Mission Control container.
+- Exact-head hosted checks passed independently on both hosts: 266 repository tests plus audit, 177 source-relay tests, 147 installed-relay tests, relay syntax, 228 Mission Control tests, TypeScript, and production build.
+- The refreshed Hostinger owner-only state still has the same 24 click boundaries, 23 intervals, 92,928 ms minimum, zero intervals below 60 seconds, and the same privacy-safe state digest.
+- Netcup's dedicated native-sandbox browser is loopback-only and has one reusable ChatGPT tab, but its session is not authenticated. Hostinger has no active browser. Both hosts have zero live MC-only owner registrations and no configured target-binding attestor; Netcup also lacks its PRIMARY config binding.
+- No local or remote clipboard process was observed, and this correction used only GitHub APIs/CLI plus the authorized SSH/direct-transfer wrappers. The workstation browser was not invoked.
 - Durable evidence: `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 - Production remains untouched and unauthorized.
 
 ## Genuine remaining blockers
 
-1. Netcup needs one owner-completed remote ChatGPT login/MFA and creation/registration of real MC-only supervisor chats. Copying browser authentication from Hostinger is forbidden.
-2. The available Codex host inventory has no supported arbitrary-VPS execution-worker host. The browser relay/controller is not evidence that Mission Control workers themselves moved off the local host.
-3. Hostinger's systemd service sandbox blocks Brave. A direct native-sandbox launch succeeds, but changing the protected `LockPersonality` control is an owner security tradeoff and was not authorized.
-4. This execution session contains no authorized SSH/VPS tool, SSH configuration, key, token, or retained private host locator. Installation, Hostinger audit refresh, and the frozen live acceptance matrix cannot run until the previously authorized host access surface is reattached.
+1. Netcup needs one owner-completed remote ChatGPT login/MFA and creation/registration of real MC-only supervisor chats. Copying browser authentication from Hostinger is forbidden. Until that exists, exact automation-owned target bindings and the real central producer/attestor map cannot be completed.
+2. The available Codex host inventory exposes only the local desktop host, and neither VPS relay owner has a Codex CLI or worker process. The browser relay/controller is not evidence that Mission Control workers themselves moved off the local host.
+3. Hostinger's systemd service sandbox blocks Brave. A direct native-sandbox launch previously succeeded, but changing the protected `LockPersonality` control is an owner security tradeoff and was not authorized.
+4. Consequently the real central authority cannot yet be activated and the required live cross-host claim race, restart pacing, failover fencing, provider-boundary interval, and secondary browser cases remain blocked. Deterministic or synthetic fixtures are not live acceptance substitutes.
 
 Do not enable a scheduler or relay, claim completion, or promote outside the two authorized VPS hosts until these are resolved.

@@ -50,7 +50,7 @@
       "id": "RO-MCHOST-004",
       "terminal_required": true,
       "observable": "The exact reviewed relay/controller candidate is installed on the 16 GB owner-authorized primary VPS with a private independent browser profile and healthy no-send checks; the 8 GB owner-authorized VPS remains a healthy, disabled standby using the same candidate.",
-      "status": "PARTIAL_PRIMARY_BROWSER_HEALTHY_SECONDARY_BROWSER_FAIL_CLOSED",
+      "status": "PARTIAL_EXACT_CODE_INSTALLED_PRIMARY_BROWSER_UNAUTHENTICATED_SECONDARY_BROWSER_FAIL_CLOSED",
       "evidence_refs": [
         "docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json"
       ]
@@ -69,7 +69,7 @@
       "id": "RO-MCHOST-006",
       "terminal_required": true,
       "observable": "Routine Mission Control work uses only the remote execution host's dedicated automation-owned browser/profile and direct browser-protocol text input; no owner-local browser window/tab and no owner/user clipboard read or write is used.",
-      "status": "PARTIAL_REMOTE_BROWSER_PATH_VERIFIED_REMOTE_WORKERS_BLOCKED",
+      "status": "EXCLUSION_VERIFIED_EXECUTION_NOT_ACTIVATED_REMOTE_WORKERS_BLOCKED",
       "evidence_refs": [
         "docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json"
       ]
@@ -81,7 +81,7 @@
       "status": "VERIFIED",
       "evidence_refs": [
         "docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json",
-        "tools/codex-mission-control/vps-browser-relay/test/browser-ownership.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
         "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-service.test.mjs"
       ]
     },
@@ -134,5 +134,5 @@
     "patterns/executable-frontier-coherence.md"
   ],
   "production_boundary": "Only the two owner-authorized Mission Control infrastructure VPS hosts are in deployment scope; Railway production and every other host remain unauthorized.",
-  "next_direct_evidence": "After the owner completes remote login/MFA and creates exact dedicated MC-only supervisor conversations, register them privately on both hosts and run a no-send doctor check. Resolve the Hostinger browser service sandbox tradeoff and provide a supported remote execution-worker runtime before enabling either scheduler or relay."
+  "next_direct_evidence": "The dedicated Netcup automation profile now has one ChatGPT tab but reports no authenticated session. After the owner completes login/MFA there and creates exact dedicated MC-only supervisor conversations, register them privately, complete the pairwise primary/secondary producer-attestor and automation-target bindings, activate the single Netcup Mission Control authority, and run the real cross-host race/restart/failover/provider-boundary matrix. Resolve the Hostinger browser service sandbox tradeoff and provide a supported remote execution-worker runtime before enabling either relay."
 }
