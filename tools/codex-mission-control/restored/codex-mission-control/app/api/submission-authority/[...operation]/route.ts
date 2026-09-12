@@ -15,6 +15,7 @@ const allowedPostOperations = new Set([
   "provider-rate-limits",
   "aborts",
   "outcomes",
+  "relay-health",
 ]);
 
 export async function GET(request: Request, context: { params: Promise<{ operation: string[] }> }) {

@@ -85,7 +85,7 @@ test("specialist identities remain distinct and are not promoted into the global
 test("the identity lock does not fabricate a missing Project Manager locator", () => {
   const directory = loadConfiguredSupervisorChats(undefined);
   assert.equal(directory.configurationState, "MISSING");
-  assert.equal(directory.providerRelayState, "NOT_CONNECTED");
+  assert.equal(Object.hasOwn(directory, "providerRelayState"), false);
   assert.deepEqual(directory.entries, []);
 });
 

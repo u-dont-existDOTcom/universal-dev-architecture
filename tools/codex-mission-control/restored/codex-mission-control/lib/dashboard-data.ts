@@ -1,9 +1,12 @@
 import { projectWorkers, summarizeChanges } from "./projection";
 import { EventStore } from "./store";
 
-export function snapshotFromStore(store: EventStore) {
+export function snapshotFromStore(store: EventStore, options: { includeFixtureOnly?: boolean } = {}) {
   const events = store.allEvents();
-  const workers = projectWorkers(events);
+  const projectedWorkers = projectWorkers(events);
+  const workers = options.includeFixtureOnly === false
+    ? projectedWorkers.filter((worker) => worker.connection.state !== "FIXTURE_ONLY")
+    : projectedWorkers;
   const lastViewedEventId = store.lastViewedEventId();
   const liveSourceEvent = [...events].reverse().find((event) => event.data.type === "live_worker_evidence_observed");
   const liveSource = liveSourceEvent?.data.type === "live_worker_evidence_observed" ? liveSourceEvent.data : null;
@@ -31,6 +34,7 @@ export function snapshotFromStore(store: EventStore) {
       connected: workers.filter((worker) => worker.connection.state === "CONNECTED").length,
       offlineConfigured: workers.filter((worker) => worker.connection.state === "OFFLINE_CONFIGURED").length,
       fixtureOnly: workers.filter((worker) => worker.connection.state === "FIXTURE_ONLY").length,
+      suppressedFixtureOnly: projectedWorkers.length - workers.length,
     },
     liveSource,
     summary: summarizeChanges(events, lastViewedEventId),
@@ -40,7 +44,13 @@ export function snapshotFromStore(store: EventStore) {
   };
 }
 
-export function workerSnapshotFromStore(store: EventStore, worker: string) {
+export function workerSnapshotFromStore(
+  store: EventStore,
+  worker: string,
+  options: { includeFixtureOnly?: boolean } = {},
+) {
   const projected = projectWorkers(store.workerEvents(worker));
-  return projected[0] ? { worker: projected[0], generatedAt: new Date().toISOString() } : null;
+  const selected = projected[0];
+  if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
+  return { worker: selected, generatedAt: new Date().toISOString() };
 }

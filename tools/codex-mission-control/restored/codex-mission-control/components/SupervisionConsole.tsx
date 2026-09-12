@@ -6,6 +6,7 @@ import type { WorkerState } from "@/lib/projection";
 import type { StoredEvent } from "@/lib/schema";
 import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
+import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
 
 interface Snapshot {
   workers: WorkerState[];
@@ -35,7 +36,6 @@ interface ConfiguredSupervisorChat {
 
 interface ConfiguredSupervisorDirectory {
   configurationState: "MISSING" | "CONFIGURED" | "INVALID";
-  providerRelayState: "NOT_CONNECTED";
   entries: ConfiguredSupervisorChat[];
   error: string | null;
 }
@@ -72,7 +72,6 @@ interface RouteRow {
 
 const emptyDirectory: ConfiguredSupervisorDirectory = {
   configurationState: "MISSING",
-  providerRelayState: "NOT_CONNECTED",
   entries: [],
   error: null,
 };
@@ -85,16 +84,19 @@ const providerSessionRoutePrefixes = [
 export function SupervisionConsole() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [directory, setDirectory] = useState<ConfiguredSupervisorDirectory>(emptyDirectory);
+  const [operatorStatus, setOperatorStatus] = useState<OperatorStatusProjection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [snapshotResponse, directoryResponse] = await Promise.all([
+      const [snapshotResponse, directoryResponse, operatorResponse] = await Promise.all([
         fetch("/api/workers", { cache: "no-store" }),
         fetch("/api/supervisor-directory", { cache: "no-store" }),
+        fetch("/api/operator-status", { cache: "no-store" }),
       ]);
-      if (!snapshotResponse.ok) throw new Error("supervision snapshot failed");
+      if (!snapshotResponse.ok || !operatorResponse.ok) throw new Error("supervision snapshot failed");
       setSnapshot(await snapshotResponse.json());
+      setOperatorStatus(await operatorResponse.json());
       if (directoryResponse.ok) {
         const configured = await directoryResponse.json() as ConfiguredSupervisorDirectory;
         setDirectory(configured);
@@ -132,19 +134,21 @@ export function SupervisionConsole() {
       .sort((left, right) => right.event.occurredAt.localeCompare(left.event.occurredAt));
   }, [snapshot]);
 
-  if (!snapshot) {
+  if (!snapshot || !operatorStatus) {
     return <main className="shell"><div className="loading-panel">Loading supervision channels…</div></main>;
   }
 
   const projectManagerRows = messageRows.filter((row) => row.event.data.surface_role === "PROJECT_MANAGER");
   const latestProjectManager = latestMessage(projectManagerRows);
   const configuredProjectManager = directory.entries.find((entry) => entry.scope === "PROJECT_MANAGER") ?? null;
+  const projectManagerStatus = operatorStatus.supervisors.find((entry) => entry.scope === "PROJECT_MANAGER") ?? null;
   const workerProjectManagerLink = realSupervisorLink(snapshot.workers.find((worker) => worker.id === "mission-control-live-slice"));
   const projectManagerLink = latestProjectManager?.event.data.immutable_provider_locator
     ?? configuredProjectManager?.url
     ?? workerProjectManagerLink;
-  const projectManagerSourceBound = Boolean(latestProjectManager?.event.data.immutable_provider_locator
+  const projectManagerSourceBound = projectManagerStatus?.sourceBound === true || Boolean(latestProjectManager?.event.data.immutable_provider_locator
     && latestProjectManager.event.data.provenance_status === "VERIFIED");
+  const projectManagerReachable = projectManagerStatus?.reachable === true;
   const verifiedProjectManagerMessages = projectManagerRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
   const configuredSpecialists = directory.entries.filter((entry) => entry.scope === "SPECIALIST");
 
@@ -155,21 +159,23 @@ export function SupervisionConsole() {
         <div><p className="eyebrow">SUPERVISION CONTROL PLANE</p><h1>Project Manager and specialist chats</h1></div>
       </div>
       <div className="live-state">
-        <StatusDot health={projectManagerSourceBound ? "GREEN" : projectManagerLink ? "YELLOW" : "UNKNOWN"} pulse={projectManagerSourceBound} />
-        <span>{projectManagerSourceBound ? "SOURCE BOUND" : projectManagerLink ? "LOCATOR CONFIGURED" : "NOT CONNECTED"}</span>
+        <StatusDot health={trafficForProvider(operatorStatus.providerRelayState)} pulse={operatorStatus.providerRelayState === "HEALTHY"} />
+        <span>PROVIDER TRANSPORT {operatorStatus.providerRelayState}</span>
       </div>
     </header>
 
     {error && <div className="error-banner">{error}</div>}
 
-    <section className={`worker-connection ${projectManagerSourceBound ? "connected" : "fixture_only"}`} aria-label="Overall Project Manager channel">
-      <div><span className="field-label">OVERALL PROJECT MANAGER CHAT</span><strong>{projectManagerSourceBound ? "SOURCE-BOUND CHAT" : projectManagerLink ? "CONFIGURED LOCATOR · PROVIDER UNVERIFIED" : "NO REAL CHAT LINK OR PROVIDER MESSAGE"}</strong></div>
-      <p>{projectManagerSourceBound
-        ? "Mission Control exposes the exact Project Manager conversation and source-bound messages recorded from it."
-        : projectManagerLink
-          ? "The owner-configured chat is directly reachable, but Mission Control has not received a provider-bound transcript or delivery receipt. The link is not evidence that automatic routing works."
-          : "The Project Manager architecture exists, but no real ChatGPT conversation has been registered. Mission Control cannot honestly claim automatic ChatGPT routing until that transport is connected."}</p>
-      <code>{verifiedProjectManagerMessages} verified Project Manager message{verifiedProjectManagerMessages === 1 ? "" : "s"} · {projectManagerRows.length} total · provider relay {directory.providerRelayState.replaceAll("_", " ")}</code>
+    <TransportSummary status={operatorStatus} />
+
+    <section className={`worker-connection ${projectManagerReachable ? "connected" : projectManagerLink ? "offline_configured" : "fixture_only"}`} aria-label="Overall Project Manager channel">
+      <div><span className="field-label">PERMANENT PROJECT MANAGER CHAT</span><strong>{projectManagerReachable ? projectManagerSourceBound ? "REGISTERED · REACHABLE · SOURCE BOUND" : "REGISTERED · REACHABLE" : projectManagerLink ? "REGISTERED · REACHABILITY UNAVAILABLE" : "NOT REGISTERED"}</strong></div>
+      <p>{projectManagerReachable
+        ? projectManagerSourceBound
+          ? "Authenticated authority and browser health are current, and Mission Control has exact source-binding evidence for this chat."
+          : "Authenticated provider transport is healthy, but no exact source-binding receipt has been recorded for this chat."
+        : "Mission Control will not infer reachability from a saved chat link. Fresh authenticated provider/browser evidence is required."}</p>
+      <code>{verifiedProjectManagerMessages} verified Project Manager message{verifiedProjectManagerMessages === 1 ? "" : "s"} · {projectManagerRows.length} total · route {projectManagerStatus?.latestRouteState.replaceAll("_", " ") ?? "unknown"} · latest reasoning {reasoningAge(projectManagerStatus)}</code>
       {latestProjectManager && <MessageSummary row={latestProjectManager} />}
       {projectManagerLink
         ? <a href={projectManagerLink} target="_blank" rel="noreferrer">Open overall Project Manager chat →</a>
@@ -178,25 +184,27 @@ export function SupervisionConsole() {
 
     {configuredSpecialists.length > 0 && <section className="detail-grid" aria-label="Configured specialist chat locators">
       {configuredSpecialists.map((entry) => {
+        const live = operatorStatus.supervisors.find((candidate) => candidate.supervisorId === entry.supervisorId) ?? null;
         const matchingRows = messageRows.filter((row) => row.event.data.surface_role === "SUPERVISOR"
-          && (row.event.data.immutable_provider_locator === entry.url || row.worker.id === entry.workerId));
+          && (row.event.data.stable_supervisor_id === entry.supervisorId
+            || !row.event.data.stable_supervisor_id && row.event.data.immutable_provider_locator === entry.url));
         const latest = latestMessage(matchingRows);
         const verified = matchingRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
         const queued = routeRows.filter((row) => row.packet.destinationSupervisorId === entry.supervisorId).length;
         return <article key={entry.supervisorId} className="healthy-card">
           <div className="healthy-card-head">
-            <div><StatusDot health={verified > 0 ? "GREEN" : "YELLOW"} /><h3>{entry.label}</h3></div>
-            <span>{verified > 0 ? "SOURCE-BOUND CHAT" : "CONFIGURED LOCATOR"}</span>
+            <div><StatusDot health={live?.reachable ? "GREEN" : live?.registered ? "YELLOW" : "UNKNOWN"} /><h3>{entry.label}</h3></div>
+            <span>{live?.reachable ? live.sourceBound ? "REGISTERED · REACHABLE · SOURCE BOUND" : "REGISTERED · REACHABLE" : "REGISTERED · REACHABILITY UNAVAILABLE"}</span>
           </div>
-          <p>{entry.workerId ? `Worker ${entry.workerId}` : "Specialist supervisor"} · stable identity {entry.supervisorId} · provider relay {directory.providerRelayState.replaceAll("_", " ")}</p>
+          <p>{entry.workerId ? `Assigned to ${workerLabel(snapshot.workers, entry.workerId)}` : "Specialist supervisor"} · provider transport {operatorStatus.providerRelayState.toLowerCase()}</p>
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{matchingRows.length}</strong></span>
             <span>Queued routes <strong>{queued}</strong></span>
-            <span>Locator <strong>OWNER CONFIGURED</strong></span>
+            <span>Latest reasoning <strong>{reasoningAge(live)}</strong></span>
           </div>
-          {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No provider-bound specialist message has been ingested. The configured URL remains directly usable but unverified by Mission Control.</p>}
-          <div className="detail-actions"><a href={entry.bootstrapCapability.url} target="_blank" rel="noreferrer">Open bootstrap capability chat →</a></div>
+          {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No verified source-bound reasoning message is currently recorded for this specialist.</p>}
+          <div className="detail-actions"><a href={entry.bootstrapCapability.url} target="_blank" rel="noreferrer">Open specialist chat →</a></div>
         </article>;
       })}
     </section>}
@@ -206,22 +214,23 @@ export function SupervisionConsole() {
         const rows = messageRows.filter((row) => row.worker.id === worker.id && row.event.data.surface_role === "SUPERVISOR");
         const latest = latestMessage(rows);
         const configured = directory.entries.find((entry) => entry.scope === "SPECIALIST" && entry.workerId === worker.id) ?? null;
+        const live = configured ? operatorStatus.supervisors.find((entry) => entry.supervisorId === configured.supervisorId) ?? null : null;
         const link = latest?.event.data.immutable_provider_locator ?? configured?.url ?? realSupervisorLink(worker);
         const verified = rows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
-        const state = verified > 0 ? "SOURCE-BOUND CHAT" : link ? "LINK CONFIGURED · NO VERIFIED MESSAGE" : "NO REAL CHAT LINK";
+        const state = workflowState(worker, routeRows.some((row) => row.worker.id === worker.id));
         return <article key={worker.id} className="healthy-card">
           <div className="healthy-card-head">
-            <div><StatusDot health={link && verified > 0 ? "GREEN" : link ? "YELLOW" : "UNKNOWN"} /><h3>{worker.name}</h3></div>
+            <div><StatusDot health={live?.reachable ? "GREEN" : link ? "YELLOW" : "UNKNOWN"} /><h3>{worker.name}</h3></div>
             <span>{state}</span>
           </div>
-          <p>{worker.executionSupervision.surface} · latest reasoning state {worker.executionSupervision.reviewFreshness}</p>
+          <p>Current supervisor: {configured?.label ?? worker.executionSupervision.surface} · execution {worker.executionSupervision.codexExecutionState.replaceAll("_", " ").toLowerCase()}</p>
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{rows.length}</strong></span>
-            <span>Chat link <strong>{link ? "REAL LOCATOR" : "MISSING / PLACEHOLDER"}</strong></span>
+            <span>Chat reachability <strong>{live?.reachable ? "REACHABLE" : "UNAVAILABLE"}</strong></span>
             <span>Owner decision <strong>{worker.correction.ownerActionType.replaceAll("_", " ")}</strong></span>
           </div>
-          {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No source-bound specialist message has been ingested. A chat title or Codex summary does not count.</p>}
+          {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No verified source-bound specialist reasoning is recorded; summaries and saved titles do not count.</p>}
           <div className="detail-actions">
             {link && <a href={link} target="_blank" rel="noreferrer">Open specialist chat →</a>}
             <Link href={`/worker/${worker.id}`}>Open worker evidence and transcript →</Link>
@@ -250,12 +259,49 @@ export function SupervisionConsole() {
 
     <section className="change-summary secondary-history">
       <div className="summary-title"><span className="scan-icon">⌁</span><p className="eyebrow">INTERFACE TRUTH</p></div>
-      <p>This page now exposes configured overall and specialist chat locators, source-bound transcripts, and the internal routing queue. It does not pretend to be an inline ChatGPT composer. Owner→worker messaging is a separate channel on each worker page. Automatic two-way ChatGPT messaging still requires a registered provider/browser relay that returns exact chat and message receipts. Until that relay exists, routes remain visibly queued rather than being bounced to the owner.</p>
+      <p>Provider transport, reachability, source binding, route state, and reasoning age above come from authenticated Mission Control authority and expiring VPS health evidence. Saved chat links alone never count healthy. Owner→worker messaging remains a separate channel on each worker page, and missing or stale evidence fails unavailable rather than inventing success.</p>
       <Link href="/">Return to fleet dashboard →</Link>
     </section>
 
     <footer><span>Source-bound reasoning only · configured locators remain labeled</span><span>Projection updated {formatDisplayTime(snapshot.generatedAt)}</span></footer>
   </main>;
+}
+
+function TransportSummary({ status }: { status: OperatorStatusProjection }) {
+  const minimum = status.pacing.configuredMinimumIntervalMs === null
+    ? "unavailable"
+    : `${Math.round(status.pacing.configuredMinimumIntervalMs / 1_000)} seconds`;
+  return <section className="channel-fleet-summary supervision-health" aria-label="Authenticated supervision transport health">
+    <div><span>Active VPS</span><strong>{status.activeHostLabel ?? "Unavailable"}</strong></div>
+    <div><span>Authority</span><strong>{status.authority.state}</strong></div>
+    <div><span>Provider transport</span><strong>{status.providerRelayState}</strong></div>
+    <div><span>Queue depth</span><strong>{status.authority.queueDepth}</strong></div>
+    <div><span>Minimum spacing</span><strong>{minimum}</strong></div>
+    <div><span>Pacing violations</span><strong>{status.pacing.violationsBelowConfiguredMinimum ?? "Unavailable"}</strong></div>
+    <div><span>Rate limit</span><strong>{status.pacing.rateLimitState.replaceAll("_", " ")}</strong></div>
+    <div><span>Ledger</span><strong>{status.authority.ledgerIntegrity}</strong></div>
+  </section>;
+}
+
+function trafficForProvider(state: OperatorStatusProjection["providerRelayState"]): "GREEN" | "YELLOW" | "UNKNOWN" {
+  return state === "HEALTHY" ? "GREEN" : state === "DEGRADED" ? "YELLOW" : "UNKNOWN";
+}
+
+function reasoningAge(status: OperatorSupervisorStatus | null): string {
+  return status?.latestReasoningAt ? formatMessageTimestamp(status.latestReasoningAt).relative : "not yet returned";
+}
+
+function workerLabel(workers: WorkerState[], workerId: string): string {
+  return workers.find((worker) => worker.id === workerId)?.name ?? "a currently offline worker";
+}
+
+function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
+  if (worker.status === "done") return "FINISHED";
+  if (worker.correction.ownerActionType !== "NONE") return "WAITING FOR JOEL";
+  if (hasPendingRoute || worker.executionSupervision.pendingReasoningReview) return "WAITING FOR SUPERVISOR";
+  if (worker.correction.evidenceSubmitted && !worker.correction.correctionVerified) return "AWAITING EVIDENCE REVIEW";
+  if (worker.connection.state !== "CONNECTED" || worker.executionSupervision.codexExecutionState === "PARKED") return "PARKED";
+  return "EXECUTING";
 }
 
 function isReasoningEvent(event: StoredEvent): event is ReasoningEvent {

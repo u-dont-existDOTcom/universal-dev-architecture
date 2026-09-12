@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "worker": "mission-control-live-slice",
+  "directiveId": "issue-104-owner-supervision-window",
+  "receiptId": null,
+  "phase": "VERIFYING",
+  "summary": "Issue #104's owner supervision window passed all local release gates and authenticated two-host live acceptance; exact-head hosted checks, review, final deployment verification, and merge remain."
+}

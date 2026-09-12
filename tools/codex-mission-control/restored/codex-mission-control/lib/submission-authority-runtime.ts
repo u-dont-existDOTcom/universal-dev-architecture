@@ -7,6 +7,13 @@ import {
   type ConfiguredSupervisorChatProvision,
 } from "./configured-supervisor-chats";
 import type { AuthenticatedProducer } from "./ingestion-auth";
+import type {
+  LiveHealthState,
+  OperatorHostStatus,
+  OperatorStatusProjection,
+  OperatorSupervisorStatus,
+  RelayHealthReport,
+} from "./operator-status-contract";
 import type { EventStore } from "./store";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
@@ -23,6 +30,11 @@ import {
 } from "./provider-submission-authority.mjs";
 
 type SchedulerState = Record<string, any>;
+
+interface StoredRelayHealthReport extends RelayHealthReport {
+  producerId: string;
+  receivedAt: string;
+}
 
 export class SubmissionAuthorityDisabledError extends Error {
   readonly statusCode = 503;
@@ -65,12 +77,21 @@ export class SubmissionAuthorityRuntime {
   private readonly chats: Map<string, ConfiguredSupervisorChat | ConfiguredSupervisorChatProvision>;
   private readonly relayBindings: Map<string, Record<string, unknown>>;
   private readonly minimumIntervalMs: number | null;
+  private readonly stateStore: MissionControlSubmissionStateStore | null;
+  private readonly relayHealth = new Map<string, StoredRelayHealthReport>();
+  private readonly relayHealthMaxAgeMs: number;
+  private readonly hostLabels: Record<"PRIMARY" | "SECONDARY", string>;
 
   constructor(
     private readonly store: EventStore,
     env: Record<string, string | undefined> = process.env,
-    now: () => number = Date.now,
+    private readonly now: () => number = Date.now,
   ) {
+    this.relayHealthMaxAgeMs = boundedInteger(env.MISSION_CONTROL_RELAY_HEALTH_MAX_AGE_MS, 150_000, 30_000, 900_000);
+    this.hostLabels = {
+      PRIMARY: boundedLabel(env.MISSION_CONTROL_PRIMARY_HOST_LABEL, "Primary VPS"),
+      SECONDARY: boundedLabel(env.MISSION_CONTROL_SECONDARY_HOST_LABEL, "Secondary VPS"),
+    };
     const directory = loadConfiguredSupervisorChats(env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON);
     const provisions = loadConfiguredSupervisorChatProvisions(env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     const leaseRaw = env.MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON;
@@ -86,6 +107,7 @@ export class SubmissionAuthorityRuntime {
       this.chats = new Map();
       this.relayBindings = new Map();
       this.minimumIntervalMs = null;
+      this.stateStore = null;
       return;
     }
     if (!leaseRaw || !domain) throw new Error("Mission Control submission authority requires both MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON and MISSION_CONTROL_SUBMISSION_PACING_DOMAIN.");
@@ -112,7 +134,8 @@ export class SubmissionAuthorityRuntime {
     if (!relayAttestorsRaw) throw new Error("Mission Control submission authority requires MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON.");
     const relayAttestors = parseSubmissionRelayAttestors(JSON.parse(relayAttestorsRaw), Object.keys(relayBindings));
     assertAttestorsDistinctFromIngestBearers(relayAttestors, env.MISSION_CONTROL_INGEST_CREDENTIALS);
-    const stateStore = new MissionControlSubmissionStateStore(store, domain, minimumIntervalMs, now);
+    const stateStore = new MissionControlSubmissionStateStore(store, domain, minimumIntervalMs, this.now);
+    this.stateStore = stateStore;
     this.scheduler = new CentralSubmissionScheduler({
       stateStore,
       chats,
@@ -121,7 +144,7 @@ export class SubmissionAuthorityRuntime {
       pacingDomain: domain,
       minIntervalMs: minimumIntervalMs,
       admissionTtlMs,
-      now,
+      now: this.now,
     });
     this.enabled = true;
     this.pacingDomain = domain;
@@ -162,6 +185,72 @@ export class SubmissionAuthorityRuntime {
     };
   }
 
+  async operatorStatus(): Promise<OperatorStatusProjection> {
+    const scheduler = await this.requireScheduler();
+    if (!this.stateStore || !this.pacingDomain || this.minimumIntervalMs === null) {
+      throw new SubmissionAuthorityDisabledError("Mission Control submission authority is unavailable.");
+    }
+    const [status, state] = await Promise.all([scheduler.status(), this.stateStore.read()]);
+    const checkedAt = new Date(this.now()).toISOString();
+    const ledger = this.store.verifySubmissionAuthorityLedger(this.pacingDomain);
+    const diagnostics = pacingDiagnostics(
+      this.store.submissionAuthorityBoundaryLedger(this.pacingDomain),
+      this.minimumIntervalMs,
+    );
+    const activeRole = validHostRole(status.activeLease?.activeHostRole);
+    const activeAlias = typeof status.activeLease?.activeHostAlias === "string"
+      ? status.activeLease.activeHostAlias
+      : null;
+    const hosts = (Object.entries(state.relayBindings ?? {}) as Array<[string, SchedulerState]>)
+      .map(([producerId, binding]) => this.projectHostStatus(producerId, binding, activeAlias, activeRole))
+      .sort((left, right) => left.role.localeCompare(right.role));
+    const activeHost = hosts.find((host) => host.active) ?? null;
+    const authorityHealthy = status.schedulerState === "ACTIVE_LEASE"
+      && status.activeLease?.splitBrainStatus === "SINGLE_ACTIVE_CONFIRMED"
+      && ledger.valid === true
+      && !status.safetyHalt;
+    const providerRelayState: LiveHealthState = !activeHost?.reportFresh
+      ? "UNAVAILABLE"
+      : authorityHealthy
+        && activeHost.relayWorkerState === "HEALTHY"
+        && activeHost.browserState === "HEALTHY"
+        && activeHost.authorityBindingState === "BOUND"
+        ? "HEALTHY"
+        : "DEGRADED";
+    const supervisors = this.projectSupervisorStatuses(state, providerRelayState);
+    const authorityState: OperatorStatusProjection["authority"]["state"] = authorityHealthy
+      ? "HEALTHY"
+      : status.schedulerState ? "DEGRADED" : "UNAVAILABLE";
+    return {
+      checkedAt,
+      overallState: authorityState === "HEALTHY" && providerRelayState === "HEALTHY"
+        ? "HEALTHY"
+        : providerRelayState === "UNAVAILABLE" ? "UNAVAILABLE" : "DEGRADED",
+      providerRelayState,
+      activeHostLabel: activeHost?.label ?? null,
+      authority: {
+        state: authorityState,
+        writer: "MISSION_CONTROL_SINGLE_WRITER",
+        schedulerState: stringOr(status.schedulerState, "UNAVAILABLE"),
+        activeLeaseRole: activeRole,
+        epoch: positiveIntegerOrNull(status.activeLease?.epoch),
+        queueDepth: nonNegativeInteger(status.queueDepth),
+        ledgerIntegrity: ledger.valid === true ? "VALID" : ledger.valid === false ? "INVALID" : "UNAVAILABLE",
+      },
+      pacing: {
+        lastProviderSendBoundaryAt: timestampOrNull(status.lastSubmissionAt),
+        configuredMinimumIntervalMs: this.minimumIntervalMs,
+        minimumObservedIntervalMs: diagnostics.minimumObservedIntervalMs,
+        recentIntervalsMs: diagnostics.recentIntervalsMs,
+        violationsBelowConfiguredMinimum: diagnostics.violationsBelowConfiguredMinimum,
+        rateLimitState: stringOr(status.providerAccountRateLimit?.state, "UNAVAILABLE"),
+        cooldownRemainingMs: nonNegativeIntegerOrNull(status.retryAfterMs),
+      },
+      hosts,
+      supervisors,
+    };
+  }
+
   integrity() {
     return this.enabled && this.pacingDomain
       ? this.store.verifySubmissionAuthorityLedger(this.pacingDomain)
@@ -186,6 +275,7 @@ export class SubmissionAuthorityRuntime {
       Object.assign(error, { statusCode: 403, code: "SUBMISSION_PRODUCER_KIND_FORBIDDEN" });
       throw error;
     }
+    if (operation === "relay-health") return this.recordRelayHealth(body, producer, scheduler);
     if (operation === "admissions") this.assertAdmissionScope(body, producer);
     if (operation === "admissions/validate") return scheduler.validateAdmission(body, producer.id);
     if (operation === "admissions") return scheduler.admit(body, producer.id);
@@ -200,6 +290,107 @@ export class SubmissionAuthorityRuntime {
     const error = new Error("Submission-authority operation was not found.");
     Object.assign(error, { statusCode: 404, code: "SUBMISSION_AUTHORITY_OPERATION_UNKNOWN" });
     throw error;
+  }
+
+  private async recordRelayHealth(body: unknown, producer: AuthenticatedProducer, scheduler: any) {
+    const relayBinding = await this.relayBindingFor(producer, scheduler);
+    const report = parseRelayHealthReport(body);
+    if (report.hostAlias !== relayBinding.hostAlias || report.hostRole !== relayBinding.hostRole) {
+      const error = new Error("The authenticated relay health report cannot claim another host identity.");
+      Object.assign(error, { statusCode: 403, code: "RELAY_HEALTH_HOST_IMPERSONATION" });
+      throw error;
+    }
+    const authorityStatus = await scheduler.status();
+    if (report.deploymentEpoch !== authorityStatus.activeLease?.epoch) {
+      const error = new Error("Relay health evidence names a stale deployment epoch.");
+      Object.assign(error, { statusCode: 409, code: "RELAY_HEALTH_EPOCH_MISMATCH" });
+      throw error;
+    }
+    const observedMs = Date.parse(report.observedAt);
+    const nowMs = this.now();
+    if (observedMs < nowMs - this.relayHealthMaxAgeMs || observedMs > nowMs + 30_000) {
+      const error = new Error("Relay health evidence is stale or future-dated.");
+      Object.assign(error, { statusCode: 409, code: "RELAY_HEALTH_TIMESTAMP_INVALID" });
+      throw error;
+    }
+    const stored: StoredRelayHealthReport = {
+      ...report,
+      producerId: producer.id,
+      receivedAt: new Date(nowMs).toISOString(),
+    };
+    this.relayHealth.set(producer.id, stored);
+    return {
+      accepted: true,
+      observedAt: stored.observedAt,
+      expiresAt: new Date(observedMs + this.relayHealthMaxAgeMs).toISOString(),
+    };
+  }
+
+  private projectHostStatus(
+    producerId: string,
+    binding: SchedulerState,
+    activeAlias: string | null,
+    activeRole: "PRIMARY" | "SECONDARY" | null,
+  ): OperatorHostStatus {
+    const role = validHostRole(binding.hostRole) ?? "SECONDARY";
+    const report = this.relayHealth.get(producerId) ?? null;
+    const reportFresh = Boolean(report
+      && this.now() - Date.parse(report.observedAt) <= this.relayHealthMaxAgeMs
+      && Date.parse(report.observedAt) <= this.now() + 30_000);
+    const active = typeof binding.hostAlias === "string"
+      && binding.hostAlias === activeAlias
+      && role === activeRole;
+    return {
+      label: this.hostLabels[role],
+      role,
+      active,
+      reportFresh,
+      relayWorkerState: reportFresh ? report!.relayWorkerState : "UNAVAILABLE",
+      browserState: reportFresh ? report!.browserState : "UNAVAILABLE",
+      authorityBindingState: reportFresh ? report!.authorityBindingState : "UNAVAILABLE",
+      ownedTargetCount: Array.isArray(binding.ownedTargetIds) ? binding.ownedTargetIds.length : 0,
+      observedAt: reportFresh ? report!.observedAt : null,
+      detail: reportFresh ? report!.detail : "No fresh authenticated health report.",
+    };
+  }
+
+  private projectSupervisorStatuses(
+    state: SchedulerState,
+    providerRelayState: LiveHealthState,
+  ): OperatorSupervisorStatus[] {
+    const events = this.store.allEvents();
+    const targetBindings = Object.values(state.targetBindings ?? {}) as SchedulerState[];
+    return [...this.chats.values()].map((chat) => {
+      const admissions = (state.admissions ?? [])
+        .filter((entry: SchedulerState) => entry.supervisorId === chat.supervisorId);
+      const latestAdmission = admissions.at(-1) ?? null;
+      const queueItems = (state.queueItems ?? [])
+        .filter((entry: SchedulerState) => entry.request?.supervisorId === chat.supervisorId);
+      const latestQueue = queueItems.at(-1) ?? null;
+      const verifiedMessages = events.filter((event) => event.data.type === "reasoning_message_recorded"
+        && event.data.provenance_status === "VERIFIED"
+        && (event.data.stable_supervisor_id === chat.supervisorId
+          || !event.data.stable_supervisor_id && chat.scope === "PROJECT_MANAGER" && event.data.surface_role === "PROJECT_MANAGER"));
+      const latestVerifiedMessage = verifiedMessages.at(-1);
+      const sourceBound = targetBindings.some((binding) => binding.supervisorId === chat.supervisorId)
+        || verifiedMessages.length > 0;
+      const deliveryProven = admissions.some((entry: SchedulerState) => (
+        ["DELIVERED", "GENERATION_STARTED"].includes(entry.deliveryStatus)
+      ));
+      return {
+        supervisorId: chat.supervisorId,
+        registrationState: chat.registrationState,
+        scope: chat.scope,
+        registered: true,
+        reachable: providerRelayState === "HEALTHY" && (sourceBound || deliveryProven),
+        sourceBound,
+        latestRouteState: stringOr(latestQueue?.status ?? latestAdmission?.status, "NONE"),
+        latestReasoningAt: latestVerifiedMessage?.data.type === "reasoning_message_recorded"
+          ? latestVerifiedMessage.data.sent_at_source
+          : null,
+        verifiedReasoningMessages: verifiedMessages.length,
+      };
+    }).sort((left, right) => left.scope.localeCompare(right.scope) || left.supervisorId.localeCompare(right.supervisorId));
   }
 
   private async requireScheduler(): Promise<any> {
@@ -241,6 +432,92 @@ export class SubmissionAuthorityRuntime {
 }
 
 export { SubmissionSchedulerError };
+
+function parseRelayHealthReport(value: unknown): RelayHealthReport {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw invalidRelayHealth("Relay health evidence must be an object.");
+  }
+  const input = value as Record<string, unknown>;
+  if (input.schemaVersion !== 1) throw invalidRelayHealth("Relay health schemaVersion must be 1.");
+  const hostRole = validHostRole(input.hostRole);
+  if (!hostRole) throw invalidRelayHealth("Relay health hostRole must be PRIMARY or SECONDARY.");
+  const deploymentEpoch = positiveIntegerOrNull(input.deploymentEpoch);
+  if (deploymentEpoch === null) throw invalidRelayHealth("Relay health deploymentEpoch must be a positive integer.");
+  const observedAt = timestampOrNull(input.observedAt);
+  if (!observedAt) throw invalidRelayHealth("Relay health observedAt must be an ISO timestamp.");
+  const relayWorkerState = liveHealthState(input.relayWorkerState);
+  const browserState = liveHealthState(input.browserState);
+  const authorityBindingState = input.authorityBindingState;
+  if (!relayWorkerState || !browserState
+    || !["BOUND", "MISMATCH", "UNAVAILABLE"].includes(String(authorityBindingState))) {
+    throw invalidRelayHealth("Relay health contains an unrecognized health state.");
+  }
+  const hostAlias = boundedRuntimeString(input.hostAlias, "hostAlias", 100);
+  const detail = boundedRuntimeString(input.detail, "detail", 120);
+  if (!/^[A-Z0-9_ -]+$/.test(detail)) {
+    throw invalidRelayHealth("Relay health detail must be a privacy-safe status code.");
+  }
+  return {
+    schemaVersion: 1,
+    hostAlias,
+    hostRole,
+    deploymentEpoch,
+    observedAt,
+    relayWorkerState,
+    browserState,
+    authorityBindingState: authorityBindingState as RelayHealthReport["authorityBindingState"],
+    detail,
+  };
+}
+
+function invalidRelayHealth(message: string) {
+  const error = new Error(message);
+  Object.assign(error, { statusCode: 400, code: "RELAY_HEALTH_INVALID" });
+  return error;
+}
+
+function boundedRuntimeString(value: unknown, field: string, maximum: number): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > maximum) {
+    throw invalidRelayHealth(`Relay health ${field} must be a non-empty string no longer than ${maximum} characters.`);
+  }
+  return value;
+}
+
+function liveHealthState(value: unknown): LiveHealthState | null {
+  return value === "HEALTHY" || value === "DEGRADED" || value === "UNAVAILABLE" ? value : null;
+}
+
+function validHostRole(value: unknown): "PRIMARY" | "SECONDARY" | null {
+  return value === "PRIMARY" || value === "SECONDARY" ? value : null;
+}
+
+function stringOr(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function timestampOrNull(value: unknown): string | null {
+  return typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null;
+}
+
+function positiveIntegerOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function nonNegativeIntegerOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function nonNegativeInteger(value: unknown): number {
+  return nonNegativeIntegerOrNull(value) ?? 0;
+}
+
+function boundedLabel(value: string | undefined, fallback: string): string {
+  const label = value?.trim() || fallback;
+  if (label.length > 80 || !/^[A-Za-z0-9][A-Za-z0-9 .()/_-]*$/.test(label)) {
+    throw new Error("Mission Control host labels must be plain text no longer than 80 characters.");
+  }
+  return label;
+}
 
 function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number): number {
   if (!value) return fallback;

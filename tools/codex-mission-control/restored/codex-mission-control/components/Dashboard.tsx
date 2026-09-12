@@ -8,6 +8,7 @@ import { SupervisorLink } from "./SupervisorLink";
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
+import type { LiveHealthState, OperatorStatusProjection } from "@/lib/operator-status-contract";
 
 interface Snapshot {
   workers: WorkerState[];
@@ -23,7 +24,7 @@ interface Snapshot {
     openBlockers: number;
     openProposals: number;
   };
-  connectionSummary: { connected: number; offlineConfigured: number; fixtureOnly: number };
+  connectionSummary: { connected: number; offlineConfigured: number; fixtureOnly: number; suppressedFixtureOnly: number };
   liveSource: {
     worker: string;
     source_kind: "READ_ONLY_FILE_GIT";
@@ -42,14 +43,19 @@ interface Snapshot {
 
 export function Dashboard() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [operatorStatus, setOperatorStatus] = useState<OperatorStatusProjection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState(false);
-  const [selectedWorkerId, setSelectedWorkerId] = useState("article-failure");
+  const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const load = useCallback(async () => {
     try {
-      const response = await fetch("/api/workers", { cache: "no-store" });
-      if (!response.ok) throw new Error("Dashboard snapshot failed");
-      setSnapshot(await response.json());
+      const [workersResponse, operatorResponse] = await Promise.all([
+        fetch("/api/workers", { cache: "no-store" }),
+        fetch("/api/operator-status", { cache: "no-store" }),
+      ]);
+      if (!workersResponse.ok || !operatorResponse.ok) throw new Error("Dashboard snapshot failed");
+      setSnapshot(await workersResponse.json());
+      setOperatorStatus(await operatorResponse.json());
       setError(null);
     } catch {
       setError("Mission Control could not reach its local daemon.");
@@ -65,9 +71,14 @@ export function Dashboard() {
   }, [load]);
 
   const workers = useMemo(() => {
-    const order = ["mission-control-live-slice", "article-failure", "innersignal-review", "human-design-governance"];
-    return [...(snapshot?.workers ?? [])].sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
+    return [...(snapshot?.workers ?? [])];
   }, [snapshot]);
+
+  useEffect(() => {
+    if (!selectedWorkerId || !workers.some((worker) => worker.id === selectedWorkerId)) {
+      setSelectedWorkerId(workers[0]?.id ?? "");
+    }
+  }, [selectedWorkerId, workers]);
 
   async function markViewed() {
     setMarking(true);
@@ -76,7 +87,8 @@ export function Dashboard() {
     setMarking(false);
   }
 
-  if (!snapshot) return <main className="shell"><div className="loading-panel">Loading mission telemetry…</div></main>;
+  if (!snapshot || !operatorStatus) return <main className="shell"><div className="loading-panel">Loading mission telemetry…</div></main>;
+  const statusHealth = trafficForHealth(operatorStatus.overallState);
   return (
     <main className="shell mission-shell">
       <header className="topbar">
@@ -87,20 +99,21 @@ export function Dashboard() {
             <h1>Codex Mission Control</h1>
           </div>
         </div>
-        <div className="live-state"><StatusDot health="GREEN" pulse /><span>LIVE</span><span className="muted">daemon + SSE</span></div>
+        <div className="live-state"><StatusDot health={statusHealth} pulse={operatorStatus.overallState === "HEALTHY"} /><span>{operatorStatus.overallState}</span><span className="muted">authenticated live status</span></div>
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      <InfrastructureHealth status={operatorStatus} />
       <LiveWorkerStrip source={snapshot.liveSource} />
 
       <div className="mission-heading">
-        <div><p className="eyebrow">USER-VISIBLE VERTICAL SLICE · ISSUE #47</p><h2>Who is advancing, parked, or safe to continue?</h2></div>
+        <div><p className="eyebrow">CURRENT LIVE FLEET</p><h2>What is running, parked, failed, or waiting?</h2></div>
         <span>{workers.filter((worker) => worker.operatorState.needsAttention).length} need attention · owner actions {workers.filter((worker) => worker.correction.ownerActionType !== "NONE").length}</span>
       </div>
 
-      <nav className="scenario-index" aria-label="Worker scenarios">
+      {workers.length > 0 ? <nav className="scenario-index" aria-label="Live workers">
         {workers.map((worker) => <button key={worker.id} className={selectedWorkerId === worker.id ? "selected" : ""} onClick={() => setSelectedWorkerId(worker.id)}><StatusDot health={worker.operatorState.traffic} /><span>{shortName(worker)}</span><strong>{dispositionLabel(worker)}</strong><small>Owner: {ownerActionLabel(worker)}</small></button>)}
-      </nav>
+      </nav> : <section className="empty-live-fleet"><strong>No live workers are reporting.</strong><p>Mission Control is hiding demo fixtures. A worker appears here only after authenticated live connection evidence arrives.</p></section>}
 
       <section className="mission-grid" aria-label="All-worker current control projection">
         {workers.map((worker) => <MissionCard key={worker.id} worker={worker} selected={selectedWorkerId === worker.id} />)}
@@ -109,7 +122,7 @@ export function Dashboard() {
       <section className="channel-fleet-summary" aria-label="Fleet communication status">
         <div><span>Workers connected</span><strong>{snapshot.connectionSummary.connected}</strong></div>
         <div><span>Offline configured</span><strong>{snapshot.connectionSummary.offlineConfigured}</strong></div>
-        <div><span>Fixture only</span><strong>{snapshot.connectionSummary.fixtureOnly}</strong></div>
+        <div><span>Demo workers hidden</span><strong>{snapshot.connectionSummary.suppressedFixtureOnly}</strong></div>
         <div><span>Dashboard behind owner</span><strong>{snapshot.channelSummary.staleDirections}</strong></div>
         <div><span>Awaiting delivery</span><strong>{snapshot.channelSummary.awaitingDelivery}</strong></div>
         <div><span>Awaiting acknowledgement</span><strong>{snapshot.channelSummary.awaitingAcknowledgement}</strong></div>
@@ -131,14 +144,58 @@ export function Dashboard() {
   );
 }
 
+function InfrastructureHealth({ status }: { status: OperatorStatusProjection }) {
+  const pacing = status.pacing;
+  const latestIntervals = pacing.recentIntervalsMs.slice(-3).map(formatInterval).join(" · ") || "No interval samples";
+  return <section className={`infrastructure-health ${status.overallState.toLowerCase()}`} aria-label="Infrastructure and transport health">
+    <div className="infrastructure-head">
+      <div><p className="eyebrow">INFRASTRUCTURE / TRANSPORT</p><h2>{status.overallState === "HEALTHY" ? "Mission Control is healthy" : status.overallState === "DEGRADED" ? "Mission Control needs attention" : "Live transport evidence is unavailable"}</h2></div>
+      <strong>{status.activeHostLabel ?? "No active VPS proven"}</strong>
+    </div>
+    <div className="infrastructure-facts">
+      <HealthFact label="Active lease" value={status.authority.activeLeaseRole ? `${status.authority.activeLeaseRole} · epoch ${status.authority.epoch ?? "unknown"}` : "Unavailable"} />
+      <HealthFact label="Shared send authority" value={`${status.authority.state} · ${status.authority.writer.replaceAll("_", " ")}`} />
+      <HealthFact label="Provider/browser transport" value={status.providerRelayState} />
+      <HealthFact label="Shared queue" value={`${status.authority.queueDepth} pending`} />
+      <HealthFact label="Last provider send" value={pacing.lastProviderSendBoundaryAt ? relativeTime(pacing.lastProviderSendBoundaryAt) : "No boundary recorded"} />
+      <HealthFact label="Minimum pacing" value={pacing.configuredMinimumIntervalMs === null ? "Unavailable" : formatInterval(pacing.configuredMinimumIntervalMs)} />
+      <HealthFact label="Observed intervals" value={`${pacing.minimumObservedIntervalMs === null ? "No minimum" : `minimum ${formatInterval(pacing.minimumObservedIntervalMs)}`} · recent ${latestIntervals}`} />
+      <HealthFact label="Pacing violations" value={pacing.violationsBelowConfiguredMinimum === null ? "Unavailable" : String(pacing.violationsBelowConfiguredMinimum)} />
+      <HealthFact label="Rate limit / cooldown" value={`${pacing.rateLimitState.replaceAll("_", " ")} · ${pacing.cooldownRemainingMs ? `${formatInterval(pacing.cooldownRemainingMs)} remaining` : "clear"}`} />
+      <HealthFact label="Append-only ledger" value={status.authority.ledgerIntegrity} />
+    </div>
+    <div className="host-health-grid">
+      {status.hosts.map((host) => <article key={host.role}>
+        <div><StatusDot health={trafficForHealth(host.reportFresh && host.browserState === "HEALTHY" && host.relayWorkerState === "HEALTHY" ? "HEALTHY" : host.reportFresh ? "DEGRADED" : "UNAVAILABLE")} /><strong>{host.label}</strong><span>{host.active ? "ACTIVE" : "STANDBY"}</span></div>
+        <p>Relay worker {host.relayWorkerState.toLowerCase()} · browser {host.browserState.toLowerCase()} · authority binding {host.authorityBindingState.toLowerCase()} · {host.ownedTargetCount} automation-owned target{host.ownedTargetCount === 1 ? "" : "s"}</p>
+        <small>{host.reportFresh && host.observedAt ? `Authenticated report ${relativeTime(host.observedAt)}` : "No fresh authenticated report"}</small>
+      </article>)}
+    </div>
+  </section>;
+}
+
+function HealthFact({ label, value }: { label: string; value: string }) {
+  return <div><span>{label}</span><strong>{value}</strong></div>;
+}
+
 function LiveWorkerStrip({ source }: { source: Snapshot["liveSource"] }) {
   return <section className={`live-worker-strip ${source ? "connected" : "missing"}`} aria-label="Current live worker evidence source">
     <div><StatusDot health={source ? "GREEN" : "UNKNOWN"} pulse={Boolean(source)} /><span><b>LIVE WORKER</b>{source?.worker ?? "source not configured"}</span></div>
     {source ? <>
       <p>{source.summary}</p>
-      <dl><div><dt>Source</dt><dd>{source.source_path}</dd></div><div><dt>Git</dt><dd>{source.branch}@{source.head.slice(0, 8)}</dd></div><div><dt>Directive / receipt</dt><dd>{source.directive_id ?? "none"} / {source.receipt_id ?? "pending"}</dd></div><div><dt>Evidence</dt><dd>{source.phase} · {relativeTime(source.observed_at)}</dd></div></dl>
+      <dl><div><dt>Source</dt><dd>Authenticated file + Git</dd></div><div><dt>Git</dt><dd>{source.branch}@{source.head.slice(0, 8)}</dd></div><div><dt>Directive / receipt</dt><dd>{source.directive_id ?? "none"} / {source.receipt_id ?? "pending"}</dd></div><div><dt>Evidence</dt><dd>{source.phase} · {relativeTime(source.observed_at)}</dd></div></dl>
     </> : <p>Set MISSION_CONTROL_LIVE_SOURCE and MISSION_CONTROL_LIVE_WORKTREE to observe the current worker read-only.</p>}
   </section>;
+}
+
+function trafficForHealth(state: LiveHealthState): "GREEN" | "YELLOW" | "UNKNOWN" {
+  return state === "HEALTHY" ? "GREEN" : state === "DEGRADED" ? "YELLOW" : "UNKNOWN";
+}
+
+function formatInterval(milliseconds: number): string {
+  if (milliseconds < 1_000) return `${milliseconds} ms`;
+  const seconds = milliseconds / 1_000;
+  return Number.isInteger(seconds) ? `${seconds} s` : `${seconds.toFixed(1)} s`;
 }
 
 export function MissionCard({ worker, selected }: { worker: WorkerState; selected: boolean }) {

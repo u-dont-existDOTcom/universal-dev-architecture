@@ -466,6 +466,7 @@ compatibility units:
 ```bash
 sudo ~/.local/share/mission-control-chatgpt-relay/app/scripts/install-system-services.sh "$USER"
 sudo systemctl enable --now "mission-control-chatgpt-browser@$USER.service"
+sudo systemctl enable --now "mission-control-chatgpt-health@$USER.timer"
 ```
 
 The system-service installer resolves the selected account through the local
@@ -485,6 +486,13 @@ resource, and namespace protections. Do not add `--no-sandbox` or
 `--disable-setuid-sandbox` in this mode. Keep the relay unit stopped until the
 central lease and live no-send checks pass.
 
+The independent health timer is safe to run while provider sending stays
+disabled. Once per minute it authenticates to Mission Control with that host's
+existing scoped collector credential and reports only browser, relay, exact
+authority-binding, host-role, and epoch status. It sends no ChatGPT message and
+includes no target ID, conversation locator, cookie, token, or private host
+address in its output.
+
 ## Operations
 
 ```bash
@@ -492,6 +500,13 @@ systemctl --user status mission-control-chatgpt-browser.service
 systemctl --user status mission-control-chatgpt-relay.service
 journalctl --user -u mission-control-chatgpt-relay.service -f
 cat ~/.local/state/mission-control-chatgpt-relay/status.json
+```
+
+For a system-manager installation, inspect the independent health reporter with:
+
+```bash
+sudo systemctl status "mission-control-chatgpt-health@$USER.timer"
+sudo systemctl status "mission-control-chatgpt-health@$USER.service"
 ```
 
 The status record reports hashes, queue state, browser/memory state, capability state, stuck-recovery metadata, ambiguity state, and `browserTabs.managedChatGptTabCount` with the 1/2/3 steady/transition/hard limits. It does not contain ChatGPT response content.
