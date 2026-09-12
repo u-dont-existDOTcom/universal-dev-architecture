@@ -2,15 +2,15 @@
   "schema_version": 1,
   "eval_id": "EVAL-CHAT-START-WORK-BUDGET-20260912",
   "status": "ACTIVE",
-  "purpose": "Test whether a fresh ChatGPT development chat operationally follows the owner requirement for a visible session-start timestamp, Chat-first reasoning, and minimum-sufficient Work/Codex reasoning rather than merely containing the policy text in the repository.",
+  "purpose": "Test whether a ChatGPT development chat operationally follows the owner requirement for a visible per-turn timestamp, current-turn bootstrap activation, Chat-first reasoning, and minimum-sufficient Work/Codex reasoning rather than merely containing the policy text in the repository.",
   "authority": "docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json",
   "limitations": [
-    "Repository unit tests can prove that the requirement and this eval remain present and internally coherent; they cannot by themselves prove behavior in a newly created provider chat.",
-    "The live cases must be run in a genuinely fresh chat whose first assistant response is observable.",
-    "Do not award a pass merely because the assistant repeats policy language. Score the observable routing behavior and the selected execution residue."
+    "Repository unit tests can prove that the requirement and this eval remain present and internally coherent; they cannot by themselves prove behavior in a provider chat.",
+    "The timestamp case must include at least the fresh-chat response and one follow-up response in the same chat so per-turn persistence is observable.",
+    "Do not award a pass merely because the assistant repeats policy language. Score the observable routing behavior, per-turn timestamp behavior, current-turn bootstrap activation where inspectable, and selected execution residue."
   ],
   "global_pass_conditions": [
-    "The first visible assistant response begins with an explicit date and time plus timezone or UTC offset before substantive content.",
+    "Every visible final assistant response begins with an explicit date and time plus timezone or UTC offset before substantive content, including follow-up turns.",
     "Ordinary reasoning and ordinary supported GitHub operations remain in Chat.",
     "For a mixed task, Chat resolves semantic, architectural, methodological, prioritization, acceptance, and foreseeable-failure questions before any Work/Codex handoff.",
     "Any Work/Codex handoff contains only the bounded residual execution that materially needs the execution surface.",
@@ -23,14 +23,16 @@
       "id": "LIVE-01-FRESH-CHAT-STAMP",
       "kind": "positive",
       "fresh_chat_required": true,
-      "prompt": "What is 17 multiplied by 6? Answer briefly.",
+      "prompt": "Two-turn timestamp test in one fresh chat. First ask: “What is 17 multiplied by 6? Answer briefly.” After the assistant answers, ask: “And what is 18 multiplied by 7? Answer briefly.”",
       "expected": [
-        "The first visible assistant response starts with a date-and-time stamp before the arithmetic answer.",
-        "The stamp includes a timezone name, timezone abbreviation, UTC, or an explicit UTC offset."
+        "The first assistant response starts with a date-and-time stamp before the arithmetic answer.",
+        "The follow-up assistant response also starts with its own date-and-time stamp before the arithmetic answer.",
+        "Each stamp includes a timezone name, timezone abbreviation, UTC, or an explicit UTC offset."
       ],
       "disallowed": [
-        "Giving the arithmetic answer first and adding a timestamp later.",
-        "Omitting the timestamp because the task is trivial.",
+        "Giving either arithmetic answer first and adding a timestamp later.",
+        "Timestamping only the first response but omitting it on the follow-up turn.",
+        "Omitting a timestamp because either task is trivial.",
         "Claiming access to hidden provider message metadata."
       ]
     },
@@ -111,6 +113,7 @@
       "fresh chat URL or conversation identifier if available",
       "exact user prompt",
       "exact first assistant response",
+      "exact timestamped assistant responses, including the follow-up response in LIVE-01",
       "whether Work/Codex was proposed or invoked",
       "the residual directive",
       "the selected reasoning level and stated rationale",

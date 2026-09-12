@@ -25,17 +25,18 @@ If the answer is no, keep the action in Chat.
 
 For supervisory/control-plane chats, this is an automation invariant: **when the chat itself can read or write the required GitHub artifact, it must do that GitHub operation directly and must not delegate that operation to Work/Codex.** A Chat -> Work handoff requires explicit user acceptance; delegating a routine GitHub receipt, issue comment, PR update, or evidence read therefore inserts an avoidable human gate and can make an otherwise unattended Mission Control cycle invisible to the owner.
 
-## Chat session timestamp
+## Per-turn chat timestamp and bootstrap reactivation
 
-Every new chat must begin its first assistant response with a **visible date-and-time stamp** so the owner can identify when that chat occurred without reconstructing chronology later.
+Every assistant turn must begin its final user-visible answer with a **visible date-and-time stamp** so the owner can identify when that turn occurred without reconstructing chronology later.
 
 - Use the owner's local timezone when it is known and reliable.
 - Otherwise use the best current platform/session time available and include an explicit timezone or UTC offset.
 - Do not invent a precision or timezone that is not available.
-- The visible session-start stamp is an owner-facing chronology aid. It does not assert access to hidden provider message metadata and does not replace any separate provenance/source-timestamp requirement.
-- Conversation ordering, remembered history, Git commit time, browser observation time, or later reconstruction is not a substitute for the required visible first-response stamp.
+- A timestamp shown only in reasoning, analysis, tool commentary, or another intermediate surface does not count; repeat it as the first line of the final user-visible answer.
+- Conversation ordering, remembered history, Git commit time, browser observation time, or later reconstruction is not a substitute for the required visible per-turn stamp.
+- When the owner's bootstrap requires live Universal GitHub authority, re-fetch the current default-branch root `AGENTS.md` on every user turn before substantive reasoning, tool use, artifact composition, or answering. Prior-turn retrieval or remembered copies do not count as current-turn activation.
 
-This requirement applies to ordinary reasoning chats, supervisory chats, fresh independent-review chats, and chats opened as part of a Mission Control/controller workflow unless a higher-priority product constraint makes the first visible response impossible to control.
+This requirement applies to ordinary reasoning chats, supervisory chats, independent-review chats, follow-up turns, and chats used as part of a Mission Control/controller workflow unless a higher-priority product constraint makes the final user-visible response impossible to control.
 
 ## Keep in Chat
 
