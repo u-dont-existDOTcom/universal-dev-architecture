@@ -148,6 +148,15 @@ test('fresh provider conversations use an explicit CDP navigation instead of tru
   assert.match(source, /if \(normalized === 'https:\/\/chatgpt\.com\/'\) return false/);
 });
 
+test('consumer control verification waits for the post-navigation model control without accepting ambiguity', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  const currentModel = source.slice(source.indexOf('async #currentModel'), source.indexOf('async #openModelMenu'));
+  assert.match(currentModel, /return waitFor\(async \(\) =>/);
+  assert.match(currentModel, /result\?\.ambiguous/);
+  assert.match(currentModel, /return result\?\.controlFound \? result : false/);
+  assert.match(currentModel, /model\/mode switch control did not become ready after navigation/);
+});
+
 test('exact app selection walks Tools then More then one exact app option', () => {
   const base = { composerFormFound: true, toolsControlCount: 1, chipMatchCount: 0, appMatchCount: 0, moreMatchCount: 0 };
   assert.deepEqual(appSelectionState(base, 'Mission Control'), { type: 'OPEN_TOOLS' });
