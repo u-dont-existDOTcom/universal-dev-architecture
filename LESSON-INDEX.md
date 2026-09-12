@@ -1,6 +1,6 @@
 # Universal lesson index
 
-Use this file as the entry point for cross-project lesson retrieval.
+Use this file as the entry point for cross-project lesson retrieval. This is a routing catalog, not an instruction to load every listed pattern. Read each applicable canonical rule once; local consumers add only their actual scope or enforcement binding.
 
 ## Current required patterns
 
@@ -45,6 +45,8 @@ Use this file as the entry point for cross-project lesson retrieval.
 39. `patterns/platform-native-deployment-before-new-infrastructure.md` — before adding a host, server, API boundary, or deployment layer for a small web surface, inventory the incumbent platform's first-class deployment surfaces and prefer the simpler native path when it meets requirements; for Apps Script/Sheets-backed surveys, evaluate an `HtmlService` Web App before separate hosting and require a concrete unmet constraint to justify the extra infrastructure.
 40. `patterns/mission-control-multi-host-submission-scheduling.md` — keep browser relay hosts active/passive behind one durable authority in Mission Control's existing single-writer control plane; require a single-use admission before every browser send, globally pace crossed boundaries, retain one queue item through bounded provider retry, fence failover epochs, bind sends to Mission Control-only chats and automation-owned targets, and fail closed on partition or ownership ambiguity.
 41. `patterns/worker-directive-delivery-and-chat-output-budget.md` — when worker execution is selected as the next action, deliver the complete runnable directive in the same turn instead of stopping at meta-commentary; keep short directives in one fenced code block and materialize longer operational payloads as `.md`/text artifacts with concise chat summaries to reduce scrollback and output latency.
+
+42. `patterns/instruction-composition-and-portable-intelligence.md` — scope-aware inheritance, public/internal separation, transfer provenance, and preservation-based deduplication.
 
 ## Reusable policy templates
 

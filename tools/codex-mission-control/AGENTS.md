@@ -20,21 +20,42 @@ Allowed request states are `RECORDED_NOT_IMPLEMENTED`, `IMPLEMENTED_NOT_LIVE_VER
 
 ## Chat reasoning and Work execution authority
 
-The Project Manager Chat or selected specialist ChatGPT supervisor owns proposals, methodology, prioritization, spending design, consequential tradeoffs, scientific interpretation, supervisory verdicts, and next-strategy selection. Codex/Work is execution-only.
+Inherit the shared role, source-receipt, spending, and delivery semantics from
+`patterns/chat-work-execution-routing-threshold.md` and
+`patterns/runtime-chat-work-authority-admission-and-internal-routing.md` at the repository root.
+Do not reload an already active identical source or restate it as a second policy.
 
-Before controlled execution use `lib/chat-work-authority-gate.ts` via `npm run supervision:admit -- --input <chat-work-authority-request.json>`. A non-allow decision controls. Chat-originated directives require source-bound message identity and exact body digest; copied text, summaries, titles, tabs, or local subagents are not reasoning receipts.
-
-Keep work in Chat when Chat can do it directly, including ordinary GitHub reads/writes, issue/PR updates, architecture, review, supervision, and substantive supervisory prose. Delegate only terminal/computer execution or genuinely long-range repository operations. Persist execution evidence through the verified Mission Control/controller route; Codex/Work may not select the next consequential step from its own receipt, and **do not infer a native Work → originating Chat return edge**.
+Local binding: `lib/chat-work-authority-gate.ts` and
+`npm run supervision:admit -- --input <chat-work-authority-request.json>` provide
+local policy evaluation; the application-level authenticated runtime admission
+required by nested instructions remains mandatory before controlled execution.
+A local check is not a substitute for that runtime receipt. A non-allow decision
+blocks the affected action. A worker may not fabricate Chat provenance or use an
+owner-relay request to legitimize its own semantic proposal.
 
 ## Spending boundary
 
-A current zero-spend owner decision forbids paid model API inference and worker-authored paid proposals. Consumer-plan ChatGPT/Pro/Extra High remains the default reasoning/evaluation surface where available. Any later paid path requires a newer verified Chat proposal plus explicit owner authority.
+Apply the active source-bound owner spending decision through the shared runtime
+authority rule. A zero-spend state also excludes worker-authored proposals to
+revive a paid path; only the authorized reasoning actor can formulate a new
+proposal, and execution still requires the later explicit owner decision.
+No historical or hypothetical budget overrides current policy.
 
 ## Internal supervisor routing and capability edges
 
-Owner-directed routing among Project Manager Chat, specialist supervisor chats, and Codex/Work is pre-authorized internal control-plane transport. Route factual state automatically with exact packet/digest and destination provenance; never make the owner relay it or say `send it`. This exception is only for internal supervision, never external communication, publication, purchase, or account changes.
+Apply the shared internal-routing and delivery-truth rule. This subsystem binds
+it to the configured supervisor directory, authenticated transport, exact packet
+digest, and provider receipt. Queue, attempt, delivery, response ingestion, and
+semantic acceptance remain distinct. The internal-route permission does not
+cover external recipients, publication, purchases, account changes, or missing
+platform authorization. An unavailable route is a scoped transport blocker, not
+permission to make the owner a courier.
 
-Treat capabilities as exact directional source → destination edges with user/UI/permission/authorization gates. Current established topology: Chat → Work requires explicit user acceptance; native Work ↔ Work coordination exists within Work; Work → the originating Chat is unavailable. Mission Control may provide mediated supervision/control, but that does not transfer semantic reasoning authority or prove a missing native edge. A required click/approval blocks unattended automation until satisfied.
+Use the current source-bound capability topology in
+`patterns/chat-work-execution-routing-threshold.md`; do not infer a native Work → originating Chat return edge
+from Mission Control's mediated route. Preserve actual UI/user gates.
+
+Treat capability edges as directional source-to-destination relations; a required user/UI/permission gate still blocks unattended automation. No inherited prose can create a missing native edge.
 
 ## Browser ownership, rate limits, and multi-host submission
 

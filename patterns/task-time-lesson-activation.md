@@ -71,6 +71,24 @@ For every active lesson record:
 
 Do not copy whole lesson files into the contract. Compile the operative rule.
 
+## 1A. Obligation lifecycle and boundary binding
+
+An instruction is satisfied only where its required effect must exist. Reading, understanding, planning, simulating, or mentioning it elsewhere does not discharge the obligation. This extends the existing Active Lesson Contract; do not create a second parallel ledger.
+
+For each material active obligation, bind a compact tuple:
+
+`rule/source + scope/authority + actor + trigger + due phase + destination + acceptance evidence + non-substitutes + carry-through + repair + enforcement`.
+
+The due boundary may be source retrieval, reasoning, a tool action, a worker handoff, persistence, publication, or final delivery. Do not move every obligation to final output: authorization due before an irreversible action cannot be repaired by a later warning. A reasoning-only rule does not require exposing private reasoning. Give the conclusion and relevant evidence, not a transcript of hidden analysis.
+
+An obligation remains open until its own acceptance condition is met, its trigger genuinely becomes inapplicable, or current authorized instruction supersedes it. Carry open obligations through summaries, handoffs, context compaction, model changes, and formatting rewrites. A recipient must receive the required constraint and source binding, not merely a statement that the sender considered it.
+
+At the last controllable boundary, inspect the actual outgoing payload or observable state. Evidence in a plan, commentary, another artifact, an earlier draft, a queued message, or a different deployment is not evidence in the required destination. Repeat required output content in the final answer when it appeared only in an intermediate surface. If a final rewrite changes the relevant payload, recheck the changed obligations before delivery.
+
+Use mechanical enforcement for genuinely mechanical predicates when available; retain semantic review for meaning, source entailment, target fidelity, and scientific adequacy. Calling a prompt a gate does not install a runtime guard. A check of rule presence does not prove behavior, and a model's own receipt is not independent verification. Unknown or unobserved evidence is not PASS. Fail closed only on the affected mandatory action/claim and continue independent authorized work.
+
+Preserve the owner's 2026-09-12 result as OWNER_VALIDATED_CROSS_MODEL_FIX: the final-output timestamp formulation resolved the reported failures across tested models and thinking levels. Do not reopen that accepted fix merely to restate uncertainty, and do not claim independent measurements or an exhaustive list of tested configurations that the owner did not supply. Generalize the boundary-binding principle without assuming all other obligations are already fixed.
+
 ## 2. Keep the active set small
 
 Lesson overload defeats lesson activation.
