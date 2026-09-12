@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "evidence_id": "EVIDENCE-MC-MULTI-HOST-LIVE-ACCEPTANCE-20260912",
+  "recorded_at": "2026-09-12T19:10:00Z",
+  "requirement_refs": [
+    "docs/requirements/2026-09-10-mission-control-dual-vps-global-send-queue.owner-requirement.json",
+    "docs/requirements/2026-09-10-mission-control-multi-host-hardening.owner-requirement.json",
+    "docs/requirements/2026-09-12-codex-work-access-and-mc-chat-creation.owner-requirement.json"
+  ],
+  "truthful_disposition": "LIVE_ACCEPTANCE_PASSED_RELEASE_CLOSEOUT_PENDING",
+  "completion_allowed": false,
+  "privacy": {
+    "credentials_or_auth_artifacts_recorded": false,
+    "private_conversation_locators_recorded": false,
+    "private_browser_or_target_ids_recorded": false,
+    "private_lease_or_registration_ids_recorded": false,
+    "host_addresses_recorded": false,
+    "evidence_access_path": "AUTHORIZED_REMOTE_SHELL_PLUS_AUTHENTICATED_MISSION_CONTROL_BFF",
+    "owner_workstation_browser_used": false,
+    "owner_clipboard_used": false
+  },
+  "source_control": {
+    "historical_recovery_commit": "cb89966b83f12db49d974de4ebf402d10d310608",
+    "historical_recovery_tree": "90678993902ec67a3712eef1517583e1730a3906",
+    "historical_recovery_parent": "0ac26e4e2f06271c3acad9cc6ad60421ebde1cf9",
+    "historical_branch_unchanged": true,
+    "merged_shared_authority_commit": "8635b88c605b70c2840e4528879d3a18b3a57998",
+    "live_candidate_source_head": "b2a1d68057e2493d2e0135b85d2f41069727b696",
+    "current_main_integration_branch": "task/mission-control-issue90-live-acceptance-20260912",
+    "pre_receipt_integration_head": "e79ee1d6c398ac6a4754658425bb659b94781052",
+    "later_unrelated_mainline_work_preserved": true
+  },
+  "live_acceptance_cases": [
+    {
+      "id": "LIVE-90-01",
+      "name": "prechange_secondary_timing_and_path_audit",
+      "status": "PASS",
+      "evidence": "The retained secondary ledger has 24 actual click boundaries and 23 adjacent intervals; minimum 92,928 ms, zero below 60,000 ms. The prechange architecture had only host-local pacing and no safe cross-host admission authority."
+    },
+    {
+      "id": "LIVE-90-02",
+      "name": "all_send_paths_require_shared_authority",
+      "status": "PASS",
+      "evidence": "All six concrete browser-send call sites are covered by the central admission/boundary contract; live negative probes failed before browser mutation, and neither VPS contains a deployable host-local scheduler service or process."
+    },
+    {
+      "id": "LIVE-90-03",
+      "name": "exact_candidate_primary_and_secondary_install",
+      "status": "PASS",
+      "evidence": "Mission Control is healthy on PRIMARY through loopback-only BFF and daemon listeners. Both remote relay installs match the deployable candidate file-for-file except for the two intentionally excluded repository-only scheduler re-export fixtures. SECONDARY reaches the same authority through a restricted loopback tunnel and reports STANDBY_READY."
+    },
+    {
+      "id": "LIVE-90-04",
+      "name": "concurrent_cross_host_lease_race",
+      "status": "PASS",
+      "evidence": "Concurrent PRIMARY and SECONDARY admissions against the same active epoch produced one single-use PRIMARY admission and one SECONDARY 409 STANDBY_SEND_FORBIDDEN denial. The admitted no-send probe was aborted before the provider boundary and later consumed through its exact immutable queue identity."
+    },
+    {
+      "id": "LIVE-90-05",
+      "name": "restart_pacing_persistence",
+      "status": "PASS",
+      "evidence": "A real PRIMARY boundary at 2026-09-12T18:51:43.758Z was followed by a Mission Control container restart. Before 60 seconds elapsed, PRIMARY was denied GLOBAL_SUBMISSION_COOLDOWN and SECONDARY was denied STANDBY_SEND_FORBIDDEN. The same queued item crossed the next real boundary at 2026-09-12T18:53:00.577Z, 76,819 ms later."
+    },
+    {
+      "id": "LIVE-90-06",
+      "name": "controlled_primary_to_secondary_failover",
+      "status": "PASS",
+      "evidence": "The durable ledger records PRIMARY epoch 1, SECONDARY epoch 2, and a real SECONDARY send 1,210,629 ms after the preceding boundary. Takeover was bound to the successor epoch and shared pacing state."
+    },
+    {
+      "id": "LIVE-90-07",
+      "name": "primary_recovery_and_stale_secondary_fencing",
+      "status": "PASS",
+      "evidence": "The durable ledger records recovery to PRIMARY epoch 3. Both hosts observe that same active lease; SECONDARY remains STANDBY_READY and a fresh SECONDARY admission is denied before send, with no active-active boundary."
+    },
+    {
+      "id": "LIVE-90-08",
+      "name": "standing_mc_only_creation_and_private_registration",
+      "status": "PASS",
+      "evidence": "Three dedicated owner-registered MISSION_CONTROL_ONLY supervisor conversations, including the permanent Project Manager and bounded specialist/failover surfaces, are active in the private registry on both hosts. Creation and registration used the standing owner authority without adopting a personal conversation or recording a private locator in Git."
+    },
+    {
+      "id": "LIVE-90-09",
+      "name": "personal_unregistered_and_wrong_registration_rejection",
+      "status": "PASS",
+      "evidence": "Live probes rejected an unregistered or personal supervisor with SUBMISSION_AUTHORIZATION_STALE_OR_MISSING and a mismatched registration with SUPERVISOR_OWNERSHIP_MISMATCH before send. Recency, active-tab order, and title were not authority."
+    },
+    {
+      "id": "LIVE-90-10",
+      "name": "exact_window_target_browser_and_rate_limit_controls",
+      "status": "PASS",
+      "evidence": "Each host has one automation-owned ChatGPT target, zero foreign targets, loopback-only browser control, native Chromium sandboxing, and the exact attested window binding. Foreign-target and wrong-window probes were denied before send. A naturally observed provider rate limit recovered once on the same durable queue item; a second or ambiguous result remains fail closed."
+    },
+    {
+      "id": "LIVE-90-11",
+      "name": "remote_worker_and_owner_workstation_exclusion",
+      "status": "PASS",
+      "evidence": "The official Codex CLI runtime is installed under the unprivileged worker account on both VPS hosts. Fresh ephemeral tasks on both returned REMOTE_CODEX_WORKER_OK with the automatic reviewer selected. No local browser, personal ChatGPT tab, clipboard action, remote clipboard process, or clipboard send path was used."
+    },
+    {
+      "id": "LIVE-90-12",
+      "name": "privacy_safe_hash_chained_interval_ledger",
+      "status": "PASS",
+      "evidence": "The authenticated BFF reports MISSION_CONTROL_SINGLE_WRITER, 44 append-only records, valid hash-chain integrity with zero errors, and four live adjacent intervals of 112,535 ms, 1,210,629 ms, 10,153,453 ms, and 76,819 ms. Minimum is 76,819 ms, median is 661,582 ms, configured minimum is 60,000 ms, and violations below either configured or absolute floor are zero."
+    },
+    {
+      "id": "LIVE-90-13",
+      "name": "exact_head_repository_mission_control_relay_and_hosted_gates",
+      "status": "LOCAL_PASS_HOSTED_PENDING",
+      "evidence": "Fresh integration-head local gates pass: repository 299/299 plus deterministic audit and diff check; Mission Control 232/232 plus TypeScript and production build; relay 184/184 plus syntax. GitHub exact-head hosted checks must pass before this receipt can authorize completion."
+    }
+  ],
+  "live_hosts": {
+    "primary": {
+      "provider_role": "NETCUP_PRIMARY",
+      "mission_control_authority": "HEALTHY_SINGLE_WRITER",
+      "browser": "ACTIVE_LOOPBACK_ONLY_NATIVE_SANDBOX",
+      "relay": "INSTALLED_SEND_SERVICE_INACTIVE",
+      "doctor": "READY",
+      "host_local_scheduler_processes": 0,
+      "remote_worker": "AUTHENTICATED_AND_LIVE_PROBED"
+    },
+    "secondary": {
+      "provider_role": "HOSTINGER_SECONDARY_FAILOVER",
+      "mission_control_authority": "SHARED_THROUGH_RESTRICTED_LOOPBACK_TUNNEL",
+      "browser": "ACTIVE_LOOPBACK_ONLY_NATIVE_SANDBOX",
+      "relay": "INSTALLED_SEND_SERVICE_INACTIVE",
+      "doctor": "STANDBY_READY",
+      "host_local_scheduler_processes": 0,
+      "remote_worker": "AUTHENTICATED_AND_LIVE_PROBED"
+    }
+  },
+  "release_closeout_remaining": [
+    "commit the privacy-safe live receipt and status projections on the current-main integration branch",
+    "open the integration pull request and require all exact-head hosted checks",
+    "change the frozen requirements to LIVE_VERIFIED only after those checks pass",
+    "merge normally, verify main, post the final issue receipt, and close issue 90"
+  ]
+}

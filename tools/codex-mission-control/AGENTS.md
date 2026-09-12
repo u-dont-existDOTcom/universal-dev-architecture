@@ -42,52 +42,16 @@ Browser automation may operate only on explicitly automation-owned windows/targe
 
 For the exact ChatGPT rate-limit UI `too many chat requests are coming too quick`/`too quickly` with exactly one `Got it` control, dismiss that control and retry the exact same submission once after at least 30 seconds, while preserving the repository-wide minimum 60-second submission interval after any crossed send boundary. A second/ambiguous/changed result fails closed. Detection may inspect only the bounded provider/system dialog, never assistant response content.
 
-- route factual state automatically;
-- preserve the exact packet and digest;
-- capture the destination chat/message identity and response provenance;
-- never ask Joel to relay the packet;
-- never ask Joel to say `send it`;
-- never treat routine internal routing as third-party representational communication requiring another action-time confirmation;
-- never use this exception for an external recipient, publication, purchase, account change, or other genuinely external representational action.
-
 Standing authority includes creating/private-registering a missing
 `MISSION_CONTROL_ONLY` supervisor conversation without repeat approval; retain
 automation ownership, private locators, fixed controls, global pacing, and
 personal-chat exclusion.
 
-The more-specific standing owner authorization for internal supervision routing controls over generic browser confirmation guidance. If the destination chat is genuinely missing or inaccessible, report that exact transport blocker after attempting the authorized route; do not convert the owner into the courier.
-
-Model every capability as an exact directional source → destination edge together with its user, UI, permission, and authorization gates. Current architecture facts are: Chat → Work requires explicit user acceptance; native Work ↔ Work coordination exists within Work; Work → the originating Chat is unavailable. Mission Control should reuse native Work-internal coordination, while retaining autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through verified routes. This does not transfer semantic reasoning authority to Mission Control. Its authorized internal routing is a mediated control-plane path, not evidence that the missing native edge exists. A required click or approval blocks unattended automation until satisfied.
-
 Work selects the broadest authorized task-scoped access and automatic reviewer.
 Only an outcome-changing access tradeoff goes to Joel, with plain consequences
 and a recommendation; Work cannot self-approve a product security prompt.
 
-## Browser ownership and provider rate-limit recovery
-
-Mission Control browser automation must operate only on an explicitly automation-owned browser window and explicitly automation-owned targets within that window.
-
-Persist the exact window and target IDs across restarts. Eligibility requires
-both registry ownership and Chrome membership in that exact window; neither a
-matching URL, target order/activity, nor window membership alone is ownership.
-Never adopt, activate, navigate, repurpose, submit into, close, or count a
-manual/foreign target, even inside the relay profile/window. If owned state is
-lost, create a dedicated automation window rather than adopting another tab.
-Registered supervisor surfaces stay separate from the owner's personal/manual
-tabs and windows.
-
-When the ChatGPT system UI reports the bounded rate-limit condition `too many chat requests are coming too quick`/`too quickly` and exposes exactly one `Got it` control, click that exact control. This is permitted system-UI recovery, not assistant-output inspection. Then retry the exact same submission once after at least 30 seconds. Preserve the global submission gate: if the blocked attempt already crossed the actual click/submission boundary, wait until both the provider retry delay and the repository-wide minimum 60-second submission interval are satisfied. A second rate-limit result, ambiguous dialog/button, or changed target/session fails closed; do not loop or reinterpret the task.
-
-The modal detector may inspect only the bounded provider/system dialog needed to identify this condition and the exact `Got it` control. It must not inspect, copy, hash, parse, or serialize assistant response content, and it does not widen the existing accessibility/network/app-state/OCR/export privacy boundary.
-
-## Multi-host submission and conversation ownership
-
-For multi-host relays, apply
-`patterns/mission-control-multi-host-submission-scheduling.md`: active/passive
-fenced epochs, one durable per-send admission before browser mutation, global
-boundary pacing, `MISSION_CONTROL_ONLY` conversation provenance plus exact
-target ownership, and fail-closed takeover. Use only the designated remote
-browser/profile; never the owner's browser, clipboard, cookies, or profile.
+For multi-host relays apply `patterns/mission-control-multi-host-submission-scheduling.md`: active/passive fenced epochs, one durable per-send admission, global pacing, `MISSION_CONTROL_ONLY` conversation provenance, exact target ownership, and fail-closed takeover. Never use the owner's browser, clipboard, cookies, or profile.
 
 ## Completion and continuation
 

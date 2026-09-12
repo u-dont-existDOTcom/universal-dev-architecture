@@ -4,7 +4,7 @@
   "requirement_id": "REQ-CODEX-WORK-ACCESS-MC-CHAT-CREATION-20260912",
   "recorded_at": "2026-09-12T13:48:00+00:00",
   "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
-  "status": "RECORDED_NOT_IMPLEMENTED",
+  "status": "IMPLEMENTED_AND_LIVE_VERIFIED_RELEASE_MERGE_PENDING",
   "completion_allowed": false,
   "owner_source": {
     "verbatim": "and fix that in the instructions then it should not require my approval to create the chats, and also give work chats complete access, instructing them only to ask me for approval if there's a genuine tradeoff and then explain that tradeoff in plain english and their recommendation (this is already in the universal-dev-architecture but what's different is now you are the one selecting the approval level in the work chats). and when these boxes pop up you should click approve automatically",
@@ -20,8 +20,9 @@
       "id": "RO-WORKACCESS-001",
       "terminal_required": true,
       "observable": "Required dedicated MC-only Project Manager and specialist conversations are created and privately registered without another owner approval, while personal/user chats remain excluded.",
-      "status": "IMPLEMENTED_IN_INSTRUCTIONS_NOT_LIVE_VERIFIED",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
         "tools/codex-mission-control/AGENTS.md",
         "state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md"
       ]
@@ -30,8 +31,9 @@
       "id": "RO-WORKACCESS-002",
       "terminal_required": true,
       "observable": "New owner-authorized Work tasks select Full Access or the broadest task-scoped equivalent and automatic review themselves instead of asking Joel to select a routine permission level.",
-      "status": "IMPLEMENTED_IN_INSTRUCTIONS_NOT_LIVE_VERIFIED",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
         "AGENTS.md",
         "patterns/codex-worker-permissions.md"
       ]
@@ -40,8 +42,9 @@
       "id": "RO-WORKACCESS-003",
       "terminal_required": true,
       "observable": "An owner interruption occurs only for a genuine unresolved tradeoff or an unavoidable product/security boundary; a tradeoff is explained in plain English with consequences and a recommended default.",
-      "status": "IMPLEMENTED_IN_INSTRUCTIONS_NOT_LIVE_VERIFIED",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
         "AGENTS.md",
         "tools/codex-mission-control/AGENTS.md",
         "patterns/codex-worker-permissions.md"
@@ -51,8 +54,9 @@
       "id": "RO-WORKACCESS-004",
       "terminal_required": false,
       "observable": "Eligible technical escalations use the configured automatic reviewer; a direct app security prompt raised for the worker's own action remains a human security boundary and is never clicked or bypassed by that worker.",
-      "status": "IMPLEMENTED_BOUNDARY_DOCUMENTED",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
+        "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
         "patterns/codex-worker-permissions.md"
       ]
     }
@@ -71,5 +75,5 @@
     "patterns/task-time-lesson-activation.md",
     "patterns/chat-work-execution-routing-threshold.md"
   ],
-  "next_direct_evidence": "Create and privately register the required MC-only conversations through the authenticated remote automation surface without another approval request, then record one fresh Work task receipt showing agent-selected owner-authorized access and automatic review while preserving any direct product security boundary."
+  "next_direct_evidence": "Merge the already live-verified instruction changes only after exact-head hosted checks pass, then verify their canonical main projection before setting completion_allowed true."
 }

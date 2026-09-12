@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-11
+Updated: 2026-09-12
 
 ## Goal
 
@@ -29,45 +29,46 @@ supervisor conversations are eligible.
 
 ## Current checkpoint
 
-- Active correction branch:
-  `task/mission-control-shared-global-send-authority-20260911`.
-- The authority algorithm is now packaged inside Mission Control's existing
-  single-writer daemon. Its SQLite projection and hash-chained append-only
-  ledger are served through authenticated `/api/submission-authority` routes.
-- Provider rate limiting pauses the pacing domain, the bounded retry retains the
-  same queue item, and a second/ambiguous event fails closed globally.
-- The VPS package no longer contains an executable/service/configuration for a
-  host-local scheduler; its local 60-second guard remains defense in depth.
-- Latest final-source gates are 155/155 relay tests and 266/266 repository
-  tests. The Mission Control dependency-backed test/type/build gate remains for
-  hosted CI because this checkout has no installed npm dependencies.
+- PR #99 merged the exact recovered shared-authority delta and narrow TypeScript
+  compatibility fix as `8635b88c605b70c2840e4528879d3a18b3a57998`.
+- The current-main live-closeout branch is
+  `task/mission-control-issue90-live-acceptance-20260912`; the historical recovery
+  branch remains unchanged at `cb89966b83f12db49d974de4ebf402d10d310608`.
+- Netcup PRIMARY reports `READY`; Hostinger SECONDARY reports `STANDBY_READY`.
+  Both use the exact deployable candidate, dedicated loopback-only sandboxed
+  browsers, exact automation-owned targets, and the same Mission Control
+  single-writer authority. No host-local scheduler service or process exists.
+- All 12 direct live host cases pass: concurrent cross-host admission, restart
+  pacing, PRIMARY → SECONDARY → PRIMARY failover and fencing, private MC-only
+  registration and rejection probes, exact target isolation, bounded same-item
+  rate-limit recovery, remote Codex worker execution, workstation/clipboard
+  exclusion, and valid hash-chained interval evidence.
+- Fresh local exact-head gates pass: repository 299/299 plus audit and diff
+  check; Mission Control 232/232 plus TypeScript and production build; relay
+  184/184 plus syntax.
 
 ## Remaining
 
-1. Run the dependency-backed Mission Control tests, TypeScript check, and Next
-   production build through hosted checks (local npm dependencies are absent).
-2. Complete review, merge, and canonical commit verification.
-3. Reattach the authorized private VPS execution surface; audit Hostinger,
-   install the exact merged candidate on Mission Control/Netcup/Hostinger with
-   rollback, and run the frozen live acceptance matrix.
-4. Update requirement/issue truth only from those exact live receipts.
+1. Commit and push the privacy-safe live receipt on the current-main integration
+   branch.
+2. Open the PR and require every exact-head hosted repository, Mission Control,
+   relay, and CodeQL check.
+3. If all pass with no review blocker, mark the frozen requirements
+   `LIVE_VERIFIED`, merge normally, verify `main`, post the issue receipt, and
+   close issue #90.
 
 ## Blockers / unresolved
 
-- This execution session has no retained SSH/VPS tool, SSH configuration, key,
-  token, or private host locator. No host mutation or new live proof is claimed.
-- Netcup still requires owner-completed ChatGPT login/MFA and exact private
-  MC-only supervisor registration.
-- The available inventory still has no verified supported arbitrary-VPS
-  execution-worker runtime; the browser relay is not worker-runtime proof.
-- Hostinger's last verified browser service remains blocked by the systemd
-  `LockPersonality` sandbox interaction; changing that security control remains
-  an owner tradeoff unless a compatible runtime avoids it.
+- No live host blocker remains. Canonical completion is intentionally withheld
+  only for the exact-head hosted-check, review, merge, and main-verification
+  boundary.
 
 ## Evidence / artifacts
 
-- Active plan:
+- Active release-closeout plan:
   `docs/exec-plans/active/2026-09-10-mission-control-multi-host-hardening.md`.
+- Current live acceptance receipt:
+  `docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json`.
 - Prior installed-host receipt:
   `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 - Prior live pacing audit:

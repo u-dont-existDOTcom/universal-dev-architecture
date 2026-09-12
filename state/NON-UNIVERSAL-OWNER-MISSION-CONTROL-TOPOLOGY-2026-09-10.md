@@ -108,7 +108,7 @@ For routine MC automation, the owner's workstation is not an execution host. Spe
 
 A future explicitly owner-authorized local recovery operation may override this only for that bounded recovery and must not silently re-enable local execution as normal behavior.
 
-## Current verified boundary
+## Historical pre-activation boundary (superseded 2026-09-12)
 
 The privacy-safe receipt is `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 
@@ -120,7 +120,7 @@ The privacy-safe receipt is `docs/evidence/2026-09-10-owner-deployment-multi-hos
 - Registry validation rejects personal, ambiguous, legacy-unclassified, missing-provenance, duplicate and wrong-target conversations before send. Netcup's placeholder registry and Hostinger's legacy registry both fail closed in live doctor probes; no private chat locators are in Git.
 - This work used SSH/direct file transfer only. No local browser automation or clipboard action occurred; remote clipboard-process counts were zero.
 
-The owner deployment is not complete. It still needs:
+At this historical checkpoint, the owner deployment still needed:
 
 - private creation and registration of real dedicated MC-only supervisor conversations in the now-authenticated Netcup automation profile;
 - a supported way to run the Mission Control execution workers themselves on the VPS rather than the owner's local Codex/Work host;
@@ -130,7 +130,7 @@ Until those boundaries are resolved, both legacy host-local schedulers and both
 relays stay disabled. Hostinger's browser also stays disabled. No production or
 third host was changed.
 
-## 2026-09-11 shared-authority correction boundary
+## Historical 2026-09-11 shared-authority correction boundary
 
 The canonical PR #91 installation described above is not the final global-send
 architecture: it placed an independent loopback scheduler and durable state file
@@ -153,3 +153,38 @@ dependency-empty checkout, and none of the frozen live acceptance outcomes are
 newly claimed. The exact PR #91 services remain the last installed evidence and
 must stay send-disabled until the correction is reviewed, merged, installed,
 and proved live.
+
+## Current verified boundary
+
+The privacy-safe live receipt is
+`docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json`.
+
+- Netcup is the healthy PRIMARY. Its dedicated browser is loopback-only and
+  natively sandboxed; Mission Control is the sole shared SQLite writer and send
+  authority. Hostinger is a healthy SECONDARY with the same candidate, its own
+  automation-owned browser, and restricted loopback access to that authority.
+- Both relay send services remain inactive. Neither host has a scheduler binary,
+  scheduler service, or scheduler process. Local relay pacing remains defense in
+  depth only.
+- Three exact owner-registered `MISSION_CONTROL_ONLY` supervisor conversations
+  are privately present on both hosts. Personal, unregistered, wrong-owner,
+  wrong-window, and foreign-target probes fail before send.
+- The live epoch sequence proves PRIMARY → SECONDARY → PRIMARY failover. A
+  concurrent two-host claim admitted PRIMARY once and denied SECONDARY; after
+  recovery, SECONDARY remains fenced and reports `STANDBY_READY`.
+- A real send followed by a Mission Control restart remained globally paced.
+  The next real boundary was 76,819 ms later. Four live adjacent intervals are
+  112,535 ms, 1,210,629 ms, 10,153,453 ms, and 76,819 ms, with zero violations
+  below the configured and absolute 60,000 ms floor.
+- The append-only hash-chained ledger reports valid integrity and no errors. A
+  naturally observed provider rate limit used one bounded retry on the same
+  queue item and recovered without weakening global pacing.
+- Fresh unprivileged Codex worker tasks ran successfully on both VPS hosts with
+  automatic review. No owner-workstation browser, personal tab, local clipboard,
+  remote clipboard process, credential, or private conversation locator entered
+  the execution or Git path.
+
+The live acceptance boundary has passed. Canonical completion remains withheld
+until the current-main integration PR passes all exact-head hosted checks,
+merges normally, and `main` is verified. No production or third host is in
+scope.

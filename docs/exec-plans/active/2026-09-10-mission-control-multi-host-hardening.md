@@ -5,7 +5,7 @@ The controls promoted to `patterns/mission-control-multi-host-submission-schedul
 are portable. Provider choices, RAM sizes, revisions and live topology below are
 evidence for one owner only.
 
-Status: CORRECTION_IMPLEMENTATION_IN_PROGRESS_LIVE_ACCESS_BLOCKED
+Status: LIVE_ACCEPTANCE_PASSED_RELEASE_CLOSEOUT_PENDING
 Assurance lane: RELEASE (code, merge, two-host installation)
 Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global-send-queue.owner-requirement.json`
 
@@ -60,12 +60,21 @@ Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global
 - Durable evidence: `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 - Production remains untouched and unauthorized.
 - On 2026-09-12 the owner added standing authority for automatic creation and private registration of the required MC-only conversations and for Work to select Full Access (or the broadest task-scoped equivalent) itself. This removes repeat conversational approval but does not permit a worker to self-approve a direct app security gate.
+- PR #99 merged the recovered shared-authority implementation as `8635b88c605b70c2840e4528879d3a18b3a57998`; the exact historical branch remains at `cb89966b83f12db49d974de4ebf402d10d310608`.
+- The post-merge live candidate is `b2a1d68057e2493d2e0135b85d2f41069727b696`. Its Mission Control sources match the active primary container, and its deployable relay contents match both hosts except for the two intentionally excluded repository-only scheduler re-export fixtures.
+- Netcup now reports `READY`; Hostinger reports `STANDBY_READY`. Both have one exact automation-owned ChatGPT target, zero foreign targets, loopback-only browser control, native sandboxing, and no host-local scheduler process.
+- Three exact owner-registered MC-only conversations are privately active on both hosts. The real failover epoch sequence is PRIMARY → SECONDARY → PRIMARY, with a real SECONDARY send and fresh post-recovery standby fencing.
+- Concurrent admissions admitted PRIMARY once and denied SECONDARY. A real boundary followed by a Mission Control restart denied an early retry and produced the next real boundary 76,819 ms later.
+- The hash-chained ledger is valid with four live intervals: 112,535 ms, 1,210,629 ms, 10,153,453 ms, and 76,819 ms; zero are below the configured or absolute 60-second floor.
+- The naturally observed provider rate-limit path used one bounded retry on the same durable queue item. Personal/unregistered/wrong-registration, foreign-target, and wrong-window live probes all failed before send.
+- Fresh Codex CLI tasks ran successfully as unprivileged remote workers on both VPS hosts with automatic review. No workstation browser, personal tab, or clipboard path was used.
+- Fresh current-main integration gates pass locally: repository 299/299 plus audit/diff check; Mission Control 232/232 plus TypeScript/build; relay 184/184 plus syntax.
+- Durable live receipt: `docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json`.
 
-## Genuine remaining blockers
+## Remaining release closeout
 
-1. Netcup needs one owner-completed remote ChatGPT login/MFA and creation/registration of real MC-only supervisor chats. Copying browser authentication from Hostinger is forbidden. Until that exists, exact automation-owned target bindings and the real central producer/attestor map cannot be completed.
-2. The available Codex host inventory exposes only the local desktop host, and neither VPS relay owner has a Codex CLI or worker process. The browser relay/controller is not evidence that Mission Control workers themselves moved off the local host.
-3. Hostinger's systemd service sandbox blocks Brave. A direct native-sandbox launch previously succeeded, but changing the protected `LockPersonality` control is an owner security tradeoff and was not authorized.
-4. Consequently the real central authority cannot yet be activated and the required live cross-host claim race, restart pacing, failover fencing, provider-boundary interval, and secondary browser cases remain blocked. Deterministic or synthetic fixtures are not live acceptance substitutes.
+1. Commit and publish the privacy-safe live receipt on the current-main integration branch without changing the historical recovery branch.
+2. Open the pull request and require every exact-head hosted repository, Mission Control, relay, and CodeQL gate.
+3. Only after those checks pass, mark the frozen requirements `LIVE_VERIFIED`, merge normally, verify `main`, post the final issue receipt, and close issue #90.
 
-Do not enable a scheduler or relay, claim completion, or promote outside the two authorized VPS hosts until these are resolved.
+No live acceptance blocker remains. Do not claim canonical completion before the hosted-check and merge boundary, and do not promote outside the two authorized VPS hosts.

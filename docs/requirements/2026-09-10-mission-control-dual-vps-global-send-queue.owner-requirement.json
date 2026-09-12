@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-DUAL-VPS-GLOBAL-SEND-QUEUE-20260910",
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
-  "status": "IMPLEMENTED_PARTIAL_LIVE_VERIFICATION_BLOCKED",
+  "status": "IMPLEMENTED_LIVE_ACCEPTANCE_PASSED_HOSTED_CHECKS_PENDING",
   "completion_allowed": false,
   "owner_outcome": "Run Mission Control workers and supervisors primarily on the owner's 16 GB Netcup VPS and secondarily on the owner's 8 GB Hostinger VPS; eliminate routine use of the owner's workstation browser/clipboard; globally pace and admit all ChatGPT sends; and restrict supervisor routing to dedicated MC-only chats.",
   "owner_specific": {
@@ -98,12 +98,15 @@
   },
   "current_evidence": {
     "deployment_and_control_receipt": "docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json",
+    "live_acceptance_receipt": "docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json",
     "prechange_pacing_receipt": "docs/evidence/2026-09-10-owner-deployment-prechange-pacing.json",
-    "primary": "EXACT_CANDIDATE_INSTALLED_BROWSER_HEALTHY_SENDS_DISABLED",
-    "secondary": "EXACT_CANDIDATE_INSTALLED_CODE_HEALTHY_BROWSER_AND_SENDS_DISABLED_FAIL_CLOSED",
-    "scheduler": "IMPLEMENTED_AND_DETERMINISTICALLY_VERIFIED_NOT_LIVE_ACTIVATED",
-    "mc_only_registry": "ENFORCED_FAIL_CLOSED_LIVE_REGISTRATION_PENDING",
-    "remote_execution_workers": "BLOCKED_NO_SUPPORTED_REMOTE_WORKER_RUNTIME"
+    "primary": "EXACT_CANDIDATE_INSTALLED_MISSION_CONTROL_READY_REMOTE_WORKER_LIVE_PROBED",
+    "secondary": "EXACT_CANDIDATE_INSTALLED_STANDBY_READY_REMOTE_WORKER_LIVE_PROBED",
+    "scheduler": "LIVE_SINGLE_WRITER_SHARED_AUTHORITY_LEASE_PACING_RESTART_AND_FAILOVER_VERIFIED",
+    "mc_only_registry": "THREE_PRIVATE_OWNER_REGISTERED_MC_ONLY_SURFACES_LIVE_EXACT_BOUND",
+    "remote_execution_workers": "CODEX_CLI_AUTHENTICATED_AND_LIVE_PROBED_ON_BOTH_VPS_HOSTS",
+    "live_intervals_ms": [112535, 1210629, 10153453, 76819],
+    "hosted_exact_head_checks": "PENDING"
   },
   "non_satisfying_proxies": [
     "configuration_value_without_live_interval_log",
@@ -122,5 +125,6 @@
     "dedicated MC-only supervisor registry prevents owner-chat reuse",
     "routine MC execution proven not to use owner workstation browser or clipboard"
   ],
+  "next_direct_evidence": "Require every exact-head GitHub check on the current-main integration pull request. Only after those checks pass may this frozen requirement move to LIVE_VERIFIED and completion_allowed true.",
   "production_boundary": "No unrelated production promotion or service mutation is authorized by this requirement."
 }
