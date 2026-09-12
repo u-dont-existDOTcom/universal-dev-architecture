@@ -11,6 +11,8 @@ test("VPS container keeps one loopback single-writer stack, durable state, and n
   const healthcheck = read("deploy/healthcheck.mjs");
   const launcher = read("scripts/run-stack.mjs");
   assert.match(dockerfile, /FROM node:22\.23\.2-bookworm-slim/);
+  assert.match(dockerfile, /apt-get install -y --no-install-recommends git=1:2\.39\.5-0\+deb12u3/);
+  assert.match(dockerfile, /rm -rf \/var\/lib\/apt\/lists\/\*/);
   assert.match(dockerfile, /USER node/);
   assert.match(dockerfile, /PATH=\/app\/node_modules\/\.bin:\$PATH/);
   assert.match(dockerfile, /MISSION_CONTROL_DAEMON_HOST=127\.0\.0\.1/);

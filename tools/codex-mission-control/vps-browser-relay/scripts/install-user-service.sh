@@ -20,6 +20,12 @@ fi
 
 staging_root="$(mktemp -d "$install_parent/.install-new.XXXXXX")"
 cp -a "$source_root"/. "$staging_root"/
+# The central algorithm shim and its contract tests are repository-source-only.
+# A deployed relay calls Mission Control's authenticated BFF and contains no
+# local copy of the shared scheduler implementation.
+rm -f -- \
+  "$staging_root/src/submission-scheduler-service.mjs" \
+  "$staging_root/test/submission-scheduler-service.test.mjs"
 chmod 0700 "$staging_root/bin/mc-chatgpt-relay.mjs" "$staging_root/scripts/launch-browser.sh"
 
 if [[ ! -f "$config_root/env" ]]; then

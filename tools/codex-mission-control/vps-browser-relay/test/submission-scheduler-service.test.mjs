@@ -365,6 +365,8 @@ test('the VPS package contains no host-local scheduler authority', async () => {
   assert.doesNotMatch(relayUnit, /mission-control-submission-scheduler/);
   assert.match(installer, /disable --now mission-control-submission-scheduler\.service/);
   assert.doesNotMatch(installer, /enable --now mission-control-submission-scheduler\.service/);
+  assert.match(installer, /staging_root\/src\/submission-scheduler-service\.mjs/);
+  assert.match(installer, /staging_root\/test\/submission-scheduler-service\.test\.mjs/);
 });
 
 test('every concrete ChatGPT send path is wired through central admission and boundary recording', async () => {
