@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "status": "SOURCE_COMPOSITION_AUDIT_NOT_RUNTIME_AUTHORIZATION",
+  "roles": {
+    "universal_internal": {
+      "audience": "internal",
+      "inherits": [],
+      "local_sources": [
+        "AGENTS.md",
+        "LESSON-INDEX.md",
+        "docs/INDEX.md"
+      ]
+    },
+    "mission_control_internal": {
+      "audience": "internal",
+      "inherits": [
+        "universal_internal"
+      ],
+      "local_sources": [
+        "tools/codex-mission-control/AGENTS.md",
+        "patterns/runtime-chat-work-authority-admission-and-internal-routing.md",
+        "patterns/chat-work-execution-routing-threshold.md"
+      ]
+    },
+    "mission_control_app": {
+      "audience": "internal",
+      "inherits": [
+        "mission_control_internal"
+      ],
+      "local_sources": [
+        "tools/codex-mission-control/restored/codex-mission-control/AGENTS.md"
+      ]
+    }
+  },
+  "budgeted_native_chains": [
+    "tools/codex-mission-control/restored/codex-mission-control/AGENTS.md"
+  ],
+  "required_fragments": {
+    "AGENTS.md": [
+      "first line of the final user-visible assistant answer",
+      "patterns/instruction-composition-and-portable-intelligence.md"
+    ],
+    "patterns/task-time-lesson-activation.md": [
+      "Obligation lifecycle and boundary binding",
+      "OWNER_VALIDATED_CROSS_MODEL_FIX",
+      "Unknown or unobserved evidence is not PASS"
+    ],
+    "templates/ACTIVE-LESSON-CONTRACT.md": [
+      "Due phase and destination",
+      "Non-substitutes",
+      "Carry-through"
+    ],
+    "tools/codex-mission-control/restored/codex-mission-control/AGENTS.md": [
+      "supervision:admit:runtime",
+      "returned `mayExecute` value is exactly `true`",
+      "QUEUED_FOR_PROVIDER_RELAY"
+    ]
+  }
+}

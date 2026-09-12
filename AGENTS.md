@@ -1,19 +1,24 @@
 # Universal development architecture
 
-## Session-start bootstrap invariants
+## Per-turn bootstrap invariants
 
-For every new chat/session governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**. This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation.
+For **every assistant turn** governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**. This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation.
 
-- The timestamp must appear in the final answer/message content delivered to the user. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.
+- The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.
 - If a timestamp has already been written during reasoning or an intermediate step, **repeat it in the final answer**. Do not treat prior reasoning text as satisfying the final-output contract.
-- Before finalizing the first assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer.
-- Apply it before substantive final-answer content even for trivial arithmetic, greetings, smoke tests, or prompts that otherwise warrant a direct one-line answer.
+- Read an available current clock for this turn; do not reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock is accessible, disclose that limit rather than inventing a time.
+- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer.
+- Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer.
 - “Answer simple tasks directly,” reasoning-effort minimization, tool-avoidance heuristics, brevity requests, or a judgment that deeper repository reads are unnecessary **must not waive this invariant**.
-- When current owner instructions require the canonical GitHub bootstrap, complete that bootstrap before substantive reasoning or answering. Tool calls, reasoning text, hidden provider metadata, or thinking summaries do not substitute for the required timestamp in the final answer.
+- When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation.
 - If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.
-- Treat failure to emit the timestamp as the first line of the final user-visible answer as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
+- Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
 
-These invariants are intentionally duplicated at the root because they must survive task triage and the reasoning-to-final-answer transition: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies, and must not discharge the obligation in reasoning without carrying it into final output.
+These invariants are intentionally duplicated at the root because they must survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies, must not rely on a stale prior-turn activation, and must not discharge the obligation in reasoning without carrying it into final output.
+
+## Instruction composition
+
+For instruction maintenance and cross-project composition, use `patterns/instruction-composition-and-portable-intelligence.md`. The existing active-contract lifecycle is owned by `patterns/task-time-lesson-activation.md`. These supplement current authority; do not load unrelated specialist guidance or duplicate an already active rule.
 
 ## Authority
 
@@ -25,6 +30,12 @@ These invariants are intentionally duplicated at the root because they must surv
 6. `state/CURRENT-STATE.md`, tests, artifacts, and Git history
 
 Project-specific current requirements win on genuine conflict.
+
+## Causal failure diagnosis
+
+When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
+
+Do not use agentic shorthand such as `I chose wrong`, `I forgot`, `I should have`, or `I made a bad choice` as a causal explanation or substitute for repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and the smallest useful discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or internal model mechanisms. A successful intervention establishes its observed effect in the tested scope, not a unique unobserved cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary rather than merely promising different behavior next time.
 
 ## Universal and owner-specific infrastructure boundary
 
@@ -93,17 +104,14 @@ Adjacent analysis, planning, preparation, or a different method does not count a
 
 ## Chat / Work execution routing
 
-Follow `patterns/chat-work-execution-routing-threshold.md`.
-
-**Chat owns reasoning and ordinary GitHub work. Work/Codex is an execution surface, not a preferred reasoning surface.** Do not hand work off merely because Work would help, because the task mentions GitHub, because Work has GitHub/terminal tools, or because the repository is large.
-
-Keep in Chat when Chat can safely perform the next bounded action, including architecture, strategy, methodology, prioritization, supervisory judgment, owner-intent interpretation, substantive prose, ordinary GitHub reads/writes, issue/PR updates, bounded GitHub file edits, and code/diff review.
-
-Use Work/Codex only when the next bounded action materially requires terminal/local filesystem/SSH/browser/computer execution, local builds/tests/runtime inspection, deployment mechanics, or a genuinely long-range stateful repository operation. For mixed tasks, Chat reasons first, authors the exact execution directive and stop boundary, Work/Codex executes only that residue, and Chat reviews the receipt and decides the next consequential step.
-
-GitHub access by itself is not a reason to delegate. Work/Codex must not author methodology, project strategy, prioritization, supervisory verdicts, owner decisions, scientific/safety conclusions, or substantive supervisory prose.
-
-Worker handoffs also follow `patterns/worker-directive-delivery-and-chat-output-budget.md`: same-turn runnable directive; long operational payloads go to `.md`/text artifacts.
+Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,
+ordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work
+thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only.
+For controlled supervisory routes also apply
+`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.
+Worker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:
+same-turn runnable directive; long operational payloads go to `.md`/text artifacts.
+These references preserve the existing rules rather than creating local copies.
 
 ## Browser-control efficiency
 

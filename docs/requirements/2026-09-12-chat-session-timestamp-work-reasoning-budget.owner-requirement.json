@@ -7,8 +7,8 @@
   "requirements": [
     {
       "id": "CHAT-START-TIME-001",
-      "text": "Every new chat must begin with a visible date-and-time stamp so the owner can tell when that chat occurred.",
-      "operationalization": "Place an explicit date and time at the start of the chat's first assistant response. Use the owner's local timezone when known; otherwise include an explicit timezone or UTC offset. Do not rely on hidden provider metadata, conversation ordering, or later historical reconstruction as a substitute for the visible stamp."
+      "text": "Every assistant turn must begin its final user-visible answer with a visible date-and-time stamp so the owner can tell when that turn occurred.",
+      "operationalization": "Place an explicit date and time on the first line of every final user-visible assistant answer. Use the owner's local timezone when known; otherwise include an explicit timezone or UTC offset. A timestamp in reasoning, analysis, tool commentary, scratch work, or another intermediate surface does not count and must be repeated in the final answer. Before finalizing every turn, literally verify that the first line contains the stamp."
     },
     {
       "id": "CHAT-BEFORE-WORK-001",
@@ -25,5 +25,16 @@
     "Do not infer or expose hidden provider message timestamps.",
     "Do not move reasoning into Work merely to save Chat effort.",
     "Do not minimize Work reasoning below the level reasonably expected to execute the bounded directive successfully."
+  ],
+  "amendments": [
+    {
+      "date": "2026-09-12",
+      "source": "explicit owner correction in this conversation",
+      "affected_requirement": "CHAT-START-TIME-001",
+      "previous_text": "Every new chat must begin with a visible date-and-time stamp so the owner can tell when that chat occurred.",
+      "previous_operationalization": "Place an explicit date and time at the start of the chat's first assistant response. Use the owner's local timezone when known; otherwise include an explicit timezone or UTC offset. Do not rely on hidden provider metadata, conversation ordering, or later historical reconstruction as a substitute for the visible stamp.",
+      "owner_correction": "ok add that causal rule then and fix the time stamp rule because yes i want it on every single turn otherwise i don't nderstand when the turn happened",
+      "scope": "Extend timestamps to every final assistant turn; preserve the validated final-output destination rule."
+    }
   ]
 }
