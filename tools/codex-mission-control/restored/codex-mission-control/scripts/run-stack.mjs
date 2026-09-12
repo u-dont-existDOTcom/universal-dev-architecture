@@ -14,15 +14,22 @@ if (!["127.0.0.1", "localhost", "::1"].includes(requestedHost)) {
     throw new Error("Remote dashboard binding requires an HTTPS MISSION_CONTROL_PUBLIC_ORIGIN. Prefer the private MCP tunnel and keep the dashboard on loopback.");
   }
 }
+if (!process.env.MISSION_CONTROL_OWNER_TOKEN) {
+  throw new Error("MISSION_CONTROL_OWNER_TOKEN is required; owner credentials are never generated or printed by the stack launcher.");
+}
+if (mode === "start") {
+  const missing = ["MISSION_CONTROL_INTERNAL_TOKEN", "MISSION_CONTROL_OWNER_ID", "MISSION_CONTROL_SESSION_SECRET"]
+    .filter((name) => !process.env[name]);
+  if (missing.length > 0) {
+    throw new Error(`Production start requires explicit owner-only runtime configuration: ${missing.join(", ")}.`);
+  }
+}
 const stackEnv = {
   ...process.env,
   MISSION_CONTROL_INTERNAL_TOKEN: process.env.MISSION_CONTROL_INTERNAL_TOKEN ?? randomBytes(32).toString("hex"),
-  MISSION_CONTROL_OWNER_TOKEN: process.env.MISSION_CONTROL_OWNER_TOKEN ?? randomBytes(32).toString("base64url"),
+  MISSION_CONTROL_OWNER_TOKEN: process.env.MISSION_CONTROL_OWNER_TOKEN,
   MISSION_CONTROL_SESSION_SECRET: process.env.MISSION_CONTROL_SESSION_SECRET ?? randomBytes(48).toString("base64url"),
 };
-if (!process.env.MISSION_CONTROL_OWNER_TOKEN) {
-  console.error(`Mission Control local owner token: ${stackEnv.MISSION_CONTROL_OWNER_TOKEN}`);
-}
 const daemon = spawn(executable, ["daemon/server.ts"], { stdio: "inherit", env: stackEnv, detached: process.platform !== "win32" });
 let next;
 let closing = false;

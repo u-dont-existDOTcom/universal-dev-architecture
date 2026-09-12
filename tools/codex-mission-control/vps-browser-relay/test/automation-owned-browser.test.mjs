@@ -46,7 +46,7 @@ test('an owned bootstrap tab is not repurposed for a different registered chat',
   const raw = new FakeRawBrowser([page('bootstrap-a', chatA, 7)]);
   const store = new MemoryOwnershipStore(ownership(7, { 'bootstrap-a': record('bootstrap-a', 'bootstrap', chatA) }));
   const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
-  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+  const browser = coordinatedBrowser(raw, store, protocol);
 
   const target = await browser.findOrCreateChatTarget(chatB, { hardCeiling: 3 });
   assert.notEqual(target.id, 'bootstrap-a');
@@ -170,7 +170,7 @@ test('force-create always allocates one new owned target instead of reusing a sa
   ]);
   const store = new MemoryOwnershipStore(ownership(7, { 'owned-same-url': record('owned-same-url', 'bootstrap', chatA) }));
   const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
-  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+  const browser = coordinatedBrowser(raw, store, protocol);
 
   const target = await browser.forceCreateOwnedTarget({
     url: chatA, hardCeiling: 3, purpose: 'controller-cycle',
@@ -183,6 +183,7 @@ test('force-create always allocates one new owned target instead of reusing a sa
   assert.equal(raw.byId('foreign-same-url').url, chatA);
   assert.equal(raw.byId('owned-same-url').url, chatA);
   assert.equal((await store.read()).targets[target.id].purpose, 'controller-cycle');
+  assert.deepEqual(browser.transitionEvents.map((event) => event[0]), ['prepare', 'begin', 'create', 'begin', 'commit']);
 });
 
 test('force-create uses the exact anchor and recovers only one exact purpose target', async () => {
@@ -195,7 +196,7 @@ test('force-create uses the exact anchor and recovers only one exact purpose tar
     'exact-anchor': record('exact-anchor', 'controller-origin', chatA),
   }));
   const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
-  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+  const browser = coordinatedBrowser(raw, store, protocol);
   const created = await browser.forceCreateOwnedTarget({
     url: chatB, hardCeiling: 3, purpose: 'controller-pm:cycle-1',
     anchorTargetId: 'exact-anchor', automationWindowId: 7, anchorExpectedUrl: chatA,
@@ -219,7 +220,7 @@ test('force-create recovers the unique exact-window target after a crash at the 
   }));
   const protocol = new FakeProtocol(raw, { defaultWindowId: 7 });
   protocol.failAfterCreateOnce = true;
-  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+  const browser = coordinatedBrowser(raw, store, protocol);
 
   await assert.rejects(browser.forceCreateOwnedTarget({
     url: chatB, hardCeiling: 3, purpose: 'controller-pm:crash-cycle',
@@ -240,6 +241,154 @@ test('force-create recovers the unique exact-window target after a crash at the 
   assert.equal(completed.targets['created-1'].purpose, 'controller-pm:crash-cycle');
   assert.equal(completed.creationIntents['controller-pm:crash-cycle'], undefined);
   assert.equal(raw.targets.filter((target) => target.windowId === 7).length, 2, 'recovery does not create a duplicate tab');
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'create').length, 1);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'commit').length, 1);
+});
+
+test('exact target close commits only after confirmed absence and aborts on a false browser result', async () => {
+  const raw = new FakeRawBrowser([page('anchor', rootUrl, 7), page('closing', chatA, 7)]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    anchor: record('anchor', 'scratch', rootUrl),
+    closing: record('closing', 'session', chatA),
+  }));
+  const protocol = new FakeProtocol(raw);
+  const browser = coordinatedBrowser(raw, store, protocol);
+  raw.closeResult = false;
+  await assert.rejects(browser.closeTarget('closing'), /AUTOMATION_OWNED_TARGET_CLOSE_REJECTED/);
+  assert.ok(raw.byId('closing'));
+  assert.ok((await store.read()).targets.closing);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'abort').length, 1);
+
+  raw.closeResult = true;
+  await browser.closeTarget('closing');
+  assert.equal(raw.byId('closing'), undefined);
+  assert.equal((await store.read()).targets.closing, undefined);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'commit').length, 1);
+});
+
+test('unplanned owned-target disappearance is reconciled through Mission Control before local removal', async () => {
+  const raw = new FakeRawBrowser([page('anchor', rootUrl, 7)]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    anchor: record('anchor', 'scratch', rootUrl),
+    vanished: record('vanished', 'session', chatA),
+  }));
+  const browser = coordinatedBrowser(raw, store, new FakeProtocol(raw));
+
+  assert.deepEqual((await browser.listTargets()).map((target) => target.id), ['anchor']);
+  assert.equal((await store.read()).targets.vanished, undefined);
+  assert.deepEqual(browser.transitionEvents.map((event) => event[0]), ['prepare', 'begin', 'commit']);
+  assert.equal(browser.transitionEvents[0][1].operation, 'RECONCILE_REMOVE');
+  assert.deepEqual(browser.transitionEvents[2][2].postOwnedTargetIds, ['anchor']);
+});
+
+test('total owned-window loss durably replaces the window without adopting a foreign tab', async () => {
+  const raw = new FakeRawBrowser([page('foreign', chatA, 1)]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  const browser = coordinatedBrowser(raw, store, protocol);
+
+  const targets = await browser.listTargets();
+  assert.equal(targets.length, 1);
+  assert.notEqual(targets[0].id, 'foreign');
+  assert.equal(targets[0].automationWindowId, 19);
+  const completed = await store.read();
+  assert.equal(completed.windowId, 19);
+  assert.deepEqual(Object.keys(completed.targets), [targets[0].id]);
+  assert.equal(completed.windowReplacementIntent, null);
+  assert.deepEqual(browser.transitionEvents.map((event) => event[0]), ['prepare', 'begin', 'window-create', 'commit']);
+  assert.equal(browser.transitionEvents[0][1].operation, 'WINDOW_REPLACE');
+  assert.equal(browser.transitionEvents[3][2].postAutomationWindowId, 19);
+});
+
+test('window replacement recovers one post-intent target after raw creation process death', async () => {
+  const raw = new FakeRawBrowser([]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  protocol.failAfterDedicatedCreateOnce = true;
+  const browser = coordinatedBrowser(raw, store, protocol);
+
+  await assert.rejects(browser.listTargets(), /simulated process death after dedicated window creation/);
+  assert.equal((await store.read()).windowReplacementIntent.createdTargetId, null);
+  const recovered = await browser.listTargets();
+  assert.equal(recovered.length, 1);
+  assert.equal(protocol.dedicatedWindowCreates, 1);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'commit').length, 1);
+  assert.equal((await store.read()).windowId, 19);
+});
+
+test('combined relay and browser restart never claims a foreign root tab after replacement creation crashes', async () => {
+  const raw = new FakeRawBrowser([]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  protocol.failAfterDedicatedCreateOnce = true;
+  const browser = coordinatedBrowser(raw, store, protocol);
+  await assert.rejects(browser.listTargets(), /simulated process death after dedicated window creation/);
+
+  raw.targets = [page('foreign-root-after-browser-restart', rootUrl, 1)];
+  protocol.windows = new Map([['foreign-root-after-browser-restart', 1]]);
+  protocol.dedicatedWindowId = 20;
+  const recovered = await browser.listTargets();
+  assert.equal(recovered.length, 1);
+  assert.notEqual(recovered[0].id, 'foreign-root-after-browser-restart');
+  assert.equal(recovered[0].automationWindowId, 20);
+  assert.ok(raw.byId('foreign-root-after-browser-restart'));
+  assert.equal(protocol.dedicatedWindowCreates, 2);
+});
+
+test('browser restart after candidate persistence re-arms the same transition with a new exact marker', async () => {
+  const raw = new FakeRawBrowser([]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  protocol.failAfterNavigateOnce = true;
+  const browser = coordinatedBrowser(raw, store, protocol);
+  await assert.rejects(browser.listTargets(), /simulated process death after replacement candidate persistence/);
+  assert.equal((await store.read()).windowReplacementIntent.createdTargetId, 'dedicated-1');
+
+  raw.targets = [page('foreign-root-after-second-browser-restart', rootUrl, 1)];
+  protocol.windows = new Map([['foreign-root-after-second-browser-restart', 1]]);
+  protocol.dedicatedWindowId = 21;
+  const recovered = await browser.listTargets();
+  assert.equal(recovered.length, 1);
+  assert.equal(recovered[0].automationWindowId, 21);
+  assert.notEqual(recovered[0].id, 'foreign-root-after-second-browser-restart');
+  assert.equal(protocol.dedicatedWindowCreates, 2);
+});
+
+test('multiple exact replacement markers fail closed instead of choosing by recency', async () => {
+  const raw = new FakeRawBrowser([]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  protocol.failAfterDedicatedCreateOnce = true;
+  const browser = coordinatedBrowser(raw, store, protocol);
+  await assert.rejects(browser.listTargets(), /simulated process death after dedicated window creation/);
+  const intent = (await store.read()).windowReplacementIntent;
+  raw.targets.push(page('ambiguous-marker', intent.markerUrl, 20));
+  protocol.windows.set('ambiguous-marker', 20);
+  await assert.rejects(browser.listTargets(), /AUTOMATION_WINDOW_REPLACEMENT_RECOVERY_AMBIGUOUS/);
+});
+
+test('disappearance recovery resumes when the process died after local intent but before central begin', async () => {
+  const raw = new FakeRawBrowser([page('anchor', rootUrl, 7)]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    anchor: record('anchor', 'scratch', rootUrl),
+    vanished: record('vanished', 'session', chatA),
+  }));
+  const browser = coordinatedBrowser(raw, store, new FakeProtocol(raw));
+  browser.failBeginBeforePersistOnce = true;
+  await assert.rejects(browser.listTargets(), /simulated process death before central begin/);
+  assert.equal((await store.read()).targetTransition.operation, 'RECONCILE_REMOVE');
+  assert.deepEqual((await browser.listTargets()).map((target) => target.id), ['anchor']);
+  assert.equal((await store.read()).targetTransition, null);
 });
 
 test('exact provider rate-limit dialog is dismissed and converted to one bounded retry signal', async () => {
@@ -266,16 +415,76 @@ class MemoryOwnershipStore {
   async write(value) { this.value = structuredClone(value); return structuredClone(value); }
 }
 
+function coordinatedBrowser(raw, store, protocol) {
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+  let sequence = 0;
+  const events = [];
+  browser.transitionEvents = events;
+  browser.failBeginBeforePersistOnce = false;
+  protocol.transitionEvents = events;
+  const centralOpen = new Set();
+  const centralCommitted = new Set();
+  browser.setTargetTransitionCoordinator({
+    async prepareTargetTransition(input) {
+      events.push(['prepare', structuredClone(input)]);
+      return {
+        ...input,
+        anchorTargetId: input.operation === 'ADD' ? input.anchorTargetId : null,
+        targetId: ['REMOVE', 'RECONCILE_REMOVE'].includes(input.operation) ? input.targetId : null,
+        transitionId: `transition-test-${++sequence}`,
+        reason: {
+          ADD: 'AUTOMATION_OWNED_TARGET_CREATE',
+          REMOVE: 'AUTOMATION_OWNED_TARGET_CLOSE',
+          RECONCILE_REMOVE: 'AUTOMATION_OWNED_TARGET_DISAPPEARED',
+          WINDOW_REPLACE: 'AUTOMATION_OWNED_WINDOW_REPLACE',
+        }[input.operation],
+        hostAlias: 'primary', hostRole: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-test', priorBindingRevision: sequence,
+      };
+    },
+    async beginTargetTransition(input) {
+      events.push(['begin', structuredClone(input)]);
+      if (browser.failBeginBeforePersistOnce) {
+        browser.failBeginBeforePersistOnce = false;
+        throw new Error('simulated process death before central begin');
+      }
+      centralOpen.add(input.transitionId);
+      return { begun: true };
+    },
+    async commitTargetTransition(input, observed) {
+      events.push(['commit', structuredClone(input), structuredClone(observed)]);
+      if (!centralOpen.has(input.transitionId) && !centralCommitted.has(input.transitionId)) {
+        const error = new Error('no central transition');
+        error.code = 'RELAY_TARGET_TRANSITION_MISSING';
+        throw error;
+      }
+      centralOpen.delete(input.transitionId);
+      centralCommitted.add(input.transitionId);
+      return { committed: true };
+    },
+    async abortTargetTransition(input, observed) {
+      events.push(['abort', structuredClone(input), structuredClone(observed)]);
+      centralOpen.delete(input.transitionId);
+      return { aborted: true };
+    },
+  });
+  return browser;
+}
+
 class FakeRawBrowser {
   constructor(targets) {
     this.targets = targets.map((target) => ({ ...target }));
     this.activations = [];
     this.submitError = null;
+    this.closeResult = true;
   }
   async listTargets() { return this.targets.map((target) => ({ ...target })); }
   async doctor() { return { browser: 'Fake', protocolVersion: '1', targetCount: this.targets.length, managedChatGptTabCount: this.targets.length }; }
   async activateTarget(id) { this.activations.push(id); return {}; }
-  async closeTarget(id) { this.targets = this.targets.filter((target) => target.id !== id); return true; }
+  async closeTarget(id) {
+    if (this.closeResult !== true) return this.closeResult;
+    this.targets = this.targets.filter((target) => target.id !== id);
+    return true;
+  }
   async submitExactMessage() { if (this.submitError) throw this.submitError; return { generationStarted: true }; }
   byId(id) { return this.targets.find((target) => target.id === id); }
 }
@@ -291,6 +500,8 @@ class FakeProtocol {
     this.rateLimitDismissals = 0;
     this.rateLimitResult = { present: false, dismissed: false };
     this.failAfterCreateOnce = false;
+    this.failAfterDedicatedCreateOnce = false;
+    this.failAfterNavigateOnce = false;
   }
   async getWindowId(targetId) {
     const value = this.windows.get(targetId);
@@ -299,12 +510,18 @@ class FakeProtocol {
   }
   async createDedicatedWindow(url) {
     this.dedicatedWindowCreates += 1;
+    this.transitionEvents?.push(['window-create', url]);
     const targetId = `dedicated-${this.nextId++}`;
     this.raw.targets.push(page(targetId, url, this.dedicatedWindowId));
     this.windows.set(targetId, this.dedicatedWindowId);
+    if (this.failAfterDedicatedCreateOnce) {
+      this.failAfterDedicatedCreateOnce = false;
+      throw new Error('simulated process death after dedicated window creation');
+    }
     return { targetId, windowId: this.dedicatedWindowId };
   }
   async createTarget(url) {
+    this.transitionEvents?.push(['create', url]);
     const targetId = `created-${this.nextId++}`;
     this.raw.targets.push(page(targetId, url, this.defaultWindowId));
     this.windows.set(targetId, this.defaultWindowId);
@@ -314,7 +531,13 @@ class FakeProtocol {
     }
     return { targetId };
   }
-  async navigate(target, url) { this.raw.byId(target.id).url = url; }
+  async navigate(target, url) {
+    this.raw.byId(target.id).url = url;
+    if (this.failAfterNavigateOnce) {
+      this.failAfterNavigateOnce = false;
+      throw new Error('simulated process death after replacement candidate persistence');
+    }
+  }
   async waitForReady() {}
   async dismissRateLimit() { this.rateLimitDismissals += 1; return this.rateLimitResult; }
 }

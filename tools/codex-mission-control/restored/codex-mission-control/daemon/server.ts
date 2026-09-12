@@ -50,22 +50,25 @@ const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `${host}:${port}`}`);
     if (request.method === "GET" && url.pathname === "/health") {
+      const authorityHealth = await submissionAuthority.health();
       return json(response, 200, {
         status: "ok",
         latestSequence: store.latestSequence(),
         chain: store.verifyChain(),
-        submissionAuthorityConfigured: submissionAuthority.enabled,
+        submissionAuthorityConfigured: authorityHealth.configured,
+        submissionAuthoritySchedulerState: authorityHealth.schedulerState,
+        submissionAuthorityLedger: authorityHealth.ledger,
       });
     }
     if (request.method === "GET" && url.pathname === "/submission-authority/status") {
-      authorizeMutation(request);
-      return json(response, 200, await submissionAuthority.status());
+      const producer = authorizeMutation(request);
+      return json(response, 200, await submissionAuthority.status(producer));
     }
     if (request.method === "GET" && url.pathname === "/submission-authority/ledger") {
-      authorizeMutation(request);
-      return json(response, 200, await submissionAuthority.ledger(Number(url.searchParams.get("limit") ?? 200)));
+      const producer = authorizeMutation(request);
+      return json(response, 200, await submissionAuthority.ledger(producer, Number(url.searchParams.get("limit") ?? 200)));
     }
-    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|boundaries|target-bindings|provider-rate-limits|aborts|outcomes)$/);
+    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|outcomes)$/);
     if (request.method === "POST" && submissionAuthorityMatch) {
       const producer = authorizeMutation(request);
       const result = await submissionAuthority.execute(submissionAuthorityMatch[1], await readJson(request), producer);

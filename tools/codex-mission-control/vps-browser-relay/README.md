@@ -282,7 +282,8 @@ browser wrapper may remain stricter. Never add `--no-sandbox`.
 - Node.js 22+.
 - Brave, Google Chrome, or Chromium.
 - A graphical session on the remote execution host for the initial ChatGPT login.
-- Mission Control reachable by HTTPS.
+- Mission Control reachable by HTTPS, or by loopback HTTP carried entirely
+  inside a host-to-host authenticated SSH tunnel. Plain remote HTTP is invalid.
 - A dedicated Mission Control machine credential with producer kind `COLLECTOR`, scoped only to the registered worker IDs and required evidence task scope.
 
 Do not reuse owner, UI, worker, or human-supervisor credentials for the relay.
@@ -315,13 +316,22 @@ Edit:
 nano ~/.config/mission-control-chatgpt-relay/env
 ```
 
-Keep normal sends disabled initially. Configure the source-bound Mission
-Control credential and exact host/epoch identity; the submission-authority URL
-defaults to `/api/submission-authority` on this same Mission Control origin:
+Keep normal sends disabled initially. Configure a distinct source-bound
+Mission Control credential for this host and its exact host/epoch identity;
+the submission-authority URL defaults to `/api/submission-authority` on this
+same Mission Control origin. The same producer ID must be bound centrally to
+this host role and its initial automation window/target set. Mission Control
+durably advances that binding for signed ordinary target changes, observed
+disappearance, or full browser-window replacement. Recovery-only changes are
+allowed for a passive relay against the exact active-lease snapshot, but its
+sends remain fenced. All relay bearers and target attestors must be pairwise
+distinct across both hosts:
 
 ```text
 MC_RELAY_PRODUCER_ID=collector:chatgpt-relay
 MC_RELAY_TOKEN=<dedicated 32+ character token>
+MC_RELAY_TARGET_BINDING_ATTESTOR_KEY=<different host-unique 32+ character secret>
+MC_RELAY_SUBMISSION_PACING_DOMAIN=<exact Mission Control pacing domain>
 MC_RELAY_HOST_ALIAS=<portable deployment alias>
 MC_RELAY_HOST_ROLE=PRIMARY
 MC_RELAY_DEPLOYMENT_EPOCH=1
@@ -427,6 +437,25 @@ For persistence after logout/reboot:
 ```bash
 sudo loginctl enable-linger "$USER"
 ```
+
+If a host disables unprivileged user namespaces and Chromium therefore cannot
+start under the user unit with its SUID sandbox, keep
+`MC_RELAY_BROWSER_DISABLE_SETUID_SANDBOX=0`. After the same user has run the
+installer above, an administrator can install the supplied system-manager
+compatibility units:
+
+```bash
+sudo ~/.local/share/mission-control-chatgpt-relay/app/scripts/install-system-services.sh "$USER"
+sudo systemctl enable --now "mission-control-chatgpt-browser@$USER.service"
+```
+
+This mode still runs Chromium and the relay as the dedicated unprivileged user.
+It sets `NoNewPrivileges=false` only for the browser so Chromium's owned,
+setuid-root sandbox helper can perform its required transition; the relay keeps
+`NoNewPrivileges=true`, and both units retain strict filesystem, kernel,
+resource, and namespace protections. Do not add `--no-sandbox` or
+`--disable-setuid-sandbox` in this mode. Keep the relay unit stopped until the
+central lease and live no-send checks pass.
 
 ## Operations
 

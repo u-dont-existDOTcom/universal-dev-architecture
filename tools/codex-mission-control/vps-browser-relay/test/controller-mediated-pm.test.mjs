@@ -87,7 +87,7 @@ test('restart at every started boundary reconciles GitHub first and never replay
       fixture.github.seedReceipt('ORIGIN_TO_PM', cycle.consumedArtifacts.origin);
       cycle.pm = { targetId: 'pm-target', automationWindowId: 7, expectedUrl: 'https://chatgpt.com/c/pm', targetBindingSha256: 'c'.repeat(64), closedAt: null };
       cycle.sends.pm = { status: 'INTENT_RECORDED', intentRecordedAt: '2026-09-09T00:02:00.000Z', boundaryObservedAt: null };
-      fixture.browser.targets.push({ id: 'pm-target', url: cycle.pm.expectedUrl, automationWindowId: 7 });
+      fixture.browser.targets.push({ id: 'pm-target', url: cycle.pm.expectedUrl, automationWindowId: 7, automationOwned: true });
     }
     if (step === 'RETURN_SEND_STARTED') {
       cycle.consumedArtifacts.pm = artifactReceipt(cycle, 'PM_TO_ORIGIN');
@@ -112,7 +112,7 @@ test('started send without its exact artifact remains ambiguous and does not sel
   cycle.step = 'ORIGIN_SEND_STARTED';
   cycle.sends.origin = { status: 'INTENT_RECORDED', intentRecordedAt: '2026-09-09T00:01:00.000Z', boundaryObservedAt: null };
   fixture.store.state.controllerCycles['cycle-1'] = cycle;
-  fixture.browser.targets.push({ id: 'collision', url: cycle.origin.expectedUrl, automationWindowId: 7 });
+  fixture.browser.targets.push({ id: 'collision', url: cycle.origin.expectedUrl, automationWindowId: 7, automationOwned: true });
   const result = await fixture.runtime.cycle('cycle-1');
   assert.equal(result.status, 'ORIGIN_SEND_AMBIGUOUS_NO_REPLAY');
   assert.equal(fixture.browser.submits.length, 0);
@@ -444,7 +444,7 @@ class FakeMissionControl {
 
 class FakeBrowser {
   constructor() {
-    this.targets = [{ id: 'origin-target', url: 'https://chatgpt.com/c/binding', automationWindowId: 7 }];
+    this.targets = [{ id: 'origin-target', url: 'https://chatgpt.com/c/binding', automationWindowId: 7, automationOwned: true }];
     this.navigations = []; this.exactRequirements = []; this.submits = []; this.closed = [];
     this.failAfterNavigateOnce = false; this.failAfterCreateOnce = false; this.failAppSelectionOnce = false; this.failAfterClickOnce = false;
   }
@@ -469,7 +469,7 @@ class FakeBrowser {
     return { ...target, url: input.url };
   }
   async forceCreateOwnedTarget({ url }) {
-    const target = { id: 'pm-target', url, automationWindowId: 7, created: true };
+    const target = { id: 'pm-target', url, automationWindowId: 7, automationOwned: true, created: true };
     this.targets.push(target);
     if (this.failAfterCreateOnce) { this.failAfterCreateOnce = false; throw new Error('simulated crash after target creation'); }
     return structuredClone(target);

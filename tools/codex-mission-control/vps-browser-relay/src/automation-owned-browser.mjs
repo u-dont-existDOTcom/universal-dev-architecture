@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { managedChatGptTabTelemetry, normalizeConversationUrl } from './core.mjs';
+import { randomUUID } from 'node:crypto';
+import { managedChatGptTabTelemetry, normalizeConversationUrl, sha256 } from './core.mjs';
 import { ChatGptRateLimitRetryError } from './submission-pacing.mjs';
 
 const OWNERSHIP_SCHEMA_VERSION = 1;
@@ -27,6 +28,16 @@ export class AutomationOwnedBrowser {
     this.WebSocketImpl = rawBrowser.WebSocketImpl ?? WebSocketImpl;
     this.ownershipStore = ownershipStore ?? new FileOwnershipStore(ownershipFile);
     this.protocol = protocol ?? new ChromeOwnershipProtocol({ cdpHost, cdpPort, fetchImpl, WebSocketImpl: this.WebSocketImpl });
+    this.targetTransitionCoordinator = null;
+  }
+
+  setTargetTransitionCoordinator(coordinator) {
+    if (!coordinator || !['prepareTargetTransition', 'beginTargetTransition', 'commitTargetTransition', 'abortTargetTransition']
+      .every((method) => typeof coordinator[method] === 'function')) {
+      throw new Error('Automation-owned browser target mutations require the central transition coordinator.');
+    }
+    this.targetTransitionCoordinator = coordinator;
+    return this;
   }
 
   async doctor() {
@@ -39,6 +50,7 @@ export class AutomationOwnedBrowser {
       ...raw,
       ...managedChatGptTabTelemetry(owned),
       automationOwnedTabCount: owned.length,
+      automationOwnedTargetIdsSha256: sha256(JSON.stringify(owned.map((target) => target.id).sort())),
       foreignChatGptTabCount: Math.max(0, allChatGpt.length - owned.length),
       automationWindowId: ownership.windowId,
       automationWindowOwnershipEnforced: true,
@@ -51,19 +63,16 @@ export class AutomationOwnedBrowser {
     const all = await this.rawBrowser.listTargets();
     const ownedIds = new Set(Object.keys(ownership.targets));
     const result = [];
-    let changed = false;
     for (const target of all) {
       if (!ownedIds.has(target.id)) continue;
       const windowId = await this.protocol.getWindowId(target.id).catch(() => null);
-      if (windowId !== ownership.windowId) {
-        delete ownership.targets[target.id];
-        changed = true;
-        continue;
-      }
+      if (windowId !== ownership.windowId) continue;
       result.push({ ...target, automationOwned: true, automationWindowId: ownership.windowId });
     }
-    if (changed) await this.ownershipStore.write(ownership);
-    return result;
+    await this.#reconcileTargetTransition(ownership, result.map((target) => target.id));
+    await this.#reconcileUnexpectedDisappearances(ownership, result.map((target) => target.id));
+    const currentIds = new Set(Object.keys(ownership.targets));
+    return result.filter((target) => currentIds.has(target.id));
   }
 
   async findOrCreateChatTarget(chatUrl, { reusableTargetId = null, hardCeiling = 3 } = {}) {
@@ -185,7 +194,10 @@ export class AutomationOwnedBrowser {
       }
       const baseline = new Set(intent.baselineTargetIds);
       const candidates = await this.#waitForCreationDifference(baseline, automationWindowId);
-      if (candidates.length === 0) return null;
+      if (candidates.length === 0) {
+        await this.#settleFailedTargetMutation(ownership, ownership.targetTransition);
+        return null;
+      }
       if (candidates.length !== 1) {
         throw new Error(`OWNED_TARGET_CREATION_RECOVERY_AMBIGUOUS: found ${candidates.length} post-intent targets in the exact automation window.`);
       }
@@ -205,6 +217,7 @@ export class AutomationOwnedBrowser {
       };
       delete ownership.creationIntents[purpose];
       await this.ownershipStore.write(ownership);
+      await this.#reconcileTargetTransition(ownership, Object.keys(ownership.targets));
       const ready = await this.#waitForRawTarget(target.id);
       await this.protocol.waitForReady(ready, normalizedExpectedUrl);
       return { ...ready, url: normalizedExpectedUrl, created: true, reused: false, recovered: true, automationOwned: true, automationWindowId };
@@ -225,10 +238,33 @@ export class AutomationOwnedBrowser {
 
   async closeTarget(targetId) {
     const ownership = await this.#assertOwned(targetId);
-    const result = await this.rawBrowser.closeTarget(targetId);
-    delete ownership.targets[targetId];
-    await this.ownershipStore.write(ownership);
-    return result;
+    this.#requireTargetTransitionCoordinator();
+    const priorOwnedTargetIds = (await this.listTargets()).map((target) => target.id).sort();
+    if (priorOwnedTargetIds.length <= 1) throw new Error('AUTOMATION_OWNED_TARGET_LAST_CLOSE_FORBIDDEN: at least one exact owned target must remain.');
+    let transition = ownership.targetTransition;
+    if (!transition) {
+      transition = await this.targetTransitionCoordinator.prepareTargetTransition({
+        operation: 'REMOVE', automationWindowId: ownership.windowId, priorOwnedTargetIds, targetId,
+      });
+      ownership.targetTransition = transition;
+      await this.ownershipStore.write(ownership);
+    }
+    assertLocalTargetTransition(transition, { operation: 'REMOVE', automationWindowId: ownership.windowId, priorOwnedTargetIds, targetId });
+    await this.targetTransitionCoordinator.beginTargetTransition(transition);
+    try {
+      const result = await this.rawBrowser.closeTarget(targetId);
+      if (result !== true) throw new Error('AUTOMATION_OWNED_TARGET_CLOSE_REJECTED: browser did not confirm target closure.');
+      if ((await this.rawBrowser.listTargets()).some((target) => target.id === targetId)) {
+        throw new Error('AUTOMATION_OWNED_TARGET_CLOSE_UNCONFIRMED: target remains live after browser closure response.');
+      }
+      delete ownership.targets[targetId];
+      await this.ownershipStore.write(ownership);
+      await this.#reconcileTargetTransition(ownership, Object.keys(ownership.targets));
+      return result;
+    } catch (error) {
+      await this.#settleFailedTargetMutation(ownership, transition).catch(() => {});
+      throw error;
+    }
   }
 
   async inspectChat(target, expectedUrl) {
@@ -316,58 +352,230 @@ export class AutomationOwnedBrowser {
 
   async #createOwnedTarget(url, purpose, hardCeiling, exactAnchor = null) {
     if (!Number.isInteger(hardCeiling) || hardCeiling < 1 || hardCeiling > 3) throw new Error('Automation-owned ChatGPT hard ceiling must be 1-3.');
+    this.#requireTargetTransitionCoordinator();
     const ownership = await this.#ensureOwnership();
+    const pendingIntent = ownership.creationIntents?.[purpose];
+    if (pendingIntent) {
+      if (pendingIntent.url !== url || pendingIntent.windowId !== ownership.windowId) {
+        throw new Error('OWNED_TARGET_CREATION_INTENT_MISMATCH: pending creation uses different exact bindings.');
+      }
+      const candidates = await this.#waitForCreationDifference(new Set(pendingIntent.baselineTargetIds), ownership.windowId);
+      if (candidates.length > 1) throw new Error(`OWNED_TARGET_CREATION_RECOVERY_AMBIGUOUS: found ${candidates.length} post-intent targets in the exact automation window.`);
+      if (candidates.length === 1) {
+        const candidate = candidates[0];
+        let currentUrl = null;
+        try { currentUrl = normalizeAutomationTargetUrl(candidate.url); } catch { /* exact mismatch below */ }
+        if (candidate.type !== 'page' || currentUrl !== url) throw new Error('OWNED_TARGET_CREATION_RECOVERY_MISMATCH: post-intent target does not match the exact requested page and URL.');
+        ownership.targets[candidate.id] = {
+          targetId: candidate.id, purpose, assignedUrl: url,
+          createdAt: pendingIntent.intentRecordedAt, lastUsedAt: new Date().toISOString(),
+        };
+        delete ownership.creationIntents[purpose];
+        await this.ownershipStore.write(ownership);
+        await this.#reconcileTargetTransition(ownership, Object.keys(ownership.targets));
+        const ready = await this.#waitForRawTarget(candidate.id);
+        await this.protocol.waitForReady(ready, url);
+        return { ...ready, url, created: true, reused: false, recovered: true, automationOwned: true, automationWindowId: ownership.windowId };
+      }
+      await this.#settleFailedTargetMutation(ownership, ownership.targetTransition);
+    }
     const owned = await this.listTargets();
     if (owned.length >= hardCeiling) throw new Error(`MANAGED_CHATGPT_TAB_HARD_CEILING: refusing to create automation-owned tab ${owned.length + 1}; ceiling is ${hardCeiling}.`);
     const anchor = exactAnchor ?? owned[0];
     if (!anchor) throw new Error('Automation-owned window has no anchor target.');
     if (exactAnchor && !owned.some((target) => target.id === exactAnchor.id)) throw new Error('EXACT_CREATION_ANCHOR_MISSING.');
+    ownership.creationIntents ??= {};
+    const priorOwnedTargetIds = owned.map((target) => target.id).sort();
     let intentRecordedAt = new Date().toISOString();
-    if (exactAnchor) {
-      ownership.creationIntents ??= {};
-      const priorIntent = ownership.creationIntents[purpose];
-      if (priorIntent) {
-        if (priorIntent.url !== url || priorIntent.windowId !== ownership.windowId || priorIntent.anchorTargetId !== anchor.id) {
-          throw new Error('OWNED_TARGET_CREATION_INTENT_MISMATCH: refusing to reuse a pending creation intent with changed exact bindings.');
-        }
-        intentRecordedAt = priorIntent.intentRecordedAt;
-      } else {
-        const baselineTargetIds = [];
-        for (const target of await this.rawBrowser.listTargets()) {
-          const windowId = await this.protocol.getWindowId(target.id).catch(() => null);
-          if (windowId === ownership.windowId) baselineTargetIds.push(target.id);
-        }
-        intentRecordedAt = new Date().toISOString();
-        ownership.creationIntents[purpose] = {
-          purpose,
-          url,
-          windowId: ownership.windowId,
-          anchorTargetId: anchor.id,
-          baselineTargetIds: baselineTargetIds.sort(),
-          intentRecordedAt,
-        };
-        await this.ownershipStore.write(ownership);
+    const priorIntent = ownership.creationIntents[purpose];
+    if (priorIntent) {
+      if (priorIntent.url !== url || priorIntent.windowId !== ownership.windowId || priorIntent.anchorTargetId !== anchor.id
+        || JSON.stringify(priorIntent.baselineTargetIds) !== JSON.stringify(priorOwnedTargetIds)) {
+        throw new Error('OWNED_TARGET_CREATION_INTENT_MISMATCH: refusing to reuse a pending creation intent with changed exact bindings.');
       }
+      intentRecordedAt = priorIntent.intentRecordedAt;
+    } else {
+      ownership.creationIntents[purpose] = {
+        purpose,
+        url,
+        windowId: ownership.windowId,
+        anchorTargetId: anchor.id,
+        baselineTargetIds: priorOwnedTargetIds,
+        intentRecordedAt,
+      };
     }
-    await this.rawBrowser.activateTarget(anchor.id);
-    const created = await this.protocol.createTarget(url);
-    const windowId = await this.protocol.getWindowId(created.targetId);
-    if (windowId !== ownership.windowId) {
-      await this.rawBrowser.closeTarget(created.targetId).catch(() => {});
-      throw new Error(`AUTOMATION_WINDOW_TARGET_CREATION_MISMATCH: created target landed in window ${windowId}, expected ${ownership.windowId}.`);
+    let transition = ownership.targetTransition;
+    if (!transition) {
+      transition = await this.targetTransitionCoordinator.prepareTargetTransition({
+        operation: 'ADD', automationWindowId: ownership.windowId, priorOwnedTargetIds, anchorTargetId: anchor.id,
+      });
+      ownership.targetTransition = transition;
     }
-    ownership.targets[created.targetId] = {
-      targetId: created.targetId,
-      purpose,
-      assignedUrl: url,
-      createdAt: intentRecordedAt,
-      lastUsedAt: new Date().toISOString(),
-    };
-    if (exactAnchor) delete ownership.creationIntents[purpose];
     await this.ownershipStore.write(ownership);
-    const target = await this.#waitForRawTarget(created.targetId);
-    await this.protocol.waitForReady(target, url);
-    return { ...target, url, created: true, reused: false, automationOwned: true, automationWindowId: ownership.windowId };
+    assertLocalTargetTransition(transition, { operation: 'ADD', automationWindowId: ownership.windowId, priorOwnedTargetIds, anchorTargetId: anchor.id });
+    await this.targetTransitionCoordinator.beginTargetTransition(transition);
+    try {
+      await this.rawBrowser.activateTarget(anchor.id);
+      const created = await this.protocol.createTarget(url);
+      const windowId = await this.protocol.getWindowId(created.targetId);
+      if (windowId !== ownership.windowId) {
+        await this.rawBrowser.closeTarget(created.targetId).catch(() => {});
+        throw new Error(`AUTOMATION_WINDOW_TARGET_CREATION_MISMATCH: created target landed in window ${windowId}, expected ${ownership.windowId}.`);
+      }
+      ownership.targets[created.targetId] = {
+        targetId: created.targetId,
+        purpose,
+        assignedUrl: url,
+        createdAt: intentRecordedAt,
+        lastUsedAt: new Date().toISOString(),
+      };
+      delete ownership.creationIntents[purpose];
+      await this.ownershipStore.write(ownership);
+      await this.#reconcileTargetTransition(ownership, Object.keys(ownership.targets));
+      const target = await this.#waitForRawTarget(created.targetId);
+      await this.protocol.waitForReady(target, url);
+      return { ...target, url, created: true, reused: false, automationOwned: true, automationWindowId: ownership.windowId };
+    } catch (error) {
+      await this.#settleFailedTargetMutation(ownership, transition).catch(() => {});
+      throw error;
+    }
+  }
+
+  #requireTargetTransitionCoordinator() {
+    if (!this.targetTransitionCoordinator) {
+      throw new Error('CENTRAL_TARGET_TRANSITION_COORDINATOR_REQUIRED: browser target-set mutations are disabled.');
+    }
+  }
+
+  async #reconcileTargetTransition(ownership, observedTargetIds) {
+    const transition = ownership.targetTransition;
+    if (!transition) return false;
+    this.#requireTargetTransitionCoordinator();
+    const observed = [...observedTargetIds].sort();
+    const prior = [...transition.priorOwnedTargetIds].sort();
+    let added = observed.filter((targetId) => !prior.includes(targetId));
+    let removed = prior.filter((targetId) => !observed.includes(targetId));
+    if (transition.operation === 'RECONCILE_REMOVE') {
+      if (observed.includes(transition.targetId)) {
+        if (added.length === 0 && removed.length === 0) {
+          await this.targetTransitionCoordinator.beginTargetTransition(transition);
+          await this.targetTransitionCoordinator.abortTargetTransition(transition, {
+            observedAutomationWindowId: ownership.windowId,
+            observedOwnedTargetIds: observed,
+          });
+          ownership.targetTransition = null;
+          await this.ownershipStore.write(ownership);
+          return true;
+        }
+        throw new Error('AUTOMATION_OWNED_TARGET_TRANSITION_AMBIGUOUS: disappeared target became live while another target-set delta was observed.');
+      }
+      const postOwnedTargetIds = prior.filter((targetId) => targetId !== transition.targetId);
+      const commit = () => this.targetTransitionCoordinator.commitTargetTransition(transition, {
+        postOwnedTargetIds, transitionedTargetId: transition.targetId,
+      });
+      try {
+        await commit();
+      } catch (error) {
+        if (error?.code !== 'RELAY_TARGET_TRANSITION_MISSING') throw error;
+        await this.targetTransitionCoordinator.beginTargetTransition(transition);
+        await commit();
+      }
+      delete ownership.targets[transition.targetId];
+      ownership.targetTransition = null;
+      await this.ownershipStore.write(ownership);
+      return true;
+    }
+    if (added.length === 0 && removed.length === 0) {
+      await this.targetTransitionCoordinator.beginTargetTransition(transition);
+      return false;
+    }
+    const transitionedTargetId = transition.operation === 'ADD' && added.length === 1 && removed.length === 0
+      ? added[0]
+      : transition.operation === 'REMOVE' && removed.length === 1 && added.length === 0
+        ? removed[0]
+        : null;
+    if (!transitionedTargetId || (transition.operation === 'REMOVE' && transitionedTargetId !== transition.targetId)) {
+      throw new Error('AUTOMATION_OWNED_TARGET_TRANSITION_AMBIGUOUS: live target-set delta does not match the durable transition.');
+    }
+    try {
+      await this.targetTransitionCoordinator.beginTargetTransition(transition);
+    } catch (error) {
+      if (!['RELAY_TARGET_TRANSITION_PRIOR_SET_MISMATCH', 'RELAY_TARGET_TRANSITION_REVISION_MISMATCH']
+        .includes(error?.code)) throw error;
+    }
+    await this.targetTransitionCoordinator.commitTargetTransition(transition, {
+      postOwnedTargetIds: observed,
+      transitionedTargetId,
+    });
+    ownership.targetTransition = null;
+    await this.ownershipStore.write(ownership);
+    return true;
+  }
+
+  async #reconcileUnexpectedDisappearances(ownership, observedTargetIds) {
+    const observed = new Set(observedTargetIds);
+    for (;;) {
+      const missing = Object.keys(ownership.targets).sort().filter((targetId) => !observed.has(targetId));
+      if (missing.length === 0) return;
+      this.#requireTargetTransitionCoordinator();
+      if (Object.keys(ownership.targets).length <= 1) {
+        throw new Error('AUTOMATION_WINDOW_REPLACEMENT_REQUIRED: the durable automation window lost its final owned target.');
+      }
+      const targetId = missing[0];
+      const priorOwnedTargetIds = Object.keys(ownership.targets).sort();
+      let transition = ownership.targetTransition;
+      if (!transition) {
+        transition = await this.targetTransitionCoordinator.prepareTargetTransition({
+          operation: 'RECONCILE_REMOVE',
+          automationWindowId: ownership.windowId,
+          priorOwnedTargetIds,
+          targetId,
+        });
+        ownership.targetTransition = transition;
+        await this.ownershipStore.write(ownership);
+        await this.targetTransitionCoordinator.beginTargetTransition(transition);
+      }
+      assertLocalTargetTransition(transition, {
+        operation: 'RECONCILE_REMOVE', automationWindowId: ownership.windowId, priorOwnedTargetIds, targetId,
+      });
+      await this.#reconcileTargetTransition(ownership, [...observed]);
+    }
+  }
+
+  async #settleFailedTargetMutation(ownership, transition) {
+    if (!transition) return false;
+    this.#requireTargetTransitionCoordinator();
+    const observed = await this.#liveWindowTargetIds(ownership.windowId);
+    const prior = [...transition.priorOwnedTargetIds].sort();
+    if (JSON.stringify(observed) === JSON.stringify(prior)) {
+      try {
+        await this.targetTransitionCoordinator.beginTargetTransition(transition);
+      } catch (error) {
+        if (error?.code !== 'RELAY_TARGET_TRANSITION_BUSY') throw error;
+      }
+      await this.targetTransitionCoordinator.abortTargetTransition(transition, { observedOwnedTargetIds: observed });
+      ownership.targetTransition = null;
+      for (const [purpose, intent] of Object.entries(ownership.creationIntents ?? {})) {
+        if (intent.windowId === transition.automationWindowId
+          && JSON.stringify([...intent.baselineTargetIds].sort()) === JSON.stringify(prior)) delete ownership.creationIntents[purpose];
+      }
+      await this.ownershipStore.write(ownership);
+      return true;
+    }
+    if (transition.operation === 'REMOVE' && !observed.includes(transition.targetId)) {
+      delete ownership.targets[transition.targetId];
+      await this.ownershipStore.write(ownership);
+      return this.#reconcileTargetTransition(ownership, observed);
+    }
+    return false;
+  }
+
+  async #liveWindowTargetIds(windowId) {
+    const result = [];
+    for (const target of await this.rawBrowser.listTargets()) {
+      if (await this.protocol.getWindowId(target.id).catch(() => null) === windowId) result.push(target.id);
+    }
+    return result.sort();
   }
 
   async #ensureOwnership() {
@@ -381,6 +589,7 @@ export class AutomationOwnedBrowser {
         const windowId = await this.protocol.getWindowId(targetId).catch(() => null);
         if (windowId === current.windowId) return current;
       }
+      if (this.targetTransitionCoordinator) return this.#replaceAutomationWindow(current, all);
     }
 
     const created = await this.protocol.createDedicatedWindow(CHATGPT_ROOT);
@@ -397,12 +606,160 @@ export class AutomationOwnedBrowser {
         },
       },
       creationIntents: {},
+      targetTransition: null,
+      windowReplacementIntent: null,
       updatedAt: new Date().toISOString(),
     };
     await this.ownershipStore.write(ownership);
     const target = await this.#waitForRawTarget(created.targetId);
     await this.protocol.waitForReady(target, CHATGPT_ROOT);
     return ownership;
+  }
+
+  async #replaceAutomationWindow(ownership, initialTargets) {
+    this.#requireTargetTransitionCoordinator();
+    const priorOwnedTargetIds = Object.keys(ownership.targets).sort();
+    let transition = ownership.targetTransition;
+    if (transition && transition.operation !== 'WINDOW_REPLACE') {
+      throw new Error('AUTOMATION_WINDOW_REPLACEMENT_BLOCKED_BY_TARGET_TRANSITION: resolve the exact prior target mutation first.');
+    }
+    if (!transition) {
+      transition = await this.targetTransitionCoordinator.prepareTargetTransition({
+        operation: 'WINDOW_REPLACE',
+        automationWindowId: ownership.windowId,
+        priorOwnedTargetIds,
+      });
+      ownership.targetTransition = transition;
+    }
+    assertLocalTargetTransition(transition, {
+      operation: 'WINDOW_REPLACE', automationWindowId: ownership.windowId, priorOwnedTargetIds,
+    });
+    let intent = ownership.windowReplacementIntent;
+    if (!intent) {
+      intent = {
+        transitionId: transition.transitionId,
+        priorWindowId: ownership.windowId,
+        baselineTargetIds: initialTargets.map((target) => target.id).sort(),
+        markerUrl: `data:text/plain,mission-control-window-${randomUUID()}`,
+        intentRecordedAt: new Date().toISOString(),
+        createdWindowId: null,
+        createdTargetId: null,
+      };
+      ownership.windowReplacementIntent = intent;
+      await this.ownershipStore.write(ownership);
+    }
+    if (intent.transitionId !== transition.transitionId || intent.priorWindowId !== ownership.windowId) {
+      throw new Error('AUTOMATION_WINDOW_REPLACEMENT_INTENT_MISMATCH: durable replacement intent differs from the open transition.');
+    }
+
+    let candidate = await this.#recoverReplacementCandidate(intent);
+    if (!candidate) {
+      await this.ownershipStore.write(ownership);
+      await this.targetTransitionCoordinator.beginTargetTransition(transition);
+      const created = await this.protocol.createDedicatedWindow(intent.markerUrl);
+      candidate = await this.#validateReplacementCandidate(created, intent);
+      intent.createdWindowId = candidate.windowId;
+      intent.createdTargetId = candidate.targetId;
+    }
+    await this.ownershipStore.write(ownership);
+    const candidateTarget = await this.#waitForRawTarget(candidate.targetId);
+    if (candidateTarget.url !== CHATGPT_ROOT) {
+      if (candidateTarget.url !== intent.markerUrl) {
+        throw new Error('AUTOMATION_WINDOW_REPLACEMENT_CANDIDATE_INVALID: replacement target lost its exact durable marker.');
+      }
+      await this.protocol.navigate(candidateTarget, CHATGPT_ROOT);
+    }
+    const readyTarget = await this.#waitForRawTarget(candidate.targetId);
+    let readyUrl = null;
+    try { readyUrl = normalizeAutomationTargetUrl(readyTarget.url); } catch { /* exact mismatch below */ }
+    if (readyUrl !== CHATGPT_ROOT) {
+      throw new Error('AUTOMATION_WINDOW_REPLACEMENT_CANDIDATE_INVALID: replacement target did not reach the exact ChatGPT root.');
+    }
+    await this.protocol.waitForReady(readyTarget, CHATGPT_ROOT);
+
+    try {
+      await this.targetTransitionCoordinator.commitTargetTransition(transition, {
+        postAutomationWindowId: candidate.windowId,
+        postOwnedTargetIds: [candidate.targetId],
+        transitionedTargetId: candidate.targetId,
+      });
+    } catch (error) {
+      if (error?.code !== 'RELAY_TARGET_TRANSITION_MISSING') throw error;
+      await this.targetTransitionCoordinator.beginTargetTransition(transition);
+      await this.targetTransitionCoordinator.commitTargetTransition(transition, {
+        postAutomationWindowId: candidate.windowId,
+        postOwnedTargetIds: [candidate.targetId],
+        transitionedTargetId: candidate.targetId,
+      });
+    }
+    const now = new Date().toISOString();
+    ownership.windowId = candidate.windowId;
+    ownership.targets = {
+      [candidate.targetId]: {
+        targetId: candidate.targetId,
+        purpose: 'scratch',
+        assignedUrl: CHATGPT_ROOT,
+        createdAt: intent.intentRecordedAt,
+        lastUsedAt: now,
+      },
+    };
+    ownership.creationIntents = {};
+    ownership.targetTransition = null;
+    ownership.windowReplacementIntent = null;
+    await this.ownershipStore.write(ownership);
+    return ownership;
+  }
+
+  async #recoverReplacementCandidate(intent) {
+    if (intent.createdTargetId !== null || intent.createdWindowId !== null) {
+      if (typeof intent.createdTargetId !== 'string' || !Number.isInteger(intent.createdWindowId)) {
+        throw new Error('AUTOMATION_WINDOW_REPLACEMENT_INTENT_INVALID: recorded candidate is incomplete.');
+      }
+      const live = await this.rawBrowser.listTargets();
+      if (!live.some((target) => target.id === intent.createdTargetId)) {
+        intent.baselineTargetIds = [...new Set([...intent.baselineTargetIds, ...live.map((target) => target.id)])].sort();
+        intent.createdTargetId = null;
+        intent.createdWindowId = null;
+        return null;
+      }
+      return this.#validateReplacementCandidate({ targetId: intent.createdTargetId, windowId: intent.createdWindowId }, intent);
+    }
+    const baseline = new Set(intent.baselineTargetIds);
+    const candidates = [];
+    for (const target of await this.rawBrowser.listTargets()) {
+      if (baseline.has(target.id)) continue;
+      if (target.type !== 'page' || target.url !== intent.markerUrl) continue;
+      const windowId = await this.protocol.getWindowId(target.id).catch(() => null);
+      if (Number.isInteger(windowId) && windowId !== intent.priorWindowId) candidates.push({ targetId: target.id, windowId });
+    }
+    if (candidates.length === 0) return null;
+    if (candidates.length !== 1) {
+      throw new Error(`AUTOMATION_WINDOW_REPLACEMENT_RECOVERY_AMBIGUOUS: found ${candidates.length} possible fresh window targets.`);
+    }
+    const candidate = await this.#validateReplacementCandidate(candidates[0], intent);
+    intent.createdWindowId = candidate.windowId;
+    intent.createdTargetId = candidate.targetId;
+    return candidate;
+  }
+
+  async #validateReplacementCandidate(candidate, intent) {
+    if (!candidate || typeof candidate.targetId !== 'string' || !Number.isInteger(candidate.windowId)
+      || candidate.windowId === intent.priorWindowId || intent.baselineTargetIds.includes(candidate.targetId)) {
+      throw new Error('AUTOMATION_WINDOW_REPLACEMENT_CANDIDATE_INVALID: replacement must be one fresh target in one fresh window.');
+    }
+    const all = await this.rawBrowser.listTargets();
+    const target = all.find((item) => item.id === candidate.targetId);
+    const recordedCandidate = intent.createdTargetId === candidate.targetId && intent.createdWindowId === candidate.windowId;
+    let isRoot = false;
+    try { isRoot = normalizeAutomationTargetUrl(target?.url) === CHATGPT_ROOT; } catch { /* marker or mismatch */ }
+    const sameWindow = [];
+    for (const item of all) {
+      if (await this.protocol.getWindowId(item.id).catch(() => null) === candidate.windowId) sameWindow.push(item);
+    }
+    if (!target || target.type !== 'page' || (target.url !== intent.markerUrl && !(recordedCandidate && isRoot)) || sameWindow.length !== 1) {
+      throw new Error('AUTOMATION_WINDOW_REPLACEMENT_CANDIDATE_INVALID: replacement window is not an exact single root target.');
+    }
+    return candidate;
   }
 
   async #readOwnership() {
@@ -639,6 +996,47 @@ function validateOwnership(value) {
         throw new Error(`BROWSER_OWNERSHIP_STATE_INVALID: creation intent ${purpose} is malformed.`);
       }
     }
+  }
+  if (value.targetTransition != null) {
+    const transition = value.targetTransition;
+    if (!transition || typeof transition.transitionId !== 'string' || transition.transitionId.trim() === ''
+      || !['ADD', 'REMOVE', 'RECONCILE_REMOVE', 'WINDOW_REPLACE'].includes(transition.operation)
+      || !Number.isInteger(transition.automationWindowId) || transition.automationWindowId !== value.windowId
+      || !Number.isInteger(transition.priorBindingRevision) || transition.priorBindingRevision < 1
+      || !Array.isArray(transition.priorOwnedTargetIds) || transition.priorOwnedTargetIds.length < 1
+      || transition.priorOwnedTargetIds.length > 3
+      || transition.priorOwnedTargetIds.some((id) => typeof id !== 'string' || id.trim() === '')
+      || new Set(transition.priorOwnedTargetIds).size !== transition.priorOwnedTargetIds.length
+      || (transition.operation === 'ADD' && (typeof transition.anchorTargetId !== 'string' || transition.targetId !== null))
+      || (['REMOVE', 'RECONCILE_REMOVE'].includes(transition.operation) && (typeof transition.targetId !== 'string' || transition.anchorTargetId !== null))
+      || (transition.operation === 'WINDOW_REPLACE' && (transition.targetId !== null || transition.anchorTargetId !== null))) {
+      throw new Error('BROWSER_OWNERSHIP_STATE_INVALID: target transition is malformed.');
+    }
+  }
+  if (value.windowReplacementIntent != null) {
+    const intent = value.windowReplacementIntent;
+    if (!intent || typeof intent.transitionId !== 'string' || intent.transitionId.trim() === ''
+      || !Number.isInteger(intent.priorWindowId) || intent.priorWindowId !== value.windowId
+      || !Array.isArray(intent.baselineTargetIds)
+      || intent.baselineTargetIds.some((id) => typeof id !== 'string' || id.trim() === '')
+      || new Set(intent.baselineTargetIds).size !== intent.baselineTargetIds.length
+      || typeof intent.markerUrl !== 'string' || !intent.markerUrl.startsWith('data:text/plain,mission-control-window-')
+      || !Number.isFinite(Date.parse(intent.intentRecordedAt ?? ''))
+      || ((intent.createdTargetId === null) !== (intent.createdWindowId === null))
+      || (intent.createdTargetId !== null && (typeof intent.createdTargetId !== 'string' || !Number.isInteger(intent.createdWindowId)))
+      || value.targetTransition?.operation !== 'WINDOW_REPLACE'
+      || value.targetTransition.transitionId !== intent.transitionId) {
+      throw new Error('BROWSER_OWNERSHIP_STATE_INVALID: window replacement intent is malformed.');
+    }
+  }
+}
+
+function assertLocalTargetTransition(transition, expected) {
+  const samePrior = JSON.stringify([...transition.priorOwnedTargetIds].sort()) === JSON.stringify([...expected.priorOwnedTargetIds].sort());
+  if (transition.operation !== expected.operation || transition.automationWindowId !== expected.automationWindowId || !samePrior
+    || (expected.operation === 'ADD' && transition.anchorTargetId !== expected.anchorTargetId)
+    || (['REMOVE', 'RECONCILE_REMOVE'].includes(expected.operation) && transition.targetId !== expected.targetId)) {
+    throw new Error('AUTOMATION_OWNED_TARGET_TRANSITION_MISMATCH: pending transition differs from the requested exact mutation.');
   }
 }
 

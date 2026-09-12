@@ -42,6 +42,7 @@ try {
     host: config.runtime.submissionHost,
     minIntervalMs: config.runtime.minSubmissionIntervalMs,
   });
+  rawBrowser.setTargetTransitionCoordinator(submissionPacer);
   const browser = installStuckRecovery(rawBrowser, {
     maxNudges: config.runtime.stuckRecoveryMaxNudges,
     submitMessage: async (target, input) => submissionPacer.submit({

@@ -113,6 +113,11 @@ test('submission interval config defaults to 60000 and exposes the public value'
     assert.equal(publicConfig(config).submissionAuthorityUrl, 'https://mission-control.example/api/submission-authority');
     assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
     assert.equal(Object.hasOwn(publicConfig(config).submissionHost, 'leaseId'), false);
+    assert.doesNotMatch(JSON.stringify(publicConfig(config)), /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+    await assert.rejects(() => loadConfig({
+      ...configEnv(chatsFile),
+      MC_RELAY_TARGET_BINDING_ATTESTOR_KEY: 'x'.repeat(32),
+    }), /must differ from MC_RELAY_TOKEN/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -133,6 +138,17 @@ test('relay config requires deployment identity and rejects a separate host-loca
       ...complete,
       MC_RELAY_SUBMISSION_AUTHORITY_URL: 'http://127.0.0.1:4300',
     }), /configured Mission Control origin/);
+    await assert.rejects(() => loadConfig({
+      ...complete,
+      MC_RELAY_MISSION_CONTROL_URL: 'http://mission-control.example',
+      MC_RELAY_SUBMISSION_AUTHORITY_URL: 'http://mission-control.example/api/submission-authority',
+    }), /must use HTTPS/);
+    const tunnel = await loadConfig({
+      ...complete,
+      MC_RELAY_MISSION_CONTROL_URL: 'http://127.0.0.1:3000',
+      MC_RELAY_SUBMISSION_AUTHORITY_URL: 'http://127.0.0.1:3000/api/submission-authority',
+    });
+    assert.equal(tunnel.missionControl.url, 'http://127.0.0.1:3000');
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -141,6 +157,7 @@ test('relay config requires deployment identity and rejects a separate host-loca
 test('relay fails closed when the Mission Control submission authority is unreachable', async () => {
   const client = new SubmissionSchedulerClient({
     url: 'http://127.0.0.1:4300', token: 's'.repeat(32), producerId: 'collector:test-relay',
+    attestorKey: 'a'.repeat(32), pacingDomain: 'account:test',
     fetchImpl: async () => { throw new Error('unreachable'); },
   });
   await assert.rejects(client.admit({}), (error) => error.code === 'CENTRAL_SCHEDULER_UNREACHABLE');
@@ -166,6 +183,8 @@ function configEnv(chatsFile) {
     MC_RELAY_MISSION_CONTROL_URL: 'https://mission-control.example',
     MC_RELAY_PRODUCER_ID: 'collector:test-relay',
     MC_RELAY_TOKEN: 'x'.repeat(32),
+    MC_RELAY_TARGET_BINDING_ATTESTOR_KEY: 'a'.repeat(32),
+    MC_RELAY_SUBMISSION_PACING_DOMAIN: 'account:test',
     MC_RELAY_HOST_ALIAS: 'primary-test',
     MC_RELAY_HOST_ROLE: 'PRIMARY',
     MC_RELAY_DEPLOYMENT_EPOCH: '1',

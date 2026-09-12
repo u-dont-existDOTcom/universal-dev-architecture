@@ -63,8 +63,28 @@ export class RelayRuntime {
     const memory = this.#memoryState(metrics);
     const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
     const chatCapabilities = this.config.runtime.chats.map((chat) => chatCapabilityState(snapshot, chat));
+    const activeLease = centralScheduler.activeLease;
+    const relayBinding = centralScheduler.authenticatedRelayBinding;
+    const automationWindowBound = Number.isInteger(browser.automationWindowId)
+      && browser.automationWindowId === relayBinding?.automationWindowId
+      && browser.automationOwnedTabCount === relayBinding?.ownedTargetCount
+      && browser.automationOwnedTargetIdsSha256 === relayBinding?.ownedTargetIdsSha256;
+    const localLeaseActive = activeLease?.epoch === this.config.runtime.submissionHost.deploymentEpoch
+      && activeLease?.activeHostAlias === this.config.runtime.submissionHost.alias
+      && activeLease?.activeHostRole === this.config.runtime.submissionHost.role;
+    const standbyReady = this.config.runtime.submissionHost.role === 'SECONDARY'
+      && activeLease?.activeHostRole === 'PRIMARY'
+      && centralScheduler.schedulerState === 'ACTIVE_LEASE'
+      && centralScheduler.ledger?.valid === true
+      && centralScheduler.safetyHalt == null
+      && automationWindowBound;
+    const status = !automationWindowBound
+      ? 'AUTOMATION_WINDOW_BINDING_MISMATCH'
+      : localLeaseActive
+      ? (centralScheduler.ready === true ? 'READY' : 'CENTRAL_AUTHORITY_NOT_READY')
+      : (standbyReady ? 'STANDBY_READY' : 'DEPLOYMENT_LEASE_MISMATCH');
     const result = {
-      status: 'READY',
+      status,
       checkedAt: new Date().toISOString(),
       submitEnabled: this.config.runtime.submitEnabled,
       capabilityTestEnabled: this.config.runtime.capabilityTestEnabled,

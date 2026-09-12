@@ -23,7 +23,14 @@ export async function loadConfig(env = process.env) {
   const submissionAuthorityUrl = normalizeBaseUrl(
     env.MC_RELAY_SUBMISSION_AUTHORITY_URL ?? `${missionControlUrl}/api/submission-authority`,
   );
+  const targetBindingAttestorKey = required(env.MC_RELAY_TARGET_BINDING_ATTESTOR_KEY, 'MC_RELAY_TARGET_BINDING_ATTESTOR_KEY');
+  if (targetBindingAttestorKey.length < 32) throw new Error('MC_RELAY_TARGET_BINDING_ATTESTOR_KEY must contain at least 32 characters.');
+  if (targetBindingAttestorKey === token) throw new Error('MC_RELAY_TARGET_BINDING_ATTESTOR_KEY must differ from MC_RELAY_TOKEN.');
   const missionControlOrigin = new URL(missionControlUrl).origin;
+  const missionControl = new URL(missionControlUrl);
+  if (missionControl.protocol !== 'https:' && !['127.0.0.1', 'localhost', '::1'].includes(missionControl.hostname)) {
+    throw new Error('Mission Control must use HTTPS unless it is reached through an authenticated loopback tunnel.');
+  }
   const authority = new URL(submissionAuthorityUrl);
   if (authority.origin !== missionControlOrigin || authority.pathname !== '/api/submission-authority') {
     throw new Error('Submission authority must be the /api/submission-authority route on the configured Mission Control origin.');
@@ -45,6 +52,8 @@ export async function loadConfig(env = process.env) {
       url: submissionAuthorityUrl,
       token,
       producerId,
+      attestorKey: targetBindingAttestorKey,
+      pacingDomain: required(env.MC_RELAY_SUBMISSION_PACING_DOMAIN, 'MC_RELAY_SUBMISSION_PACING_DOMAIN'),
       requestTimeoutMs: integer(env.MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS, 10_000, 1_000, 120_000),
     },
     browser: {
