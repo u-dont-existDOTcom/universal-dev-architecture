@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "suite_id": "universal-guidance-activation-wiring-pilot-2026-09-12",
+  "status": "development_fixture",
+  "purpose": "Distinguish rules existing in a repository from current authoritative activation on the reasoning path.",
+  "cases": [
+    {
+      "case_id": "AW-001-rules-exist-project-unwired",
+      "project_authority_requires_universal_guidance": false,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": false,
+      "current_task_or_owner_directly_activates_universal_guidance": false,
+      "authenticated_supervision_route_supplies_current_guidance": false,
+      "expected_activation_status": "NOT_ACTIVATED",
+      "expected_claim": "Do not claim the task was protected by universal controls; project-local authority still governs."
+    },
+    {
+      "case_id": "AW-002-project-explicitly-adopts-universal-guidance",
+      "project_authority_requires_universal_guidance": true,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": true,
+      "current_task_or_owner_directly_activates_universal_guidance": false,
+      "authenticated_supervision_route_supplies_current_guidance": false,
+      "active_contract_binds_current_ref": true,
+      "expected_activation_status": "ACTIVE",
+      "expected_claim": "Universal controls may be claimed active only for the compiled relevant lessons, subject to their semantic/mechanical application gates."
+    },
+    {
+      "case_id": "AW-003-direct-current-task-activation-without-permanent-bootstrap",
+      "project_authority_requires_universal_guidance": true,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": false,
+      "current_task_or_owner_directly_activates_universal_guidance": true,
+      "authenticated_supervision_route_supplies_current_guidance": false,
+      "active_contract_binds_current_ref": true,
+      "expected_activation_status": "ACTIVE",
+      "expected_claim": "A current authoritative direct route is sufficient; do not require a repository bootstrap file merely for ceremony."
+    },
+    {
+      "case_id": "AW-004-project-requires-guidance-but-contract-stale",
+      "project_authority_requires_universal_guidance": true,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": true,
+      "current_task_or_owner_directly_activates_universal_guidance": false,
+      "authenticated_supervision_route_supplies_current_guidance": false,
+      "active_contract_binds_current_ref": false,
+      "expected_activation_status": "STALE",
+      "expected_claim": "Block the affected consequential method commitment/delivery until current guidance is reloaded and the relevant lesson contract is refreshed."
+    }
+  ]
+}

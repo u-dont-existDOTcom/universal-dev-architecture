@@ -24,6 +24,33 @@ Use four layers:
 
 Do not confuse any layer with another. A lesson being present in GitHub is not evidence that it influenced the current output.
 
+## 0. Activation provenance / no implicit universal coverage
+
+Before claiming that universal or project lesson controls protected a task, record **how those controls actually entered the reasoning path**.
+
+Acceptable activation routes include:
+
+- the current project `AGENTS.md` or equivalent bootstrap explicitly loading the current universal/project lesson index;
+- a current task directive or owner instruction explicitly requiring that guidance;
+- an authenticated supervision/admission path that supplies the current guidance and exact task-time lesson contract.
+
+For the relevant guidance layer record:
+
+- source repository and exact ref/commit when available;
+- bootstrap/directive/admission source that triggered retrieval;
+- active lesson contract path or exact in-context equivalent;
+- activation status: `ACTIVE | NOT_ACTIVATED | STALE`.
+
+Hard rules:
+
+1. `rule exists in GitHub` is not activation evidence.
+2. `the model may know the rule` is not activation evidence.
+3. A project need not adopt universal guidance merely because it exists. But when current project/owner authority says the task is governed by it, `NOT_ACTIVATED` or `STALE` blocks consequential method commitment, release, or owner-facing substantive delivery until the reasoning path loads current guidance and compiles the relevant active lessons.
+4. Direct current task/owner activation is valid even when the project lacks a permanent bootstrap; do not manufacture a repository-file dependency when the guidance was actually supplied another authoritative way.
+5. Do not claim a task was protected by a control whose activation route cannot be shown. Record the protection gap honestly and repair the route for subsequent work.
+
+This provenance check is deliberately small. It verifies control-path reachability; it does **not** certify that a semantic lesson was interpreted correctly. The ordinary pre-action application gate below still owns that judgment.
+
 ## 1. Activation before substantive work
 
 After current authority and the lesson index are loaded, classify the task by its actual operations and risks.
@@ -123,6 +150,7 @@ For long-running, expensive, or repeatedly failing tasks, persist a compact task
 ```text
 Task: <identity>
 Authority checked: <repo/ref/state>
+Guidance activation: ACTIVE|NOT_ACTIVATED|STALE — route/source: <...>
 Active lessons:
 - <lesson>: trigger / required behavior / failure condition / enforcement
 ...
