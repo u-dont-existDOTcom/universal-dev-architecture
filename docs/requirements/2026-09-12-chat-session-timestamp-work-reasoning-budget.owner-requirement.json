@@ -1,0 +1,29 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-CHAT-TIMESTAMP-WORK-REASONING-BUDGET-20260912",
+  "recorded_at": "2026-09-12T00:40:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "universal development architecture",
+  "requirements": [
+    {
+      "id": "CHAT-START-TIME-001",
+      "text": "Every new chat must begin with a visible date-and-time stamp so the owner can tell when that chat occurred.",
+      "operationalization": "Place an explicit date and time at the start of the chat's first assistant response. Use the owner's local timezone when known; otherwise include an explicit timezone or UTC offset. Do not rely on hidden provider metadata, conversation ordering, or later historical reconstruction as a substitute for the visible stamp."
+    },
+    {
+      "id": "CHAT-BEFORE-WORK-001",
+      "text": "Before telling the owner to put work into Work, or before routing work to Work/Codex, do as much substantive thinking as practical in Chat first.",
+      "operationalization": "Resolve architecture, strategy, methodology, prioritization, owner-intent interpretation, substantive prose, acceptance criteria, decomposition, execution instructions, and foreseeable failure handling in Chat when Chat can do so reliably. Delegate only the residual execution that materially benefits from the Work/Codex execution surface."
+    },
+    {
+      "id": "WORK-MIN-REASONING-001",
+      "text": "After Chat has reduced the residual task, set Work/Codex to the lowest thinking/reasoning level reasonably expected to succeed, so credits are not wasted.",
+      "operationalization": "Choose executor reasoning effort from the residual uncertainty and execution complexity after Chat reasoning, not from the original task's apparent difficulty. Do not carry a high reasoning setting into Work merely because Chat needed high reasoning. Increase Work reasoning only when a concrete unresolved execution-side uncertainty makes the lower level materially less likely to succeed. If execution fails in a way that calls the plan or strategy into question, return to Chat for diagnosis before simply escalating Work reasoning."
+    }
+  ],
+  "non_goals": [
+    "Do not infer or expose hidden provider message timestamps.",
+    "Do not move reasoning into Work merely to save Chat effort.",
+    "Do not minimize Work reasoning below the level reasonably expected to execute the bounded directive successfully."
+  ]
+}
