@@ -217,6 +217,64 @@ test("partial submission-authority configuration cannot silently disable the gat
   }
 });
 
+test("provisioning-only authority admits exactly one owner-authorized MC-only provider-root send", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const authority = runtime(store, now, {
+      MISSION_CONTROL_SUPERVISOR_CHATS_JSON: undefined,
+      MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON: JSON.stringify([configuredProvision()]),
+    });
+    const exact = provisioningRequest();
+    for (const mutation of [
+      { sendPath: "SUPERVISOR_MESSAGE" },
+      { targetKind: "REGISTERED_BOOTSTRAP" },
+      { targetKey: "provider-session:provisioning:wrong" },
+      { expectedUrlSha256: sha256("https://chatgpt.com/c/not-root") },
+    ]) {
+      await assert.rejects(
+        authority.execute("admissions", { ...exact, ...mutation }, producer),
+        (error: any) => error.code === "SUPERVISOR_PROVISIONING_SCOPE_MISMATCH",
+      );
+    }
+    const admission = await authority.execute("admissions", exact, producer);
+    now.value += 1_000;
+    await authority.execute("boundaries", {
+      admissionId: admission.admissionId,
+      boundaryAt: new Date(now.value).toISOString(),
+      boundaryKind: "GENERATION_STARTED",
+      conversationUrlSha256: sha256("https://chatgpt.com/c/provisioned-private"),
+    }, producer);
+    await assert.rejects(
+      authority.execute("admissions", { ...exact, requestId: "provision:second", queueKey: "provision:second" }, producer),
+      (error: any) => error.code === "SUPERVISOR_PROVISIONING_ALREADY_CONSUMED",
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test("active and provisioning registrations cannot collide or create two global Project Managers", () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    assert.throws(() => runtime(store, now, {
+      MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON: JSON.stringify([
+        configuredProvision({ scope: "SPECIALIST", supervisorId: "spec" }),
+      ]),
+    }), /supervisor IDs must be unique across the combined registry/);
+    assert.throws(() => runtime(store, now, {
+      MISSION_CONTROL_SUPERVISOR_CHATS_JSON: JSON.stringify([
+        configuredChat(),
+        { ...configuredChat(), scope: "PROJECT_MANAGER", supervisorId: "mc-project-manager", registrationId: "registration:pm:active", bootstrapCapability: { chatId: "pm-active", url: "https://chatgpt.com/c/pm-active", challengeId: "pm-active" } },
+      ]),
+      MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON: JSON.stringify([configuredProvision()]),
+    }), /unique across the combined registry|Only one overall Project Manager/);
+  } finally {
+    store.close();
+  }
+});
+
 test("relay bearer and target attestor credentials are pairwise distinct across hosts", () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };
@@ -386,6 +444,43 @@ function configuredChat() {
     bootstrapCapability: { chatId: "bootstrap-spec", url: "https://chatgpt.com/c/bootstrap-spec", challengeId: "challenge-spec" },
     consumerControls: { modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false },
   };
+}
+
+function configuredProvision(overrides: Record<string, unknown> = {}) {
+  return {
+    registrationState: "PROVISIONING",
+    scope: "PROJECT_MANAGER",
+    supervisorId: "mc-project-manager",
+    label: "Mission Control Project Manager",
+    workerId: "worker-a",
+    requiredApp: "Mission Control",
+    registrationId: "registration:pm:provisioning:test",
+    provisioningKey: "provider-session:provisioning:pm-test",
+    ownership: "MISSION_CONTROL_ONLY",
+    purpose: "Dedicated Mission Control project supervision only.",
+    accountAlias: "owner-account",
+    workspaceAlias: "mission-control",
+    privateLocatorRef: "private-config:supervisors/pm",
+    provisioningProvenance: { authorizedBy: "OWNER", authorizedAt: "2026-09-12T12:00:00.000Z", sourceRef: "owner-requirement:90" },
+    consumerControls: { modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false },
+    ...overrides,
+  };
+}
+
+function provisioningRequest(overrides: Record<string, unknown> = {}) {
+  return request({
+    requestId: "provision:pm",
+    authorizationRef: "task:worker-a",
+    queueKey: "provision:pm",
+    retryRootKey: "provision:pm",
+    sendPath: "MC_ONLY_PROVISIONING",
+    supervisorId: "mc-project-manager",
+    registrationId: "registration:pm:provisioning:test",
+    targetKind: "FRESH_PROVIDER_SESSION",
+    targetKey: "provider-session:provisioning:pm-test",
+    expectedUrlSha256: sha256("https://chatgpt.com/"),
+    ...overrides,
+  });
 }
 
 function primaryLease() {

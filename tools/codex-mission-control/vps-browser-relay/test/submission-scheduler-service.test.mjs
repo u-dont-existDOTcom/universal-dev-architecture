@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createHmac } from 'node:crypto';
 
-import { parseChatDirectory, sha256 } from '../src/core.mjs';
+import { parseChatDirectory, parseChatProvisionDirectory, sha256 } from '../src/core.mjs';
 import {
   CentralSubmissionScheduler,
   defaultSchedulerState,
@@ -685,6 +685,42 @@ test('MC-only registry and exact target binding reject legacy, personal, unregis
   await assert.rejects(missingAuthorization.admit(request({ authorizationRef: null }), 'collector:relay'), /authorizationRef/);
 });
 
+test('owner-authorized provisioning is one-time and cannot authorize normal, bootstrap, or bound sends', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const provision = provisionChat();
+  const scheduler = makeScheduler(store, now, { chats: parseChatProvisionDirectory([provision]) });
+  await scheduler.activateLease(primaryLease());
+  const exact = request({
+    requestId: 'provision:spec', authorizationRef: 'task:worker-a', queueKey: 'provision:spec',
+    sendPath: 'MC_ONLY_PROVISIONING', supervisorId: provision.supervisorId,
+    registrationId: provision.registrationId, targetKind: 'FRESH_PROVIDER_SESSION',
+    targetKey: provision.provisioningKey, expectedUrlSha256: sha256('https://chatgpt.com/'),
+  });
+  for (const mutation of [
+    { sendPath: 'SUPERVISOR_MESSAGE' },
+    { targetKind: 'REGISTERED_BOOTSTRAP' },
+    { targetKind: 'BOUND_PROVIDER_SESSION' },
+    { targetKey: 'provider-session:provisioning:wrong' },
+    { expectedUrlSha256: sha256('https://chatgpt.com/c/not-root') },
+  ]) {
+    await assert.rejects(scheduler.admit({ ...exact, ...mutation }, 'collector:relay'), hasCode('SUPERVISOR_PROVISIONING_SCOPE_MISMATCH'));
+  }
+  const admission = await scheduler.admit(exact, 'collector:relay');
+  now.value += 1_000;
+  await scheduler.recordBoundary({
+    admissionId: admission.admissionId,
+    boundaryAt: new Date(now.value).toISOString(),
+    boundaryKind: 'GENERATION_STARTED',
+    conversationUrlSha256: sha256('https://chatgpt.com/c/private-provisioned-chat'),
+  }, 'collector:relay');
+  now.value += 60_000;
+  await assert.rejects(
+    scheduler.admit({ ...exact, requestId: 'provision:again', queueKey: 'provision:again' }, 'collector:relay'),
+    hasCode('SUPERVISOR_PROVISIONING_ALREADY_CONSUMED'),
+  );
+});
+
 function makeScheduler(store, now, overrides = {}) {
   return new CentralSubmissionScheduler({
     stateStore: store,
@@ -758,6 +794,20 @@ function chat() {
     accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec',
     registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T11:00:00.000Z', sourceRef: 'owner-requirement:test' },
     bootstrapCapability: { chatId: 'bootstrap-test', url: 'https://chatgpt.com/c/bootstrap-test', challengeId: 'challenge-test' },
+    consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
+    requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
+  };
+}
+
+function provisionChat() {
+  return {
+    registrationState: 'PROVISIONING', scope: 'SPECIALIST', supervisorId: 'spec-provisioning',
+    label: 'Provisioned specialist', workerId: 'worker-a', pinned: false,
+    registrationId: 'registration:spec:provisioning:test',
+    provisioningKey: 'provider-session:provisioning:spec-test', ownership: 'MISSION_CONTROL_ONLY',
+    purpose: 'Owner-authorized Mission Control-only chat provisioning.', accountAlias: 'account:test',
+    workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec-provisioning',
+    provisioningProvenance: { authorizedBy: 'OWNER', authorizedAt: '2026-09-12T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
     consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };

@@ -10,7 +10,16 @@ export function submissionSchedulerContext({ chat, target, expectedUrl, provider
   let targetKind;
   let targetKey;
   let canonicalUrl;
-  if (expectedUrl === chat.bootstrapCapability.url) {
+  if (chat.registrationState === 'PROVISIONING') {
+    if (sendPath !== 'MC_ONLY_PROVISIONING' || expectedUrl !== PROVIDER_ROOT
+      || providerSessionId !== chat.provisioningKey
+      || !providerSessionId?.startsWith('provider-session:provisioning:')) {
+      throw new Error('A provisioning registration permits only its exact Mission Control-only provider-root send.');
+    }
+    targetKind = 'FRESH_PROVIDER_SESSION';
+    targetKey = providerSessionId;
+    canonicalUrl = PROVIDER_ROOT;
+  } else if (expectedUrl === chat.bootstrapCapability.url) {
     targetKind = 'REGISTERED_BOOTSTRAP';
     targetKey = chat.bootstrapCapability.chatId;
     canonicalUrl = normalizeConversationUrl(expectedUrl);

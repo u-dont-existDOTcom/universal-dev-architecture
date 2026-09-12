@@ -1254,6 +1254,19 @@ function assertRegistryTarget(chats, state, request) {
   const chat = chats.get(request.supervisorId);
   if (!chat) throw new SubmissionSchedulerError('SUPERVISOR_NOT_REGISTERED', 'The supervisor is absent from the current registry.');
   if (chat.ownership !== 'MISSION_CONTROL_ONLY' || chat.registrationId !== request.registrationId) throw new SubmissionSchedulerError('SUPERVISOR_OWNERSHIP_MISMATCH', 'Mission Control-only ownership and registration must match exactly.');
+  if (chat.registrationState === 'PROVISIONING') {
+    if (!chat.purpose || chat.provisioningProvenance?.authorizedBy !== 'OWNER') {
+      throw new SubmissionSchedulerError('SUPERVISOR_PROVENANCE_INVALID', 'Owner provisioning authority and an explicit Mission Control purpose are required.');
+    }
+    if (request.sendPath !== 'MC_ONLY_PROVISIONING' || request.targetKind !== 'FRESH_PROVIDER_SESSION'
+      || request.targetKey !== chat.provisioningKey || request.expectedUrlSha256 !== sha256('https://chatgpt.com/')) {
+      throw new SubmissionSchedulerError('SUPERVISOR_PROVISIONING_SCOPE_MISMATCH', 'A provisioning registration permits only its exact one-time Mission Control-only provider-root send.', 403);
+    }
+    if (state.targetBindings[chat.provisioningKey]) {
+      throw new SubmissionSchedulerError('SUPERVISOR_PROVISIONING_ALREADY_CONSUMED', 'The one-time provisioning key already binds a provider conversation.');
+    }
+    return chat;
+  }
   if (!chat.purpose || chat.registrationProvenance?.registeredBy !== 'OWNER') throw new SubmissionSchedulerError('SUPERVISOR_PROVENANCE_INVALID', 'Owner provenance and an explicit Mission Control purpose are required.');
   if (request.targetKind === 'REGISTERED_BOOTSTRAP') {
     if (request.targetKey !== chat.bootstrapCapability.chatId || request.expectedUrlSha256 !== sha256(chat.bootstrapCapability.url)) throw new SubmissionSchedulerError('SUPERVISOR_TARGET_MISMATCH', 'Bootstrap target does not match the registered conversation.');

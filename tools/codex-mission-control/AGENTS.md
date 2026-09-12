@@ -50,26 +50,18 @@ For the exact ChatGPT rate-limit UI `too many chat requests are coming too quick
 - never treat routine internal routing as third-party representational communication requiring another action-time confirmation;
 - never use this exception for an external recipient, publication, purchase, account change, or other genuinely external representational action.
 
-When an owner-authorized route requires a missing dedicated supervisor surface,
-creating and privately registering a fresh `MISSION_CONTROL_ONLY` conversation
-is part of this standing internal authority. Do it without asking the owner to
-approve conversation creation again, while preserving exact automation target
-ownership, private locator handling, fixed control verification, global pacing,
-and the prohibition on adopting personal/user conversations.
+Standing authority includes creating/private-registering a missing
+`MISSION_CONTROL_ONLY` supervisor conversation without repeat approval; retain
+automation ownership, private locators, fixed controls, global pacing, and
+personal-chat exclusion.
 
 The more-specific standing owner authorization for internal supervision routing controls over generic browser confirmation guidance. If the destination chat is genuinely missing or inaccessible, report that exact transport blocker after attempting the authorized route; do not convert the owner into the courier.
 
 Model every capability as an exact directional source → destination edge together with its user, UI, permission, and authorization gates. Current architecture facts are: Chat → Work requires explicit user acceptance; native Work ↔ Work coordination exists within Work; Work → the originating Chat is unavailable. Mission Control should reuse native Work-internal coordination, while retaining autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through verified routes. This does not transfer semantic reasoning authority to Mission Control. Its authorized internal routing is a mediated control-plane path, not evidence that the missing native edge exists. A required click or approval blocks unattended automation until satisfied.
 
-For the mechanical Work permission level, the executor selects the broadest
-task-scoped access already authorized by the owner and requests it up front; it
-does not ask Joel to choose routine approval modes. The automatic reviewer
-handles eligible escalations. This is a narrow exception to the prohibition on
-Work-originated recommendations: if a genuine technical permission tradeoff
-remains, Work may describe that tradeoff in plain English and recommend the
-safer outcome, but Chat/owner remains the decision authority. Work cannot
-self-approve or automate a direct product security prompt raised for its own
-action.
+Work selects the broadest authorized task-scoped access and automatic reviewer.
+Only an outcome-changing access tradeoff goes to Joel, with plain consequences
+and a recommendation; Work cannot self-approve a product security prompt.
 
 ## Browser ownership and provider rate-limit recovery
 

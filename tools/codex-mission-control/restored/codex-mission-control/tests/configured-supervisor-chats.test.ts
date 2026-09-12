@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CANONICAL_PROJECT_MANAGER_ID,
+  loadConfiguredSupervisorChatProvisions,
   loadConfiguredSupervisorChats,
 } from "../lib/configured-supervisor-chats";
 
@@ -25,6 +26,27 @@ function configuredEntry(overrides: Record<string, unknown> = {}) {
       url: "https://chatgpt.com/c/pm-bootstrap-test",
       challengeId: "pm-capability-test",
     },
+    ...overrides,
+  };
+}
+
+function provisionEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    registrationState: "PROVISIONING",
+    scope: "PROJECT_MANAGER",
+    supervisorId: CANONICAL_PROJECT_MANAGER_ID,
+    label: "Mission Control Project Manager",
+    workerId: "mission-control-live-slice",
+    registrationId: "registration:pm:provisioning:test",
+    provisioningKey: "provider-session:provisioning:pm-test",
+    ownership: "MISSION_CONTROL_ONLY",
+    purpose: "Dedicated Mission Control project supervision.",
+    accountAlias: "account:test",
+    workspaceAlias: "workspace:test",
+    privateLocatorRef: "private-config:supervisors/pm",
+    provisioningProvenance: { authorizedBy: "OWNER", authorizedAt: "2026-09-12T12:00:00.000Z", sourceRef: "owner-requirement:test" },
+    requiredApp: "Mission Control",
+    consumerControls: { modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false },
     ...overrides,
   };
 }
@@ -104,4 +126,38 @@ test("two supervisors cannot reuse a bootstrap chat ID or normalized conversatio
   ]));
   assert.equal(duplicateUrl.configurationState, "INVALID");
   assert.match(duplicateUrl.error ?? "", /bootstrap conversation URLs must be unique/i);
+});
+
+test("owner-authorized MC-only provisions carry no conversation locator and use a one-time provider-session namespace", () => {
+  const directory = loadConfiguredSupervisorChatProvisions(JSON.stringify([provisionEntry()]));
+  assert.equal(directory.configurationState, "CONFIGURED");
+  assert.equal(directory.entries[0].registrationState, "PROVISIONING");
+  assert.equal(directory.entries[0].provisioningKey, "provider-session:provisioning:pm-test");
+  assert.equal(Object.hasOwn(directory.entries[0], "bootstrapCapability"), false);
+  assert.equal(Object.hasOwn(directory.entries[0], "url"), false);
+});
+
+test("provisions fail closed on locators, non-owner provenance, wrong state, and duplicate identities", () => {
+  for (const mutation of [
+    { url: "https://chatgpt.com/c/not-allowed" },
+    { chatId: "not-allowed" },
+    { bootstrapCapability: { chatId: "not-allowed", url: "https://chatgpt.com/c/not-allowed" } },
+    { registrationState: "ACTIVE" },
+    { provisioningProvenance: { authorizedBy: "RELAY", authorizedAt: "2026-09-12T12:00:00.000Z", sourceRef: "test" } },
+    { provisioningKey: "provider-session:not-provisioning" },
+  ]) {
+    const directory = loadConfiguredSupervisorChatProvisions(JSON.stringify([provisionEntry(mutation)]));
+    assert.equal(directory.configurationState, "INVALID");
+    assert.deepEqual(directory.entries, []);
+  }
+  const duplicate = loadConfiguredSupervisorChatProvisions(JSON.stringify([
+    provisionEntry(),
+    provisionEntry({
+      scope: "SPECIALIST",
+      supervisorId: "specialist-test",
+      registrationId: "registration:specialist:provisioning:test",
+    }),
+  ]));
+  assert.equal(duplicate.configurationState, "INVALID");
+  assert.match(duplicate.error ?? "", /provisioning keys.*unique/i);
 });

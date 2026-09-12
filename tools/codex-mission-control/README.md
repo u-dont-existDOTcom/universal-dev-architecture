@@ -21,7 +21,7 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-c078ada5c76de03fb30e27fbd251e5ee8e39d769e58df38db3581a6773906542
+c4e8b3f12d35786bd80022a46539f2cbccdc141591ff65344300774ae709baef
 ```
 
 The checked archive contains 155 source files in 71 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
@@ -74,7 +74,7 @@ authoritative, or allowed to change Symphony's role. See the
 
 At the current execution receipt boundary:
 
-- 228 deterministic application tests passed;
+- 232 deterministic application tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;
@@ -88,7 +88,7 @@ At the current execution receipt boundary:
 - the actual Human Design repository adapter completed ledger-first direction delivery, acknowledgement, real queue publication, blocker/proposal surfacing, and reconciliation;
 - the 18-run Hermes matrix failed its preregistered gate and automatically retained the baseline;
 - 266 repository tests and the repository audit passed;
-- 177 relay tests and the relay JavaScript/shell syntax checks passed;
+- 182 relay tests and the relay JavaScript/shell syntax checks passed;
 - stack shutdown released the daemon writer lock;
 - the source archive restored with exact checksum and tree equality.
 

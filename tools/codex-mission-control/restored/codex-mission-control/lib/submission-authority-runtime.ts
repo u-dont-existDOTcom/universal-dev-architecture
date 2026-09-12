@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { loadConfiguredSupervisorChats, type ConfiguredSupervisorChat } from "./configured-supervisor-chats";
+import {
+  CANONICAL_PROJECT_MANAGER_ID,
+  loadConfiguredSupervisorChatProvisions,
+  loadConfiguredSupervisorChats,
+  type ConfiguredSupervisorChat,
+  type ConfiguredSupervisorChatProvision,
+} from "./configured-supervisor-chats";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import type { EventStore } from "./store";
 
@@ -56,7 +62,7 @@ export class SubmissionAuthorityRuntime {
   readonly pacingDomain: string | null;
   private readonly scheduler: any | null;
   private readonly initialization: Promise<unknown>;
-  private readonly chats: Map<string, ConfiguredSupervisorChat>;
+  private readonly chats: Map<string, ConfiguredSupervisorChat | ConfiguredSupervisorChatProvision>;
   private readonly relayBindings: Map<string, Record<string, unknown>>;
   private readonly minimumIntervalMs: number | null;
 
@@ -66,11 +72,12 @@ export class SubmissionAuthorityRuntime {
     now: () => number = Date.now,
   ) {
     const directory = loadConfiguredSupervisorChats(env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON);
+    const provisions = loadConfiguredSupervisorChatProvisions(env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     const leaseRaw = env.MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON;
     const domain = env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN?.trim() || null;
     const partiallyConfigured = Boolean(leaseRaw || domain || env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS
       || env.MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS || env.MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON
-      || env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON);
+      || env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON || env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     if (!leaseRaw && !domain && !partiallyConfigured) {
       this.enabled = false;
       this.pacingDomain = null;
@@ -82,10 +89,18 @@ export class SubmissionAuthorityRuntime {
       return;
     }
     if (!leaseRaw || !domain) throw new Error("Mission Control submission authority requires both MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON and MISSION_CONTROL_SUBMISSION_PACING_DOMAIN.");
-    if (directory.configurationState !== "CONFIGURED" || directory.entries.length === 0) {
-      throw new Error(`Mission Control submission authority requires a valid non-empty MISSION_CONTROL_ONLY registry: ${directory.error ?? directory.configurationState}.`);
+    if (directory.configurationState === "INVALID") {
+      throw new Error(`Mission Control submission authority requires a valid MISSION_CONTROL_ONLY registry: ${directory.error}.`);
     }
-    const accountAliases = new Set(directory.entries.map((chat) => chat.accountAlias));
+    if (provisions.configurationState === "INVALID") {
+      throw new Error(`Mission Control submission authority requires a valid MISSION_CONTROL_ONLY provisioning registry: ${provisions.error}.`);
+    }
+    const chats = [...directory.entries, ...provisions.entries];
+    if (chats.length === 0) {
+      throw new Error("Mission Control submission authority requires at least one active or owner-authorized provisioning MISSION_CONTROL_ONLY registration.");
+    }
+    assertCombinedSupervisorRegistry(chats);
+    const accountAliases = new Set(chats.map((chat) => chat.accountAlias));
     if (accountAliases.size !== 1) throw new Error("One pacing domain may contain exactly one provider account alias.");
     const minimumIntervalMs = boundedInteger(env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS, 60_000, 60_000, 600_000);
     this.minimumIntervalMs = minimumIntervalMs;
@@ -100,7 +115,7 @@ export class SubmissionAuthorityRuntime {
     const stateStore = new MissionControlSubmissionStateStore(store, domain, minimumIntervalMs, now);
     this.scheduler = new CentralSubmissionScheduler({
       stateStore,
-      chats: directory.entries,
+      chats,
       producerBindings: relayBindings,
       producerAttestors: relayAttestors,
       pacingDomain: domain,
@@ -110,7 +125,7 @@ export class SubmissionAuthorityRuntime {
     });
     this.enabled = true;
     this.pacingDomain = domain;
-    this.chats = new Map(directory.entries.map((chat) => [chat.supervisorId, chat]));
+    this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
     this.relayBindings = new Map(Object.entries(relayBindings));
     const lease = parseDeploymentLease(JSON.parse(leaseRaw));
     this.initialization = this.scheduler.activateLease(lease).then(
@@ -387,4 +402,24 @@ function publicRelayBinding(binding: Record<string, unknown>) {
     ownedTargetCount: ownedTargetIds.length,
     ownedTargetIdsSha256: createHash("sha256").update(JSON.stringify(ownedTargetIds)).digest("hex"),
   };
+}
+
+function assertCombinedSupervisorRegistry(
+  chats: Array<ConfiguredSupervisorChat | ConfiguredSupervisorChatProvision>,
+) {
+  for (const [label, values] of [
+    ["supervisor IDs", chats.map((chat) => chat.supervisorId)],
+    ["registration IDs", chats.map((chat) => chat.registrationId)],
+  ] as const) {
+    if (new Set(values).size !== values.length) {
+      throw new Error(`Active and provisioning ${label} must be unique across the combined registry.`);
+    }
+  }
+  const projectManagers = chats.filter((chat) => chat.scope === "PROJECT_MANAGER");
+  if (projectManagers.length > 1) {
+    throw new Error("Only one overall Project Manager may exist across active and provisioning registrations.");
+  }
+  if (projectManagers.length === 1 && projectManagers[0].supervisorId !== CANONICAL_PROJECT_MANAGER_ID) {
+    throw new Error(`Project Manager supervisorId must be ${CANONICAL_PROJECT_MANAGER_ID}.`);
+  }
 }

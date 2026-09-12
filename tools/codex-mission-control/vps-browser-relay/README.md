@@ -344,7 +344,26 @@ MC_RELAY_STUCK_RECOVERY_MAX_NUDGES=3
 
 ### Register exact chats
 
-Edit:
+When the owner has authorized creation of a new Mission Control-only chat but
+no conversation locator exists yet, put a strict `registrationState:
+"PROVISIONING"` entry in owner-only `provisions.json`. It must use a unique
+`provider-session:provisioning:*` key and must contain no URL, chat ID, or
+bootstrap capability. Put the harmless first message in an owner-only file and
+run:
+
+```bash
+$relay provision <supervisor-id> <message-file>
+```
+
+The command obtains the shared Mission Control admission before browser
+mutation, enforces the fixed consumer controls, observes only the send and
+generation controls, and stores the resulting locator in owner-only
+`provisioned-chats.json`. It does not print the locator or read assistant
+output. Install the generated active registrations as `chats.json` and
+`MISSION_CONTROL_SUPERVISOR_CHATS_JSON`, then remove the provisioning entries
+and restart Mission Control before ordinary relay work.
+
+For an already active registration, edit:
 
 ```bash
 nano ~/.config/mission-control-chatgpt-relay/chats.json
