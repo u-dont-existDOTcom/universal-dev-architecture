@@ -2,7 +2,9 @@
 
 Status: REQUIRED OWNER CORRECTION
 Date: 2026-09-02
-Updated: 2026-09-08
+Updated: 2026-09-12
+
+Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -21,6 +23,18 @@ It is:
 If the answer is no, keep the action in Chat.
 
 For supervisory/control-plane chats, this is an automation invariant: **when the chat itself can read or write the required GitHub artifact, it must do that GitHub operation directly and must not delegate that operation to Work/Codex.** A Chat -> Work handoff requires explicit user acceptance; delegating a routine GitHub receipt, issue comment, PR update, or evidence read therefore inserts an avoidable human gate and can make an otherwise unattended Mission Control cycle invisible to the owner.
+
+## Chat session timestamp
+
+Every new chat must begin its first assistant response with a **visible date-and-time stamp** so the owner can identify when that chat occurred without reconstructing chronology later.
+
+- Use the owner's local timezone when it is known and reliable.
+- Otherwise use the best current platform/session time available and include an explicit timezone or UTC offset.
+- Do not invent a precision or timezone that is not available.
+- The visible session-start stamp is an owner-facing chronology aid. It does not assert access to hidden provider message metadata and does not replace any separate provenance/source-timestamp requirement.
+- Conversation ordering, remembered history, Git commit time, browser observation time, or later reconstruction is not a substitute for the required visible first-response stamp.
+
+This requirement applies to ordinary reasoning chats, supervisory chats, fresh independent-review chats, and chats opened as part of a Mission Control/controller workflow unless a higher-priority product constraint makes the first visible response impossible to control.
 
 ## Keep in Chat
 
@@ -63,16 +77,35 @@ A long-range repository operation means sustained execution complexity, not simp
 When a task contains both reasoning and execution:
 
 ```text
-Chat reasons first
--> Chat defines exact bounded directive and stop conditions
+Chat reasons first and removes as much semantic/strategic uncertainty as practical
+-> Chat defines the exact bounded residual execution directive and stop conditions
+-> Chat selects the lowest Work/Codex thinking level reasonably expected to execute that residual directive successfully
 -> Work/Codex executes only that residue
 -> Work/Codex returns facts, diffs, logs, tests, and blockers
 -> Chat reviews the receipt and decides what happens next
 ```
 
-Do not send the whole task to Work and ask it to decide the architecture while implementing it.
+Do not send the whole task to Work and ask it to decide the architecture while implementing it. Do not leave avoidable reasoning, prose, strategy, acceptance criteria, or foreseeable failure handling to Work merely because Work is already being invoked for execution.
+
+The Work/Codex reasoning level is chosen from the **residual execution task after Chat reasoning**, not from the difficulty of the original owner request and not from the reasoning level Chat itself needed.
 
 If the current reasoning chat is expected to publish a GitHub decision/receipt as part of a larger controller-mediated cycle, that GitHub publication remains part of the Chat turn. Do not reinterpret the surrounding use of Codex/controller transport as permission to hand the GitHub publication itself to Work.
+
+## Work reasoning-effort budget
+
+Treat Work/Codex reasoning as a scarce execution resource. After Chat has completed all reasoning it can reliably perform, assign the **lowest reasoning/thinking level reasonably expected to succeed** on the bounded residual execution.
+
+Apply these rules:
+
+1. **Reduce before routing.** Chat resolves architecture, strategy, methodology, owner intent, prioritization, acceptance criteria, substantive prose, decomposition, execution instructions, and predictable failure handling when those can be resolved reliably in Chat.
+2. **Budget against the residue.** Estimate Work reasoning need from remaining execution-side ambiguity, branching, debugging difficulty, and tactical implementation freedom—not from the original task's stakes or apparent complexity.
+3. **Do not mirror Chat's level.** A task that required high or very high reasoning in Chat may still need only low execution reasoning once converted into an exact directive.
+4. **Spend more only for a concrete reason.** Increase Work reasoning only when a named unresolved execution-side uncertainty or implementation complexity makes the lower level materially less likely to succeed.
+5. **Do not under-budget into predictable failure.** Credit conservation does not justify a level that is unlikely to execute the directive correctly; the objective is the minimum sufficient level, not the minimum possible level.
+6. **Diagnose before escalating.** When Work fails, distinguish an execution-capability/reasoning shortfall from a bad or incomplete Chat-authored plan. If the failure challenges strategy, architecture, acceptance criteria, or task interpretation, return to Chat for diagnosis before increasing Work reasoning.
+7. **Record the choice for consequential handoffs.** A nontrivial Work directive should state the selected reasoning level when the interface supports it and a short reason it is the lowest expected-sufficient level. If the interface does not expose a selectable reasoning level, do not fabricate one; still minimize the semantic burden delegated to Work.
+
+The optimization target is successful execution per credit, not the lowest numerical setting in isolation.
 
 ## Long-running ChatGPT recovery
 
@@ -131,6 +164,8 @@ Reject these routing rationales:
 "Work can inspect more files, so let it decide what to change."
 "Let Work figure out the architecture and implement it."
 "I'll send the GitHub receipt/write to Work."
+"Chat needed high reasoning, so Work should use high reasoning too."
+"Use maximum Work thinking just to be safe."
 ```
 
 Replace them with a bounded execution test:
@@ -140,6 +175,10 @@ Can Chat make the required judgment and perform the next safe GitHub action dire
   YES -> stay in Chat and perform the GitHub action here.
   NO, because terminal/computer execution is required -> delegate only that residue.
   NO, because the repo operation is genuinely long-range/stateful -> delegate bounded execution, keep reasoning in Chat.
+
+After Chat has reduced the task:
+What is the lowest Work reasoning level reasonably expected to execute the remaining directive correctly?
+  -> choose that level, not the original task's apparent difficulty.
 ```
 
 For an unattended supervisory cycle, add one more hard check:
@@ -170,6 +209,7 @@ A valid Work handoff records:
 - allowed tactical freedom;
 - stop/review triggers;
 - required evidence/tests;
+- selected Work/Codex reasoning level when configurable, plus why it is the lowest expected-sufficient level;
 - explicit semantic authority = none beyond the bounded implementation choices.
 
 The execution receipt becomes input to Chat only through a verified Mission Control/controller route. It is not permission for Work to select the next consequential step.
