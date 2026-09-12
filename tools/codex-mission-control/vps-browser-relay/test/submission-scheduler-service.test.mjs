@@ -428,8 +428,22 @@ test('system-manager compatibility mode keeps browser and relay unprivileged whi
   assert.match(relayUnit, /^NoNewPrivileges=true$/m);
   assert.match(relayUnit, /Requires=mission-control-chatgpt-browser@%i\.service/);
   assert.match(installer, /target_uid.*-eq 0/);
+  assert.match(installer, /target_home.*\*\[!a-zA-Z0-9_\.\/-\]\*/);
+  assert.match(installer, /mission-control-chatgpt-browser@\$\{target_user\}\.service\.d/);
+  assert.match(installer, /EnvironmentFile=\$target_home\/\.config\/mission-control-chatgpt-relay\/browser-env/);
+  assert.match(installer, /ExecStart=\$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/scripts\/launch-browser\.sh/);
+  assert.match(installer, /mission-control-chatgpt-relay@\$\{target_user\}\.service\.d/);
+  assert.match(installer, /EnvironmentFile=\$target_home\/\.config\/mission-control-chatgpt-relay\/env/);
+  assert.match(installer, /MC_RELAY_NODE_BIN/);
+  assert.match(installer, /runuser -u "\$target_user" -- "\$node_bin"/);
+  assert.match(installer, /node_major.*-lt 22/);
+  assert.match(installer, /grep -E '\^MC_RELAY_BROWSER_PROFILE_DIR='/);
+  assert.match(installer, /canonical_browser_profile.*realpath -e/);
+  assert.match(installer, /browser_profile.*!= "\$target_home\/"\*/);
+  assert.match(installer, /ReadWritePaths=\$browser_profile \$target_home\/\.cache/);
+  assert.match(installer, /ExecStart=\$node_bin \$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/bin\/mc-chatgpt-relay\.mjs run/);
   assert.match(installer, /systemctl daemon-reload/);
-  assert.doesNotMatch(installer, /rm\s+-rf|TOKEN|clipboard|xclip|xsel/i);
+  assert.doesNotMatch(installer, /rm\s+-rf|TOKEN|clipboard|xclip|xsel|EnvironmentFile=\/root|ExecStart=\/root/i);
 });
 
 test('standby, wrong alias, wrong epoch, wrong lease, stale lease, and missing lease all fail closed', async () => {

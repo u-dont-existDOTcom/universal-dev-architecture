@@ -468,6 +468,15 @@ sudo ~/.local/share/mission-control-chatgpt-relay/app/scripts/install-system-ser
 sudo systemctl enable --now "mission-control-chatgpt-browser@$USER.service"
 ```
 
+The system-service installer resolves the selected account through the local
+passwd database and pins that exact home directory in per-instance drop-ins.
+This is required because `%h` in a system-manager template names the manager's
+home, not the home of `User=%i`. It also pins one validated Node.js 22+ runtime
+instead of relying on an interactive-shell PATH. If automatic runtime discovery
+is not unique, set `MC_RELAY_NODE_BIN` to the exact executable for the install.
+The browser's writable path is likewise taken from the browser-only environment
+file and must resolve to a non-symlinked dedicated profile beneath that account.
+
 This mode still runs Chromium and the relay as the dedicated unprivileged user.
 It sets `NoNewPrivileges=false` only for the browser so Chromium's owned,
 setuid-root sandbox helper can perform its required transition; the relay keeps
