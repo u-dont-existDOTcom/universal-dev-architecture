@@ -17,6 +17,8 @@ Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global
 | Any ChatGPT browser send | One shared authority in Mission Control's existing single-writer control plane issues a single-use admission before browser mutation and records the crossed boundary; no direct or host-local authority path exists. | Mission Control daemon/BFF, relay client, exhaustive send-path test |
 | Two execution hosts | Exactly one active lease/epoch; secondary stays fail closed; uncertain quiescence or state transfer blocks takeover, and takeover waits the full post-quiescence safety interval. | config parser, scheduler admission, failover tests, installed status |
 | Supervisor chat selection | Require explicit `MISSION_CONTROL_ONLY` conversation ownership and registration provenance in addition to exact automation-owned target/window proof. | registry validation and pre-send admission |
+| Standing conversation-creation authority | Create and privately register required dedicated MC-only supervisor conversations without another owner approval; never adopt a personal/user chat. | owner-specific topology, registry write, exact target binding |
+| Work technical permissions | Work selects the owner-authorized broad task-scoped access level and automatic reviewer itself; ask only for a genuine tradeoff, explained plainly with a recommendation. Direct product security prompts remain a user boundary and cannot be self-approved. | root/nested instructions, permissions pattern, effective task receipt |
 | Browser automation | Preserve exact owned window/target isolation, loopback CDP, native sandbox and bounded provider rate-limit recovery. | existing browser tests plus affected regressions |
 | Owner computer boundary | Remote execution hosts only; no local browser window/tab and no clipboard API or command. | source scan, deployment receipt, runtime process evidence |
 | Public repository portability | Portable role aliases and parameters in patterns/templates; isolate and label all one-owner facts `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`; never commit secrets or private locators. | repository audit, secret/privacy diff review |
@@ -57,6 +59,7 @@ Owner requirement: `docs/requirements/2026-09-10-mission-control-dual-vps-global
 - No local or remote clipboard process was observed, and this correction used only GitHub APIs/CLI plus the authorized SSH/direct-transfer wrappers. The workstation browser was not invoked.
 - Durable evidence: `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 - Production remains untouched and unauthorized.
+- On 2026-09-12 the owner added standing authority for automatic creation and private registration of the required MC-only conversations and for Work to select Full Access (or the broadest task-scoped equivalent) itself. This removes repeat conversational approval but does not permit a worker to self-approve a direct app security gate.
 
 ## Genuine remaining blockers
 

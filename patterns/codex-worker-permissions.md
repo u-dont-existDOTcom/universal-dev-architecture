@@ -14,6 +14,14 @@ network access, and send eligible exceptions to Codex's built-in automatic risk
 reviewer. A saved technical permission never authorizes unrelated publication,
 spending, privileged changes, or external commitments.
 
+The worker, not the owner, selects the permission level for the bounded Work
+task. Where an owner has explicitly established standing complete-access
+authority for Work, initialize the task with the broadest task-scoped profile
+the client supports and request the needed filesystem/network scope at the
+start. Do not ask the owner to choose among routine permission modes. “Complete”
+describes technical reach for the assigned task; it does not grant new semantic,
+destructive, spending, publication, or third-party authority.
+
 Use the existing operating-system pattern's **Owner-interruption decision test**
 for uncertainty and supervisor escalation. Apply it to directly authorized local
 workers as well as supervised workers; do not introduce Mission Control into an
@@ -131,6 +139,14 @@ account eligibility, authentication/OS boundaries, and reviewer failures can
 also require user involvement. Do not weaken those boundaries to claim zero
 prompts. [Auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review).
 
+A worker cannot serve as the human approver for a security prompt caused by its
+own action and must not use browser/computer automation to click that prompt.
+Minimize prompts by selecting the authorized profile and automatic reviewer up
+front. If the product nevertheless routes a gate to the user, identify the exact
+blocked action. Ask the owner to choose only when a genuine outcome-relevant
+tradeoff remains; explain it in plain English, state the consequences, and give
+a recommendation. Do not relabel a routine permission choice as a tradeoff.
+
 Prefix matching is not a universal destructive-operation firewall. Alternate
 executables, `--git-dir=...` forms, scripts, direct API clients, and commands
 inside already-writable roots are not exhaustively classified. Keep actual-effect
@@ -145,8 +161,12 @@ configuration. Full Access explicitly overrides the configuration. Existing
 tasks also retain their own policy/reviewer; changing a named profile alone
 can preserve an old `never` or `user` setting.
 
-Use the desktop's permission control: first choose **Approve for me** to set
-an existing task's approval policy/reviewer, then select **routine-development**.
+For an owner-managed setup, initialize or resume a task with its already
+authorized permission selection rather than asking the owner to configure it.
+Use **Approve for me** for the automatic reviewer and select the named
+task-scoped profile. If the owner has explicitly chosen Full Access as the
+standing Work default, the task initializer selects that mode itself when the
+client exposes it; otherwise use **routine-development**.
 For this repair the native UI action was invoked through Linux accessibility;
 the app itself persisted the new profile selection and a reviewed fallback.
 No application binary or live JSON state was patched.

@@ -1,6 +1,6 @@
 # NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT — Mission Control topology
 
-Updated: 2026-09-11
+Updated: 2026-09-12
 
 This file is **specific to the current repository owner**. It is operational continuity data, not a universal recommendation. A person copying this repository should replace or ignore this file and use the portable architecture in `patterns/portable-vs-owner-specific-deployment-data.md`.
 
@@ -63,6 +63,28 @@ The visible title is for human recognition only. Authorization comes from the pr
 
 Personal/non-MC chats are never fallback supervisor surfaces. If no eligible MC supervisor chat exists, fail closed and create/register a fresh MC-only supervisor conversation through the authorized automation route rather than adopting an owner chat.
 
+## Standing chat-creation and Work-access authority
+
+For this owner, creating and privately registering the dedicated MC-only
+Project Manager and specialist conversations required by the current Mission
+Control task is already authorized. The controller/relay must perform that work
+without asking for another conversation-creation approval. Private conversation
+locators remain off Git and personal/user chats remain ineligible.
+
+For owner-authorized Work tasks, the task executor selects Full Access, or the
+broadest equivalent task-scoped permission profile exposed by the client, and
+uses automatic review for eligible exceptions. Joel is not asked to select a
+routine permission level. This owner-specific preference does not authorize
+new spending, publication, destructive actions, external commitments, or a
+semantic change in outcome.
+
+Only a genuine unresolved tradeoff should interrupt the owner. The interruption
+must explain the real-world consequences in plain English and recommend a
+default. A direct app security prompt cannot be self-approved by the worker; if
+the platform still requires Joel's click after the access profile and automatic
+reviewer are selected, that exact product boundary is reported rather than
+bypassed.
+
 ## Host selection and failover
 
 Desired state:
@@ -100,7 +122,7 @@ The privacy-safe receipt is `docs/evidence/2026-09-10-owner-deployment-multi-hos
 
 The owner deployment is not complete. It still needs:
 
-- one remote ChatGPT login/MFA on Netcup plus creation and private registration of real dedicated MC-only supervisor conversations;
+- private creation and registration of real dedicated MC-only supervisor conversations in the now-authenticated Netcup automation profile;
 - a supported way to run the Mission Control execution workers themselves on the VPS rather than the owner's local Codex/Work host;
 - an owner decision on the Hostinger service-sandbox tradeoff, or a compatible replacement browser runtime.
 
