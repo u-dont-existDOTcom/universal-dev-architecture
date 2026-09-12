@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "candidate_head": "89d8b24865c41fbc91c3a42060dc031de22e0b09",
+  "method_cases": {
+    "CASE-A": {
+      "gate_triggered": true,
+      "necessity_state": "UNRESOLVED",
+      "disposition": "bounded_experiment_only",
+      "owner_action": "NONE",
+      "critical_reason": "The external ontology materially changes evidence semantics and judgment authority, but no supplied evidence rules out the simpler shared frozen participant-reviewed record."
+    },
+    "CASE-B": {
+      "gate_triggered": true,
+      "necessity_state": "ESTABLISHED",
+      "disposition": "commit_or_scale",
+      "owner_action": "NONE",
+      "critical_reason": "Standardized external coding and inter-rater agreement are explicit parts of the owner-required deliverable, which free-text summaries cannot provide."
+    },
+    "CASE-C": {
+      "gate_triggered": false,
+      "necessity_state": null,
+      "disposition": "ordinary_iteration",
+      "owner_action": "NONE",
+      "critical_reason": "The private helper change is a local reversible implementation choice that preserves the accepted external contract and does not materially change the gated dimensions."
+    },
+    "CASE-D": {
+      "gate_triggered": true,
+      "necessity_state": "ESTABLISHED",
+      "disposition": "commit_or_scale",
+      "owner_action": "NONE",
+      "critical_reason": "The verified external interface requires signed schema X v4 and rejects the native representation, establishing the submission-boundary requirement."
+    },
+    "CASE-E": {
+      "gate_triggered": true,
+      "necessity_state": "NOT_NECESSARY",
+      "disposition": "do_not_promote_as_prerequisite",
+      "owner_action": "NONE",
+      "critical_reason": "A separate VPS creates a long-lived dependency while the existing Apps Script Web App surface already satisfies every stated requirement."
+    },
+    "CASE-F": {
+      "gate_triggered": true,
+      "necessity_state": "ESTABLISHED",
+      "disposition": "commit_or_scale",
+      "owner_action": "NONE",
+      "critical_reason": "Verified requirements exceed the native Apps Script surface, establishing the need for some external runtime without establishing any particular vendor."
+    },
+    "CASE-G": {
+      "gate_triggered": true,
+      "necessity_state": "UNRESOLVED",
+      "disposition": "owner_decision",
+      "owner_action": "DECISION_REQUIRED",
+      "critical_reason": "Both architectures satisfy the functional requirements, and technical evidence cannot determine the owner's unresolved priority between ongoing cost and third-party metadata exposure."
+    }
+  },
+  "activation_cases": {
+    "ACT-A": {
+      "activation_status": "NOT_ACTIVATED",
+      "critical_reason": "Universal rules exist, but no project, task, owner, or authenticated supervision route activates them for this task."
+    },
+    "ACT-B": {
+      "activation_status": "ACTIVE",
+      "critical_reason": "Project authority requires the guidance, the bootstrap routes it, and the active contract binds the current ref."
+    },
+    "ACT-C": {
+      "activation_status": "ACTIVE",
+      "critical_reason": "The current task or owner directly activates the required universal guidance and the active contract binds the current ref."
+    },
+    "ACT-D": {
+      "activation_status": "STALE",
+      "critical_reason": "The required guidance is routed by the project bootstrap, but the active contract does not bind the current ref."
+    }
+  }
+}
