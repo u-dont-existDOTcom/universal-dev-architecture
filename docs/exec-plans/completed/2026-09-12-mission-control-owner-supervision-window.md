@@ -2,7 +2,7 @@
 
 Classification: `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`
 
-Status: active
+Status: complete
 
 Lane: release
 
@@ -50,11 +50,19 @@ Give Joel one secure, obvious daily Mission Control window whose Fleet, Supervis
 - Owner access rollback: terminate the SSH forward and remove only the task-specific SSH host entry.
 - Never delete or rewrite the live event or submission-authority ledger.
 
-## Acceptance evidence still required
+## Acceptance evidence
 
-- Exact-head local and hosted gates.
-- Authenticated live dashboard, supervision, detail, and SSE evidence.
-- Current live worker rather than fixture-only rows.
-- Fresh health reports from both hosts with no secret fields.
-- Direct MC-only chat links and truthful registered/reachable/source-bound labels.
-- Final concise owner opening instruction.
+- [x] Exact-head local and hosted gates passed.
+- [x] Authenticated live dashboard, supervision, detail, and SSE passed.
+- [x] The current live worker replaced fixture-only rows.
+- [x] Both host health reports are fresh and privacy-safe.
+- [x] One PM and two specialist links are registered, reachable, and source-bound.
+- [x] The owner opening instruction is included in the issue closeout and final handoff.
+
+## Completion receipt
+
+- Deployed candidate: `490a5cd22b8d0d51db4b79665baf6783e1cbc4ff`.
+- Merged by PR #105 as `67ad184a0acb9d93ce4d1c0c5a857ff2774191b9`.
+- Deployed and merged tree: `1dd8975c49a90d6eba09d314acdf7a84b124adf7`.
+- Post-merge live acceptance: PASS at `2026-09-12T21:53:42Z`.
+- Issue #90 remains completed and was not reopened.
