@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-WORK-THINKING-BUDGET-20260912",
   "recorded_at": "2026-09-12T01:10:00Z",
-  "status": "ACTIVE",
+  "status": "IMPLEMENTED_PENDING_FRESH_WORK_BEHAVIORAL_CHECK",
   "completion_allowed": false,
   "owner_source": {
     "verbatim": "when work is given a task, it checks thinking level it's set at is too low or high then asks me to set it correctly unless the difference is minimal cost savings. It should tell me if i'm spending too much on simple work also",
@@ -13,16 +13,25 @@
     {
       "id": "RO-WORK-LEVEL-001",
       "observable": "Work performs a pre-execution reasoning-level sanity check against the residual task difficulty in both directions: underpowered and unnecessarily expensive.",
-      "status": "UNMET",
+      "status": "IMPLEMENTED_NOT_YET_FRESH_WORK_VERIFIED",
       "terminal_required": true,
-      "evidence_refs": []
+      "evidence_refs": [
+        "patterns/chat-work-execution-routing-threshold.md@75ef35f731f9150e7b5364bc592738cab6b7009c",
+        "templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json@75ef35f731f9150e7b5364bc592738cab6b7009c",
+        "tests/test_work_thinking_budget_preflight.py@75ef35f731f9150e7b5364bc592738cab6b7009c",
+        "pull-request:97"
+      ]
     },
     {
       "id": "RO-WORK-LEVEL-002",
       "observable": "A materially mismatched setting causes a concise owner-facing request to change it before substantive execution; trivial mismatches do not create an interruption.",
-      "status": "UNMET",
+      "status": "IMPLEMENTED_NOT_YET_FRESH_WORK_VERIFIED",
       "terminal_required": true,
-      "evidence_refs": []
+      "evidence_refs": [
+        "patterns/chat-work-execution-routing-threshold.md@75ef35f731f9150e7b5364bc592738cab6b7009c",
+        "tests/test_work_thinking_budget_preflight.py@75ef35f731f9150e7b5364bc592738cab6b7009c",
+        "pull-request:97"
+      ]
     }
   ],
   "non_satisfying_proxies": [
@@ -31,5 +40,5 @@
     "Always asking the owner to confirm the Work level",
     "Treating every one-step difference as worth interrupting the owner"
   ],
-  "next_direct_evidence": "Update the universal Work routing/worker instruction chain and add regression coverage that enforces two-sided mismatch detection plus the materiality threshold."
+  "next_direct_evidence": "On the next fresh Work task whose current thinking level is observable, verify that Work warns for a materially too-low level, warns for a materially wasteful high level on simple work, and does not interrupt for an immaterial mismatch."
 }

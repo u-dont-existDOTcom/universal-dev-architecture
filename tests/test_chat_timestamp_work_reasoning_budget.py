@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+AGENTS_PATH = ROOT / "AGENTS.md"
 REQUIREMENT_PATH = (
     ROOT
     / "docs"
@@ -23,6 +24,7 @@ EVAL_PATH = (
 
 class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.agents = AGENTS_PATH.read_text(encoding="utf-8")
         self.requirement = json.loads(REQUIREMENT_PATH.read_text(encoding="utf-8"))
         self.routing = ROUTING_PATH.read_text(encoding="utf-8")
         self.live_eval = json.loads(EVAL_PATH.read_text(encoding="utf-8"))
@@ -47,6 +49,24 @@ class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
         self.assertIn("lowest thinking/reasoning level reasonably expected to succeed", requirements["WORK-MIN-REASONING-001"]["text"])
         self.assertIn("residual uncertainty and execution complexity", requirements["WORK-MIN-REASONING-001"]["operationalization"])
         self.assertIn("return to Chat for diagnosis", requirements["WORK-MIN-REASONING-001"]["operationalization"])
+
+    def test_root_agents_makes_timestamp_a_pre_answer_invariant(self) -> None:
+        required_phrases = (
+            "Session-start bootstrap invariants",
+            "first visible assistant response MUST begin",
+            "pre-answer invariant",
+            "even for trivial arithmetic",
+            "must not waive this invariant",
+            "Treat failure to emit the timestamp on the first visible response as an instruction-following failure",
+        )
+        for phrase in required_phrases:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.agents)
+
+        self.assertLess(
+            self.agents.index("## Session-start bootstrap invariants"),
+            self.agents.index("## Authority"),
+        )
 
     def test_routing_pattern_operationalizes_the_controls_not_just_the_labels(self) -> None:
         required_phrases = (

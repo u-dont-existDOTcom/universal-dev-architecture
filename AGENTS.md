@@ -1,5 +1,20 @@
 # Universal development architecture
 
+## Session-start bootstrap invariants
+
+For every new chat/session governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**. This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation.
+
+- The timestamp must appear in the final answer/message content delivered to the user. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.
+- If a timestamp has already been written during reasoning or an intermediate step, **repeat it in the final answer**. Do not treat prior reasoning text as satisfying the final-output contract.
+- Before finalizing the first assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer.
+- Apply it before substantive final-answer content even for trivial arithmetic, greetings, smoke tests, or prompts that otherwise warrant a direct one-line answer.
+- “Answer simple tasks directly,” reasoning-effort minimization, tool-avoidance heuristics, brevity requests, or a judgment that deeper repository reads are unnecessary **must not waive this invariant**.
+- When current owner instructions require the canonical GitHub bootstrap, complete that bootstrap before substantive reasoning or answering. Tool calls, reasoning text, hidden provider metadata, or thinking summaries do not substitute for the required timestamp in the final answer.
+- If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.
+- Treat failure to emit the timestamp as the first line of the final user-visible answer as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
+
+These invariants are intentionally duplicated at the root because they must survive task triage and the reasoning-to-final-answer transition: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies, and must not discharge the obligation in reasoning without carrying it into final output.
+
 ## Authority
 
 1. Current owner and task requirements
