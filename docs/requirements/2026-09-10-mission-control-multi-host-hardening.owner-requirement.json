@@ -4,8 +4,8 @@
   "requirement_id": "REQ-MC-MULTI-HOST-HARDENING-20260910",
   "recorded_at": "2026-09-10T16:28:55+00:00",
   "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
-  "status": "IMPLEMENTED_LIVE_ACCEPTANCE_PASSED_HOSTED_CHECKS_PENDING",
-  "completion_allowed": false,
+  "status": "LIVE_VERIFIED",
+  "completion_allowed": true,
   "owner_source": {
     "verbatim": "Continuing from [mission control sep 7](chatgpt-conversation://6a9d7fa4-8508-83e9-8aeb-d351f2968673): Continue Mission Control infrastructure hardening. Use Netcup VPS (16 GB RAM) as primary browser/worker/supervisor execution host and Hostinger VPS (8 GB RAM) as secondary/failover. Do not use Joel's local browser tabs or clipboard for routine MC work. Fresh-read universal-dev-architecture current main and issue #53 before changes. Inspect actual submission pacing/queue logs on the existing Hostinger MC relay and report exact request intervals and whether submissions are admitted through a central queue/permission gate before send. Then implement the smallest deterministic fixes: (1) central submission scheduler/queue with globally enforced minimum interval and explicit admission before every ChatGPT send; (2) dedicated MC-only supervisor chat registry/ownership, never reusing user chats; (3) primary Netcup deployment/copy of the current MC relay/controller stack, Hostinger retained secondary; (4) failover rules; (5) no user clipboard or user browser-window interaction; (6) preserve exact browser ownership isolation and rate-limit handling already merged; (7) no production promotion beyond these owner-authorized MC infrastructure hosts. Keep secrets/credentials private and out of Git. In universal-dev-architecture, document all portable architecture as universal guidance and mark owner-specific hostnames, service IDs, machine paths, and Joel-specific topology explicitly NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT so the repo remains copyable. Also add a general rule: repo content that is specific to one owner's infrastructure must be labeled non-universal and isolated from reusable patterns/templates. Use current standing authority: continue routine safe/reversible steps, tests, PR, review, merge if green; stop only on real owner tradeoff. Durable evidence must include Netcup primary health, Hostinger secondary health, exact pacing log proof, queue admission proof, MC-only chat ownership proof, and confirmation that local/user browser + clipboard are not used.",
     "sha256": "8516d278e2b372f7ee4874a33fb8d88ca17a6561748e81b565b08e5dd78f5964",
@@ -141,5 +141,5 @@
     "patterns/executable-frontier-coherence.md"
   ],
   "production_boundary": "Only the two owner-authorized Mission Control infrastructure VPS hosts are in deployment scope; Railway production and every other host remain unauthorized.",
-  "next_direct_evidence": "Require every exact-head GitHub check on the current-main integration pull request. If and only if all pass with no review blocker, change this record to LIVE_VERIFIED, set completion_allowed true, merge normally, and verify canonical main."
+  "next_direct_evidence": "Completion is live verified at merge commit 09b41482880cb4ca111a76dc3b69d4ac7312fa9f. Preserve the private registry and append-only ledger; rerun the live matrix after any material topology or authority change."
 }

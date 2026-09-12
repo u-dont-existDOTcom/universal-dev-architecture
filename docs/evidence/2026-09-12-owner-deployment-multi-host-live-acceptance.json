@@ -8,8 +8,8 @@
     "docs/requirements/2026-09-10-mission-control-multi-host-hardening.owner-requirement.json",
     "docs/requirements/2026-09-12-codex-work-access-and-mc-chat-creation.owner-requirement.json"
   ],
-  "truthful_disposition": "LIVE_ACCEPTANCE_PASSED_RELEASE_CLOSEOUT_PENDING",
-  "completion_allowed": false,
+  "truthful_disposition": "LIVE_VERIFIED",
+  "completion_allowed": true,
   "privacy": {
     "credentials_or_auth_artifacts_recorded": false,
     "private_conversation_locators_recorded": false,
@@ -29,6 +29,14 @@
     "live_candidate_source_head": "b2a1d68057e2493d2e0135b85d2f41069727b696",
     "current_main_integration_branch": "task/mission-control-issue90-live-acceptance-20260912",
     "pre_receipt_integration_head": "e79ee1d6c398ac6a4754658425bb659b94781052",
+    "live_receipt_head": "0fcbdcebe9f0218737ea4265fb6f72a3873cef4a",
+    "live_acceptance_pull_request": 102,
+    "live_acceptance_merge_commit": "09b41482880cb4ca111a76dc3b69d4ac7312fa9f",
+    "hosted_check_runs": {
+      "repository_mission_control_relay": 34713648700,
+      "codeql": 34713647387,
+      "result": "ALL_PASS"
+    },
     "later_unrelated_mainline_work_preserved": true
   },
   "live_acceptance_cases": [
@@ -107,8 +115,8 @@
     {
       "id": "LIVE-90-13",
       "name": "exact_head_repository_mission_control_relay_and_hosted_gates",
-      "status": "LOCAL_PASS_HOSTED_PENDING",
-      "evidence": "Fresh integration-head local gates pass: repository 299/299 plus deterministic audit and diff check; Mission Control 232/232 plus TypeScript and production build; relay 184/184 plus syntax. GitHub exact-head hosted checks must pass before this receipt can authorize completion."
+      "status": "PASS",
+      "evidence": "Fresh integration-head local gates pass: repository 299/299 plus deterministic audit and diff check; Mission Control 232/232 plus TypeScript and production build; relay 184/184 plus syntax. Exact head 0fcbdce passed GitHub run 34713648700 for repository/Mission Control/relay and run 34713647387 for CodeQL Actions, JavaScript/TypeScript, and Python before normal merge as 09b4148."
     }
   ],
   "live_hosts": {
@@ -131,10 +139,11 @@
       "remote_worker": "AUTHENTICATED_AND_LIVE_PROBED"
     }
   },
-  "release_closeout_remaining": [
-    "commit the privacy-safe live receipt and status projections on the current-main integration branch",
-    "open the integration pull request and require all exact-head hosted checks",
-    "change the frozen requirements to LIVE_VERIFIED only after those checks pass",
-    "merge normally, verify main, post the final issue receipt, and close issue 90"
-  ]
+  "release_closeout": {
+    "live_acceptance_pr_merged_normally": true,
+    "canonical_main_verified_at": "09b41482880cb4ca111a76dc3b69d4ac7312fa9f",
+    "historical_recovery_branch_reverified_unchanged": true,
+    "requirement_status_projection": "LIVE_VERIFIED",
+    "remaining": "Publish this narrow status projection, require its exact-head checks, then post the final issue receipt and close issue 90."
+  }
 }

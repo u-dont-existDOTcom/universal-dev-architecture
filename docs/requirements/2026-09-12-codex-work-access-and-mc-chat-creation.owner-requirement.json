@@ -4,8 +4,8 @@
   "requirement_id": "REQ-CODEX-WORK-ACCESS-MC-CHAT-CREATION-20260912",
   "recorded_at": "2026-09-12T13:48:00+00:00",
   "timestamp_basis": "MISSION_CONTROL_CAPTURE_TIME",
-  "status": "IMPLEMENTED_AND_LIVE_VERIFIED_RELEASE_MERGE_PENDING",
-  "completion_allowed": false,
+  "status": "LIVE_VERIFIED",
+  "completion_allowed": true,
   "owner_source": {
     "verbatim": "and fix that in the instructions then it should not require my approval to create the chats, and also give work chats complete access, instructing them only to ask me for approval if there's a genuine tradeoff and then explain that tradeoff in plain english and their recommendation (this is already in the universal-dev-architecture but what's different is now you are the one selecting the approval level in the work chats). and when these boxes pop up you should click approve automatically",
     "sha256": "e2bb550f766a7e5cd052a8988cf21edf716a0511f955b4c67b0599295270adac",
@@ -75,5 +75,5 @@
     "patterns/task-time-lesson-activation.md",
     "patterns/chat-work-execution-routing-threshold.md"
   ],
-  "next_direct_evidence": "Merge the already live-verified instruction changes only after exact-head hosted checks pass, then verify their canonical main projection before setting completion_allowed true."
+  "next_direct_evidence": "Completion is live verified at merge commit 09b41482880cb4ca111a76dc3b69d4ac7312fa9f. Reverify only if the client approval model, automatic reviewer, or MC-only provisioning path materially changes."
 }
