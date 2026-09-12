@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "suite_id": "method-premise-supervision-blind-v1",
+  "status": "development_answer_key_do_not_read_before_freezing_predictions",
+  "method_cases": {
+    "CASE-A": {
+      "triggered": true,
+      "necessity_state": "UNRESOLVED",
+      "disposition": "bounded_experiment_only",
+      "owner_action": "NONE",
+      "critical_reason": "The anti-leakage constraint is real but does not establish the closed external ontology as necessary; the simpler frozen participant-adjudicated substrate remains a live alternative."
+    },
+    "CASE-B": {
+      "triggered": true,
+      "necessity_state": "ESTABLISHED",
+      "disposition": "commit_or_scale",
+      "owner_action": "NONE",
+      "critical_reason": "Standardized taxonomy/inter-rater coding is explicitly part of the owner outcome."
+    },
+    "CASE-C": {
+      "triggered": false,
+      "necessity_state": null,
+      "disposition": "ordinary_iteration",
+      "owner_action": "NONE",
+      "critical_reason": "This is a routine reversible implementation choice that does not cross the method-fork trigger."
+    },
+    "CASE-D": {
+      "triggered": true,
+      "necessity_state": "ESTABLISHED",
+      "disposition": "commit_or_scale",
+      "owner_action": "NONE",
+      "critical_reason": "The verified external receiving interface imposes the exact schema/signature method at the submission boundary."
+    },
+    "CASE-E": {
+      "triggered": true,
+      "necessity_state": "NOT_NECESSARY",
+      "disposition": "do_not_promote_as_prerequisite",
+      "owner_action": "NONE",
+      "critical_reason": "The native platform surface already meets the stated requirements; no evidence establishes separate hosting as necessary."
+    },
+    "CASE-F": {
+      "triggered": true,
+      "necessity_state": "ESTABLISHED",
+      "disposition": "commit_or_scale",
+      "owner_action": "NONE",
+      "critical_reason": "Verified requirements exceed the native surface, establishing the need for some external runtime, while leaving vendor choice open."
+    },
+    "CASE-G": {
+      "triggered": true,
+      "necessity_state": "UNRESOLVED",
+      "disposition": "owner_decision",
+      "owner_action": "DECISION_REQUIRED",
+      "critical_reason": "Evidence characterizes a genuine cost/privacy tradeoff but cannot infer the owner's priority between stated values."
+    }
+  },
+  "activation_cases": {
+    "ACT-A": {
+      "activation_status": "NOT_ACTIVATED",
+      "critical_reason": "Rules existing in GitHub do not activate them; project-local authority remains operative and no universal protection may be claimed."
+    },
+    "ACT-B": {
+      "activation_status": "ACTIVE",
+      "critical_reason": "Current project authority routes universal guidance and the active contract binds the current ref."
+    },
+    "ACT-C": {
+      "activation_status": "ACTIVE",
+      "critical_reason": "A current authoritative direct task/owner route can activate guidance without a permanent bootstrap file."
+    },
+    "ACT-D": {
+      "activation_status": "STALE",
+      "critical_reason": "The project requires universal guidance, but the active contract does not bind current guidance and must be refreshed before affected consequential action."
+    }
+  }
+}

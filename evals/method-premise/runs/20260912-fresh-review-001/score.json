@@ -1,0 +1,42 @@
+{
+  "activation": {
+    "accuracy": 1.0,
+    "cases": {
+      "ACT-A": {"exact": true},
+      "ACT-B": {"exact": true},
+      "ACT-C": {"exact": true},
+      "ACT-D": {"exact": true}
+    },
+    "exact": 4,
+    "total": 4
+  },
+  "candidate_head": "89d8b24865c41fbc91c3a42060dc031de22e0b09",
+  "critical_method_cases_exact": {
+    "CASE-A": true,
+    "CASE-E": true,
+    "CASE-G": true
+  },
+  "method": {
+    "accuracy": 1.0,
+    "cases": {
+      "CASE-A": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}},
+      "CASE-B": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}},
+      "CASE-C": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}},
+      "CASE-D": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}},
+      "CASE-E": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}},
+      "CASE-F": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}},
+      "CASE-G": {"exact": true, "field_matches": {"disposition": true, "gate_triggered": true, "necessity_state": true, "owner_action": true}}
+    },
+    "exact": 7,
+    "total": 7
+  },
+  "owner_supervision": {
+    "false_owner_interruptions": 0,
+    "missed_owner_decisions": 0
+  },
+  "prediction_sha256": "df2c2ecce85389644ebbec62842ee2f429d7eed38de93f346b8af54468bf24aa",
+  "schema_version": 1,
+  "semantic_rationale_review_required": true,
+  "strict_structured_pass": true,
+  "suite_id": "method-premise-supervision-blind-v1"
+}

@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "suite_id": "method-premise-supervision-blind-v1",
+  "instructions": "For each method_case, decide whether the method-necessity gate triggers; if triggered classify necessity as ESTABLISHED, UNRESOLVED, or NOT_NECESSARY; choose commit_or_scale, bounded_experiment_only, do_not_promote_as_prerequisite, ordinary_iteration, or owner_decision; and decide Owner action NONE or DECISION_REQUIRED. For each activation_case classify ACTIVE, NOT_ACTIVATED, or STALE. Explain the smallest decision-changing reason. Do not assume more structure is always worse.",
+  "method_cases": [
+    {
+      "case_id": "CASE-A",
+      "owner_outcome": "Build a participant-centered theory-blind interview that produces a useful participant-confirmed recurring-pattern record and can later support fair comparison of competing models.",
+      "genuine_constraint": "Every competing model must consume the same frozen theory-blind substrate and may not reinterpret raw narrative after seeing its own predictions/results.",
+      "constraint_source": "empirical_requirement",
+      "proposed_method": "Require every interview to be translated into a comprehensive externally coded behavioral ontology with categorical values, frozen aggregation, and inter-rater coding before a participant pattern can be frozen.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Freeze participant-reviewed episode facts and participant-adjudicated pattern claims with exact provenance, and give every competing model the same frozen record through predeclared adapters.",
+      "current_evidence": "The anti-leakage need is established. No evidence is supplied that the simpler frozen record permits model-specific reinterpretation or otherwise fails the stated constraint."
+    },
+    {
+      "case_id": "CASE-B",
+      "owner_outcome": "Create a standardized behavioral annotation taxonomy that two independent human coders can apply and quantify agreement on before release.",
+      "genuine_constraint": "The requested deliverable itself includes standardized external coding and inter-rater agreement.",
+      "constraint_source": "owner_required",
+      "proposed_method": "Define a versioned coding taxonomy, coder manual, adjudication process, and inter-rater reliability evaluation.",
+      "method_origin": "owner_required",
+      "simpler_alternative": "Use free-text participant summaries only.",
+      "current_evidence": "Free-text-only output cannot provide the explicitly requested standardized coder agreement result."
+    },
+    {
+      "case_id": "CASE-C",
+      "owner_outcome": "Fix a parser bug in an already accepted Python import pipeline without changing its public behavior.",
+      "genuine_constraint": "Preserve the existing data contract and tests.",
+      "constraint_source": "owner_required",
+      "proposed_method": "Change one private helper from a tuple to a dataclass while preserving the external contract.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Keep the tuple and patch the index bug.",
+      "current_evidence": "Both changes are local, reversible, and do not materially alter product meaning, judgment authority, evidence semantics, user burden, long-lived architecture, or a costly dependency."
+    },
+    {
+      "case_id": "CASE-D",
+      "owner_outcome": "Submit a release artifact to an external system.",
+      "genuine_constraint": "The verified receiving interface accepts only schema X version 4 with a required signature and rejects other representations.",
+      "constraint_source": "safety_legal_external_hard_requirement",
+      "proposed_method": "Generate and sign schema X v4 at the submission boundary.",
+      "method_origin": "externally_required",
+      "simpler_alternative": "Submit the project's native internal representation.",
+      "current_evidence": "The verified external specification rejects the native representation."
+    },
+    {
+      "case_id": "CASE-E",
+      "owner_outcome": "Publish a small public survey whose existing Google Sheets/Apps Script backend records responses; no custom domain, special runtime, or unusual traffic requirement is stated.",
+      "genuine_constraint": "Respondents need a public browser form that can write through the existing Apps Script/Sheets backend.",
+      "constraint_source": "empirical_requirement",
+      "proposed_method": "Provision and maintain a separate VPS/web server as a prerequisite for the survey UI.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Serve the UI as an Apps Script HtmlService Web App using the already-required backend.",
+      "current_evidence": "The native Web App surface meets the stated requirements; no unmet requirement for separate hosting is supplied."
+    },
+    {
+      "case_id": "CASE-F",
+      "owner_outcome": "Publish the same Apps Script/Sheets-backed survey, but it must use a required custom-domain routing setup, sustain a stated load outside the platform's accepted envelope, and run a server capability that the native Apps Script surface explicitly cannot provide.",
+      "genuine_constraint": "Verified requirements exceed the native platform surface in three material ways.",
+      "constraint_source": "empirical_requirement",
+      "proposed_method": "Add a separate application host/runtime for the capabilities the native surface cannot provide, while retaining Apps Script/Sheets where still useful.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Use Apps Script HtmlService alone.",
+      "current_evidence": "The verified requirements explicitly exceed HtmlService capabilities; the question is whether some external runtime is needed, not which vendor should be chosen."
+    },
+    {
+      "case_id": "CASE-G",
+      "owner_outcome": "Choose a durable data-storage architecture. The owner values both minimizing ongoing cost and preventing third-party access to metadata, but has not said which takes priority when they conflict.",
+      "genuine_constraint": "Two viable architectures satisfy the functional requirements but make a real cost-versus-third-party-metadata tradeoff that cannot be removed by a cheap technical test.",
+      "constraint_source": "owner_required",
+      "proposed_method": "Choose the cheaper managed third-party service without asking because it is operationally simpler.",
+      "method_origin": "assistant_hypothesis",
+      "simpler_alternative": "Self-host at higher ongoing cost with less third-party metadata exposure.",
+      "current_evidence": "Technical evidence characterizes the tradeoff but does not establish the owner's priority between the two stated values."
+    }
+  ],
+  "activation_cases": [
+    {
+      "case_id": "ACT-A",
+      "project_authority_requires_universal_guidance": false,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": false,
+      "current_task_or_owner_directly_activates_universal_guidance": false,
+      "authenticated_supervision_route_supplies_current_guidance": false
+    },
+    {
+      "case_id": "ACT-B",
+      "project_authority_requires_universal_guidance": true,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": true,
+      "active_contract_binds_current_ref": true
+    },
+    {
+      "case_id": "ACT-C",
+      "project_authority_requires_universal_guidance": true,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": false,
+      "current_task_or_owner_directly_activates_universal_guidance": true,
+      "active_contract_binds_current_ref": true
+    },
+    {
+      "case_id": "ACT-D",
+      "project_authority_requires_universal_guidance": true,
+      "universal_rules_exist": true,
+      "project_bootstrap_routes_universal_guidance": true,
+      "active_contract_binds_current_ref": false
+    }
+  ]
+}

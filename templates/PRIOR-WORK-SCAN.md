@@ -25,6 +25,32 @@ Capture before outside exposure when fixation risk is material.
 - Predictions/success conditions:
 - Known unknowns:
 
+## Method necessity / manufactured-prerequisite check
+
+Fill this section **before the external scan** when a proposed method would materially change product meaning, who makes consequential judgments, evidence semantics, owner/user burden, long-lived architecture, or a costly dependency. Do not trigger it for routine reversible implementation choices inside an already authorized method.
+
+- Owner outcome:
+- Genuine constraint being solved:
+- Constraint source: `owner_required` / `safety_legal_external_hard_requirement` / `empirical_requirement` / `assistant_inference`
+- Proposed method or prerequisite:
+- Method origin: `owner_required` / `externally_required` / `assistant_hypothesis` / `inherited_project_choice`
+- What specifically breaks if this method is removed or replaced:
+- Strongest materially simpler alternative:
+- Evidence that rules out the simpler alternative:
+- Smallest ordinary-case specimen that exercises the method:
+- Difficult counterexample or failure case:
+- Necessity state: `ESTABLISHED` / `UNRESOLVED` / `NOT_NECESSARY`
+- Authorized disposition: `commit_or_scale` / `bounded_experiment_only` / `do_not_promote_as_prerequisite`
+
+Rules:
+
+1. A requirement or hard constraint does not automatically prove a particular implementation.
+2. An assistant hypothesis does not acquire owner authority through repetition, a file name, a hash, green tests, a downstream contract, or a reviewer that evaluated only the hypothesis's implementation.
+3. A prior-art scan showing that a method is mature, rigorous, or effective does not establish that the method is necessary for this owner outcome.
+4. `UNRESOLVED` permits only a bounded reversible experiment sufficient to decide the method question; do not harden the method into project architecture first.
+5. `NOT_NECESSARY` blocks promotion of that method as a prerequisite. Preserve useful local work, but reopen the strategy.
+6. If an ordinary supported case becomes difficult to represent or repeated fixes become local/ad hoc, retest this necessity judgment before adding more schema or infrastructure.
+
 ## Search formulations
 
 - Project terminology:
