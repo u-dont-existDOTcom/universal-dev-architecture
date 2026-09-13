@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "checkpointId": "mission-control-primary-relay-lock-repair-20260913",
+  "recordedAt": "2026-09-13T00:37:20Z",
+  "status": "PRIMARY_REPAIR_LIVE_VERIFIED",
+  "authority": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "baseCommit": "5533aaa474d9e25c78406197ea4f57dabd995b22",
+    "repairBranch": "task/mission-control-relay-lock-lifecycle-20260912",
+    "installedSourceCommit": "5be4d444041c8e1681d56a5b7256a01b3090f690",
+    "requirement": "docs/requirements/2026-09-13-mission-control-relay-lock-lifecycle.owner-requirement.json"
+  },
+  "incident": {
+    "repository": "u-dont-existDOTcom/joel-articles",
+    "branch": "task/somatic-intro-progress-controller-20260831",
+    "headStillUnchanged": "6986ff4b0478092cf85d62df1ffd39d7ce9c8a06",
+    "checkpoint": "work/SOMATIC-HUMANIZATION-MISSION-CONTROL-CHECKPOINT-132-20260912.json",
+    "pid": 317145,
+    "ppid": 317143,
+    "sudoWrapperParentPid": 317142,
+    "commandLine": "/home/cloudbrowser/.local/bin/node /tmp/chatgpt-direct-cadence-test.mjs",
+    "startedAt": "2026-09-12T22:47:36Z",
+    "journalLaunchAt": "2026-09-12T22:47:36.214832Z",
+    "journalSessionClosedAt": "2026-09-12T22:51:45.395821Z",
+    "checkpointAt": "2026-09-12T22:51:25Z",
+    "firstRecoveredHealthAt": "2026-09-12T22:52:20.648Z",
+    "currentActivity": "PROCESS_ABSENT_BEFORE_REPAIR_TASK",
+    "originalOpenDescriptors": "UNAVAILABLE_RETROSPECTIVELY_PROCESS_ALREADY_EXITED",
+    "orphaned": false,
+    "orphanClaim": "NOT_SUPPORTED: exact owner-authorized cadence task was active at checkpoint.",
+    "repairTaskTerminatedOriginal": false,
+    "manualOriginalLockUnlink": false,
+    "failover": false,
+    "authorization": {
+      "taskId": "01a0923f-9124-7bd0-a732-20033cfd9072",
+      "taskTitle": "Continue issue #90 implementation",
+      "ownerMessageId": "msg_01a097cb-1b50-7872-8362-64c68c4c5498",
+      "capturedAt": "2026-09-12T22:44:25.552Z",
+      "verbatim": "no, bypass mission control's limit for this test. i want to see if we can send requests every 20 or 30 or 40 seconds"
+    },
+    "helperSource": {
+      "sourceCallId": "call_IK6R4p0UbugL2EtLlgpMWjsR",
+      "capturedAt": "2026-09-12T22:46:40.688Z",
+      "sha256": "1e1cb7bf0805e1725fc4f10614d06a7dae78f401f0c2c89f4d198d5d67611974",
+      "bytes": 8545,
+      "finallyReleasesLock": true,
+      "overallLifetimeWatchdog": false
+    },
+    "recoveredResult": {
+      "status": "DIRECT_CADENCE_TEST_FAILED_CLOSED",
+      "acceptedCount": 7,
+      "code": "UNCLASSIFIED",
+      "cleanupStatus": "NOT_STARTED",
+      "sourceCallId": "call_12NRdDbwf4u23xsip1Z4eJJv",
+      "resultRecoveredAt": "2026-09-12T23:29:18.776Z",
+      "exactCleanupException": "NOT_RETAINED_BY_HELPER_OUTPUT"
+    },
+    "diagnosis": "The checkpoint collided with an active authorized helper holding exclusive ownership through generation waits, the cadence sequence and the post-send safety hold. It did not survive indefinitely. It later failed during cleanup and its finally block released the lock. Exact cleanup exception and historical FD snapshot cannot be recovered; neither is invented. Independently, the library had no helper-wide deadline, PID-only stale detection, unsafe unconditional release, non-atomic metadata publication, and the CLI omitted finally cleanup on errors."
+  },
+  "maintenance": {
+    "peerTaskId": "01a0923f-9124-7bd0-a732-20033cfd9072",
+    "peerLastDirectSendAt": "2026-09-13T00:01:43.997Z",
+    "peerQuiescenceAttestationAt": "2026-09-13T00:07:37.965Z",
+    "peerSource": "Exact peer-task send_message_to_thread payload; attempted delivery timed out at approval, recovered from that task's durable transcript.",
+    "repairTaskProviderSends": 0,
+    "unrelatedDirectTestOverlap": "19 accepted sends in another owner-authorized task overlapped read-only diagnosis. They bypassed the scheduler; do not claim that unchanged ledger proves zero sends throughout diagnosis.",
+    "preinstallBaselineAt": "2026-09-13T00:20:54.677Z",
+    "installAt": "2026-09-13T00:31:28.137Z",
+    "postinstallVerifiedThrough": "2026-09-13T00:33:00.350Z",
+    "providerSendsDuringCoordinatedMaintenance": 0,
+    "wholeDiagnosisZeroProviderSendsClaim": false,
+    "proofBoundary": "Code paths used during repair do not send. Peer exact quiescence attestation, unchanged protected state/ownership, exact unchanged 79-record scheduler ledger, no admissions, and postinstall doctors support the quiet window. The ledger alone cannot attest to provider-bypass tests."
+  },
+  "installation": {
+    "status": "INSTALLED_FOUR_FILES",
+    "installedAt": "2026-09-13T00:31:28.137Z",
+    "sourceCommit": "5be4d444041c8e1681d56a5b7256a01b3090f690",
+    "backup": "/home/cloudbrowser/.local/share/mission-control-chatgpt-relay/lock-repair-backup-20260913",
+    "sourceHashes": {
+      "src/state.mjs": "c32bb8fbfedbfde045bad4a33f3bde3ea8364639b692a31fb25d05152952c0ff",
+      "src/relay-lock.mjs": "97e9e33b8a21850e46659e2ff25fb03f0fe57347abaa7e57c56735b642c15dc2",
+      "src/relay-lock-watchdog.mjs": "1cfe7a491064cbddae968cd093ff2207492dadeafdf7d7afe6c9a13d5ce52ca7",
+      "bin/mc-chatgpt-relay.mjs": "814171b156f8cf9ddb3df2e2788d10778fe322505a04a9d359a35f1b0cc8126c"
+    },
+    "protectedFilesUnchanged": true
+  },
+  "liveLifecycleAcceptance": {
+    "status": "LIVE_TERMINATED_HELPER_RELEASE_PASS",
+    "checkedAt": "2026-09-13T00:31:28.310Z",
+    "ownerBefore": {
+      "pid": 546928,
+      "ppid": 546916,
+      "startTicks": "25957312",
+      "bootId": "9f4338ea-bdda-4e19-a0db-95de27ddbfb3",
+      "taskId": "acceptance:no-send-terminated-helper",
+      "command": "live-check.mjs",
+      "acquiredAt": "2026-09-13T00:31:28.250Z",
+      "deadlineAt": "2026-09-13T00:31:43.250Z",
+      "mode": "BOUNDED_HELPER"
+    },
+    "descriptors": [
+      {
+        "fd": "0",
+        "target": "/dev/null"
+      },
+      {
+        "fd": "1",
+        "target": "/dev/null"
+      },
+      {
+        "fd": "10",
+        "target": "anon_inode:[eventfd]"
+      },
+      {
+        "fd": "11",
+        "target": "anon_inode:[eventpoll]"
+      },
+      {
+        "fd": "12",
+        "target": "anon_inode:[io_uring]"
+      },
+      {
+        "fd": "13",
+        "target": "pipe:[34339982]"
+      },
+      {
+        "fd": "14",
+        "target": "pipe:[34339982]"
+      },
+      {
+        "fd": "15",
+        "target": "anon_inode:[eventfd]"
+      },
+      {
+        "fd": "16",
+        "target": "anon_inode:[eventpoll]"
+      },
+      {
+        "fd": "17",
+        "target": "anon_inode:[io_uring]"
+      },
+      {
+        "fd": "18",
+        "target": "pipe:[34335235]"
+      },
+      {
+        "fd": "19",
+        "target": "pipe:[34335235]"
+      },
+      {
+        "fd": "2",
+        "target": "pipe:[34338964]"
+      },
+      {
+        "fd": "20",
+        "target": "anon_inode:[eventfd]"
+      },
+      {
+        "fd": "21",
+        "target": "/dev/null"
+      },
+      {
+        "fd": "22",
+        "target": "/home/cloudbrowser/.local/state/mission-control-chatgpt-relay/relay.lock.guard"
+      },
+      {
+        "fd": "23",
+        "target": "/home/cloudbrowser/.local/state/mission-control-chatgpt-relay/relay.lock.49d7e355-5b00-431f-8dc6-89a0fc6aa2ad.tmp (deleted)"
+      },
+      {
+        "fd": "24",
+        "target": "socket:[34335246]"
+      },
+      {
+        "fd": "3",
+        "target": "socket:[34334407]"
+      },
+      {
+        "fd": "4",
+        "target": "anon_inode:[eventpoll]"
+      },
+      {
+        "fd": "5",
+        "target": "anon_inode:[io_uring]"
+      },
+      {
+        "fd": "6",
+        "target": "pipe:[34335232]"
+      },
+      {
+        "fd": "7",
+        "target": "pipe:[34335232]"
+      },
+      {
+        "fd": "8",
+        "target": "pipe:[34335233]"
+      },
+      {
+        "fd": "9",
+        "target": "pipe:[34335233]"
+      }
+    ],
+    "exit": {
+      "code": 143,
+      "signal": null
+    },
+    "processGone": true,
+    "metadataAbsent": true,
+    "kernelGuardReleased": true,
+    "providerSends": 0,
+    "manualUnlink": false
+  },
+  "primaryAfter": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "checkedAt": "2026-09-13T00:32:58.173Z",
+    "role": "PRIMARY",
+    "doctorStatus": "READY",
+    "submitEnabled": false,
+    "capabilityTestEnabled": false,
+    "exactHelpers": [],
+    "lockMetadataPresent": false,
+    "protectedBefore": {
+      "state": "86a65846a673d3e1d76f59c58b0743d4e388069e3751f14cd312cf5ced985554",
+      "ownership": "1094ad3645c39e9dfdd31440f6de64d1d002251846c1f467f8869d082f87cbb6",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "c349b7155d6984812c11c16d53e58525e4307379c1a10e9645acdbe0d54ef832",
+      "browserEnv": "fb380c37cea7fa55aa8b162cf6d74b2a29be32606ca91629d2bfc403dae4ed47"
+    },
+    "protectedAfter": {
+      "state": "86a65846a673d3e1d76f59c58b0743d4e388069e3751f14cd312cf5ced985554",
+      "ownership": "1094ad3645c39e9dfdd31440f6de64d1d002251846c1f467f8869d082f87cbb6",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "c349b7155d6984812c11c16d53e58525e4307379c1a10e9645acdbe0d54ef832",
+      "browserEnv": "fb380c37cea7fa55aa8b162cf6d74b2a29be32606ca91629d2bfc403dae4ed47"
+    },
+    "profileDirectoryIdentity": "af95baaaa84e51f0a7f63f953ccacb42cbf47c89997027afc34fdbf47cad7284",
+    "registeredChatCount": 3,
+    "browser": {
+      "webSocketDebuggerUrlPresent": true,
+      "automationWindowOwnershipEnforced": true,
+      "managedChatGptTabCount": 1,
+      "automationOwnedTabCount": 1,
+      "foreignChatGptTabCount": 0
+    },
+    "queue": {
+      "discovered": 0,
+      "byLocalState": {},
+      "next": null
+    },
+    "unresolvedAmbiguities": [],
+    "authority": {
+      "ready": true,
+      "activeHostRole": "PRIMARY",
+      "epoch": 3,
+      "lastSubmissionAt": "2026-09-12T22:28:30.878Z",
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "ledger": {
+        "valid": true,
+        "errors": []
+      }
+    },
+    "ledger": {
+      "recordCount": 79,
+      "recordsSha256": "636dbdf365ea67ed2d6cce79045b0bac4e4137533abc3727024d89fd3697d7b4",
+      "integrity": {
+        "valid": true,
+        "errors": []
+      },
+      "diagnostics": {
+        "intervalCount": 9,
+        "minimumObservedIntervalMs": 61389,
+        "medianObservedIntervalMs": 76819,
+        "recentIntervalsMs": [
+          112535,
+          1210629,
+          10153453,
+          76819,
+          12684399,
+          61389,
+          61446,
+          61576,
+          61491
+        ],
+        "configuredMinimumIntervalMs": 60000,
+        "violationsBelowConfiguredMinimum": 0,
+        "violationsBelow60000Ms": 0
+      }
+    },
+    "pacingStateSha256": "66344c6aff957aa38a7dd668b450bf9d2c3709f8496cc39d6a7396dcacc45d4c",
+    "providerSessionsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "chatCapabilitySummary": [
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      }
+    ],
+    "sourceHashes": {
+      "src/state.mjs": "c32bb8fbfedbfde045bad4a33f3bde3ea8364639b692a31fb25d05152952c0ff",
+      "src/relay-lock.mjs": "97e9e33b8a21850e46659e2ff25fb03f0fe57347abaa7e57c56735b642c15dc2",
+      "src/relay-lock-watchdog.mjs": "1cfe7a491064cbddae968cd093ff2207492dadeafdf7d7afe6c9a13d5ce52ca7",
+      "bin/mc-chatgpt-relay.mjs": "814171b156f8cf9ddb3df2e2788d10778fe322505a04a9d359a35f1b0cc8126c"
+    }
+  },
+  "secondaryAfter": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "checkedAt": "2026-09-13T00:33:00.350Z",
+    "role": "SECONDARY",
+    "doctorStatus": "STANDBY_READY",
+    "submitEnabled": false,
+    "capabilityTestEnabled": false,
+    "exactHelpers": [],
+    "lockMetadataPresent": false,
+    "protectedBefore": {
+      "state": "63c0e0b013dd925017fb173b3811c2b4969ea077d9156989888691dcb5fb31d2",
+      "ownership": "e81e9b54049f949fce50187d6c82539e094e974683b3ab0df5ccb5a2e23e378b",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "cd4fb9e9b7c834e8835aae1068c92a49cff8bbd64ae503c6f9e86e6dd7848d92",
+      "browserEnv": "e384aac49101d4c65910730d2c96add4a4513111e82029116342ba9f5ce761e6"
+    },
+    "protectedAfter": {
+      "state": "63c0e0b013dd925017fb173b3811c2b4969ea077d9156989888691dcb5fb31d2",
+      "ownership": "e81e9b54049f949fce50187d6c82539e094e974683b3ab0df5ccb5a2e23e378b",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "cd4fb9e9b7c834e8835aae1068c92a49cff8bbd64ae503c6f9e86e6dd7848d92",
+      "browserEnv": "e384aac49101d4c65910730d2c96add4a4513111e82029116342ba9f5ce761e6"
+    },
+    "profileDirectoryIdentity": "8d1c6bc7b03973ad513c94f6953e5fb29f30662be6f0f96186a66fdb9e671dea",
+    "registeredChatCount": 3,
+    "browser": {
+      "webSocketDebuggerUrlPresent": true,
+      "automationWindowOwnershipEnforced": true,
+      "managedChatGptTabCount": 1,
+      "automationOwnedTabCount": 1,
+      "foreignChatGptTabCount": 0
+    },
+    "queue": {
+      "discovered": 0,
+      "byLocalState": {},
+      "next": null
+    },
+    "unresolvedAmbiguities": [],
+    "authority": {
+      "ready": true,
+      "activeHostRole": "PRIMARY",
+      "epoch": 3,
+      "lastSubmissionAt": "2026-09-12T22:28:30.878Z",
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "ledger": {
+        "valid": true,
+        "errors": []
+      }
+    },
+    "ledger": {
+      "recordCount": 79,
+      "recordsSha256": "636dbdf365ea67ed2d6cce79045b0bac4e4137533abc3727024d89fd3697d7b4",
+      "integrity": {
+        "valid": true,
+        "errors": []
+      },
+      "diagnostics": {
+        "intervalCount": 9,
+        "minimumObservedIntervalMs": 61389,
+        "medianObservedIntervalMs": 76819,
+        "recentIntervalsMs": [
+          112535,
+          1210629,
+          10153453,
+          76819,
+          12684399,
+          61389,
+          61446,
+          61576,
+          61491
+        ],
+        "configuredMinimumIntervalMs": 60000,
+        "violationsBelowConfiguredMinimum": 0,
+        "violationsBelow60000Ms": 0
+      }
+    },
+    "pacingStateSha256": "9662ab20ddc4f3b78a5f009a7e3809249110607d9d604c6658ca32ba620994a6",
+    "providerSessionsSha256": "276107b863260640249770becfbca8078c9fc3b86474f135fe48bb51c6f1da83",
+    "chatCapabilitySummary": [
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      }
+    ],
+    "sourceHashes": {
+      "src/state.mjs": "65d88d92428ecadb95659442acfacf612b42dfcba93dc26e225d28112f6128e4",
+      "src/relay-lock.mjs": null,
+      "src/relay-lock-watchdog.mjs": null,
+      "bin/mc-chatgpt-relay.mjs": "10821d4c095497339a4a65f4daf59397d735945d834c41d2ee99d98c2243aa02"
+    }
+  },
+  "preservation": {
+    "bothHostsProtectedHashesMatchBaseline": true,
+    "providerSessionsUnchanged": true,
+    "profileDirectoryIdentitiesUnchanged": true,
+    "pacingUnchanged": true,
+    "ledger79RecordsDigestUnchanged": true,
+    "queueEmpty": true,
+    "unresolvedAdmission": null,
+    "unresolvedRelayAmbiguities": [],
+    "primaryEpoch": 3,
+    "secondaryRuntimeFilesUnchanged": true,
+    "webApplicationRedeployed": false,
+    "browserRestarted": false,
+    "supervisorRegistrationChanged": false,
+    "healthTimerRestored": true,
+    "lastHealthServiceObservedAt": "2026-09-13T00:34:40Z",
+    "lastHealthServiceExitCode": 0,
+    "finalLockStatus": "FREE"
+  },
+  "verification": {
+    "finalFullRelayTests": {
+      "passed": 201,
+      "failed": 0
+    },
+    "canonicalRepositoryTests": {
+      "passed": 299,
+      "failed": 0
+    },
+    "primaryNode22FocusedTests": {
+      "passed": 25,
+      "failed": 0
+    },
+    "deterministicRepositoryAudit": "PASS_NO_FINDINGS",
+    "ownerRequirementValidator": "PASS",
+    "failureDiscoveries": [
+      "Watchdog-loss fixture initially exited naturally; fixed the fixture to exercise a still-running owner.",
+      "First PRIMARY test launch inherited inaccessible SSH cwd; reran from staged candidate directory, no permission widening.",
+      "Pre-publication crash edge discovered before installation; atomic exclusive metadata publication and exact interruption regression added."
+    ],
+    "observedTestSeconds": 79.06,
+    "forcedRedundantGreenRerunSeconds": 0
+  },
+  "visibility": {
+    "lockStatus": "Current read-only CLI lock-status and refreshed status expose PID/PPID/start/boot/task/deadline; contention errors appear in existing health journal.",
+    "webDashboard": "Existing health state only. Its current rendered host view omits detail; no new dashboard panel or web-app deployment was added for this narrow repair."
+  },
+  "rollback": {
+    "path": "/home/cloudbrowser/.local/share/mission-control-chatgpt-relay/lock-repair-backup-20260913",
+    "verificationAssetsArchivedAt": "/home/cloudbrowser/.local/share/mission-control-chatgpt-relay/lock-repair-backup-20260913/verification-stage",
+    "instructions": "Do not run mixed lock versions. During an authorized quiet window with no relay/helper/health holder, restore the two preimage files from backup after verifying manifest hashes. Keep the persistent guard inode; do not unlink an actively held lock. New unused lock modules may remain. Re-run no-send doctors and preservation checks. No rollback was needed."
+  },
+  "humanization": {
+    "changed": false,
+    "started": false,
+    "candidates": 0,
+    "pangramCalls": 0,
+    "writerControllerCycles": 0,
+    "rolesCreated": 0,
+    "secondTargetRun": false,
+    "checkpointUnchanged": true,
+    "mayRerunDirectiveFromInitialPreflight": true,
+    "maySkipGates": false,
+    "currentRegisteredCapabilitiesVerified": false,
+    "currentCapabilityChallengesAvailable": false,
+    "assessment": "The checkpoint's relay-lock blocker is resolved. Re-enter original preflight with fresh GitHub authority and required fresh-context/model/ownership/capability/admission checks. Nothing permits skipping gates or starting mid-stage. This task did not run the experiment, consume budgets, modify prose, or promote a method."
+  },
+  "remainingLimits": [
+    "Original process descriptors and exact cleanup exception were unavailable after its earlier exit.",
+    "Zero provider sends cannot be claimed for the whole read-only diagnosis interval because another authorized task sent 19 direct requests; the coordinated repair window was quiet.",
+    "Correction is installed on PRIMARY and durably stored on the repair branch, not merged. SECONDARY runtime remains unchanged standby; preserve this delta in any future full PRIMARY release."
+  ]
+}
