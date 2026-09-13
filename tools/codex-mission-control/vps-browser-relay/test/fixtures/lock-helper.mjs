@@ -1,8 +1,15 @@
 import { join } from 'node:path';
 import { StateStore } from '../../src/state.mjs';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 
 const [root, mode, lifetime = '15000'] = process.argv.slice(2);
 const store = new StateStore({ stateFile: join(root, 'state.json'), statusFile: join(root, 'status.json'), lockFile: join(root, 'relay.lock') });
+if (mode === 'publication-crash') {
+  fs.linkSync = () => process.kill(process.pid, 'SIGKILL');
+  syncBuiltinESMExports();
+  process.send?.({ status: 'CRASH_ARMED' });
+}
 try {
   await store.acquireLock({ taskId: `test:${mode}`, maxLifetimeMs: Number(lifetime) });
   process.send?.({ status: 'ACQUIRED', owner: store.lockStatus().owner });
