@@ -102,14 +102,14 @@ test('Mission Control client fails closed on an unscoped or mismatched worker re
   await assert.rejects(() => client.fetchWorkers([]), /At least one scoped/);
 });
 
-test('submission interval config defaults to 60000 and exposes the public value', async () => {
+test('submission interval config defaults to 20000 and exposes the public value', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-'));
   try {
     const chatsFile = join(root, 'chats.json');
     await writeFile(chatsFile, JSON.stringify([configuredChat()]));
     const config = await loadConfig(configEnv(chatsFile));
-    assert.equal(config.runtime.minSubmissionIntervalMs, 60_000);
-    assert.equal(publicConfig(config).minSubmissionIntervalMs, 60_000);
+    assert.equal(config.runtime.minSubmissionIntervalMs, 20_000);
+    assert.equal(publicConfig(config).minSubmissionIntervalMs, 20_000);
     assert.equal(config.submissionScheduler.url, 'https://mission-control.example/api/submission-authority');
     assert.equal(publicConfig(config).submissionAuthorityUrl, 'https://mission-control.example/api/submission-authority');
     assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
@@ -210,15 +210,15 @@ test('relay health reports use the authenticated authority route and expose no t
   assert.deepEqual(JSON.parse(requests[0].options.body), report);
 });
 
-test('submission interval config accepts only 60000 through 600000', async () => {
+test('submission interval config accepts only 20000 through 600000', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-range-'));
   try {
     const chatsFile = join(root, 'chats.json');
     await writeFile(chatsFile, JSON.stringify([configuredChat()]));
-    assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '60000' })).runtime.minSubmissionIntervalMs, 60_000);
+    assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '20000' })).runtime.minSubmissionIntervalMs, 20_000);
     assert.equal((await loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600000' })).runtime.minSubmissionIntervalMs, 600_000);
-    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '59999' }), /60000-600000/);
-    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600001' }), /60000-600000/);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '19999' }), /20000-600000/);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600001' }), /20000-600000/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

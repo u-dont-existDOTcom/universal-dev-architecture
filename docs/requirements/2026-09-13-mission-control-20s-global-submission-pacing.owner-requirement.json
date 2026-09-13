@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-20S-GLOBAL-SUBMISSION-PACING-20260913",
+  "recorded_at": "2026-09-13T00:37:59+00:00",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": " said too many requests so i guess 20s is a good min, let's change the 60s min to 20s in MC but just make sure each worker is queuing them globally",
+    "sha256": "60b26bde655e31a956703ae2120bd678dd9564e41366bf9c52bc056c01ed0129",
+    "source_type": "chatgpt_owner_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "current-chat:owner-request:2026-09-13"
+  },
+  "normalized_outcome": "Mission Control uses a 20-second configured minimum between provider send boundaries while preserving one shared, durable, global queue/admission/lease authority for all worker and relay sends. Workers must not bypass the Mission Control queue, create per-worker send authority, or race independently.",
+  "required_outcomes": [
+    {
+      "id": "RO-MC20S-001",
+      "terminal_required": true,
+      "observable": "The central Mission Control submission authority default and accepted lower bound are 20000 ms, and diagnostics evaluate violations against the configured minimum plus the 20-second policy floor.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MC20S-002",
+      "terminal_required": true,
+      "observable": "Relay configuration and defense-in-depth pacing defaults align with the same 20000 ms configured minimum and reject values below 20000 ms for the central authority path.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-MC20S-003",
+      "terminal_required": true,
+      "observable": "Tests prove requests from workers/hosts still serialize through the single durable FIFO queue and active lease before any send boundary.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "changing only a host-local relay pacer",
+    "changing only documentation without the central authority lower bound",
+    "a direct browser/send test that bypasses Mission Control",
+    "per-worker timers or locks replacing the global Mission Control queue",
+    "a 20-second UI label while the BFF/daemon still rejects values below 60000 ms",
+    "green tests that do not cover the global queue/admission gate"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/mission-control-multi-host-submission-scheduling.md"
+  ],
+  "production_boundary": "Changing the live VPS Mission Control pacing configuration or deploying this candidate requires exact hosted/local verification and a live no-send authority/status check; direct provider-send stress testing is not required by this requirement.",
+  "next_direct_evidence": "Run focused Mission Control and relay scheduler/config tests, then deploy the exact verified candidate only if crossing the live configuration boundary is authorized by this owner request and live no-send status confirms queue depth, active lease, configured minimum, and zero ambiguity."
+}

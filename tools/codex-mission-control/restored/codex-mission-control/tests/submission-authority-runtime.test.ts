@@ -54,7 +54,7 @@ test("Mission Control is the persistent shared authority and emits a hash-chaine
       ledger: { valid: true, errors: [] },
     });
 
-    now.value += 60_000;
+    now.value += 20_000;
     const second = await reopenedRuntime.execute("admissions", request({
       requestId: "request:second",
       queueKey: "queue:second",
@@ -75,15 +75,15 @@ test("Mission Control is the persistent shared authority and emits a hash-chaine
     assert.equal(secondEnqueue.bodySha256, "b".repeat(64));
     const boundary = ledger.records.findLast((record: Record<string, unknown>) => record.eventKind === "BOUNDARY_RECORDED");
     assert.ok(boundary);
-    assert.equal(boundary.previousGlobalSubmissionBoundaryAt, new Date(now.value - 60_000).toISOString());
-    assert.equal(boundary.interSendIntervalMs, 60_000);
-    assert.equal(boundary.minimumIntervalMs, 60_000);
+    assert.equal(boundary.previousGlobalSubmissionBoundaryAt, new Date(now.value - 20_000).toISOString());
+    assert.equal(boundary.interSendIntervalMs, 20_000);
+    assert.equal(boundary.minimumIntervalMs, 20_000);
     assert.equal(boundary.authorizationReference, "task:worker-a");
     assert.equal(boundary.queueItemId, second.queueItemId);
     assert.equal(boundary.producerId, producer.id);
     assert.equal(boundary.bodySha256, "b".repeat(64));
-    assert.equal(ledger.diagnostics.minimumObservedIntervalMs, 60_000);
-    assert.equal(ledger.diagnostics.violationsBelow60000Ms, 0);
+    assert.equal(ledger.diagnostics.minimumObservedIntervalMs, 20_000);
+    assert.equal(ledger.diagnostics.violationsBelow20000Ms, 0);
     assert.doesNotMatch(JSON.stringify(ledger), /automation-owned-target|bootstrap-spec/);
     assert.ok(ledger.records.every((record: Record<string, unknown>) => (
       !Object.hasOwn(record, "targetId") && !Object.hasOwn(record, "targetKey")
@@ -363,14 +363,14 @@ test("relay bearer and target attestor credentials are pairwise distinct across 
   }
 });
 
-test("pacing diagnostics evaluate the configured minimum as well as the immutable 60-second floor", () => {
+test("pacing diagnostics evaluate the configured minimum as well as the 20-second policy floor", () => {
   const diagnostics = pacingDiagnostics([
     { eventKind: "BOUNDARY_RECORDED", interSendIntervalMs: 90_000 },
     { eventKind: "BOUNDARY_RECORDED", interSendIntervalMs: 120_000 },
   ], 120_000);
   assert.equal(diagnostics.configuredMinimumIntervalMs, 120_000);
   assert.equal(diagnostics.violationsBelowConfiguredMinimum, 1);
-  assert.equal(diagnostics.violationsBelow60000Ms, 0);
+  assert.equal(diagnostics.violationsBelow20000Ms, 0);
 });
 
 test("submission-authority reads reject unbound collectors and non-relay producers", async () => {
@@ -407,7 +407,7 @@ function runtime(store: EventStore, now: { value: number }, overrides: Record<st
     MISSION_CONTROL_INGEST_CREDENTIALS: JSON.stringify({
       [producer.id]: { kind: "COLLECTOR", token: "ordinary-relay-test-" + "b".repeat(32), workers: ["worker-a"], tasks: ["*"] },
     }),
-    MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS: "60000",
+    MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS: "20000",
     MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS: "120000",
     ...overrides,
   }, () => now.value);

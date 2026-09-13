@@ -13,7 +13,7 @@ function normalizeConversationUrl(value) {
   return url.toString().replace(/\/$/, '');
 }
 
-export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS = 60_000;
+export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS = 20_000;
 
 const OPEN_QUEUE_STATUSES = new Set(['QUEUED', 'PRECLICK_RETRY_PENDING', 'RATE_LIMIT_RETRY_PENDING', 'ADMITTED']);
 const QUEUE_STATUSES = new Set([
@@ -51,7 +51,7 @@ export class CentralSubmissionScheduler {
   constructor({ stateStore, chats, producerBindings, producerAttestors, pacingDomain = null, minIntervalMs = MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS, admissionTtlMs = 120_000, now = Date.now }) {
     if (!stateStore || typeof stateStore.read !== 'function' || typeof stateStore.write !== 'function') throw new Error('A durable scheduler state store is required.');
     if (!Number.isInteger(minIntervalMs) || minIntervalMs < MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS || minIntervalMs > 600_000) {
-      throw new Error('The central scheduler interval must be 60000-600000 ms.');
+      throw new Error('The central scheduler interval must be 20000-600000 ms.');
     }
     if (!Number.isInteger(admissionTtlMs) || admissionTtlMs < 30_000 || admissionTtlMs > 600_000) throw new Error('admissionTtlMs must be 30000-600000.');
     if (!Array.isArray(chats) || chats.length === 0) throw new Error('The central scheduler requires a non-empty Mission Control-only supervisor registry.');

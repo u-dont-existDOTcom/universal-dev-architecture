@@ -40,7 +40,7 @@ Treat capabilities as exact directional source → destination edges with user/U
 
 Browser automation may operate only on explicitly automation-owned windows/targets. Persist exact ownership IDs; never adopt, navigate, submit into, close, or count manual/foreign targets. If ownership is lost, create a dedicated automation window.
 
-For the exact ChatGPT rate-limit UI `too many chat requests are coming too quick`/`too quickly` with exactly one `Got it` control, dismiss that control and retry the exact same submission once after at least 30 seconds, while preserving the repository-wide minimum 60-second submission interval after any crossed send boundary. A second/ambiguous/changed result fails closed. Detection may inspect only the bounded provider/system dialog, never assistant response content.
+For the exact ChatGPT rate-limit UI `too many chat requests are coming too quick`/`too quickly` with exactly one `Got it` control, dismiss that control and retry the exact same submission once after at least 30 seconds, while preserving the repository-wide configured minimum submission interval after any crossed send boundary. A second/ambiguous/changed result fails closed. Detection may inspect only the bounded provider/system dialog, never assistant response content.
 
 Standing authority includes creating/private-registering a missing
 `MISSION_CONTROL_ONLY` supervisor conversation without repeat approval; retain

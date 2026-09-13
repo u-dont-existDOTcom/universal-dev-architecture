@@ -12,8 +12,9 @@ import {
 } from '../src/submission-scheduler-service.mjs';
 
 const origin = Date.parse('2026-09-10T12:00:00.000Z');
+const MIN_INTERVAL_MS = 20_000;
 
-test('central scheduler persists a single-use admission before the actual boundary and enforces 60 seconds globally', async () => {
+test('central scheduler persists a single-use admission before the actual boundary and enforces 20 seconds globally', async () => {
   const now = { value: origin };
   const store = new MemoryStore();
   const scheduler = makeScheduler(store, now);
@@ -41,8 +42,8 @@ test('central scheduler persists a single-use admission before the actual bounda
     scheduler.recordBoundary({ admissionId: admission.admissionId, boundaryAt: new Date(now.value + 1).toISOString(), boundaryKind: 'CLICKED' }, 'collector:relay'),
     hasCode('SUBMISSION_ADMISSION_ALREADY_USED'),
   );
-  await assert.rejects(scheduler.admit(request({ requestId: 'r-too-fast', queueKey: 'queue:r-too-fast' }), 'collector:relay'), (error) => error.code === 'GLOBAL_SUBMISSION_COOLDOWN' && error.detail.retryAfterMs === 60_000);
-  now.value += 60_000;
+  await assert.rejects(scheduler.admit(request({ requestId: 'r-too-fast', queueKey: 'queue:r-too-fast' }), 'collector:relay'), (error) => error.code === 'GLOBAL_SUBMISSION_COOLDOWN' && error.detail.retryAfterMs === MIN_INTERVAL_MS);
+  now.value += MIN_INTERVAL_MS;
   assert.equal((await scheduler.admit(request({ requestId: 'r-too-fast', queueKey: 'queue:r-too-fast' }), 'collector:relay')).admitted, true);
 });
 
@@ -759,7 +760,7 @@ function makeScheduler(store, now, overrides = {}) {
       'collector:standby': 'standby-attestor-test-' + 'b'.repeat(32),
     },
     pacingDomain: 'account:test',
-    minIntervalMs: 60_000,
+    minIntervalMs: MIN_INTERVAL_MS,
     now: () => now.value,
     ...overrides,
   });

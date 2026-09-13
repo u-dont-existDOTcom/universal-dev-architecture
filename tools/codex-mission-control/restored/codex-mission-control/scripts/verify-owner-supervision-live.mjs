@@ -59,7 +59,7 @@ if (operator.authority.activeLeaseRole !== "PRIMARY" || !Number.isInteger(operat
   || operator.authority.epoch < 1 || operator.authority.queueDepth < 0) {
   throw new Error("The active authority epoch, role, or queue depth is invalid.");
 }
-if (operator.pacing.configuredMinimumIntervalMs < 60_000
+if (operator.pacing.configuredMinimumIntervalMs < 20_000
   || operator.pacing.violationsBelowConfiguredMinimum !== 0
   || operator.pacing.minimumObservedIntervalMs !== null
     && operator.pacing.minimumObservedIntervalMs < operator.pacing.configuredMinimumIntervalMs) {

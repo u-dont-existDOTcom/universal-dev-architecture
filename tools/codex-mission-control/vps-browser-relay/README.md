@@ -59,7 +59,7 @@ cannot advance an artifact state or complete a cycle.
 - Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
 - Every actual ChatGPT message send requires a durable, single-use admission from
-  the loopback central scheduler. The default and minimum interval is 60 seconds,
+  the loopback central scheduler. The default and minimum interval is 20 seconds,
   configurable through 600 seconds.
 - Capability prompts, binding preloads, every fresh reasoning/GitHub stage,
   controller sends, and stuck-turn recovery use the same durable FIFO queue.

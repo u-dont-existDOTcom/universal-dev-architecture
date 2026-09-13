@@ -5,7 +5,7 @@ export const CHATGPT_RATE_LIMIT_RETRY = 'CHATGPT_RATE_LIMIT_RETRY';
 export const CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED = 'CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED';
 
 export class CentralSubmissionScheduler {
-  constructor({ schedulerClient, stateStore, host, minIntervalMs = 60_000, now = Date.now, sleepImpl = sleep }) {
+  constructor({ schedulerClient, stateStore, host, minIntervalMs = 20_000, now = Date.now, sleepImpl = sleep }) {
     if (!schedulerClient || !['status', 'admit', 'validateAdmission', 'recordBoundary', 'bindTarget', 'recordRateLimit', 'abortBeforeBoundary', 'recordOutcome'].every((method) => typeof schedulerClient[method] === 'function')) {
       throw new Error('Central submission scheduling requires the dedicated scheduler client.');
     }
@@ -14,7 +14,7 @@ export class CentralSubmissionScheduler {
       || !Number.isInteger(host.deploymentEpoch) || host.deploymentEpoch < 1 || typeof host.leaseId !== 'string') {
       throw new Error('Central submission scheduling requires exact host alias, role, deployment epoch, and lease ID.');
     }
-    if (!Number.isInteger(minIntervalMs) || minIntervalMs < 60_000 || minIntervalMs > 600_000) throw new Error('minIntervalMs must be an integer from 60000 to 600000.');
+    if (!Number.isInteger(minIntervalMs) || minIntervalMs < 20_000 || minIntervalMs > 600_000) throw new Error('minIntervalMs must be an integer from 20000 to 600000.');
     this.schedulerClient = schedulerClient;
     this.stateStore = stateStore;
     this.host = host;
@@ -337,7 +337,7 @@ function targetIdsSha256(ids) {
 }
 
 export class GlobalSubmissionPacer {
-  constructor({ stateStore, minIntervalMs = 60_000, now = Date.now, sleepImpl = sleep }) {
+  constructor({ stateStore, minIntervalMs = 20_000, now = Date.now, sleepImpl = sleep }) {
     if (!stateStore || typeof stateStore.read !== 'function' || typeof stateStore.write !== 'function') {
       throw new Error('Global submission pacing requires a relay state store.');
     }

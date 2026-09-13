@@ -87,7 +87,7 @@ export async function loadConfig(env = process.env) {
       submitEnabled: env.MC_RELAY_SUBMIT_ENABLED === '1',
       capabilityTestEnabled: env.MC_RELAY_CAPABILITY_TEST_ENABLED === '1',
       pollIntervalMs: integer(env.MC_RELAY_POLL_INTERVAL_MS, 15_000, 2_000, 300_000),
-      minSubmissionIntervalMs: integer(env.MC_RELAY_MIN_SUBMISSION_INTERVAL_MS, 60_000, 60_000, 600_000),
+      minSubmissionIntervalMs: integer(env.MC_RELAY_MIN_SUBMISSION_INTERVAL_MS, 20_000, 20_000, 600_000),
       submissionHost: {
         alias: required(env.MC_RELAY_HOST_ALIAS, 'MC_RELAY_HOST_ALIAS'),
         role: hostRole,

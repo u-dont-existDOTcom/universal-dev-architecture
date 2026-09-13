@@ -124,7 +124,7 @@ export class SubmissionAuthorityRuntime {
     assertCombinedSupervisorRegistry(chats);
     const accountAliases = new Set(chats.map((chat) => chat.accountAlias));
     if (accountAliases.size !== 1) throw new Error("One pacing domain may contain exactly one provider account alias.");
-    const minimumIntervalMs = boundedInteger(env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS, 60_000, 60_000, 600_000);
+    const minimumIntervalMs = boundedInteger(env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS, 20_000, 20_000, 600_000);
     this.minimumIntervalMs = minimumIntervalMs;
     const admissionTtlMs = boundedInteger(env.MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS, 120_000, 30_000, 600_000);
     const relayBindingsRaw = env.MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON;
@@ -663,7 +663,7 @@ export function pacingDiagnostics(records: Array<Record<string, unknown>>, minim
     recentIntervalsMs: intervalsInOrder.slice(-10),
     configuredMinimumIntervalMs: minimumIntervalMs,
     violationsBelowConfiguredMinimum: intervals.filter((value) => value < minimumIntervalMs).length,
-    violationsBelow60000Ms: intervals.filter((value) => value < 60_000).length,
+    violationsBelow20000Ms: intervals.filter((value) => value < 20_000).length,
   };
 }
 
