@@ -26,6 +26,10 @@ For each lesson:
 ### `<lesson id / short name>`
 - Source: `<repo/ref/path or owner correction>`
 - Trigger: `<why it applies now>`
+- Actor / scope / authority: `<who is bound, within which authorized domain>`
+- Due phase and destination: `<exact action, answer, artifact, recipient, or state>`
+- Non-substitutes: `<similar activity that does not satisfy this obligation>`
+- Carry-through: `<what remains open across handoff, rewrite, or compaction>`
 - Required behavior: `<what must actually happen>`
 - Failure condition: `<observable evidence it was not applied>`
 - Repair: `<what to do on failure>`
@@ -45,14 +49,14 @@ Result: `ACTIVE | BLOCKED`
 
 For each active lesson record:
 
-- `<lesson>`: `PASS | NOT_APPLICABLE | FAIL` — evidence: `<literal span/action/check/result>`
+- `<lesson>`: `PASS | NOT_APPLICABLE | FAIL | UNKNOWN` — evidence: `<literal span/action/check/result at the bound destination; unknown is not a pass>`
 
 Guidance activation: `ACTIVE | NOT_ACTIVATED | STALE`
 Contract freshness: `CURRENT | STALE`
 
 Admission: `ADMITTED | BLOCKED`
 
-A substantive `FAIL`, stale contract, or required-but-unactivated guidance layer blocks the affected delivery/action. `I read it`, `the prompt included it`, and `I remembered it` are not application evidence.
+A substantive `FAIL`, `UNKNOWN` evidence for a mandatory obligation, stale contract, or required-but-unactivated guidance layer blocks the affected delivery/action. `I read it`, `the prompt included it`, and `I remembered it` are not application evidence.
 
 ## Feedback refresh
 
