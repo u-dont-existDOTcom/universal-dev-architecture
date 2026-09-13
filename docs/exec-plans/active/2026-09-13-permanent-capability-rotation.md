@@ -1,6 +1,8 @@
 # Permanent capability-challenge rotation
 
-Status: BLOCKED_EXACT_REASON — PRIMARY deployment lease expired. Owner-approved pacing values are saved in both private configuration files, but running app activation and live rotation acceptance remain pending. Credential provisioning succeeded.
+Status: IMPLEMENTED_NOT_LIVE_VERIFIED — owner approved a bounded 24-hour renewal of the same PRIMARY deployment lease. Resume the retained rollout with saved 60000 ms pacing values; no live rotation completion claimed.
+
+Lease-renewal approval captured at 2026-09-13T20:18:50Z: `yes and why does it have only a 24hr lease? taht seems like another gate of extra work`, replying to the exact same-lease/24-hour renewal question. Change expiresAt only; no host, epoch, lease ID, issued-at, ownership or takeover change. Explain that deployment duration separately from capability-challenge TTL; do not silently introduce an automatic renewal controller.
 
 Owner approval captured at 2026-09-13T19:38:06Z: `yes`, responding to the exact question about raising both PRIMARY pacing minimums from 20 to 60 seconds. This authorizes only the two named pacing settings. Source-sent timestamp is unavailable; the timestamp is Work capture/check time. Fresh read-only PRIMARY health reports LEASE_STALE; do not bypass or silently extend its expiry gate.
 

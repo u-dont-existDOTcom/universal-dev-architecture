@@ -2,10 +2,17 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-PERMANENT-CAPABILITY-ROTATION-20260913",
   "recorded_at": "2026-09-13T02:09:01Z",
-  "status": "BLOCKED_EXACT_REASON",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "owner_corrections": [{
+    "source_type": "OWNER_DIRECT_CHAT_LEASE_RENEWAL_APPROVAL",
+    "verbatim": "yes and why does it have only a 24hr lease? taht seems like another gate of extra work",
+    "approved_question": "May I renew that same PRIMARY lease for 24 hours, preserving its host, epoch, ownership and all other security gates, then continue deployment?",
+    "captured_at": "2026-09-13T20:18:50Z",
+    "timestamp_semantics": "Work capture/check time, not a claimed source-sent timestamp",
+    "implementation_boundary": "Renew only expiresAt of the same PRIMARY lease for 24 hours from this bounded operator renewal; preserve host, epoch, lease identity, issued-at, ownership, takeover and all other gates. Resume retained rollout with the already approved 60000 ms minimums. Explain the existing 24-hour deployment choice; this question does not authorize a new automatic lease-renewal architecture."
+  }, {
     "source_type": "OWNER_DIRECT_CHAT_APPROVAL",
     "verbatim": "yes",
     "approved_question": "Do you approve raising both PRIMARY pacing minimums from 20 to 60 seconds so deployment can continue?",
