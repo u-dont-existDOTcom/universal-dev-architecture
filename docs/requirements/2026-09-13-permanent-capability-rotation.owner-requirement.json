@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-PERMANENT-CAPABILITY-ROTATION-20260913",
   "recorded_at": "2026-09-13T02:09:01Z",
-  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "status": "BLOCKED_EXACT_REASON",
   "completion_allowed": false,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "owner_corrections": [{
@@ -86,6 +86,6 @@
     "chatgpt_provider_sends": 0,
     "live_nonce_publications": 0
   },
-  "exact_remaining_blocker": "The owner has authorized both PRIMARY minimums to increase from 20000 to 60000 ms. Runtime revalidation, bounded configuration changes, deployment and live challenge acceptance are pending. Fresh check now reports LEASE_STALE, which must not be bypassed or silently extended.",
-  "next_direct_evidence": "Apply only the two authorized pacing values, investigate the stale lease through existing read-only authority paths, and resume reversible deployment only where runtime security prerequisites permit. Preserve private registrations and all lease expiry/ownership gates; prove successor publication, unchanged registration discovery, paced canonical preflight/capabilities, fresh receipt and old-receipt rejection."
+  "exact_remaining_blocker": "PRIMARY_DEPLOYMENT_LEASE_EXPIRED: the unchanged epoch-3 PRIMARY send-authority lease expired at 2026-09-13T16:21:43.570597Z; the current daemon reports LEASE_STALE with valid chain/ledger. Both private config minimums are now 60000 ms; the app file was already 60000 and the relay file was changed from 20000, preserving every unrelated byte and file permission. The existing running app still has its older 20000 value until safe replacement. No service was restarted in this approval turn: startup rejects an expired lease, so deployment cannot proceed without authority to renew the same lease. No renewal service or public renewal route was found; the existing same-lease operator path may extend only expiresAt, preserving all identity/takeover fields. Owner authorization for a bounded 24-hour renewal is required; no expiry bypass, provider send or SECONDARY change occurred.",
+  "next_direct_evidence": "Obtain owner authorization for a bounded renewal of the same PRIMARY lease, preserving host, epoch, identity, ownership and takeover fields. Then materialize that authorized expiry through the existing private config and single-writer startup path, deploy the retained exact app and composed lock-repair/rotation relay source, verify both active 60000 ms floors, and complete successor/publication/discovery/canonical capability receipt acceptance."
 }
