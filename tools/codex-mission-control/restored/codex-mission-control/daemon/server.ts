@@ -23,6 +23,13 @@ import {
   type GitHubDecisionCandidate,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
+import { assertCapabilitySubjectsMatchRegistrations, loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chats";
+import {
+  CapabilityChallengeManager,
+  assertCapabilityWriterCredentialIsolation,
+  capabilityWriterIsolationCredentialsFromEnvironment,
+  parseCapabilityChallengeDurations,
+} from "../lib/capability-challenge-manager";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -38,7 +45,16 @@ if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
   else seedStore(store);
 }
 const githubPolicy = parseGitHubReceiptPolicy();
+if (githubPolicy) assertCapabilitySubjectsMatchRegistrations(githubPolicy.capabilitySubjects, loadConfiguredSupervisorChats());
 ensureConfiguredCapabilityChallenges(store, githubPolicy);
+assertCapabilityWriterCredentialIsolation(
+  process.env.MISSION_CONTROL_GITHUB_CAPABILITY_WRITER_TOKEN,
+  capabilityWriterIsolationCredentialsFromEnvironment(process.env),
+);
+const capabilityChallengeManager = githubPolicy ? new CapabilityChallengeManager(store, githubPolicy, {
+  ...parseCapabilityChallengeDurations(),
+  token: process.env.MISSION_CONTROL_GITHUB_CAPABILITY_WRITER_TOKEN,
+}) : null;
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
@@ -46,6 +62,7 @@ const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env
   }, (event) => notifications.emit("event", event))
   : null;
 const githubReconciliationTimer = startGitHubReconciliation();
+const capabilityChallengeRotationTimer = startCapabilityChallengeRotation();
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -87,6 +104,28 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === "GET" && url.pathname === "/events") {
       return json(response, 200, { events: store.allEvents() });
+    }
+    const exactCapabilityChallengeMatch = url.pathname.match(/^\/capability-challenges\/([^/]+)$/);
+    if (request.method === "GET" && exactCapabilityChallengeMatch && exactCapabilityChallengeMatch[1] !== "current") {
+      const challengeId = decodeURIComponent(exactCapabilityChallengeMatch[1]);
+      if (!challengeId || challengeId.length > 180 || !capabilityChallengeManager) return json(response, 404, { error: "Capability challenge not found." });
+      const challenge = capabilityChallengeManager.exact(challengeId);
+      return challenge ? json(response, 200, challenge) : json(response, 404, { error: "Capability challenge not found." });
+    }
+    if (request.method === "GET" && url.pathname === "/capability-challenges/current") {
+      const producer = authorizeMutation(request);
+      const supervisorId = url.searchParams.get("supervisor_id") ?? "";
+      const chatId = url.searchParams.get("chat_id") ?? "";
+      const subject = githubPolicy?.capabilitySubjects.find((item) => item.supervisorId === supervisorId && item.chatId === chatId);
+      if (!capabilityChallengeManager || !subject) return json(response, 404, { error: "Capability challenge subject not found." });
+      if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(subject.worker)) {
+        return json(response, 403, { error: "Capability challenge worker scope mismatch." });
+      }
+      const before = store.latestSequence();
+      await capabilityChallengeManager.ensure(supervisorId, chatId);
+      for (const event of store.eventsAfter(before)) notifications.emit("event", event);
+      const challenge = capabilityChallengeManager.current(supervisorId, chatId);
+      return challenge ? json(response, 200, challenge) : json(response, 503, { error: "Current capability challenge is unavailable." });
     }
     if (request.method === "POST" && url.pathname === "/mcp") {
       const producer = authorizeMutation(request);
@@ -267,6 +306,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     server.close(() => {
       liveSourceWatcher?.close();
       if (githubReconciliationTimer) clearInterval(githubReconciliationTimer);
+      if (capabilityChallengeRotationTimer) clearInterval(capabilityChallengeRotationTimer);
       store.close();
       process.exit(0);
     });
@@ -369,5 +409,27 @@ function startGitHubReconciliation(): NodeJS.Timeout | null {
   const timer = setInterval(() => void reconcile(), configured);
   timer.unref();
   void reconcile();
+  return timer;
+}
+
+function startCapabilityChallengeRotation(): NodeJS.Timeout | null {
+  if (!capabilityChallengeManager) return null;
+  let running = false;
+  const ensure = async () => {
+    if (running) return;
+    running = true;
+    const before = store.latestSequence();
+    try {
+      await capabilityChallengeManager.ensureAll();
+      for (const event of store.eventsAfter(before)) notifications.emit("event", event);
+    } catch (error) {
+      console.error("Capability challenge rotation failed", error instanceof Error ? error.message : "unknown error");
+    } finally {
+      running = false;
+    }
+  };
+  const timer = setInterval(() => void ensure(), 5 * 60 * 1000);
+  timer.unref();
+  void ensure();
   return timer;
 }

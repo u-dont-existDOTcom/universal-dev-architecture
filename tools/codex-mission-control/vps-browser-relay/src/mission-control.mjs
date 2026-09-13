@@ -30,6 +30,27 @@ export class MissionControlClient {
     return { generatedAt: new Date().toISOString(), workers };
   }
 
+  async resolveCapabilityChallenge(supervisorId, chatId) {
+    if (typeof supervisorId !== 'string' || !supervisorId || typeof chatId !== 'string' || !chatId) {
+      throw new Error('Exact supervisor and chat IDs are required for capability challenge resolution.');
+    }
+    const query = new URLSearchParams({ supervisor_id: supervisorId, chat_id: chatId });
+    const challenge = await this.#requestJson(`/api/capability-challenges/current?${query}`, { method: 'GET' });
+    const expectedKeys = ['challenge_id', 'chat_id', 'expires_at', 'github_nonce_sha256', 'github_nonce_source', 'mc_nonce', 'receipt_target', 'schema_version'];
+    if (!challenge || typeof challenge !== 'object' || Array.isArray(challenge)
+      || challenge.schema_version !== 1 || challenge.chat_id !== chatId
+      || typeof challenge.challenge_id !== 'string' || !challenge.challenge_id || challenge.challenge_id.length > 180
+      || typeof challenge.mc_nonce !== 'string' || !challenge.mc_nonce || challenge.mc_nonce.length > 500
+      || typeof challenge.github_nonce_sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(challenge.github_nonce_sha256)
+      || typeof challenge.github_nonce_source !== 'string' || !challenge.github_nonce_source.startsWith('https://github.com/')
+      || typeof challenge.receipt_target !== 'string' || challenge.receipt_target !== challenge.github_nonce_source
+      || !Number.isFinite(Date.parse(challenge.expires_at)) || Date.parse(challenge.expires_at) <= Date.now()
+      || JSON.stringify(Object.keys(challenge).sort()) !== JSON.stringify(expectedKeys)) {
+      throw new Error('Mission Control returned an invalid current capability challenge.');
+    }
+    return challenge;
+  }
+
   async recordEvidence(worker, { receiptId, summary, refs, occurredAt = new Date().toISOString() }) {
     if (!worker || !receiptId || !summary || !Array.isArray(refs) || refs.length === 0) {
       throw new Error('Mission Control evidence requires worker, receiptId, summary, and refs.');

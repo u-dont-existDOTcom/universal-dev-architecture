@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-1b7a248f6efa187526f065ef91711f7403cf47a9de9e2fe4a1180db8108e58dd
+114f63773b1e2ae8d324508720f0b692c3d23ee5dfcf4c102198271de6f159be
 ```
 
-The checked archive contains 159 source files in 73 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
+The checked archive contains 162 source files in 75 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
 
 ## Current operator model
 
@@ -74,7 +74,7 @@ authoritative, or allowed to change Symphony's role. See the
 
 At the current execution receipt boundary:
 
-- 236 deterministic application tests passed;
+- 249 deterministic application tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;
@@ -88,7 +88,7 @@ At the current execution receipt boundary:
 - the actual Human Design repository adapter completed ledger-first direction delivery, acknowledgement, real queue publication, blocker/proposal surfacing, and reconciliation;
 - the 18-run Hermes matrix failed its preregistered gate and automatically retained the baseline;
 - 299 repository tests and the repository audit passed;
-- 185 relay tests and the relay JavaScript/shell syntax checks passed;
+- 186 relay tests and the relay JavaScript/shell syntax checks passed;
 - stack shutdown released the daemon writer lock;
 - the source archive restored with exact checksum and tree equality.
 

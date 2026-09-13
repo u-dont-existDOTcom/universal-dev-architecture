@@ -223,15 +223,22 @@ async function assertToolFailure(deps: PublicMcpDependencies, name: string, args
 }
 
 function policy(): GitHubReceiptPolicy {
+  const subject = {
+    supervisorId, chatId, worker: workerId,
+    modelVisibleLabel: "GPT-5.6 Sol" as const, thinkingControlLabel: "Thinking effort" as const, thinkingVisibleLabel: "Extra High" as const,
+    thinkingOrdinal: "4 of 5" as const, accountPlanLabel: "Pro" as const, accountPlanRole: "PROVENANCE_METADATA_ONLY" as const, accountPlanIsReasoningMode: false as const,
+  };
   return {
     repository: "u-dont-existDOTcom/universal-dev-architecture",
     decisionIssueNumber: 59,
     capabilityIssueNumber: 60,
     stageIssueNumber: 61,
     authorizedWriterLogins: ["u-dont-existDOTcom"],
+    capabilitySubjects: [subject],
     capabilityChallenges: [{
-      challengeId: "challenge-safe-1", supervisorId, chatId, worker: workerId, mcNonce: "disposable-mc-nonce", githubNonce: "disposable-github-nonce",
-      expiresAt: expiry, modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
+      ...subject,
+      challengeId: "challenge-safe-1", mcNonce: "disposable-mc-nonce", githubNonce: "disposable-github-nonce",
+      issuedAt: "1970-01-01T00:00:00.000Z", expiresAt: expiry,
     }],
   };
 }

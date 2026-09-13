@@ -1,7 +1,4 @@
-import {
-  parseGitHubReceiptPolicy,
-  publicCapabilityChallenge,
-} from "@/lib/github-decision-receipts";
+import { daemonFetch } from "@/lib/daemon-client";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +17,10 @@ export async function GET(
   const { challenge } = await context.params;
   if (!challenge || challenge.length > 180) return notFound();
   try {
-    const result = publicCapabilityChallenge(parseGitHubReceiptPolicy(), challenge);
-    return result
-      ? Response.json(result, { headers: responseHeaders })
-      : notFound();
+    const response = await daemonFetch(`/capability-challenges/${encodeURIComponent(challenge)}`);
+    if (response.status === 404) return notFound();
+    if (!response.ok) throw new Error(`Capability challenge daemon returned HTTP ${response.status}.`);
+    return Response.json(await response.json(), { headers: responseHeaders });
   } catch {
     return Response.json({ error: "Capability challenge service is unavailable." }, {
       status: 503,

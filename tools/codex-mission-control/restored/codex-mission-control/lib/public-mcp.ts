@@ -9,6 +9,7 @@ import {
   publicCapabilityChallenge,
   stageLivenessSummary,
   type GitHubReceiptPolicy,
+  type PublicCapabilityChallenge,
 } from "./github-decision-receipts";
 import type { StoredEvent } from "./schema";
 
@@ -21,6 +22,7 @@ export const publicMcpToolNames = [
 export interface PublicMcpDependencies {
   loadEvents: () => Promise<StoredEvent[]>;
   loadPolicy: () => GitHubReceiptPolicy | null;
+  loadCapabilityChallenge?: (challengeId: string, chatId: string) => Promise<PublicCapabilityChallenge | null>;
   now?: () => string;
   recordAccess?: (event: PublicMcpAccessEvent) => void | Promise<void>;
 }
@@ -140,7 +142,9 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
   }, async ({ challenge_id, chat_id }) => {
     const now = currentTime(dependencies);
     try {
-      const result = publicCapabilityChallenge(dependencies.loadPolicy(), challenge_id, now);
+      const result = dependencies.loadCapabilityChallenge
+        ? await dependencies.loadCapabilityChallenge(challenge_id, chat_id)
+        : publicCapabilityChallenge(dependencies.loadPolicy(), challenge_id, now);
       if (!result || result.chat_id !== chat_id) {
         await access(dependencies, { tool: publicMcpToolNames[0], challenge_id, chat_id, status: "NOT_FOUND", occurred_at: now });
         throw notFound();
