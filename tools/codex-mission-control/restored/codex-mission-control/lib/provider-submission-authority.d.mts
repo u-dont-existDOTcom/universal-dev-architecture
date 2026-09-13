@@ -16,6 +16,10 @@ export class CentralSubmissionScheduler {
     stateStore: {
       read(): Promise<unknown>;
       write(value: unknown): Promise<unknown>;
+      recoverBeforeComposition?(
+        permit: Record<string, any>,
+        transition: (state: Record<string, any>) => Record<string, any>,
+      ): Promise<unknown>;
     };
     chats: unknown[];
     producerBindings: unknown;
@@ -27,6 +31,12 @@ export class CentralSubmissionScheduler {
   });
 
   activateLease(lease: unknown): Promise<unknown>;
+  recoverBeforeComposition(permit: unknown, configuredLease: unknown, producer: {
+    id: string;
+    kind: string;
+    workerScopes: string[];
+    taskScopes: string[];
+  }): Promise<unknown>;
   status(): Promise<Record<string, unknown>>;
   producerBinding(producerId: string): Promise<Record<string, unknown>>;
   beginRelayTargetTransition(input: unknown, producerId: string): Promise<Record<string, unknown>>;
@@ -42,6 +52,11 @@ export class CentralSubmissionScheduler {
 }
 
 export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS: number;
+export const MAXIMUM_RECOVERY_PERMIT_LIFETIME_MS: number;
+export const PRECOMPOSITION_RECOVERED: "RECOVERED_BEFORE_COMPOSITION";
+export function recoverySha256(value: unknown): string;
+export function recoveryPermitScopeSha256(value: Record<string, unknown>): string;
+export function parsePrecompositionRecoveryPermit(value: unknown): Record<string, any>;
 export function parseDeploymentLease(value: unknown): Record<string, unknown>;
 export function parseSubmissionRelayBindings(value: unknown): Record<string, Record<string, unknown>>;
 export function parseSubmissionRelayAttestors(value: unknown, producerIds: string[]): Record<string, string>;
