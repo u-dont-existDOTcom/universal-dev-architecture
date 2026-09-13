@@ -76,6 +76,37 @@ Workers and subagents should not report substantive work complete until they hav
 
 The owner should not have to remember to ask.
 
+### 6A. Owner shorthand: `learn the lesson` means the full learning lifecycle
+
+Treat an owner instruction such as **`learn the lesson`**, **`learn this lesson`**, or an unambiguous equivalent as a standing shorthand for the complete applicable learning lifecycle. Do not interpret it as merely “write a note,” “update the universal repository,” or “remember this for later,” and do not ask the owner to enumerate propagation targets that can be derived from current project/runtime authority.
+
+Unless the owner explicitly limits scope, execute all applicable steps automatically:
+
+1. reconstruct the exact correction/finding and the underlying reusable lesson rather than preserving only the surface wording;
+2. activate the correction immediately for the current task before the next substantive attempt, following `patterns/task-time-lesson-activation.md`;
+3. persist the project-specific lesson and provenance in the originating project when applicable;
+4. promote a genuinely cross-project lesson into the universal repository when warranted;
+5. identify every affected **execution surface** where the desired behavior must actually occur, including developer/agent guidance, product runtime/system instructions, application prompt or policy layers, evaluator/judge instructions, tests/evals, generated bundles, or other authoritative shipped controls;
+6. project the lesson into each affected execution surface, or record an explicit `NOT_APPLICABLE` or `DEFERRED` disposition with the exact target and reason;
+7. add or update focused regression tests/evals/checks where the behavior is mechanically or behaviorally testable;
+8. verify the propagation path from durable lesson store to the surface that will execute the behavior;
+9. only then report the learning operation complete at the level actually achieved.
+
+For a public-facing AI product, **updating Universal Dev Architecture is not by itself evidence that public users will receive the corrected behavior**. If that product's runtime does not load the universal repository, the affected product runtime authority must be updated separately. Developer/build-time governance and public runtime behavior are distinct propagation targets.
+
+Do not conflate these states:
+
+- `CAPTURED` — lesson persisted somewhere durable;
+- `PROMOTED` — generalized into universal guidance where warranted;
+- `PROJECTED` — copied/adapted into every currently affected execution surface;
+- `TESTED` — focused regression/eval evidence exists where applicable;
+- `DEPLOYED` — changed runtime artifact has crossed its deployment boundary;
+- `LIVE_VERIFIED` — the behavior has been observed at the real consumer seam.
+
+A lower state must never be described as a higher one. If access, deployment authority, or another genuine boundary prevents full propagation, complete every safe reachable step automatically and report the remaining exact gap instead of silently stopping at capture/promotion.
+
+This shorthand is owner-directed task continuation. Once the owner says `learn the lesson`, routine repository/runtime target discovery and propagation are part of the same task until complete or blocked by a genuine authority boundary.
+
 ### 7. Enforce the invariant in CI
 
 Use a repository-side check on pushes and pull requests. The check should be semantic rather than merely verifying that a lesson file changed.
