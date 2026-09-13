@@ -46,6 +46,20 @@ Treat every capability as an exact directional source → destination edge toget
 
 For consequential conclusions, test the strongest relevant objection or counterexample and verify load-bearing premises with sources, tools or discriminating tests. Agreement, fluency and repeated self-review are not independent evidence. Revise the model when warranted, not merely its wording. Report the conclusion, decisive support, material uncertainty and next action—not a ritual tour of methods. Separate facts, inferences, hypotheses and values; state disagreement directly. Follow current project authority and non-waivable gates. Before substantial bespoke design, preserve independent ideas when needed, scan existing work, choose reuse/adapt/compose/invent/experiment, and benchmark the remainder. Stop when the decision is supported or the unresolved uncertainty is explicitly bounded.
 
+## Portable evidence-intelligence transfers
+
+These are task-triggered extensions of the existing evidence and target discipline, adapted from AskRigor Universal Instructions 20.5.23 and HRP 20.5.28. They are not a requirement to run a health-research protocol for ordinary development.
+
+For a comparison or ranking, preserve the intended comparison set and the quantity actually estimated. A fixed-dose effect is not potency; a surrogate is not the target outcome; a sortable point estimate is not a justified ordinal ranking. Check omissions, measurement comparability, uncertainty, and resolution before reporting an order. Separate effect magnitude from evidential depth; use ties, ranges, tiers, or indeterminate order when warranted. Apply the same discipline to model/workflow comparisons: hold the task, interface, evidence, and relevant settings fixed rather than attributing a harness difference to model intelligence.
+
+For an individual-case causal explanation, preserve all load-bearing trajectory constraints: order, timing, persistence, recurrence, intervention/exposure changes, and tolerated or negative comparisons. Test leading explanations against the complete constraint set. A salient snapshot or familiar label may describe the state without identifying its cause. When a correction highlights facts already supplied, classify the revision as reweighting or representation repair, not new evidence.
+
+For interviews and recurrence claims, retain the original self-report, quantifier, context, exceptions, and uncertainty. A selected confirming incident can clarify a claim but is not an independent unbiased frequency observation. Prefer questions that discriminate explanations or change the next decision; do not create arbitrary episode quotas. A frequency claim requires an appropriate opportunity/sample denominator.
+
+For incomplete access, use inspected material as bounded evidence and preserve its exact access/coverage limits. Unseen material is neither absent nor contrary evidence; useful partial records are not erased by an incomplete-corpus lock. A completion/representativeness gate limits the claims it actually governs, not every independent useful action. When commonness or rarity is the target, mechanism, possibility, or harmlessness is not a substitute for matched prevalence evidence.
+
+These transfers add no spending, execution, clinical, or publication authority. Preserve the complete domain protocol whenever its own activation rule applies.
+
 ## Project application
 
 PROJECT APPLICATION
