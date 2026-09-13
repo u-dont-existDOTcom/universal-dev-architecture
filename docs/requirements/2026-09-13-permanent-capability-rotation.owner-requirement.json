@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-PERMANENT-CAPABILITY-ROTATION-20260913",
   "recorded_at": "2026-09-13T02:09:01Z",
-  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "status": "BLOCKED_EXACT_REASON",
   "completion_allowed": false,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "owner_corrections": [{
@@ -70,15 +70,15 @@
   ],
   "implementation_evidence": {
     "mission_control_tests": "380/380 passed after final source corrections",
-    "relay_tests": "200/200 passed",
+    "relay_tests": "Combined approved lock repair and rotation source: 215/215 full; then 12/12 affected including retained CLI error-cleanup regression",
     "repository_tests": "299/299 passed",
     "build_and_typecheck": "PASS",
     "repository_audit": "PASS",
     "independent_security_review": "No open blocking source findings after provenance, cross-worker, migration, publication recovery, restart and credential-boundary corrections; not live acceptance",
-    "primary_publisher": "Installed disabled/inactive; effective dump and exact systemd credential-copy gates passed using nonsecret network-denied probes; temporary override removed",
+    "primary_publisher": "Owner credential manually provisioned; publisher enabled/active, exact writer authenticated, no credential value exposed. Stable parent mount survived real publisher restart in the same network-disabled container using only invalid-request rejection. Effective dump and exact systemd credential-copy checks passed; no override remains",
     "chatgpt_provider_sends": 0,
     "live_nonce_publications": 0
   },
-  "exact_remaining_blocker": "OWNER_PROVISIONING_REQUIRED: Joel must manually populate /etc/mission-control/capability-nonce-publisher/github-token, root:root 0600, with the dedicated one-repository Issues read/write fine-grained PAT. No token in chat. Daemon/relay rollout and live acceptance remain undone.",
-  "next_direct_evidence": "After owner credential provisioning, enable the narrow publisher and perform reversible exact-build PRIMARY daemon/relay rollout, then prove automatic successor publication, unchanged registration discovery, canonical paced preflight/capabilities, fresh receipt and old-receipt rejection."
+  "exact_remaining_blocker": "OWNER_PACING_DECISION_REQUIRED: both PRIMARY app and relay private runtime minimums are 20000 ms. The approved source rejects below 60000 ms. Exact-build rollout failed startup at that gate and automatically restored the original healthy app and byte-identical private configuration. No pacing setting was changed. Owner must authorize restoring both PRIMARY minimums to 60000 ms, or explicitly resolve this preservation/security conflict; Work must not weaken the source gate. Source-composed approved relay-lock restoration and all live challenge acceptance remain pending.",
+  "next_direct_evidence": "After the owner pacing decision, apply only the authorized runtime values and resume a reversible exact-build PRIMARY rollout. Deploy the composed approved four-file lock repair with the three rotation discovery sources, preserving private registrations. Prove automatic successor publication, unchanged registration discovery, canonical paced preflight/capabilities, fresh receipt and old-receipt rejection."
 }
