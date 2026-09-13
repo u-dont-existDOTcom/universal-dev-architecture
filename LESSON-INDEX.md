@@ -46,8 +46,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 40. `patterns/mission-control-multi-host-submission-scheduling.md` — keep browser relay hosts active/passive behind one durable authority in Mission Control's existing single-writer control plane; require a single-use admission before every browser send, globally pace crossed boundaries, retain one queue item through bounded provider retry, fence failover epochs, bind sends to Mission Control-only chats and automation-owned targets, and fail closed on partition or ownership ambiguity.
 41. `patterns/worker-directive-delivery-and-chat-output-budget.md` — when worker execution is selected as the next action, deliver the complete runnable directive in the same turn instead of stopping at meta-commentary; keep short directives in one fenced code block and materialize longer operational payloads as `.md`/text artifacts with concise chat summaries to reduce scrollback and output latency.
 42. `patterns/worker-self-remediation-before-owner-interruption.md` — before assigning routine configuration, permission, recovery, or setup work to the owner, determine what the active worker can safely perform itself; require worker self-remediation first and reduce the owner handoff to the smallest genuinely irreducible action.
-
-42. `patterns/instruction-composition-and-portable-intelligence.md` — scope-aware inheritance, public/internal separation, transfer provenance, and preservation-based deduplication.
+43. `patterns/instruction-composition-and-portable-intelligence.md` — scope-aware inheritance, public/internal separation, transfer provenance, and preservation-based deduplication.
 
 ## Reusable policy templates
 
