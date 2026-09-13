@@ -71,8 +71,9 @@ Workers and subagents should not report substantive work complete until they hav
 2. recorded dispositions;
 3. updated project lesson summaries/indexes for promoted findings;
 4. promoted genuinely cross-project lessons into the universal repository when warranted;
-5. run the repository's lesson-integrity check;
-6. verified the check passes.
+5. classified where each promoted lesson must execute (`developer_governance`, `product_runtime`, or `both`), and projected end-user lessons into each materially affected product runtime or recorded a truthful `NOT_APPLICABLE`/`DEFERRED` disposition;
+6. run the repository's lesson-integrity check;
+7. verified the check passes.
 
 The owner should not have to remember to ask.
 
@@ -118,6 +119,47 @@ A strong local pattern may need two durable homes:
 
 This preserves both fidelity and reuse. Universal lessons should point back to the originating project instead of duplicating all raw evidence.
 
+### 12. Project promoted lessons into runtime when users need the behavior
+
+**Promotion is not runtime deployment.** A universal developer lesson does not protect public users merely because developers or coding agents load it.
+
+For every promoted lesson, separately classify where the rule must execute:
+
+- `developer_governance` — it changes how developers, reviewers, or build agents work;
+- `product_runtime` — it changes behavior an end user should experience from the shipped product;
+- `both` — both surfaces must change.
+
+When a transferable lesson changes desired end-user behavior and the product runtime does not itself load the universal guidance, universal promotion is incomplete until every materially affected product has one explicit disposition:
+
+- `PROJECTED` — the smallest product-native form of the invariant is present in canonical runtime authority and covered by a focused regression/eval;
+- `NOT_APPLICABLE` — the product has no runtime path capable of the failure, with the reason recorded;
+- `DEFERRED` — runtime projection is required but currently blocked or intentionally postponed, with the exact blocker and trigger recorded.
+
+Use the product-native enforcement surface: system/developer prompt, protocol, policy, model instruction, deterministic guard, retrieval policy, or equivalent. Do not copy whole universal documents into runtime prompts when a smaller local projection preserves the invariant.
+
+Runtime projection is required when all of these are true:
+
+1. the lesson transfers beyond the originating task;
+2. the product has runtime behavior that can exhibit the failure;
+3. an end user can encounter the consequence without a developer/agent mediation step; and
+4. the runtime does not already load and enforce the universal rule.
+
+A repository edit is not proof that current public traffic is protected. Before claiming runtime coverage, identify the exact shipped authority/control, verify reachability on the affected execution path, add a focused regression/eval, and distinguish `merged`, `released/deployed`, and `live-verified` states. State only the strongest status actually established.
+
+Lesson closeout therefore asks two different questions:
+
+1. **Where should the lesson be remembered?** — project-local, universal, or both.
+2. **Where must the lesson execute?** — developer governance, product runtime, or both.
+
+A lesson can be universally remembered yet locally executed. That is expected rather than duplication: universal guidance stores the generalized invariant; each affected product stores only the minimal runtime projection required for its execution path.
+
+Reject these substitutions:
+
+- `the universal repository contains the rule, therefore public users get it`;
+- `the product's developers bootstrap universal guidance, therefore its runtime model does too`;
+- `the runtime rule was merged, therefore production is already protected`;
+- mechanically patching every product without checking whether the failure surface exists.
+
 ## Reference implementation evidence
 
 This pattern was first enforced in `u-dont-existDOTcom/pangram-humanization-lab` on 2026-08-13.
@@ -140,3 +182,5 @@ The PR's full GitHub Actions gate ran 39 tests and passed the changed-range clos
 - Do not let the universal repository override current project-specific requirements.
 - Do not trust a disposition after its source artifact changes.
 - Do not use scheduled audits as an excuse to skip closeout at completion time.
+- Do not project developer-only workflow lessons into public runtime prompts merely because they are universal.
+- Release/deployment remains governed by each product's own release authority and gates.
