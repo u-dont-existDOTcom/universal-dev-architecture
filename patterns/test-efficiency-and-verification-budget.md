@@ -83,6 +83,21 @@ Prefer project-native test-impact analysis, coverage maps, build-graph `affected
 
 Use this tier when a focused test is green but the changed surface plausibly affects adjacent behavior.
 
+### Acceptance at the actual consumer seam
+
+For layered behavior, distinguish **local proof** from **direct endpoint proof**. A focused test of an edited helper can prove the local repair, but acceptance requires the narrowest test that would still fail if the originally reported behavior remained broken at the actual consumer seam.
+
+When a worker repairs an upstream seam, it must either:
+
+- run a regression at the actual consumer seam; or
+- provide mechanical evidence that no downstream transformation can alter the repaired property.
+
+Otherwise classify the requirement as `LOCALLY_FIXED_ENDPOINT_UNPROVEN`, not `PASS`. A large number of upstream green tests does not substitute for causal coverage of the requested endpoint.
+
+The efficient default is cheap local proof during implementation, one narrow consumer-seam regression at the candidate checkpoint, and affected or full suites only when justified by the active assurance lane.
+
+This rule was promoted from a 2026-09-13 cross-harness benchmark in which green upstream evidence did not prove the downstream consumer behavior.
+
 ### 3. Full relevant suite — checkpoint, not reflex
 
 A full relevant suite is required when repository policy says so, but it belongs at a meaningful checkpoint rather than after every edit.
@@ -231,6 +246,8 @@ Projects with better native tooling may replace the script, but the replacement 
 
 ## Anti-patterns
 
+- Testing the edited helper instead of the originally reported endpoint.
+- Treating an upstream proxy as proof that a downstream wrapper cannot recreate the defect.
 - “Run the entire suite after every edit because tests are cheap enough.”
 - “700 passed, 0 failed” as evidence that the last identical run needed to happen.
 - Treating mutation testing as routine proof after every implementation change.

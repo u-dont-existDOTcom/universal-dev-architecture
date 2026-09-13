@@ -93,6 +93,19 @@ Use this lane when two or more plausible approaches remain and choosing incorrec
 
 A decision experiment should not silently become a publication-quality benchmark.
 
+### Comparison correctness and evidence classes
+
+Score correctness against the owner-requested endpoint, not raw test totals or textual similarity to a known or reference patch. Acceptance evidence must be capable of failing when the requested endpoint remains wrong; upstream proxy results are supporting evidence only.
+
+Keep these result classes separate:
+
+- implementation correctness;
+- causal coverage of the acceptance tests;
+- operational execution quality; and
+- infrastructure or provider failure.
+
+Do not classify a quota-limited, sandbox-blocked, or otherwise infrastructure-incomplete arm as a coding-quality loss. Preserve the partial evidence and mark the affected comparison incomplete unless the remaining evidence is already sufficient for the decision.
+
 ### Simplicity rule
 
 When a simpler candidate and a more complex candidate both improve the control, directly compare them before adopting the more complex architecture.
@@ -238,6 +251,8 @@ Do not make the owner repeatedly approve ordinary lane changes when current task
 
 ## Anti-patterns
 
+- Scoring a decision comparison by upstream green-test totals or similarity to a reference patch instead of correctness at the owner-requested endpoint.
+- Treating an infrastructure-incomplete comparison arm as evidence of inferior implementation quality.
 - Treating “fix this” as “prepare a release.”
 - Treating “which approach is better?” as an invitation to run an exhaustive benchmark before trying either approach.
 - Requiring a PR, complete repository audit, multiple independent reviewers, and full CI before the owner can try a reversible local candidate.
