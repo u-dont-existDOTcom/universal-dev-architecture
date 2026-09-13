@@ -1,14 +1,14 @@
-import { constants as fsConstants } from 'node:fs';
-import { access, chmod, mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { defaultState, normalizeState } from './core.mjs';
+import { RelayLock, inspectRelayLock } from './relay-lock.mjs';
 
 export class StateStore {
   constructor({ stateFile, statusFile, lockFile }) {
     this.stateFile = stateFile;
     this.statusFile = statusFile;
     this.lockFile = lockFile;
-    this.lockHandle = null;
+    this.lock = new RelayLock(lockFile);
   }
 
   async initialize() {
@@ -17,27 +17,17 @@ export class StateStore {
     }
   }
 
-  async acquireLock() {
+  async acquireLock(options) {
     await this.initialize();
-    try {
-      this.lockHandle = await open(this.lockFile, 'wx', 0o600);
-      await this.lockHandle.writeFile(JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }) + '\n');
-      return;
-    } catch (error) {
-      if (error?.code !== 'EEXIST') throw error;
-    }
-
-    const stale = await this.#lockIsStale();
-    if (!stale) throw new Error(`Another relay process holds ${this.lockFile}.`);
-    await unlink(this.lockFile).catch(() => {});
-    this.lockHandle = await open(this.lockFile, 'wx', 0o600);
-    await this.lockHandle.writeFile(JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString(), replacedStaleLock: true }) + '\n');
+    await this.lock.acquire(options);
   }
 
   async releaseLock() {
-    await this.lockHandle?.close().catch(() => {});
-    this.lockHandle = null;
-    await unlink(this.lockFile).catch(() => {});
+    this.lock.release();
+  }
+
+  lockStatus() {
+    return inspectRelayLock(this.lockFile);
   }
 
   async read() {
@@ -68,24 +58,7 @@ export class StateStore {
   }
 
   async writeStatus(status) {
-    await atomicJsonWrite(this.statusFile, status, 0o644);
-  }
-
-  async #lockIsStale() {
-    try {
-      const raw = await readFile(this.lockFile, 'utf8');
-      const parsed = JSON.parse(raw);
-      if (!Number.isInteger(parsed.pid) || parsed.pid <= 0) return true;
-      if (parsed.pid === process.pid) return false;
-      try {
-        await access(`/proc/${parsed.pid}`, fsConstants.F_OK);
-        return false;
-      } catch {
-        return true;
-      }
-    } catch {
-      return true;
-    }
+    await atomicJsonWrite(this.statusFile, { ...status, relayLock: this.lockStatus() }, 0o644);
   }
 }
 

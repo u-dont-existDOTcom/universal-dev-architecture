@@ -44,6 +44,58 @@ cannot advance an artifact state or complete a cycle.
 
 ## Browser-relay invariants
 
+### Relay-lock lifecycle and temporary helpers
+
+Linux Node.js 22+ and `/usr/bin/flock` (util-linux) are required. The relay holds
+a kernel lock on the persistent `relay.lock.guard` inode; **never delete that
+guard file**. The accompanying `relay.lock` is owner metadata, not permission to
+send. Kernel ownership is released by process/file-descriptor lifecycle, including
+SIGKILL. Stale JSON is reclaimed only under the kernel guard and only when the
+recorded PID is dead or its boot-ID/start-ticks identity no longer matches.
+Legacy live PIDs, unreadable owners, and malformed metadata fail closed. Stop all
+old-version relay/helper processes before upgrading; do not run mixed lock versions.
+
+Use `mc-chatgpt-relay.mjs lock-status` for a current read-only lock-owner check,
+even while another command holds the relay. `status` also refreshes this field.
+Both expose PID, parent PID, exact Linux start ticks/boot ID, task, acquisition
+time, and deadline, without arguments, environment, tokens or private chat IDs.
+Contention errors include these fields in the existing health-service journal.
+The web dashboard still exposes its existing unavailable/degraded health state;
+this relay-only change does not add a new dashboard panel or deploy the web app.
+Operators must use the lock diagnostics to distinguish authorized busy work from
+an orphan; an unavailable health tick alone is not grounds to kill a helper.
+
+Library users automatically receive a 30-minute finite lifetime. Temporary tests
+should bind an explicit non-secret task ID and the shortest adequate budget:
+
+```js
+await stateStore.acquireLock({ taskId: 'cadence:authorized-task-id', maxLifetimeMs: 600_000 });
+try {
+  // Only the already-authorized test. This example grants no send authority.
+} finally {
+  await stateStore.releaseLock();
+}
+```
+
+An independent watchdog terminates the exact expired owner with SIGTERM, then
+SIGKILL after five seconds only if the same PID/start/boot identity remains.
+It also covers a frozen/blocked event loop. Losing the watchdog fails the helper
+closed. Success, error, normal process exit, SIGINT, SIGTERM and SIGHUP clean only
+the exact owner's metadata; failed acquisition/double release cannot unlink a
+successor. CLI one-shots release in `finally`; only explicit `run` and
+`controller-run` service modes use unbounded ownership. A one-shot can set
+`MC_RELAY_LOCK_MAX_MS` (1..86400000 ms) when its authorized operation requires a
+different bounded lifetime. It never shortens global pacing or clears ambiguous
+send intents; after interruption the normal doctor/ledger gates still apply.
+
+For a historical incident, first establish exact process/task ownership and
+current activity. Do not terminate an active authorized test to unblock another
+task. If it has already exited, do not reconstruct missing descriptors or invent
+a kill. For an actual abandoned owner, verify PID/start/task evidence, prefer
+SIGTERM, and use stronger termination only after proven failure and orphanhood.
+Never manually unlink an actively held lock or fail over to bypass it. A stale
+metadata recovery is not permission to replay any interrupted send.
+
 - One persistent Brave/Chrome/Chromium profile, not one browser per supervisor.
 - Chrome DevTools Protocol is loopback-only (`127.0.0.1`).
 - A dedicated non-default browser profile is mandatory.

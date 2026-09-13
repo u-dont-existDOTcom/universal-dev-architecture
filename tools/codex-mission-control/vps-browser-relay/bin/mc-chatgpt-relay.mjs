@@ -16,17 +16,23 @@ import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport } from '../src/health-report.mjs';
 
 const command = process.argv[2] ?? 'run';
+let stateStore;
 
 try {
   const config = await loadConfig();
-  const stateStore = new StateStore({ stateFile: config.runtime.stateFile, statusFile: config.runtime.statusFile, lockFile: config.runtime.lockFile });
+  stateStore = new StateStore({ stateFile: config.runtime.stateFile, statusFile: config.runtime.statusFile, lockFile: config.runtime.lockFile });
+
+  if (command === 'lock-status') {
+    print({ status: 'RELAY_LOCK_STATUS', relayLock: stateStore.lockStatus() });
+    process.exit(0);
+  }
 
   if (command === 'status') {
     const raw = await readFile(config.runtime.statusFile, 'utf8').catch((error) => {
       if (error?.code === 'ENOENT') return JSON.stringify({ status: 'NO_STATUS', config: publicConfig(config) });
       throw error;
     });
-    process.stdout.write(raw.endsWith('\n') ? raw : `${raw}\n`);
+    print({ ...JSON.parse(raw), relayLock: stateStore.lockStatus() });
     process.exit(0);
   }
 
@@ -55,8 +61,7 @@ try {
   });
   const runtime = new RelayRuntime({ config, missionControl, browser, stateStore, submissionPacer });
   const controller = new ControllerMediatedPmRuntime({ config, missionControl, browser, stateStore, submissionPacer });
-  await stateStore.acquireLock();
-  installSignalHandlers(stateStore);
+  await stateStore.acquireLock({ taskId: `relay:${command}`, persistent: command === 'run' || command === 'controller-run' });
 
   if (command === 'doctor') {
     print({ config: publicConfig(config), ...(await runtime.doctor()) });
@@ -126,24 +131,18 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|run|controller-init|controller-once|controller-run|status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
   }
 
-  await stateStore.releaseLock();
 } catch (error) {
   console.error(JSON.stringify({ status: 'FATAL', time: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));
   process.exitCode = 1;
-}
-
-function installSignalHandlers(stateStore) {
-  let stopping = false;
-  for (const signal of ['SIGINT', 'SIGTERM']) {
-    process.on(signal, async () => {
-      if (stopping) return;
-      stopping = true;
-      await stateStore.releaseLock();
-      process.exit(0);
-    });
+} finally {
+  try {
+    await stateStore?.releaseLock();
+  } catch (error) {
+    console.error(JSON.stringify({ status: 'LOCK_RELEASE_FAILED', error: error.message }));
+    process.exitCode = 1;
   }
 }
 

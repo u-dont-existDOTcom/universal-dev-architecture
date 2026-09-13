@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "status": "PREINSTALL_BASELINE",
+  "maintenanceCoordination": {
+    "peerTaskId": "01a0923f-9124-7bd0-a732-20033cfd9072",
+    "peerLastDirectSendAt": "2026-09-13T00:01:43.997Z",
+    "peerQuiescenceAttestationAt": "2026-09-13T00:07:37.965Z",
+    "peerSource": "Exact peer-task send_message_to_thread payload; attempted delivery timed out at approval, recovered from that task's durable transcript.",
+    "repairTaskProviderSends": 0,
+    "unrelatedDirectTestOverlap": "19 accepted sends in another owner-authorized task overlapped read-only diagnosis. They bypassed the scheduler; do not claim that unchanged ledger proves zero sends throughout diagnosis."
+  },
+  "primary": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "checkedAt": "2026-09-13T00:20:54.677Z",
+    "role": "PRIMARY",
+    "doctorStatus": "READY",
+    "submitEnabled": false,
+    "capabilityTestEnabled": false,
+    "exactHelpers": [],
+    "lockMetadataPresent": false,
+    "protectedBefore": {
+      "state": "86a65846a673d3e1d76f59c58b0743d4e388069e3751f14cd312cf5ced985554",
+      "ownership": "1094ad3645c39e9dfdd31440f6de64d1d002251846c1f467f8869d082f87cbb6",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "c349b7155d6984812c11c16d53e58525e4307379c1a10e9645acdbe0d54ef832",
+      "browserEnv": "fb380c37cea7fa55aa8b162cf6d74b2a29be32606ca91629d2bfc403dae4ed47"
+    },
+    "protectedAfter": {
+      "state": "86a65846a673d3e1d76f59c58b0743d4e388069e3751f14cd312cf5ced985554",
+      "ownership": "1094ad3645c39e9dfdd31440f6de64d1d002251846c1f467f8869d082f87cbb6",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "c349b7155d6984812c11c16d53e58525e4307379c1a10e9645acdbe0d54ef832",
+      "browserEnv": "fb380c37cea7fa55aa8b162cf6d74b2a29be32606ca91629d2bfc403dae4ed47"
+    },
+    "profileDirectoryIdentity": "af95baaaa84e51f0a7f63f953ccacb42cbf47c89997027afc34fdbf47cad7284",
+    "registeredChatCount": 3,
+    "browser": {
+      "webSocketDebuggerUrlPresent": true,
+      "automationWindowOwnershipEnforced": true,
+      "managedChatGptTabCount": 1,
+      "automationOwnedTabCount": 1,
+      "foreignChatGptTabCount": 0
+    },
+    "queue": {
+      "discovered": 0,
+      "byLocalState": {},
+      "next": null
+    },
+    "unresolvedAmbiguities": [],
+    "authority": {
+      "ready": true,
+      "activeHostRole": "PRIMARY",
+      "epoch": 3,
+      "lastSubmissionAt": "2026-09-12T22:28:30.878Z",
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "ledger": {
+        "valid": true,
+        "errors": []
+      }
+    },
+    "ledger": {
+      "recordCount": 79,
+      "recordsSha256": "636dbdf365ea67ed2d6cce79045b0bac4e4137533abc3727024d89fd3697d7b4",
+      "integrity": {
+        "valid": true,
+        "errors": []
+      },
+      "diagnostics": {
+        "intervalCount": 9,
+        "minimumObservedIntervalMs": 61389,
+        "medianObservedIntervalMs": 76819,
+        "recentIntervalsMs": [
+          112535,
+          1210629,
+          10153453,
+          76819,
+          12684399,
+          61389,
+          61446,
+          61576,
+          61491
+        ],
+        "configuredMinimumIntervalMs": 60000,
+        "violationsBelowConfiguredMinimum": 0,
+        "violationsBelow60000Ms": 0
+      }
+    },
+    "pacingStateSha256": "66344c6aff957aa38a7dd668b450bf9d2c3709f8496cc39d6a7396dcacc45d4c",
+    "providerSessionsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "chatCapabilitySummary": [
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      }
+    ],
+    "sourceHashes": {
+      "src/state.mjs": "65d88d92428ecadb95659442acfacf612b42dfcba93dc26e225d28112f6128e4",
+      "src/relay-lock.mjs": null,
+      "src/relay-lock-watchdog.mjs": null,
+      "bin/mc-chatgpt-relay.mjs": "10821d4c095497339a4a65f4daf59397d735945d834c41d2ee99d98c2243aa02"
+    }
+  },
+  "secondary": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "checkedAt": "2026-09-13T00:20:56.410Z",
+    "role": "SECONDARY",
+    "doctorStatus": "STANDBY_READY",
+    "submitEnabled": false,
+    "capabilityTestEnabled": false,
+    "exactHelpers": [],
+    "lockMetadataPresent": false,
+    "protectedBefore": {
+      "state": "63c0e0b013dd925017fb173b3811c2b4969ea077d9156989888691dcb5fb31d2",
+      "ownership": "e81e9b54049f949fce50187d6c82539e094e974683b3ab0df5ccb5a2e23e378b",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "cd4fb9e9b7c834e8835aae1068c92a49cff8bbd64ae503c6f9e86e6dd7848d92",
+      "browserEnv": "e384aac49101d4c65910730d2c96add4a4513111e82029116342ba9f5ce761e6"
+    },
+    "protectedAfter": {
+      "state": "63c0e0b013dd925017fb173b3811c2b4969ea077d9156989888691dcb5fb31d2",
+      "ownership": "e81e9b54049f949fce50187d6c82539e094e974683b3ab0df5ccb5a2e23e378b",
+      "chats": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "env": "cd4fb9e9b7c834e8835aae1068c92a49cff8bbd64ae503c6f9e86e6dd7848d92",
+      "browserEnv": "e384aac49101d4c65910730d2c96add4a4513111e82029116342ba9f5ce761e6"
+    },
+    "profileDirectoryIdentity": "8d1c6bc7b03973ad513c94f6953e5fb29f30662be6f0f96186a66fdb9e671dea",
+    "registeredChatCount": 3,
+    "browser": {
+      "webSocketDebuggerUrlPresent": true,
+      "automationWindowOwnershipEnforced": true,
+      "managedChatGptTabCount": 1,
+      "automationOwnedTabCount": 1,
+      "foreignChatGptTabCount": 0
+    },
+    "queue": {
+      "discovered": 0,
+      "byLocalState": {},
+      "next": null
+    },
+    "unresolvedAmbiguities": [],
+    "authority": {
+      "ready": true,
+      "activeHostRole": "PRIMARY",
+      "epoch": 3,
+      "lastSubmissionAt": "2026-09-12T22:28:30.878Z",
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "ledger": {
+        "valid": true,
+        "errors": []
+      }
+    },
+    "ledger": {
+      "recordCount": 79,
+      "recordsSha256": "636dbdf365ea67ed2d6cce79045b0bac4e4137533abc3727024d89fd3697d7b4",
+      "integrity": {
+        "valid": true,
+        "errors": []
+      },
+      "diagnostics": {
+        "intervalCount": 9,
+        "minimumObservedIntervalMs": 61389,
+        "medianObservedIntervalMs": 76819,
+        "recentIntervalsMs": [
+          112535,
+          1210629,
+          10153453,
+          76819,
+          12684399,
+          61389,
+          61446,
+          61576,
+          61491
+        ],
+        "configuredMinimumIntervalMs": 60000,
+        "violationsBelowConfiguredMinimum": 0,
+        "violationsBelow60000Ms": 0
+      }
+    },
+    "pacingStateSha256": "9662ab20ddc4f3b78a5f009a7e3809249110607d9d604c6658ca32ba620994a6",
+    "providerSessionsSha256": "276107b863260640249770becfbca8078c9fc3b86474f135fe48bb51c6f1da83",
+    "chatCapabilitySummary": [
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      },
+      {
+        "allCurrent": false,
+        "challengeAvailable": false
+      }
+    ],
+    "sourceHashes": {
+      "src/state.mjs": "65d88d92428ecadb95659442acfacf612b42dfcba93dc26e225d28112f6128e4",
+      "src/relay-lock.mjs": null,
+      "src/relay-lock-watchdog.mjs": null,
+      "bin/mc-chatgpt-relay.mjs": "10821d4c095497339a4a65f4daf59397d735945d834c41d2ee99d98c2243aa02"
+    }
+  }
+}

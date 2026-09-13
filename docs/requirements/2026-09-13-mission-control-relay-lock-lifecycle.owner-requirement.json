@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-RELAY-LOCK-LIFECYCLE-20260913",
+  "recorded_at": "2026-09-13T00:10:00Z",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "RECORDED_NOT_IMPLEMENTED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Diagnose and resolve the Mission Control PRIMARY relay lock that blocked the Somatic humanization experiment.\n\nCanonical evidence:\\\n`u-dont-existDOTcom/joel-articles`\\\nbranch:\\\n`task/somatic-intro-progress-controller-20260831`\n\ncheckpoint:\\\n`work/SOMATIC-HUMANIZATION-MISSION-CONTROL-CHECKPOINT-132-20260912.json`\n\nThe checkpoint identified:\n\n- PRIMARY health: UNAVAILABLE\n- lock: `/home/cloudbrowser/.local/state/mission-control-chatgpt-relay/relay.lock`\n- lock-holding process: `/tmp/chatgpt-direct-cadence-test.mjs`\n- process start: `2026-09-12T22:47:36Z`\n- SECONDARY: STANDBY\\_READY\n\nDo not delete the lock file blindly and do not fail over merely to bypass the lock.\n\nOn Netcup PRIMARY:\n\n1. Identify the exact PID, parent PID, command line, start time, open descriptors, and current activity of `/tmp/chatgpt-direct-cadence-test.mjs`.\n2. Determine whether it belongs to any currently active authorized Mission Control test/task.\n3. If it is an abandoned/completed cadence-test helper, terminate it gracefully.\n4. Only escalate to stronger termination if graceful termination fails and it is conclusively orphaned.\n5. Verify the process is gone and the normal relay lock is released by process lifecycle—not by manually unlinking an actively held lock.\n6. Run the current Mission Control/relay doctor and verify PRIMARY is healthy.\n7. Verify SECONDARY remains standby and no provider send occurred during repair.\n8. Verify current queue/ledger state is coherent and there is no ambiguous admission.\n9. Do not alter ChatGPT sessions, supervisor registrations, browser profiles, or pacing state unnecessarily.\n\nThen determine why the cadence helper survived.\n\nImplement the smallest durable correction necessary so temporary relay/cadence-test processes cannot indefinitely block normal work. At minimum consider:\n\n- bounded process lifetime;\n- cleanup on success/failure/signals;\n- lock-owner PID/start/task metadata;\n- dead-owner detection;\n- dashboard visibility of relay-lock owner;\n- safe stale-process recovery;\n- regression test proving a terminated/failed cadence helper cannot strand the relay.\n\nDo not weaken exclusive relay ownership.\n\nAfter repair, report whether the original humanization directive may simply be rerun from its fail-closed checkpoint. Do not run or modify the humanization experiment itself in this task.\n",
+    "sha256": "1226da549bd866e9a252818c10ba6b5b7d41d06568065c66676d5386bea24a8b",
+    "source_ref": "msg_01a0980a-fb78-7a60-97e4-3f05159d4d2c",
+    "recorded_at": "2026-09-12T23:54:11.704Z",
+    "source_type": "owner_task_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null
+  },
+  "normalized_outcome": "Resolve the exact PRIMARY lock incident without disrupting authorized work or weakening ownership; prevent temporary relay helpers from indefinitely holding the relay; verify both host roles and a quiet no-send repair window, coherent queue/ledger and unchanged sensitive runtime state; report checkpoint rerun eligibility without executing the Somatic experiment.",
+  "required_outcomes": [
+    {
+      "id": "RO-LOCK-1",
+      "terminal_required": true,
+      "observable": "Identify historical helper/task/lifecycle and truthful limits on retrospective PID/descriptor/activity evidence; no blind unlink or unauthorized termination.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LOCK-2",
+      "terminal_required": true,
+      "observable": "Temporary helper lifetime bounded; success/error/signals cleanup; exact lock-owner identity and dead-owner recovery preserve exclusivity including concurrent recovery; visible lock diagnostics.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LOCK-3",
+      "terminal_required": true,
+      "observable": "Exact correction live on PRIMARY; doctor healthy, SECONDARY standby; no sends during the coordinated maintenance window and explicit accounting for unrelated concurrent test sends during diagnosis; queue/ledger coherent without ambiguous admission; session/registration/profile/pacing preserved.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-LOCK-4",
+      "terminal_required": true,
+      "observable": "Regression proves failed, terminated and frozen helpers cannot strand normal relay ownership; durable evidence and rerun assessment, with humanization untouched.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Process absent proves neither abandonment nor why it exited.",
+    "Unchanged scheduler ledger cannot rule out explicitly bypassed direct test sends.",
+    "Local passing tests alone do not prove live installation or PRIMARY health.",
+    "Lock-file deletion or SECONDARY takeover does not satisfy safe recovery.",
+    "Rerun eligibility is not permission to run the humanization experiment in this task."
+  ],
+  "next_direct_evidence": "Test exact lifecycle candidate, install only after quiet coordination and preimage checks, then no-send doctors and state comparisons."
+}
