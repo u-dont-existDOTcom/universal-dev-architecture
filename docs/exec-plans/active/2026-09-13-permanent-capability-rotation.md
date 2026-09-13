@@ -1,6 +1,8 @@
 # Permanent capability-challenge rotation
 
-Status: BLOCKED_EXACT_REASON; owner pacing decision required. Credential provisioning succeeded. No live rotation completion claimed.
+Status: IMPLEMENTED_NOT_LIVE_VERIFIED; owner approved raising both PRIMARY pacing minimums from 20000 to 60000 ms. Credential provisioning succeeded. Resume retained work; no live rotation completion claimed.
+
+Owner approval captured at 2026-09-13T19:38:06Z: `yes`, responding to the exact question about raising both PRIMARY pacing minimums from 20 to 60 seconds. This authorizes only the two named pacing settings. Source-sent timestamp is unavailable; the timestamp is Work capture/check time. Fresh read-only PRIMARY health reports LEASE_STALE; do not bypass or silently extend its expiry gate.
 
 Controlling architecture: `docs/requirements/MISSION-CONTROL-PERMANENT-CAPABILITY-ROTATION-DIRECTIVE-20260913.md`, preserved byte-for-byte with SHA-256 `86d900d9b2e433460e4a2f1c74b25c59a2ae44f4e5d224cb36b0d8b9f0207ccf`.
 

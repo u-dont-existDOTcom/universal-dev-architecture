@@ -2,10 +2,17 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-PERMANENT-CAPABILITY-ROTATION-20260913",
   "recorded_at": "2026-09-13T02:09:01Z",
-  "status": "BLOCKED_EXACT_REASON",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "owner_corrections": [{
+    "source_type": "OWNER_DIRECT_CHAT_APPROVAL",
+    "verbatim": "yes",
+    "approved_question": "Do you approve raising both PRIMARY pacing minimums from 20 to 60 seconds so deployment can continue?",
+    "captured_at": "2026-09-13T19:38:06Z",
+    "timestamp_semantics": "Work capture/check time, not a claimed source-sent timestamp",
+    "implementation_boundary": "Change only PRIMARY MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS and MC_RELAY_MIN_SUBMISSION_INTERVAL_MS from 20000 to 60000; preserve all other settings and credentials, then resume retained rotation rollout and canonical capability acceptance. No SECONDARY change, weaker gate, ordinary provider work, or merge is authorized."
+  }, {
     "source_type": "OWNER_DIRECT_CHAT_CREDENTIAL_PROVISIONING_REPLY",
     "verbatim": "I can provide a dedicated fine-grained GitHub PAT for the capability nonce publisher.\n\nIt will be scoped only to:\n\n* repository: `u-dont-existDOTcom/universal-dev-architecture`\n* repository permission: `Issues: Read and write`\n\nNo broader repository or organization permissions.\n\nImplement the publisher first and tell me the exact protected PRIMARY credential-file path and environment-variable name you want me to populate manually. Do not ask me to paste the token into chat, Git, logs, command history, or an issue.\n\nThe service must hard-lock use of this credential to creating nonce comments on issue #60 only.",
     "implementation_boundary": "Owner manually provisions root-only credential file; publisher receives a path-only systemd credential copy. No existing account token is reused or transferred. Fixed repository/issue-60 nonce-comment creation only; live acceptance remains incomplete without publication and fresh canonical proof."
@@ -79,6 +86,6 @@
     "chatgpt_provider_sends": 0,
     "live_nonce_publications": 0
   },
-  "exact_remaining_blocker": "OWNER_PACING_DECISION_REQUIRED: both PRIMARY app and relay private runtime minimums are 20000 ms. The approved source rejects below 60000 ms. Exact-build rollout failed startup at that gate and automatically restored the original healthy app and byte-identical private configuration. No pacing setting was changed. Owner must authorize restoring both PRIMARY minimums to 60000 ms, or explicitly resolve this preservation/security conflict; Work must not weaken the source gate. Source-composed approved relay-lock restoration and all live challenge acceptance remain pending.",
-  "next_direct_evidence": "After the owner pacing decision, apply only the authorized runtime values and resume a reversible exact-build PRIMARY rollout. Deploy the composed approved four-file lock repair with the three rotation discovery sources, preserving private registrations. Prove automatic successor publication, unchanged registration discovery, canonical paced preflight/capabilities, fresh receipt and old-receipt rejection."
+  "exact_remaining_blocker": "The owner has authorized both PRIMARY minimums to increase from 20000 to 60000 ms. Runtime revalidation, bounded configuration changes, deployment and live challenge acceptance are pending. Fresh check now reports LEASE_STALE, which must not be bypassed or silently extended.",
+  "next_direct_evidence": "Apply only the two authorized pacing values, investigate the stale lease through existing read-only authority paths, and resume reversible deployment only where runtime security prerequisites permit. Preserve private registrations and all lease expiry/ownership gates; prove successor publication, unchanged registration discovery, paced canonical preflight/capabilities, fresh receipt and old-receipt rejection."
 }
