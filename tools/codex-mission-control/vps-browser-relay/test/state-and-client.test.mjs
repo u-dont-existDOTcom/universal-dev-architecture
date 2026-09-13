@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -61,9 +63,35 @@ test('stale lock is recovered without deleting a live lock', async () => {
 test('health report CLI does not contend with the long-running relay singleton lock', async () => {
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
   assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
-  assert.match(cli, /if \(exclusiveLockRequired\) \{\n    await stateStore\.acquireLock\(\);/);
+  assert.match(cli, /if \(exclusiveLockRequired\) \{\n    await stateStore\.acquireLock\(\{ taskId: `relay:\$\{command\}`/);
   assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
-  assert.match(cli, /if \(exclusiveLockRequired\) await stateStore\.releaseLock\(\);/);
+  // Release runs in `finally`; it is a no-op for a store that never acquired ownership.
+  assert.match(cli, /\} finally \{\n  try \{\n    await stateStore\?\.releaseLock\(\);/);
+});
+
+test('CLI errors release ownership; lock-status diagnoses a live owner without acquiring or sending', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-cli-lock-'));
+  const paths = { stateFile: join(root, 'state.json'), statusFile: join(root, 'status.json'), lockFile: join(root, 'relay.lock') };
+  const store = new StateStore(paths);
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const env = { ...configEnv(chatsFile), MC_RELAY_STATE_DIR: root };
+    const cli = fileURLToPath(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url));
+    const failed = spawnSync(process.execPath, [cli, 'controller-init'], { env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /Usage.*controller-init/);
+    assert.equal(store.lockStatus().status, 'FREE');
+    await store.acquireLock({ taskId: 'test:cli-diagnostic' });
+    const diagnostic = spawnSync(process.execPath, [cli, 'lock-status'], { env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(diagnostic.status, 0);
+    const status = JSON.parse(diagnostic.stdout);
+    assert.equal(status.relayLock.status, 'HELD');
+    assert.equal(status.relayLock.owner.taskId, 'test:cli-diagnostic');
+  } finally {
+    await store.releaseLock();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('Mission Control client reads only explicitly scoped worker snapshots', async () => {
