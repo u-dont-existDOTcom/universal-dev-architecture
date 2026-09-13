@@ -5,7 +5,27 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-12
+Updated: 2026-09-13
+
+## PRIMARY relay-lock lifecycle repair
+
+The owner-authorized repair on task/mission-control-relay-lock-lifecycle-20260912
+is live on PRIMARY from source commit 5be4d444041c8e1681d56a5b7256a01b3090f690.
+This task branch is not merged; preserve its four-file relay delta in a future
+full PRIMARY release. The web app and SECONDARY runtime were not redeployed.
+The incident helper was an active authorized cadence test at the Somatic
+checkpoint and exited before the repair task; no original-process kill or blind
+lock deletion was needed. New temporary helpers have bounded process lifetime,
+exact-owner metadata, process/signal cleanup, atomic publication and kernel
+exclusive ownership. Never delete the persistent relay.lock.guard inode.
+
+Direct evidence and the exact no-send time boundary are in
+docs/evidence/2026-09-13-primary-relay-lock-repair.json and its companion report.
+PRIMARY is READY with a free lock; SECONDARY remains STANDBY_READY; queue empty,
+ledger valid and unchanged, no ambiguous admission or protected-state changes.
+The humanization checkpoint remains untouched. Its directive may rerun only
+from fresh preflight; current capability/model/ownership gates were not established
+by this repair. No experimental prose or general method lesson was promoted.
 
 ## Goal
 

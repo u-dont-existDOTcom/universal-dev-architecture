@@ -1,6 +1,10 @@
 # PRIMARY relay-lock lifecycle repair
 
-Status: active. Owner requirement: ../requirements/2026-09-13-mission-control-relay-lock-lifecycle.owner-requirement.json
+Status: PRIMARY repair live-verified; historical evidence limits disclosed. Owner requirement: docs/requirements/2026-09-13-mission-control-relay-lock-lifecycle.owner-requirement.json
+
+## Closeout
+
+Final evidence: docs/evidence/2026-09-13-primary-relay-lock-repair.json and companion report. Installed source commit: 5be4d444041c8e1681d56a5b7256a01b3090f690. Four relay files changed on PRIMARY only; no web application or browser deployment. The final atomic-publication variant passes 201 full relay tests and 25 focused tests on PRIMARY Node 22; 299 repository tests and deterministic audit also passed. An actual no-send helper acquired the real installed relay lock and exited 143 on SIGTERM; process/metadata disappeared and kernel ownership released. Doctor READY, SECONDARY unchanged STANDBY_READY, queue empty/no ambiguity, 79-record ledger identical and all protected hashes unchanged. Health timer restored; rollback and verification assets retained privately. Task-time controls PASS at their direct evidence boundary. Original process descriptors/cleanup exception remain unavailable; unrelated authorized test sends overlapped diagnosis and are explicitly distinguished from the quiet repair window. No experiment execution or file modification occurred. Rerun eligibility is initial preflight only, with capability and other gates still mandatory.
 
 ## Authority and scope
 
