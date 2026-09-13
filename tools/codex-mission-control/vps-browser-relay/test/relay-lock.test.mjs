@@ -107,6 +107,16 @@ test('simultaneous dead-owner recovery admits exactly one process', async (t) =>
   await proveSuccessor(store);
 });
 
+test('termination before atomic owner publication leaves no malformed public lock', async (t) => {
+  const { root, paths, store } = await setup(t);
+  const worker = helper(t, root, 'publication-crash');
+  assert.equal((await worker.ready).status, 'CRASH_ARMED');
+  assert.equal((await worker.done).signal, 'SIGKILL');
+  await assert.rejects(readFile(paths.lockFile), { code: 'ENOENT' });
+  assert.equal(store.lockStatus().status, 'FREE');
+  await proveSuccessor(store);
+});
+
 for (const mode of ['success', 'failure', 'unhandled', 'hold-TERM', 'hold-KILL', 'deadline', 'frozen', 'watchdog-failure']) {
   test(`${mode}: helper lifecycle cannot strand the relay`, { timeout: 15000 }, async (t) => {
     const { root, store } = await setup(t);

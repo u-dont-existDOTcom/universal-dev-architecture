@@ -1,4 +1,4 @@
-import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { constants, closeSync, fstatSync, fsyncSync, linkSync, lstatSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
@@ -72,6 +72,7 @@ export class RelayLock {
     this.guardFd = null;
     this.ownerFd = null;
     this.ownerRaw = null;
+    this.ownerTemp = null;
     this.watchdog = null;
     this.handlers = [];
   }
@@ -99,9 +100,16 @@ export class RelayLock {
       const acquiredAt = new Date().toISOString();
       this.owner = { schemaVersion: 2, ...identity, taskId, command: basename(process.argv[1] ?? 'node'), acquiredAt, deadlineAt: persistent ? null : new Date(Date.now() + maxLifetimeMs).toISOString(), mode: persistent ? 'PERSISTENT_SERVICE' : 'BOUNDED_HELPER', ownerToken: randomUUID() };
       this.guardFd = guardFd;
-      this.ownerFd = openSync(this.lockFile, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
       this.ownerRaw = `${JSON.stringify(this.owner)}\n`;
+      // Publish complete metadata exclusively. A kill during writing leaves only
+      // an unused private temp, never an empty relay.lock that blocks recovery.
+      this.ownerTemp = `${this.lockFile}.${this.owner.ownerToken}.tmp`;
+      this.ownerFd = openSync(this.ownerTemp, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
       writeFileSync(this.ownerFd, this.ownerRaw);
+      fsyncSync(this.ownerFd);
+      linkSync(this.ownerTemp, this.lockFile);
+      unlinkSync(this.ownerTemp);
+      this.ownerTemp = null;
       this.installLifecycleHandlers();
       if (!persistent) await this.startWatchdog();
     } catch (error) {
@@ -165,6 +173,14 @@ export class RelayLock {
         } catch (error) { if (error.code !== 'ENOENT') throw error; }
       }
     } finally {
+      if (this.ownerTemp !== null && this.ownerFd !== null) {
+        try {
+          const temporary = lstatSync(this.ownerTemp);
+          const owned = fstatSync(this.ownerFd);
+          if (temporary.ino === owned.ino && temporary.dev === owned.dev) unlinkSync(this.ownerTemp);
+        } catch { /* Retain an unverifiable temp; it is never the public lock. */ }
+      }
+      this.ownerTemp = null;
       if (this.ownerFd !== null) closeSync(this.ownerFd);
       this.ownerFd = null;
       this.ownerRaw = null;
