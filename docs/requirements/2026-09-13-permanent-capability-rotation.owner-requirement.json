@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-PERMANENT-CAPABILITY-ROTATION-20260913",
   "recorded_at": "2026-09-13T02:09:01Z",
-  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "status": "BLOCKED_EXACT_REASON",
   "completion_allowed": false,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "owner_corrections": [{
@@ -34,23 +34,23 @@
     {
       "id": "ROTATION-1",
       "observable": "Immutable durable lifecycle, single current challenge and restart-safe renewal",
-      "status": "NOT_MET",
+      "status": "MET",
       "terminal_required": true,
-      "evidence_refs": []
+      "evidence_refs": ["docs/evidence/2026-09-13-permanent-capability-rotation-primary.md"]
     },
     {
       "id": "ROTATION-2",
       "observable": "Exact issue-60 least-authority publication verified before activation without private nonce leakage",
-      "status": "NOT_MET",
+      "status": "MET",
       "terminal_required": true,
-      "evidence_refs": []
+      "evidence_refs": ["docs/evidence/2026-09-13-permanent-capability-rotation-primary.md"]
     },
     {
       "id": "ROTATION-3",
       "observable": "Relay dynamic exact-pair discovery without registration edits; bounded legacy migration",
-      "status": "NOT_MET",
+      "status": "MET",
       "terminal_required": true,
-      "evidence_refs": []
+      "evidence_refs": ["docs/evidence/2026-09-13-permanent-capability-rotation-primary.md"]
     },
     {
       "id": "ROTATION-4",
@@ -83,16 +83,22 @@
     "Broad GitHub credential transferred to the runtime"
   ],
   "implementation_evidence": {
-    "mission_control_tests": "380/380 passed after final source corrections",
+    "mission_control_tests": "388/388 full passed on exact final PRIMARY Node22 image; 16 focused schema/restart and 146 affected rotation/publisher passed. Initial archive-only harness failures were corrected with exact public Git/state fixtures and bounded concurrency; failed runs retained in telemetry.",
     "relay_tests": "Combined approved lock repair and rotation source: 215/215 full; then 12/12 affected including retained CLI error-cleanup regression",
     "repository_tests": "299/299 passed",
     "build_and_typecheck": "PASS",
     "repository_audit": "PASS",
     "independent_security_review": "No open blocking source findings after provenance, cross-worker, migration, publication recovery, restart and credential-boundary corrections; not live acceptance",
-    "primary_publisher": "Owner credential manually provisioned; publisher enabled/active, exact writer authenticated, no credential value exposed. Stable parent mount survived real publisher restart in the same network-disabled container using only invalid-request rejection. Effective dump and exact systemd credential-copy checks passed; no override remains",
+    "primary_publisher": "Enabled/active isolated systemd publisher; final bundle ab217c67bbc65313aecee1e22613e259d9c5f7b77ce0ee2b8a8c34b1fd2dc26e. Credential source unchanged; superseded daemon PAT delivery removed. Same live app container reconnected after real publisher restart using invalid-request rejection. Three exact #60 fixtures independently verified; no credential/nonce values in evidence.",
+    "primary_app_source": "acab661e2e8dc406a392090964b801fd273d21ea",
+    "primary_app_image": "sha256:3131b5b42082cbf96cb1072b1030e5647e07ef3cdb6639bc67421eb6db389dc5",
+    "primary_lease": "Same identity/PRIMARY/epoch3/issued-at and ownership fields preserved; expiresAt only renewed to 2026-09-14T20:45:11.808Z. Later retries retained this exact deadline. Deployment lease renewal is not automatic.",
+    "primary_state_preservation": "Original five hardening settings restored; exact seven-file relay delta restores approved lock repair and discovery. Private registry/config unchanged apart from approved runtime policy/socket/lease/credential-delivery reconciliation. All48 prior challenge rows/hash and SQLite schema3 preserved;3 exact current challenges reused after actual daemon restart,0pending,old3publicIDs404.",
+    "live_acceptance": "Initial doctor READY. Fixed consumer controls verified after one safe idle-empty same-page reload. Canonical preflight then failed exact Mission Control app selection before composition; no fresh capability receipt. The expired un-aborted test reservation became AMBIGUOUS_AFTER_RESTART on later canonical admission. Send readiness remains false; no direct state edit or bypass.",
     "chatgpt_provider_sends": 0,
-    "live_nonce_publications": 0
+    "live_nonce_publications": 3,
+    "live_evidence": "docs/evidence/2026-09-13-permanent-capability-rotation-primary.md"
   },
-  "exact_remaining_blocker": "PRIMARY_DEPLOYMENT_LEASE_EXPIRED: the unchanged epoch-3 PRIMARY send-authority lease expired at 2026-09-13T16:21:43.570597Z; the current daemon reports LEASE_STALE with valid chain/ledger. Both private config minimums are now 60000 ms; the app file was already 60000 and the relay file was changed from 20000, preserving every unrelated byte and file permission. The existing running app still has its older 20000 value until safe replacement. No service was restarted in this approval turn: startup rejects an expired lease, so deployment cannot proceed without authority to renew the same lease. No renewal service or public renewal route was found; the existing same-lease operator path may extend only expiresAt, preserving all identity/takeover fields. Owner authorization for a bounded 24-hour renewal is required; no expiry bypass, provider send or SECONDARY change occurred.",
-  "next_direct_evidence": "Obtain owner authorization for a bounded renewal of the same PRIMARY lease, preserving host, epoch, identity, ownership and takeover fields. Then materialize that authorized expiry through the existing private config and single-writer startup path, deploy the retained exact app and composed lock-repair/rotation relay source, verify both active 60000 ms floors, and complete successor/publication/discovery/canonical capability receipt acceptance."
+  "exact_remaining_blocker": "PRIMARY_BROWSER_APP_SELECTION_AND_EXPIRED_TEST_ADMISSION: the canonical preflight cannot select the exact Mission Control app. Failure occurred before message composition, with zero observed provider messages/new ledger boundaries, but the existing app-selection error carried UNKNOWN rather than a specific pre-click stage. Its reservation expired without a durable abort; later canonical admission marked it AMBIGUOUS_AFTER_RESTART. The new rotation app/publisher are live; lease ACTIVE_LEASE, chain/ledger valid, but send readiness false. Existing abort/outcome routes do not permit clearing this already-ambiguous state. This acceptance run caused the unresolved reservation. No database edit, false receipt, changed epoch, forced clearance or replay was used. A narrowly owner-authorized evidence-preserving recovery and bounded app-selection repair/reconnection are required before fresh canonical receipt acceptance.",
+  "next_direct_evidence": "Obtain explicit authority for a bounded, audited recovery of this exact pre-composition test reservation and the PRIMARY app-selection path. Preserve all history and security/expiry gates; do not directly edit state or fabricate proof. Prevent app-selection failures from losing their specific pre-click provenance, then repeat canonical preflight/capabilities under the existing >=60000ms scheduler, require fresh exact-current capability receipt, and prove send readiness restored. Do not renew the lease again merely because retrying, touch SECONDARY/Somatic, or merge."
 }
