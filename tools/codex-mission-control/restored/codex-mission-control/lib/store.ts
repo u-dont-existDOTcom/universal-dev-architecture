@@ -381,8 +381,10 @@ export class EventStore {
       );
       CREATE INDEX IF NOT EXISTS provider_submission_authority_ledger_domain_sequence
         ON provider_submission_authority_ledger(pacing_domain, sequence);
-      PRAGMA user_version = 2;
     `);
+    // Additive schema initialization must not downgrade retained deployment history.
+    const version = this.db.prepare("PRAGMA user_version").get() as { user_version: number };
+    if (version.user_version < 2) this.db.exec("PRAGMA user_version = 2;");
     const columns = this.db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "producer_id")) {
       this.db.exec("ALTER TABLE events ADD COLUMN producer_id TEXT NOT NULL DEFAULT 'legacy:unattributed';");

@@ -3,6 +3,7 @@ import test from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { CapabilityRotationRuntime, nonceFixtureBody, type NonceFixture, type CapabilityNoncePublisher } from "../lib/capability-rotation";
 import { EventStore } from "../lib/store";
 import { seedIssue47Store } from "../lib/seed";
@@ -69,6 +70,33 @@ test("durable restart reuses activated challenge and publication",async()=>{
   try{const old=await new CapabilityRotationRuntime(store,policy,[registration],publisher,{now:()=>start}).ensure("spec","spec-chat");store.close();store=new EventStore(filename);
     const current=await new CapabilityRotationRuntime(store,policy,[registration],publisher,{now:()=>start}).ensure("spec","spec-chat");assert.equal(old.challengeId,current.challengeId);assert.equal(publisher.posts,1);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});
+test("additive restart preserves prior deployment schema/history without granting it current authority",async()=>{
+  const directory=mkdtempSync(join(tmpdir(),"mc-retained-capability-history-")),filename=join(directory,"db.sqlite");
+  let store=new EventStore(filename);seedContract(store);const count=store.count();store.close();
+  const fixture=new DatabaseSync(filename);
+  fixture.exec(`CREATE TABLE capability_challenges(challenge_id TEXT PRIMARY KEY, status TEXT NOT NULL);
+    INSERT INTO capability_challenges VALUES ('retained-other-deployment','ACTIVE');
+    CREATE TRIGGER capability_challenges_reject_delete BEFORE DELETE ON capability_challenges
+      BEGIN SELECT RAISE(ABORT,'capability_challenges_are_durable'); END;
+    PRAGMA user_version=3;`);fixture.close();
+  store=new EventStore(filename);
+  try {
+    assert.equal(store.count(),count);assert.equal(store.verifyChain().valid,true);
+    const publisher=new Publisher(()=>start),runtime=new CapabilityRotationRuntime(store,policy,[registration],publisher,{now:()=>start});
+    assert.equal(runtime.current("spec","spec-chat"),null);
+    const current=await runtime.ensure("spec","spec-chat");
+    assert.notEqual(current.challengeId,"retained-other-deployment");
+    assert.equal(publicCapabilityChallenge(runtime.effectivePolicy(),"retained-other-deployment",new Date(start).toISOString()),null);
+    store.close();store=new EventStore(filename);store.close();
+    const retained=new DatabaseSync(filename);
+    try {
+      assert.equal((retained.prepare("PRAGMA user_version").get() as {user_version:number}).user_version,3);
+      assert.equal(retained.prepare("SELECT status FROM capability_challenges").get()?.status,"ACTIVE");
+      assert.throws(()=>retained.exec("DELETE FROM capability_challenges"),/durable/);
+      assert.equal(retained.prepare("SELECT count(*) AS n FROM capability_rotation_candidates").get()?.n,1);
+    }finally{retained.close();}
+  }finally{try{store.close();}catch{}rmSync(directory,{recursive:true,force:true});}
 });
 test("wrong pair, changed binding, wrong bus or writer cannot activate",async()=>{
   const c=setup();try{const r=c.runtime();assert.throws(()=>r.ensure("other","spec-chat"),/REGISTRATION/);assert.throws(()=>r.ensure("spec","wrong-chat"),/REGISTRATION/);

@@ -18,6 +18,10 @@ PRIMARY identity was directly verified: existing `mission-control-issue90-live`,
 
 ## Enforcement / activated lessons
 
+20:32 UTC reconciliation checkpoint: the pre-stop guard detected a competing deployment from task “Continue issue #90 implementation”, source `9ee081a01362132bd728d77f8e5332c9de1c1c42` / PR #108. That task explicitly confirmed quiescence and handed PRIMARY reconciliation to this task and its later owner-adopted publisher/socket architecture. It reports three issue-60 nonce fixtures and zero provider sends, no canonical preflight/capability acceptance. Retain its fixtures and additive SQLite `capability_challenges` history as historical, not current authority. The current app contains a newly introduced receipt policy and daemon writer-token delivery; these were absent at this task's earlier inspection. Compose the approved static channels, remove only that superseded daemon credential delivery (no token rotation/readback), and restore the isolated publisher service. Its container recreation dropped five prior hardening settings; restore the exact protected baseline while preserving every unrelated current setting. Renew only the same epoch-3 PRIMARY lease expiry per the owner approval above. Restore the exact approved relay-lock repair plus this branch's discovery delta. Do not touch the other task's source branch, SECONDARY or Somatic.
+
+The original EventStore initialization unconditionally reset `user_version` to 2. Additive reconciliation now preserves any higher schema version and untouched retained tables/triggers. A focused restart/history regression must pass before creating the new exact app build. This migration does not import historical capability PASS into the new current-challenge authority.
+
 | Trigger | Enforcement | Failure prevented |
 | --- | --- | --- |
 | Expiry / missing challenge | Durable candidate, exact publication verification, transactional current pointer | Double-active or unpublished authority |
