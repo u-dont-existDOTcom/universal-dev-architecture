@@ -21,6 +21,23 @@ For any load-bearing remembered or quoted source, preserve:
 
 A later interpretation may illuminate what the source came to mean. It does not retroactively become what the source said.
 
+## Preserve claim scope and polarity
+
+A source can respond to only part of a compound claim. Preserve the exact scope of what the source accepts, rejects, qualifies, reframes, or leaves unresolved.
+
+When the distinction can change the conclusion, separate materially different propositions such as the underlying event or conduct, its scope or timing, the proposed cause or intent, a characterization applied to it, and consequences attributed to it.
+
+Hard rules:
+
+1. Rejecting a characterization does not by itself reject the underlying factual predicate.
+2. Defending or normalizing a practice does not by itself admit every factual detail alleged about that practice.
+3. Silence is neither admission nor denial.
+4. A denial of one proposition must not be widened to adjacent propositions.
+5. A qualification must not be rewritten as a categorical acceptance or rejection.
+6. A paraphrase must be no stronger, broader, or more categorical than the source language supports.
+
+Before delivering a load-bearing paraphrase of a disputed or compound claim, ask: **What exact proposition did the source accept, reject, qualify, reframe, or leave unresolved?** If the sentence being written covers more than that proposition, narrow it.
+
 ## Scope discipline
 
 A source can generate an entire project without governing every local component of that project.
@@ -75,6 +92,7 @@ The same failure occurs in:
 - software requirements: an implementation rationale becomes “what the user requested”;
 - debugging: a post-hoc explanation becomes “what the original log proved”;
 - research synthesis: an interpretation becomes “what the paper said”;
+- policy or news synthesis: a response to one layer of a compound claim is widened into a stance on another layer;
 - product design: a derived constraint becomes “the original requirement.”
 
 In every case, provenance drift creates false authority and can force downstream work into the wrong architecture.
@@ -98,6 +116,7 @@ The project-specific quotation, detector classifications, and Romance content re
 
 - Interpretation is not prohibited; many projects depend on it. The requirement is to label it accurately.
 - Exact quotation is not always available. When it is not, mark the source as paraphrase or uncertain memory rather than inventing precision.
+- Absence of a denial is not evidence of admission, and absence of an admission is not evidence of denial.
 - A project-level origin idea may legitimately govern a local task when the local function truly depends on it. The rule is to verify the dependency, not to sever it automatically.
 - Explicit provenance is not automatically better prose. Do not add it where the evidence source is already obvious, irrelevant, or would clutter the sentence.
 - A detector response to a possessive or provenance clause is boundary-specific evidence. Never generalize it into a token whitelist.
