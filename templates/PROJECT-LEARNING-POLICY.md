@@ -8,6 +8,16 @@ GitHub is the canonical durable store for project lessons and project continuity
 
 At the start of substantive work, read the project's current lesson index first. Follow its current read order, authority rules, and branch/evidence routing rather than relying on remembered file names.
 
+## Owner shorthand: `learn the lesson`
+
+When the owner says **`learn the lesson`**, **`learn this lesson`**, or an unambiguous equivalent, treat it as the complete learning lifecycle defined by `patterns/durable-chat-learning.md`, not as a request merely to save a note or update universal guidance.
+
+Without asking the owner to enumerate routine targets, automatically: activate the correction for the current task; persist project-specific learning; promote genuinely transferable learning to Universal Dev Architecture; identify affected developer, runtime, prompt/policy, evaluator, test/eval, bundle, and shipped-product execution surfaces; project the lesson into each affected surface or record `NOT_APPLICABLE`/`DEFERRED` with an exact reason; add focused regression protection where applicable; and verify the propagation path to the actual consumer seam.
+
+For public-facing AI products, changing Universal Dev Architecture alone is insufficient unless the public runtime actually loads it. Developer/build-time governance and shipped runtime behavior are separate targets. Distinguish `CAPTURED`, `PROMOTED`, `PROJECTED`, `TESTED`, `DEPLOYED`, and `LIVE_VERIFIED`; never report a lower state as a higher one.
+
+If a genuine authority/access/deployment boundary blocks the full lifecycle, complete every safe reachable step automatically and report the exact remaining gap.
+
 ## Task-time lesson activation gate
 
 **Lesson capture is not lesson application.** For substantive tasks, apply `patterns/task-time-lesson-activation.md` after loading current authority and lesson indexes.
