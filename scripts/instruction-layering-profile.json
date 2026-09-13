@@ -52,7 +52,7 @@
     ],
     "tools/codex-mission-control/restored/codex-mission-control/AGENTS.md": [
       "supervision:admit:runtime",
-      "returned `mayExecute` value is exactly `true`",
+      "`mayExecute` is exactly true",
       "QUEUED_FOR_PROVIDER_RELAY"
     ]
   }
