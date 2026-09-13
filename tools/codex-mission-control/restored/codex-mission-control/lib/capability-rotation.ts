@@ -32,7 +32,9 @@ export class CapabilityRotationRuntime {
       || policy.decisionIssueNumber !== 59 || policy.stageIssueNumber !== 61
       || canonicalJson(policy.authorizedWriterLogins.map(x=>x.toLowerCase())) !== canonicalJson(["u-dont-existdotcom"])) throw new Error("CAPABILITY_ROTATION_RECEIPT_AUTHORITY_MISMATCH");
     for (const entry of registrations) {
-      if (!/^[A-Za-z][A-Za-z0-9_-]{0,179}$/.test(entry.bootstrapCapability.chatId)) throw new Error("CAPABILITY_PUBLIC_ALIAS_INVALID");
+      // Existing owner-authorized public aliases include bounded namespace segments.
+      const alias=entry.bootstrapCapability.chatId;
+      if (alias.length>180 || !/^[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z0-9_-]+)*$/.test(alias)) throw new Error("CAPABILITY_PUBLIC_ALIAS_INVALID");
     }
   }
   private binding(entry: ConfiguredSupervisorChat) {

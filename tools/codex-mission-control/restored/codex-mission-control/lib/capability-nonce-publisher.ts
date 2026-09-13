@@ -51,7 +51,8 @@ function timestamp(value: unknown): string {
 export function validateCapabilityNonceFixture(value: unknown): CapabilityNonceFixture {
   const root = exactKeys(value, ["challengeId", "chatId", "githubNonce", "expiresAt"]);
   if (typeof root.challengeId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(root.challengeId)
-    || typeof root.chatId !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,179}$/.test(root.chatId)) fail("CAPABILITY_PUBLISHER_INVALID_REQUEST");
+    || typeof root.chatId !== "string" || root.chatId.length>180
+    || !/^[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z0-9_-]+)*$/.test(root.chatId)) fail("CAPABILITY_PUBLISHER_INVALID_REQUEST");
   if (typeof root.githubNonce !== "string" || !/^[A-Za-z0-9_-]{32,256}$/.test(root.githubNonce)) fail("CAPABILITY_PUBLISHER_INVALID_REQUEST");
   // The single writer must supply an already-authorized PUBLIC chat alias, not a locator.
   return { challengeId: root.challengeId as string, chatId: root.chatId as string, githubNonce: root.githubNonce, expiresAt: timestamp(root.expiresAt) };

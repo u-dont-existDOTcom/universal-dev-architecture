@@ -119,6 +119,19 @@ test("old receipt fails after rotation; only exact fresh current receipt grants 
     assert.equal(ingestGitHubSupervisionCandidate(c.store,candidate(next),r.effectivePolicy(),at).length,1);
   }finally{c.store.close();}
 });
+test("existing namespaced public aliases remain stable through publication and discovery",async()=>{
+  const c=setup();try {
+    const entry={...registration,bootstrapCapability:{...registration.bootstrapCapability,chatId:"mission-control:test-supervisor-123"}};
+    const before=structuredClone(entry),runtime=new CapabilityRotationRuntime(c.store,policy,[entry],c.publisher,{now:()=>start});
+    const current=await runtime.ensure(entry.supervisorId,entry.bootstrapCapability.chatId);
+    assert.equal(c.publisher.fixtures[0].chatId,entry.bootstrapCapability.chatId);
+    assert.equal(runtime.discovery(entry.supervisorId,entry.bootstrapCapability.chatId)?.challenge_id,current.challengeId);
+    assert.deepEqual(entry,before);
+    for(const invalid of ["https://chatgpt.com/c/private","alias::empty","alias:",":alias","alias.part","a".repeat(181)]) {
+      assert.throws(()=>new CapabilityRotationRuntime(c.store,policy,[{...entry,bootstrapCapability:{...entry.bootstrapCapability,chatId:invalid}}],c.publisher),/PUBLIC_ALIAS_INVALID/);
+    }
+  }finally{c.store.close();}
+});
 test("expired unpublished candidate is retained and replaced, not a permanent dead end",async()=>{
   const c=setup();try{const noPublisher=new CapabilityRotationRuntime(c.store,policy,[registration],null,{now:()=>start});await assert.rejects(noPublisher.ensure("spec","spec-chat"),/UNAVAILABLE/);const old=c.store.capabilityRotation.slot("spec").pending!.challenge.challengeId;
     c.setNow(start+86_400_000);const next=await c.runtime().ensure("spec","spec-chat");assert.notEqual(next.challengeId,old);assert.equal(c.store.capabilityRotation.byId(old)?.phase,"EXPIRED");

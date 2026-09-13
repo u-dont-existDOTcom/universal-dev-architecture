@@ -55,6 +55,7 @@ test("public fixture shares main serializer, exact prefix and five schema keys o
 for (const change of [
   { mcNonce: "DO_NOT_LEAK" }, { token: "DO_NOT_LEAK" }, { repository: "foreign/repo" }, { issue: 59 }, { body: "arbitrary" },
   { chatId: "https://chatgpt.com/c/DO_NOT_LEAK" }, { chatId: "12345-raw-target-id" }, { chatId: "a/b" },
+  { chatId: "alias::empty" }, { chatId: "alias:" }, { chatId: ":alias" }, { chatId: "alias.part" }, { chatId: "a".repeat(181) },
   { challengeId: "../../escape" }, { githubNonce: "short" }, { githubNonce: "a".repeat(32) + "\n" },
   { expiresAt: "2026-02-31T00:00:00Z" }, { expiresAt: "yesterday" },
 ]) test(`reject fixture ${Object.keys(change).join()} before network`, async () => {
@@ -68,6 +69,15 @@ test("create exactly once on #60 then independently GET the exact returned comme
   assert.deepEqual(await publisher.publish(fixture), proof);
   assert.equal(calls.filter(x => x.init.method === "POST").length, 1);
   assert.deepEqual(JSON.parse(calls[1].init.body as string), { body: nonceFixtureBody(fixture) });
+});
+test("existing namespaced public alias is published unchanged only to the fixed bus", async () => {
+  const namespaced={...fixture,chatId:"mission-control:test-supervisor-123"};
+  const body=capabilityNonceBody(namespaced),value=comment({body});
+  const {publisher,calls}=github([{url:`${issueApi}/comments`,method:"POST",status:201,value},{url:get,value}]);
+  const result=await publisher.publish(namespaced);
+  assert.equal(result.immutableUrl,proof.immutableUrl);
+  assert.deepEqual(JSON.parse(calls[1].init.body as string),{body});
+  assert.equal(JSON.parse(body.slice(capabilityNoncePrefix.length)).chat_id,namespaced.chatId);
 });
 
 test("find exhausts all pages and independently rechecks one matching comment", async () => {
