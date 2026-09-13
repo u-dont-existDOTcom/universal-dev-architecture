@@ -55,6 +55,39 @@ Preserve the operative object and modality. For example, a claim about **promisi
 
 Before rebutting a paraphrase, compare it against the exact sentence and ask what grammatical or modal information disappeared. If the rebuttal applies only to the broadened paraphrase, it does not apply to the source.
 
+## Claim-scope contradiction gate
+
+A correction or rebuttal is valid only if the evidence actually negates the proposition being corrected at the same relevant scope and level of abstraction. Do not treat evidence against one mechanism, implementation, proxy, or narrower subclaim as evidence against a broader relation unless the broader claim logically entails that narrower proposition.
+
+Before declaring a claim false, contradicted, disproven, or corrected:
+
+1. Represent the target proposition explicitly enough to preserve:
+   - subject/actor;
+   - relation or predicate;
+   - object/target;
+   - scope or population;
+   - quantifier/frequency;
+   - modality/strength;
+   - time window;
+   - proposed mechanism, when the mechanism is actually part of the claim.
+2. Represent the evidence proposition at the same level of detail.
+3. Ask whether the evidence is the logical negation of the target proposition, or whether it merely narrows one possible mechanism or interpretation.
+4. Preserve relation direction and polarity. Evidence about who operates, owns, administers, influences, regulates, funds, or controls something cannot be substituted for another relation without an explicit entailment argument.
+5. If the evidence falsifies only a narrower mechanism, rewrite the conclusion as a qualification of that mechanism rather than rejection of the broader relation.
+6. If the entailment needed for contradiction is unstated or unsupported, classify the result as `not established`, `mechanism narrowed`, or another appropriately limited conclusion—not `disproved`.
+
+### Regression example
+
+Claim: **“Actor A controls platform B.”**
+
+Evidence: **“Actor A does not directly operate platform B.”**
+
+Invalid inference: **“Therefore Actor A does not control platform B.”**
+
+Correct treatment: direct operation is one possible mechanism of control. Unless the original claim specifically equated control with direct operation, disproving direct operation does not by itself negate the broader control relation. Test the broader control claim separately using evidence that bears on that relation.
+
+This gate applies in both directions: do not broaden a positive claim beyond its evidence, and do not broaden a negative finding into a stronger negation than the evidence supports.
+
 ## A true behavior label may still be an incomplete explanation
 
 Do not force a choice between accurately naming a behavior and contextualizing it.
@@ -110,6 +143,8 @@ This requirement prevents a worker from hiding a changed argument inside smoothe
 - treating an experiential claim and a cited laboratory result as merged merely because they occur in the same section;
 - adding mechanical epistemic labels that make memoir read like an incident report;
 - interpreting contextualization as denial of the original behavior;
+- treating evidence against a narrower mechanism as contradiction of a broader relation without entailment;
+- changing relation type, direction, polarity, quantifier, or modality while paraphrasing evidence;
 - calling a concept missing after finding it elsewhere;
 - discarding accepted or still-live proposals because the owner corrected different items.
 
@@ -119,20 +154,22 @@ Before completion, run a whole-source cold read and answer:
 
 1. Can every criticism be tied to an exact clause rather than a broader paraphrase?
 2. Was every relevant qualification or later explanation considered?
-3. Did any proposed fix introduce an argument the source already contains?
-4. Did contextualization accidentally retract a behavior the author still affirms?
-5. Did any unaddressed proposal disappear after selective feedback?
-6. Does the architecture/map still reflect the actual setup, primary home, and callbacks?
-7. Would the author recognize the repaired passage as the same argument stated more clearly?
+3. For every claimed contradiction, does the evidence negate the same proposition at the same scope, relation, direction, polarity, and modal strength?
+4. Did any negative finding about one mechanism get improperly generalized into denial of a broader relation?
+5. Did any proposed fix introduce an argument the source already contains?
+6. Did contextualization accidentally retract a behavior the author still affirms?
+7. Did any unaddressed proposal disappear after selective feedback?
+8. Does the architecture/map still reflect the actual setup, primary home, and callbacks?
+9. Would the author recognize the repaired passage as the same argument stated more clearly?
 
 If any answer is uncertain, the critique/edit remains provisional.
 
 ## Origin evidence
 
-- Originating work: long-form Romance article and derivative card-game review
-- Promotion date: 2026-08-17
-- Failure class: multiple sentence-local readings broadened narrow claims, overlooked qualifications elsewhere, treated contextualization as retraction, and temporarily dropped unchallenged proposals after selective feedback
-- Owner correction: require exact prose, exact reading, full-source reconstruction, durable Mermaid mapping, natural integration, and preservation of unaddressed accepted suggestions
+- Originating work: long-form Romance article and derivative card-game review; later generalized by a public-claim correction failure in which evidence about direct operation was incorrectly treated as negating a broader control relation
+- Promotion dates: 2026-08-17; claim-scope contradiction extension 2026-09-13
+- Failure classes: multiple sentence-local readings broadened narrow claims, overlooked qualifications elsewhere, treated contextualization as retraction, temporarily dropped unchallenged proposals after selective feedback, and generalized evidence against a narrower mechanism into denial of a broader relation without entailment
+- Owner corrections: require exact prose, exact reading, full-source reconstruction, durable Mermaid mapping, natural integration, preservation of unaddressed accepted suggestions, and proposition-level scope matching before declaring contradiction
 
 The source article, personal examples, and project-specific candidate wording remain in their private project boundary. This pattern promotes only the transferable reasoning and review controls.
 
@@ -140,6 +177,7 @@ The source article, personal examples, and project-specific candidate wording re
 
 - Whole-source reconstruction does not make the source correct; it makes the target of criticism accurate.
 - A real contradiction may remain after all passages are traced. Name it directly rather than smoothing it away.
+- Evidence can legitimately refute a broader claim when the broader claim entails the falsified narrower proposition; the gate requires making that entailment explicit rather than assuming it.
 - Long sources may require a concept map or retrieval matrix; do not claim completeness from a few keyword matches.
 - Silence is not universal approval. Carry unaddressed proposals forward, and apply an acceptance-by-silence convention only when the owner explicitly establishes it.
 - The gate should not become bureaucratic prose inside the artifact. The analysis may be structured while the final writing remains natural.
