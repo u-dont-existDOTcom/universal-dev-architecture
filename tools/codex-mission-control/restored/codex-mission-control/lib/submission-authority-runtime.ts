@@ -27,9 +27,26 @@ import {
   parseDeploymentLease,
   parseSubmissionRelayAttestors,
   parseSubmissionRelayBindings,
+  parsePrecompositionRecoveryPermit,
+  recoverySha256,
+  PRECOMPOSITION_RECOVERED,
 } from "./provider-submission-authority.mjs";
 
 type SchedulerState = Record<string, any>;
+
+export type SubmissionRecoveryDecision =
+  | { state: unknown; ledger: Record<string, unknown> }
+  | { duplicate: Record<string, unknown> };
+
+// The owning EventStore must read the complete snapshot and invoke this
+// synchronous callback inside BEGIN IMMEDIATE, committing both returned values
+// together. A duplicate result performs no write. No second writer is opened.
+export interface SubmissionRecoveryTransactionStore {
+  transactSubmissionAuthorityRecovery(
+    pacingDomain: string,
+    decide: (snapshot: { state: unknown; ledger: Array<Record<string, unknown>> }) => SubmissionRecoveryDecision,
+  ): Record<string, unknown>;
+}
 
 interface StoredRelayHealthReport extends RelayHealthReport {
   producerId: string;
@@ -60,6 +77,7 @@ export class MissionControlSubmissionStateStore {
     const priorRaw = this.store.submissionAuthorityState(this.pacingDomain);
     const prior = priorRaw === null ? null : normalizeSchedulerState(priorRaw);
     const state = normalizeSchedulerState(value, new Date(this.now()).toISOString());
+    assertRecoveryRecordsUnchanged(prior, state);
     this.store.commitSubmissionAuthorityState(
       this.pacingDomain,
       state,
@@ -67,6 +85,101 @@ export class MissionControlSubmissionStateStore {
     );
     return state;
   }
+
+  async recoverBeforeComposition(permit: SchedulerState, transition: (state: SchedulerState) => SchedulerState) {
+    const recoveryStore = this.store as EventStore & Partial<SubmissionRecoveryTransactionStore>;
+    if (typeof recoveryStore.transactSubmissionAuthorityRecovery !== "function") {
+      throw recoveryFailure("TRANSACTION_UNAVAILABLE");
+    }
+    return recoveryStore.transactSubmissionAuthorityRecovery(this.pacingDomain, ({ state: raw, ledger }) => {
+      verifyRecoveryLedger(ledger, this.pacingDomain);
+      if (raw === null) throw recoveryFailure("HISTORY_MISSING");
+      const state: SchedulerState = normalizeSchedulerState(raw);
+      const permitSha256 = recoverySha256(permit);
+      const consumed = ledger.filter((record) => record.eventKind === PRECOMPOSITION_RECOVERED && record.permitId === permit.permitId);
+      if (consumed.length > 0) {
+        const receipt = consumed[0];
+        const admission = state.admissions.find((item: SchedulerState) => item.admissionId === permit.admissionId);
+        if (consumed.length !== 1 || receipt.permitSha256 !== permitSha256 || recoverySha256(receipt.permit) !== permitSha256
+          || admission?.status !== PRECOMPOSITION_RECOVERED || admission.precompositionRecovery?.permitSha256 !== permitSha256
+          || admission.precompositionRecovery.recoveredAt !== receipt.recoveredAt) throw recoveryFailure("REPLAY_CONFLICT");
+        return { duplicate: receipt };
+      }
+      const head = ledger.at(-1);
+      if (!head || head.sequence !== permit.expectedLedgerHead.sequence || head.eventHash !== permit.expectedLedgerHead.eventHash) {
+        throw recoveryFailure("LEDGER_HEAD_MISMATCH");
+      }
+      if (recoverySha256(raw) !== permit.expectedStateSha256 || recoverySha256(state) !== permit.expectedStateSha256) {
+        throw recoveryFailure("STATE_HASH_MISMATCH");
+      }
+      const priorAdmission = state.admissions.find((item: SchedulerState) => item.admissionId === permit.admissionId);
+      if (!priorAdmission) throw recoveryFailure("RESERVATION_MISMATCH");
+      if (ledger.some((record) => (
+        (record.queueItemId === permit.queueItemId || record.admissionId === permit.admissionId)
+          && (record.eventKind === "BOUNDARY_RECORDED" || record.actualSubmissionBoundaryAt != null
+            || record.boundaryKind != null || record.deliveryStatus != null)
+      ) || (record.actualSubmissionBoundaryAt != null
+        && (!Number.isFinite(Date.parse(String(record.actualSubmissionBoundaryAt)))
+          || Date.parse(String(record.actualSubmissionBoundaryAt)) > Date.parse(priorAdmission.admittedAt))))) {
+        throw recoveryFailure("BOUNDARY_OR_OUTCOME_PRESENT");
+      }
+      const next = transition(structuredClone(state));
+      const recovered = next.admissions.find((item: SchedulerState) => item.admissionId === permit.admissionId);
+      // The only permitted delta is the named admission's explicit recovery
+      // plus reopening its existing queue item. No pacing/history repair.
+      const expected = structuredClone(state);
+      const expectedAdmission = expected.admissions.find((item: SchedulerState) => item.admissionId === permit.admissionId);
+      const expectedQueue = expected.queueItems.find((item: SchedulerState) => item.queueItemId === permit.queueItemId);
+      if (!expectedQueue || recovered?.precompositionRecovery?.permitSha256 !== permitSha256) throw recoveryFailure("DELTA_INVALID");
+      expectedAdmission.status = PRECOMPOSITION_RECOVERED;
+      expectedAdmission.precompositionRecovery = recovered.precompositionRecovery;
+      expectedQueue.status = "PRECLICK_RETRY_PENDING";
+      expectedQueue.terminalAt = null;
+      if (recoverySha256(next) !== recoverySha256(expected)) throw recoveryFailure("DELTA_INVALID");
+      const receipt = {
+        eventKind: PRECOMPOSITION_RECOVERED,
+        permitId: permit.permitId,
+        permitSha256,
+        permit,
+        admissionId: permit.admissionId,
+        queueItemId: permit.queueItemId,
+        producerId: "operator:startup-recovery",
+        recoveredProducerId: permit.producerId,
+        priorStateSha256: permit.expectedStateSha256,
+        resultingStateSha256: recoverySha256(next),
+        recoveredAt: recovered.precompositionRecovery.recoveredAt,
+        admissionStatus: PRECOMPOSITION_RECOVERED,
+        queueStatus: "PRECLICK_RETRY_PENDING",
+        actualSubmissionBoundaryAt: null,
+        previousGlobalSubmissionBoundaryAt: state.lastBoundaryAt,
+        minimumIntervalMs: this.minimumIntervalMs,
+      };
+      return { state: next, ledger: receipt };
+    });
+  }
+}
+
+function recoveryFailure(reason: string) {
+  return new SubmissionSchedulerError(`SUBMISSION_RECOVERY_${reason}`, "Operator startup recovery failed closed.");
+}
+
+function verifyRecoveryLedger(ledger: Array<Record<string, unknown>>, domain: string) {
+  let previousHash: string | null = null;
+  let previousSequence = 0;
+  for (const record of ledger) {
+    const { sequence, previousHash: recordedPreviousHash, eventHash, ...payload } = record;
+    if (typeof sequence !== "number" || !Number.isSafeInteger(sequence) || sequence <= previousSequence
+      || payload.pacingDomain !== domain || payload.schemaVersion !== 1 || recordedPreviousHash !== previousHash
+      || recoverySha256({ payload, previousHash }) !== eventHash) throw recoveryFailure("LEDGER_INVALID");
+    previousSequence = sequence;
+    previousHash = String(eventHash);
+  }
+}
+
+function assertRecoveryRecordsUnchanged(prior: SchedulerState | null, state: SchedulerState) {
+  const recovered = (value: SchedulerState | null) => (value?.admissions ?? [])
+    .filter((record: SchedulerState) => record.status === PRECOMPOSITION_RECOVERED || record.precompositionRecovery);
+  if (recoverySha256(recovered(prior)) !== recoverySha256(recovered(state))) throw recoveryFailure("ORDINARY_WRITE_FORBIDDEN");
 }
 
 export class SubmissionAuthorityRuntime {
@@ -99,10 +212,12 @@ export class SubmissionAuthorityRuntime {
     const directory = loadConfiguredSupervisorChats(env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON);
     const provisions = loadConfiguredSupervisorChatProvisions(env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     const leaseRaw = env.MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON;
+    const recoveryPermitRaw = env.MISSION_CONTROL_SUBMISSION_RECOVERY_PERMIT_JSON;
     const domain = env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN?.trim() || null;
     const partiallyConfigured = Boolean(leaseRaw || domain || env.MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS
       || env.MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS || env.MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON
-      || env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON || env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
+      || env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON || env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON
+      || recoveryPermitRaw !== undefined);
     if (!leaseRaw && !domain && !partiallyConfigured) {
       this.enabled = false;
       this.pacingDomain = null;
@@ -155,7 +270,22 @@ export class SubmissionAuthorityRuntime {
     this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
     this.relayBindings = new Map(Object.entries(relayBindings));
     const lease = parseDeploymentLease(JSON.parse(leaseRaw));
-    this.initialization = this.scheduler.activateLease(lease).then(
+    const initialize = async () => {
+      if (recoveryPermitRaw !== undefined) {
+        let permit: SchedulerState;
+        try { permit = parsePrecompositionRecoveryPermit(JSON.parse(recoveryPermitRaw)); }
+        catch { throw recoveryFailure("PERMIT_INVALID"); }
+        const credentials = JSON.parse(env.MISSION_CONTROL_INGEST_CREDENTIALS!)[permit.producerId];
+        if (credentials?.kind !== "COLLECTOR" || !Array.isArray(credentials.workers) || !Array.isArray(credentials.tasks)) {
+          throw recoveryFailure("PRODUCER_MISMATCH");
+        }
+        await this.scheduler.recoverBeforeComposition(permit, lease, {
+          id: permit.producerId, kind: credentials.kind, workerScopes: credentials.workers, taskScopes: credentials.tasks,
+        });
+      }
+      return this.scheduler.activateLease(lease);
+    };
+    this.initialization = initialize().then(
       () => null,
       (error: unknown) => error,
     );

@@ -196,9 +196,48 @@ export class EventStore {
   }
 
   commitSubmissionAuthorityState(pacingDomain: string, state: unknown, ledger: Record<string, unknown>): Record<string, unknown> {
-    const recordedAt = new Date().toISOString();
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      const result = this.insertSubmissionAuthorityCommit(pacingDomain, state, ledger);
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  transactSubmissionAuthorityRecovery(
+    pacingDomain: string,
+    decide: (snapshot: { state: unknown; ledger: Array<Record<string, unknown>> }) =>
+      { state: unknown; ledger: Record<string, unknown> } | { duplicate: Record<string, unknown> },
+  ): Record<string, unknown> {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const state = this.submissionAuthorityState(pacingDomain);
+      // Recovery must validate the entire retained ledger, not a bounded UI page.
+      const rows = this.db.prepare(`
+        SELECT sequence, ledger_json, previous_hash, event_hash
+        FROM provider_submission_authority_ledger WHERE pacing_domain = ? ORDER BY sequence
+      `).all(pacingDomain) as Array<{ sequence: number; ledger_json: string; previous_hash: string | null; event_hash: string }>;
+      const ledger = rows.map(row => ({
+        sequence: Number(row.sequence), ...JSON.parse(row.ledger_json),
+        previousHash: row.previous_hash, eventHash: row.event_hash,
+      }));
+      const decision = decide({ state, ledger });
+      const result = "duplicate" in decision
+        ? { ...decision.duplicate, duplicate: true }
+        : this.insertSubmissionAuthorityCommit(pacingDomain, decision.state, decision.ledger);
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  private insertSubmissionAuthorityCommit(pacingDomain: string, state: unknown, ledger: Record<string, unknown>): Record<string, unknown> {
+      const recordedAt = new Date().toISOString();
       const previous = this.db.prepare(`
         SELECT event_hash FROM provider_submission_authority_ledger
         WHERE pacing_domain = ? ORDER BY sequence DESC LIMIT 1
@@ -228,12 +267,7 @@ export class EventStore {
         VALUES (?, ?, ?)
         ON CONFLICT(pacing_domain) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at
       `).run(pacingDomain, canonicalJson(state), recordedAt);
-      this.db.exec("COMMIT");
       return { sequence: Number(result.lastInsertRowid), ...payload, previousHash, eventHash };
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
   }
 
   submissionAuthorityLedger(pacingDomain: string, limit = 200): Array<Record<string, unknown>> {

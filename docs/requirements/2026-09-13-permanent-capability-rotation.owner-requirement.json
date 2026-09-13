@@ -6,6 +6,13 @@
   "completion_allowed": false,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "owner_corrections": [{
+    "source_type": "OWNER_DIRECT_CHAT_RECOVERY_APPROVAL",
+    "verbatim": "do whatever you need to do let's get it working please",
+    "approved_question": "May I implement an audited recovery for that exact failed reservation and repair the app-selection path, without clearing history or bypassing security gates?",
+    "captured_at": "2026-09-13T23:10:29Z",
+    "timestamp_semantics": "Work capture/check time, not a claimed source-sent timestamp",
+    "implementation_boundary": "Narrow evidence-preserving recovery of the exact failed pre-composition reservation, exact PRIMARY app-selection and pre-click provenance repair, then canonical fresh receipt acceptance. No direct database edit, fabricated proof, general ambiguity reset, credential/registry change, lease extension, epoch/pacing weakening, SECONDARY/Somatic work or merge."
+  }, {
     "source_type": "OWNER_DIRECT_CHAT_LEASE_RENEWAL_APPROVAL",
     "verbatim": "yes and why does it have only a 24hr lease? taht seems like another gate of extra work",
     "approved_question": "May I renew that same PRIMARY lease for 24 hours, preserving its host, epoch, ownership and all other security gates, then continue deployment?",

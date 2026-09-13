@@ -212,6 +212,11 @@ export class CentralSubmissionScheduler {
               relayStage: stage,
               failureKind: isChatGptRateLimitRetry(error) ? 'PROVIDER_RATE_LIMIT' : 'PRECLICK_FAILURE',
             });
+            // Preserve the scheduler-proven pre-submit phase in local failure
+            // records too. Never relabel an unknown error after submit started.
+            if (!submitStarted && error && typeof error === 'object' && !error.relayStage) {
+              error.relayStage = stage;
+            }
           }
           if (!isChatGptRateLimitRetry(error)) {
             if (boundaryRecorded) await this.schedulerClient.recordOutcome({

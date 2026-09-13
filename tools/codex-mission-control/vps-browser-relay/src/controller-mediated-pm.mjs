@@ -381,6 +381,7 @@ export class ControllerMediatedPmRuntime {
   async #submitArtifactMessage({ state, cycle, lane, target, expectedUrl, prompt, chat, readyStep, startedStep, waitingStep }) {
     if (cycle.step !== readyStep) throw new Error(`Controller lane ${lane} is not ready to send.`);
     let model;
+    let messageApps;
     const promptSha256 = sha256(prompt);
     let start;
     try {
@@ -406,6 +407,11 @@ export class ControllerMediatedPmRuntime {
           cycle.lastError = null;
           state.controllerCycles[cycle.cycleId] = cycle;
           await this.stateStore.write(state);
+          messageApps = await this.browser.selectAppsForMessage(target, {
+            knownLabels: [chat.requiredApps.missionControl, chat.requiredApps.github],
+            requiredLabels: [chat.requiredApps.github],
+            referencedLabels: [],
+          });
         },
         recordBoundary: (boundaryState, { boundaryAt, result }) => {
           const boundaryCycle = boundaryState.controllerCycles?.[cycle.cycleId];
@@ -440,11 +446,6 @@ export class ControllerMediatedPmRuntime {
           boundaryState.controllerCycles[boundaryCycle.cycleId] = boundaryCycle;
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
-          const messageApps = await this.browser.selectAppsForMessage(target, {
-            knownLabels: [chat.requiredApps.missionControl, chat.requiredApps.github],
-            requiredLabels: [chat.requiredApps.github],
-            referencedLabels: [],
-          });
           const submitted = await this.browser.submitExactMessage(target, {
             expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary,
           });

@@ -183,6 +183,7 @@ export class RelayRuntime {
 
     const prompt = capabilityControlPrompt(chat);
     let observed;
+    let messageApps;
     try {
       const start = await this.submissionPacer.submit({
         context: submissionSchedulerContext({
@@ -205,9 +206,9 @@ export class RelayRuntime {
             lastAttemptAt: intentAt,
           };
           state = await this.stateStore.write(state);
+          messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
-          const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
           const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
             await this.#assertCurrentChallenge(chat);
             await onBeforeSubmissionBoundary?.();
@@ -297,6 +298,7 @@ export class RelayRuntime {
 
     const prompt = mcpReadPreflightPrompt(chat);
     let observed;
+    let messageApps;
     try {
       const start = await this.submissionPacer.submit({
         context: submissionSchedulerContext({
@@ -319,9 +321,9 @@ export class RelayRuntime {
             lastAttemptAt: intentAt,
           };
           state = await this.stateStore.write(state);
+          messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
-          const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
           const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
             await this.#assertCurrentChallenge(chat);
             await onBeforeSubmissionBoundary?.();
@@ -800,6 +802,7 @@ export class RelayRuntime {
 
     const prompt = cycleControlPrompt(route, action.step);
     let model;
+    let messageApps;
     const promptSha256 = sha256(prompt);
     let generationStarted = false;
     try {
@@ -836,12 +839,12 @@ export class RelayRuntime {
             lastError: null,
           };
           state = await this.stateStore.write(state);
-        },
-        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const appPlan = appSelectionForMessage(route.chat, action.step);
-          const messageApps = appPlan.requiredLabels.length > 0
+          messageApps = appPlan.requiredLabels.length > 0
             ? await this.browser.selectAppsForMessage(target, appPlan)
             : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
+        },
+        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary: async () => {
             await this.#assertCurrentChallenge(route.chat, true);
             await onBeforeSubmissionBoundary?.();

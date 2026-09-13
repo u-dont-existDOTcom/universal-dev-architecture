@@ -68,6 +68,32 @@ test('central scheduler rejection or outage prevents browser mutation', async ()
   }
 });
 
+test('failed app preparation is durably aborted before composition; unknown submit errors remain ambiguous', async () => {
+  for (const preparationFailure of [true, false]) {
+    const events = [];
+    const failure = new Error('Exact app selection unavailable');
+    const client = {
+      async status() { return centralStatus(); },
+      async admit() { return admissionAuthority({ admitted: true, singleUse: true }); },
+      async validateAdmission() {}, async recordBoundary() { events.push('boundary'); },
+      async bindTarget() {}, async recordRateLimit() {}, async recordOutcome() { events.push('outcome'); },
+      async abortBeforeBoundary(input) { events.push(input); return { aborted: true }; },
+    };
+    let compositionCalls = 0;
+    const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: new MemoryStateStore(), host: host(), minIntervalMs: 60_000 });
+    await assert.rejects(scheduler.submit({
+      context: context(),
+      beforeSubmit: async () => { if (preparationFailure) throw failure; },
+      submit: async () => { compositionCalls++; throw failure; },
+    }), error => error === failure);
+    assert.equal(compositionCalls, preparationFailure ? 0 : 1);
+    assert.deepEqual(events, preparationFailure ? [{
+      admissionId: 'admission:test', relayStage: 'BEFORE_SUBMIT', failureKind: 'PRECLICK_FAILURE',
+    }] : []);
+    assert.equal(failure.relayStage, preparationFailure ? 'BEFORE_SUBMIT' : undefined);
+  }
+});
+
 test('passive secondary may prepare only fail-closed recovery against the active lease snapshot', async () => {
   const calls = [];
   const status = centralStatus();

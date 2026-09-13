@@ -236,6 +236,31 @@ test('current challenge checks preserve the central scheduler pre-boundary callb
   }
 });
 
+test('every relay send class selects its exact apps inside pre-composition preparation', async () => {
+  for (const method of ['verifyCapabilities', 'verifyMcpReadPreflight', 'cycle']) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl({ evidence: method === 'cycle' ? capabilityEvidence() : [] });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, capabilityTestEnabled: true });
+    const failure = new Error('Exact app selection unavailable');
+    let selectedInPreparation = false, preparation = false, submitEntered = false;
+    browser.selectAppsForMessage = async () => { selectedInPreparation = preparation; throw failure; };
+    runtime.submissionPacer.submit = async options => {
+      preparation = true;
+      try { await options.beforeSubmit(); }
+      catch (error) { error.relayStage = 'BEFORE_SUBMIT'; throw error; }
+      preparation = false; submitEntered = true;
+      return options.submit();
+    };
+    const result = await runtime[method]('spec');
+    assert.match(result.status, /FAILED/);
+    assert.equal(selectedInPreparation, true);
+    assert.equal(submitEntered, false);
+    assert.equal(browser.submitCalls, 0);
+    assert.equal(store.state.submissionPacing.lastSubmissionAt, null);
+  }
+});
+
 test('dry run becomes ready only after current tool and exact-mode receipts exist', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
