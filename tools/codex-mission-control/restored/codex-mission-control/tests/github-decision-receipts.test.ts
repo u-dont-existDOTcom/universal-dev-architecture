@@ -217,6 +217,35 @@ test("route-v3 compatibility preserves the durable Pro digest and final-writer a
   assert.ok(attestation.data.refs.includes(`stage_provider_session:${writerSessionId}`));
 });
 
+test("decision admission rejects matching capability fields with forged authenticated provenance",()=>{
+  for(const summary of [capabilityVerifiedSummary,modeCapabilityVerifiedSummary]) {
+    for(const embeddedForgery of [false,true]) {
+      const events=escalatedEvents();
+      const evidence=events.find(e=>e.data.type==="evidence_receipt_recorded"&&e.data.summary===summary)!;
+      evidence.producerId="collector:unrelated";
+      if(embeddedForgery && evidence.data.type==="evidence_receipt_recorded") evidence.data.producer_id="collector:unrelated";
+      assert.throws(()=>buildGitHubDecisionReceiptEnvelope(events,candidate(),policy()),/capability receipt|consumer-control receipt/);
+    }
+  }
+  assert.throws(()=>buildGitHubDecisionReceiptEnvelope(escalatedEvents(),candidate(),{...policy(),authorizedModeProducerIds:[]}),/consumer-control receipt/);
+});
+
+test("decision admission rejects cross-worker capability proof and request/challenge binding",()=>{
+  for(const summary of [capabilityVerifiedSummary,modeCapabilityVerifiedSummary]) {
+    for(const change of ["stored","embedded","both"]) {
+      const events=escalatedEvents();
+      const evidence=events.find(e=>e.data.type==="evidence_receipt_recorded"&&e.data.summary===summary)!;
+      if(change!=="embedded") evidence.worker="other-worker";
+      if(change!=="stored" && evidence.data.type==="evidence_receipt_recorded") evidence.data.worker="other-worker";
+      assert.throws(()=>buildGitHubDecisionReceiptEnvelope(events,candidate(),policy()),/capability receipt|consumer-control receipt/);
+    }
+  }
+  const wrong=policy();wrong.capabilityChallenges[0].worker="other-worker";
+  assert.throws(()=>buildGitHubDecisionReceiptEnvelope(escalatedEvents(),candidate(),wrong),/worker-bound central capability/);
+  const duplicate=policy();duplicate.capabilityChallenges.push({...duplicate.capabilityChallenges[0],challengeId:"second"});
+  assert.throws(()=>buildGitHubDecisionReceiptEnvelope(escalatedEvents(),candidate(),duplicate),/worker-bound central capability/);
+});
+
 test("ordinary decision needs Stage-1 binding plus a distinct fresh Stage-2 transport receipt", () => {
   const events = ordinaryEvents();
   const decision = ordinaryDecisionEnvelope();
@@ -515,6 +544,7 @@ function policy(): GitHubReceiptPolicy {
     capabilityIssueNumber: 60,
     stageIssueNumber: 61,
     authorizedWriterLogins: ["u-dont-existDOTcom"],
+    authorizedModeProducerIds: ["collector:test"],
     capabilityChallenges: [{
       challengeId: "challenge-spec", supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
       mcNonce: "mc-nonce", githubNonce: "github-only-nonce", expiresAt: "2026-09-03T00:00:00.000Z",
@@ -564,7 +594,7 @@ function capabilityEvents(): StoredEvent[] {
   return [
     evidenceEvent("challenge", 3, capabilityChallengeSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`, "expires_at:2026-09-03T00:00:00.000Z"]),
     evidenceEvent("tools", 4, capabilityVerifiedSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", "expires_at:2026-09-03T00:00:00.000Z"]),
-    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, [`chat:${bootstrapChatId}`, "capability:modeSwitching", "model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false", "expires_at:2026-09-03T00:00:00.000Z"]),
+    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, ["challenge:challenge-spec", `chat:${bootstrapChatId}`, "capability:modeSwitching", "model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false", "expires_at:2026-09-03T00:00:00.000Z"]),
   ];
 }
 
@@ -801,7 +831,8 @@ function appendEnvelope(event: StoredEvent) {
 }
 
 function evidenceEvent(id: string, sequence: number, summary: string, refs: string[], occurredAt = "2026-09-02T00:02:00.000Z", receivedAt = occurredAt): StoredEvent {
-  return storedEvent({ type: "evidence_receipt_recorded", worker: "mission-control-live-slice", receipt_id: id, producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null, summary, refs, verified: true, changed_path_manifest: null }, `event-${id}`, sequence, occurredAt, receivedAt);
+  const producerId = [capabilityChallengeSummary, capabilityVerifiedSummary].includes(summary) ? "collector:github-supervision-receipts" : "collector:test";
+  return {...storedEvent({ type: "evidence_receipt_recorded", worker: "mission-control-live-slice", receipt_id: id, producer_id: producerId, producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null, summary, refs, verified: true, changed_path_manifest: null }, `event-${id}`, sequence, occurredAt, receivedAt),producerId};
 }
 function fakeStore(initial: StoredEvent[]) {
   const events = initial.map((event) => structuredClone(event));
@@ -978,7 +1009,9 @@ function continuationStore(events: StoredEvent[]) {
   for (const event of [...events].sort((a, b) => Number(a.data.type !== "reasoning_message_recorded") - Number(b.data.type !== "reasoning_message_recorded"))) {
     const data = { ...event.data };
     if (data.type === "owner_outcome_recorded") delete data.supersedes_outcome_sha256;
-    store.append({ ...appendEnvelope(event), data }, event.receivedAt);
+    store.append({ ...appendEnvelope(event), data }, event.receivedAt,
+      data.type === "evidence_receipt_recorded" && [capabilityChallengeSummary,capabilityVerifiedSummary,modeCapabilityVerifiedSummary].includes(data.summary)
+        ? {id:data.producer_id,kind:"COLLECTOR",workerScopes:["*"],taskScopes:["*"]} : undefined);
     if (data.type === "owner_outcome_recorded") store.append({ schema_version: 2, event_id: "fixture-contract", mission_id: event.missionId, occurred_at: event.occurredAt, data: {
       type: "task_contract_recorded", worker: data.worker, worker_name: "Continuation fixture", contract_id: "fixture-contract", revision: 1,
       task_contract_sha256: "c".repeat(64), owner_outcome_id: data.owner_outcome_id, owner_outcome_epoch: data.epoch, owner_outcome_sha256: data.owner_outcome_sha256,

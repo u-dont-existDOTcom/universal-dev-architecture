@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     : Object.fromEntries((await request.formData()).entries());
   if (!validateOwnerCredential(body.token)) return Response.json({ error: "Invalid owner credential." }, { status: 401 });
   const session = createOwnerSession();
-  const response = new Response(null, { status: 303, headers: { location: new URL("/", request.url).toString() } });
+  const response = new Response(null, { status: 303, headers: { location: "/" } });
   response.headers.append("set-cookie", `${ownerSessionCookie}=${encodeURIComponent(session.token)}; ${ownerCookieOptions(session.maxAge)}`);
   response.headers.append("set-cookie", `${ownerCsrfCookie}=${encodeURIComponent(session.csrf)}; ${csrfCookieOptions(session.maxAge)}`);
   return response;

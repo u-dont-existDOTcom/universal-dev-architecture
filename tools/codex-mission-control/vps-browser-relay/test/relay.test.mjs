@@ -48,6 +48,194 @@ test('normal supervision fails closed when live tool/mode capability receipts ar
   assert.equal(browser.submitCalls, 0);
 });
 
+test('forged canonical capability labels from another scoped collector cannot PASS or send', async () => {
+  for (const spoofEmbeddedCanonical of [false, true]) {
+    const store = new MemoryStateStore();
+    const forged = capabilityEvidence();
+    const proof = forged.find((event) => event.data.summary === CAPABILITY_VERIFIED_SUMMARY);
+    proof.producerId = 'collector:unrelated-scoped';
+    if (!spoofEmbeddedCanonical) proof.data.producer_id = proof.producerId;
+    const mc = new FakeMissionControl({ evidence: forged });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+    const doctor = await runtime.doctor();
+    assert.equal(doctor.chatCapabilities[0].allCurrent, false);
+    assert.equal(doctor.chatCapabilities[0].githubWrite, false);
+    assert.equal((await runtime.cycle()).status, 'CAPABILITY_NOT_VERIFIED');
+    const verification = await runtime.verifyCapabilities('spec');
+    assert.equal(verification.status, 'CAPABILITY_CHALLENGE_READY');
+    assert.equal(verification.capability.allCurrent, false, 'fresh authentic mode observation cannot launder a fake GitHub receipt');
+    assert.equal(browser.submitCalls, 0);
+  }
+});
+
+test('mode receipt admission uses the configured collector with no guessed default or missing-identity fallback', async () => {
+  for (const configuredProducer of [null, 'collector:different-relay']) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+    runtime.config.missionControl.producerId = configuredProducer;
+    const result = await runtime.cycle();
+    assert.equal(result.status, 'CAPABILITY_NOT_VERIFIED');
+    assert.equal(result.capability.githubWrite, true);
+    assert.equal(result.capability.modeSwitching, false);
+    assert.equal(browser.submitCalls, 0);
+  }
+});
+
+test('doctor and read-only preflight discover the current challenge without registry mutation or provider sends', async () => {
+  for (const legacyId of ['expired-static-id', null]) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+    if (legacyId) runtime.config.runtime.chats[0].bootstrapCapability.challengeId = legacyId;
+    else delete runtime.config.runtime.chats[0].bootstrapCapability.challengeId;
+    const original = structuredClone(runtime.config.runtime.chats);
+    Object.freeze(runtime.config.runtime.chats[0].bootstrapCapability);
+    Object.freeze(runtime.config.runtime.chats[0]);
+    const doctor = await runtime.doctor();
+    assert.equal(doctor.status, 'READY');
+    assert.equal(doctor.chatCapabilities[0].challengeId, 'challenge-spec');
+    assert.equal(doctor.chatCapabilities[0].allCurrent, true);
+    const preflight = await runtime.verifyMcpReadPreflight('spec');
+    assert.equal(preflight.status, 'MCP_PREFLIGHT_READY');
+    assert.equal(preflight.capability.challengeId, 'challenge-spec');
+    assert.ok(mc.discoveryCalls.length >= 2);
+    assert.ok(mc.discoveryCalls.every((pair) => pair.supervisorId === 'spec' && pair.chatId === 'spec-bootstrap'));
+    assert.equal(browser.submitCalls, 0);
+    assert.equal(browser.controlChecks.length, 0);
+    assert.equal(mc.recordedEvidence.length, 0);
+    assert.deepEqual(runtime.config.runtime.chats, original);
+  }
+});
+
+test('all relay capability entry points fail closed when discovery is unavailable, expired, or wrongly bound', async () => {
+  const invalidations = [
+    (mc) => { mc.discoveryError = new Error('private-server-payload'); },
+    (mc) => { mc.currentChallenge = null; },
+    (mc) => { mc.currentChallenge.supervisor_id = 'wrong'; },
+    (mc) => { mc.currentChallenge.chat_id = 'wrong'; },
+    (mc) => { mc.currentChallenge.expires_at = '2000-01-01T00:00:00Z'; },
+    (mc) => { mc.currentChallenge.status = 'PENDING'; },
+    (mc) => { mc.currentChallenge.mc_nonce = 'private-server-payload'; },
+    (mc) => { mc.fetchCurrentCapabilityChallenge = undefined; },
+  ];
+  for (const invalidate of invalidations) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, capabilityTestEnabled: true });
+    invalidate(mc);
+    assert.equal((await runtime.doctor()).status, 'CAPABILITY_CHALLENGE_UNAVAILABLE');
+    assert.equal((await runtime.verifyCapabilities('spec')).status, 'CAPABILITY_CHALLENGE_UNAVAILABLE');
+    assert.equal((await runtime.verifyMcpReadPreflight('spec')).status, 'CAPABILITY_CHALLENGE_UNAVAILABLE');
+    const ordinary = await runtime.cycle();
+    assert.equal(ordinary.status, 'CAPABILITY_NOT_VERIFIED');
+    assert.equal(ordinary.capability.allCurrent, false);
+    assert.equal(ordinary.capability.challengeId, null);
+    assert.equal(browser.submitCalls, 0);
+    assert.equal(browser.controlChecks.length, 0);
+    assert.equal(mc.recordedEvidence.length, 0);
+    assert.doesNotMatch(JSON.stringify(store.state), /private-server-payload/);
+  }
+});
+
+test('rotation requires fresh tool and mode receipts for ordinary admission and ignores stale registry authority', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  assert.equal((await runtime.cycle()).status, 'DRY_RUN_ROUTE_READY');
+  mc.currentChallenge.challenge_id = 'successor';
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'CAPABILITY_NOT_VERIFIED');
+  assert.equal(blocked.capability.challengeId, 'successor');
+  assert.equal(blocked.capability.missionControlRead, false);
+  assert.equal(blocked.capability.modeSwitching, false);
+  const newEvidence = capabilityEvidence().map((event) => ({ ...event, data: { ...event.data,
+    refs: event.data.refs.map((ref) => ref === 'challenge:challenge-spec' ? 'challenge:successor' : ref),
+  } }));
+  mc.evidence.push(newEvidence[1]);
+  assert.equal((await runtime.cycle()).status, 'CAPABILITY_NOT_VERIFIED', 'fresh tools alone cannot reuse old mode proof');
+  mc.evidence.push(newEvidence[2]);
+  assert.equal((await runtime.cycle()).status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(runtime.config.runtime.chats[0].bootstrapCapability.challengeId, 'challenge-spec');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('capabilities and preflight bind prompts and delivery keys to dynamic discovery, never a historical configured ID', async () => {
+  for (const method of ['verifyCapabilities', 'verifyMcpReadPreflight']) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl();
+    mc.currentChallenge.challenge_id = 'successor';
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, capabilityTestEnabled: true });
+    const result = await runtime[method]('spec');
+    assert.ok(['AWAITING_CAPABILITY_RECEIPT', 'MCP_PREFLIGHT_GENERATION_COMPLETE'].includes(result.status));
+    assert.match(browser.lastSubmittedBody, /successor/);
+    assert.doesNotMatch(browser.lastSubmittedBody, /challenge-spec|mc-secret|gh-secret/);
+    assert.ok(Object.keys(store.state.deliveries).every((key) => key.endsWith(':successor')));
+    assert.equal(runtime.config.runtime.chats[0].bootstrapCapability.challengeId, 'challenge-spec');
+    assert.equal(browser.submitCalls, 1, 'explicit command test uses only the fake browser');
+    assert.equal(mc.recordedEvidence.filter((item) => item.summary === CAPABILITY_VERIFIED_SUMMARY).length, 0);
+  }
+});
+
+test('rotation during discovery rejects the mixed snapshot rather than admitting old receipts', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  const lookup = mc.fetchCurrentCapabilityChallenge.bind(mc);
+  mc.fetchCurrentCapabilityChallenge = async (...args) => {
+    if (mc.discoveryCalls.length === 1) mc.currentChallenge.challenge_id = 'successor';
+    return lookup(...args);
+  };
+  assert.equal((await runtime.cycle()).status, 'CAPABILITY_NOT_VERIFIED');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('rotation after browser preparation fails before the submission boundary for every send class', async () => {
+  for (const method of ['verifyCapabilities', 'verifyMcpReadPreflight', 'cycle']) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl({ evidence: method === 'cycle' ? capabilityEvidence() : [] });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, capabilityTestEnabled: true });
+    const originalSelectApps = browser.selectAppsForMessage.bind(browser);
+    browser.selectAppsForMessage = async (...args) => {
+      const result = await originalSelectApps(...args);
+      mc.currentChallenge.challenge_id = 'successor';
+      return result;
+    };
+    const result = await runtime[method]('spec');
+    assert.match(result.status, /FAILED/);
+    assert.equal(browser.submitCalls, 0);
+    assert.equal(store.state.submissionPacing.lastSubmissionAt, null);
+  }
+});
+
+test('current challenge checks preserve the central scheduler pre-boundary callback', async () => {
+  for (const method of ['verifyCapabilities', 'verifyMcpReadPreflight', 'cycle']) {
+    const store = new MemoryStateStore();
+    const mc = new FakeMissionControl({ evidence: method === 'cycle' ? capabilityEvidence() : [] });
+    const browser = new FakeBrowser();
+    const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, capabilityTestEnabled: true });
+    let boundaryChecks = 0;
+    const pacedSubmit = runtime.submissionPacer.submit.bind(runtime.submissionPacer);
+    runtime.submissionPacer.submit = (options) => pacedSubmit({ ...options,
+      submit: (onSubmissionBoundary, admission, onBeforeSubmissionBoundary) => options.submit(onSubmissionBoundary, admission, async () => {
+        boundaryChecks += 1;
+        await onBeforeSubmissionBoundary?.();
+      }),
+    });
+    await runtime[method]('spec');
+    assert.equal(browser.submitCalls, 1);
+    assert.equal(boundaryChecks, 1);
+  }
+});
+
 test('dry run becomes ready only after current tool and exact-mode receipts exist', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
@@ -539,7 +727,7 @@ test('doctor fails closed when the live browser target set differs inside the co
 function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now,
   submissionHost = { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' } }) {
   const config = {
-    missionControl: { url: 'https://mission-control.example' },
+    missionControl: { url: 'https://mission-control.example', producerId: mc.producerId },
     browser: { profileDir: '/tmp/test-profile' },
     runtime: {
       chats: [chat()], workerIds: ['worker-a'], submitEnabled, capabilityTestEnabled, pollIntervalMs: 15_000, minSubmissionIntervalMs: 60_000, retryDelayMs: 300_000, maxHotTabs: 3,
@@ -579,13 +767,22 @@ class FakeMissionControl {
   constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0 } = {}) {
     this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50;
     this.autoFirstTurnMcp = autoFirstTurnMcp; this.projectionLagReads = projectionLagReads; this.fetchFleetCalls = 0;
+    this.producerId = 'collector:configured-relay-test';
+    this.currentChallenge = { schema_version: 1, status: 'CURRENT', supervisor_id: 'spec', chat_id: 'spec-bootstrap', challenge_id: 'challenge-spec', expires_at: '2099-09-03T00:00:00.000Z' };
+    this.discoveryCalls = [];
+  }
+  async fetchCurrentCapabilityChallenge(supervisorId, chatId) {
+    this.discoveryCalls.push({ supervisorId, chatId });
+    if (this.discoveryError) throw this.discoveryError;
+    return structuredClone(this.currentChallenge);
   }
   async fetchFleet() {
     this.fetchFleetCalls += 1;
     const visibleRecordedEvidence = this.fetchFleetCalls <= this.projectionLagReads ? [] : this.recordedEvidence;
     const timeline = [...this.routes, ...this.evidence, ...visibleRecordedEvidence.map((item) => ({
-      eventId: `evidence-${item.receiptId}`, sequence: ++this.sequence, occurredAt: item.occurredAt ?? '2026-09-02T00:00:01.000Z', data: {
-        type: 'evidence_receipt_recorded', receipt_id: item.receiptId, summary: item.summary, refs: item.refs, verified: true,
+      eventId: `evidence-${item.receiptId}`, sequence: ++this.sequence, occurredAt: item.occurredAt ?? '2026-09-02T00:00:01.000Z',
+      worker: item.worker, producerId: this.producerId, producerKind: 'COLLECTOR', data: {
+        type: 'evidence_receipt_recorded', worker: item.worker, producer_id: this.producerId, producer_role: 'COLLECTOR', receipt_id: item.receiptId, summary: item.summary, refs: item.refs, verified: true,
       },
     }))];
     return { generatedAt: '2026-09-02T00:00:00.000Z', workers: [{ id: 'worker-a', name: 'Worker A', timeline }] };
@@ -648,6 +845,7 @@ class FakeBrowser {
     return evidence;
   }
   async submitExactMessage(target, input) {
+    await input.onBeforeSubmissionBoundary?.();
     this.submitCalls += 1; this.lastSubmittedBody = input.body;
     if (this.submitErrorStage) { const error = new Error('simulated send uncertainty'); error.relayStage = this.submitErrorStage; throw error; }
     if (target.url === 'https://chatgpt.com/') target.url = `https://chatgpt.com/c/fresh-${this.freshChatCalls}`;
@@ -676,8 +874,8 @@ function challengeEvidence() {
 function capabilityEvidence() {
   return [
     challengeEvidence(),
-    { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
-    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', worker: 'worker-a', producerId: 'collector:github-supervision-receipts', producerKind: 'COLLECTOR', data: { type: 'evidence_receipt_recorded', worker: 'worker-a', producer_id: 'collector:github-supervision-receipts', producer_role: 'COLLECTOR', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', worker: 'worker-a', producerId: 'collector:configured-relay-test', producerKind: 'COLLECTOR', data: { type: 'evidence_receipt_recorded', worker: 'worker-a', producer_id: 'collector:configured-relay-test', producer_role: 'COLLECTOR', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', 'expires_at:2099-09-03T00:00:00.000Z'] } },
   ];
 }
 

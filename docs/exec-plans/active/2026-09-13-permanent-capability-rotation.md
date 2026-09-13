@@ -1,6 +1,6 @@
 # Permanent capability-challenge rotation
 
-Status: IMPLEMENTING; no live completion claimed.
+Status: IMPLEMENTED_NOT_LIVE_VERIFIED; owner credential provisioning pending. No live completion claimed.
 
 Controlling architecture: `docs/requirements/MISSION-CONTROL-PERMANENT-CAPABILITY-ROTATION-DIRECTIVE-20260913.md`, preserved byte-for-byte with SHA-256 `86d900d9b2e433460e4a2f1c74b25c59a2ae44f4e5d224cb36b0d8b9f0207ccf`.
 
@@ -30,3 +30,17 @@ PRIMARY identity was directly verified: existing `mission-control-issue90-live`,
 6. Reversible exact-build PRIMARY rollout, genuine successor/publication/discovery/receipt acceptance. No Somatic, SECONDARY activation, merge, or ordinary provider work.
 
 Test telemetry: `mc-capability-rotation-20260913`. Iteration lane until release verification.
+
+## Retained implementation / current boundary
+
+Daemon-owned immutable candidates, lifecycle, atomic activation, 24-hour TTL / 4-hour renewal, effective-policy lookup and exact relay discovery are implemented. Rotation never grants PASS. Static receipt channels are materialized from the owner directive, not a claimed historical runtime value. Legacy IDs cannot outrank durable state, including after accidental feature disablement.
+
+The narrow broker permits only issue-60 nonce-comment creation; no credential is passed to the daemon or relay. Owner provisioning source is `/etc/mission-control/capability-nonce-publisher/github-token` (root:root 0600; parent 0700). The unit provides `MISSION_CONTROL_CAPABILITY_GITHUB_TOKEN_FILE` as a path to its private systemd copy. Never ask for the PAT in chat or commands.
+
+Independent review corrections: reserve canonical challenge/tool proof for the receipt ingester; require authenticated producer and exact worker binding for tool/mode consumption; derive mode producers from the existing relay registry; reject static fallback; limit publication search to the admissible lifetime window; mount a stable socket parent; enforce effective dump protection before credential access. No blocking source findings remained after the narrow final review. Source review is not live acceptance.
+
+PRIMARY publisher installed disabled/inactive. Node v22.23.2, service configuration, effective dump protection, runtime-child cleanup with stable parent retention, and exact service-private credential-copy compatibility were checked with nonsecret, network-denied probes. Temporary service override removed. The source credential file remains owner-provisioned only. Mission Control daemon/relay, private registrations, SQLite, queue/lease/pacing, and installed relay-lock correction were not changed or restarted.
+
+Remaining owner action: manually populate the protected source credential file; report only that it is ready. Then continue this branch with reversible exact-build daemon/relay rollout and the directive's live successor/publication/discovery/preflight/capability/old-receipt acceptance gates. No ordinary provider work, Somatic, SECONDARY activation, or merge is authorized. Provider sends in this implementation/staging phase: zero.
+
+Verification checkpoint: Mission Control 380/380, relay 200/200, repository 299/299; production build/typecheck and deterministic repository audit pass. Exact publisher bundle SHA-256 on PRIMARY: `5b7fa2ad34924fd928ae23092e503a1e76f0f9aae66022d49ef344876cc7eac5`. Local implementation tests are not a substitute for live acceptance. The live app process/image remains the identity-confirmed pre-rotation runtime; health still reports valid chain, valid pacing ledger and active lease.

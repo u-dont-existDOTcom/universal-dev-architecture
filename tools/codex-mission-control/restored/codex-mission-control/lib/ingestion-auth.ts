@@ -1,4 +1,5 @@
 import type { MissionControlEventV2 } from "./schema";
+import { isCanonicalCapabilityEvidence } from "./capability-evidence-authority";
 
 export const producerKinds = [
   "OWNER_AUTHORITY", "WORKER", "SUPERVISOR", "COLLECTOR", "VERIFIER", "SYSTEM", "UI",
@@ -53,6 +54,7 @@ const verifierEvents = new Set<MissionControlEventV2["type"]>([
 ]);
 
 export function producerMayEmit(producer: AuthenticatedProducer, event: MissionControlEventV2): boolean {
+  if (isCanonicalCapabilityEvidence(event)) return false;
   if (!scopeMatches(producer.workerScopes, event.worker)) return false;
   if (!scopeMatches(producer.taskScopes, eventTaskId(event))) return false;
   if (!embeddedIdentityMatches(producer, event)) return false;

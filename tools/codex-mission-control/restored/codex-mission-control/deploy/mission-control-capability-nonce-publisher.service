@@ -1,0 +1,43 @@
+[Unit]
+Description=Mission Control issue-60 capability nonce publisher
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/mission-control/capability-nonce-publisher/github-token
+
+[Service]
+Type=simple
+DynamicUser=yes
+User=mc-nonce-publisher
+Group=joel
+RuntimeDirectory=mission-control-capability-publisher/broker
+RuntimeDirectoryMode=0750
+LoadCredential=github-token:/etc/mission-control/capability-nonce-publisher/github-token
+Environment=MISSION_CONTROL_CAPABILITY_GITHUB_TOKEN_FILE=%d/github-token
+WorkingDirectory=/opt/mission-control/capability-publisher
+ExecStart=/opt/mission-control/capability-publisher/node /opt/mission-control/capability-publisher/broker.mjs --socket /run/mission-control-capability-publisher/broker/publisher.sock
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=30
+UMask=0007
+LimitCORE=0
+CoredumpFilter=0x0
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+TasksMax=32
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

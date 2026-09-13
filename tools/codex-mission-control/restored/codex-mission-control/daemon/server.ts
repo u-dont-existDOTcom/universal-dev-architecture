@@ -23,6 +23,9 @@ import {
   type GitHubDecisionCandidate,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
+import { loadConfiguredSupervisorChats } from "../lib/configured-supervisor-chats";
+import { CapabilityRotationRuntime } from "../lib/capability-rotation";
+import { UnixCapabilityNoncePublisher } from "../lib/capability-nonce-publisher";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -39,6 +42,27 @@ if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
 }
 const githubPolicy = parseGitHubReceiptPolicy();
 ensureConfiguredCapabilityChallenges(store, githubPolicy);
+const capabilityDirectory=loadConfiguredSupervisorChats();
+const capabilityRotationEnabled=process.env.MISSION_CONTROL_CAPABILITY_ROTATION_ENABLED==="1";
+if(!capabilityRotationEnabled && store.capabilityRotation.hasHistory()) throw new Error("CAPABILITY_ROTATION_DURABLE_HISTORY_REQUIRES_ENABLED_RUNTIME");
+if(capabilityRotationEnabled && (!githubPolicy || capabilityDirectory.configurationState!=="CONFIGURED")) throw new Error("CAPABILITY_ROTATION_STATIC_AUTHORITY_UNAVAILABLE");
+const capabilityRotation=capabilityRotationEnabled && githubPolicy ? new CapabilityRotationRuntime(store,githubPolicy,capabilityDirectory.entries,
+  process.env.MISSION_CONTROL_CAPABILITY_NONCE_PUBLISHER_SOCKET ? new UnixCapabilityNoncePublisher(process.env.MISSION_CONTROL_CAPABILITY_NONCE_PUBLISHER_SOCKET) : null,
+  {ttlMs:Number(process.env.MISSION_CONTROL_CAPABILITY_TTL_MS??86_400_000),renewBeforeMs:Number(process.env.MISSION_CONTROL_CAPABILITY_RENEW_BEFORE_MS??14_400_000)}) : null;
+const effectiveGithubPolicy=()=>{
+  const policy=capabilityRotation?.effectivePolicy()??githubPolicy;
+  return policy ? {...policy,authorizedModeProducerIds:submissionAuthority.capabilityModeProducerIds()} : null;
+};
+let capabilityRotationStatus: Array<{supervisorId:string;state:"CURRENT"|"BLOCKED"}>=[];
+async function reconcileCapabilities() {
+  if(!capabilityRotation) return;
+  const before=store.latestEventId();
+  capabilityRotationStatus=await capabilityRotation.reconcile();
+  if(store.latestEventId()!==before) notifications.emit("event",store.allEvents().at(-1));
+}
+const capabilityRotationTimer=capabilityRotation ? setInterval(()=>void reconcileCapabilities(),60_000) : null;
+capabilityRotationTimer?.unref();
+void reconcileCapabilities();
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
@@ -59,7 +83,25 @@ const server = http.createServer(async (request, response) => {
         submissionAuthorityConfigured: authorityHealth.configured,
         submissionAuthoritySchedulerState: authorityHealth.schedulerState,
         submissionAuthorityLedger: authorityHealth.ledger,
+        capabilityRotation: {enabled:!!capabilityRotation,publisherConfigured:!!process.env.MISSION_CONTROL_CAPABILITY_NONCE_PUBLISHER_SOCKET,registrations:capabilityRotationStatus},
       });
+    }
+    if(request.method==="GET" && url.pathname==="/internal/capability-policy") {
+      const producer=authorizeMutation(request);
+      if(producer.kind!=="SYSTEM" || producer.id!==githubDecisionProducer.id) return json(response,403,{error:"Internal policy reader required"});
+      response.setHeader("cache-control","no-store");
+      return json(response,200,effectiveGithubPolicy());
+    }
+    if(request.method==="GET" && url.pathname==="/capability-challenges/current") {
+      const producer=authorizeMutation(request);
+      await submissionAuthority.status(producer); // Requires a currently registered relay collector, not arbitrary internal ingress.
+      const supervisor=url.searchParams.get("supervisor_id"),chat=url.searchParams.get("chat_id");
+      const entry=capabilityDirectory.entries.find(e=>e.supervisorId===supervisor&&e.bootstrapCapability.chatId===chat);
+      if(!entry?.workerId || !producer.workerScopes.some(s=>s==="*"||s===entry.workerId)
+        || !producer.taskScopes.some(s=>s==="*"||s===`task:${entry.workerId}`)) return json(response,403,{error:"Exact registered pair and worker scope required"});
+      const result=capabilityRotation?.discovery(supervisor!,chat!)??null;
+      response.setHeader("cache-control","no-store");
+      return json(response,result?200:404,result??{error:"Current capability challenge unavailable"});
     }
     if (request.method === "GET" && url.pathname === "/submission-authority/status") {
       const producer = authorizeMutation(request);
@@ -121,6 +163,9 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       const envelope = parseAppendEnvelope(await readJson(request));
       if (!producerMayEmit(producer, envelope.data)) return json(response, 403, { error: `Producer ${producer.id} cannot emit ${envelope.data.type}.` });
+      if(envelope.data.type==="evidence_receipt_recorded" && envelope.data.summary==="MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1") {
+        await submissionAuthority.status(producer); // Only an existing bound relay can attest observed UI mode.
+      }
       const event = store.append(envelope, undefined, producer);
       notifications.emit("event", event);
       return json(response, 201, { event });
@@ -132,7 +177,7 @@ const server = http.createServer(async (request, response) => {
       }
       try {
         const candidate = await readJson(request) as GitHubDecisionCandidate;
-        const events = ingestGitHubSupervisionCandidate(store, candidate, githubPolicy);
+        const events = ingestGitHubSupervisionCandidate(store, candidate, effectiveGithubPolicy());
         if (events.length) notifications.emit("event", events.at(-1));
         return json(response, events.length ? 201 : 200, { events, duplicate: events.length === 0 });
       } catch (error) {
@@ -267,6 +312,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     server.close(() => {
       liveSourceWatcher?.close();
       if (githubReconciliationTimer) clearInterval(githubReconciliationTimer);
+      if (capabilityRotationTimer) clearInterval(capabilityRotationTimer);
       store.close();
       process.exit(0);
     });
@@ -358,7 +404,9 @@ function startGitHubReconciliation(): NodeJS.Timeout | null {
     if (running) return;
     running = true;
     try {
-      const events = await reconcileGitHubDecisionReceipts(store, { token, policy: githubPolicy });
+      const policy=effectiveGithubPolicy();
+      if(!policy) return;
+      const events = await reconcileGitHubDecisionReceipts(store, { token, policy, policyProvider:effectiveGithubPolicy });
       for (const event of events) notifications.emit("event", event);
     } catch (error) {
       console.error("GitHub supervision reconciliation failed", error);

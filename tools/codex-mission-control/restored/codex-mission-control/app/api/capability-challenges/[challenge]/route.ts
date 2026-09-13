@@ -1,7 +1,7 @@
 import {
-  parseGitHubReceiptPolicy,
   publicCapabilityChallenge,
 } from "@/lib/github-decision-receipts";
+import { loadEffectiveCapabilityPolicy } from "@/lib/effective-capability-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export async function GET(
   const { challenge } = await context.params;
   if (!challenge || challenge.length > 180) return notFound();
   try {
-    const result = publicCapabilityChallenge(parseGitHubReceiptPolicy(), challenge);
+    const result = publicCapabilityChallenge(await loadEffectiveCapabilityPolicy(), challenge);
     return result
       ? Response.json(result, { headers: responseHeaders })
       : notFound();

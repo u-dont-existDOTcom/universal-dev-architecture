@@ -9,6 +9,48 @@ import { loadConfig, publicConfig } from '../src/config.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 import { buildRelayHealthReport } from '../src/health-report.mjs';
 
+test('current challenge discovery is an authenticated exact-pair GET with no nonce or send', async () => {
+  const requests = [];
+  const current = { schema_version: 1, status: 'CURRENT', supervisor_id: 'spec:/&=', chat_id: 'chat:/&=', challenge_id: 'fresh', expires_at: '2099-01-01T00:00:00Z' };
+  const client = new MissionControlClient({ url: 'https://mission-control.example', producerId: 'collector:test', token: 'x'.repeat(32),
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return new Response(JSON.stringify(current), { status: 200 });
+    },
+  });
+  assert.deepEqual(await client.fetchCurrentCapabilityChallenge(current.supervisor_id, current.chat_id), current);
+  assert.equal(requests.length, 1);
+  const { url, options } = requests[0];
+  const parsed = new URL(url);
+  assert.equal(parsed.pathname, '/api/capability-challenges/current');
+  assert.deepEqual([...parsed.searchParams], [['supervisor_id', current.supervisor_id], ['chat_id', current.chat_id]]);
+  assert.equal(options.method, 'GET');
+  assert.equal(options.body, undefined);
+  assert.equal(options.cache, 'no-store');
+  assert.equal(options.redirect, 'error');
+  assert.equal(options.headers.authorization, `Bearer ${'x'.repeat(32)}`);
+  assert.equal(options.headers['x-mission-control-producer-id'], 'collector:test');
+});
+
+test('current challenge client fails closed without echoing unavailable or private response bodies', async () => {
+  const current = { schema_version: 1, status: 'CURRENT', supervisor_id: 'spec', chat_id: 'chat', challenge_id: 'fresh', expires_at: '2099-01-01T00:00:00Z' };
+  for (const [status, body] of [[401, { error: 'private-token-value' }], [503, { error: 'private-token-value' }],
+    [200, { ...current, supervisor_id: 'wrong' }], [200, { ...current, chat_id: 'wrong' }],
+    [200, { ...current, expires_at: '2000-01-01T00:00:00Z' }], [200, { ...current, status: 'PENDING' }],
+    [200, { ...current, mc_nonce: 'private-token-value' }], [200, null]]) {
+    let requests = 0;
+    const client = new MissionControlClient({ url: 'https://mission-control.example', producerId: 'collector:test', token: 'x'.repeat(32),
+      fetchImpl: async () => { requests += 1; return new Response(JSON.stringify(body), { status }); },
+    });
+    await assert.rejects(() => client.fetchCurrentCapabilityChallenge('spec', 'chat'), { message: 'Mission Control current capability challenge discovery failed closed.' });
+    assert.equal(requests, 1, 'no stale endpoint fallback or retry');
+  }
+  const unavailable = new MissionControlClient({ url: 'https://mission-control.example', producerId: 'collector:test', token: 'x'.repeat(32),
+    fetchImpl: async () => { throw new Error('private-token-value'); },
+  });
+  await assert.rejects(() => unavailable.fetchCurrentCapabilityChallenge('spec', 'chat'), { message: 'Mission Control current capability challenge discovery failed closed.' });
+});
+
 test('state store is atomic, owner-only, and rejects a concurrent relay', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-state-'));
   try {

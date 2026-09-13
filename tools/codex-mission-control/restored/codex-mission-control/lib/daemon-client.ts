@@ -1,7 +1,6 @@
 import type { AuthenticatedProducer } from "./ingestion-auth";
 
 const daemonBase = process.env.MISSION_CONTROL_DAEMON_URL ?? "http://127.0.0.1:4100";
-const internalToken = process.env.MISSION_CONTROL_INTERNAL_TOKEN;
 
 export async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(new URL(path, daemonBase), {
@@ -15,6 +14,7 @@ export async function daemonFetch(path: string, init?: RequestInit): Promise<Res
 }
 
 export function daemonMutationHeaders(producer: AuthenticatedProducer, headers: HeadersInit = {}): HeadersInit {
+  const internalToken = process.env.MISSION_CONTROL_INTERNAL_TOKEN;
   if (!internalToken) throw new Error("MISSION_CONTROL_INTERNAL_TOKEN is required for daemon mutations.");
   return {
     ...headers,

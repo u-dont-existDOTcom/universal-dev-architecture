@@ -182,7 +182,10 @@ function fakeStore() {
 }
 
 async function withPolicy(value: GitHubReceiptPolicy, action: () => Promise<void>) {
-  return withEnv({ MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON: JSON.stringify(value) }, action);
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=async()=>Response.json(value);
+  try {return await withEnv({ MISSION_CONTROL_INTERNAL_TOKEN:"test-internal".repeat(4) }, action);}
+  finally{globalThis.fetch=originalFetch;}
 }
 
 async function withEnv(values: Record<string, string>, action: () => Promise<void>) {

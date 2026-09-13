@@ -1,7 +1,6 @@
 import {
   BINDING_CAPSULE_SUMMARY,
   BINDING_ENVELOPE_SUMMARY,
-  CAPABILITY_CHALLENGE_SUMMARY,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
@@ -10,6 +9,7 @@ import {
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   capabilityControlPrompt,
+  bindCurrentCapabilityChallenge,
   appSelectionForMessage,
   canonicalJson,
   chatCapabilityState,
@@ -62,7 +62,7 @@ export class RelayRuntime {
     ]);
     const memory = this.#memoryState(metrics);
     const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
-    const chatCapabilities = this.config.runtime.chats.map((chat) => chatCapabilityState(snapshot, chat));
+    const chatCapabilities = await Promise.all(this.config.runtime.chats.map(async (chat) => (await this.#readCurrentCapability(chat)).capability));
     const activeLease = centralScheduler.activeLease;
     const relayBinding = centralScheduler.authenticatedRelayBinding;
     const automationWindowBound = Number.isInteger(browser.automationWindowId)
@@ -81,7 +81,9 @@ export class RelayRuntime {
     const status = !automationWindowBound
       ? 'AUTOMATION_WINDOW_BINDING_MISMATCH'
       : localLeaseActive
-      ? (centralScheduler.ready === true ? 'READY' : 'CENTRAL_AUTHORITY_NOT_READY')
+      ? (centralScheduler.ready === true
+        ? (chatCapabilities.every((capability) => capability.challengeAvailable) ? 'READY' : 'CAPABILITY_CHALLENGE_UNAVAILABLE')
+        : 'CENTRAL_AUTHORITY_NOT_READY')
       : (standbyReady ? 'STANDBY_READY' : 'DEPLOYMENT_LEASE_MISMATCH');
     const result = {
       status,
@@ -104,12 +106,13 @@ export class RelayRuntime {
   async verifyCapabilities(chatId) {
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
-    const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
-    if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
-    let snapshot = await this.missionControl.fetchFleet();
-    let capability = chatCapabilityState(snapshot, chat);
-    if (!capability.challengeAvailable) {
-      return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_MISSING', state, { chatId, capability });
+    const registeredChat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
+    if (!registeredChat) throw new Error(`Unknown registered chat: ${chatId}`);
+    const resolved = await this.#readCurrentCapability(registeredChat);
+    const chat = resolved.chat;
+    let capability = resolved.capability;
+    if (!chat || !capability.challengeAvailable) {
+      return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_UNAVAILABLE', state, { chatId, capability });
     }
 
     const metrics = await this.memoryReader(this.config.browser.profileDir);
@@ -125,8 +128,8 @@ export class RelayRuntime {
       expectedUrl: chat.bootstrapCapability.url,
       controls: chat.consumerControls,
     });
-    const challengeExpiry = findChallengeExpiry(snapshot, chat);
-    if (!challengeExpiry) throw new Error(`Capability challenge ${chat.bootstrapCapability.challengeId} has no usable expiry.`);
+    await this.#assertCurrentChallenge(chat);
+    const challengeExpiry = chat.currentCapabilityChallenge.expires_at;
     await this.missionControl.recordEvidence(chat.workerId, {
       receiptId: `chat-mode-capability:${chat.bootstrapCapability.chatId}:${Date.now()}`,
       summary: MODE_CAPABILITY_VERIFIED_SUMMARY,
@@ -140,8 +143,7 @@ export class RelayRuntime {
       ],
     });
 
-    snapshot = await this.missionControl.fetchFleet();
-    capability = chatCapabilityState(snapshot, chat);
+    capability = (await this.#readCurrentCapability(registeredChat)).capability;
     if (capability.allCurrent) {
       return this.#writeStandaloneStatus('CAPABILITIES_VERIFIED', state, { chatId, mode, capability, memory });
     }
@@ -171,13 +173,11 @@ export class RelayRuntime {
       state = await this.stateStore.read();
       state.deliveries[key] = { ...prior, status: 'CAPABILITY_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
-      snapshot = await this.missionControl.fetchFleet();
-      capability = chatCapabilityState(snapshot, chat);
+      capability = (await this.#readCurrentCapability(registeredChat)).capability;
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     }
     if (prior?.status === 'CAPABILITY_GENERATION_COMPLETE') {
-      snapshot = await this.missionControl.fetchFleet();
-      capability = chatCapabilityState(snapshot, chat);
+      capability = (await this.#readCurrentCapability(registeredChat)).capability;
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     }
 
@@ -190,6 +190,7 @@ export class RelayRuntime {
           sendPath: 'CAPABILITY', bodySha256: sha256(prompt),
         }),
         beforeSubmit: async () => {
+          await this.#assertCurrentChallenge(chat);
           observed = await this.browser.ensureExactConsumerControls(target, { expectedUrl: chat.bootstrapCapability.url, controls: chat.consumerControls });
           const intentAt = new Date().toISOString();
           state = await this.stateStore.read();
@@ -207,7 +208,10 @@ export class RelayRuntime {
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary, onSubmissionBoundary });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
+            await this.#assertCurrentChallenge(chat);
+            await onBeforeSubmissionBoundary?.();
+          }, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -224,8 +228,7 @@ export class RelayRuntime {
       state = await this.stateStore.read();
       state.deliveries[key] = { ...state.deliveries[key], status: 'CAPABILITY_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
-      snapshot = await this.missionControl.fetchFleet();
-      capability = chatCapabilityState(snapshot, chat);
+      capability = (await this.#readCurrentCapability(registeredChat)).capability;
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     } catch (error) {
       if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, mode, memory }, error);
@@ -246,12 +249,11 @@ export class RelayRuntime {
   async verifyMcpReadPreflight(chatId) {
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
-    const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
-    if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
-    const snapshot = await this.missionControl.fetchFleet();
-    const capability = chatCapabilityState(snapshot, chat);
-    if (!capability.challengeAvailable) {
-      return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_MISSING', state, { chatId, capability });
+    const registeredChat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
+    if (!registeredChat) throw new Error(`Unknown registered chat: ${chatId}`);
+    const { chat, capability } = await this.#readCurrentCapability(registeredChat);
+    if (!chat || !capability.challengeAvailable) {
+      return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_UNAVAILABLE', state, { chatId, capability });
     }
 
     const metrics = await this.memoryReader(this.config.browser.profileDir);
@@ -302,6 +304,7 @@ export class RelayRuntime {
           sendPath: 'MCP_PREFLIGHT', bodySha256: sha256(prompt),
         }),
         beforeSubmit: async () => {
+          await this.#assertCurrentChallenge(chat);
           observed = await this.browser.ensureExactConsumerControls(target, { expectedUrl: chat.bootstrapCapability.url, controls: chat.consumerControls });
           const intentAt = new Date().toISOString();
           state = await this.stateStore.read();
@@ -319,7 +322,10 @@ export class RelayRuntime {
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary, onSubmissionBoundary });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
+            await this.#assertCurrentChallenge(chat);
+            await onBeforeSubmissionBoundary?.();
+          }, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -442,7 +448,8 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('LEGACY_ROUTE_NOT_AUTOMATED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate) });
       }
 
-      const capability = chatCapabilityState(snapshot, candidate.chat);
+      const resolved = await this.#readCurrentCapability(candidate.chat);
+      const capability = resolved.capability;
       if (!capability.allCurrent) {
         state.health.pausedReason = `Stable supervisor ${candidate.chat.supervisorId} lacks current bootstrap capability receipts.`;
         state = await this.stateStore.write(state);
@@ -456,7 +463,7 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('DRY_RUN_ROUTE_READY', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate), capability });
       }
 
-      return await this.#processSupervisoryCycle(candidate, routes, state, memory);
+      return await this.#processSupervisoryCycle({ ...candidate, chat: resolved.chat }, routes, state, memory);
     } catch (error) {
       if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, {}, error);
       state.health.lastError = redactError(error);
@@ -803,6 +810,7 @@ export class RelayRuntime {
           bodySha256: promptSha256,
         }),
         beforeSubmit: async () => {
+          await this.#assertCurrentChallenge(route.chat, true);
           model = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: route.chat.consumerControls });
           const intentAt = new Date().toISOString();
           state = await this.stateStore.read();
@@ -834,7 +842,10 @@ export class RelayRuntime {
           const messageApps = appPlan.requiredLabels.length > 0
             ? await this.browser.selectAppsForMessage(target, appPlan)
             : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
-          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary: async () => {
+            await this.#assertCurrentChallenge(route.chat, true);
+            await onBeforeSubmissionBoundary?.();
+          }, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -1108,6 +1119,37 @@ export class RelayRuntime {
     return value;
   }
 
+  async #resolveCurrentChat(chat) {
+    const current = await this.missionControl.fetchCurrentCapabilityChallenge(chat.supervisorId, chat.bootstrapCapability.chatId);
+    return bindCurrentCapabilityChallenge(chat, current);
+  }
+
+  async #assertCurrentChallenge(chat, requireReceipts = false) {
+    const current = await this.#resolveCurrentChat(chat);
+    if (current.bootstrapCapability.challengeId !== chat.bootstrapCapability.challengeId
+      || current.currentCapabilityChallenge.expires_at !== chat.currentCapabilityChallenge?.expires_at) {
+      throw new Error('Current capability challenge changed; repeat discovery before admission.');
+    }
+    if (requireReceipts) {
+      const snapshot = await this.missionControl.fetchFleet();
+      await this.#assertCurrentChallenge(chat);
+      if (!chatCapabilityState(snapshot, current, undefined, this.config.missionControl.producerId).allCurrent) {
+        throw new Error('Current capability challenge lacks fresh capability receipts.');
+      }
+    }
+  }
+
+  async #readCurrentCapability(registeredChat) {
+    try {
+      const chat = await this.#resolveCurrentChat(registeredChat);
+      const snapshot = await this.missionControl.fetchFleet();
+      await this.#assertCurrentChallenge(chat);
+      return { chat, capability: chatCapabilityState(snapshot, chat, undefined, this.config.missionControl.producerId) };
+    } catch {
+      return { chat: null, capability: chatCapabilityState(null, { ...registeredChat, currentCapabilityChallenge: null }, undefined, this.config.missionControl.producerId) };
+    }
+  }
+
   async #cooldownStatus(state, detail, error) {
     state = await this.stateStore.read();
     return this.#writeStandaloneStatus('GLOBAL_SUBMISSION_COOLDOWN', state, {
@@ -1123,17 +1165,6 @@ export class RelayRuntime {
     const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
     this.logger[method](JSON.stringify(line));
   }
-}
-
-function findChallengeExpiry(snapshot, chat) {
-  const worker = snapshot?.workers?.find((item) => item?.id === chat.workerId);
-  const timeline = Array.isArray(worker?.timeline) ? worker.timeline : [];
-  const challenge = [...timeline].reverse().find((event) => event?.data?.type === 'evidence_receipt_recorded'
-    && event.data.summary === CAPABILITY_CHALLENGE_SUMMARY
-    && event.data.refs?.includes(`challenge:${chat.bootstrapCapability.challengeId}`)
-    && event.data.refs?.includes(`chat:${chat.bootstrapCapability.chatId}`));
-  const expiry = challenge?.data?.refs?.find((ref) => typeof ref === 'string' && ref.startsWith('expires_at:'))?.slice('expires_at:'.length);
-  return expiry && Number.isFinite(Date.parse(expiry)) ? expiry : null;
 }
 
 function unresolvedAmbiguities(state) {

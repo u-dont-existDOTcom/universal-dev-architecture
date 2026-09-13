@@ -7,6 +7,9 @@ export const STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTER
 export const STATE_VERSION = 1;
 export const CAPABILITY_CHALLENGE_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1';
 export const CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1';
+// Exact daemon-owned githubReceiptCollector in lib/github-decision-receipts.ts.
+// Do not accept an arbitrary scoped collector's claim to have verified GitHub.
+export const CANONICAL_GITHUB_RECEIPT_PRODUCER_ID = 'collector:github-supervision-receipts';
 export const MODE_CAPABILITY_VERIFIED_SUMMARY = 'MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1';
 export const RELAY_STAGE_SUMMARY = 'MISSION_CONTROL_RELAY_STAGE_V1';
 export const STAGE_LIVENESS_SUMMARY = 'MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1';
@@ -103,8 +106,8 @@ export function parseChatDirectory(value) {
   if (bootstrapChatIds.size !== entries.length) throw new Error('Bootstrap chat IDs must be unique across supervisors.');
   const bootstrapUrls = new Set(entries.map((entry) => entry.bootstrapCapability.url));
   if (bootstrapUrls.size !== entries.length) throw new Error('Bootstrap conversation URLs must be unique across supervisors.');
-  const challenges = new Set(entries.map((entry) => entry.bootstrapCapability.challengeId));
-  if (challenges.size !== entries.length) throw new Error('Capability challenge IDs must be unique.');
+  const legacyChallenges = entries.map((entry) => entry.bootstrapCapability.challengeId).filter((id) => id != null);
+  if (new Set(legacyChallenges).size !== legacyChallenges.length) throw new Error('Capability challenge IDs must be unique.');
   if (entries.filter((entry) => entry.scope === 'PROJECT_MANAGER').length > 1) {
     throw new Error('Only one Project Manager chat may be configured.');
   }
@@ -180,7 +183,10 @@ function parseChatEntry(item, index) {
   const bootstrap = isRecord(item.bootstrapCapability) ? item.bootstrapCapability : item;
   const bootstrapChatId = boundedString(bootstrap.chatId, `Chat entry ${index} bootstrapCapability.chatId`, 300);
   const bootstrapUrl = normalizeConversationUrl(boundedString(bootstrap.url, `Chat entry ${index} bootstrapCapability.url`, 1000));
-  const bootstrapChallengeId = boundedString(bootstrap.challengeId ?? bootstrap.capabilityChallengeId, `Chat entry ${index} bootstrapCapability.challengeId`, 180);
+  // Migration-only metadata: current challenge authority comes from the daemon.
+  const legacyChallengeId = bootstrap.challengeId ?? bootstrap.capabilityChallengeId;
+  const bootstrapChallengeId = legacyChallengeId == null ? null
+    : boundedString(legacyChallengeId, `Chat entry ${index} bootstrapCapability.challengeId`, 180);
   if (item.ownership !== 'MISSION_CONTROL_ONLY') {
     throw new Error(`Chat entry ${index} ownership must be explicitly MISSION_CONTROL_ONLY; personal, legacy-unclassified, and ambiguous conversations are not live-send eligible.`);
   }
@@ -473,30 +479,61 @@ function refValue(refs, prefix) {
   return ref ? ref.slice(prefix.length) : null;
 }
 
-export function chatCapabilityState(snapshot, chat, now = new Date().toISOString()) {
+export function validateCurrentCapabilityChallenge(value, supervisorId, chatId, now = new Date().toISOString()) {
+  const fields = ['schema_version', 'status', 'supervisor_id', 'chat_id', 'challenge_id', 'expires_at'];
+  const exactId = (id, max) => typeof id === 'string' && id.length > 0 && id.length <= max
+    && id.trim() === id && !/[\u0000-\u001f\u007f]/.test(id);
+  if (!exactId(supervisorId, 300) || !exactId(chatId, 300) || !isRecord(value)
+    || Object.keys(value).length !== fields.length || fields.some((field) => !Object.hasOwn(value, field))
+    || value.schema_version !== 1 || value.status !== 'CURRENT'
+    || value.supervisor_id !== supervisorId || value.chat_id !== chatId
+    || !exactId(value.challenge_id, 180) || typeof value.expires_at !== 'string'
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value.expires_at)
+    || !Number.isFinite(Date.parse(now)) || !Number.isFinite(Date.parse(value.expires_at))
+    || Date.parse(value.expires_at) <= Date.parse(now)) {
+    // Never echo a response body: this discovery interface must not disclose nonces.
+    throw new Error('Current capability challenge is unavailable, invalid, mismatched, or expired.');
+  }
+  return Object.fromEntries(fields.map((field) => [field, value[field]]));
+}
+
+export function bindCurrentCapabilityChallenge(chat, value, now = new Date().toISOString()) {
+  const current = validateCurrentCapabilityChallenge(value, chat.supervisorId, chat.bootstrapCapability.chatId, now);
+  // A per-operation copy, never written back to the private registration.
+  return {
+    ...chat,
+    bootstrapCapability: { ...chat.bootstrapCapability, challengeId: current.challenge_id },
+    currentCapabilityChallenge: current,
+  };
+}
+
+export function chatCapabilityState(snapshot, chat, now = new Date().toISOString(), relayProducerId = null) {
+  let current = null;
+  try {
+    current = validateCurrentCapabilityChallenge(chat.currentCapabilityChallenge, chat.supervisorId, chat.bootstrapCapability.chatId, now);
+    if (current.challenge_id !== chat.bootstrapCapability.challengeId) current = null;
+  } catch { /* Static IDs and expired/unavailable discovery grant no authority. */ }
   const worker = snapshot?.workers?.find((item) => item?.id === chat.workerId);
   const timeline = Array.isArray(worker?.timeline) ? worker.timeline : [];
-  const challenge = latestEvidence(timeline, CAPABILITY_CHALLENGE_SUMMARY, [
+  const capability = current && latestEvidence(timeline, CAPABILITY_VERIFIED_SUMMARY, [
     `challenge:${chat.bootstrapCapability.challengeId}`,
-    `chat:${chat.bootstrapCapability.chatId}`,
-  ], now, false);
-  const capability = latestEvidence(timeline, CAPABILITY_VERIFIED_SUMMARY, [
-    `challenge:${chat.bootstrapCapability.challengeId}`,
+    `supervisor:${chat.supervisorId}`,
     `chat:${chat.bootstrapCapability.chatId}`,
     'capability:missionControlRead',
     'capability:githubRead',
     'capability:githubWrite',
-  ], now, true);
-  const mode = latestEvidence(timeline, MODE_CAPABILITY_VERIFIED_SUMMARY, [
+  ], now, true, (event) => authenticatedCollectorEvidence(event, CANONICAL_GITHUB_RECEIPT_PRODUCER_ID, chat.workerId));
+  const mode = current && latestEvidence(timeline, MODE_CAPABILITY_VERIFIED_SUMMARY, [
+    `challenge:${chat.bootstrapCapability.challengeId}`,
     `chat:${chat.bootstrapCapability.chatId}`,
     'capability:modeSwitching',
     ...consumerControlRefs(chat.consumerControls),
-  ], now, true);
+  ], now, true, (event) => authenticatedCollectorEvidence(event, relayProducerId, chat.workerId));
   return {
     supervisorId: chat.supervisorId,
     chatId: chat.bootstrapCapability.chatId,
-    challengeId: chat.bootstrapCapability.challengeId,
-    challengeAvailable: Boolean(challenge),
+    challengeId: current?.challenge_id ?? null,
+    challengeAvailable: Boolean(current),
     missionControlRead: Boolean(capability),
     githubRead: Boolean(capability),
     githubWrite: Boolean(capability),
@@ -504,7 +541,7 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
     allCurrent: Boolean(capability && mode),
     capabilityReceiptId: capability?.data?.receipt_id ?? null,
     modeReceiptId: mode?.data?.receipt_id ?? null,
-    expiresAt: earliestExpiry(capability, mode),
+    expiresAt: current ? earliestExpiry(capability, mode, { data: { refs: [`expires_at:${current.expires_at}`] } }) : null,
   };
 }
 
@@ -520,27 +557,49 @@ export function consumerControlRefs(controls) {
   ];
 }
 
-function latestEvidence(timeline, summary, requiredRefs, now, requireCurrent) {
+function authenticatedCollectorEvidence(event, producerId, workerId) {
+  return typeof producerId === 'string' && producerId.length > 0
+    && event.producerId === producerId && event.producerKind === 'COLLECTOR'
+    && event.data.producer_id === producerId && event.data.producer_role === 'COLLECTOR'
+    && event.worker === workerId && event.data.worker === workerId;
+}
+
+function latestEvidence(timeline, summary, requiredRefs, now, requireCurrent, authenticatedSource) {
   return [...timeline].reverse().find((event) => {
     if (!isRecord(event?.data) || event.data.type !== 'evidence_receipt_recorded' || event.data.summary !== summary || event.data.verified !== true) return false;
+    // StoredEvent producerId/producerKind are stamped by the authenticated daemon,
+    // unlike the producer fields inside the submitted evidence body.
+    if (!authenticatedSource(event)) return false;
     if (!Array.isArray(event.data.refs) || requiredRefs.some((ref) => !event.data.refs.includes(ref))) return false;
+    for (const prefix of ['challenge:', 'chat:', 'expires_at:']) {
+      if (event.data.refs.filter((ref) => typeof ref === 'string' && ref.startsWith(prefix)).length !== 1) return false;
+    }
+    if (requiredRefs.some((ref) => ref.startsWith('supervisor:'))
+      && event.data.refs.filter((ref) => typeof ref === 'string' && ref.startsWith('supervisor:')).length !== 1) return false;
     if (!requireCurrent) return true;
     const expiry = event.data.refs.find((ref) => typeof ref === 'string' && ref.startsWith('expires_at:'))?.slice('expires_at:'.length);
-    return Boolean(expiry && Number.isFinite(Date.parse(expiry)) && Date.parse(expiry) >= Date.parse(now));
+    return Boolean(expiry && Number.isFinite(Date.parse(expiry)) && Date.parse(expiry) > Date.parse(now));
   }) ?? null;
 }
 
 function earliestExpiry(...events) {
   const values = events.flatMap((event) => event?.data?.refs?.filter((ref) => typeof ref === 'string' && ref.startsWith('expires_at:')).map((ref) => ref.slice('expires_at:'.length)) ?? []);
-  return values.sort()[0] ?? null;
+  return values.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 }
 
 export function capabilityControlPrompt(chat) {
+  assertDiscoveredChallenge(chat);
   return `Mission Control capability test for challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge for exactly that challenge_id and chat_id. Do not infer or reuse any nonce from this prompt or prior context. Then follow the returned github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
 }
 
 export function mcpReadPreflightPrompt(chat) {
+  assertDiscoveredChallenge(chat);
   return `Mission Control read-only MCP preflight for capability challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}: remain in Extra High. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge with challenge_id ${chat.bootstrapCapability.challengeId} and chat_id ${chat.bootstrapCapability.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
+}
+
+function assertDiscoveredChallenge(chat) {
+  const current = validateCurrentCapabilityChallenge(chat.currentCapabilityChallenge, chat.supervisorId, chat.bootstrapCapability.chatId);
+  if (current.challenge_id !== chat.bootstrapCapability.challengeId) throw new Error('Capability prompt requires the dynamically discovered current challenge.');
 }
 
 export function appSelectionForMessage(chat, step) {

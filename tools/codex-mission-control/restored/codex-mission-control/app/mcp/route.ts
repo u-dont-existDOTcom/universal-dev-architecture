@@ -1,6 +1,7 @@
 import { sha256 } from "@/lib/canonical";
 import { daemonFetch, daemonMutationHeaders, relayJson } from "@/lib/daemon-client";
-import { parseGitHubReceiptPolicy, pendingDecisionRequests, providerSessionMcpSummary } from "@/lib/github-decision-receipts";
+import { pendingDecisionRequests, providerSessionMcpSummary } from "@/lib/github-decision-receipts";
+import { loadEffectiveCapabilityPolicy } from "@/lib/effective-capability-policy";
 import { handlePublicMissionControlMcpRequest, publicMcpBindingTransportAttempt, type PublicMcpAccessEvent } from "@/lib/public-mcp";
 import type { AppendEnvelope, StoredEvent } from "@/lib/schema";
 
@@ -22,7 +23,7 @@ async function handle(request: Request) {
   await recordBindingTransportAttempt(request.clone());
   const response = await handlePublicMissionControlMcpRequest(request, {
     loadEvents: loadEventsFromDaemon,
-    loadPolicy: parseGitHubReceiptPolicy,
+    loadPolicy: loadEffectiveCapabilityPolicy,
     recordAccess: recordPublicMcpAccess,
   });
   const headers = new Headers(response.headers);

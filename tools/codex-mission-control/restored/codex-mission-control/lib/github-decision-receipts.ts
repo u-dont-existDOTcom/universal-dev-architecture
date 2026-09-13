@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { canonicalJson, sha256 } from "./canonical";
+import { hasCanonicalCapabilityProvenance } from "./capability-evidence-authority";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { bindingCapsuleSchema, parseCanonicalDecisionEnvelope, type AppendEnvelope, type BindingCapsule, type CanonicalDecisionEnvelope, type StoredEvent } from "./schema";
 import type { EventStore } from "./store";
@@ -34,9 +35,13 @@ export interface GitHubReceiptPolicy {
   capabilityIssueNumber: number;
   stageIssueNumber: number;
   authorizedWriterLogins: string[];
+  // Derived by the daemon from its existing authenticated submission-relay bindings,
+  // never accepted from a GitHub receipt or substituted with a guessed producer.
+  authorizedModeProducerIds?: string[];
   capabilityChallenges: CapabilityChallenge[];
 }
 export interface CapabilityChallenge {
+  issuedAt?: string;
   challengeId: string; supervisorId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
   expiresAt: string;
   modelVisibleLabel: "GPT-5.6 Sol"; thinkingControlLabel: "Thinking effort"; thinkingVisibleLabel: "Extra High";
@@ -335,7 +340,8 @@ if (exactDuplicate) return [];
     const challenge = policy.capabilityChallenges.find((c) => c.challengeId === capability.challengeId);
     if (!challenge || challenge.chatId !== capability.chatId) throw new Error("Capability receipt does not match a configured chat challenge.");
     if (capability.mcNonce !== challenge.mcNonce || capability.githubNonce !== challenge.githubNonce) throw new Error("Capability receipt nonce mismatch.");
-    if (Date.parse(candidate.createdAt) > Date.parse(challenge.expiresAt)) throw new Error("Capability receipt is expired.");
+    if (Date.parse(candidate.createdAt) >= Date.parse(challenge.expiresAt) || Date.parse(ingestedAt) >= Date.parse(challenge.expiresAt)) throw new Error("Capability receipt is expired.");
+    if (challenge.issuedAt && Date.parse(candidate.createdAt) < Date.parse(challenge.issuedAt)) throw new Error("Capability receipt predates the current challenge.");
     const receiptId = `chat-capability-verified:${capability.chatId}:${candidate.commentId}`;
     if (events.some((e) => e.data.type === "evidence_receipt_recorded" && e.data.receipt_id === receiptId)) return [];
     return [store.append(evidenceEnvelope({
@@ -486,7 +492,7 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   };
 }
 
-export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
+export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; policyProvider?: () => GitHubReceiptPolicy | null; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
@@ -511,19 +517,21 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
         createdAt: timestamp(comment.created_at, "comment.created_at"), authorLogin: requiredString(user.login, "comment.user.login"), deliveryId: null,
         body: comment.body, ingestionMethod: "RECONCILIATION_POLL",
       };
-      try { appended.push(...ingestGitHubSupervisionCandidate(store, candidate, options.policy, options.now)); } catch { /* skip invalid/unrelated receipts */ }
+      try { appended.push(...ingestGitHubSupervisionCandidate(store, candidate, options.policyProvider ? options.policyProvider() : options.policy, options.now)); } catch { /* skip invalid/unrelated receipts */ }
     }
   }
   return appended;
 }
 
 function assertCurrentChatCapabilities(events: StoredEvent[], request: PendingDecisionRequest, at: string, policy: GitHubReceiptPolicy) {
-  const challenge = policy.capabilityChallenges.find((c) => c.supervisorId === request.supervisorId);
-  if (!challenge) throw new Error(`No central capability challenge is configured for supervisor ${request.supervisorId}.`);
-  if (!latestEvidence(events, capabilityVerifiedSummary, challenge.chatId, at, ["capability:missionControlRead", "capability:githubRead", "capability:githubWrite"])) {
+  const matches = policy.capabilityChallenges.filter((c) => c.supervisorId === request.supervisorId);
+  const challenge = matches.length === 1 ? matches[0] : null;
+  if (!challenge || challenge.worker !== request.worker) throw new Error(`No exact worker-bound central capability challenge is configured for supervisor ${request.supervisorId}.`);
+  if (Date.parse(challenge.expiresAt) <= Date.parse(at)) throw new Error("Current capability challenge is expired.");
+  if (!latestEvidence(events, capabilityVerifiedSummary, challenge.chatId, at, [`challenge:${challenge.challengeId}`, `supervisor:${challenge.supervisorId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite"], challenge.worker)) {
     throw new Error(`Supervisor ${request.supervisorId} lacks a current Mission Control/GitHub capability receipt.`);
   }
-  if (!latestEvidence(events, modeCapabilityVerifiedSummary, challenge.chatId, at, ["capability:modeSwitching", ...consumerControlRefs(challenge)])) {
+  if (!latestEvidence(events, modeCapabilityVerifiedSummary, challenge.chatId, at, [`challenge:${challenge.challengeId}`, "capability:modeSwitching", ...consumerControlRefs(challenge)], challenge.worker, policy.authorizedModeProducerIds ?? [])) {
     throw new Error(`Supervisor ${request.supervisorId} lacks a current fixed consumer-control receipt.`);
   }
 }
@@ -629,13 +637,19 @@ function assertOrderedDirectRelayStages(
   }, at, ingestedAt, preload.sequence);
 }
 
-function latestEvidence(events: StoredEvent[], summary: string, chatId: string, at: string, requiredRefs: string[]) {
+function latestEvidence(events: StoredEvent[], summary: string, chatId: string, at: string, requiredRefs: string[], worker: string, modeProducers: string[] = []) {
   return [...events].reverse().find((event) => {
     const data = event.data;
     if (data.type !== "evidence_receipt_recorded") return false;
+    if (event.worker !== worker || data.worker !== worker) return false;
+    if (summary === capabilityVerifiedSummary && !hasCanonicalCapabilityProvenance(event)) return false;
+    if (summary === modeCapabilityVerifiedSummary && (!modeProducers.includes(event.producerId)
+      || event.producerKind !== "COLLECTOR" || data.producer_id !== event.producerId || data.producer_role !== "COLLECTOR")) return false;
     if (data.summary !== summary || !data.verified || !data.refs.includes(`chat:${chatId}`) || requiredRefs.some((ref) => !data.refs.includes(ref))) return false;
     const expiry = data.refs.find((ref) => ref.startsWith("expires_at:"))?.slice("expires_at:".length);
-    return Boolean(expiry && Date.parse(expiry) >= Date.parse(at) && Date.parse(event.occurredAt) <= Date.parse(at));
+    if(data.refs.filter(ref=>ref.startsWith("expires_at:")).length!==1 || data.refs.filter(ref=>ref.startsWith("chat:")).length!==1) return false;
+    if(requiredRefs.some(ref=>ref.startsWith("challenge:")) && data.refs.filter(ref=>ref.startsWith("challenge:")).length!==1) return false;
+    return Boolean(expiry && Date.parse(expiry) > Date.parse(at) && Date.parse(event.occurredAt) <= Date.parse(at));
   }) ?? null;
 }
 

@@ -20,7 +20,7 @@ export const publicMcpToolNames = [
 
 export interface PublicMcpDependencies {
   loadEvents: () => Promise<StoredEvent[]>;
-  loadPolicy: () => GitHubReceiptPolicy | null;
+  loadPolicy: () => GitHubReceiptPolicy | null | Promise<GitHubReceiptPolicy | null>;
   now?: () => string;
   recordAccess?: (event: PublicMcpAccessEvent) => void | Promise<void>;
 }
@@ -140,7 +140,7 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
   }, async ({ challenge_id, chat_id }) => {
     const now = currentTime(dependencies);
     try {
-      const result = publicCapabilityChallenge(dependencies.loadPolicy(), challenge_id, now);
+      const result = publicCapabilityChallenge(await dependencies.loadPolicy(), challenge_id, now);
       if (!result || result.chat_id !== chat_id) {
         await access(dependencies, { tool: publicMcpToolNames[0], challenge_id, chat_id, status: "NOT_FOUND", occurred_at: now });
         throw notFound();
@@ -175,7 +175,7 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
     const now = currentTime(dependencies);
     try {
       const events = await dependencies.loadEvents();
-      const result = publicSupervisoryRequestBinding(events, dependencies.loadPolicy(), request_id, supervisor_id, provider_session_id, now);
+      const result = publicSupervisoryRequestBinding(events, await dependencies.loadPolicy(), request_id, supervisor_id, provider_session_id, now);
       if (!result) {
         const pending = pendingDecisionRequests(events).find((request) => (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4)
           && request.requestId === request_id && request.supervisorId === supervisor_id);

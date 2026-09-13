@@ -13,11 +13,13 @@ import {
   STAGE_RECEIPT_GRACE_MS,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   appSelectionForMessage,
+  bindCurrentCapabilityChallenge,
   capabilityControlPrompt,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
   continueNudgeEligible,
+  consumerControlRefs,
   cycleControlPrompt,
   deriveBindingCapsule,
   defaultState,
@@ -37,6 +39,7 @@ import {
   sha256,
   stageReceiptGraceElapsed,
   startedCycleStepStatus,
+  validateCurrentCapabilityChallenge,
 } from '../src/core.mjs';
 
 test('one-shot command fails only explicit cycle errors', () => {
@@ -130,28 +133,146 @@ test('memory pressure uses resolved hard limits before soft limits', () => {
 });
 
 test('capability truth comes only from current Mission Control evidence receipts', () => {
-  const chat = parseChatDirectory([chatFixture()])[0];
   const future = '2026-09-03T00:00:00.000Z';
+  const now = '2026-09-02T12:00:00.000Z';
+  const registeredChat = parseChatDirectory([chatFixture()])[0];
+  const chat = bindCurrentCapabilityChallenge(registeredChat, {
+    schema_version: 1, status: 'CURRENT', supervisor_id: 'spec', chat_id: 'spec-bootstrap', challenge_id: 'challenge-spec', expires_at: future,
+  }, now);
   const snapshot = snapshotWithEvidence([
     evidence('challenge', 1, CAPABILITY_CHALLENGE_SUMMARY, [
       'challenge:challenge-spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', `github_nonce_sha256:${sha256('gh-secret')}`,
       'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', `expires_at:${future}`,
     ]),
     evidence('tool-cap', 2, CAPABILITY_VERIFIED_SUMMARY, [
-      'challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
+      'challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
     ]),
     evidence('mode-cap', 3, MODE_CAPABILITY_VERIFIED_SUMMARY, [
-      'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
+      'challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
     ]),
   ]);
-  const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z');
+  const current = chatCapabilityState(snapshot, chat, now, 'collector:configured-relay-test');
   assert.equal(current.challengeAvailable, true);
   assert.equal(current.allCurrent, true);
-  assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z').allCurrent, false);
+  assert.equal(chatCapabilityState(snapshot, registeredChat, now, 'collector:configured-relay-test').allCurrent, false, 'static metadata is not current authority');
+  const rotated = bindCurrentCapabilityChallenge(chat, { ...chat.currentCapabilityChallenge, challenge_id: 'successor' }, now);
+  assert.equal(chatCapabilityState(snapshot, rotated, now, 'collector:configured-relay-test').allCurrent, false, 'old receipts do not survive rotation');
+  assert.equal(chatCapabilityState(snapshot, chat, future, 'collector:configured-relay-test').allCurrent, false, 'expiry is exclusive');
+  snapshot.workers[0].timeline.find((event) => event.data.summary === MODE_CAPABILITY_VERIFIED_SUMMARY).data.refs[0] = 'challenge:old';
+  assert.equal(chatCapabilityState(snapshot, chat, now, 'collector:configured-relay-test').allCurrent, false, 'mode proof must bind to this challenge too');
+  assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z', 'collector:configured-relay-test').allCurrent, false);
+});
+
+test('stable registries support missing migration IDs without mutating source or fixed controls', () => {
+  const first = chatFixture();
+  const second = chatFixture('other');
+  delete first.bootstrapCapability.challengeId;
+  delete second.bootstrapCapability.challengeId;
+  const input = [first, second];
+  const original = structuredClone(input);
+  const parsed = parseChatDirectory(input);
+  assert.equal(parsed[0].bootstrapCapability.challengeId, null);
+  assert.equal(parsed[1].bootstrapCapability.challengeId, null);
+  const bound = bindCurrentCapabilityChallenge(parsed[0], {
+    schema_version: 1, status: 'CURRENT', supervisor_id: 'spec', chat_id: 'spec-bootstrap', challenge_id: 'new-challenge', expires_at: '2099-01-01T00:00:00Z',
+  });
+  assert.equal(bound.bootstrapCapability.challengeId, 'new-challenge');
+  assert.equal(parsed[0].bootstrapCapability.challengeId, null);
+  assert.deepEqual(bound.consumerControls, parsed[0].consumerControls);
+  assert.deepEqual(input, original);
+  assert.equal(parseChatDirectory([chatFixture()])[0].bootstrapCapability.challengeId, 'challenge-spec');
+  const legacy = chatFixture();
+  legacy.bootstrapCapability.capabilityChallengeId = legacy.bootstrapCapability.challengeId;
+  delete legacy.bootstrapCapability.challengeId;
+  assert.equal(parseChatDirectory([legacy])[0].bootstrapCapability.challengeId, 'challenge-spec');
+  assert.throws(() => parseChatDirectory([{ ...first, bootstrapCapability: { ...first.bootstrapCapability, challengeId: '' } }]), /challengeId/);
+});
+
+test('capability PASS requires canonical authenticated GitHub proof and the exact configured relay mode producer', () => {
+  const chat = currentChatFixture();
+  const baseRefs = ['challenge:challenge-spec', 'chat:spec-bootstrap', 'expires_at:2099-01-01T00:00:00Z'];
+  const proof = evidence('canonical-receipt', 1, CAPABILITY_VERIFIED_SUMMARY, [
+    ...baseRefs, 'supervisor:spec', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite',
+  ]);
+  const mode = evidence('mode', 2, MODE_CAPABILITY_VERIFIED_SUMMARY, [...baseRefs, 'capability:modeSwitching', ...consumerControlRefs(chat.consumerControls)]);
+  const project = (events, relayProducer = 'collector:configured-relay-test') => chatCapabilityState(snapshotWithEvidence(events), chat, undefined, relayProducer);
+  assert.equal(project([proof, mode]).allCurrent, true);
+  for (const [label, change] of [
+    ['wrong authenticated collector', (e) => { e.producerId = e.data.producer_id = 'collector:unrelated-scoped'; }],
+    ['embedded canonical spoof', (e) => { e.producerId = 'collector:unrelated-scoped'; }],
+    ['missing authenticated identity', (e) => { delete e.producerId; delete e.producerKind; }],
+    ['missing embedded identity', (e) => { delete e.data.producer_id; }],
+    ['wrong embedded identity', (e) => { e.data.producer_id = 'collector:unrelated-scoped'; }],
+    ['wrong authenticated kind', (e) => { e.producerKind = 'SYSTEM'; }],
+    ['wrong embedded kind', (e) => { e.data.producer_role = 'WORKER'; }],
+    ['producer prefix impersonation', (e) => { e.producerId = e.data.producer_id = 'collector:github-supervision-receipts:imposter'; }],
+    ['wrong authenticated worker', (e) => { e.worker = 'worker-b'; }],
+    ['wrong embedded worker', (e) => { e.data.worker = 'worker-b'; }],
+    ['wrong supervisor', (e) => { e.data.refs = e.data.refs.map((ref) => ref === 'supervisor:spec' ? 'supervisor:other' : ref); }],
+    ['missing supervisor', (e) => { e.data.refs = e.data.refs.filter((ref) => !ref.startsWith('supervisor:')); }],
+    ['ambiguous supervisor', (e) => { e.data.refs.push('supervisor:other'); }],
+  ]) {
+    const forged = structuredClone(proof);
+    change(forged);
+    const state = project([forged, mode]);
+    assert.equal(state.missionControlRead, false, label);
+    assert.equal(state.githubRead, false, label);
+    assert.equal(state.githubWrite, false, label);
+    assert.equal(state.allCurrent, false, label);
+    assert.equal(state.capabilityReceiptId, null, label);
+    assert.equal(state.modeSwitching, true, 'legitimate independent mode proof is retained');
+  }
+  for (const [label, change] of [
+    ['wrong mode collector', (e) => { e.producerId = e.data.producer_id = 'collector:other-relay'; }],
+    ['Github cannot substitute for configured relay', (e) => { e.producerId = e.data.producer_id = 'collector:github-supervision-receipts'; }],
+    ['embedded relay spoof', (e) => { e.producerId = 'collector:other-relay'; }],
+    ['missing mode envelope identity', (e) => { delete e.producerId; delete e.producerKind; }],
+    ['wrong mode envelope kind', (e) => { e.producerKind = 'WORKER'; }],
+    ['missing embedded mode identity', (e) => { delete e.data.producer_id; }],
+    ['wrong embedded mode kind', (e) => { e.data.producer_role = 'WORKER'; }],
+    ['wrong mode worker', (e) => { e.worker = 'worker-b'; }],
+  ]) {
+    const forged = structuredClone(mode);
+    change(forged);
+    const state = project([proof, forged]);
+    assert.equal(state.modeSwitching, false, label);
+    assert.equal(state.allCurrent, false, label);
+    assert.equal(state.githubWrite, true, 'canonical GitHub proof is retained');
+  }
+  assert.equal(project([proof, mode], null).allCurrent, false, 'no default relay producer fallback');
+  assert.equal(project([proof, mode], 'collector:other-relay').allCurrent, false);
+  const otherMode = structuredClone(mode);
+  otherMode.producerId = otherMode.data.producer_id = 'collector:other-relay';
+  assert.equal(project([proof, otherMode], 'collector:other-relay').allCurrent, true, 'identity is configured, not hard-coded');
+  assert.equal(chatCapabilityState(snapshotWithEvidence([proof, mode]), parseChatDirectory([chatFixture()])[0], undefined, 'collector:configured-relay-test').allCurrent, false, 'canonical receipts cannot promote static registration to current');
+});
+
+test('capability prompts never fall back to static IDs without valid dynamic discovery', () => {
+  const registered = parseChatDirectory([chatFixture()])[0];
+  for (const prompt of [capabilityControlPrompt, mcpReadPreflightPrompt]) {
+    assert.throws(() => prompt(registered), /unavailable, invalid, mismatched, or expired/);
+    const mismatched = currentChatFixture();
+    mismatched.bootstrapCapability.challengeId = 'static-override';
+    assert.throws(() => prompt(mismatched), /dynamically discovered/);
+    const expired = currentChatFixture();
+    expired.currentCapabilityChallenge.expires_at = '2000-01-01T00:00:00Z';
+    assert.throws(() => prompt(expired), /unavailable, invalid, mismatched, or expired/);
+  }
+});
+
+test('current challenge discovery rejects wrong pair, historical status, expiry, malformed and nonce-bearing responses', () => {
+  const valid = { schema_version: 1, status: 'CURRENT', supervisor_id: 'spec', chat_id: 'spec-bootstrap', challenge_id: 'successor', expires_at: '2099-01-01T00:00:00Z' };
+  assert.deepEqual(validateCurrentCapabilityChallenge(valid, 'spec', 'spec-bootstrap'), valid);
+  for (const value of [null, [], { ...valid, supervisor_id: 'other' }, { ...valid, chat_id: 'other' },
+    { ...valid, status: 'HISTORICAL' }, { ...valid, schema_version: 2 }, { ...valid, challenge_id: '' },
+    { ...valid, expires_at: 'invalid' }, { ...valid, expires_at: '2099-01-01' }, { ...valid, expires_at: '2000-01-01T00:00:00Z' },
+    { ...valid, mc_nonce: 'must-not-leak' }, { ...valid, github_nonce: 'must-not-leak' }]) {
+    assert.throws(() => validateCurrentCapabilityChallenge(value, 'spec', 'spec-bootstrap'), /unavailable, invalid, mismatched, or expired/);
+  }
 });
 
 test('capability control prompt preserves the owner-approved fresh-chat intent without embedding nonce values', () => {
-  const prompt = capabilityControlPrompt(parseChatDirectory([chatFixture()])[0]);
+  const prompt = capabilityControlPrompt(currentChatFixture());
   assert.match(prompt, /Use the selected Mission Control app/);
   assert.match(prompt, /get_capability_challenge/);
   assert.match(prompt, /challenge challenge-spec and chat spec-bootstrap/);
@@ -162,7 +283,7 @@ test('capability control prompt preserves the owner-approved fresh-chat intent w
 });
 
 test('MCP preflight prompt is exact-bound and cannot authorize GitHub or Mission Control writes', () => {
-  const prompt = mcpReadPreflightPrompt(parseChatDirectory([chatFixture()])[0]);
+  const prompt = mcpReadPreflightPrompt(currentChatFixture());
   assert.match(prompt, /selected Mission Control app/);
   assert.match(prompt, /get_capability_challenge/);
   assert.match(prompt, /challenge_id challenge-spec and chat_id spec-bootstrap/);
@@ -486,8 +607,17 @@ function chatFixture(supervisorId = 'spec', scope = 'SPECIALIST') {
   };
 }
 
+function currentChatFixture() {
+  return bindCurrentCapabilityChallenge(parseChatDirectory([chatFixture()])[0], {
+    schema_version: 1, status: 'CURRENT', supervisor_id: 'spec', chat_id: 'spec-bootstrap', challenge_id: 'challenge-spec', expires_at: '2099-01-01T00:00:00Z',
+  });
+}
+
 function evidence(id, sequence, summary, refs, occurredAt = '2026-09-02T00:00:00.000Z') {
-  return { eventId: id, sequence, occurredAt, data: { type: 'evidence_receipt_recorded', receipt_id: id, summary, refs, verified: true } };
+  const producerId = summary === CAPABILITY_VERIFIED_SUMMARY ? 'collector:github-supervision-receipts' : 'collector:configured-relay-test';
+  return { eventId: id, sequence, occurredAt, worker: 'worker-a', producerId, producerKind: 'COLLECTOR', data: {
+    type: 'evidence_receipt_recorded', worker: 'worker-a', producer_id: producerId, producer_role: 'COLLECTOR', receipt_id: id, summary, refs, verified: true,
+  } };
 }
 
 function snapshotWithEvidence(timeline) {

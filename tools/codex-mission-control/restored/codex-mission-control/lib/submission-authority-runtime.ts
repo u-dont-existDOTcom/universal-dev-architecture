@@ -82,6 +82,10 @@ export class SubmissionAuthorityRuntime {
   private readonly relayHealthMaxAgeMs: number;
   private readonly hostLabels: Record<"PRIMARY" | "SECONDARY", string>;
 
+  capabilityModeProducerIds(): string[] {
+    return [...this.relayBindings.keys()];
+  }
+
   constructor(
     private readonly store: EventStore,
     env: Record<string, string | undefined> = process.env,

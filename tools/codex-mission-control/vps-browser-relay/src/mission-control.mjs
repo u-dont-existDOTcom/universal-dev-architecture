@@ -1,4 +1,4 @@
-import { sha256 } from './core.mjs';
+import { sha256, validateCurrentCapabilityChallenge } from './core.mjs';
 
 export class MissionControlClient {
   constructor({ url, producerId, token, workerIds = [], requestTimeoutMs = 30_000, fetchImpl = fetch }) {
@@ -12,6 +12,21 @@ export class MissionControlClient {
 
   async fetchFleet() {
     return this.fetchWorkers(this.workerIds);
+  }
+
+  async fetchCurrentCapabilityChallenge(supervisorId, chatId) {
+    try {
+      if (typeof supervisorId !== 'string' || typeof chatId !== 'string'
+        || !supervisorId || !chatId || supervisorId.length > 300 || chatId.length > 300) throw new Error();
+      const query = new URLSearchParams({ supervisor_id: supervisorId, chat_id: chatId });
+      const payload = await this.#requestJson(`/api/capability-challenges/current?${query}`, {
+        method: 'GET', cache: 'no-store', redirect: 'error',
+      });
+      return validateCurrentCapabilityChallenge(payload, supervisorId, chatId);
+    } catch {
+      // No raw server errors, private locators, credentials, or nonce fields in logs.
+      throw new Error('Mission Control current capability challenge discovery failed closed.');
+    }
   }
 
   async fetchWorkers(workerIds) {

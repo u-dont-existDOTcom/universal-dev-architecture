@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { CapabilityRotationStore } from "./capability-rotation-store";
+import { capabilityProducerMatches, isCanonicalCapabilityEvidence } from "./capability-evidence-authority";
 import { canonicalJson, sha256 } from "./canonical";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
 import { progressInvariantErrors } from "./progress-invariants";
@@ -39,6 +41,7 @@ interface EventHashInput {
 
 export class EventStore {
   private readonly db: DatabaseSync;
+  readonly capabilityRotation: CapabilityRotationStore;
 
   constructor(filename = process.env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db")) {
     if (filename !== ":memory:") fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -48,6 +51,7 @@ export class EventStore {
       database.exec("PRAGMA busy_timeout = 0; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA locking_mode = EXCLUSIVE; BEGIN IMMEDIATE; COMMIT;");
       this.db = database;
       this.initialize();
+      this.capabilityRotation = new CapabilityRotationStore(this.db);
     } catch (error) {
       try { database?.close(); } catch {}
       if (filename !== ":memory:" && isSqliteLockError(error)) {
@@ -71,6 +75,9 @@ export class EventStore {
   append(input: unknown, receivedAt = new Date().toISOString(), producer?: AuthenticatedProducer): StoredEvent {
     const envelope = parseAppendEnvelope(input);
     const authenticatedProducer = producer ?? internalProducerFor(envelope.data);
+    if (isCanonicalCapabilityEvidence(envelope.data) && (!producer || !capabilityProducerMatches(envelope.data, producer))) {
+      throw new ContractInvariantError("Canonical capability evidence requires authenticated receipt-ingester provenance.");
+    }
     const worker = eventWorker(envelope.data);
     const existing = this.eventByEventId(envelope.event_id);
     if (existing) {
