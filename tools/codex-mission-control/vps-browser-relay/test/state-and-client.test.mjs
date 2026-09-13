@@ -102,6 +102,43 @@ test('Mission Control client fails closed on an unscoped or mismatched worker re
   await assert.rejects(() => client.fetchWorkers([]), /At least one scoped/);
 });
 
+test('Mission Control client resolves only one exact current unexpired capability challenge', async () => {
+  const requests = [];
+  const challenge = {
+    schema_version: 1,
+    challenge_id: 'capability:current',
+    chat_id: 'spec-bootstrap',
+    mc_nonce: 'mc-current',
+    github_nonce_sha256: 'a'.repeat(64),
+    github_nonce_source: 'https://github.com/o/r/issues/60',
+    receipt_target: 'https://github.com/o/r/issues/60',
+    expires_at: '2099-09-13T00:00:00.000Z',
+  };
+  const client = new MissionControlClient({
+    url: 'https://mission-control.example',
+    producerId: 'collector:test-relay',
+    token: 'x'.repeat(32),
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return Response.json(challenge);
+    },
+  });
+  assert.deepEqual(await client.resolveCapabilityChallenge('spec', 'spec-bootstrap'), challenge);
+  assert.equal(requests[0].url, 'https://mission-control.example/api/capability-challenges/current?supervisor_id=spec&chat_id=spec-bootstrap');
+  assert.equal(requests[0].options.headers.authorization, `Bearer ${'x'.repeat(32)}`);
+
+  const expired = new MissionControlClient({
+    url: 'https://mission-control.example', producerId: 'collector:test-relay', token: 'x'.repeat(32),
+    fetchImpl: async () => Response.json({ ...challenge, expires_at: '2000-01-01T00:00:00.000Z' }),
+  });
+  await assert.rejects(() => expired.resolveCapabilityChallenge('spec', 'spec-bootstrap'), /invalid current capability challenge/);
+  const extraField = new MissionControlClient({
+    url: 'https://mission-control.example', producerId: 'collector:test-relay', token: 'x'.repeat(32),
+    fetchImpl: async () => Response.json({ ...challenge, private_locator: 'forbidden' }),
+  });
+  await assert.rejects(() => extraField.resolveCapabilityChallenge('spec', 'spec-bootstrap'), /invalid current capability challenge/);
+});
+
 test('submission interval config defaults to 60000 and exposes the public value', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-'));
   try {
@@ -249,7 +286,7 @@ function configuredChat() {
     registrationId: 'registration:spec:test', ownership: 'MISSION_CONTROL_ONLY', purpose: 'Dedicated test supervisor.',
     accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec',
     registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
-    bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' },
+    bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat' },
     consumerControls: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false },
     requiredApps: { missionControl: 'Mission Control', github: 'GitHub' },
   };

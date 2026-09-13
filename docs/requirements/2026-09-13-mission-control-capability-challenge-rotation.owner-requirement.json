@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-CAPABILITY-CHALLENGE-ROTATION-20260913",
+  "recorded_at": "2026-09-13T01:40:18+00:00",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "RECORDED_NOT_IMPLEMENTED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Implement a permanent capability-challenge rotation fix in `u-dont-existDOTcom/universal-dev-architecture`.",
+    "sha256": "682f94df4e322cf7c75456cdb6751220bf852910541eb542025a6246e15b27be",
+    "full_request_artifact": "docs/requirements/2026-09-13-mission-control-capability-challenge-rotation.owner-request.md",
+    "full_request_sha256": "3cb6f80c276ed6280a914d6060b5c0180615ae715c45b337d535b7d4272633c0",
+    "source_type": "owner_chat_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "owner-chat:2026-09-13:capability-challenge-rotation"
+  },
+  "normalized_outcome": "Mission Control's existing single-writer daemon durably creates and rotates one current capability challenge for each statically authorized supervisor/chat pair, publishes each fresh GitHub nonce only to the hard-locked capability issue before activation, and lets relays resolve the current challenge without private registry or deployment-variable rotation. Historical challenges remain immutable provenance, expired receipts stay invalid, fresh capability proof remains mandatory, and the existing ownership, fixed-control, global scheduling, pacing, ambiguity, and GitHub-writer gates remain intact.",
+  "required_outcomes": [
+    {
+      "id": "RO-CAPROT-001",
+      "terminal_required": true,
+      "observable": "Static policy contains stable authorized supervisor/chat and exact capability-bus authority only; challenge ID, independent nonces, issuance, expiry, and current selection are generated and stored durably by the single-writer daemon.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPROT-002",
+      "terminal_required": true,
+      "observable": "Concurrent, restart, renewal, publication-failure, stale-receipt, wrong-binding, and migration tests prove at most one current challenge per exact supervisor/chat and no implicit capability pass or provider send.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPROT-003",
+      "terminal_required": true,
+      "observable": "GitHub nonce publication uses a distinct least-privilege credential through server code hard-locked to the configured repository and exact capability issue, publishes only the public fixture fields, verifies the returned issue binding, and never exposes the credential, MC nonce, or private locator.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPROT-004",
+      "terminal_required": true,
+      "observable": "The relay resolves the latest current challenge for the exact registered supervisor/chat from Mission Control; bootstrapCapability.challengeId is optional and deprecated, and no operator edit is required when a challenge rotates.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPROT-005",
+      "terminal_required": true,
+      "observable": "Applicable Mission Control, relay, repository, security, build, source-archive, and independent-review gates pass for the exact candidate without changing Somatic state or merging.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-CAPROT-006",
+      "terminal_required": true,
+      "observable": "Only the currently accepted PRIMARY hotfix runtime is installed and live-tested: an expired/missing challenge rotates once, its public fixture exists, the unchanged private chat registration sees it, fresh preflight and capability proof validate, the old receipt fails, and ownership plus shared scheduling/pacing remain intact; SECONDARY and separate production are not activated or promoted.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a cron job or operator procedure that edits challenge IDs or nonces in deployment variables",
+    "green unit tests without proving the exact PRIMARY hotfix runtime rotates and consumes a challenge",
+    "publishing a nonce before activation without hard-locking and verifying the exact configured capability issue",
+    "activating a challenge after failed or ambiguously bound GitHub publication",
+    "rotating a challenge while treating it as capability PASS without a fresh receipt",
+    "letting an expired or wrong-supervisor receipt satisfy decision admission",
+    "keeping bootstrapCapability.challengeId operationally mandatory",
+    "using broad GitHub write authority or exposing a credential, MC nonce, or private conversation locator",
+    "sending a ChatGPT message merely to rotate durable challenge state",
+    "changing the single-writer, MC-only ownership, fixed-controls, global queue, pacing, ambiguity, or failover architecture",
+    "modifying the Somatic repository or experiment state",
+    "deploying to separate production, activating SECONDARY, or merging without explicit authority"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/independent-evaluation-separation.md",
+    "patterns/mission-control-multi-host-submission-scheduling.md"
+  ],
+  "production_boundary": "Implementation, review, and exact PRIMARY hotfix-runtime installation only. Separate production deployment, SECONDARY activation/promotion, Somatic work, and merge are forbidden.",
+  "next_direct_evidence": "Establish the exact stable policy and durable-state seams, implement focused challenge-manager and relay selection tests first, then prove the exact reviewed candidate in the accepted PRIMARY hotfix runtime without touching separate production or activating SECONDARY."
+}

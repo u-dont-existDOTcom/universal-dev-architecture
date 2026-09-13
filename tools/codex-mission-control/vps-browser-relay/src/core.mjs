@@ -103,8 +103,8 @@ export function parseChatDirectory(value) {
   if (bootstrapChatIds.size !== entries.length) throw new Error('Bootstrap chat IDs must be unique across supervisors.');
   const bootstrapUrls = new Set(entries.map((entry) => entry.bootstrapCapability.url));
   if (bootstrapUrls.size !== entries.length) throw new Error('Bootstrap conversation URLs must be unique across supervisors.');
-  const challenges = new Set(entries.map((entry) => entry.bootstrapCapability.challengeId));
-  if (challenges.size !== entries.length) throw new Error('Capability challenge IDs must be unique.');
+  const legacyChallenges = entries.map((entry) => entry.bootstrapCapability.challengeId).filter(Boolean);
+  if (new Set(legacyChallenges).size !== legacyChallenges.length) throw new Error('Deprecated capability challenge IDs must be unique when provided.');
   if (entries.filter((entry) => entry.scope === 'PROJECT_MANAGER').length > 1) {
     throw new Error('Only one Project Manager chat may be configured.');
   }
@@ -180,7 +180,10 @@ function parseChatEntry(item, index) {
   const bootstrap = isRecord(item.bootstrapCapability) ? item.bootstrapCapability : item;
   const bootstrapChatId = boundedString(bootstrap.chatId, `Chat entry ${index} bootstrapCapability.chatId`, 300);
   const bootstrapUrl = normalizeConversationUrl(boundedString(bootstrap.url, `Chat entry ${index} bootstrapCapability.url`, 1000));
-  const bootstrapChallengeId = boundedString(bootstrap.challengeId ?? bootstrap.capabilityChallengeId, `Chat entry ${index} bootstrapCapability.challengeId`, 180);
+  const rawBootstrapChallengeId = bootstrap.challengeId ?? bootstrap.capabilityChallengeId;
+  const bootstrapChallengeId = rawBootstrapChallengeId == null
+    ? null
+    : boundedString(rawBootstrapChallengeId, `Chat entry ${index} bootstrapCapability.challengeId`, 180);
   if (item.ownership !== 'MISSION_CONTROL_ONLY') {
     throw new Error(`Chat entry ${index} ownership must be explicitly MISSION_CONTROL_ONLY; personal, legacy-unclassified, and ambiguous conversations are not live-send eligible.`);
   }
@@ -473,21 +476,26 @@ function refValue(refs, prefix) {
   return ref ? ref.slice(prefix.length) : null;
 }
 
-export function chatCapabilityState(snapshot, chat, now = new Date().toISOString()) {
+export function chatCapabilityState(snapshot, chat, now = new Date().toISOString(), activeChallenge = null) {
   const worker = snapshot?.workers?.find((item) => item?.id === chat.workerId);
   const timeline = Array.isArray(worker?.timeline) ? worker.timeline : [];
+  const challengeId = activeChallenge?.challenge_id ?? chat.bootstrapCapability.challengeId ?? null;
   const challenge = latestEvidence(timeline, CAPABILITY_CHALLENGE_SUMMARY, [
-    `challenge:${chat.bootstrapCapability.challengeId}`,
+    ...(challengeId ? [`challenge:${challengeId}`] : []),
+    `supervisor:${chat.supervisorId}`,
     `chat:${chat.bootstrapCapability.chatId}`,
   ], now, false);
   const capability = latestEvidence(timeline, CAPABILITY_VERIFIED_SUMMARY, [
-    `challenge:${chat.bootstrapCapability.challengeId}`,
+    ...(challengeId ? [`challenge:${challengeId}`] : []),
+    `supervisor:${chat.supervisorId}`,
     `chat:${chat.bootstrapCapability.chatId}`,
     'capability:missionControlRead',
     'capability:githubRead',
     'capability:githubWrite',
   ], now, true);
   const mode = latestEvidence(timeline, MODE_CAPABILITY_VERIFIED_SUMMARY, [
+    ...(challengeId ? [`challenge:${challengeId}`] : []),
+    `supervisor:${chat.supervisorId}`,
     `chat:${chat.bootstrapCapability.chatId}`,
     'capability:modeSwitching',
     ...consumerControlRefs(chat.consumerControls),
@@ -495,13 +503,13 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
   return {
     supervisorId: chat.supervisorId,
     chatId: chat.bootstrapCapability.chatId,
-    challengeId: chat.bootstrapCapability.challengeId,
-    challengeAvailable: Boolean(challenge),
-    missionControlRead: Boolean(capability),
-    githubRead: Boolean(capability),
-    githubWrite: Boolean(capability),
-    modeSwitching: Boolean(mode),
-    allCurrent: Boolean(capability && mode),
+    challengeId,
+    challengeAvailable: Boolean(challengeId && challenge),
+    missionControlRead: Boolean(challengeId && capability),
+    githubRead: Boolean(challengeId && capability),
+    githubWrite: Boolean(challengeId && capability),
+    modeSwitching: Boolean(challengeId && mode),
+    allCurrent: Boolean(challengeId && capability && mode),
     capabilityReceiptId: capability?.data?.receipt_id ?? null,
     modeReceiptId: mode?.data?.receipt_id ?? null,
     expiresAt: earliestExpiry(capability, mode),
@@ -535,12 +543,21 @@ function earliestExpiry(...events) {
   return values.sort()[0] ?? null;
 }
 
-export function capabilityControlPrompt(chat) {
-  return `Mission Control capability test for challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge for exactly that challenge_id and chat_id. Do not infer or reuse any nonce from this prompt or prior context. Then follow the returned github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
+export function capabilityControlPrompt(chat, activeChallenge = null) {
+  const challengeId = requiredActiveChallengeId(chat, activeChallenge);
+  return `Mission Control capability test for challenge ${challengeId} and chat ${chat.bootstrapCapability.chatId}. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge for exactly that challenge_id and chat_id. Do not infer or reuse any nonce from this prompt or prior context. Then follow the returned github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
 }
 
-export function mcpReadPreflightPrompt(chat) {
-  return `Mission Control read-only MCP preflight for capability challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}: remain in Extra High. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge with challenge_id ${chat.bootstrapCapability.challengeId} and chat_id ${chat.bootstrapCapability.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
+export function mcpReadPreflightPrompt(chat, activeChallenge = null) {
+  const challengeId = requiredActiveChallengeId(chat, activeChallenge);
+  return `Mission Control read-only MCP preflight for capability challenge ${challengeId} and chat ${chat.bootstrapCapability.chatId}: remain in Extra High. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge with challenge_id ${challengeId} and chat_id ${chat.bootstrapCapability.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
+}
+
+function requiredActiveChallengeId(chat, activeChallenge) {
+  const challengeId = activeChallenge?.challenge_id ?? chat.bootstrapCapability.challengeId ?? null;
+  if (!challengeId) throw new Error(`No current dynamic capability challenge is available for ${chat.supervisorId}.`);
+  if (activeChallenge && activeChallenge.chat_id !== chat.bootstrapCapability.chatId) throw new Error('Resolved capability challenge does not match the registered chat.');
+  return challengeId;
 }
 
 export function appSelectionForMessage(chat, step) {

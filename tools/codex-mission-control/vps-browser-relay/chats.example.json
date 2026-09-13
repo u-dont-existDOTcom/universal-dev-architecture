@@ -18,8 +18,7 @@
     },
     "bootstrapCapability": {
       "chatId": "REPLACE_UNIQUE_PROJECT_MANAGER_BOOTSTRAP_CHAT_ID",
-      "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_BOOTSTRAP_CONVERSATION_ID",
-      "challengeId": "pm-capability-v1"
+      "url": "https://chatgpt.com/c/REPLACE_PROJECT_MANAGER_BOOTSTRAP_CONVERSATION_ID"
     },
     "consumerControls": {
       "modelVisibleLabel": "GPT-5.6 Sol",
@@ -54,8 +53,7 @@
     },
     "bootstrapCapability": {
       "chatId": "REPLACE_UNIQUE_SPECIALIST_BOOTSTRAP_CHAT_ID",
-      "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_BOOTSTRAP_CONVERSATION_ID",
-      "challengeId": "specialist-capability-v1"
+      "url": "https://chatgpt.com/c/REPLACE_SPECIALIST_BOOTSTRAP_CONVERSATION_ID"
     },
     "consumerControls": {
       "modelVisibleLabel": "GPT-5.6 Sol",

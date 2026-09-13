@@ -1,6 +1,6 @@
 import { sha256 } from "@/lib/canonical";
 import { daemonFetch, daemonMutationHeaders, relayJson } from "@/lib/daemon-client";
-import { parseGitHubReceiptPolicy, pendingDecisionRequests, providerSessionMcpSummary } from "@/lib/github-decision-receipts";
+import { parseGitHubReceiptPolicy, pendingDecisionRequests, providerSessionMcpSummary, type PublicCapabilityChallenge } from "@/lib/github-decision-receipts";
 import { handlePublicMissionControlMcpRequest, publicMcpBindingTransportAttempt, type PublicMcpAccessEvent } from "@/lib/public-mcp";
 import type { AppendEnvelope, StoredEvent } from "@/lib/schema";
 
@@ -23,6 +23,7 @@ async function handle(request: Request) {
   const response = await handlePublicMissionControlMcpRequest(request, {
     loadEvents: loadEventsFromDaemon,
     loadPolicy: parseGitHubReceiptPolicy,
+    loadCapabilityChallenge: loadCapabilityChallengeFromDaemon,
     recordAccess: recordPublicMcpAccess,
   });
   const headers = new Headers(response.headers);
@@ -138,4 +139,13 @@ async function loadEventsFromDaemon(): Promise<StoredEvent[]> {
   const body = await response.json() as { events?: unknown };
   if (!Array.isArray(body.events)) throw new Error("Mission Control daemon returned an invalid event projection.");
   return body.events as StoredEvent[];
+}
+
+async function loadCapabilityChallengeFromDaemon(challengeId: string, chatId: string): Promise<PublicCapabilityChallenge | null> {
+  const response = await daemonFetch(`/capability-challenges/${encodeURIComponent(challengeId)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Mission Control daemon returned HTTP ${response.status}.`);
+  const challenge = await response.json() as PublicCapabilityChallenge;
+  if (challenge.challenge_id !== challengeId || challenge.chat_id !== chatId) return null;
+  return challenge;
 }

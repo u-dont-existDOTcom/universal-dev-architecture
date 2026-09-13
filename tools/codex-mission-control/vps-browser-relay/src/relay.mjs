@@ -1,7 +1,6 @@
 import {
   BINDING_CAPSULE_SUMMARY,
   BINDING_ENVELOPE_SUMMARY,
-  CAPABILITY_CHALLENGE_SUMMARY,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
@@ -54,15 +53,18 @@ export class RelayRuntime {
   async doctor() {
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
-    const [metrics, browser, snapshot, centralScheduler] = await Promise.all([
+    const [metrics, browser, snapshot, centralScheduler, currentChallenges] = await Promise.all([
       this.memoryReader(this.config.browser.profileDir),
       this.browser.doctor(),
       this.missionControl.fetchFleet(),
       this.submissionPacer.remoteStatus(),
+      Promise.all(this.config.runtime.chats.map((chat) => this.missionControl
+        .resolveCapabilityChallenge(chat.supervisorId, chat.bootstrapCapability.chatId)
+        .catch(() => null))),
     ]);
     const memory = this.#memoryState(metrics);
     const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
-    const chatCapabilities = this.config.runtime.chats.map((chat) => chatCapabilityState(snapshot, chat));
+    const chatCapabilities = this.config.runtime.chats.map((chat, index) => chatCapabilityState(snapshot, chat, new Date().toISOString(), currentChallenges[index]));
     const activeLease = centralScheduler.activeLease;
     const relayBinding = centralScheduler.authenticatedRelayBinding;
     const automationWindowBound = Number.isInteger(browser.automationWindowId)
@@ -106,8 +108,9 @@ export class RelayRuntime {
     state = await this.#markInterruptedIntents(state);
     const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
     if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
+    const activeChallenge = await this.missionControl.resolveCapabilityChallenge(chat.supervisorId, chat.bootstrapCapability.chatId);
     let snapshot = await this.missionControl.fetchFleet();
-    let capability = chatCapabilityState(snapshot, chat);
+    let capability = chatCapabilityState(snapshot, chat, new Date().toISOString(), activeChallenge);
     if (!capability.challengeAvailable) {
       return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_MISSING', state, { chatId, capability });
     }
@@ -125,13 +128,14 @@ export class RelayRuntime {
       expectedUrl: chat.bootstrapCapability.url,
       controls: chat.consumerControls,
     });
-    const challengeExpiry = findChallengeExpiry(snapshot, chat);
-    if (!challengeExpiry) throw new Error(`Capability challenge ${chat.bootstrapCapability.challengeId} has no usable expiry.`);
+    const challengeExpiry = activeChallenge.expires_at;
+    if (!Number.isFinite(Date.parse(challengeExpiry))) throw new Error(`Capability challenge ${activeChallenge.challenge_id} has no usable expiry.`);
     await this.missionControl.recordEvidence(chat.workerId, {
       receiptId: `chat-mode-capability:${chat.bootstrapCapability.chatId}:${Date.now()}`,
       summary: MODE_CAPABILITY_VERIFIED_SUMMARY,
       refs: [
-        `challenge:${chat.bootstrapCapability.challengeId}`,
+        `challenge:${activeChallenge.challenge_id}`,
+        `supervisor:${chat.supervisorId}`,
         `chat:${chat.bootstrapCapability.chatId}`,
         'capability:modeSwitching',
         ...consumerControlRefs(chat.consumerControls),
@@ -141,7 +145,7 @@ export class RelayRuntime {
     });
 
     snapshot = await this.missionControl.fetchFleet();
-    capability = chatCapabilityState(snapshot, chat);
+    capability = chatCapabilityState(snapshot, chat, new Date().toISOString(), activeChallenge);
     if (capability.allCurrent) {
       return this.#writeStandaloneStatus('CAPABILITIES_VERIFIED', state, { chatId, mode, capability, memory });
     }
@@ -155,7 +159,7 @@ export class RelayRuntime {
       });
     }
 
-    const key = `capability:${chat.bootstrapCapability.chatId}:${chat.bootstrapCapability.challengeId}`;
+    const key = `capability:${chat.bootstrapCapability.chatId}:${activeChallenge.challenge_id}`;
     const prior = state.deliveries[key] ?? null;
     if (prior?.status === 'AMBIGUOUS_AFTER_RESTART') {
       return this.#writeStandaloneStatus('CAPABILITY_SUBMISSION_AMBIGUOUS', state, { chatId, capability, memory });
@@ -172,16 +176,16 @@ export class RelayRuntime {
       state.deliveries[key] = { ...prior, status: 'CAPABILITY_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
       snapshot = await this.missionControl.fetchFleet();
-      capability = chatCapabilityState(snapshot, chat);
+      capability = chatCapabilityState(snapshot, chat, new Date().toISOString(), activeChallenge);
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     }
     if (prior?.status === 'CAPABILITY_GENERATION_COMPLETE') {
       snapshot = await this.missionControl.fetchFleet();
-      capability = chatCapabilityState(snapshot, chat);
+      capability = chatCapabilityState(snapshot, chat, new Date().toISOString(), activeChallenge);
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     }
 
-    const prompt = capabilityControlPrompt(chat);
+    const prompt = capabilityControlPrompt(chat, activeChallenge);
     let observed;
     try {
       const start = await this.submissionPacer.submit({
@@ -197,7 +201,7 @@ export class RelayRuntime {
             status: 'SUBMISSION_INTENT_RECORDED',
             chatId: chat.bootstrapCapability.chatId,
             conversationUrl: chat.bootstrapCapability.url,
-            capabilityChallengeId: chat.bootstrapCapability.challengeId,
+            capabilityChallengeId: activeChallenge.challenge_id,
             bodySha256: sha256(prompt),
             modelUiLabel: observed.modelVisibleLabel,
             intentRecordedAt: intentAt,
@@ -225,7 +229,7 @@ export class RelayRuntime {
       state.deliveries[key] = { ...state.deliveries[key], status: 'CAPABILITY_GENERATION_COMPLETE', generationCompletion: complete, completedAt: complete.completedAtObserved };
       state = await this.stateStore.write(state);
       snapshot = await this.missionControl.fetchFleet();
-      capability = chatCapabilityState(snapshot, chat);
+      capability = chatCapabilityState(snapshot, chat, new Date().toISOString(), activeChallenge);
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     } catch (error) {
       if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, { chatId, capability, mode, memory }, error);
@@ -248,8 +252,9 @@ export class RelayRuntime {
     state = await this.#markInterruptedIntents(state);
     const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === chatId || entry.bootstrapCapability.chatId === chatId);
     if (!chat) throw new Error(`Unknown registered chat: ${chatId}`);
+    const activeChallenge = await this.missionControl.resolveCapabilityChallenge(chat.supervisorId, chat.bootstrapCapability.chatId);
     const snapshot = await this.missionControl.fetchFleet();
-    const capability = chatCapabilityState(snapshot, chat);
+    const capability = chatCapabilityState(snapshot, chat, new Date().toISOString(), activeChallenge);
     if (!capability.challengeAvailable) {
       return this.#writeStandaloneStatus('CAPABILITY_CHALLENGE_MISSING', state, { chatId, capability });
     }
@@ -271,7 +276,7 @@ export class RelayRuntime {
       hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
     });
     this.#rememberTarget(state, chat, target, null, chat.bootstrapCapability.url);
-    const key = `mcp-preflight:${chat.bootstrapCapability.chatId}:${chat.bootstrapCapability.challengeId}`;
+    const key = `mcp-preflight:${chat.bootstrapCapability.chatId}:${activeChallenge.challenge_id}`;
     const prior = state.deliveries[key] ?? null;
     if (prior?.status === 'AMBIGUOUS_AFTER_RESTART') {
       return this.#writeStandaloneStatus('MCP_PREFLIGHT_SUBMISSION_AMBIGUOUS', state, { chatId, capability, memory });
@@ -293,7 +298,7 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus('MCP_PREFLIGHT_GENERATION_COMPLETE', state, { chatId, capability, memory });
     }
 
-    const prompt = mcpReadPreflightPrompt(chat);
+    const prompt = mcpReadPreflightPrompt(chat, activeChallenge);
     let observed;
     try {
       const start = await this.submissionPacer.submit({
@@ -309,7 +314,7 @@ export class RelayRuntime {
             status: 'SUBMISSION_INTENT_RECORDED',
             chatId: chat.bootstrapCapability.chatId,
             conversationUrl: chat.bootstrapCapability.url,
-            capabilityChallengeId: chat.bootstrapCapability.challengeId,
+            capabilityChallengeId: activeChallenge.challenge_id,
             bodySha256: sha256(prompt),
             modelUiLabel: observed.modelVisibleLabel,
             intentRecordedAt: intentAt,
@@ -442,7 +447,8 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('LEGACY_ROUTE_NOT_AUTOMATED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate) });
       }
 
-      const capability = chatCapabilityState(snapshot, candidate.chat);
+      const activeChallenge = await this.missionControl.resolveCapabilityChallenge(candidate.chat.supervisorId, candidate.chat.bootstrapCapability.chatId);
+      const capability = chatCapabilityState(snapshot, candidate.chat, new Date().toISOString(), activeChallenge);
       if (!capability.allCurrent) {
         state.health.pausedReason = `Stable supervisor ${candidate.chat.supervisorId} lacks current bootstrap capability receipts.`;
         state = await this.stateStore.write(state);
@@ -1123,17 +1129,6 @@ export class RelayRuntime {
     const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
     this.logger[method](JSON.stringify(line));
   }
-}
-
-function findChallengeExpiry(snapshot, chat) {
-  const worker = snapshot?.workers?.find((item) => item?.id === chat.workerId);
-  const timeline = Array.isArray(worker?.timeline) ? worker.timeline : [];
-  const challenge = [...timeline].reverse().find((event) => event?.data?.type === 'evidence_receipt_recorded'
-    && event.data.summary === CAPABILITY_CHALLENGE_SUMMARY
-    && event.data.refs?.includes(`challenge:${chat.bootstrapCapability.challengeId}`)
-    && event.data.refs?.includes(`chat:${chat.bootstrapCapability.chatId}`));
-  const expiry = challenge?.data?.refs?.find((ref) => typeof ref === 'string' && ref.startsWith('expires_at:'))?.slice('expires_at:'.length);
-  return expiry && Number.isFinite(Date.parse(expiry)) ? expiry : null;
 }
 
 function unresolvedAmbiguities(state) {

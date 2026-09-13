@@ -1,3 +1,5 @@
+import type { CapabilitySubject } from "./github-decision-receipts";
+
 export const CANONICAL_PROJECT_MANAGER_ID = "mc-project-manager";
 
 export interface ConfiguredSupervisorChat {
@@ -31,7 +33,7 @@ export interface ConfiguredSupervisorChat {
     accountPlanRole: "PROVENANCE_METADATA_ONLY";
     accountPlanIsReasoningMode: false;
   };
-  bootstrapCapability: { chatId: string; url: string; challengeId: string };
+  bootstrapCapability: { chatId: string; url: string; /** @deprecated Dynamic challenges are resolved from Mission Control. */ challengeId: string | null };
   locatorVerification: "OWNER_CONFIGURED_UNVERIFIED";
 }
 
@@ -104,6 +106,27 @@ export function loadConfiguredSupervisorChats(
   }
 }
 
+export function assertCapabilitySubjectsMatchRegistrations(
+  subjects: CapabilitySubject[],
+  directory: ConfiguredSupervisorDirectory,
+): void {
+  if (subjects.length === 0) return;
+  if (directory.configurationState !== "CONFIGURED") {
+    throw new Error("Capability challenge subjects require the exact configured Mission Control-only supervisor registry.");
+  }
+  for (const subject of subjects) {
+    const registration = directory.entries.find((entry) => entry.supervisorId === subject.supervisorId
+      && entry.bootstrapCapability.chatId === subject.chatId);
+    if (!registration || registration.workerId !== subject.worker) {
+      throw new Error("Capability challenge subject does not match an exact registered supervisor/chat/worker binding.");
+    }
+    const conversationId = new URL(registration.bootstrapCapability.url).pathname.split("/").filter(Boolean).at(-1);
+    if (conversationId === subject.chatId) {
+      throw new Error("Capability challenge chat_id must be a non-private alias and cannot equal the conversation locator.");
+    }
+  }
+}
+
 export function loadConfiguredSupervisorChatProvisions(
   raw = process.env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON,
 ): ConfiguredSupervisorProvisionDirectory {
@@ -137,7 +160,10 @@ function parseEntry(value: unknown, index: number): ConfiguredSupervisorChat {
   const bootstrap = isRecord(value.bootstrapCapability) ? value.bootstrapCapability : value;
   const bootstrapChatId = nonEmpty(bootstrap.chatId, `Configured chat ${index} bootstrapCapability.chatId`, 300);
   const url = normalizeConversationUrl(nonEmpty(bootstrap.url, `Configured chat ${index} bootstrapCapability.url`, 1000), index);
-  const challengeId = nonEmpty(bootstrap.challengeId ?? bootstrap.capabilityChallengeId ?? `legacy:${bootstrapChatId}`, `Configured chat ${index} bootstrapCapability.challengeId`, 300);
+  const rawChallengeId = bootstrap.challengeId ?? bootstrap.capabilityChallengeId;
+  const challengeId = rawChallengeId == null
+    ? null
+    : nonEmpty(rawChallengeId, `Configured chat ${index} bootstrapCapability.challengeId`, 300);
   const workerId = value.workerId === null || value.workerId === undefined
     ? null
     : nonEmpty(value.workerId, `Configured chat ${index} workerId`, 180);
