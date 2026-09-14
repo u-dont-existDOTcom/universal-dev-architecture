@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "status": "ACTIVE_PROSPECTIVE_WINDOW",
+  "policyRef": "patterns/work-model-and-effort-routing.md",
+  "window": {
+    "eligibleExecutions": "NEXT_10_NONTRIVIAL_WORK_EXECUTIONS",
+    "targetCount": 10,
+    "completedCount": 0,
+    "broadBenchmarkAuthorized": false,
+    "automaticPolicyMutationAuthorized": false
+  },
+  "privacy": {
+    "sensitiveDataAllowed": false,
+    "recordPromptsOrSourceContent": false,
+    "recordCredentials": false
+  },
+  "entryTemplate": {
+    "ordinal": "replace-with-1-through-10",
+    "taskId": "replace-with-task-id",
+    "repository": "replace-with-owner-and-repository-or-local-alias",
+    "residualExecutionClass": "replace-with-class-after-chat-reasoning",
+    "chosenModel": "GPT-5.6 Sol | GPT-6 Astra | OTHER_AVAILABLE_SURFACE_VALUE",
+    "chosenEffort": "Low | Medium | High | XHigh | Max | OTHER_AVAILABLE_SURFACE_VALUE | UNOBSERVABLE",
+    "routingTier": "TIER_1_SOL_LOW | TIER_2_SOL_MEDIUM | TIER_3_ASTRA_LOW | TIER_4_ASTRA_MEDIUM | TIER_5_ASTRA_EXCEPTION | SOL_HIGH_EXCEPTION",
+    "routingTriggers": [],
+    "directConsumerSeamResult": "PASS | FAIL | UNPROVEN",
+    "failureClassification": "CHAT_PLAN_DEFECT | ACCESS_CONTEXT_DEFECT | EXECUTION_REASONING_SHORTFALL | MECHANICAL_EXECUTION_FAILURE | NOT_APPLICABLE",
+    "wallTimeSeconds": null,
+    "retries": 0,
+    "interventions": [],
+    "testWallTimeSeconds": null,
+    "allowanceDelta": "replace-with-cleanly-exposed-delta-or-UNAVAILABLE",
+    "escalationOccurred": false,
+    "finalSuccessfulTier": "replace-with-tier-or-NONE",
+    "hindsightInitialTier": "OVERPOWERED | UNDERPOWERED | APPROPRIATE | UNPROVEN",
+    "fastModeUsed": false,
+    "notes": "non-sensitive facts only"
+  },
+  "entries": [],
+  "checkpoints": [
+    {
+      "afterCompletedCount": 5,
+      "action": "PRODUCE_CONCISE_LOCAL_SUMMARY_ONLY",
+      "automaticPolicyChange": false
+    },
+    {
+      "afterCompletedCount": 10,
+      "action": "RETURN_EVIDENCE_TO_CHAT_FOR_POLICY_REVIEW",
+      "automaticPolicyChange": false
+    }
+  ],
+  "futurePairedCalibration": {
+    "requiresSpecificMateriallyConsequentialAmbiguityAfterNaturalTelemetry": true,
+    "maximumFrozenTasksWithoutNewChatDirective": 2,
+    "holdConstant": [
+      "base",
+      "directive",
+      "direct_consumer_seam_endpoint",
+      "permissions"
+    ],
+    "varyOnly": "SMALLEST_MODEL_OR_EFFORT_ALTERNATIVES_NEEDED_TO_RESOLVE_BOUNDARY"
+  }
+}

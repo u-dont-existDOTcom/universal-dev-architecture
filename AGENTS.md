@@ -111,6 +111,8 @@ Adjacent analysis, planning, preparation, or a different method does not count a
 Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,
 ordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work
 thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only.
+When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the
+canonical GPT-5.6 Sol / GPT-6 Astra model-and-effort ladder and telemetry contract.
 For controlled supervisory routes also apply
 `patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.
 Worker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:

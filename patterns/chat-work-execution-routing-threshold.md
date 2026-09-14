@@ -98,6 +98,12 @@ If the current reasoning chat is expected to publish a GitHub decision/receipt a
 
 Treat Work/Codex reasoning as a scarce execution resource. After Chat has completed all reasoning it can reliably perform, assign the **lowest reasoning/thinking level reasonably expected to succeed** on the bounded residual execution.
 
+For the current GPT-5.6 Sol / GPT-6 Astra routing ladder, failure classification,
+allowance-aware selection, and prospective calibration contract, apply
+[`work-model-and-effort-routing.md`](work-model-and-effort-routing.md). That
+pattern owns the exact model-plus-effort tiers; this section retains the generic
+minimum-sufficient-effort rule.
+
 Apply these rules:
 
 1. **Reduce before routing.** Chat resolves architecture, strategy, methodology, owner intent, prioritization, acceptance criteria, substantive prose, decomposition, execution instructions, and predictable failure handling when those can be resolved reliably in Chat.
