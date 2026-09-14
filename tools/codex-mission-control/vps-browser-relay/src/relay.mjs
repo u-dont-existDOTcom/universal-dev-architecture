@@ -181,7 +181,7 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus(capability.allCurrent ? 'CAPABILITIES_VERIFIED' : 'AWAITING_CAPABILITY_RECEIPT', state, { chatId, capability, mode, memory });
     }
 
-    const prompt = capabilityControlPrompt(chat);
+    const prompt = capabilityControlPrompt(chat, { missionControlUrl: this.config.missionControl.url });
     let observed;
     let messageApps;
     try {
@@ -206,7 +206,7 @@ export class RelayRuntime {
             lastAttemptAt: intentAt,
           };
           state = await this.stateStore.write(state);
-          messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
+          messageApps = { knownLabels: [chat.requiredApps.github], requiredLabels: [], referencedLabels: [chat.requiredApps.github] };
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
@@ -296,7 +296,7 @@ export class RelayRuntime {
       return this.#writeStandaloneStatus('MCP_PREFLIGHT_GENERATION_COMPLETE', state, { chatId, capability, memory });
     }
 
-    const prompt = mcpReadPreflightPrompt(chat);
+    const prompt = mcpReadPreflightPrompt(chat, { missionControlUrl: this.config.missionControl.url });
     let observed;
     let messageApps;
     try {
@@ -321,7 +321,7 @@ export class RelayRuntime {
             lastAttemptAt: intentAt,
           };
           state = await this.stateStore.write(state);
-          messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
+          messageApps = { knownLabels: [], requiredLabels: [], referencedLabels: [] };
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {

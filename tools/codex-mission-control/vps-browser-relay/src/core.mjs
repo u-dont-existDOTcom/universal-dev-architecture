@@ -587,14 +587,23 @@ function earliestExpiry(...events) {
   return values.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 }
 
-export function capabilityControlPrompt(chat) {
-  assertDiscoveredChallenge(chat);
-  return `Mission Control capability test for challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge for exactly that challenge_id and chat_id. Do not infer or reuse any nonce from this prompt or prior context. Then follow the returned github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
+export function publicCapabilityChallengeUrl(baseUrl, challengeId) {
+  if (typeof baseUrl !== 'string' || !baseUrl) throw new Error('Mission Control public base URL is required.');
+  if (typeof challengeId !== 'string' || !challengeId) throw new Error('Capability challenge ID is required.');
+  const url = new URL(`/api/capability-challenges/${encodeURIComponent(challengeId)}`, baseUrl);
+  return url.toString();
 }
 
-export function mcpReadPreflightPrompt(chat) {
+export function capabilityControlPrompt(chat, { missionControlUrl = 'https://mission-control.invalid' } = {}) {
   assertDiscoveredChallenge(chat);
-  return `Mission Control read-only MCP preflight for capability challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}: remain in Extra High. Use the selected ${chat.requiredApps.missionControl} app and call get_capability_challenge with challenge_id ${chat.bootstrapCapability.challengeId} and chat_id ${chat.bootstrapCapability.chatId}. Fail closed if the exact tool, challenge, or chat binding is unavailable or mismatched, or if expires_at has passed. This is a read-only connectivity preflight: do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the tool call.`;
+  const url = publicCapabilityChallengeUrl(missionControlUrl, chat.bootstrapCapability.challengeId);
+  return `Mission Control capability test for challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}. Read the live public challenge at ${url}; do not use a Mission Control composer app or call a Mission Control tool. Do not infer or reuse any nonce from this prompt or prior context. Extract mc_nonce, github_nonce_sha256, github_nonce_source, receipt_target, and expires_at from that exact URL, verify the challenge/chat binding and expiry, then follow github_nonce_source using ${chat.requiredApps.github}, reread the raw nonce, verify its SHA-256 equals the live github_nonce_sha256, and write exactly one MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1 to the returned receipt_target with the exact ordered capabilities ["MISSION_CONTROL_READ","GITHUB_READ","GITHUB_WRITE"]. Make no substantive project decision. Fail closed without writing if any live field, hash, binding, or expiry check fails.`;
+}
+
+export function mcpReadPreflightPrompt(chat, { missionControlUrl = 'https://mission-control.invalid' } = {}) {
+  assertDiscoveredChallenge(chat);
+  const url = publicCapabilityChallengeUrl(missionControlUrl, chat.bootstrapCapability.challengeId);
+  return `Mission Control structural capability preflight for challenge ${chat.bootstrapCapability.challengeId} and chat ${chat.bootstrapCapability.chatId}: verify that the exact public challenge URL ${url} is provider-reachable and exposes the current challenge binding with no-store semantics. Do not use a Mission Control composer app or call a Mission Control tool. Do not use GitHub, do not write or mutate anything, do not delegate to Work, and stop after the structural check. This preflight does not prove provider Mission Control read; the subsequent capability receipt does.`;
 }
 
 function assertDiscoveredChallenge(chat) {
@@ -606,11 +615,7 @@ export function appSelectionForMessage(chat, step) {
   const missionControl = chat.requiredApps.missionControl;
   const github = chat.requiredApps.github;
   const knownLabels = [...new Set([missionControl, github])];
-  const missionControlSteps = new Set([
-    'CAPABILITY',
-    'MCP_PREFLIGHT',
-    MCP_BINDING_PRELOAD_STEP,
-  ]);
+  const missionControlSteps = new Set([MCP_BINDING_PRELOAD_STEP]);
   const githubSteps = new Set([
     'EXTRA_HIGH_DIRECT',
     'EXTRA_HIGH_READER',

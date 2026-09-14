@@ -197,16 +197,17 @@ test('rotation during discovery rejects the mixed snapshot rather than admitting
   assert.equal(browser.submitCalls, 0);
 });
 
-test('rotation after browser preparation fails before the submission boundary for every send class', async () => {
-  for (const method of ['verifyCapabilities', 'verifyMcpReadPreflight', 'cycle']) {
+test('rotation after browser preparation fails before the submission boundary for provider send classes', async () => {
+  for (const method of ['verifyCapabilities', 'cycle']) {
     const store = new MemoryStateStore();
     const mc = new FakeMissionControl({ evidence: method === 'cycle' ? capabilityEvidence() : [] });
     const browser = new FakeBrowser();
     const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, capabilityTestEnabled: true });
-    const originalSelectApps = browser.selectAppsForMessage.bind(browser);
-    browser.selectAppsForMessage = async (...args) => {
-      const result = await originalSelectApps(...args);
-      mc.currentChallenge.challenge_id = 'successor';
+    const originalControls = browser.ensureExactConsumerControls.bind(browser);
+    let controlChecks = 0;
+    browser.ensureExactConsumerControls = async (...args) => {
+      const result = await originalControls(...args);
+      if (++controlChecks >= 2) mc.currentChallenge.challenge_id = 'successor';
       return result;
     };
     const result = await runtime[method]('spec');
@@ -236,8 +237,8 @@ test('current challenge checks preserve the central scheduler pre-boundary callb
   }
 });
 
-test('every relay send class selects its exact apps inside pre-composition preparation', async () => {
-  for (const method of ['verifyCapabilities', 'verifyMcpReadPreflight', 'cycle']) {
+test('semantic relay sends select exact apps inside pre-composition preparation', async () => {
+  for (const method of ['cycle']) {
     const store = new MemoryStateStore();
     const mc = new FakeMissionControl({ evidence: method === 'cycle' ? capabilityEvidence() : [] });
     const browser = new FakeBrowser();
@@ -559,12 +560,11 @@ test('capability challenge send is independently gated and resumes from generati
   assert.equal(first.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
-  assert.match(browser.lastSubmittedBody, /selected Mission Control app/);
-  assert.match(browser.lastSubmittedBody, /get_capability_challenge/);
+  assert.doesNotMatch(browser.lastSubmittedBody, /selected Mission Control app|get_capability_challenge/);
   assert.match(browser.lastSubmittedBody, /github_nonce_source/);
   assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
-  assert.deepEqual(browser.selectAppsCalls, [{ knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] }]);
+  assert.deepEqual(browser.selectAppsCalls, []);
   const second = await runtime.verifyCapabilities('spec');
   assert.equal(second.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);
@@ -580,12 +580,12 @@ test('MCP preflight is a separately paced read-only send and never replays after
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
   assert.equal(browser.controlChecks.at(-1).thinkingVisibleLabel, 'Extra High');
-  assert.match(browser.lastSubmittedBody, /get_capability_challenge/);
-  assert.match(browser.lastSubmittedBody, /do not use GitHub/);
+  assert.doesNotMatch(browser.lastSubmittedBody, /get_capability_challenge|selected Mission Control app/);
+  assert.match(browser.lastSubmittedBody, /Do not use GitHub/);
   assert.match(browser.lastSubmittedBody, /do not write or mutate anything/);
   assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
-  assert.deepEqual(browser.selectAppsCalls, [{ knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] }]);
+  assert.deepEqual(browser.selectAppsCalls, []);
   const second = await runtime.verifyMcpReadPreflight('spec');
   assert.equal(second.status, 'MCP_PREFLIGHT_GENERATION_COMPLETE');
   assert.equal(browser.submitCalls, 1);

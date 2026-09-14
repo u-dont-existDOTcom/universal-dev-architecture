@@ -27,6 +27,7 @@ import {
   freshChatTargetPlan,
   managedChatGptTabTelemetry,
   mcpReadPreflightPrompt,
+  publicCapabilityChallengeUrl,
   newProviderSessionId,
   nextSupervisoryCycleAction,
   normalizeConversationUrl,
@@ -76,10 +77,10 @@ test('message app requirements are exact and step-specific', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   assert.deepEqual(appSelectionForMessage(chat, 'CAPABILITY'), {
     knownLabels: ['Mission Control', 'GitHub'],
-    requiredLabels: ['Mission Control'],
+    requiredLabels: [],
     referencedLabels: ['GitHub'],
   });
-  assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
+  assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, []);
   assert.deepEqual(appSelectionForMessage(chat, MCP_BINDING_PRELOAD_STEP).requiredLabels, ['Mission Control']);
   for (const step of ['EXTRA_HIGH_DIRECT', 'EXTRA_HIGH_READER', 'PRO_REASONER', 'EXTRA_HIGH_WRITER']) {
     assert.deepEqual(appSelectionForMessage(chat, step).requiredLabels, ['GitHub']);
@@ -272,9 +273,9 @@ test('current challenge discovery rejects wrong pair, historical status, expiry,
 });
 
 test('capability control prompt preserves the owner-approved fresh-chat intent without embedding nonce values', () => {
-  const prompt = capabilityControlPrompt(currentChatFixture());
-  assert.match(prompt, /Use the selected Mission Control app/);
-  assert.match(prompt, /get_capability_challenge/);
+  const prompt = capabilityControlPrompt(currentChatFixture(), { missionControlUrl: 'https://mc.example.test/' });
+  assert.match(prompt, /https:\/\/mc\.example\.test\/api\/capability-challenges\/challenge-spec/);
+  assert.doesNotMatch(prompt, /selected Mission Control app|get_capability_challenge/);
   assert.match(prompt, /challenge challenge-spec and chat spec-bootstrap/);
   assert.match(prompt, /github_nonce_source/);
   assert.match(prompt, /verify its SHA-256 equals the live github_nonce_sha256/);
@@ -283,13 +284,16 @@ test('capability control prompt preserves the owner-approved fresh-chat intent w
 });
 
 test('MCP preflight prompt is exact-bound and cannot authorize GitHub or Mission Control writes', () => {
-  const prompt = mcpReadPreflightPrompt(currentChatFixture());
-  assert.match(prompt, /selected Mission Control app/);
-  assert.match(prompt, /get_capability_challenge/);
-  assert.match(prompt, /challenge_id challenge-spec and chat_id spec-bootstrap/);
-  assert.match(prompt, /do not use GitHub/);
+  const prompt = mcpReadPreflightPrompt(currentChatFixture(), { missionControlUrl: 'https://mc.example.test/' });
+  assert.match(prompt, /https:\/\/mc\.example\.test\/api\/capability-challenges\/challenge-spec/);
+  assert.doesNotMatch(prompt, /selected Mission Control app|get_capability_challenge/);
+  assert.match(prompt, /Do not use GitHub/);
   assert.match(prompt, /do not write or mutate anything/);
   assert.doesNotMatch(prompt, /mc-secret|gh-secret/);
+});
+
+test('public capability challenge URL encodes the exact challenge ID', () => {
+  assert.equal(publicCapabilityChallengeUrl('https://mc.example.test/base/', 'challenge/a'), 'https://mc.example.test/api/capability-challenges/challenge%2Fa');
 });
 
 test('binding preload and every mandatory GitHub write use distinct fresh first-message sessions', () => {
