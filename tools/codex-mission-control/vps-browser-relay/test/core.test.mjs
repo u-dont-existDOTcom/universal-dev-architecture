@@ -76,8 +76,8 @@ test('message app requirements are exact and step-specific', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   assert.deepEqual(appSelectionForMessage(chat, 'CAPABILITY'), {
     knownLabels: ['Mission Control', 'GitHub'],
-    requiredLabels: ['Mission Control'],
-    referencedLabels: ['GitHub'],
+    requiredLabels: ['Mission Control', 'GitHub'],
+    referencedLabels: [],
   });
   assert.deepEqual(appSelectionForMessage(chat, 'MCP_PREFLIGHT').requiredLabels, ['Mission Control']);
   assert.deepEqual(appSelectionForMessage(chat, MCP_BINDING_PRELOAD_STEP).requiredLabels, ['Mission Control']);

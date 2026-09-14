@@ -644,18 +644,7 @@ export class ChromeDevtoolsBrowser {
         const retainedCurrentInlineLabels = [];
         const initial = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, null]);
         appSelectionState(initial, null);
-        if (initial.inlineChipTotalCount > 0) {
-          // Inline pills are current-message protected editor state. Retain
-          // them only when the unsent composer contains the exact required set.
-          if (!initial.composerEmpty) throw new Error('ChatGPT composer contains text beside selected inline app pills.');
-          for (const label of knownLabels) {
-            const expected = requiredLabels.includes(label) ? 1 : 0;
-            if (initial.inlineChipCounts?.[label] !== expected) {
-              throw new Error(`Current-message inline app selection does not match exact required label ${label}.`);
-            }
-            if (expected === 1) retainedCurrentInlineLabels.push(label);
-          }
-        }
+        retainedCurrentInlineLabels.push(...currentInlineAppSelectionState(initial, knownLabels, requiredLabels));
         for (const label of knownLabels) {
           const observation = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, label]);
           appSelectionState(observation, label);
@@ -1073,6 +1062,24 @@ export class ChromeDevtoolsBrowser {
     if (!response.ok) throw new Error(`Chrome DevTools endpoint ${path} failed with HTTP ${response.status}.`);
     return value;
   }
+}
+
+export function currentInlineAppSelectionState(observation, knownLabels, requiredLabels) {
+  if ((observation?.inlineChipTotalCount ?? 0) === 0) return [];
+  if (!observation.composerEmpty) throw new Error('ChatGPT composer contains text beside selected inline app pills.');
+  const retained = [];
+  for (const label of knownLabels) {
+    const count = observation.inlineChipCounts?.[label];
+    if (count !== 0 && count !== 1) throw new Error(`Current-message inline app selection is ambiguous for exact label ${label}.`);
+    if (count === 1 && !requiredLabels.includes(label)) {
+      throw new Error(`Current-message inline app selection contains unexpected exact label ${label}.`);
+    }
+    if (count === 1) retained.push(label);
+  }
+  if (retained.length !== observation.inlineChipTotalCount) {
+    throw new Error('Current-message inline app selection contains an unknown or malformed app pill.');
+  }
+  return retained;
 }
 
 class CdpConnection {

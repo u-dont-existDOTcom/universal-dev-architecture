@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   appSelectionState,
   consumerControlSelectionState,
+  currentInlineAppSelectionState,
   exactModelSelectionState,
   modelMenuSelectionState,
 } from '../src/cdp.mjs';
@@ -200,4 +201,24 @@ test('current searchable app menu and inline app pills are guarded before the se
   assert.match(source, /Input\.insertText', \{ text: ownedScratchQuery \}/);
   assert.match(source, /error\.relayStage = 'APP_SELECTION_PRECLICK'/);
   assert.match(relaySource, /expectedAppLabels: messageApps\.selectedLabels/);
+});
+
+test('a protected current-message app subset is retained while missing required apps remain selectable', () => {
+  const observation = {
+    composerEmpty: true,
+    inlineChipTotalCount: 1,
+    inlineChipCounts: { 'Mission Control': 1, GitHub: 0 },
+  };
+  assert.deepEqual(
+    currentInlineAppSelectionState(observation, ['Mission Control', 'GitHub'], ['Mission Control', 'GitHub']),
+    ['Mission Control'],
+  );
+  assert.throws(
+    () => currentInlineAppSelectionState(observation, ['Mission Control', 'GitHub'], ['GitHub']),
+    /unexpected exact label Mission Control/,
+  );
+  assert.throws(
+    () => currentInlineAppSelectionState({ ...observation, composerEmpty: false }, ['Mission Control', 'GitHub'], ['Mission Control', 'GitHub']),
+    /contains text beside selected inline app pills/,
+  );
 });

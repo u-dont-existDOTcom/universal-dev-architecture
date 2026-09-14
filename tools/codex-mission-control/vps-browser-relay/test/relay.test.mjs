@@ -564,7 +564,7 @@ test('capability challenge send is independently gated and resumes from generati
   assert.match(browser.lastSubmittedBody, /github_nonce_source/);
   assert.equal(browser.lastSubmittedBody.includes('mc-secret'), false);
   assert.equal(browser.lastSubmittedBody.includes('gh-secret'), false);
-  assert.deepEqual(browser.selectAppsCalls, [{ knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: ['GitHub'] }]);
+  assert.deepEqual(browser.selectAppsCalls, [{ knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control', 'GitHub'], referencedLabels: [] }]);
   const second = await runtime.verifyCapabilities('spec');
   assert.equal(second.status, 'AWAITING_CAPABILITY_RECEIPT');
   assert.equal(browser.submitCalls, 1);

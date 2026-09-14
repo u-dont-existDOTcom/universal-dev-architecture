@@ -621,8 +621,8 @@ export function appSelectionForMessage(chat, step) {
   const referencedLabels = [];
   if (missionControlSteps.has(step)) requiredLabels.push(missionControl);
   if (githubSteps.has(step)) requiredLabels.push(github);
+  if (step === 'CAPABILITY') requiredLabels.push(github);
   if (step === 'EXTRA_HIGH_DECISION' || step === 'PRO_DECISION') referencedLabels.push(github);
-  if (step === 'CAPABILITY') referencedLabels.push(github);
   return { knownLabels, requiredLabels, referencedLabels };
 }
 
