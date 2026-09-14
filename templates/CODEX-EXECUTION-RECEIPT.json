@@ -48,8 +48,8 @@
       "effort": "MEDIUM",
       "routingTier": "SOL_MEDIUM",
       "routingTriggers": [],
-      "fastMode": false,
-      "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+      "fastModeRequest": "DO_NOT_ENABLE_FAST",
+      "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
       "policyRef": "patterns/work-model-and-effort-routing.md",
       "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
     },
@@ -58,40 +58,41 @@
       "effort": "MEDIUM",
       "routingTier": "SOL_MEDIUM",
       "routingTriggers": [],
-      "fastMode": false,
-      "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+      "fastModeRequest": "DO_NOT_ENABLE_FAST",
+      "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
       "policyRef": "patterns/work-model-and-effort-routing.md",
       "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
     },
     "observedProfile": {
-      "model": "GPT_5_6_SOL",
-      "effort": "MEDIUM",
-      "fastMode": false
+      "model": null,
+      "effort": null,
+      "fastMode": null
     },
     "appliedSelection": {
       "model": "gpt-5.6-sol",
       "thinking": "medium",
-      "fastMode": false
+      "fastModeRequest": "DO_NOT_ENABLE_FAST"
     },
     "observability": {
-      "model": "SET_AND_VERIFY",
-      "effort": "SET_AND_VERIFY",
-      "fastMode": "SET_AND_VERIFY"
+      "model": "SET_ONLY",
+      "effort": "SET_ONLY",
+      "fastMode": "UNOBSERVABLE"
     },
-    "preflight": "MATCH",
-    "preflightDecision": "WORK_EXECUTION_PROFILE_MATCH",
+    "preflight": "SET_REQUEST_ACCEPTED_UNVERIFIED",
+    "preflightDecision": "WORK_EXECUTION_SET_REQUEST_ACCEPTED_UNVERIFIED",
+    "modelIdentityEvidence": "SET_REQUEST_ONLY",
     "escalations": [],
     "finalProfile": {
       "model": "GPT_5_6_SOL",
       "effort": "MEDIUM",
       "routingTier": "SOL_MEDIUM",
       "routingTriggers": [],
-      "fastMode": false,
-      "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+      "fastModeRequest": "DO_NOT_ENABLE_FAST",
+      "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
       "policyRef": "patterns/work-model-and-effort-routing.md",
       "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
     },
-    "fastMode": false,
+    "fastModeObserved": null,
     "allowanceDelta": null,
     "routingTelemetry": {
       "eligible": true,
@@ -106,6 +107,7 @@
       "testWallTimeSeconds": null,
       "escalationOccurred": false,
       "finalSuccessfulTier": "SOL_MEDIUM",
+      "modelIdentityEvidence": "SET_REQUEST_ONLY",
       "hindsightInitialTier": "APPROPRIATE | CLEARLY_OVERPOWERED | CLEARLY_UNDERPOWERED | UNPROVEN"
     }
   },

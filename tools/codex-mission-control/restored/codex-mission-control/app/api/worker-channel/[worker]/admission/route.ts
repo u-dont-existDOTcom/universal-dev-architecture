@@ -2,7 +2,7 @@ import { daemonFetch, daemonMutationHeaders } from "@/lib/daemon-client";
 import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 import { parseGitHubReceiptPolicy, validateConfiguredDecisionLocation } from "@/lib/github-decision-receipts";
 import { continuationIntentForAdmission, parseSupervisionAdmissionInput, evaluateSupervisionAdmission } from "@/lib/supervision-admission-runtime";
-import { buildWorkExecutionAuthorizationEnvelope } from "@/lib/work-execution-runtime";
+import { buildWorkExecutionAuthorizationEnvelope, currentExecutionDirectiveProof } from "@/lib/work-execution-runtime";
 import { parseWorkExecutionProfile } from "@/lib/work-execution-profile";
 import type { AuthenticatedProducer } from "@/lib/ingestion-auth";
 
@@ -36,15 +36,22 @@ export async function POST(request: Request, context: { params: Promise<{ worker
     const now = new Date().toISOString();
     const parsedInput = parseSupervisionAdmissionInput(body);
     const intent = continuationIntentForAdmission(worker, parsedInput, now);
+    const needsDirectiveProof = parsedInput.request.action === "EXECUTE_BOUNDED_TASK"
+      && parsedInput.request.directiveSchemaVersion === 3;
+    let historyEvents: StoredEvent[] = [];
+    if (intent || needsDirectiveProof) {
+      const history = await daemonFetch("/events");
+      if (!history.ok) throw new Error("Mission Control event history is unavailable for admission derivation.");
+      const payload = await history.json() as { events?: StoredEvent[] };
+      if (!Array.isArray(payload.events)) throw new Error("Mission Control admission history is invalid.");
+      historyEvents = payload.events;
+    }
     let continuation;
     if (intent) {
-      const history = await daemonFetch("/events");
-      if (!history.ok) throw new Error("Mission Control event history is unavailable for continuation derivation.");
-      const payload = await history.json() as { events?: StoredEvent[] };
-      if (!Array.isArray(payload.events)) throw new Error("Mission Control continuation history is invalid.");
-      continuation = deriveOwnerResponseContinuation(payload.events, intent, now);
+      continuation = deriveOwnerResponseContinuation(historyEvents, intent, now);
     }
-    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation);
+    const directiveProof = needsDirectiveProof ? currentExecutionDirectiveProof(worker, historyEvents) : null;
+    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation, directiveProof);
     let profileAuthorizationEvent = null;
     if (result.mayExecute && result.authorizedWorkExecutionProfile) {
       const authorizedProfile = parseWorkExecutionProfile(result.authorizedWorkExecutionProfile);

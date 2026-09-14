@@ -43,7 +43,14 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
 
         self.assertEqual(directive["schemaVersion"], 3)
         self.assertIn("workExecutionProfile", directive)
-        self.assertFalse(directive["workExecutionProfile"]["fastMode"])
+        self.assertEqual(
+            directive["workExecutionProfile"]["fastModeRequest"],
+            "DO_NOT_ENABLE_FAST",
+        )
+        self.assertEqual(
+            directive["workExecutionProfile"]["assuranceRequirement"],
+            "SET_REQUEST_SUFFICIENT",
+        )
         self.assertIn("reasoningSupervisor", directive)
         self.assertIn("strategy", directive)
         self.assertEqual(directive["ownerDecisionAuthority"], "NONE")

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  evaluateChatWorkAuthorityGate,
+  evaluateChatWorkAuthorityGate as evaluateGate,
   type ChatWorkAuthorityRequest,
+  type PersistedExecutionDirectiveProof,
   type ReasoningSourceReceipt,
 } from "../lib/chat-work-authority-gate";
 import {
@@ -12,11 +13,12 @@ import {
   type WorkExecutionProfile,
 } from "../lib/work-execution-profile";
 
-const digest = "a".repeat(64);
+const sourceDigest = "a".repeat(64);
+const directiveDigest = "b".repeat(64);
 
 const extraHighReceipt: ReasoningSourceReceipt = {
   messageId: "chat-message:askrigor-extra-high:zero-spend-directive",
-  bodySha256: digest,
+  bodySha256: sourceDigest,
   claimedSurface: "CHATGPT_PROJECT_MANAGER",
   observedSurface: "CHATGPT_PROJECT_MANAGER",
   provenanceStatus: "VERIFIED",
@@ -28,8 +30,8 @@ const solMediumProfile: WorkExecutionProfile = {
   effort: "MEDIUM",
   routingTier: "SOL_MEDIUM",
   routingTriggers: [],
-  fastMode: false,
-  verificationRequirement: "EXACT_PROFILE_REQUIRED",
+  fastModeRequest: "DO_NOT_ENABLE_FAST",
+  assuranceRequirement: "SET_REQUEST_SUFFICIENT",
   policyRef: WORK_MODEL_ROUTING_POLICY_REF,
   policyCommit: WORK_MODEL_ROUTING_POLICY_COMMIT,
 };
@@ -60,11 +62,26 @@ function request(
       directiveId: "directive:askrigor:mast:1",
       directiveRevision: 1,
       taskId: "task:askrigor:mast",
-      directiveSha256: digest,
+      directiveArtifactSha256: directiveDigest,
     },
     workExecutionProfile: solMediumProfile,
     ...overrides,
   };
+}
+
+const directiveProof: PersistedExecutionDirectiveProof = {
+  directiveId: "directive:askrigor:mast:1",
+  directiveRevision: 1,
+  taskId: "task:askrigor:mast",
+  directiveArtifactSha256: directiveDigest,
+  sourceMessageId: extraHighReceipt.messageId,
+  sourceBodySha256: sourceDigest,
+  status: "ACTIVE",
+  workExecutionProfile: solMediumProfile,
+};
+
+function evaluateChatWorkAuthorityGate(value: ChatWorkAuthorityRequest) {
+  return evaluateGate(value, directiveProof);
 }
 
 test("Codex-authored $30 paid-API smoke proposal is rejected before proposal formation", () => {

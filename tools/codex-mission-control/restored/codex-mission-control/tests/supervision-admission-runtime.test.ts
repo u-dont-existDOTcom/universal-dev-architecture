@@ -13,7 +13,9 @@ import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import {
   WORK_MODEL_ROUTING_POLICY_COMMIT,
   WORK_MODEL_ROUTING_POLICY_REF,
+  type WorkExecutionProfile,
 } from "../lib/work-execution-profile";
+import type { PersistedExecutionDirectiveProof } from "../lib/chat-work-authority-gate";
 
 const workerProducer: AuthenticatedProducer = {
   id: "worker:askrigor-mast",
@@ -21,14 +23,15 @@ const workerProducer: AuthenticatedProducer = {
   workerScopes: ["askrigor-mast"],
   taskScopes: ["task:askrigor-mast"],
 };
-const digest = "a".repeat(64);
-const solMediumProfile = {
+const sourceDigest = "a".repeat(64);
+const directiveDigest = "b".repeat(64);
+const solMediumProfile: WorkExecutionProfile = {
   model: "GPT_5_6_SOL",
   effort: "MEDIUM",
   routingTier: "SOL_MEDIUM",
   routingTriggers: [],
-  fastMode: false,
-  verificationRequirement: "EXACT_PROFILE_REQUIRED",
+  fastModeRequest: "DO_NOT_ENABLE_FAST",
+  assuranceRequirement: "SET_REQUEST_SUFFICIENT",
   policyRef: WORK_MODEL_ROUTING_POLICY_REF,
   policyCommit: WORK_MODEL_ROUTING_POLICY_COMMIT,
 };
@@ -57,7 +60,7 @@ function input(overrides: Record<string, unknown> = {}) {
       directiveId: "directive:askrigor:mast:1",
       directiveRevision: 1,
       taskId: "task:askrigor:mast",
-      directiveSha256: digest,
+      directiveArtifactSha256: directiveDigest,
     },
     workExecutionProfile: solMediumProfile,
     ...requestOverrides,
@@ -74,6 +77,17 @@ function input(overrides: Record<string, unknown> = {}) {
   };
   return { ...base, ...overrides, request };
 }
+
+const directiveProof: PersistedExecutionDirectiveProof = {
+  directiveId: "directive:askrigor:mast:1",
+  directiveRevision: 1,
+  taskId: "task:askrigor:mast",
+  directiveArtifactSha256: directiveDigest,
+  sourceMessageId: "chat-message:askrigor:zero-spend",
+  sourceBodySha256: sourceDigest,
+  status: "ACTIVE",
+  workExecutionProfile: solMediumProfile,
+};
 
 test("Codex spend design is blocked before action and automatically queued to Chat", () => {
   const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input(), "2026-09-01T21:00:00.000Z");
@@ -154,7 +168,7 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
       actor: "CODEX",
       sourceReceipt: {
         messageId: "chat-message:askrigor:zero-spend",
-        bodySha256: digest,
+        bodySha256: sourceDigest,
         claimedSurface: "CHATGPT_PROJECT_MANAGER",
         observedSurface: "CHATGPT_PROJECT_MANAGER",
         provenanceStatus: "VERIFIED",
@@ -167,7 +181,7 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
       internalRoute: null,
     },
     factualPacket: null,
-  }));
+  }), undefined, undefined, directiveProof);
   assert.equal(result.admitted, true);
   assert.equal(result.mayExecute, true);
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");

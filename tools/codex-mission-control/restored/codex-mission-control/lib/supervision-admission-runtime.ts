@@ -8,6 +8,7 @@ import {
   type ControlledAction,
   type ExecutionScope,
   type InternalSupervisorRoute,
+  type PersistedExecutionDirectiveProof,
   type ReasoningSourceReceipt,
   type SpendRequest,
 } from "./chat-work-authority-gate";
@@ -89,6 +90,7 @@ export function evaluateSupervisionAdmission(
   input: unknown,
   now = new Date().toISOString(),
   authoritativeContinuation?: OwnerResponseContinuation,
+  persistedDirective: PersistedExecutionDirectiveProof | null = null,
 ): SupervisionAdmissionResult {
   const parsed = parseSupervisionAdmissionInput(input);
   assertProducerActor(producer, parsed.request.actor);
@@ -114,7 +116,7 @@ export function evaluateSupervisionAdmission(
     }
   }
 
-  const primaryDecision = evaluateChatWorkAuthorityGate(parsed.request);
+  const primaryDecision = evaluateChatWorkAuthorityGate(parsed.request, persistedDirective);
   if (primaryDecision.allowed && parsed.request.action === "EXECUTE_BOUNDED_TASK") {
     return {
       requestId: parsed.request.requestId,
@@ -396,9 +398,9 @@ function parseInternalRoute(value: unknown): InternalSupervisorRoute {
 
 function parseExecutionDirectiveBinding(value: unknown): NonNullable<ChatWorkAuthorityRequest["executionDirectiveBinding"]> {
   const record = requiredRecord(value, "request.executionDirectiveBinding");
-  const directiveSha256 = requiredString(record.directiveSha256, "request.executionDirectiveBinding.directiveSha256", 64);
-  if (!/^[a-f0-9]{64}$/.test(directiveSha256)) {
-    throw admissionError(400, "request.executionDirectiveBinding.directiveSha256 must be a lowercase SHA-256 digest.");
+  const directiveArtifactSha256 = requiredString(record.directiveArtifactSha256, "request.executionDirectiveBinding.directiveArtifactSha256", 64);
+  if (!/^[a-f0-9]{64}$/.test(directiveArtifactSha256)) {
+    throw admissionError(400, "request.executionDirectiveBinding.directiveArtifactSha256 must be a lowercase SHA-256 digest.");
   }
   if (!Number.isInteger(record.directiveRevision) || Number(record.directiveRevision) < 1) {
     throw admissionError(400, "request.executionDirectiveBinding.directiveRevision must be a positive integer.");
@@ -407,7 +409,7 @@ function parseExecutionDirectiveBinding(value: unknown): NonNullable<ChatWorkAut
     directiveId: requiredString(record.directiveId, "request.executionDirectiveBinding.directiveId", 180),
     directiveRevision: Number(record.directiveRevision),
     taskId: requiredString(record.taskId, "request.executionDirectiveBinding.taskId", 180),
-    directiveSha256,
+    directiveArtifactSha256,
   };
 }
 

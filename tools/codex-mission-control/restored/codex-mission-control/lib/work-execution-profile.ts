@@ -16,10 +16,11 @@ export const workRoutingTierSchema = z.enum([
   "ASTRA_MAX",
   "SOL_HIGH_EXCEPTION",
 ]);
-export const workProfileVerificationRequirementSchema = z.enum([
-  "EXACT_PROFILE_REQUIRED",
-  "SIMPLE_DETERMINISTIC_UNOBSERVABLE_ALLOWED",
+export const workProfileAssuranceRequirementSchema = z.enum([
+  "SET_REQUEST_SUFFICIENT",
+  "INDEPENDENT_READBACK_REQUIRED",
 ]);
+export const workFastModeRequestSchema = z.enum(["DO_NOT_ENABLE_FAST", "ENABLE_FAST"]);
 
 const expectedTierProfile = {
   SOL_LOW: ["GPT_5_6_SOL", "LOW"],
@@ -37,8 +38,8 @@ export const workExecutionProfileSchema = z.object({
   effort: workEffortSchema,
   routingTier: workRoutingTierSchema,
   routingTriggers: z.array(z.string().trim().min(1).max(120).regex(/^[A-Z0-9][A-Z0-9_:.\/-]*$/)).max(20),
-  fastMode: z.boolean(),
-  verificationRequirement: workProfileVerificationRequirementSchema,
+  fastModeRequest: workFastModeRequestSchema,
+  assuranceRequirement: workProfileAssuranceRequirementSchema,
   policyRef: z.literal(WORK_MODEL_ROUTING_POLICY_REF),
   policyCommit: z.literal(WORK_MODEL_ROUTING_POLICY_COMMIT),
 }).strict().superRefine((profile, context) => {
@@ -70,7 +71,8 @@ export const workExecutionProfileSchema = z.object({
 export type WorkModel = z.infer<typeof workModelSchema>;
 export type WorkEffort = z.infer<typeof workEffortSchema>;
 export type WorkRoutingTier = z.infer<typeof workRoutingTierSchema>;
-export type WorkProfileVerificationRequirement = z.infer<typeof workProfileVerificationRequirementSchema>;
+export type WorkProfileAssuranceRequirement = z.infer<typeof workProfileAssuranceRequirementSchema>;
+export type WorkFastModeRequest = z.infer<typeof workFastModeRequestSchema>;
 export type WorkExecutionProfile = z.infer<typeof workExecutionProfileSchema>;
 export type LegacyWorkExecutionProfile = typeof LEGACY_MODEL_PROFILE_UNSPECIFIED;
 export type AuthorizedWorkExecutionProfile = WorkExecutionProfile | LegacyWorkExecutionProfile;
@@ -113,20 +115,38 @@ export const observedWorkExecutionProfileSchema = z.object({
 }).strict();
 export type ObservedWorkExecutionProfile = z.infer<typeof observedWorkExecutionProfileSchema>;
 
-export const workExecutionPreflightResultSchema = z.enum(["MATCH", "MISMATCH", "UNVERIFIABLE", "PARTIAL"]);
+export const workExecutionPreflightResultSchema = z.enum([
+  "SET_AND_VERIFIED",
+  "SET_REQUEST_ACCEPTED_UNVERIFIED",
+  "MISMATCH",
+  "UNVERIFIABLE",
+]);
 export type WorkExecutionPreflightResult = z.infer<typeof workExecutionPreflightResultSchema>;
 export type WorkExecutionPreflightDecision =
-  | "WORK_EXECUTION_PROFILE_MATCH"
+  | "WORK_EXECUTION_PROFILE_SET_AND_VERIFIED"
+  | "WORK_EXECUTION_SET_REQUEST_ACCEPTED_UNVERIFIED"
   | "WORK_EXECUTION_PROFILE_MISMATCH"
-  | "WORK_EXECUTION_PROFILE_UNVERIFIABLE"
-  | "PROFILE_FIELD_UNOBSERVABLE_PROCEEDED_BY_POLICY";
+  | "WORK_EXECUTION_PROFILE_UNVERIFIABLE";
 export type WorkExecutionField = "model" | "effort" | "fastMode";
-export type WorkExecutionFieldResult = "MATCH" | "MISMATCH" | "UNVERIFIED";
+export type WorkExecutionFieldResult =
+  | "SET_AND_VERIFIED"
+  | "SET_REQUEST_ONLY"
+  | "INDEPENDENTLY_VERIFIED"
+  | "NOT_REQUESTED_UNVERIFIED"
+  | "MISMATCH"
+  | "UNVERIFIED";
+export const workModelIdentityEvidenceSchema = z.enum([
+  "SET_AND_VERIFIED",
+  "SET_REQUEST_ONLY",
+  "INDEPENDENTLY_VERIFIED",
+  "UNVERIFIED",
+]);
+export type WorkModelIdentityEvidence = z.infer<typeof workModelIdentityEvidenceSchema>;
 
 export interface WorkLaunchSelection {
   model: "gpt-5.6-sol" | "gpt-6-astra";
   thinking: "low" | "medium" | "high" | "xhigh" | "max";
-  fastMode: boolean;
+  fastModeRequest: WorkFastModeRequest;
 }
 
 export interface WorkExecutionPreflight {
@@ -135,6 +155,7 @@ export interface WorkExecutionPreflight {
   decision: WorkExecutionPreflightDecision;
   fieldResults: Record<WorkExecutionField, WorkExecutionFieldResult>;
   reasonCodes: string[];
+  modelIdentityEvidence: WorkModelIdentityEvidence;
   requestedProfile: WorkExecutionProfile;
   authorizedProfile: WorkExecutionProfile;
   observedProfile: ObservedWorkExecutionProfile;
@@ -159,7 +180,7 @@ export function launchSelectionFor(profile: WorkExecutionProfile): WorkLaunchSel
   return {
     model: profile.model === "GPT_5_6_SOL" ? "gpt-5.6-sol" : "gpt-6-astra",
     thinking: profile.effort.toLowerCase() as WorkLaunchSelection["thinking"],
-    fastMode: profile.fastMode,
+    fastModeRequest: profile.fastModeRequest,
   };
 }
 
@@ -173,13 +194,14 @@ export function evaluateWorkExecutionPreflight(input: {
   const { requestedProfile, authorizedProfile, observedProfile, appliedSelection, capability } = input;
   const launchSelection = launchSelectionFor(authorizedProfile);
   const fieldResults: WorkExecutionPreflight["fieldResults"] = {
-    model: compareObservedField(authorizedProfile.model, observedProfile.model, capability.model,
+    model: compareModelOrEffortField(authorizedProfile.model, observedProfile.model, capability.model,
       appliedSelection?.model ?? null, launchSelection.model),
-    effort: compareObservedField(authorizedProfile.effort, observedProfile.effort, capability.effort,
+    effort: compareModelOrEffortField(authorizedProfile.effort, observedProfile.effort, capability.effort,
       appliedSelection?.thinking ?? null, launchSelection.thinking),
-    fastMode: compareObservedField(authorizedProfile.fastMode, observedProfile.fastMode, capability.fastMode,
-      appliedSelection?.fastMode ?? null, launchSelection.fastMode),
+    fastMode: compareFastModeField(authorizedProfile.fastModeRequest, observedProfile.fastMode, capability.fastMode,
+      appliedSelection?.fastModeRequest ?? null),
   };
+  const modelIdentityEvidence = identityEvidenceFor(fieldResults.model, fieldResults.effort);
   const rewritten = !workExecutionProfilesEqual(requestedProfile, authorizedProfile);
   if (rewritten || Object.values(fieldResults).includes("MISMATCH")) {
     return {
@@ -191,6 +213,7 @@ export function evaluateWorkExecutionPreflight(input: {
         ...(rewritten ? ["REQUESTED_PROFILE_DIFFERS_FROM_SOURCE_BOUND_AUTHORIZATION"] : []),
         ...mismatchedFieldCodes(fieldResults),
       ],
+      modelIdentityEvidence,
       requestedProfile,
       authorizedProfile,
       observedProfile,
@@ -201,15 +224,24 @@ export function evaluateWorkExecutionPreflight(input: {
   }
 
   const unverified = Object.entries(fieldResults)
-    .filter(([, result]) => result === "UNVERIFIED")
+    .filter(([, result]) => ["UNVERIFIED", "SET_REQUEST_ONLY", "NOT_REQUESTED_UNVERIFIED"].includes(result))
     .map(([field]) => `PROFILE_FIELD_UNVERIFIED_${field.toUpperCase()}`);
-  if (unverified.length > 0 && authorizedProfile.verificationRequirement === "EXACT_PROFILE_REQUIRED") {
+  const fastRequestUnavailable = authorizedProfile.fastModeRequest === "ENABLE_FAST"
+    && capability.fastMode === "UNOBSERVABLE";
+  const independentIdentityMissing = authorizedProfile.assuranceRequirement === "INDEPENDENT_READBACK_REQUIRED"
+    && !["SET_AND_VERIFIED", "INDEPENDENTLY_VERIFIED"].includes(modelIdentityEvidence);
+  if (fastRequestUnavailable || independentIdentityMissing) {
     return {
       allowed: false,
       result: "UNVERIFIABLE",
       decision: "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
       fieldResults,
-      reasonCodes: unverified,
+      reasonCodes: [
+        ...(fastRequestUnavailable ? ["FAST_MODE_CONTROL_UNAVAILABLE"] : []),
+        ...(independentIdentityMissing ? ["INDEPENDENT_MODEL_EFFORT_READBACK_REQUIRED"] : []),
+        ...unverified,
+      ],
+      modelIdentityEvidence,
       requestedProfile,
       authorizedProfile,
       observedProfile,
@@ -218,13 +250,14 @@ export function evaluateWorkExecutionPreflight(input: {
       launchSelection,
     };
   }
-  if (unverified.length > 0) {
+  if (modelIdentityEvidence === "SET_REQUEST_ONLY" || unverified.length > 0) {
     return {
       allowed: true,
-      result: "PARTIAL",
-      decision: "PROFILE_FIELD_UNOBSERVABLE_PROCEEDED_BY_POLICY",
+      result: "SET_REQUEST_ACCEPTED_UNVERIFIED",
+      decision: "WORK_EXECUTION_SET_REQUEST_ACCEPTED_UNVERIFIED",
       fieldResults,
-      reasonCodes: ["SIMPLE_DETERMINISTIC_UNOBSERVABLE_ALLOWED", ...unverified],
+      reasonCodes: ["PROVIDER_MODEL_IDENTITY_NOT_INDEPENDENTLY_VERIFIED", ...unverified],
+      modelIdentityEvidence,
       requestedProfile,
       authorizedProfile,
       observedProfile,
@@ -235,10 +268,11 @@ export function evaluateWorkExecutionPreflight(input: {
   }
   return {
     allowed: true,
-    result: "MATCH",
-    decision: "WORK_EXECUTION_PROFILE_MATCH",
+    result: "SET_AND_VERIFIED",
+    decision: "WORK_EXECUTION_PROFILE_SET_AND_VERIFIED",
     fieldResults,
     reasonCodes: [],
+    modelIdentityEvidence,
     requestedProfile,
     authorizedProfile,
     observedProfile,
@@ -261,17 +295,48 @@ export function failureMayAuthorizeProfileEscalation(value: WorkExecutionFailure
   return value === "EXECUTION_REASONING_SHORTFALL";
 }
 
-function compareObservedField<T, U>(
+function compareModelOrEffortField<T, U>(
   authorized: T,
   observed: T | null,
   capability: WorkProfileCapability,
   applied: U | null,
   requiredApplication: U,
 ): WorkExecutionFieldResult {
+  if (observed !== null && observed !== authorized) return "MISMATCH";
   if ((capability === "SET_AND_VERIFY" || capability === "SET_ONLY") && applied !== requiredApplication) return "MISMATCH";
-  if (capability !== "SET_AND_VERIFY" && capability !== "VERIFY_ONLY") return "UNVERIFIED";
-  if (observed === null) return "UNVERIFIED";
-  return observed === authorized ? "MATCH" : "MISMATCH";
+  if (capability === "SET_AND_VERIFY") return observed === null ? "UNVERIFIED" : "SET_AND_VERIFIED";
+  if (capability === "SET_ONLY") return "SET_REQUEST_ONLY";
+  if (capability === "VERIFY_ONLY") return observed === null ? "UNVERIFIED" : "INDEPENDENTLY_VERIFIED";
+  return "UNVERIFIED";
+}
+
+function compareFastModeField(
+  requested: WorkFastModeRequest,
+  observed: boolean | null,
+  capability: WorkProfileCapability,
+  applied: WorkFastModeRequest | null,
+): WorkExecutionFieldResult {
+  const requestedValue = requested === "ENABLE_FAST";
+  if (observed !== null && observed !== requestedValue) return "MISMATCH";
+  if (capability === "UNOBSERVABLE") {
+    return requested === "DO_NOT_ENABLE_FAST" && applied === "DO_NOT_ENABLE_FAST"
+      ? "NOT_REQUESTED_UNVERIFIED"
+      : "UNVERIFIED";
+  }
+  if ((capability === "SET_AND_VERIFY" || capability === "SET_ONLY") && applied !== requested) return "MISMATCH";
+  if (capability === "SET_AND_VERIFY") return observed === null ? "UNVERIFIED" : "SET_AND_VERIFIED";
+  if (capability === "SET_ONLY") return "SET_REQUEST_ONLY";
+  return observed === null ? "UNVERIFIED" : "INDEPENDENTLY_VERIFIED";
+}
+
+function identityEvidenceFor(
+  model: WorkExecutionFieldResult,
+  effort: WorkExecutionFieldResult,
+): WorkModelIdentityEvidence {
+  if (model === "SET_AND_VERIFIED" && effort === "SET_AND_VERIFIED") return "SET_AND_VERIFIED";
+  if (model === "SET_REQUEST_ONLY" && effort === "SET_REQUEST_ONLY") return "SET_REQUEST_ONLY";
+  if (model === "INDEPENDENTLY_VERIFIED" && effort === "INDEPENDENTLY_VERIFIED") return "INDEPENDENTLY_VERIFIED";
+  return "UNVERIFIED";
 }
 
 function mismatchedFieldCodes(results: WorkExecutionPreflight["fieldResults"]): string[] {

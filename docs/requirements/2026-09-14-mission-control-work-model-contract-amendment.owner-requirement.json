@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MISSION-CONTROL-WORK-MODEL-CONTRACT-AMENDMENT-20260914",
+  "recorded_at": "2026-09-14T16:51:48Z",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "source_type": "owner_attached_task_packet",
+    "source_ref": "codex-attachment:8a7dd6a7-90db-4ec8-9e55-4d2b47f8d7d6/pasted-text.txt",
+    "verbatim": "WORK TASK — Amend PR #117: Make Work Model Routing Useful and Truthful\n\nObjective\n\nAmend the existing open PR:\n\nu-dont-existDOTcom/universal-dev-architecture#117\n\nDo not start a replacement PR.\n\nPreserve the good work already present: typed model/tier profiles, source-bound authorization, mismatch detection, no self-escalation, receipt/finalization binding, telemetry, dashboard visibility, and archive integrity.\n\nFix the blocking design issues identified by Chat review.\n\nDo not merge or deploy.\n\n1. Do not require independent readback for ordinary routing\n\nCurrent product capability established by the PR:\n\nmodel: SET_ONLY\n\neffort: SET_ONLY\n\nFast: UNOBSERVABLE\n\nThe current v3 template defaults to SOL_MEDIUM + EXACT_PROFILE_REQUIRED. That makes ordinary nontrivial Work execution impossible on the present surface.\n\nChange the contract so the normal usable state is:\n\nMission Control can prove which model/effort selection it requested/applied to the structured task-creation surface, while truthfully recording that the effective provider-side model/effort was not independently read back.\n\nDo not call that MATCH or SET_AND_VERIFY.\n\nUse an explicit assurance vocabulary such as:\n\nSET_REQUEST_SUFFICIENT\n\nINDEPENDENT_READBACK_REQUIRED\n\nor an equally clear typed equivalent.\n\nFor SET_REQUEST_SUFFICIENT:\n\nif the surface is SET_ONLY, the exact setter values must equal the source-authorized profile;\n\nthe applied setter request must be durably recorded;\n\nobserved/effective model and effort remain null unless independently verified;\n\npreflight may proceed with a truthful state such as SET_REQUEST_ACCEPTED_UNVERIFIED;\n\nfinalization may succeed if every other contract condition passes;\n\nreceipt/dashboard must state that provider-side identity was not independently verified.\n\nFor INDEPENDENT_READBACK_REQUIRED:\n\ncurrent SET_ONLY capability must fail closed;\n\nuse this stronger mode when exact effective model identity is materially decision-relevant, e.g. a controlled Sol-vs-Astra calibration.\n\nDo not silently treat setter evidence as independent verification.\n\nFast mode\n\nThe current surface cannot set or read Fast mode.\n\nDo not make fastMode: false mean \"we proved Fast was off.\"\n\nRepresent the current truth explicitly. Preferred semantics:\n\ndesired/request state: DO_NOT_ENABLE_FAST or equivalent;\n\nobserved Fast state: null;\n\ncapability: UNOBSERVABLE.\n\nOrdinary execution may proceed under SET_REQUEST_SUFFICIENT if the launcher did not request/enable Fast through any exposed control. It must not claim the effective Fast state was independently verified.\n\n2. Separate Chat-message provenance from directive-artifact integrity\n\nCurrent bug:\n\nvalidateExecutionProfile() effectively requires:\n\nexecutionDirectiveBinding.directiveSha256 === sourceReceipt.bodySha256\n\nRemove that equality requirement.\n\nThese are different objects:\n\nsourceReceipt.bodySha256 = exact verified Chat message bytes;\n\ndirectiveSha256 = exact execution-directive artifact bytes.\n\nThe architecture intentionally supports directives materialized as JSON/Markdown artifacts from a Chat turn. Their hashes normally differ.\n\nRequired binding:\n\na valid verified Chat source receipt exists;\n\nthe exact directive identity/revision/task exists;\n\nthe directive artifact has its own exact SHA-256;\n\nthe directive is durably linked to the verified Chat decision/source through existing reasoning/directive provenance fields;\n\nthe authorized Work profile equals the profile recorded in that exact directive.\n\nPrefer binding against the durable execution_directive_recorded event/current directive state rather than trusting a worker-supplied hash alone.\n\nIf the current directive event lacks an exact artifact digest needed for this proof, add the smallest explicit digest/provenance field necessary.\n\nAdd a regression where Chat source digest A and directive artifact digest B are different, but the provenance is valid and admission succeeds. Add a negative control where directive digest or identity is wrong.\n\n3. Remove or constrain the simple-unobservable escape hatch\n\nThe current schema permits SIMPLE_DETERMINISTIC_UNOBSERVABLE_ALLOWED on any routing tier.\n\nPreferred repair: replace this with the general assurance distinction above:\n\nSET_REQUEST_SUFFICIENT\n\nINDEPENDENT_READBACK_REQUIRED\n\nIf a special deterministic exception remains, mechanically restrict it to the narrow deterministic tier and execution class; it must not apply to Astra or other materially model-sensitive profiles.\n\n4. Task-creation bridge: discriminate before building\n\nDo not invent a scheduler or unsafe automation.\n\nDetermine whether Mission Control can safely call the same existing structured consumer Work task-creation surface that the capability probe found can set model and reasoning effort.\n\nReturn one of:\n\nTASK_CREATION_BRIDGE_EXISTING_AND_SAFE\n\nTASK_CREATION_BRIDGE_IMPLEMENTABLE_WITH_EXISTING_AUTHORITY\n\nTASK_CREATION_BRIDGE_BLOCKED_BY_PRODUCT_BOUNDARY\n\nIf an existing/authorized bridge is genuinely available, implement the smallest bridge so admission feeds exact model/effort into task creation, setter evidence is persisted, and no new credentials/API spend/bypass is introduced.\n\nIf blocked by product boundary, do not fabricate a bridge or add brittle browser automation. Keep the PR explicitly partially enforced and truthful.\n\n5. Revisit the default directive\n\nThe canonical v3 directive should not default to an assurance mode that current ordinary Work can never satisfy.\n\nDefault bounded implementation should remain Sol Medium, Fast not requested, exact source-authorized setter required, and provider-side readback truthfully unverified unless available.\n\nUse independent-readback-required only when Chat explicitly selects it because the decision depends on proving actual effective model identity.\n\nLegacy artifacts remain explicit and must never acquire a fabricated model.\n\n6. Telemetry truth\n\nKeep the 10-task telemetry window, but distinguish model identity evidence:\n\nSET_AND_VERIFIED\n\nSET_REQUEST_ONLY\n\nanother precise current state\n\nTelemetry under SET_REQUEST_ONLY may inform operational success/cost, but the later Chat review must not represent it as independently verified provider model identity.\n\n7. Finalization\n\nFinalization should reject:\n\nsource-authorized profile != setter request;\n\nindependently observed profile contradicts authorized profile;\n\nrequired independent readback is absent;\n\nunauthorized model/effort self-escalation;\n\nwrong directive artifact/provenance binding.\n\nFinalization should not reject ordinary SET_REQUEST_SUFFICIENT execution merely because provider readback is unavailable.\n\n8. Tests required\n\nPreserve all current green coverage and add/adjust focused regressions for:\n\nSol Medium + SET_REQUEST_SUFFICIENT + current SET_ONLY capability can proceed when exact setters were applied.\n\nAstra Low + SET_REQUEST_SUFFICIENT can proceed when exact Astra/Low setters were applied, while observed provider model remains null/unverified.\n\nINDEPENDENT_READBACK_REQUIRED fails on current SET_ONLY capability.\n\nSetter mismatch fails closed.\n\nIndependent readback contradiction fails closed.\n\nFast mode is not falsely reported as verified off.\n\nChat source hash and directive artifact hash may validly differ.\n\nWrong directive artifact digest fails.\n\nWrong directive identity/revision fails.\n\nWork cannot alter the source-authorized assurance requirement.\n\nWork cannot self-escalate model or effort.\n\nLegacy artifacts remain explicit and non-defaulted.\n\nTelemetry marks SET_REQUEST_ONLY distinctly from verified identity.\n\nTask-5/task-10 checkpoints remain non-mutating.\n\nIf a bridge is implemented, one consumer-seam test proves the exact authorized model/effort setter values reach the task-creation call.\n\nConsumer seam:\n\nA source-authorized Work profile must cause the exact model/effort setter request to reach the authorized Work launch surface when that surface is callable, and the receipt must distinguish setter evidence from independent provider readback. Missing readback must never be fabricated; it blocks only when Chat explicitly required independent readback.\n\n9. Scope / archive\n\nKeep existing source-archive mirror mechanics if repository policy requires them.\n\nThe regenerated archive parts are acceptable if reconstruction remains byte-identical.\n\nDo not make unrelated Mission Control changes.\n\n10. Verification / PR boundary\n\nAmend PR #117 in place.\n\nBefore return:\n\nfocused consumer-seam tests;\n\nMission Control tests;\n\nrepository-required full suite/checkpoint;\n\ntypecheck/build if affected;\n\nrepository audit;\n\nsource archive reconstruction/integrity;\n\nhosted PR checks as applicable.\n\nDo not merge.\nDo not deploy.\nDo not purchase credits.\nDo not change account/subscription settings.\n\nFinal receipt\n\nReturn:\n\nPR 117 MODEL CONTRACT AMENDED\n\nwith:\n\nnew head SHA;\n\nexact semantic changes;\n\ncapability classification;\n\ntask-creation bridge classification;\n\nwhether runtime status is:\n\nPARTIALLY_ENFORCED_SET_ONLY\n\nENFORCED_SET_AND_VERIFY\n\nCONTRACT_ONLY_BRIDGE_BLOCKED\n\nsource-message vs directive-artifact binding evidence;\n\nconsumer-seam test proving setter-only semantics;\n\nall verification results;\n\nremaining product limitation;\n\ndirect artifact bundle link/attachment.\n\nDo not merge or deploy.",
+    "sha256": "50e0a824c7ebb7ed63f297534e5fca8943ca4337f1fcd7dafbcd97dc96f116a9"
+  },
+  "normalized_outcome": "Amend PR 117 in place so ordinary source-authorized model and effort setters are usable under truthful SET_REQUEST_ONLY evidence, independent readback is required only when Chat explicitly asks for it, Fast remains unobserved, source-message and directive-artifact hashes remain distinct, and no unsafe task-creation bridge is fabricated.",
+  "required_outcomes": [
+    {
+      "id": "RO-MC-WORK-AMEND-001",
+      "observable": "SET_REQUEST_SUFFICIENT admits exact Sol Medium and Astra Low setter requests on the current SET_ONLY surface while observed provider model and effort remain null and identity evidence is SET_REQUEST_ONLY.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-profile.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/work-execution-profile.test.ts"
+      ],
+      "terminal_required": true
+    },
+    {
+      "id": "RO-MC-WORK-AMEND-002",
+      "observable": "INDEPENDENT_READBACK_REQUIRED fails closed without independent provider identity, setter mismatches and observed contradictions fail closed, and Fast request intent never becomes a fabricated verified-off observation.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-profile.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/final-response-gate.ts"
+      ],
+      "terminal_required": true
+    },
+    {
+      "id": "RO-MC-WORK-AMEND-003",
+      "observable": "Admission binds different Chat source and materialized directive artifact digests through the current durable execution directive identity, revision, task, source provenance, and exact profile.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/work-execution-profile.test.ts"
+      ],
+      "terminal_required": true
+    },
+    {
+      "id": "RO-MC-WORK-AMEND-004",
+      "observable": "Receipts, finalization, telemetry, dashboard state, and 5/10 non-mutating checkpoints distinguish SET_REQUEST_ONLY from independently verified identity and preserve no-self-escalation.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "templates/CODEX-EXECUTION-RECEIPT.json",
+        "templates/WORK-MODEL-ROUTING-TELEMETRY.json",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/components/WorkerDetail.tsx"
+      ],
+      "terminal_required": true
+    },
+    {
+      "id": "RO-MC-WORK-AMEND-005",
+      "observable": "The task-creation bridge is classified from current local product capability without inventing scheduler, browser automation, credentials, spend, deployment, merge, or account changes.",
+      "status": "BLOCKED_EXACT_REASON",
+      "blocked_reason": "TASK_CREATION_BRIDGE_BLOCKED_BY_PRODUCT_BOUNDARY: the structured create_thread primitive is available only as an agent-side Codex desktop tool and is not an authenticated callable Mission Control runtime API; the existing relay targets supervisor Chat delivery, not Work task launch.",
+      "evidence_refs": [
+        "docs/evidence/2026-09-14-mission-control-work-model-contract.json",
+        "tools/codex-mission-control/restored/codex-mission-control/AGENTS.md"
+      ],
+      "terminal_required": true
+    }
+  ],
+  "consumer_seam_acceptance": "A source-authorized Work profile causes the exact model and effort setter request to be admitted and durably recorded when an authorized launcher can call the structured surface; receipts distinguish SET_REQUEST_ONLY from provider readback, and missing readback blocks only when Chat explicitly requires it.",
+  "non_satisfying_proxies": [
+    "Calling setter evidence SET_AND_VERIFY or MATCH",
+    "Representing DO_NOT_ENABLE_FAST as independently verified Fast off",
+    "Equating the Chat source message digest with the directive artifact digest",
+    "Trusting a worker-supplied directive digest without current durable directive provenance",
+    "Inventing a scheduler, browser bridge, credential, spend, merge, or deployment"
+  ],
+  "hard_boundaries": [
+    "Amend PR 117 in place",
+    "Do not merge or deploy",
+    "Do not purchase credits or change account settings",
+    "Do not fabricate a task-creation bridge"
+  ],
+  "next_direct_evidence": "After a separately authorized product integration exposes the Codex task-creation primitive as an authenticated Mission Control runtime API, connect the exact admitted model and effort setters and retain SET_REQUEST_ONLY unless independent readback is also exposed."
+}

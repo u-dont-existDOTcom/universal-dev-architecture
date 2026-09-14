@@ -7,6 +7,8 @@ import {
   workExecutionFailureClassificationSchema,
   workExecutionPreflightResultSchema,
   workExecutionProfileSchema,
+  workFastModeRequestSchema,
+  workModelIdentityEvidenceSchema,
   workProfileCapabilitySchema,
   workRoutingTierSchema,
 } from "./work-execution-profile";
@@ -985,6 +987,9 @@ export const executionDirectiveRecordedSchema = z.object({
   supervisory_verdict_authority: z.literal("NONE"),
   substantive_prose_authorship_authority: z.enum(["NONE", "EXACT_TEXT_OR_TRANSFORMATION_ONLY"]),
   directive_schema_version: z.union([z.literal(2), z.literal(3)]).default(2),
+  directive_artifact_sha256: Sha256.nullable().default(null),
+  source_message_id: StableId.nullable().default(null),
+  source_body_sha256: Sha256.nullable().default(null),
   work_execution_profile: z.union([
     workExecutionProfileSchema,
     z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
@@ -999,6 +1004,14 @@ export const executionDirectiveRecordedSchema = z.object({
       message: "A version 3 execution directive requires an explicit Work execution profile.",
     });
   }
+  if (directive.directive_schema_version === 3
+    && (!directive.directive_artifact_sha256 || !directive.source_message_id || !directive.source_body_sha256)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["directive_artifact_sha256"],
+      message: "A version 3 execution directive requires its own artifact digest and exact source-message provenance.",
+    });
+  }
 });
 
 export const workExecutionProfileAuthorizedSchema = z.object({
@@ -1009,7 +1022,7 @@ export const workExecutionProfileAuthorizedSchema = z.object({
   directive_id: StableId,
   directive_revision: z.number().int().positive(),
   task_id: StableId,
-  directive_sha256: Sha256,
+  directive_artifact_sha256: Sha256,
   source_message_id: StableId,
   source_body_sha256: Sha256,
   authorized_profile: workExecutionProfileSchema,
@@ -1031,26 +1044,27 @@ export const workExecutionPreflightRecordedSchema = z.object({
   applied_selection: z.object({
     model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
     thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
-    fastMode: z.boolean(),
+    fastModeRequest: workFastModeRequestSchema,
   }).strict().nullable(),
   capability: workExecutionCapabilityMatrixSchema,
   field_results: z.object({
-    model: z.enum(["MATCH", "MISMATCH", "UNVERIFIED"]),
-    effort: z.enum(["MATCH", "MISMATCH", "UNVERIFIED"]),
-    fastMode: z.enum(["MATCH", "MISMATCH", "UNVERIFIED"]),
+    model: z.enum(["SET_AND_VERIFIED", "SET_REQUEST_ONLY", "INDEPENDENTLY_VERIFIED", "NOT_REQUESTED_UNVERIFIED", "MISMATCH", "UNVERIFIED"]),
+    effort: z.enum(["SET_AND_VERIFIED", "SET_REQUEST_ONLY", "INDEPENDENTLY_VERIFIED", "NOT_REQUESTED_UNVERIFIED", "MISMATCH", "UNVERIFIED"]),
+    fastMode: z.enum(["SET_AND_VERIFIED", "SET_REQUEST_ONLY", "INDEPENDENTLY_VERIFIED", "NOT_REQUESTED_UNVERIFIED", "MISMATCH", "UNVERIFIED"]),
   }).strict(),
+  model_identity_evidence: workModelIdentityEvidenceSchema,
   preflight: workExecutionPreflightResultSchema,
   decision: z.enum([
-    "WORK_EXECUTION_PROFILE_MATCH",
+    "WORK_EXECUTION_PROFILE_SET_AND_VERIFIED",
+    "WORK_EXECUTION_SET_REQUEST_ACCEPTED_UNVERIFIED",
     "WORK_EXECUTION_PROFILE_MISMATCH",
     "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
-    "PROFILE_FIELD_UNOBSERVABLE_PROCEEDED_BY_POLICY",
   ]),
   reason_codes: z.array(NonEmpty.max(180)).max(20),
   launch_selection: z.object({
     model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
     thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
-    fastMode: z.boolean(),
+    fastModeRequest: workFastModeRequestSchema,
   }).strict(),
   substantive_execution_allowed: z.boolean(),
   recorded_at: Timestamp,
@@ -1070,6 +1084,7 @@ const eligibleWorkRoutingTelemetrySchema = z.object({
   test_wall_time_seconds: z.number().nonnegative().nullable(),
   escalation_occurred: z.boolean(),
   final_successful_tier: workRoutingTierSchema.nullable(),
+  model_identity_evidence: workModelIdentityEvidenceSchema,
   hindsight_initial_tier: z.enum(["APPROPRIATE", "CLEARLY_OVERPOWERED", "CLEARLY_UNDERPOWERED", "UNPROVEN"]),
 }).strict();
 
@@ -1088,7 +1103,7 @@ export const workExecutionReceiptBindingSchema = z.object({
   applied_selection: z.object({
     model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
     thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
-    fastMode: z.boolean(),
+    fastModeRequest: workFastModeRequestSchema,
   }).strict().nullable(),
   observability: z.object({
     model: workProfileCapabilitySchema,
@@ -1097,18 +1112,19 @@ export const workExecutionReceiptBindingSchema = z.object({
   }).strict(),
   preflight: workExecutionPreflightResultSchema,
   preflight_decision: z.enum([
-    "WORK_EXECUTION_PROFILE_MATCH",
+    "WORK_EXECUTION_PROFILE_SET_AND_VERIFIED",
+    "WORK_EXECUTION_SET_REQUEST_ACCEPTED_UNVERIFIED",
     "WORK_EXECUTION_PROFILE_MISMATCH",
     "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
-    "PROFILE_FIELD_UNOBSERVABLE_PROCEEDED_BY_POLICY",
   ]),
+  model_identity_evidence: workModelIdentityEvidenceSchema,
   escalations: z.array(z.object({
     from_profile: workExecutionProfileSchema,
     to_profile: workExecutionProfileSchema,
     authorization_id: StableId,
   }).strict()).max(10),
   final_profile: workExecutionProfileSchema.nullable(),
-  fast_mode: z.boolean(),
+  fast_mode_observed: z.boolean().nullable(),
   allowance_delta: z.object({
     kind: z.enum(["PERCENT_USED", "MESSAGES_REMAINING", "TOKENS"]),
     before: z.number(),
@@ -1195,6 +1211,7 @@ export const workModelRoutingCheckpointRecordedSchema = z.object({
   outcome_counts: z.array(z.object({ key: z.enum(["PASS", "FAIL", "UNPROVEN"]), count: z.number().int().nonnegative() }).strict()),
   failure_counts: z.array(z.object({ key: workExecutionFailureClassificationSchema, count: z.number().int().nonnegative() }).strict()),
   tier_counts: z.array(z.object({ key: workRoutingTierSchema, count: z.number().int().nonnegative() }).strict()),
+  identity_evidence_counts: z.array(z.object({ key: workModelIdentityEvidenceSchema, count: z.number().int().nonnegative() }).strict()),
   policy_mutated: z.literal(false),
   review_required: z.boolean(),
   recorded_at: Timestamp,

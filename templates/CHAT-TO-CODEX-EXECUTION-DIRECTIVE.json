@@ -58,8 +58,8 @@
     "effort": "MEDIUM",
     "routingTier": "SOL_MEDIUM",
     "routingTriggers": [],
-    "fastMode": false,
-    "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+    "fastModeRequest": "DO_NOT_ENABLE_FAST",
+    "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
     "policyRef": "patterns/work-model-and-effort-routing.md",
     "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
   },

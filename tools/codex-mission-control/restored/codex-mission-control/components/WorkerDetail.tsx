@@ -111,9 +111,11 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
               : "LEGACY / UNSPECIFIED"} />
             <Identity label="Observed Work profile" value={worker.workExecution.observedModel
               ? `${worker.workExecution.observedModel} · ${worker.workExecution.observedEffort}`
-              : "UNOBSERVABLE"} />
+              : "NOT INDEPENDENTLY VERIFIED"} />
+            <Identity label="Provider identity evidence" value={worker.workExecution.modelIdentityEvidence.replaceAll("_", " ")} />
             <Identity label="Profile preflight" value={worker.workExecution.preflight} />
-            <Identity label="Fast mode" value={worker.workExecution.fastMode === null ? "UNOBSERVABLE" : worker.workExecution.fastMode ? "ON" : "OFF"} />
+            <Identity label="Fast request" value={worker.workExecution.fastModeRequest?.replaceAll("_", " ") ?? "UNSPECIFIED"} />
+            <Identity label="Observed Fast state" value={worker.workExecution.observedFastMode === null ? "NOT INDEPENDENTLY VERIFIED" : worker.workExecution.observedFastMode ? "ON" : "OFF"} />
             <Identity label="Routing telemetry" value={`${worker.workExecution.telemetryCompletedCount} / ${worker.workExecution.telemetryTargetCount}`} />
           </div>
           <div className="directive-callout"><span className="field-label">EXECUTION OBJECTIVE</span><strong>{worker.executionSupervision.directiveObjective}</strong></div>

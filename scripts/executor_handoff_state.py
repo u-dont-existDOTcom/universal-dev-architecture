@@ -365,14 +365,17 @@ def resolve_work_execution_profile(
     )
     if tier.startswith("ASTRA_") or tier == "SOL_HIGH_EXCEPTION":
         _require(bool(triggers), f"{tier} requires a source-bound routing trigger")
-    _require(isinstance(profile.get("fastMode"), bool), "workExecutionProfile.fastMode must be explicit boolean")
     _require(
-        profile.get("verificationRequirement")
+        profile.get("fastModeRequest") in {"DO_NOT_ENABLE_FAST", "ENABLE_FAST"},
+        "workExecutionProfile.fastModeRequest is invalid",
+    )
+    _require(
+        profile.get("assuranceRequirement")
         in {
-            "EXACT_PROFILE_REQUIRED",
-            "SIMPLE_DETERMINISTIC_UNOBSERVABLE_ALLOWED",
+            "SET_REQUEST_SUFFICIENT",
+            "INDEPENDENT_READBACK_REQUIRED",
         },
-        "workExecutionProfile.verificationRequirement is invalid",
+        "workExecutionProfile.assuranceRequirement is invalid",
     )
     _require(profile.get("policyRef") == WORK_MODEL_POLICY_REF, "workExecutionProfile.policyRef is invalid")
     _require(profile.get("policyCommit") == WORK_MODEL_POLICY_COMMIT, "workExecutionProfile.policyCommit is invalid")

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { canonicalJson, sha256 } from "./canonical";
-import type { ChatWorkAuthorityRequest } from "./chat-work-authority-gate";
+import type { ChatWorkAuthorityRequest, PersistedExecutionDirectiveProof } from "./chat-work-authority-gate";
 import { workProfileAuthorizationId } from "./supervision-admission-runtime";
 import type { AppendEnvelope, StoredEvent } from "./schema";
 import {
@@ -21,7 +21,7 @@ const preflightRequestSchema = z.object({
   appliedSelection: z.object({
     model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
     thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
-    fastMode: z.boolean(),
+    fastModeRequest: z.enum(["DO_NOT_ENABLE_FAST", "ENABLE_FAST"]),
   }).strict().nullable(),
 }).strict();
 
@@ -47,7 +47,7 @@ export function buildWorkExecutionAuthorizationEnvelope(input: {
       directive_id: binding.directiveId,
       directive_revision: binding.directiveRevision,
       task_id: binding.taskId,
-      directive_sha256: binding.directiveSha256,
+      directive_artifact_sha256: binding.directiveArtifactSha256,
       source_message_id: source.messageId,
       source_body_sha256: source.bodySha256,
       authorized_profile: input.authorizedProfile,
@@ -106,6 +106,7 @@ export function evaluatePersistedWorkExecutionPreflight(input: {
         applied_selection: preflight.appliedSelection,
         capability: preflight.capability,
         field_results: preflight.fieldResults,
+        model_identity_evidence: preflight.modelIdentityEvidence,
         preflight: preflight.result,
         decision: preflight.decision,
         reason_codes: preflight.reasonCodes,
@@ -145,12 +146,38 @@ export function buildWorkRoutingCheckpointEnvelopes(events: StoredEvent[]): Appe
         failure_counts: countValues(window.map((event) => eligibleTelemetry(event)!.failure_classification)),
         tier_counts: countValues(window.map((event) => eligibleWorkExecution(event)!.final_profile?.routingTier
           ?? eligibleWorkExecution(event)!.authorized_profile.routingTier)),
+        identity_evidence_counts: countValues(window.map((event) => eligibleTelemetry(event)!.model_identity_evidence)),
         policy_mutated: false as const,
         review_required: count === 10,
         recorded_at: trigger.occurredAt,
       },
     }];
   });
+}
+
+export function currentExecutionDirectiveProof(
+  worker: string,
+  events: StoredEvent[],
+): PersistedExecutionDirectiveProof | null {
+  const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded"
+    && event.data.worker === worker
+    && event.data.status === "ACTIVE")?.data;
+  if (!directive || directive.type !== "execution_directive_recorded"
+    || directive.directive_schema_version !== 3
+    || directive.directive_artifact_sha256 === null
+    || directive.source_message_id === null
+    || directive.source_body_sha256 === null
+    || directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") return null;
+  return {
+    directiveId: directive.directive_id,
+    directiveRevision: directive.directive_revision,
+    taskId: directive.task_id,
+    directiveArtifactSha256: directive.directive_artifact_sha256,
+    sourceMessageId: directive.source_message_id,
+    sourceBodySha256: directive.source_body_sha256,
+    status: "ACTIVE",
+    workExecutionProfile: directive.work_execution_profile,
+  };
 }
 
 export function completedWorkRoutingTelemetryCount(events: StoredEvent[]): number {

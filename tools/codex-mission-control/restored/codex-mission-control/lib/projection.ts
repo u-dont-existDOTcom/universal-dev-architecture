@@ -212,7 +212,9 @@ export interface WorkerState {
     authorizedEffort: string | null;
     observedModel: string | null;
     observedEffort: string | null;
-    fastMode: boolean | null;
+    fastModeRequest: string | null;
+    observedFastMode: boolean | null;
+    modelIdentityEvidence: string;
     routingTier: string | null;
     preflight: string;
     modelCapability: string;
@@ -449,7 +451,9 @@ function projectV2Worker(
       authorizedEffort: receiptWorkExecution?.authorized_profile.effort ?? profileAuthorization?.authorized_profile.effort ?? null,
       observedModel: receiptWorkExecution?.observed_profile.model ?? workPreflight?.observed_profile.model ?? null,
       observedEffort: receiptWorkExecution?.observed_profile.effort ?? workPreflight?.observed_profile.effort ?? null,
-      fastMode: receiptWorkExecution?.fast_mode ?? directiveProfile?.fastMode ?? null,
+      fastModeRequest: receiptWorkExecution?.authorized_profile.fastModeRequest ?? directiveProfile?.fastModeRequest ?? null,
+      observedFastMode: receiptWorkExecution?.fast_mode_observed ?? workPreflight?.observed_profile.fastMode ?? null,
+      modelIdentityEvidence: receiptWorkExecution?.model_identity_evidence ?? workPreflight?.model_identity_evidence ?? "UNVERIFIED",
       routingTier: receiptWorkExecution?.authorized_profile.routingTier ?? profileAuthorization?.authorized_profile.routingTier ?? directiveProfile?.routingTier ?? null,
       preflight: receiptWorkExecution?.preflight ?? workPreflight?.preflight ?? (directiveProfile ? "NOT_RECORDED" : "LEGACY_MODEL_PROFILE_UNSPECIFIED"),
       modelCapability: receiptWorkExecution?.observability.model ?? workPreflight?.capability.model ?? "UNOBSERVABLE",
@@ -820,7 +824,8 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     },
     workExecution: {
       requestedModel: null, requestedEffort: null, authorizedModel: null, authorizedEffort: null,
-      observedModel: null, observedEffort: null, fastMode: null, routingTier: null,
+      observedModel: null, observedEffort: null, fastModeRequest: null, observedFastMode: null,
+      modelIdentityEvidence: "UNVERIFIED", routingTier: null,
       preflight: "LEGACY_MODEL_PROFILE_UNSPECIFIED", modelCapability: "UNOBSERVABLE",
       effortCapability: "UNOBSERVABLE", fastModeCapability: "UNOBSERVABLE",
       telemetryIndex: null, telemetryCompletedCount: 0, telemetryTargetCount: 10,

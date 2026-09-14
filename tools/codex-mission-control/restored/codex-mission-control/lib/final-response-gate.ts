@@ -18,6 +18,7 @@ export type FinalResponseGateDecision =
   | "REJECT_TERMINAL_PROOF_MISSING"
   | "WORK_EXECUTION_PROFILE_MISMATCH"
   | "WORK_EXECUTION_PROFILE_UNVERIFIABLE"
+  | "REJECT_INVALID_EXECUTION_DIRECTIVE_PROVENANCE"
   | "REJECT_MISSING_WORK_EXECUTION_PROFILE"
   | "REJECT_UNAUTHORIZED_WORK_EXECUTION_PROFILE_ESCALATION";
 
@@ -254,6 +255,27 @@ function executionProfileRejection(
     );
   }
   const binding = receipt.work_execution;
+  const authorizationEvent = timeline.find((event) => event.data.type === "work_execution_profile_authorized"
+    && event.data.authorization_id === binding.authorization_id);
+  const authorization = authorizationEvent?.data;
+  if (!authorization || authorization.type !== "work_execution_profile_authorized"
+    || directive.directive_artifact_sha256 === null
+    || directive.source_message_id === null
+    || directive.source_body_sha256 === null
+    || authorization.directive_id !== directive.directive_id
+    || authorization.directive_revision !== directive.directive_revision
+    || authorization.task_id !== directive.task_id
+    || authorization.directive_artifact_sha256 !== directive.directive_artifact_sha256
+    || authorization.source_message_id !== directive.source_message_id
+    || authorization.source_body_sha256 !== directive.source_body_sha256
+    || !workExecutionProfilesEqual(authorization.authorized_profile, binding.authorized_profile)) {
+    return reject(
+      "REJECT_INVALID_EXECUTION_DIRECTIVE_PROVENANCE",
+      ["The receipt authorization does not bind the current durable directive artifact, source-message provenance, identity, revision, task, and profile."],
+      "Do not finalize from a worker-supplied digest; repair the current execution_directive_recorded provenance binding.",
+      terminalHash,
+    );
+  }
   const requiredSelection = launchSelectionFor(binding.authorized_profile);
   const applicationMismatch = (
     (binding.observability.model === "SET_ONLY" || binding.observability.model === "SET_AND_VERIFY")
@@ -262,21 +284,17 @@ function executionProfileRejection(
     (binding.observability.effort === "SET_ONLY" || binding.observability.effort === "SET_AND_VERIFY")
       && binding.applied_selection?.thinking !== requiredSelection.thinking
   ) || (
-    (binding.observability.fastMode === "SET_ONLY" || binding.observability.fastMode === "SET_AND_VERIFY")
-      && binding.applied_selection?.fastMode !== requiredSelection.fastMode
+    binding.applied_selection?.fastModeRequest !== requiredSelection.fastModeRequest
   );
   const observedMismatch = (
-    (binding.observability.model === "VERIFY_ONLY" || binding.observability.model === "SET_AND_VERIFY")
-      && binding.observed_profile.model !== null
+    binding.observed_profile.model !== null
       && binding.observed_profile.model !== binding.authorized_profile.model
   ) || (
-    (binding.observability.effort === "VERIFY_ONLY" || binding.observability.effort === "SET_AND_VERIFY")
-      && binding.observed_profile.effort !== null
+    binding.observed_profile.effort !== null
       && binding.observed_profile.effort !== binding.authorized_profile.effort
   ) || (
-    (binding.observability.fastMode === "VERIFY_ONLY" || binding.observability.fastMode === "SET_AND_VERIFY")
-      && binding.observed_profile.fastMode !== null
-      && binding.observed_profile.fastMode !== binding.authorized_profile.fastMode
+    binding.observed_profile.fastMode !== null
+      && binding.observed_profile.fastMode !== (binding.authorized_profile.fastModeRequest === "ENABLE_FAST")
   );
   if (!workExecutionProfilesEqual(binding.requested_profile, binding.authorized_profile)
     || applicationMismatch
@@ -288,7 +306,7 @@ function executionProfileRejection(
       binding.final_profile,
       binding.escalations.at(-1)?.to_profile ?? binding.authorized_profile,
     )
-    || binding.fast_mode !== binding.final_profile.fastMode) {
+    || binding.fast_mode_observed !== binding.observed_profile.fastMode) {
     return reject(
       "WORK_EXECUTION_PROFILE_MISMATCH",
       ["The execution receipt proves a requested/authorized/observed/final Work profile mismatch."],
@@ -309,8 +327,8 @@ function executionProfileRejection(
   if (binding.preflight === "UNVERIFIABLE"
     || binding.preflight_decision === "WORK_EXECUTION_PROFILE_UNVERIFIABLE"
     || missingObservableReadback
-    || binding.authorized_profile.verificationRequirement === "EXACT_PROFILE_REQUIRED"
-      && Object.values(binding.observability).some((capability) => capability !== "SET_AND_VERIFY" && capability !== "VERIFY_ONLY")) {
+    || binding.authorized_profile.assuranceRequirement === "INDEPENDENT_READBACK_REQUIRED"
+      && !["SET_AND_VERIFIED", "INDEPENDENTLY_VERIFIED"].includes(binding.model_identity_evidence)) {
     return reject(
       "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
       ["At least one materially required Work profile field was not independently verifiable."],

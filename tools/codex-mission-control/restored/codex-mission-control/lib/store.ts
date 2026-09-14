@@ -643,6 +643,15 @@ export class EventStore {
         || reasoning.reviewed_evidence_boundary !== data.reviewed_evidence_boundary) {
         throw new ContractInvariantError("Execution directives must bind the exact current chat decision, capsule, strategy, and reviewed evidence boundary.");
       }
+      if (data.directive_schema_version === 3) {
+        const sourceMessage = events.findLast((event) => event.data.type === "reasoning_message_recorded"
+          && event.data.message_id === data.source_message_id)?.data;
+        if (sourceMessage?.type !== "reasoning_message_recorded"
+          || sourceMessage.body_sha256 !== data.source_body_sha256
+          || sourceMessage.provenance_status === "UNVERIFIED") {
+          throw new ContractInvariantError("A version 3 execution directive must bind a durable verified/owner-attested Chat source message independently from its own artifact digest.");
+        }
+      }
       const priorDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       const priorReceiptEvent = priorDirective?.type === "execution_directive_recorded"
         ? [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded"
@@ -656,13 +665,17 @@ export class EventStore {
     if (data.type === "work_execution_profile_authorized") {
       const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       if (directive?.type !== "execution_directive_recorded"
+        || directive.status !== "ACTIVE"
         || directive.directive_schema_version !== 3
         || directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED"
         || directive.directive_id !== data.directive_id
         || directive.directive_revision !== data.directive_revision
         || directive.task_id !== data.task_id
+        || directive.directive_artifact_sha256 !== data.directive_artifact_sha256
+        || directive.source_message_id !== data.source_message_id
+        || directive.source_body_sha256 !== data.source_body_sha256
         || !workExecutionProfilesEqual(directive.work_execution_profile, data.authorized_profile)
-        || data.directive_sha256 !== data.source_body_sha256) {
+      ) {
         throw new ContractInvariantError("Work profile authorization must bind the current exact version 3 Chat directive and profile.");
       }
     }
@@ -689,6 +702,7 @@ export class EventStore {
         preflight: data.preflight,
         decision: data.decision,
         reasonCodes: data.reason_codes,
+        modelIdentityEvidence: data.model_identity_evidence,
         launchSelection: data.launch_selection,
         allowed: data.substantive_execution_allowed,
       }) !== canonicalJson({
@@ -696,6 +710,7 @@ export class EventStore {
         preflight: expected.result,
         decision: expected.decision,
         reasonCodes: expected.reasonCodes,
+        modelIdentityEvidence: expected.modelIdentityEvidence,
         launchSelection: expected.launchSelection,
         allowed: expected.allowed,
       })) {
@@ -741,7 +756,8 @@ export class EventStore {
             fastMode: preflight.capability.fastMode,
           })
           || binding.preflight !== preflight.preflight
-          || binding.preflight_decision !== preflight.decision) {
+          || binding.preflight_decision !== preflight.decision
+          || binding.model_identity_evidence !== preflight.model_identity_evidence) {
           throw new ContractInvariantError("Execution receipt Work profile facts must bind the exact admitted authorization and persisted allowed preflight.");
         }
         let finalAuthorizedProfile = authorization.authorized_profile;
@@ -758,8 +774,9 @@ export class EventStore {
           finalAuthorizedProfile = escalation.to_profile;
         }
         if (!binding.final_profile || !workExecutionProfilesEqual(binding.final_profile, finalAuthorizedProfile)
-          || binding.fast_mode !== binding.final_profile.fastMode) {
-          throw new ContractInvariantError("Execution receipt final profile and Fast-mode fact must equal the last source-authorized profile.");
+          || binding.fast_mode_observed !== null
+            && binding.fast_mode_observed !== (binding.final_profile.fastModeRequest === "ENABLE_FAST")) {
+          throw new ContractInvariantError("Execution receipt final authorization and any observed Fast-mode fact must agree without fabricating unobserved state.");
         }
         if (binding.escalations.length > 0) {
           const failure = binding.routing_telemetry.eligible
@@ -779,6 +796,9 @@ export class EventStore {
         }
         if (telemetry.eligible && telemetry.final_successful_tier !== binding.final_profile.routingTier) {
           throw new ContractInvariantError("Eligible Work routing telemetry must bind the exact final successful profile tier.");
+        }
+        if (telemetry.eligible && telemetry.model_identity_evidence !== binding.model_identity_evidence) {
+          throw new ContractInvariantError("Eligible Work routing telemetry must preserve setter-only versus independently verified identity evidence.");
         }
         if (!telemetry.eligible && telemetry.exclusion_reason === "WINDOW_COMPLETE" && eligibleCount < 10) {
           throw new ContractInvariantError("WINDOW_COMPLETE is valid only after 10 eligible Work routing receipts.");

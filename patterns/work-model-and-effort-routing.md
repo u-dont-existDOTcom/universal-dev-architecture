@@ -42,6 +42,27 @@ than fabricating a setting. A missing model, allowance readout, or control is an
 availability fact, not authority to change accounts, subscriptions, or paid
 credits.
 
+### Selection assurance
+
+Every new Work profile declares one of two assurance requirements:
+
+- `SET_REQUEST_SUFFICIENT` is the ordinary state. The authorized launcher must
+  submit the exact source-authorized model and effort setters and durably record
+  those setter values. On a `SET_ONLY` surface, effective provider model and
+  effort remain `null`, identity evidence is `SET_REQUEST_ONLY`, and execution
+  may proceed. Setter evidence is never described as independent readback.
+- `INDEPENDENT_READBACK_REQUIRED` is selected by Chat only when the decision
+  depends on proving effective provider model/effort identity, such as a
+  controlled Sol-versus-Astra calibration. A `SET_ONLY` surface fails closed.
+
+Any exact setter mismatch or independently observed contradiction fails closed.
+The source Chat message digest and the materialized execution-directive artifact
+digest identify different objects and normally differ. Admission must bind both
+through the current durable directive identity, revision, task, source
+provenance, and exact Work profile; it must not equate the two digests or trust a
+worker-supplied digest by itself. Legacy directives remain explicitly
+`LEGACY_MODEL_PROFILE_UNSPECIFIED`.
+
 ## Canonical model-and-effort ladder
 
 ### Tier 1 — GPT-5.6 Sol Low
@@ -154,10 +175,15 @@ Only `EXECUTION_REASONING_SHORTFALL` directly justifies model/effort escalation.
 
 ## Fast mode
 
-Fast mode defaults to **OFF**. Enable it only when low latency has material
-decision value, current allowance is adequate, and the task is not being made
-more expensive merely for convenience. Record it as a separate consumption
-choice, not a capability upgrade.
+Fast mode defaults to a `DO_NOT_ENABLE_FAST` request. Enable it only when low
+latency has material decision value, current allowance is adequate, and the task
+is not being made more expensive merely for convenience. Record it as a
+separate consumption choice, not a capability upgrade. When the execution
+surface exposes neither a Fast setter nor readback, record capability
+`UNOBSERVABLE` and observed state `null`; never translate “do not enable” into a
+claim that Fast was verified off. Under `SET_REQUEST_SUFFICIENT`, work may
+proceed when no available control requested or enabled Fast. A request to enable
+Fast fails closed if the surface cannot set it.
 
 ## Allowance-aware routing
 

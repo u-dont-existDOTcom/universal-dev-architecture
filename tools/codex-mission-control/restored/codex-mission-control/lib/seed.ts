@@ -462,6 +462,9 @@ function supervisionCycle(
       supervisory_verdict_authority: "NONE",
       substantive_prose_authorship_authority: "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
       directive_schema_version: 2,
+      directive_artifact_sha256: null,
+      source_message_id: null,
+      source_body_sha256: null,
       work_execution_profile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
       status: "ACTIVE",
   };
