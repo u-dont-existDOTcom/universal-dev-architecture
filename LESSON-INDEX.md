@@ -48,6 +48,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 42. `patterns/worker-self-remediation-before-owner-interruption.md` — before assigning routine configuration, permission, recovery, or setup work to the owner, determine what the active worker can safely perform itself; require worker self-remediation first and reduce the owner handoff to the smallest genuinely irreducible action.
 43. `patterns/instruction-composition-and-portable-intelligence.md` — scope-aware inheritance, public/internal separation, transfer provenance, and preservation-based deduplication.
 44. `patterns/work-model-and-effort-routing.md` — after Chat admits and reduces a Work task, route its residual execution through the canonical Sol Low, Sol Medium, Astra Low, Astra Medium, and exceptional high-effort ladder by expected consumer-seam success and speed per shared allowance; diagnose failures before escalation and collect a bounded 10-task telemetry window without a broad benchmark.
+45. `patterns/durable-write-checkpoints.md` — treat an unverified repository mutation as unfinished work; preserve exact intended bytes and hash in a durable checkpoint, leave an issue marker, reconcile before retry, verify final bytes, and require no owner file handling.
 
 ## Reusable policy templates
 
