@@ -30,7 +30,7 @@ interface ConfiguredSupervisorChat {
     accountPlanRole: "PROVENANCE_METADATA_ONLY";
     accountPlanIsReasoningMode: false;
   };
-  bootstrapCapability: { chatId: string; url: string; challengeId: string };
+  bootstrapCapability: { chatId: string; url: string; challengeId: string | null };
   locatorVerification: "OWNER_CONFIGURED_UNVERIFIED";
 }
 

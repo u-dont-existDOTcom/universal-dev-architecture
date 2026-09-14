@@ -590,6 +590,19 @@ class FakeMissionControl {
     }))];
     return { generatedAt: '2026-09-02T00:00:00.000Z', workers: [{ id: 'worker-a', name: 'Worker A', timeline }] };
   }
+  async resolveCapabilityChallenge(supervisorId, chatId) {
+    if (supervisorId !== 'spec' || chatId !== 'spec-bootstrap') throw new Error('Unknown capability subject.');
+    return {
+      schema_version: 1,
+      challenge_id: 'challenge-spec',
+      chat_id: 'spec-bootstrap',
+      mc_nonce: 'mc-secret',
+      github_nonce_sha256: 'a'.repeat(64),
+      github_nonce_source: 'https://github.com/o/r/issues/2',
+      receipt_target: 'https://github.com/o/r/issues/2',
+      expires_at: '2099-09-03T00:00:00.000Z',
+    };
+  }
   async recordEvidence(worker, input) {
     this.recordedEvidence.push({ worker, ...structuredClone(input) });
     if (this.autoFirstTurnMcp && input.summary === RELAY_STAGE_SUMMARY && input.refs.includes('generation_state:STARTED')
@@ -661,14 +674,14 @@ function chat() {
     registrationId: 'registration:spec:test', ownership: 'MISSION_CONTROL_ONLY', purpose: 'Dedicated test supervisor.',
     accountAlias: 'account:test', workspaceAlias: 'workspace:test', privateLocatorRef: 'private-config:supervisors/spec',
     registrationProvenance: { registeredBy: 'OWNER', registeredAt: '2026-09-10T12:00:00.000Z', sourceRef: 'owner-requirement:test' },
-    bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat', challengeId: 'challenge-spec' }, consumerControls: { ...CURRENT_CONSUMER_CONTROLS }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
+    bootstrapCapability: { chatId: 'spec-bootstrap', url: 'https://chatgpt.com/c/spec-chat' }, consumerControls: { ...CURRENT_CONSUMER_CONTROLS }, requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } };
 }
 
 function challengeEvidence() {
   return {
     eventId: 'challenge', sequence: 1, occurredAt: '2026-09-02T00:00:00.000Z', data: {
       type: 'evidence_receipt_recorded', receipt_id: 'challenge', summary: CAPABILITY_CHALLENGE_SUMMARY, verified: true,
-      refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', 'github_nonce_sha256:deadbeef', 'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', 'stage_receipt_target:https://github.com/o/r/issues/3', 'expires_at:2099-09-03T00:00:00.000Z'],
+      refs: ['challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', 'github_nonce_sha256:deadbeef', 'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', 'stage_receipt_target:https://github.com/o/r/issues/3', 'expires_at:2099-09-03T00:00:00.000Z'],
     },
   };
 }
@@ -676,8 +689,8 @@ function challengeEvidence() {
 function capabilityEvidence() {
   return [
     challengeEvidence(),
-    { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
-    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'tool-cap', sequence: 2, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'tool-cap', summary: CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', 'expires_at:2099-09-03T00:00:00.000Z'] } },
+    { eventId: 'mode-cap', sequence: 3, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'evidence_receipt_recorded', receipt_id: 'mode-cap', summary: MODE_CAPABILITY_VERIFIED_SUMMARY, verified: true, refs: ['challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', 'expires_at:2099-09-03T00:00:00.000Z'] } },
   ];
 }
 

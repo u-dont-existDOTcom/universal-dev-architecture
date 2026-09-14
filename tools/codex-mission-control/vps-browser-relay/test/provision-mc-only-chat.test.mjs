@@ -61,6 +61,9 @@ test('private provisioning persists the locator without returning it or inspecti
     assert.equal(contexts[0].expectedUrlSha256, sha256('https://chatgpt.com/'));
     const privateEntries = JSON.parse(await readFile(resultsFile, 'utf8'));
     assert.equal(privateEntries[0].bootstrapCapability.url, 'https://chatgpt.com/c/private-provisioned-chat');
+    assert.match(privateEntries[0].bootstrapCapability.chatId, /^capability-chat:[a-f0-9]{32}$/);
+    assert.equal(privateEntries[0].bootstrapCapability.chatId.includes('private-provisioned-chat'), false);
+    assert.equal(Object.hasOwn(privateEntries[0].bootstrapCapability, 'challengeId'), false);
     assert.equal((await stat(resultsFile)).mode & 0o777, 0o600);
   } finally {
     await rm(root, { recursive: true, force: true });

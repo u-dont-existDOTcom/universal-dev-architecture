@@ -134,20 +134,22 @@ test('capability truth comes only from current Mission Control evidence receipts
   const future = '2026-09-03T00:00:00.000Z';
   const snapshot = snapshotWithEvidence([
     evidence('challenge', 1, CAPABILITY_CHALLENGE_SUMMARY, [
-      'challenge:challenge-spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', `github_nonce_sha256:${sha256('gh-secret')}`,
+      'challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'mc_nonce:mc-secret', `github_nonce_sha256:${sha256('gh-secret')}`,
       'github_nonce_source:https://github.com/o/r/issues/2', 'receipt_target:https://github.com/o/r/issues/2', `expires_at:${future}`,
     ]),
     evidence('tool-cap', 2, CAPABILITY_VERIFIED_SUMMARY, [
-      'challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
+      'challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
     ]),
     evidence('mode-cap', 3, MODE_CAPABILITY_VERIFIED_SUMMARY, [
-      'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
+      'challenge:challenge-spec', 'supervisor:spec', 'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
     ]),
   ]);
-  const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z');
+  const activeChallenge = { challenge_id: 'challenge-spec', chat_id: 'spec-bootstrap', expires_at: future };
+  const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z', activeChallenge);
   assert.equal(current.challengeAvailable, true);
   assert.equal(current.allCurrent, true);
-  assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z').allCurrent, false);
+  assert.equal(chatCapabilityState(snapshot, chat, '2026-09-04T00:00:00.000Z', activeChallenge).allCurrent, false);
+  assert.equal(chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z', { ...activeChallenge, challenge_id: 'challenge-new' }).allCurrent, false);
 });
 
 test('capability control prompt preserves the owner-approved fresh-chat intent without embedding nonce values', () => {

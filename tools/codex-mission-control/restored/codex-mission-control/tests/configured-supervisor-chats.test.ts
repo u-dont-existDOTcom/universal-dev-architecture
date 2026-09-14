@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CANONICAL_PROJECT_MANAGER_ID,
+  assertCapabilitySubjectsMatchRegistrations,
   loadConfiguredSupervisorChatProvisions,
   loadConfiguredSupervisorChats,
 } from "../lib/configured-supervisor-chats";
@@ -11,7 +12,7 @@ function configuredEntry(overrides: Record<string, unknown> = {}) {
     scope: "PROJECT_MANAGER",
     supervisorId: CANONICAL_PROJECT_MANAGER_ID,
     label: "Mission Control Project Manager",
-    workerId: null,
+    workerId: "mission-control-live-slice",
     registrationId: "registration:pm:test",
     ownership: "MISSION_CONTROL_ONLY",
     purpose: "Dedicated Mission Control project supervision.",
@@ -23,11 +24,11 @@ function configuredEntry(overrides: Record<string, unknown> = {}) {
     consumerControls: { modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false },
     bootstrapCapability: {
       chatId: "pm-bootstrap-test",
-      url: "https://chatgpt.com/c/pm-bootstrap-test",
+      url: "https://chatgpt.com/c/private-pm-conversation-test",
       challengeId: "pm-capability-test",
     },
     ...overrides,
-  };
+  } as const;
 }
 
 function provisionEntry(overrides: Record<string, unknown> = {}) {
@@ -58,6 +59,74 @@ test("the global Project Manager identity is exactly mc-project-manager", () => 
   assert.equal(directory.entries.length, 1);
   assert.equal(directory.entries[0].scope, "PROJECT_MANAGER");
   assert.equal(directory.entries[0].supervisorId, CANONICAL_PROJECT_MANAGER_ID);
+});
+
+test("active supervisor registration no longer requires a mutable challenge ID", () => {
+  const directory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry({
+    bootstrapCapability: {
+      chatId: "pm-bootstrap-test",
+      url: "https://chatgpt.com/c/private-pm-conversation-test",
+    },
+  })]));
+  assert.equal(directory.configurationState, "CONFIGURED");
+  assert.equal(directory.entries[0].bootstrapCapability.challengeId, null);
+});
+
+test("capability subjects require exact MC-only registration and never a conversation locator as public chat ID", () => {
+  const directory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry()]));
+  assertCapabilitySubjectsMatchRegistrations([{
+    supervisorId: CANONICAL_PROJECT_MANAGER_ID,
+    chatId: "pm-bootstrap-test",
+    worker: "mission-control-live-slice",
+    modelVisibleLabel: "GPT-5.6 Sol",
+    thinkingControlLabel: "Thinking effort",
+    thinkingVisibleLabel: "Extra High",
+    thinkingOrdinal: "4 of 5",
+    accountPlanLabel: "Pro",
+    accountPlanRole: "PROVENANCE_METADATA_ONLY",
+    accountPlanIsReasoningMode: false,
+  }], directory);
+
+  const locatorDirectory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry({
+    bootstrapCapability: {
+      chatId: "private-conversation-id",
+      url: "https://chatgpt.com/c/private-conversation-id",
+    },
+  })]));
+  assert.throws(() => assertCapabilitySubjectsMatchRegistrations([{
+    supervisorId: CANONICAL_PROJECT_MANAGER_ID,
+    chatId: "private-conversation-id",
+    worker: "mission-control-live-slice",
+    modelVisibleLabel: "GPT-5.6 Sol",
+    thinkingControlLabel: "Thinking effort",
+    thinkingVisibleLabel: "Extra High",
+    thinkingOrdinal: "4 of 5",
+    accountPlanLabel: "Pro",
+    accountPlanRole: "PROVENANCE_METADATA_ONLY",
+    accountPlanIsReasoningMode: false,
+  }], locatorDirectory), /cannot equal the conversation locator/);
+});
+
+test("capability subjects require an exact non-null worker binding", () => {
+  const subject = {
+    supervisorId: CANONICAL_PROJECT_MANAGER_ID,
+    chatId: "pm-bootstrap-test",
+    worker: "mission-control-live-slice",
+    modelVisibleLabel: "GPT-5.6 Sol",
+    thinkingControlLabel: "Thinking effort",
+    thinkingVisibleLabel: "Extra High",
+    thinkingOrdinal: "4 of 5",
+    accountPlanLabel: "Pro",
+    accountPlanRole: "PROVENANCE_METADATA_ONLY" as const,
+    accountPlanIsReasoningMode: false as const,
+  } as const;
+  for (const workerId of [null, "another-worker"]) {
+    const directory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry({ workerId })]));
+    assert.throws(
+      () => assertCapabilitySubjectsMatchRegistrations([subject], directory),
+      /exact registered supervisor\/chat\/worker binding/,
+    );
+  }
 });
 
 test("alternate global Project Manager identities fail closed", () => {
@@ -109,7 +178,7 @@ test("two supervisors cannot reuse a bootstrap chat ID or normalized conversatio
     registrationId: "registration:specialist:test",
     bootstrapCapability: {
       chatId: "specialist-bootstrap-test",
-      url: "https://chatgpt.com/c/specialist-bootstrap-test",
+      url: "https://chatgpt.com/c/private-specialist-conversation-test",
       challengeId: "specialist-capability-test",
     },
   });
@@ -122,7 +191,7 @@ test("two supervisors cannot reuse a bootstrap chat ID or normalized conversatio
 
   const duplicateUrl = loadConfiguredSupervisorChats(JSON.stringify([
     first,
-    { ...specialist, bootstrapCapability: { ...(specialist.bootstrapCapability as Record<string, unknown>), url: "https://chatgpt.com/c/pm-bootstrap-test/?source=duplicate#fragment" } },
+    { ...specialist, bootstrapCapability: { ...(specialist.bootstrapCapability as Record<string, unknown>), url: "https://chatgpt.com/c/private-pm-conversation-test/?source=duplicate#fragment" } },
   ]));
   assert.equal(duplicateUrl.configurationState, "INVALID");
   assert.match(duplicateUrl.error ?? "", /bootstrap conversation URLs must be unique/i);

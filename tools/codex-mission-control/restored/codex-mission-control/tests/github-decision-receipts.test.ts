@@ -6,7 +6,7 @@ import { canonicalJson, sha256 } from "../lib/canonical";
 import {
   bindingCapsuleSummary,
   bindingEnvelopeSummary,
-  buildGitHubDecisionReceiptEnvelope,
+  buildGitHubDecisionReceiptEnvelope as buildGitHubDecisionReceiptEnvelopeRaw,
   canonicalDecisionCommentPrefix,
   capabilityChallengeSummary,
   capabilityReceiptCommentPrefix,
@@ -34,7 +34,7 @@ import {
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
 import type { BindingCapsule, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
-import { EventStore } from "../lib/store";
+import { EventStore, type CapabilityChallengeCandidate, type StoredCapabilityChallenge } from "../lib/store";
 import { deriveOwnerResponseContinuation } from "../lib/owner-response-continuation";
 import { continuationId } from "../lib/owner-response-continuation-schema";
 import { decisionRouteStates } from "../lib/reasoning-message-state";
@@ -55,6 +55,16 @@ const directDecisionSessionId = "provider-session:direct-decision";
 const directProSessionId = "provider-session:direct-pro-decision";
 const directSessionId = "provider-session:direct";
 const bindingReceiptId = "binding-receipt-1";
+const defaultIngestedAt = "2026-09-02T00:16:30.000Z";
+
+function buildGitHubDecisionReceiptEnvelope(
+  events: StoredEvent[],
+  candidate: GitHubDecisionCandidate,
+  receiptPolicy: GitHubReceiptPolicy,
+  ingestedAt = defaultIngestedAt,
+) {
+  return buildGitHubDecisionReceiptEnvelopeRaw(events, candidate, receiptPolicy, ingestedAt);
+}
 
 test("GitHub webhook authentication and issue-comment normalization fail closed", () => {
   const secret = "s".repeat(32);
@@ -474,7 +484,7 @@ test("later ingestedAt does not rescue stale request, owner, capability, or bind
   }
   assert.throws(
     () => buildGitHubDecisionReceiptEnvelope(staleCapabilityEvents, directCandidate("EXTRA_HIGH_DIRECT"), policy(), lateIngestion),
-    /lacks a current/,
+    /lacks a current|no current durable capability challenge/,
   );
 
   const staleBindingEvents = directDecisionEvents("EXTRA_HIGH_DIRECT");
@@ -515,9 +525,13 @@ function policy(): GitHubReceiptPolicy {
     capabilityIssueNumber: 60,
     stageIssueNumber: 61,
     authorizedWriterLogins: ["u-dont-existDOTcom"],
+    capabilitySubjects: [{
+      supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
+      modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
+    }],
     capabilityChallenges: [{
       challengeId: "challenge-spec", supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
-      mcNonce: "mc-nonce", githubNonce: "github-only-nonce", expiresAt: "2026-09-03T00:00:00.000Z",
+      mcNonce: "mc-nonce", githubNonce: "github-only-nonce", issuedAt: "1970-01-01T00:00:00.000Z", expiresAt: "2026-09-03T00:00:00.000Z",
       modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
     }],
   };
@@ -564,7 +578,7 @@ function capabilityEvents(): StoredEvent[] {
   return [
     evidenceEvent("challenge", 3, capabilityChallengeSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`, "expires_at:2026-09-03T00:00:00.000Z"]),
     evidenceEvent("tools", 4, capabilityVerifiedSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", "expires_at:2026-09-03T00:00:00.000Z"]),
-    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, [`chat:${bootstrapChatId}`, "capability:modeSwitching", "model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false", "expires_at:2026-09-03T00:00:00.000Z"]),
+    evidenceEvent("mode", 5, modeCapabilityVerifiedSummary, ["challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`, "capability:modeSwitching", "model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false", "expires_at:2026-09-03T00:00:00.000Z"]),
   ];
 }
 
@@ -805,8 +819,38 @@ function evidenceEvent(id: string, sequence: number, summary: string, refs: stri
 }
 function fakeStore(initial: StoredEvent[]) {
   const events = initial.map((event) => structuredClone(event));
+  const challenges: StoredCapabilityChallenge[] = [];
   let sequence = Math.max(0, ...events.map((event) => event.sequence));
-  return { allEvents: () => events, append: (input: unknown) => { const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] }; const existing = events.find((event) => event.eventId === envelope.event_id); if (existing) return existing; const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at); events.push(stored); return stored; } } as unknown as EventStore;
+  return {
+    allEvents: () => events,
+    append: (input: unknown) => {
+      const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] };
+      const existing = events.find((event) => event.eventId === envelope.event_id);
+      if (existing) return existing;
+      const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at);
+      events.push(stored);
+      return stored;
+    },
+    capabilityChallengeById: (challengeId: string) => challenges.find((item) => item.challengeId === challengeId) ?? null,
+    currentCapabilityChallenge: (configuredSupervisorId: string, configuredChatId: string, now: string) => challenges.find((item) => item.supervisorId === configuredSupervisorId
+      && item.chatId === configuredChatId && item.status === "ACTIVE" && Date.parse(item.expiresAt) > Date.parse(now)) ?? null,
+    importLegacyCapabilityChallenge: (candidate: CapabilityChallengeCandidate, activatedAt: string) => {
+      const existing = challenges.find((item) => item.challengeId === candidate.challengeId);
+      if (existing) return existing;
+      const stored: StoredCapabilityChallenge = {
+        sequence: challenges.length + 1,
+        ...candidate,
+        status: Date.parse(candidate.expiresAt) > Date.parse(activatedAt) ? "ACTIVE" : "RETIRED",
+        publicationCommentId: null,
+        publicationUrl: null,
+        activatedAt,
+        failedAt: null,
+        failureCode: null,
+      };
+      challenges.push(stored);
+      return stored;
+    },
+  } as unknown as EventStore;
 }
 function storedEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string, receivedAt = occurredAt): StoredEvent {
   return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };

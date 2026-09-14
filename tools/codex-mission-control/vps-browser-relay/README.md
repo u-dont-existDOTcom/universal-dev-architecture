@@ -361,7 +361,9 @@ generation controls, and stores the resulting locator in owner-only
 `provisioned-chats.json`. It does not print the locator or read assistant
 output. Install the generated active registrations as `chats.json` and
 `MISSION_CONTROL_SUPERVISOR_CHATS_JSON`, then remove the provisioning entries
-and restart Mission Control before ordinary relay work.
+and restart Mission Control before ordinary relay work. Provisioning derives a
+stable pseudonymous capability alias from the registration ID; it never uses or
+publishes the private `/c/<conversation-id>` locator as `chat_id`.
 
 For an already active registration, edit:
 
@@ -375,7 +377,11 @@ Each entry must contain:
 - unique `registrationId`, exact `ownership: "MISSION_CONTROL_ONLY"`, dedicated
   purpose, private account/workspace aliases, private-locator reference, and
   owner registration provenance;
-- `bootstrapCapability.chatId`, `.url`, and `.challengeId` for the existing capability proof only;
+- non-private stable `bootstrapCapability.chatId` alias plus the private `.url`
+  locator; the alias must not equal the `/c/<conversation-id>` locator, and the
+  relay resolves the current challenge for that exact supervisor/chat pair;
+- deprecated `bootstrapCapability.challengeId` only when temporarily reading an
+  existing legacy registration during bounded migration—never rotate it in this file;
 - exact `workerId`;
 - the configured exact current GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 controls, with Pro recorded only as account-plan provenance.
 - exact visible Mission Control and GitHub app labels under `requiredApps`.

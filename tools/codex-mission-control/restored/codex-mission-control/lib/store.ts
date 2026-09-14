@@ -26,6 +26,39 @@ export class IdempotencyConflictError extends Error {}
 export class LedgerIntegrityError extends Error {}
 export class WriterLockError extends Error {}
 
+export type CapabilityChallengeStatus = "PUBLISHING" | "ACTIVE" | "RETIRED" | "FAILED";
+
+export interface StoredCapabilityChallenge {
+  sequence: number;
+  challengeId: string;
+  supervisorId: string;
+  chatId: string;
+  worker: string;
+  mcNonce: string;
+  githubNonce: string;
+  issuedAt: string;
+  expiresAt: string;
+  status: CapabilityChallengeStatus;
+  source: "DYNAMIC" | "LEGACY_STATIC";
+  publicationCommentId: number | null;
+  publicationUrl: string | null;
+  activatedAt: string | null;
+  failedAt: string | null;
+  failureCode: string | null;
+}
+
+export interface CapabilityChallengeCandidate {
+  challengeId: string;
+  supervisorId: string;
+  chatId: string;
+  worker: string;
+  mcNonce: string;
+  githubNonce: string;
+  issuedAt: string;
+  expiresAt: string;
+  source: "DYNAMIC" | "LEGACY_STATIC";
+}
+
 interface EventHashInput {
   schemaVersion: 1 | 2;
   eventId: string;
@@ -186,6 +219,213 @@ export class EventStore {
       SELECT state_json FROM provider_submission_authority_state WHERE pacing_domain = ?
     `).get(pacingDomain) as { state_json: string } | undefined;
     return row ? JSON.parse(row.state_json) : null;
+  }
+
+  capabilityChallengeById(challengeId: string): StoredCapabilityChallenge | null {
+    const row = this.db.prepare(`
+      SELECT * FROM capability_challenges WHERE challenge_id = ?
+    `).get(challengeId) as Record<string, unknown> | undefined;
+    return row ? toStoredCapabilityChallenge(row) : null;
+  }
+
+  capabilityChallenges(supervisorId?: string, chatId?: string): StoredCapabilityChallenge[] {
+    const rows = supervisorId === undefined
+      ? this.db.prepare("SELECT * FROM capability_challenges ORDER BY sequence").all()
+      : chatId === undefined
+        ? this.db.prepare("SELECT * FROM capability_challenges WHERE supervisor_id = ? ORDER BY sequence").all(supervisorId)
+        : this.db.prepare("SELECT * FROM capability_challenges WHERE supervisor_id = ? AND chat_id = ? ORDER BY sequence").all(supervisorId, chatId);
+    return (rows as Array<Record<string, unknown>>).map(toStoredCapabilityChallenge);
+  }
+
+  currentCapabilityChallenge(supervisorId: string, chatId: string, now = new Date().toISOString()): StoredCapabilityChallenge | null {
+    const nowMs = Date.parse(now);
+    if (!Number.isFinite(nowMs)) throw new Error("Capability challenge current time must be an ISO timestamp.");
+    const row = this.db.prepare(`
+      SELECT * FROM capability_challenges
+      WHERE supervisor_id = ? AND chat_id = ? AND status = 'ACTIVE' AND expires_at > ?
+      ORDER BY sequence DESC LIMIT 1
+    `).get(supervisorId, chatId, now) as Record<string, unknown> | undefined;
+    return row ? toStoredCapabilityChallenge(row) : null;
+  }
+
+  reserveCapabilityChallenge(
+    candidate: CapabilityChallengeCandidate,
+    now = new Date().toISOString(),
+    renewalLeadMs = 0,
+  ): { disposition: "CURRENT" | "PENDING" | "CREATED"; challenge: StoredCapabilityChallenge } {
+    const nowMs = Date.parse(now);
+    const issuedMs = Date.parse(candidate.issuedAt);
+    const expiresMs = Date.parse(candidate.expiresAt);
+    if (!Number.isFinite(nowMs) || !Number.isFinite(issuedMs) || !Number.isFinite(expiresMs)
+      || issuedMs > nowMs || expiresMs <= nowMs || expiresMs <= issuedMs) {
+      throw new Error("Capability challenge candidate must have a valid issuance and future expiry.");
+    }
+    if (candidate.mcNonce === candidate.githubNonce) {
+      throw new Error("Capability challenge nonces must be independently generated.");
+    }
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const currentRow = this.db.prepare(`
+        SELECT * FROM capability_challenges
+        WHERE supervisor_id = ? AND chat_id = ? AND status = 'ACTIVE' AND expires_at > ?
+        ORDER BY sequence DESC LIMIT 1
+      `).get(candidate.supervisorId, candidate.chatId, now) as Record<string, unknown> | undefined;
+      if (currentRow && Date.parse(String(currentRow.expires_at)) > nowMs + renewalLeadMs) {
+        this.db.exec("COMMIT");
+        return { disposition: "CURRENT", challenge: toStoredCapabilityChallenge(currentRow) };
+      }
+      const pendingRow = this.db.prepare(`
+        SELECT * FROM capability_challenges
+        WHERE supervisor_id = ? AND chat_id = ? AND status = 'PUBLISHING' AND expires_at > ?
+        ORDER BY sequence DESC LIMIT 1
+      `).get(candidate.supervisorId, candidate.chatId, now) as Record<string, unknown> | undefined;
+      if (pendingRow) {
+        this.db.exec("COMMIT");
+        return { disposition: "PENDING", challenge: toStoredCapabilityChallenge(pendingRow) };
+      }
+      this.db.prepare(`
+        INSERT INTO capability_challenges(
+          challenge_id, supervisor_id, chat_id, worker, mc_nonce, github_nonce,
+          issued_at, expires_at, status, source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PUBLISHING', ?)
+      `).run(
+        candidate.challengeId,
+        candidate.supervisorId,
+        candidate.chatId,
+        candidate.worker,
+        candidate.mcNonce,
+        candidate.githubNonce,
+        candidate.issuedAt,
+        candidate.expiresAt,
+        candidate.source,
+      );
+      const created = this.capabilityChallengeById(candidate.challengeId);
+      if (!created) throw new Error("Capability challenge reservation was not persisted.");
+      this.db.exec("COMMIT");
+      return { disposition: "CREATED", challenge: created };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  activateCapabilityChallenge(
+    challengeId: string,
+    publication: { commentId: number; url: string },
+    activatedAt = new Date().toISOString(),
+  ): StoredCapabilityChallenge {
+    if (!Number.isInteger(publication.commentId) || publication.commentId <= 0 || !publication.url.startsWith("https://github.com/")) {
+      throw new Error("Capability challenge publication evidence is invalid.");
+    }
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const row = this.db.prepare("SELECT * FROM capability_challenges WHERE challenge_id = ?").get(challengeId) as Record<string, unknown> | undefined;
+      if (!row) throw new Error(`Capability challenge ${challengeId} does not exist.`);
+      const challenge = toStoredCapabilityChallenge(row);
+      if (challenge.status === "ACTIVE") {
+        if (challenge.publicationCommentId !== publication.commentId || challenge.publicationUrl !== publication.url) {
+          throw new Error("Capability challenge is already active with different publication evidence.");
+        }
+        this.db.exec("COMMIT");
+        return challenge;
+      }
+      if (challenge.status !== "PUBLISHING") throw new Error(`Capability challenge ${challengeId} is not pending publication.`);
+      const activatedAtMs = Date.parse(activatedAt);
+      if (!Number.isFinite(activatedAtMs) || activatedAtMs < Date.parse(challenge.issuedAt) || Date.parse(challenge.expiresAt) <= activatedAtMs) {
+        throw new Error("Cannot activate a capability challenge outside its issuance window.");
+      }
+      this.db.prepare(`
+        UPDATE capability_challenges SET status = 'RETIRED'
+        WHERE supervisor_id = ? AND chat_id = ? AND status = 'ACTIVE' AND challenge_id <> ?
+      `).run(challenge.supervisorId, challenge.chatId, challengeId);
+      this.db.prepare(`
+        UPDATE capability_challenges
+        SET status = 'ACTIVE', publication_comment_id = ?, publication_url = ?, activated_at = ?
+        WHERE challenge_id = ? AND status = 'PUBLISHING'
+      `).run(publication.commentId, publication.url, activatedAt, challengeId);
+      const active = this.capabilityChallengeById(challengeId);
+      if (!active || active.status !== "ACTIVE") throw new Error("Capability challenge activation did not persist.");
+      this.db.exec("COMMIT");
+      return active;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  failCapabilityChallenge(challengeId: string, failureCode: string, failedAt = new Date().toISOString()): StoredCapabilityChallenge {
+    this.db.prepare(`
+      UPDATE capability_challenges
+      SET status = 'FAILED', failed_at = ?, failure_code = ?
+      WHERE challenge_id = ? AND status = 'PUBLISHING'
+    `).run(failedAt, failureCode, challengeId);
+    const failed = this.capabilityChallengeById(challengeId);
+    if (!failed) throw new Error(`Capability challenge ${challengeId} does not exist.`);
+    return failed;
+  }
+
+  importLegacyCapabilityChallenge(candidate: CapabilityChallengeCandidate, activatedAt: string): StoredCapabilityChallenge {
+    const existing = this.capabilityChallengeById(candidate.challengeId);
+    if (existing) {
+      const exactIdentity = existing.supervisorId === candidate.supervisorId
+        && existing.chatId === candidate.chatId
+        && existing.worker === candidate.worker
+        && existing.mcNonce === candidate.mcNonce
+        && existing.githubNonce === candidate.githubNonce
+        && existing.issuedAt === candidate.issuedAt
+        && existing.expiresAt === candidate.expiresAt
+        && existing.source === "LEGACY_STATIC";
+      if (!exactIdentity) throw new Error(`Legacy capability challenge ${candidate.challengeId} conflicts with durable state.`);
+      return existing;
+    }
+    if (!Number.isFinite(Date.parse(candidate.issuedAt)) || !Number.isFinite(Date.parse(candidate.expiresAt)) || !Number.isFinite(Date.parse(activatedAt))
+      || Date.parse(candidate.expiresAt) <= Date.parse(candidate.issuedAt)) {
+      throw new Error("Legacy capability challenge has an invalid issuance window.");
+    }
+    if (candidate.mcNonce === candidate.githubNonce) throw new Error("Legacy capability challenge nonces must be independent.");
+    let status: CapabilityChallengeStatus = Date.parse(candidate.expiresAt) > Date.parse(activatedAt) ? "ACTIVE" : "RETIRED";
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (status === "ACTIVE") {
+        const activeRow = this.db.prepare(`
+          SELECT source FROM capability_challenges
+          WHERE supervisor_id = ? AND chat_id = ? AND status = 'ACTIVE'
+          ORDER BY sequence DESC LIMIT 1
+        `).get(candidate.supervisorId, candidate.chatId) as { source: StoredCapabilityChallenge["source"] } | undefined;
+        if (activeRow?.source === "DYNAMIC") {
+          status = "RETIRED";
+        } else {
+          this.db.prepare(`
+            UPDATE capability_challenges SET status = 'RETIRED'
+            WHERE supervisor_id = ? AND chat_id = ? AND status = 'ACTIVE'
+          `).run(candidate.supervisorId, candidate.chatId);
+        }
+      }
+      this.db.prepare(`
+        INSERT INTO capability_challenges(
+          challenge_id, supervisor_id, chat_id, worker, mc_nonce, github_nonce,
+          issued_at, expires_at, status, source, activated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'LEGACY_STATIC', ?)
+      `).run(
+        candidate.challengeId,
+        candidate.supervisorId,
+        candidate.chatId,
+        candidate.worker,
+        candidate.mcNonce,
+        candidate.githubNonce,
+        candidate.issuedAt,
+        candidate.expiresAt,
+        status,
+        activatedAt,
+      );
+      const imported = this.capabilityChallengeById(candidate.challengeId);
+      if (!imported) throw new Error("Legacy capability challenge import did not persist.");
+      this.db.exec("COMMIT");
+      return imported;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   commitSubmissionAuthorityState(pacingDomain: string, state: unknown, ledger: Record<string, unknown>): Record<string, unknown> {
@@ -374,7 +614,33 @@ export class EventStore {
       );
       CREATE INDEX IF NOT EXISTS provider_submission_authority_ledger_domain_sequence
         ON provider_submission_authority_ledger(pacing_domain, sequence);
-      PRAGMA user_version = 2;
+      CREATE TABLE IF NOT EXISTS capability_challenges (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        challenge_id TEXT NOT NULL UNIQUE,
+        supervisor_id TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        worker TEXT NOT NULL,
+        mc_nonce TEXT NOT NULL,
+        github_nonce TEXT NOT NULL,
+        issued_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('PUBLISHING', 'ACTIVE', 'RETIRED', 'FAILED')),
+        source TEXT NOT NULL CHECK (source IN ('DYNAMIC', 'LEGACY_STATIC')),
+        publication_comment_id INTEGER,
+        publication_url TEXT,
+        activated_at TEXT,
+        failed_at TEXT,
+        failure_code TEXT
+      );
+      CREATE INDEX IF NOT EXISTS capability_challenges_subject_sequence
+        ON capability_challenges(supervisor_id, chat_id, sequence);
+      CREATE UNIQUE INDEX IF NOT EXISTS capability_challenges_unique_mc_nonce
+        ON capability_challenges(mc_nonce);
+      CREATE UNIQUE INDEX IF NOT EXISTS capability_challenges_unique_github_nonce
+        ON capability_challenges(github_nonce);
+      CREATE UNIQUE INDEX IF NOT EXISTS capability_challenges_one_active_subject
+        ON capability_challenges(supervisor_id, chat_id) WHERE status = 'ACTIVE';
+      PRAGMA user_version = 3;
     `);
     const columns = this.db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "producer_id")) {
@@ -407,6 +673,25 @@ export class EventStore {
       BEFORE DELETE ON provider_submission_authority_ledger
       BEGIN
         SELECT RAISE(ABORT, 'provider_submission_authority_ledger_is_append_only');
+      END;
+      CREATE TRIGGER IF NOT EXISTS capability_challenges_reject_delete
+      BEFORE DELETE ON capability_challenges
+      BEGIN
+        SELECT RAISE(ABORT, 'capability_challenges_are_durable');
+      END;
+      CREATE TRIGGER IF NOT EXISTS capability_challenges_protect_identity
+      BEFORE UPDATE ON capability_challenges
+      WHEN OLD.challenge_id <> NEW.challenge_id
+        OR OLD.supervisor_id <> NEW.supervisor_id
+        OR OLD.chat_id <> NEW.chat_id
+        OR OLD.worker <> NEW.worker
+        OR OLD.mc_nonce <> NEW.mc_nonce
+        OR OLD.github_nonce <> NEW.github_nonce
+        OR OLD.issued_at <> NEW.issued_at
+        OR OLD.expires_at <> NEW.expires_at
+        OR OLD.source <> NEW.source
+      BEGIN
+        SELECT RAISE(ABORT, 'capability_challenge_identity_is_immutable');
       END;
     `);
   }
@@ -1291,6 +1576,27 @@ function toStoredEvent(row: Record<string, unknown>): StoredEvent {
     producerId: String(row.producer_id),
     producerKind: String(row.producer_kind),
     data,
+  };
+}
+
+function toStoredCapabilityChallenge(row: Record<string, unknown>): StoredCapabilityChallenge {
+  return {
+    sequence: Number(row.sequence),
+    challengeId: String(row.challenge_id),
+    supervisorId: String(row.supervisor_id),
+    chatId: String(row.chat_id),
+    worker: String(row.worker),
+    mcNonce: String(row.mc_nonce),
+    githubNonce: String(row.github_nonce),
+    issuedAt: String(row.issued_at),
+    expiresAt: String(row.expires_at),
+    status: String(row.status) as CapabilityChallengeStatus,
+    source: String(row.source) as StoredCapabilityChallenge["source"],
+    publicationCommentId: row.publication_comment_id === null ? null : Number(row.publication_comment_id),
+    publicationUrl: row.publication_url === null ? null : String(row.publication_url),
+    activatedAt: row.activated_at === null ? null : String(row.activated_at),
+    failedAt: row.failed_at === null ? null : String(row.failed_at),
+    failureCode: row.failure_code === null ? null : String(row.failure_code),
   };
 }
 

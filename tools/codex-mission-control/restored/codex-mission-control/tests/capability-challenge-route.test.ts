@@ -5,12 +5,15 @@ import * as capabilityRoute from "../app/api/capability-challenges/[challenge]/r
 import { GET as getWorker } from "../app/api/workers/[worker]/route";
 import {
   capabilityReceiptCommentPrefix,
+  ensureConfiguredCapabilityChallenges,
   ingestGitHubSupervisionCandidate,
   parseGitHubReceiptPolicy,
   publicCapabilityChallenge,
   type GitHubDecisionCandidate,
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
+import { EventStore } from "../lib/store";
+import { seedIssue47Store } from "../lib/seed";
 
 const allowedFields = [
   "challenge_id",
@@ -24,7 +27,9 @@ const allowedFields = [
 ];
 
 test("public exact-ID capability route returns only the disposable allowlist without owner auth", async () => {
-  await withPolicy(policy(), async () => {
+  const expected = publicCapabilityChallenge(policy(), "challenge-spec", "2026-09-03T00:00:00.000Z");
+  assert.ok(expected);
+  await withFetch(async () => Response.json(expected), async () => withPolicy(policy(), async () => {
     const response = await capabilityRoute.GET(
       new Request("https://mission-control.example/api/capability-challenges/challenge-spec"),
       { params: Promise.resolve({ challenge: "challenge-spec" }) },
@@ -45,24 +50,24 @@ test("public exact-ID capability route returns only the disposable allowlist wit
     assert.match(response.headers.get("cache-control") ?? "", /no-store/);
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("referrer-policy"), "no-referrer");
-  });
+  }));
 });
 
 test("unknown and expired capability challenges fail closed", async () => {
-  await withPolicy(policy(), async () => {
+  await withFetch(async () => Response.json({ error: "Capability challenge not found." }, { status: 404 }), async () => withPolicy(policy(), async () => {
     const unknown = await capabilityRoute.GET(
       new Request("https://mission-control.example/api/capability-challenges/unknown"),
       { params: Promise.resolve({ challenge: "unknown" }) },
     );
     assert.equal(unknown.status, 404);
-  });
-  await withPolicy(policy("2000-01-01T00:00:00.000Z"), async () => {
+  }));
+  await withFetch(async () => Response.json({ error: "Capability challenge not found." }, { status: 404 }), async () => withPolicy(policy("2000-01-01T00:00:00.000Z"), async () => {
     const expired = await capabilityRoute.GET(
       new Request("https://mission-control.example/api/capability-challenges/challenge-spec"),
       { params: Promise.resolve({ challenge: "challenge-spec" }) },
     );
     assert.equal(expired.status, 404);
-  });
+  }));
 });
 
 test("ambiguous duplicate challenge IDs fail configuration closed instead of selecting one", () => {
@@ -129,21 +134,25 @@ test("public challenge projection does not weaken capability receipt writer, non
 });
 
 function policy(expiresAt = "2099-09-05T00:00:00.000Z"): GitHubReceiptPolicy {
+  const subject = {
+    supervisorId: "spec", chatId: "spec", worker: "mission-control-live-slice",
+    modelVisibleLabel: "GPT-5.6 Sol" as const, thinkingControlLabel: "Thinking effort" as const, thinkingVisibleLabel: "Extra High" as const,
+    thinkingOrdinal: "4 of 5" as const, accountPlanLabel: "Pro" as const, accountPlanRole: "PROVENANCE_METADATA_ONLY" as const, accountPlanIsReasoningMode: false as const,
+  };
   return {
     repository: "u-dont-existDOTcom/universal-dev-architecture",
     decisionIssueNumber: 59,
     capabilityIssueNumber: 60,
     stageIssueNumber: 61,
     authorizedWriterLogins: ["u-dont-existDOTcom"],
+    capabilitySubjects: [subject],
     capabilityChallenges: [{
+      ...subject,
       challengeId: "challenge-spec",
-      supervisorId: "spec",
-      chatId: "spec",
-      worker: "mission-control-live-slice",
       mcNonce: "mc-nonce",
       githubNonce: "github-only-nonce",
+      issuedAt: "1970-01-01T00:00:00.000Z",
       expiresAt,
-      modelVisibleLabel: "GPT-5.6 Sol", thinkingControlLabel: "Thinking effort", thinkingVisibleLabel: "Extra High", thinkingOrdinal: "4 of 5", accountPlanLabel: "Pro", accountPlanRole: "PROVENANCE_METADATA_ONLY", accountPlanIsReasoningMode: false,
     }],
   };
 }
@@ -175,14 +184,24 @@ function candidate(body: string): GitHubDecisionCandidate {
 }
 
 function fakeStore() {
-  return {
-    allEvents: () => [],
-    append: (value: unknown) => value,
-  } as never;
+  const store = new EventStore(":memory:");
+  seedIssue47Store(store);
+  ensureConfiguredCapabilityChallenges(store, policy(), "2026-09-03T00:00:00.000Z");
+  return store;
 }
 
 async function withPolicy(value: GitHubReceiptPolicy, action: () => Promise<void>) {
   return withEnv({ MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON: JSON.stringify(value) }, action);
+}
+
+async function withFetch(fetchImpl: typeof fetch, action: () => Promise<void>) {
+  const previous = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+  try {
+    await action();
+  } finally {
+    globalThis.fetch = previous;
+  }
 }
 
 async function withEnv(values: Record<string, string>, action: () => Promise<void>) {

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -50,7 +49,7 @@ export async function provisionMcOnlyChat({ config, provision, browser, submissi
 }
 
 function activeRegistration(provision, conversationUrl) {
-  const chatId = conversationUrl.slice('https://chatgpt.com/c/'.length);
+  const chatId = `capability-chat:${sha256(provision.registrationId).slice(0, 32)}`;
   return {
     scope: provision.scope,
     supervisorId: provision.supervisorId,
@@ -74,7 +73,6 @@ function activeRegistration(provision, conversationUrl) {
     bootstrapCapability: {
       chatId,
       url: conversationUrl,
-      challengeId: `provisioned:${randomUUID()}`,
     },
   };
 }
