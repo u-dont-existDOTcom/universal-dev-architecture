@@ -76,7 +76,7 @@ export async function provisionMcOnlyChat({ config, provision, browser, submissi
   }
   await persistPrivateRegistration(config.runtime.provisionResultsFile, registration);
   if (authorization) {
-    const evidenceId = await workCreation.missionControl.recordWorkCreation(authorization, selection, conversationUrl);
+    const evidenceId = await workCreation.missionControl.recordWorkCreation(authorization, selection, conversationUrl, target);
     return { status: 'BROWSER_TASK_CREATION_TRUSTED_SETTER_ACTIVE', setterEvidenceId: evidenceId,
       conversationUrlSha256: sha256(conversationUrl), inspectedAssistantOutput: false };
   }

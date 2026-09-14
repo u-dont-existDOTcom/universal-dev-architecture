@@ -700,6 +700,39 @@ export class ChromeDevtoolsBrowser {
     });
   }
 
+  async inspectWorkModelMenu(target, { expectedUrl, captureScreenshot = false, expandModels = false }) {
+    const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
+    return this.#withPageClient(target, async (client) => {
+      try {
+        await this.#openModelMenu(client, normalized);
+        if (expandModels) await this.#selectOpenModelMenu(client, 'Select model', {allowThinkingSlider:false});
+        await client.callFunction(`async function() {
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }`);
+        const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, 'Thinking effort', null]);
+        if (!captureScreenshot || !observation?.menuFound) return observation;
+        const clip = await client.callFunction(`function() {
+          const menus = [...document.querySelectorAll('[role="menu"]')].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
+          if (menus.length !== 1) return null;
+          const rects = [menus[0], ...menus[0].querySelectorAll('*')].filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect());
+          const x = Math.min(...rects.map(r=>r.left)), y = Math.min(...rects.map(r=>r.top));
+          const right = Math.max(...rects.map(r=>r.right)), bottom = Math.max(...rects.map(r=>r.bottom));
+          const mask = document.createElement('style'); mask.id = 'mc-calibration-privacy-mask';
+          mask.textContent = 'body * { visibility: hidden !important; } [role="menu"], [role="menu"] * { visibility: visible !important; }';
+          document.head.append(mask);
+          return {x:x + scrollX, y:y + scrollY, width:right-x, height:bottom-y, scale:1};
+        }`);
+        if (!clip) throw new Error('WORK_MENU_SCREENSHOT_AMBIGUOUS');
+        const screenshot = await client.send('Page.captureScreenshot', {format:'png', clip, captureBeyondViewport:false});
+        return { ...observation, screenshotPngBase64:screenshot.data };
+      } finally {
+        await client.callFunction(`function() { document.getElementById('mc-calibration-privacy-mask')?.remove(); }`);
+        await this.#closeModelMenu(client);
+      }
+    });
+  }
+
   async ensureExactWorkControls(target, { expectedUrl, profile }) {
     const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
     const controls = workSelectionControls(profile);

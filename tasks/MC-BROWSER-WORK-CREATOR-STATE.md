@@ -10,12 +10,14 @@ provider observations null, and private managed-tab ownership. No merge/deployme
 
 Observed: launcher exists, but its consumer controls enforce Sol Extra High rather
 than the source-authorized Work profile. Primary managed browser service is running.
-Dedicated browser-account configuration is inaccessible to the current SSH account.
-The permission reviewer rejected a read-only account-switch check; no workaround
-was attempted. Live calibration is blocked on authorized dedicated-account access.
+The owner subsequently approved dedicated-account access and it succeeded. There
+is one managed tab. The expanded picker offers Latest, GPT-5.6 Sol and GPT-5.5;
+Astra is absent. The scheduler reports LEASE_STALE, not ready, zero queued items,
+and no unresolved admission. No model invocation occurred. See
+`MC-BROWSER-LIVE-CALIBRATION-20260914.json`.
 
 Test observer started before implementation: `mc-browser-work-creator-20260914`.
-Implemented: SYSTEM-only durable authority lookup, reused provision-work path,
+Implemented: SYSTEM/registered-relay durable authority lookup, reused provision-work path,
 source-authorized selection/readback, browser evidence schema and trusted durable
 consumer validation, no worker forgery, null provider/Fast observations, replay guard.
 Local verification: 34 profile tests, 4 focused relay tests, 270 full Mission Control
@@ -24,8 +26,13 @@ audit and owner-integrity validation passed. Archive: 165 files, 78 parts,
 `738a6bf7f7ea33388855b00f4b8fe682c7fe326540ee68e3a181955be3d862db`;
 reconstruction matches source byte-for-byte.
 
-Remaining: publish draft PR/check hosted checks; obtain authorized dedicated-account
-access; perform two real calibration launches and privacy-safe control screenshots;
-validate actual live selectors and resulting locators. No new real chat was created.
-Classification: `BROWSER_TASK_CREATION_CANDIDATE_CALIBRATION_ACCESS_BLOCKED`.
+Published draft PR #120. Follow-up corrects the existing COLLECTOR credential to
+server-side SYSTEM bridge mapping; workers/unbound collectors/wrong target/window
+remain rejected. Clean model-picker screenshot captured privately. Failed
+off-target crops are discarded, not used as evidence. No new real chat was created.
+Remaining: finish follow-up verification/publication, then the two calibration
+launches once Astra availability and the existing lease are restored. Renewal is
+only at daemon initialization; no live renewal endpoint exists. No production
+deployment/configuration/account changes were made.
+Classification: `BROWSER_TASK_CREATION_CANDIDATE_LIVE_PREREQUISITES_UNAVAILABLE`.
 Do not claim active runtime or completed calibration from synthetic tests.

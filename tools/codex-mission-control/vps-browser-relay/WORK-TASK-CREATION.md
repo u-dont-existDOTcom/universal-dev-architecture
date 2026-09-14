@@ -6,7 +6,7 @@ The existing `provision-mc-only-chat.mjs` flow is reused by:
 mc-chatgpt-relay provision-work <owner-authorized-supervisor-id> <exact-directive-file> <authorization-id>
 ```
 
-The caller supplies neither a model nor an effort. The authenticated SYSTEM relay
+The caller supplies neither a model nor an effort. The authenticated MC-bound relay
 loads the current Chat-bound authorization through `/api/work-task-creation/[worker]`.
 The exact directive file must hash to the separately recorded directive artifact
 digest. The Chat message digest is not substituted for that digest.
@@ -18,7 +18,7 @@ enabled and is recorded as unobserved, not verified off. Supervisor provisioning
 retains its existing fixed controls; only the Work-specific path uses the profile.
 
 After submission, the private registration persists the created locator. Then the
-SYSTEM relay writes `work_task_creation_selection_applied`, with source
+server-side SYSTEM bridge writes `work_task_creation_selection_applied`, with source
 `TRUSTED_MANAGED_BROWSER_TASK_CREATION_BOUNDARY`. Only successful durable ingestion
 returns `BROWSER_TASK_CREATION_TRUSTED_SETTER_ACTIVE` and the evidence ID. Preflight
 accepts that ID through the existing durable trust checks. UI proof is setter proof,
@@ -30,9 +30,17 @@ private locators, prompt bodies, account sessions, or screenshots in public tele
 
 ## Current verification boundary
 
-This branch is a candidate, not a deployed/activated feature. Real Sol Medium and
-Astra Low calibration is pending authorized access to the dedicated managed browser
-account. No personal browser may substitute for that account. Keep screenshots
+This branch is a candidate, not a deployed/activated feature. Dedicated-account
+access was authorized and verified. The live scheduler reports `LEASE_STALE`; the
+expanded model picker offers Latest, GPT-5.6 Sol and GPT-5.5, but not GPT-6 Astra.
+No calibration task was submitted. No personal browser may substitute for that account. Keep screenshots
 private and cropped to the selected controls, with no sidebar, prompt or session
 content. A successful synthetic test is not calibration. Do not merge or deploy
-before Chat reviews the live diff and calibration evidence.
+before Chat reviews the live diff and calibration evidence. Lease renewal is only
+implemented at daemon initialization in the current runtime, not as a callable
+renewal endpoint. No service/config deployment or account/subscription change was made.
+
+The existing relay uses a COLLECTOR credential for the scheduler. The browser
+bridge accepts only a registered MC relay from that credential set, validates the
+exact owned target/window and current source authorization, and emits a server-derived
+SYSTEM producer event. WORKER and unbound collector credentials cannot use it.

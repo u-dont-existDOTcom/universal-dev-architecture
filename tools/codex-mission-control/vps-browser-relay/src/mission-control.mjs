@@ -16,23 +16,13 @@ export class MissionControlClient {
     return payload.authorization;
   }
 
-  async recordWorkCreation(authorization, selection, locator) {
-    const occurredAt = new Date().toISOString();
+  async recordWorkCreation(authorization, selection, locator, target) {
     const evidenceId = `browser-setter:${sha256(`${authorization.authorization_id}:${locator}`).slice(0, 32)}`;
-    const payload = await this.#requestJson('/api/events', {
+    const payload = await this.#requestJson(`/api/work-task-creation/${encodeURIComponent(authorization.worker)}?authorizationId=${encodeURIComponent(authorization.authorization_id)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ schema_version: 2, event_id: evidenceId, mission_id: 'mission-control-live', occurred_at: occurredAt,
-        data: { type: 'work_task_creation_selection_applied', worker: authorization.worker,
-          evidence_id: evidenceId, authorization_id: authorization.authorization_id,
-          directive_id: authorization.directive_id, directive_revision: authorization.directive_revision,
-          task_id: authorization.task_id, authorized_profile: authorization.authorized_profile,
-          model_setter: selection.model, effort_setter: selection.effort,
-          fast_request: authorization.authorized_profile.fastModeRequest, fast_setter: null,
-          producer_id: this.producerId, source: 'TRUSTED_MANAGED_BROWSER_TASK_CREATION_BOUNDARY',
-          browser_selection: { status: selection.status, model: selection.model, effort: selection.effort,
-            managed_target_verified: selection.managed_target_verified, fast_observed: null },
-          provider_task_locator: locator, applied_at: occurredAt,
-        } }),
+      body: JSON.stringify({ selection: { status: selection.status, model: selection.model, effort: selection.effort,
+        managed_target_verified: selection.managed_target_verified, fast_observed: null },
+        locator, targetId: target?.id, automationWindowId: target?.automationWindowId }),
     });
     if (payload?.event?.data?.evidence_id !== evidenceId) throw new Error('WORK_CREATION_EVIDENCE_NOT_PERSISTED_DO_NOT_REPLAY');
     return evidenceId;

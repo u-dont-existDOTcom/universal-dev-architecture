@@ -1,0 +1,20 @@
+{
+  "status": "BROWSER_TASK_CREATION_CANDIDATE_LIVE_PREREQUISITES_UNAVAILABLE",
+  "owner_access_approval": "do whatever you need to",
+  "access_verified": true,
+  "managed_tabs": 1,
+  "normal_relay_submit_enabled": false,
+  "scheduler_state": "LEASE_STALE",
+  "scheduler_ready": false,
+  "scheduler_queue_depth": 0,
+  "scheduler_unresolved_admission": false,
+  "available_model_options": ["Latest", "GPT-5.6 Sol", "GPT-5.5"],
+  "astra_option_found": false,
+  "sol_medium_launch": "NOT_RUN",
+  "astra_low_launch": "NOT_RUN",
+  "real_task_locators": [],
+  "model_invocations": 0,
+  "finding": "Existing relay uses COLLECTOR authentication; the candidate now maps only a registered owned-target relay to a server-side SYSTEM evidence producer.",
+  "not_done": ["account changes", "subscription changes", "scheduler bypass", "merge", "deployment"],
+  "next_direct_evidence": "Once Astra is available in the existing account and the existing scheduler lease is renewed, run the two bounded launches through the same owned tab."
+}
