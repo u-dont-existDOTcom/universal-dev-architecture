@@ -27,6 +27,24 @@ class WorkerSelfRemediationBeforeOwnerInterruptionTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, pattern)
 
+    def test_pattern_switches_control_plane_after_ineffective_config_repair(self) -> None:
+        pattern = (
+            ROOT
+            / "patterns"
+            / "worker-self-remediation-before-owner-interruption.md"
+        ).read_text(encoding="utf-8")
+        required = (
+            "wrong control plane",
+            "effective runtime roots/policy",
+            "stop trying to repair that config path",
+            "Repeated config edits or identical restarts are the wrong control plane",
+            "client/thread/task initialization",
+            "A fresh-process failure is therefore a strategy checkpoint",
+        )
+        for phrase in required:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, pattern)
+
     def test_existing_codex_permission_pattern_already_assigns_routine_permissions_to_worker(self) -> None:
         permissions = (
             ROOT / "patterns" / "codex-worker-permissions.md"
@@ -44,6 +62,8 @@ class WorkerSelfRemediationBeforeOwnerInterruptionTests(unittest.TestCase):
         self.assertIn("activation/application gap", audit)
         self.assertIn("no-new-lesson", audit)
         self.assertIn("promoted", audit)
+        self.assertIn("non-controlling", audit)
+        self.assertIn("client/task runtime authority", audit)
 
 
 if __name__ == "__main__":
