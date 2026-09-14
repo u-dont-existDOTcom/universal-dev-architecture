@@ -178,6 +178,10 @@ test('exact app selection walks Tools then More then one exact app option', () =
   assert.deepEqual(appSelectionState({ ...base, moreMatchCount: 1 }, 'Mission Control'), { type: 'OPEN_MORE' });
   assert.deepEqual(appSelectionState({ ...base, renderedAppMatchCount: 1 }, 'Mission Control'), { type: 'FOCUS_APP', label: 'Mission Control' });
   assert.deepEqual(appSelectionState({ ...base, appMatchCount: 1 }, 'Mission Control'), { type: 'APP_OPTION', label: 'Mission Control' });
+  assert.deepEqual(appSelectionState({ ...base, toolsExpanded: true, composerEmpty: true }, 'Mission Control'),
+    { type: 'SEARCH_APP', label: 'Mission Control' });
+  assert.deepEqual(appSelectionState({ ...base, toolsExpanded: true, scratchQueryOwned: true }, 'Mission Control'),
+    { type: 'WAIT_FOR_APP', label: 'Mission Control' });
 });
 
 test('app selection fails closed on missing or ambiguous exact controls', () => {
@@ -185,4 +189,15 @@ test('app selection fails closed on missing or ambiguous exact controls', () => 
   assert.throws(() => appSelectionState({ ...base, toolsControlCount: 0 }, 'Mission Control'), /unavailable/);
   assert.throws(() => appSelectionState({ ...base, appMatchCount: 2 }, 'Mission Control'), /ambiguous/);
   assert.throws(() => appSelectionState({ ...base, chipMatchCount: 2 }, 'Mission Control'), /chip.*ambiguous/);
+  assert.throws(() => appSelectionState({ ...base, blocked: true, blockReason: 'APP_POPUP_AMBIGUOUS' }, 'Mission Control'), /failed closed/);
+});
+
+test('current searchable app menu and inline app pills are guarded before the send boundary', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  const relaySource = await readFile(new URL('../src/relay.mjs', import.meta.url), 'utf8');
+  assert.match(source, /APP_SELECTION_OBSERVATION_FN/);
+  assert.match(source, /\[data-inline-selection-pill\]/);
+  assert.match(source, /Input\.insertText', \{ text: ownedScratchQuery \}/);
+  assert.match(source, /error\.relayStage = 'APP_SELECTION_PRECLICK'/);
+  assert.match(relaySource, /expectedAppLabels: messageApps\.selectedLabels/);
 });

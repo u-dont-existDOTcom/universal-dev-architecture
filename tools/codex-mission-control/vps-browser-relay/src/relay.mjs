@@ -209,7 +209,7 @@ export class RelayRuntime {
           messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), expectedAppLabels: messageApps.selectedLabels, onBeforeSubmissionBoundary: async () => {
             await this.#assertCurrentChallenge(chat);
             await onBeforeSubmissionBoundary?.();
           }, onSubmissionBoundary });
@@ -324,7 +324,7 @@ export class RelayRuntime {
           messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary: async () => {
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), expectedAppLabels: messageApps.selectedLabels, onBeforeSubmissionBoundary: async () => {
             await this.#assertCurrentChallenge(chat);
             await onBeforeSubmissionBoundary?.();
           }, onSubmissionBoundary });
@@ -845,7 +845,7 @@ export class RelayRuntime {
             : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
-          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary: async () => {
+          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, expectedAppLabels: messageApps.selectedLabels, onBeforeSubmissionBoundary: async () => {
             await this.#assertCurrentChallenge(route.chat, true);
             await onBeforeSubmissionBoundary?.();
           }, onSubmissionBoundary });

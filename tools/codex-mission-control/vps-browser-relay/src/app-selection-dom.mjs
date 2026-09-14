@@ -4,7 +4,7 @@ export function matchAppSelectionRow(row, knownLabels) {
   if (!row || !Array.isArray(knownLabels) || new Set(knownLabels).size !== knownLabels.length) return null;
   const plugin = row.closest('[data-composer-plugin-impression-id]');
   const group = row.closest('[role="group"]');
-  if (!plugin || !group || !row.matches('[data-fill][tabindex]')
+  if (!plugin || !group || !row.matches('[data-fill][tabindex], .__menu-item[tabindex]')
     || !(plugin.contains(group) || group.contains(plugin))
     || row.closest('article, [data-message-author-role], [data-testid^="conversation-turn"], nav, aside, [role="navigation"], [role="complementary"], [data-sidebar-item], [data-testid*="sidebar"]')) return null;
   const title = row.querySelector('span');
@@ -18,6 +18,7 @@ function observeAppSelection(knownLabels, labelWanted, ownedScratchQuery, matchR
   const base = {
     composerFound: false, composerAmbiguous: false, composerFormFound: false, composerEmpty: false, scratchQueryOwned: false,
     toolsControlCount: 0, toolsExpanded: false, toolsRect: null, chipCounts: {}, chipMatchCount: 0, chipRect: null,
+    legacyChipMatchCount: 0, inlineChipMatchCount: 0, inlineChipTotalCount: 0, inlineChipCounts: {},
     visibleMenuCount: 0, moreMatchCount: 0, moreRect: null, appMatchCount: 0, renderedAppMatchCount: 0,
     appRect: null, availableAppLabels: [], scrollCandidate: null, duplicateAppLabels: [], blocked: false, blockReason: null,
   };
@@ -27,8 +28,8 @@ function observeAppSelection(knownLabels, labelWanted, ownedScratchQuery, matchR
     || knownLabels.some((label) => typeof label !== 'string' || !label || label !== label.trim() || /\s{2,}|[\r\n]/.test(label))
     || new Set(knownLabels).size !== knownLabels.length || (labelWanted != null && !knownLabels.includes(labelWanted))) return blocked('APP_LABELS_INVALID');
   if (ownedScratchQuery !== undefined && (typeof ownedScratchQuery !== 'string'
-    || !knownLabels.some((label) => ownedScratchQuery === '@' + label)
-    || (labelWanted != null && ownedScratchQuery !== '@' + labelWanted))) return blocked('SCRATCH_QUERY_INVALID');
+    || !knownLabels.includes(ownedScratchQuery)
+    || (labelWanted != null && ownedScratchQuery !== labelWanted))) return blocked('SCRATCH_QUERY_INVALID');
   const all = (root, selector) => [...new Set(root.querySelectorAll(selector))];
   const rendered = (element) => {
     if (!element || element.closest(excluded) || !element.getClientRects().length) return false;
@@ -65,7 +66,23 @@ function observeAppSelection(knownLabels, labelWanted, ownedScratchQuery, matchR
   const composer = composers[0], form = composer.closest('form');
   base.composerFormFound = Boolean(form);
   if (!form || form.closest(excluded)) return blocked('COMPOSER_FORM_MISSING');
-  const text = typeof composer.value === 'string' ? composer.value : (composer.innerText ?? composer.textContent ?? '');
+  const inlinePills = all(composer, '[data-inline-selection-pill]');
+  const inlineAppLabels = inlinePills.map((element) => {
+    const label = element.getAttribute('data-keyword');
+    const hint = element.getAttribute('data-system-hint-type');
+    const links = [...element.querySelectorAll('a')];
+    const linkText = links.length === 1 ? (links[0].innerText ?? links[0].textContent ?? '').trim().replace(/\s+/g, ' ') : null;
+    return element.getAttribute('contenteditable') === 'false' && knownLabels.includes(label)
+      && typeof hint === 'string' && hint.startsWith('plugin:') && linkText === label ? label : null;
+  });
+  if (inlineAppLabels.some((label) => label === null)) return blocked('APP_INLINE_PILL_INVALID_OR_UNKNOWN');
+  let text;
+  if (typeof composer.value === 'string') text = composer.value;
+  else {
+    const clone = composer.cloneNode(true);
+    clone.querySelectorAll('[data-inline-selection-pill], [data-inline-selection-pill-cursor-target]').forEach((element) => element.remove());
+    text = clone.innerText ?? clone.textContent ?? '';
+  }
   base.composerEmpty = text.trim() === '';
   base.scratchQueryOwned = ownedScratchQuery !== undefined && text === ownedScratchQuery;
   if (!base.composerEmpty && !base.scratchQueryOwned) return blocked('COMPOSER_NOT_EMPTY_OR_OWNED_SCRATCH');
@@ -76,18 +93,25 @@ function observeAppSelection(knownLabels, labelWanted, ownedScratchQuery, matchR
   const tools = controls[0];
   base.toolsExpanded = tools.getAttribute('aria-expanded') === 'true'; base.toolsRect = visibleRect(tools);
   const chips = all(form, 'button').filter(visible);
-  base.chipCounts = Object.fromEntries(knownLabels.map((label) => [label, chips.filter((chip) => chip.getAttribute('aria-label') === label + ', click to remove').length]));
-  const chipMatches = labelWanted == null ? [] : chips.filter((chip) => chip.getAttribute('aria-label') === labelWanted + ', click to remove');
+  const legacyChipCounts = Object.fromEntries(knownLabels.map((label) => [label, chips.filter((chip) => chip.getAttribute('aria-label') === label + ', click to remove').length]));
+  base.inlineChipCounts = Object.fromEntries(knownLabels.map((label) => [label, inlineAppLabels.filter((value) => value === label).length]));
+  base.inlineChipTotalCount = inlinePills.length;
+  base.chipCounts = Object.fromEntries(knownLabels.map((label) => [label, legacyChipCounts[label] + base.inlineChipCounts[label]]));
+  const legacyChipMatches = labelWanted == null ? [] : chips.filter((chip) => chip.getAttribute('aria-label') === labelWanted + ', click to remove');
+  const inlineChipMatches = labelWanted == null ? [] : inlinePills.filter((_pill, index) => inlineAppLabels[index] === labelWanted);
+  const chipMatches = [...legacyChipMatches, ...inlineChipMatches];
   base.chipMatchCount = chipMatches.length;
   if (Object.values(base.chipCounts).some((count) => count > 1)) return blocked('APP_CHIP_AMBIGUOUS');
-  base.chipRect = chipMatches.length === 1 && enabled(chipMatches[0]) ? visibleRect(chipMatches[0]) : null;
+  base.legacyChipMatchCount = legacyChipMatches.length;
+  base.inlineChipMatchCount = inlineChipMatches.length;
+  base.chipRect = legacyChipMatches.length === 1 && inlineChipMatches.length === 0 && enabled(legacyChipMatches[0]) ? visibleRect(legacyChipMatches[0]) : null;
   const ids = (element, attribute) => (element.getAttribute(attribute) || '').split(/\s+/).filter(Boolean);
   const controlledIds = [...ids(tools, 'aria-controls'), ...ids(tools, 'aria-owns'), ...ids(composer, 'aria-controls')];
   let duplicateRootId = false;
   const roots = all(document, '[role="menu"], [role="listbox"], [aria-busy]').filter((root) => {
     if (!visible(root) || root.querySelector(excluded)) return false;
     const legacy = ['menu', 'listbox'].includes(root.getAttribute('role'));
-    if (!legacy && !root.querySelector('[data-composer-plugin-impression-id], [role="group"] [data-fill][tabindex]')) return false;
+    if (!legacy && !root.querySelector('[data-composer-plugin-impression-id], [role="group"] [tabindex]')) return false;
     const labelledBy = ids(root, 'aria-labelledby');
     const referenced = (root.id && controlledIds.includes(root.id))
       || [tools.id, composer.id].some((id) => id && labelledBy.includes(id));
@@ -106,7 +130,7 @@ function observeAppSelection(knownLabels, labelWanted, ownedScratchQuery, matchR
   if (root.getAttribute('aria-busy') === 'true') return blocked('APP_POPUP_BUSY');
   const legacyRows = ['menu', 'listbox'].includes(root.getAttribute('role'))
     ? all(root, '[role="menuitemradio"], [role="option"]').filter(rendered) : [];
-  const pluginRows = all(root, '[data-composer-plugin-impression-id] [data-fill][tabindex]').filter(rendered);
+  const pluginRows = all(root, '[data-composer-plugin-impression-id] [tabindex]').filter(rendered);
   const matches = new Map();
   for (const row of [...new Set([...legacyRows, ...pluginRows])]) {
     const label = row.closest('[data-composer-plugin-impression-id]') ? matchRow(row, knownLabels) : labelOf(row);

@@ -6,6 +6,7 @@ import {
   normalizeConversationUrl,
   replaceUnusableManagedChatGptTarget,
 } from './core.mjs';
+import { APP_SELECTION_OBSERVATION_FN } from './app-selection-dom.mjs';
 
 const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
@@ -305,46 +306,26 @@ export function consumerControlSelectionState(currentModel, observation, control
   };
 }
 
-const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
-  const visible = (element) => {
-    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
-    const rect = element.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
-  };
-  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const rect = (element) => {
-    const value = element.getBoundingClientRect();
-    return { x: value.x, y: value.y, width: value.width, height: value.height };
-  };
+const FOCUS_EMPTY_APP_SEARCH_FN = `function(knownLabels) {
+  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
   const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')].filter(visible);
-  const composer = composers.length === 1 ? composers[0] : null;
-  const composerForm = composer?.closest('form') || null;
-  if (!composerForm) return { composerFound: composers.length > 0, composerAmbiguous: composers.length > 1, composerFormFound: false };
-  const controls = [...composerForm.querySelectorAll('button[data-testid="composer-plus-btn"]')].filter(visible);
-  const chipCounts = Object.fromEntries(knownLabels.map((label) => [label, [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === label + ', click to remove').length]));
-  const chipMatches = labelWanted == null ? [] : [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === labelWanted + ', click to remove');
-  const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
-  const items = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitem"], [role="menuitemradio"], [role="option"], button')].filter(visible));
-  const renderedAppMatches = labelWanted == null ? [] : [...document.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter((element) => accessibleLabel(element) === labelWanted);
-  const appMatches = renderedAppMatches.filter(visible);
-  const moreMatches = items.filter((element) => accessibleLabel(element) === 'More' && element.getAttribute('role') === 'menuitem');
-  return {
-    composerFound: true,
-    composerFormFound: true,
-    toolsControlCount: controls.length,
-    toolsExpanded: controls.length === 1 && controls[0].getAttribute('aria-expanded') === 'true',
-    toolsRect: controls.length === 1 ? rect(controls[0]) : null,
-    chipCounts,
-    chipMatchCount: chipMatches.length,
-    chipRect: chipMatches.length === 1 ? rect(chipMatches[0]) : null,
-    visibleMenuCount: roots.length,
-    moreMatchCount: moreMatches.length,
-    moreRect: moreMatches.length === 1 ? rect(moreMatches[0]) : null,
-    appMatchCount: appMatches.length,
-    renderedAppMatchCount: renderedAppMatches.length,
-    appRect: appMatches.length === 1 ? rect(appMatches[0]) : null,
-    availableAppLabels: items.filter((element) => ['menuitemradio', 'option'].includes(element.getAttribute('role'))).map(accessibleLabel).filter(Boolean),
-  };
+  if (composers.length !== 1) return { focused: false, reason: 'COMPOSER_UNAVAILABLE' };
+  const composer = composers[0];
+  const pills = [...composer.querySelectorAll('[data-inline-selection-pill]')];
+  if (pills.some((element) => !knownLabels.includes(element.getAttribute('data-keyword'))
+    || element.getAttribute('contenteditable') !== 'false'
+    || !element.getAttribute('data-system-hint-type')?.startsWith('plugin:'))) {
+    return { focused: false, reason: 'APP_PILL_UNKNOWN' };
+  }
+  const clone = composer.cloneNode(true);
+  clone.querySelectorAll('[data-inline-selection-pill], [data-inline-selection-pill-cursor-target]').forEach((element) => element.remove());
+  if ((clone.textContent || '').trim() !== '') return { focused: false, reason: 'COMPOSER_CONTAMINATED' };
+  composer.focus();
+  const selection = document.getSelection();
+  if (!selection) return { focused: false, reason: 'SELECTION_UNAVAILABLE' };
+  selection.selectAllChildren(composer);
+  selection.collapseToEnd();
+  return { focused: document.activeElement === composer };
 }`;
 
 const FOCUS_APP_OPTION_FN = `function(labelWanted) {
@@ -356,6 +337,7 @@ const FOCUS_APP_OPTION_FN = `function(labelWanted) {
 }`;
 
 export function appSelectionState(observation, labelWanted) {
+  if (observation?.blocked) throw new Error(`ChatGPT app selection failed closed: ${observation.blockReason ?? 'UNKNOWN'}.`);
   if (!observation?.composerFormFound) throw new Error('ChatGPT composer form is unavailable for app selection.');
   if (observation.toolsControlCount !== 1) throw new Error(`ChatGPT Tools control is ${observation.toolsControlCount > 1 ? 'ambiguous' : 'unavailable'}.`);
   if ((observation.chipMatchCount ?? 0) > 1) throw new Error(`Selected app chip ${labelWanted} is ambiguous.`);
@@ -365,6 +347,8 @@ export function appSelectionState(observation, labelWanted) {
   if ((observation.renderedAppMatchCount ?? 0) === 1) return { type: 'FOCUS_APP', label: labelWanted };
   if ((observation.moreMatchCount ?? 0) > 1) throw new Error('ChatGPT Tools More control is ambiguous.');
   if ((observation.moreMatchCount ?? 0) === 1) return { type: 'OPEN_MORE' };
+  if (observation.scratchQueryOwned) return { type: 'WAIT_FOR_APP', label: labelWanted };
+  if (observation.toolsExpanded && observation.composerEmpty) return { type: 'SEARCH_APP', label: labelWanted };
   return { type: 'OPEN_TOOLS' };
 }
 
@@ -379,18 +363,47 @@ function normalizeExpectedSurfaceUrl(value) {
 // Self-contained for execution inside the identified input composer only. Return
 // comparison metadata, never the composer text. textContent loses paragraph
 // breaks; innerText adds layout-dependent breaks, so neither is byte authority.
-export function composerTextState(element, expectedBody) {
-  const unsupported = () => ({ ok: false, reason: 'COMPOSER_MARKUP_UNSUPPORTED', length: null });
+export function composerTextState(element, expectedBody, expectedAppLabels = []) {
+  const unsupported = (reason = 'COMPOSER_MARKUP_UNSUPPORTED') => ({ ok: false, reason, length: null });
+  if (!Array.isArray(expectedAppLabels) || new Set(expectedAppLabels).size !== expectedAppLabels.length
+    || expectedAppLabels.some((label) => typeof label !== 'string' || !label)) return unsupported('COMPOSER_APP_SELECTION_MISMATCH');
   let value;
+  const observedAppLabels = [];
   if (element.tagName === 'TEXTAREA' && typeof element.value === 'string') {
+    if (expectedAppLabels.length) return unsupported('COMPOSER_APP_SELECTION_MISMATCH');
     value = element.value;
   } else {
     if (!['true', 'plaintext-only'].includes(element.getAttribute('contenteditable'))) return unsupported();
     const inlineText = (nodes) => {
       let text = '';
+      let previousWasAppPill = false;
       for (let index = 0; index < nodes.length; index += 1) {
         const node = nodes[index];
-        if (node.nodeType === 3) { text += node.nodeValue; continue; }
+        if (node.nodeType === 3) {
+          const textValue = previousWasAppPill && /^[ \u00a0]/.test(node.nodeValue) ? node.nodeValue.slice(1) : node.nodeValue;
+          text += textValue;
+          previousWasAppPill = false;
+          continue;
+        }
+        if (node.nodeType === 1 && node.tagName === 'SPAN' && node.getAttributeNames().includes('data-inline-selection-pill-cursor-target')) {
+          if (node.getAttribute('contenteditable') !== 'false'
+            || [...node.childNodes].some((child) => child.nodeType !== 3 || child.nodeValue.trim() !== '')) return null;
+          previousWasAppPill = false;
+          continue;
+        }
+        if (node.nodeType === 1 && node.tagName === 'SPAN' && node.getAttributeNames().includes('data-inline-selection-pill')) {
+          const label = node.getAttribute('data-keyword');
+          const hint = node.getAttribute('data-system-hint-type');
+          const links = [...node.childNodes].filter((child) => child.nodeType === 1 && child.tagName === 'A');
+          const descendantText = (entry) => entry.nodeType === 3 ? entry.nodeValue : entry.nodeType === 1
+            ? [...entry.childNodes].map(descendantText).join('') : '';
+          if (node.getAttribute('contenteditable') !== 'false' || typeof label !== 'string' || !label
+            || typeof hint !== 'string' || !hint.startsWith('plugin:') || links.length !== 1
+            || descendantText(links[0]).trim().replace(/\s+/g, ' ') !== label) return null;
+          observedAppLabels.push(label);
+          previousWasAppPill = true;
+          continue;
+        }
         if (node.nodeType === 1 && node.tagName === 'A') {
           const attributes = node.getAttributeNames();
           const allowed = ['href', 'data-rich-text-autolink', 'data-rich-text-generated-autolink'];
@@ -403,6 +416,7 @@ export function composerTextState(element, expectedBody) {
           // The editor may wrap an inserted URL. Only its exact generated,
           // undecorated text-only form preserves the submitted plaintext.
           text += children[0].nodeValue;
+          previousWasAppPill = false;
           continue;
         }
         if (node.nodeType !== 1 || node.tagName !== 'BR') return null;
@@ -417,6 +431,7 @@ export function composerTextState(element, expectedBody) {
         if (nodes.length === 1) continue;
         if (last) return null;
         text += '\n';
+        previousWasAppPill = false;
       }
       return text;
     };
@@ -431,6 +446,11 @@ export function composerTextState(element, expectedBody) {
       if (value === null) return unsupported();
     }
   }
+  const expectedLabels = [...expectedAppLabels].sort();
+  const observedLabels = [...observedAppLabels].sort();
+  if (expectedLabels.length !== observedLabels.length || expectedLabels.some((label, index) => label !== observedLabels[index])) {
+    return unsupported('COMPOSER_APP_SELECTION_MISMATCH');
+  }
   return { ok: true, exact: value === expectedBody, empty: value.length === 0, length: value.length };
 }
 
@@ -442,18 +462,24 @@ const COMPOSER_LOOKUP = `
   const element = visible[0];
 `;
 
-export const PREPARE_COMPOSER_FN = `function(expectedBody) {
+export const PREPARE_COMPOSER_FN = `function(expectedBody, expectedAppLabels = []) {
   ${COMPOSER_LOOKUP}
-  const state = (${composerTextState.toString()})(element, expectedBody);
+  const state = (${composerTextState.toString()})(element, expectedBody, expectedAppLabels);
   if (!state.ok) return state;
   if (!state.empty && !state.exact) return { ok: false, reason: 'COMPOSER_CONTAMINATED', length: state.length };
   element.focus();
+  if (!state.exact && expectedAppLabels.length && element.tagName !== 'TEXTAREA') {
+    const selection = document.getSelection();
+    if (!selection) return { ok: false, reason: 'COMPOSER_SELECTION_UNAVAILABLE', length: state.length };
+    selection.selectAllChildren(element);
+    selection.collapseToEnd();
+  }
   return { ok: true, alreadyExact: state.exact };
 }`;
 
-export const VERIFY_COMPOSER_FN = `function(expectedBody) {
+export const VERIFY_COMPOSER_FN = `function(expectedBody, expectedAppLabels = []) {
   ${COMPOSER_LOOKUP}
-  const state = (${composerTextState.toString()})(element, expectedBody);
+  const state = (${composerTextState.toString()})(element, expectedBody, expectedAppLabels);
   return { exact: state.ok && state.exact, length: state.length, ...(state.ok ? {} : { reason: state.reason }) };
 }`;
 
@@ -612,70 +638,105 @@ export class ChromeDevtoolsBrowser {
     if (!Array.isArray(knownLabels) || !Array.isArray(requiredLabels)) throw new Error('App selection requires knownLabels and requiredLabels arrays.');
     if (new Set(knownLabels).size !== knownLabels.length || new Set(requiredLabels).size !== requiredLabels.length) throw new Error('App labels must be unique.');
     if (requiredLabels.some((label) => !knownLabels.includes(label))) throw new Error('Every required app label must be present in knownLabels.');
-    return this.#withPageClient(target, async (client) => {
-      const removedLabels = [];
-      for (const label of knownLabels) {
-        const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-        appSelectionState(observation, label);
-        if (observation.chipMatchCount === 1) {
-          await this.#clickRect(client, observation.chipRect);
-          await waitFor(async () => {
-            const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-            appSelectionState(next, label);
-            return next.chipMatchCount === 0 ? next : false;
-          }, this.pageReadyTimeoutMs, 150, `Selected app chip ${label} did not clear before per-message reselection.`);
-          removedLabels.push(label);
-        }
-      }
-
-      const selectedLabels = [];
-      for (const label of requiredLabels) {
-        for (;;) {
-          const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-          const action = appSelectionState(observation, label);
-          if (observation.chipMatchCount === 1) break;
-          if (action.type === 'OPEN_TOOLS') {
-            await this.#clickRect(client, observation.toolsRect);
-          } else if (action.type === 'OPEN_MORE') {
-            await this.#clickRect(client, observation.moreRect);
-          } else if (action.type === 'FOCUS_APP') {
-            const focused = await client.callFunction(FOCUS_APP_OPTION_FN, [label]);
-            if (!focused?.focused || focused.matchCount !== 1) throw new Error(`Could not focus exact app label ${label}.`);
-            await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-            await client.send('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-            await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-          } else {
-            await this.#clickRect(client, observation.appRect);
+    try {
+      return await this.#withPageClient(target, async (client) => {
+        const removedLabels = [];
+        const retainedCurrentInlineLabels = [];
+        const initial = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, null]);
+        appSelectionState(initial, null);
+        if (initial.inlineChipTotalCount > 0) {
+          // Inline pills are current-message protected editor state. Retain
+          // them only when the unsent composer contains the exact required set.
+          if (!initial.composerEmpty) throw new Error('ChatGPT composer contains text beside selected inline app pills.');
+          for (const label of knownLabels) {
+            const expected = requiredLabels.includes(label) ? 1 : 0;
+            if (initial.inlineChipCounts?.[label] !== expected) {
+              throw new Error(`Current-message inline app selection does not match exact required label ${label}.`);
+            }
+            if (expected === 1) retainedCurrentInlineLabels.push(label);
           }
-          const selected = await waitFor(async () => {
-            const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-            appSelectionState(next, label);
-            if (next.chipMatchCount === 1) return next;
-            if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
-            if (action.type === 'OPEN_MORE') return next.renderedAppMatchCount === 1 ? next : false;
-            if (action.type === 'FOCUS_APP') return next.chipMatchCount === 1 ? next : false;
-            return false;
-          }, this.pageReadyTimeoutMs, 150, `ChatGPT did not expose or select exact app label ${label}.`);
-          if (selected.chipMatchCount === 1) break;
         }
-        selectedLabels.push(label);
-      }
+        for (const label of knownLabels) {
+          const observation = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, label]);
+          appSelectionState(observation, label);
+          if (observation.legacyChipMatchCount === 1) {
+            await this.#clickRect(client, observation.chipRect);
+            await waitFor(async () => {
+              const next = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, label]);
+              appSelectionState(next, label);
+              return next.chipMatchCount === 0 ? next : false;
+            }, this.pageReadyTimeoutMs, 150, `Selected legacy app chip ${label} did not clear before per-message reselection.`);
+            removedLabels.push(label);
+          }
+        }
 
-      const verified = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, null]);
-      appSelectionState(verified, null);
-      for (const label of knownLabels) {
-        const expected = requiredLabels.includes(label) ? 1 : 0;
-        if (verified.chipCounts?.[label] !== expected) throw new Error(`Per-message app chip verification failed for exact label ${label}.`);
-      }
-      return {
-        status: 'MESSAGE_APPS_SELECTED',
-        requiredLabels,
-        selectedLabels,
-        clearedPriorLabels: removedLabels,
-        verifiedChipCounts: verified.chipCounts,
-        inspectedAssistantOutput: false,
-      };
-    });
+        const selectedLabels = [];
+        for (const label of requiredLabels) {
+          let ownedScratchQuery;
+          for (;;) {
+            const observation = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, label, ownedScratchQuery]);
+            const action = appSelectionState(observation, label);
+            if (observation.chipMatchCount === 1) break;
+            if (action.type === 'OPEN_TOOLS') {
+              await this.#clickRect(client, observation.toolsRect);
+            } else if (action.type === 'OPEN_MORE') {
+              await this.#clickRect(client, observation.moreRect);
+            } else if (action.type === 'SEARCH_APP') {
+              const focused = await client.callFunction(FOCUS_EMPTY_APP_SEARCH_FN, [knownLabels]);
+              if (!focused?.focused) throw new Error(`Could not focus the exact app search composer: ${focused?.reason ?? 'UNKNOWN'}.`);
+              ownedScratchQuery = label;
+              await client.send('Input.insertText', { text: ownedScratchQuery });
+            } else if (action.type === 'WAIT_FOR_APP') {
+              await waitFor(async () => {
+                const next = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, label, ownedScratchQuery]);
+                const nextAction = appSelectionState(next, label);
+                return ['APP_OPTION', 'FOCUS_APP'].includes(nextAction.type) ? next : false;
+              }, this.pageReadyTimeoutMs, 150, `ChatGPT did not expose exact searched app label ${label}.`);
+              continue;
+            } else if (action.type === 'FOCUS_APP') {
+              const focused = await client.callFunction(FOCUS_APP_OPTION_FN, [label]);
+              if (!focused?.focused || focused.matchCount !== 1) throw new Error(`Could not focus exact app label ${label}.`);
+              await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+              await client.send('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+              await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+            } else {
+              await this.#clickRect(client, observation.appRect);
+            }
+            const selected = await waitFor(async () => {
+              const next = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, label, ownedScratchQuery]);
+              appSelectionState(next, label);
+              if (next.chipMatchCount === 1) return next;
+              if (action.type === 'OPEN_TOOLS') return next.toolsExpanded ? next : false;
+              if (action.type === 'OPEN_MORE') return next.renderedAppMatchCount === 1 ? next : false;
+              if (action.type === 'SEARCH_APP') return next.appMatchCount === 1 ? next : false;
+              if (action.type === 'FOCUS_APP' || action.type === 'APP_OPTION') return next.chipMatchCount === 1 ? next : false;
+              return false;
+            }, this.pageReadyTimeoutMs, 150, `ChatGPT did not expose or select exact app label ${label}.`);
+            if (selected.chipMatchCount === 1) break;
+          }
+          selectedLabels.push(label);
+        }
+
+        const verified = await client.callFunction(APP_SELECTION_OBSERVATION_FN, [knownLabels, null]);
+        appSelectionState(verified, null);
+        for (const label of knownLabels) {
+          const expected = requiredLabels.includes(label) ? 1 : 0;
+          if (verified.chipCounts?.[label] !== expected) throw new Error(`Per-message app chip verification failed for exact label ${label}.`);
+        }
+        return {
+          status: 'MESSAGE_APPS_SELECTED',
+          requiredLabels,
+          selectedLabels,
+          clearedPriorLabels: removedLabels,
+          retainedCurrentInlineLabels,
+          verifiedChipCounts: verified.chipCounts,
+          inspectedAssistantOutput: false,
+        };
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && typeof error.relayStage !== 'string') error.relayStage = 'APP_SELECTION_PRECLICK';
+      throw error;
+    }
   }
 
   async ensureExactConsumerControls(target, { expectedUrl, controls }) {
@@ -836,7 +897,7 @@ export class ChromeDevtoolsBrowser {
     await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
   }
 
-  async submitExactMessage(target, { expectedUrl, body, bodySha256, onBeforeSubmissionBoundary = null, onSubmissionBoundary = null }) {
+  async submitExactMessage(target, { expectedUrl, body, bodySha256, expectedAppLabels = [], onBeforeSubmissionBoundary = null, onSubmissionBoundary = null }) {
     if (!body || typeof body !== 'string') throw new Error('Cannot submit an empty message.');
     if (onSubmissionBoundary !== null && typeof onSubmissionBoundary !== 'function') {
       throw new Error('Submission boundary observer must be a function when provided.');
@@ -860,13 +921,13 @@ export class ChromeDevtoolsBrowser {
           return result?.composerFound;
         }, this.pageReadyTimeoutMs, 500, 'ChatGPT composer did not become ready.');
 
-        const composer = await client.callFunction(PREPARE_COMPOSER_FN, [body]);
+        const composer = await client.callFunction(PREPARE_COMPOSER_FN, [body, expectedAppLabels]);
         if (!composer?.ok) {
           if (composer?.reason === 'COMPOSER_CONTAMINATED') throw new Error('Composer contains different text; relay refused to overwrite it.');
           throw new Error(`Composer is not ready: ${composer?.reason ?? 'UNKNOWN'}.`);
         }
         if (!composer.alreadyExact) await client.send('Input.insertText', { text: body });
-        const verified = await client.callFunction(VERIFY_COMPOSER_FN, [body]);
+        const verified = await client.callFunction(VERIFY_COMPOSER_FN, [body, expectedAppLabels]);
         if (!verified?.exact) throw new Error(`Composer byte check failed before submission (expected ${body.length} characters, observed ${verified?.length ?? 'unknown'}).`);
 
         relayStage = 'READY_TO_CLICK';

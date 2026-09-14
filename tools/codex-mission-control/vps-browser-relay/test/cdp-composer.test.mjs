@@ -20,17 +20,30 @@ const fromLines = (body) => composer(...body.split('\n').map((line) => paragraph
 const publicUrl = 'https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5562255699';
 const autolinkAttributes = { href: publicUrl, 'data-rich-text-autolink': '', 'data-rich-text-generated-autolink': '' };
 
-function run(source, composers, expectedBody) {
+function run(source, composers, expectedBody, expectedAppLabels = []) {
+  const selection = { selectAllChildren() {}, collapseToEnd() {} };
   const context = vm.createContext({
     document: { querySelectorAll(selector) {
       assert.equal(selector, '#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]');
       return composers;
-    } },
+    }, getSelection: () => selection },
     getComputedStyle: () => ({ visibility: 'visible' }),
     expectedBody,
+    expectedAppLabels,
   });
-  return JSON.parse(JSON.stringify(vm.runInContext(`(${source})(expectedBody)`, context)));
+  return JSON.parse(JSON.stringify(vm.runInContext(`(${source})(expectedBody, expectedAppLabels)`, context)));
 }
+
+const appCursor = () => element('SPAN', [text(' ')], {
+  'data-inline-selection-pill-cursor-target': '', 'aria-hidden': 'true', contenteditable: 'false',
+});
+const appPill = (label, hint = 'plugin:test-app') => element('SPAN', [
+  element('A', [element('DIV', [element('svg')]), element('SPAN', [text(label)])], { href: 'https://chatgpt.com/apps/test-app' }),
+], {
+  contenteditable: 'false', 'data-inline-selection-pill': '', 'data-keyword': label,
+  'data-system-hint-type': hint, 'data-id': 'test-app', 'data-symbol': 'test-app',
+});
+const composerWithApp = (label, body = '') => composer(paragraph(appCursor(), appPill(label), text(` ${body}`)));
 
 test('five composer paragraphs preserve a synthetic continuation and OWNER fixture in prepare and verify', () => {
   const syntheticOwner = 'SYNTHETIC OWNER FIXTURE '.padEnd(70, 'X');
@@ -92,6 +105,35 @@ test('transformed, decorated, or non-generated links fail closed', () => {
     assert.deepEqual(run(VERIFY_COMPOSER_FN, [input], publicUrl),
       { exact: false, length: null, reason: 'COMPOSER_MARKUP_UNSUPPORTED' });
     assert.equal(input.focused, undefined);
+  }
+});
+
+test('current protected inline app pill is ignored only for the exact expected app label', () => {
+  const body = 'Use the selected app for this exact read-only request.';
+  const input = composerWithApp('Mission Control', body);
+  assert.deepEqual(run(VERIFY_COMPOSER_FN, [input], body, ['Mission Control']), { exact: true, length: body.length });
+  assert.equal(composerTextState(input, body, ['Mission Control']).exact, true);
+  assert.equal(run(VERIFY_COMPOSER_FN, [input], body, ['GitHub']).reason, 'COMPOSER_APP_SELECTION_MISMATCH');
+  assert.equal(run(VERIFY_COMPOSER_FN, [input], body).reason, 'COMPOSER_APP_SELECTION_MISMATCH');
+});
+
+test('inline app pill permits exact prompt insertion only after verified empty app-only composer state', () => {
+  const input = composerWithApp('Mission Control');
+  assert.deepEqual(run(PREPARE_COMPOSER_FN, [input], 'next request', ['Mission Control']), { ok: true, alreadyExact: false });
+  assert.equal(input.focused, true);
+  assert.equal(run(PREPARE_COMPOSER_FN, [composerWithApp('Mission Control', 'foreign text')], 'next request', ['Mission Control']).reason,
+    'COMPOSER_CONTAMINATED');
+});
+
+test('malformed or non-plugin inline selection pills fail closed', () => {
+  for (const input of [
+    composer(paragraph(appCursor(), appPill('Mission Control', 'file:test'), text(' body'))),
+    composer(paragraph(appCursor(), element('SPAN', [text('Mission Control')], {
+      contenteditable: 'false', 'data-inline-selection-pill': '', 'data-keyword': 'Mission Control',
+      'data-system-hint-type': 'plugin:test-app',
+    }), text(' body'))),
+  ]) {
+    assert.equal(run(VERIFY_COMPOSER_FN, [input], 'body', ['Mission Control']).reason, 'COMPOSER_MARKUP_UNSUPPORTED');
   }
 });
 

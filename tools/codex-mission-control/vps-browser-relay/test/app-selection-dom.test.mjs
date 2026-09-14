@@ -8,7 +8,7 @@ const known = ['Mission Control', 'GitHub'];
 // Minimal public DOM fixture. No browser, network, provider, or runtime files.
 class Element {
   constructor(tag, attrs = {}, text = '', layout = {}) {
-    this.tagName = tag.toUpperCase(); this.attrs = attrs; this.ownText = text;
+    this.nodeType = 1; this.tagName = tag.toUpperCase(); this.attrs = attrs; this.ownText = text;
     this.children = []; this.parentElement = null;
     this.bounds = { x: 20, y: 20, width: 400, height: 200, ...layout };
     this.style = { display: 'block', visibility: 'visible', opacity: '1', overflow: 'visible' };
@@ -16,6 +16,7 @@ class Element {
     this.hidden = false; this.disabled = false; this.rects = true;
   }
   get id() { return this.attrs.id || ''; }
+  get classList() { return { contains: (name) => (this.attrs.class || '').split(/\s+/).includes(name) }; }
   get textContent() { return this.ownText + this.children.map((child) => child.textContent).join(''); }
   get innerText() { return this.textContent; }
   getAttribute(key) { return Object.hasOwn(this.attrs, key) ? this.attrs[key] : null; }
@@ -30,6 +31,18 @@ class Element {
     walk(this); return result;
   }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
+  cloneNode(deep = false) {
+    const clone = new Element(this.tagName, { ...this.attrs }, this.ownText, { ...this.bounds });
+    clone.style = { ...this.style }; clone.clientHeight = this.clientHeight; clone.scrollHeight = this.scrollHeight;
+    clone.hidden = this.hidden; clone.disabled = this.disabled; clone.rects = this.rects;
+    if (deep) clone.append(...this.children.map((child) => child.cloneNode(true)));
+    return clone;
+  }
+  remove() {
+    if (!this.parentElement) return;
+    this.parentElement.children = this.parentElement.children.filter((child) => child !== this);
+    this.parentElement = null;
+  }
   getClientRects() { return this.rects ? [this.getBoundingClientRect()] : []; }
   getBoundingClientRect() { const { x, y, width, height } = this.bounds; return { x, y, width, height, left: x, top: y, right: x + width, bottom: y + height }; }
   focus() { throw new Error('DOM_MUTATION_FORBIDDEN'); }
@@ -41,6 +54,8 @@ function matchesSelector(node, selector) {
   const simple = (element, part) => {
     const tag = part.match(/^[a-z]+/i)?.[0];
     if (tag && element.tagName !== tag.toUpperCase()) return false;
+    const className = part.match(/\.([\w-]+)/)?.[1];
+    if (className && !element.classList.contains(className)) return false;
     const id = part.match(/#([\w-]+)/)?.[1];
     if (id && element.id !== id) return false;
     for (const [, attr, operator, value] of part.matchAll(/\[([\w-]+)(?:(\^=|\*=|=)"([^"]*)")?\]/g)) {
@@ -143,27 +158,61 @@ test('duplicate controlled popup IDs explicitly fail closed', () => {
 });
 
 test('active scratch query does not bind an unrelated legacy file/listbox portal', () => {
-  const f = fixture(); f.composer.ownText = '@Mission Control';
+  const f = fixture(); f.composer.ownText = 'Mission Control';
   popup(f, [el('div', { role: 'option', 'aria-label': 'Mission Control' })], { role: 'listbox' }, f.document);
-  assert.equal(observe(f, 'Mission Control', '@Mission Control').appMatchCount, 0);
+  assert.equal(observe(f, 'Mission Control', 'Mission Control').appMatchCount, 0);
 });
 
 test('owned exact active scratch query may bind a unique portal while Tools is collapsed', () => {
-  const f = fixture(); f.tools.attrs['aria-expanded'] = 'false'; f.composer.ownText = '@Mission Control';
+  const f = fixture(); f.tools.attrs['aria-expanded'] = 'false'; f.composer.ownText = 'Mission Control';
   popup(f, [plugin('Mission Control')], { 'aria-busy': 'false' }, f.document);
   assertBlocked(observe(f), 'COMPOSER_NOT_EMPTY_OR_OWNED_SCRATCH');
-  const result = observe(f, 'Mission Control', '@Mission Control');
+  const result = observe(f, 'Mission Control', 'Mission Control');
   assert.equal(result.scratchQueryOwned, true); assert.equal(result.appMatchCount, 1);
   f.document.activeElement = f.tools;
-  assert.equal(observe(f, 'Mission Control', '@Mission Control').visibleMenuCount, 0);
+  assert.equal(observe(f, 'Mission Control', 'Mission Control').visibleMenuCount, 0);
 });
 
 test('scratch ownership is exact: no arbitrary drafts, extra whitespace, wrong label or missing query', () => {
   const f = fixture(); popup(f, [plugin('Mission Control')]);
-  for (const text of ['Draft', '@Mission Control ', '@Mission Control\n', '@GitHub']) {
-    f.composer.ownText = text; assertBlocked(observe(f, 'Mission Control', '@Mission Control'), 'COMPOSER_NOT_EMPTY_OR_OWNED_SCRATCH');
+  for (const text of ['Draft', 'Mission Control ', 'Mission Control\n', 'GitHub']) {
+    f.composer.ownText = text; assertBlocked(observe(f, 'Mission Control', 'Mission Control'), 'COMPOSER_NOT_EMPTY_OR_OWNED_SCRATCH');
   }
-  assertBlocked(observe(f, 'Mission Control', '@GitHub'), 'SCRATCH_QUERY_INVALID');
+  assertBlocked(observe(f, 'Mission Control', 'GitHub'), 'SCRATCH_QUERY_INVALID');
+});
+
+test('current protected inline app pill counts as the exact selected app while prompt text stays empty', () => {
+  const f = fixture();
+  const cursor = el('span', { 'data-inline-selection-pill-cursor-target': '', contenteditable: 'false' }, ' ');
+  const pill = el('span', {
+    'data-inline-selection-pill': '', contenteditable: 'false', 'data-keyword': 'Mission Control',
+    'data-system-hint-type': 'plugin:synthetic',
+  }).append(el('a', {}, 'Mission Control'));
+  f.composer.append(cursor, pill, el('span', {}, ' '));
+  const result = observe(f);
+  assert.equal(result.composerEmpty, true);
+  assert.equal(result.chipMatchCount, 1);
+  assert.equal(result.inlineChipMatchCount, 1);
+  assert.equal(result.inlineChipCounts['Mission Control'], 1);
+});
+
+test('unknown or malformed inline app pills fail closed', () => {
+  const f = fixture();
+  f.composer.append(el('span', {
+    'data-inline-selection-pill': '', contenteditable: 'false', 'data-keyword': 'Other',
+    'data-system-hint-type': 'plugin:synthetic',
+  }).append(el('a', {}, 'Other')));
+  assertBlocked(observe(f), 'APP_INLINE_PILL_INVALID_OR_UNKNOWN');
+});
+
+test('current class-based plugin row is accepted without legacy ARIA option roles', () => {
+  const f = fixture();
+  const current = plugin('Mission Control');
+  delete current.row.attrs['data-fill']; current.row.attrs.class = '__menu-item';
+  popup(f, [current]);
+  const result = observe(f);
+  assert.equal(result.appMatchCount, 1);
+  assert.ok(result.appRect);
 });
 
 test('duplicate composer or missing form fails closed', () => {

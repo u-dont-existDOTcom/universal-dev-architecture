@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-SECURE-MCP-TUNNEL-20260914",
+  "recorded_at": "2026-09-14T03:23:05+00:00",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Establish exactly one outbound Secure MCP Tunnel from Netcup PRIMARY to the existing constrained Mission Control MCP endpoint and register/reconnect exactly one private developer-mode ChatGPT app named Mission Control in the current supervisor workspace/account.",
+    "sha256": "17cf317eb4eef84fbcf69f5171c786ab73b7733c8a6513b7d321f78fdbb5759d",
+    "full_request_artifact": "docs/requirements/2026-09-14-mission-control-secure-mcp-tunnel.owner-request.md",
+    "full_request_sha256": "ab0d5ef251769fc31bd5991b21f514650b89fffa1e81ff9bcbbde4fb74e99a10",
+    "source_type": "owner_chat_message",
+    "source_time_status": "TIMESTAMP_UNAVAILABLE",
+    "provider_source_timestamp": null,
+    "source_ref": "owner-chat:2026-09-14:mission-control-secure-mcp-tunnel"
+  },
+  "normalized_outcome": "Exactly one hardened outbound OpenAI Secure MCP Tunnel runs on Netcup PRIMARY and targets only the loopback constrained /mcp surface. Exactly one private Mission Control developer app is connected in the current supervisor workspace/account, exposes only the three approved read-only tools, and completes a fresh exact-bound capability proof through the existing GitHub bus without accepting stale evidence, duplicating the preserved queue item, changing host fencing, or using owner workstation browser/clipboard state.",
+  "required_outcomes": [
+    {
+      "id": "RO-SECTUN-001",
+      "terminal_required": true,
+      "observable": "Exactly one outbound tunnel runs on Netcup PRIMARY, targets http://127.0.0.1:3000/mcp, opens no inbound public Mission Control port, and never references /api/mcp.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": ["netcup-systemd-active", "tunnel-health-ready", "service-command-target-audit"]
+    },
+    {
+      "id": "RO-SECTUN-002",
+      "terminal_required": true,
+      "observable": "Exactly one private developer app named Mission Control is connected in the current supervisor workspace/account and its catalog contains exactly get_capability_challenge, get_supervisory_request_binding, and get_stage_liveness_state, all declared read-only and non-destructive.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": ["remote-chatgpt-private-app-ui", "mcp-tools-list-exact-allowlist"]
+    },
+    {
+      "id": "RO-SECTUN-003",
+      "terminal_required": true,
+      "observable": "The app invokes get_capability_challenge for the exact current challenge/chat binding and a fresh GitHub capability receipt is accepted while the stale receipt remains invalid.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-SECTUN-004",
+      "terminal_required": true,
+      "observable": "Tunnel/app setup creates zero provider sends; capability execution preserves the single global queue item, pacing, exact MC-only registration, PRIMARY/SECONDARY fencing, and fail-closed ambiguity semantics without a duplicate submission.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": ["remote-chat-dom-no-preflight-message", "expired-admission-preclick-abort"]
+    },
+    {
+      "id": "RO-SECTUN-005",
+      "terminal_required": true,
+      "observable": "No credential, runtime key, private chat locator, or browser target identifier is stored in Git, and no owner workstation browser or clipboard automation is used.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": ["encrypted-systemd-credentials", "netcup-remote-browser-cdp-only", "git-diff-secret-boundary-review"]
+    },
+    {
+      "id": "RO-SECTUN-006",
+      "terminal_required": true,
+      "observable": "The capability-rotation pull request remains open and unmerged unless separately authorized, and historical issue 90 remains closed.",
+      "status": "LIVE_VERIFIED",
+      "evidence_refs": ["github-pr-open-unmerged", "historical-issue-closed"]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "a healthy tunnel without an exact private ChatGPT app catalog",
+    "a direct local MCP call that bypasses the connected ChatGPT app",
+    "a selected app pill without server-side tool invocation telemetry",
+    "green tests without a fresh exact-bound capability receipt",
+    "a fresh receipt without proving the stale receipt remains invalid",
+    "a capability result obtained by creating another supervisor conversation or queue item",
+    "merging the capability-rotation pull request or reopening historical issue 90"
+  ],
+  "active_patterns": [
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/development-assurance-lanes.md",
+    "patterns/mission-control-multi-host-submission-scheduling.md"
+  ],
+  "assurance_lane": "release",
+  "targeted_hard_gates": [
+    "authentication-and-least-privilege",
+    "secret-and-private-locator-exclusion",
+    "global-single-writer-and-pacing",
+    "fail-closed-provider-send-boundary"
+  ],
+  "production_boundary": "The approved private tunnel and app may be provisioned only on Netcup PRIMARY. Hostinger SECONDARY stays fenced. Capability proof may resume only the singular preserved queue item. Merge, issue-90 reopening, separate production promotion, and substantive v3 experiment sends are not authorized.",
+  "next_direct_evidence": "Patch only the current ChatGPT inline-app-pill selector compatibility seam, prove it with focused tests and non-submitting live UI checks, install the exact candidate on PRIMARY, then retry the same preserved preflight/capability queue identity under central pacing."
+}
