@@ -8,6 +8,8 @@ A reasoning chat can correctly diagnose that an execution worker is blocked by i
 
 Those are different facts. A worker can often repair its own user-level configuration, task profile, workspace roots, or other reversible execution settings even when the current sandbox cannot write the eventual target. The only irreducible owner action may be restarting or relaunching the worker so the new sandbox takes effect.
 
+A second failure mode is repairing the **wrong control plane**. A configuration file may contain the intended setting while the client/task initializer supplies runtime roots or sandbox policy from somewhere else. Repeating edits to a non-controlling config—or repeatedly restarting into the same managed runtime—does not advance the outcome.
+
 ## Core rule
 
 **Before assigning any routine configuration, permission, recovery, or setup work to the owner, determine whether the active worker can safely perform that step itself. If it can, the worker performs it. The owner receives only the smallest genuinely irreducible action.**
@@ -29,6 +31,8 @@ Common signals include:
 - the worker reports `EROFS`, `EACCES`, `EPERM`, missing writable roots, or sandbox namespace restrictions;
 - the worker can write its own home/config area but not the target path;
 - a configuration change will require a new worker process before it becomes effective;
+- a fresh worker repeats the same missing runtime roots even though the intended user config is present;
+- the worker's own configuration area is itself exposed read-only;
 - the reasoning chat is about to tell the owner to edit `~/.codex/config.toml`, task profiles, rule files, or similar worker-local settings;
 - the owner asks “can’t the worker do that itself?”
 
@@ -40,6 +44,7 @@ Identify independently:
 
 - what the current worker process can write now;
 - what user-level/task-level configuration the worker can safely modify;
+- what control plane actually determines the effective runtime roots, sandbox, or permission profile;
 - what change requires a process/task restart to take effect;
 - what operation truly requires owner interaction because of an external security, OS, account, credential, spending, publication, destructive, or product-level gate.
 
@@ -77,7 +82,26 @@ Fresh worker verifies the new permission and resumes automatically.
 
 Do not require the owner to reconstruct or repeat context after the restart; the worker directive or durable task state must carry the continuation.
 
-### 4. Fail closed on genuine boundaries
+### 4. Diagnose the controlling surface before repeating remediation
+
+If a proposed repair is present but the fresh worker still exposes the same blocked namespace, treat that as evidence that the attempted repair may not control the runtime.
+
+The worker/reasoning chat must then determine which surface actually supplies enforcement, such as:
+
+- client-supplied workspace roots;
+- task/thread initialization or resume parameters;
+- a selected permission profile;
+- a desktop/app task mode;
+- managed policy or host wrapper;
+- user configuration, only if current evidence shows it is authoritative.
+
+Do not treat informational environment variables, config-file presence, or a successful edit as proof of effective enforcement. Verify the effective runtime roots/policy directly.
+
+If the worker's own config path is read-only, or the intended setting is already present but absent from the effective runtime roots, **stop trying to repair that config path**. Repeated config edits or identical restarts are the wrong control plane. Instead, prepare the smallest supported relaunch/task-initialization override that changes the controlling surface, verify its syntax from the local/current client when possible, and leave the owner only the irreducible relaunch/security action.
+
+A fresh-process failure is therefore a strategy checkpoint, not a reason to repeat the same setup procedure.
+
+### 5. Fail closed on genuine boundaries
 
 A worker must not:
 
@@ -96,10 +120,11 @@ Before sending any manual operational instruction to the owner while a worker is
 
 1. Can the worker execute this step itself now?
 2. If not, can the worker safely change its own task/user configuration so that a fresh process can execute it?
-3. If a restart is required, can every pre-restart step be completed by the worker first?
-4. Is the remaining owner action genuinely irreducible?
+3. If that configuration is not writable or not authoritative, has the actual runtime-control surface been identified?
+4. If a restart/relaunch is required, can every pre-restart step and command construction/validation be completed by the worker first?
+5. Is the remaining owner action genuinely irreducible?
 
-If answers 1–3 reveal self-remediable work, assigning that work to the owner is a failure.
+If answers 1–4 reveal self-remediable work, assigning that work to the owner is a failure.
 
 ## Codex-specific interaction
 
@@ -111,21 +136,25 @@ In particular:
 - diagnose host mount state separately from the Codex namespace;
 - an `EROFS` bind mount inside Codex does not imply the host filesystem is read-only;
 - when Codex can write its own user configuration but the current namespace cannot write the target, Codex should perform the authorized configuration repair itself and ask the owner only for any restart/relaunch that the current process cannot perform;
-- after restart, verify the exact target write before resuming consequential work.
+- when Codex cannot write its own config, or a present config change does not appear in the effective runtime roots, diagnose client/thread/task initialization rather than looping on `config.toml`;
+- treat `CODEX_PERMISSION_PROFILE`-style environment labels as diagnostic metadata unless the current implementation proves they are the enforcing control;
+- after any restart or sandbox/profile override, verify the exact target write before resuming consequential work.
 
 ## Failure condition and repair
 
 Failure condition:
 
-- the owner is given a multi-step manual configuration/setup procedure even though the active worker could safely perform one or more of those steps itself.
+- the owner is given a multi-step manual worker-configuration procedure even though the active worker could safely perform one or more of those steps itself; or
+- the owner is sent through repeated config edits/restarts after evidence shows that configuration surface does not control the effective runtime.
 
 Repair:
 
 1. withdraw the unnecessary owner work;
 2. send the worker a bounded self-remediation directive immediately;
-3. leave only the irreducible owner gate;
-4. after the gate, resume the original task automatically;
-5. record the correction through the durable-learning lifecycle when it exposes a reusable gap.
+3. identify the actual enforcement/control surface if the first remediation did not change runtime behavior;
+4. leave only the irreducible owner gate;
+5. after the gate, resume the original task automatically;
+6. record the correction through the durable-learning lifecycle when it exposes a reusable gap.
 
 ## Relationship to existing patterns
 
@@ -136,10 +165,10 @@ This pattern makes an existing principle operational rather than replacing it:
 - `patterns/worker-directive-delivery-and-chat-output-budget.md` requires same-turn runnable worker instructions once worker execution is selected;
 - root `AGENTS.md` already says Work selects authorized task-scoped access and routine permission choices should not be pushed to the owner.
 
-The new contribution is the explicit **self-remediation-before-owner-interruption admission check**: inability of the current sandbox to perform the final target operation is not enough to transfer the repair procedure to the owner.
+The new contribution is the explicit **self-remediation-before-owner-interruption admission check** plus a **control-plane checkpoint**: inability of the current sandbox to perform the final target operation is not enough to transfer the repair procedure to the owner, and failure of a proposed repair means identify the actual enforcing surface before repeating it.
 
 ## Transfer rationale and limits
 
-Promoted from a 2026-09-13 local Codex recovery incident where the host HDD was writable, the Codex namespace exposed it read-only, and the reasoning chat initially gave the owner manual Codex configuration steps even though Codex could edit its own user configuration. The owner correction exposed an activation/application gap, not a missing general permission principle.
+Promoted from a 2026-09-13 local Codex recovery incident where the host HDD was writable, the Codex namespace exposed it read-only, and the reasoning chat initially gave the owner manual Codex configuration steps even though Codex could edit its own user configuration. Follow-up evidence then showed a stronger variant: a fresh managed runtime still omitted the HDD from effective writable roots, the intended config change was present but non-controlling, and Codex's own config directory was read-only. That refined the lesson from self-remediation alone to self-remediation **at the actual controlling surface**.
 
 This pattern applies to routine reversible worker-local setup. It does not remove human gates that are genuinely required by security, authorization, irreversible effects, account boundaries, credentials, spending, publication, or product-level controls.
