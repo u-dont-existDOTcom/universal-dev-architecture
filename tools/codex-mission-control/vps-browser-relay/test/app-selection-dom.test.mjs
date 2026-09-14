@@ -196,6 +196,19 @@ test('current protected inline app pill counts as the exact selected app while p
   assert.equal(result.inlineChipCounts['Mission Control'], 1);
 });
 
+test('one structural separator after an inline app pill preserves exact scratch-query ownership', () => {
+  const f = fixture();
+  const cursor = el('span', { 'data-inline-selection-pill-cursor-target': '', contenteditable: 'false' }, ' ');
+  const pill = el('span', {
+    'data-inline-selection-pill': '', contenteditable: 'false', 'data-keyword': 'Mission Control',
+    'data-system-hint-type': 'plugin:synthetic',
+  }).append(el('a', {}, 'Mission Control'));
+  f.composer.append(cursor, pill, el('span', {}, ' GitHub'));
+  assert.equal(observe(f, 'GitHub', 'GitHub').scratchQueryOwned, true);
+  f.composer.children.at(-1).ownText = '  GitHub';
+  assertBlocked(observe(f, 'GitHub', 'GitHub'), 'COMPOSER_NOT_EMPTY_OR_OWNED_SCRATCH');
+});
+
 test('unknown or malformed inline app pills fail closed', () => {
   const f = fixture();
   f.composer.append(el('span', {

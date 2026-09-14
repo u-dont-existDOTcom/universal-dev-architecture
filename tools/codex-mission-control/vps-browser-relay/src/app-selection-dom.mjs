@@ -83,8 +83,12 @@ function observeAppSelection(knownLabels, labelWanted, ownedScratchQuery, matchR
     clone.querySelectorAll('[data-inline-selection-pill], [data-inline-selection-pill-cursor-target]').forEach((element) => element.remove());
     text = clone.innerText ?? clone.textContent ?? '';
   }
-  base.composerEmpty = text.trim() === '';
-  base.scratchQueryOwned = ownedScratchQuery !== undefined && text === ownedScratchQuery;
+  // ChatGPT inserts one editor separator after a protected inline app pill.
+  // Treat only that one exact separator as structural; never trim arbitrary
+  // query whitespace or accept a changed scratch value.
+  const textAfterAppSeparator = inlinePills.length > 0 && /^[ \u00a0]/.test(text) ? text.slice(1) : text;
+  base.composerEmpty = textAfterAppSeparator.trim() === '';
+  base.scratchQueryOwned = ownedScratchQuery !== undefined && textAfterAppSeparator === ownedScratchQuery;
   if (!base.composerEmpty && !base.scratchQueryOwned) return blocked('COMPOSER_NOT_EMPTY_OR_OWNED_SCRATCH');
   const activeQuery = base.scratchQueryOwned && (document.activeElement === composer || composer.contains(document.activeElement));
   const controls = all(form, 'button[data-testid="composer-plus-btn"], button[aria-label="Tools"]').filter(visible);
