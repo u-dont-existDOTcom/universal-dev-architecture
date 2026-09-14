@@ -67,6 +67,46 @@ test('private provisioning persists the locator without returning it or inspecti
   }
 });
 
+test('Work creation reuses the launcher, verifies exact authority and blocks mismatches before sending', async () => {
+  for (const mismatch of [false, true]) {
+    const root = await mkdtemp(path.join(tmpdir(), 'mc-work-create-'));
+    const body = 'Reply OK only.';
+    const provision = parseChatProvisionDirectory([provisionEntry()])[0];
+    let sends = 0;
+    let records = 0;
+    let newChats = 0;
+    const authorization = { worker: provision.workerId, authorization_id: 'authorization:test',
+      directive_artifact_sha256: sha256(body), authorized_profile: { model: 'GPT_5_6_SOL', effort: 'MEDIUM', fastModeRequest: 'DO_NOT_ENABLE_FAST' } };
+    const input = {
+      config: { runtime: { submitEnabled: true, maxHotTabs: 3, provisionResultsFile: path.join(root, 'results.json') } },
+      provision, body,
+      browser: {
+        async createFreshChatTarget() { newChats++; return { id: 'owned-target', automationOwned: true, automationWindowId: 101, url: 'https://chatgpt.com/' }; },
+        async ensureExactWorkControls() { return { status: 'DOM_SELECTION_VERIFIED', model: 'gpt-5.6-sol', effort: mismatch ? 'max' : 'medium', managed_target_verified: true, fast_observed: null }; },
+        async submitExactMessage(_target, input) { sends++; assert.equal(input.body, body); return { conversationUrl: 'https://chatgpt.com/c/created-work-test' }; },
+      },
+      submissionPacer: { async submit(input) { await input.beforeSubmit(); return input.submit(async () => {}, {}, async () => {}); } },
+      workCreation: { authorizationId: 'authorization:test', missionControl: {
+        async fetchWorkCreationAuthorization() { return authorization; },
+        async recordWorkCreation(auth, selection, locator) { records++; assert.equal(auth, authorization); assert.equal(selection.effort, 'medium'); assert.equal(locator, 'https://chatgpt.com/c/created-work-test'); return 'setter:test'; },
+      } },
+    };
+    try {
+      if (mismatch) await assert.rejects(provisionMcOnlyChat(input), /WORK_UI_SELECTION_MISMATCH/);
+      else {
+        const result = await provisionMcOnlyChat(input);
+        assert.equal(result.status, 'BROWSER_TASK_CREATION_TRUSTED_SETTER_ACTIVE');
+        assert.equal(result.setterEvidenceId, 'setter:test');
+        assert.equal(JSON.stringify(result).includes(body), false);
+        await assert.rejects(provisionMcOnlyChat(input), /DO_NOT_REPLAY/);
+      }
+      assert.equal(sends, mismatch ? 0 : 1);
+      assert.equal(records, mismatch ? 0 : 1);
+      assert.equal(newChats, 1);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }
+});
+
 function provisionEntry() {
   return {
     registrationState: 'PROVISIONING', scope: 'PROJECT_MANAGER', supervisorId: 'mc-project-manager',

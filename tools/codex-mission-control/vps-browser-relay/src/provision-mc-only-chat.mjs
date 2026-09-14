@@ -4,14 +4,29 @@ import { dirname } from 'node:path';
 
 import { normalizeConversationUrl, sha256 } from './core.mjs';
 import { submissionSchedulerContext } from './submission-context.mjs';
+import { workSelectionControls } from './work-selection.mjs';
 
 const PROVIDER_ROOT = 'https://chatgpt.com/';
 
-export async function provisionMcOnlyChat({ config, provision, browser, submissionPacer, body }) {
+export async function provisionMcOnlyChat({ config, provision, browser, submissionPacer, body, workCreation = null }) {
   if (!config?.runtime?.submitEnabled) throw new Error('MC_RELAY_SUBMIT_ENABLED=1 is required for live Mission Control-only provisioning.');
   if (!provision || provision.registrationState !== 'PROVISIONING') throw new Error('An exact owner-authorized provisioning registration is required.');
   if (typeof body !== 'string' || body.trim() === '') throw new Error('The provisioning message must be non-empty.');
   const bodySha256 = sha256(body);
+  const prior = await readFile(config.runtime.provisionResultsFile, 'utf8').catch((error) => {
+    if (error.code === 'ENOENT') return '[]';
+    throw error;
+  });
+  if (JSON.parse(prior).some((entry) => entry.registrationId === provision.registrationId))
+    throw new Error('PROVISION_ALREADY_CREATED_DO_NOT_REPLAY');
+  let authorization = null;
+  let selection = null;
+  if (workCreation) {
+    authorization = await workCreation.missionControl.fetchWorkCreationAuthorization(provision.workerId, workCreation.authorizationId);
+    if (authorization.worker !== provision.workerId || authorization.authorization_id !== workCreation.authorizationId
+      || authorization.directive_artifact_sha256 !== bodySha256) throw new Error('WORK_DIRECTIVE_AUTHORITY_MISMATCH');
+    workSelectionControls(authorization.authorized_profile);
+  }
   const target = await browser.createFreshChatTarget({ hardCeiling: config.runtime.maxHotTabs });
   const context = submissionSchedulerContext({
     chat: provision,
@@ -25,10 +40,22 @@ export async function provisionMcOnlyChat({ config, provision, browser, submissi
   });
   const result = await submissionPacer.submit({
     context,
-    beforeSubmit: () => browser.ensureExactConsumerControls(target, {
-      expectedUrl: PROVIDER_ROOT,
-      controls: provision.consumerControls,
-    }),
+    beforeSubmit: async () => {
+      if (authorization) {
+        const refreshed = await workCreation.missionControl.fetchWorkCreationAuthorization(provision.workerId, workCreation.authorizationId);
+        if (JSON.stringify(refreshed) !== JSON.stringify(authorization)) throw new Error('WORK_AUTHORITY_CHANGED');
+        selection = await browser.ensureExactWorkControls(target, { expectedUrl: PROVIDER_ROOT, profile: authorization.authorized_profile });
+        const expected = workSelectionControls(authorization.authorized_profile);
+        if (selection?.status !== 'DOM_SELECTION_VERIFIED' || selection.model !== expected.model
+          || selection.effort !== expected.effort || selection.managed_target_verified !== true
+          || selection.fast_observed !== null) throw new Error('WORK_UI_SELECTION_MISMATCH');
+        return selection;
+      }
+      return browser.ensureExactConsumerControls(target, {
+        expectedUrl: PROVIDER_ROOT,
+        controls: provision.consumerControls,
+      });
+    },
     submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => browser.submitExactMessage(target, {
       expectedUrl: PROVIDER_ROOT,
       body,
@@ -39,7 +66,20 @@ export async function provisionMcOnlyChat({ config, provision, browser, submissi
   });
   const conversationUrl = normalizeConversationUrl(result?.conversationUrl);
   const registration = activeRegistration(provision, conversationUrl);
+  if (authorization) {
+    // A Work task is not a supervisor chat: never register the supervisor's fixed
+    // Extra High controls as if they were the Work selection actually applied.
+    delete registration.consumerControls;
+    registration.registrationKind = 'WORK_TASK_CREATION';
+    registration.workAuthorizationId = authorization.authorization_id;
+    registration.workSelection = selection;
+  }
   await persistPrivateRegistration(config.runtime.provisionResultsFile, registration);
+  if (authorization) {
+    const evidenceId = await workCreation.missionControl.recordWorkCreation(authorization, selection, conversationUrl);
+    return { status: 'BROWSER_TASK_CREATION_TRUSTED_SETTER_ACTIVE', setterEvidenceId: evidenceId,
+      conversationUrlSha256: sha256(conversationUrl), inspectedAssistantOutput: false };
+  }
   return {
     status: 'MISSION_CONTROL_ONLY_CHAT_PROVISIONED',
     supervisorId: provision.supervisorId,
@@ -87,7 +127,9 @@ async function persistPrivateRegistration(filename, registration) {
     if (error?.code !== 'ENOENT') throw error;
   }
   if (!Array.isArray(entries)) throw new Error('Private provision results must be a JSON array.');
-  const sameSupervisor = entries.find((entry) => entry?.supervisorId === registration.supervisorId);
+  const sameSupervisor = entries.find((entry) => registration.registrationKind === 'WORK_TASK_CREATION'
+    ? entry?.registrationId === registration.registrationId
+    : entry?.registrationKind !== 'WORK_TASK_CREATION' && entry?.supervisorId === registration.supervisorId);
   if (sameSupervisor) {
     if (sameSupervisor.registrationId !== registration.registrationId
       || sameSupervisor.bootstrapCapability?.url !== registration.bootstrapCapability.url) {
