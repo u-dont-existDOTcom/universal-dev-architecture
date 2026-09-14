@@ -47,6 +47,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 41. `patterns/worker-directive-delivery-and-chat-output-budget.md` — when worker execution is selected as the next action, deliver the complete runnable directive in the same turn instead of stopping at meta-commentary; keep short directives in one fenced code block and materialize longer operational payloads as `.md`/text artifacts with concise chat summaries to reduce scrollback and output latency.
 42. `patterns/worker-self-remediation-before-owner-interruption.md` — before assigning routine configuration, permission, recovery, or setup work to the owner, determine what the active worker can safely perform itself; require worker self-remediation first and reduce the owner handoff to the smallest genuinely irreducible action.
 43. `patterns/instruction-composition-and-portable-intelligence.md` — scope-aware inheritance, public/internal separation, transfer provenance, and preservation-based deduplication.
+44. `patterns/work-model-and-effort-routing.md` — after Chat admits and reduces a Work task, route its residual execution through the canonical Sol Low, Sol Medium, Astra Low, Astra Medium, and exceptional high-effort ladder by expected consumer-seam success and speed per shared allowance; diagnose failures before escalation and collect a bounded 10-task telemetry window without a broad benchmark.
 
 ## Reusable policy templates
 
@@ -68,6 +69,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 - `templates/RESEARCH-SUPERVISION-VERDICT.json` — separate operational, scientific, and release-adequacy judgments.
 - `templates/SUPERVISION-DESIGN-FEEDBACK.json` — structured feedback packet for shared Pro supervisor-design review.
 - `templates/STRUCTURED-OUTPUT-FAILURE.json` — machine-readable serialization-failure evidence, repeated-fingerprint assessment, source-fixed attempt boundary, repair authority, and downstream admission block.
+- `templates/WORK-MODEL-ROUTING-TELEMETRY.json` — privacy-bounded prospective record for the next 10 nontrivial Work executions, with five- and ten-task checkpoints and no automatic policy mutation.
 
 ## Repository compliance worker architecture
 
