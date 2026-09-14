@@ -7,8 +7,15 @@ import {
   internalSupervisorRoutePrefix,
   supervisoryCycleRoutePrefix,
   parseInternalSupervisorRouteBody,
+  workProfileAuthorizationId,
 } from "../lib/supervision-admission-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
+import {
+  WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
+  WORK_MODEL_ROUTING_POLICY_REF,
+  type WorkExecutionProfile,
+} from "../lib/work-execution-profile";
+import type { PersistedExecutionDirectiveProof } from "../lib/chat-work-authority-gate";
 
 const workerProducer: AuthenticatedProducer = {
   id: "worker:askrigor-mast",
@@ -16,7 +23,19 @@ const workerProducer: AuthenticatedProducer = {
   workerScopes: ["askrigor-mast"],
   taskScopes: ["task:askrigor-mast"],
 };
-const digest = "a".repeat(64);
+const sourceDigest = "a".repeat(64);
+const directiveDigest = "b".repeat(64);
+const solMediumProfile: WorkExecutionProfile = {
+  model: "GPT_5_6_SOL",
+  effort: "MEDIUM",
+  routingTier: "SOL_MEDIUM",
+  routingTriggers: [],
+  fastModeRequest: "DO_NOT_ENABLE_FAST",
+  assuranceRequirement: "SET_REQUEST_SUFFICIENT",
+  policyRef: WORK_MODEL_ROUTING_POLICY_REF,
+  contractVersion: "TRUSTED_SETTER_V1",
+  routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
+};
 
 function input(overrides: Record<string, unknown> = {}) {
   const requestOverrides = (overrides.request ?? {}) as Record<string, unknown>;
@@ -37,6 +56,14 @@ function input(overrides: Record<string, unknown> = {}) {
       actionTimeConfirmationRequested: false,
     },
     ownerPolicy: { paidModelInferenceAllowed: false, activeZeroSpendDecisionId: "owner:no-paid-api:20260901" },
+    directiveSchemaVersion: 3,
+    executionDirectiveBinding: {
+      directiveId: "directive:askrigor:mast:1",
+      directiveRevision: 1,
+      taskId: "task:askrigor:mast",
+      directiveArtifactSha256: directiveDigest,
+    },
+    workExecutionProfile: solMediumProfile,
     ...requestOverrides,
   };
   const base = {
@@ -51,6 +78,17 @@ function input(overrides: Record<string, unknown> = {}) {
   };
   return { ...base, ...overrides, request };
 }
+
+const directiveProof: PersistedExecutionDirectiveProof = {
+  directiveId: "directive:askrigor:mast:1",
+  directiveRevision: 1,
+  taskId: "task:askrigor:mast",
+  directiveArtifactSha256: directiveDigest,
+  sourceMessageId: "chat-message:askrigor:zero-spend",
+  sourceBodySha256: sourceDigest,
+  status: "ACTIVE",
+  workExecutionProfile: solMediumProfile,
+};
 
 test("Codex spend design is blocked before action and automatically queued to Chat", () => {
   const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input(), "2026-09-01T21:00:00.000Z");
@@ -131,7 +169,7 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
       actor: "CODEX",
       sourceReceipt: {
         messageId: "chat-message:askrigor:zero-spend",
-        bodySha256: digest,
+        bodySha256: sourceDigest,
         claimedSurface: "CHATGPT_PROJECT_MANAGER",
         observedSurface: "CHATGPT_PROJECT_MANAGER",
         provenanceStatus: "VERIFIED",
@@ -144,10 +182,12 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
       internalRoute: null,
     },
     factualPacket: null,
-  }));
+  }), undefined, undefined, directiveProof);
   assert.equal(result.admitted, true);
   assert.equal(result.mayExecute, true);
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
+  assert.deepEqual(result.authorizedWorkExecutionProfile, solMediumProfile);
+  assert.equal(result.profileAuthorizationId, workProfileAuthorizationId("admission:askrigor:mast:1"));
 });
 
 test("a registered provider-session cycle is emitted for the stable supervisor with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {

@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "status": "ACTIVE_PROSPECTIVE_WINDOW",
   "policyRef": "patterns/work-model-and-effort-routing.md",
+  "contractVersion": "TRUSTED_SETTER_V1",
+  "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb",
+  "activation": "ON_MISSION_CONTROL_RUNTIME_PATCH_ACTIVATION",
   "window": {
     "eligibleExecutions": "NEXT_10_NONTRIVIAL_WORK_EXECUTIONS",
     "targetCount": 10,
@@ -19,33 +22,35 @@
     "taskId": "replace-with-task-id",
     "repository": "replace-with-owner-and-repository-or-local-alias",
     "residualExecutionClass": "replace-with-class-after-chat-reasoning",
-    "chosenModel": "GPT-5.6 Sol | GPT-6 Astra | OTHER_AVAILABLE_SURFACE_VALUE",
-    "chosenEffort": "Low | Medium | High | XHigh | Max | OTHER_AVAILABLE_SURFACE_VALUE | UNOBSERVABLE",
-    "routingTier": "TIER_1_SOL_LOW | TIER_2_SOL_MEDIUM | TIER_3_ASTRA_LOW | TIER_4_ASTRA_MEDIUM | TIER_5_ASTRA_EXCEPTION | SOL_HIGH_EXCEPTION",
+    "chosenModel": "GPT_5_6_SOL | GPT_6_ASTRA",
+    "chosenEffort": "LOW | MEDIUM | HIGH | XHIGH | MAX",
+    "routingTier": "SOL_LOW | SOL_MEDIUM | ASTRA_LOW | ASTRA_MEDIUM | ASTRA_HIGH | ASTRA_XHIGH | ASTRA_MAX | SOL_HIGH_EXCEPTION",
     "routingTriggers": [],
+    "modelIdentityEvidence": "SET_AND_VERIFIED | SET_REQUEST_ONLY | INDEPENDENTLY_VERIFIED | UNVERIFIED",
+    "setterEvidenceId": "required-durable-trusted-task-creation-evidence-reference-for-SET_REQUEST_ONLY",
     "directConsumerSeamResult": "PASS | FAIL | UNPROVEN",
     "failureClassification": "CHAT_PLAN_DEFECT | ACCESS_CONTEXT_DEFECT | EXECUTION_REASONING_SHORTFALL | MECHANICAL_EXECUTION_FAILURE | NOT_APPLICABLE",
     "wallTimeSeconds": null,
     "retries": 0,
     "interventions": [],
     "testWallTimeSeconds": null,
-    "allowanceDelta": "replace-with-cleanly-exposed-delta-or-UNAVAILABLE",
+    "allowanceDelta": null,
     "escalationOccurred": false,
     "finalSuccessfulTier": "replace-with-tier-or-NONE",
-    "hindsightInitialTier": "OVERPOWERED | UNDERPOWERED | APPROPRIATE | UNPROVEN",
-    "fastModeUsed": false,
-    "notes": "non-sensitive facts only"
+    "hindsightInitialTier": "CLEARLY_OVERPOWERED | CLEARLY_UNDERPOWERED | APPROPRIATE | UNPROVEN",
+    "fastModeRequest": "DO_NOT_ENABLE_FAST | ENABLE_FAST",
+    "fastModeObserved": null
   },
   "entries": [],
   "checkpoints": [
     {
       "afterCompletedCount": 5,
-      "action": "PRODUCE_CONCISE_LOCAL_SUMMARY_ONLY",
+      "action": "EMIT_DURABLE_PRIVACY_SAFE_LOCAL_SUMMARY_EVENT",
       "automaticPolicyChange": false
     },
     {
       "afterCompletedCount": 10,
-      "action": "RETURN_EVIDENCE_TO_CHAT_FOR_POLICY_REVIEW",
+      "action": "EMIT_DURABLE_PRIVACY_SAFE_CHAT_POLICY_REVIEW_EVENT",
       "automaticPolicyChange": false
     }
   ],

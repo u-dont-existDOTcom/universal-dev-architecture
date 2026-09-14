@@ -106,10 +106,22 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
             <Identity label="Directive status" value={worker.executionSupervision.directiveStatus} />
             <Identity label="Codex execution" value={worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} />
             <Identity label="Pro escalation" value={worker.executionSupervision.proEscalationState} />
+            <Identity label="Requested Work profile" value={worker.workExecution.requestedModel
+              ? `${worker.workExecution.requestedModel} · ${worker.workExecution.requestedEffort} · ${worker.workExecution.routingTier}`
+              : "LEGACY / UNSPECIFIED"} />
+            <Identity label="Observed Work profile" value={worker.workExecution.observedModel
+              ? `${worker.workExecution.observedModel} · ${worker.workExecution.observedEffort}`
+              : "NOT INDEPENDENTLY VERIFIED"} />
+            <Identity label="Provider identity evidence" value={worker.workExecution.modelIdentityEvidence.replaceAll("_", " ")} />
+            <Identity label="Profile preflight" value={worker.workExecution.preflight} />
+            <Identity label="Fast request" value={worker.workExecution.fastModeRequest?.replaceAll("_", " ") ?? "UNSPECIFIED"} />
+            <Identity label="Observed Fast state" value={worker.workExecution.observedFastMode === null ? "NOT INDEPENDENTLY VERIFIED" : worker.workExecution.observedFastMode ? "ON" : "OFF"} />
+            <Identity label="Routing telemetry" value={`${worker.workExecution.telemetryCompletedCount} / ${worker.workExecution.telemetryTargetCount}`} />
           </div>
           <div className="directive-callout"><span className="field-label">EXECUTION OBJECTIVE</span><strong>{worker.executionSupervision.directiveObjective}</strong></div>
           <div className="contract-section danger"><span className="field-label">STOP / REVIEW BOUNDARY</span><ul>{worker.executionSupervision.stopBoundary.map((item) => <li key={item}>{item}</li>)}</ul></div>
           <p><span className="field-label">LATEST EXECUTION RECEIPT</span>{worker.executionSupervision.latestReceiptId ?? "None"} — {worker.executionSupervision.receiptClaim}</p>
+          <p><span className="field-label">PROFILE CAPABILITY</span>model {worker.workExecution.modelCapability} · effort {worker.workExecution.effortCapability} · Fast {worker.workExecution.fastModeCapability}</p>
           <div className="freshness-row"><span>Pending reasoning review</span><strong className={worker.executionSupervision.pendingReasoningReview ? "bad" : "good"}>{worker.executionSupervision.pendingReasoningReview ? "YES" : "NO"}</strong></div>
           {worker.executionSupervision.alerts.length > 0 && <div className="reason-codes">{worker.executionSupervision.alerts.map((code) => <code key={code}>{code}</code>)}</div>}
         </Panel>
@@ -258,8 +270,12 @@ function eventSummary(event: StoredEvent): string {
     case "reasoning_supervision_recorded": return `${data.reasoning_supervisor_surface} ${data.reasoning_supervisor_chat_epoch}: ${data.next_reasoning_review_trigger}`;
     case "github_decision_receipt_ingested": return `${data.reasoning_lane.replaceAll("_", " ")} · ${data.github_receipt.repository}#${data.github_receipt.issue_number}: ${data.decision_block.exact_text}`;
     case "execution_directive_recorded": return `${data.status}: ${data.execution_objective}`;
+    case "work_execution_profile_authorized": return `${data.authorized_profile.routingTier}: ${data.authorized_profile.model} ${data.authorized_profile.effort}`;
+    case "work_task_creation_selection_applied": return `Trusted task-creation request: ${data.model_setter} ${data.effort_setter}`;
+    case "work_execution_preflight_recorded": return `${data.preflight}: ${data.decision}`;
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
     case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;
+    case "work_model_routing_checkpoint_recorded": return `${data.checkpoint_kind}: ${data.eligible_execution_count}/10 eligible executions`;
     case "outcome_progress_recorded": return `${data.outcome_advancement} · ${data.strategy_efficacy}: ${data.required_intervention}`;
     case "supervision_alert_recorded": return `${data.code} ${data.status}: ${data.statement}`;
     case "research_verdict_recorded": return `Operational ${data.operational_protocol} · scientific ${data.scientific_conclusion} · release ${data.release_adequacy}`;

@@ -16,6 +16,7 @@ import type {
 import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
 import { projectWorkerChannel, type WorkerChannelProjection } from "./worker-channel";
+import { completedWorkRoutingTelemetryCount } from "./work-execution-runtime";
 
 export type Health = Traffic;
 export type WorkerStatus = "working" | "blocked" | "done";
@@ -204,6 +205,25 @@ export interface WorkerState {
     proEscalationState: string;
     alerts: string[];
   };
+  workExecution: {
+    requestedModel: string | null;
+    requestedEffort: string | null;
+    authorizedModel: string | null;
+    authorizedEffort: string | null;
+    observedModel: string | null;
+    observedEffort: string | null;
+    fastModeRequest: string | null;
+    observedFastMode: boolean | null;
+    modelIdentityEvidence: string;
+    routingTier: string | null;
+    preflight: string;
+    modelCapability: string;
+    effortCapability: string;
+    fastModeCapability: string;
+    telemetryIndex: number | null;
+    telemetryCompletedCount: number;
+    telemetryTargetCount: 10;
+  };
   channel: WorkerChannelProjection;
   connection: WorkerConnectionProjection;
   lastCheckpointAt: string;
@@ -217,8 +237,10 @@ export function projectWorkers(events: StoredEvent[], now = new Date(), config: 
   }).filter((worker): worker is string => Boolean(worker)));
   const workerIds = [...new Set(events.map((event) => event.worker)
     .filter((worker): worker is string => typeof worker === "string" && projectableWorkers.has(worker)))];
+  const telemetryCompletedCount = completedWorkRoutingTelemetryCount(events);
   return workerIds
     .map((worker) => projectWorker(events.filter((event) => event.worker === worker), now, config))
+    .map((worker) => ({ ...worker, workExecution: { ...worker.workExecution, telemetryCompletedCount } }))
     .sort((left, right) => attentionPriority(left) - attentionPriority(right)
       || severityScore(right.activeFindings[0]?.severity) - severityScore(left.activeFindings[0]?.severity)
       || new Date(left.lastCheckpointAt).getTime() - new Date(right.lastCheckpointAt).getTime());
@@ -248,6 +270,14 @@ function projectV2Worker(
   const directive = latest(events, "execution_directive_recorded");
   const executionStart = latest(events, "codex_execution_started");
   const receipt = latest(events, "execution_receipt_recorded");
+  const profileAuthorization = latest(events, "work_execution_profile_authorized");
+  const workPreflight = latest(events, "work_execution_preflight_recorded");
+  const directiveProfile = directive?.work_execution_profile !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+    ? directive?.work_execution_profile
+    : null;
+  const receiptWorkExecution = receipt?.work_execution !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+    ? receipt?.work_execution
+    : null;
   const progress = latest(events, "outcome_progress_recorded");
   const comparison = compareTerminalState(events);
   const strategyParked = Boolean(progress && reasoning?.active_execution_directive_id === null
@@ -413,6 +443,27 @@ function projectV2Worker(
         "SUPERVISION_DIRECTIVE_MISSING", "REASONING_REVIEW_OVERDUE", "PENDING_REASONING_REVIEW",
         "PROGRESS_EVIDENCE_OVERDUE", "OWNER_OUTCOME_REGRESSING", "STRATEGY_REPLACEMENT_REQUIRED",
       ].includes(code) || code.startsWith("CODEX_") || code === "DIRECTIVE_SCOPE_EXCEEDED" || code === "OWNER_FORCED_PROGRESS_REVIEW"),
+    },
+    workExecution: {
+      requestedModel: receiptWorkExecution?.requested_profile.model ?? workPreflight?.requested_profile.model ?? directiveProfile?.model ?? null,
+      requestedEffort: receiptWorkExecution?.requested_profile.effort ?? workPreflight?.requested_profile.effort ?? directiveProfile?.effort ?? null,
+      authorizedModel: receiptWorkExecution?.authorized_profile.model ?? profileAuthorization?.authorized_profile.model ?? null,
+      authorizedEffort: receiptWorkExecution?.authorized_profile.effort ?? profileAuthorization?.authorized_profile.effort ?? null,
+      observedModel: receiptWorkExecution?.observed_profile.model ?? workPreflight?.observed_profile.model ?? null,
+      observedEffort: receiptWorkExecution?.observed_profile.effort ?? workPreflight?.observed_profile.effort ?? null,
+      fastModeRequest: receiptWorkExecution?.authorized_profile.fastModeRequest ?? directiveProfile?.fastModeRequest ?? null,
+      observedFastMode: receiptWorkExecution?.fast_mode_observed ?? workPreflight?.observed_profile.fastMode ?? null,
+      modelIdentityEvidence: receiptWorkExecution?.model_identity_evidence ?? workPreflight?.model_identity_evidence ?? "UNVERIFIED",
+      routingTier: receiptWorkExecution?.authorized_profile.routingTier ?? profileAuthorization?.authorized_profile.routingTier ?? directiveProfile?.routingTier ?? null,
+      preflight: receiptWorkExecution?.preflight ?? workPreflight?.preflight ?? (directiveProfile ? "NOT_RECORDED" : "LEGACY_MODEL_PROFILE_UNSPECIFIED"),
+      modelCapability: receiptWorkExecution?.observability.model ?? workPreflight?.capability.model ?? "UNOBSERVABLE",
+      effortCapability: receiptWorkExecution?.observability.effort ?? workPreflight?.capability.effort ?? "UNOBSERVABLE",
+      fastModeCapability: receiptWorkExecution?.observability.fastMode ?? workPreflight?.capability.fastMode ?? "UNOBSERVABLE",
+      telemetryIndex: receiptWorkExecution?.routing_telemetry.eligible
+        ? receiptWorkExecution.routing_telemetry.telemetry_index
+        : null,
+      telemetryCompletedCount: completedWorkRoutingTelemetryCount(events),
+      telemetryTargetCount: 10,
     },
     channel,
     connection: projectWorkerConnection(events, now),
@@ -770,6 +821,14 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       codexExecutionState: "UNKNOWN_LEGACY_EXECUTION",
       stopBoundary: [], latestReceiptId: null, receiptClaim: "No execution receipt in legacy schema.",
       pendingReasoningReview: true, proEscalationState: "NOT_REQUIRED", alerts: ["SUPERVISION_DIRECTIVE_MISSING"],
+    },
+    workExecution: {
+      requestedModel: null, requestedEffort: null, authorizedModel: null, authorizedEffort: null,
+      observedModel: null, observedEffort: null, fastModeRequest: null, observedFastMode: null,
+      modelIdentityEvidence: "UNVERIFIED", routingTier: null,
+      preflight: "LEGACY_MODEL_PROFILE_UNSPECIFIED", modelCapability: "UNOBSERVABLE",
+      effortCapability: "UNOBSERVABLE", fastModeCapability: "UNOBSERVABLE",
+      telemetryIndex: null, telemetryCompletedCount: 0, telemetryTargetCount: 10,
     },
     channel,
     connection: projectWorkerConnection(events, now),

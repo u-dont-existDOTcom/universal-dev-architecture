@@ -1,5 +1,7 @@
 import type { WorkerState } from "./projection";
+import { receiptHasTrustedSetterEvidence } from "./work-task-creation-evidence";
 import { internalSupervisorRoutePrefix, supervisoryCycleRoutePrefix } from "./supervision-admission-runtime";
+import { launchSelectionFor, workExecutionProfilesEqual } from "./work-execution-profile";
 
 export type FinalResponseGateDecision =
   | "ALLOW_ROOT_CLOSE"
@@ -14,7 +16,12 @@ export type FinalResponseGateDecision =
   | "REJECT_BLOCKER_WITH_WORKAROUND"
   | "REJECT_OWNER_DECISION_AUTHORITY_MISSING"
   | "REJECT_UNVERIFIED_BLOCKED_STATE"
-  | "REJECT_TERMINAL_PROOF_MISSING";
+  | "REJECT_TERMINAL_PROOF_MISSING"
+  | "WORK_EXECUTION_PROFILE_MISMATCH"
+  | "WORK_EXECUTION_PROFILE_UNVERIFIABLE"
+  | "REJECT_INVALID_EXECUTION_DIRECTIVE_PROVENANCE"
+  | "REJECT_MISSING_WORK_EXECUTION_PROFILE"
+  | "REJECT_UNAUTHORIZED_WORK_EXECUTION_PROFILE_ESCALATION";
 
 export interface FinalResponseGateResult {
   allowed: boolean;
@@ -40,6 +47,11 @@ const recoverableWaitPattern = /cooldown|rate[ -]?limit|provider wait|retry|back
  */
 export function evaluateFinalResponseAdmission(worker: WorkerState): FinalResponseGateResult {
   const terminalHash = worker.terminal.stateVectorSha256;
+
+  if (worker.terminal.decision !== "ALLOW_OWNER_CANCELLATION") {
+    const profileRejection = executionProfileRejection(worker, terminalHash);
+    if (profileRejection) return profileRejection;
+  }
 
   if (worker.terminal.rootTerminalizationAllowed) {
     return allow(
@@ -219,6 +231,131 @@ export function evaluateFinalResponseAdmission(worker: WorkerState): FinalRespon
     "Reconcile durable task state and continue automatically from the next safe in-scope action.",
     terminalHash,
   );
+}
+
+function executionProfileRejection(
+  worker: WorkerState,
+  terminalHash: string,
+): FinalResponseGateResult | null {
+  const timeline = worker.timeline ?? [];
+  const directiveEvent = timeline.find((event) => event.data.type === "execution_directive_recorded");
+  const directive = directiveEvent?.data;
+  if (!directive || directive.type !== "execution_directive_recorded" || directive.directive_schema_version !== 3) return null;
+  const receiptEvent = timeline.find((event) => event.data.type === "execution_receipt_recorded"
+    && event.data.directive_id === directive.directive_id
+    && event.data.directive_revision === directive.directive_revision);
+  const receipt = receiptEvent?.data;
+  if (!receipt || receipt.type !== "execution_receipt_recorded"
+    || receipt.receipt_schema_version !== 3
+    || receipt.work_execution === "LEGACY_MODEL_PROFILE_UNSPECIFIED") {
+    return reject(
+      "REJECT_MISSING_WORK_EXECUTION_PROFILE",
+      ["The current version 3 execution directive has no version 3 receipt with a Work execution profile binding."],
+      "Record the exact requested, authorized, observed, preflight, and final Work profile facts before finalization.",
+      terminalHash,
+    );
+  }
+  const binding = receipt.work_execution;
+  if (!receiptEvent || !receiptHasTrustedSetterEvidence(receiptEvent, timeline)) {
+    return reject("WORK_EXECUTION_PROFILE_UNVERIFIABLE",
+      ["TRUSTED_TASK_CREATION_SETTER_EVIDENCE_REQUIRED"],
+      "Worker self-report cannot prove task-creation setters reached the provider boundary.", terminalHash);
+  }
+  const authorizationEvent = timeline.find((event) => event.data.type === "work_execution_profile_authorized"
+    && event.data.authorization_id === binding.authorization_id);
+  const authorization = authorizationEvent?.data;
+  if (!authorization || authorization.type !== "work_execution_profile_authorized"
+    || directive.directive_artifact_sha256 === null
+    || directive.source_message_id === null
+    || directive.source_body_sha256 === null
+    || authorization.directive_id !== directive.directive_id
+    || authorization.directive_revision !== directive.directive_revision
+    || authorization.task_id !== directive.task_id
+    || authorization.directive_artifact_sha256 !== directive.directive_artifact_sha256
+    || authorization.source_message_id !== directive.source_message_id
+    || authorization.source_body_sha256 !== directive.source_body_sha256
+    || !workExecutionProfilesEqual(authorization.authorized_profile, binding.authorized_profile)) {
+    return reject(
+      "REJECT_INVALID_EXECUTION_DIRECTIVE_PROVENANCE",
+      ["The receipt authorization does not bind the current durable directive artifact, source-message provenance, identity, revision, task, and profile."],
+      "Do not finalize from a worker-supplied digest; repair the current execution_directive_recorded provenance binding.",
+      terminalHash,
+    );
+  }
+  const requiredSelection = launchSelectionFor(binding.authorized_profile);
+  const applicationMismatch = (
+    (binding.observability.model === "SET_ONLY" || binding.observability.model === "SET_AND_VERIFY")
+      && binding.applied_selection?.model !== requiredSelection.model
+  ) || (
+    (binding.observability.effort === "SET_ONLY" || binding.observability.effort === "SET_AND_VERIFY")
+      && binding.applied_selection?.thinking !== requiredSelection.thinking
+  ) || (
+    binding.applied_selection?.fastModeRequest !== requiredSelection.fastModeRequest
+  );
+  const observedMismatch = (
+    binding.observed_profile.model !== null
+      && binding.observed_profile.model !== binding.authorized_profile.model
+  ) || (
+    binding.observed_profile.effort !== null
+      && binding.observed_profile.effort !== binding.authorized_profile.effort
+  ) || (
+    binding.observed_profile.fastMode !== null
+      && binding.observed_profile.fastMode !== (binding.authorized_profile.fastModeRequest === "ENABLE_FAST")
+  );
+  if (!workExecutionProfilesEqual(binding.requested_profile, binding.authorized_profile)
+    || applicationMismatch
+    || observedMismatch
+    || binding.preflight === "MISMATCH"
+    || binding.preflight_decision === "WORK_EXECUTION_PROFILE_MISMATCH"
+    || !binding.final_profile
+    || !workExecutionProfilesEqual(
+      binding.final_profile,
+      binding.escalations.at(-1)?.to_profile ?? binding.authorized_profile,
+    )
+    || binding.fast_mode_observed !== binding.observed_profile.fastMode) {
+    return reject(
+      "WORK_EXECUTION_PROFILE_MISMATCH",
+      ["The execution receipt proves a requested/authorized/observed/final Work profile mismatch."],
+      "Do not claim successful bounded execution; obtain a new exact source-bound profile and rerun preflight.",
+      terminalHash,
+    );
+  }
+  const missingObservableReadback = (
+    (binding.observability.model === "VERIFY_ONLY" || binding.observability.model === "SET_AND_VERIFY")
+      && binding.observed_profile.model === null
+  ) || (
+    (binding.observability.effort === "VERIFY_ONLY" || binding.observability.effort === "SET_AND_VERIFY")
+      && binding.observed_profile.effort === null
+  ) || (
+    (binding.observability.fastMode === "VERIFY_ONLY" || binding.observability.fastMode === "SET_AND_VERIFY")
+      && binding.observed_profile.fastMode === null
+  );
+  if (binding.preflight === "UNVERIFIABLE"
+    || binding.preflight_decision === "WORK_EXECUTION_PROFILE_UNVERIFIABLE"
+    || missingObservableReadback
+    || binding.authorized_profile.assuranceRequirement === "INDEPENDENT_READBACK_REQUIRED"
+      && !["SET_AND_VERIFIED", "INDEPENDENTLY_VERIFIED"].includes(binding.model_identity_evidence)) {
+    return reject(
+      "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
+      ["At least one materially required Work profile field was not independently verifiable."],
+      "Keep the execution closed and record the exact product-surface limitation; do not infer a model, effort, or Fast state.",
+      terminalHash,
+    );
+  }
+  for (const escalation of binding.escalations) {
+    const authorization = timeline.find((event) => event.data.type === "work_execution_profile_authorized"
+      && event.data.authorization_id === escalation.authorization_id)?.data;
+    if (!authorization || authorization.type !== "work_execution_profile_authorized"
+      || !workExecutionProfilesEqual(authorization.authorized_profile, escalation.to_profile)) {
+      return reject(
+        "REJECT_UNAUTHORIZED_WORK_EXECUTION_PROFILE_ESCALATION",
+        ["A model/effort change lacks a new source-bound Chat authorization."],
+        "Stop at the current authorized profile and route the failure evidence to Chat; Work cannot self-escalate.",
+        terminalHash,
+      );
+    }
+  }
+  return null;
 }
 
 function queueNextAction(items: WorkerState["channel"]["queue"]): string {

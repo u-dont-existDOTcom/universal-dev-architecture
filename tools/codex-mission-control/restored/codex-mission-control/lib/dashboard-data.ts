@@ -49,8 +49,7 @@ export function workerSnapshotFromStore(
   worker: string,
   options: { includeFixtureOnly?: boolean } = {},
 ) {
-  const projected = projectWorkers(store.workerEvents(worker));
-  const selected = projected[0];
+  const selected = projectWorkers(store.allEvents()).find((candidate) => candidate.id === worker);
   if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
   return { worker: selected, generatedAt: new Date().toISOString() };
 }

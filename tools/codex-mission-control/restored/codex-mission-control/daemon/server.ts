@@ -23,6 +23,7 @@ import {
   type GitHubDecisionCandidate,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
+import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -123,7 +124,8 @@ const server = http.createServer(async (request, response) => {
       if (!producerMayEmit(producer, envelope.data)) return json(response, 403, { error: `Producer ${producer.id} cannot emit ${envelope.data.type}.` });
       const event = store.append(envelope, undefined, producer);
       notifications.emit("event", event);
-      return json(response, 201, { event });
+      const routingCheckpoints = appendWorkRoutingCheckpoints();
+      return json(response, 201, { event, routingCheckpoints });
     }
     if (request.method === "POST" && url.pathname === "/github/decision-receipts") {
       const producer = authorizeMutation(request);
@@ -211,7 +213,8 @@ const server = http.createServer(async (request, response) => {
       }
       const events = store.appendMany(envelopes.map((event) => ({ event, producer })));
       notifications.emit("event", events.at(-1));
-      return json(response, 201, { events, cursor: store.latestSequence() });
+      const routingCheckpoints = appendWorkRoutingCheckpoints();
+      return json(response, 201, { events, routingCheckpoints, cursor: store.latestSequence() });
     }
     const chatMatch = url.pathname.match(/^\/workers\/([^/]+)\/supervisor-chat$/);
     if (request.method === "POST" && chatMatch) {
@@ -254,6 +257,20 @@ const server = http.createServer(async (request, response) => {
     return json(response, 500, { error: "Mission Control daemon request failed." });
   }
 });
+
+function appendWorkRoutingCheckpoints() {
+  const envelopes = buildWorkRoutingCheckpointEnvelopes(store.allEvents());
+  if (envelopes.length === 0) return [];
+  const systemProducer: AuthenticatedProducer = {
+    id: "system:work-model-routing-telemetry",
+    kind: "SYSTEM",
+    workerScopes: ["*"],
+    taskScopes: ["*"],
+  };
+  const appended = store.appendMany(envelopes.map((event) => ({ event, producer: systemProducer })));
+  notifications.emit("event", appended.at(-1));
+  return appended;
+}
 
 server.listen(port, host, () => {
   console.log(`Mission Control daemon listening on http://${host}:${port}`);

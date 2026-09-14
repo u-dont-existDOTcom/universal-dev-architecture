@@ -110,7 +110,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
             "ownerOutcomeEpochEcho": 7,
             "chatEpochEcho": "chat-epoch-003",
             "reviewedEvidenceBoundaryEcho": "git:abc123",
-            "nextDirectiveSchemaVersion": 2,
+            "nextDirectiveSchemaVersion": 3,
         }
 
     def event(self, state, event_type, at, **values):
@@ -209,7 +209,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
             "requiredResponseKind",
         ):
             self.assertIs(handling[field], True)
-        self.assertEqual(handling["requiredNextDirectiveSchemaVersion"], 2)
+        self.assertEqual(handling["requiredNextDirectiveSchemaVersion"], 3)
 
     def test_02_duplicate_review_request_is_rejected(self) -> None:
         submitted = self.event(
@@ -478,6 +478,13 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(body).hexdigest(), persisted["bodySha256"])
 
         directive = copy.deepcopy(self.directive)
+        # This durable 2026-08-31 receipt is intentionally replayed through the
+        # explicit legacy path rather than being rewritten as a v3 profile.
+        directive["schemaVersion"] = 2
+        directive.pop("workExecutionProfile", None)
+        directive["handoffPolicy"]["responseHandling"][
+            "requiredNextDirectiveSchemaVersion"
+        ] = 2
         directive.update(
             {
                 "directiveId": expected["directiveId"],

@@ -41,7 +41,16 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(directive["schemaVersion"], 2)
+        self.assertEqual(directive["schemaVersion"], 3)
+        self.assertIn("workExecutionProfile", directive)
+        self.assertEqual(
+            directive["workExecutionProfile"]["fastModeRequest"],
+            "DO_NOT_ENABLE_FAST",
+        )
+        self.assertEqual(
+            directive["workExecutionProfile"]["assuranceRequirement"],
+            "SET_REQUEST_SUFFICIENT",
+        )
         self.assertIn("reasoningSupervisor", directive)
         self.assertIn("strategy", directive)
         self.assertEqual(directive["ownerDecisionAuthority"], "NONE")
@@ -50,7 +59,8 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
             directive["ambiguityBehavior"], "STOP_AND_REPORT_DECISION_REQUIRED"
         )
 
-        self.assertEqual(receipt["schemaVersion"], 2)
+        self.assertEqual(receipt["schemaVersion"], 3)
+        self.assertIn("workExecution", receipt)
         self.assertTrue(receipt["nextReasoningReviewRequired"])
         self.assertIn("handoffPolicy", directive)
         self.assertIn("reasoningHandoff", receipt)

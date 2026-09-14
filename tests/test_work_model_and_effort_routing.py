@@ -60,13 +60,19 @@ class WorkModelAndEffortRoutingTests(unittest.TestCase):
         self.assertIn("model escalation is forbidden as a substitute", normalized)
 
     def test_fast_mode_and_telemetry_window_are_bounded(self) -> None:
-        self.assertIn("Fast mode defaults to **OFF**", self.pattern)
+        self.assertIn("Fast mode defaults to a `DO_NOT_ENABLE_FAST` request", self.pattern)
+        self.assertIn("observed state `null`", self.pattern)
+        self.assertIn("never translate “do not enable”", self.pattern)
         self.assertIn("next 10 nontrivial Work executions", self.pattern)
         self.assertIn("Never create a broad benchmark suite", self.pattern)
         self.assertEqual(self.telemetry["window"]["targetCount"], 10)
         self.assertFalse(self.telemetry["window"]["broadBenchmarkAuthorized"])
         self.assertFalse(self.telemetry["window"]["automaticPolicyMutationAuthorized"])
-        self.assertFalse(self.telemetry["entryTemplate"]["fastModeUsed"])
+        self.assertEqual(
+            self.telemetry["entryTemplate"]["fastModeRequest"],
+            "DO_NOT_ENABLE_FAST | ENABLE_FAST",
+        )
+        self.assertIsNone(self.telemetry["entryTemplate"]["fastModeObserved"])
 
     def test_telemetry_template_contains_every_required_field_and_checkpoint(self) -> None:
         entry = self.telemetry["entryTemplate"]
@@ -77,6 +83,7 @@ class WorkModelAndEffortRoutingTests(unittest.TestCase):
             "chosenModel",
             "chosenEffort",
             "routingTriggers",
+            "modelIdentityEvidence",
             "directConsumerSeamResult",
             "failureClassification",
             "wallTimeSeconds",

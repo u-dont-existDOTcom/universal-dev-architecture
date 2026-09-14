@@ -30,6 +30,7 @@ if (response.status === 409 && payload?.mustContinue === true) {
     decision: payload.decision ?? "UNKNOWN",
     requiredNextAction: payload.requiredNextAction ?? "Continue the next safe in-scope action.",
     terminalStateVectorSha256: payload.terminalStateVectorSha256 ?? null,
+    workExecution: payload.workExecution ?? null,
   }, null, 2)}\n`);
   process.exit(75);
 }
@@ -48,4 +49,5 @@ process.stdout.write(`${JSON.stringify({
   decision: payload.decision ?? "UNKNOWN",
   requiredNextAction: payload.requiredNextAction ?? null,
   terminalStateVectorSha256: payload.terminalStateVectorSha256 ?? null,
+  workExecution: payload.workExecution ?? null,
 }, null, 2)}\n`);

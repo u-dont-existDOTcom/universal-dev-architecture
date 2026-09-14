@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-1b7a248f6efa187526f065ef91711f7403cf47a9de9e2fe4a1180db8108e58dd
+6d67b2d1ddbebb538ff1b8d3a8e37399e3123fe63ea5405c180135b4dfb3aa26
 ```
 
-The checked archive contains 159 source files in 73 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
+The checked archive contains 164 source files in 78 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
 
 ## Current operator model
 
@@ -74,7 +74,7 @@ authoritative, or allowed to change Symphony's role. See the
 
 At the current execution receipt boundary:
 
-- 236 deterministic application tests passed;
+- 253 deterministic application tests passed;
 - TypeScript passed;
 - the Next.js production build passed;
 - daemon health and global hash chain passed;

@@ -2,6 +2,9 @@ import { daemonFetch, daemonMutationHeaders } from "@/lib/daemon-client";
 import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 import { parseGitHubReceiptPolicy, validateConfiguredDecisionLocation } from "@/lib/github-decision-receipts";
 import { continuationIntentForAdmission, parseSupervisionAdmissionInput, evaluateSupervisionAdmission } from "@/lib/supervision-admission-runtime";
+import { buildWorkExecutionAuthorizationEnvelope, currentExecutionDirectiveProof } from "@/lib/work-execution-runtime";
+import { parseWorkExecutionProfile } from "@/lib/work-execution-profile";
+import type { AuthenticatedProducer } from "@/lib/ingestion-auth";
 
 import { deriveOwnerResponseContinuation } from "@/lib/owner-response-continuation";
 import type { StoredEvent } from "@/lib/schema";
@@ -31,16 +34,58 @@ export async function POST(request: Request, context: { params: Promise<{ worker
     }
     const body = cycleLocation && policy ? withConfiguredStageIssue(requestedBody, policy.stageIssueNumber) : requestedBody;
     const now = new Date().toISOString();
-    const intent = continuationIntentForAdmission(worker, parseSupervisionAdmissionInput(body), now);
+    const parsedInput = parseSupervisionAdmissionInput(body);
+    const intent = continuationIntentForAdmission(worker, parsedInput, now);
+    const needsDirectiveProof = parsedInput.request.action === "EXECUTE_BOUNDED_TASK"
+      && parsedInput.request.directiveSchemaVersion === 3;
+    let historyEvents: StoredEvent[] = [];
+    if (intent || needsDirectiveProof) {
+      const history = await daemonFetch("/events");
+      if (!history.ok) throw new Error("Mission Control event history is unavailable for admission derivation.");
+      const payload = await history.json() as { events?: StoredEvent[] };
+      if (!Array.isArray(payload.events)) throw new Error("Mission Control admission history is invalid.");
+      historyEvents = payload.events;
+    }
     let continuation;
     if (intent) {
-      const history = await daemonFetch("/events");
-      if (!history.ok) throw new Error("Mission Control event history is unavailable for continuation derivation.");
-      const payload = await history.json() as { events?: StoredEvent[] };
-      if (!Array.isArray(payload.events)) throw new Error("Mission Control continuation history is invalid.");
-      continuation = deriveOwnerResponseContinuation(payload.events, intent, now);
+      continuation = deriveOwnerResponseContinuation(historyEvents, intent, now);
     }
-    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation);
+    const directiveProof = needsDirectiveProof ? currentExecutionDirectiveProof(worker, historyEvents) : null;
+    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation, directiveProof);
+    let profileAuthorizationEvent = null;
+    if (result.mayExecute && result.authorizedWorkExecutionProfile) {
+      const authorizedProfile = parseWorkExecutionProfile(result.authorizedWorkExecutionProfile);
+      const binding = parsedInput.request.executionDirectiveBinding;
+      if (!binding) throw new Error("Admitted execution is missing its directive binding.");
+      const systemProducer: AuthenticatedProducer = {
+        id: "system:work-profile-admission",
+        kind: "SYSTEM",
+        workerScopes: [worker],
+        taskScopes: [binding.taskId],
+      };
+      const upstream = await daemonFetch("/events", {
+        method: "POST",
+        headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
+        body: JSON.stringify(buildWorkExecutionAuthorizationEnvelope({
+          worker,
+          request: parsedInput.request,
+          authorizedProfile,
+          now,
+        })),
+      });
+      const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
+      if (!upstream.ok) {
+        return Response.json({
+          ...result,
+          admitted: false,
+          mayExecute: false,
+          authorizedWorkExecutionProfile: null,
+          profileAuthorizationId: null,
+          error: payload.error ?? "Mission Control could not persist the Work execution profile authorization.",
+        }, { status: upstream.status });
+      }
+      profileAuthorizationEvent = payload.event ?? null;
+    }
     let routeEvent = null;
     if (result.routeEnvelope) {
       const upstream = await daemonFetch("/events", {
@@ -60,7 +105,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       routeEvent = payload.event ?? null;
     }
     const status = result.mayExecute ? 200 : result.admitted ? 202 : 409;
-    return Response.json({ ...result, routeEnvelope: undefined, routeEvent }, { status });
+    return Response.json({ ...result, routeEnvelope: undefined, routeEvent, profileAuthorizationEvent }, { status });
   } catch (error) {
     const status = error instanceof Error && "statusCode" in error && (error.statusCode === 400 || error.statusCode === 403)
       ? error.statusCode

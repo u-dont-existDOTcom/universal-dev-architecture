@@ -1,0 +1,210 @@
+{
+  "schema_version": 2,
+  "evidence_id": "EVIDENCE-MC-WORK-MODEL-CONTRACT-20260914",
+  "amended_at": "2026-09-14T18:30:00Z",
+  "requirement_refs": [
+    "docs/requirements/2026-09-14-mission-control-work-model-contract.owner-requirement.json",
+    "docs/requirements/2026-09-14-mission-control-work-model-contract-amendment.owner-requirement.json",
+    "docs/requirements/2026-09-14-pr117-trust-boundary.owner-requirement.json"
+  ],
+  "policy": {
+    "ref": "patterns/work-model-and-effort-routing.md",
+    "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb",
+    "contractVersion": "TRUSTED_SETTER_V1",
+    "base_commit_scope": "Original routing-ladder decision only, not current trust contract content"
+  },
+  "truthful_disposition": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "runtime_status": "CONTRACT_ONLY_BRIDGE_BLOCKED",
+  "implementation_task_preflight": {
+    "policy_recommendation": "SOL_MEDIUM",
+    "routing_triggers": [],
+    "actual_model": "LEVEL_UNOBSERVABLE",
+    "actual_effort": "LEVEL_UNOBSERVABLE",
+    "fast_mode": "UNOBSERVABLE",
+    "fabricated_observation": false
+  },
+  "capability_inspection": {
+    "inspected_without_model_task": true,
+    "current_structured_surface": {
+      "surface_id": "CODEX_DESKTOP_TASK_CREATION_API_2026_09_14",
+      "interface": "AGENT_SIDE_STRUCTURED_TOOL",
+      "model": {
+        "classification": "SET_ONLY",
+        "evidence": "The task-creation primitive accepts an explicit model field and enumerates GPT-5.6 Sol and GPT-6 Astra, while task list/read results expose no independent effective-model readback."
+      },
+      "effort": {
+        "classification": "SET_ONLY",
+        "evidence": "The task-creation primitive accepts an explicit thinking field with per-model supported values, while task list/read results expose no independent effective-effort readback."
+      },
+      "fast_mode": {
+        "classification": "UNOBSERVABLE",
+        "evidence": "The task-creation primitive exposes neither a Fast setter nor a Fast readback field."
+      }
+    },
+    "task_creation_bridge": {
+      "classification": "TASK_CREATION_BRIDGE_BLOCKED_BY_PRODUCT_BOUNDARY",
+      "evidence": "The structured create_thread primitive is an agent-side Codex desktop tool, not an authenticated callable Mission Control runtime API. The existing provider relay is scoped to supervisor Chat delivery, not Work task creation. No scheduler, browser automation, new credential, or unsafe bridge was invented."
+    },
+    "existing_browser_primitive": {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/cdp.mjs",
+      "primitive": "ensureExactConsumerControls",
+      "reusable_for_work_launch": false,
+      "evidence": "The primitive controls fixed ChatGPT supervisor-conversation settings, not Codex Work task creation, and has no Work Fast control."
+    },
+    "official_product_references": [
+      "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "https://developers.openai.com/api/docs/guides/latest-model"
+    ]
+  },
+  "implemented_contract": {
+    "directive_schema_version": 3,
+    "receipt_schema_version": 3,
+    "default_profile": {
+      "model": "GPT_5_6_SOL",
+      "effort": "MEDIUM",
+      "fast_mode_request": "DO_NOT_ENABLE_FAST",
+      "assurance_requirement": "SET_REQUEST_SUFFICIENT"
+    },
+    "ordinary_set_only_semantics": {
+      "exact_setters_required": true,
+      "preflight": "SET_REQUEST_ACCEPTED_UNVERIFIED",
+      "model_identity_evidence": "SET_REQUEST_ONLY",
+      "observed_model": null,
+      "observed_effort": null,
+      "observed_fast_mode": null,
+      "finalization_may_succeed": true,
+      "trusted_task_creation_evidence_required": true,
+      "worker_self_attestation_accepted": false,
+      "current_missing_bridge_reason": "WORK_TASK_CREATION_BRIDGE_UNAVAILABLE"
+    },
+    "strong_assurance_semantics": {
+      "name": "INDEPENDENT_READBACK_REQUIRED",
+      "current_surface_result": "WORK_EXECUTION_PROFILE_UNVERIFIABLE"
+    },
+    "legacy_state": "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    "admission_route": "POST /api/worker-channel/{worker}/admission",
+    "preflight_route": "POST /api/worker-channel/{worker}/preflight",
+    "finalization_route": "GET /api/worker-channel/{worker}/finalization",
+    "durable_events": [
+      "reasoning_message_recorded",
+      "execution_directive_recorded",
+      "work_execution_profile_authorized",
+      "work_task_creation_selection_applied",
+      "work_execution_preflight_recorded",
+      "execution_receipt_recorded",
+      "work_model_routing_checkpoint_recorded"
+    ],
+    "telemetry_window": {
+      "eligible_tasks": 10,
+      "identity_states": [
+        "SET_AND_VERIFIED",
+        "SET_REQUEST_ONLY",
+        "INDEPENDENTLY_VERIFIED",
+        "UNVERIFIED"
+      ],
+      "task_5": "LOCAL_SUMMARY",
+      "task_10": "CHAT_POLICY_REVIEW",
+      "automatic_policy_mutation": false
+    }
+  },
+  "source_and_artifact_integrity": {
+    "source_message_field": "source_body_sha256",
+    "directive_artifact_field": "directive_artifact_sha256",
+    "equality_required": false,
+    "binding_dimensions": [
+      "current_active_directive",
+      "directive_id",
+      "directive_revision",
+      "task_id",
+      "directive_artifact_sha256",
+      "source_message_id",
+      "source_body_sha256",
+      "work_execution_profile"
+    ],
+    "positive_control": "Synthetic source digest A and directive artifact digest B differ, yet durable source provenance and all identity/profile dimensions match and admission succeeds.",
+    "negative_controls": [
+      "wrong_directive_artifact_digest_rejected",
+      "wrong_directive_identity_rejected",
+      "wrong_directive_revision_rejected",
+      "wrong_source_identity_or_digest_rejected"
+    ]
+  },
+  "consumer_seam_evidence": {
+    "focused_test": "tools/codex-mission-control/restored/codex-mission-control/tests/work-execution-profile.test.ts",
+    "focused_result": "58_PASS_0_FAIL_INITIAL; ADDITIONAL_BINDING_AND_POLICY_CASES_IN_FULL_SUITE",
+    "direct_path": [
+      "verified reasoning_message_recorded",
+      "current version-3 execution_directive_recorded with separate artifact digest",
+      "POST admission runtime evaluation from durable directive proof",
+      "work_execution_profile_authorized",
+      "authenticated SYSTEM work_task_creation_selection_applied event with exact setter request",
+      "work_execution_preflight_recorded with exact Sol Medium setters",
+      "codex_execution_started",
+      "execution_receipt_recorded with SET_REQUEST_ONLY and null observations",
+      "eligible telemetry count",
+      "valid append-only ledger chain"
+    ],
+    "proved": [
+      "Sol Medium and Astra Low SET_REQUEST_SUFFICIENT profiles proceed only with exact setter evidence",
+      "provider model, effort, and Fast observations remain null without readback",
+      "INDEPENDENT_READBACK_REQUIRED fails on the current SET_ONLY surface",
+      "setter mismatch and any observed contradiction fail closed",
+      "Work cannot alter the source-authorized assurance requirement",
+      "self-escalation without a new source-bound authorization is rejected",
+      "telemetry and checkpoints preserve SET_REQUEST_ONLY without policy mutation",
+      "Worker raw setter claims cannot authorize preflight; only durable trusted evidence references are admitted",
+      "Worker producers and implicit producers cannot append trusted evidence",
+      "Missing bridge blocks runtime with WORK_TASK_CREATION_BRIDGE_UNAVAILABLE",
+      "Finalization and telemetry cannot upgrade worker self-report"
+    ]
+  },
+  "verification": {
+    "focused_authority_preflight_and_consumer_seam": "58_PASS_0_FAIL",
+    "affected_root_contracts": "43_PASS_0_FAIL",
+    "mission_control_full_suite": "270_PASS_0_FAIL",
+    "mission_control_typecheck": "PASS",
+    "mission_control_production_build": "PASS",
+    "repository_full_suite": "321_PASS_0_FAIL",
+    "repository_audit": "PASS_NO_FINDINGS",
+    "source_archive": {
+      "files": 164,
+      "base64_parts": 78,
+      "sha256": "6d67b2d1ddbebb538ff1b8d3a8e37399e3123fe63ea5405c180135b4dfb3aa26",
+      "reconstruction": "PASS_BYTE_FOR_BYTE"
+    }
+  },
+  "delivery": {
+    "pull_request": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/117",
+    "pull_request_state": "OPEN_UNMERGED",
+    "direct_artifact_bundle": "DELIVERED_OUTSIDE_REPOSITORY_AT_CLOSEOUT"
+  },
+  "boundaries": {
+    "model_tasks_run": 0,
+    "credits_purchased_or_spent": false,
+    "subscription_or_account_changed": false,
+    "deployed": false,
+    "merged": false
+  },
+  "remaining_product_surface_limitation": "No callable authenticated Mission Control task-creation bridge exists. Current runtime fails closed without trusted task-creation evidence. Synthetic SYSTEM evidence verifies bridge-ready contract behavior, not a live provider launch. Model/effort readback and Fast state remain null.",
+  "trusted_setter_evidence": {
+    "event": "work_task_creation_selection_applied",
+    "producer": "explicit authenticated SYSTEM; payload producer_id must match durable producerId and producerKind",
+    "binding": [
+      "authorization_id",
+      "directive_id",
+      "directive_revision",
+      "task_id",
+      "authorized_profile",
+      "model_setter",
+      "effort_setter",
+      "fast_request",
+      "fast_setter",
+      "producer_id",
+      "provider_task_locator",
+      "applied_at"
+    ],
+    "runtime_request": "setterEvidenceId only; raw appliedSelection and observedProfile rejected",
+    "validation": "work-task-creation-evidence.ts used by preflight, ledger, finalization and telemetry",
+    "live_bridge_available": false
+  }
+}

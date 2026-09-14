@@ -1,3 +1,11 @@
+import {
+  LEGACY_MODEL_PROFILE_UNSPECIFIED,
+  workExecutionProfileSchema,
+  workExecutionProfilesEqual,
+  type AuthorizedWorkExecutionProfile,
+  type WorkExecutionProfile,
+} from "./work-execution-profile";
+
 export type AuthorityActor =
   | "OWNER"
   | "PROJECT_MANAGER_CHAT"
@@ -65,6 +73,25 @@ export interface ChatWorkAuthorityRequest {
     paidModelInferenceAllowed: boolean;
     activeZeroSpendDecisionId: string | null;
   };
+  directiveSchemaVersion?: 2 | 3;
+  executionDirectiveBinding?: {
+    directiveId: string;
+    directiveRevision: number;
+    taskId: string;
+    directiveArtifactSha256: string;
+  } | null;
+  workExecutionProfile?: unknown;
+}
+
+export interface PersistedExecutionDirectiveProof {
+  directiveId: string;
+  directiveRevision: number;
+  taskId: string;
+  directiveArtifactSha256: string;
+  sourceMessageId: string;
+  sourceBodySha256: string;
+  status: "ACTIVE";
+  workExecutionProfile: WorkExecutionProfile;
 }
 
 export type ExecutionScope =
@@ -86,6 +113,8 @@ export type AuthorityGateDecision =
   | "REJECT_UNBOUNDED_EXECUTION"
   | "REJECT_CHAT_EXECUTABLE_TASK_SUBSTITUTION"
   | "REJECT_CHAT_OWNED_EXECUTION_SCOPE"
+  | "REJECT_MISSING_WORK_EXECUTION_PROFILE"
+  | "REJECT_INVALID_WORK_EXECUTION_PROFILE"
   | "REJECT_PAID_MODEL_INFERENCE"
   | "REJECT_NONZERO_SPEND_WITHOUT_OWNER_MANIFEST"
   | "REJECT_OWNER_RELAY_FOR_INTERNAL_ROUTE"
@@ -98,6 +127,7 @@ export interface AuthorityGateResult {
   decision: AuthorityGateDecision;
   reasons: string[];
   requiredNextAction: string;
+  authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null;
 }
 
 const semanticActions = new Set<ControlledAction>([
@@ -141,6 +171,7 @@ const chatSurfaces = new Set<ReasoningSurface>([
  */
 export function evaluateChatWorkAuthorityGate(
   request: ChatWorkAuthorityRequest,
+  persistedDirective: PersistedExecutionDirectiveProof | null = null,
 ): AuthorityGateResult {
   const malformed = validateRequestShape(request);
   if (malformed.length > 0) {
@@ -264,6 +295,8 @@ export function evaluateChatWorkAuthorityGate(
         "Retain reasoning in Chat and send only the mechanical execution residue to Codex/Work.",
       );
     }
+    const profile = validateExecutionProfile(request, persistedDirective);
+    if (profile.result) return profile.result;
     const spendRejection = rejectSpendIfNeeded(request);
     if (spendRejection) return spendRejection;
     return allow(
@@ -273,6 +306,7 @@ export function evaluateChatWorkAuthorityGate(
         "The execution actor has no proposal, methodology, priority, spending-design, consequential-tradeoff, or supervisory-verdict authority.",
       ],
       "Execute exactly the source-bound directive and return factual receipts to the reasoning chat automatically.",
+      profile.profile,
     );
   }
 
@@ -356,8 +390,9 @@ function allow(
   decision: AuthorityGateDecision,
   reasons: string[],
   requiredNextAction: string,
+  authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null = null,
 ): AuthorityGateResult {
-  return { allowed: true, decision, reasons, requiredNextAction };
+  return { allowed: true, decision, reasons, requiredNextAction, authorizedWorkExecutionProfile };
 }
 
 function reject(
@@ -365,5 +400,85 @@ function reject(
   reasons: string[],
   requiredNextAction: string,
 ): AuthorityGateResult {
-  return { allowed: false, decision, reasons, requiredNextAction };
+  return { allowed: false, decision, reasons, requiredNextAction, authorizedWorkExecutionProfile: null };
+}
+
+type ExecutionProfileValidation =
+  | { profile: WorkExecutionProfile; result: null }
+  | { profile: null; result: AuthorityGateResult };
+
+function validateExecutionProfile(
+  request: ChatWorkAuthorityRequest,
+  persistedDirective: PersistedExecutionDirectiveProof | null,
+): ExecutionProfileValidation {
+  const version = request.directiveSchemaVersion ?? 2;
+  if (version !== 3 && request.workExecutionProfile !== undefined
+    && request.workExecutionProfile !== null
+    && request.workExecutionProfile !== LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+    return {
+      profile: null,
+      result: reject(
+        "REJECT_INVALID_WORK_EXECUTION_PROFILE",
+        ["A recovered version 2 directive cannot be retrofitted with a Work profile; only a source-bound version 3 directive may authorize one."],
+        "Obtain a new source-bound version 3 Chat directive; do not reinterpret a legacy artifact.",
+      ),
+    };
+  }
+  if (request.workExecutionProfile === undefined || request.workExecutionProfile === null
+    || request.workExecutionProfile === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+    return {
+      profile: null,
+      result: reject(
+        "REJECT_MISSING_WORK_EXECUTION_PROFILE",
+        [version === 3
+          ? "A new-format bounded-execution directive requires workExecutionProfile."
+          : "The recovered legacy directive is explicitly LEGACY_MODEL_PROFILE_UNSPECIFIED and cannot authorize a new execution."],
+        "Obtain a new source-bound Chat directive with an explicit Work execution profile; do not assume a default model or effort.",
+      ),
+    };
+  }
+  const parsed = workExecutionProfileSchema.safeParse(request.workExecutionProfile);
+  if (!parsed.success) {
+    return {
+      profile: null,
+      result: reject(
+        "REJECT_INVALID_WORK_EXECUTION_PROFILE",
+        parsed.error.issues.map((issue) => `${issue.path.join(".") || "workExecutionProfile"}: ${issue.message}`),
+        "Return the invalid source-bound profile to Chat for correction; model escalation is not authorized.",
+      ),
+    };
+  }
+  const binding = request.executionDirectiveBinding;
+  if (version === 3 && (!binding
+    || !binding.directiveId?.trim()
+    || !Number.isInteger(binding.directiveRevision) || binding.directiveRevision < 1
+    || !binding.taskId?.trim()
+    || !/^[a-f0-9]{64}$/.test(binding.directiveArtifactSha256))) {
+    return {
+      profile: null,
+      result: reject(
+        "REJECT_UNVERIFIED_REASONING_SOURCE",
+        ["The Work profile lacks a valid execution-directive artifact digest or identity."],
+        "Repair the source-bound execution directive identity before authorization.",
+      ),
+    };
+  }
+  if (version === 3 && (!persistedDirective
+    || persistedDirective.directiveId !== binding?.directiveId
+    || persistedDirective.directiveRevision !== binding.directiveRevision
+    || persistedDirective.taskId !== binding.taskId
+    || persistedDirective.directiveArtifactSha256 !== binding.directiveArtifactSha256
+    || persistedDirective.sourceMessageId !== request.sourceReceipt?.messageId
+    || persistedDirective.sourceBodySha256 !== request.sourceReceipt?.bodySha256
+    || !workExecutionProfilesEqual(persistedDirective.workExecutionProfile, parsed.data))) {
+    return {
+      profile: null,
+      result: reject(
+        "REJECT_UNVERIFIED_REASONING_SOURCE",
+        ["The request does not bind the current durable execution-directive artifact, source provenance, identity, revision, task, and exact Work profile."],
+        "Use the current active execution_directive_recorded event; do not trust a worker-supplied digest alone.",
+      ),
+    };
+  }
+  return { profile: parsed.data, result: null };
 }
