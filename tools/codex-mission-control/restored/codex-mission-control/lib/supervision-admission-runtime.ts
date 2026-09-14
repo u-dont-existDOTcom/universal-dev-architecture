@@ -16,6 +16,10 @@ import type { AppendEnvelope } from "./schema";
 import { canonicalJson, sha256 } from "./canonical";
 import { validateContinuationBinding, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
 import type { OwnerResponseContinuationIntent } from "./owner-response-continuation";
+import {
+  LEGACY_MODEL_PROFILE_UNSPECIFIED,
+  type AuthorizedWorkExecutionProfile,
+} from "./work-execution-profile";
 
 export const internalSupervisorRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
@@ -61,6 +65,8 @@ export interface SupervisionAdmissionResult {
   routeDecision: AuthorityGateResult | null;
   providerDeliveryState: ProviderDeliveryState;
   routeEnvelope: AppendEnvelope | null;
+  authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null;
+  profileAuthorizationId: string | null;
   statement: string;
 }
 
@@ -120,6 +126,8 @@ export function evaluateSupervisionAdmission(
       routeDecision: null,
       providerDeliveryState: "NOT_REQUIRED",
       routeEnvelope: null,
+      authorizedWorkExecutionProfile: primaryDecision.authorizedWorkExecutionProfile,
+      profileAuthorizationId: workProfileAuthorizationId(parsed.request.requestId),
       statement: "Bounded execution is admitted by a source-bound Chat decision. Execute only the exact authorized residue.",
     };
   }
@@ -157,6 +165,8 @@ export function evaluateSupervisionAdmission(
       routeDecision,
       providerDeliveryState: "ROUTE_REJECTED",
       routeEnvelope: null,
+      authorizedWorkExecutionProfile: null,
+      profileAuthorizationId: null,
       statement: "The action is blocked and the internal route is invalid. Do not ask Joel to relay it.",
     };
   }
@@ -172,6 +182,8 @@ export function evaluateSupervisionAdmission(
     routeDecision,
     providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
     routeEnvelope,
+    authorizedWorkExecutionProfile: null,
+    profileAuthorizationId: null,
     statement: parsed.request.action === "ROUTE_INTERNAL_SUPERVISOR"
       ? "The exact factual packet is admitted to the internal supervisor queue. Provider delivery still requires the configured relay and a source receipt."
       : "The worker action is blocked. The exact factual packet is queued for the authorized Chat supervisor; no owner relay or action-time confirmation is permitted.",
@@ -273,6 +285,8 @@ function deniedWithoutRoute(
     routeDecision: null,
     providerDeliveryState,
     routeEnvelope: null,
+    authorizedWorkExecutionProfile: null,
+    profileAuthorizationId: null,
     statement: providerDeliveryState === "ROUTE_CONFIGURATION_MISSING"
       ? "The action is blocked and no exact internal supervisor route is configured. Record the control-plane blocker; do not ask Joel to relay a prompt."
       : "The action is blocked by the Chat/Work authority gate.",
@@ -295,6 +309,12 @@ export function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmis
     ? null
     : parseInternalRoute(request.internalRoute);
   const ownerPolicy = requiredRecord(request.ownerPolicy, "request.ownerPolicy");
+  const directiveSchemaVersion = request.directiveSchemaVersion === undefined
+    ? 2
+    : requiredIntegerEnum(request.directiveSchemaVersion, [2, 3] as const, "request.directiveSchemaVersion");
+  const executionDirectiveBinding = request.executionDirectiveBinding === null || request.executionDirectiveBinding === undefined
+    ? null
+    : parseExecutionDirectiveBinding(request.executionDirectiveBinding);
   const parsedRequest: ChatWorkAuthorityRequest = {
     requestId: requiredString(request.requestId, "request.requestId", 180),
     action,
@@ -311,6 +331,11 @@ export function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmis
       paidModelInferenceAllowed: requiredBoolean(ownerPolicy.paidModelInferenceAllowed, "request.ownerPolicy.paidModelInferenceAllowed"),
       activeZeroSpendDecisionId: nullableString(ownerPolicy.activeZeroSpendDecisionId, "request.ownerPolicy.activeZeroSpendDecisionId", 180),
     },
+    directiveSchemaVersion,
+    executionDirectiveBinding,
+    workExecutionProfile: request.workExecutionProfile === undefined && directiveSchemaVersion === 2
+      ? LEGACY_MODEL_PROFILE_UNSPECIFIED
+      : request.workExecutionProfile,
   };
   const factualPacket = root.factualPacket === null || root.factualPacket === undefined
     ? null
@@ -366,6 +391,23 @@ function parseInternalRoute(value: unknown): InternalSupervisorRoute {
     standingOwnerAuthorization: requiredBoolean(record.standingOwnerAuthorization, "request.internalRoute.standingOwnerAuthorization"),
     ownerRelayRequested: requiredBoolean(record.ownerRelayRequested, "request.internalRoute.ownerRelayRequested"),
     actionTimeConfirmationRequested: requiredBoolean(record.actionTimeConfirmationRequested, "request.internalRoute.actionTimeConfirmationRequested"),
+  };
+}
+
+function parseExecutionDirectiveBinding(value: unknown): NonNullable<ChatWorkAuthorityRequest["executionDirectiveBinding"]> {
+  const record = requiredRecord(value, "request.executionDirectiveBinding");
+  const directiveSha256 = requiredString(record.directiveSha256, "request.executionDirectiveBinding.directiveSha256", 64);
+  if (!/^[a-f0-9]{64}$/.test(directiveSha256)) {
+    throw admissionError(400, "request.executionDirectiveBinding.directiveSha256 must be a lowercase SHA-256 digest.");
+  }
+  if (!Number.isInteger(record.directiveRevision) || Number(record.directiveRevision) < 1) {
+    throw admissionError(400, "request.executionDirectiveBinding.directiveRevision must be a positive integer.");
+  }
+  return {
+    directiveId: requiredString(record.directiveId, "request.executionDirectiveBinding.directiveId", 180),
+    directiveRevision: Number(record.directiveRevision),
+    taskId: requiredString(record.taskId, "request.executionDirectiveBinding.taskId", 180),
+    directiveSha256,
   };
 }
 
@@ -467,6 +509,13 @@ function requiredEnum<const T extends readonly string[]>(value: unknown, allowed
   return value as T[number];
 }
 
+function requiredIntegerEnum<const T extends readonly number[]>(value: unknown, allowed: T, field: string): T[number] {
+  if (typeof value !== "number" || !Number.isInteger(value) || !(allowed as readonly number[]).includes(value)) {
+    throw admissionError(400, `${field} is invalid.`);
+  }
+  return value as T[number];
+}
+
 export function admissionError(statusCode: 400 | 403, message: string): Error & { statusCode: 400 | 403 } {
   return Object.assign(new Error(message), { statusCode });
 }
@@ -487,3 +536,7 @@ const executionScopes = [
   "TERMINAL_OR_COMPUTER_WORK", "GENUINELY_LONG_RANGE_REPOSITORY_OPERATION", "ROUTINE_GITHUB_READ_WRITE",
   "ISSUE_OR_PR_UPDATE", "ARCHITECTURE_DECISION", "REVIEW", "SUPERVISORY_REASONING", "SUBSTANTIVE_SUPERVISORY_PROSE",
 ] as const;
+
+export function workProfileAuthorizationId(requestId: string): string {
+  return `work-profile-authorization:${sha256(requestId).slice(0, 32)}`;
+}

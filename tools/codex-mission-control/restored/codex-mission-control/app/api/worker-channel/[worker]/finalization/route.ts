@@ -27,7 +27,7 @@ export async function GET(request: Request, context: { params: Promise<{ worker:
       return Response.json({ error: payload.error ?? "Mission Control worker state is unavailable." }, { status: upstream.status || 503 });
     }
     const result = evaluateFinalResponseAdmission(payload.worker);
-    return Response.json(result, { status: result.terminalResponseAllowed ? 200 : 409 });
+    return Response.json({ ...result, workExecution: payload.worker.workExecution }, { status: result.terminalResponseAllowed ? 200 : 409 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Mission Control finalization gate failed." }, { status: 503 });
   }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "receiptId": "replace-with-receipt-id",
   "createdAt": "1970-01-01T00:00:00Z",
   "directiveId": "replace-with-directive-id",
@@ -40,6 +40,75 @@
   "blockers": [],
   "stopTriggerReached": "replace-with-trigger",
   "executionCompletionClaim": "COMPLETED | PARTIAL | BLOCKED | FAILED",
+  "workExecution": {
+    "authorizationId": "replace-with-work-profile-authorization-id",
+    "preflightId": "replace-with-work-profile-preflight-id",
+    "requestedProfile": {
+      "model": "GPT_5_6_SOL",
+      "effort": "MEDIUM",
+      "routingTier": "SOL_MEDIUM",
+      "routingTriggers": [],
+      "fastMode": false,
+      "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+      "policyRef": "patterns/work-model-and-effort-routing.md",
+      "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+    },
+    "authorizedProfile": {
+      "model": "GPT_5_6_SOL",
+      "effort": "MEDIUM",
+      "routingTier": "SOL_MEDIUM",
+      "routingTriggers": [],
+      "fastMode": false,
+      "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+      "policyRef": "patterns/work-model-and-effort-routing.md",
+      "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+    },
+    "observedProfile": {
+      "model": "GPT_5_6_SOL",
+      "effort": "MEDIUM",
+      "fastMode": false
+    },
+    "appliedSelection": {
+      "model": "gpt-5.6-sol",
+      "thinking": "medium",
+      "fastMode": false
+    },
+    "observability": {
+      "model": "SET_AND_VERIFY",
+      "effort": "SET_AND_VERIFY",
+      "fastMode": "SET_AND_VERIFY"
+    },
+    "preflight": "MATCH",
+    "preflightDecision": "WORK_EXECUTION_PROFILE_MATCH",
+    "escalations": [],
+    "finalProfile": {
+      "model": "GPT_5_6_SOL",
+      "effort": "MEDIUM",
+      "routingTier": "SOL_MEDIUM",
+      "routingTriggers": [],
+      "fastMode": false,
+      "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+      "policyRef": "patterns/work-model-and-effort-routing.md",
+      "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+    },
+    "fastMode": false,
+    "allowanceDelta": null,
+    "routingTelemetry": {
+      "eligible": true,
+      "telemetryIndex": "replace-with-next-1-through-10-ordinal",
+      "repositoryId": "owner/repository",
+      "residualExecutionClass": "BOUNDED_IMPLEMENTATION",
+      "directConsumerSeamResult": "PASS | FAIL | UNPROVEN",
+      "failureClassification": "CHAT_PLAN_DEFECT | ACCESS_CONTEXT_DEFECT | EXECUTION_REASONING_SHORTFALL | MECHANICAL_EXECUTION_FAILURE | NOT_APPLICABLE",
+      "wallTimeSeconds": null,
+      "retries": 0,
+      "interventions": [],
+      "testWallTimeSeconds": null,
+      "escalationOccurred": false,
+      "finalSuccessfulTier": "SOL_MEDIUM",
+      "hindsightInitialTier": "APPROPRIATE | CLEARLY_OVERPOWERED | CLEARLY_UNDERPOWERED | UNPROVEN"
+    }
+  },
   "nextReasoningReviewRequired": true,
   "reasoningHandoff": {
     "required": true,

@@ -9,6 +9,11 @@ import { parseRouteContinuation } from "./owner-response-continuation-schema";
 import { validateOwnerResponseContinuation } from "./owner-response-continuation";
 import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
+import {
+  evaluateWorkExecutionPreflight,
+  failureMayAuthorizeProfileEscalation,
+  workExecutionProfilesEqual,
+} from "./work-execution-profile";
 import type { AuthenticatedProducer, ProducerKind } from "./ingestion-auth";
 import {
   AppendEnvelope,
@@ -648,6 +653,55 @@ export class EventStore {
         throw new ContractInvariantError("A new directive requires a later independent reasoning review after the prior execution receipt.");
       }
     }
+    if (data.type === "work_execution_profile_authorized") {
+      const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
+      if (directive?.type !== "execution_directive_recorded"
+        || directive.directive_schema_version !== 3
+        || directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+        || directive.directive_id !== data.directive_id
+        || directive.directive_revision !== data.directive_revision
+        || directive.task_id !== data.task_id
+        || !workExecutionProfilesEqual(directive.work_execution_profile, data.authorized_profile)
+        || data.directive_sha256 !== data.source_body_sha256) {
+        throw new ContractInvariantError("Work profile authorization must bind the current exact version 3 Chat directive and profile.");
+      }
+    }
+    if (data.type === "work_execution_preflight_recorded") {
+      const authorization = [...events].reverse().find((event) => event.data.type === "work_execution_profile_authorized"
+        && event.data.authorization_id === data.authorization_id)?.data;
+      if (authorization?.type !== "work_execution_profile_authorized"
+        || authorization.request_id !== data.request_id
+        || authorization.directive_id !== data.directive_id
+        || authorization.directive_revision !== data.directive_revision
+        || authorization.task_id !== data.task_id
+        || !workExecutionProfilesEqual(authorization.authorized_profile, data.authorized_profile)) {
+        throw new ContractInvariantError("Work execution preflight must bind the exact persisted profile authorization.");
+      }
+      const expected = evaluateWorkExecutionPreflight({
+        requestedProfile: data.requested_profile,
+        authorizedProfile: data.authorized_profile,
+        observedProfile: data.observed_profile,
+        appliedSelection: data.applied_selection,
+        capability: data.capability,
+      });
+      if (canonicalJson({
+        fieldResults: data.field_results,
+        preflight: data.preflight,
+        decision: data.decision,
+        reasonCodes: data.reason_codes,
+        launchSelection: data.launch_selection,
+        allowed: data.substantive_execution_allowed,
+      }) !== canonicalJson({
+        fieldResults: expected.fieldResults,
+        preflight: expected.result,
+        decision: expected.decision,
+        reasonCodes: expected.reasonCodes,
+        launchSelection: expected.launchSelection,
+        allowed: expected.allowed,
+      })) {
+        throw new ContractInvariantError("Persisted Work execution preflight must equal the deterministic profile/capability comparison.");
+      }
+    }
     if (data.type === "execution_receipt_recorded") {
       const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
@@ -658,6 +712,81 @@ export class EventStore {
         || start.directive_revision !== data.directive_revision || start.task_id !== data.task_id
         || start.worker_run_id !== data.worker_run_id) {
         throw new ContractInvariantError("Execution receipts require the current active exact directive.");
+      }
+      if (directive.directive_schema_version === 3) {
+        if (data.receipt_schema_version !== 3 || data.work_execution === "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+          || directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") {
+          throw new ContractInvariantError("A version 3 directive requires a version 3 receipt with an exact Work execution binding.");
+        }
+        const binding = data.work_execution;
+        const authorization = events.findLast((event) => event.data.type === "work_execution_profile_authorized"
+          && event.data.authorization_id === binding.authorization_id)?.data;
+        const preflight = events.findLast((event) => event.data.type === "work_execution_preflight_recorded"
+          && event.data.preflight_id === binding.preflight_id)?.data;
+        if (authorization?.type !== "work_execution_profile_authorized"
+          || preflight?.type !== "work_execution_preflight_recorded"
+          || !preflight.substantive_execution_allowed
+          || authorization.directive_id !== data.directive_id
+          || authorization.directive_revision !== data.directive_revision
+          || authorization.task_id !== data.task_id
+          || preflight.authorization_id !== authorization.authorization_id
+          || !workExecutionProfilesEqual(binding.requested_profile, preflight.requested_profile)
+          || !workExecutionProfilesEqual(binding.authorized_profile, authorization.authorized_profile)
+          || !workExecutionProfilesEqual(binding.authorized_profile, preflight.authorized_profile)
+          || canonicalJson(binding.observed_profile) !== canonicalJson(preflight.observed_profile)
+          || canonicalJson(binding.applied_selection) !== canonicalJson(preflight.applied_selection)
+          || canonicalJson(binding.observability) !== canonicalJson({
+            model: preflight.capability.model,
+            effort: preflight.capability.effort,
+            fastMode: preflight.capability.fastMode,
+          })
+          || binding.preflight !== preflight.preflight
+          || binding.preflight_decision !== preflight.decision) {
+          throw new ContractInvariantError("Execution receipt Work profile facts must bind the exact admitted authorization and persisted allowed preflight.");
+        }
+        let finalAuthorizedProfile = authorization.authorized_profile;
+        for (const escalation of binding.escalations) {
+          if (!workExecutionProfilesEqual(escalation.from_profile, finalAuthorizedProfile)) {
+            throw new ContractInvariantError("Work profile escalation history must form an exact profile chain.");
+          }
+          const escalatedAuthorization = events.findLast((event) => event.data.type === "work_execution_profile_authorized"
+            && event.data.authorization_id === escalation.authorization_id)?.data;
+          if (escalatedAuthorization?.type !== "work_execution_profile_authorized"
+            || !workExecutionProfilesEqual(escalatedAuthorization.authorized_profile, escalation.to_profile)) {
+            throw new ContractInvariantError("Work cannot self-escalate model or effort without a new source-bound Chat authorization.");
+          }
+          finalAuthorizedProfile = escalation.to_profile;
+        }
+        if (!binding.final_profile || !workExecutionProfilesEqual(binding.final_profile, finalAuthorizedProfile)
+          || binding.fast_mode !== binding.final_profile.fastMode) {
+          throw new ContractInvariantError("Execution receipt final profile and Fast-mode fact must equal the last source-authorized profile.");
+        }
+        if (binding.escalations.length > 0) {
+          const failure = binding.routing_telemetry.eligible
+            ? binding.routing_telemetry.failure_classification
+            : "NOT_APPLICABLE";
+          if (!failureMayAuthorizeProfileEscalation(failure)) {
+            throw new ContractInvariantError("Chat-plan, access/context, and mechanical failures do not authorize model or effort escalation.");
+          }
+        }
+        const telemetry = binding.routing_telemetry;
+        const eligibleCount = this.allEvents().filter((event) => event.data.type === "execution_receipt_recorded"
+          && event.data.receipt_schema_version === 3
+          && event.data.work_execution !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+          && event.data.work_execution.routing_telemetry.eligible).length;
+        if (telemetry.eligible && (eligibleCount >= 10 || telemetry.telemetry_index !== eligibleCount + 1)) {
+          throw new ContractInvariantError("Eligible Work routing telemetry must occupy the next exact ordinal in the 10-task window.");
+        }
+        if (telemetry.eligible && telemetry.final_successful_tier !== binding.final_profile.routingTier) {
+          throw new ContractInvariantError("Eligible Work routing telemetry must bind the exact final successful profile tier.");
+        }
+        if (!telemetry.eligible && telemetry.exclusion_reason === "WINDOW_COMPLETE" && eligibleCount < 10) {
+          throw new ContractInvariantError("WINDOW_COMPLETE is valid only after 10 eligible Work routing receipts.");
+        }
+        if (binding.allowance_delta
+          && Math.abs(binding.allowance_delta.after - binding.allowance_delta.before - binding.allowance_delta.delta) > 1e-9) {
+          throw new ContractInvariantError("Allowance delta must equal after minus before.");
+        }
       }
     }
     if (data.type === "codex_execution_started") {
@@ -671,6 +800,20 @@ export class EventStore {
       }
       if (priorReceipt?.type === "execution_receipt_recorded") {
         throw new ContractInvariantError("Codex cannot continue after a directive stop receipt; a new independent chat review and directive are required.");
+      }
+      if (directive.directive_schema_version === 3) {
+        const authorization = [...events].reverse().find((event) => event.data.type === "work_execution_profile_authorized"
+          && event.data.authorization_id === data.work_profile_authorization_id)?.data;
+        const preflight = [...events].reverse().find((event) => event.data.type === "work_execution_preflight_recorded"
+          && event.data.preflight_id === data.work_profile_preflight_id)?.data;
+        if (authorization?.type !== "work_execution_profile_authorized"
+          || preflight?.type !== "work_execution_preflight_recorded"
+          || !preflight.substantive_execution_allowed
+          || authorization.directive_id !== directive.directive_id
+          || authorization.directive_revision !== directive.directive_revision
+          || preflight.authorization_id !== authorization.authorization_id) {
+          throw new ContractInvariantError("Version 3 Work execution cannot start without the exact persisted allowed profile preflight.");
+        }
       }
     }
     const currentOutcomeForExecution = outcomes.at(-1)?.data;
@@ -752,8 +895,9 @@ export class EventStore {
       "finding_recorded", "finding_status_changed", "correction_lifecycle_recorded", "completion_claim_recorded",
       "supervision_route_recorded", "research_verdict_recorded", "supervision_design_feedback_recorded",
       "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed", "live_worker_evidence_observed",
-      "reasoning_supervision_recorded", "execution_directive_recorded",
-      "codex_execution_started", "execution_receipt_recorded", "outcome_progress_recorded", "supervision_alert_recorded",
+      "reasoning_supervision_recorded", "execution_directive_recorded", "work_execution_profile_authorized",
+      "work_execution_preflight_recorded", "codex_execution_started", "execution_receipt_recorded",
+      "outcome_progress_recorded", "supervision_alert_recorded",
     ]);
     if (contractRequiredTypes.has(data.type) && contracts.length === 0) {
       throw new ContractInvariantError(`Record a task contract before ${data.type}.`);

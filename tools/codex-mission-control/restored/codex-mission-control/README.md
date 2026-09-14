@@ -167,6 +167,8 @@ Important modules:
 - `lib/provider-submission-authority.mjs`: durable FIFO/lease/admission/boundary/rate-limit state machine used only by the Mission Control daemon;
 - `lib/terminal-comparator.ts`: worker→contract and contract→owner comparison plus typed terminal decisions;
 - `lib/progress-invariants.ts`: numeric direction/delta validation and fail-closed outcome/strategy projection;
+- `lib/work-execution-profile.ts`: canonical model/effort/tier contract, current launch-surface capability matrix, and deterministic mismatch/unverifiability preflight;
+- `lib/work-execution-runtime.ts`: source-bound profile authorization, persisted prelaunch records, and privacy-safe 5/10 routing telemetry checkpoints;
 - `lib/correction-lifecycle.ts`: fail-closed transition and identity guards;
 - `lib/supervision-handoff.ts`: state-vector-bound three-turn chat handoff identity;
 - `lib/projection.ts`: attention ordering and operator projection;
@@ -174,6 +176,17 @@ Important modules:
 - `lib/owner-auth.ts`: distinct owner authority, signed sessions, bearer automation, and CSRF enforcement;
 - `daemon/server.ts`: single-writer HTTP/SSE daemon;
 - `lib/symphony-adapter.ts`: read-only stock Symphony state normalization.
+
+The runtime admission command persists its Work-profile preflight before a
+substantive execution can start. `--applied-selection <json>` is valid only
+after a launcher has actually submitted the exact structured setters; it is
+not readback evidence. The current Mission Control worker adapter has no
+Codex task-creation bridge, so the argument defaults to `null` and set-capable
+fields fail closed. Model and effort remain `SET_ONLY`, while Fast mode is
+`UNOBSERVABLE`, until a product surface exposes independent effective-setting
+readback and a Fast control. See
+`docs/evidence/2026-09-14-mission-control-work-model-contract.json` in the
+repository root for the bounded capability record.
 
 ## Durable model
 
@@ -237,6 +250,9 @@ Dashboard-facing Next.js BFF:
 - `POST /api/workers/:worker/messages` (same-origin owner UI)
 - `GET /api/worker-channel/:worker/outbox` (authenticated worker)
 - `POST /api/worker-channel/:worker/events` (authenticated worker)
+- `POST /api/worker-channel/:worker/admission` (authenticated bounded-execution authorization; version 3 requests require an exact source-bound Work profile)
+- `POST /api/worker-channel/:worker/preflight` (authenticated prelaunch comparison persisted by the control plane; denied profiles must not launch)
+- `GET /api/worker-channel/:worker/finalization` (authenticated terminal gate including Work-profile receipt checks)
 - `POST /api/mcp` (authenticated, read-only MCP-compatible JSON-RPC tools)
 - `GET /api/submission-authority/status|ledger` (authenticated relay)
 - `POST /api/submission-authority/admissions|admissions/validate|boundaries|target-bindings|provider-rate-limits|aborts|outcomes` (authenticated relay)

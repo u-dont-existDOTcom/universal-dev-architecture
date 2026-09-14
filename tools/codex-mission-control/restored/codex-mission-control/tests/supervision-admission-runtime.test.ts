@@ -7,8 +7,13 @@ import {
   internalSupervisorRoutePrefix,
   supervisoryCycleRoutePrefix,
   parseInternalSupervisorRouteBody,
+  workProfileAuthorizationId,
 } from "../lib/supervision-admission-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
+import {
+  WORK_MODEL_ROUTING_POLICY_COMMIT,
+  WORK_MODEL_ROUTING_POLICY_REF,
+} from "../lib/work-execution-profile";
 
 const workerProducer: AuthenticatedProducer = {
   id: "worker:askrigor-mast",
@@ -17,6 +22,16 @@ const workerProducer: AuthenticatedProducer = {
   taskScopes: ["task:askrigor-mast"],
 };
 const digest = "a".repeat(64);
+const solMediumProfile = {
+  model: "GPT_5_6_SOL",
+  effort: "MEDIUM",
+  routingTier: "SOL_MEDIUM",
+  routingTriggers: [],
+  fastMode: false,
+  verificationRequirement: "EXACT_PROFILE_REQUIRED",
+  policyRef: WORK_MODEL_ROUTING_POLICY_REF,
+  policyCommit: WORK_MODEL_ROUTING_POLICY_COMMIT,
+};
 
 function input(overrides: Record<string, unknown> = {}) {
   const requestOverrides = (overrides.request ?? {}) as Record<string, unknown>;
@@ -37,6 +52,14 @@ function input(overrides: Record<string, unknown> = {}) {
       actionTimeConfirmationRequested: false,
     },
     ownerPolicy: { paidModelInferenceAllowed: false, activeZeroSpendDecisionId: "owner:no-paid-api:20260901" },
+    directiveSchemaVersion: 3,
+    executionDirectiveBinding: {
+      directiveId: "directive:askrigor:mast:1",
+      directiveRevision: 1,
+      taskId: "task:askrigor:mast",
+      directiveSha256: digest,
+    },
+    workExecutionProfile: solMediumProfile,
     ...requestOverrides,
   };
   const base = {
@@ -148,6 +171,8 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
   assert.equal(result.admitted, true);
   assert.equal(result.mayExecute, true);
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
+  assert.deepEqual(result.authorizedWorkExecutionProfile, solMediumProfile);
+  assert.equal(result.profileAuthorizationId, workProfileAuthorizationId("admission:askrigor:mast:1"));
 });
 
 test("a registered provider-session cycle is emitted for the stable supervisor with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {

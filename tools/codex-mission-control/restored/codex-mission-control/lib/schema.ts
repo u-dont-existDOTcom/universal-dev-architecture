@@ -1,5 +1,15 @@
 import { z } from "zod";
 import { ownerResponseContinuationBindingSchema, validateContinuationBinding } from "./owner-response-continuation-schema";
+import {
+  LEGACY_MODEL_PROFILE_UNSPECIFIED,
+  observedWorkExecutionProfileSchema,
+  workExecutionCapabilityMatrixSchema,
+  workExecutionFailureClassificationSchema,
+  workExecutionPreflightResultSchema,
+  workExecutionProfileSchema,
+  workProfileCapabilitySchema,
+  workRoutingTierSchema,
+} from "./work-execution-profile";
 
 const WorkerId = z.string().min(1).max(80).regex(/^[a-z0-9][a-z0-9_-]*$/);
 const StableId = z.string().min(1).max(180).regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
@@ -974,8 +984,142 @@ export const executionDirectiveRecordedSchema = z.object({
   strategy_authority: z.literal("NONE"),
   supervisory_verdict_authority: z.literal("NONE"),
   substantive_prose_authorship_authority: z.enum(["NONE", "EXACT_TEXT_OR_TRANSFORMATION_ONLY"]),
+  directive_schema_version: z.union([z.literal(2), z.literal(3)]).default(2),
+  work_execution_profile: z.union([
+    workExecutionProfileSchema,
+    z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
+  ]).default(LEGACY_MODEL_PROFILE_UNSPECIFIED),
   status: z.enum(["ACTIVE", "SATISFIED", "SUPERSEDED", "EXPIRED"]),
+}).superRefine((directive, context) => {
+  if (directive.directive_schema_version === 3
+    && directive.work_execution_profile === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["work_execution_profile"],
+      message: "A version 3 execution directive requires an explicit Work execution profile.",
+    });
+  }
 });
+
+export const workExecutionProfileAuthorizedSchema = z.object({
+  type: z.literal("work_execution_profile_authorized"),
+  worker: WorkerId,
+  authorization_id: StableId,
+  request_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  directive_sha256: Sha256,
+  source_message_id: StableId,
+  source_body_sha256: Sha256,
+  authorized_profile: workExecutionProfileSchema,
+  authorized_at: Timestamp,
+}).strict();
+
+export const workExecutionPreflightRecordedSchema = z.object({
+  type: z.literal("work_execution_preflight_recorded"),
+  worker: WorkerId,
+  preflight_id: StableId,
+  authorization_id: StableId,
+  request_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  requested_profile: workExecutionProfileSchema,
+  authorized_profile: workExecutionProfileSchema,
+  observed_profile: observedWorkExecutionProfileSchema,
+  applied_selection: z.object({
+    model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
+    thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
+    fastMode: z.boolean(),
+  }).strict().nullable(),
+  capability: workExecutionCapabilityMatrixSchema,
+  field_results: z.object({
+    model: z.enum(["MATCH", "MISMATCH", "UNVERIFIED"]),
+    effort: z.enum(["MATCH", "MISMATCH", "UNVERIFIED"]),
+    fastMode: z.enum(["MATCH", "MISMATCH", "UNVERIFIED"]),
+  }).strict(),
+  preflight: workExecutionPreflightResultSchema,
+  decision: z.enum([
+    "WORK_EXECUTION_PROFILE_MATCH",
+    "WORK_EXECUTION_PROFILE_MISMATCH",
+    "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
+    "PROFILE_FIELD_UNOBSERVABLE_PROCEEDED_BY_POLICY",
+  ]),
+  reason_codes: z.array(NonEmpty.max(180)).max(20),
+  launch_selection: z.object({
+    model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
+    thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
+    fastMode: z.boolean(),
+  }).strict(),
+  substantive_execution_allowed: z.boolean(),
+  recorded_at: Timestamp,
+}).strict();
+
+const privacySafeCode = z.string().trim().min(1).max(120).regex(/^[A-Z0-9][A-Z0-9_:.\/-]*$/);
+const eligibleWorkRoutingTelemetrySchema = z.object({
+  eligible: z.literal(true),
+  telemetry_index: z.number().int().min(1).max(10),
+  repository_id: z.string().trim().min(1).max(240).regex(/^[A-Za-z0-9._:-]+(?:\/[A-Za-z0-9._:-]+)?$/),
+  residual_execution_class: z.enum(["SIMPLE_DETERMINISTIC", "BOUNDED_IMPLEMENTATION", "HARD_EXECUTION"]),
+  direct_consumer_seam_result: z.enum(["PASS", "FAIL", "UNPROVEN"]),
+  failure_classification: workExecutionFailureClassificationSchema,
+  wall_time_seconds: z.number().nonnegative(),
+  retries: z.number().int().nonnegative(),
+  interventions: z.array(privacySafeCode).max(30),
+  test_wall_time_seconds: z.number().nonnegative().nullable(),
+  escalation_occurred: z.boolean(),
+  final_successful_tier: workRoutingTierSchema.nullable(),
+  hindsight_initial_tier: z.enum(["APPROPRIATE", "CLEARLY_OVERPOWERED", "CLEARLY_UNDERPOWERED", "UNPROVEN"]),
+}).strict();
+
+const ineligibleWorkRoutingTelemetrySchema = z.object({
+  eligible: z.literal(false),
+  telemetry_index: z.null(),
+  exclusion_reason: z.enum(["TRIVIAL", "NON_WORK", "WINDOW_COMPLETE", "LEGACY"]),
+}).strict();
+
+export const workExecutionReceiptBindingSchema = z.object({
+  authorization_id: StableId,
+  preflight_id: StableId,
+  requested_profile: workExecutionProfileSchema,
+  authorized_profile: workExecutionProfileSchema,
+  observed_profile: observedWorkExecutionProfileSchema,
+  applied_selection: z.object({
+    model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
+    thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
+    fastMode: z.boolean(),
+  }).strict().nullable(),
+  observability: z.object({
+    model: workProfileCapabilitySchema,
+    effort: workProfileCapabilitySchema,
+    fastMode: workProfileCapabilitySchema,
+  }).strict(),
+  preflight: workExecutionPreflightResultSchema,
+  preflight_decision: z.enum([
+    "WORK_EXECUTION_PROFILE_MATCH",
+    "WORK_EXECUTION_PROFILE_MISMATCH",
+    "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
+    "PROFILE_FIELD_UNOBSERVABLE_PROCEEDED_BY_POLICY",
+  ]),
+  escalations: z.array(z.object({
+    from_profile: workExecutionProfileSchema,
+    to_profile: workExecutionProfileSchema,
+    authorization_id: StableId,
+  }).strict()).max(10),
+  final_profile: workExecutionProfileSchema.nullable(),
+  fast_mode: z.boolean(),
+  allowance_delta: z.object({
+    kind: z.enum(["PERCENT_USED", "MESSAGES_REMAINING", "TOKENS"]),
+    before: z.number(),
+    after: z.number(),
+    delta: z.number(),
+  }).strict().nullable(),
+  routing_telemetry: z.discriminatedUnion("eligible", [
+    eligibleWorkRoutingTelemetrySchema,
+    ineligibleWorkRoutingTelemetrySchema,
+  ]),
+}).strict();
 
 export const executionReceiptRecordedSchema = z.object({
   type: z.literal("execution_receipt_recorded"),
@@ -1011,6 +1155,20 @@ export const executionReceiptRecordedSchema = z.object({
   release_adequacy: z.null(),
   owner_outcome_achievement: z.null(),
   next_reasoning_review_required: z.literal(true),
+  receipt_schema_version: z.union([z.literal(2), z.literal(3)]).default(2),
+  work_execution: z.union([
+    workExecutionReceiptBindingSchema,
+    z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
+  ]).default(LEGACY_MODEL_PROFILE_UNSPECIFIED),
+}).superRefine((receipt, context) => {
+  if (receipt.receipt_schema_version === 3
+    && receipt.work_execution === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["work_execution"],
+      message: "A version 3 execution receipt requires the Work execution binding.",
+    });
+  }
 });
 
 export const codexExecutionStartedSchema = z.object({
@@ -1024,7 +1182,23 @@ export const codexExecutionStartedSchema = z.object({
   started_at: Timestamp,
   execution_mode: z.enum(["SUBSTANTIVE", "BOUNDED_MECHANICAL"]),
   declared_tactical_boundary: NonEmpty,
+  work_profile_authorization_id: StableId.nullable().default(null),
+  work_profile_preflight_id: StableId.nullable().default(null),
 });
+
+export const workModelRoutingCheckpointRecordedSchema = z.object({
+  type: z.literal("work_model_routing_checkpoint_recorded"),
+  worker: z.null(),
+  checkpoint_count: z.union([z.literal(5), z.literal(10)]),
+  checkpoint_kind: z.enum(["LOCAL_SUMMARY", "CHAT_POLICY_REVIEW"]),
+  eligible_execution_count: z.number().int().min(5).max(10),
+  outcome_counts: z.array(z.object({ key: z.enum(["PASS", "FAIL", "UNPROVEN"]), count: z.number().int().nonnegative() }).strict()),
+  failure_counts: z.array(z.object({ key: workExecutionFailureClassificationSchema, count: z.number().int().nonnegative() }).strict()),
+  tier_counts: z.array(z.object({ key: workRoutingTierSchema, count: z.number().int().nonnegative() }).strict()),
+  policy_mutated: z.literal(false),
+  review_required: z.boolean(),
+  recorded_at: Timestamp,
+}).strict();
 
 export const directEvidenceRoleSchema = z.enum([
   "DIRECT_OUTCOME", "VALIDATED_LEADING_INDICATOR", "SUPPORTING_ONLY", "UNKNOWN",
@@ -1386,7 +1560,9 @@ export const eventSchemaV2 = z.union([
   evidenceReceiptRecordedSchema, findingRecordedSchema, findingStatusChangedSchema, correctionLifecycleRecordedSchema,
   verificationValidityRecordedSchema, completionClaimRecordedSchema, ownerDecisionRecordedSchema,
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
-  reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema, codexExecutionStartedSchema, executionReceiptRecordedSchema,
+  reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema,
+  workExecutionProfileAuthorizedSchema, workExecutionPreflightRecordedSchema,
+  codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,
   githubDecisionReceiptIngestedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,
   supervisionDesignFeedbackRecordedSchema, symphonyRuntimeObservedSchema, liveWorkerEvidenceObservedSchema, reviewMarkedSchema,

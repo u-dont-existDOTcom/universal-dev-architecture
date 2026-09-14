@@ -6,6 +6,11 @@ import {
   type ChatWorkAuthorityRequest,
   type ReasoningSourceReceipt,
 } from "../lib/chat-work-authority-gate";
+import {
+  WORK_MODEL_ROUTING_POLICY_COMMIT,
+  WORK_MODEL_ROUTING_POLICY_REF,
+  type WorkExecutionProfile,
+} from "../lib/work-execution-profile";
 
 const digest = "a".repeat(64);
 
@@ -16,6 +21,17 @@ const extraHighReceipt: ReasoningSourceReceipt = {
   observedSurface: "CHATGPT_PROJECT_MANAGER",
   provenanceStatus: "VERIFIED",
   authorActor: "PROJECT_MANAGER_CHAT",
+};
+
+const solMediumProfile: WorkExecutionProfile = {
+  model: "GPT_5_6_SOL",
+  effort: "MEDIUM",
+  routingTier: "SOL_MEDIUM",
+  routingTriggers: [],
+  fastMode: false,
+  verificationRequirement: "EXACT_PROFILE_REQUIRED",
+  policyRef: WORK_MODEL_ROUTING_POLICY_REF,
+  policyCommit: WORK_MODEL_ROUTING_POLICY_COMMIT,
 };
 
 function request(
@@ -39,6 +55,14 @@ function request(
       paidModelInferenceAllowed: false,
       activeZeroSpendDecisionId: "owner-decision:askrigor:no-paid-api:20260901",
     },
+    directiveSchemaVersion: 3,
+    executionDirectiveBinding: {
+      directiveId: "directive:askrigor:mast:1",
+      directiveRevision: 1,
+      taskId: "task:askrigor:mast",
+      directiveSha256: digest,
+    },
+    workExecutionProfile: solMediumProfile,
     ...overrides,
   };
 }

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "evidence_id": "EVIDENCE-MC-WORK-MODEL-CONTRACT-20260914",
+  "recorded_at": "2026-09-14T15:54:18Z",
+  "requirement_ref": "docs/requirements/2026-09-14-mission-control-work-model-contract.owner-requirement.json",
+  "policy": {
+    "ref": "patterns/work-model-and-effort-routing.md",
+    "commit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+  },
+  "truthful_disposition": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "end_to_end_classification": "CONTRACT_ONLY_SURFACE_UNVERIFIABLE",
+  "implementation_task_preflight": {
+    "policy_recommendation": "ASTRA_LOW",
+    "routing_triggers": [
+      "HARD_UNKNOWN_CAUSAL_SEAM"
+    ],
+    "actual_model": "LEVEL_UNOBSERVABLE",
+    "actual_effort": "LEVEL_UNOBSERVABLE",
+    "fast_mode": "UNOBSERVABLE",
+    "fabricated_observation": false
+  },
+  "capability_inspection": {
+    "inspected_without_model_task": true,
+    "current_automated_surface": {
+      "surface_id": "CODEX_DESKTOP_TASK_CREATION_API_2026_09_14",
+      "interface": "STRUCTURED_API",
+      "model": {
+        "classification": "SET_ONLY",
+        "evidence": "The current task-creation API accepts an explicit model field and enumerates GPT-5.6 Sol and GPT-6 Astra, but task list/read results expose no independent effective-model readback."
+      },
+      "effort": {
+        "classification": "SET_ONLY",
+        "evidence": "The current task-creation API accepts an explicit thinking field with supported per-model effort values, but task list/read results expose no independent effective-effort readback."
+      },
+      "fast_mode": {
+        "classification": "UNOBSERVABLE",
+        "evidence": "The current task-creation API exposes neither a Fast-mode setter nor a Fast-mode readback field."
+      }
+    },
+    "mission_control_launcher_bridge": {
+      "status": "UNAVAILABLE",
+      "evidence": "The current Mission Control worker adapter polls and records worker events but contains no structured task-creation call that can apply the model/thinking setters or read effective settings. The preflight command therefore defaults appliedSelection to null and fails closed until a real launcher supplies setter evidence."
+    },
+    "existing_browser_primitive": {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/cdp.mjs",
+      "primitive": "ensureExactConsumerControls",
+      "reusable_for_work_launch": false,
+      "evidence": "This browser control is bound to fixed ChatGPT supervisor-conversation controls, not Codex Work task creation; it has no Work Fast-mode control and must not be reused as proof of a Work execution profile."
+    },
+    "official_product_references": [
+      "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "https://developers.openai.com/api/docs/guides/latest-model",
+      "https://learn.chatgpt.com/docs/models"
+    ]
+  },
+  "implemented_contract": {
+    "directive_schema_version": 3,
+    "receipt_schema_version": 3,
+    "legacy_state": "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    "admission_route": "POST /api/worker-channel/{worker}/admission",
+    "preflight_route": "POST /api/worker-channel/{worker}/preflight",
+    "finalization_route": "GET /api/worker-channel/{worker}/finalization",
+    "durable_events": [
+      "work_execution_profile_authorized",
+      "work_execution_preflight_recorded",
+      "execution_receipt_recorded",
+      "work_model_routing_checkpoint_recorded"
+    ],
+    "active_launch_behavior": "FAIL_CLOSED_UNTIL_APPLIED_SETTER_EVIDENCE_AND_REQUIRED_READBACK_EXIST",
+    "telemetry_window": {
+      "eligible_tasks": 10,
+      "task_5": "LOCAL_SUMMARY",
+      "task_10": "CHAT_POLICY_REVIEW",
+      "automatic_policy_mutation": false
+    }
+  },
+  "consumer_seam_evidence": {
+    "focused_test": "tools/codex-mission-control/restored/codex-mission-control/tests/work-execution-profile.test.ts",
+    "focused_result": "17_PASS_0_FAIL",
+    "proved": [
+      "source-bound profile authorization reaches deterministic preflight",
+      "settable fields require exact applied-selection evidence",
+      "observed mismatches block launch and finalization",
+      "materially unobservable profiles fail closed",
+      "the simple deterministic policy exception never fabricates observations",
+      "a durable allowed preflight is required before execution start",
+      "receipt facts bind authorization, applied selection, observability, and final profile",
+      "self-escalation without new source-bound authorization is rejected"
+    ]
+  },
+  "verification": {
+    "focused_work_execution_profile": "17_PASS_0_FAIL",
+    "mission_control_full_suite": "253_PASS_0_FAIL",
+    "repository_full_suite": "321_PASS_0_FAIL",
+    "vps_browser_relay_full_suite": "185_PASS_0_FAIL",
+    "mission_control_typecheck": "PASS",
+    "mission_control_production_build": "PASS",
+    "repository_audit": "PASS_NO_FINDINGS",
+    "source_archive": {
+      "files": 163,
+      "base64_parts": 76,
+      "sha256": "4024a97bcddee3be92c4ff946cf77c11540be2fe5b91cedbddd55aab33f2bc83",
+      "reconstruction": "PASS_BYTE_FOR_BYTE"
+    }
+  },
+  "boundaries": {
+    "model_tasks_run": 0,
+    "credits_purchased_or_spent": false,
+    "subscription_or_account_changed": false,
+    "deployed": false,
+    "merged": false
+  },
+  "remaining_product_surface_limitation": "The current Codex task surface can request model and effort but cannot independently read either back, exposes no Fast-mode setter/readback, and Mission Control has no callable task-creation bridge. Therefore the implementation propagates, validates, persists, and fails closed; it does not claim active end-to-end set-and-verify enforcement."
+}

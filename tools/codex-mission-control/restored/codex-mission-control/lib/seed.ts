@@ -461,6 +461,8 @@ function supervisionCycle(
       strategy_authority: "NONE",
       supervisory_verdict_authority: "NONE",
       substantive_prose_authorship_authority: "EXACT_TEXT_OR_TRANSFORMATION_ONLY",
+      directive_schema_version: 2,
+      work_execution_profile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
       status: "ACTIVE",
   };
   const executionStartEvent: MissionControlEventV2 = {
@@ -474,6 +476,8 @@ function supervisionCycle(
       started_at: time(seed.baseMinute),
       execution_mode: "SUBSTANTIVE",
       declared_tactical_boundary: "Execute only the allowed actions and paths in the active chat-authored directive.",
+      work_profile_authorization_id: null,
+      work_profile_preflight_id: null,
   };
   const executionReceiptEvent: MissionControlEventV2 = {
       type: "execution_receipt_recorded",
@@ -499,6 +503,8 @@ function supervisionCycle(
       owner_escalation_decision: null, pro_escalation_decision: null, contract_to_owner_alignment: null,
       outcome_advancement: null, strategy_efficacy: null, scientific_adequacy: null,
       release_adequacy: null, owner_outcome_achievement: null, next_reasoning_review_required: true,
+      receipt_schema_version: 2,
+      work_execution: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
   };
   const executionEvents = seed.executionPhase === "RUNNING" ? [directiveEvent, executionStartEvent]
       : [directiveEvent, executionStartEvent, executionReceiptEvent];

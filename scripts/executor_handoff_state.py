@@ -51,6 +51,20 @@ NONSUBSTANTIVE_ACTION_ALLOWLISTS = {
     },
 }
 
+LEGACY_MODEL_PROFILE_UNSPECIFIED = "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+WORK_MODEL_POLICY_REF = "patterns/work-model-and-effort-routing.md"
+WORK_MODEL_POLICY_COMMIT = "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+WORK_TIER_PROFILES = {
+    "SOL_LOW": ("GPT_5_6_SOL", "LOW"),
+    "SOL_MEDIUM": ("GPT_5_6_SOL", "MEDIUM"),
+    "SOL_HIGH_EXCEPTION": ("GPT_5_6_SOL", "HIGH"),
+    "ASTRA_LOW": ("GPT_6_ASTRA", "LOW"),
+    "ASTRA_MEDIUM": ("GPT_6_ASTRA", "MEDIUM"),
+    "ASTRA_HIGH": ("GPT_6_ASTRA", "HIGH"),
+    "ASTRA_XHIGH": ("GPT_6_ASTRA", "XHIGH"),
+    "ASTRA_MAX": ("GPT_6_ASTRA", "MAX"),
+}
+
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
@@ -73,8 +87,10 @@ def _parse_utc(value: str) -> datetime:
 
 
 def validate_directive(directive: dict[str, Any]) -> bool:
-    """Validate the v2 handoff contract and its reasoning-authority boundary."""
-    _require(directive.get("schemaVersion") == 2, "directive schemaVersion must be 2")
+    """Validate a v2 legacy or v3 model-bound handoff contract."""
+    schema_version = directive.get("schemaVersion")
+    _require(schema_version in {2, 3}, "directive schemaVersion must be 2 or 3")
+    resolve_work_execution_profile(directive)
     _require(bool(directive.get("directiveId")), "directiveId is required")
     _require(bool(directive.get("taskId")), "taskId is required")
     action_class = directive.get("actionClass")
@@ -290,8 +306,8 @@ def validate_directive(directive: dict[str, Any]) -> bool:
     ):
         _require(handling.get(field) is True, f"{field} must be true")
     _require(
-        handling.get("requiredNextDirectiveSchemaVersion") == 2,
-        "requiredNextDirectiveSchemaVersion must be 2",
+        handling.get("requiredNextDirectiveSchemaVersion") == schema_version,
+        "requiredNextDirectiveSchemaVersion must match the current directive schema",
     )
     _require(
         handling.get("processingSemantics")
@@ -318,6 +334,49 @@ def validate_directive(directive: dict[str, Any]) -> bool:
         "Codex-authored strategy forbidden",
     )
     return True
+
+
+def resolve_work_execution_profile(
+    directive: dict[str, Any],
+) -> dict[str, Any] | str:
+    """Return the exact v3 profile or the explicit v2 legacy sentinel."""
+    version = directive.get("schemaVersion")
+    profile = directive.get("workExecutionProfile")
+    if version == 2 and profile is None:
+        return LEGACY_MODEL_PROFILE_UNSPECIFIED
+    _require(version == 3, "only version 3 directives may carry workExecutionProfile")
+    _require(isinstance(profile, dict), "version 3 directive requires workExecutionProfile")
+    tier = profile.get("routingTier")
+    _require(tier in WORK_TIER_PROFILES, "workExecutionProfile.routingTier is invalid")
+    expected_model, expected_effort = WORK_TIER_PROFILES[tier]
+    _require(profile.get("model") == expected_model, f"{tier} requires model {expected_model}")
+    _require(profile.get("effort") == expected_effort, f"{tier} requires effort {expected_effort}")
+    triggers = profile.get("routingTriggers")
+    _require(
+        isinstance(triggers, list)
+        and all(
+            isinstance(trigger, str)
+            and trigger.strip()
+            and len(trigger) <= 120
+            and all(character.isupper() or character.isdigit() or character in "_:./-" for character in trigger)
+            for trigger in triggers
+        ),
+        "workExecutionProfile.routingTriggers must contain privacy-safe reason codes",
+    )
+    if tier.startswith("ASTRA_") or tier == "SOL_HIGH_EXCEPTION":
+        _require(bool(triggers), f"{tier} requires a source-bound routing trigger")
+    _require(isinstance(profile.get("fastMode"), bool), "workExecutionProfile.fastMode must be explicit boolean")
+    _require(
+        profile.get("verificationRequirement")
+        in {
+            "EXACT_PROFILE_REQUIRED",
+            "SIMPLE_DETERMINISTIC_UNOBSERVABLE_ALLOWED",
+        },
+        "workExecutionProfile.verificationRequirement is invalid",
+    )
+    _require(profile.get("policyRef") == WORK_MODEL_POLICY_REF, "workExecutionProfile.policyRef is invalid")
+    _require(profile.get("policyCommit") == WORK_MODEL_POLICY_COMMIT, "workExecutionProfile.policyCommit is invalid")
+    return profile
 
 
 def authorize_directive_against_authority_resolution(

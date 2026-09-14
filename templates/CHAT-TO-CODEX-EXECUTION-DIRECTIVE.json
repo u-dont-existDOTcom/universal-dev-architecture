@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "directiveId": "replace-with-directive-id",
   "directiveRevision": 1,
   "createdAt": "1970-01-01T00:00:00Z",
@@ -52,6 +52,16 @@
     "simpleWorkOverspendCheckRequired": true,
     "materialityRule": "INTERRUPT_ONLY_FOR_MATERIAL_SUCCESS_RISK_OR_MEANINGFUL_EXPECTED_CREDIT_SAVINGS",
     "ifCurrentLevelUnobservable": "DO_NOT_INVENT; WARN_ONLY_WHEN_LEVEL_IS_MATERIALLY_DECISION_RELEVANT"
+  },
+  "workExecutionProfile": {
+    "model": "GPT_5_6_SOL",
+    "effort": "MEDIUM",
+    "routingTier": "SOL_MEDIUM",
+    "routingTriggers": [],
+    "fastMode": false,
+    "verificationRequirement": "EXACT_PROFILE_REQUIRED",
+    "policyRef": "patterns/work-model-and-effort-routing.md",
+    "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
   },
   "strategy": {
     "strategyId": "replace-with-strategy-id",
@@ -138,7 +148,7 @@
       "requiredChatEpochEcho": true,
       "requiredReviewedEvidenceBoundaryEcho": true,
       "requiredResponseKind": true,
-      "requiredNextDirectiveSchemaVersion": 2,
+      "requiredNextDirectiveSchemaVersion": 3,
       "largePayloadPolicy": "PERSIST_OUTSIDE_CONVERSATION_AND_REFERENCE",
       "transportSemantics": "IDEMPOTENT_REFETCH_ALLOWED_BEFORE_PERSISTENCE",
       "processingSemantics": "EXACTLY_ONCE_IMPORT_AND_DIRECTIVE_APPLICATION"
