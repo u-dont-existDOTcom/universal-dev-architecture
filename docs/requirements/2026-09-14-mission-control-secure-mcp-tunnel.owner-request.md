@@ -1,3 +1,5 @@
+NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT
+
 # Mission Control architecture decision — approved
 
 Establish exactly **one outbound Secure MCP Tunnel from Netcup PRIMARY** to the existing constrained Mission Control MCP endpoint:
