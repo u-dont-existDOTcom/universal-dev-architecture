@@ -103,6 +103,11 @@
       "reconstruction": "PASS_BYTE_FOR_BYTE"
     }
   },
+  "delivery": {
+    "pull_request": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/117",
+    "pull_request_state": "OPEN_UNMERGED",
+    "direct_artifact_bundle": "DELIVERED_OUTSIDE_REPOSITORY_AT_CLOSEOUT"
+  },
   "boundaries": {
     "model_tasks_run": 0,
     "credits_purchased_or_spent": false,

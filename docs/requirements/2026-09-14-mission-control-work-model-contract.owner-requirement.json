@@ -81,8 +81,12 @@
     {
       "id": "RO-MC-WORK-PROFILE-007",
       "observable": "Focused and repository-required checks pass and an unmerged PR plus direct artifact bundle are delivered.",
-      "status": "RECORDED_NOT_IMPLEMENTED",
-      "evidence_refs": [],
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "docs/evidence/2026-09-14-mission-control-work-model-contract.json",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/work-execution-profile.test.ts",
+        "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/117"
+      ],
       "terminal_required": true
     }
   ],
