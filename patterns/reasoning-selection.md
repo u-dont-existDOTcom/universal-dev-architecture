@@ -44,6 +44,16 @@ Do not use an HTML preview pane when the resulting preview would require more th
 
 Do not ask the owner to approve a work plan as a routine checkpoint. Continue automatically unless there are genuinely competing material options unresolved by authority/evidence, or the choice depends on human understanding or preference the agent cannot reliably supply. Apply the repository's stricter owner-interruption test where it governs.
 
+### Minimum-owner-choice rule
+
+Require the owner to make as few choices as possible. The agent owns routine implementation details, reversible defaults, sequencing, tool selection, and tactical recovery within the authorized outcome. A question is admitted only when at least one of these is true:
+
+1. two or more materially different outcomes remain viable and evidence/authority cannot select among them;
+2. the decision depends on an irreducible human value, preference, or understanding;
+3. a governing platform, security, privacy, spending, publication, access, or irreversible-action policy requires a human confirmation or gesture.
+
+For the third class, do not misrepresent the interruption as a preference choice. Complete all independent preparation, consolidate related confirmations when permitted, state the exact action/destination/data/consequence and why the gate cannot be automated, then resume automatically after approval. Do not re-ask for a previously confirmed action when destination, data boundary, scope, and consequence are unchanged; a new question requires a material change or a fresh platform-mandated gesture. This minimizes interruption but does not waive a controlling gate or expand authority.
+
 Treat every capability as an exact directional source → destination edge together with every required gate. Evidence for A → B does not establish A → C, B → A, autonomous initiation, or availability through another interface. Before relying on a capability, verify the exact source endpoint, destination endpoint, interface, and every user, UI, permission, and authorization gate. A required user click or approval is an automation blocker until satisfied, not an implementation detail.
 
 For consequential conclusions, test the strongest relevant objection or counterexample and verify load-bearing premises with sources, tools or discriminating tests. Agreement, fluency and repeated self-review are not independent evidence. Revise the model when warranted, not merely its wording. Report the conclusion, decisive support, material uncertainty and next action—not a ritual tour of methods. Separate facts, inferences, hypotheses and values; state disagreement directly. Follow current project authority and non-waivable gates. Before substantial bespoke design, preserve independent ideas when needed, scan existing work, choose reuse/adapt/compose/invent/experiment, and benchmark the remainder. Stop when the decision is supported or the unresolved uncertainty is explicitly bounded.
@@ -89,3 +99,5 @@ The capability-edge-and-gate rule and the bounded current Chat/Work topology wer
 The specificity check, evidence-direction check, exact-target preservation, evidence-first user-memory retrieval, retrospective-label treatment, recommendation ordering, editorial argument fidelity, large-preview delivery rule, plan-approval discipline, and reusable-task-architecture requirement were added on 2026-09-12 from `docs/requirements/2026-09-12-universal-reasoning-retrieval-and-delivery.owner-requirement.md`.
 
 The predicate-alignment check for corrections and rebuttals was added on 2026-09-13 from `docs/requirements/2026-09-13-predicate-alignment-before-correction.owner-requirement.md` after an owner correction exposed a true-but-orthogonal rebuttal failure: evidence about one relationship or control layer had been used to negate a different predicate.
+
+The minimum-owner-choice rule was strengthened on 2026-09-14 after a task converted already-authorized Work-cloud and repository-connection operations into avoidable preference-shaped interruptions; it preserves genuinely mandatory gates while requiring consolidation, explanation, and automatic resumption.
