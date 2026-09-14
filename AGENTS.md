@@ -106,6 +106,20 @@ When you explicitly commit to a substantive operation, method, comparison, audit
 
 Adjacent analysis, planning, preparation, or a different method does not count as completion. Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. If a still-valid promised step was displaced by later work, execute it before continuing.
 
+## Follow-up goal derivation and assistant-added requirements
+
+Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome and follow `patterns/owner-goal-followup-and-requirement-accretion.md`.
+
+First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`, and state the exact remaining owner gap. A useful improvement is not unfinished owner work merely because it is technically attractive.
+
+Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity. An `ASSISTANT_INFERENCE` or inherited project choice with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path.
+
+Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete. Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory.
+
+If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative. Preserve useful supporting work, but restore the simpler valid path when necessity is not established.
+
+This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. A later worker faithfully executing a substituted goal is too late.
+
 ## Chat / Work execution routing
 
 Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,

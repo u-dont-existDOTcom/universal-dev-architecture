@@ -37,6 +37,7 @@ If the original owner request is unavailable or materially ambiguous, record `OU
 A downstream task contract may refine or decompose this outcome but may not omit, weaken, replace, or terminally bypass it without an explicit owner decision. Follow:
 
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
+- `patterns/owner-goal-followup-and-requirement-accretion.md`
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
 
 ## Objective-reconciliation matrix
@@ -85,6 +86,26 @@ A GREEN worker-to-contract state cannot make the root task GREEN when contract-t
 | `RO-001` | `AC-001` |  |  |  |
 
 The task contract is invalid if a terminal-required owner outcome is omitted, weakened, replaced by a proxy, or left without an open parent owner.
+
+### Follow-up goal / added-requirement gate
+
+Run this section before a consequential follow-up task hardens a new prerequisite, proof burden, architecture dependency, assurance level, or blocker.
+
+- Parent owner-outcome state: `OPEN` / `SATISFIED` / `SUPERSEDED` / `CANCELED` / `AUTHORITY_UNRESOLVED`
+- Exact remaining owner gap, or `NONE`:
+- Follow-up relation: `directly_satisfies` / `contributes` / `verifies_required_boundary` / `optional_improvement` / `experiment`
+
+| New mandatory requirement | Origin | What breaks if removed? | Strongest simpler alternative | Evidence against simpler alternative | Necessity | Disposition |
+|---|---|---|---|---|---|---|
+|  | `OWNER_REQUIRED` / `EXTERNAL_HARD_REQUIREMENT` / `EMPIRICALLY_ESTABLISHED_REQUIREMENT` / `ASSISTANT_INFERENCE` / `INHERITED_PROJECT_CHOICE` |  |  |  | `ESTABLISHED` / `UNRESOLVED` / `NOT_NECESSARY` |  |
+
+- Gate admission: `OWNER_GOAL_DERIVED` / `OPTIONAL_IMPROVEMENT` / `BOUNDED_EXPERIMENT_ONLY` / `REJECT_REQUIREMENT_ACCRETION` / `OUTCOME_AUTHORITY_UNRESOLVED`
+
+An assistant-inferred or inherited requirement with `UNRESOLVED` necessity may only support a bounded reversible experiment. It may not become a fail-closed blocker, root completion criterion, architecture prerequisite, stronger assurance gate, or reason to disable a previously working owner-aligned path.
+
+If the parent outcome is already `SATISFIED`, do not relabel an optional improvement as unfinished owner work. If a new control blocks a previously working owner-aligned path, revalidate the first added requirement before adding compensating fixes.
+
+Follow `patterns/owner-goal-followup-and-requirement-accretion.md`.
 
 ## Baseline
 

@@ -49,6 +49,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 43. `patterns/instruction-composition-and-portable-intelligence.md` — scope-aware inheritance, public/internal separation, transfer provenance, and preservation-based deduplication.
 44. `patterns/work-model-and-effort-routing.md` — after Chat admits and reduces a Work task, route its residual execution through the canonical Sol Low, Sol Medium, Astra Low, Astra Medium, and exceptional high-effort ladder by expected consumer-seam success and speed per shared allowance; diagnose failures before escalation and collect a bounded 10-task telemetry window without a broad benchmark.
 45. `patterns/durable-write-checkpoints.md` — treat an unverified repository mutation as unfinished work; preserve exact intended bytes and hash in a durable checkpoint, leave an issue marker, reconcile before retry, verify final bytes, and require no owner file handling.
+46. `patterns/owner-goal-followup-and-requirement-accretion.md` — before a consequential follow-up task adds a new prerequisite, proof burden, assurance level, architecture dependency, or blocker, re-bind to the parent owner outcome, classify the root goal state, classify each added requirement by origin and necessity, reject unresolved assistant-inferred mandatory requirements, and revalidate any new control that blocks a previously working owner-aligned path.
 
 ## Reusable policy templates
 
@@ -59,8 +60,8 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 - `templates/ACTIVE-LESSON-CONTRACT.md` — task-time contract for the smallest relevant lesson set, with literal-work admission, enforcement mode, failure conditions, and repair actions.
 - `templates/SCOPED-BLOCKER.json` — scoped blocker identity, non-waivable policy classification, freshness, causal applicability, unblock event, and supersession.
 - `templates/WAIT-ADMISSION.json` — machine-readable wait admission with exact blocker/handoff binding, owner-decision identity, changing condition, actor/mechanism, parsed timing, and bounded horizon.
-- `templates/PRIOR-WORK-SCAN.md` — independent conception, existing-work, reuse decision, novelty, baseline, and research-debt ledger.
-- `templates/CODEX-TASK.md` — durable task contract with owner authority, derivation proof, reconciliation, alignment, completion, progress, and routing.
+- `templates/PRIOR-WORK-SCAN.md` — independent conception, method-necessity/manufactured-prerequisite check, existing-work scan, reuse decision, novelty, baseline, and research-debt ledger.
+- `templates/CODEX-TASK.md` — durable task contract with owner authority, derivation proof, follow-up requirement-accretion gate, reconciliation, alignment, completion, progress, and routing.
 - `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md` — current executor bootstrap requiring chat-led reasoning, bounded directives, dual alignment, progress/strategy control, and Pro meta-review routing.
 - `templates/OBJECTIVE-RECONCILIATION.json` — independent owner-source receipt, owner-requirement matrix, dual alignment, typed completion, and overall projection.
 - `templates/OUTCOME-PROGRESS-RECEIPT.json` — direct outcome target/baseline/current/best evidence, work classification, advancement, strategy efficacy, intervention, and next evidence boundary.
