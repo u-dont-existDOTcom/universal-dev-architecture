@@ -11,7 +11,7 @@ export const authenticatedEventTypes = [
   "worker_checkpoint_recorded", "supervisor_assessment_recorded", "evidence_receipt_recorded", "finding_recorded",
   "finding_status_changed", "correction_lifecycle_recorded", "verification_validity_recorded", "completion_claim_recorded",
   "owner_decision_recorded", "supervision_route_recorded", "research_verdict_recorded", "reasoning_message_recorded", "reasoning_supervision_recorded",
-  "execution_directive_recorded", "work_execution_profile_authorized", "work_execution_preflight_recorded",
+  "execution_directive_recorded", "work_execution_profile_authorized", "work_task_creation_selection_applied", "work_execution_preflight_recorded",
   "codex_execution_started", "execution_receipt_recorded", "work_model_routing_checkpoint_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "supervision_design_feedback_recorded", "symphony_runtime_observed",
   "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
@@ -73,6 +73,7 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
       && !["CORRECTION_VERIFIED", "CORRECTION_EVIDENCE_REJECTED", "CORRECTION_REOPENED"].includes(event.status));
   }
   if (producer.kind === "SYSTEM") {
+    if (event.type === "work_task_creation_selection_applied") return true;
     if (["work_execution_profile_authorized", "work_execution_preflight_recorded", "work_model_routing_checkpoint_recorded"].includes(event.type)) return true;
     if (event.type === "github_decision_receipt_ingested") return true;
     if (event.type === "outbound_delivery_lifecycle_recorded") return true;
@@ -93,6 +94,9 @@ function scopeMatches(scopes: string[], value: string | null): boolean {
 }
 
 function embeddedIdentityMatches(producer: AuthenticatedProducer, event: MissionControlEventV2): boolean {
+  if (event.type === "work_task_creation_selection_applied") {
+    return producer.kind === "SYSTEM" && event.producer_id === producer.id;
+  }
   if (event.type === "reasoning_message_recorded") {
     if (event.recorded_by !== producer.id || producer.kind === "WORKER") return false;
     if (producer.kind === "OWNER_AUTHORITY") {

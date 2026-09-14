@@ -1029,10 +1029,30 @@ export const workExecutionProfileAuthorizedSchema = z.object({
   authorized_at: Timestamp,
 }).strict();
 
+export const workTaskCreationSelectionAppliedSchema = z.object({
+  type: z.literal("work_task_creation_selection_applied"),
+  worker: WorkerId,
+  evidence_id: StableId,
+  authorization_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  authorized_profile: workExecutionProfileSchema,
+  model_setter: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
+  effort_setter: z.enum(["low", "medium", "high", "xhigh", "max"]),
+  fast_request: workFastModeRequestSchema,
+  fast_setter: workFastModeRequestSchema.nullable(),
+  producer_id: StableId,
+  source: z.literal("TRUSTED_TASK_CREATION_BOUNDARY"),
+  provider_task_locator: NonEmpty.max(1000).nullable(),
+  applied_at: Timestamp,
+}).strict();
+
 export const workExecutionPreflightRecordedSchema = z.object({
   type: z.literal("work_execution_preflight_recorded"),
   worker: WorkerId,
   preflight_id: StableId,
+  setter_evidence_id: StableId.nullable(),
   authorization_id: StableId,
   request_id: StableId,
   directive_id: StableId,
@@ -1097,6 +1117,7 @@ const ineligibleWorkRoutingTelemetrySchema = z.object({
 export const workExecutionReceiptBindingSchema = z.object({
   authorization_id: StableId,
   preflight_id: StableId,
+  setter_evidence_id: StableId.nullable(),
   requested_profile: workExecutionProfileSchema,
   authorized_profile: workExecutionProfileSchema,
   observed_profile: observedWorkExecutionProfileSchema,
@@ -1578,7 +1599,7 @@ export const eventSchemaV2 = z.union([
   verificationValidityRecordedSchema, completionClaimRecordedSchema, ownerDecisionRecordedSchema,
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema,
-  workExecutionProfileAuthorizedSchema, workExecutionPreflightRecordedSchema,
+  workExecutionProfileAuthorizedSchema, workTaskCreationSelectionAppliedSchema, workExecutionPreflightRecordedSchema,
   codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,
   githubDecisionReceiptIngestedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,

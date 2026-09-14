@@ -378,7 +378,8 @@ def resolve_work_execution_profile(
         "workExecutionProfile.assuranceRequirement is invalid",
     )
     _require(profile.get("policyRef") == WORK_MODEL_POLICY_REF, "workExecutionProfile.policyRef is invalid")
-    _require(profile.get("policyCommit") == WORK_MODEL_POLICY_COMMIT, "workExecutionProfile.policyCommit is invalid")
+    _require(profile.get("routingPolicyBaseCommit") == WORK_MODEL_POLICY_COMMIT, "workExecutionProfile.routingPolicyBaseCommit is invalid")
+    _require(profile.get("contractVersion") == "TRUSTED_SETTER_V1", "workExecutionProfile.contractVersion is invalid")
     return profile
 
 

@@ -10,8 +10,10 @@ const baseUrl = value("--base-url", process.env.MISSION_CONTROL_BASE_URL ?? "htt
 const producerId = value("--producer-id", worker ? `worker:${worker}` : null);
 const token = value("--token", process.env.MISSION_CONTROL_WORKER_TOKEN);
 const inputPath = value("--input");
-const observedProfilePath = value("--observed-profile");
-const appliedSelectionPath = value("--applied-selection");
+const setterEvidenceId = value("--setter-evidence-id");
+if (args.includes("--applied-selection") || args.includes("--observed-profile")) {
+  throw new Error("WORKER_RAW_SETTER_OR_READBACK_ATTESTATION_FORBIDDEN: use --setter-evidence-id from a trusted task-creation boundary.");
+}
 
 if (!worker || !producerId || !inputPath) throw new Error("Provide --worker and --input; producer ID derives from the worker unless explicitly supplied.");
 if (!token || token.length < 32) throw new Error("MISSION_CONTROL_WORKER_TOKEN or --token must contain at least 32 characters.");
@@ -35,12 +37,6 @@ if (!response.ok || result.mayExecute !== true) {
   process.exit(2);
 }
 
-const observedProfile = observedProfilePath
-  ? JSON.parse(fs.readFileSync(observedProfilePath, "utf8"))
-  : { model: null, effort: null, fastMode: null };
-const appliedSelection = appliedSelectionPath
-  ? JSON.parse(fs.readFileSync(appliedSelectionPath, "utf8"))
-  : null;
 const preflightResponse = await fetch(`${baseUrl}/api/worker-channel/${encodeURIComponent(worker)}/preflight`, {
   method: "POST",
   headers: {
@@ -51,8 +47,7 @@ const preflightResponse = await fetch(`${baseUrl}/api/worker-channel/${encodeURI
   body: JSON.stringify({
     authorizationId: result.profileAuthorizationId,
     requestedProfile: parsedRequestBody?.request?.workExecutionProfile,
-    observedProfile,
-    appliedSelection,
+    setterEvidenceId,
   }),
 });
 const preflight = await preflightResponse.json().catch(() => ({ error: preflightResponse.statusText }));

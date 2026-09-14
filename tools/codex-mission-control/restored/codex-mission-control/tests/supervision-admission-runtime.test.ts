@@ -11,7 +11,7 @@ import {
 } from "../lib/supervision-admission-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import {
-  WORK_MODEL_ROUTING_POLICY_COMMIT,
+  WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
   WORK_MODEL_ROUTING_POLICY_REF,
   type WorkExecutionProfile,
 } from "../lib/work-execution-profile";
@@ -33,7 +33,8 @@ const solMediumProfile: WorkExecutionProfile = {
   fastModeRequest: "DO_NOT_ENABLE_FAST",
   assuranceRequirement: "SET_REQUEST_SUFFICIENT",
   policyRef: WORK_MODEL_ROUTING_POLICY_REF,
-  policyCommit: WORK_MODEL_ROUTING_POLICY_COMMIT,
+  contractVersion: "TRUSTED_SETTER_V1",
+  routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
 };
 
 function input(overrides: Record<string, unknown> = {}) {

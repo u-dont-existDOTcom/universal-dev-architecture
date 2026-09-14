@@ -1,4 +1,5 @@
 import type { WorkerState } from "./projection";
+import { receiptHasTrustedSetterEvidence } from "./work-task-creation-evidence";
 import { internalSupervisorRoutePrefix, supervisoryCycleRoutePrefix } from "./supervision-admission-runtime";
 import { launchSelectionFor, workExecutionProfilesEqual } from "./work-execution-profile";
 
@@ -255,6 +256,11 @@ function executionProfileRejection(
     );
   }
   const binding = receipt.work_execution;
+  if (!receiptEvent || !receiptHasTrustedSetterEvidence(receiptEvent, timeline)) {
+    return reject("WORK_EXECUTION_PROFILE_UNVERIFIABLE",
+      ["TRUSTED_TASK_CREATION_SETTER_EVIDENCE_REQUIRED"],
+      "Worker self-report cannot prove task-creation setters reached the provider boundary.", terminalHash);
+  }
   const authorizationEvent = timeline.find((event) => event.data.type === "work_execution_profile_authorized"
     && event.data.authorization_id === binding.authorization_id);
   const authorization = authorizationEvent?.data;

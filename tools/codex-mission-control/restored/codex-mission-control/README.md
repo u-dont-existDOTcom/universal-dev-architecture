@@ -178,16 +178,18 @@ Important modules:
 - `lib/symphony-adapter.ts`: read-only stock Symphony state normalization.
 
 The runtime admission command persists its Work-profile preflight before a
-substantive execution can start. `--applied-selection <json>` is valid only
-after an authorized launcher has actually submitted the exact structured
-model and effort setters; it is `SET_REQUEST_ONLY`, not provider readback.
+substantive execution can start. `--setter-evidence-id <id>` references a durable
+`work_task_creation_selection_applied` record from an authenticated SYSTEM task-creation
+producer. Raw worker setters and readback claims are rejected. `SET_REQUEST_ONLY`
+requires that trusted boundary record; it is not provider readback.
 Ordinary `SET_REQUEST_SUFFICIENT` execution may proceed with observed model,
 effort, and Fast values left `null`. `INDEPENDENT_READBACK_REQUIRED`, a missing
 or different setter, or any observed contradiction fails closed. Fast is
 represented as `DO_NOT_ENABLE_FAST` request intent plus an unobserved `null`
 state, never as verified off. The current Mission Control worker adapter has
 no callable Codex task-creation bridge, so it cannot itself supply setter
-evidence or launch Work. Model and effort remain `SET_ONLY`, and Fast remains
+evidence or launch Work. A missing record blocks with `WORK_TASK_CREATION_BRIDGE_UNAVAILABLE`.
+Model and effort remain `SET_ONLY`, and Fast remains
 `UNOBSERVABLE`, until the product exposes an authenticated runtime bridge and
 independent effective-setting readback. See
 `docs/evidence/2026-09-14-mission-control-work-model-contract.json` in the

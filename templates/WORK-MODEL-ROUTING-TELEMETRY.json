@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "status": "ACTIVE_PROSPECTIVE_WINDOW",
   "policyRef": "patterns/work-model-and-effort-routing.md",
-  "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb",
+  "contractVersion": "TRUSTED_SETTER_V1",
+  "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb",
   "activation": "ON_MISSION_CONTROL_RUNTIME_PATCH_ACTIVATION",
   "window": {
     "eligibleExecutions": "NEXT_10_NONTRIVIAL_WORK_EXECUTIONS",
@@ -26,6 +27,7 @@
     "routingTier": "SOL_LOW | SOL_MEDIUM | ASTRA_LOW | ASTRA_MEDIUM | ASTRA_HIGH | ASTRA_XHIGH | ASTRA_MAX | SOL_HIGH_EXCEPTION",
     "routingTriggers": [],
     "modelIdentityEvidence": "SET_AND_VERIFIED | SET_REQUEST_ONLY | INDEPENDENTLY_VERIFIED | UNVERIFIED",
+    "setterEvidenceId": "required-durable-trusted-task-creation-evidence-reference-for-SET_REQUEST_ONLY",
     "directConsumerSeamResult": "PASS | FAIL | UNPROVEN",
     "failureClassification": "CHAT_PLAN_DEFECT | ACCESS_CONTEXT_DEFECT | EXECUTION_REASONING_SHORTFALL | MECHANICAL_EXECUTION_FAILURE | NOT_APPLICABLE",
     "wallTimeSeconds": null,

@@ -43,6 +43,7 @@
   "workExecution": {
     "authorizationId": "replace-with-work-profile-authorization-id",
     "preflightId": "replace-with-work-profile-preflight-id",
+    "setterEvidenceId": "replace-with-durable-trusted-task-creation-evidence-id",
     "requestedProfile": {
       "model": "GPT_5_6_SOL",
       "effort": "MEDIUM",
@@ -51,7 +52,8 @@
       "fastModeRequest": "DO_NOT_ENABLE_FAST",
       "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
       "policyRef": "patterns/work-model-and-effort-routing.md",
-      "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+      "contractVersion": "TRUSTED_SETTER_V1",
+      "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
     },
     "authorizedProfile": {
       "model": "GPT_5_6_SOL",
@@ -61,7 +63,8 @@
       "fastModeRequest": "DO_NOT_ENABLE_FAST",
       "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
       "policyRef": "patterns/work-model-and-effort-routing.md",
-      "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+      "contractVersion": "TRUSTED_SETTER_V1",
+      "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
     },
     "observedProfile": {
       "model": null,
@@ -90,7 +93,8 @@
       "fastModeRequest": "DO_NOT_ENABLE_FAST",
       "assuranceRequirement": "SET_REQUEST_SUFFICIENT",
       "policyRef": "patterns/work-model-and-effort-routing.md",
-      "policyCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
+      "contractVersion": "TRUSTED_SETTER_V1",
+      "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb"
     },
     "fastModeObserved": null,
     "allowanceDelta": null,

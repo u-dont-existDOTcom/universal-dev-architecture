@@ -44,6 +44,19 @@ credits.
 
 ### Selection assurance
 
+Profile identity uses `routingPolicyBaseCommit` for the original routing ladder
+and `contractVersion: TRUSTED_SETTER_V1` for these trust/assurance semantics.
+The base commit is not the current policy content or a future merge identity.
+
+Only a trusted task-creation boundary may attest setter application. It records
+`work_task_creation_selection_applied` under an authenticated SYSTEM producer,
+binding the authorization, directive/revision/task, profile, exact setters,
+producer, optional provider locator, and timestamp. WORKER requests carry only
+a durable evidence reference. Worker raw setters and readback claims are never
+evidence. Preflight, finalization, and telemetry revalidate the durable binding.
+`SET_REQUEST_ONLY` requires that trusted record. The current unavailable bridge
+leaves autonomous runtime blocked as `WORK_TASK_CREATION_BRIDGE_UNAVAILABLE`.
+
 Every new Work profile declares one of two assurance requirements:
 
 - `SET_REQUEST_SUFFICIENT` is the ordinary state. The authorized launcher must

@@ -16,7 +16,7 @@ import { evaluateSupervisionAdmission, parseSupervisionAdmissionInput } from "..
 import {
   CURRENT_WORK_EXECUTION_CAPABILITY,
   LEGACY_MODEL_PROFILE_UNSPECIFIED,
-  WORK_MODEL_ROUTING_POLICY_COMMIT,
+  WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
   WORK_MODEL_ROUTING_POLICY_REF,
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -51,7 +51,8 @@ function profile(overrides: Partial<WorkExecutionProfile> = {}): WorkExecutionPr
     fastModeRequest: "DO_NOT_ENABLE_FAST",
     assuranceRequirement: "SET_REQUEST_SUFFICIENT",
     policyRef: WORK_MODEL_ROUTING_POLICY_REF,
-    policyCommit: WORK_MODEL_ROUTING_POLICY_COMMIT,
+    contractVersion: "TRUSTED_SETTER_V1",
+    routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
     ...overrides,
   };
 }
@@ -204,6 +205,7 @@ test("ordinary Sol Medium setter-only preflight proceeds with provider identity 
     authorizedProfile: selected,
     observedProfile: { model: null, effort: null, fastMode: null },
     appliedSelection: launchSelectionFor(selected),
+    trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(selected) },
     capability: CURRENT_WORK_EXECUTION_CAPABILITY,
   });
   assert.equal(result.allowed, true);
@@ -225,6 +227,7 @@ test("ordinary Astra Low setter-only preflight also proceeds without fabricated 
     authorizedProfile: selected,
     observedProfile: { model: null, effort: null, fastMode: null },
     appliedSelection: launchSelectionFor(selected),
+    trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(selected) },
     capability: CURRENT_WORK_EXECUTION_CAPABILITY,
   });
   assert.equal(result.allowed, true);
@@ -239,6 +242,7 @@ test("independent-readback mode fails closed on the current setter-only surface"
     authorizedProfile: selected,
     observedProfile: { model: null, effort: null, fastMode: null },
     appliedSelection: launchSelectionFor(selected),
+    trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(selected) },
     capability: CURRENT_WORK_EXECUTION_CAPABILITY,
   });
   assert.equal(result.allowed, false);
@@ -254,10 +258,11 @@ test("missing or wrong exact setter evidence blocks launch", () => {
       authorizedProfile: selected,
       observedProfile: { model: null, effort: null, fastMode: null },
       appliedSelection,
+      trustedSetterEvidence: appliedSelection ? { evidenceId: "test:trusted", selection: appliedSelection } : null,
       capability: CURRENT_WORK_EXECUTION_CAPABILITY,
     });
     assert.equal(result.allowed, false);
-    assert.equal(result.decision, "WORK_EXECUTION_PROFILE_MISMATCH");
+    assert.equal(result.decision, appliedSelection ? "WORK_EXECUTION_PROFILE_MISMATCH" : "WORK_EXECUTION_PROFILE_UNVERIFIABLE");
   }
 });
 
@@ -273,6 +278,7 @@ test("any observed model, effort, or Fast contradiction fails closed even on SET
       authorizedProfile: selected,
       observedProfile,
       appliedSelection: launchSelectionFor(selected),
+      trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(selected) },
       capability: CURRENT_WORK_EXECUTION_CAPABILITY,
     });
     assert.equal(result.allowed, false);
@@ -287,6 +293,7 @@ test("Fast is not falsely represented as verified-off, and enabling it fails whe
     authorizedProfile: ordinary,
     observedProfile: { model: null, effort: null, fastMode: null },
     appliedSelection: launchSelectionFor(ordinary),
+    trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(ordinary) },
     capability: CURRENT_WORK_EXECUTION_CAPABILITY,
   });
   assert.equal(allowed.fieldResults.fastMode, "NOT_REQUESTED_UNVERIFIED");
@@ -298,6 +305,7 @@ test("Fast is not falsely represented as verified-off, and enabling it fails whe
     authorizedProfile: fast,
     observedProfile: { model: null, effort: null, fastMode: null },
     appliedSelection: launchSelectionFor(fast),
+    trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(fast) },
     capability: CURRENT_WORK_EXECUTION_CAPABILITY,
   });
   assert.equal(blocked.allowed, false);
@@ -311,6 +319,7 @@ test("an independently observed exact profile is classified as set and verified"
     authorizedProfile: selected,
     observedProfile: { model: selected.model, effort: selected.effort, fastMode: false },
     appliedSelection: launchSelectionFor(selected),
+    trustedSetterEvidence: { evidenceId: "test:trusted", selection: launchSelectionFor(selected) },
     capability: verifiedCapability,
   });
   assert.equal(result.allowed, true);
@@ -334,7 +343,7 @@ test("routing telemetry rejects prompt/source/secret fields", () => {
 });
 
 test("only eligible nontrivial Work receipts count, and 5/10 checkpoints never mutate policy", () => {
-  const firstFive = Array.from({ length: 5 }, (_, index) => telemetryEvent(index + 1));
+  const firstFive = [trustedEvidenceEvent(), ...Array.from({ length: 5 }, (_, index) => telemetryEvent(index + 1))];
   assert.equal(completedWorkRoutingTelemetryCount([...firstFive, telemetryEvent(99, false)]), 5);
   const five = buildWorkRoutingCheckpointEnvelopes(firstFive);
   assert.equal(five.length, 1);
@@ -343,7 +352,7 @@ test("only eligible nontrivial Work receipts count, and 5/10 checkpoints never m
     assert.equal(five[0].data.policy_mutated, false);
     assert.deepEqual(five[0].data.identity_evidence_counts, [{ key: "SET_REQUEST_ONLY", count: 5 }]);
   }
-  const firstTen = Array.from({ length: 10 }, (_, index) => telemetryEvent(index + 1));
+  const firstTen = [trustedEvidenceEvent(), ...Array.from({ length: 10 }, (_, index) => telemetryEvent(index + 1))];
   const ten = buildWorkRoutingCheckpointEnvelopes([...firstTen, checkpointEvent(5)]);
   assert.equal(ten.length, 1);
   if (ten[0]?.data.type === "work_model_routing_checkpoint_recorded") {
@@ -363,7 +372,7 @@ test("finalization rejects mismatches, required missing readback, wrong provenan
   assert.equal(evaluateFinalResponseAdmission(finalizationWorker({ receipt: null })).decision, "REJECT_MISSING_WORK_EXECUTION_PROFILE");
   assert.equal(evaluateFinalResponseAdmission(finalizationWorker({
     binding: receiptBinding(profile(), { applied_selection: null }),
-  })).decision, "WORK_EXECUTION_PROFILE_MISMATCH");
+  })).decision, "WORK_EXECUTION_PROFILE_UNVERIFIABLE");
   assert.equal(evaluateFinalResponseAdmission(finalizationWorker({
     binding: receiptBinding(profile(), { observed_profile: { model: "GPT_6_ASTRA", effort: null, fastMode: null } }),
   })).decision, "WORK_EXECUTION_PROFILE_MISMATCH");
@@ -475,13 +484,20 @@ test("the durable admission consumer seam uses the current execution_directive_r
 
   const authorization = buildWorkExecutionAuthorizationEnvelope({ worker: "auth", request, authorizedProfile: selected, now });
   store.append(authorization);
+  assert.equal(authorization.data.type, "work_execution_profile_authorized");
+  if (authorization.data.type !== "work_execution_profile_authorized") return;
+  const trusted = trustedEvidenceEvent(selected);
+  if (trusted.data.type !== "work_task_creation_selection_applied") return;
+  store.append({ schema_version: 2, event_id: "setter:auth", mission_id: "mission-control-demo", occurred_at: now,
+    data: { ...trusted.data, worker: "auth", authorization_id: authorization.data.authorization_id,
+      directive_id: directiveId, task_id: priorDirective.task_id } }, now,
+    { id: "system:test-task-creation", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: [priorDirective.task_id] });
   const evaluated = evaluatePersistedWorkExecutionPreflight({
     worker: "auth",
     body: {
       authorizationId: authorization.data.type === "work_execution_profile_authorized" ? authorization.data.authorization_id : "invalid",
       requestedProfile: selected,
-      observedProfile: { model: null, effort: null, fastMode: null },
-      appliedSelection: launchSelectionFor(selected),
+      setterEvidenceId: "setter:profile:1",
     },
     events: store.allEvents(),
     now,
@@ -539,10 +555,109 @@ test("the durable admission consumer seam uses the current execution_directive_r
   store.close();
 });
 
+function trustedEvidenceEvent(selected = profile()): StoredEvent {
+  const selection = launchSelectionFor(selected);
+  return { sequence: 26, producerKind: "SYSTEM", producerId: "system:test-task-creation",
+    data: { type: "work_task_creation_selection_applied", worker: "profile-worker",
+      evidence_id: "setter:profile:1", authorization_id: "authorization:profile:1",
+      directive_id: "directive:profile:1", directive_revision: 1, task_id: "task:profile:1",
+      authorized_profile: selected, model_setter: selection.model, effort_setter: selection.thinking,
+      fast_request: selection.fastModeRequest, fast_setter: null,
+      producer_id: "system:test-task-creation", source: "TRUSTED_TASK_CREATION_BOUNDARY",
+      provider_task_locator: null, applied_at: "2026-09-14T03:01:00.000Z",
+    } } as unknown as StoredEvent;
+}
+
+test("raw worker selection cannot satisfy the pure contract", () => {
+  const selected = profile();
+  const result = evaluateWorkExecutionPreflight({ requestedProfile: selected, authorizedProfile: selected,
+    observedProfile: { model: null, effort: null, fastMode: null }, appliedSelection: launchSelectionFor(selected),
+    capability: CURRENT_WORK_EXECUTION_CAPABILITY });
+  assert.equal(result.allowed, false);
+  assert.equal(result.modelIdentityEvidence, "UNVERIFIED");
+});
+
+test("worker and implicit producer cannot append trusted task-creation evidence", () => {
+  const store = new EventStore(":memory:");
+  const data = trustedEvidenceEvent().data;
+  const envelope = { schema_version: 2, event_id: "setter:hostile", mission_id: "test",
+    occurred_at: "2026-09-14T03:01:00.000Z", data };
+  assert.throws(() => store.append(envelope, undefined, workerProducer), /authenticated SYSTEM/);
+  assert.throws(() => store.append(envelope), /authenticated SYSTEM/);
+  store.close();
+});
+
+test("runtime rejects raw fields and remains blocked without trusted bridge evidence", () => {
+  const selected = profile();
+  const request = admissionRequest(selected).request as ChatWorkAuthorityRequest;
+  const authorization = buildWorkExecutionAuthorizationEnvelope({ worker: "profile-worker", request,
+    authorizedProfile: selected, now: "2026-09-14T03:00:00.000Z" });
+  const events = [{ data: authorization.data, missionId: "test" }] as StoredEvent[];
+  const body = { authorizationId: "work-profile-authorization:admission:profile-worker:1", requestedProfile: selected, setterEvidenceId: null };
+  if (authorization.data.type !== "work_execution_profile_authorized") return;
+  body.authorizationId = authorization.data.authorization_id;
+  assert.throws(() => evaluatePersistedWorkExecutionPreflight({ worker: "profile-worker", body: { ...body,
+    appliedSelection: launchSelectionFor(selected) }, events, now: "2026-09-14T03:01:00.000Z" }));
+  const result = evaluatePersistedWorkExecutionPreflight({ worker: "profile-worker", body, events, now: "2026-09-14T03:01:00.000Z" });
+  assert.equal(result.preflight.allowed, false);
+  assert.deepEqual(result.preflight.reasonCodes, ["WORK_TASK_CREATION_BRIDGE_UNAVAILABLE"]);
+});
+
+test("runtime loads trusted Sol/Astra evidence and rejects wrong setters, producer, and bindings", () => {
+  for (const selected of [profile(), profile({ model: "GPT_6_ASTRA", effort: "LOW", routingTier: "ASTRA_LOW", routingTriggers: ["HARD_DEBUGGING"] })]) {
+    const request = admissionRequest(selected).request as ChatWorkAuthorityRequest;
+    const authorization = buildWorkExecutionAuthorizationEnvelope({ worker: "profile-worker", request,
+      authorizedProfile: selected, now: "2026-09-14T03:00:00.000Z" });
+    if (authorization.data.type !== "work_execution_profile_authorized") return;
+    const trusted = trustedEvidenceEvent(selected);
+    if (trusted.data.type !== "work_task_creation_selection_applied") return;
+    trusted.data.authorization_id = authorization.data.authorization_id;
+    trusted.data.directive_id = authorization.data.directive_id;
+    trusted.data.task_id = authorization.data.task_id;
+    const body = { authorizationId: authorization.data.authorization_id, requestedProfile: selected,
+      setterEvidenceId: trusted.data.evidence_id };
+    const run = (evidence: StoredEvent) => evaluatePersistedWorkExecutionPreflight({ worker: "profile-worker", body,
+      events: [{ data: authorization.data, missionId: "test" } as StoredEvent, evidence], now: "2026-09-14T03:01:00.000Z" }).preflight;
+    const passed = run(trusted);
+    assert.equal(passed.allowed, true);
+    assert.equal(passed.modelIdentityEvidence, "SET_REQUEST_ONLY");
+    assert.deepEqual(passed.observedProfile, { model: null, effort: null, fastMode: null });
+    for (const mutation of [
+      { model_setter: "gpt-wrong" }, { effort_setter: "max" }, { authorization_id: "wrong" },
+      { directive_id: "wrong" }, { directive_revision: 2 }, { task_id: "wrong" },
+      { authorized_profile: profile({ effort: "HIGH", routingTier: "SOL_HIGH_EXCEPTION", routingTriggers: ["SCARCE"] }) },
+      { producer_id: "worker:profile-worker" },
+    ]) {
+      const failed = run({ ...trusted, data: { ...trusted.data, ...mutation } } as StoredEvent);
+      assert.equal(failed.allowed, false, JSON.stringify(mutation));
+      assert.equal(failed.modelIdentityEvidence, "UNVERIFIED");
+    }
+    assert.equal(run({ ...trusted, producerKind: "WORKER" }).allowed, false);
+  }
+});
+
+test("policy identity names the ladder base and stable trust contract separately", () => {
+  const selected = profile();
+  assert.equal(selected.contractVersion, "TRUSTED_SETTER_V1");
+  assert.equal(selected.routingPolicyBaseCommit, WORK_MODEL_ROUTING_POLICY_BASE_COMMIT);
+  assert.equal(workExecutionProfileSchema.safeParse({ ...selected, policyCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT }).success, false);
+});
+
+test("finalization and telemetry reject worker-labelled or absent setter evidence", () => {
+  for (const kind of ["WORKER", null]) {
+    const worker = finalizationWorker();
+    worker.timeline = worker.timeline.filter((event) => kind !== null || event.data.type !== "work_task_creation_selection_applied");
+    for (const event of worker.timeline) if (event.data.type === "work_task_creation_selection_applied") event.producerKind = "WORKER";
+    assert.equal(evaluateFinalResponseAdmission(worker).decision, "WORK_EXECUTION_PROFILE_UNVERIFIABLE");
+    assert.equal(completedWorkRoutingTelemetryCount(worker.timeline), 0);
+  }
+});
+
 function receiptBinding(base: WorkExecutionProfile, overrides: Record<string, unknown> = {}) {
   return {
     authorization_id: "authorization:profile:1",
     preflight_id: "preflight:profile:1",
+    setter_evidence_id: "setter:profile:1",
     requested_profile: base,
     authorized_profile: base,
     observed_profile: { model: null, effort: null, fastMode: null },
@@ -592,6 +707,8 @@ function telemetryEvent(index: number, eligible = true): StoredEvent {
     producerKind: "WORKER",
     data: {
       type: "execution_receipt_recorded",
+      worker: "profile-worker",
+      directive_id: "directive:profile:1", directive_revision: 1, task_id: "task:profile:1",
       receipt_schema_version: 3,
       work_execution: {
         ...receiptBinding(profile()),
@@ -616,6 +733,7 @@ function finalizationWorker(options: {
   const baseProfile = options.baseProfile ?? profile();
   const binding = options.receipt === null ? null : options.binding ?? receiptBinding(baseProfile);
   const timeline = [
+    trustedEvidenceEvent(baseProfile),
     {
       sequence: 20,
       data: {
@@ -650,6 +768,7 @@ function finalizationWorker(options: {
       sequence: 30,
       data: {
         type: "execution_receipt_recorded",
+        worker: "profile-worker", task_id: "task:profile:1",
         directive_id: "directive:profile:1",
         directive_revision: 1,
         receipt_schema_version: 3,

@@ -271,6 +271,7 @@ function eventSummary(event: StoredEvent): string {
     case "github_decision_receipt_ingested": return `${data.reasoning_lane.replaceAll("_", " ")} · ${data.github_receipt.repository}#${data.github_receipt.issue_number}: ${data.decision_block.exact_text}`;
     case "execution_directive_recorded": return `${data.status}: ${data.execution_objective}`;
     case "work_execution_profile_authorized": return `${data.authorized_profile.routingTier}: ${data.authorized_profile.model} ${data.authorized_profile.effort}`;
+    case "work_task_creation_selection_applied": return `Trusted task-creation request: ${data.model_setter} ${data.effort_setter}`;
     case "work_execution_preflight_recorded": return `${data.preflight}: ${data.decision}`;
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
     case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;

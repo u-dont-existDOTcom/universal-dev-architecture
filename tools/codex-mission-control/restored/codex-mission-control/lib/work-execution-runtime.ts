@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { trustedTaskCreationEvidence, receiptHasTrustedSetterEvidence } from "./work-task-creation-evidence";
 
 import { canonicalJson, sha256 } from "./canonical";
 import type { ChatWorkAuthorityRequest, PersistedExecutionDirectiveProof } from "./chat-work-authority-gate";
@@ -7,7 +8,6 @@ import type { AppendEnvelope, StoredEvent } from "./schema";
 import {
   CURRENT_WORK_EXECUTION_CAPABILITY,
   evaluateWorkExecutionPreflight,
-  observedWorkExecutionProfileSchema,
   workExecutionProfileSchema,
   type WorkExecutionPreflight,
   type WorkExecutionProfile,
@@ -17,12 +17,7 @@ const stableId = z.string().min(1).max(180).regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*
 const preflightRequestSchema = z.object({
   authorizationId: stableId,
   requestedProfile: workExecutionProfileSchema,
-  observedProfile: observedWorkExecutionProfileSchema,
-  appliedSelection: z.object({
-    model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
-    thinking: z.enum(["low", "medium", "high", "xhigh", "max"]),
-    fastModeRequest: z.enum(["DO_NOT_ENABLE_FAST", "ENABLE_FAST"]),
-  }).strict().nullable(),
+  setterEvidenceId: stableId.nullable(),
 }).strict();
 
 export function buildWorkExecutionAuthorizationEnvelope(input: {
@@ -73,15 +68,24 @@ export function evaluatePersistedWorkExecutionPreflight(input: {
   const preflight = evaluateWorkExecutionPreflight({
     requestedProfile: request.requestedProfile,
     authorizedProfile: authorization.authorized_profile,
-    observedProfile: request.observedProfile,
-    appliedSelection: request.appliedSelection,
+    observedProfile: { model: null, effort: null, fastMode: null },
+    appliedSelection: null,
+    trustedSetterEvidence: trustedTaskCreationEvidence(input.events, {
+      worker: input.worker, authorizationId: authorization.authorization_id,
+      directiveId: authorization.directive_id, directiveRevision: authorization.directive_revision,
+      taskId: authorization.task_id, profile: authorization.authorized_profile, evidenceId: request.setterEvidenceId,
+    }),
     capability: CURRENT_WORK_EXECUTION_CAPABILITY,
   });
+  if (!preflight.setterEvidenceId) {
+    preflight.reasonCodes = [request.setterEvidenceId
+      ? "TRUSTED_TASK_CREATION_SETTER_EVIDENCE_INVALID"
+      : "WORK_TASK_CREATION_BRIDGE_UNAVAILABLE"];
+  }
   const preflightId = `work-profile-preflight:${sha256(canonicalJson({
     authorizationId: authorization.authorization_id,
     requestedProfile: request.requestedProfile,
-    observedProfile: request.observedProfile,
-    appliedSelection: request.appliedSelection,
+    setterEvidenceId: request.setterEvidenceId,
     now: input.now,
   })).slice(0, 32)}`;
   return {
@@ -95,6 +99,7 @@ export function evaluatePersistedWorkExecutionPreflight(input: {
         type: "work_execution_preflight_recorded",
         worker: input.worker,
         preflight_id: preflightId,
+        setter_evidence_id: request.setterEvidenceId,
         authorization_id: authorization.authorization_id,
         request_id: authorization.request_id,
         directive_id: authorization.directive_id,
@@ -122,7 +127,8 @@ export function buildWorkRoutingCheckpointEnvelopes(events: StoredEvent[]): Appe
   const eligible = events.filter((event) => event.data.type === "execution_receipt_recorded"
     && event.data.receipt_schema_version === 3
     && event.data.work_execution !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
-    && event.data.work_execution.routing_telemetry.eligible)
+    && event.data.work_execution.routing_telemetry.eligible
+    && receiptHasTrustedSetterEvidence(event, events))
     .sort((left, right) => left.sequence - right.sequence);
   const existing = new Set(events.flatMap((event) => event.data.type === "work_model_routing_checkpoint_recorded"
     ? [event.data.checkpoint_count]
@@ -181,7 +187,8 @@ export function currentExecutionDirectiveProof(
 }
 
 export function completedWorkRoutingTelemetryCount(events: StoredEvent[]): number {
-  return Math.min(10, events.filter((event) => eligibleTelemetry(event) !== null).length);
+  return Math.min(10, events.filter((event) => eligibleTelemetry(event) !== null
+    && receiptHasTrustedSetterEvidence(event, events)).length);
 }
 
 function eligibleWorkExecution(event: StoredEvent) {

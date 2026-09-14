@@ -3,6 +3,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { canonicalJson, sha256 } from "./canonical";
+import { trustedTaskCreationEvidence } from "./work-task-creation-evidence";
+import { producerMayEmit } from "./ingestion-auth";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
 import { progressInvariantErrors } from "./progress-invariants";
 import { parseRouteContinuation } from "./owner-response-continuation-schema";
@@ -75,6 +77,10 @@ export class EventStore {
 
   append(input: unknown, receivedAt = new Date().toISOString(), producer?: AuthenticatedProducer): StoredEvent {
     const envelope = parseAppendEnvelope(input);
+    if (envelope.data.type === "work_task_creation_selection_applied"
+      && (!producer || !producerMayEmit(producer, envelope.data))) {
+      throw new ContractInvariantError("Trusted task-creation evidence requires an explicit authenticated SYSTEM producer.");
+    }
     const authenticatedProducer = producer ?? internalProducerFor(envelope.data);
     const worker = eventWorker(envelope.data);
     const existing = this.eventByEventId(envelope.event_id);
@@ -679,6 +685,19 @@ export class EventStore {
         throw new ContractInvariantError("Work profile authorization must bind the current exact version 3 Chat directive and profile.");
       }
     }
+    if (data.type === "work_task_creation_selection_applied") {
+      const authorization = events.findLast((event) => event.data.type === "work_execution_profile_authorized"
+        && event.data.authorization_id === data.authorization_id)?.data;
+      const directive = events.findLast((event) => event.data.type === "execution_directive_recorded")?.data;
+      if (authorization?.type !== "work_execution_profile_authorized"
+        || directive?.type !== "execution_directive_recorded" || directive.status !== "ACTIVE"
+        || directive.directive_id !== data.directive_id || directive.directive_revision !== data.directive_revision
+        || authorization.directive_id !== data.directive_id || authorization.directive_revision !== data.directive_revision
+        || authorization.task_id !== data.task_id || !workExecutionProfilesEqual(authorization.authorized_profile, data.authorized_profile)) {
+        throw new ContractInvariantError("Task-creation evidence must bind the current exact directive, task, and authorized profile.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "evidence_id", data.evidence_id);
+    }
     if (data.type === "work_execution_preflight_recorded") {
       const authorization = [...events].reverse().find((event) => event.data.type === "work_execution_profile_authorized"
         && event.data.authorization_id === data.authorization_id)?.data;
@@ -696,7 +715,17 @@ export class EventStore {
         observedProfile: data.observed_profile,
         appliedSelection: data.applied_selection,
         capability: data.capability,
+        trustedSetterEvidence: trustedTaskCreationEvidence(events, {
+          worker: data.worker!, authorizationId: data.authorization_id, directiveId: data.directive_id,
+          directiveRevision: data.directive_revision, taskId: data.task_id,
+          profile: data.authorized_profile, evidenceId: data.setter_evidence_id,
+        }),
       });
+      if (!expected.setterEvidenceId) expected.reasonCodes = [data.setter_evidence_id
+        ? "TRUSTED_TASK_CREATION_SETTER_EVIDENCE_INVALID" : "WORK_TASK_CREATION_BRIDGE_UNAVAILABLE"];
+      if (canonicalJson(data.applied_selection) !== canonicalJson(expected.appliedSelection)) {
+        throw new ContractInvariantError("Applied selection must come from trusted task-creation evidence.");
+      }
       if (canonicalJson({
         fieldResults: data.field_results,
         preflight: data.preflight,
@@ -760,6 +789,12 @@ export class EventStore {
           || binding.model_identity_evidence !== preflight.model_identity_evidence) {
           throw new ContractInvariantError("Execution receipt Work profile facts must bind the exact admitted authorization and persisted allowed preflight.");
         }
+        if (!binding.setter_evidence_id || binding.setter_evidence_id !== preflight.setter_evidence_id
+          || !trustedTaskCreationEvidence(events, {
+            worker: data.worker!, authorizationId: binding.authorization_id, directiveId: data.directive_id,
+            directiveRevision: data.directive_revision, taskId: data.task_id,
+            profile: binding.authorized_profile, evidenceId: binding.setter_evidence_id,
+          })) throw new ContractInvariantError("Receipt and telemetry require trusted task-creation setter evidence.");
         let finalAuthorizedProfile = authorization.authorized_profile;
         for (const escalation of binding.escalations) {
           if (!workExecutionProfilesEqual(escalation.from_profile, finalAuthorizedProfile)) {

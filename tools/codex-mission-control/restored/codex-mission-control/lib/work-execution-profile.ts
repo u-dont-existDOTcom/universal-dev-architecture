@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { canonicalJson } from "./canonical";
 
 export const WORK_MODEL_ROUTING_POLICY_REF = "patterns/work-model-and-effort-routing.md" as const;
-export const WORK_MODEL_ROUTING_POLICY_COMMIT = "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb" as const;
+export const WORK_MODEL_ROUTING_POLICY_BASE_COMMIT = "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb" as const;
 export const LEGACY_MODEL_PROFILE_UNSPECIFIED = "LEGACY_MODEL_PROFILE_UNSPECIFIED" as const;
 
 export const workModelSchema = z.enum(["GPT_5_6_SOL", "GPT_6_ASTRA"]);
@@ -41,7 +42,8 @@ export const workExecutionProfileSchema = z.object({
   fastModeRequest: workFastModeRequestSchema,
   assuranceRequirement: workProfileAssuranceRequirementSchema,
   policyRef: z.literal(WORK_MODEL_ROUTING_POLICY_REF),
-  policyCommit: z.literal(WORK_MODEL_ROUTING_POLICY_COMMIT),
+  routingPolicyBaseCommit: z.literal(WORK_MODEL_ROUTING_POLICY_BASE_COMMIT),
+  contractVersion: z.literal("TRUSTED_SETTER_V1"),
 }).strict().superRefine((profile, context) => {
   const [model, effort] = expectedTierProfile[profile.routingTier];
   if (profile.model !== model) {
@@ -150,6 +152,7 @@ export interface WorkLaunchSelection {
 }
 
 export interface WorkExecutionPreflight {
+  setterEvidenceId: string | null;
   allowed: boolean;
   result: WorkExecutionPreflightResult;
   decision: WorkExecutionPreflightDecision;
@@ -173,7 +176,7 @@ export function isWorkExecutionProfile(value: unknown): value is WorkExecutionPr
 }
 
 export function workExecutionProfilesEqual(left: WorkExecutionProfile, right: WorkExecutionProfile): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 export function launchSelectionFor(profile: WorkExecutionProfile): WorkLaunchSelection {
@@ -190,8 +193,11 @@ export function evaluateWorkExecutionPreflight(input: {
   observedProfile: ObservedWorkExecutionProfile;
   appliedSelection: WorkLaunchSelection | null;
   capability: WorkExecutionCapabilityMatrix;
+  trustedSetterEvidence?: { evidenceId: string; selection: WorkLaunchSelection } | null;
 }): WorkExecutionPreflight {
-  const { requestedProfile, authorizedProfile, observedProfile, appliedSelection, capability } = input;
+  const { requestedProfile, authorizedProfile, observedProfile, capability } = input;
+  const appliedSelection = input.trustedSetterEvidence?.selection ?? null;
+  const setterEvidenceId = input.trustedSetterEvidence?.evidenceId ?? null;
   const launchSelection = launchSelectionFor(authorizedProfile);
   const fieldResults: WorkExecutionPreflight["fieldResults"] = {
     model: compareModelOrEffortField(authorizedProfile.model, observedProfile.model, capability.model,
@@ -203,9 +209,19 @@ export function evaluateWorkExecutionPreflight(input: {
   };
   const modelIdentityEvidence = identityEvidenceFor(fieldResults.model, fieldResults.effort);
   const rewritten = !workExecutionProfilesEqual(requestedProfile, authorizedProfile);
+  if (!setterEvidenceId) {
+    return {
+      allowed: false, result: "UNVERIFIABLE", decision: "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
+      fieldResults: { model: "UNVERIFIED", effort: "UNVERIFIED", fastMode: "UNVERIFIED" },
+      reasonCodes: ["TRUSTED_TASK_CREATION_SETTER_EVIDENCE_REQUIRED"],
+      modelIdentityEvidence: "UNVERIFIED", setterEvidenceId,
+      requestedProfile, authorizedProfile, observedProfile, appliedSelection, capability, launchSelection,
+    };
+  }
   if (rewritten || Object.values(fieldResults).includes("MISMATCH")) {
     return {
       allowed: false,
+      setterEvidenceId,
       result: "MISMATCH",
       decision: "WORK_EXECUTION_PROFILE_MISMATCH",
       fieldResults,
@@ -233,6 +249,7 @@ export function evaluateWorkExecutionPreflight(input: {
   if (fastRequestUnavailable || independentIdentityMissing) {
     return {
       allowed: false,
+      setterEvidenceId,
       result: "UNVERIFIABLE",
       decision: "WORK_EXECUTION_PROFILE_UNVERIFIABLE",
       fieldResults,
@@ -253,6 +270,7 @@ export function evaluateWorkExecutionPreflight(input: {
   if (modelIdentityEvidence === "SET_REQUEST_ONLY" || unverified.length > 0) {
     return {
       allowed: true,
+      setterEvidenceId,
       result: "SET_REQUEST_ACCEPTED_UNVERIFIED",
       decision: "WORK_EXECUTION_SET_REQUEST_ACCEPTED_UNVERIFIED",
       fieldResults,
@@ -268,6 +286,7 @@ export function evaluateWorkExecutionPreflight(input: {
   }
   return {
     allowed: true,
+    setterEvidenceId,
     result: "SET_AND_VERIFIED",
     decision: "WORK_EXECUTION_PROFILE_SET_AND_VERIFIED",
     fieldResults,
