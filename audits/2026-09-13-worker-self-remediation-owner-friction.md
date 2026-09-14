@@ -1,5 +1,7 @@
 # Worker self-remediation / owner-friction incident — 2026-09-13
 
+NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT
+
 ## Incident
 
 During a local SSD→HDD migration recovery, the host filesystems were confirmed writable, but the active Codex execution namespace exposed `/mnt/hdd` as a read-only bind mount. The reasoning chat initially proposed that the owner manually edit Codex configuration, restart Codex, and verify the new writable root.
