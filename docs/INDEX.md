@@ -20,17 +20,18 @@ For multi-worker Codex operation with ChatGPT semantic supervision, load all cur
 4. `../patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md`
 5. `../patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md`
 6. `../patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
-7. `../patterns/supervision-assurance-planes-and-pro-meta-review.md`
-8. `../patterns/outcome-advancement-and-strategy-efficacy.md`
-9. `../patterns/structured-output-failure-boundary.md`
-10. `../patterns/reasoning-selection.md`
-11. `../patterns/mission-control-multi-host-submission-scheduling.md`
+7. `../patterns/owner-goal-followup-and-requirement-accretion.md`
+8. `../patterns/supervision-assurance-planes-and-pro-meta-review.md`
+9. `../patterns/outcome-advancement-and-strategy-efficacy.md`
+10. `../patterns/structured-output-failure-boundary.md`
+11. `../patterns/reasoning-selection.md`
+12. `../patterns/mission-control-multi-host-submission-scheduling.md`
 
 **Controlling separation:** chats perform the reasoning; Codex performs only bounded execution that chats cannot reliably perform. Extra High is the default reasoning supervisor, Pro handles the highest-intelligence decisions, and Codex acts only from a current chat-authored execution directive. Codex may collect evidence and make tactical execution choices, but it may not choose strategy, interpret the owner outcome, author substantive prose, classify alignment/progress/adequacy/completion, decide Pro or owner escalation, or supervise itself.
 
 **Pre-action admission:** before Codex/Work forms or acts on a proposal, methodology, priority, spending design, consequential tradeoff, or execution plan, it must pass the authenticated Mission Control runtime gate. Work begins only from `mayExecute: true` bound to the exact current Chat-authored directive. A denied Chat-owned action automatically queues the exact factual packet to the authorized internal supervisor and stops that action. It must never become a request for Joel to paste, relay, approve transmission, or say “send it.” Generic browser representational-action confirmation does not apply to the narrower owner-preauthorized internal supervisor route; external third-party communication retains its applicable confirmation boundary. `QUEUED_FOR_PROVIDER_RELAY` is not delivery and must remain visibly undelivered until an exact provider receipt exists.
 
-Together the patterns separate ChatGPT reasoning, Symphony execution orchestration, Linear work state, GitHub authority, deterministic evidence, Codex local execution, Pro escalation, immutable/versioned owner-outcome authority, contract integrity, direct outcome advancement, strategy efficacy, and shared Pro meta-review.
+Together the patterns separate ChatGPT reasoning, Symphony execution orchestration, Linear work state, GitHub authority, deterministic evidence, Codex local execution, Pro escalation, immutable/versioned owner-outcome authority, contract integrity, follow-up requirement accretion, direct outcome advancement, strategy efficacy, and shared Pro meta-review.
 
 Malformed structured evaluator artifacts use the universal
 `../patterns/structured-output-failure-boundary.md` rule and
@@ -43,6 +44,8 @@ Maintain a logical reasoning-supervision lane per task rather than one always-ac
 Reserve Pro especially for therapy-answer semantics, AskRigor methodological/conclusion flaws, difficult strategy-replacement judgments, consequential architecture/product questions, and supervision-design review. Reuse related reasoning chats with compact authority capsules and delta packets; roll over only at explicit context, authority, contamination, account, or independence boundaries. Default analysis, repository review, planning, article authoring, progress judgment, and strategy selection to Extra High. Require a concrete local-execution reason before allocating Codex. Pro web supervisors must never depend on reliable GitHub access.
 
 Before preserving an existing task contract, acceptance criterion, checkpoint, or completion boundary, recover the original owner request independently and compare the downstream contract directly against it. A derived contract may refine or decompose the owner outcome but may not weaken, omit, replace, or terminally bypass it without an explicit owner decision. Every reasoning checkpoint and packet must carry the owner-source receipt, owner-outcome identity, current gap, objective-reconciliation record, alignment states, typed completion claim, outcome-progress receipt, strategy state, active execution directive, and reviewed evidence boundary.
+
+Before authoring a consequential **follow-up** task, also run `../patterns/owner-goal-followup-and-requirement-accretion.md`. Reclassify the parent owner outcome as open/satisfied/superseded/canceled/unresolved and state the remaining owner gap. Any new mandatory prerequisite, proof burden, assurance level, architecture dependency, or blocker that was not already part of the owner outcome must identify its origin, the exact failure caused by removing it, the strongest simpler alternative, evidence against that alternative, and whether necessity is established. An unresolved assistant-inferred requirement may be a bounded reversible experiment; it may not become a fail-closed blocker or disable a working owner-aligned path. If a newly added control causes such a regression, revalidate the first added requirement before optimizing later compensating fixes.
 
 Keep these states separate:
 
