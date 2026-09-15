@@ -5,6 +5,9 @@
   "status": "PARTIAL_RECOVERY",
   "purpose": "Preserve the currently recoverable inventory of owner-reported reasoning/instruction/routing failures without presenting summaries as exact historical transcripts or duplicating already durable records.",
   "privacyBoundary": "No private chat locator, account identifier, secret, personal medical material, or third-party sensitive content is published. Ordinary-chat items recovered only from bounded prior-context summaries are intentionally not quoted as exact text.",
+  "linkedExactCorrectionCaptures": [
+    "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json"
+  ],
   "incidents": [
     {
       "incidentId": "MC-RECOVERED-20260901-REASONING-SURFACE-IDENTITY",
@@ -80,5 +83,5 @@
     "The install-versus-restart example was known to have been explicitly supplied as a Mission Control example, but its exact historical wording was unavailable in this pass.",
     "A recovery candidate is not automatically a SUPERVISION_ESCAPE; materiality, detectability, prior system handling, and family equivalence require current reasoning adjudication."
   ],
-  "nextAction": "Use this inventory as a deduplicated starting set; add exact historical source evidence only when it is actually recovered, and validate the new explicit capture route on the next fresh owner-marked example."
+  "nextAction": "Use this inventory plus linked exact-correction captures as a deduplicated starting set; add exact historical source evidence only when it is actually recovered, and validate the explicit capture route on each fresh owner-marked example."
 }
