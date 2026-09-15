@@ -1043,10 +1043,29 @@ export const workTaskCreationSelectionAppliedSchema = z.object({
   fast_request: workFastModeRequestSchema,
   fast_setter: workFastModeRequestSchema.nullable(),
   producer_id: StableId,
-  source: z.literal("TRUSTED_TASK_CREATION_BOUNDARY"),
+  source: z.enum(["TRUSTED_TASK_CREATION_BOUNDARY", "TRUSTED_MANAGED_BROWSER_TASK_CREATION_BOUNDARY"]),
+  browser_selection: z.object({
+    status: z.literal("DOM_SELECTION_VERIFIED"),
+    model: z.enum(["gpt-5.6-sol", "gpt-6-astra"]),
+    effort: z.enum(["low", "medium", "high", "xhigh", "max"]),
+    managed_target_verified: z.literal(true),
+    fast_observed: z.null(),
+  }).strict().optional(),
   provider_task_locator: NonEmpty.max(1000).nullable(),
   applied_at: Timestamp,
-}).strict();
+}).strict().superRefine((data, ctx) => {
+  if (data.source === "TRUSTED_MANAGED_BROWSER_TASK_CREATION_BOUNDARY") {
+    if (!data.provider_task_locator || !/^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9-]+$/.test(data.provider_task_locator))
+      ctx.addIssue({ code: "custom", message: "Browser task creation requires an exact created conversation locator." });
+    if (!data.browser_selection || data.browser_selection.model !== data.model_setter
+      || data.browser_selection.effort !== data.effort_setter)
+      ctx.addIssue({ code: "custom", message: "Browser task creation requires matching bounded DOM selection evidence." });
+    if (data.fast_request !== "DO_NOT_ENABLE_FAST" || data.fast_setter !== null)
+      ctx.addIssue({ code: "custom", message: "Browser Fast control is unavailable; do not claim a setter or verified-off state." });
+  } else if (data.browser_selection !== undefined) {
+    ctx.addIssue({ code: "custom", message: "Native evidence must not claim browser selection." });
+  }
+});
 
 export const workExecutionPreflightRecordedSchema = z.object({
   type: z.literal("work_execution_preflight_recorded"),

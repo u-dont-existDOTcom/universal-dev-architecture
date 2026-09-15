@@ -1,4 +1,5 @@
 import type { StoredEvent } from "./schema";
+import { workTaskCreationSelectionAppliedSchema } from "./schema";
 import { launchSelectionFor, workExecutionProfilesEqual, type WorkExecutionProfile, type WorkLaunchSelection } from "./work-execution-profile";
 
 /** Only authenticated durable producer metadata establishes trust. Payload role claims do not. */
@@ -12,7 +13,7 @@ export function trustedTaskCreationEvidence(events: StoredEvent[], binding: {
   const data = event?.data;
   if (!event || data?.type !== "work_task_creation_selection_applied"
     || event.producerKind !== "SYSTEM" || event.producerId !== data.producer_id
-    || data.source !== "TRUSTED_TASK_CREATION_BOUNDARY"
+    || !workTaskCreationSelectionAppliedSchema.safeParse(data).success
     || data.authorization_id !== binding.authorizationId || data.directive_id !== binding.directiveId
     || data.directive_revision !== binding.directiveRevision || data.task_id !== binding.taskId
     || !workExecutionProfilesEqual(data.authorized_profile, binding.profile)) return null;

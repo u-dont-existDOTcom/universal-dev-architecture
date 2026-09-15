@@ -26,7 +26,8 @@ export class CentralSubmissionScheduler {
     now?: () => number;
   });
 
-  activateLease(lease: unknown): Promise<unknown>;
+  activateLease(lease: unknown, options?: {restorePersisted?: boolean}): Promise<unknown>;
+  renewLeaseFromHealth(report: unknown, producerId: string): Promise<Record<string, unknown>>;
   status(): Promise<Record<string, unknown>>;
   producerBinding(producerId: string): Promise<Record<string, unknown>>;
   beginRelayTargetTransition(input: unknown, producerId: string): Promise<Record<string, unknown>>;

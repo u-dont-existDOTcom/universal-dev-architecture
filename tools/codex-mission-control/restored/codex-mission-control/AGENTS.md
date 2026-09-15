@@ -10,4 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Mandatory pre-action supervision admission
 
-Before substantive Work, run `npm run supervision:admit:runtime -- --worker <id> --input <request.json>`; proceed only when `mayExecute` is exactly true and preflight `allowed` is true. Use `--setter-evidence-id` from durable SYSTEM task-creation evidence; worker raw setters are forbidden. `SET_REQUEST_ONLY` proves a trusted setter request, never provider readback. The absent bridge blocks current runtime. Fast observations remain null. Required readback, mismatch, or unavailable Fast enablement fails closed. Version 3 requires verified Chat provenance, a separately hashed directive, zero spend, and exact profile. `QUEUED_FOR_PROVIDER_RELAY` remains blocked until authenticated delivery.
+For autonomous delegated Work, run `npm run supervision:admit:runtime -- --worker <id> --input <request.json> --setter-evidence-id <trusted-id>`; require `mayExecute` is exactly true and preflight `allowed:true`. Inherit source/profile, Fast and readback rules from the parent's shared runtime pattern; worker raw setters are forbidden. `QUEUED_FOR_PROVIDER_RELAY` is not delivery.
+
+Do not require Mission Control's model-routing receipt for direct owner-authorized
+maintenance/recovery. Use the shared pattern's maintenance path, not an autonomous
+authorization bypass.

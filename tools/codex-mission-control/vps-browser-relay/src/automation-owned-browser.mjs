@@ -287,6 +287,11 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.ensureExactConsumerControls(target, input);
   }
 
+  async ensureExactWorkControls(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.ensureExactWorkControls(target, input);
+  }
+
   async submitExactMessage(target, input) {
     await this.#assertOwned(target?.id);
     try {

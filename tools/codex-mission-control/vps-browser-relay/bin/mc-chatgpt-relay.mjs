@@ -81,14 +81,17 @@ try {
     const result = await runtime.cycle();
     print(result);
     process.exitCode = oneShotExitCode(result);
-  } else if (command === 'provision') {
+  } else if (command === 'provision' || command === 'provision-work') {
     const supervisorId = process.argv[3];
     const messageFile = process.argv[4];
     if (!supervisorId || !messageFile) throw new Error('Usage: mc-chatgpt-relay provision <supervisor-id> <message-file>');
     const provision = config.runtime.provisions.find((entry) => entry.supervisorId === supervisorId);
     if (!provision) throw new Error('The exact supervisor is absent from the owner-authorized provisioning directory.');
     const body = await readFile(messageFile, 'utf8');
-    print(await provisionMcOnlyChat({ config, provision, browser: rawBrowser, submissionPacer, body }));
+    const authorizationId = process.argv[5];
+    if (command === 'provision-work' && !authorizationId) throw new Error('provision-work requires an exact durable authorization ID.');
+    print(await provisionMcOnlyChat({ config, provision, browser: rawBrowser, submissionPacer, body,
+      workCreation: command === 'provision-work' ? { missionControl, authorizationId } : null }));
   } else if (command === 'run') {
     for (;;) {
       const result = await runtime.cycle();

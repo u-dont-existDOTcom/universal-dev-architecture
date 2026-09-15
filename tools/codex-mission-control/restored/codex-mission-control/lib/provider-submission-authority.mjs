@@ -66,13 +66,20 @@ export class CentralSubmissionScheduler {
     this.tail = Promise.resolve();
   }
 
-  async activateLease(rawLease) {
+  async activateLease(rawLease, { restorePersisted = false } = {}) {
     return this.#serialized(async () => {
       const candidate = parseDeploymentLease(rawLease);
       const state = await this.stateStore.read();
       const relayBindingsInitialized = initializeOrValidateRelayBindings(state, this.producerBindings);
       const previous = state.activeLease;
       const nowMs = this.now();
+      // A restart must not roll a heartbeat-renewed lease back to static boot
+      // configuration. Restoring a stale lease permits health recovery, not sends.
+      if (restorePersisted && previous && sameLeaseIdentity(previous, candidate)
+        && sameRenewalFields(previous, candidate) && Date.parse(candidate.expiresAt) <= Date.parse(previous.expiresAt)) {
+        if (relayBindingsInitialized) await this.stateStore.write(state);
+        return previous;
+      }
       if (Date.parse(candidate.issuedAt) > nowMs || Date.parse(candidate.expiresAt) <= nowMs) {
         throw new SubmissionSchedulerError('DEPLOYMENT_LEASE_STALE', 'A scheduler may activate only a currently valid lease.');
       }
@@ -103,6 +110,39 @@ export class CentralSubmissionScheduler {
       state.leaseHistory.push(candidate);
       await this.stateStore.write(state);
       return candidate;
+    });
+  }
+
+  async renewLeaseFromHealth(report, producerId) {
+    return this.#serialized(async () => {
+      const state = await this.stateStore.read();
+      const binding = requireDurableRelayBinding(state, producerId);
+      const lease = state.activeLease;
+      const nowMs = this.now();
+      const observedMs = Date.parse(report.observedAt);
+      if (!lease || report.deploymentEpoch !== lease.epoch
+        || binding.hostAlias !== lease.activeHostAlias || binding.hostRole !== lease.activeHostRole
+        || lease.splitBrainStatus !== 'SINGLE_ACTIVE_CONFIRMED'
+        || report.hostAlias !== binding.hostAlias || report.hostRole !== binding.hostRole)
+        return { renewed:false, reason:'NOT_ACTIVE_LEASE_OWNER' };
+      if (!Number.isFinite(observedMs) || observedMs < nowMs - 150_000 || observedMs > nowMs + 30_000)
+        return { renewed:false, reason:'HEARTBEAT_NOT_FRESH' };
+      if (report.relayWorkerState !== 'HEALTHY' || report.browserState !== 'HEALTHY'
+        || report.authorityBindingState !== 'BOUND')
+        return { renewed:false, reason:'HEARTBEAT_NOT_HEALTHY' };
+      if (state.safetyHalt || state.relayTargetTransition
+        || state.admissions.some(item => item.status === 'AMBIGUOUS_AFTER_RESTART'))
+        return { renewed:false, reason:'AUTHORITY_REQUIRES_RECONCILIATION' };
+      // Derive expiry from the observation, not receipt time: replaying the same
+      // authenticated heartbeat cannot keep extending ownership indefinitely.
+      const expiresMs = Math.min(observedMs, nowMs) + 600_000;
+      if (Date.parse(lease.expiresAt) > nowMs + 300_000 || expiresMs <= Date.parse(lease.expiresAt))
+        return { renewed:false, reason:'RENEWAL_NOT_DUE', expiresAt:lease.expiresAt };
+      const renewed = { ...lease, expiresAt:new Date(expiresMs).toISOString() };
+      state.activeLease = renewed;
+      state.leaseHistory.push(renewed);
+      await this.stateStore.write(state);
+      return { renewed:true, reason:'ACTIVE_OWNER_HEARTBEAT', expiresAt:renewed.expiresAt };
     });
   }
 

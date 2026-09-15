@@ -10,6 +10,24 @@ export class MissionControlClient {
     this.fetchImpl = fetchImpl;
   }
 
+  async fetchWorkCreationAuthorization(worker, authorizationId) {
+    const payload = await this.#requestJson(`/api/work-task-creation/${encodeURIComponent(worker)}?authorizationId=${encodeURIComponent(authorizationId)}`, { method: 'GET' });
+    if (!payload?.authorization) throw new Error('WORK_CREATION_AUTHORITY_UNAVAILABLE');
+    return payload.authorization;
+  }
+
+  async recordWorkCreation(authorization, selection, locator, target) {
+    const evidenceId = `browser-setter:${sha256(`${authorization.authorization_id}:${locator}`).slice(0, 32)}`;
+    const payload = await this.#requestJson(`/api/work-task-creation/${encodeURIComponent(authorization.worker)}?authorizationId=${encodeURIComponent(authorization.authorization_id)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ selection: { status: selection.status, model: selection.model, effort: selection.effort,
+        managed_target_verified: selection.managed_target_verified, fast_observed: null },
+        locator, targetId: target?.id, automationWindowId: target?.automationWindowId }),
+    });
+    if (payload?.event?.data?.evidence_id !== evidenceId) throw new Error('WORK_CREATION_EVIDENCE_NOT_PERSISTED_DO_NOT_REPLAY');
+    return evidenceId;
+  }
+
   async fetchFleet() {
     return this.fetchWorkers(this.workerIds);
   }

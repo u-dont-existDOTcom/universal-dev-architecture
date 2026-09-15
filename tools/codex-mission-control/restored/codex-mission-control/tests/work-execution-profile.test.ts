@@ -584,6 +584,14 @@ test("worker and implicit producer cannot append trusted task-creation evidence"
     occurred_at: "2026-09-14T03:01:00.000Z", data };
   assert.throws(() => store.append(envelope, undefined, workerProducer), /authenticated SYSTEM/);
   assert.throws(() => store.append(envelope), /authenticated SYSTEM/);
+  if (data.type === "work_task_creation_selection_applied") {
+    data.source = "TRUSTED_MANAGED_BROWSER_TASK_CREATION_BOUNDARY";
+    data.provider_task_locator = "https://chatgpt.com/c/test-created-task";
+    data.browser_selection = { status: "DOM_SELECTION_VERIFIED", model: data.model_setter,
+      effort: data.effort_setter, managed_target_verified: true, fast_observed: null };
+    assert.throws(() => store.append(envelope, undefined, workerProducer), /authenticated SYSTEM/);
+    assert.throws(() => store.append(envelope), /authenticated SYSTEM/);
+  }
   store.close();
 });
 
@@ -604,6 +612,7 @@ test("runtime rejects raw fields and remains blocked without trusted bridge evid
 });
 
 test("runtime loads trusted Sol/Astra evidence and rejects wrong setters, producer, and bindings", () => {
+  for (const browserSource of [false, true]) {
   for (const selected of [profile(), profile({ model: "GPT_6_ASTRA", effort: "LOW", routingTier: "ASTRA_LOW", routingTriggers: ["HARD_DEBUGGING"] })]) {
     const request = admissionRequest(selected).request as ChatWorkAuthorityRequest;
     const authorization = buildWorkExecutionAuthorizationEnvelope({ worker: "profile-worker", request,
@@ -611,6 +620,12 @@ test("runtime loads trusted Sol/Astra evidence and rejects wrong setters, produc
     if (authorization.data.type !== "work_execution_profile_authorized") return;
     const trusted = trustedEvidenceEvent(selected);
     if (trusted.data.type !== "work_task_creation_selection_applied") return;
+    if (browserSource) {
+      trusted.data.source = "TRUSTED_MANAGED_BROWSER_TASK_CREATION_BOUNDARY";
+      trusted.data.provider_task_locator = "https://chatgpt.com/c/calibration-test";
+      trusted.data.browser_selection = { status: "DOM_SELECTION_VERIFIED", model: trusted.data.model_setter,
+        effort: trusted.data.effort_setter, managed_target_verified: true, fast_observed: null };
+    }
     trusted.data.authorization_id = authorization.data.authorization_id;
     trusted.data.directive_id = authorization.data.directive_id;
     trusted.data.task_id = authorization.data.task_id;
@@ -633,6 +648,17 @@ test("runtime loads trusted Sol/Astra evidence and rejects wrong setters, produc
       assert.equal(failed.modelIdentityEvidence, "UNVERIFIED");
     }
     assert.equal(run({ ...trusted, producerKind: "WORKER" }).allowed, false);
+    if (browserSource) {
+      for (const mutation of [
+        { provider_task_locator: null }, { provider_task_locator: "https://example.com/c/test" },
+        { browser_selection: undefined },
+        { browser_selection: { ...trusted.data.browser_selection, model: "wrong" } },
+        { browser_selection: { ...trusted.data.browser_selection, fast_observed: "OFF" } },
+        { browser_selection: { ...trusted.data.browser_selection, prompt: "must-not-persist" } },
+        { browser_selection: { ...trusted.data.browser_selection, managed_target_verified: false } },
+      ]) assert.equal(run({ ...trusted, data: { ...trusted.data, ...mutation } } as StoredEvent).allowed, false);
+    }
+  }
   }
 });
 

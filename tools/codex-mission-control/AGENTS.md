@@ -16,6 +16,9 @@ Inherit `patterns/chat-work-execution-routing-threshold.md` and `patterns/runtim
 
 Local binding: `lib/chat-work-authority-gate.ts` and `npm run supervision:admit -- --input <request.json>`. Authenticated runtime admission required by nested instructions remains mandatory. A local check is not a runtime receipt. A non-allow decision blocks the affected action. A worker may not fabricate Chat provenance, reinterpret owner intent, add mandatory requirements, or legitimize its own semantic proposal through an owner-relay request.
 
+Direct owner-authorized maintenance uses the shared pattern's separate recovery
+path, not model-routing admission. Autonomous setter-evidence checks stay intact.
+
 ## Spending boundary
 
 Current source-bound owner spending policy controls. Zero-spend excludes worker-authored paid-path revival; historical/hypothetical budgets do not override it.
