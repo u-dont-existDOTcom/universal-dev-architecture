@@ -1,0 +1,96 @@
+{
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-OWNER-REPORTED-FAILURE-CAPTURE-20260915",
+  "recorded_at": "2026-09-15T15:46:00+00:00",
+  "timestamp_basis": "CURRENT_CHECK_TIME_FROM_CHAT_RUNTIME",
+  "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": [
+      "so what happened then because that was a mission control thing i implemented in work oh lord i can't even find that now",
+      "ok then continue"
+    ],
+    "sha256": {
+      "first_message": "498eaafecbc960595ab862d997ac8b2370e5ed9c318f9040069f34cdfdbd8d6d",
+      "continuation": "cb42b94387fa69a4c072ac793f2efcbd19b45ae5b367b9b02e5923b9ca33ff41",
+      "combined_newline_joined": "e75010c7cf868c1043f6434c960aff2731e6164c6bfc1afebc96ddb843ec20e6"
+    },
+    "source_type": "owner_chat_messages",
+    "source_scope": "Owner asks to trace and continue the previously implemented Mission Control failure-capture mechanism rather than substituting ChatGPT Memory.",
+    "source_time_status": "CURRENT_CHAT_RUNTIME_TIME_AVAILABLE_NATIVE_MESSAGE_ID_NOT_EXPOSED"
+  },
+  "parent_owner_outcome": {
+    "requirement_id": "REQ-MC-FUTURE-OWNER-IMPROVEMENT-INTEGRITY-20260901",
+    "status": "OPEN",
+    "remaining_gap": "A fresh owner-reported Mission Control improvement/failure still has not traversed an automatically activated ordinary-Chat capture path into durable Mission Control/GitHub state without the owner having to rediscover or restate the mechanism."
+  },
+  "normalized_outcome": "When the owner explicitly identifies a reasoning, instruction-following, routing, or execution failure as a Mission Control example, asks to save/record it, or asks to recover prior examples, the active Chat must route that intent to durable Mission Control/GitHub evidence at the actual destination. Conversation context, ChatGPT Memory, templates, or a merely available event schema do not count as capture. Recovery must distinguish exact source evidence from bounded summaries and must not publish sensitive/private material merely to preserve a failure example.",
+  "required_outcomes": [
+    {
+      "id": "RO-CAPTURE-001",
+      "terminal_required": true,
+      "observable": "A live owner-explicit Mission Control failure-capture trigger activates a durable GitHub/runtime write in the same task when an authorized write route is available, before the assistant claims the failure is saved.",
+      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "patterns/owner-marked-mission-control-failure-capture.md"
+      ]
+    },
+    {
+      "id": "RO-CAPTURE-002",
+      "terminal_required": true,
+      "observable": "The durable record preserves the bounded correction/failure mechanism, source digest/provenance, and recovery quality without leaking secrets, private chat locators, private infrastructure identifiers, or sensitive personal content into the public repository.",
+      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "patterns/owner-marked-mission-control-failure-capture.md"
+      ]
+    },
+    {
+      "id": "RO-CAPTURE-003",
+      "terminal_required": true,
+      "observable": "When earlier examples are recovered, exact quotes and bounded summaries/partial recoveries are labeled distinctly and existing durable records are deduplicated rather than recreated as invented exact evidence.",
+      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "feedback/mission-control/RECOVERY-20260915-OWNER-REPORTED-LOGIC-FAILURES.json",
+        "patterns/owner-marked-mission-control-failure-capture.md"
+      ]
+    },
+    {
+      "id": "RO-CAPTURE-004",
+      "terminal_required": true,
+      "observable": "Owner-facing status distinguishes NOT_DURABLE, CAPTURED_BRANCH_ONLY, CANONICAL, and PARTIAL_RECOVERY; a schema/template/intent/memory statement cannot be reported as durable capture.",
+      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "patterns/owner-marked-mission-control-failure-capture.md",
+        "evals/mission-control/owner-marked-failure-capture-routing.json"
+      ]
+    },
+    {
+      "id": "RO-CAPTURE-005",
+      "terminal_required": true,
+      "observable": "A later fresh ordinary Chat turn with an explicit owner capture instruction demonstrates end-to-end activation and durable capture without relying on the owner to remember a repository branch, template, or special Mission Control-only chat.",
+      "status": "UNMET",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "ChatGPT Memory contains the example",
+    "the example remains in conversation context",
+    "Mission Control has a SUPERVISION-DESIGN-FEEDBACK template",
+    "Mission Control has a reasoning_message_recorded or supervision_design_feedback_recorded event type but no event/artifact was emitted",
+    "a worker says it will remember or record the failure later",
+    "a local scratch file exists without durable GitHub/runtime identity",
+    "a branch-only artifact is described as canonical",
+    "a recovered paraphrase is presented as an exact historical quote"
+  ],
+  "active_patterns": [
+    "patterns/owner-marked-mission-control-failure-capture.md",
+    "patterns/durable-chat-learning.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/mission-control-owner-discovered-supervision-escape-assurance.md",
+    "patterns/runtime-chat-work-authority-admission-and-internal-routing.md"
+  ],
+  "assurance_lane": "iteration",
+  "production_authorized": false,
+  "next_direct_evidence": "Make the root bootstrap route the explicit owner-marked capture trigger into the new pattern, preserve this turn's recovered inventory on the task branch, then use a future fresh explicit owner capture request as the live regression before claiming universal capture is fixed."
+}
