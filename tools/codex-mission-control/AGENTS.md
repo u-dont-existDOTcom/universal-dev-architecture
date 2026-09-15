@@ -1,14 +1,14 @@
 # Mission Control task instructions
 
-These scoped instructions supplement the repository root. Shared rationale lives in root patterns; this file keeps only Mission Control-specific bindings so the discovered chain stays within budget.
+Scoped instructions supplement the root; rationale stays in root patterns.
 
 ## Owner-request integrity gate
 
-A direct owner request or correction to fix, improve, add, remove, preserve, display, route, or change owner-visible behavior is an active requirement, not conversational context.
+A direct owner request or correction to change owner-visible behavior is an active requirement, not conversational context.
 
-Before substantive action: preserve exact owner wording/source digest; record the observable result and `non-satisfying proxies`; activate root owner-outcome, follow-up requirement-accretion, and task-time lesson rules; trace evidence to that request; continue unless a genuine owner decision remains.
+Before action: preserve exact owner wording/source digest; record observable result and `non-satisfying proxies`; activate root owner-outcome, requirement-accretion, and lesson rules; trace evidence to the request; continue unless a genuine owner decision remains.
 
-For durable work use `docs/requirements/*.owner-requirement.json`. Allowed states include `RECORDED_NOT_IMPLEMENTED`, `IMPLEMENTED_NOT_LIVE_VERIFIED`, `LIVE_VERIFIED`, `BLOCKED_EXACT_REASON`, and `SUPERSEDED_BY_OWNER`. Do not say `fixed`, `done`, or equivalent unless the requested observable behavior is demonstrated at the correct boundary.
+Durable work uses `docs/requirements/*.owner-requirement.json`. States: `RECORDED_NOT_IMPLEMENTED`, `IMPLEMENTED_NOT_LIVE_VERIFIED`, `LIVE_VERIFIED`, `BLOCKED_EXACT_REASON`, `SUPERSEDED_BY_OWNER`. Do not say `fixed`, `done`, or equivalent unless requested behavior is demonstrated at the correct boundary.
 
 ## Chat reasoning and Work execution authority
 
@@ -18,7 +18,7 @@ Local binding: `lib/chat-work-authority-gate.ts` and `npm run supervision:admit 
 
 ## Spending boundary
 
-Current source-bound owner spending policy controls. Zero-spend excludes worker-authored paid-path revival; historical/hypothetical budgets do not override it.
+Current owner spending policy controls; zero-spend bars worker-authored paid-path revival.
 
 ## Internal routing and capability edges
 

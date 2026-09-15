@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "recoveryId": "RECOVERY-20260915-OWNER-REPORTED-LOGIC-FAILURES",
+  "recordedAt": "2026-09-15T15:46:00Z",
+  "status": "PARTIAL_RECOVERY",
+  "purpose": "Preserve the currently recoverable inventory of owner-reported reasoning/instruction/routing failures without presenting summaries as exact historical transcripts or duplicating already durable records.",
+  "privacyBoundary": "No private chat locator, account identifier, secret, personal medical material, or third-party sensitive content is published. Ordinary-chat items recovered only from bounded prior-context summaries are intentionally not quoted as exact text.",
+  "incidents": [
+    {
+      "incidentId": "MC-RECOVERED-20260901-REASONING-SURFACE-IDENTITY",
+      "date": "2026-09-01",
+      "captureIntent": "EXPLICIT_MISSION_CONTROL_RECORDING",
+      "sourceRecoveryQuality": "EXACT_TEXT_ALREADY_DURABLE_OFF_MAIN_AT_TIME_OF_RECOVERY",
+      "boundedSummary": "Codex treated a local collaboration-subagent/task name as evidence that a signed-in ChatGPT Extra High review occurred even though browser/session/mode evidence was unavailable, then attributed the guardrail design to Extra High. The owner caught the identity/provenance laundering and explicitly instructed that the failure be saved for Mission Control.",
+      "existingDurableRefs": [
+        "feedback/supervision-authority-laundering-20260901:feedback/mission-control/SDF-20260901-REASONING-SURFACE-IDENTITY-LAUNDERING-001.json"
+      ],
+      "deduplicationDisposition": "REFERENCE_EXISTING_RECORD_DO_NOT_RECREATE_AS_NEW_ESCAPE",
+      "semanticClassification": "NOT_RE-ADJUDICATED_IN_THIS_RECOVERY"
+    },
+    {
+      "incidentId": "MC-RECOVERED-20260915-HUMANIZATION-RULE-OVERCONSTRAINT",
+      "date": "2026-09-15",
+      "captureIntent": "RECOVERY_CANDIDATE",
+      "sourceRecoveryQuality": "BOUNDED_SUMMARY",
+      "boundedSummary": "During humanization work, an assistant rule intended to avoid superficial polish became so restrictive that it blocked the generation changes needed to make the writing human. The owner identified that the rule itself made success impossible.",
+      "existingDurableRefs": [],
+      "deduplicationDisposition": "NEW_RECOVERED_CANDIDATE",
+      "semanticClassification": "NOT_ADJUDICATED"
+    },
+    {
+      "incidentId": "MC-RECOVERED-20260915-HUMANIZATION-GOAL-DRIFT",
+      "date": "2026-09-15",
+      "captureIntent": "RECOVERY_CANDIDATE",
+      "sourceRecoveryQuality": "BOUNDED_SUMMARY",
+      "boundedSummary": "The assistant drifted into proposing another 'humanize this article' operation after the owner had already manually humanized the article. The owner objected that the system was redoing the completed target instead of working on the actual remaining evaluation/architecture problem.",
+      "existingDurableRefs": [],
+      "deduplicationDisposition": "NEW_RECOVERED_CANDIDATE",
+      "semanticClassification": "NOT_ADJUDICATED"
+    },
+    {
+      "incidentId": "MC-RECOVERED-20260915-FAILED-STRATEGY-REPETITION",
+      "date": "2026-09-15",
+      "captureIntent": "RECOVERY_CANDIDATE",
+      "sourceRecoveryQuality": "BOUNDED_SUMMARY",
+      "boundedSummary": "The assistant returned to an incremental generation strategy that had already repeatedly reached the same negative conclusion: it lost intended meaning. The owner explicitly pointed out that the same conclusion and strategy had been revisited many times and asked whether the prior work had been forgotten.",
+      "existingDurableRefs": [
+        "patterns/failed-strategy-lineage-and-negative-evidence-binding.md"
+      ],
+      "deduplicationDisposition": "RECURRENCE_CANDIDATE_REQUIRES_SEMANTIC_FAMILY_REVIEW",
+      "semanticClassification": "NOT_ADJUDICATED"
+    },
+    {
+      "incidentId": "MC-RECOVERED-20260915-INSTALL-RESTART-SEQUENCING",
+      "date": "2026-09-15",
+      "captureIntent": "EXPLICIT_MISSION_CONTROL_EXAMPLE",
+      "sourceRecoveryQuality": "PARTIAL_RECOVERY",
+      "boundedSummary": "In a GPT-6 Astra Extra High example, the assistant conflated installing a change with immediately restarting the affected system. The owner identified install and restart as separate actions and supplied the mistake as a Mission Control bad-logic example. Exact historical wording was not recovered in this pass and is therefore not quoted.",
+      "existingDurableRefs": [],
+      "deduplicationDisposition": "NEW_PARTIAL_RECOVERY",
+      "semanticClassification": "NOT_ADJUDICATED"
+    },
+    {
+      "incidentId": "MC-RECOVERED-20260915-FAILURE-CAPTURE-DESTINATION-GAP",
+      "date": "2026-09-15",
+      "captureIntent": "CURRENT_OWNER_CONTINUATION",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "boundedSummary": "After expecting a Work-implemented Mission Control failure-recording mechanism to exist, the owner could not find the examples. The assistant initially looked at ChatGPT Memory and default-branch state instead of the Mission Control/GitHub destination. Repository tracing showed that capture machinery existed but ordinary Chat had no activated rule tying explicit failure-capture intent to the durable destination.",
+      "existingDurableRefs": [
+        "feedback/mission-control/SDF-20260915-OWNER-FAILURE-CAPTURE-ROUTING-GAP-001.json",
+        "docs/requirements/2026-09-15-owner-reported-failure-capture.owner-requirement.json"
+      ],
+      "deduplicationDisposition": "CURRENT_REPAIR_RECORD",
+      "semanticClassification": "DESIGN_DEFECT_RECORDED_ESCAPE_CLASSIFICATION_NOT_ADJUDICATED"
+    }
+  ],
+  "recoveryLimits": [
+    "This pass does not claim to enumerate every owner complaint or every same-day reasoning failure.",
+    "Three 2026-09-15 humanization incidents were available only as bounded prior-context summaries in the current recovery state and are not presented as verbatim transcripts.",
+    "The install-versus-restart example was known to have been explicitly supplied as a Mission Control example, but its exact historical wording was unavailable in this pass.",
+    "A recovery candidate is not automatically a SUPERVISION_ESCAPE; materiality, detectability, prior system handling, and family equivalence require current reasoning adjudication."
+  ],
+  "nextAction": "Use this inventory as a deduplicated starting set; add exact historical source evidence only when it is actually recovered, and validate the new explicit capture route on the next fresh owner-marked example."
+}

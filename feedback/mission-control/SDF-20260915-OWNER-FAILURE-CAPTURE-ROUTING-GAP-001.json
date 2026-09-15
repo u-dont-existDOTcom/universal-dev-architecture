@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260915-OWNER-FAILURE-CAPTURE-ROUTING-GAP-001",
+  "createdAt": "2026-09-15T15:46:00Z",
+  "taskId": "mission-control-owner-failure-capture",
+  "workerRunId": "chat-direct-github-20260915",
+  "ownerOutcome": {
+    "ownerOutcomeId": "REQ-MC-OWNER-REPORTED-FAILURE-CAPTURE-20260915",
+    "epoch": 1,
+    "sha256": "e75010c7cf868c1043f6434c960aff2731e6164c6bfc1afebc96ddb843ec20e6"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "task/mission-control-owner-failure-capture-20260915",
+    "architectureEpoch": "owner-marked-failure-capture-v1-candidate",
+    "sha256OrCommit": "6afcacf93c39fbde1840349191a335bd0993bde0"
+  },
+  "type": "DEFECT",
+  "category": "OWNER_REPORTED_FAILURE_CAPTURE_ROUTING",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Mission Control has durable supervision-feedback, reasoning-message, and owner-discovered-escape machinery, but the ordinary Chat surface had no activated rule requiring an explicit owner-marked failure to be written to that durable destination. Dedicated Mission Control-only supervisor chats and authenticated ingestion routes therefore did not imply passive capture of arbitrary ordinary Chat conversations. The result was a surface/destination activation gap: owner-reported examples could remain only in conversation context unless the active Chat separately wrote or ingested them.",
+  "relevantRule": {
+    "path": "docs/requirements/2026-09-01-future-owner-improvement-integrity.owner-requirement.json",
+    "section": "RO-INTEGRITY-004 / next_direct_evidence",
+    "excerpt": "A later fresh owner improvement request traverses the complete capture-to-live-verification path without the owner repeating the requirement."
+  },
+  "observedOrHypotheticalFailure": "The owner expected previously identified bad-logic examples to be available as Mission Control evidence. A later Chat could not initially locate them and incorrectly investigated ChatGPT Memory instead. Repository inspection then showed that durable Mission Control capture existed, but ordinary Chat had no per-turn capture trigger tying explicit owner intent to the GitHub/runtime destination. Existing branch-local and canonical records survived; unrecorded ordinary-chat examples were recoverable only from prior-chat context where available.",
+  "evidenceRefs": [
+    {
+      "path": "patterns/mission-control-owner-discovered-supervision-escape-assurance.md",
+      "meaning": "Defines owner-first supervision escape assurance and reuses the append-only Mission Control ledger plus SUPERVISION_DESIGN_FEEDBACK."
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/scripts/record-reasoning-message.mjs",
+      "meaning": "Reasoning-message capture is an explicit authenticated ingestion operation with required producer/message/surface arguments; it is not ambient ordinary-chat observation."
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/chats.example.json",
+      "meaning": "Configured Project Manager and specialist conversations are explicitly MISSION_CONTROL_ONLY and not personal/shared-purpose chats."
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/ingestion-auth.ts",
+      "meaning": "supervision_design_feedback_recorded and reasoning_message_recorded are authenticated event families with bounded producer authority."
+    },
+    {
+      "path": "docs/requirements/2026-09-01-future-owner-improvement-integrity.owner-requirement.json",
+      "meaning": "The prior owner requirement already left the next fresh owner improvement capture-to-live-verification regression unmet."
+    }
+  ],
+  "proposedChange": "Add a root-bootstrap trigger for explicit owner-marked Mission Control failure capture, routed to a bounded capture pattern. When GitHub/runtime write capability is available, ordinary Chat writes the durable record itself on an isolated branch before claiming it is saved. Keep generic criticism non-publishing, preserve privacy, distinguish exact versus partial recovery, and retain existing Mission Control ledgers/templates rather than creating a new service.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Passively ingest every ordinary ChatGPT conversation into Mission Control.",
+      "disposition": "REJECTED",
+      "reason": "Unnecessary, privacy-invasive, and inconsistent with the dedicated MISSION_CONTROL_ONLY boundary."
+    },
+    {
+      "alternative": "Use ChatGPT Memory as the failure store.",
+      "disposition": "REJECTED",
+      "reason": "Memory is not the canonical Mission Control/GitHub evidence destination and cannot satisfy the existing durable-capture contract."
+    },
+    {
+      "alternative": "Require Work/Codex to record every failure because Work implemented Mission Control.",
+      "disposition": "REJECTED",
+      "reason": "Ordinary GitHub work belongs to Chat when available, and routing through Work adds a capability boundary without solving activation at the originating Chat surface."
+    }
+  ],
+  "risks": [
+    "Without a root trigger, a future ordinary Chat can again fail to activate the Mission Control destination even though all downstream schemas exist.",
+    "Over-broad auto-capture could publish ordinary criticism or sensitive conversation content without explicit capture intent.",
+    "Recovery can create false history if paraphrases are mislabeled as exact quotes.",
+    "Branch-only evidence can be misrepresented as canonical if capture states are not explicit."
+  ],
+  "workerRecommendation": "Adopt the narrow explicit-intent capture trigger, preserve capture truth states, and test it on the next fresh owner-explicit failure report before claiming universal live verification.",
+  "workerUncertainty": "The GitHub implementation establishes durable capture behavior for Chat surfaces with current GitHub write access. It does not prove that every ChatGPT product surface exposes the same connector/write capability, nor does it prove a deployed Mission Control runtime ingested the GitHub artifact.",
+  "decisionThatCanChange": "Whether an explicit owner request to save/recover a Mission Control failure from ordinary Chat is durably routed to Mission Control/GitHub evidence instead of being left in conversation memory.",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": false,
+    "reviewPriority": "NEXT_LIVE_REGRESSION",
+    "sharedProScopeKey": "supervision-architecture/owner-marked-failure-capture-v1"
+  },
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "proMetaReview": null,
+  "ownerDecisionRef": "current-chat:owner-continuation-2026-09-15",
+  "repositoryChangeRefs": [
+    "patterns/owner-marked-mission-control-failure-capture.md",
+    "docs/requirements/2026-09-15-owner-reported-failure-capture.owner-requirement.json",
+    "feedback/mission-control/RECOVERY-20260915-OWNER-REPORTED-LOGIC-FAILURES.json",
+    "evals/mission-control/owner-marked-failure-capture-routing.json"
+  ],
+  "testRefs": [
+    "evals/mission-control/owner-marked-failure-capture-routing.json"
+  ]
+}
