@@ -47,3 +47,10 @@ Current wall-clock time is obtainable from a trusted runtime or time service whe
 ## Learned-attractor correction
 
 For the Somatic prose experiment, **The model can accurately state the defect and still reproduce it** because generation can remain in the same learned basin. Do not default to more self-critique/prohibition. Test mechanisms that can change search/generation behavior—isolated sampling, quality-diversity coverage, external selection, steering where available, preference adaptation, or owner-source transformation. n8n/Hermes may enforce process isolation; neither is presumed to alter the learned distribution.
+
+## Owner-authorized maintenance
+
+Direct owner-authorized maintenance uses the separate maintenance path in
+`patterns/runtime-chat-work-authority-admission-and-internal-routing.md` at the
+repository root, not model-routing admission. Autonomous setter-evidence checks
+stay intact.

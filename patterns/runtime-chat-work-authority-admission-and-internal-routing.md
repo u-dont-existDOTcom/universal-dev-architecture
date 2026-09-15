@@ -8,6 +8,24 @@ This pattern converts the Chat-to-Work authority boundary from a documented expe
 
 ## Required order of operations
 
+### Owner-authorized maintenance is a separate path
+
+Direct owner-authorized maintenance, deployment, diagnosis, and recovery do not
+require a model-routing task-creation receipt. This includes repairing Mission
+Control itself: its admission service must not become a prerequisite for its own
+repair. Record the owner's actual instruction and bounded scope; retain normal
+authentication, access, secret protection, rollback where appropriate, and direct
+verification. Do not ask for a second admission exception for the same authorized
+maintenance. This is a standing scope rule, not an unauthenticated runtime bypass.
+
+The autonomous delegated task-creation path below still requires its source-bound
+admission and trusted setter evidence. A worker cannot relabel its own proposal as
+owner-authorized maintenance, create a trusted setter receipt, claim verified
+model selection, or use maintenance authority to launch unapproved delegated work.
+No backend model evidence is implied by an owner-authorized maintenance action.
+
+### Autonomous delegated Work
+
 1. Before a worker forms or acts on a proposal, methodology, priority, spending design, consequential tradeoff, or execution plan, it submits an authenticated admission request to Mission Control.
 2. Mission Control derives the permissible actor class from the authenticated producer. A worker cannot claim that its own text originated in Chat.
 3. The authority gate evaluates the action against the exact source receipt, owner zero-spend policy, bounded-execution status, and internal-routing authorization.
