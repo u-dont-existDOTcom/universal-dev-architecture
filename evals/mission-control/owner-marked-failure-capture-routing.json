@@ -1,0 +1,44 @@
+{
+  "fixtureId": "owner-marked-failure-capture-routing",
+  "directive": "MISSION-CONTROL-OWNER-MARKED-FAILURE-CAPTURE-v1",
+  "cases": [
+    {
+      "caseId": "explicit-capture-with-write",
+      "input": {"explicitCaptureIntent": true, "durableWriteAvailable": true},
+      "expected": {"durableArtifactRequiredBeforeSavedClaim": true}
+    },
+    {
+      "caseId": "explicit-capture-without-write",
+      "input": {"explicitCaptureIntent": true, "durableWriteAvailable": false},
+      "expected": {"captureState": "NOT_DURABLE", "savedClaimAllowed": false}
+    },
+    {
+      "caseId": "ordinary-criticism",
+      "input": {"explicitCaptureIntent": false, "durableWriteAvailable": true},
+      "expected": {"automaticRepositoryWriteAllowed": false}
+    },
+    {
+      "caseId": "mixed-recovery-quality",
+      "input": {"qualities": ["EXACT_TEXT", "BOUNDED_SUMMARY", "PARTIAL_RECOVERY"]},
+      "expected": {"preserveQualityLabels": true, "inventExactQuoteAllowed": false}
+    },
+    {
+      "caseId": "schema-without-emission",
+      "input": {"schemaExists": true, "durableArtifactExists": false, "runtimeEventEmitted": false},
+      "expected": {"captureState": "NOT_DURABLE", "savedClaimAllowed": false}
+    },
+    {
+      "caseId": "branch-only",
+      "input": {"taskBranchArtifactExists": true, "canonicalArtifactExists": false},
+      "expected": {"captureState": "CAPTURED_BRANCH_ONLY", "canonicalClaimAllowed": false}
+    }
+  ],
+  "globalInvariants": [
+    "Explicit capture intent requires a durable artifact before a saved claim.",
+    "Conversation context, memory, schemas, templates, and planned writes are not durable capture by themselves.",
+    "Ordinary criticism alone does not trigger an automatic repository write.",
+    "Recovery quality labels must be preserved.",
+    "Branch-only capture is not canonical.",
+    "Capture does not mechanically decide supervision-escape semantics."
+  ]
+}
