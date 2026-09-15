@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260915-LIFE-PATTERNS-PROGRESS-VISIBILITY-009",
+  "recordedAt": "2026-09-15T23:48:22Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "ok wait but now the user has no idea if the interview will last another minute or another day? it should give some kind of progress indicator",
+  "sourceSha256": "e1b82163ab7e0a77cb4cd6a8f42ead80a5f8806aac2eab5d3de0d7e360ab51d0",
+  "observedRisk": "Making the interview dynamic and hiding its internal category queue removed the participant's ability to estimate remaining burden. The interaction could feel indefinitely open-ended even though the scientific coverage target is finite.",
+  "failureMechanism": "ADAPTIVITY-PROGRESS VISIBILITY TRADEOFF: the product correctly hid rigid category sequencing but did not replace that lost orientation with a participant-facing estimate of how much required coverage remains. Dynamic order was treated as incompatible with a visible completion horizon when it is not.",
+  "logicLesson": "A dynamic interview should hide the rigid script, not the completion horizon. Expose a continuously updated progress indicator derived from the fixed measurement contract, and label question/time estimates as rough because one answer can satisfy several constructs and answer length varies.",
+  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_PROGRESS-INDICATOR_CANDIDATE; CI_AND_LIVE_DEPLOY_VERIFICATION_PENDING_AT_CAPTURE_TIME",
+  "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
+  "nextVerificationBoundary": "Confirm the live Life Patterns interview persistently shows approximate percent complete plus a rough remaining-question/time range that updates as coverage changes without exposing the category queue."
+}
