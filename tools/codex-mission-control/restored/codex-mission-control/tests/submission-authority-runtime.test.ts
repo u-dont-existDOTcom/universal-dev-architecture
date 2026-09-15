@@ -17,6 +17,30 @@ const producer: AuthenticatedProducer = {
   taskScopes: ["*"],
 };
 
+test("the existing health endpoint renews the active lease after original expiry and restart", async () => {
+  const store = new EventStore(":memory:");
+  const now = {value:origin};
+  try {
+    const first = runtime(store, now);
+    await first.status(producer);
+    now.value = Date.parse(primaryLease().expiresAt) + 1;
+    const restarted = runtime(store, now);
+    assert.equal((await restarted.status(producer)).ready,false);
+    const receipt = await restarted.execute("relay-health", {
+      schemaVersion:1,hostAlias:"primary-test",hostRole:"PRIMARY",deploymentEpoch:1,
+      observedAt:new Date(now.value).toISOString(),relayWorkerState:"HEALTHY",browserState:"HEALTHY",authorityBindingState:"BOUND",detail:"CENTRAL_AUTHORITY_NOT_READY",
+    },producer);
+    assert.equal(receipt.leaseRenewal.renewed,true);
+    const status = await restarted.status(producer);
+    assert.equal(status.ready,true);
+    assert.equal(status.activeLease.epoch,1);
+    assert.equal(status.ledger.valid,true);
+    assert.equal(status.lastSubmissionAt,null);
+    const again = runtime(store,now);
+    assert.equal((await again.status(producer)).ready,true);
+  } finally {store.close();}
+});
+
 test("Mission Control is the persistent shared authority and emits a hash-chained pacing ledger", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "mc-shared-authority-"));
   const filename = path.join(root, "mission-control.db");

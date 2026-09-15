@@ -1,5 +1,5 @@
 {
-  "status": "BROWSER_TASK_CREATION_CANDIDATE_LIVE_PREREQUISITES_UNAVAILABLE",
+  "status": "LEASE_RENEWAL_REPAIR_PENDING_ACTIVATION",
   "owner_access_approval": "do whatever you need to",
   "access_verified": true,
   "managed_tabs": 1,
@@ -9,12 +9,15 @@
   "scheduler_queue_depth": 0,
   "scheduler_unresolved_admission": false,
   "available_model_options": ["Latest", "GPT-5.6 Sol", "GPT-5.5"],
-  "astra_option_found": false,
+  "astra_option_found": true,
+  "astra_ui_label": "Latest",
+  "alias_authority": "Owner correction: Latest currently means Astra; future labels may be Astra or GPT 6.",
+  "prior_literal_name_absence_conclusion": "SUPERSEDED_BY_OWNER_CORRECTION",
   "sol_medium_launch": "NOT_RUN",
   "astra_low_launch": "NOT_RUN",
   "real_task_locators": [],
   "model_invocations": 0,
   "finding": "Existing relay uses COLLECTOR authentication; the candidate now maps only a registered owned-target relay to a server-side SYSTEM evidence producer.",
   "not_done": ["account changes", "subscription changes", "scheduler bypass", "merge", "deployment"],
-  "next_direct_evidence": "Once Astra is available in the existing account and the existing scheduler lease is renewed, run the two bounded launches through the same owned tab."
+  "next_direct_evidence": "After review and activation of the bounded active-owner heartbeat renewal repair, verify lease recovery and perform the two bounded launches. Astra availability is not a blocker: use the owner-authorized Latest alias."
 }

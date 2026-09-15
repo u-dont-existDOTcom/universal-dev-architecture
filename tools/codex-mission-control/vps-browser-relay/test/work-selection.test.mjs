@@ -2,6 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { workSelectionControls, workSelectionReadback } from '../src/work-selection.mjs';
 
+test('owner-approved Latest alias maps to Astra while named future labels remain exact', () => {
+  const profile = { model:'GPT_6_ASTRA', effort:'LOW', fastModeRequest:'DO_NOT_ENABLE_FAST' };
+  for (const label of ['Latest', 'Astra', 'GPT 6', 'GPT-6', 'GPT-6 Astra']) {
+    const controls = workSelectionControls(profile, ['GPT-5.6 Sol', label]);
+    assert.equal(controls.modelVisibleLabel, label);
+    assert.equal(controls.model, 'gpt-6-astra');
+  }
+  assert.equal(workSelectionControls(profile).modelVisibleLabel, 'Latest');
+  assert.throws(() => workSelectionControls(profile, ['GPT-5.5']), /ALIAS_UNAVAILABLE/);
+});
+
 for (const [model, effort, expectedModel, expectedEffort] of [
   ['GPT_5_6_SOL', 'MEDIUM', 'gpt-5.6-sol', 'medium'],
   ['GPT_6_ASTRA', 'LOW', 'gpt-6-astra', 'low'],

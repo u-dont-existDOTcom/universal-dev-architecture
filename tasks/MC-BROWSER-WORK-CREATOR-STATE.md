@@ -11,8 +11,9 @@ provider observations null, and private managed-tab ownership. No merge/deployme
 Observed: launcher exists, but its consumer controls enforce Sol Extra High rather
 than the source-authorized Work profile. Primary managed browser service is running.
 The owner subsequently approved dedicated-account access and it succeeded. There
-is one managed tab. The expanded picker offers Latest, GPT-5.6 Sol and GPT-5.5;
-Astra is absent. The scheduler reports LEASE_STALE, not ready, zero queued items,
+is one managed tab. The expanded picker offers Latest, GPT-5.6 Sol and GPT-5.5.
+Owner correction: Latest is Astra; literal-name absence was a false blocker.
+The scheduler reports LEASE_STALE, not ready, zero queued items,
 and no unresolved admission. No model invocation occurred. See
 `MC-BROWSER-LIVE-CALIBRATION-20260914.json`.
 
@@ -31,8 +32,12 @@ server-side SYSTEM bridge mapping; workers/unbound collectors/wrong target/windo
 remain rejected. Clean model-picker screenshot captured privately. Failed
 off-target crops are discarded, not used as evidence. No new real chat was created.
 Remaining: finish follow-up verification/publication, then the two calibration
-launches once Astra availability and the existing lease are restored. Renewal is
-only at daemon initialization; no live renewal endpoint exists. No production
+launches after the renewal repair is reviewed and activated. The deployed code
+only activates a static lease at daemon initialization. Candidate now renews the
+same active owner via the existing healthy one-minute report: ten-minute lifetime,
+renew at five minutes remaining; stale/standby/superseded reports cannot renew.
+Restart restores durable same-owner expiry rather than old bootstrap expiry.
+No production
 deployment/configuration/account changes were made.
-Classification: `BROWSER_TASK_CREATION_CANDIDATE_LIVE_PREREQUISITES_UNAVAILABLE`.
+Classification: `LEASE_RENEWAL_REPAIR_PENDING_ACTIVATION`.
 Do not claim active runtime or completed calibration from synthetic tests.

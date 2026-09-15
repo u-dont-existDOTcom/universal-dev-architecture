@@ -253,6 +253,18 @@ restart of the disabled old relay fail closed on its stale lease.
 A same-lease renewal may only extend `expiresAt`; changing host, epoch, issue
 time, or takeover evidence requires a new fenced lease.
 
+The Mission Control daemon automatically performs this same-owner renewal from
+fresh authenticated `relay-health` reports when the active relay/browser is healthy
+and its ownership binding is valid. It gives ten minutes from the report timestamp
+and renews when five minutes remain. The existing one-minute health timer supplies
+the heartbeat; no new timer, permanent lease, or relay-side state writer is needed.
+Standby/old-epoch reports, stale replay, unhealthy reports and unresolved authority
+inconsistencies cannot renew. If the heartbeat stops, expiry still blocks sends.
+After a restart, the daemon restores the matching durable lease instead of rolling
+back to the static bootstrap expiry. A fresh heartbeat can recover that same owner
+after expiry, but cannot undo a takeover. Stop the old host's health-producing
+browser along with its relay when conducting the documented fenced takeover.
+
 ## Memory policy
 
 The relay detects host memory and does not assume a particular VPS size.

@@ -32,13 +32,17 @@ private locators, prompt bodies, account sessions, or screenshots in public tele
 
 This branch is a candidate, not a deployed/activated feature. Dedicated-account
 access was authorized and verified. The live scheduler reports `LEASE_STALE`; the
-expanded model picker offers Latest, GPT-5.6 Sol and GPT-5.5, but not GPT-6 Astra.
+expanded model picker offers Latest, GPT-5.6 Sol and GPT-5.5. The owner confirms
+Latest is the current Astra label. Literal Astra-name absence is not a blocker;
+selection supports Latest and the owner-approved future Astra/GPT 6 names.
 No calibration task was submitted. No personal browser may substitute for that account. Keep screenshots
 private and cropped to the selected controls, with no sidebar, prompt or session
 content. A successful synthetic test is not calibration. Do not merge or deploy
-before Chat reviews the live diff and calibration evidence. Lease renewal is only
-implemented at daemon initialization in the current runtime, not as a callable
-renewal endpoint. No service/config deployment or account/subscription change was made.
+before Chat reviews the live diff and calibration evidence. The deployed version
+only activates a static lease at daemon initialization. This candidate renews the
+same active owner's lease through fresh healthy existing relay-health reports:
+ten-minute expiry, renewal when five minutes remain. No service/config deployment
+or account/subscription change was made.
 
 The existing relay uses a COLLECTOR credential for the scheduler. The browser
 bridge accepts only a registered MC relay from that credential set, validates the

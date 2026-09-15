@@ -13,6 +13,55 @@ import {
 
 const origin = Date.parse('2026-09-10T12:00:00.000Z');
 
+test('active-owner heartbeat renews a finite lease, survives restart, and cannot be replayed forever', async () => {
+  const now = {value:origin};
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  now.value = Date.parse(primaryLease().expiresAt) - 60_000;
+  const report = {hostAlias:'primary',hostRole:'PRIMARY',deploymentEpoch:1,observedAt:new Date(now.value).toISOString(),
+    relayWorkerState:'HEALTHY',browserState:'HEALTHY',authorityBindingState:'BOUND'};
+  const first = await scheduler.renewLeaseFromHealth(report,'collector:relay');
+  assert.equal(first.renewed,true);
+  assert.equal(Date.parse(first.expiresAt),now.value+600_000);
+  assert.equal(store.state.activeLease.epoch,1);
+  assert.equal(store.state.lastBoundaryAt,null);
+  for (let minute=0; minute<120; minute++) {
+    now.value += 60_000;
+    await scheduler.renewLeaseFromHealth({...report,observedAt:new Date(now.value).toISOString()},'collector:relay');
+    assert.equal((await scheduler.status()).ready,true);
+  }
+  const expiry = store.state.activeLease.expiresAt;
+  const restarted = makeScheduler(store, now);
+  await restarted.activateLease(primaryLease(),{restorePersisted:true});
+  assert.equal(store.state.activeLease.expiresAt,expiry);
+  now.value = Date.parse(expiry) + 1;
+  assert.equal((await restarted.status()).ready,false);
+  assert.equal((await restarted.renewLeaseFromHealth(report,'collector:relay')).reason,'HEARTBEAT_NOT_FRESH');
+  assert.equal(store.state.activeLease.expiresAt,expiry);
+  assert.equal((await restarted.renewLeaseFromHealth({...report,observedAt:new Date(now.value).toISOString()},'collector:relay')).renewed,true);
+  assert.equal((await restarted.status()).ready,true);
+});
+
+test('standby, superseded epoch, unhealthy and halted relays cannot renew ownership', async () => {
+  const now = {value:origin};
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  now.value=Date.parse(primaryLease().expiresAt)-1;
+  const report={hostAlias:'primary',hostRole:'PRIMARY',deploymentEpoch:1,observedAt:new Date(now.value).toISOString(),
+    relayWorkerState:'HEALTHY',browserState:'HEALTHY',authorityBindingState:'BOUND'};
+  for (const [input,id] of [
+    [{...report,hostAlias:'standby',hostRole:'SECONDARY'},'collector:standby'],
+    [{...report,deploymentEpoch:2},'collector:relay'],
+    [{...report,browserState:'UNAVAILABLE'},'collector:relay'],
+    [{...report,authorityBindingState:'MISMATCH'},'collector:relay'],
+  ]) assert.equal((await scheduler.renewLeaseFromHealth(input,id)).renewed,false);
+  store.state.safetyHalt={reason:'test'};
+  assert.equal((await scheduler.renewLeaseFromHealth(report,'collector:relay')).renewed,false);
+  assert.equal(store.state.activeLease.expiresAt,primaryLease().expiresAt);
+});
+
 test('central scheduler persists a single-use admission before the actual boundary and enforces 60 seconds globally', async () => {
   const now = { value: origin };
   const store = new MemoryStore();
