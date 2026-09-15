@@ -10,7 +10,16 @@
   "observedRisk": "Making the interview dynamic and hiding its internal category queue removed the participant's ability to estimate remaining burden. The interaction could feel indefinitely open-ended even though the scientific coverage target is finite.",
   "failureMechanism": "ADAPTIVITY-PROGRESS VISIBILITY TRADEOFF: the product correctly hid rigid category sequencing but did not replace that lost orientation with a participant-facing estimate of how much required coverage remains. Dynamic order was treated as incompatible with a visible completion horizon when it is not.",
   "logicLesson": "A dynamic interview should hide the rigid script, not the completion horizon. Expose a continuously updated progress indicator derived from the fixed measurement contract, and label question/time estimates as rough because one answer can satisfy several constructs and answer length varies.",
-  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_PROGRESS-INDICATOR_CANDIDATE; CI_AND_LIVE_DEPLOY_VERIFICATION_PENDING_AT_CAPTURE_TIME",
+  "repairStatus": "IMPLEMENTED_AND_MECHANICALLY_VERIFIED_IN_HUMANDESIGN; OWNER_CONSUMER_SEAM_RETEST_PENDING",
+  "verification": {
+    "applicationHead": "1bfdca3de39cb22ae6b0592efdb5420a5a615df9",
+    "regressionHead": "fdab977480233769e082ed48f3a50ce9b7b155a8",
+    "ciRun": "35037559260",
+    "ci": "success",
+    "deploymentId": "83c4a54c-f3ef-4d06-ac34-2825014226ff",
+    "deploymentStatus": "success",
+    "health": "200_ok"
+  },
   "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
-  "nextVerificationBoundary": "Confirm the live Life Patterns interview persistently shows approximate percent complete plus a rough remaining-question/time range that updates as coverage changes without exposing the category queue."
+  "nextVerificationBoundary": "Owner consumer-seam confirmation that the live Life Patterns interview persistently shows approximate percent complete plus a rough remaining-question/time range that updates as coverage changes without exposing the category queue."
 }
