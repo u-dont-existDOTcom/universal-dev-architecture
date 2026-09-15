@@ -33,6 +33,9 @@ A local check is not a substitute for that runtime receipt. A non-allow decision
 blocks the affected action. A worker may not fabricate Chat provenance or use an
 owner-relay request to legitimize its own semantic proposal.
 
+Direct owner-authorized maintenance uses the shared pattern's separate recovery
+path, not model-routing admission. Autonomous setter-evidence checks stay intact.
+
 ## Spending boundary
 
 Apply the active source-bound owner spending decision through the shared runtime
