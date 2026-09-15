@@ -1,6 +1,6 @@
 # Owner-marked Mission Control failure capture
 
-**Status:** Proposed universal capture rule  
+**Status:** Current universal capture rule  
 **Date:** 2026-09-15
 
 ## Purpose
