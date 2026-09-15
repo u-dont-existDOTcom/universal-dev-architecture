@@ -73,7 +73,7 @@
     "Branch-only evidence can be misrepresented as canonical if capture states are not explicit."
   ],
   "workerRecommendation": "Adopt the narrow explicit-intent capture trigger, preserve capture truth states, and test it on the next fresh owner-explicit failure report before claiming universal live verification.",
-  "workerUncertainty": "This branch can establish durable GitHub capture behavior for Chat with current GitHub write access. It does not prove that every ChatGPT product surface will expose the same connector/write capability, nor does it prove a deployed Mission Control runtime ingested this branch artifact.",
+  "workerUncertainty": "The GitHub implementation establishes durable capture behavior for Chat surfaces with current GitHub write access. It does not prove that every ChatGPT product surface exposes the same connector/write capability, nor does it prove a deployed Mission Control runtime ingested the GitHub artifact.",
   "decisionThatCanChange": "Whether an explicit owner request to save/recover a Mission Control failure from ordinary Chat is durably routed to Mission Control/GitHub evidence instead of being left in conversation memory.",
   "routing": {
     "extraHighPacketPrepared": false,
@@ -81,7 +81,7 @@
     "reviewPriority": "NEXT_LIVE_REGRESSION",
     "sharedProScopeKey": "supervision-architecture/owner-marked-failure-capture-v1"
   },
-  "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "proMetaReview": null,
   "ownerDecisionRef": "current-chat:owner-continuation-2026-09-15",
   "repositoryChangeRefs": [
