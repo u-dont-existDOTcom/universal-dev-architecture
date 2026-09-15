@@ -4,7 +4,7 @@
   "requirement_id": "REQ-MC-OWNER-REPORTED-FAILURE-CAPTURE-20260915",
   "recorded_at": "2026-09-15T15:46:00+00:00",
   "timestamp_basis": "CURRENT_CHECK_TIME_FROM_CHAT_RUNTIME",
-  "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
   "owner_source": {
     "verbatim": [
@@ -31,7 +31,7 @@
       "id": "RO-CAPTURE-001",
       "terminal_required": true,
       "observable": "A live owner-explicit Mission Control failure-capture trigger activates a durable GitHub/runtime write in the same task when an authorized write route is available, before the assistant claims the failure is saved.",
-      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
       "evidence_refs": [
         "patterns/owner-marked-mission-control-failure-capture.md"
       ]
@@ -40,7 +40,7 @@
       "id": "RO-CAPTURE-002",
       "terminal_required": true,
       "observable": "The durable record preserves the bounded correction/failure mechanism, source digest/provenance, and recovery quality without leaking secrets, private chat locators, private infrastructure identifiers, or sensitive personal content into the public repository.",
-      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
       "evidence_refs": [
         "patterns/owner-marked-mission-control-failure-capture.md"
       ]
@@ -49,7 +49,7 @@
       "id": "RO-CAPTURE-003",
       "terminal_required": true,
       "observable": "When earlier examples are recovered, exact quotes and bounded summaries/partial recoveries are labeled distinctly and existing durable records are deduplicated rather than recreated as invented exact evidence.",
-      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
       "evidence_refs": [
         "feedback/mission-control/RECOVERY-20260915-OWNER-REPORTED-LOGIC-FAILURES.json",
         "patterns/owner-marked-mission-control-failure-capture.md"
@@ -59,7 +59,7 @@
       "id": "RO-CAPTURE-004",
       "terminal_required": true,
       "observable": "Owner-facing status distinguishes NOT_DURABLE, CAPTURED_BRANCH_ONLY, CANONICAL, and PARTIAL_RECOVERY; a schema/template/intent/memory statement cannot be reported as durable capture.",
-      "status": "IMPLEMENTED_ON_TASK_BRANCH_NOT_LIVE_VERIFIED",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
       "evidence_refs": [
         "patterns/owner-marked-mission-control-failure-capture.md",
         "evals/mission-control/owner-marked-failure-capture-routing.json"
@@ -92,5 +92,5 @@
   ],
   "assurance_lane": "iteration",
   "production_authorized": false,
-  "next_direct_evidence": "Make the root bootstrap route the explicit owner-marked capture trigger into the new pattern, preserve this turn's recovered inventory on the task branch, then use a future fresh explicit owner capture request as the live regression before claiming universal capture is fixed."
+  "next_direct_evidence": "Use the next fresh ordinary-Chat owner request to save or recover a Mission Control failure as the live regression; require a durable artifact identity before claiming capture is fixed across future turns."
 }
