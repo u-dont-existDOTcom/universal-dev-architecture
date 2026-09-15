@@ -81,16 +81,26 @@
     "reviewPriority": "NEXT_LIVE_REGRESSION",
     "sharedProScopeKey": "supervision-architecture/owner-marked-failure-capture-v1"
   },
-  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "status": "IMPLEMENTED_LIVE_VERIFIED_FOR_CURRENT_CHAT_GITHUB_ROUTE",
+  "liveVerification": {
+    "verifiedAt": "2026-09-15T19:43:00Z",
+    "trigger": "Fresh owner-explicit request asking whether a newly identified humanization logic failure was saved to Mission Control lessons.",
+    "result": "The ordinary Chat loaded the live capture rule and wrote a bounded Mission Control feedback artifact on an isolated GitHub task branch before claiming durability.",
+    "artifact": "feedback/mission-control/SDF-20260915-HUMANIZATION-OUTPUT-ADMISSION-FAILURE-001.json",
+    "captureTruthStateAtWrite": "CAPTURED_BRANCH_ONLY",
+    "scope": "Verifies the ordinary-Chat -> connected-GitHub capture route in the current Chat surface. Does not establish passive ingestion or universal connector availability across all ChatGPT surfaces."
+  },
   "proMetaReview": null,
   "ownerDecisionRef": "current-chat:owner-continuation-2026-09-15",
   "repositoryChangeRefs": [
     "patterns/owner-marked-mission-control-failure-capture.md",
     "docs/requirements/2026-09-15-owner-reported-failure-capture.owner-requirement.json",
     "feedback/mission-control/RECOVERY-20260915-OWNER-REPORTED-LOGIC-FAILURES.json",
+    "feedback/mission-control/SDF-20260915-HUMANIZATION-OUTPUT-ADMISSION-FAILURE-001.json",
     "evals/mission-control/owner-marked-failure-capture-routing.json"
   ],
   "testRefs": [
-    "evals/mission-control/owner-marked-failure-capture-routing.json"
+    "evals/mission-control/owner-marked-failure-capture-routing.json",
+    "fresh owner-explicit capture event on 2026-09-15"
   ]
 }
