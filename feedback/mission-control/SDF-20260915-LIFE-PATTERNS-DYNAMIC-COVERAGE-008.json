@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260915-LIFE-PATTERNS-DYNAMIC-COVERAGE-008",
+  "recordedAt": "2026-09-15T20:55:07Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "ok and are you also making sure the whole interview process is actually dynamic and not just going thru set categories of questions? we do need to cover all the questions yes, but a dynamic interview will feel more natural, so it should already plug in what i'm saying without doubling questions later",
+  "sourceSha256": "3eb48b5971e34b7857ad39f24a57fe2c994a9fccf1a4ecca086cd6cacc7e336f",
+  "observedRisk": "A scientifically fixed coverage blueprint can still regress into a category-by-category questionnaire if the next-question mechanism walks registry order or ignores evidence already supplied elsewhere in the interview.",
+  "failureMechanism": "STANDARDIZATION-ORDER COLLAPSE + CROSS-THREAD EVIDENCE LOSS: fixed required constructs were at risk of being interpreted as a fixed sequence of questions, while information already gathered in participant-led threads was not guaranteed to drive later question selection. This can create redundant questioning even when the science requires only coverage, not literal re-asking.",
+  "logicLesson": "Freeze what must be measured, not the order or literal wording. Reassess every participant answer against all required constructs, let one answer satisfy several constructs when genuinely supported, skip constructs already complete, and for partially covered constructs ask only the missing discriminator. Select the next question by information gain and conversational continuity rather than registry order.",
+  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_DYNAMIC_COVERAGE_CANDIDATE; CI_AND_LIVE_DEPLOY_VERIFICATION_PENDING_AT_CAPTURE_TIME",
+  "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
+  "nextVerificationBoundary": "Confirm the Life Patterns live coverage sweep uses prior accepted patterns and aggregate coverage to choose a non-redundant natural next question, and that completed dimensions are not re-asked."
+}
