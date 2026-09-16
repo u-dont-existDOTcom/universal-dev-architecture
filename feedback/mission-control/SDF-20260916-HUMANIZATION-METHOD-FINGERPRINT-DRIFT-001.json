@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "feedbackId": "SDF-20260916-HUMANIZATION-METHOD-FINGERPRINT-DRIFT-001",
   "createdAt": "2026-09-16T19:10:00Z",
+  "updatedAt": "2026-09-16T19:17:00Z",
   "taskId": "inner-child-humanization-owner-teaching-loop",
   "workerRunId": "chat-direct-20260916",
   "type": "DEFECT",
@@ -18,7 +19,8 @@
       "The owner then proposed testing whether writing those instructions on one turn and applying them on the next was itself important.",
       "For Episode 008 R6, Chat applied the already-frozen R3-to-R4 guide across a turn boundary, but that guide was organized mainly at section/thought level rather than the literal span -> operation -> positive generation target level.",
       "Chat described R6 as testing delayed instruction application even though it did not reproduce the full method structure that had worked in Episode 007.",
-      "After the owner supplied a screenshot of the earlier table and asked whether that exact style of self-instruction had been preserved, Chat identified the mismatch and created a new R6-to-R7 sentence-level guide before generation."
+      "After the owner supplied a screenshot of the earlier table and asked whether that exact style of self-instruction had been preserved, Chat identified the mismatch and created a new R6-to-R7 sentence-level guide before generation.",
+      "On the following owner turn, Chat applied that already-frozen sentence-level guide without rewriting it, then re-ran preservation and cold audit on the complete R7 boundary."
     ],
     "supportedCausalInference": "The successful workflow had been compressed in task state to a salient abstraction ('write repair instructions, then apply them on the next turn') rather than preserved and reactivated as a structural method fingerprint. When asked to continue, routing selected an available frozen guide that satisfied the delayed-execution label but not the finer instruction schema. No pre-execution admission check compared the candidate guide against the successful method's defining dimensions. This is a lossy lesson-representation plus task-time method-admission failure, not evidence that the sentence-level method was unknown.",
     "unverifiedHypotheses": []
@@ -41,8 +43,9 @@
     "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-007-OWNER-SENTENCE-REWRITE-GUIDE-20260916.md",
     "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-008-R3-TO-R4-SENTENCE-REPAIR-GUIDE-20260916.md",
     "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-008-R6-TO-R7-POSITIVE-SENTENCE-REPAIR-GUIDE-20260916.md",
-    "u-dont-existDOTcom/pangram-humanization-lab:state/generation/RETRIEVAL-FIRST-OWNER-TEACHING-PROTOCOL.md"
+    "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-008-BEFORE-YOU-TRY-TO-GO-DEEP-R7-SENTENCE-GUIDE-APPLICATION-20260916.md",
+    "u-dont-existDOTcom/pangram-humanization-lab:state/generation/HUMANIZATION-METHOD-FINGERPRINT-20260916.md"
   ],
-  "status": "CAPTURED_BRANCH_ONLY_REPAIR_APPLIED_PENDING_VERIFICATION",
-  "nextVerificationBoundary": "Apply the frozen R6-to-R7 sentence-level table on the next turn without rewriting the guide; verify preservation; cold-audit the exact full R7; then compare its detector outcome with R3-R6. A meaningful improvement would support the restored method fingerprint, while another broad failure would falsify this method variant for the current boundary."
+  "status": "CAPTURED_BRANCH_ONLY_REPAIR_APPLIED_R7_PENDING_DETECTOR",
+  "nextVerificationBoundary": "Compare the exact R7 detector outcome with R3-R5. A meaningful improvement supports the restored method fingerprint. Another broad failure would falsify this method variant for the current boundary and require a structurally different source/authorial route rather than another approximate paraphrase loop."
 }
