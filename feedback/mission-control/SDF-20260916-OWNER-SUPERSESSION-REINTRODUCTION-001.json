@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-OWNER-SUPERSESSION-REINTRODUCTION-001",
+  "createdAt": "2026-09-16T23:56:00Z",
+  "taskId": "inner-child-humanization-owner-teaching-loop",
+  "workerRunId": "chat-direct-20260916",
+  "type": "DEFECT",
+  "category": "OWNER_SUPERSESSION_AND_PRESERVATION_DIRECTION_FAILURE",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": true,
+  "captureIntent": "EXPLICIT_MISSION_CONTROL_CAPTURE_CHECK_AND_CORRECTION",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrections": [
+    "i don't want you to add back in anything i took out. i took it out for a reason.",
+    "if you feel strongly it needs to be there just tell me \"what about this particular part right here, that seems important\".",
+    "definitely don't break up my prose to put something in the middle that's an obvious violation. that would require my authorization.",
+    "it seems like you're basically just backwards, instead of looking at my example and then using that to write better, you look at your own example and use that to make my writing better."
+  ],
+  "boundedSummary": "During the Inner Child humanization loop, Joel produced a three-paragraph Catch-the-Hook realization that Pangram labeled Human/high. Chat then treated several functions present in an earlier assistant/source-preservation map as missing obligations and inserted new prose around and between the owner-final paragraphs. Those additions included a Guide/not-yet move, an explicit ten-minute delay, a literal-words-versus-later-translation explanation, and a safety/support tail. Joel then reported the resulting combined subsection as 100% AI/high and clarified that some functions were already understood, intentionally removed, duplicated elsewhere, or not wanted at that location. The core failure was that owner deletion/supersession was not rebound into the preservation ledger before generation, so the assistant's prior realization continued to act as the completion target.",
+  "failureMechanism": {
+    "observedTraceFacts": [
+      "Joel's final three-paragraph Catch-the-Hook realization was owner-reported Human/high and was explicitly designated to keep.",
+      "Chat subsequently added assistant prose for Guide/not-yet, a ten-minute delay, literal words-at-the-time versus later translation, and stop/external-support safety functions.",
+      "The resulting 336-word owner-lock-plus-remainder candidate was owner-reported 100% AI/high.",
+      "Joel clarified that Guide/not-yet added nothing beyond the existing Protector move at that location; the ten-minute duration felt arbitrary and the pause point was already made; later interpretation was already represented; and removed safety wording should not be restored automatically.",
+      "Joel explicitly prohibited inserting new material inside his prose without authorization and directed Chat to surface any suspected missing important function as a narrow question rather than auto-reinsert it.",
+      "The current preservation protocol already supports owner-superseded/owner-deleted dispositions and does not require one sentence per preservation unit."
+    ],
+    "supportedCausalInference": "This was not primarily missing instruction activation: the live UDA and Joel-Articles rules were being fetched. The failure was authority/preservation carry-through. The preservation ledger remained anchored to the assistant/source candidate after Joel had superseded its realization. Removed assistant material was treated as a semantic deficit to be repaired instead of first being classified as owner-superseded or owner-deleted. That reversed the intended learning direction: the model used its own prior draft as the standard for completing Joel's rewrite instead of using Joel's rewrite as the new base and the prior draft only as evidence for a possible gap. A second enforcement failure allowed insertion inside an owner-final block without explicit authorization.",
+    "unverifiedHypotheses": []
+  },
+  "affectedControls": [
+    "owner authority ordering",
+    "preservation-unit disposition",
+    "owner-final lock enforcement",
+    "humanization transfer-learning direction",
+    "task-time lesson activation and carry-through",
+    "output admission"
+  ],
+  "requiredRepair": [
+    "After a direct owner rewrite, rebase the changed scope on the owner text before any preservation completion. Earlier assistant prose becomes evidence only, not the default completion target.",
+    "Treat owner-removed assistant material as owner-superseded/owner-deleted unless Joel explicitly asks to restore it. Do not auto-reintroduce it because an earlier preservation ledger named the function.",
+    "Never insert material inside an owner-final/owner-locked span without explicit owner authorization. Preserve the lock byte-for-byte by default.",
+    "Before claiming a source function is missing, audit the complete natural boundary for equivalent coverage. If the function still appears materially absent and important, ask one narrow owner question identifying the exact function and proposed location; do not silently add it.",
+    "Separate semantic importance from realization authority. A function can matter while a specific assistant sentence, timing rule, framework role, caveat, or safety aftercare is rejected.",
+    "Use owner examples to improve subsequent model generation; do not use prior model realizations to normalize or 'complete' owner prose unless explicitly authorized.",
+    "When owner minimal repairs produce a Human boundary, preserve the exact before/after evidence and test transfer on a new target rather than wrapping the successful owner prose in additional model completion."
+  ],
+  "evidenceRefs": [
+    "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-008-CATCH-HOOK-OWNER-CALIBRATION-20260916.md",
+    "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-008-CATCH-HOOK-R11-OWNER-LOCK-PLUS-REMAINDER-20260916.md",
+    "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-008-CATCH-HOOK-R11-OWNER-100AI-AND-PRESERVATION-REVERSAL-LESSON-20260916.md",
+    "u-dont-existDOTcom/joel-articles:docs/HUMANIZATION-PRESERVATION-GATE.md",
+    "u-dont-existDOTcom/pangram-humanization-lab:state/generation/INNER-CHILD-EPISODE008-CATCH-HOOK-OWNER-CALIBRATION-20260916.md",
+    "u-dont-existDOTcom/universal-dev-architecture:patterns/owner-marked-mission-control-failure-capture.md"
+  ],
+  "status": "CAPTURED_BRANCH_ONLY_REPAIR_REQUIRED",
+  "nextVerificationBoundary": "On the next humanization repair, use Joel's current owner text as the sole prose base, preserve it unchanged unless explicitly authorized, and surface any suspected missing function as a narrow question before adding anything. Verify that no owner-removed assistant material reappears automatically."
+}
