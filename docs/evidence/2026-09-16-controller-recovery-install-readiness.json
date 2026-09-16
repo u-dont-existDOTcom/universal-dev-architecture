@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "checked_at": "2026-09-16T16:37:55Z",
+  "canonical_merge": "b8d1ac4ea957627de8f26feaba3e1560c92f4269",
+  "reviewed_head": "2fac48f382614629a874a2bdb5e368dd8178da7f",
+  "pull_request": 132,
+  "package": {
+    "source": "canonical merged tree at tools/codex-mission-control/vps-browser-relay",
+    "archive_sha256": "86719bfc357734744171add167905ccfae337b694b488e3db0c589b57644355c",
+    "installed_file_parity": "PASS",
+    "rollback_copy_preserved": true,
+    "state_preserved_across_install": true,
+    "chat_registration_preserved_across_install": true
+  },
+  "host": {
+    "role": "SECONDARY",
+    "environment": "AUTHORIZED_NONPRODUCTION_RELAY",
+    "browser_service": "ACTIVE",
+    "relay_service": "INACTIVE",
+    "health_timer": "ACTIVE"
+  },
+  "no_send_controls": {
+    "submission_enabled": false,
+    "capability_test_enabled": false,
+    "provider_submission_attempted": false,
+    "legacy_local_minimum_interval_ms_before_readiness": 20000,
+    "minimum_interval_ms_after_safety_correction": 60000,
+    "prechange_config_backup_preserved": true,
+    "memory_pressure": "NORMAL",
+    "managed_chatgpt_tabs": 1,
+    "unresolved_admission": false,
+    "queue_depth": 0,
+    "authority_ledger_valid": true,
+    "safety_halt": null
+  },
+  "readiness": {
+    "status": "DEPLOYMENT_LEASE_MISMATCH",
+    "scheduler_state": "LEASE_STALE",
+    "configured_active_role": "PRIMARY",
+    "candidate_role": "SECONDARY",
+    "target_binding_matches": true,
+    "central_authority_reachable_after_tunnel_restart": true
+  },
+  "first_failing_boundary": "CONTROLLED_FAILOVER_PRIMARY_QUIESCENCE_UNPROVEN",
+  "boundary_evidence": {
+    "primary_operator_access": "UNREACHABLE_AFTER_REPEATED_BOUNDED_ATTEMPTS",
+    "primary_control_probe_from_secondary": "UNREACHABLE",
+    "prior_lease": "EXPIRED_AND_STALE",
+    "old_sender_quiescence": "UNPROVEN",
+    "automatic_failover_allowed": false,
+    "policy_ref": "patterns/mission-control-multi-host-submission-scheduling.md"
+  },
+  "live_fixture": {
+    "created": false,
+    "request_id": null,
+    "reason": "No fixture may be created or submitted before exact lease readiness and proven prior-host quiescence."
+  },
+  "historical_cycle": {
+    "replayed": false,
+    "state_file_preserved_across_install": true,
+    "disposition": "PRESERVED_NO_REPLAY"
+  },
+  "assistant_dom_output_inspected": false,
+  "controller_semantic_substitution": false,
+  "paid_inference": false,
+  "production_mutated": false,
+  "next_executable_action": "Restore authorized operator access to the current PRIMARY and prove its relay and browser sender quiescent, or supply an independent fencing proof that satisfies the controlled-takeover contract; then activate an exact successor lease, repeat no-send readiness, and create exactly one fresh PM-mediated fixture."
+}

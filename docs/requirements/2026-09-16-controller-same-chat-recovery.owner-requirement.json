@@ -3,7 +3,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-CONTROLLER-SAME-CHAT-RECOVERY-20260916",
   "recorded_at": "2026-09-16T15:40:41Z",
-  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "status": "BLOCKED_EXACT_REASON",
   "completion_allowed": false,
   "owner_source": {
     "verbatim": "Execute MISSION-CONTROL-FRESH-WORKER-PM-CONTINUITY-2026-09-16-v2.md as the sole controlling directive. The prior non-v2 file is superseded. In particular, preserve the ordered recovery rule: never Retry the original failed semantic turn first; send exact continue, and only if that continue turn itself fails may you Retry that exact failed continue turn.",
@@ -67,9 +67,11 @@
     {
       "id": "LIVE-PM-FIXTURE",
       "observable": "One fresh disposable PM-mediated exact OWNER-byte fixture reaches canonical resolution without assistant-output inspection, semantic substitution, paid inference, or production mutation.",
-      "status": "RECORDED_NOT_IMPLEMENTED",
+      "status": "BLOCKED_EXACT_REASON",
       "terminal_required": true,
-      "evidence_refs": []
+      "evidence_refs": [
+        "docs/evidence/2026-09-16-controller-recovery-install-readiness.json"
+      ]
     }
   ],
   "non_satisfying_proxies": [
@@ -80,7 +82,7 @@
     "Reading, copying, hashing, or parsing assistant response content",
     "Replaying the historical 2026-09-09 cycle or the consumed direct-path fixture"
   ],
-  "next_direct_evidence": "Reviewed protected merge, exact merged-package nonproduction install with rollback, no-send readiness, and exactly one fresh PM-mediated live fixture through origin artifact, PM artifact, return, and canonical resolution.",
+  "next_direct_evidence": "PR #132 is merged and the exact package is installed with rollback, but no-send readiness is fenced by a stale PRIMARY lease and unproven old-host quiescence. Restore PRIMARY operator access or provide independent fencing proof, complete controlled takeover/lease readiness, then run exactly one fresh PM-mediated fixture.",
   "production_authorized": false,
   "paid_inference_authorized": false
 }
