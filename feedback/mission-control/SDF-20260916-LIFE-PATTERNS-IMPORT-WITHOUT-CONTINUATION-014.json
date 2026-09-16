@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-IMPORT-WITHOUT-CONTINUATION-014",
+  "recordedAt": "2026-09-16T14:18:21Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "good, and i imported my json as you told me to. it loaded it. but now i'm at the end again with no options except to send a message?",
+  "observedFailure": "The recovery import successfully restored visible transcript content but failed to restore or expose an intelligible next workflow state, leaving the participant at the end of the recovered interview with only a generic message composer.",
+  "failureMechanism": "DATA-RESTORATION / WORKFLOW-RESTORATION SPLIT: the implementation treated successful deserialization/rendering as successful recovery, while the participant's real recovery objective included an actionable continuation state. Because the older file lacked the original hidden ledger, the UI needed an explicit development-only reconstruction/continuation route or a clean-restart option instead of silently falling through to the ordinary composer.",
+  "logicLesson": "Recovery is not complete when bytes or visible history reappear. Restore the next meaningful action as well, or explicitly present the available continuation choices and limitations. When exact internal state is unavailable, separate reconstructed development continuity from a clean scientific restart rather than leaving the user to infer what to type next.",
+  "repair": {
+    "participantChoices": [
+      "Continue from this recovered interview",
+      "Start a clean scientific interview"
+    ],
+    "reconstructedRoute": "Re-encodes recovered participant utterances conservatively into a newly reconstructed working ledger, then lets the target-blind interviewer surface a current synthesis or one necessary next question.",
+    "scientificStatus": "Reconstructed transcript state remains non-scientific and cannot become the clean scientific freeze.",
+    "freeFormComposerRetained": true
+  },
+  "privacyBoundary": "No private interview transcript, hidden ledger, or personal behavioral content is published in this public repository. Only the non-sensitive owner correction and abstract product-logic failure are captured.",
+  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_CANDIDATE; CI_AND_LIVE_VERIFICATION_PENDING_AT_CAPTURE_TIME",
+  "nextVerificationBoundary": "Import an older visible-transcript recovery and verify that the participant is shown explicit continuation/restart choices; choosing continuation must yield either an actionable synthesis review or one genuinely necessary next interview question without representing the reconstructed ledger as the original scientific ledger."
+}
