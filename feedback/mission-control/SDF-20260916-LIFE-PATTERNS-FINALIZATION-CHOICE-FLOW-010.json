@@ -25,7 +25,16 @@
     "Do not expose internal refinement-state distinctions as separate buttons unless the participant can understand and benefit from the distinction.",
     "When a finite adaptive interview already owns completion, make that continuation the default and do not present an unlimited parallel branch as an equally normal next step."
   ],
-  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_CANDIDATE; VERIFICATION_IN_PROGRESS_AT_CAPTURE_TIME",
+  "repairStatus": "IMPLEMENTED_MECHANICALLY_VERIFIED_AND_LIVE_IN_HUMANDESIGN; OWNER_CONSUMER_SEAM_RETEST_PENDING",
+  "repairEvidence": {
+    "humandesignApplicationHead": "cef6ad16546448355a3e624016b46333b2730573",
+    "humandesignRegressionHead": "d68380b0d33ace513f6b705cd27283e2fe1aa79f",
+    "ciRun": "35044113034",
+    "ci": "success_tests_ruff_strict_mypy",
+    "railwayDeployment": "6126c7b7-d207-4552-a12f-65304be89ea5",
+    "railwayStatus": "success",
+    "health": "200_ok"
+  },
   "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
-  "nextVerificationBoundary": "Confirm the live app finalizes a synthesis without duplicate-adjudication failure, exposes one clear nonterminal Keep investigating action plus free-form correction, and makes Continue interview the primary post-acceptance path with the unlimited Explore another pattern branch removed from the participant UI."
+  "nextVerificationBoundary": "Owner refreshes into a fresh live session, accepts one synthesis once, confirms no duplicate-adjudication error, confirms one visible Keep investigating path plus free-form correction, and confirms Continue interview is the finite default with Explore another pattern absent."
 }
