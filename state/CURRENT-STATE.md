@@ -42,8 +42,9 @@ turn visibly fails may the controller Retry that exact failed continue once.
   locally. The release checkpoint is green: repository 338/338 plus deterministic
   audit, Mission Control 270/270 plus typecheck and production build, relay
   201/201 plus syntax/service assets, source-archive reconstruction digest, and
-  diff check. Reviewed merge, exact merged-package nonproduction install, and
-  one fresh live fixture remain pending.
+  diff check. PR #132 passed hosted checks and merged as
+  `b8d1ac4ea957627de8f26feaba3e1560c92f4269`; the exact package is installed on
+  the authorized SECONDARY with file parity and rollback preserved.
 
 ## Completed outcome
 
@@ -59,16 +60,18 @@ turn visibly fails may the controller Retry that exact failed continue once.
 
 ## Remaining
 
-- Complete the reviewed merge, install the exact merge on the authorized
-  nonproduction topology with rollback preserved, then run exactly one fresh
-  disposable PM-mediated OWNER-byte fixture.
+- Restore authorized operator access to the PRIMARY or provide independent
+  fencing proof, prove the prior relay/browser sender quiescent, activate the
+  controlled successor lease, re-run no-send readiness, then run exactly one
+  fresh disposable PM-mediated OWNER-byte fixture.
 
 ## Blockers / unresolved
 
-- No implementation/test blocker is currently known. Live host reachability and
-  the real browser consumer seam still require current verification; any access,
-  ownership, ambiguity, or changed product-UI boundary will stop the live phase
-  fail closed.
+- The current PRIMARY lease is stale and SECONDARY is correctly fenced with
+  `DEPLOYMENT_LEASE_MISMATCH`. Repeated bounded access attempts cannot reach the
+  PRIMARY or prove its old browser sender quiescent. Active multi-host policy
+  forbids automatic network-partition failover; no fresh fixture was created.
+  See `docs/evidence/2026-09-16-controller-recovery-install-readiness.json`.
 
 ## Evidence / artifacts
 

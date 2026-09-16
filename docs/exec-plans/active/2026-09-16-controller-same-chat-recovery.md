@@ -1,6 +1,6 @@
 # Controller-mediated PM same-chat recovery
 
-Status: ACTIVE
+Status: BLOCKED — CONTROLLED FAILOVER REQUIRES PROVEN PRIMARY QUIESCENCE
 
 Assurance lane: release only after the focused candidate proves the current seam.
 
@@ -49,8 +49,17 @@ or ambiguous send/click ancestry fails closed.
 - Release gates are green locally: repository 338/338 and deterministic audit;
   Mission Control 270/270, typecheck, and production build; relay 201/201,
   syntax, and service assets; archive reconstruction digest and diff check.
-- Pending: exact diff/PR review, hosted checks, protected merge, rollback-safe
-  nonproduction install, no-send readiness, and exactly one fresh live fixture.
+- PR #132 passed hosted checks and merged as
+  `b8d1ac4ea957627de8f26feaba3e1560c92f4269`. The exact package is installed
+  on the authorized SECONDARY with file parity and rollback preserved.
+- No-send readiness is blocked: the shared authority reports a stale PRIMARY
+  lease, SECONDARY remains correctly fenced, and repeated local and
+  SECONDARY-origin control probes cannot prove the old PRIMARY browser sender
+  quiescent. Automatic partition failover is forbidden by the active multi-host
+  policy. No live fixture was created.
+- Next: restore authorized PRIMARY operator access or independent fencing,
+  prove quiescence, activate a controlled successor lease, re-run no-send
+  readiness, then create exactly one fresh fixture.
 
 ## Stop conditions
 
