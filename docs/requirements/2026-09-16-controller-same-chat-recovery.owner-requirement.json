@@ -1,0 +1,86 @@
+{
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CONTROLLER-SAME-CHAT-RECOVERY-20260916",
+  "recorded_at": "2026-09-16T15:40:41Z",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Execute MISSION-CONTROL-FRESH-WORKER-PM-CONTINUITY-2026-09-16-v2.md as the sole controlling directive. The prior non-v2 file is superseded. In particular, preserve the ordered recovery rule: never Retry the original failed semantic turn first; send exact continue, and only if that continue turn itself fails may you Retry that exact failed continue turn.",
+    "sha256": "41e423ac41c95a61fa369b85952cc6fe11312a506bf62d1ee9e041d07d157c20",
+    "source_type": "owner_chat_message",
+    "source_ref": "current-chat:owner-message:2026-09-16",
+    "provider_source_timestamp": null,
+    "source_time_status": "TIMESTAMP_UNAVAILABLE"
+  },
+  "directive_artifact": {
+    "filename": "MISSION-CONTROL-FRESH-WORKER-PM-CONTINUITY-2026-09-16-v2.md",
+    "sha256": "a0d7e805a63232fdbab9cb6aff3623c29e2d59d152116fe858d8a917d4d21fb4",
+    "authority": "SOLE_CONTROLLING_DIRECTIVE",
+    "supersedes": "MISSION-CONTROL-FRESH-WORKER-PM-CONTINUITY-2026-09-16.md"
+  },
+  "parent_owner_outcome": {
+    "status": "OPEN",
+    "remaining_gap": "One successful current PM-mediated controller cycle at the real consumer seam."
+  },
+  "followup_admission": "OWNER_GOAL_DERIVED",
+  "canonical_baseline": "deef93b718af234d37bd2c2c04ccd26f9d2a0feb",
+  "required_recovery_order": [
+    "ORIGINAL_SEMANTIC_TURN",
+    "EXACT_SAME_CHAT_CONTINUE",
+    "OPTIONAL_SINGLE_RETRY_OF_EXACT_FAILED_CONTINUE",
+    "WAIT_FOR_SAME_DURABLE_ARTIFACT"
+  ],
+  "forbidden_first_recovery": "RETRY_ORIGINAL_SEMANTIC_TURN",
+  "normalized_outcome": "The controller can recover a completed-but-artifact-missing origin, PM, or return turn by sending exact same-chat continue through the shared scheduler, and can click Retry at most once only when non-content structural evidence binds that control to the exact failed continue turn. One fresh disposable PM-mediated fixture must still prove this at the live consumer seam.",
+  "required_outcomes": [
+    {
+      "id": "RECOVERY-ORDER",
+      "observable": "Origin, PM, and return waits send exact continue only after idle/completion evidence, the configured grace interval, and a fresh absence check; no original semantic turn Retry can be the first action.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/test/controller-mediated-pm.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/continue-recovery.test.mjs"
+      ]
+    },
+    {
+      "id": "EXACT-CONTINUE-RETRY-BINDING",
+      "observable": "Retry is available once only when structural non-content evidence binds one exact Retry control to the exact visibly failed continue turn in the same bound conversation.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/continue-recovery.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/cdp.mjs"
+      ]
+    },
+    {
+      "id": "RESTART-PACING-FAIL-CLOSED",
+      "observable": "Continue and Retry-of-continue have separate persisted counts, use the shared scheduler and exact automation-owned target, cannot duplicate across restart, and fail closed on ambiguous or crossed boundaries, exhaustion, expiry, or a second Retry.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/src/controller-mediated-pm.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-service.test.mjs"
+      ]
+    },
+    {
+      "id": "LIVE-PM-FIXTURE",
+      "observable": "One fresh disposable PM-mediated exact OWNER-byte fixture reaches canonical resolution without assistant-output inspection, semantic substitution, paid inference, or production mutation.",
+      "status": "RECORDED_NOT_IMPLEMENTED",
+      "terminal_required": true,
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Retrying the original failed semantic turn before exact continue",
+    "Treating any generic Retry or Try again control as sufficient ancestry",
+    "A green simulation without an exact merged-package live fixture",
+    "A generation-complete observation without the expected durable artifact or canonical final receipt",
+    "Reading, copying, hashing, or parsing assistant response content",
+    "Replaying the historical 2026-09-09 cycle or the consumed direct-path fixture"
+  ],
+  "next_direct_evidence": "Reviewed protected merge, exact merged-package nonproduction install with rollback, no-send readiness, and exactly one fresh PM-mediated live fixture through origin artifact, PM artifact, return, and canonical resolution.",
+  "production_authorized": false,
+  "paid_inference_authorized": false
+}

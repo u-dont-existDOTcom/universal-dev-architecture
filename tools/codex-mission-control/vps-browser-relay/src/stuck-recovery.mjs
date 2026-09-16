@@ -54,8 +54,6 @@ const RECOVERABLE_CONTROL_FN = `function(expectedUrl) {
     ['continue', 'Continue'],
     ['continue generating', 'Continue generating'],
     ['resume', 'Resume'],
-    ['retry', 'Retry'],
-    ['try again', 'Try again'],
   ]);
   for (const element of [...document.querySelectorAll('button, [role="button"]')].filter(visible)) {
     const raw = element.getAttribute('aria-label') || element.innerText || '';

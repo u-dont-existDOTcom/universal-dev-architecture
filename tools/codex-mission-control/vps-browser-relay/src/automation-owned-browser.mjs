@@ -318,6 +318,21 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.waitForGenerationComplete(target, input);
   }
 
+  async captureContinueRecoveryAnchor(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.captureContinueRecoveryAnchor(target, input);
+  }
+
+  async inspectFailedContinueRetry(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.inspectFailedContinueRetry(target, input);
+  }
+
+  async retryExactFailedContinue(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.retryExactFailedContinue(target, input);
+  }
+
   #reusableTarget(ownership, owned, reusableTargetId, wantedUrl, purpose) {
     const byId = new Map(owned.map((target) => [target.id, target]));
     const explicit = reusableTargetId && byId.get(reusableTargetId);

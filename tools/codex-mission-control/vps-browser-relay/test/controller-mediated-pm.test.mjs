@@ -337,8 +337,213 @@ test('GitHub polling performs no consumed-artifact rescans during ordinary wait 
   assert.equal(fixture.github.expectations.length, before, 'final wait performs no GitHub mailbox polling before Mission Control exposes final proof');
 });
 
-function makeFixture({ pacerFailure = null } = {}) {
-  const packet = continuationPacket();
+test('origin recovery waits for completion, grace, and a fresh absence check before exact continue', async () => {
+  const fixture = makeFixture();
+  await fixture.runtime.initialize(fixture.spec);
+  await fixture.runtime.cycle('cycle-1');
+  assert.equal(fixture.browser.submits.length, 1);
+
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal(fixture.browser.submits.length, 1, 'generation completion alone cannot send continue');
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.sends.origin.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+  cycle.recoveries.origin.lastObservedCompletionAt = cycle.sends.origin.generationCompletedAt;
+  cycle.artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+
+  const recovered = await fixture.runtime.cycle('cycle-1');
+  assert.equal(recovered.status, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal(fixture.browser.submits.length, 2);
+  assert.equal(fixture.browser.submits[1].body, 'continue');
+  assert.equal(fixture.browser.submits[1].targetId, 'origin-target');
+  assert.equal(fixture.browser.targets.length, 1, 'same-chat continue does not create a fresh conversation target');
+  assert.equal(fixture.store.state.controllerCycles['cycle-1'].recoveries.origin.continueAttemptCount, 1);
+  assert.equal(fixture.store.state.controllerCycles['cycle-1'].recoveries.origin.continueRetryCount, 0);
+  assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_ORIGIN_CONTINUE');
+});
+
+test('an artifact found at the fresh check suppresses continue', async () => {
+  const fixture = makeFixture();
+  await fixture.runtime.initialize(fixture.spec);
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.sends.origin.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+  cycle.artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  fixture.github.available.add('ORIGIN_TO_PM');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_ARTIFACT_VALIDATED');
+  assert.equal(fixture.browser.submits.length, 1);
+});
+
+test('visible failure of exact continue enters Retry-of-continue and clicks it once without a new message', async () => {
+  const fixture = makeFixture();
+  fixture.browser.retryInspections.push(
+    retryInspection(),
+    { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY', assistantContentObserved: false },
+  );
+  await driveOriginToContinue(fixture);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  assert.equal(fixture.store.state.controllerCycles['cycle-1'].step, 'RETRY_FAILED_CONTINUE');
+  fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  assert.equal(fixture.browser.retryClicks.length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1, 'Retry creates no new user message');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
+  const recovery = fixture.store.state.controllerCycles['cycle-1'].recoveries.origin;
+  assert.equal(recovery.continueAttemptCount, 1);
+  assert.equal(recovery.continueRetryCount, 1);
+  assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_ORIGIN_CONTINUE_RETRY');
+});
+
+test('ambiguous Retry ancestry fails closed and never clicks Retry or resends original task', async () => {
+  const fixture = makeFixture();
+  fixture.browser.retryInspectionError = new Error('CONTINUE_RETRY_ANCESTRY_AMBIGUOUS');
+  await driveOriginToContinue(fixture);
+  await fixture.runtime.cycle('cycle-1');
+  const result = await fixture.runtime.cycle('cycle-1');
+  assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
+  assert.equal(result.error, 'CONTINUE_RETRY_ANCESTRY_AMBIGUOUS');
+  assert.equal(fixture.browser.retryClicks.length, 0);
+  assert.equal(fixture.browser.submits.length, 2);
+});
+
+test('artifact reconciliation wins before a ready Retry-of-continue click', async () => {
+  const fixture = makeFixture();
+  fixture.browser.retryInspections.push(retryInspection());
+  await driveOriginToContinue(fixture);
+  await fixture.runtime.cycle('cycle-1');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  fixture.github.available.add('ORIGIN_TO_PM');
+  fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_ARTIFACT_VALIDATED');
+  assert.equal(fixture.browser.retryClicks.length, 0);
+});
+
+test('restart cannot duplicate a continue or Retry boundary', async () => {
+  const fixture = makeFixture();
+  await driveOriginToContinue(fixture);
+  let cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.recoveries.origin.attempts.at(-1).status = 'CLICK_BOUNDARY_PERSISTED';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_CONTINUE_SEND_AMBIGUOUS_NO_REPLAY');
+  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+
+  cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.recoveries.origin.attempts.at(-1).status = 'RETRY_FAILED_CONTINUE';
+  cycle.recoveries.origin.attempts.at(-1).retry = {
+    status: 'CLICK_BOUNDARY_PERSISTED', binding: retryInspection().binding,
+    bindingSha256: 'f'.repeat(64), intentRecordedAt: new Date().toISOString(), boundaryObservedAt: new Date().toISOString(),
+  };
+  cycle.step = 'RETRY_FAILED_CONTINUE';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_CONTINUE_RETRY_SEND_AMBIGUOUS_NO_REPLAY');
+  assert.equal(fixture.browser.retryClicks.length, 0);
+});
+
+test('one recovered origin artifact advances the existing controller state normally', async () => {
+  const fixture = makeFixture();
+  await driveOriginToContinue(fixture);
+  fixture.github.available.add('ORIGIN_TO_PM');
+  fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_ARTIFACT_VALIDATED');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'PM_SEND_READY');
+  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+});
+
+test('the same bounded continue mechanism applies to PM and return durable-artifact waits', async () => {
+  {
+    const fixture = makeFixture();
+    await driveToPmWait(fixture);
+    await fixture.runtime.cycle('cycle-1');
+    const cycle = fixture.store.state.controllerCycles['cycle-1'];
+    cycle.sends.pm.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+    cycle.recoveries.pm.lastObservedCompletionAt = cycle.sends.pm.generationCompletedAt;
+    cycle.artifactPolling.pm.nextPollAt = '2026-01-01T00:00:00.000Z';
+    fixture.store.state.controllerCycles['cycle-1'] = cycle;
+    assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_PM_ARTIFACT');
+    assert.equal(fixture.browser.submits.at(-1).body, 'continue');
+    assert.equal(fixture.browser.submits.at(-1).targetId, 'pm-target');
+    assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_PM_CONTINUE');
+  }
+
+  {
+    const fixture = makeFixture();
+    await driveToReturnWait(fixture);
+    const cycle = fixture.store.state.controllerCycles['cycle-1'];
+    cycle.sends.return.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+    cycle.recoveries.return.lastObservedCompletionAt = cycle.sends.return.generationCompletedAt;
+    fixture.store.state.controllerCycles['cycle-1'] = cycle;
+    assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_RETURN_ARTIFACT_OR_ACK');
+    assert.equal(fixture.browser.submits.at(-1).body, 'continue');
+    assert.equal(fixture.browser.submits.at(-1).targetId, 'origin-target');
+    assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_RETURN_CONTINUE');
+  }
+});
+
+test('recovery ceiling stops further continue sends', async () => {
+  const fixture = makeFixture();
+  fixture.runtime.config.runtime.stuckRecoveryMaxNudges = 1;
+  await driveOriginToContinue(fixture);
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.recoveries.origin.lastRecoveryCompletedAt = '2026-09-16T00:00:00.000Z';
+  cycle.artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  const result = await fixture.runtime.cycle('cycle-1');
+  assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
+  assert.equal(result.error, 'CONTROLLER_CONTINUE_RECOVERY_CEILING_EXHAUSTED');
+  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+});
+
+test('a crossed Retry-of-continue failure stops without another Retry or continue', async () => {
+  const fixture = makeFixture();
+  fixture.browser.retryInspections.push(retryInspection());
+  await driveOriginToContinue(fixture);
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  fixture.browser.failRetryAfterClickOnce = true;
+  const failed = await fixture.runtime.cycle('cycle-1');
+  assert.equal(failed.status, 'CONTROLLER_CYCLE_ERROR');
+  assert.equal(failed.error, 'CONTINUE_RETRY_FAILED_CLOSED');
+  const resumed = await fixture.runtime.cycle('cycle-1');
+  assert.equal(resumed.status, 'ORIGIN_CONTINUE_RETRY_SEND_AMBIGUOUS_NO_REPLAY');
+  assert.equal(fixture.browser.retryClicks.length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+});
+
+test('expired route prevents provider recovery sends', async () => {
+  const expiresAt = '2099-09-10T00:00:00.000Z';
+  const fixture = makeFixture({ expiresAt });
+  await fixture.runtime.initialize(fixture.spec);
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.sends.origin.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+  cycle.recoveries.origin.lastObservedCompletionAt = cycle.sends.origin.generationCompletedAt;
+  cycle.artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  const realNow = Date.now;
+  Date.now = () => Date.parse(expiresAt) + 1;
+  try {
+    const result = await fixture.runtime.cycle('cycle-1');
+    assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
+    assert.equal(result.error, 'CONTROLLER_CYCLE_EXPIRED');
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(fixture.browser.submits.length, 1);
+  assert.equal(fixture.browser.retryClicks.length, 0);
+});
+
+function makeFixture({ pacerFailure = null, expiresAt = '2099-09-10T00:00:00.000Z' } = {}) {
+  const packet = continuationPacket(expiresAt);
   const body = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify(packet);
   const routeEvent = {
     eventId: 'route-event-1', sequence: 10, occurredAt: packet.queuedAt,
@@ -369,6 +574,7 @@ function makeFixture({ pacerFailure = null } = {}) {
     missionControl: { requestTimeoutMs: 30_000 },
     runtime: {
       submitEnabled: true, maxHotTabs: 3,
+      stuckRecoveryMaxNudges: 3,
       chats: [chat('SPECIALIST', 'origin-supervisor', 'origin-target-chat'), chat('PROJECT_MANAGER', CONTROLLER_PM_ID, 'pm-chat')],
     },
   };
@@ -446,6 +652,8 @@ class FakeBrowser {
   constructor() {
     this.targets = [{ id: 'origin-target', url: 'https://chatgpt.com/c/binding', automationWindowId: 7, automationOwned: true }];
     this.navigations = []; this.exactRequirements = []; this.submits = []; this.closed = [];
+    this.retryClicks = []; this.retryInspections = []; this.retryInspectionError = null; this.turnSequence = 0;
+    this.failRetryAfterClickOnce = false;
     this.failAfterNavigateOnce = false; this.failAfterCreateOnce = false; this.failAppSelectionOnce = false; this.failAfterClickOnce = false;
   }
   async listTargets() { return structuredClone(this.targets); }
@@ -506,11 +714,41 @@ class FakeBrowser {
     }
     return { generationStarted: true, clickedAtObserved: observedAt, startedAtObserved: observedAt, conversationUrl, startSignal: 'STOP_CONTROL_VISIBLE' };
   }
-  async waitForGenerationComplete() { return { generationStarted: true, completedAtObserved: '2026-09-09T00:10:00.000Z', inspectedAssistantOutput: false }; }
+  async waitForGenerationComplete() { return { generationStarted: true, completedAtObserved: new Date().toISOString(), inspectedAssistantOutput: false }; }
+  async captureContinueRecoveryAnchor() {
+    this.turnSequence += 1;
+    return {
+      schemaVersion: 1,
+      structuralTurns: [{ key: `prior-user-${this.turnSequence}`, role: 'user' }, { key: `prior-assistant-${this.turnSequence}`, role: 'assistant' }],
+      structuralSha256: 'a'.repeat(64),
+      capturedAt: new Date().toISOString(),
+      assistantContentObserved: false,
+    };
+  }
+  async inspectFailedContinueRetry() {
+    if (this.retryInspectionError) throw this.retryInspectionError;
+    return this.retryInspections.shift() ?? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY', assistantContentObserved: false };
+  }
+  async retryExactFailedContinue(target, input) {
+    this.retryClicks.push({ targetId: target.id, binding: structuredClone(input.binding) });
+    const observedAt = new Date().toISOString();
+    await input.onSubmissionBoundary?.({
+      status: 'CLICKED', targetId: target.id, conversationUrl: input.expectedUrl,
+      clickedAtObserved: observedAt, generationStarted: false,
+      providerSourceTime: null, inspectedAssistantOutput: false,
+    });
+    if (this.failRetryAfterClickOnce) {
+      this.failRetryAfterClickOnce = false;
+      throw Object.assign(new Error('simulated Retry process death after click'), {
+        relayStage: 'CLICKED', clickedAtObserved: observedAt, submissionBoundaryPersistenceAttempted: true,
+      });
+    }
+    return { generationStarted: true, clickedAtObserved: observedAt, startedAtObserved: observedAt, conversationUrl: input.expectedUrl, startSignal: 'STOP_CONTROL_VISIBLE' };
+  }
 }
 
 class FakePacer {
-  constructor(store, failure) { this.store = store; this.failure = failure; this.ready = true; }
+  constructor(store, failure) { this.store = store; this.failure = failure; this.ready = true; this.contexts = []; }
   status() {
     return {
       ready: this.ready,
@@ -526,7 +764,8 @@ class FakePacer {
     return status;
   }
   async remoteStatus() { return this.status(); }
-  async submit({ beforeSubmit, recordBoundary, submit }) {
+  async submit({ context, beforeSubmit, recordBoundary, submit }) {
+    this.contexts.push(context ? { queueKey: context.queueKey, sendPath: context.sendPath, bodySha256: context.bodySha256 } : null);
     await beforeSubmit?.();
     if (this.failure) throw this.failure;
     const persist = async (observed) => {
@@ -540,6 +779,50 @@ class FakePacer {
     await persist(result);
     return result;
   }
+}
+
+async function driveOriginToContinue(fixture) {
+  await fixture.runtime.initialize(fixture.spec);
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.sends.origin.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+  cycle.recoveries.origin.lastObservedCompletionAt = cycle.sends.origin.generationCompletedAt;
+  cycle.artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
+}
+
+async function driveToPmWait(fixture) {
+  await fixture.runtime.initialize(fixture.spec);
+  await fixture.runtime.cycle('cycle-1');
+  fixture.github.available.add('ORIGIN_TO_PM');
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_PM_ARTIFACT');
+}
+
+async function driveToReturnWait(fixture) {
+  await driveToPmWait(fixture);
+  fixture.github.available.add('PM_TO_ORIGIN');
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_RETURN_ARTIFACT_OR_ACK');
+}
+
+function retryInspection() {
+  return {
+    status: 'RETRY_FAILED_CONTINUE',
+    binding: {
+      schemaVersion: 1,
+      anchorStructuralSha256: 'a'.repeat(64),
+      continueUserTurnKey: 'continue-user',
+      failedAssistantTurnKey: 'continue-assistant',
+      controlLabel: 'Retry',
+    },
+    bindingSha256: 'f'.repeat(64),
+    assistantContentObserved: false,
+  };
 }
 
 class FakeGitHubArtifacts {
@@ -591,7 +874,7 @@ function artifactReceipt(cycle, kind) {
   };
 }
 
-function continuationPacket() {
+function continuationPacket(expiresAt = '2099-09-10T00:00:00.000Z') {
   const packet = {
     schemaVersion: 4, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId: 'fresh-request', nonce: 'route-nonce',
     reasoningLane: 'EXTRA_HIGH_DIRECT', destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'origin-supervisor',
@@ -599,7 +882,7 @@ function continuationPacket() {
     ownerOutcome: { id: 'outcome', epoch: 2, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 59, stageIssueNumber: 61 },
     factualPacket: { packetId: 'packet', taskId: 'task-1', exactFactualState: 'fixture', evidenceRefs: [], decisionRequested: 'Return exact bytes.' },
-    queuedAt: '2026-09-09T00:00:00.000Z', expiresAt: '2099-09-10T00:00:00.000Z',
+    queuedAt: '2026-09-09T00:00:00.000Z', expiresAt,
   };
   packet.continuationBinding = {
     schema_version: 1, kind: 'OWNER_RESPONSE_CONTINUATION', worker: 'worker-a', decision_request_id: 'historical-request',

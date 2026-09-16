@@ -5,47 +5,45 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-12
+Updated: 2026-09-16
 
 ## Goal
 
-Complete issue #90 without weakening its frozen requirement: routine Mission
-Control worker/controller/supervisor browser execution runs on the authorized
-primary/secondary VPS topology, every provider send uses one shared Mission
-Control queue/lease/pacing authority, and only exact registered MC-only
-supervisor conversations are eligible.
+Complete one fresh PM-mediated controller cycle at the real consumer seam while
+preserving the frozen recovery order: never Retry an original failed semantic
+turn first; send exact same-chat `continue`, and only when that exact continue
+turn visibly fails may the controller Retry that exact failed continue once.
 
 ## Authority / baseline
 
-- Current owner authority is
-  `docs/requirements/2026-09-10-mission-control-dual-vps-global-send-queue.owner-requirement.json`.
-- Canonical baseline at correction start is merge commit
-  `0ac26e4e2f06271c3acad9cc6ad60421ebde1cf9` (PR #91).
-- PR #91 installed separate loopback schedulers and state files on both hosts.
-  That active/passive/manual-transfer design is partial and cannot satisfy the
-  frozen one-shared-authority requirement.
+- Current owner authority is the exact 2026-09-16 v2 continuity directive bound
+  by
+  `docs/requirements/2026-09-16-controller-same-chat-recovery.owner-requirement.json`.
+- Canonical baseline at correction start is current `main`
+  `deef93b718af234d37bd2c2c04ccd26f9d2a0feb`.
+- The historical 2026-09-09 controller cycle is evidence only. Its crossed send
+  boundary and any original-turn Retry are ineligible for replay.
 - Production and all hosts other than the two named owner VPS hosts remain out
   of scope.
 
 ## Current checkpoint
 
-- PR #99 merged the exact recovered shared-authority delta and narrow TypeScript
-  compatibility fix as `8635b88c605b70c2840e4528879d3a18b3a57998`.
-- The current-main live-closeout branch is
-  `task/mission-control-issue90-live-acceptance-20260912`; the historical recovery
-  branch remains unchanged at `cb89966b83f12db49d974de4ebf402d10d310608`.
-- Netcup PRIMARY reports `READY`; Hostinger SECONDARY reports `STANDBY_READY`.
-  Both use the exact deployable candidate, dedicated loopback-only sandboxed
-  browsers, exact automation-owned targets, and the same Mission Control
-  single-writer authority. No host-local scheduler service or process exists.
-- All 12 direct live host cases pass: concurrent cross-host admission, restart
-  pacing, PRIMARY → SECONDARY → PRIMARY failover and fencing, private MC-only
-  registration and rejection probes, exact target isolation, bounded same-item
-  rate-limit recovery, remote Codex worker execution, workstation/clipboard
-  exclusion, and valid hash-chained interval evidence.
-- Fresh local exact-head gates pass: repository 299/299 plus audit and diff
-  check; Mission Control 232/232 plus TypeScript and production build; relay
-  184/184 plus syntax.
+- Active candidate branch:
+  `task/controller-continue-retry-20260916`.
+- The controller now has restart-safe per-lane recovery state for origin, PM,
+  and return waits. It sends exact `continue` only after generation completion,
+  the configured grace interval, and a fresh artifact/final-receipt absence
+  check through the shared submission scheduler.
+- A Retry is eligible only when structural, non-content browser evidence binds
+  one exact Retry control to the assistant turn created by that exact continue.
+  Ambiguous ancestry, an original-turn Retry, crossed boundaries, exhaustion,
+  or a second Retry fail closed.
+- Focused controller/structure/pacing tests and the complete relay suite pass
+  locally. The release checkpoint is green: repository 338/338 plus deterministic
+  audit, Mission Control 270/270 plus typecheck and production build, relay
+  201/201 plus syntax/service assets, source-archive reconstruction digest, and
+  diff check. Reviewed merge, exact merged-package nonproduction install, and
+  one fresh live fixture remain pending.
 
 ## Completed outcome
 
@@ -61,19 +59,23 @@ supervisor conversations are eligible.
 
 ## Remaining
 
-- No issue #90 action remains after the closeout status PR merges and the final
-  issue receipt is posted. Future material topology or authority changes require
-  a new live verification cycle.
+- Complete the reviewed merge, install the exact merge on the authorized
+  nonproduction topology with rollback preserved, then run exactly one fresh
+  disposable PM-mediated OWNER-byte fixture.
 
 ## Blockers / unresolved
 
-- No issue #90 implementation, live-host, review, check, merge, or
-  main-verification blocker remains.
+- No implementation/test blocker is currently known. Live host reachability and
+  the real browser consumer seam still require current verification; any access,
+  ownership, ambiguity, or changed product-UI boundary will stop the live phase
+  fail closed.
 
 ## Evidence / artifacts
 
 - Completed plan:
   `docs/exec-plans/completed/2026-09-10-mission-control-multi-host-hardening.md`.
+- Active controller recovery plan:
+  `docs/exec-plans/active/2026-09-16-controller-same-chat-recovery.md`.
 - Current live acceptance receipt:
   `docs/evidence/2026-09-12-owner-deployment-multi-host-live-acceptance.json`.
 - Prior installed-host receipt:

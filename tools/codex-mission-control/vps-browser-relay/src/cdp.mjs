@@ -1,11 +1,18 @@
 import {
   CURRENT_CONSUMER_CONTROLS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
+  canonicalJson,
   freshChatTargetPlan,
   managedChatGptTabTelemetry,
   normalizeConversationUrl,
   replaceUnusableManagedChatGptTarget,
+  sha256,
 } from './core.mjs';
+import {
+  classifyFailedContinueRetry,
+  createContinueRecoveryAnchor,
+  validateContinueRetryBinding,
+} from './continue-recovery.mjs';
 
 const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
@@ -506,6 +513,72 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   };
 }`;
 
+const CONTINUE_TURN_STRUCTURE_FN = `function(expectedUrl) {
+  const normalizeUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href, turns: [] };
+  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
+  const exactLabel = (element) => String(element?.getAttribute('aria-label') || element?.innerText || '').trim().replace(/\\s+/g, ' ');
+  const roleNodes = [...document.querySelectorAll('[data-message-author-role="user"], [data-message-author-role="assistant"]')];
+  const turns = [];
+  const seenContainers = new Set();
+  for (const roleNode of roleNodes) {
+    const container = roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode;
+    if (seenContainers.has(container)) continue;
+    seenContainers.add(container);
+    const key = roleNode.getAttribute('data-message-id')
+      || container.getAttribute('data-turn-id')
+      || container.getAttribute('data-testid')
+      || container.id
+      || null;
+    const role = roleNode.getAttribute('data-message-author-role');
+    const retryControls = [...container.querySelectorAll('button, [role="button"]')]
+      .filter(visible)
+      .map((element) => ({ label: exactLabel(element) }))
+      .filter((control) => control.label === 'Retry' || control.label === 'Try again');
+    turns.push({ key, role, retryControls });
+  }
+  return { urlMismatch: false, turns, assistantContentObserved: false };
+}`;
+
+const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
+  const normalizeUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalizeUrl(location.href) !== expectedUrl) return { ok: false, reason: 'URL_MISMATCH', currentUrl: location.href };
+  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
+  const exactLabel = (element) => String(element?.getAttribute('aria-label') || element?.innerText || '').trim().replace(/\\s+/g, ' ');
+  const roleNodes = [...document.querySelectorAll('[data-message-author-role="user"], [data-message-author-role="assistant"]')];
+  const matches = [];
+  const seenContainers = new Set();
+  for (const roleNode of roleNodes) {
+    const container = roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode;
+    if (seenContainers.has(container)) continue;
+    seenContainers.add(container);
+    const key = roleNode.getAttribute('data-message-id')
+      || container.getAttribute('data-turn-id')
+      || container.getAttribute('data-testid')
+      || container.id
+      || null;
+    if (key !== binding.failedAssistantTurnKey || roleNode.getAttribute('data-message-author-role') !== 'assistant') continue;
+    for (const control of [...container.querySelectorAll('button, [role="button"]')].filter(visible)) {
+      if (exactLabel(control) === binding.controlLabel) matches.push(control);
+    }
+  }
+  if (matches.length !== 1) return { ok: false, reason: matches.length ? 'RETRY_CONTROL_AMBIGUOUS' : 'RETRY_CONTROL_MISSING', matchCount: matches.length };
+  matches[0].click();
+  return { ok: true, controlLabel: binding.controlLabel, failedAssistantTurnKey: binding.failedAssistantTurnKey, assistantContentObserved: false };
+}`;
+
 export class ChromeDevtoolsBrowser {
   constructor({ host = '127.0.0.1', port = 9222, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, generationTimeoutMs = 900_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
     this.baseUrl = `http://${host}:${port}`;
@@ -957,6 +1030,100 @@ export class ChromeDevtoolsBrowser {
         completedAtObserved: new Date().toISOString(),
       };
     });
+  }
+
+  async captureContinueRecoveryAnchor(target, { expectedUrl }) {
+    const normalized = normalizeConversationUrl(expectedUrl);
+    return this.#withPageClient(target, async (client) => {
+      const observation = await client.callFunction(CONTINUE_TURN_STRUCTURE_FN, [normalized]);
+      if (observation?.urlMismatch) throw new Error(`Chat target changed while capturing continue recovery anchor: ${observation.currentUrl}`);
+      return createContinueRecoveryAnchor(observation);
+    });
+  }
+
+  async inspectFailedContinueRetry(target, { expectedUrl, anchor }) {
+    const normalized = normalizeConversationUrl(expectedUrl);
+    return this.#withPageClient(target, async (client) => {
+      const observation = await client.callFunction(CONTINUE_TURN_STRUCTURE_FN, [normalized]);
+      if (observation?.urlMismatch) throw new Error(`Chat target changed while binding failed continue Retry: ${observation.currentUrl}`);
+      return classifyFailedContinueRetry(anchor, observation);
+    });
+  }
+
+  async retryExactFailedContinue(target, {
+    expectedUrl,
+    anchor,
+    binding,
+    onBeforeSubmissionBoundary = null,
+    onSubmissionBoundary = null,
+  }) {
+    if (onSubmissionBoundary !== null && typeof onSubmissionBoundary !== 'function') {
+      throw new Error('Retry boundary observer must be a function when provided.');
+    }
+    if (onBeforeSubmissionBoundary !== null && typeof onBeforeSubmissionBoundary !== 'function') {
+      throw new Error('Retry pre-click admission validator must be a function when provided.');
+    }
+    const normalized = normalizeConversationUrl(expectedUrl);
+    const retryBindingSha256 = sha256(canonicalJson(binding));
+    let relayStage = 'PREPARING';
+    let clickedAtObserved = null;
+    let submissionBoundaryPersistenceAttempted = false;
+    try {
+      return await this.#withPageClient(target, async (client) => {
+        const observation = await client.callFunction(CONTINUE_TURN_STRUCTURE_FN, [normalized]);
+        if (observation?.urlMismatch) throw new Error(`Chat target changed before failed continue Retry: ${observation.currentUrl}`);
+        validateContinueRetryBinding(anchor, binding, observation);
+        if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
+        const clicked = await client.callFunction(CLICK_FAILED_CONTINUE_RETRY_FN, [normalized, binding]);
+        if (!clicked?.ok) throw new Error(`CONTINUE_RETRY_CONTROL_UNAVAILABLE: ${clicked?.reason ?? 'UNKNOWN'}.`);
+        relayStage = 'CLICKED';
+        clickedAtObserved = new Date().toISOString();
+        if (onSubmissionBoundary) {
+          await onSubmissionBoundary({
+            status: 'CLICKED',
+            targetId: target.id,
+            conversationUrl: normalized,
+            clickedAtObserved,
+            generationStarted: false,
+            retryBindingSha256,
+            providerSourceTime: null,
+            inspectedAssistantOutput: false,
+          });
+          submissionBoundaryPersistenceAttempted = true;
+        }
+        let started;
+        try {
+          started = await waitFor(async () => {
+            const state = await client.callFunction(GENERATION_STATE_FN, [normalized]);
+            if (state?.urlMismatch) throw new Error(`Chat target changed during failed continue Retry: ${state.currentUrl}`);
+            return state?.generating && state?.startSignal ? state : false;
+          }, this.submitTimeoutMs, 200, 'CONTINUE_RETRY_GENERATION_START_UNVERIFIED');
+        } catch (error) {
+          const startError = new Error('CONTINUE_RETRY_GENERATION_START_UNVERIFIED: no post-Retry generation UI transition was observed.');
+          startError.cause = error;
+          throw startError;
+        }
+        relayStage = 'GENERATION_STARTED';
+        return {
+          status: 'GENERATION_STARTED',
+          targetId: target.id,
+          conversationUrl: normalized,
+          clickedAtObserved,
+          generationStarted: true,
+          startSignal: started.startSignal,
+          startedAtObserved: new Date().toISOString(),
+          providerSourceTime: null,
+          inspectedAssistantOutput: false,
+        };
+      });
+    } catch (error) {
+      if (error && typeof error === 'object') {
+        error.relayStage = relayStage;
+        if (clickedAtObserved) error.clickedAtObserved = clickedAtObserved;
+        if (submissionBoundaryPersistenceAttempted) error.submissionBoundaryPersistenceAttempted = true;
+      }
+      throw error;
+    }
   }
 
   async #openTarget(url, errorMessage) {

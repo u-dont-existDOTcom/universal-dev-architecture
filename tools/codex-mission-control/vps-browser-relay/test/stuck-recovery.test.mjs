@@ -71,7 +71,7 @@ test('any model turn that remains actively generating gets same-chat continue an
   assert.equal(result.stuckRecovery.inspectedAssistantOutput, false);
 });
 
-test('idle Continue or Retry UI controls are treated as unfinished without reading assistant output', async () => {
+test('idle Continue controls are treated as unfinished without reading assistant output', async () => {
   let waits = 0;
   let inspections = 0;
   const submissions = [];
@@ -157,13 +157,32 @@ test('repeated idle recoverable controls also stop at the configured ceiling', a
     maxNudges: 2,
     logger: { warn() {} },
     stopStalledGeneration: async () => ({ stoppedGeneration: true }),
-    inspectRecoverableControl: async () => ({ recoverable: true, controlLabel: 'Retry' }),
+    inspectRecoverableControl: async () => ({ recoverable: true, controlLabel: 'Continue' }),
   });
   await assert.rejects(
     browser.waitForGenerationComplete({ id: 'retry-target' }, { expectedUrl: 'https://chatgpt.com/c/retry', generationStarted: true }),
     /persisted after 2 continue nudges/,
   );
   assert.equal(submissions, 2);
+});
+
+test('generic unbound Retry is not converted into another continue nudge', async () => {
+  let submissions = 0;
+  const browser = {
+    async waitForGenerationComplete() {
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: '2026-09-02T17:00:00.000Z', inspectedAssistantOutput: false };
+    },
+    async submitExactMessage() { submissions += 1; },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
+    inspectRecoverableControl: async () => ({ recoverable: false, controlLabel: null, ignoredUnboundRetry: true }),
+  });
+  const result = await browser.waitForGenerationComplete({ id: 'retry-target' }, {
+    expectedUrl: 'https://chatgpt.com/c/retry', generationStarted: true,
+  });
+  assert.equal(result.status, 'GENERATION_COMPLETE');
+  assert.equal(submissions, 0);
 });
 
 test('non-stall failures are never converted into continue messages', async () => {

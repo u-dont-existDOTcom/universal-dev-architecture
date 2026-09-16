@@ -377,9 +377,10 @@ test('every concrete ChatGPT send path is wired through central admission and bo
   assert.equal(count(relay, 'this.submissionPacer.submit({'), 3);
   assert.equal(count(relay, 'this.browser.submitExactMessage('), 3);
   assert.equal(count(relay, 'onSubmissionBoundary'), 6);
-  assert.equal(count(controller, 'this.submissionPacer.submit({'), 2);
-  assert.equal(count(controller, 'this.browser.submitExactMessage('), 2);
-  assert.ok(count(controller, 'onSubmissionBoundary') >= 4);
+  assert.equal(count(controller, 'this.submissionPacer.submit({'), 4);
+  assert.equal(count(controller, 'this.browser.submitExactMessage('), 3);
+  assert.equal(count(controller, 'this.browser.retryExactFailedContinue('), 1);
+  assert.ok(count(controller, 'onSubmissionBoundary') >= 8);
   assert.equal(count(launcher, 'submissionPacer.submit({'), 1);
   assert.equal(count(launcher, 'rawBrowser.submitExactMessage('), 1);
   assert.match(launcher, /onSubmissionBoundary/);

@@ -90,11 +90,19 @@ Long ChatGPT turns can stop making progress after extended reasoning or many too
 The relay uses two non-content UI signals:
 
 1. **active generation stall** — the turn remains continuously in generation state for the full `MC_RELAY_GENERATION_TIMEOUT_MS` interval (default 15 minutes). The relay safely invokes the visible Stop-generation control, waits for the composer to become idle, then sends exactly `continue` in the same conversation and current model;
-2. **recoverable idle control** — the turn returns to an idle composer but a visible control is exactly labeled `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`. The relay treats that as unfinished and sends `continue` without changing model.
+2. **recoverable idle control** — the turn returns to an idle composer but a visible control is exactly labeled `Continue`, `Continue generating`, or `Resume`. The relay treats that as unfinished and sends `continue` without changing model.
 
 The relay never searches transcript text to make this determination. It examines only composer/generation controls and exact known recovery-control labels.
 
 Recovery is capped by `MC_RELAY_STUCK_RECOVERY_MAX_NUDGES` (default 3, configurable 1–20) for one continuously stalled turn. This prevents an unbounded quota-burning loop. A failed or ambiguous recovery send is not automatically replayed.
+
+A provider `Retry` / `Try again` control is never handled generically. The
+controller-mediated durable-artifact stages first send exact same-chat
+`continue`. Only when structural, non-content UI evidence binds one Retry
+control to that exact failed controller-authored continue turn may the
+controller click it once as transport recovery. Retry-original, unbound Retry,
+another user message, and a repeated Retry loop all fail closed. Continue
+attempts and their transport retries are persisted and counted separately.
 
 Mandatory external-tool stages opt out of same-chat recovery. If their normal UI
 turn ends without the expected durable #59/#61 receipt, the state machine waits

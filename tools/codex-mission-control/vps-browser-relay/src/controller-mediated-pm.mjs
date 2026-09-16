@@ -3,6 +3,7 @@ import {
   PROVIDER_SESSION_MODEL_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  CONTINUE_NUDGE_DELAY_MS,
   canonicalJson,
   consumerControlRefs,
   cycleControlPrompt,
@@ -25,6 +26,8 @@ const TERMINAL_STEP = 'COMPLETE';
 const ROOT_URL = 'https://chatgpt.com/';
 const PROJECTION_TIMEOUT_MS = 30_000;
 const ARTIFACT_POLL_INTERVAL_MS = 90_000;
+const CONTINUE_BODY = 'continue';
+const CONTINUE_BODY_SHA256 = sha256(CONTINUE_BODY);
 
 export class ControllerMediatedPmRuntime {
   constructor({ config, missionControl, browser, stateStore, submissionPacer, githubFactory = null }) {
@@ -152,6 +155,8 @@ export class ControllerMediatedPmRuntime {
       navigations: { origin: null, return: null },
       sends: { origin: null, pm: null, return: null },
       artifactPolling: { origin: null, pm: null },
+      recoveryPolicyVersion: 1,
+      recoveries: { origin: emptyLaneRecovery(), pm: emptyLaneRecovery(), return: emptyLaneRecovery() },
       consumedArtifacts: { origin: null, pm: null },
       final: null,
       lastError: null,
@@ -184,47 +189,14 @@ export class ControllerMediatedPmRuntime {
 
       if (Date.now() > Date.parse(cycle.expiresAt)) throw new Error('CONTROLLER_CYCLE_EXPIRED: the exact route validity window elapsed.');
 
-      if (cycle.step === 'ORIGIN_SEND_STARTED' || cycle.step === 'WAIT_ORIGIN_ARTIFACT') {
-        const poll = await this.#reconcileArtifactOnSchedule(state, cycle, 'origin', this.#originExpectation(cycle, route));
-        ({ state, cycle } = poll);
-        if (!poll.due) {
-          return this.#status(artifactWaitStatus(cycle, 'origin', 'ORIGIN_SEND_STARTED', 'WAIT_ORIGIN_ARTIFACT', 'ORIGIN_SEND_AMBIGUOUS_NO_REPLAY'), cycle);
-        }
-        const artifact = poll.artifact;
-        if (artifact) {
-          ({ state, cycle } = await this.#confirmArtifactSendBoundary(state, cycle, 'origin', artifact));
-          cycle.consumedArtifacts.origin = publicArtifactReceipt(artifact);
-          cycle.step = 'ORIGIN_ARTIFACT_VALIDATED';
-          cycle.updatedAt = new Date().toISOString();
-          cycle.lastError = null;
-          state.controllerCycles[cycle.cycleId] = cycle;
-          state = await this.stateStore.write(state);
-          await this.#recordControllerStage(cycle, 'ORIGIN_ARTIFACT_VALIDATED', artifact);
-          return this.#status('ORIGIN_ARTIFACT_VALIDATED', state.controllerCycles[cycle.cycleId]);
-        }
-        return this.#status(artifactWaitStatus(cycle, 'origin', 'ORIGIN_SEND_STARTED', 'WAIT_ORIGIN_ARTIFACT', 'ORIGIN_SEND_AMBIGUOUS_NO_REPLAY'), cycle);
+      const retryLane = cycle.step === 'RETRY_FAILED_CONTINUE' ? activeRetryLane(cycle) : null;
+
+      if (cycle.step === 'ORIGIN_SEND_STARTED' || cycle.step === 'WAIT_ORIGIN_ARTIFACT' || retryLane === 'origin') {
+        return await this.#handleArtifactLaneWait(state, cycle, route, 'origin');
       }
 
-      if (cycle.step === 'PM_SEND_STARTED' || cycle.step === 'WAIT_PM_ARTIFACT') {
-        const poll = await this.#reconcileArtifactOnSchedule(state, cycle, 'pm', this.#pmExpectation(cycle, route));
-        ({ state, cycle } = poll);
-        if (!poll.due) {
-          return this.#status(artifactWaitStatus(cycle, 'pm', 'PM_SEND_STARTED', 'WAIT_PM_ARTIFACT', 'PM_SEND_AMBIGUOUS_NO_REPLAY'), cycle);
-        }
-        const artifact = poll.artifact;
-        if (artifact) {
-          await this.#revalidateConsumedArtifacts(cycle, route);
-          ({ state, cycle } = await this.#confirmArtifactSendBoundary(state, cycle, 'pm', artifact));
-          cycle.consumedArtifacts.pm = publicArtifactReceipt(artifact);
-          cycle.step = 'PM_ARTIFACT_VALIDATED';
-          cycle.updatedAt = new Date().toISOString();
-          cycle.lastError = null;
-          state.controllerCycles[cycle.cycleId] = cycle;
-          state = await this.stateStore.write(state);
-          await this.#recordControllerStage(cycle, 'PM_ARTIFACT_VALIDATED', artifact);
-          return this.#status('PM_ARTIFACT_VALIDATED', state.controllerCycles[cycle.cycleId]);
-        }
-        return this.#status(artifactWaitStatus(cycle, 'pm', 'PM_SEND_STARTED', 'WAIT_PM_ARTIFACT', 'PM_SEND_AMBIGUOUS_NO_REPLAY'), cycle);
+      if (cycle.step === 'PM_SEND_STARTED' || cycle.step === 'WAIT_PM_ARTIFACT' || retryLane === 'pm') {
+        return await this.#handleArtifactLaneWait(state, cycle, route, 'pm');
       }
 
       if (cycle.step === 'RETURN_SEND_STARTED') {
@@ -239,8 +211,9 @@ export class ControllerMediatedPmRuntime {
         }
         return this.#status('RETURN_SEND_AMBIGUOUS_NO_REPLAY', cycle);
       }
-      if (cycle.step === 'WAIT_RETURN_ARTIFACT_OR_ACK') {
-        return this.#status('WAIT_RETURN_ARTIFACT_OR_ACK', cycle);
+      if (cycle.step === 'WAIT_RETURN_ARTIFACT_OR_ACK' || retryLane === 'return') {
+        const recovered = await this.#advanceSameChatRecovery({ state, cycle, route, lane: 'return', absenceFresh: true });
+        return this.#status(recovered.status, recovered.cycle);
       }
 
       if (cycle.step === 'ORIGIN_ARTIFACT_VALIDATED') {
@@ -481,6 +454,348 @@ export class ControllerMediatedPmRuntime {
       throw new Error(`CONTROLLER_${lane.toUpperCase()}_ATOMIC_BOUNDARY_PERSISTENCE_MISSING.`);
     }
     return { state, cycle: state.controllerCycles[cycle.cycleId] };
+  }
+
+  async #handleArtifactLaneWait(state, cycle, route, lane) {
+    const waitingStatus = lane === 'origin' ? 'WAIT_ORIGIN_ARTIFACT' : 'WAIT_PM_ARTIFACT';
+    const startedStep = lane === 'origin' ? 'ORIGIN_SEND_STARTED' : 'PM_SEND_STARTED';
+    const ambiguousStatus = lane === 'origin' ? 'ORIGIN_SEND_AMBIGUOUS_NO_REPLAY' : 'PM_SEND_AMBIGUOUS_NO_REPLAY';
+    const expectation = lane === 'origin' ? this.#originExpectation(cycle, route) : this.#pmExpectation(cycle, route);
+    const poll = await this.#reconcileArtifactOnSchedule(state, cycle, lane, expectation);
+    ({ state, cycle } = poll);
+    if (poll.artifact) {
+      if (lane === 'pm') await this.#revalidateConsumedArtifacts(cycle, route);
+      ({ state, cycle } = await this.#confirmArtifactSendBoundary(state, cycle, lane, poll.artifact));
+      cycle.consumedArtifacts[lane] = publicArtifactReceipt(poll.artifact);
+      cycle.step = lane === 'origin' ? 'ORIGIN_ARTIFACT_VALIDATED' : 'PM_ARTIFACT_VALIDATED';
+      cycle.updatedAt = new Date().toISOString();
+      cycle.lastError = null;
+      state.controllerCycles[cycle.cycleId] = cycle;
+      state = await this.stateStore.write(state);
+      await this.#recordControllerStage(cycle, cycle.step, poll.artifact);
+      return this.#status(cycle.step, state.controllerCycles[cycle.cycleId]);
+    }
+    if (cycle.step === startedStep && cycle.sends?.[lane]?.status !== 'BOUNDARY_VERIFIED') {
+      return this.#status(artifactWaitStatus(cycle, lane, startedStep, waitingStatus, ambiguousStatus), cycle);
+    }
+    const recovered = await this.#advanceSameChatRecovery({ state, cycle, route, lane, absenceFresh: poll.due });
+    return this.#status(recovered.status, recovered.cycle);
+  }
+
+  async #advanceSameChatRecovery({ state, cycle, route, lane, absenceFresh }) {
+    if (cycle.recoveryPolicyVersion !== 1 || !cycle.recoveries?.[lane]) {
+      throw new Error('CONTROLLER_RECOVERY_STATE_MISSING_FOR_PREPOLICY_CYCLE.');
+    }
+    const waitingStep = waitStepForLane(lane);
+    const send = cycle.sends?.[lane];
+    if (!send || send.status !== 'BOUNDARY_VERIFIED') {
+      throw new Error(`CONTROLLER_${lane.toUpperCase()}_RECOVERY_SEND_BOUNDARY_UNVERIFIED.`);
+    }
+    const recovery = cycle.recoveries[lane];
+    const attempt = recovery.attempts.at(-1) ?? null;
+    const { target, expectedUrl, chat, providerSessionId } = await this.#recoveryLaneContext(cycle, route, lane);
+
+    if (!send.generationCompletedAt) {
+      const completion = await this.browser.waitForGenerationComplete(target, {
+        expectedUrl,
+        generationStarted: true,
+        allowSameChatRecovery: false,
+      });
+      state = await this.stateStore.read();
+      cycle = state.controllerCycles[cycle.cycleId];
+      cycle.sends[lane].generationCompletedAt = completion.completedAtObserved;
+      cycle.recoveries[lane].phase = 'GRACE_WAIT';
+      cycle.recoveries[lane].lastObservedCompletionAt = completion.completedAtObserved;
+      cycle.updatedAt = new Date().toISOString();
+      state.controllerCycles[cycle.cycleId] = cycle;
+      state = await this.stateStore.write(state);
+      await this.#recordControllerStage(cycle, `${lane.toUpperCase()}_GENERATION_COMPLETE_ARTIFACT_MISSING`);
+      return { state, cycle: state.controllerCycles[cycle.cycleId], status: waitingStep };
+    }
+
+    if (attempt?.status === 'INTENT_RECORDED' || attempt?.status === 'CLICK_BOUNDARY_PERSISTED') {
+      return { state, cycle, status: `${lane.toUpperCase()}_CONTINUE_SEND_AMBIGUOUS_NO_REPLAY` };
+    }
+    if (attempt?.status === 'BOUNDARY_VERIFIED') {
+      const completion = await this.browser.waitForGenerationComplete(target, {
+        expectedUrl,
+        generationStarted: true,
+        allowSameChatRecovery: false,
+      });
+      state = await this.stateStore.read();
+      cycle = state.controllerCycles[cycle.cycleId];
+      const current = cycle.recoveries[lane].attempts.at(-1);
+      current.status = 'CONTINUE_COMPLETE_PENDING_RETRY_INSPECTION';
+      current.generationCompletedAt = completion.completedAtObserved;
+      cycle.recoveries[lane].lastObservedCompletionAt = completion.completedAtObserved;
+      cycle.updatedAt = new Date().toISOString();
+      state.controllerCycles[cycle.cycleId] = cycle;
+      state = await this.stateStore.write(state);
+      return { state, cycle: state.controllerCycles[cycle.cycleId], status: waitingStep };
+    }
+    if (attempt?.status === 'CONTINUE_COMPLETE_PENDING_RETRY_INSPECTION') {
+      const inspected = await this.browser.inspectFailedContinueRetry(target, { expectedUrl, anchor: attempt.anchor });
+      state = await this.stateStore.read();
+      cycle = state.controllerCycles[cycle.cycleId];
+      const current = cycle.recoveries[lane].attempts.at(-1);
+      if (inspected.status === 'RETRY_FAILED_CONTINUE') {
+        current.status = 'RETRY_FAILED_CONTINUE';
+        current.retry = {
+          status: 'READY',
+          binding: inspected.binding,
+          bindingSha256: inspected.bindingSha256,
+          intentRecordedAt: null,
+          boundaryObservedAt: null,
+          generationStartedAt: null,
+          generationCompletedAt: null,
+        };
+        cycle.step = 'RETRY_FAILED_CONTINUE';
+        cycle.recoveries[lane].phase = 'RETRY_FAILED_CONTINUE';
+        cycle.updatedAt = new Date().toISOString();
+        state.controllerCycles[cycle.cycleId] = cycle;
+        state = await this.stateStore.write(state);
+        await this.#recordControllerStage(cycle, `${lane.toUpperCase()}_RETRY_FAILED_CONTINUE_READY`);
+        return { state, cycle: state.controllerCycles[cycle.cycleId], status: 'RETRY_FAILED_CONTINUE' };
+      }
+      current.status = 'CONTINUE_COMPLETE_NO_RETRY';
+      cycle.recoveries[lane].phase = 'GRACE_WAIT';
+      cycle.recoveries[lane].lastRecoveryCompletedAt = current.generationCompletedAt;
+      cycle.updatedAt = new Date().toISOString();
+      state.controllerCycles[cycle.cycleId] = cycle;
+      state = await this.stateStore.write(state);
+      return { state, cycle: state.controllerCycles[cycle.cycleId], status: waitingStep };
+    }
+    if (attempt?.status === 'RETRY_FAILED_CONTINUE') {
+      const retry = attempt.retry;
+      if (retry?.status === 'READY') {
+        if (!absenceFresh) return { state, cycle, status: 'RETRY_FAILED_CONTINUE' };
+        if (!this.config.runtime.submitEnabled) return { state, cycle, status: 'CONTROLLER_SEND_DISABLED' };
+        return await this.#sendFailedContinueRetry({ state, cycle, lane, target, expectedUrl, chat, providerSessionId });
+      }
+      if (retry?.status === 'INTENT_RECORDED' || retry?.status === 'CLICK_BOUNDARY_PERSISTED') {
+        return { state, cycle, status: `${lane.toUpperCase()}_CONTINUE_RETRY_SEND_AMBIGUOUS_NO_REPLAY` };
+      }
+      if (retry?.status === 'BOUNDARY_VERIFIED') {
+        const completion = await this.browser.waitForGenerationComplete(target, {
+          expectedUrl,
+          generationStarted: true,
+          allowSameChatRecovery: false,
+        });
+        state = await this.stateStore.read();
+        cycle = state.controllerCycles[cycle.cycleId];
+        const current = cycle.recoveries[lane].attempts.at(-1);
+        current.retry.status = 'COMPLETE_PENDING_FAILURE_INSPECTION';
+        current.retry.generationCompletedAt = completion.completedAtObserved;
+        cycle.recoveries[lane].lastObservedCompletionAt = completion.completedAtObserved;
+        cycle.updatedAt = new Date().toISOString();
+        state.controllerCycles[cycle.cycleId] = cycle;
+        state = await this.stateStore.write(state);
+        return { state, cycle: state.controllerCycles[cycle.cycleId], status: 'RETRY_FAILED_CONTINUE' };
+      }
+      if (retry?.status === 'COMPLETE_PENDING_FAILURE_INSPECTION') {
+        const inspected = await this.browser.inspectFailedContinueRetry(target, { expectedUrl, anchor: attempt.anchor });
+        if (inspected.status === 'RETRY_FAILED_CONTINUE') {
+          throw new Error('CONTINUE_RETRY_FAILED_CLOSED: Retry-of-continue exposed another Retry control.');
+        }
+        state = await this.stateStore.read();
+        cycle = state.controllerCycles[cycle.cycleId];
+        const current = cycle.recoveries[lane].attempts.at(-1);
+        current.status = 'RETRY_COMPLETE';
+        current.retry.status = 'COMPLETE';
+        cycle.recoveries[lane].phase = 'GRACE_WAIT';
+        cycle.recoveries[lane].lastRecoveryCompletedAt = current.retry.generationCompletedAt;
+        cycle.step = waitingStep;
+        cycle.updatedAt = new Date().toISOString();
+        state.controllerCycles[cycle.cycleId] = cycle;
+        state = await this.stateStore.write(state);
+        return { state, cycle: state.controllerCycles[cycle.cycleId], status: waitingStep };
+      }
+    }
+
+    const baseline = recovery.lastRecoveryCompletedAt ?? send.generationCompletedAt;
+    const eligible = Number.isFinite(Date.parse(baseline ?? ''))
+      && Date.now() - Date.parse(baseline) >= CONTINUE_NUDGE_DELAY_MS;
+    if (!absenceFresh || !eligible) return { state, cycle, status: waitingStep };
+    const maxNudges = this.config.runtime.stuckRecoveryMaxNudges;
+    if (!Number.isInteger(maxNudges) || maxNudges < 1) throw new Error('CONTROLLER_CONTINUE_RECOVERY_CEILING_INVALID.');
+    if (recovery.continueAttemptCount >= maxNudges) {
+      throw new Error('CONTROLLER_CONTINUE_RECOVERY_CEILING_EXHAUSTED.');
+    }
+    if (!this.config.runtime.submitEnabled) return { state, cycle, status: 'CONTROLLER_SEND_DISABLED' };
+    return await this.#sendContinueRecovery({ state, cycle, lane, target, expectedUrl, chat, providerSessionId });
+  }
+
+  async #sendContinueRecovery({ state, cycle, lane, target, expectedUrl, chat, providerSessionId }) {
+    const recovery = cycle.recoveries[lane];
+    const attemptNumber = recovery.continueAttemptCount + 1;
+    try {
+      await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat, target, expectedUrl, providerSessionId, requestId: cycle.requestId,
+          queueKey: `controller:${cycle.cycleId}:${lane}:continue:${attemptNumber}`,
+          sendPath: `CONTROLLER_${lane.toUpperCase()}_CONTINUE`, bodySha256: CONTINUE_BODY_SHA256,
+        }),
+        beforeSubmit: async () => {
+          const anchor = await this.browser.captureContinueRecoveryAnchor(target, { expectedUrl });
+          state = await this.stateStore.read();
+          cycle = state.controllerCycles[cycle.cycleId];
+          const currentRecovery = cycle.recoveries[lane];
+          if (currentRecovery.continueAttemptCount + 1 !== attemptNumber) throw new Error('CONTROLLER_CONTINUE_ATTEMPT_ORDINAL_MISMATCH.');
+          const intentAt = new Date().toISOString();
+          currentRecovery.phase = 'CONTINUE_SEND_INTENT';
+          currentRecovery.attempts.push({
+            attemptNumber,
+            status: 'INTENT_RECORDED',
+            bodySha256: CONTINUE_BODY_SHA256,
+            anchor,
+            intentRecordedAt: intentAt,
+            boundaryObservedAt: null,
+            generationStartedAt: null,
+            generationCompletedAt: null,
+            retry: null,
+          });
+          cycle.updatedAt = intentAt;
+          state.controllerCycles[cycle.cycleId] = cycle;
+          await this.stateStore.write(state);
+        },
+        recordBoundary: (boundaryState, { boundaryAt, result }) => {
+          const boundaryCycle = boundaryState.controllerCycles?.[cycle.cycleId];
+          const currentRecovery = boundaryCycle?.recoveries?.[lane];
+          const current = currentRecovery?.attempts?.at(-1);
+          if (!boundaryCycle || !current || current.attemptNumber !== attemptNumber
+            || !['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED', 'BOUNDARY_VERIFIED'].includes(current.status)
+            || current.bodySha256 !== CONTINUE_BODY_SHA256) {
+            throw new Error('CONTROLLER_CONTINUE_ATOMIC_BOUNDARY_INTENT_MISMATCH.');
+          }
+          currentRecovery.continueAttemptCount = Math.max(currentRecovery.continueAttemptCount, attemptNumber);
+          current.status = result?.generationStarted === true ? 'BOUNDARY_VERIFIED' : 'CLICK_BOUNDARY_PERSISTED';
+          current.boundaryObservedAt = boundaryAt;
+          current.generationStartedAt = result?.generationStarted === true ? result.startedAtObserved : current.generationStartedAt;
+          currentRecovery.phase = current.status;
+          boundaryCycle.updatedAt = new Date().toISOString();
+          boundaryState.controllerCycles[boundaryCycle.cycleId] = boundaryCycle;
+        },
+        submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => this.browser.submitExactMessage(target, {
+          expectedUrl, body: CONTINUE_BODY, bodySha256: CONTINUE_BODY_SHA256,
+          onBeforeSubmissionBoundary, onSubmissionBoundary,
+        }),
+      });
+    } catch (error) {
+      if (!isGlobalSubmissionCooldown(error) && !crossedSendBoundary(error)) {
+        state = await this.stateStore.read();
+        cycle = state.controllerCycles[cycle.cycleId];
+        const current = cycle.recoveries[lane].attempts.at(-1);
+        if (current?.attemptNumber === attemptNumber) {
+          current.status = 'FAILED_PRECLICK';
+          current.failedAt = new Date().toISOString();
+          cycle.recoveries[lane].attempts.pop();
+          cycle.recoveries[lane].phase = 'GRACE_WAIT';
+          cycle.updatedAt = current.failedAt;
+          state.controllerCycles[cycle.cycleId] = cycle;
+          await this.stateStore.write(state);
+        }
+      }
+      throw error;
+    }
+    state = await this.stateStore.read();
+    cycle = state.controllerCycles[cycle.cycleId];
+    const current = cycle.recoveries[lane].attempts.at(-1);
+    if (!current || current.attemptNumber !== attemptNumber || current.status !== 'BOUNDARY_VERIFIED') {
+      throw new Error('CONTROLLER_CONTINUE_ATOMIC_BOUNDARY_PERSISTENCE_MISSING.');
+    }
+    await this.#recordControllerStage(cycle, `${lane.toUpperCase()}_CONTINUE_SENT`);
+    return { state, cycle, status: waitStepForLane(lane) };
+  }
+
+  async #sendFailedContinueRetry({ state, cycle, lane, target, expectedUrl, chat, providerSessionId }) {
+    const attempt = cycle.recoveries[lane].attempts.at(-1);
+    if (!attempt || attempt.status !== 'RETRY_FAILED_CONTINUE' || attempt.retry?.status !== 'READY'
+      || attempt.retry.boundaryObservedAt) {
+      throw new Error('CONTROLLER_CONTINUE_RETRY_STATE_INVALID.');
+    }
+    try {
+      await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat, target, expectedUrl, providerSessionId, requestId: cycle.requestId,
+          queueKey: `controller:${cycle.cycleId}:${lane}:continue:${attempt.attemptNumber}:retry`,
+          sendPath: `CONTROLLER_${lane.toUpperCase()}_CONTINUE_RETRY`, bodySha256: CONTINUE_BODY_SHA256,
+        }),
+        beforeSubmit: async () => {
+          state = await this.stateStore.read();
+          cycle = state.controllerCycles[cycle.cycleId];
+          const current = cycle.recoveries[lane].attempts.at(-1);
+          if (current?.attemptNumber !== attempt.attemptNumber || current.retry?.status !== 'READY') {
+            throw new Error('CONTROLLER_CONTINUE_RETRY_READY_STATE_CHANGED.');
+          }
+          current.retry.status = 'INTENT_RECORDED';
+          current.retry.intentRecordedAt = new Date().toISOString();
+          cycle.updatedAt = current.retry.intentRecordedAt;
+          state.controllerCycles[cycle.cycleId] = cycle;
+          await this.stateStore.write(state);
+        },
+        recordBoundary: (boundaryState, { boundaryAt, result }) => {
+          const boundaryCycle = boundaryState.controllerCycles?.[cycle.cycleId];
+          const currentRecovery = boundaryCycle?.recoveries?.[lane];
+          const current = currentRecovery?.attempts?.at(-1);
+          if (!boundaryCycle || current?.attemptNumber !== attempt.attemptNumber
+            || !['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED', 'BOUNDARY_VERIFIED'].includes(current.retry?.status)) {
+            throw new Error('CONTROLLER_CONTINUE_RETRY_ATOMIC_BOUNDARY_INTENT_MISMATCH.');
+          }
+          if (!current.retry.boundaryObservedAt) currentRecovery.continueRetryCount += 1;
+          current.retry.status = result?.generationStarted === true ? 'BOUNDARY_VERIFIED' : 'CLICK_BOUNDARY_PERSISTED';
+          current.retry.boundaryObservedAt = boundaryAt;
+          current.retry.generationStartedAt = result?.generationStarted === true ? result.startedAtObserved : current.retry.generationStartedAt;
+          boundaryCycle.updatedAt = new Date().toISOString();
+          boundaryState.controllerCycles[boundaryCycle.cycleId] = boundaryCycle;
+        },
+        submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => this.browser.retryExactFailedContinue(target, {
+          expectedUrl,
+          anchor: attempt.anchor,
+          binding: attempt.retry.binding,
+          onBeforeSubmissionBoundary,
+          onSubmissionBoundary,
+        }),
+      });
+    } catch (error) {
+      throw Object.assign(new Error(`CONTINUE_RETRY_FAILED_CLOSED: ${error instanceof Error ? error.message : String(error)}`), {
+        cause: error,
+        relayStage: error?.relayStage,
+        clickedAtObserved: error?.clickedAtObserved,
+        startedAtObserved: error?.startedAtObserved,
+      });
+    }
+    state = await this.stateStore.read();
+    cycle = state.controllerCycles[cycle.cycleId];
+    const current = cycle.recoveries[lane].attempts.at(-1);
+    if (current?.retry?.status !== 'BOUNDARY_VERIFIED') {
+      throw new Error('CONTINUE_RETRY_FAILED_CLOSED: Retry boundary persistence is missing.');
+    }
+    await this.#recordControllerStage(cycle, `${lane.toUpperCase()}_CONTINUE_RETRY_SENT`);
+    return { state, cycle, status: 'RETRY_FAILED_CONTINUE' };
+  }
+
+  async #recoveryLaneContext(cycle, route, lane) {
+    if (lane === 'pm') {
+      const chat = this.config.runtime.chats.find((entry) => entry.supervisorId === cycle.pmSupervisorId);
+      const target = await this.browser.requireExactOwnedTarget({
+        targetId: cycle.pm.targetId,
+        automationWindowId: cycle.pm.automationWindowId,
+        expectedUrl: cycle.pm.expectedUrl,
+      });
+      return { target, expectedUrl: cycle.pm.expectedUrl, chat, providerSessionId: cycle.providerSessions.pm };
+    }
+    const expectedUrl = cycle.origin.expectedUrl;
+    const target = await this.browser.requireExactOwnedTarget({
+      targetId: cycle.origin.targetId,
+      automationWindowId: cycle.origin.automationWindowId,
+      expectedUrl,
+    });
+    return {
+      target,
+      expectedUrl,
+      chat: route.chat,
+      providerSessionId: lane === 'return' ? cycle.providerSessions.return : cycle.providerSessions.origin,
+    };
   }
 
   async #prepareReturn(state, cycle, route) {
@@ -1234,6 +1549,30 @@ export function publicControllerCycle(cycle) {
       semanticPayloadSha256: artifact.semanticPayloadSha256,
     } : null])),
     sends: cycle.sends,
+    recoveries: Object.fromEntries(Object.entries(cycle.recoveries ?? {}).map(([lane, recovery]) => [lane, {
+      phase: recovery.phase,
+      continueAttemptCount: recovery.continueAttemptCount,
+      continueRetryCount: recovery.continueRetryCount,
+      lastObservedCompletionAt: recovery.lastObservedCompletionAt,
+      lastRecoveryCompletedAt: recovery.lastRecoveryCompletedAt,
+      attempts: recovery.attempts.map((attempt) => ({
+        attemptNumber: attempt.attemptNumber,
+        status: attempt.status,
+        bodySha256: attempt.bodySha256,
+        intentRecordedAt: attempt.intentRecordedAt,
+        boundaryObservedAt: attempt.boundaryObservedAt,
+        generationStartedAt: attempt.generationStartedAt,
+        generationCompletedAt: attempt.generationCompletedAt,
+        retry: attempt.retry ? {
+          status: attempt.retry.status,
+          bindingSha256: attempt.retry.bindingSha256,
+          intentRecordedAt: attempt.retry.intentRecordedAt,
+          boundaryObservedAt: attempt.retry.boundaryObservedAt,
+          generationStartedAt: attempt.retry.generationStartedAt,
+          generationCompletedAt: attempt.retry.generationCompletedAt,
+        } : null,
+      })),
+    }])),
     final: cycle.final,
     createdAt: cycle.createdAt,
     updatedAt: cycle.updatedAt,
@@ -1331,6 +1670,32 @@ function artifactNotBefore(send, lane) {
 function artifactWaitStatus(cycle, lane, startedStep, waitingStatus, ambiguousStatus) {
   if (cycle.step !== startedStep) return waitingStatus;
   return cycle.sends?.[lane]?.status === 'CLICK_BOUNDARY_PERSISTED' ? waitingStatus : ambiguousStatus;
+}
+
+function emptyLaneRecovery() {
+  return {
+    phase: 'AWAITING_GENERATION_COMPLETION',
+    continueAttemptCount: 0,
+    continueRetryCount: 0,
+    lastObservedCompletionAt: null,
+    lastRecoveryCompletedAt: null,
+    attempts: [],
+  };
+}
+
+function waitStepForLane(lane) {
+  if (lane === 'origin') return 'WAIT_ORIGIN_ARTIFACT';
+  if (lane === 'pm') return 'WAIT_PM_ARTIFACT';
+  if (lane === 'return') return 'WAIT_RETURN_ARTIFACT_OR_ACK';
+  throw new Error(`Unknown controller recovery lane ${lane}.`);
+}
+
+function activeRetryLane(cycle) {
+  const lanes = Object.entries(cycle.recoveries ?? {})
+    .filter(([, recovery]) => recovery?.attempts?.at(-1)?.status === 'RETRY_FAILED_CONTINUE')
+    .map(([lane]) => lane);
+  if (lanes.length !== 1) throw new Error('CONTROLLER_CONTINUE_RETRY_ACTIVE_LANE_AMBIGUOUS.');
+  return lanes[0];
 }
 
 function crossedSendBoundary(error) {
