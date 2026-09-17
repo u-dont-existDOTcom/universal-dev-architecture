@@ -167,12 +167,9 @@ Immediately before surfacing any outbound link to the owner, open the exact dest
 
 Use this priority:
 
-1. when direct authorized filesystem access to the owner's active machine is available, resolve the OS-designated Downloads directory (prefer the platform-native resolver, such as `xdg-user-dir DOWNLOAD` on Linux), materialize the artifact there automatically, and report the exact local path;
-2. otherwise give the actual file/attachment when the active surface can materialize or attach it;
-3. otherwise give a direct clickable file/download link to the artifact itself;
-4. only if none of those are technically possible, provide the usable contents inline when practical, or explain the exact tool limitation and give the nearest direct retrievable link.
-
-Do not require the owner to click a sandbox/download link merely to move an artifact onto a machine that the authorized execution surface can already write to. Fall back to attachment/link delivery when the owner machine is offline, direct local placement is unavailable, or local placement would cross an unapproved access boundary.
+1. give the actual file/attachment when the active surface can materialize or attach it;
+2. otherwise give a direct clickable file/download link to the artifact itself;
+3. only if neither is technically possible, provide the usable contents inline when practical, or explain the exact tool limitation and give the nearest direct retrievable link.
 
 Branch names, repository paths, PR numbers, and commit SHAs may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery. Before saying `go to branch X`, `open path Y`, `grab the file from GitHub`, or equivalent, first attempt to retrieve/materialize/attach the artifact or create a direct link.
 
