@@ -26,7 +26,10 @@ cp -a "$source_root"/. "$staging_root"/
 rm -f -- \
   "$staging_root/src/submission-scheduler-service.mjs" \
   "$staging_root/test/submission-scheduler-service.test.mjs"
-chmod 0700 "$staging_root/bin/mc-chatgpt-relay.mjs" "$staging_root/scripts/launch-browser.sh"
+chmod 0700 \
+  "$staging_root/bin/mc-chatgpt-relay.mjs" \
+  "$staging_root/scripts/browser-fence.sh" \
+  "$staging_root/scripts/launch-browser.sh"
 
 if [[ ! -f "$config_root/env" ]]; then
   install -m 0600 "$staging_root/.env.example" "$config_root/env"

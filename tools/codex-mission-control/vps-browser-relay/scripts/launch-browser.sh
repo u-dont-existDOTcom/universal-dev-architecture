@@ -8,6 +8,12 @@ unset MC_RELAY_TOKEN MC_RELAY_TARGET_BINDING_ATTESTOR_KEY MC_RELAY_SUBMISSION_PA
   MC_RELAY_PRODUCER_ID MC_RELAY_MISSION_CONTROL_URL MC_RELAY_SUBMISSION_AUTHORITY_URL \
   MC_RELAY_SCHEDULER_TOKEN MC_RELAY_SCHEDULER_URL MC_RELAY_SCHEDULER_TIMEOUT_MS
 
+fence_file="${MC_RELAY_BROWSER_FENCE_FILE:-$HOME/.local/state/mission-control-chatgpt-relay/browser.fenced}"
+if [[ -e "$fence_file" ]]; then
+  echo "HOST_BROWSER_FENCED: browser startup is blocked until the takeover fence is explicitly released." >&2
+  exit 78
+fi
+
 profile_dir="${MC_RELAY_BROWSER_PROFILE_DIR:-$HOME/.local/share/mission-control-chatgpt-profile}"
 browser_config_dir="${MC_RELAY_BROWSER_CONFIG_DIR:-$profile_dir/xdg-config}"
 cdp_host="${MC_RELAY_CDP_HOST:-127.0.0.1}"

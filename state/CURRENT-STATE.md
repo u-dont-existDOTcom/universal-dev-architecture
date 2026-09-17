@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-16
+Updated: 2026-09-17
 
 ## Goal
 
@@ -45,6 +45,19 @@ turn visibly fails may the controller Retry that exact failed continue once.
   diff check. PR #132 passed hosted checks and merged as
   `b8d1ac4ea957627de8f26feaba3e1560c92f4269`; the exact package is installed on
   the authorized SECONDARY with file parity and rollback preserved.
+- PRIMARY operator access is restored. The later browser reactivation was
+  traced exactly to the completed managed Chromium-bridge qualification, not
+  the disabled health timer or an in-flight provider send. PRIMARY is now
+  protected by a root-owned durable fence marker plus a systemd instance mask;
+  its system and alternate user start paths remain browser/CDP-quiescent.
+- The smallest recurrence repair is commit
+  `5f199485dc5efb8d25387c340dd235b7152ce7fc`: browser, health, qualification,
+  and maintenance paths share the durable fence; health no longer depends on
+  or starts the browser; explicit release is the only return transition. The
+  exact package is installed reversibly on both authorized non-production
+  hosts. Relay 203/203, focused 42/42 and 32/32, syntax, diff, repository,
+  Mission Control, relay, and CodeQL checks pass on PR #140. No provider send
+  occurred.
 
 ## Completed outcome
 
@@ -60,18 +73,27 @@ turn visibly fails may the controller Retry that exact failed continue once.
 
 ## Remaining
 
-- Restore authorized operator access to the PRIMARY or provide independent
-  fencing proof, prove the prior relay/browser sender quiescent, activate the
-  controlled successor lease, re-run no-send readiness, then run exactly one
-  fresh disposable PM-mediated OWNER-byte fixture.
+- Obtain owner merge authorization for PR #140 and authorization for one
+  controlled restart of the currently unresponsive non-production Mission
+  Control single-writer with its existing volume preserved and the invalid
+  optional live-source watcher disabled. Re-read the live queue/admission/
+  ledger after recovery, activate the controlled successor lease, re-run
+  no-send readiness, then run exactly one fresh disposable PM-mediated
+  OWNER-byte fixture.
 
 ## Blockers / unresolved
 
-- The current PRIMARY lease is stale and SECONDARY is correctly fenced with
-  `DEPLOYMENT_LEASE_MISMATCH`. Repeated bounded access attempts cannot reach the
-  PRIMARY or prove its old browser sender quiescent. Active multi-host policy
-  forbids automatic network-partition failover; no fresh fixture was created.
-  See `docs/evidence/2026-09-16-controller-recovery-install-readiness.json`.
+- The outgoing PRIMARY sender is durably fenced and the last clean central read
+  showed stale epoch 3, queue depth zero, no unresolved admission, no target
+  transition, no safety halt, a clear rate-limit state, and a valid ledger.
+  The central single-writer daemon subsequently became CPU-bound and
+  unresponsive, and a read-only database probe found the live database locked.
+  Its optional 750 ms live-source watcher is repeatedly running Git against a
+  release archive that is not a Git worktree.
+  Current authority state therefore cannot be established for epoch-4
+  activation. The control plane was not stopped because the active recovery
+  supplement does not authorize that mutation. No fresh fixture was created.
+  See `docs/evidence/2026-09-17-epoch4-fence-recovery-readiness.json`.
 
 ## Evidence / artifacts
 
@@ -85,6 +107,8 @@ turn visibly fails may the controller Retry that exact failed continue once.
   `docs/evidence/2026-09-10-owner-deployment-multi-host-hardening.json`.
 - Prior live pacing audit:
   `docs/evidence/2026-09-10-owner-deployment-prechange-pacing.json`.
+- Current epoch-4 fencing/readiness checkpoint:
+  `docs/evidence/2026-09-17-epoch4-fence-recovery-readiness.json`.
 - Owner-specific current topology:
   `state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md`.
 - Portable mechanisms:

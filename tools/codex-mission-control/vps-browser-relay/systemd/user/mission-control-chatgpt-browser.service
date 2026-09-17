@@ -7,8 +7,10 @@ Wants=network-online.target
 Type=simple
 Slice=mission-control-chatgpt.slice
 EnvironmentFile=%h/.config/mission-control-chatgpt-relay/browser-env
+Environment=MC_RELAY_BROWSER_FENCE_FILE=/var/lib/mission-control-chatgpt/browser-fences/%u.fenced
 ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/scripts/launch-browser.sh
 Restart=on-failure
+RestartPreventExitStatus=78
 RestartSec=5
 TimeoutStopSec=20
 KillMode=mixed

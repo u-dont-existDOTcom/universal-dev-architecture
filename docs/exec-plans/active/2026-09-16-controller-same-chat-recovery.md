@@ -1,6 +1,6 @@
 # Controller-mediated PM same-chat recovery
 
-Status: BLOCKED — CONTROLLED FAILOVER REQUIRES PROVEN PRIMARY QUIESCENCE
+Status: BLOCKED — CENTRAL SINGLE-WRITER MUST RECOVER BEFORE EPOCH 4
 
 Assurance lane: release only after the focused candidate proves the current seam.
 
@@ -52,14 +52,27 @@ or ambiguous send/click ancestry fails closed.
 - PR #132 passed hosted checks and merged as
   `b8d1ac4ea957627de8f26feaba3e1560c92f4269`. The exact package is installed
   on the authorized SECONDARY with file parity and rollback preserved.
-- No-send readiness is blocked: the shared authority reports a stale PRIMARY
-  lease, SECONDARY remains correctly fenced, and repeated local and
-  SECONDARY-origin control probes cannot prove the old PRIMARY browser sender
-  quiescent. Automatic partition failover is forbidden by the active multi-host
-  policy. No live fixture was created.
-- Next: restore authorized PRIMARY operator access or independent fencing,
-  prove quiescence, activate a controlled successor lease, re-run no-send
-  readiness, then create exactly one fresh fixture.
+- PRIMARY access and sender quiescence are now proved. The later browser start
+  was source-bound to the completed managed Chromium-bridge qualification.
+  PRIMARY now has a durable marker plus systemd mask and remains browser/CDP
+  quiescent after persistence, explicit system start, alternate user start,
+  and health-path checks.
+- Commit `5f199485dc5efb8d25387c340dd235b7152ce7fc` implements the smallest
+  recurrence repair and is installed reversibly on both authorized
+  non-production hosts. PR #140 is the review boundary; no automatic merge is
+  authorized. Complete relay and focused tests pass and no provider send
+  occurred.
+- No-send readiness is now blocked at the central authority: after one clean
+  stale-epoch-3/empty-queue/valid-ledger read, the single-writer daemon became
+  CPU-bound and unresponsive and the live database could not be read without a
+  lock. Its optional 750 ms live-source watcher is repeatedly running Git
+  against a release archive that is not a Git worktree. Stale evidence is
+  ineligible for successor activation. No live fixture was created.
+- Next: obtain owner authorization for PR #140 merge and one controlled
+  volume-preserving restart of the non-production single-writer with that
+  invalid optional watcher disabled, re-read exact authority state, activate
+  epoch 4 only if every gate remains clean, re-run no-send readiness, then
+  create exactly one fresh fixture.
 
 ## Stop conditions
 

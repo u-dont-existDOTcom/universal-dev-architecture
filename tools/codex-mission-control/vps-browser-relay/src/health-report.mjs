@@ -1,3 +1,28 @@
+export async function observeRelayHealth({ doctor, browserDoctor, schedulerStatus, now = () => new Date() }) {
+  try {
+    return await doctor();
+  } catch (error) {
+    try {
+      await browserDoctor();
+    } catch {
+      const centralScheduler = await schedulerStatus();
+      return {
+        status: 'HOST_BROWSER_UNAVAILABLE',
+        checkedAt: now().toISOString(),
+        centralScheduler,
+        browser: {
+          webSocketDebuggerUrlPresent: false,
+          automationWindowOwnershipEnforced: false,
+          automationWindowId: null,
+          automationOwnedTabCount: 0,
+          automationOwnedTargetIdsSha256: null,
+        },
+      };
+    }
+    throw error;
+  }
+}
+
 export function buildRelayHealthReport(config, doctor) {
   const binding = doctor.centralScheduler?.authenticatedRelayBinding;
   const browser = doctor.browser ?? {};

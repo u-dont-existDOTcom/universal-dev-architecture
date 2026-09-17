@@ -79,10 +79,16 @@ fi
 
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 installed_app="$target_home/.local/share/mission-control-chatgpt-relay/app"
-if [[ ! -x "$installed_app/scripts/launch-browser.sh" || ! -x "$installed_app/bin/mc-chatgpt-relay.mjs" ]]; then
+if [[ ! -x "$installed_app/scripts/launch-browser.sh" || ! -x "$installed_app/scripts/browser-fence.sh" || ! -x "$installed_app/bin/mc-chatgpt-relay.mjs" ]]; then
   echo "The target user must install the exact relay package before system services are installed." >&2
   exit 69
 fi
+
+fence_helper="/usr/local/libexec/mission-control-chatgpt-browser-fence"
+fence_state_dir="/var/lib/mission-control-chatgpt/browser-fences"
+fence_file="$fence_state_dir/$target_user.fenced"
+install -d -m 0755 "$(dirname "$fence_helper")" "$fence_state_dir"
+install -m 0755 "$source_root/scripts/browser-fence.sh" "$fence_helper"
 
 for unit in mission-control-chatgpt.slice mission-control-chatgpt-browser@.service mission-control-chatgpt-relay@.service mission-control-chatgpt-health@.service mission-control-chatgpt-health@.timer; do
   install -m 0644 "$source_root/systemd/system/$unit" "/etc/systemd/system/$unit"
@@ -108,6 +114,7 @@ printf '%s\n' \
   '[Service]' \
   'EnvironmentFile=' \
   "EnvironmentFile=$target_home/.config/mission-control-chatgpt-relay/browser-env" \
+  "Environment=MC_RELAY_BROWSER_FENCE_FILE=$fence_file" \
   'ExecStart=' \
   "ExecStart=$target_home/.local/share/mission-control-chatgpt-relay/app/scripts/launch-browser.sh" \
   'ReadWritePaths=' \
@@ -159,6 +166,13 @@ the other filesystem, kernel, resource, and namespace protections.
 
 Start the browser without enabling sends:
   systemctl enable --now mission-control-chatgpt-browser@$target_user.service
+
+For a controlled outgoing-host takeover, engage the durable browser fence:
+  $fence_helper engage $target_user
+
+Release it only after the takeover is complete and the browser resource is
+explicitly returned to this host:
+  $fence_helper release $target_user
 
 After central authority checks pass and the host is active, start the relay:
   systemctl enable --now mission-control-chatgpt-relay@$target_user.service

@@ -235,8 +235,10 @@ unresolved ambiguity.
 Keep the standby relay disabled during ordinary operation. A controlled
 takeover is an operator transaction, never a network-partition guess:
 
-1. stop and disable the old relay, prove it and its browser are quiescent, and
-   leave both disabled through the whole takeover;
+1. engage the installed `mission-control-chatgpt-browser-fence` helper on the
+   old host; it records a durable fence marker, stops and disables the relay,
+   browser, and health timer, and masks the browser instance. Prove the sender
+   quiescent and leave the fence engaged through the whole takeover;
 2. reconcile open/ambiguous admissions;
 3. read the last boundary and lease from Mission Control without copying or
    forking that ledger;
@@ -260,6 +262,23 @@ quiescence and pacing transfer are otherwise proven. This makes an accidental
 restart of the disabled old relay fail closed on its stale lease.
 A same-lease renewal may only extend `expiresAt`; changing host, epoch, issue
 time, or takeover evidence requires a new fenced lease.
+
+`disabled` alone is not a fence: systemd still permits an explicit or
+dependency-driven start. The browser launcher and system-manager unit therefore
+check the durable fence marker as well as using the reversible instance mask.
+An unmask performed by a qualification or maintenance task cannot bypass that
+marker; it fails with `HOST_BROWSER_FENCED`. The health service has no browser
+dependency and reports a stopped/fenced browser as unavailable without starting
+it. Browser maintenance and qualification must check the same helper before any
+start, and must never call `release` as setup. Release is an explicit operator
+transition only after takeover completion and resource return:
+
+```bash
+sudo /usr/local/libexec/mission-control-chatgpt-browser-fence status cloudbrowser
+sudo /usr/local/libexec/mission-control-chatgpt-browser-fence engage cloudbrowser
+# Later, only after the recorded release condition is true:
+sudo /usr/local/libexec/mission-control-chatgpt-browser-fence release cloudbrowser
+```
 
 ## Memory policy
 

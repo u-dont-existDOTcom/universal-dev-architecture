@@ -99,7 +99,9 @@ send admission.
 
 Controlled takeover requires all of:
 
-1. stop and disable the current primary relay and browser sender;
+1. stop and disable the current primary relay and browser sender, then apply a
+   reversible start-prevention fence that an explicit or dependency-driven
+   service start cannot bypass; `disabled` alone is not a fence;
 2. prove the primary relay/browser sender is quiescent while Mission Control's
    shared authority remains the sole live writer;
 3. reconcile every queued, admitted, crossed and ambiguous item;
@@ -123,6 +125,13 @@ ownership.
 
 Recovery to the preferred primary uses the same transaction and a newer epoch;
 it is not a special bypass.
+
+Health, qualification, installer, and maintenance paths must observe the same
+outgoing-host fence. A health observation of a stopped or fenced browser reports
+unavailable without starting it. A maintenance path fails with an explicit
+fenced-host result; it must not unmask or release the fence as incidental setup.
+Only the controlled takeover/recovery operator transition may release the
+fence, after which normal browser startup may resume under the active lease.
 
 ## Mission Control-only conversation ownership
 
