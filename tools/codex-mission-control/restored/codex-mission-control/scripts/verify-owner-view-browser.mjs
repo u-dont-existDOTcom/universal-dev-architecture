@@ -1,0 +1,33 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {openDashboard} from './desktop-launcher.mjs';
+import auth from '../lib/owner-auth.ts';
+const {createOwnerSession}=auth;
+if (!process.env.MISSION_CONTROL_SESSION_SECRET || !process.env.MISSION_CONTROL_TEST_ARTIFACT_DIR) throw new Error('Isolated test signing secret and artifact directory required.');
+const artifacts = new URL('file://' + process.env.MISSION_CONTROL_TEST_ARTIFACT_DIR.replace(/\/$/, '') + '/');
+const c={url:process.env.MISSION_CONTROL_TEST_URL ?? 'http://127.0.0.1:13100/',browser:process.env.MISSION_CONTROL_TEST_BROWSER ?? '/usr/bin/chromium'};
+if(new URL(c.url).hostname !== '127.0.0.1') throw new Error('Browser fixtures require an isolated loopback candidate.');
+const win=await openDashboard(c,createOwnerSession(),{headless:true});
+const cmd=(m,p={})=>win.command(m,p,win.sessionId);
+const evaluate=async expression=>(await cmd('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true})).result.value;
+async function wait(expression){for(let i=0;i<100;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,150));}throw Error('Browser expectation timed out: '+expression);}
+async function screenshot(name){await cmd('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await new Promise(r=>setTimeout(r,250));const shot=await cmd('Page.captureScreenshot',{format:'png'});await writeFile(new URL(name,artifacts),Buffer.from(shot.data,'base64'));}
+await wait(`document.body.innerText.includes('Current tasks')`);
+const parity=await evaluate(`(async()=>{const d=await(await fetch('/api/workers')).json();const text=document.body.innerText;return d.workers.every(w=>text.includes(w.objective.goal)&&text.includes(w.currentStep));})()`);
+assert.equal(parity,true);await screenshot('candidate-authenticated-test-data.png');
+const operator={checkedAt:new Date().toISOString(),overallState:'UNAVAILABLE',providerRelayState:'UNAVAILABLE',activeHostLabel:null,authority:{state:'UNAVAILABLE',writer:'MISSION_CONTROL_SINGLE_WRITER',schedulerState:'UNAVAILABLE',activeLeaseRole:null,epoch:null,queueDepth:0,ledgerIntegrity:'UNAVAILABLE'},pacing:{lastProviderSendBoundaryAt:null,configuredMinimumIntervalMs:null,minimumObservedIntervalMs:null,recentIntervalsMs:[],violationsBelowConfiguredMinimum:null,rateLimitState:'UNKNOWN',cooldownRemainingMs:null},hosts:[],supervisors:[]};
+let failure='all';
+win.browser.on('cdp-event',async e=>{if(e.method==='Fetch.requestPaused'){const u=new URL(e.params.request.url);if(failure==='all'||failure==='partial'&&u.pathname==='/api/operator-status') await cmd('Fetch.fulfillRequest',{requestId:e.params.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify({error:'isolated test unavailable'})).toString('base64')});else if(u.pathname==='/api/operator-status') await cmd('Fetch.fulfillRequest',{requestId:e.params.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(operator)).toString('base64')});else await cmd('Fetch.continueRequest',{requestId:e.params.requestId});}});
+await cmd('Fetch.enable',{patterns:[{urlPattern:'*/api/workers',requestStage:'Request'},{urlPattern:'*/api/operator-status',requestStage:'Request'}]});
+await cmd('Page.reload');await wait(`document.body.innerText.includes('Dashboard data could not be loaded')`);
+assert.equal(await evaluate(`document.body.innerText.includes('Loading your recorded work')`),false);
+await screenshot('candidate-initial-error-test-data.png');
+failure='partial';await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Retry').click()`);
+await wait(`document.body.innerText.includes('Partial / last-known view') && document.body.innerText.includes('Current tasks')`);
+failure='none';await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Retry').click()`);
+await wait(`!document.querySelector('main [role=alert]') && document.body.innerText.includes('Current tasks')`);
+await screenshot('candidate-authenticated-test-data.png');
+await cmd('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true);
+await win.command('Browser.close');
+console.log('PASS: authenticated rendered fields match same snapshot; initial 503 actionable; partial retained; Retry recovered; 390px no horizontal overflow. Screenshots use isolated test data.');

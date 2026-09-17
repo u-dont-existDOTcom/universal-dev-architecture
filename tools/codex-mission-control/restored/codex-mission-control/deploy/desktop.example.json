@@ -1,0 +1,8 @@
+{
+  "url": "http://127.0.0.1:13000/",
+  "sshAlias": "REPLACE_OWNER_SSH_ALIAS",
+  "container": "REPLACE_DASHBOARD_CONTAINER",
+  "browser": "/usr/bin/chromium",
+  "controlPath": "/REPLACE_OWNER_RUNTIME_DIRECTORY/tunnel.sock",
+  "remotePort": 3000
+}

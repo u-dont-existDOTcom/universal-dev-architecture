@@ -1,23 +1,16 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { dashboardBindingArguments } from "./dashboard-binding.mjs";
 
 const mode = process.argv[2] === "start" ? "start" : "dev";
 const forwarded = process.argv.slice(3);
 const executable = process.platform === "win32" ? "tsx.cmd" : "tsx";
 const nextExecutable = process.platform === "win32" ? "next.cmd" : "next";
-const hostnameIndex = forwarded.findIndex((value) => value === "-H" || value === "--hostname");
-const requestedHost = hostnameIndex >= 0 ? forwarded[hostnameIndex + 1] : "127.0.0.1";
-const nextArguments = hostnameIndex >= 0 ? [mode, ...forwarded] : [mode, "--hostname", requestedHost, ...forwarded];
-if (!["127.0.0.1", "localhost", "::1"].includes(requestedHost)) {
-  const publicOrigin = process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
-  if (!publicOrigin || new URL(publicOrigin).protocol !== "https:") {
-    throw new Error("Remote dashboard binding requires an HTTPS MISSION_CONTROL_PUBLIC_ORIGIN. Prefer the private MCP tunnel and keep the dashboard on loopback.");
-  }
+const nextArguments = dashboardBindingArguments(mode, forwarded);
+if (!process.env.MISSION_CONTROL_OWNER_TOKEN && process.env.MISSION_CONTROL_PRIVATE_DESKTOP_AUTH !== "1") {
+  throw new Error("Configure MISSION_CONTROL_OWNER_TOKEN or explicitly enable MISSION_CONTROL_PRIVATE_DESKTOP_AUTH for the SSH-only desktop path.");
 }
-if (!process.env.MISSION_CONTROL_OWNER_TOKEN) {
-  throw new Error("MISSION_CONTROL_OWNER_TOKEN is required; owner credentials are never generated or printed by the stack launcher.");
-}
-if (mode === "start") {
+if (mode === "start" || process.env.MISSION_CONTROL_PRIVATE_DESKTOP_AUTH === "1") {
   const missing = ["MISSION_CONTROL_INTERNAL_TOKEN", "MISSION_CONTROL_OWNER_ID", "MISSION_CONTROL_SESSION_SECRET"]
     .filter((name) => !process.env[name]);
   if (missing.length > 0) {

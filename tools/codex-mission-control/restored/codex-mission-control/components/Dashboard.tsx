@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkerState } from "@/lib/projection";
 import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
+import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, workerDisposition, type SnapshotFailure } from "@/lib/owner-view";
 import type { LiveHealthState, OperatorStatusProjection } from "@/lib/operator-status-contract";
 
 interface Snapshot {
@@ -44,104 +45,71 @@ interface Snapshot {
 export function Dashboard() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [operatorStatus, setOperatorStatus] = useState<OperatorStatusProjection | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failures, setFailures] = useState<Record<string, SnapshotFailure>>({});
+  const [loading, setLoading] = useState(true);
+  const [streamError, setStreamError] = useState(false);
   const [marking, setMarking] = useState(false);
-  const [selectedWorkerId, setSelectedWorkerId] = useState("");
+  const busy = useRef(false);
   const load = useCallback(async () => {
-    try {
-      const [workersResponse, operatorResponse] = await Promise.all([
-        fetch("/api/workers", { cache: "no-store" }),
-        fetch("/api/operator-status", { cache: "no-store" }),
-      ]);
-      if (!workersResponse.ok || !operatorResponse.ok) throw new Error("Dashboard snapshot failed");
-      setSnapshot(await workersResponse.json());
-      setOperatorStatus(await operatorResponse.json());
-      setError(null);
-    } catch {
-      setError("Mission Control could not reach its local daemon.");
-    }
+    if (busy.current) return;
+    busy.current = true;
+    setLoading(true);
+    const results = await Promise.allSettled([
+      readDashboardData<Snapshot>("/api/workers", validTaskSnapshot),
+      readDashboardData<OperatorStatusProjection>("/api/operator-status", validOperatorSnapshot),
+    ]);
+    const next: Record<string, SnapshotFailure> = {};
+    if (results[0].status === "fulfilled") setSnapshot(results[0].value); else next.Tasks = snapshotFailure(results[0].reason);
+    if (results[1].status === "fulfilled") setOperatorStatus(results[1].value); else next.Infrastructure = snapshotFailure(results[1].reason);
+    setFailures(next);
+    setLoading(false);
+    busy.current = false;
   }, []);
-
   useEffect(() => {
     void load();
     const source = new EventSource("/api/events/stream");
     source.addEventListener("mission-control-event", () => void load());
-    source.onerror = () => setError("Live updates are reconnecting…");
+    source.onopen = () => setStreamError(false);
+    source.onerror = () => setStreamError(true);
     return () => source.close();
   }, [load]);
-
-  const workers = useMemo(() => {
-    return [...(snapshot?.workers ?? [])];
-  }, [snapshot]);
-
-  useEffect(() => {
-    if (!selectedWorkerId || !workers.some((worker) => worker.id === selectedWorkerId)) {
-      setSelectedWorkerId(workers[0]?.id ?? "");
-    }
-  }, [selectedWorkerId, workers]);
-
   async function markViewed() {
     setMarking(true);
-    await fetch("/api/viewed", { method: "POST", headers: ownerMutationHeaders() });
-    await load();
-    setMarking(false);
+    try {
+      const response = await fetch("/api/viewed", { method: "POST", headers: ownerMutationHeaders() });
+      if (!response.ok) throw new Error("Could not mark history viewed. Retry after reconnecting.");
+      await load();
+    } catch { setFailures(previous => ({ ...previous, History: { kind: "server", message: "Could not mark history viewed. Retry after reconnecting." } })); }
+    finally { setMarking(false); }
   }
+  const workers = snapshot?.workers ?? [];
+  const decisions = workers.filter(worker => worker.correction.ownerActionType !== "NONE");
+  const recommended = orderedOpenQueue(snapshot?.fleetQueue ?? []).slice(0, 3);
+  const partial = Object.keys(failures).length > 0;
+  return <main className="shell mission-shell owner-shell">
+    <header className="topbar"><div className="brand-row"><div className="brand-mark">MC</div><div><p className="eyebrow">YOUR WORK, IN VIEW</p><h1>Mission Control</h1></div></div><button className="owner-retry" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button></header>
+    <DashboardNotice failures={failures} hasSnapshot={Boolean(snapshot)} loading={loading} onRetry={() => void load()} />
+    {streamError && <div role="status" className="error-banner">Live updates are reconnecting. Displayed information may be stale; use Refresh to check.</div>}
+    {!snapshot && loading && !partial && <div role="status" className="loading-panel">Loading your recorded work…</div>}
+    {snapshot && <>
+      <p className="owner-coverage">Coverage: {workers.length} recorded worker task{workers.length === 1 ? "" : "s"} and {snapshot.fleetQueue.length} queue items. This view covers only work reported to Mission Control, not every project or chat. Snapshot {new Date(snapshot.generatedAt).toLocaleString()} · {relativeTime(snapshot.generatedAt)}.{failures.Tasks && " Task data is last-known; current status needs checking."}</p>
+      <section className="owner-section" aria-labelledby="owner-decisions"><h2 id="owner-decisions">Your decisions and actions <span>{decisions.length}</span></h2>{decisions.length ? decisions.map(worker => <article className="owner-decision" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p>{worker.correction.ownerActionText || "Action details not recorded."}</p><OwnerDecisionDetails worker={worker} /></article>) : <p className="muted">No owner action is recorded in this snapshot.{partial || streamError ? " Reporting is incomplete; this does not establish that no action is needed." : ""}</p>}</section>
+      <section className="owner-section" aria-labelledby="owner-next"><h2 id="owner-next">Recommended next to review</h2><p className="muted">Stored priority P0–P3, then stored queue order. This ordering does not grant permission to start.</p>{recommended.length ? <ol className="owner-next-list">{recommended.map(item => <li key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><a href="#recorded-queue"><strong>{item.title}</strong></a><span>{item.priority} · {item.status.replaceAll("_", " ").toLowerCase()}</span><small>{item.projectId} · {item.taskId}</small></li>)}</ol> : <p>No unfinished queue items are recorded. Worker reporting may be incomplete.</p>}</section>
+      <section className="owner-section" aria-labelledby="owner-tasks"><h2 id="owner-tasks">Current tasks</h2>{workers.length ? <div className="owner-task-grid">{workers.map(worker => <OwnerTaskCard key={worker.id} worker={worker} />)}</div> : <p className="empty-live-fleet">No known tasks are available in this snapshot. This does not establish that all work is complete; worker reporting may be missing.</p>}</section>
+      <div id="recorded-queue"><FleetQueue queue={snapshot.fleetQueue} /></div>
+    </>}
+    {operatorStatus?.overallState !== "HEALTHY" && operatorStatus && !failures.Infrastructure && <p className="error-banner">Infrastructure reporting needs attention. Delivery or updates may be affected; check the details before relying on a new worker response.</p>}
+    <details className="owner-technical"><summary>Infrastructure, reporting and evidence details{failures.Infrastructure ? " · unavailable / last-known" : ""}</summary><p className="muted">Transport health does not establish task progress, owner approval or integration readiness.</p>{operatorStatus && <InfrastructureHealth status={operatorStatus} />}{snapshot && <><LiveWorkerStrip source={snapshot.liveSource} /><p>{snapshot.connectionSummary?.connected ?? 0} reporting · {snapshot.connectionSummary?.offlineConfigured ?? 0} configured offline. Known stored tasks remain visible when reporting stops.</p><section className="mission-grid">{workers.map(worker => <MissionCard key={worker.id} worker={worker} selected={false} />)}</section><section className="change-summary secondary-history"><p>{snapshot.summary}</p><button onClick={markViewed} disabled={marking}>{marking ? "Marking…" : "Mark viewed"}</button></section></>}</details>
+  </main>;
+}
 
-  if (!snapshot || !operatorStatus) return <main className="shell"><div className="loading-panel">Loading mission telemetry…</div></main>;
-  const statusHealth = trafficForHealth(operatorStatus.overallState);
-  return (
-    <main className="shell mission-shell">
-      <header className="topbar">
-        <div className="brand-row">
-          <div className="brand-mark">MC</div>
-          <div>
-            <p className="eyebrow">OWNER ATTENTION QUEUE</p>
-            <h1>Codex Mission Control</h1>
-          </div>
-        </div>
-        <div className="live-state"><StatusDot health={statusHealth} pulse={operatorStatus.overallState === "HEALTHY"} /><span>{operatorStatus.overallState}</span><span className="muted">authenticated live status</span></div>
-      </header>
+export function DashboardNotice({ failures, hasSnapshot, loading, onRetry }: { failures: Record<string, SnapshotFailure>; hasSnapshot: boolean; loading: boolean; onRetry: () => void }) {
+  if (!Object.keys(failures).length) return null;
+  return <section role="alert" className="error-banner"><strong>{hasSnapshot ? "Partial / last-known view" : "Dashboard data could not be loaded"}</strong>{Object.entries(failures).map(([name, failure]) => <p key={name}>{name}: {failure.message}</p>)}<button className="owner-retry" onClick={onRetry} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button></section>;
+}
 
-      {error && <div className="error-banner">{error}</div>}
-      <InfrastructureHealth status={operatorStatus} />
-      <LiveWorkerStrip source={snapshot.liveSource} />
-
-      <div className="mission-heading">
-        <div><p className="eyebrow">CURRENT LIVE FLEET</p><h2>What is running, parked, failed, or waiting?</h2></div>
-        <span>{workers.filter((worker) => worker.operatorState.needsAttention).length} need attention · owner actions {workers.filter((worker) => worker.correction.ownerActionType !== "NONE").length}</span>
-      </div>
-
-      {workers.length > 0 ? <nav className="scenario-index" aria-label="Live workers">
-        {workers.map((worker) => <button key={worker.id} className={selectedWorkerId === worker.id ? "selected" : ""} onClick={() => setSelectedWorkerId(worker.id)}><StatusDot health={worker.operatorState.traffic} /><span>{shortName(worker)}</span><strong>{dispositionLabel(worker)}</strong><small>Owner: {ownerActionLabel(worker)}</small></button>)}
-      </nav> : <section className="empty-live-fleet"><strong>No live workers are reporting.</strong><p>Mission Control is hiding demo fixtures. A worker appears here only after authenticated live connection evidence arrives.</p></section>}
-
-      <section className="mission-grid" aria-label="All-worker current control projection">
-        {workers.map((worker) => <MissionCard key={worker.id} worker={worker} selected={selectedWorkerId === worker.id} />)}
-      </section>
-
-      <section className="channel-fleet-summary" aria-label="Fleet communication status">
-        <div><span>Workers connected</span><strong>{snapshot.connectionSummary.connected}</strong></div>
-        <div><span>Offline configured</span><strong>{snapshot.connectionSummary.offlineConfigured}</strong></div>
-        <div><span>Demo workers hidden</span><strong>{snapshot.connectionSummary.suppressedFixtureOnly}</strong></div>
-        <div><span>Dashboard behind owner</span><strong>{snapshot.channelSummary.staleDirections}</strong></div>
-        <div><span>Awaiting delivery</span><strong>{snapshot.channelSummary.awaitingDelivery}</strong></div>
-        <div><span>Awaiting acknowledgement</span><strong>{snapshot.channelSummary.awaitingAcknowledgement}</strong></div>
-        <div><span>Delivery failures</span><strong>{snapshot.channelSummary.deliveryFailures}</strong></div>
-        <div><span>Open blockers</span><strong>{snapshot.channelSummary.openBlockers}</strong></div>
-        <div><span>Open proposals</span><strong>{snapshot.channelSummary.openProposals}</strong></div>
-      </section>
-
-      <FleetQueue queue={snapshot.fleetQueue} />
-
-      <section className="change-summary secondary-history">
-        <div className="summary-title"><span className="scan-icon">⌁</span><p className="eyebrow">APPEND-ONLY CHANGE HISTORY</p></div>
-        <p>{snapshot.summary}</p>
-        <button onClick={markViewed} disabled={marking}>{marking ? "Marking…" : "Mark viewed"}<span>✓</span></button>
-      </section>
-
-      <footer><span>Append-only v2 ledger · daemon-owned SQLite · read-only file/Git evidence</span><span>Projection updated {relativeTime(snapshot.generatedAt)}</span></footer>
-    </main>
-  );
+export function OwnerTaskCard({ worker }: { worker: WorkerState }) {
+  return <article className="owner-task"><div className="owner-task-heading"><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><span>{workerDisposition(worker)}</span></div><dl className="owner-four"><div><dt>Goal</dt><dd>{worker.objective.goal || "Not recorded"}</dd></div><div><dt>Where we are</dt><dd>{worker.currentStep || "Status needs checking"}</dd><dd className="muted">Latest recorded evidence: {worker.progress.latestEvidence || "Not recorded"}</dd></div><div><dt>Next needed</dt><dd>{worker.correction.directive || worker.nextSteps.join("; ") || worker.progress.requiredIntervention || "Not recorded"}</dd></div><div><dt>Your action</dt><dd>{worker.correction.ownerActionType === "NONE" ? "None recorded" : worker.correction.ownerActionText || "Action details not recorded"}</dd></div></dl><p className="owner-task-freshness">Checkpoint {relativeTime(worker.lastCheckpointAt)} · {worker.connection.state.replaceAll("_", " ").toLowerCase()}</p><Link className="owner-evidence" href={`/worker/${worker.id}`}>Open task and evidence →</Link></article>;
 }
 
 function InfrastructureHealth({ status }: { status: OperatorStatusProjection }) {
@@ -204,7 +172,7 @@ export function MissionCard({ worker, selected }: { worker: WorkerState; selecte
     <div className="mission-card-head"><div><StatusDot health={worker.operatorState.traffic} pulse={worker.operatorState.traffic === "RED"} /><span><small>{worker.status.toUpperCase()} · {worker.connection.state.replaceAll("_", " ")}</small><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link></span></div><strong>{dispositionLabel(worker)}</strong></div>
     <div className="mission-planes"><Plane label="Worker → Contract" value={worker.workerToContractAlignment} /><Plane label="Contract → Owner" value={worker.contractToOwnerAlignment} /><Plane label="Outcome" value={worker.progress.outcomeAdvancement} /><Plane label="Strategy" value={worker.progress.strategyEfficacy} /></div>
     <div className="mission-direction"><span>LATEST OWNER DIRECTION</span><p>{worker.channel.latestDirectionBody ?? "No direction recorded in the worker channel."}</p><strong className={freshnessClass(worker.channel.freshness)}>{worker.channel.freshness.replaceAll("_", " ")}</strong><small>{worker.channel.queue.length} queued item{worker.channel.queue.length === 1 ? "" : "s"} · {worker.channel.blockers.length} blocker{worker.channel.blockers.length === 1 ? "" : "s"} · {worker.channel.proposals.length} proposal{worker.channel.proposals.length === 1 ? "" : "s"}</small></div>
-    <div className="mission-decision"><div><span>EXACT PROBLEM</span><p>{worker.primaryProblemSummary ?? "No active problem; direct owner-outcome evidence improved."}</p></div><div><span>CURRENT CORRECTION / NEXT ACTION</span><p>{worker.correction.directive ?? worker.progress.requiredIntervention}</p></div></div>
+    <div className="mission-decision"><div><span>EXACT PROBLEM</span><p>{worker.primaryProblemSummary ?? "No active problem statement recorded."}</p></div><div><span>CURRENT CORRECTION / NEXT ACTION</span><p>{worker.correction.directive ?? worker.progress.requiredIntervention}</p></div></div>
     <div className="mission-evidence"><span>DIRECT EVIDENCE</span><p><b>Target</b> {worker.progress.targetEvidence} <i>·</i> <b>Baseline</b> {worker.progress.baselineEvidence} <i>·</i> <b>Previous</b> {worker.progress.previousEvidence} <i>·</i> <b>Latest</b> {worker.progress.latestEvidence} <i>·</i> <b>Best</b> {worker.progress.bestEvidence}</p></div>
     <div className="mission-control-row"><div><span>STATE</span><strong>{executionPath(worker)}</strong><small>{worker.correction.statusLabel}</small></div><div><span>OWNER ACTION</span><strong>{ownerActionLabel(worker)}</strong><small>{worker.correction.ownerActionText}</small></div><div><span>REASONING / EXECUTION</span><strong>{worker.executionSupervision.surface} · PRO {worker.executionSupervision.proEscalationState.replaceAll("_", " ")}</strong><small>{worker.executionSupervision.activeDirectiveId ?? "No executable directive"} · Codex {worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}{worker.id === "article-failure" ? " · replacement review PENDING" : ""}</small></div></div>
     {worker.operatorState.needsAttention && <div className="mission-lifecycle"><span>OPERATOR STATE</span><small>{worker.operatorState.reason}</small><span>NEXT REVIEW</span><small>{worker.correction.nextReviewTrigger}</small></div>}
@@ -232,14 +200,13 @@ function dispositionLabel(worker: WorkerState): string {
   if (worker.progress.strategyEfficacy === "EXHAUSTED" && !worker.progress.sameStrategyContinuationAllowed) return "RED · PARKED — NO VALID STRATEGY";
   if (["FAILED", "REPLACEMENT_REQUIRED"].includes(worker.progress.strategyEfficacy) && !worker.progress.sameStrategyContinuationAllowed) return "RED · PARKED — REPLACEMENT REQUIRED";
   if (worker.channel.freshness !== "CURRENT" && worker.channel.freshness !== "NO_DIRECTION") return worker.operatorState.label;
-  return `${worker.overallTraffic} · READY TO CONTINUE`;
+  return workerDisposition(worker);
 }
 
 function executionPath(worker: WorkerState): string {
   if (worker.progress.strategyEfficacy === "EXHAUSTED" && !worker.progress.sameStrategyContinuationAllowed) return "PARKED_NO_VALID_STRATEGY · strategy authorization NO_VALID_STRATEGY";
   if (worker.executionSupervision.codexExecutionState === "PARKED") return "PARKED · same strategy prohibited";
-  if (worker.id === "innersignal-review") return "CONTINUE CURRENT FRONTIER · GITHUB WAIT: NO";
-  return `CONTINUE · ${worker.executionSupervision.codexExecutionState.replaceAll("_", " ")}`;
+  return workerDisposition(worker);
 }
 
 export function AttentionCard({ worker }: { worker: WorkerState }) {
@@ -419,6 +386,7 @@ function formatEvidence(value: string): string {
 }
 
 function relativeTime(value: string) {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return "Not recorded";
   const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);

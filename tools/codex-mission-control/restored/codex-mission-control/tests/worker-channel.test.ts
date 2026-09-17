@@ -396,11 +396,11 @@ test("owner and fleet surfaces render the AstroHD direction, lifecycle, queue, a
   assert.match(channelHtml, /Record \+ send/);
   const fleetQueue = workers.flatMap((item) => item.channel.queue);
   const fleetHtml = renderToStaticMarkup(createElement(FleetQueue, { queue: fleetQueue }));
-  assert.match(fleetHtml, /FLEET WORK QUEUE[\s\S]*human-design-governance[\s\S]*AstroHD/);
+  assert.match(fleetHtml, /RECORDED WORK QUEUE[\s\S]*AstroHD[\s\S]*human-design-governance/);
   assert.match(fleetHtml, /Worker \/ project[\s\S]*Status[\s\S]*Priority[\s\S]*Sort[\s\S]*Blocked only/);
   assert.match(fleetHtml, /project:human-design[\s\S]*P0/);
   assert.match(fleetHtml, /mission-control-live-slice[\s\S]*MC-EXP-HERMES-001/);
-  assert.match(fleetHtml, /MC-EVAL-N8N-001[\s\S]*WAITING_DEPENDENCY/);
+  assert.match(fleetHtml, /WAITING_DEPENDENCY[\s\S]*MC-EVAL-N8N-001/);
   const missionControl = workers.find((item) => item.id === "mission-control-live-slice")!;
   const hermes = missionControl.channel.queue.find((item) => item.itemId === "MC-EXP-HERMES-001")!;
   const n8n = missionControl.channel.queue.find((item) => item.itemId === "MC-EVAL-N8N-001")!;
