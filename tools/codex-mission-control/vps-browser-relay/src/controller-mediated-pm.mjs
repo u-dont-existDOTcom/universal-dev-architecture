@@ -22,7 +22,9 @@ import { submissionSchedulerContext } from './submission-context.mjs';
 export const CONTROLLER_STAGE_SUMMARY = 'MISSION_CONTROL_PM_CONTROLLER_STAGE_V1';
 export const CONTROLLER_PM_ID = 'mc-project-manager';
 
-const TERMINAL_STEP = 'COMPLETE';
+const COMPLETE_STEP = 'COMPLETE';
+const EXPIRED_STEP = 'EXPIRED';
+const TERMINAL_STEPS = new Set([COMPLETE_STEP, EXPIRED_STEP]);
 const ROOT_URL = 'https://chatgpt.com/';
 const PROJECTION_TIMEOUT_MS = 30_000;
 const ARTIFACT_POLL_INTERVAL_MS = 90_000;
@@ -49,7 +51,7 @@ export class ControllerMediatedPmRuntime {
     const spec = parseControllerCycleSpec(rawSpec);
     let state = await this.stateStore.read();
     if (state.controllerCycles?.[spec.cycleId]) throw new Error(`Controller cycle ${spec.cycleId} already exists.`);
-    const duplicateRequest = Object.values(state.controllerCycles ?? {}).find((cycle) => cycle?.requestId === spec.requestId && cycle?.step !== TERMINAL_STEP);
+    const duplicateRequest = Object.values(state.controllerCycles ?? {}).find((cycle) => cycle?.requestId === spec.requestId && !isTerminalControllerCycle(cycle));
     if (duplicateRequest) throw new Error(`Request ${spec.requestId} is already controlled by ${duplicateRequest.cycleId}.`);
 
     const snapshot = await this.missionControl.fetchFleet();
@@ -172,7 +174,8 @@ export class ControllerMediatedPmRuntime {
     let state = await this.stateStore.read();
     let cycle = state.controllerCycles?.[cycleId];
     if (!cycle) throw new Error(`Unknown controller cycle: ${cycleId}.`);
-    if (cycle.step === TERMINAL_STEP) return this.#status('CONTROLLER_CYCLE_COMPLETE', cycle);
+    if (cycle.step === COMPLETE_STEP) return this.#status('CONTROLLER_CYCLE_COMPLETE', cycle);
+    if (cycle.step === EXPIRED_STEP) return this.#status('CONTROLLER_CYCLE_EXPIRED_TERMINALIZED', cycle);
 
     try {
       const snapshot = await this.missionControl.fetchFleet();
@@ -187,7 +190,7 @@ export class ControllerMediatedPmRuntime {
         return this.#complete(state, cycle, route, final);
       }
 
-      if (Date.now() > Date.parse(cycle.expiresAt)) throw new Error('CONTROLLER_CYCLE_EXPIRED: the exact route validity window elapsed.');
+      if (Date.now() > Date.parse(cycle.expiresAt)) return await this.#terminalizeExpired(state, cycle);
 
       const retryLane = cycle.step === 'RETRY_FAILED_CONTINUE' ? activeRetryLane(cycle) : null;
 
@@ -254,6 +257,57 @@ export class ControllerMediatedPmRuntime {
       }
       return this.#status('CONTROLLER_CYCLE_ERROR', state.controllerCycles[cycleId], { error: publicErrorCode(safeError(error)) });
     }
+  }
+
+  async #terminalizeExpired(state, cycle) {
+    const central = await this.submissionPacer.remoteStatus();
+    const unsafe = expiredTerminalizationUnsafeReasons(state, cycle, central);
+    if (unsafe.length > 0) {
+      throw new Error(`CONTROLLER_EXPIRED_TERMINALIZATION_UNSAFE: ${unsafe.join(',')}.`);
+    }
+
+    const terminalizedAt = new Date().toISOString();
+    const priorStep = cycle.step;
+    const priorLastError = cycle.lastError;
+    const sends = Object.fromEntries(Object.entries(cycle.sends ?? {}).map(([lane, send]) => [lane, send ? {
+      status: send.status ?? null,
+      boundaryObservedAt: send.boundaryObservedAt ?? null,
+      generationCompletedAt: send.generationCompletedAt ?? null,
+    } : null]));
+    const consumedArtifacts = Object.fromEntries(Object.entries(cycle.consumedArtifacts ?? {}).map(([lane, artifact]) => [lane, artifact ? {
+      commentId: artifact.commentId,
+      bodySha256: artifact.bodySha256,
+      artifactKind: artifact.artifactKind,
+    } : null]));
+    cycle.step = EXPIRED_STEP;
+    cycle.updatedAt = terminalizedAt;
+    cycle.lastError = null;
+    cycle.terminalization = {
+      schemaVersion: 1,
+      reason: 'ROUTE_EXPIRED',
+      priorStep,
+      expiresAt: cycle.expiresAt,
+      terminalizedAt,
+      priorLastError,
+      centralAuthority: {
+        authority: central.authority,
+        schedulerState: central.schedulerState ?? null,
+        ledgerValid: central.ledger.valid,
+        unresolvedAdmission: null,
+        relayTargetTransition: 'CLEAR',
+        safetyHalt: null,
+        observedAt: terminalizedAt,
+      },
+      preservedEvidence: {
+        lastAdmissionId: state.submissionPacing?.lastAdmissionId ?? null,
+        sends,
+        consumedArtifacts,
+      },
+    };
+    state.controllerCycles[cycle.cycleId] = cycle;
+    state = await this.stateStore.write(state);
+    await this.#recordControllerStage(cycle, EXPIRED_STEP);
+    return this.#status('CONTROLLER_CYCLE_EXPIRED_TERMINALIZED', state.controllerCycles[cycle.cycleId]);
   }
 
   async #sendOrigin(state, cycle, route) {
@@ -1141,7 +1195,7 @@ export class ControllerMediatedPmRuntime {
       ...(state.deliveries[route.routeKey] ?? {}), status: 'DECISION_RECEIPT_INGESTED',
       receiptId: receipt.receipt_id, receivedAt: new Date().toISOString(),
     };
-    cycle.step = TERMINAL_STEP;
+    cycle.step = COMPLETE_STEP;
     cycle.updatedAt = new Date().toISOString();
     cycle.lastError = null;
     cycle.final = {
@@ -1157,7 +1211,7 @@ export class ControllerMediatedPmRuntime {
     };
     state.controllerCycles[cycle.cycleId] = cycle;
     state = await this.stateStore.write(state);
-    await this.#recordControllerStage(cycle, TERMINAL_STEP);
+    await this.#recordControllerStage(cycle, COMPLETE_STEP);
     return this.#status('CONTROLLER_CYCLE_COMPLETE', state.controllerCycles[cycle.cycleId]);
   }
 
@@ -1504,6 +1558,10 @@ export class ControllerMediatedPmRuntime {
   }
 }
 
+export function isTerminalControllerCycle(cycle) {
+  return Boolean(cycle && TERMINAL_STEPS.has(cycle.step));
+}
+
 export function parseControllerCycleSpec(value) {
   const keys = [
     'schemaVersion', 'cycleId', 'taskId', 'requestId', 'workerId', 'originSupervisorId', 'pmSupervisorId',
@@ -1574,6 +1632,7 @@ export function publicControllerCycle(cycle) {
       })),
     }])),
     final: cycle.final,
+    terminalization: cycle.terminalization ? structuredClone(cycle.terminalization) : null,
     createdAt: cycle.createdAt,
     updatedAt: cycle.updatedAt,
     expiresAt: cycle.expiresAt,
@@ -1696,6 +1755,57 @@ function activeRetryLane(cycle) {
     .map(([lane]) => lane);
   if (lanes.length !== 1) throw new Error('CONTROLLER_CONTINUE_RETRY_ACTIVE_LANE_AMBIGUOUS.');
   return lanes[0];
+}
+
+function expiredTerminalizationUnsafeReasons(state, cycle, central) {
+  const reasons = [];
+  if (central?.authority !== 'MISSION_CONTROL_SINGLE_WRITER' || central?.ledger?.valid !== true) {
+    reasons.push('CENTRAL_AUTHORITY_OR_LEDGER_UNVERIFIED');
+  }
+  if (central?.unresolvedAdmission != null) reasons.push('CENTRAL_ADMISSION_UNRESOLVED');
+  if (central?.relayTargetTransition?.state !== 'CLEAR') reasons.push('CENTRAL_TARGET_TRANSITION_UNRESOLVED');
+  if (central?.safetyHalt != null) reasons.push('CENTRAL_SAFETY_HALT_ACTIVE');
+
+  const deliveryStatus = state.deliveries?.[cycle.routeKey]?.status ?? null;
+  if (['SUBMISSION_INTENT_RECORDED', 'AMBIGUOUS_AFTER_RESTART'].includes(deliveryStatus)) {
+    reasons.push(`ROUTE_DELIVERY_${deliveryStatus}`);
+  }
+  if (typeof cycle.step === 'string' && cycle.step.endsWith('_SEND_STARTED')) {
+    reasons.push(`LOCAL_${cycle.step}_UNRECONCILED`);
+  }
+
+  for (const [lane, send] of Object.entries(cycle.sends ?? {})) {
+    if (!send) continue;
+    if (['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED'].includes(send.status)) {
+      reasons.push(`${lane.toUpperCase()}_SEND_${send.status}`);
+    } else if (send.status === 'BOUNDARY_VERIFIED' && !Number.isFinite(Date.parse(send.generationCompletedAt ?? ''))) {
+      reasons.push(`${lane.toUpperCase()}_SEND_GENERATION_UNRESOLVED`);
+    } else if (!['FAILED_PRECLICK', 'BOUNDARY_VERIFIED', 'ARTIFACT_CONFIRMED_BOUNDARY'].includes(send.status)) {
+      reasons.push(`${lane.toUpperCase()}_SEND_STATE_UNRECOGNIZED`);
+    }
+  }
+
+  for (const [lane, recovery] of Object.entries(cycle.recoveries ?? {})) {
+    for (const attempt of recovery?.attempts ?? []) {
+      if (['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED'].includes(attempt.status)) {
+        reasons.push(`${lane.toUpperCase()}_CONTINUE_${attempt.status}`);
+      } else if (attempt.status === 'BOUNDARY_VERIFIED' && !Number.isFinite(Date.parse(attempt.generationCompletedAt ?? ''))) {
+        reasons.push(`${lane.toUpperCase()}_CONTINUE_GENERATION_UNRESOLVED`);
+      } else if (!['BOUNDARY_VERIFIED', 'CONTINUE_COMPLETE_PENDING_RETRY_INSPECTION', 'CONTINUE_COMPLETE_NO_RETRY', 'RETRY_FAILED_CONTINUE', 'RETRY_COMPLETE'].includes(attempt.status)) {
+        reasons.push(`${lane.toUpperCase()}_CONTINUE_STATE_UNRECOGNIZED`);
+      }
+      const retry = attempt.retry;
+      if (!retry) continue;
+      if (['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED'].includes(retry.status)) {
+        reasons.push(`${lane.toUpperCase()}_CONTINUE_RETRY_${retry.status}`);
+      } else if (retry.status === 'BOUNDARY_VERIFIED' && !Number.isFinite(Date.parse(retry.generationCompletedAt ?? ''))) {
+        reasons.push(`${lane.toUpperCase()}_CONTINUE_RETRY_GENERATION_UNRESOLVED`);
+      } else if (!['READY', 'BOUNDARY_VERIFIED', 'COMPLETE_PENDING_FAILURE_INSPECTION', 'COMPLETE'].includes(retry.status)) {
+        reasons.push(`${lane.toUpperCase()}_CONTINUE_RETRY_STATE_UNRECOGNIZED`);
+      }
+    }
+  }
+  return [...new Set(reasons)].sort();
 }
 
 function crossedSendBoundary(error) {

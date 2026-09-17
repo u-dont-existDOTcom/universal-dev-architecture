@@ -518,7 +518,7 @@ test('a crossed Retry-of-continue failure stops without another Retry or continu
   assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
 });
 
-test('expired route prevents provider recovery sends', async () => {
+test('expired WAIT cycle becomes terminal while preserving send and admission evidence', async () => {
   const expiresAt = '2099-09-10T00:00:00.000Z';
   const fixture = makeFixture({ expiresAt });
   await fixture.runtime.initialize(fixture.spec);
@@ -529,17 +529,112 @@ test('expired route prevents provider recovery sends', async () => {
   cycle.recoveries.origin.lastObservedCompletionAt = cycle.sends.origin.generationCompletedAt;
   cycle.artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
   fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  const sendBefore = structuredClone(cycle.sends.origin);
   const realNow = Date.now;
   Date.now = () => Date.parse(expiresAt) + 1;
   try {
     const result = await fixture.runtime.cycle('cycle-1');
-    assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
-    assert.equal(result.error, 'CONTROLLER_CYCLE_EXPIRED');
+    assert.equal(result.status, 'CONTROLLER_CYCLE_EXPIRED_TERMINALIZED');
   } finally {
     Date.now = realNow;
   }
+  const terminal = fixture.store.state.controllerCycles['cycle-1'];
+  assert.equal(terminal.step, 'EXPIRED');
+  assert.equal(terminal.terminalization.reason, 'ROUTE_EXPIRED');
+  assert.equal(terminal.terminalization.priorStep, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal(terminal.terminalization.centralAuthority.unresolvedAdmission, null);
+  assert.equal(terminal.terminalization.centralAuthority.ledgerValid, true);
+  assert.equal(terminal.terminalization.preservedEvidence.lastAdmissionId, fixture.store.state.submissionPacing.lastAdmissionId);
+  assert.deepEqual(terminal.sends.origin, sendBefore);
   assert.equal(fixture.browser.submits.length, 1);
   assert.equal(fixture.browser.retryClicks.length, 0);
+});
+
+test('expired-cycle terminalization is idempotent and a late artifact cannot revive it', async () => {
+  const expiresAt = '2099-09-10T00:00:00.000Z';
+  const fixture = makeFixture({ expiresAt });
+  await fixture.runtime.initialize(fixture.spec);
+  await fixture.runtime.cycle('cycle-1');
+  await fixture.runtime.cycle('cycle-1');
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.sends.origin.generationCompletedAt = '2026-09-16T00:00:00.000Z';
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  const realNow = Date.now;
+  Date.now = () => Date.parse(expiresAt) + 1;
+  try {
+    assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'CONTROLLER_CYCLE_EXPIRED_TERMINALIZED');
+    const terminal = structuredClone(fixture.store.state.controllerCycles['cycle-1']);
+    const fetches = fixture.mc.fetchFleetCalls;
+    const stages = fixture.mc.recorded.length;
+    const reconciliations = fixture.github.expectations.length;
+    fixture.github.available.add('ORIGIN_TO_PM');
+    assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'CONTROLLER_CYCLE_EXPIRED_TERMINALIZED');
+    assert.deepEqual(fixture.store.state.controllerCycles['cycle-1'], terminal);
+    assert.equal(fixture.mc.fetchFleetCalls, fetches);
+    assert.equal(fixture.mc.recorded.length, stages);
+    assert.equal(fixture.github.expectations.length, reconciliations);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('expired-cycle terminalization refuses unresolved central admission and every local send ambiguity', async () => {
+  const expiresAt = '2099-09-10T00:00:00.000Z';
+  for (const kind of ['CENTRAL_ADMISSION', 'LOCAL_CLICK', 'CONTINUE_CLICK']) {
+    const fixture = makeFixture({ expiresAt });
+    await fixture.runtime.initialize(fixture.spec);
+    const cycle = fixture.store.state.controllerCycles['cycle-1'];
+    cycle.step = 'WAIT_ORIGIN_ARTIFACT';
+    cycle.sends.origin = kind === 'CENTRAL_ADMISSION'
+      ? { status: 'BOUNDARY_VERIFIED', boundaryObservedAt: '2026-09-09T00:01:00.000Z', generationCompletedAt: '2026-09-09T00:02:00.000Z' }
+      : { status: 'CLICK_BOUNDARY_PERSISTED', boundaryObservedAt: '2026-09-09T00:01:00.000Z', generationCompletedAt: null };
+    if (kind === 'CONTINUE_CLICK') {
+      cycle.sends.origin = { status: 'BOUNDARY_VERIFIED', boundaryObservedAt: '2026-09-09T00:01:00.000Z', generationCompletedAt: '2026-09-09T00:02:00.000Z' };
+      cycle.recoveries.origin.attempts.push({
+        attemptNumber: 1, status: 'CLICK_BOUNDARY_PERSISTED', boundaryObservedAt: '2026-09-09T00:03:00.000Z', retry: null,
+      });
+    }
+    fixture.store.state.controllerCycles['cycle-1'] = cycle;
+    if (kind === 'CENTRAL_ADMISSION') {
+      fixture.pacer.centralStatus.unresolvedAdmission = {
+        admissionId: 'admission:open', status: 'ADMITTED', admittedAt: '2026-09-09T00:01:00.000Z', expiresAt,
+      };
+    }
+    const preserved = structuredClone(fixture.store.state.controllerCycles['cycle-1']);
+    const realNow = Date.now;
+    Date.now = () => Date.parse(expiresAt) + 1;
+    try {
+      const result = await fixture.runtime.cycle('cycle-1');
+      assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
+      assert.equal(result.error, 'CONTROLLER_EXPIRED_TERMINALIZATION_UNSAFE');
+    } finally {
+      Date.now = realNow;
+    }
+    const blocked = fixture.store.state.controllerCycles['cycle-1'];
+    assert.equal(blocked.step, preserved.step);
+    assert.deepEqual(blocked.sends, preserved.sends);
+    assert.deepEqual(blocked.recoveries, preserved.recoveries);
+    assert.equal(blocked.terminalization, undefined);
+  }
+});
+
+test('completed cycles remain unchanged even after their route expiry', async () => {
+  const expiresAt = '2099-09-10T00:00:00.000Z';
+  const fixture = makeFixture({ expiresAt });
+  await fixture.runtime.initialize(fixture.spec);
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.step = 'COMPLETE';
+  cycle.final = { receiptId: 'receipt:complete', completedAt: '2026-09-09T02:00:00.000Z' };
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  const before = structuredClone(cycle);
+  const realNow = Date.now;
+  Date.now = () => Date.parse(expiresAt) + 1;
+  try {
+    assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'CONTROLLER_CYCLE_COMPLETE');
+  } finally {
+    Date.now = realNow;
+  }
+  assert.deepEqual(fixture.store.state.controllerCycles['cycle-1'], before);
 });
 
 function makeFixture({ pacerFailure = null, expiresAt = '2099-09-10T00:00:00.000Z' } = {}) {
@@ -602,9 +697,11 @@ class MemoryStateStore {
 class FakeMissionControl {
   constructor(routeEvent, packet) {
     this.routeEvent = routeEvent; this.packet = packet; this.recorded = []; this.finalEvents = []; this.sequence = 30;
+    this.fetchFleetCalls = 0;
     this.failPendingProjectionEvidenceOnce = false; this.failExactProviderEvidenceOnce = false;
   }
   async fetchFleet() {
+    this.fetchFleetCalls += 1;
     return { generatedAt: '2026-09-09T00:00:00.000Z', workers: [{ id: 'worker-a', timeline: [
       this.routeEvent,
       capabilityEvidence(CAPABILITY_VERIFIED_SUMMARY), capabilityEvidence(MODE_CAPABILITY_VERIFIED_SUMMARY),
@@ -748,9 +845,16 @@ class FakeBrowser {
 }
 
 class FakePacer {
-  constructor(store, failure) { this.store = store; this.failure = failure; this.ready = true; this.contexts = []; }
+  constructor(store, failure) {
+    this.store = store; this.failure = failure; this.ready = true; this.contexts = [];
+    this.centralStatus = {
+      authority: 'MISSION_CONTROL_SINGLE_WRITER', schedulerState: 'ACTIVE_LEASE', ledger: { valid: true },
+      unresolvedAdmission: null, relayTargetTransition: { state: 'CLEAR' }, safetyHalt: null, queueDepth: 1,
+    };
+  }
   status() {
     return {
+      ...this.centralStatus,
       ready: this.ready,
       retryAfterMs: this.ready ? 0 : 30_000,
       nextSubmissionAt: this.ready ? null : '2026-09-09T00:30:00.000Z',
@@ -771,7 +875,7 @@ class FakePacer {
     const persist = async (observed) => {
       const boundaryAt = observed.clickedAtObserved ?? observed.startedAtObserved;
       const state = await this.store.read();
-      state.submissionPacing = { lastSubmissionAt: boundaryAt };
+      state.submissionPacing = { lastSubmissionAt: boundaryAt, lastAdmissionId: 'admission:test' };
       await recordBoundary?.(state, { boundaryAt, result: observed });
       await this.store.write(state);
     };

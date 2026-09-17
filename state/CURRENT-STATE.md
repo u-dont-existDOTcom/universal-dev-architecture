@@ -16,11 +16,10 @@ turn visibly fails may the controller Retry that exact failed continue once.
 
 ## Authority / baseline
 
-- Current owner authority is the exact 2026-09-16 v2 continuity directive bound
-  by
-  `docs/requirements/2026-09-16-controller-same-chat-recovery.owner-requirement.json`.
-- Canonical baseline at correction start is current `main`
-  `deef93b718af234d37bd2c2c04ccd26f9d2a0feb`.
+- Current owner authority is the 2026-09-16 v2 continuity directive as amended
+  by the 2026-09-17 expired-cycle and capability-gate correction in
+  `docs/requirements/2026-09-17-controller-expired-cycle-terminalization.owner-requirement.json`.
+- Resolve the exact current canonical `main` tip from GitHub at action time.
 - The historical 2026-09-09 controller cycle is evidence only. Its crossed send
   boundary and any original-turn Retry are ineligible for replay.
 - Production and all hosts other than the two named owner VPS hosts remain out
@@ -28,8 +27,8 @@ turn visibly fails may the controller Retry that exact failed continue once.
 
 ## Current checkpoint
 
-- Active candidate branch:
-  `task/controller-continue-retry-20260916`.
+- Active repair candidate branch:
+  `task/controller-expired-cycle-terminalization-20260917`.
 - The controller now has restart-safe per-lane recovery state for origin, PM,
   and return waits. It sends exact `continue` only after generation completion,
   the configured grace interval, and a fresh artifact/final-receipt absence
@@ -58,6 +57,21 @@ turn visibly fails may the controller Retry that exact failed continue once.
   hosts. Relay 203/203, focused 42/42 and 32/32, syntax, diff, repository,
   Mission Control, relay, and CodeQL checks pass on PR #140. No provider send
   occurred.
+- PR #140 subsequently merged as
+  `993068ff7c8917eca8bd4028a1d81d861cf5f8a0`. The owner-authorized controlled
+  restart completed with the existing volume preserved: the central scheduler
+  is healthy, epoch 4 is active on SECONDARY, PRIMARY remains durably fenced,
+  and no provider send or production action occurred.
+- The current candidate adds a truthful `EXPIRED` controller terminal state.
+  It requires a fresh valid central ledger with no unresolved admission,
+  target transition, or safety halt and no unresolved local send, continue, or
+  Retry boundary. It preserves the historical cycle evidence, is idempotent,
+  cannot consume a late artifact, and no longer monopolizes fresh admission.
+- The separately asserted three-chat current-capability-receipt prerequisite
+  prevents no material unsafe action beyond the existing direct consumer-seam
+  controls. It is removed from ordinary admission but retained as a diagnostic;
+  no live capability probe was sent. Focused regressions and the complete relay
+  suite pass locally. The candidate is not merged, installed, or live-tested.
 
 ## Completed outcome
 
@@ -73,27 +87,23 @@ turn visibly fails may the controller Retry that exact failed continue once.
 
 ## Remaining
 
-- Obtain owner merge authorization for PR #140 and authorization for one
-  controlled restart of the currently unresponsive non-production Mission
-  Control single-writer with its existing volume preserved and the invalid
-  optional live-source watcher disabled. Re-read the live queue/admission/
-  ledger after recovery, activate the controlled successor lease, re-run
-  no-send readiness, then run exactly one fresh disposable PM-mediated
-  OWNER-byte fixture.
+- Review and accept the expired-cycle repair PR. After the accepted candidate is
+  merged and installed reversibly on the authorized SECONDARY, run the already-
+  authorized single fresh disposable PM-mediated OWNER-byte fixture at the real
+  consumer seam. Do not interpose a new three-chat preflight-proof chain.
 
 ## Blockers / unresolved
 
-- The outgoing PRIMARY sender is durably fenced and the last clean central read
-  showed stale epoch 3, queue depth zero, no unresolved admission, no target
-  transition, no safety halt, a clear rate-limit state, and a valid ledger.
-  The central single-writer daemon subsequently became CPU-bound and
-  unresponsive, and a read-only database probe found the live database locked.
-  Its optional 750 ms live-source watcher is repeatedly running Git against a
-  release archive that is not a Git worktree.
-  Current authority state therefore cannot be established for epoch-4
-  activation. The control plane was not stopped because the active recovery
-  supplement does not authorize that mutation. No fresh fixture was created.
-  See `docs/evidence/2026-09-17-epoch4-fence-recovery-readiness.json`.
+- The repair is intentionally unmerged and not installed. The historical
+  expired `WAIT_*` cycle therefore remains nonterminal in the live installed
+  version until this candidate is accepted and deployed. No live ambiguity or
+  capability probe was introduced during candidate preparation.
+- At candidate verification, base checkpoint
+  `da2e38f45d5025cf7a691cf97e4dc6ba704e0bc2` had 10 unrelated Work
+  model-routing policy-suite failures and its hosted repository-compliance run
+  was red. This candidate changes none of that
+  policy, template, result, or test surface; it must not hide the inherited gate
+  or expand this controller repair to absorb it.
 
 ## Evidence / artifacts
 
@@ -109,6 +119,8 @@ turn visibly fails may the controller Retry that exact failed continue once.
   `docs/evidence/2026-09-10-owner-deployment-prechange-pacing.json`.
 - Current epoch-4 fencing/readiness checkpoint:
   `docs/evidence/2026-09-17-epoch4-fence-recovery-readiness.json`.
+- Current expired-cycle repair receipt:
+  `docs/evidence/2026-09-17-controller-expired-cycle-terminalization-receipt.md`.
 - Owner-specific current topology:
   `state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md`.
 - Portable mechanisms:
