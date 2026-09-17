@@ -14,17 +14,31 @@ GitHub = durable supervisor decision receipt bus
 
 ## Mission Control Codex execution candidate
 
-The iteration-only candidate is integrated at the authenticated Mission Control
-worker boundary. The canonical `worker:codex-exec` entrypoint posts the exact
-source-bound request to the existing worker admission endpoint, requires
-`mayExecute: true`, then requires the persisted Work execution preflight before
-it can start a Codex child. A caller-supplied receipt string cannot authorize
-execution. The relay-side CLI is diagnostic only.
+The iteration-only candidate is integrated into the normal relay cycle. The
+cycle reads each scoped worker's durable timeline and recognizes only the
+current active schema-v3 directive whose exact verified/owner-attested source
+message begins with `MISSION_CONTROL_CODEX_EXECUTION_PAYLOAD_V1`. The source
+payload supplies the mechanical job, deadline, workspace, closed capability,
+result schema, and prompt; Mission Control supplies the task/directive/source
+identity and Work profile. Their reconstructed artifact must match the
+persisted directive digest.
+
+The relay then posts the reconstructed source-bound request with a dedicated
+worker credential to the existing admission endpoint, requires
+`mayExecute: true`, uses the admission endpoint's persisted trusted task-creation
+selection, and requires the persisted Work execution preflight before it can
+start a Codex child. No operator-supplied directive or admission file is needed.
+A caller-supplied receipt string cannot authorize execution. The standalone
+file-based form of `worker:codex-exec` remains diagnostic; invoking it without
+files performs one automatic durable-state cycle.
 
 The preview remains disabled unless `MC_CODEX_EXEC_PREVIEW_ENABLED=1`. When it
 is disabled, or the closed capability classifier selects an unsupported browser
-operation, the worker entrypoint invokes the existing Mission Control browser
-relay `once` path and returns its real outcome.
+operation, the normal relay retains the directive's worker, task, and originating
+decision-request identity and filters the existing browser route by all three.
+Zero or multiple exact matches fail closed. The `once-exact` diagnostic path
+uses the same filter and verifies the returned route before attributing an
+outcome to the directive.
 
 The candidate records one immutable directory per attempt with raw
 `events.jsonl`, process exit state, structured result, deadline, final status,

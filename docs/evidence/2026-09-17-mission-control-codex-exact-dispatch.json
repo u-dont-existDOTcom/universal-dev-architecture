@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "candidate_status": "MC_CODEX_EXEC_EXACT_DISPATCH: PASS",
+  "recorded_at": "2026-09-17T21:31:47.420649Z",
+  "assurance_lane": "iteration",
+  "base": {
+    "reviewed_branch": "task/mission-control-codex-exec-authority-repair-20260917",
+    "reviewed_start_commit": "f383da2d8ced0209a861cea126289c70658db67d"
+  },
+  "automatic_dispatch": {
+    "canonical_runtime_seam": "RelayRuntime.cycle scoped Mission Control projection before existing browser-route selection",
+    "diagnostic_worker_entrypoint": "worker:codex-exec without file arguments performs one automatic durable-state cycle",
+    "discovery": [
+      "latest active schema-v3 execution_directive_recorded for each scoped worker",
+      "no exact matching execution_receipt_recorded",
+      "verified or owner-attested reasoning_message_recorded exact body",
+      "MISSION_CONTROL_CODEX_EXECUTION_PAYLOAD_V1 mechanical payload",
+      "reconstructed candidate digest equals directive_artifact_sha256"
+    ],
+    "authority_sequence": [
+      "durable scoped worker state",
+      "exact source-bound directive reconstruction",
+      "closed capability classification",
+      "authenticated worker admission mayExecute true",
+      "SYSTEM-authored trusted task-creation setter evidence",
+      "persisted allowed Work preflight",
+      "bounded Codex execution",
+      "start and receipt lifecycle persistence"
+    ],
+    "second_queue_created": false,
+    "semantic_authority_added": false
+  },
+  "legacy_fallback": {
+    "selector": [
+      "worker ID",
+      "task ID",
+      "source reasoning decision_request_id"
+    ],
+    "exact_match_cardinality": 1,
+    "zero_match": "fail closed without selecting unrelated work",
+    "multiple_matches": "fail closed as ambiguous",
+    "existing_route_state_reused": true,
+    "generic_once_attribution_removed": true,
+    "adjacent_eligible_task_test": "PASS; task-unrelated remained unselected while task-trigger was returned"
+  },
+  "focused_validation": {
+    "candidate_and_automatic_dispatch_tests": "21 passed, 0 failed",
+    "relay_exact-selection_and_existing-regression_tests": "26 passed, 0 failed",
+    "work_profile_and_durable_authority_tests": "34 passed, 0 failed",
+    "integrated_evaluator_tests": "3 passed, 0 failed, including automatic durable-state CODEX_LOCAL",
+    "javascript_syntax_check": "passed",
+    "typescript_check": "passed",
+    "full_repository_suite_run": false,
+    "restricted_browser_live_smoke_run": false
+  },
+  "live_local_smoke": {
+    "result": "PASS",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "low",
+    "fast_mode": false,
+    "started_from": "temporary EventStore durable Mission Control timeline containing exact source message and schema-v3 directive",
+    "route": "CODEX_LOCAL",
+    "worker": "auth",
+    "task_id": "task:auth",
+    "directive_id": "execution-directive:auth:automatic-live-smoke",
+    "directive_revision": 1,
+    "source_message_id": "chat-message:auth:automatic-live-smoke",
+    "source_body_sha256": "5a2ae20bf9a95c432c7d1b9ab0aff9acc3ae686a397603cdb16d0f499eb58809",
+    "authenticated_may_execute": true,
+    "persisted_preflight_allowed": true,
+    "subscription_authentication": true,
+    "api_key_fallback": false,
+    "runtime_auth_removed": true,
+    "structured_result": {
+      "success": true,
+      "value": "AUTOMATIC_MISSION_CONTROL_LIVE_SMOKE"
+    },
+    "new_lifecycle": [
+      "codex_execution_started",
+      "execution_receipt_recorded"
+    ],
+    "harness_note": "The single run completed successfully. Its final aggregate assertion counted the demo seed historical start/receipt pair in addition to the new exact pair and therefore exited nonzero after printing the successful result; no model rerun was performed."
+  },
+  "boundaries": {
+    "browser_fence_released_or_bypassed": false,
+    "active_controller_recovery_modified": false,
+    "production_modified": false,
+    "main_modified": false,
+    "current_state_checkpoint_modified": false,
+    "pull_request_opened": false,
+    "merged": false,
+    "deployed": false,
+    "natural_owner_work_run": false
+  },
+  "publication": {
+    "branch": "task/mission-control-codex-exec-authority-repair-20260917",
+    "successor_parent": "f383da2d8ced0209a861cea126289c70658db67d",
+    "commit": "PENDING_SINGLE_SUCCESSOR_COMMIT",
+    "remote_verification": "PENDING_PUBLICATION"
+  },
+  "rollback": {
+    "runtime": "Leave MC_CODEX_EXEC_PREVIEW_ENABLED at 0; exact eligible work remains on the existing source-bound legacy browser route.",
+    "source": "Revert the single additive successor commit."
+  },
+  "test_efficiency": {
+    "task_elapsed_seconds": 1714.66,
+    "observed_final_test_seconds": 7.5,
+    "observed_test_share_percent": 0.44,
+    "forced_redundant_green_seconds": 0.0,
+    "scopes": {
+      "focused": {
+        "runs": 3,
+        "seconds": 1.65
+      },
+      "affected": {
+        "runs": 2,
+        "seconds": 5.85
+      }
+    },
+    "note": "Earlier direct focused commands preceded the final telemetry-wrapped checks; no full suite was run."
+  }
+}

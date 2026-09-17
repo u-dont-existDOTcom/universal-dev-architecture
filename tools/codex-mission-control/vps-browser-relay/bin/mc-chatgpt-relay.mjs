@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
-import { loadConfig, publicConfig } from '../src/config.mjs';
+import {
+  loadCodexExecCandidateConfig,
+  loadCodexExecMissionControlConfig,
+  loadConfig,
+  publicConfig,
+} from '../src/config.mjs';
 import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
 import { installAutomationOwnedBrowser } from '../src/automation-owned-browser.mjs';
 import { installStuckRecovery } from '../src/stuck-recovery.mjs';
@@ -14,6 +19,7 @@ import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
+import { dispatchAutomaticMissionControlExecution } from '../src/codex-exec-candidate.mjs';
 
 const command = process.argv[2] ?? 'run';
 
@@ -31,6 +37,22 @@ try {
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
+  const codexExecutionConfig = loadCodexExecCandidateConfig(process.env);
+  let codexExecutionMissionControl = missionControl;
+  let codexExecutionWorkerId = null;
+  if (process.env.MC_CODEX_EXEC_WORKER_ID) {
+    const codexMissionControlConfig = loadCodexExecMissionControlConfig(process.env);
+    codexExecutionWorkerId = codexMissionControlConfig.workerId;
+    codexExecutionMissionControl = new MissionControlClient({
+      url: codexMissionControlConfig.url,
+      producerId: codexMissionControlConfig.producerId,
+      token: codexMissionControlConfig.token,
+      workerIds: [codexMissionControlConfig.workerId],
+      requestTimeoutMs: codexMissionControlConfig.requestTimeoutMs,
+    });
+  } else if (codexExecutionConfig.previewEnabled) {
+    throw new Error('MC_CODEX_EXEC_WORKER_ID and its worker credential are required when Codex execution preview is enabled.');
+  }
   const schedulerClient = new SubmissionSchedulerClient(config.submissionScheduler);
   const cdpBrowser = new ChromeDevtoolsBrowser(config.browser);
   const rawBrowser = installAutomationOwnedBrowser(cdpBrowser, {
@@ -53,7 +75,21 @@ try {
     }),
     beforeRecoverySend: () => submissionPacer.assertReady(),
   });
-  const runtime = new RelayRuntime({ config, missionControl, browser, stateStore, submissionPacer });
+  const runtime = new RelayRuntime({
+    config,
+    missionControl,
+    browser,
+    stateStore,
+    submissionPacer,
+    codexExecutionDispatcher: ({ snapshot, legacyBrowserHandler }) => dispatchAutomaticMissionControlExecution({
+      snapshot: codexExecutionWorkerId
+        ? { ...snapshot, workers: snapshot.workers.filter((worker) => worker.id === codexExecutionWorkerId) }
+        : snapshot,
+      config: codexExecutionConfig,
+      missionControl: codexExecutionMissionControl,
+      legacyBrowserHandler,
+    }),
+  });
   const controller = new ControllerMediatedPmRuntime({ config, missionControl, browser, stateStore, submissionPacer });
   await stateStore.acquireLock();
   installSignalHandlers(stateStore);
@@ -84,6 +120,26 @@ try {
   } else if (command === 'once') {
     const result = await runtime.cycle();
     print(result);
+    process.exitCode = oneShotExitCode(result);
+  } else if (command === 'once-exact') {
+    const [worker, taskId, requestId, directiveId, directiveRevision] = process.argv.slice(3);
+    if (!worker || !taskId || !requestId || !directiveId || !Number.isInteger(Number(directiveRevision))) {
+      throw new Error('Usage: mc-chatgpt-relay once-exact <worker> <task-id> <request-id> <directive-id> <directive-revision>');
+    }
+    const missionControlLegacyBinding = {
+      worker,
+      taskId,
+      decisionRequestId: requestId,
+      directiveId,
+      directiveRevision: Number(directiveRevision),
+    };
+    const result = await runtime.cycle({ skipCodexExecution: true, exactLegacyBinding: missionControlLegacyBinding });
+    if (result?.route?.workerId !== worker || result?.route?.taskId !== taskId || result?.route?.requestId !== requestId
+      || result?.route?.missionControlLegacyBinding?.directiveId !== directiveId
+      || result?.route?.missionControlLegacyBinding?.directiveRevision !== Number(directiveRevision)) {
+      throw new Error('Exact legacy relay did not return the source-bound triggering task.');
+    }
+    print({ ...result, missionControlLegacyBinding });
     process.exitCode = oneShotExitCode(result);
   } else if (command === 'provision') {
     const supervisorId = process.argv[3];
@@ -130,7 +186,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|run|controller-init|controller-once|controller-run|status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|run|controller-init|controller-once|controller-run|status|resolve>');
   }
 
   await stateStore.releaseLock();

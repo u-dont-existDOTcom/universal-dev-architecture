@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CODEX-EXACT-DISPATCH-20260917",
+  "recorded_at": "2026-09-17T21:28:19.993194Z",
+  "status": "LIVE_VERIFIED",
+  "completion_allowed": true,
+  "owner_source": {
+    "source_type": "owner_chat_attachment",
+    "source_ref": "owner-request:mission-control-codex-exact-dispatch-20260917",
+    "verbatim": "Continue the Mission Control Codex execution task from the exact reviewed branch tip:\n\n`task/mission-control-codex-exec-authority-repair-20260917`\n\nExact starting commit:\n\n`f383da2d8ced0209a861cea126289c70658db67d`\n\nDo not rewrite, squash, amend, or force-push that reviewed commit. Add one successor commit on the same branch.\n\nThe authority, authenticated admission, persisted Work-profile preflight, trusted-setter evidence, retry binding, Codex sandboxing, MCP restriction, process-group timeout, and ephemeral authentication repairs are accepted for this Iteration checkpoint. Preserve them.\n\nTwo implementation gaps remain. Fix only these gaps.\n\n## 1. Wire the executor into the actual Mission Control dispatch lifecycle\n\nThe current `worker:codex-exec` script is a manually invoked entrypoint requiring directive/admission files. That is useful diagnostically but is not yet proof that Mission Control itself dispatches an admitted bounded task to the executor.\n\nFind the existing canonical runtime seam where a current Mission Control bounded execution directive becomes executable work.\n\nDo not assume `run-worker-adapter.mjs` is that seam: it currently declares itself transport-only. Inspect the existing architecture and reuse the smallest correct dispatch boundary.\n\nRequired observable behavior:\n\nMission Control current durable execution state\n\u2192 exact current schema-v3 source-bound directive\n\u2192 capability classification\n\u2192 authenticated admission\n\u2192 persisted Work preflight\n\u2192 `CODEX_LOCAL` or `CODEX_BROWSER_RESTRICTED`\n\u2192 bounded Codex execution\n\nThere must be a real runtime path from Mission Control state to the Codex executor without an operator manually supplying `--directive` and `--admission` files.\n\nThe diagnostic CLI may remain.\n\nDo not create a second authority system, second task queue, or parallel semantic dispatcher unless the existing architecture genuinely lacks the required seam.\n\n## 2. Make legacy fallback source/task exact\n\nThe current real fallback wrapper runs:\n\n`mc-chatgpt-relay.mjs once`\n\nwithout binding that relay cycle to the triggering directive.\n\nThat is insufficient because a generic relay cycle can process some other eligible queued work.\n\nRepair the boundary so an unsupported or preview-disabled task is retained/delegated through the existing legacy mechanism as the **same exact task**.\n\nPrefer the existing Mission Control queue/task identity mechanism.\n\nA valid solution may classify before claiming/removing the task so the normal legacy executor continues to own that exact task, or may invoke an existing source-bound legacy-dispatch API if one already exists.\n\nDo not invent a new queue merely to bridge the two paths.\n\nDo not claim exact fallback merely because `relay once` returned success.\n\nThe legacy outcome must be mechanically attributable to the same task/directive identity that caused the fallback.\n\n## Focused acceptance\n\nAdd the smallest tests that prove the missing behavior:\n\n1. A durable eligible Mission Control execution directive reaches `CODEX_LOCAL` through the real dispatch lifecycle without manual directive/admission file arguments.\n2. The launched execution is still bound to the exact persisted source/directive/profile and passes the existing admission/preflight gates.\n3. Preview disabled routes that same exact task through the existing legacy path.\n4. An unsupported browser capability routes that same exact task through the existing legacy path.\n5. Put an unrelated legacy-eligible task beside the test task and prove fallback cannot accidentally consume/report the unrelated one as the triggering task.\n6. No eligible Mission Control execution directive means no Codex child starts.\n7. The existing forged-receipt, auth-isolation, retry-binding, timeout and restricted-MCP regressions remain green.\n\nDo not expand this into a full repository/release test campaign.\n\n## Live validation\n\nAfter the focused tests pass, run **one harmless local live smoke through the newly automatic Mission Control dispatch path**.\n\nIt must begin from normal durable Mission Control execution state, not by manually invoking `worker:codex-exec` with prepared files.\n\nVerify:\n\n- exact task/directive/source identity;\n- authenticated `mayExecute: true`;\n- persisted preflight;\n- automatic selection of `CODEX_LOCAL`;\n- Codex process execution;\n- execution-start and execution-receipt lifecycle events;\n- no API-key fallback;\n- ephemeral auth cleanup.\n\nDo not run the restricted-browser live smoke yet.\n\nThe canonical Mission Control browser is intentionally fenced by the unrelated active controller-recovery work. Do not release, bypass, modify, or weaken that fence. Preserve Smoke B as deferred evidence until the recovery owner legitimately restores browser availability.\n\nDo not run natural owner work yet; Chat will review this successor diff first.\n\n## Boundaries\n\nRemain on the existing repair branch.\n\nNo PR.\nNo merge.\nNo deployment.\nNo production mutation.\nNo `main` mutation.\nNo controller-recovery mutation.\nNo browser-fence release.\nNo `state/CURRENT-STATE.md` promotion.\n\nUse the current repository Work-model/effort routing policy rather than copying a stale model choice from an earlier task directive.\n\nRun only focused/affected validation needed for this correction.\n\nPush the additive successor commit and report:\n\n- exact new SHA and parent;\n- exact Mission Control runtime dispatch seam used;\n- how executable work is discovered automatically;\n- how the triggering task remains exact across legacy fallback;\n- focused test results;\n- automatic live local-smoke result;\n- confirmation that the browser fence was untouched;\n- confirmation that production, `main`, and controller recovery were untouched.\n\nTerminal result:\n\n`MC_CODEX_EXEC_EXACT_DISPATCH: PASS`\n\nor\n\n`MC_CODEX_EXEC_EXACT_DISPATCH: FAIL`\n\nor\n\n`MC_CODEX_EXEC_EXACT_DISPATCH: BLOCKED`\n\nStop after publishing the exact reviewable successor commit.",
+    "sha256": "4fc45cfe39668ebfdeaf3845be97242ba90da991d39d6f72f6ceecfcf27329be"
+  },
+  "normalized_outcome": "Automatically consume the current durable schema-v3 source-bound Mission Control execution directive through authenticated admission and persisted preflight, and constrain legacy fallback to the same worker/task/source request without adding another queue.",
+  "required_outcomes": [
+    {
+      "id": "RO-EXACT-DISPATCH-001",
+      "observable": "A durable eligible directive reaches CODEX_LOCAL without manual directive or admission files.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-002",
+      "observable": "Automatic execution remains bound to the exact persisted source, directive, task, artifact digest, Work profile, authenticated mayExecute admission, trusted setter evidence, and persisted preflight.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-003",
+      "observable": "Preview-disabled and unsupported browser work enters the existing relay only under the same worker, task, and originating request identity.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-004",
+      "observable": "An adjacent eligible legacy task cannot be consumed or reported as the triggering directive.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-005",
+      "observable": "Absent, completed, unverified, malformed, or digest-mismatched durable directives cannot start Codex.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-006",
+      "observable": "Existing forged-receipt, auth isolation, source-bound retry, process-group timeout, and restricted MCP boundaries remain green.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-007",
+      "observable": "One harmless live local smoke begins with durable Mission Control state and records exact admission, preflight, Codex execution, start, receipt, no API-key fallback, and auth cleanup.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    },
+    {
+      "id": "RO-EXACT-DISPATCH-008",
+      "observable": "One additive successor commit is pushed without PR, merge, deployment, main mutation, controller-recovery mutation, browser-fence release, or CURRENT-STATE promotion.",
+      "status": "IMPLEMENTED_AWAITING_PUBLICATION",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exact-dispatch.json"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Manual directive/admission file invocation presented as automatic dispatch",
+    "A generic relay once result attributed to the triggering directive",
+    "A new execution queue or semantic authority layer",
+    "A fake live smoke or standalone-CLI smoke presented as durable-state dispatch"
+  ],
+  "assurance_lane": "iteration",
+  "production_authorized": false,
+  "next_direct_evidence": "Chat reviews the pushed successor diff. Restricted-browser live evidence remains deferred until the separate recovery owner restores the canonical browser."
+}

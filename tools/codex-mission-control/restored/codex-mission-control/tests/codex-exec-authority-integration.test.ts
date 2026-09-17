@@ -68,6 +68,54 @@ test("integrated Smoke B uses actual Mission Control admission/preflight before 
   assert.deepEqual(fixture.runtime.lifecycleTypes, ["codex_execution_started", "execution_receipt_recorded"]);
 });
 
+test("automatic durable-state dispatch uses the actual admission/preflight evaluator before CODEX_LOCAL", async () => {
+  const fixture = await smokeFixture("automatic-smoke-a", { type: "LOCAL_FILESYSTEM_COMMAND" });
+  const directive = fixture.dispatchInput.directive;
+  const payload = {
+    schemaVersion: 1,
+    jobId: directive.jobId,
+    deadline: directive.deadline,
+    workspace: directive.workspace,
+    executionCapability: directive.executionCapability,
+    outputSchema: directive.outputSchema,
+    prompt: directive.prompt,
+  };
+  const sourceBody = `${candidate.CODEX_EXECUTION_PAYLOAD_PREFIX}${JSON.stringify(payload)}`;
+  directive.sourceDirective.sourceBodySha256 = sha256(sourceBody);
+  const artifactSha256 = candidate.codexDirectiveArtifactSha256(directive);
+  fixture.runtime.snapshot = {
+    generatedAt: new Date().toISOString(),
+    workers: [{ id: fixture.dispatchInput.worker, timeline: [
+      { sequence: 1, data: {
+        type: "reasoning_message_recorded", message_id: directive.sourceDirective.sourceMessageId,
+        surface_role: "PROJECT_MANAGER", author_role: "ASSISTANT", provenance_status: "VERIFIED",
+        body_sha256: directive.sourceDirective.sourceBodySha256, exact_visible_body: sourceBody,
+        decision_request_id: "legacy-request:automatic-smoke-a",
+      } },
+      { sequence: 2, data: {
+        type: "execution_directive_recorded", worker: fixture.dispatchInput.worker,
+        directive_id: directive.sourceDirective.id, directive_revision: directive.sourceDirective.revision,
+        task_id: directive.sourceDirective.taskId, directive_schema_version: 3,
+        directive_artifact_sha256: artifactSha256,
+        source_message_id: directive.sourceDirective.sourceMessageId,
+        source_body_sha256: directive.sourceDirective.sourceBodySha256,
+        work_execution_profile: profile, status: "ACTIVE",
+      } },
+    ] }],
+  };
+  const result = await candidate.dispatchAutomaticMissionControlExecution({
+    config: fixture.dispatchInput.config,
+    missionControl: fixture.runtime,
+    legacyBrowserHandler: async () => { throw new Error("legacy browser path must not run"); },
+    spawnImpl: spawn,
+  });
+  assert.equal(result.status, "COMPLETED");
+  assert.equal(result.route, "CODEX_LOCAL");
+  assert.equal(fixture.runtime.actualAdmission?.mayExecute, true);
+  assert.equal(fixture.runtime.actualPreflight?.allowed, true);
+  assert.deepEqual(fixture.runtime.lifecycleTypes, ["codex_execution_started", "execution_receipt_recorded"]);
+});
+
 async function smokeFixture(name: string, executionCapability: Record<string, string>) {
   const candidate = await loadCandidate();
   const root = await mkdtemp(join(tmpdir(), `mc-authority-integration-${name}-`));
@@ -141,6 +189,7 @@ class AuthoritativeMissionControlRuntime {
   lifecycleTypes: string[] = [];
   actualAdmission: any = null;
   actualPreflight: any = null;
+  snapshot: any = null;
   producer: AuthenticatedProducer;
 
   constructor(private worker: string, private directive: any) {
@@ -177,8 +226,10 @@ class AuthoritativeMissionControlRuntime {
         },
       }, "SYSTEM", "system:trusted-task-creation"));
     }
-    return result;
+    return { ...result, setterEvidenceId: `setter:${this.worker.replace(/^worker-/, "")}:1` };
   }
+
+  async fetchFleet() { return this.snapshot; }
 
   async requestWorkExecutionPreflight(worker: string, body: any) {
     const now = new Date().toISOString();

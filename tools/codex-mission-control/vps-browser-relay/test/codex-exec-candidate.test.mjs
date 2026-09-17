@@ -7,9 +7,12 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import test from 'node:test';
 import {
+  AUTOMATIC_CODEX_DISPATCH_IDLE,
+  CODEX_EXECUTION_PAYLOAD_PREFIX,
   CODEX_ATTEMPT_STATUSES,
   CODEX_EXECUTION_ROUTES,
   codexDirectiveArtifactSha256,
+  dispatchAutomaticMissionControlExecution,
   dispatchMissionControlExecution,
   executeMissionControlCandidate,
 } from '../src/codex-exec-candidate.mjs';
@@ -146,8 +149,8 @@ test('authentication runtime is private, outside durable attempts, removed, and 
 
 test('deadline expiry stays scoped to the attempt process group and records TIMED_OUT', async () => {
   const fixture = await candidateFixture('timeout');
-  fixture.config.maxTimeoutMs = 2_500;
-  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' }, { deadlineMs: 2_200 });
+  fixture.config.maxTimeoutMs = 6_500;
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' }, { deadlineMs: 6_000 });
   const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'timeout' } });
   assert.equal(result.status, CODEX_ATTEMPT_STATUSES.TIMED_OUT);
   assert.equal(result.processExitState.started, true);
@@ -191,6 +194,122 @@ test('malformed or absent terminal protocol evidence remains non-success', async
     });
   }
 });
+
+test('durable schema-v3 state automatically reaches CODEX_LOCAL without directive or admission files', async () => {
+  const fixture = await automaticFixture('automatic-local', { type: 'LOCAL_FILESYSTEM_COMMAND' });
+  const result = await dispatchAutomaticMissionControlExecution({
+    config: fixture.config,
+    missionControl: fixture.missionControl,
+    legacyBrowserHandler: async () => { throw new Error('legacy path must not run'); },
+    spawnImpl: fixture.spawnImpl,
+  });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.route, CODEX_EXECUTION_ROUTES.LOCAL);
+  assert.equal(result.automaticDispatch.taskId, fixture.directive.sourceDirective.taskId);
+  assert.equal(result.automaticDispatch.directiveId, fixture.directive.sourceDirective.id);
+  assert.equal(fixture.missionControl.admissionCalls, 1);
+  assert.equal(fixture.missionControl.preflightCalls, 1);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+});
+
+test('automatic preview-disabled and unsupported-browser fallback retain the exact durable task and request', async (t) => {
+  for (const [name, capability, previewEnabled, reason] of [
+    ['preview-off', { type: 'LOCAL_FILESYSTEM_COMMAND' }, false, 'PREVIEW_DISABLED'],
+    ['unsupported-browser', { type: 'BROWSER', name: 'CLICK_AND_TYPE' }, true, 'UNSUPPORTED_OR_UNCLASSIFIED_CAPABILITY'],
+  ]) {
+    await t.test(name, async () => {
+      const fixture = await automaticFixture(`automatic-${name}`, capability);
+      fixture.config.previewEnabled = previewEnabled;
+      let received = null;
+      const result = await dispatchAutomaticMissionControlExecution({
+        config: fixture.config,
+        missionControl: fixture.missionControl,
+        legacyBrowserHandler: async (_directive, routing) => {
+          received = routing;
+          return { status: 'EXACT_LEGACY_HANDLER_CALLED', missionControlLegacyBinding: routing.missionControlBinding };
+        },
+        spawnImpl: fixture.spawnImpl,
+      });
+      assert.equal(result.status, 'EXACT_LEGACY_HANDLER_CALLED');
+      assert.equal(received.reason, reason);
+      assert.deepEqual(received.missionControlBinding, fixture.sourceBinding);
+      assert.equal(fixture.missionControl.admissionCalls, 0);
+      assert.equal(fixture.spawnCalls.length, 0);
+    });
+  }
+});
+
+test('no durable executable directive is idle and cannot start Codex', async () => {
+  const fixture = await candidateFixture('automatic-idle');
+  fixture.missionControl.snapshot = { workers: [{ id: 'worker-automatic-idle', timeline: [] }] };
+  const result = await dispatchAutomaticMissionControlExecution({
+    config: fixture.config,
+    missionControl: fixture.missionControl,
+    legacyBrowserHandler: async () => { throw new Error('legacy path must not run'); },
+    spawnImpl: fixture.spawnImpl,
+  });
+  assert.equal(result.status, AUTOMATIC_CODEX_DISPATCH_IDLE);
+  assert.equal(result.codexChildStarted, false);
+  assert.equal(fixture.spawnCalls.length, 0);
+  assert.equal(fixture.missionControl.admissionCalls, 0);
+});
+
+async function automaticFixture(name, executionCapability) {
+  const fixture = await candidateFixture(name);
+  const payload = {
+    schemaVersion: 1,
+    jobId: `job-${name}`,
+    deadline: new Date(Date.now() + 30_000).toISOString(),
+    workspace: fixture.workspace,
+    executionCapability,
+    outputSchema,
+    prompt: `bounded directive for ${name}`,
+  };
+  const sourceBody = `${CODEX_EXECUTION_PAYLOAD_PREFIX}${JSON.stringify(payload)}`;
+  const sourceBodySha256 = sha256(sourceBody);
+  const directive = {
+    ...fixture.directive(executionCapability),
+    deadline: payload.deadline,
+    prompt: payload.prompt,
+    sourceDirective: {
+      id: `directive:${name}:1`, revision: 1, taskId: `task:${name}`,
+      sourceMessageId: `chat-message:${name}:1`, sourceBodySha256,
+    },
+  };
+  const sourceBinding = {
+    worker: `worker-${name}`,
+    taskId: directive.sourceDirective.taskId,
+    directiveId: directive.sourceDirective.id,
+    directiveRevision: 1,
+    sourceMessageId: directive.sourceDirective.sourceMessageId,
+    sourceBodySha256,
+    decisionRequestId: `legacy-request:${name}`,
+  };
+  fixture.missionControl.snapshot = {
+    generatedAt: new Date().toISOString(),
+    workers: [{
+      id: sourceBinding.worker,
+      timeline: [
+        { sequence: 1, data: {
+          type: 'reasoning_message_recorded', message_id: sourceBinding.sourceMessageId,
+          surface_role: 'PROJECT_MANAGER', author_role: 'ASSISTANT', provenance_status: 'VERIFIED',
+          body_sha256: sourceBodySha256, exact_visible_body: sourceBody,
+          decision_request_id: sourceBinding.decisionRequestId,
+        } },
+        { sequence: 2, data: {
+          type: 'execution_directive_recorded', worker: sourceBinding.worker,
+          directive_id: sourceBinding.directiveId, directive_revision: 1, task_id: sourceBinding.taskId,
+          directive_schema_version: 3, directive_artifact_sha256: codexDirectiveArtifactSha256(directive),
+          source_message_id: sourceBinding.sourceMessageId, source_body_sha256: sourceBodySha256,
+          work_execution_profile: solLowProfile, status: 'ACTIVE',
+        } },
+      ],
+    }],
+  };
+  fixture.directive = directive;
+  fixture.sourceBinding = sourceBinding;
+  return fixture;
+}
 
 async function candidateFixture(name) {
   const root = await mkdtemp(join(tmpdir(), `mc-codex-authority-${name}-`));
@@ -302,14 +421,21 @@ class FakeMissionControl {
   async requestExecutionAdmission(_worker, input) {
     this.admissionCalls += 1;
     if (this.admissionOverride) return this.admissionOverride;
-    assert.strictEqual(input, this.admissionInput);
+    if (this.admissionInput) assert.strictEqual(input, this.admissionInput);
+    else {
+      this.admissionInput = input;
+      this.profile = input.request.workExecutionProfile;
+    }
     return {
       admitted: true, mayExecute: true, requestId: input.request.requestId,
       profileAuthorizationId: `work-profile-authorization:${sha256(input.request.requestId).slice(0, 24)}`,
+      setterEvidenceId: `setter:${sha256(input.request.requestId).slice(0, 24)}`,
       authorizedWorkExecutionProfile: this.profile,
       primaryDecision: { decision: 'ALLOW_BOUNDED_EXECUTION' },
     };
   }
+
+  async fetchFleet() { return this.snapshot; }
 
   async requestWorkExecutionPreflight(_worker, input) {
     this.preflightCalls += 1;
