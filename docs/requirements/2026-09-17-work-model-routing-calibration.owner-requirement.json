@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-WORK-MODEL-ROUTING-CALIBRATION-20260917",
+  "recorded_at": "2026-09-17T19:25:00Z",
+  "status": "ACTIVE_TRIAL",
+  "owner_source": {
+    "proposal": "For genuinely difficult Work tasks, start with GPT-5.6 Sol at Extra High. If that attempt genuinely fails, try GPT-6 Astra at Extra High on the same bounded task to see whether it does better.",
+    "confirmation": "Owner agreed to try the strategy, keep task/model results in GitHub, and review the evidence after a few weeks."
+  },
+  "normalized_outcome": "During the trial window, ordinary residual execution continues to use the lowest sufficient Sol tier. Genuinely difficult residual execution starts with GPT-5.6 Sol Extra High. A GPT-6 Astra Extra High attempt is admitted as a matched challenger only after Chat classifies the Sol failure and verifies that the failure is not primarily a bad plan, missing access/context, or a mechanical/transient problem. Preserve task/base/directive/permissions/direct endpoint as closely as practical so the comparison is informative. Track privacy-safe task category, exact model/effort, endpoint result, scope/gate violations, retries/interventions, observable allowance use, failure classification, and challenger outcome in GitHub. Review the accumulated evidence after approximately three weeks; do not mutate routing policy automatically from telemetry.",
+  "trial": {
+    "starts_on": "2026-09-17",
+    "scheduled_review_on": "2026-10-08",
+    "baseline_for_genuinely_difficult_work": {
+      "model": "GPT_5_6_SOL",
+      "effort": "XHIGH"
+    },
+    "failure_challenger": {
+      "model": "GPT_6_ASTRA",
+      "effort": "XHIGH"
+    },
+    "astra_low_first_default": false,
+    "broad_computer_use_exception": false,
+    "automatic_policy_mutation_authorized": false
+  },
+  "preserved_requirements": [
+    "Chat reasons first and delegates only the bounded residual execution task.",
+    "Simple and ordinary work must not be run at expensive reasoning levels without a concrete need.",
+    "Work still performs the existing too-low/too-high reasoning-level sanity check; the active difficult-task calibration baseline is an owner-authorized reason that Sol XHigh is not considered wasteful merely because a lower tier might sometimes succeed.",
+    "A model switch does not repair CHAT_PLAN_DEFECT, ACCESS_CONTEXT_DEFECT, or a clearly mechanical/transient failure.",
+    "No paid credits or additional spend are authorized by this requirement."
+  ],
+  "tracking": {
+    "results_path": "state/WORK-MODEL-ROUTING-RESULTS.json",
+    "template_path": "templates/WORK-MODEL-ROUTING-TELEMETRY.json",
+    "writer": "SUPERVISING_CHAT_AFTER_WORK_RECEIPT",
+    "record_prompts_or_source_content": false,
+    "record_credentials": false
+  }
+}
