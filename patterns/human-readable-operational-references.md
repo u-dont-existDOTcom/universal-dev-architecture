@@ -32,9 +32,12 @@ Immediately before surfacing any outbound link to the owner, open the exact dest
 
 Required priority:
 
-1. **Give the actual file or attachment** when the active surface can materialize or attach it.
-2. Otherwise give a **direct clickable file/download link** that opens the intended artifact itself.
-3. Only when neither is technically possible, provide the complete usable contents inline when practical, or explain the exact tool limitation and provide the nearest direct retrievable link.
+1. **Prefer zero-click local delivery when direct authorized filesystem access is available.** Resolve the owner's OS-designated Downloads directory with the platform-native mechanism when possible (for example, `xdg-user-dir DOWNLOAD` on Linux), materialize the artifact there automatically, and report the exact local path.
+2. Otherwise **give the actual file or attachment** when the active surface can materialize or attach it.
+3. Otherwise give a **direct clickable file/download link** that opens the intended artifact itself.
+4. Only when none of those are technically possible, provide the complete usable contents inline when practical, or explain the exact tool limitation and provide the nearest direct retrievable link.
+
+Do not make the owner click a sandbox/download link merely to transfer an artifact onto a machine that the authorized execution surface can already write to. If the owner machine is offline, direct local placement is unavailable, or local placement would cross an unapproved access boundary, use the ordinary attachment/link fallback instead.
 
 A repository branch name, commit SHA, directory path, or instruction such as `go to branch X and find path Y` is **retrieval metadata only**. It is never an adequate primary handoff when the artifact itself or a direct link can be supplied. Do not tell the owner to browse branches, traverse directory trees, copy opaque paths into GitHub, or rediscover an artifact that the agent can retrieve or link directly.
 
