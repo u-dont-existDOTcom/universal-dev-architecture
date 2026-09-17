@@ -7,7 +7,7 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
 import { loadConfig, publicConfig } from '../src/config.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
-import { buildRelayHealthReport } from '../src/health-report.mjs';
+import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 
 test('state store is atomic, owner-only, and rejects a concurrent relay', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-state-'));
@@ -208,6 +208,39 @@ test('relay health reports use the authenticated authority route and expose no t
   assert.equal(requests[0].url, 'https://mission-control.example/api/submission-authority/relay-health');
   assert.equal(requests[0].options.headers.authorization, `Bearer ${'s'.repeat(32)}`);
   assert.deepEqual(JSON.parse(requests[0].options.body), report);
+});
+
+test('health observation reports a stopped or fenced browser without starting it', async () => {
+  const calls = [];
+  const snapshot = await observeRelayHealth({
+    doctor: async () => {
+      calls.push('doctor');
+      throw new Error('Chrome DevTools endpoint is unavailable.');
+    },
+    browserDoctor: async () => {
+      calls.push('browser-doctor');
+      throw new Error('connect ECONNREFUSED 127.0.0.1:9222');
+    },
+    schedulerStatus: async () => {
+      calls.push('scheduler-status');
+      return {
+        authority: 'MISSION_CONTROL_SINGLE_WRITER',
+        authenticatedRelayBinding: null,
+        ledger: { valid: true, errors: [] },
+      };
+    },
+    now: () => new Date('2026-09-17T12:00:00.000Z'),
+  });
+
+  assert.deepEqual(calls, ['doctor', 'browser-doctor', 'scheduler-status']);
+  assert.equal(snapshot.status, 'HOST_BROWSER_UNAVAILABLE');
+  assert.equal(snapshot.browser.webSocketDebuggerUrlPresent, false);
+  const report = buildRelayHealthReport({
+    runtime: { submissionHost: { alias: 'outgoing', role: 'PRIMARY', deploymentEpoch: 3 } },
+  }, snapshot);
+  assert.equal(report.browserState, 'UNAVAILABLE');
+  assert.equal(report.relayWorkerState, 'DEGRADED');
+  assert.equal(report.detail, 'HOST_BROWSER_UNAVAILABLE');
 });
 
 test('submission interval config accepts only 60000 through 600000', async () => {

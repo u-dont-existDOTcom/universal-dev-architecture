@@ -416,16 +416,27 @@ test('browser service cannot inherit relay or scheduler credentials and send cod
 
 test('system-manager compatibility mode keeps browser and relay unprivileged while preserving Chromium sandboxing', async () => {
   const browserUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-browser@.service', import.meta.url), 'utf8');
+  const userBrowserUnit = await readFile(new URL('../systemd/user/mission-control-chatgpt-browser.service', import.meta.url), 'utf8');
   const relayUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-relay@.service', import.meta.url), 'utf8');
   const healthUnit = await readFile(new URL('../systemd/system/mission-control-chatgpt-health@.service', import.meta.url), 'utf8');
   const healthTimer = await readFile(new URL('../systemd/system/mission-control-chatgpt-health@.timer', import.meta.url), 'utf8');
+  const fenceHelper = await readFile(new URL('../scripts/browser-fence.sh', import.meta.url), 'utf8');
+  const browserLauncher = await readFile(new URL('../scripts/launch-browser.sh', import.meta.url), 'utf8');
   const installer = await readFile(new URL('../scripts/install-system-services.sh', import.meta.url), 'utf8');
   assert.match(browserUnit, /^User=%i$/m);
   assert.doesNotMatch(browserUnit, /^Group=/m);
   assert.match(browserUnit, /^NoNewPrivileges=false$/m);
   assert.match(browserUnit, /^ProtectSystem=strict$/m);
   assert.match(browserUnit, /^ProtectHome=read-only$/m);
+  assert.match(browserUnit, /^ExecCondition=\/usr\/local\/libexec\/mission-control-chatgpt-browser-fence assert-unfenced %i$/m);
+  assert.match(browserUnit, /^RestartPreventExitStatus=78$/m);
   assert.doesNotMatch(browserUnit, /--no-sandbox|--disable-setuid-sandbox/);
+  assert.match(browserLauncher, /HOST_BROWSER_FENCED/);
+  assert.match(browserLauncher, /MC_RELAY_BROWSER_FENCE_FILE/);
+  assert.match(userBrowserUnit, /^Environment=MC_RELAY_BROWSER_FENCE_FILE=\/var\/lib\/mission-control-chatgpt\/browser-fences\/%u\.fenced$/m);
+  assert.match(fenceHelper, /controlled_takeover_complete_and_browser_explicitly_released/);
+  assert.match(fenceHelper, /mask "\$browser_unit"/);
+  assert.match(fenceHelper, /unmask "\$browser_unit"/);
   assert.match(relayUnit, /^User=%i$/m);
   assert.doesNotMatch(relayUnit, /^Group=/m);
   assert.match(relayUnit, /^NoNewPrivileges=true$/m);
@@ -434,6 +445,8 @@ test('system-manager compatibility mode keeps browser and relay unprivileged whi
   assert.match(installer, /target_home.*\*\[!a-zA-Z0-9_\.\/-\]\*/);
   assert.match(installer, /mission-control-chatgpt-browser@\$\{target_user\}\.service\.d/);
   assert.match(installer, /EnvironmentFile=\$target_home\/\.config\/mission-control-chatgpt-relay\/browser-env/);
+  assert.match(installer, /MC_RELAY_BROWSER_FENCE_FILE=\$fence_file/);
+  assert.match(installer, /mission-control-chatgpt-browser-fence/);
   assert.match(installer, /ExecStart=\$target_home\/\.local\/share\/mission-control-chatgpt-relay\/app\/scripts\/launch-browser\.sh/);
   assert.match(installer, /mission-control-chatgpt-relay@\$\{target_user\}\.service\.d/);
   assert.match(installer, /EnvironmentFile=\$target_home\/\.config\/mission-control-chatgpt-relay\/env/);
@@ -451,6 +464,8 @@ test('system-manager compatibility mode keeps browser and relay unprivileged whi
   assert.match(healthUnit, /^Type=oneshot$/m);
   assert.match(healthUnit, /^User=%i$/m);
   assert.match(healthUnit, /^NoNewPrivileges=true$/m);
+  assert.doesNotMatch(healthUnit, /(?:Requires|Wants)=mission-control-chatgpt-browser/);
+  assert.doesNotMatch(healthUnit, /After=.*mission-control-chatgpt-browser/);
   assert.match(healthUnit, /health-report/);
   assert.match(healthTimer, /^OnUnitActiveSec=60s$/m);
   assert.match(healthTimer, /^Persistent=true$/m);

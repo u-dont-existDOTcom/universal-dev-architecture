@@ -13,7 +13,7 @@ import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mj
 import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
-import { buildRelayHealthReport } from '../src/health-report.mjs';
+import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 
 const command = process.argv[2] ?? 'run';
 
@@ -61,7 +61,11 @@ try {
   if (command === 'doctor') {
     print({ config: publicConfig(config), ...(await runtime.doctor()) });
   } else if (command === 'health-report') {
-    const doctor = await runtime.doctor();
+    const doctor = await observeRelayHealth({
+      doctor: () => runtime.doctor(),
+      browserDoctor: () => browser.doctor(),
+      schedulerStatus: () => schedulerClient.status(),
+    });
     const report = buildRelayHealthReport(config, doctor);
     const receipt = await schedulerClient.reportHealth(report);
     print({ status: 'HEALTH_REPORTED', hostRole: report.hostRole, observedAt: report.observedAt, expiresAt: receipt.expiresAt });

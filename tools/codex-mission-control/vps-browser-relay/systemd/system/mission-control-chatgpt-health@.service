@@ -1,8 +1,7 @@
 [Unit]
 Description=Mission Control relay and browser health report (%i)
-After=network-online.target mission-control-chatgpt-browser@%i.service
+After=network-online.target
 Wants=network-online.target
-Requires=mission-control-chatgpt-browser@%i.service
 
 [Service]
 Type=oneshot
