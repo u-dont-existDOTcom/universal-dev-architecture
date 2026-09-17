@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "status": "ACTIVE_TRIAL",
+  "policyRef": "patterns/work-model-and-effort-routing.md",
+  "requirementRef": "docs/requirements/2026-09-17-work-model-routing-calibration.owner-requirement.json",
+  "templateRef": "templates/WORK-MODEL-ROUTING-TELEMETRY.json",
+  "trial": {
+    "startedAt": "2026-09-17T19:25:00Z",
+    "scheduledReviewOn": "2026-10-08",
+    "baselineDifficultModel": "GPT_5_6_SOL",
+    "baselineDifficultEffort": "XHIGH",
+    "failureChallengerModel": "GPT_6_ASTRA",
+    "failureChallengerEffort": "XHIGH",
+    "automaticPolicyMutationAuthorized": false
+  },
+  "privacy": {
+    "recordPromptsOrSourceContent": false,
+    "recordCredentials": false,
+    "recordPrivateLocators": false,
+    "usePrivacySafeTaskSummariesOnly": true
+  },
+  "taskCategories": [
+    "DETERMINISTIC_EXECUTION",
+    "BOUNDED_IMPLEMENTATION",
+    "DIFFICULT_DEBUGGING",
+    "CROSS_FILE_OR_CROSS_SYSTEM",
+    "BROWSER_OR_GUI",
+    "DEPLOYMENT_OR_RUNTIME",
+    "LONG_HORIZON_EXECUTION",
+    "OTHER"
+  ],
+  "trackingRules": [
+    "The supervising Chat appends one entry after each nontrivial Work execution once the Work receipt is available.",
+    "Routine tasks record the actual model and effort used; they are not upgraded merely to create comparison data.",
+    "Genuinely difficult tasks start with GPT-5.6 Sol XHigh during this trial.",
+    "Astra XHigh is a challenger only after a classified Sol XHigh failure, unless the owner explicitly requests otherwise.",
+    "Matched challenger attempts share a comparisonGroupId and hold base, directive, permissions, and direct endpoint constant as closely as practical.",
+    "Scope, stop-condition, or consequential-adjacent-action violations count as endpoint failures even when other implementation work succeeds.",
+    "Do not duplicate otherwise unnecessary tasks solely to fill the telemetry window."
+  ],
+  "historicalObservations": [
+    {
+      "id": "owner-reported-astra-xhigh-install-restart",
+      "date": "2026-09-15",
+      "source": "OWNER_REPORTED",
+      "countedInTrial": false,
+      "taskCategory": "DEPLOYMENT_OR_RUNTIME",
+      "model": "GPT_6_ASTRA",
+      "effort": "XHIGH",
+      "directConsumerSeamResult": "FAIL",
+      "failureClassification": "EXECUTION_SCOPE_JUDGMENT_FAILURE",
+      "privacySafeObservation": "An installation request was conflated with or extended into an immediate restart/logout step even though installation did not itself authorize or require that consequential follow-on action."
+    }
+  ],
+  "entries": [],
+  "review": {
+    "reviewAfterDate": "2026-10-08",
+    "alsoReviewAfterDifficultBaselineCount": 10,
+    "questions": [
+      "Which task categories succeed reliably on Sol XHigh without a challenger?",
+      "When Sol XHigh genuinely fails, how often does Astra XHigh rescue the same bounded endpoint?",
+      "Which model produces fewer scope, gate, stop-condition, or unauthorized-adjacent-action failures?",
+      "What are the observable allowance and retry costs by task category?",
+      "Is there enough repeated evidence to create any narrow Astra-first exception, or should Sol remain the difficult-task default?"
+    ]
+  }
+}
