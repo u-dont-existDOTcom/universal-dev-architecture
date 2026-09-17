@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CODEX-EXEC-MAINLINE-PORT-20260917",
+  "recorded_at": "2026-09-17T21:55:00Z",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "owner_source": {
+    "kind": "attached_owner_directive",
+    "sha256": "336cb1a18b5d136ca70da27011eeee99b3e4d9c82394bb65fed5569674d1eba8"
+  },
+  "normalized_outcome": "Forward-port the three accepted Mission Control Codex-execution commits, in order and without rewriting their reviewed source branch, onto a new isolated branch based on freshly fetched canonical main. Preserve both current-main controller, health, fence, expiry, recovery, pacing, lease, ambiguity, and Work-routing behavior and the accepted automatic source-bound Codex dispatch and exact legacy fallback behavior. Validate the combined tree deterministically, commit it, push only the review branch, and stop.",
+  "observable_acceptance": [
+    "The port branch starts from the freshly fetched origin/main commit.",
+    "The three accepted commits have inspectable forward-port mappings in their original order.",
+    "Every conflict resolution preserves both the relevant current-main behavior and accepted Codex behavior.",
+    "The requested focused, affected, relay-package, syntax, type, controller, fence, authority, and repository-required checks are recorded.",
+    "The exact review branch is pushed without modifying main or the reviewed candidate branch."
+  ],
+  "non_satisfying_proxies": [
+    "Rebasing, amending, force-pushing, or otherwise rewriting the reviewed candidate branch.",
+    "Restoring an older relay wholesale over current main.",
+    "Passing only the accepted candidate tests without current-main controller and fence regressions.",
+    "Running another paid/API inference or live Codex model smoke without a materially changed runner contract.",
+    "Merging, deploying, installing, releasing the fence, altering live configuration, or promoting CURRENT-STATE."
+  ],
+  "boundaries": {
+    "source_branch_immutable": "task/mission-control-codex-exec-authority-repair-20260917",
+    "accepted_commits": [
+      "a39b36eaffc6759705ae01dd3b46cf61d3b5b2e7",
+      "f383da2d8ced0209a861cea126289c70658db67d",
+      "87625db886461cad1e7ef995140d55d34495d185"
+    ],
+    "no_pull_request": true,
+    "no_merge": true,
+    "no_deploy": true,
+    "no_install": true,
+    "no_production_change": true,
+    "no_live_configuration_change": true,
+    "no_browser_fence_release_or_bypass": true,
+    "no_natural_owner_work": true,
+    "no_current_state_promotion": true
+  }
+}
