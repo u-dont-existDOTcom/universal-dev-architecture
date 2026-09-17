@@ -10,6 +10,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "check": "node --check bin/*.mjs && node --check src/*.mjs",
+    "codex:candidate": "node bin/mc-codex-exec-candidate.mjs",
     "doctor": "node bin/mc-chatgpt-relay.mjs doctor",
     "once": "node bin/mc-chatgpt-relay.mjs once",
     "start": "node bin/mc-chatgpt-relay.mjs run",

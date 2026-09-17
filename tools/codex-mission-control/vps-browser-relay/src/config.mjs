@@ -115,6 +115,28 @@ export async function loadConfig(env = process.env) {
   };
 }
 
+export function loadCodexExecCandidateConfig(env = process.env) {
+  const home = homedir();
+  const stateDir = resolve(expandHome(
+    env.MC_CODEX_EXEC_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay/codex-exec-preview`,
+    home,
+  ));
+  return {
+    previewEnabled: env.MC_CODEX_EXEC_PREVIEW_ENABLED === '1',
+    stateDir,
+    codexBinary: expandHome(env.MC_CODEX_EXEC_BINARY ?? `${home}/.local/bin/codex`, home),
+    sourceCodexHome: resolve(expandHome(env.MC_CODEX_EXEC_SOURCE_HOME ?? env.CODEX_HOME ?? `${home}/.codex`, home)),
+    nodeBinary: expandHome(env.MC_CODEX_EXEC_NODE_BINARY ?? '/usr/bin/node', home),
+    restrictedBrowserAdapterPath: env.MC_CODEX_RESTRICTED_BROWSER_ADAPTER_PATH
+      ? resolve(expandHome(env.MC_CODEX_RESTRICTED_BROWSER_ADAPTER_PATH, home))
+      : null,
+    restrictedBrowserAdapterSha256: env.MC_CODEX_RESTRICTED_BROWSER_ADAPTER_SHA256?.toLowerCase() ?? null,
+    maxTimeoutMs: integer(env.MC_CODEX_EXEC_MAX_TIMEOUT_MS, 900_000, 1_000, 3_600_000),
+    mcpStartupTimeoutSeconds: integer(env.MC_CODEX_MCP_STARTUP_TIMEOUT_SECONDS, 20, 1, 120),
+    mcpToolTimeoutSeconds: integer(env.MC_CODEX_MCP_TOOL_TIMEOUT_SECONDS, 60, 1, 300),
+  };
+}
+
 export function publicConfig(config) {
   return {
     missionControlUrl: config.missionControl.url,

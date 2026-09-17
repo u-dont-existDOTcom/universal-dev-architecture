@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CODEX-EXEC-INTEGRATION-CANDIDATE-20260917",
+  "recorded_at": "2026-09-17T15:43:00Z",
+  "status": "LIVE_VERIFIED",
+  "completion_allowed": true,
+  "owner_source": {
+    "source_type": "owner_chat_attachment",
+    "source_ref": "owner-request:mission-control-codex-exec-integration-candidate-20260917",
+    "verbatim": "Implement the smallest reversible Mission Control integration candidate that composes the two now-qualified primitives:\n\n1. local `codex exec --json` for bounded filesystem/command execution;\n2. the restricted MCP adapter for access to the existing authenticated Mission Control Chromium session.\n\nThis is **Iteration**, not release or production migration.\n\n## Established evidence — do not repeat\n\nTreat these as already qualified:\n\n- `CODEX_EXEC_CONTROL_PLANE_PILOT: PASS`\n- `CODEX_EXISTING_CHROMIUM_BRIDGE_PILOT: PASS`\n\nDo not rerun their qualification matrices unless the integration itself exposes a new contradiction.\n\n## Current repository constraint\n\nFresh-read the canonical repository instructions and current state before editing.\n\nMission Control currently has unrelated active controller-recovery work. Do not modify, rebase, replace, or reinterpret that active branch/checkpoint.\n\nProduction promotion is not authorized.\n\nCreate a separate branch/worktree from fresh current `main`.\n\nSuggested branch class:\n\n`task/mission-control-codex-exec-candidate-20260917`\n\nUse another unique name if needed.\n\nDo not modify production services, leases, deployed browser controller, or live routing.\n\n## Model / effort\n\nOuter Work task: **GPT-6 Astra Low**.\n\nFast mode disabled.\n\nDo not escalate unless an actual `EXECUTION_REASONING_SHORTFALL` is established.\n\nAny nested qualification jobs should use the lowest sufficient tier, normally **GPT-5.6 Sol Low** for deterministic smoke cases.\n\n## Architecture frozen by Chat\n\nDo not redesign this architecture.\n\nMission Control reasoning/supervision remains Chat-owned.\n\nThe new execution backend receives only an **already-authorized bounded execution directive**.\n\nThe backend must not:\n\n- determine strategy;\n- decide whether owner authority exists;\n- create supervisory conclusions;\n- widen the directive;\n- choose consequential next steps.\n\nExecution topology:\n\n```text\nChat / supervisor\n        ↓\nMission Control admission\n        ↓\nexecution capability routing\n   ├── local filesystem/command\n   │      → codex exec\n   │\n   ├── approved read-only browser capability\n   │      → codex exec + restricted MCP\n   │      → existing authenticated Chromium\n   │\n   └── unsupported / representational browser action\n          → existing Mission Control browser path\n```\n\nThe existing browser/Web path remains the fallback and rollback route.\n\n## Candidate behavior\n\nAdd a disabled-by-default preview execution backend using existing Mission Control configuration conventions.\n\nDo not invent a new configuration framework merely for this feature.\n\nWhen preview mode is disabled, current behavior must be unchanged.\n\nFor each admitted Codex job preserve at least:\n\n- unique job/attempt ID;\n- source directive identity/digest;\n- requested model and reasoning effort;\n- start time;\n- deadline;\n- `events.jsonl`;\n- structured final result;\n- process exit state;\n- terminal Mission Control status;\n- finish time.\n\nUse the already-qualified semantics for:\n\n- `RUNNING`\n- `COMPLETED`\n- `FAILED`\n- `TIMED_OUT`\n- `PROTOCOL_ERROR`\n\nSuccess must require the expected structured result and valid terminal lifecycle state.\n\nDo not infer completion from process existence, GUI state, or screenshots.\n\n## Sandbox / approval invariant\n\nLocal execution remains:\n\n- ChatGPT-subscription authenticated;\n- no API-key fallback;\n- sandboxed;\n- `workspace-write`;\n- approval policy `never`.\n\nForbidden operations fail deterministically.\n\nDo not weaken sandboxing or enable broad localhost/network access.\n\n## Browser capability gating\n\nIntegrate the already-qualified restricted adapter rather than making a second CDP implementation.\n\nFor this candidate, Codex browser access remains limited to the capability proven by the pilot.\n\nDo not add general:\n\n- click;\n- type;\n- form submission;\n- arbitrary JavaScript;\n- raw CDP;\n- cookies/storage access;\n- upload/download;\n- messaging;\n- purchases/account changes.\n\nRepresentational or unsupported browser tasks continue through the existing browser route.\n\nRaw direct model access to `127.0.0.1:9222` must remain blocked.\n\nThe adapter, not the Codex shell, owns CDP access.\n\n## Routing\n\nImplement the smallest explicit capability classification needed to select among:\n\n- `CODEX_LOCAL`\n- `CODEX_BROWSER_RESTRICTED`\n- `LEGACY_BROWSER`\n\nUse existing schemas/enums if equivalent concepts already exist.\n\nDo not add heuristic semantic authority to Work.\n\nUnknown/unsupported browser capability should preserve the legacy route rather than silently broadening Codex permissions.\n\n## Recovery / idempotency\n\nReuse Mission Control's existing task identity and recovery mechanisms where possible.\n\nDo not build a second scheduler or parallel durable-control subsystem.\n\nA retry must have a distinct attempt identity.\n\nA completed attempt must not be silently duplicated.\n\nTimeout must terminate only the relevant Codex job/process group.\n\nPreserve partial evidence on failure.\n\n## Validation\n\nUse focused/affected tests only.\n\nRequired deterministic coverage should include:\n\n- preview flag off → exact legacy behavior;\n- admitted local task → Codex backend;\n- approved restricted-browser task → Codex + MCP;\n- unsupported browser action → legacy path;\n- timeout → `TIMED_OUT`;\n- malformed/absent terminal result → non-success;\n- retry → distinct attempt identity;\n- raw CDP is not exposed through the Codex job configuration.\n\nDo not launch the full repository/release suite merely because the candidate exists.\n\n## Representative integrated smoke tests\n\nAfter deterministic tests pass, run only enough real execution to prove composition:\n\n### Smoke A — local\n\nSend one harmless already-authorized disposable filesystem/command directive through the **Mission Control candidate routing seam**, not directly to the runner.\n\nVerify Mission Control routes it to `codex exec`, records its lifecycle, and receives the expected result.\n\n### Smoke B — browser\n\nSend one harmless read-only browser directive through the same Mission Control candidate seam.\n\nUse the existing authenticated Chromium plus restricted MCP to create/read/close an `example.com` disposable target.\n\nVerify:\n\n- same Chromium process/profile;\n- existing managed ChatGPT tab untouched;\n- structured job completion;\n- disposable target cleaned up.\n\nDo not repeat the raw-CDP qualification unless integration has changed the sandbox boundary.\n\n## Git / delivery\n\nKeep this isolated from the active controller-recovery branch.\n\nCommit the candidate on its own task branch for durable recovery.\n\nDo not merge.\n\nDo not deploy.\n\nDo not alter `state/CURRENT-STATE.md` to make this candidate the active production checkpoint.\n\nDo not open a PR merely for this iteration candidate.\n\nReturn:\n\n- branch;\n- exact commit;\n- files changed;\n- focused tests/results;\n- Smoke A result;\n- Smoke B result;\n- any divergence from the frozen architecture;\n- rollback mechanism;\n- whether the candidate is ready for owner/Chat review.\n\nTerminal status should be one of:\n\n`MC_CODEX_EXEC_INTEGRATION_CANDIDATE: PASS`\n\n`MC_CODEX_EXEC_INTEGRATION_CANDIDATE: FAIL`\n\n`MC_CODEX_EXEC_INTEGRATION_CANDIDATE: BLOCKED`\n\nStop there. Do not promote, merge, deploy, or expand browser permissions.",
+    "sha256": "03ee340bd733ec80754c168656699f2a7647557a2c5481f7a3775f6893dfb70e"
+  },
+  "normalized_outcome": "Produce a disabled-by-default, reversible Mission Control iteration candidate that routes already-admitted bounded directives to local Codex execution, restricted existing-Chromium MCP execution, or the unchanged legacy browser path, preserves lifecycle/recovery evidence, passes focused tests and two representative candidate-seam smokes, and remains isolated from production and controller-recovery work.",
+  "required_outcomes": [
+    {
+      "id": "RO-CANDIDATE-001",
+      "observable": "Preview disabled or unsupported browser capability invokes the existing legacy handler without Codex execution.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-integration-candidate.json"
+      ]
+    },
+    {
+      "id": "RO-CANDIDATE-002",
+      "observable": "Admitted local directives execute via codex exec with subscription authentication, workspace-write, approval never, no API-key fallback, bounded deadline, and complete lifecycle evidence.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-integration-candidate.json"
+      ]
+    },
+    {
+      "id": "RO-CANDIDATE-003",
+      "observable": "The exact qualified restricted adapter is digest-bound into the Codex MCP configuration for the allowed disposable example.com lifecycle while raw CDP is absent from the job configuration.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-integration-candidate.json"
+      ]
+    },
+    {
+      "id": "RO-CANDIDATE-004",
+      "observable": "Timeout, malformed or absent terminal result, explicit retry identity, and completed-attempt duplicate prevention have deterministic focused coverage.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-integration-candidate.json"
+      ]
+    },
+    {
+      "id": "RO-CANDIDATE-005",
+      "observable": "Smoke A and Smoke B traverse the Mission Control candidate seam, with the existing managed ChatGPT target and Chromium process preserved and the disposable target removed.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-integration-candidate.json"
+      ]
+    },
+    {
+      "id": "RO-CANDIDATE-006",
+      "observable": "Candidate is committed on its isolated branch without PR, merge, deploy, production mutation, controller-recovery mutation, or CURRENT-STATE checkpoint replacement.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-integration-candidate.json"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Calling codex exec directly instead of through the candidate routing seam",
+    "Unit tests without both integrated smokes",
+    "A browser smoke that bypasses the digest-bound restricted MCP adapter",
+    "Process existence, GUI state, or screenshots used as completion evidence",
+    "A branch or commit without lifecycle, rollback, and unchanged-production evidence"
+  ],
+  "assurance_lane": "iteration",
+  "production_authorized": false,
+  "next_direct_evidence": "Owner/Chat may review the isolated iteration candidate. Production promotion remains unauthorized and would require a separate release decision and release-lane evidence."
+}
