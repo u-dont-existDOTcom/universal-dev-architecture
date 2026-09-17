@@ -12,13 +12,19 @@ VPS browser relay = no-content UI orchestration only
 GitHub = durable supervisor decision receipt bus
 ```
 
-## Disabled Codex execution candidate
+## Mission Control Codex execution candidate
 
-An iteration-only candidate CLI can consume an already-admitted bounded
-directive and route it to local `codex exec`, to `codex exec` with the exact
-digest-bound restricted Chromium adapter, or back to a caller-supplied legacy
-browser handler. It is disabled unless `MC_CODEX_EXEC_PREVIEW_ENABLED=1`; the
-normal relay never invokes it.
+The iteration-only candidate is integrated at the authenticated Mission Control
+worker boundary. The canonical `worker:codex-exec` entrypoint posts the exact
+source-bound request to the existing worker admission endpoint, requires
+`mayExecute: true`, then requires the persisted Work execution preflight before
+it can start a Codex child. A caller-supplied receipt string cannot authorize
+execution. The relay-side CLI is diagnostic only.
+
+The preview remains disabled unless `MC_CODEX_EXEC_PREVIEW_ENABLED=1`. When it
+is disabled, or the closed capability classifier selects an unsupported browser
+operation, the worker entrypoint invokes the existing Mission Control browser
+relay `once` path and returns its real outcome.
 
 The candidate records one immutable directory per attempt with raw
 `events.jsonl`, process exit state, structured result, deadline, final status,
@@ -29,10 +35,18 @@ explicit retry references a prior terminal attempt and always receives a new
 attempt ID.
 
 Each attempt copies only the subscription credential into a mode-`0700`
-ephemeral Codex home, writes project trust there, verifies `ChatGPT`
-authentication, and removes that home before finalizing evidence. This prevents
-Codex from adding candidate workspace trust to the operator's global config and
-keeps credentials out of durable job artifacts.
+`mkdtemp` Codex home under the configured runtime/temp area, outside the durable
+Mission Control state tree. It writes project trust there, verifies `ChatGPT`
+authentication, sets the auth file to mode `0600`, and removes the entire home
+before finalizing evidence. A setup failure also removes any partial runtime
+home. Durable attempt evidence contains source and authority digests, lifecycle
+events, result and exit state, but no reusable credential.
+
+Retries must name a prior terminal attempt. The new attempt gets a distinct
+identity and must match the exact prior directive artifact, Chat source,
+directive revision, task, execution profile, capability, prompt, workspace,
+output schema, model and effort. Only the deadline and retry reference may
+change.
 
 The restricted route accepts only the closed
 `EXAMPLE_TARGET_LIFECYCLE` capability. The adapter path and SHA-256 are supplied

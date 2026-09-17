@@ -5,16 +5,20 @@ import {
   access,
   chmod,
   copyFile,
+  mkdtemp,
   mkdir,
   open,
   readFile,
+  realpath,
   readdir,
   rm,
   stat,
   writeFile,
 } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { finished } from 'node:stream/promises';
+import { canonicalJson } from './core.mjs';
 
 export const CODEX_EXECUTION_ROUTES = Object.freeze({
   LOCAL: 'CODEX_LOCAL',
@@ -34,6 +38,7 @@ const RESTRICTED_BROWSER_SERVER = 'existing_chromium_bridge';
 const TERMINAL_STATUSES = new Set(Object.values(CODEX_ATTEMPT_STATUSES).filter((value) => value !== 'RUNNING'));
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
+const VERIFIED_RUNTIME_ADMISSION = Symbol('VERIFIED_RUNTIME_ADMISSION');
 
 export function classifyCodexExecutionRoute(directive, { previewEnabled }) {
   if (!previewEnabled) return CODEX_EXECUTION_ROUTES.LEGACY_BROWSER;
@@ -44,6 +49,335 @@ export function classifyCodexExecutionRoute(directive, { previewEnabled }) {
     return CODEX_EXECUTION_ROUTES.RESTRICTED_BROWSER;
   }
   return CODEX_EXECUTION_ROUTES.LEGACY_BROWSER;
+}
+
+export function codexDirectiveArtifactSha256(directive) {
+  return sha256(canonicalJson(codexDirectiveArtifact(directive)));
+}
+
+export async function dispatchMissionControlExecution({
+  worker,
+  admissionInput,
+  setterEvidenceId,
+  directive,
+  config,
+  missionControl,
+  legacyBrowserHandler,
+  clock = () => new Date(),
+  spawnImpl = spawn,
+}) {
+  const route = classifyCodexExecutionRoute(directive, config);
+  if (route === CODEX_EXECUTION_ROUTES.LEGACY_BROWSER) {
+    if (typeof legacyBrowserHandler !== 'function') {
+      throw new Error('The actual legacy browser handler is required for disabled or unsupported candidate routes.');
+    }
+    return legacyBrowserHandler(directive, {
+      route,
+      reason: config.previewEnabled ? 'UNSUPPORTED_OR_UNCLASSIFIED_CAPABILITY' : 'PREVIEW_DISABLED',
+    });
+  }
+
+  if (!missionControl
+    || typeof missionControl.requestExecutionAdmission !== 'function'
+    || typeof missionControl.requestWorkExecutionPreflight !== 'function'
+    || typeof missionControl.recordWorkerEvents !== 'function') {
+    throw new Error('The authenticated Mission Control admission/dispatch client is required before Codex execution.');
+  }
+  const binding = validateMissionControlDispatchBinding({ worker, admissionInput, directive, setterEvidenceId });
+  const admission = await missionControl.requestExecutionAdmission(worker, admissionInput);
+  assertAuthoritativeAdmission(admission, binding);
+  const preflight = await missionControl.requestWorkExecutionPreflight(worker, {
+    authorizationId: admission.profileAuthorizationId,
+    requestedProfile: binding.workExecutionProfile,
+    setterEvidenceId,
+  });
+  assertPersistedPreflight(preflight, admission, binding);
+
+  const authority = {
+    [VERIFIED_RUNTIME_ADMISSION]: true,
+    requestId: binding.requestId,
+    authorizationId: admission.profileAuthorizationId,
+    preflightId: preflight.preflightId,
+    setterEvidenceId,
+    directiveArtifactSha256: binding.directiveArtifactSha256,
+    sourceMessageId: binding.sourceMessageId,
+    sourceBodySha256: binding.sourceBodySha256,
+    directiveId: binding.directiveId,
+    directiveRevision: binding.directiveRevision,
+    taskId: binding.taskId,
+    workExecutionProfile: binding.workExecutionProfile,
+    preflight,
+  };
+
+  let startEnvelope = null;
+  const summary = await runCodexAttempt({
+    directive,
+    config,
+    route,
+    authority,
+    clock,
+    spawnImpl,
+    onAttemptStarted: async ({ attemptId, startedAt }) => {
+      startEnvelope = buildExecutionStartedEnvelope({ worker, attemptId, startedAt, authority, route });
+      await missionControl.recordWorkerEvents(worker, [startEnvelope]);
+    },
+  });
+  if (summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED) {
+    const receipt = buildExecutionReceiptEnvelope({ worker, summary, authority, route, startEnvelope });
+    await missionControl.recordWorkerEvents(worker, [receipt]);
+  }
+  return {
+    ...summary,
+    missionControlLifecycle: {
+      admissionRequestId: authority.requestId,
+      authorizationId: authority.authorizationId,
+      preflightId: authority.preflightId,
+      executionStartRecorded: startEnvelope !== null,
+      executionReceiptRecorded: summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED,
+    },
+  };
+}
+
+function validateMissionControlDispatchBinding({ worker, admissionInput, directive, setterEvidenceId }) {
+  if (typeof worker !== 'string' || worker.trim() === '') throw new Error('A Mission Control worker identity is required.');
+  if (typeof setterEvidenceId !== 'string' || setterEvidenceId.trim() === '') {
+    throw new Error('Trusted task-creation setter evidence is required.');
+  }
+  const request = admissionInput?.request;
+  const source = request?.sourceReceipt;
+  const binding = request?.executionDirectiveBinding;
+  const profile = request?.workExecutionProfile;
+  if (!request || request.action !== 'EXECUTE_BOUNDED_TASK' || request.actor !== 'WORK'
+    || request.boundedExecution !== true || request.taskRequiresExecutionOutsideChat !== true) {
+    throw new Error('Mission Control dispatch requires an exact bounded Work execution admission request.');
+  }
+  if (!binding || !source || !isPlainObject(profile)) {
+    throw new Error('Mission Control dispatch requires exact directive, source, and execution-profile bindings.');
+  }
+  if (directive?.schemaVersion !== 2 || !directive.sourceDirective) {
+    throw new Error('Mission Control dispatch requires a version 2 source-bound candidate directive.');
+  }
+  const artifactSha256 = codexDirectiveArtifactSha256(directive);
+  const exact = [
+    [binding.directiveId, directive.sourceDirective.id, 'directive identity'],
+    [binding.directiveRevision, directive.sourceDirective.revision, 'directive revision'],
+    [binding.taskId, directive.sourceDirective.taskId, 'task identity'],
+    [binding.directiveArtifactSha256, artifactSha256, 'directive artifact digest'],
+    [source.messageId, directive.sourceDirective.sourceMessageId, 'source message identity'],
+    [source.bodySha256, directive.sourceDirective.sourceBodySha256, 'source body digest'],
+  ];
+  for (const [actual, expected, label] of exact) {
+    if (actual !== expected) throw new Error(`Mission Control ${label} does not match the executable directive.`);
+  }
+  if (canonicalJson(profile) !== canonicalJson(directive.workExecutionProfile)) {
+    throw new Error('Mission Control execution profile does not match the executable directive.');
+  }
+  const selection = selectionForProfile(profile);
+  if (selection.model !== directive.requestedModel || selection.thinking !== directive.reasoningEffort) {
+    throw new Error('Requested Codex model/effort differs from the source-bound Mission Control profile.');
+  }
+  if (selection.fastModeRequest !== 'DO_NOT_ENABLE_FAST') {
+    throw new Error('The candidate dispatch does not authorize Fast mode.');
+  }
+  return {
+    requestId: requiredIdentity(request.requestId, 'request.requestId'),
+    directiveId: requiredIdentity(binding.directiveId, 'directiveId'),
+    directiveRevision: binding.directiveRevision,
+    taskId: requiredIdentity(binding.taskId, 'taskId'),
+    directiveArtifactSha256: artifactSha256,
+    sourceMessageId: requiredIdentity(source.messageId, 'sourceReceipt.messageId'),
+    sourceBodySha256: source.bodySha256,
+    workExecutionProfile: profile,
+    selection,
+    setterEvidenceId,
+  };
+}
+
+function assertAuthoritativeAdmission(admission, binding) {
+  if (admission?.mayExecute !== true || admission?.admitted !== true) {
+    throw new Error(`MISSION_CONTROL_EXECUTION_NOT_ADMITTED: ${admission?.primaryDecision?.decision ?? admission?.error ?? 'DENIED'}`);
+  }
+  if (admission.requestId !== binding.requestId
+    || typeof admission.profileAuthorizationId !== 'string'
+    || admission.profileAuthorizationId.trim() === ''
+    || canonicalJson(admission.authorizedWorkExecutionProfile) !== canonicalJson(binding.workExecutionProfile)) {
+    throw new Error('Mission Control admission response does not bind the exact request and execution profile.');
+  }
+}
+
+function assertPersistedPreflight(preflight, admission, binding) {
+  if (preflight?.allowed !== true || typeof preflight.preflightId !== 'string' || preflight.preflightId.trim() === '') {
+    throw new Error(`MISSION_CONTROL_EXECUTION_PREFLIGHT_REJECTED: ${preflight?.decision ?? preflight?.error ?? 'DENIED'}`);
+  }
+  if (preflight.setterEvidenceId !== binding.setterEvidenceId
+    || canonicalJson(preflight.requestedProfile) !== canonicalJson(binding.workExecutionProfile)
+    || canonicalJson(preflight.authorizedProfile) !== canonicalJson(admission.authorizedWorkExecutionProfile)
+    || canonicalJson(preflight.launchSelection) !== canonicalJson(binding.selection)) {
+    throw new Error('Mission Control preflight does not bind the exact persisted authorization, profile, and setter evidence.');
+  }
+}
+
+function codexDirectiveArtifact(directive) {
+  return {
+    schemaVersion: 2,
+    jobId: directive?.jobId ?? null,
+    sourceDirective: directive?.sourceDirective ?? null,
+    prompt: directive?.prompt ?? null,
+    workspace: typeof directive?.workspace === 'string' ? resolve(directive.workspace) : null,
+    executionCapability: directive?.executionCapability ?? null,
+    outputSchema: directive?.outputSchema ?? null,
+    workExecutionProfile: directive?.workExecutionProfile ?? null,
+    requestedModel: directive?.requestedModel ?? null,
+    reasoningEffort: directive?.reasoningEffort ?? null,
+    executionContract: {
+      sandbox: 'workspace-write',
+      approvalPolicy: 'never',
+      workspaceNetworkAccess: false,
+      apiKeyFallback: false,
+    },
+  };
+}
+
+function selectionForProfile(profile) {
+  const model = profile?.model === 'GPT_5_6_SOL' ? 'gpt-5.6-sol'
+    : profile?.model === 'GPT_6_ASTRA' ? 'gpt-6-astra' : null;
+  const effort = typeof profile?.effort === 'string' ? profile.effort.toLowerCase() : null;
+  if (!model || !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) {
+    throw new Error('Mission Control supplied an unsupported Work execution model or effort.');
+  }
+  return { model, thinking: effort, fastModeRequest: profile.fastModeRequest };
+}
+
+function authorityBindingSha256(authority, route) {
+  return sha256(canonicalJson({
+    requestId: authority.requestId,
+    authorizationId: authority.authorizationId,
+    preflightId: authority.preflightId,
+    setterEvidenceId: authority.setterEvidenceId,
+    directiveArtifactSha256: authority.directiveArtifactSha256,
+    sourceMessageId: authority.sourceMessageId,
+    sourceBodySha256: authority.sourceBodySha256,
+    directiveId: authority.directiveId,
+    directiveRevision: authority.directiveRevision,
+    taskId: authority.taskId,
+    workExecutionProfile: authority.workExecutionProfile,
+    route,
+  }));
+}
+
+function sourceBindingSha256(authority, route) {
+  return sha256(canonicalJson({
+    directiveArtifactSha256: authority.directiveArtifactSha256,
+    sourceMessageId: authority.sourceMessageId,
+    sourceBodySha256: authority.sourceBodySha256,
+    directiveId: authority.directiveId,
+    directiveRevision: authority.directiveRevision,
+    taskId: authority.taskId,
+    workExecutionProfile: authority.workExecutionProfile,
+    route,
+    executionContract: {
+      sandbox: 'workspace-write', approvalPolicy: 'never', workspaceNetworkAccess: false, apiKeyFallback: false,
+    },
+  }));
+}
+
+function buildExecutionStartedEnvelope({ worker, attemptId, startedAt, authority, route }) {
+  return {
+    schema_version: 2,
+    event_id: `codex-execution-start:${attemptId}`,
+    mission_id: 'mission-control-live',
+    occurred_at: startedAt,
+    data: {
+      type: 'codex_execution_started',
+      worker,
+      execution_start_id: `codex-execution-start:${attemptId}`,
+      worker_run_id: attemptId,
+      task_id: authority.taskId,
+      directive_id: authority.directiveId,
+      directive_revision: authority.directiveRevision,
+      started_at: startedAt,
+      execution_mode: 'BOUNDED_MECHANICAL',
+      declared_tactical_boundary: `Execute the exact admitted ${route} directive without semantic or supervisory authority.`,
+      work_profile_authorization_id: authority.authorizationId,
+      work_profile_preflight_id: authority.preflightId,
+    },
+  };
+}
+
+function buildExecutionReceiptEnvelope({ worker, summary, authority, route, startEnvelope }) {
+  const preflight = authority.preflight;
+  if (!startEnvelope || startEnvelope.data.worker_run_id !== summary.attemptId) {
+    throw new Error('Mission Control execution receipt is missing its exact recorded start.');
+  }
+  return {
+    schema_version: 2,
+    event_id: `codex-execution-receipt:${summary.attemptId}`,
+    mission_id: 'mission-control-live',
+    occurred_at: summary.finishedAt,
+    data: {
+      type: 'execution_receipt_recorded',
+      worker,
+      receipt_id: `codex-execution-receipt:${summary.attemptId}`,
+      directive_id: authority.directiveId,
+      directive_revision: authority.directiveRevision,
+      task_id: authority.taskId,
+      worker_run_id: summary.attemptId,
+      repository_start_state: `directive-artifact:${authority.directiveArtifactSha256}`,
+      repository_end_state: `directive-artifact:${authority.directiveArtifactSha256}`,
+      started_at: summary.startedAt,
+      stopped_at: summary.finishedAt,
+      actions_taken: [`Executed exact admitted route ${route}.`],
+      files_changed: [],
+      artifacts_produced: [`attempt:${summary.attemptId}`],
+      checks_run: [{ command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured result passed.' }],
+      measurements: [],
+      evidence_refs: [`attempt:${summary.attemptId}`, `directive-artifact:${authority.directiveArtifactSha256}`],
+      deviations: [],
+      blockers: [],
+      stop_trigger_reached: 'The bounded mechanical candidate attempt reached its admitted terminal result.',
+      execution_claim: 'Bounded execution completed; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.',
+      strategy_change: null,
+      progress_classification: null,
+      supervisory_verdict: null,
+      owner_escalation_decision: null,
+      pro_escalation_decision: null,
+      contract_to_owner_alignment: null,
+      outcome_advancement: null,
+      strategy_efficacy: null,
+      scientific_adequacy: null,
+      release_adequacy: null,
+      owner_outcome_achievement: null,
+      next_reasoning_review_required: true,
+      receipt_schema_version: 3,
+      work_execution: {
+        authorization_id: authority.authorizationId,
+        preflight_id: authority.preflightId,
+        setter_evidence_id: authority.setterEvidenceId,
+        requested_profile: preflight.requestedProfile,
+        authorized_profile: preflight.authorizedProfile,
+        observed_profile: preflight.observedProfile,
+        applied_selection: preflight.appliedSelection,
+        observability: {
+          model: preflight.capability.model,
+          effort: preflight.capability.effort,
+          fastMode: preflight.capability.fastMode,
+        },
+        preflight: preflight.result,
+        preflight_decision: preflight.decision,
+        model_identity_evidence: preflight.modelIdentityEvidence,
+        escalations: [],
+        final_profile: preflight.authorizedProfile,
+        fast_mode_observed: null,
+        allowance_delta: null,
+        routing_telemetry: { eligible: false, telemetry_index: null, exclusion_reason: 'TRIVIAL' },
+      },
+    },
+  };
+}
+
+function requiredIdentity(value, field) {
+  if (typeof value !== 'string' || value.trim() === '' || value.length > 180) throw new Error(`${field} must be a non-empty stable identity.`);
+  return value;
 }
 
 export async function executeMissionControlCandidate({
@@ -63,17 +397,22 @@ export async function executeMissionControlCandidate({
       reason: config.previewEnabled ? 'UNSUPPORTED_OR_UNCLASSIFIED_CAPABILITY' : 'PREVIEW_DISABLED',
     });
   }
-  return runCodexAttempt({ directive, config, route, clock, spawnImpl });
+  throw new Error('VERIFIED_RUNTIME_ADMISSION_REQUIRED: use dispatchMissionControlExecution for Codex routes.');
 }
 
-export async function runCodexAttempt({
+async function runCodexAttempt({
   directive,
   config,
   route,
+  authority,
+  onAttemptStarted,
   clock = () => new Date(),
   spawnImpl = spawn,
 }) {
-  const normalized = await validateDirective(directive, config, route, clock);
+  if (authority?.[VERIFIED_RUNTIME_ADMISSION] !== true) {
+    throw new Error('VERIFIED_RUNTIME_ADMISSION_REQUIRED: no Codex process may start from caller-supplied receipt text.');
+  }
+  const normalized = await validateDirective(directive, config, route, clock, authority);
   const jobDir = join(resolve(config.stateDir), 'jobs', normalized.jobId);
   await mkdir(jobDir, { recursive: true, mode: 0o700 });
   const lockPath = join(jobDir, '.candidate.lock');
@@ -99,8 +438,10 @@ export async function runCodexAttempt({
       jobId: normalized.jobId,
       attemptId,
       retryOfAttemptId: normalized.retryOfAttemptId,
-      admissionReceiptId: normalized.admissionReceiptId,
       sourceDirective: normalized.sourceDirective,
+      directiveArtifactSha256: authority.directiveArtifactSha256,
+      authorityBindingSha256: authorityBindingSha256(authority, route),
+      sourceBindingSha256: sourceBindingSha256(authority, route),
       requestedModel: normalized.requestedModel,
       reasoningEffort: normalized.reasoningEffort,
       route,
@@ -120,6 +461,9 @@ export async function runCodexAttempt({
       writeFile(statusPath, `${CODEX_ATTEMPT_STATUSES.RUNNING}\n`, { mode: 0o600 }),
     ]);
 
+    if (typeof onAttemptStarted !== 'function') throw new Error('Mission Control lifecycle start recorder is required.');
+    await onAttemptStarted({ attemptId, startedAt, identity });
+
     let processState = { exitCode: null, signal: null, started: false };
     let timedOut = false;
     let runnerError = null;
@@ -131,7 +475,8 @@ export async function runCodexAttempt({
       const childEnv = withoutApiKeys(config.environment ?? process.env);
       isolatedCodexHome = await createIsolatedCodexHome({
         sourceCodexHome: config.sourceCodexHome,
-        attemptDir,
+        runtimeDir: config.runtimeDir ?? join(tmpdir(), 'mission-control-codex-exec'),
+        durableStateDir: config.stateDir,
         workspace: normalized.workspace,
       });
       childEnv.CODEX_HOME = isolatedCodexHome;
@@ -216,23 +561,36 @@ export async function runCodexAttempt({
   }
 }
 
-async function createIsolatedCodexHome({ sourceCodexHome, attemptDir, workspace }) {
+async function createIsolatedCodexHome({ sourceCodexHome, runtimeDir, durableStateDir, workspace }) {
   if (typeof sourceCodexHome !== 'string' || sourceCodexHome.trim() === '') {
     throw new Error('A source Codex home is required for ChatGPT subscription authentication.');
   }
   const sourceAuth = join(resolve(sourceCodexHome), 'auth.json');
   await access(sourceAuth);
-  const runtimeHome = join(attemptDir, '.codex-runtime');
-  await mkdir(runtimeHome, { mode: 0o700 });
-  const runtimeAuth = join(runtimeHome, 'auth.json');
-  await copyFile(sourceAuth, runtimeAuth);
-  await chmod(runtimeAuth, 0o600);
-  await writeFile(
-    join(runtimeHome, 'config.toml'),
-    `[projects.${tomlString(workspace)}]\ntrust_level = "trusted"\n`,
-    { mode: 0o600 },
-  );
-  return runtimeHome;
+  await mkdir(runtimeDir, { recursive: true, mode: 0o700 });
+  const runtimeRoot = await realpath(resolve(runtimeDir));
+  const durableRoot = await realpath(resolve(durableStateDir));
+  if (pathIsWithin(durableRoot, runtimeRoot)) {
+    throw new Error('The ephemeral Codex runtime directory must be outside the durable Mission Control state tree.');
+  }
+  await chmod(runtimeRoot, 0o700);
+  let runtimeHome = null;
+  try {
+    runtimeHome = await mkdtemp(join(runtimeRoot, 'attempt-'));
+    await chmod(runtimeHome, 0o700);
+    const runtimeAuth = join(runtimeHome, 'auth.json');
+    await copyFile(sourceAuth, runtimeAuth);
+    await chmod(runtimeAuth, 0o600);
+    await writeFile(
+      join(runtimeHome, 'config.toml'),
+      `[projects.${tomlString(workspace)}]\ntrust_level = "trusted"\n`,
+      { mode: 0o600 },
+    );
+    return runtimeHome;
+  } catch (error) {
+    if (runtimeHome) await rm(runtimeHome, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 async function verifySubscriptionAuthentication({ config, workspace, environment, spawnImpl }) {
@@ -286,26 +644,31 @@ export function buildCodexExecArgs({ directive, route, schemaPath, resultPath, m
   return args;
 }
 
-async function validateDirective(directive, config, route, clock) {
-  if (!directive || directive.schemaVersion !== 1) throw new Error('Candidate directive schemaVersion must be 1.');
+async function validateDirective(directive, config, route, clock, authority) {
+  if (!directive || directive.schemaVersion !== 2) throw new Error('Candidate directive schemaVersion must be 2.');
   if (typeof directive.jobId !== 'string' || !SAFE_ID.test(directive.jobId)) {
     throw new Error('jobId must be a safe non-empty identity.');
   }
   for (const [name, value] of [
-    ['admissionReceiptId', directive.admissionReceiptId],
     ['sourceDirective.id', directive.sourceDirective?.id],
+    ['sourceDirective.taskId', directive.sourceDirective?.taskId],
+    ['sourceDirective.sourceMessageId', directive.sourceDirective?.sourceMessageId],
   ]) {
     if (typeof value !== 'string' || value.trim() === '' || value.length > 512) {
       throw new Error(`${name} must preserve a non-empty identity of at most 512 characters.`);
     }
   }
+  if (!Number.isInteger(directive.sourceDirective?.revision) || directive.sourceDirective.revision < 1) {
+    throw new Error('sourceDirective.revision must be a positive integer.');
+  }
   if (directive.retryOfAttemptId != null
     && (typeof directive.retryOfAttemptId !== 'string' || !SAFE_ID.test(directive.retryOfAttemptId))) {
     throw new Error('retryOfAttemptId must be a safe attempt identity.');
   }
-  if (!SHA256.test(directive.sourceDirective?.sha256 ?? '')) throw new Error('sourceDirective.sha256 must be a lowercase SHA-256 digest.');
+  if (!SHA256.test(directive.sourceDirective?.sourceBodySha256 ?? '')) {
+    throw new Error('sourceDirective.sourceBodySha256 must be a lowercase SHA-256 digest.');
+  }
   if (typeof directive.prompt !== 'string' || directive.prompt.trim() === '') throw new Error('Candidate directive prompt is required.');
-  if (sha256(directive.prompt) !== directive.sourceDirective.sha256) throw new Error('Source directive digest does not match the exact prompt bytes.');
   if (typeof directive.requestedModel !== 'string' || directive.requestedModel.trim() === '') throw new Error('requestedModel is required.');
   if (!['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(directive.reasoningEffort)) throw new Error('Unsupported reasoningEffort.');
   if (!isPlainObject(directive.outputSchema)) throw new Error('outputSchema must be a JSON object.');
@@ -322,10 +685,25 @@ async function validateDirective(directive, config, route, clock) {
     }
     if (!SHA256.test(config.restrictedBrowserAdapterSha256)) throw new Error('Restricted browser adapter SHA-256 is invalid.');
   }
+  if (codexDirectiveArtifactSha256(directive) !== authority.directiveArtifactSha256) {
+    throw new Error('The executable candidate bytes do not match the exact Mission Control directive artifact digest.');
+  }
+  if (authorityBindingSha256(authority, route) !== authorityBindingSha256({
+    ...authority,
+    directiveId: directive.sourceDirective.id,
+    directiveRevision: directive.sourceDirective.revision,
+    taskId: directive.sourceDirective.taskId,
+    sourceMessageId: directive.sourceDirective.sourceMessageId,
+    sourceBodySha256: directive.sourceDirective.sourceBodySha256,
+  }, route)) {
+    throw new Error('The executable candidate source identity differs from the verified Mission Control authority binding.');
+  }
   return {
     ...directive,
     workspace,
     retryOfAttemptId: directive.retryOfAttemptId ?? null,
+    directiveArtifactSha256: authority.directiveArtifactSha256,
+    sourceBindingSha256: sourceBindingSha256(authority, route),
   };
 }
 
@@ -542,10 +920,17 @@ function enforceRetryIdentity(directive, summaries) {
   if (directive.retryOfAttemptId) {
     const prior = summaries.find((item) => item.attemptId === directive.retryOfAttemptId);
     if (!prior || !TERMINAL_STATUSES.has(prior.status)) throw new Error('retryOfAttemptId must identify a prior terminal attempt for this job.');
+    if (prior.status === CODEX_ATTEMPT_STATUSES.COMPLETED) {
+      throw new Error('COMPLETED_ATTEMPT_EXISTS: completed work cannot be retried silently.');
+    }
+    if (prior.directiveArtifactSha256 !== directive.directiveArtifactSha256
+      || prior.sourceBindingSha256 !== directive.sourceBindingSha256) {
+      throw new Error('RETRY_SOURCE_BINDING_MISMATCH: retry semantics differ from the admitted source directive or execution profile.');
+    }
     return;
   }
-  if (summaries.some((item) => item.status === CODEX_ATTEMPT_STATUSES.COMPLETED)) {
-    throw new Error('COMPLETED_ATTEMPT_EXISTS: an explicit retry identity is required.');
+  if (summaries.length > 0) {
+    throw new Error('EXPLICIT_RETRY_IDENTITY_REQUIRED: this job already has attempt evidence.');
   }
 }
 
@@ -606,6 +991,11 @@ function sha256(value) {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function pathIsWithin(parent, candidate) {
+  const relation = relative(parent, candidate);
+  return relation === '' || (!relation.startsWith('..') && !isAbsolute(relation));
 }
 
 function safeError(error) {
