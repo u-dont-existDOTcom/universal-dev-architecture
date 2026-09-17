@@ -1,68 +1,102 @@
 {
-  "schemaVersion": 1,
-  "status": "ACTIVE_PROSPECTIVE_WINDOW",
+  "schemaVersion": 2,
+  "status": "ACTIVE_SOL_XHIGH_BASELINE_TRIAL",
   "policyRef": "patterns/work-model-and-effort-routing.md",
+  "requirementRef": "docs/requirements/2026-09-17-work-model-routing-calibration.owner-requirement.json",
+  "resultsPath": "state/WORK-MODEL-ROUTING-RESULTS.json",
   "contractVersion": "TRUSTED_SETTER_V1",
   "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb",
-  "activation": "ON_MISSION_CONTROL_RUNTIME_PATCH_ACTIVATION",
+  "activation": "ON_NEXT_NONTRIVIAL_WORK_EXECUTION",
   "window": {
-    "eligibleExecutions": "NEXT_10_NONTRIVIAL_WORK_EXECUTIONS",
-    "targetCount": 10,
-    "completedCount": 0,
+    "startsOn": "2026-09-17",
+    "scheduledReviewOn": "2026-10-08",
+    "alsoReviewAfterDifficultBaselineCount": 10,
     "broadBenchmarkAuthorized": false,
     "automaticPolicyMutationAuthorized": false
   },
   "privacy": {
     "sensitiveDataAllowed": false,
     "recordPromptsOrSourceContent": false,
-    "recordCredentials": false
+    "recordCredentials": false,
+    "recordPrivateLocators": false,
+    "privacySafeTaskSummaryOnly": true
   },
   "entryTemplate": {
-    "ordinal": "replace-with-1-through-10",
-    "taskId": "replace-with-task-id",
+    "entryId": "replace-with-stable-id",
+    "comparisonGroupId": null,
+    "recordedAt": "replace-with-ISO-8601-time",
+    "taskId": "replace-with-task-id-or-privacy-safe-alias",
     "repository": "replace-with-owner-and-repository-or-local-alias",
+    "taskCategory": "DETERMINISTIC_EXECUTION | BOUNDED_IMPLEMENTATION | DIFFICULT_DEBUGGING | CROSS_FILE_OR_CROSS_SYSTEM | BROWSER_OR_GUI | DEPLOYMENT_OR_RUNTIME | LONG_HORIZON_EXECUTION | OTHER",
+    "privacySafeTaskSummary": "short non-sensitive description",
     "residualExecutionClass": "replace-with-class-after-chat-reasoning",
+    "difficultyClass": "ROUTINE | ORDINARY | GENUINELY_DIFFICULT",
+    "attemptRole": "PRIMARY | CHALLENGER",
     "chosenModel": "GPT_5_6_SOL | GPT_6_ASTRA",
     "chosenEffort": "LOW | MEDIUM | HIGH | XHIGH | MAX",
-    "routingTier": "SOL_LOW | SOL_MEDIUM | ASTRA_LOW | ASTRA_MEDIUM | ASTRA_HIGH | ASTRA_XHIGH | ASTRA_MAX | SOL_HIGH_EXCEPTION",
+    "routingTier": "SOL_LOW | SOL_MEDIUM | SOL_HIGH | SOL_XHIGH_DIFFICULT_BASELINE | ASTRA_XHIGH_CHALLENGER | OTHER_EXPLICIT_OWNER_SELECTION",
     "routingTriggers": [],
     "modelIdentityEvidence": "SET_AND_VERIFIED | SET_REQUEST_ONLY | INDEPENDENTLY_VERIFIED | UNVERIFIED",
-    "setterEvidenceId": "required-durable-trusted-task-creation-evidence-reference-for-SET_REQUEST_ONLY",
+    "setterEvidenceId": null,
     "directConsumerSeamResult": "PASS | FAIL | UNPROVEN",
-    "failureClassification": "CHAT_PLAN_DEFECT | ACCESS_CONTEXT_DEFECT | EXECUTION_REASONING_SHORTFALL | MECHANICAL_EXECUTION_FAILURE | NOT_APPLICABLE",
+    "scopeOrGateViolation": false,
+    "stopConditionViolation": false,
+    "unauthorizedAdjacentAction": false,
+    "failureClassification": "CHAT_PLAN_DEFECT | ACCESS_CONTEXT_DEFECT | EXECUTION_REASONING_SHORTFALL | EXECUTION_SCOPE_JUDGMENT_FAILURE | MECHANICAL_EXECUTION_FAILURE | NOT_APPLICABLE",
     "wallTimeSeconds": null,
     "retries": 0,
+    "ownerCorrectionsRequired": 0,
     "interventions": [],
     "testWallTimeSeconds": null,
     "allowanceDelta": null,
-    "escalationOccurred": false,
-    "finalSuccessfulTier": "replace-with-tier-or-NONE",
-    "hindsightInitialTier": "CLEARLY_OVERPOWERED | CLEARLY_UNDERPOWERED | APPROPRIATE | UNPROVEN",
+    "allowanceDeltaEvidence": "OBSERVED | UNAVAILABLE | NOT_APPLICABLE",
     "fastModeRequest": "DO_NOT_ENABLE_FAST | ENABLE_FAST",
-    "fastModeObserved": null
+    "fastModeObserved": null,
+    "challengerAdmitted": false,
+    "challengerReason": null,
+    "matchedComparisonQuality": "NOT_APPLICABLE | MATCHED | PARTIALLY_MATCHED | NOT_MATCHED",
+    "comparisonOutcome": "NOT_COMPARED | SOL_SUCCESS_NO_CHALLENGER | ASTRA_RESCUE | ASTRA_NO_RESCUE | BOTH_FAILED_DIFFERENTLY | COMPARISON_UNPROVEN",
+    "hindsightInitialTier": "CLEARLY_OVERPOWERED | CLEARLY_UNDERPOWERED | APPROPRIATE | UNPROVEN"
   },
-  "entries": [],
-  "checkpoints": [
-    {
-      "afterCompletedCount": 5,
-      "action": "EMIT_DURABLE_PRIVACY_SAFE_LOCAL_SUMMARY_EVENT",
-      "automaticPolicyChange": false
+  "routingExperiment": {
+    "routineAndOrdinary": "Use the lowest sufficient Sol tier after Chat reduces the task.",
+    "genuinelyDifficultPrimary": {
+      "model": "GPT_5_6_SOL",
+      "effort": "XHIGH"
     },
-    {
-      "afterCompletedCount": 10,
-      "action": "EMIT_DURABLE_PRIVACY_SAFE_CHAT_POLICY_REVIEW_EVENT",
-      "automaticPolicyChange": false
-    }
-  ],
-  "futurePairedCalibration": {
-    "requiresSpecificMateriallyConsequentialAmbiguityAfterNaturalTelemetry": true,
-    "maximumFrozenTasksWithoutNewChatDirective": 2,
-    "holdConstant": [
-      "base",
+    "challengerAfterQualifiedFailure": {
+      "model": "GPT_6_ASTRA",
+      "effort": "XHIGH",
+      "requiresFailureClassification": [
+        "EXECUTION_REASONING_SHORTFALL",
+        "EXECUTION_SCOPE_JUDGMENT_FAILURE"
+      ]
+    },
+    "doNotEscalateFor": [
+      "CHAT_PLAN_DEFECT",
+      "ACCESS_CONTEXT_DEFECT",
+      "MECHANICAL_EXECUTION_FAILURE"
+    ],
+    "holdConstantWhenPractical": [
+      "starting_base_or_equivalent_isolated_state",
       "directive",
       "direct_consumer_seam_endpoint",
       "permissions"
     ],
-    "varyOnly": "SMALLEST_MODEL_OR_EFFORT_ALTERNATIVES_NEEDED_TO_RESOLVE_BOUNDARY"
-  }
+    "astraLowFirstDefault": false,
+    "broadComputerUseAstraException": false
+  },
+  "persistence": {
+    "writer": "SUPERVISING_CHAT_AFTER_WORK_RECEIPT",
+    "destination": "state/WORK-MODEL-ROUTING-RESULTS.json",
+    "appendOneEntryPerNontrivialAttempt": true,
+    "sameComparisonGroupForMatchedSolAndAstraAttempts": true
+  },
+  "reviewQuestions": [
+    "Which task categories succeed reliably on Sol XHigh without a challenger?",
+    "When Sol XHigh genuinely fails, how often does Astra XHigh rescue the same bounded endpoint?",
+    "Which model produces fewer scope, gate, stop-condition, or unauthorized-adjacent-action failures?",
+    "What are the observable allowance and retry costs by task category?",
+    "Does repeated evidence justify any narrow Astra-first exception?"
+  ]
 }
