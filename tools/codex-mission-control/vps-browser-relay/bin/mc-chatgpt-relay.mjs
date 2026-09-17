@@ -12,6 +12,7 @@ import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
+import { reconcileExpiredOrphanControllerCycles } from '../src/controller-orphan-expiry.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 
@@ -82,6 +83,7 @@ try {
     print(result);
     process.exitCode = oneShotExitCode(result);
   } else if (command === 'once') {
+    await reconcileExpiredOrphanControllerCycles({ config, missionControl, stateStore, submissionPacer });
     const result = await runtime.cycle();
     print(result);
     process.exitCode = oneShotExitCode(result);
@@ -95,16 +97,19 @@ try {
     print(await provisionMcOnlyChat({ config, provision, browser: rawBrowser, submissionPacer, body }));
   } else if (command === 'run') {
     for (;;) {
+      await reconcileExpiredOrphanControllerCycles({ config, missionControl, stateStore, submissionPacer });
       const result = await runtime.cycle();
       print(result);
       await sleep(config.runtime.pollIntervalMs);
     }
   } else if (command === 'controller-init') {
+    await reconcileExpiredOrphanControllerCycles({ config, missionControl, stateStore, submissionPacer });
     const specFile = process.argv[3];
     if (!specFile) throw new Error('Usage: mc-chatgpt-relay controller-init <exact-cycle-spec.json>');
     const spec = JSON.parse(await readFile(specFile, 'utf8'));
     print(await controller.initialize(spec));
   } else if (command === 'controller-once') {
+    await reconcileExpiredOrphanControllerCycles({ config, missionControl, stateStore, submissionPacer });
     const cycleId = process.argv[3];
     if (!cycleId) throw new Error('Usage: mc-chatgpt-relay controller-once <cycle-id>');
     const result = await controller.cycle(cycleId);
@@ -114,9 +119,10 @@ try {
     const cycleId = process.argv[3];
     if (!cycleId) throw new Error('Usage: mc-chatgpt-relay controller-run <cycle-id>');
     for (;;) {
+      await reconcileExpiredOrphanControllerCycles({ config, missionControl, stateStore, submissionPacer });
       const result = await controller.cycle(cycleId);
       print(result);
-      if (result.status === 'CONTROLLER_CYCLE_COMPLETE') break;
+      if (result.status === 'CONTROLLER_CYCLE_COMPLETE' || result.status === 'CONTROLLER_CYCLE_EXPIRED_TERMINALIZED') break;
       if (result.status === 'CONTROLLER_CYCLE_ERROR' || result.status.endsWith('_AMBIGUOUS_NO_REPLAY')
         || result.status === 'CONTROLLER_SEND_DISABLED') {
         process.exitCode = result.status === 'CONTROLLER_SEND_DISABLED' ? 0 : 1;
