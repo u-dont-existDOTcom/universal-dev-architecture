@@ -420,6 +420,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       routes.push({
         routeKey,
         requestId: packet.requestId,
+        taskId: typeof packet.factualPacket?.taskId === 'string' ? packet.factualPacket.taskId : null,
         messageId: typeof event.data.message_id === 'string' ? event.data.message_id : null,
         eventId: typeof event.eventId === 'string' ? event.eventId : null,
         workerId,

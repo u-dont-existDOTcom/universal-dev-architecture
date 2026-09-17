@@ -26,6 +26,7 @@ import {
   type WorkExecutionProfile,
 } from "../lib/work-execution-profile";
 import {
+  buildTrustedTaskCreationSelectionEnvelope,
   buildWorkExecutionAuthorizationEnvelope,
   buildWorkRoutingCheckpointEnvelopes,
   completedWorkRoutingTelemetryCount,
@@ -486,18 +487,21 @@ test("the durable admission consumer seam uses the current execution_directive_r
   store.append(authorization);
   assert.equal(authorization.data.type, "work_execution_profile_authorized");
   if (authorization.data.type !== "work_execution_profile_authorized") return;
-  const trusted = trustedEvidenceEvent(selected);
-  if (trusted.data.type !== "work_task_creation_selection_applied") return;
-  store.append({ schema_version: 2, event_id: "setter:auth", mission_id: "mission-control-demo", occurred_at: now,
-    data: { ...trusted.data, worker: "auth", authorization_id: authorization.data.authorization_id,
-      directive_id: directiveId, task_id: priorDirective.task_id } }, now,
-    { id: "system:test-task-creation", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: [priorDirective.task_id] });
+  const setterEnvelope = buildTrustedTaskCreationSelectionEnvelope({
+    worker: "auth", authorizationId: authorization.data.authorization_id,
+    directiveId, directiveRevision: 1, taskId: priorDirective.task_id,
+    authorizedProfile: selected, now,
+  });
+  store.append(setterEnvelope, now,
+    { id: "system:trusted-task-creation", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: [priorDirective.task_id] });
+  assert.equal(setterEnvelope.data.type, "work_task_creation_selection_applied");
+  if (setterEnvelope.data.type !== "work_task_creation_selection_applied") return;
   const evaluated = evaluatePersistedWorkExecutionPreflight({
     worker: "auth",
     body: {
       authorizationId: authorization.data.type === "work_execution_profile_authorized" ? authorization.data.authorization_id : "invalid",
       requestedProfile: selected,
-      setterEvidenceId: "setter:profile:1",
+      setterEvidenceId: setterEnvelope.data.evidence_id,
     },
     events: store.allEvents(),
     now,
@@ -547,6 +551,7 @@ test("the durable admission consumer seam uses the current execution_directive_r
         ...receiptBinding(selected),
         authorization_id: authorizationData.authorization_id,
         preflight_id: preflightData.preflight_id,
+        setter_evidence_id: setterEnvelope.data.evidence_id,
       },
     },
   });

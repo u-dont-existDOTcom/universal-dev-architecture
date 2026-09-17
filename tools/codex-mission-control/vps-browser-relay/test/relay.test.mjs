@@ -59,6 +59,53 @@ test('dry run becomes ready only after current tool and exact-mode receipts exis
   assert.equal(browser.submitCalls, 0);
 });
 
+test('automatic local Codex dispatch runs before browser availability is required', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  let browserInspected = false;
+  browser.listTargets = async () => { browserInspected = true; throw new Error('browser intentionally unavailable'); };
+  const runtime = makeRuntime({
+    store, mc, browser, submitEnabled: false,
+    memoryReader: async () => { throw new Error('browser memory must not gate local Codex'); },
+    codexExecutionDispatcher: async ({ snapshot }) => {
+      assert.equal(snapshot.workers[0].id, 'worker-a');
+      return { status: 'COMPLETED', route: 'CODEX_LOCAL', automaticDispatch: { taskId: 'task-local' } };
+    },
+  });
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'CODEX_EXECUTION_DISPATCHED');
+  assert.equal(result.codexExecution.route, 'CODEX_LOCAL');
+  assert.equal(mc.fetchFleetCalls, 1);
+  assert.equal(browserInspected, false);
+});
+
+test('exact legacy fallback selects the source-bound task and cannot consume an adjacent eligible task', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    evidence: capabilityEvidence(),
+    routes: [
+      routeEvent('unrelated-request', 'unrelated-route', 'EXTRA_HIGH_DIRECT', 'task-unrelated'),
+      routeEvent('trigger-request', 'trigger-route', 'EXTRA_HIGH_DIRECT', 'task-trigger'),
+    ],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  const result = await runtime.cycle({
+    skipCodexExecution: true,
+    exactLegacyBinding: {
+      worker: 'worker-a', taskId: 'task-trigger', decisionRequestId: 'trigger-request',
+      directiveId: 'directive:trigger:1', directiveRevision: 1,
+    },
+  });
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.route.requestId, 'trigger-request');
+  assert.equal(result.route.taskId, 'task-trigger');
+  assert.equal(result.route.missionControlLegacyBinding.directiveId, 'directive:trigger:1');
+  assert.notEqual(result.route.requestId, 'unrelated-request');
+  assert.equal(browser.submitCalls, 0);
+});
+
 test('escalated route uses distinct fresh first-message Mission Control, reader, and Pro sessions', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
@@ -536,7 +583,7 @@ test('doctor fails closed when the live browser target set differs inside the co
   assert.equal((await runtime.doctor()).status, 'AUTOMATION_WINDOW_BINDING_MISMATCH');
 });
 
-function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, memoryReader = async () => normalMetrics, now = Date.now,
+function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, codexExecutionDispatcher = null, memoryReader = async () => normalMetrics, now = Date.now,
   submissionHost = { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' } }) {
   const config = {
     missionControl: { url: 'https://mission-control.example' },
@@ -553,7 +600,7 @@ function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled 
     ledger: { valid: true }, authenticatedRelayBinding: { hostAlias: submissionHost.alias, hostRole: submissionHost.role, automationWindowId: 101, ownedTargetCount: 1, ownedTargetIdsSha256: sha256(JSON.stringify(['automation-owned-target'])) },
     activeLease: { epoch: 1, activeHostAlias: 'primary-test', activeHostRole: 'PRIMARY' },
   });
-  return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, submissionPacer, memoryReader, logger: { log() {}, warn() {}, error() {} } });
+  return new RelayRuntime({ config, missionControl: mc, browser, stateStore: store, submissionPacer, codexExecutionDispatcher, memoryReader, logger: { log() {}, warn() {}, error() {} } });
 }
 
 async function unsentDirectDecision(lane) {
@@ -699,12 +746,12 @@ function genericMcpContactEvidence(providerSessionId) {
   };
 }
 
-function routeEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 'PRO_ESCALATED') {
+function routeEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 'PRO_ESCALATED', taskId = 'task-1') {
   const body = STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
     schemaVersion: 3, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE', requestId, nonce: `nonce-${requestId}`, reasoningLane,
     destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
     evidenceCapsule: { id: 'capsule-1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'outcome-1', epoch: 1, sha256: 'b'.repeat(64) },
-    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'packet-1', taskId: 'task-1', exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'packet-1', taskId, exactFactualState: 'state', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2099-09-03T00:00:00.000Z',
   });
   return { eventId, sequence: requestId === 'r-1' ? 10 : 11, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: `message-${requestId}`, body } };

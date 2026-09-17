@@ -12,6 +12,7 @@ import {
   CODEX_ATTEMPT_STATUSES,
   CODEX_EXECUTION_ROUTES,
   classifyCodexExecutionRoute,
+  dispatchAutomaticMissionControlExecution,
   dispatchMissionControlExecution,
 } from '../../../vps-browser-relay/src/codex-exec-candidate.mjs';
 
@@ -21,11 +22,28 @@ const value = (name) => {
   return index === -1 ? null : args[index + 1] ?? null;
 };
 const directivePath = value('--directive');
+const config = loadCodexExecCandidateConfig(process.env);
 if (!directivePath) {
-  throw new Error('Usage: run-codex-execution.mjs --directive <directive.json> [--admission <admission.json> --worker <worker> --setter-evidence-id <id>]');
+  const missionControlConfig = loadCodexExecMissionControlConfig(process.env);
+  const automaticMissionControl = new MissionControlClient({
+    url: missionControlConfig.url,
+    producerId: missionControlConfig.producerId,
+    token: missionControlConfig.token,
+    workerIds: [missionControlConfig.workerId],
+    requestTimeoutMs: missionControlConfig.requestTimeoutMs,
+  });
+  const automaticResult = await dispatchAutomaticMissionControlExecution({
+    config,
+    missionControl: automaticMissionControl,
+    legacyBrowserHandler: runActualLegacyBrowserDispatch,
+  });
+  process.stdout.write(`${JSON.stringify(automaticResult, null, 2)}\n`);
+  if (automaticResult?.status && ![CODEX_ATTEMPT_STATUSES.COMPLETED, 'MISSION_CONTROL_CODEX_DISPATCH_IDLE'].includes(automaticResult.status)) {
+    process.exitCode = 1;
+  }
+  process.exit();
 }
 const directive = JSON.parse(await readFile(resolve(directivePath), 'utf8'));
-const config = loadCodexExecCandidateConfig(process.env);
 const route = classifyCodexExecutionRoute(directive, config);
 let missionControl = null;
 let admissionInput = null;
@@ -63,14 +81,35 @@ const result = await dispatchMissionControlExecution({
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 if (result?.status && result.status !== CODEX_ATTEMPT_STATUSES.COMPLETED) process.exitCode = 1;
 
-async function runActualLegacyBrowserDispatch() {
+async function runActualLegacyBrowserDispatch(_directive, { missionControlBinding } = {}) {
+  if (!missionControlBinding?.worker || !missionControlBinding?.taskId || !missionControlBinding?.decisionRequestId
+    || !missionControlBinding?.directiveId || !Number.isInteger(missionControlBinding?.directiveRevision)) {
+    throw new Error('Exact legacy fallback requires the durable worker, task, request, and directive binding.');
+  }
   const relayCli = fileURLToPath(new URL('../../../vps-browser-relay/bin/mc-chatgpt-relay.mjs', import.meta.url));
-  const outcome = await capture(process.execPath, [relayCli, 'once']);
+  const outcome = await capture(process.execPath, [
+    relayCli,
+    'once-exact',
+    missionControlBinding.worker,
+    missionControlBinding.taskId,
+    missionControlBinding.decisionRequestId,
+    missionControlBinding.directiveId,
+    String(missionControlBinding.directiveRevision),
+  ]);
   if (outcome.exitCode !== 0) {
     throw new Error(`Existing Mission Control browser dispatch failed with exit ${outcome.exitCode}: ${outcome.stderr.slice(0, 1000)}`);
   }
-  try { return JSON.parse(outcome.stdout); }
+  let result;
+  try { result = JSON.parse(outcome.stdout); }
   catch { throw new Error('Existing Mission Control browser dispatch returned malformed JSON.'); }
+  if (result?.missionControlLegacyBinding?.worker !== missionControlBinding.worker
+    || result?.missionControlLegacyBinding?.taskId !== missionControlBinding.taskId
+    || result?.missionControlLegacyBinding?.decisionRequestId !== missionControlBinding.decisionRequestId
+    || result?.missionControlLegacyBinding?.directiveId !== missionControlBinding.directiveId
+    || result?.missionControlLegacyBinding?.directiveRevision !== missionControlBinding.directiveRevision) {
+    throw new Error('Existing Mission Control browser dispatch returned a different task/directive binding.');
+  }
+  return result;
 }
 
 async function capture(command, commandArgs) {

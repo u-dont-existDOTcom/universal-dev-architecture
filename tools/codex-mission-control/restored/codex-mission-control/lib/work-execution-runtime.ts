@@ -8,6 +8,7 @@ import type { AppendEnvelope, StoredEvent } from "./schema";
 import {
   CURRENT_WORK_EXECUTION_CAPABILITY,
   evaluateWorkExecutionPreflight,
+  launchSelectionFor,
   workExecutionProfileSchema,
   type WorkExecutionPreflight,
   type WorkExecutionProfile,
@@ -47,6 +48,50 @@ export function buildWorkExecutionAuthorizationEnvelope(input: {
       source_body_sha256: source.bodySha256,
       authorized_profile: input.authorizedProfile,
       authorized_at: input.now,
+    },
+  };
+}
+
+export function buildTrustedTaskCreationSelectionEnvelope(input: {
+  worker: string;
+  authorizationId: string;
+  directiveId: string;
+  directiveRevision: number;
+  taskId: string;
+  authorizedProfile: WorkExecutionProfile;
+  now: string;
+}): AppendEnvelope {
+  const selection = launchSelectionFor(input.authorizedProfile);
+  const evidenceId = `work-task-creation:${sha256(canonicalJson({
+    worker: input.worker,
+    authorizationId: input.authorizationId,
+    directiveId: input.directiveId,
+    directiveRevision: input.directiveRevision,
+    taskId: input.taskId,
+    authorizedProfile: input.authorizedProfile,
+  })).slice(0, 32)}`;
+  return {
+    schema_version: 2,
+    event_id: evidenceId,
+    mission_id: "mission-control-live",
+    occurred_at: input.now,
+    data: {
+      type: "work_task_creation_selection_applied",
+      worker: input.worker,
+      evidence_id: evidenceId,
+      authorization_id: input.authorizationId,
+      directive_id: input.directiveId,
+      directive_revision: input.directiveRevision,
+      task_id: input.taskId,
+      authorized_profile: input.authorizedProfile,
+      model_setter: selection.model,
+      effort_setter: selection.thinking,
+      fast_request: selection.fastModeRequest,
+      fast_setter: null,
+      producer_id: "system:trusted-task-creation",
+      source: "TRUSTED_TASK_CREATION_BOUNDARY",
+      provider_task_locator: null,
+      applied_at: input.now,
     },
   };
 }

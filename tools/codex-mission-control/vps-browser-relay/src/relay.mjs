@@ -38,7 +38,7 @@ const MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS = 30_000;
 const PROVIDER_SESSION_PROJECTION_TIMEOUT_MS = 30_000;
 
 export class RelayRuntime {
-  constructor({ config, missionControl, browser, stateStore, submissionPacer = null, memoryReader = readMemoryMetrics, logger = console }) {
+  constructor({ config, missionControl, browser, stateStore, submissionPacer = null, codexExecutionDispatcher = null, memoryReader = readMemoryMetrics, logger = console }) {
     this.config = config;
     this.missionControl = missionControl;
     this.browser = browser;
@@ -47,6 +47,7 @@ export class RelayRuntime {
       throw new Error('RelayRuntime requires the explicit central submission scheduler; host-local pacing is not live-send eligible.');
     }
     this.submissionPacer = submissionPacer;
+    this.codexExecutionDispatcher = codexExecutionDispatcher;
     this.memoryReader = memoryReader;
     this.logger = logger;
   }
@@ -347,7 +348,7 @@ export class RelayRuntime {
     }
   }
 
-  async cycle() {
+  async cycle({ skipCodexExecution = false, exactLegacyBinding: requestedLegacyBinding = null } = {}) {
     const startedAt = new Date().toISOString();
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
@@ -371,6 +372,31 @@ export class RelayRuntime {
     }
 
     try {
+      const snapshot = await this.missionControl.fetchFleet();
+      state.health.lastSuccessfulPollAt = new Date().toISOString();
+      let exactLegacyBinding = requestedLegacyBinding;
+      if (!skipCodexExecution && typeof this.codexExecutionDispatcher === 'function') {
+        const dispatch = await this.codexExecutionDispatcher({
+          snapshot,
+          legacyBrowserHandler: async (_directive, route) => ({
+            status: 'MISSION_CONTROL_EXACT_LEGACY_ROUTE_REQUIRED',
+            route: route.route,
+            reason: route.reason,
+            missionControlLegacyBinding: route.missionControlBinding,
+          }),
+        });
+        if (dispatch?.status !== 'MISSION_CONTROL_CODEX_DISPATCH_IDLE') {
+          if (dispatch?.status === 'MISSION_CONTROL_EXACT_LEGACY_ROUTE_REQUIRED') {
+            exactLegacyBinding = dispatch.missionControlLegacyBinding;
+          } else {
+            state.health.lastError = dispatch?.status === 'COMPLETED' ? null : dispatch?.runnerError ?? null;
+            state.health.pausedReason = null;
+            state = await this.stateStore.write(state);
+            return this.#writeStandaloneStatus('CODEX_EXECUTION_DISPATCHED', state, { codexExecution: dispatch }, { inspectBrowser: false });
+          }
+        }
+      }
+
       let metrics = await this.memoryReader(this.config.browser.profileDir);
       let memory = this.#memoryState(metrics);
       const targets = await this.browser.listTargets();
@@ -389,9 +415,25 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('PAUSED_MEMORY_HARD', state, { memory, closedTargets, queue: null });
       }
 
-      const snapshot = await this.missionControl.fetchFleet();
-      state.health.lastSuccessfulPollAt = new Date().toISOString();
-      const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
+      const allRoutes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
+      const routes = exactLegacyBinding
+        ? allRoutes.filter((route) => route.workerId === exactLegacyBinding.worker
+          && route.taskId === exactLegacyBinding.taskId
+          && route.requestId === exactLegacyBinding.decisionRequestId)
+          .map((route) => ({ ...route, missionControlLegacyBinding: exactLegacyBinding }))
+        : allRoutes;
+      if (exactLegacyBinding && routes.length !== 1) {
+        state.health.lastError = null;
+        state.health.pausedReason = routes.length === 0
+          ? `No exact legacy route is queued for ${exactLegacyBinding.taskId}.`
+          : `More than one exact legacy route is queued for ${exactLegacyBinding.taskId}.`;
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus(
+          routes.length === 0 ? 'EXACT_LEGACY_ROUTE_UNAVAILABLE' : 'EXACT_LEGACY_ROUTE_AMBIGUOUS',
+          state,
+          { missionControlLegacyBinding: exactLegacyBinding, unrelatedRouteCount: allRoutes.length - routes.length },
+        );
+      }
       const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
       if (withReceipt) {
         const providerSessionId = withReceipt.decisionReceipt.decision_provider_session_id
@@ -1100,8 +1142,8 @@ export class RelayRuntime {
     for (const [chatId, tab] of Object.entries(state.tabs)) if (!ids.has(tab?.targetId)) delete state.tabs[chatId];
   }
 
-  async #writeStandaloneStatus(status, state, detail = {}) {
-    const targets = await this.browser.listTargets().catch(() => null);
+  async #writeStandaloneStatus(status, state, detail = {}, { inspectBrowser = true } = {}) {
+    const targets = inspectBrowser ? await this.browser.listTargets().catch(() => null) : null;
     const browserTabs = targets ? managedChatGptTabTelemetry(targets) : { managedChatGptTabCount: null, steadyStateTarget: 1, transitionMax: 2, hardCeiling: 3, hardCeilingExceeded: null };
     const value = { schemaVersion: 1, status, generatedAt: new Date().toISOString(), pid: process.pid, submitEnabled: this.config.runtime.submitEnabled, capabilityTestEnabled: this.config.runtime.capabilityTestEnabled, submissionPacing: this.submissionPacer.status(state), browserTabs, health: state.health, unresolvedAmbiguities: unresolvedAmbiguities(state), ...detail };
     await this.stateStore.writeStatus(value);
@@ -1157,6 +1199,7 @@ function publicRoute(route) {
     requestId: route.requestId,
     workerId: route.workerId,
     workerName: route.workerName,
+    taskId: route.taskId,
     destinationSupervisorId: route.supervisorId,
     providerSessionId: route.providerSessionId,
     bindingProviderSessionId: route.bindingProviderSessionId ?? null,
@@ -1167,6 +1210,7 @@ function publicRoute(route) {
     bodyLength: route.body.length,
     routeKind: route.routeKind,
     reasoningLane: route.packet.reasoningLane ?? null,
+    missionControlLegacyBinding: route.missionControlLegacyBinding ?? null,
   };
 }
 
