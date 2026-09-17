@@ -2,11 +2,12 @@
   "schemaVersion": 1,
   "feedbackId": "SDF-20260917-SHOPPING-RECOMMENDATION-PREFLIGHT-001",
   "createdAt": "2026-09-17T16:48:16Z",
+  "updatedAt": "2026-09-17T17:51:00Z",
   "taskId": "amazon-fr-ups-recommendation",
   "workerRunId": "chat-direct-github-20260917",
   "ownerOutcome": {
     "ownerOutcomeId": "OWNER-SHOPPING-RECOMMENDATION-INTEGRITY-20260917",
-    "epoch": 1,
+    "epoch": 2,
     "sha256": "6a533d169b996428d6c3ea3c2f5a14a44c56e1c6cfc9e3d5d590eca280d53c60"
   },
   "supervisionArchitecture": {
@@ -19,18 +20,25 @@
   "category": "RECOMMENDATION_PREFLIGHT_ORDERING",
   "severity": "MATERIAL",
   "blocksCurrentBoundary": false,
-  "exactIssue": "The recommendation pipeline labeled products as best/strongest candidates before completing decision-critical validation. Validation was then performed reactively after owner correction, causing the assistant to recommend an item and subsequently explain why that same item was a poor recommendation. Recommendation must be the output of completed evaluation, not an intermediate state that is later invalidated by checks that should have preceded endorsement.",
+  "exactIssue": "The recommendation pipeline labeled products as best/strongest candidates before completing decision-critical validation. Validation was then performed reactively after owner correction, causing the assistant to recommend or surface items that a check already available to the same reasoning pass should have excluded. Recommendation must be the output of completed evaluation, not an intermediate state that is later invalidated by checks that should have preceded endorsement or inclusion.",
   "ownerCorrection": {
     "sourceRecoveryQuality": "EXACT_TEXT",
     "exactText": "ok well don't give me bad recommendatiopns and then tell me they are bad that's dumb. that's a logic failure send that to mission control along with your other lessons here. continue",
     "privacyDisposition": "SAFE_TO_PUBLISH_BOUNDED_CURRENT_CHAT_QUOTE"
   },
-  "relevantRule": {
-    "path": "patterns/owner-marked-mission-control-failure-capture.md",
-    "section": "Required capture boundary",
-    "excerpt": "A valid capture records, as applicable: the bounded owner correction or exact quote when safely publishable; a digest of the source text; the failure mechanism rather than only the surface complaint; source/recovery quality; relevant evidence and affected control; current status and the next verification boundary."
+  "recurrence": {
+    "detectedAt": "2026-09-17T17:51:00Z",
+    "sourceRecoveryQuality": "BOUNDED_SUMMARY",
+    "boundedSummary": "After the first defect was captured on a branch, the very next shopping answer again exposed candidates that had already failed decision-relevant checks: one was too expensive for the value target, one lacked a purchase path, and one had recurring burning-plastic complaints. The answer also omitted prices even though the task was explicitly a best-value purchase search.",
+    "causalMechanism": "The first repair stopped at durable capture. It did not project the lesson into an active pre-delivery admission gate. Candidate discovery and owner-facing recommendation remained the same surface, so failed candidates were still surfaced before integrated validation and price/value screening completed.",
+    "repairImplication": "Capture is non-satisfying by itself. Shopping recommendation integrity needs an executable task-time pre-endorsement contract and a pre-delivery evidence check."
   },
-  "observedOrHypotheticalFailure": "In one shopping sequence, the assistant first recommended an Amazon.fr UPS using stale/indirect evidence even though the live product variant was out of stock. After correction, it recommended a Green Cell 1500 VA UPS without checking the product's weak 3.7-star customer rating. After a second correction, it surfaced an Eaton 3S 850 FR as the strongest ratings-supported candidate and then immediately explained that it would not recommend it because it lacked line-interactive AVR, a requirement already material to the Senegal use case. The repeated mechanism was evaluation-order failure: each recommendation label was emitted before all known decision-critical gates had been applied.",
+  "relevantRule": {
+    "path": "patterns/task-time-lesson-activation.md",
+    "section": "Enforcement point before delivery",
+    "excerpt": "A substantive FAIL blocks delivery/action. Repair the actual work, then rerun the gate."
+  },
+  "observedOrHypotheticalFailure": "In one shopping sequence, the assistant first recommended an Amazon.fr UPS using stale/indirect evidence even though the live product variant was out of stock. After correction, it recommended a Green Cell 1500 VA UPS without checking the product's weak 3.7-star customer rating. After a second correction, it surfaced an Eaton 3S 850 FR as the strongest ratings-supported candidate and then immediately explained that it would not recommend it because it lacked line-interactive AVR, a requirement already material to the Senegal use case. After the defect was durably captured, the next answer still exposed an expensive CyberPower model, a PowerWalker model without a buy path, and an APC model with recurring burning-plastic complaints, while omitting prices. The repeated mechanism is a missing enforcement boundary: discovery candidates leak into owner-facing recommendations before the complete decision state is evaluated.",
   "lessonsCaptured": [
     {
       "lessonId": "SHOP-AVAILABILITY-001",
@@ -51,51 +59,80 @@
       "lessonId": "SHOP-PREFLIGHT-ORDER-004",
       "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
       "lesson": "Do not recommend a candidate and then immediately disqualify it on an already-known criterion. Keep an item in candidate status until all material checks are complete; only then label it recommended/top/best."
+    },
+    {
+      "lessonId": "SHOP-PRICE-005",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "A value recommendation must include a current item price or explicitly bounded price range before the value claim is made. If shipping, tax, forwarding, battery exclusion, or variant pricing can materially change the comparison, show or mark that cost as unresolved rather than hiding it."
+    },
+    {
+      "lessonId": "SHOP-REJECTED-CANDIDATE-006",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "Candidates that already fail a material gate are internal rejects, not owner-facing options. Do not fill a shortlist with rejected products merely to have something to show. Expose rejected candidates only when the owner asks for them or when explaining why a sufficiently broad search produced no valid recommendation."
+    },
+    {
+      "lessonId": "SHOP-PROJECTION-007",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "Durable capture without task-time projection and pre-delivery enforcement does not prevent recurrence. After an owner correction, activate the lesson before the next substantive recommendation and require literal evidence that every recommended item passed the full gate."
     }
   ],
   "affectedControl": "shopping recommendation candidate-to-endorsement transition",
   "requiredPreflight": [
     "current retailer availability/orderability",
+    "current item price and material shipping/forwarding/variant cost state",
     "product rating and review count",
     "recurring reliability/quality complaints",
     "country electrical compatibility and grounding",
     "known use-case topology/spec requirements",
     "load capacity and realistic runtime",
-    "price/value relative to valid alternatives"
+    "price/value relative to valid alternatives",
+    "failed candidates suppressed from recommendation output unless explicitly requested"
   ],
-  "proposedChange": "Add a general recommendation-integrity gate: a product may be described as recommended, best value, strongest candidate, or top pick only after all currently known material constraints and evidence dimensions have been resolved. If any material gate is missing or fails, the item remains an unendorsed candidate and the search continues. For shopping, bind availability, review signal, compatibility, specifications, runtime/load needs, and price/value into one pre-endorsement checklist rather than checking them sequentially after owner objections.",
+  "proposedChange": "Use a recommendation-integrity admission gate: a product may be described as recommended, best value, strongest candidate, top pick, or included in a recommendation shortlist only after all currently known material constraints and evidence dimensions have been resolved. Discovery candidates remain internal until they pass. If any material gate is missing or fails, the item remains unendorsed and search continues. Price is a required evidence field for value tasks, not optional presentation detail.",
   "alternativesConsidered": [
     {
-      "alternative": "Recommend the most promising candidate early and disclose caveats afterward.",
+      "alternative": "Recommend or show the most promising candidates early and disclose disqualifying caveats afterward.",
       "disposition": "REJECTED",
-      "reason": "This produces logically self-negating recommendations and transfers basic screening work to the owner."
+      "reason": "This creates self-negating recommendations and transfers routine screening work to the owner."
+    },
+    {
+      "alternative": "Persist a Mission Control record but rely on the next model turn to remember it.",
+      "disposition": "REJECTED_AFTER_RECURRENCE",
+      "reason": "The immediate recurrence demonstrated that capture without task-time activation/enforcement was insufficient."
     },
     {
       "alternative": "Use price/specification fit as primary ranking and inspect ratings only after shortlist creation.",
       "disposition": "REJECTED_FOR_ENDORSEMENT",
-      "reason": "Acceptable for internal discovery, but not for an owner-facing recommendation label because reliability evidence can reverse the conclusion."
+      "reason": "Acceptable for internal discovery, but not for an owner-facing recommendation because reliability evidence can reverse the conclusion."
     }
   ],
   "risks": [
     "Without a pre-endorsement gate, the assistant can repeatedly optimize one dimension at a time and force the owner to identify omitted decision criteria.",
     "A later caveat can create the false impression that diligence occurred before the recommendation when it actually occurred afterward.",
     "Retailer search snippets and comparison feeds can be stale or refer to another variant, so they cannot alone prove current orderability.",
-    "High aggregate star ratings can still hide recurring failure modes; review themes and review count matter alongside the mean rating."
+    "High aggregate star ratings can still hide recurring failure modes; review themes and review count matter alongside the mean rating.",
+    "A recommendation without a visible price cannot support a best-value claim.",
+    "A durable feedback file that is not routed into task-time execution can record the failure while allowing the same behavior to recur."
   ],
-  "workerRecommendation": "Treat recommendation as a terminal classification after evidence integration, not a provisional search result. On the next UPS search, build and validate a shortlist first, then expose only products that pass the complete preflight.",
-  "workerUncertainty": "This record captures the reasoning defect and required gate ordering. It does not by itself prove that a universal shopping implementation has been updated across all Chat surfaces.",
-  "decisionThatCanChange": "Whether Chat emits a product endorsement before or after completing the evidence checks that can materially reverse that endorsement.",
-  "semanticClassification": "DESIGN_DEFECT_RECORDED_SUPERVISION_ESCAPE_NOT_ADJUDICATED",
+  "workerRecommendation": "Treat recommendation as a terminal classification after evidence integration, not a provisional search result. Keep failed candidates internal. For shopping, require a visible price plus orderability, review signal, compatibility, and value evidence before any recommendation label or shortlist inclusion.",
+  "workerUncertainty": "This record captures the reasoning defect and recurrence. Branch persistence alone is not universal runtime enforcement; the generalized control must be routed into task-time lesson activation before claiming the repair is broadly active.",
+  "decisionThatCanChange": "Whether Chat exposes a product to the owner as a recommendation before or after completing the evidence checks that can materially reverse that endorsement or value judgment.",
+  "semanticClassification": "REPEAT_FAILURE_AFTER_CAPTURE_REQUIRES_CONTROL_PROJECTION",
   "routing": {
     "extraHighPacketPrepared": false,
     "proMetaReviewRequired": false,
-    "reviewPriority": "NEXT_LIVE_REGRESSION",
+    "reviewPriority": "CURRENT_REPAIR",
     "sharedProScopeKey": "recommendation-integrity/shopping-preflight-v1"
   },
-  "status": "CAPTURED_BRANCH_ONLY",
-  "nextVerificationBoundary": "Next owner shopping request: verify that every owner-facing recommended/top/best product has passed availability, rating/review, compatibility, use-case specification, and price/value checks before the recommendation label is emitted.",
+  "status": "CAPTURED_BRANCH_ONLY_RECURRED",
+  "nextVerificationBoundary": "Current shopping response and next owner shopping request: every owner-facing recommendation must show current price/value evidence and must have passed orderability, product-rating/review, recurring-complaint, compatibility, use-case specification, and price/value checks before it is exposed as a recommendation.",
   "proMetaReview": null,
-  "ownerDecisionRef": "current-chat:explicit-mission-control-capture-2026-09-17",
-  "repositoryChangeRefs": [],
-  "testRefs": []
+  "ownerDecisionRef": "current-chat:durable-fix-request-2026-09-17",
+  "repositoryChangeRefs": [
+    "patterns/recommendation-preflight-integrity.md",
+    "evals/recommendation-preflight-integrity.json"
+  ],
+  "testRefs": [
+    "evals/recommendation-preflight-integrity.json"
+  ]
 }
