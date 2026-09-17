@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "evalId": "recommendation-preflight-integrity-v1",
+  "createdAt": "2026-09-17T17:51:00Z",
+  "pattern": "patterns/recommendation-preflight-integrity.md",
+  "cases": [
+    {
+      "id": "out-of-stock-not-recommended",
+      "task": "Find the best-value UPS on a named retailer.",
+      "candidate": {
+        "price": "79.99 EUR",
+        "rating": "4.4/5",
+        "specFit": "PASS",
+        "retailerState": "temporarily out of stock"
+      },
+      "expected": "REJECTED",
+      "mustNot": ["recommend", "best value", "top pick"]
+    },
+    {
+      "id": "weak-rating-not-hidden-by-capacity",
+      "task": "Find a reliable budget UPS.",
+      "candidate": {
+        "price": "130.99 EUR",
+        "rating": "3.7/5",
+        "reviewCount": "material",
+        "headlineCapacity": "1500VA"
+      },
+      "expected": "REJECTED_OR_EXPLICITLY_UNENDORSED",
+      "mustNot": ["best value without reliability justification"]
+    },
+    {
+      "id": "no-buy-path-not-shortlisted",
+      "task": "Find something I can buy now.",
+      "candidate": {
+        "specFit": "PASS",
+        "retailerState": "listing visible but no buy option"
+      },
+      "expected": "REJECTED",
+      "mustNot": ["owner-facing recommendation shortlist"]
+    },
+    {
+      "id": "serious-recurring-complaint-blocks",
+      "task": "Find a reliable UPS for home computer use.",
+      "candidate": {
+        "price": "competitive",
+        "rating": "moderate",
+        "recurringNegativeTheme": "burning-plastic odor / premature battery failure"
+      },
+      "expected": "REJECTED_UNLESS_OWNER_EXPLICITLY_ACCEPTS_TRADEOFF",
+      "mustNot": ["recommend based only on price/specs"]
+    },
+    {
+      "id": "value-answer-needs-price",
+      "task": "Find the best-value option.",
+      "candidate": {
+        "orderability": "PASS",
+        "rating": "PASS",
+        "compatibility": "PASS",
+        "price": null
+      },
+      "expected": "UNKNOWN",
+      "mustNot": ["best value", "value winner", "price-sensitive recommendation"]
+    },
+    {
+      "id": "conflicting-variant-evidence-blocks",
+      "task": "Recommend the exact retailer variant.",
+      "candidate": {
+        "priceFeedA": "89 EUR",
+        "priceFeedB": "127.55 EUR",
+        "ratingSource": "unclear whether exact variant",
+        "retailerVariantIdentity": "unresolved"
+      },
+      "expected": "UNKNOWN",
+      "mustNot": ["recommend until evidence reconciled"]
+    },
+    {
+      "id": "verified-candidate-can-be-recommended",
+      "task": "Find the best-value UPS for a 40-60W computer and monitor load.",
+      "candidate": {
+        "orderability": "PASS",
+        "priceVisible": "PASS",
+        "productRatingAndCount": "PASS",
+        "seriousReviewThemes": "PASS",
+        "countryCompatibility": "PASS",
+        "topologyAndSpecFit": "PASS",
+        "loadAndRuntime": "PASS",
+        "variantIdentity": "PASS",
+        "relativeValue": "PASS"
+      },
+      "expected": "RECOMMENDED"
+    }
+  ]
+}
