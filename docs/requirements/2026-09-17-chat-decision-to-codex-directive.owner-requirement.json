@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CHAT-DECISION-TO-CODEX-DIRECTIVE-20260917",
+  "recorded_at": "2026-09-17T22:34:00Z",
+  "timestamp_basis": "CURRENT_CONVERSATION_CAPTURE_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Continue the Mission Control Codex-execution architecture from the exact reviewed current-main-compatible candidate b5e0fb5bb85904a6e31a7f51e803e2b22ec2128f. Reuse the existing canonical GitHub supervisory-decision bus. Add an optional bounded-execution residue to the accepted decision and mechanically materialize a SYSTEM schema-v3 execution_directive_recorded without fabricating provider-direct provenance. Preserve the existing direct-source path, fail closed on malformed or changed residue, prove the full canonical-receipt-to-fake-CODEX_LOCAL consumer seam deterministically, then commit and push the successor branch without PR, merge, deployment, installation, live changes, or a real model/API run.",
+    "sha256": "4caf47975bcd367053f8b86e83560861dd592b13ee4b1a8a984d6f85eeaa16b4",
+    "source_type": "owner_chat_attachment",
+    "source_time_status": "CURRENT_CONVERSATION_CAPTURE_TIME"
+  },
+  "normalized_outcome": "An accepted canonical GitHub supervisory decision may carry complete bounded execution residue that Mission Control validates and converts atomically into one SYSTEM-authored schema-v3 execution directive. The relay recognizes that server-derived validated-decision authority without relabeling GitHub-attested text as provider-direct, while the existing verified and owner-attested source path remains unchanged.",
+  "required_outcomes": [
+    {
+      "id": "RO-DECISION-DIRECTIVE-001",
+      "terminal_required": true,
+      "observable": "A valid current canonical GitHub decision with complete bounded execution residue creates exactly one source-bound SYSTEM execution directive, while no residue or malformed/untrusted residue creates none.",
+      "status": "IMPLEMENTED_DETERMINISTICALLY_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/github-execution-directive.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts"
+      ]
+    },
+    {
+      "id": "RO-DECISION-DIRECTIVE-002",
+      "terminal_required": true,
+      "observable": "The server proves the directive came from the exact accepted GitHub decision receipt; a WORKER, raw comment, supplied receipt ID, supplied hash, or changed residue cannot mint equivalent authority.",
+      "status": "IMPLEMENTED_DETERMINISTICALLY_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/ingestion-auth.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-runtime.ts",
+        "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts"
+      ]
+    },
+    {
+      "id": "RO-DECISION-DIRECTIVE-003",
+      "terminal_required": true,
+      "observable": "A deterministic consumer-seam test runs canonical GitHub validation through RelayRuntime, authenticated admission, trusted setter evidence, persisted preflight, fake CODEX_LOCAL, codex_execution_started, and execution_receipt_recorded without manually seeding the reasoning message, directive, authorization, setter, or preflight.",
+      "status": "IMPLEMENTED_DETERMINISTICALLY_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts",
+        "tools/codex-mission-control/vps-browser-relay/src/relay.mjs",
+        "tools/codex-mission-control/vps-browser-relay/src/codex-exec-candidate.mjs"
+      ]
+    },
+    {
+      "id": "RO-DECISION-DIRECTIVE-004",
+      "terminal_required": true,
+      "observable": "The exact successor commit is pushed to task/mission-control-codex-directive-publication-20260917 and the reviewed branch, main, production, browser fence, controller recovery, and live/model/API state remain unchanged.",
+      "status": "IMPLEMENTED_LOCAL_REMOTE_PUBLICATION_PENDING",
+      "evidence_refs": [
+        "docs/exec-plans/active/2026-09-17-chat-decision-to-codex-directive.md"
+      ]
+    }
+  ],
+  "non_satisfying_proxies": [
+    "the downstream automatic dispatcher passes only after a reasoning message and directive are manually seeded",
+    "a raw GitHub comment or worker-supplied receipt identity is accepted as authority",
+    "GitHub-session-attested content is relabeled VERIFIED or PROVIDER_DIRECT",
+    "unit validation stops before RelayRuntime and the actual admission/preflight consumer seam",
+    "a branch commit exists locally but is not pushed and read back from the remote",
+    "a real model run is used to test a deterministic publication seam"
+  ],
+  "active_patterns": [
+    "patterns/development-assurance-lanes.md",
+    "patterns/test-efficiency-and-verification-budget.md",
+    "patterns/chat-work-execution-routing-threshold.md",
+    "patterns/runtime-chat-work-authority-admission-and-internal-routing.md"
+  ],
+  "next_direct_evidence": "Commit the validated candidate, push the exact successor branch, and read back its remote tip. Live natural owner work remains intentionally outside this checkpoint."
+}

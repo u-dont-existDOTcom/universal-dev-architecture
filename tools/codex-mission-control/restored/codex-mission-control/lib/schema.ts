@@ -15,6 +15,7 @@ import {
 
 const WorkerId = z.string().min(1).max(80).regex(/^[a-z0-9][a-z0-9_-]*$/);
 const StableId = z.string().min(1).max(180).regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
+const CodexSafeId = z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/);
 const Sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 // Runtime and deterministic fixtures share the same content-addressing contract.
 // Relaxed human-readable pseudo-hashes are never accepted at an ingestion boundary.
@@ -712,6 +713,42 @@ export const reasoningSupervisionRecordedSchema = z.object({
   pro_escalation_state: z.enum(["NOT_REQUIRED", "PENDING", "ACTIVE", "COMPLETE"]),
 });
 
+export const boundedExecutionResidueSchema = z.object({
+  schema_version: z.literal(1),
+  task_id: StableId,
+  job_id: CodexSafeId,
+  execution_objective: NonEmpty.max(20_000),
+  reasoning_summary: NonEmpty.max(20_000),
+  strategy_id: StableId,
+  strategy_causal_hypothesis: NonEmpty.max(20_000),
+  predicted_outcome_change: NonEmpty.max(20_000),
+  success_threshold: NonEmpty.max(20_000),
+  failure_threshold: NonEmpty.max(20_000),
+  next_decision_changing_evidence: NonEmpty.max(20_000),
+  reviewed_evidence_boundary: NonEmpty.max(20_000),
+  inputs: z.array(z.object({ type: NonEmpty, ref: NonEmpty, sha256: Sha256.nullable() }).strict()).min(1),
+  allowed_actions: z.array(NonEmpty).min(1),
+  allowed_paths: z.array(NonEmpty).min(1),
+  allowed_commands: z.array(NonEmpty).min(1),
+  forbidden_actions: z.array(NonEmpty).min(1),
+  forbidden_paths: z.array(NonEmpty).default([]),
+  forbidden_decisions: z.array(NonEmpty).min(1),
+  required_evidence: z.array(NonEmpty).min(1),
+  required_tests_or_checks: z.array(NonEmpty).min(1),
+  stop_and_return_triggers: z.array(NonEmpty).min(1),
+  maximum_execution_cycles: z.number().int().positive(),
+  execution_capability: z.union([
+    z.object({ type: z.literal("LOCAL_FILESYSTEM_COMMAND") }).strict(),
+    z.object({ type: z.literal("BROWSER"), name: NonEmpty.max(180) }).strict(),
+  ]),
+  workspace: NonEmpty.max(4_096).refine((value) => value.startsWith("/"), "Execution workspace must be absolute."),
+  output_schema: z.record(z.string(), z.unknown()),
+  prompt: NonEmpty.max(50_000),
+  deadline: Timestamp,
+  work_execution_profile: workExecutionProfileSchema,
+  retry_of_attempt_id: CodexSafeId.optional(),
+}).strict();
+
 const canonicalDecisionEnvelopeFields = {
   envelope_kind: z.literal("MISSION_CONTROL_CANONICAL_DECISION"),
   request_id: StableId,
@@ -788,6 +825,7 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     decision_session_provenance: z.enum([
       "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED",
     ]),
+    bounded_execution: boundedExecutionResidueSchema.optional(),
     ...canonicalDecisionEnvelopeFields,
   }),
 ]).superRefine((envelope, context) => {
@@ -846,6 +884,8 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   decision_session_provenance: z.enum([
     "VISIBLE_GPT_5_6_SOL_EXTRA_HIGH_4_OF_5_SESSION_GITHUB_ATTESTED",
   ]).nullable().default(null),
+  bounded_execution: boundedExecutionResidueSchema.optional(),
+  bounded_execution_sha256: Sha256.optional(),
   nonce: StableId,
   evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
   owner_outcome_id: StableId,
@@ -876,6 +916,9 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   ingestion_method: z.enum(["GITHUB_WEBHOOK", "RECONCILIATION_POLL"]),
   ingested_at: Timestamp,
 }).superRefine((receipt, context) => {
+  if ((receipt.bounded_execution === undefined) !== (receipt.bounded_execution_sha256 === undefined)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["bounded_execution_sha256"], message: "Bounded execution residue and digest must be present together." });
+  }
   if (receipt.continuation_binding !== undefined || receipt.continuation_binding_sha256 !== undefined) {
     try { validateContinuationBinding(receipt.continuation_binding, receipt.continuation_binding_sha256); }
     catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Ingested continuation binding/digest is invalid or incomplete." }); }
@@ -990,6 +1033,15 @@ export const executionDirectiveRecordedSchema = z.object({
   directive_artifact_sha256: Sha256.nullable().default(null),
   source_message_id: StableId.nullable().default(null),
   source_body_sha256: Sha256.nullable().default(null),
+  validated_decision_proof: z.object({
+    authority_path: z.literal("VALIDATED_GITHUB_SUPERVISORY_DECISION"),
+    receipt_event_id: StableId,
+    receipt_id: StableId,
+    request_id: StableId,
+    canonical_envelope_sha256: Sha256,
+    bounded_execution_sha256: Sha256,
+    exact_execution_payload: NonEmpty.max(50_000),
+  }).strict().nullable().optional(),
   work_execution_profile: z.union([
     workExecutionProfileSchema,
     z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
@@ -1010,6 +1062,13 @@ export const executionDirectiveRecordedSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ["directive_artifact_sha256"],
       message: "A version 3 execution directive requires its own artifact digest and exact source-message provenance.",
+    });
+  }
+  if (directive.validated_decision_proof && directive.directive_schema_version !== 3) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["validated_decision_proof"],
+      message: "Validated GitHub decision proof is available only on version 3 execution directives.",
     });
   }
 });
@@ -1644,6 +1703,7 @@ export type OutcomeAdvancement = z.infer<typeof outcomeAdvancementSchema>;
 export type StrategyEfficacy = z.infer<typeof strategyEfficacySchema>;
 export type CanonicalDecisionEnvelope = z.infer<typeof canonicalDecisionEnvelopeSchema>;
 export type BindingCapsule = z.infer<typeof bindingCapsuleSchema>;
+export type BoundedExecutionResidue = z.infer<typeof boundedExecutionResidueSchema>;
 
 export interface StoredEvent {
   id: number;

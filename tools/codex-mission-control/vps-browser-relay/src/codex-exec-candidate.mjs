@@ -59,10 +59,14 @@ export function discoverMissionControlExecution(snapshot) {
       && event.data.directive_revision === persisted.directive_revision
       && event.data.task_id === persisted.task_id);
     if (completed) continue;
-    const sourceEvent = [...timeline].reverse().find((event) => event?.data?.type === 'reasoning_message_recorded'
+    const validatedDecisionSource = persisted.validated_decision_proof
+      ? sourceFromValidatedGitHubDecision(timeline, directiveEvent)
+      : null;
+    const sourceEvent = persisted.validated_decision_proof ? null : [...timeline].reverse().find((event) => event?.data?.type === 'reasoning_message_recorded'
       && event.data.message_id === persisted.source_message_id);
-    const source = sourceEvent?.data;
-    if (!source || source.provenance_status === 'UNVERIFIED' || typeof source.exact_visible_body !== 'string'
+    const source = validatedDecisionSource?.source ?? sourceEvent?.data;
+    if (!source || (!validatedDecisionSource && source.provenance_status === 'UNVERIFIED')
+      || typeof source.exact_visible_body !== 'string'
       || !source.exact_visible_body.startsWith(CODEX_EXECUTION_PAYLOAD_PREFIX)) continue;
     if (sha256(source.exact_visible_body) !== persisted.source_body_sha256
       || source.body_sha256 !== persisted.source_body_sha256) {
@@ -94,7 +98,9 @@ export function discoverMissionControlExecution(snapshot) {
     if (artifactSha256 !== persisted.directive_artifact_sha256) {
       throw new Error(`Executable bytes do not match schema-v3 directive artifact ${persisted.directive_id}.`);
     }
-    const sourceAuthority = sourceAuthorityFor(source);
+    const sourceAuthority = validatedDecisionSource
+      ? { actor: 'SPECIALIST_SUPERVISOR_CHAT', surface: 'CHATGPT_SPECIALIST_SUPERVISOR' }
+      : sourceAuthorityFor(source);
     const requestId = `codex-auto:${sha256(`${workerState.id}:${persisted.directive_id}:${persisted.directive_revision}:${artifactSha256}`).slice(0, 32)}`;
     discovered.push({
       worker: workerState.id,
@@ -137,7 +143,7 @@ export function discoverMissionControlExecution(snapshot) {
         directiveRevision: persisted.directive_revision,
         sourceMessageId: persisted.source_message_id,
         sourceBodySha256: persisted.source_body_sha256,
-        decisionRequestId: source.decision_request_id ?? null,
+        decisionRequestId: validatedDecisionSource?.requestId ?? source.decision_request_id ?? null,
       },
       order: Number.isInteger(directiveEvent.sequence) ? directiveEvent.sequence : Number.MAX_SAFE_INTEGER,
     });
@@ -435,6 +441,49 @@ function sourceAuthorityFor(source) {
     return { actor: 'SPECIALIST_SUPERVISOR_CHAT', surface: 'CHATGPT_SPECIALIST_SUPERVISOR' };
   }
   throw new Error('The durable execution source has no authorized reasoning surface.');
+}
+
+function sourceFromValidatedGitHubDecision(timeline, directiveEvent) {
+  const directive = directiveEvent?.data;
+  const proof = directive?.validated_decision_proof;
+  if (!isPlainObject(proof) || proof.authority_path !== 'VALIDATED_GITHUB_SUPERVISORY_DECISION') {
+    throw new Error('Schema-v3 directive validated-decision proof is malformed.');
+  }
+  const receiptEvent = timeline.find((event) => event?.eventId === proof.receipt_event_id);
+  const receipt = receiptEvent?.data;
+  if (!receiptEvent || receiptEvent.sequence >= directiveEvent.sequence
+    || receiptEvent.producerId !== 'system:github-decision-receipts'
+    || receiptEvent.producerKind !== 'SYSTEM'
+    || receipt?.type !== 'github_decision_receipt_ingested') {
+    throw new Error('Schema-v3 directive does not bind an exact prior SYSTEM GitHub decision receipt.');
+  }
+  if (receipt.receipt_id !== proof.receipt_id
+    || receipt.request_id !== proof.request_id
+    || receipt.canonical_envelope_sha256 !== proof.canonical_envelope_sha256
+    || receipt.bounded_execution_sha256 !== proof.bounded_execution_sha256
+    || receipt.worker !== directive.worker
+    || receipt.task_id !== directive.task_id
+    || !isPlainObject(receipt.bounded_execution)
+    || sha256(canonicalJson(receipt.bounded_execution)) !== proof.bounded_execution_sha256) {
+    throw new Error('Schema-v3 directive validated-decision proof does not match its accepted receipt.');
+  }
+  if (typeof proof.exact_execution_payload !== 'string'
+    || sha256(proof.exact_execution_payload) !== directive.source_body_sha256) {
+    throw new Error('Schema-v3 directive validated-decision payload bytes do not match the source binding.');
+  }
+  return {
+    requestId: receipt.request_id,
+    source: {
+      message_id: directive.source_message_id,
+      body_sha256: directive.source_body_sha256,
+      exact_visible_body: proof.exact_execution_payload,
+      surface_role: 'SUPERVISOR',
+      author_role: 'ASSISTANT',
+      provenance_status: 'UNVERIFIED',
+      acquisition_method: 'GITHUB_SESSION_ATTESTED',
+      decision_request_id: receipt.request_id,
+    },
+  };
 }
 
 function authorityBindingSha256(authority, route) {

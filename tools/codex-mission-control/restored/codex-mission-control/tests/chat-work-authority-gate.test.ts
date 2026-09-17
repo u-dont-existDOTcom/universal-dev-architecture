@@ -235,6 +235,39 @@ test("Codex may execute only the zero-spend bounded mechanical residue", () => {
   assert.equal(result.decision, "ALLOW_BOUNDED_EXECUTION");
 });
 
+test("server-validated GitHub decision proof admits its exact UNVERIFIED source without fabricating provider provenance", () => {
+  const sourceReceipt: ReasoningSourceReceipt = {
+    messageId: extraHighReceipt.messageId,
+    bodySha256: sourceDigest,
+    claimedSurface: "CHATGPT_SPECIALIST_SUPERVISOR",
+    observedSurface: "CHATGPT_SPECIALIST_SUPERVISOR",
+    provenanceStatus: "UNVERIFIED",
+    authorActor: "SPECIALIST_SUPERVISOR_CHAT",
+  };
+  const persisted: PersistedExecutionDirectiveProof = {
+    ...directiveProof,
+    authoritySource: {
+      kind: "VALIDATED_GITHUB_DECISION",
+      receiptEventId: "github-decision-receipt:event",
+      receiptId: "github-comment:1",
+      requestId: "decision-request:1",
+      canonicalEnvelopeSha256: "c".repeat(64),
+      boundedExecutionSha256: "d".repeat(64),
+    },
+  };
+  const admitted = evaluateGate(request({ sourceReceipt }), persisted);
+  assert.equal(admitted.allowed, true);
+  assert.equal(admitted.decision, "ALLOW_BOUNDED_EXECUTION");
+
+  const withoutServerProof = evaluateGate(request({ sourceReceipt }), { ...persisted, authoritySource: { kind: "DIRECT_REASONING_MESSAGE" } });
+  assert.equal(withoutServerProof.allowed, false);
+  assert.equal(withoutServerProof.decision, "REJECT_UNVERIFIED_REASONING_SOURCE");
+
+  const falselyUpgraded = evaluateGate(request({ sourceReceipt: { ...sourceReceipt, provenanceStatus: "VERIFIED" } }), persisted);
+  assert.equal(falselyUpgraded.allowed, false);
+  assert.match(falselyUpgraded.reasons.join(" "), /must remain UNVERIFIED/);
+});
+
 test("Work cannot take over a task the reasoning chat can perform directly", () => {
   const result = evaluateChatWorkAuthorityGate(request({
     actor: "WORK",

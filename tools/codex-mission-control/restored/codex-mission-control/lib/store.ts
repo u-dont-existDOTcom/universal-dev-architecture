@@ -11,6 +11,7 @@ import { parseRouteContinuation } from "./owner-response-continuation-schema";
 import { validateOwnerResponseContinuation } from "./owner-response-continuation";
 import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
+import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import {
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -624,6 +625,10 @@ export class EventStore {
           || data.pro_decision_block.sha256 !== data.decision_block.sha256)) {
         throw new ContractInvariantError("The writer must preserve the exact Pro decision bytes without reinterpretation.");
       }
+      if (data.bounded_execution
+        && sha256(canonicalJson(data.bounded_execution)) !== data.bounded_execution_sha256) {
+        throw new ContractInvariantError("GitHub decision receipt bounded-execution digest must bind the exact canonical residue.");
+      }
       this.assertUniqueDomainId(data.worker, data.type, "request_id", data.request_id);
       this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id);
     }
@@ -637,7 +642,26 @@ export class EventStore {
         || currentOutcome.owner_outcome_sha256 !== data.owner_outcome_sha256) {
         throw new ContractInvariantError("Execution directives must bind the current exact owner-outcome epoch.");
       }
-      if (reasoning?.type !== "reasoning_supervision_recorded"
+      const validatedDecisionProof = data.validated_decision_proof;
+      let validatedDecisionReceiptEvent: StoredEvent | undefined;
+      if (validatedDecisionProof) {
+        validatedDecisionReceiptEvent = events.find((event) => event.eventId === validatedDecisionProof.receipt_event_id);
+        if (!validatedDecisionReceiptEvent
+          || validatedDecisionReceiptEvent.producerId !== "system:github-decision-receipts"
+          || validatedDecisionReceiptEvent.producerKind !== "SYSTEM"
+          || validatedDecisionReceiptEvent.data.type !== "github_decision_receipt_ingested") {
+          throw new ContractInvariantError("A validated-decision directive requires the exact prior SYSTEM GitHub decision receipt event.");
+        }
+        const expected = buildExecutionDirectiveFromGitHubDecision({
+          eventId: validatedDecisionReceiptEvent.eventId,
+          occurredAt: validatedDecisionReceiptEvent.occurredAt,
+          data: validatedDecisionReceiptEvent.data,
+        }, events, envelope.occurred_at);
+        if (!expected || expected.event_id !== envelope.event_id
+          || canonicalJson(expected.data) !== canonicalJson(data)) {
+          throw new ContractInvariantError("A validated-decision directive must be the exact mechanical derivation of its accepted GitHub decision receipt.");
+        }
+      } else if (reasoning?.type !== "reasoning_supervision_recorded"
         || reasoning.owner_outcome_id !== data.owner_outcome_id
         || reasoning.owner_outcome_epoch !== data.owner_outcome_epoch
         || reasoning.owner_outcome_sha256 !== data.owner_outcome_sha256
@@ -649,7 +673,7 @@ export class EventStore {
         || reasoning.reviewed_evidence_boundary !== data.reviewed_evidence_boundary) {
         throw new ContractInvariantError("Execution directives must bind the exact current chat decision, capsule, strategy, and reviewed evidence boundary.");
       }
-      if (data.directive_schema_version === 3) {
+      if (data.directive_schema_version === 3 && !validatedDecisionProof) {
         const sourceMessage = events.findLast((event) => event.data.type === "reasoning_message_recorded"
           && event.data.message_id === data.source_message_id)?.data;
         if (sourceMessage?.type !== "reasoning_message_recorded"
@@ -664,7 +688,8 @@ export class EventStore {
           && event.data.directive_id === priorDirective.directive_id
           && event.data.directive_revision === priorDirective.directive_revision)
         : undefined;
-      if (priorReceiptEvent && (!reasoningEvent || reasoningEvent.sequence <= priorReceiptEvent.sequence)) {
+      const laterReviewSequence = validatedDecisionReceiptEvent?.sequence ?? reasoningEvent?.sequence ?? -1;
+      if (priorReceiptEvent && laterReviewSequence <= priorReceiptEvent.sequence) {
         throw new ContractInvariantError("A new directive requires a later independent reasoning review after the prior execution receipt.");
       }
     }

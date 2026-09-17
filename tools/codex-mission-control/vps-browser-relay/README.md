@@ -16,12 +16,16 @@ GitHub = durable supervisor decision receipt bus
 
 The iteration-only candidate is integrated into the normal relay cycle. The
 cycle reads each scoped worker's durable timeline and recognizes only the
-current active schema-v3 directive whose exact verified/owner-attested source
-message begins with `MISSION_CONTROL_CODEX_EXECUTION_PAYLOAD_V1`. The source
-payload supplies the mechanical job, deadline, workspace, closed capability,
-result schema, and prompt; Mission Control supplies the task/directive/source
-identity and Work profile. Their reconstructed artifact must match the
-persisted directive digest.
+current active schema-v3 directive. Authority may come from its exact
+verified/owner-attested source message, or from a SYSTEM-derived proof bound to
+an accepted canonical GitHub supervisory-decision receipt. In the latter path,
+GitHub-session-attested text remains `UNVERIFIED`; the server-validated receipt,
+residue digest, and exact derived payload establish authority. The payload
+begins with `MISSION_CONTROL_CODEX_EXECUTION_PAYLOAD_V1` and supplies the
+mechanical job, deadline, workspace, closed capability, result schema, and
+prompt. Mission Control supplies the task/directive/source identity and Work
+profile. Their reconstructed artifact must match the persisted directive
+digest.
 
 The relay then posts the reconstructed source-bound request with a dedicated
 worker credential to the existing admission endpoint, requires
