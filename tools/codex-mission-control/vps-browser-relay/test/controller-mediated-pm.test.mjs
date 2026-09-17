@@ -578,6 +578,38 @@ test('expired-cycle terminalization is idempotent and a late artifact cannot rev
   }
 });
 
+test('expired legacy cycle terminalizes after its route ages out and a crossed send lacks completion telemetry', async () => {
+  const expiresAt = '2099-09-10T00:00:00.000Z';
+  const fixture = makeFixture({ expiresAt });
+  await fixture.runtime.initialize(fixture.spec);
+  const cycle = fixture.store.state.controllerCycles['cycle-1'];
+  cycle.step = 'WAIT_ORIGIN_ARTIFACT';
+  cycle.sends.origin = {
+    status: 'BOUNDARY_VERIFIED', promptSha256: 'a'.repeat(64), bodyLength: 100, attempt: 1,
+    intentRecordedAt: '2026-09-09T18:00:52.294Z', boundaryObservedAt: '2026-09-09T18:00:53.815Z',
+    generationCompletedAt: null, generationStartedAt: '2026-09-09T18:00:58.436Z',
+  };
+  cycle.recoveries = {};
+  fixture.store.state.controllerCycles['cycle-1'] = cycle;
+  fixture.mc.routeEvent = { eventId: 'aged-out', sequence: 10, data: { type: 'route_no_longer_projected' } };
+  const fetchesBefore = fixture.mc.fetchFleetCalls;
+  const realNow = Date.now;
+  Date.now = () => Date.parse(expiresAt) + 1;
+  try {
+    const result = await fixture.runtime.cycle('cycle-1');
+    assert.equal(result.status, 'CONTROLLER_CYCLE_EXPIRED_TERMINALIZED');
+  } finally {
+    Date.now = realNow;
+  }
+  const terminal = fixture.store.state.controllerCycles['cycle-1'];
+  assert.equal(terminal.step, 'EXPIRED');
+  assert.equal(terminal.terminalization.priorStep, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal(terminal.terminalization.preservedEvidence.sends.origin.status, 'BOUNDARY_VERIFIED');
+  assert.equal(terminal.terminalization.preservedEvidence.sends.origin.generationCompletedAt, null);
+  assert.equal(fixture.mc.fetchFleetCalls, fetchesBefore + 1);
+  assert.equal(fixture.browser.submits.length, 0);
+});
+
 test('expired-cycle terminalization refuses unresolved central admission and every local send ambiguity', async () => {
   const expiresAt = '2099-09-10T00:00:00.000Z';
   for (const kind of ['CENTRAL_ADMISSION', 'LOCAL_CLICK', 'CONTINUE_CLICK']) {

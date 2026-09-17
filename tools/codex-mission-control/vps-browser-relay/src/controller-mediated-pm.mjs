@@ -180,6 +180,9 @@ export class ControllerMediatedPmRuntime {
     try {
       const snapshot = await this.missionControl.fetchFleet();
       const routes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state).filter((route) => route.requestId === cycle.requestId);
+      if (routes.length === 0 && Date.now() > Date.parse(cycle.expiresAt)) {
+        return await this.#terminalizeExpired(state, cycle);
+      }
       if (routes.length !== 1) throw new Error(`Expected one exact active controller route for ${cycle.requestId}; found ${routes.length}.`);
       let route = routes[0];
       this.#validateRoute(cycle, route);
@@ -1774,12 +1777,13 @@ function expiredTerminalizationUnsafeReasons(state, cycle, central) {
     reasons.push(`LOCAL_${cycle.step}_UNRECONCILED`);
   }
 
+  // A durable BOUNDARY_VERIFIED state proves the provider send already crossed
+  // exactly once. Missing legacy generation-completion telemetry is a liveness
+  // gap, not an unresolved send boundary, and expiry forbids any replay.
   for (const [lane, send] of Object.entries(cycle.sends ?? {})) {
     if (!send) continue;
     if (['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED'].includes(send.status)) {
       reasons.push(`${lane.toUpperCase()}_SEND_${send.status}`);
-    } else if (send.status === 'BOUNDARY_VERIFIED' && !Number.isFinite(Date.parse(send.generationCompletedAt ?? ''))) {
-      reasons.push(`${lane.toUpperCase()}_SEND_GENERATION_UNRESOLVED`);
     } else if (!['FAILED_PRECLICK', 'BOUNDARY_VERIFIED', 'ARTIFACT_CONFIRMED_BOUNDARY'].includes(send.status)) {
       reasons.push(`${lane.toUpperCase()}_SEND_STATE_UNRECOGNIZED`);
     }
@@ -1789,8 +1793,6 @@ function expiredTerminalizationUnsafeReasons(state, cycle, central) {
     for (const attempt of recovery?.attempts ?? []) {
       if (['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED'].includes(attempt.status)) {
         reasons.push(`${lane.toUpperCase()}_CONTINUE_${attempt.status}`);
-      } else if (attempt.status === 'BOUNDARY_VERIFIED' && !Number.isFinite(Date.parse(attempt.generationCompletedAt ?? ''))) {
-        reasons.push(`${lane.toUpperCase()}_CONTINUE_GENERATION_UNRESOLVED`);
       } else if (!['BOUNDARY_VERIFIED', 'CONTINUE_COMPLETE_PENDING_RETRY_INSPECTION', 'CONTINUE_COMPLETE_NO_RETRY', 'RETRY_FAILED_CONTINUE', 'RETRY_COMPLETE'].includes(attempt.status)) {
         reasons.push(`${lane.toUpperCase()}_CONTINUE_STATE_UNRECOGNIZED`);
       }
@@ -1798,8 +1800,6 @@ function expiredTerminalizationUnsafeReasons(state, cycle, central) {
       if (!retry) continue;
       if (['INTENT_RECORDED', 'CLICK_BOUNDARY_PERSISTED'].includes(retry.status)) {
         reasons.push(`${lane.toUpperCase()}_CONTINUE_RETRY_${retry.status}`);
-      } else if (retry.status === 'BOUNDARY_VERIFIED' && !Number.isFinite(Date.parse(retry.generationCompletedAt ?? ''))) {
-        reasons.push(`${lane.toUpperCase()}_CONTINUE_RETRY_GENERATION_UNRESOLVED`);
       } else if (!['READY', 'BOUNDARY_VERIFIED', 'COMPLETE_PENDING_FAILURE_INSPECTION', 'COMPLETE'].includes(retry.status)) {
         reasons.push(`${lane.toUpperCase()}_CONTINUE_RETRY_STATE_UNRECOGNIZED`);
       }
