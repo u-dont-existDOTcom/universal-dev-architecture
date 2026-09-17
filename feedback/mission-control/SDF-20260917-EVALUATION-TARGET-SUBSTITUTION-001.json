@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260917-EVALUATION-TARGET-SUBSTITUTION-001",
+  "createdAt": "2026-09-17T17:06:00Z",
+  "taskId": "innersignal-role-belief-integrity-live-evaluation",
+  "sourceQuality": "EXACT_TEXT",
+  "ownerSource": {
+    "captureType": "immutable_exact_text_block",
+    "capturedAt": "2026-09-17T17:06:00Z",
+    "exactText": "we don't use claude you forgot? claude can't follow this map it is too stupid. we also don't use Codex because that's not smart like chat. and i'm also trying not to pay so much, chat is free. so chat has the best reasoning, the actual alignment with the final plugin product, and it's free. \nit makes no sense to run a massive amount of expensive testing and then you have to do it all over again because you didn't do the real test. save this error to mission control lessons.",
+    "sha256": "bd64b5430a6851f638eb111377d1cf6a417aa5815054a8c65301dce070afd8c9"
+  },
+  "type": "DEFECT",
+  "category": "EVALUATION_TARGET_SUBSTITUTION",
+  "severity": "HIGH",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "The reasoning path replaced the owner's actual InnerSignal evaluation target with a technically convenient proxy. It proposed large-scale live testing through Claude/Codex CLI even though the intended product surface is the ChatGPT-hosted InnerSignal/plugin experience, the owner had already rejected Claude and Codex as insufficient reasoning substitutes for this map, and the owner explicitly values the ChatGPT subscription surface because it avoids additional per-test API-style spend. This would spend time and money collecting lower-fidelity evidence and then require the real ChatGPT/product-surface evaluation anyway.",
+  "failureMechanism": {
+    "primary": "The route optimized transport availability and automation cleanliness before freezing the owner-relevant evaluation tuple: final product surface, model/reasoning capability, and economic path.",
+    "secondary": [
+      "Prior owner constraints on Claude/Codex suitability were not carried into the live-evaluation routing decision.",
+      "Infrastructure readiness was treated as more important than endpoint fidelity.",
+      "A proxy capable of exercising application plumbing was incorrectly elevated toward the main behavioral evidence path rather than kept as optional engineering smoke evidence.",
+      "The plan did not apply a stop rule requiring one representative test on the actual final surface before scaling an expensive evaluation campaign."
+    ]
+  },
+  "affectedControl": {
+    "ownerOutcome": "Evaluate whether InnerSignal on its intended ChatGPT/plugin surface resists role reversal, harmful-belief adoption, false assistant identity, and memory/provenance laundering.",
+    "requiredEvaluationTuple": {
+      "productSurface": "ChatGPT-hosted InnerSignal/plugin experience",
+      "reasoningSurface": "the actual ChatGPT model/configuration intended for the product test",
+      "economicConstraint": "prefer the owner's existing ChatGPT subscription/no-additional-per-test-cost path rather than a large paid proxy campaign"
+    }
+  },
+  "relevantRules": [
+    {
+      "path": "patterns/test-efficiency-and-verification-budget.md",
+      "section": "Acceptance at the actual consumer seam",
+      "application": "Upstream or proxy green evidence does not prove the owner-requested endpoint."
+    },
+    {
+      "path": "patterns/development-assurance-lanes.md",
+      "section": "Iteration / evidence proportionality",
+      "application": "Run the smallest representative real product cases before expanding an evaluation campaign."
+    },
+    {
+      "path": "patterns/outcome-advancement-and-strategy-efficacy.md",
+      "application": "Activity and supporting infrastructure are not direct owner-outcome evidence when the tested surface differs from the target."
+    }
+  ],
+  "observedFailure": "After the scripted InnerSignal checks passed, the assistant recommended using the existing Codex/Claude CLI adapters as the cleaner primary live-test route and treating browser ChatGPT testing as a separate later check. The owner corrected that this reverses the evidence hierarchy: ChatGPT is the actual final product/reasoning/economic surface, while Claude/Codex would be a costly lower-fidelity proxy requiring duplicate testing.",
+  "correctedDecision": "Do not launch a large Claude/Codex/API behavioral campaign for this question. Make the ChatGPT-hosted InnerSignal/plugin surface the primary semantic evaluation route. Proxy transports may be used only for narrowly scoped plumbing/debugging evidence when they can change an engineering decision that does not depend on model behavior, and must be labeled non-endpoint evidence.",
+  "proposedChange": [
+    "Before any model/product evaluation campaign, freeze an evaluation-target tuple containing product surface, model/reasoning configuration, and economic route.",
+    "If a proposed proxy differs on any material tuple element, classify it as proxy evidence and state exactly which decision it can change; it cannot substitute for endpoint evidence.",
+    "Before scaling beyond a small smoke set, require at least one complete representative case on the actual final product surface. If that route is unavailable, repair or unblock it rather than spending heavily on a lower-fidelity campaign unless the owner explicitly authorizes the proxy question.",
+    "Carry prior owner rejections of model/provider suitability into routing decisions; do not reintroduce a rejected provider merely because its automation interface is convenient.",
+    "Estimate duplicate-test cost: if proxy evidence would still require rerunning the same semantic evaluation on the final surface, default to repairing the final-surface route first."
+  ],
+  "acceptanceRegressions": [
+    "Final product is ChatGPT-hosted plugin + Mission Control is temporarily unavailable -> system repairs/qualifies the ChatGPT route or runs only a tiny diagnostic proxy, not a large alternate-model campaign.",
+    "Owner previously rejected Claude/Codex for semantic quality -> routing cannot silently select those models for the main semantic evaluation.",
+    "Proxy and endpoint use different models or pricing surfaces -> results are labeled proxy-only and do not satisfy endpoint acceptance.",
+    "Large evaluation proposed -> one representative actual-surface end-to-end test must succeed before campaign expansion unless an explicit reason proves the endpoint cannot change the current decision.",
+    "Cheap/free endpoint versus costly proxy -> cost is part of route fidelity and duplicate-work analysis, not an afterthought."
+  ],
+  "status": "OWNER_CORRECTION_CAPTURED",
+  "captureTruthState": "CAPTURED_BRANCH_ONLY",
+  "nextVerificationBoundary": "Integrate an evaluation-target fidelity gate into Mission Control routing and demonstrate that the same InnerSignal scenario selects the ChatGPT/plugin route as primary evidence, while Claude/Codex/API routes remain optional non-endpoint diagnostics unless explicitly authorized.",
+  "privacy": {
+    "publicRepositorySafe": true,
+    "privateChatLocatorsIncluded": false,
+    "credentialsIncluded": false,
+    "privateInfrastructureDetailsIncluded": false
+  }
+}
