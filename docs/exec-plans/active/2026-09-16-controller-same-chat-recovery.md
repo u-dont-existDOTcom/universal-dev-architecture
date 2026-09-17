@@ -65,12 +65,14 @@ or ambiguous send/click ancestry fails closed.
 - No-send readiness is now blocked at the central authority: after one clean
   stale-epoch-3/empty-queue/valid-ledger read, the single-writer daemon became
   CPU-bound and unresponsive and the live database could not be read without a
-  lock. Stale evidence is ineligible for successor activation. No live fixture
-  was created.
+  lock. Its optional 750 ms live-source watcher is repeatedly running Git
+  against a release archive that is not a Git worktree. Stale evidence is
+  ineligible for successor activation. No live fixture was created.
 - Next: obtain owner authorization for PR #140 merge and one controlled
-  volume-preserving restart of the non-production single-writer, re-read exact
-  authority state, activate epoch 4 only if every gate remains clean, re-run
-  no-send readiness, then create exactly one fresh fixture.
+  volume-preserving restart of the non-production single-writer with that
+  invalid optional watcher disabled, re-read exact authority state, activate
+  epoch 4 only if every gate remains clean, re-run no-send readiness, then
+  create exactly one fresh fixture.
 
 ## Stop conditions
 

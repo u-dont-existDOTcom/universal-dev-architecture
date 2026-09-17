@@ -75,10 +75,11 @@ turn visibly fails may the controller Retry that exact failed continue once.
 
 - Obtain owner merge authorization for PR #140 and authorization for one
   controlled restart of the currently unresponsive non-production Mission
-  Control single-writer with its existing volume preserved. Re-read the live
-  queue/admission/ledger after recovery, activate the controlled successor
-  lease, re-run no-send readiness, then run exactly one fresh disposable
-  PM-mediated OWNER-byte fixture.
+  Control single-writer with its existing volume preserved and the invalid
+  optional live-source watcher disabled. Re-read the live queue/admission/
+  ledger after recovery, activate the controlled successor lease, re-run
+  no-send readiness, then run exactly one fresh disposable PM-mediated
+  OWNER-byte fixture.
 
 ## Blockers / unresolved
 
@@ -87,6 +88,8 @@ turn visibly fails may the controller Retry that exact failed continue once.
   transition, no safety halt, a clear rate-limit state, and a valid ledger.
   The central single-writer daemon subsequently became CPU-bound and
   unresponsive, and a read-only database probe found the live database locked.
+  Its optional 750 ms live-source watcher is repeatedly running Git against a
+  release archive that is not a Git worktree.
   Current authority state therefore cannot be established for epoch-4
   activation. The control plane was not stopped because the active recovery
   supplement does not authorize that mutation. No fresh fixture was created.

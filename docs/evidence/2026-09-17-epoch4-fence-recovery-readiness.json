@@ -66,10 +66,11 @@
     "container_health": "UNHEALTHY",
     "daemon_health": "TIMEOUT_NO_RESPONSE",
     "database_read": "LOCKED",
+    "verified_load_path": "The optional live-source watcher polls every 750 ms and repeatedly runs Git against a release archive that is not a Git worktree.",
     "restart_performed": false,
     "successor_lease_activated": false,
     "live_fixture_created": false
   },
   "production_mutated": false,
-  "next_executable_action": "After owner authorization, merge PR #140 and perform one controlled volume-preserving restart of the non-production Mission Control single-writer. Re-read exact current authority state before any epoch-4 activation."
+  "next_executable_action": "After owner authorization, merge PR #140 and perform one controlled volume-preserving restart of the non-production Mission Control single-writer with the invalid optional live-source watcher disabled. Re-read exact current authority state before any epoch-4 activation."
 }
