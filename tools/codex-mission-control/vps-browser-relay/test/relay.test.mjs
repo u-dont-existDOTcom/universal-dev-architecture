@@ -38,24 +38,47 @@ test('ordinary relay refuses to advance while a controller-mediated cycle is non
   assert.equal(mc.fetchFleetCalls, 0);
 });
 
-test('normal supervision fails closed when live tool/mode capability receipts are missing', async () => {
+test('normal supervision reaches the direct binding-preload seam without historical capability receipts', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: [challengeEvidence()] });
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
   const result = await runtime.cycle();
-  assert.equal(result.status, 'CAPABILITY_NOT_VERIFIED');
-  assert.equal(browser.submitCalls, 0);
+  assert.equal(result.status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.controlChecks.at(-1).thinkingOrdinal, '4 of 5');
+  assert.deepEqual(browser.selectAppsCalls, [
+    { knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['Mission Control'], referencedLabels: [] },
+  ]);
 });
 
-test('dry run becomes ready only after current tool and exact-mode receipts exist', async () => {
+test('dry run reports missing capability evidence as diagnostic rather than a prerequisite', async () => {
   const store = new MemoryStateStore();
-  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const mc = new FakeMissionControl({ evidence: [challengeEvidence()] });
   const browser = new FakeBrowser();
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
   const result = await runtime.cycle();
   assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.capability.allCurrent, false);
+  assert.equal(result.capabilityReceiptPrerequisite, false);
   assert.equal(result.memory.policy.profile, '8GB');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('truthfully expired controller history does not monopolize fresh relay admission', async () => {
+  const state = defaultState();
+  state.controllerCycles['expired-controller'] = {
+    cycleId: 'expired-controller', taskId: 'old-task', requestId: 'old-request',
+    step: 'EXPIRED', controllerBindingSha256: 'a'.repeat(64),
+    terminalization: { reason: 'ROUTE_EXPIRED', priorStep: 'WAIT_ORIGIN_ARTIFACT' },
+  };
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({ evidence: [challengeEvidence()] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.route.requestId, 'r-1');
   assert.equal(browser.submitCalls, 0);
 });
 

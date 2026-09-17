@@ -31,6 +31,7 @@ import {
   startedCycleStepStatus,
 } from './core.mjs';
 import { readMemoryMetrics } from './memory.mjs';
+import { isTerminalControllerCycle } from './controller-mediated-pm.mjs';
 import { isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
 import { submissionSchedulerContext } from './submission-context.mjs';
 
@@ -354,7 +355,7 @@ export class RelayRuntime {
     state.health.lastCycleAt = startedAt;
 
     const activeControllerCycle = Object.values(state.controllerCycles ?? {})
-      .find((cycle) => cycle?.step !== 'COMPLETE');
+      .find((cycle) => !isTerminalControllerCycle(cycle));
     if (activeControllerCycle) {
       state.health.lastError = null;
       state.health.pausedReason = `Controller-mediated PM cycle ${activeControllerCycle.cycleId} must advance through the controller command.`;
@@ -443,17 +444,17 @@ export class RelayRuntime {
       }
 
       const capability = chatCapabilityState(snapshot, candidate.chat);
-      if (!capability.allCurrent) {
-        state.health.pausedReason = `Stable supervisor ${candidate.chat.supervisorId} lacks current bootstrap capability receipts.`;
-        state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('CAPABILITY_NOT_VERIFIED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate), capability });
-      }
-
       if (!this.config.runtime.submitEnabled) {
         state.health.lastError = null;
         state.health.pausedReason = 'MC_RELAY_SUBMIT_ENABLED is not 1; no supervisory browser write was attempted.';
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('DRY_RUN_ROUTE_READY', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate), capability });
+        return this.#writeStandaloneStatus('DRY_RUN_ROUTE_READY', state, {
+          memory,
+          queue: summarizeRoutes(routes, state),
+          route: publicRoute(candidate),
+          capability,
+          capabilityReceiptPrerequisite: false,
+        });
       }
 
       return await this.#processSupervisoryCycle(candidate, routes, state, memory);

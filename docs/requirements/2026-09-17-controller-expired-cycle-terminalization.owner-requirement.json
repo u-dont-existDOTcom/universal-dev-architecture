@@ -1,0 +1,69 @@
+{
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CONTROLLER-EXPIRED-CYCLE-TERMINALIZATION-20260917",
+  "recorded_at": "2026-09-17T19:01:00Z",
+  "status": "IMPLEMENTED_LOCAL_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Do not perform the proposed one-off three-chat capability refresh yet.\n\nContinue the existing Mission Control controller task with this Chat-authored correction:\n\n1. Repair the expired-controller-cycle generating condition. The current controller leaves an expired cycle nonterminal in its prior WAIT\\_\\* state because COMPLETE is effectively its only successful terminal step. Implement the smallest truthful terminalization mechanism for an expired cycle, preserving all historical send/admission/artifact evidence. A terminalized expired cycle must not block a genuinely fresh cycle, and a late artifact must not revive it.\n2. Fail closed where terminalization is not safe. In particular, reconcile and preserve any ambiguous/crossed send or unresolved admission before terminalization. Add focused regressions for:\n   - expired WAIT cycle becomes terminal and no longer monopolizes fresh-cycle admission;\n   - terminalization is idempotent;\n   - late artifact cannot resume an expired cycle;\n   - unresolved/ambiguous send state cannot be silently erased;\n   - completed cycles remain unchanged.\n3. Treat the newly asserted requirement for “current capability receipts for all three non-production chats” as a follow-up requirement-accretion question, not an accepted prerequisite. Re-bind it to the current owner requirement: one successful fresh PM-mediated controller fixture at the real consumer seam.\n\nDetermine exactly what failure each fresh capability receipt prevents that is not already covered by the existing exact MC\\_ONLY registration, automation-owned target/window binding, provider-session binding, account/session checks, and fail-closed destination validation.\n\n4. If the three-receipt gate is not necessary to prevent a material unsafe action, remove it as a prerequisite and let the real fresh fixture provide the direct capability evidence.\n\nIf some freshness check is genuinely necessary, implement the smallest lifecycle mechanism instead:\n\n- invalidate only on a concrete relevant change;\n- refresh automatically under existing Mission Control authority;\n- use a new single-use challenge when required; never replay a historical challenge;\n- cache the valid receipt until an actual invalidator occurs;\n- do not ask the owner to repeatedly authorize routine refresh;\n- stop for the owner only on a genuine login/MFA/wrong-account/missing-chat/security boundary.\n\n5. Do not send any live capability probe merely to satisfy the old blocker while doing this repair. First establish whether the gate is necessary.\n\nUse GPT-5.6 Sol; no Astra escalation is warranted unless execution evidence shows a genuine reasoning shortfall.\n\nProduce the smallest reviewable PR with focused tests and a plain-English receipt. Do not merge it yourself. After the candidate is ready, return:\\\nGoal / Where we are / Next needed / Your action.\n\nThe intended next live action after an accepted repair is the already-authorized single fresh PM-mediated fixture, not a new chain of preflight proofs.",
+    "sha256": "716f59183cddf8a4ea2a268d7cfcce6768d14b126981512f14463c3f9d5edd2c",
+    "source_type": "owner_chat_message",
+    "source_ref": "current-chat:owner-correction:2026-09-17",
+    "provider_source_timestamp": null,
+    "source_time_status": "TIMESTAMP_UNAVAILABLE"
+  },
+  "supersedes_requirement": null,
+  "amends_requirement": "REQ-MC-CONTROLLER-SAME-CHAT-RECOVERY-20260916",
+  "parent_owner_outcome": {
+    "status": "OPEN",
+    "remaining_gap": "One successful fresh PM-mediated controller cycle at the real consumer seam."
+  },
+  "followup_admission": "OWNER_GOAL_DERIVED",
+  "normalized_outcome": "Expired controller cycles acquire a truthful fail-closed terminal state that preserves historical evidence and cannot resume, while an unnecessary per-chat capability-receipt prerequisite is removed so the already-authorized fresh PM-mediated fixture can provide direct consumer-seam evidence.",
+  "required_outcomes": [
+    {
+      "id": "EXPIRED-CYCLE-TERMINALIZATION",
+      "observable": "An expired controller WAIT cycle terminalizes only after central admission and local send ambiguity are clear, preserves its prior evidence, is idempotent, ignores late artifacts, and no longer blocks fresh-cycle admission.",
+      "status": "IMPLEMENTED_LOCAL_VERIFIED",
+      "terminal_required": true
+    },
+    {
+      "id": "CAPABILITY-REQUIREMENT-REBOUND",
+      "observable": "The three-current-receipt gate is either removed as unnecessary requirement accretion or replaced only by the smallest lifecycle check proved necessary to prevent a material unsafe action.",
+      "status": "IMPLEMENTED_LOCAL_VERIFIED",
+      "terminal_required": true
+    },
+    {
+      "id": "NO-LIVE-CAPABILITY-PROBE",
+      "observable": "No live capability probe is submitted while determining or implementing the gate repair.",
+      "status": "SATISFIED_NO_PROBE_SENT",
+      "terminal_required": true
+    },
+    {
+      "id": "REVIEWABLE-UNMERGED-PR",
+      "observable": "The smallest focused candidate is tested, documented in plain English, opened for review, and left unmerged.",
+      "status": "CANDIDATE_READY_FOR_UNMERGED_PR",
+      "terminal_required": true
+    }
+  ],
+  "requirement_accretion": {
+    "requirement": "Current capability receipts for all three registered non-production chats before the fresh PM-mediated fixture.",
+    "origin": "ASSISTANT_INFERENCE",
+    "what_breaks_if_removed": "A missing or disconnected app may cause the real fixture to fail closed at its existing exact app/tool or artifact-receipt boundary; no material unsafe destination or send authority has yet been identified.",
+    "strongest_simpler_alternative": "Use exact MISSION_CONTROL_ONLY registration, central single-use admission, automation-owned target/window and provider-session binding, exact visible consumer controls, exact per-message app selection, and the fixture's own server-observed MCP/GitHub receipts.",
+    "evidence_against_simpler_alternative": "NONE",
+    "necessity_state": "NOT_NECESSARY",
+    "admission": "REJECT_REQUIREMENT_ACCRETION"
+  },
+  "non_satisfying_proxies": [
+    "Deleting or overwriting the expired cycle",
+    "Changing its prior WAIT state without recording the terminal reason and prior step",
+    "Treating a central admission as clear without a fresh authority read",
+    "Running capability probes instead of establishing gate necessity",
+    "Green helper tests without the relay admission regression"
+  ],
+  "production_authorized": false,
+  "capability_probe_authorized": false,
+  "merge_authorized": false
+}
