@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260917-SHOPPING-RECOMMENDATION-PREFLIGHT-001",
+  "createdAt": "2026-09-17T16:48:16Z",
+  "taskId": "amazon-fr-ups-recommendation",
+  "workerRunId": "chat-direct-github-20260917",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OWNER-SHOPPING-RECOMMENDATION-INTEGRITY-20260917",
+    "epoch": 1,
+    "sha256": "6a533d169b996428d6c3ea3c2f5a14a44c56e1c6cfc9e3d5d590eca280d53c60"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "feedback/shopping-recommendation-preflight-20260917",
+    "architectureEpoch": "owner-marked-failure-capture-v1",
+    "sha256OrCommit": "ad76fcac1aed29658dbdab6575f91965573e6c51"
+  },
+  "type": "DEFECT",
+  "category": "RECOMMENDATION_PREFLIGHT_ORDERING",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "The recommendation pipeline labeled products as best/strongest candidates before completing decision-critical validation. Validation was then performed reactively after owner correction, causing the assistant to recommend an item and subsequently explain why that same item was a poor recommendation. Recommendation must be the output of completed evaluation, not an intermediate state that is later invalidated by checks that should have preceded endorsement.",
+  "ownerCorrection": {
+    "sourceRecoveryQuality": "EXACT_TEXT",
+    "exactText": "ok well don't give me bad recommendatiopns and then tell me they are bad that's dumb. that's a logic failure send that to mission control along with your other lessons here. continue",
+    "privacyDisposition": "SAFE_TO_PUBLISH_BOUNDED_CURRENT_CHAT_QUOTE"
+  },
+  "relevantRule": {
+    "path": "patterns/owner-marked-mission-control-failure-capture.md",
+    "section": "Required capture boundary",
+    "excerpt": "A valid capture records, as applicable: the bounded owner correction or exact quote when safely publishable; a digest of the source text; the failure mechanism rather than only the surface complaint; source/recovery quality; relevant evidence and affected control; current status and the next verification boundary."
+  },
+  "observedOrHypotheticalFailure": "In one shopping sequence, the assistant first recommended an Amazon.fr UPS using stale/indirect evidence even though the live product variant was out of stock. After correction, it recommended a Green Cell 1500 VA UPS without checking the product's weak 3.7-star customer rating. After a second correction, it surfaced an Eaton 3S 850 FR as the strongest ratings-supported candidate and then immediately explained that it would not recommend it because it lacked line-interactive AVR, a requirement already material to the Senegal use case. The repeated mechanism was evaluation-order failure: each recommendation label was emitted before all known decision-critical gates had been applied.",
+  "lessonsCaptured": [
+    {
+      "lessonId": "SHOP-AVAILABILITY-001",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "For retailer-specific shopping recommendations, distinguish listed from actually orderable. Verify current stock/purchase availability on the retailer page or equivalent live evidence before calling an item a recommendation."
+    },
+    {
+      "lessonId": "SHOP-RATINGS-002",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "Check product rating, review count, and recurring negative-review themes before recommending. Do not substitute seller rating for product rating, and do not present a materially below-peer customer rating as best value without explicit justification."
+    },
+    {
+      "lessonId": "SHOP-COMPATIBILITY-003",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "Apply known use-case compatibility gates before endorsement, including voltage/frequency, plug/grounding, topology such as AVR/line-interactive when relevant, output waveform when relevant, load capacity, and runtime."
+    },
+    {
+      "lessonId": "SHOP-PREFLIGHT-ORDER-004",
+      "sourceRecoveryQuality": "EXACT_CURRENT_CHAT_SOURCE_AVAILABLE",
+      "lesson": "Do not recommend a candidate and then immediately disqualify it on an already-known criterion. Keep an item in candidate status until all material checks are complete; only then label it recommended/top/best."
+    }
+  ],
+  "affectedControl": "shopping recommendation candidate-to-endorsement transition",
+  "requiredPreflight": [
+    "current retailer availability/orderability",
+    "product rating and review count",
+    "recurring reliability/quality complaints",
+    "country electrical compatibility and grounding",
+    "known use-case topology/spec requirements",
+    "load capacity and realistic runtime",
+    "price/value relative to valid alternatives"
+  ],
+  "proposedChange": "Add a general recommendation-integrity gate: a product may be described as recommended, best value, strongest candidate, or top pick only after all currently known material constraints and evidence dimensions have been resolved. If any material gate is missing or fails, the item remains an unendorsed candidate and the search continues. For shopping, bind availability, review signal, compatibility, specifications, runtime/load needs, and price/value into one pre-endorsement checklist rather than checking them sequentially after owner objections.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Recommend the most promising candidate early and disclose caveats afterward.",
+      "disposition": "REJECTED",
+      "reason": "This produces logically self-negating recommendations and transfers basic screening work to the owner."
+    },
+    {
+      "alternative": "Use price/specification fit as primary ranking and inspect ratings only after shortlist creation.",
+      "disposition": "REJECTED_FOR_ENDORSEMENT",
+      "reason": "Acceptable for internal discovery, but not for an owner-facing recommendation label because reliability evidence can reverse the conclusion."
+    }
+  ],
+  "risks": [
+    "Without a pre-endorsement gate, the assistant can repeatedly optimize one dimension at a time and force the owner to identify omitted decision criteria.",
+    "A later caveat can create the false impression that diligence occurred before the recommendation when it actually occurred afterward.",
+    "Retailer search snippets and comparison feeds can be stale or refer to another variant, so they cannot alone prove current orderability.",
+    "High aggregate star ratings can still hide recurring failure modes; review themes and review count matter alongside the mean rating."
+  ],
+  "workerRecommendation": "Treat recommendation as a terminal classification after evidence integration, not a provisional search result. On the next UPS search, build and validate a shortlist first, then expose only products that pass the complete preflight.",
+  "workerUncertainty": "This record captures the reasoning defect and required gate ordering. It does not by itself prove that a universal shopping implementation has been updated across all Chat surfaces.",
+  "decisionThatCanChange": "Whether Chat emits a product endorsement before or after completing the evidence checks that can materially reverse that endorsement.",
+  "semanticClassification": "DESIGN_DEFECT_RECORDED_SUPERVISION_ESCAPE_NOT_ADJUDICATED",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": false,
+    "reviewPriority": "NEXT_LIVE_REGRESSION",
+    "sharedProScopeKey": "recommendation-integrity/shopping-preflight-v1"
+  },
+  "status": "CAPTURED_BRANCH_ONLY",
+  "nextVerificationBoundary": "Next owner shopping request: verify that every owner-facing recommended/top/best product has passed availability, rating/review, compatibility, use-case specification, and price/value checks before the recommendation label is emitted.",
+  "proMetaReview": null,
+  "ownerDecisionRef": "current-chat:explicit-mission-control-capture-2026-09-17",
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}
