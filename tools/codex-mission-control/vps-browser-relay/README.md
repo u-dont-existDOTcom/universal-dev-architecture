@@ -12,6 +12,35 @@ VPS browser relay = no-content UI orchestration only
 GitHub = durable supervisor decision receipt bus
 ```
 
+## Disabled Codex execution candidate
+
+An iteration-only candidate CLI can consume an already-admitted bounded
+directive and route it to local `codex exec`, to `codex exec` with the exact
+digest-bound restricted Chromium adapter, or back to a caller-supplied legacy
+browser handler. It is disabled unless `MC_CODEX_EXEC_PREVIEW_ENABLED=1`; the
+normal relay never invokes it.
+
+The candidate records one immutable directory per attempt with raw
+`events.jsonl`, process exit state, structured result, deadline, final status,
+and finish time. It removes API-key variables, fixes the sandbox to
+`workspace-write`, fixes approval policy to `never`, disables workspace network,
+and fails closed if the effective MCP set differs from the selected route. An
+explicit retry references a prior terminal attempt and always receives a new
+attempt ID.
+
+Each attempt copies only the subscription credential into a mode-`0700`
+ephemeral Codex home, writes project trust there, verifies `ChatGPT`
+authentication, and removes that home before finalizing evidence. This prevents
+Codex from adding candidate workspace trust to the operator's global config and
+keeps credentials out of durable job artifacts.
+
+The restricted route accepts only the closed
+`EXAMPLE_TARGET_LIFECYCLE` capability. The adapter path and SHA-256 are supplied
+by deployment configuration; the job configuration contains no raw CDP
+endpoint. Unknown or broader browser capabilities use the existing legacy
+handler.
+
+
 The accepted Personal Pro paths use one reusable browser tab and a new provider
 conversation for every mandatory external-tool stage:
 
