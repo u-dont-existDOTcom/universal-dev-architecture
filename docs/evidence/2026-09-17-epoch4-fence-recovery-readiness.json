@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "checked_at": "2026-09-17T17:52:13Z",
+  "canonical_main": "ad76fcac1aed29658dbdab6575f91965573e6c51",
+  "implementation_commit": "5f199485dc5efb8d25387c340dd235b7152ce7fc",
+  "pull_request": 140,
+  "phase_a": {
+    "status": "PASS",
+    "reactivation_cause": "COMPLETED_MANAGED_CHROMIUM_BRIDGE_QUALIFICATION",
+    "active_conflicting_task": false,
+    "in_flight_provider_send": false,
+    "assistant_dom_output_inspected": false
+  },
+  "primary_fence": {
+    "status": "PASS",
+    "mechanisms": [
+      "ROOT_OWNED_DURABLE_MARKER",
+      "SYSTEMD_INSTANCE_MASK",
+      "SYSTEM_BROWSER_EXEC_CONDITION",
+      "SYSTEM_AND_USER_LAUNCHER_MARKER_GUARD"
+    ],
+    "persistence_interval_seconds": 83,
+    "system_start_rejected": true,
+    "alternate_user_start_exit_status": 78,
+    "browser_active": false,
+    "relay_active": false,
+    "health_timer_active": false,
+    "cdp_listener_present": false,
+    "sender_process_present": false
+  },
+  "recurrence_prevention": {
+    "status": "PASS_INSTALLED_UNMERGED_CANDIDATE",
+    "installed_roles": [
+      "PRIMARY",
+      "SECONDARY"
+    ],
+    "rollback_preserved": true,
+    "disabled_alone_is_not_fence_regression": "PASS",
+    "maintenance_start_blocked_regression": "PASS",
+    "health_observe_only_regression": "PASS",
+    "explicit_release_regression": "PASS",
+    "complete_relay_tests": "203/203 PASS",
+    "focused_tests": [
+      "42/42 PASS",
+      "32/32 PASS"
+    ],
+    "provider_submissions": 0
+  },
+  "last_clean_authority_read": {
+    "checked_at": "2026-09-17T17:24:31Z",
+    "writer": "MISSION_CONTROL_SINGLE_WRITER",
+    "scheduler_state": "LEASE_STALE",
+    "active_epoch": 3,
+    "active_role": "PRIMARY",
+    "queue_depth": 0,
+    "unresolved_admission": null,
+    "target_transition": "CLEAR",
+    "safety_halt": null,
+    "rate_limit_state": "CLEAR",
+    "ledger_valid": true,
+    "last_submission_at": "2026-09-14T04:30:37.725Z"
+  },
+  "current_blocker": {
+    "code": "CENTRAL_SINGLE_WRITER_DAEMON_UNRESPONSIVE_CURRENT_STATE_UNREADABLE",
+    "container_health": "UNHEALTHY",
+    "daemon_health": "TIMEOUT_NO_RESPONSE",
+    "database_read": "LOCKED",
+    "restart_performed": false,
+    "successor_lease_activated": false,
+    "live_fixture_created": false
+  },
+  "production_mutated": false,
+  "next_executable_action": "After owner authorization, merge PR #140 and perform one controlled volume-preserving restart of the non-production Mission Control single-writer. Re-read exact current authority state before any epoch-4 activation."
+}
