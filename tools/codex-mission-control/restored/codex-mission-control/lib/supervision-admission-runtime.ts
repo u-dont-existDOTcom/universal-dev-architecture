@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { requestBoundRoutePrefix, requestRouteEventId, requestExecutionContext, type RequestExecutionContext } from "./request-bound-supervision";
 
 import {
   evaluateChatWorkAuthorityGate,
@@ -27,6 +28,7 @@ export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY
 export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
 
 export interface SupervisoryCycleRequest {
+  executionContext?: RequestExecutionContext;
   nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
@@ -91,6 +93,7 @@ export function evaluateSupervisionAdmission(
   now = new Date().toISOString(),
   authoritativeContinuation?: OwnerResponseContinuation,
   persistedDirective: PersistedExecutionDirectiveProof | null = null,
+  protocol: "SPLIT_SESSION_V4" | "PER_REQUEST_V1" = "SPLIT_SESSION_V4",
 ): SupervisionAdmissionResult {
   const parsed = parseSupervisionAdmissionInput(input);
   assertProducerActor(producer, parsed.request.actor);
@@ -173,7 +176,7 @@ export function evaluateSupervisionAdmission(
     };
   }
 
-  const routeEnvelope = buildRouteEnvelope(worker, producer, parsed, primaryDecision, routeDecision, now, authoritativeContinuation);
+  const routeEnvelope = buildRouteEnvelope(worker, producer, parsed, primaryDecision, routeDecision, now, authoritativeContinuation, protocol);
   return {
     requestId: parsed.request.requestId,
     action: parsed.request.action,
@@ -210,6 +213,7 @@ function buildRouteEnvelope(
   routeDecision: AuthorityGateResult,
   now: string,
   continuation?: OwnerResponseContinuation,
+  protocol: "SPLIT_SESSION_V4" | "PER_REQUEST_V1" = "SPLIT_SESSION_V4",
 ): AppendEnvelope {
   const route = input.request.internalRoute!;
   const packet = input.factualPacket!;
@@ -218,8 +222,10 @@ function buildRouteEnvelope(
   if (cycle && Date.parse(cycle.expiresAt) <= Date.parse(now)) {
     throw admissionError(400, "A provider-session supervisory cycle must expire after its queue time.");
   }
-  const body = (cycle ? supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
-    schemaVersion: cycle ? 4 : 1,
+  const perRequest = Boolean(cycle && protocol === "PER_REQUEST_V1");
+  const body = (cycle ? perRequest ? requestBoundRoutePrefix : supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
+    schemaVersion: cycle ? perRequest ? 5 : 4 : 1,
+    ...(perRequest ? { executionContext: cycle!.executionContext ?? { task_id: packet.taskId } } : {}),
     packetKind: cycle ? "PROVIDER_SESSION_SUPERVISORY_CYCLE" : "FACTUAL_STATE_ONLY",
     requestId: input.request.requestId,
     actionBlockedOrRouted: input.request.action,
@@ -256,13 +262,13 @@ function buildRouteEnvelope(
   if (body.length > 20_000) throw admissionError(400, "The factual supervisor packet exceeds the durable message limit.");
   return {
     schema_version: 2,
-    event_id: `supervision-route-request:${suffix}`,
+    event_id: perRequest ? requestRouteEventId(input.request.requestId) : `supervision-route-request:${suffix}`,
     mission_id: "mission-control-live",
     occurred_at: now,
     data: {
       type: "worker_message_recorded",
       worker,
-      message_id: `message:supervision-route:${suffix}`,
+      message_id: perRequest ? `message:${requestRouteEventId(input.request.requestId)}` : `message:supervision-route:${suffix}`,
       thread_id: `thread:supervision-route:${worker}`,
       message_kind: "QUESTION",
       body,
@@ -426,11 +432,11 @@ function parseFactualPacket(value: unknown): FactualSupervisorPacket {
     decisionRequested: requiredString(record.decisionRequested, "factualPacket.decisionRequested", 2_000),
     supervisoryCycle: record.supervisoryCycle === null || record.supervisoryCycle === undefined
       ? null
-      : parseSupervisoryCycle(record.supervisoryCycle),
+      : parseSupervisoryCycle(record.supervisoryCycle, requiredString(record.taskId, "factualPacket.taskId", 180)),
   };
 }
 
-function parseSupervisoryCycle(value: unknown): SupervisoryCycleRequest {
+function parseSupervisoryCycle(value: unknown, taskId: string): SupervisoryCycleRequest {
   const record = requiredRecord(value, "factualPacket.supervisoryCycle");
   const evidence = requiredRecord(record.evidenceCapsule, "factualPacket.supervisoryCycle.evidenceCapsule");
   const outcome = requiredRecord(record.ownerOutcome, "factualPacket.supervisoryCycle.ownerOutcome");
@@ -448,6 +454,7 @@ function parseSupervisoryCycle(value: unknown): SupervisoryCycleRequest {
   const expiresAt = requiredString(record.expiresAt, "factualPacket.supervisoryCycle.expiresAt", 100);
   if (!Number.isFinite(Date.parse(expiresAt))) throw admissionError(400, "Supervisory-cycle expiry must be an ISO timestamp.");
   return {
+    ...(record.executionContext !== undefined ? { executionContext: requestExecutionContext(record.executionContext, taskId) } : {}),
     nonce: requiredString(record.nonce, "factualPacket.supervisoryCycle.nonce", 180),
     evidenceCapsule: {
       id: requiredString(evidence.id, "factualPacket.supervisoryCycle.evidenceCapsule.id", 180),

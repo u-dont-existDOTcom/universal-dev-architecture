@@ -895,3 +895,15 @@ class MemoryStore {
   async read() { return structuredClone(this.state); }
   async write(value) { this.state = structuredClone(value); return structuredClone(value); }
 }
+
+for (const stage of ['CLICK_DISPATCHED', 'CLICKED', 'GENERATION_STARTED', 'UNKNOWN', 'INVENTED_SAFE_STAGE']) {
+  test(`single-writer authority rejects ${stage} as proof of no send`, async () => {
+    const now = { value: origin }, store = new MemoryStore(), scheduler = makeScheduler(store, now);
+    await scheduler.activateLease(primaryLease());
+    const admitted = await scheduler.admit(request(), 'collector:relay');
+    await assert.rejects(scheduler.abortBeforeBoundary({ admissionId: admitted.admissionId, relayStage: stage }, 'collector:relay'), hasCode('SUBMISSION_ABORT_BOUNDARY_UNPROVEN'));
+    assert.equal(store.state.admissions[0].status, 'ADMITTED');
+    assert.equal(store.state.lastBoundaryAt, null);
+    await assert.rejects(scheduler.admit(request(), 'collector:relay'), hasCode('SUBMISSION_QUEUE_BUSY'));
+  });
+}

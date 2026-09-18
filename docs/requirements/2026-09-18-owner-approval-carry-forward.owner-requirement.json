@@ -1,0 +1,29 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-OWNER-APPROVAL-CARRY-FORWARD-20260918",
+  "recorded_at": "2026-09-18T22:30:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "universal development architecture owner-interruption and approval reuse",
+  "requirements": [
+    {
+      "id": "OWNER-APPROVAL-CARRY-FORWARD-001",
+      "text": "When an owner has already approved an action, preserve that approval across retries, resumed execution, and alternate authorized transport mechanisms while destination, data boundary, scope, and consequence remain unchanged.",
+      "operationalization": "A failed tool, safety-review path, credential path, or transport path does not consume approval. Continue through an available safe authorized execution path without asking again. Re-ask only on a material change, explicit revocation/narrowing, or a fresh platform-mandated human gesture."
+    },
+    {
+      "id": "OWNER-INTERRUPTION-DOWNSIDE-001",
+      "text": "When owner interaction is genuinely required, explain the concrete downside or risk and why the owner is required before asking.",
+      "operationalization": "State the exact blocked action, the practical consequence of proceeding or not proceeding, and the recommended default. Do not send a bare approval or preference question."
+    }
+  ],
+  "non_goals": [
+    "Do not treat prior approval as blanket authority for a different destination, broader data boundary, spending, publication scope, destructive action, credential disclosure, or materially different consequence.",
+    "Do not bypass a platform-, security-, privacy-, or policy-mandated human confirmation.",
+    "Do not ask the owner to repeat an unchanged approval merely because a specific tool or transport path failed."
+  ],
+  "source": {
+    "date": "2026-09-18",
+    "kind": "explicit owner correction",
+    "owner_words_summary": "Do not ask again for routine execution once approval has been given; only interrupt when there is a real reason, and explain the downside when that happens."
+  }
+}

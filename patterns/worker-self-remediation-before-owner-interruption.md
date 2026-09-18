@@ -82,6 +82,18 @@ Fresh worker verifies the new permission and resumes automatically.
 
 Do not require the owner to reconstruct or repeat context after the restart; the worker directive or durable task state must carry the continuation.
 
+
+### 3B. Carry forward valid owner approval
+
+A valid owner confirmation is not single-use merely because one execution surface failed. When destination, data boundary, scope, and consequence remain unchanged, carry the existing approval across retries, resumed execution, and alternate authorized transport paths.
+
+- A failed tool call, safety review, credential helper, remote transport, or equivalent execution-path failure does not by itself require asking the owner again.
+- Before interrupting, try the safe authorized recovery path or alternate execution surface already available under the same approval.
+- Re-ask only if a material fact changes, a new consequence or destination is introduced, the prior approval was explicitly revoked or narrowed, or the platform itself requires a fresh human gesture.
+- When an owner interruption is irreducible, explain the concrete downside or risk of the available options, why the owner is required, and the recommended default. Do not send a bare “approve?” or “what do you want me to do?” prompt.
+- Carry-forward approval does not authorize spending, publication to a different destination, broader data egress, destructive scope, credential disclosure, or another action whose material consequences were not covered by the prior confirmation.
+
+
 ### 3A. Human-only browser gates are resumable owner-assist states
 
 A CAPTCHA, anti-bot challenge, 2FA/passkey prompt, login approval, or equivalent human-only browser gate does **not** by itself terminate an otherwise-authorized Work run.

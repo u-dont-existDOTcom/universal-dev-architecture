@@ -8,7 +8,7 @@
   "requiredBranch": "codex/mc-fresh-worker-daemon-repair-20260918",
   "requiredRef": "refs/heads/codex/mc-fresh-worker-daemon-repair-20260918",
   "integrationBranch": "main",
-  "integrationBaseSha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+  "integrationBaseSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-DAEMON-REPAIR-SAME-FIXTURE-V3-20260918",

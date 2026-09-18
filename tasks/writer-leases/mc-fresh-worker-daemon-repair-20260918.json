@@ -4,11 +4,11 @@
   "exclusive_writer": true,
   "owned_branch": "codex/mc-fresh-worker-daemon-repair-20260918",
   "integration_branch": "main",
-  "integration_base_sha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
-  "last_verified_head": "cbf9898376545ebeb70616e46b8d82d227b3afee",
+  "integration_base_sha": "018779da94159c7f9521ba1acfc66aa4944af89e",
+  "last_verified_head": "78cafd0f84f4a233dce7d99899715f57a0c7f4d0",
   "scope": "Raw-persisted-payload chain verification repair, preserved-volume install, same-route PM fixture completion, and directive-authorized deferred hardening",
   "created_at": "2026-09-18T17:09:21Z",
   "resumed_at": "2026-09-18T19:27:00Z",
   "resume_authority_source": "thread:01a0b586-e19d-7223-9dcb-baeb8e2d1e21 plus issue-53-comment-5723378677",
-  "last_verified_at": "2026-09-18T22:55:34Z"
+  "last_verified_at": "2026-09-18T23:02:24Z"
 }

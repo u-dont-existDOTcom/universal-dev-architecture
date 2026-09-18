@@ -206,14 +206,20 @@ export class CentralSubmissionScheduler {
           let rateLimitRecord = null;
           if (!boundaryRecorded) {
             const stage = !submitStarted ? 'BEFORE_SUBMIT' : (typeof error?.relayStage === 'string' ? error.relayStage : 'UNKNOWN');
-            if (stage === 'UNKNOWN') throw error;
+            if (stage === 'UNKNOWN' || stage === 'CLICK_DISPATCHED') throw error;
             rateLimitRecord = await this.schedulerClient.abortBeforeBoundary({
               admissionId: admission.admissionId,
               relayStage: stage,
               failureKind: isChatGptRateLimitRetry(error) ? 'PROVIDER_RATE_LIMIT' : 'PRECLICK_FAILURE',
             });
+            if (rateLimitRecord?.aborted === true && error && typeof error === 'object') {
+              error.preBoundaryAbortConfirmed = true;
+            }
           }
-          if (!isChatGptRateLimitRetry(error)) {
+          // A real per-request turn is never internally replayed after a crossed boundary,
+          // even when a rate-limit UI appeared. Recovery must reconcile that exact request.
+          const requestBoundTurn = context.sendPath === 'SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION';
+          if (!isChatGptRateLimitRetry(error) || requestBoundTurn) {
             if (boundaryRecorded) await this.schedulerClient.recordOutcome({
               admissionId: admission.admissionId,
               deliveryStatus: 'FAILED_CLOSED',
