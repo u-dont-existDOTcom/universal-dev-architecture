@@ -24,6 +24,8 @@ import {
   SubmissionSchedulerError,
   defaultSchedulerState,
   normalizeSchedulerState,
+  PRECOMPOSITION_RECOVERED,
+  recoverySha256,
   parseDeploymentLease,
   parseSubmissionRelayAttestors,
   parseSubmissionRelayBindings,
@@ -60,12 +62,24 @@ export class MissionControlSubmissionStateStore {
     const priorRaw = this.store.submissionAuthorityState(this.pacingDomain);
     const prior = priorRaw === null ? null : normalizeSchedulerState(priorRaw);
     const state = normalizeSchedulerState(value, new Date(this.now()).toISOString());
+    assertRecoveryRecordsUnchanged(prior, state);
     this.store.commitSubmissionAuthorityState(
       this.pacingDomain,
       state,
       ledgerEntry(prior, state, this.minimumIntervalMs),
     );
     return state;
+  }
+}
+
+function assertRecoveryRecordsUnchanged(prior: SchedulerState | null, state: SchedulerState) {
+  const recovered = (value: SchedulerState | null) => (value?.admissions ?? [])
+    .filter((record: SchedulerState) => record.status === PRECOMPOSITION_RECOVERED || record.precompositionRecovery);
+  if (recoverySha256(recovered(prior)) !== recoverySha256(recovered(state))) {
+    throw new SubmissionSchedulerError(
+      "SUBMISSION_RECOVERY_ORDINARY_WRITE_FORBIDDEN",
+      "Ordinary authority writes cannot introduce, alter, or remove retained pre-composition recovery evidence.",
+    );
   }
 }
 
