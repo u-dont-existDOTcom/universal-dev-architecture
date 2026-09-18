@@ -168,7 +168,7 @@ async function smokeFixture(name: string, executionCapability: Record<string, st
     codexBinary: fakeCodex, sourceCodexHome, nodeBinary: process.execPath,
     restrictedBrowserAdapterPath: null, restrictedBrowserAdapterSha256: null,
     maxTimeoutMs: 60_000, mcpStartupTimeoutSeconds: 5, mcpToolTimeoutSeconds: 5,
-    environment: {},
+    environment: { ...process.env },
   };
   return {
     root,

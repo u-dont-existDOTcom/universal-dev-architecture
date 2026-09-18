@@ -427,7 +427,7 @@ test("canonical GitHub decision reaches fake CODEX_LOCAL through RelayRuntime wi
       maxTimeoutMs: 60_000,
       mcpStartupTimeoutSeconds: 5,
       mcpToolTimeoutSeconds: 5,
-      environment: {},
+      environment: { ...process.env },
     };
     let browserInspected = false;
     const runtime = new relay.RelayRuntime({
