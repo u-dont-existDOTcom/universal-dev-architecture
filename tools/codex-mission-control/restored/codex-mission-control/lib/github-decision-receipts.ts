@@ -504,6 +504,15 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
   const events = store.allEvents();
   const knownEventIds = new Set(events.map((event) => event.eventId));
+  let lastSequence = events.at(-1)?.sequence ?? 0;
+  const refreshSnapshot = () => {
+    for (const event of store.eventsAfter(lastSequence)) {
+      lastSequence = Math.max(lastSequence, event.sequence);
+      if (knownEventIds.has(event.eventId)) continue;
+      knownEventIds.add(event.eventId);
+      events.push(event);
+    }
+  };
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
@@ -518,6 +527,9 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
     if (!response.ok) throw new Error(`GitHub reconciliation failed for ${options.policy.repository}#${issueNumber} with HTTP ${response.status}.`);
     const comments = await response.json();
     if (!Array.isArray(comments)) throw new Error("GitHub reconciliation returned a non-array comment payload.");
+    // The GitHub fetch yields to the server. Refresh only the event delta before
+    // validating this bus so concurrent owner/relay evidence cannot be missed.
+    refreshSnapshot();
     for (const value of [...comments].reverse()) {
       const comment = record(value, "GitHub issue comment");
       if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix))) continue;
@@ -534,6 +546,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
           if (knownEventIds.has(event.eventId)) continue;
           knownEventIds.add(event.eventId);
           events.push(event);
+          lastSequence = Math.max(lastSequence, event.sequence);
         }
       } catch { /* skip invalid/unrelated receipts */ }
     }
