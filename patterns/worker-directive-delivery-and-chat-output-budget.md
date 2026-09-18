@@ -40,7 +40,7 @@ This rule does not transfer reasoning authority to Codex. Chat still owns method
 Before ending a turn in which Codex/Work execution is the selected next action, verify one of these terminal conditions:
 
 1. **DIRECT_HANDOFF_COMPLETE** — the exact bounded directive was actually sent through the supported handoff surface; or
-2. **OWNER_RUNNABLE_DIRECTIVE_DELIVERED** — the complete directive was delivered to the owner in a directly usable form, including any required packet launch instruction; or
+2. **OWNER_RUNNABLE_DIRECTIVE_DELIVERED** — the complete directive was delivered to the owner in a directly usable form, including any required packet launch instruction and, for ChatGPT-to-Work handoffs, the exact originating Chat title/URL plus receipt-backlink requirement; or
 3. **HANDOFF_BLOCKED** — a real capability, permission, safety, authority, or owner-decision boundary prevents delivery, and the blocker is stated explicitly.
 
 The following are nonterminal:
@@ -51,6 +51,7 @@ The following are nonterminal:
 - offering to create instructions instead of creating them;
 - giving only a repository path to instructions the owner must reconstruct;
 - delivering a partial prompt whose missing details remain in surrounding chat prose;
+- launching a ChatGPT Work handoff without the resolvable originating Chat URL when that source URL is available;
 - attaching or linking a ZIP, folder, or multi-file packet without saying which file is the controlling entrypoint and what the worker should do with it.
 
 If the reasoning chat already has enough information to compose the directive, asking the owner whether they want the directive is unnecessary friction.
@@ -78,6 +79,7 @@ A ready-to-run directive must contain enough context for the worker to execute w
 
 For nontrivial work, include as applicable:
 
+- originating Chat title and exact source conversation URL, plus an explicit instruction that every final Work receipt echo them as an owner-clickable backlink;
 - target repository/project and canonical source of truth;
 - exact objective and intended outcome;
 - current/frozen state or baseline that must be preserved;
@@ -212,6 +214,7 @@ Before sending the final owner-facing response for a worker-bound task, ask inte
 4. Is the payload small enough for inline chat?
 5. If not, did I create/link an artifact instead of bloating scrollback?
 6. Did I keep the consequential decision/caveat visible in chat without duplicating the artifact?
+7. For ChatGPT Work, did the directive contain the exact originating Chat title + URL and require the final receipt to echo a clickable backlink?
 ```
 
-Any `NO` on 1, 2, 3 when applicable, 5, or 6 is a delivery defect that should be repaired before ending the turn.
+Any `NO` on 1, 2, 3 when applicable, 5, 6, or 7 when applicable is a delivery defect that should be repaired before ending the turn.
