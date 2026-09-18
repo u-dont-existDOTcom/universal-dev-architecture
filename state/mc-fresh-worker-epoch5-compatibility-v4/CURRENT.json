@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
+  "updatedAt": "2026-09-18T23:04:30Z",
+  "phase": "RECONCILED_RELEASE_CANDIDATE",
+  "status": "ACTIVE",
+  "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+  "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+  "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
+  "replacementFixtureCreated": false,
+  "providerSendsThisTask": 0,
+  "currentGap": "Publish the focused compatibility PR from the current-main-reconciled candidate and require exact-head hosted checks plus review before merge.",
+  "nextAction": "Push the reconciled branch, open the focused PR, complete independent review and hosted gates, then merge and begin the controlled epoch-5 successor transition.",
+  "priorStopResolution": {
+    "authority": "issue-53-comment-5736910093",
+    "authorizedAt": "2026-09-18T22:24:16Z",
+    "scope": "raw-persisted-payload event-chain hash verification only",
+    "provenanceCommitsPreserved": [
+      "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+      "54e61d27b42ca8e065d1967c89d797d4371d4c07"
+    ]
+  },
+  "compatibilityEvidence": {
+    "implementation": "RECONCILED_RELEASE_CANDIDATE",
+    "recoveredStatus": "RECOVERED_BEFORE_COMPOSITION",
+    "proofValidationAgainstClonedLiveState": "PASS",
+    "proofPresent": true,
+    "recoveredAdmissionCount": 1,
+    "authorityLedgerValid": true,
+    "sqliteIntegrity": "ok",
+    "eventChainVerificationInput": "JSON.parse(payload_json)",
+    "clonedLiveEventCount": 12291,
+    "clonedLiveEventChainValid": true,
+    "formerlyFalseInvalidSequencesValid": [7, 8, 21, 22, 28, 39, 40, 56, 57],
+    "deployedUnchangedRuntimeChainValid": true,
+    "tamperedPayloadRejected": true,
+    "tamperedStoredHashRejected": true,
+    "tamperedPreviousHashRejected": true,
+    "malformedPersistedJsonRejected": true,
+    "unknownSchemaRejected": true,
+    "rawDatabaseFixtureCommitted": false,
+    "rawDatabaseCloneDeleted": true,
+    "expiredEpochHeartbeatRevivalRemoved": true,
+    "ordinaryProofMutationOrDeletionRejected": true,
+    "negativeCasesCovered": [
+      "missing proof",
+      "corrupt proof digest",
+      "relay-binding mismatch",
+      "prior-state-hash mismatch",
+      "missing recovery receipt",
+      "invalid authority ledger",
+      "unknown recovered status",
+      "proof attached to another status",
+      "provider-boundary evidence"
+    ]
+  },
+  "mainReconciliation": {
+    "requiredBy": "issue-53-comment-5737121675",
+    "canonicalMain": "018779da94159c7f9521ba1acfc66aa4944af89e",
+    "mergeCommit": "d5de60c4b8c9566b67674ffcd01aaa6e674a8d2e",
+    "incrementalChainCachePreserved": true,
+    "v5PerRequestPathNotActivated": true
+  },
+  "releaseValidation": {
+    "focusedCompatibility": "PASS",
+    "recoveredProofCompatibility": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "repositoryTests": "354/354 PASS before current-main reconciliation; current-main delta independently hosted green per issue-53-comment-5737121675",
+    "relayTests": "232/232 PASS before current-main reconciliation; current-main delta independently hosted green per issue-53-comment-5737121675",
+    "audit": "0 errors",
+    "reconciledMissionControl": "311/312 local; only failure is unrelated newly merged daemon startup fixture exceeding its 2.5-second local wait before assertions; exact canonical test is hosted green and exact-head PR checks remain required"
+  },
+  "authoritySnapshot": {
+    "epoch": 4,
+    "leaseId": "lease:issue90-secondary-epoch4:6180780a-f6d8-42e0-9ee7-a0a88000b0f6",
+    "activeHostAlias": "owner-secondary",
+    "activeHostRole": "SECONDARY",
+    "expiresAt": "2026-09-18T18:50:40.711Z",
+    "lastBoundaryAt": "2026-09-17T21:55:26.258Z",
+    "safetyHalt": null,
+    "relayTargetTransition": null,
+    "epoch4Resurrected": false,
+    "epoch5Attempted": false
+  },
+  "previousStopEvidence": {
+    "deployedRuntimeChainValid": true,
+    "candidateOfflineChainValid": false,
+    "candidateInvalidSequences": [7, 8, 21, 22, 28, 39, 40, 56, 57],
+    "mechanism": "Hash verification uses normalized parsed payloads. Current parsers add backward-compatible defaults that were absent from the exact persisted payload bytes, changing the re-hash input without any durable event mutation.",
+    "authorityLedgerValid": true,
+    "providerSends": 0
+  }
+}

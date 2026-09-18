@@ -1,0 +1,105 @@
+{
+  "verdict": "BLOCKED",
+  "checkedAt": "2026-09-18T22:02:12Z",
+  "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
+  "ownerAuthority": {
+    "issue": 53,
+    "comment": 5735189869,
+    "laterEpoch4RevivalCommentControlling": false,
+    "epoch4ResurrectionForbidden": true
+  },
+  "workModelPreflight": {
+    "result": "LEVEL_UNOBSERVABLE",
+    "fabricatedReadback": false,
+    "paidInference": false
+  },
+  "isolation": {
+    "branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+    "baseSha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+    "writerLease": "tasks/writer-leases/chat-mc53-epoch5-compat-v4-20260918-2139.json",
+    "sharedMutableBranchUsed": false
+  },
+  "compatibility": {
+    "status": "IMPLEMENTED_AND_FOCUSED_TESTED_NOT_RELEASED",
+    "canonicalPr155CompatibilityPreserved": true,
+    "expiredEpoch4HeartbeatRevivalRemoved": true,
+    "stalePersistedLeaseReadableForInspectionAndSuccessorTransitionOnly": true,
+    "recoveryReceiptAndLedgerValidationAdded": true,
+    "proofOrdinaryWriteImmutabilityPreserved": true,
+    "focusedCompatibilityTests": "1/1 PASS after one assertion-only correction",
+    "focusedRuntimeTests": "12/12 PASS",
+    "typecheck": "PASS",
+    "releaseCompleted": false,
+    "pr": null,
+    "mergeCommit": null
+  },
+  "offlineLiveProof": {
+    "sqliteBackupSemantics": true,
+    "writerStoppedForBackup": true,
+    "secondWriter": false,
+    "sqliteIntegrity": "ok",
+    "backupRawFixtureCommitted": false,
+    "backupRawFixtureDeletedAfterValidation": true,
+    "recoveredAdmissionCount": 1,
+    "recoveredStatus": "RECOVERED_BEFORE_COMPOSITION",
+    "proofPresent": true,
+    "proofValidation": "PASS",
+    "authorityLedgerValid": true,
+    "eventChainUnderDeployedRuntime": "VALID",
+    "eventChainUnderCurrentCandidate": "INVALID_COMPATIBILITY",
+    "candidateInvalidSequences": [7, 8, 21, 22, 28, 39, 40, 56, 57]
+  },
+  "stopCondition": {
+    "code": "CANDIDATE_EVENT_CHAIN_VALIDATION_FAILED",
+    "detail": "Current schema-v2 parsers add default fields before verifyChain re-hashes historical payloads, so exact persisted events are falsely reported as changed.",
+    "whyOwnerAuthorityIsRequired": "V4 authorizes only the narrow recovered-admission compatibility patch and explicitly stops on chain failure. Repairing generic historical event hash verification is a separate compatibility seam."
+  },
+  "epoch5": {
+    "attempted": false,
+    "activated": false,
+    "epoch4Resurrected": false,
+    "secondaryQuiescedForTakeover": false
+  },
+  "noSendSoak": {
+    "attempted": false,
+    "reconciliationIntervalsObserved": 0,
+    "providerSends": 0
+  },
+  "sameFixture": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "preserved": true,
+    "replacementFixtureCreated": false,
+    "bindingRetryAttempted": false,
+    "freshEpoch5AdmissionId": null,
+    "newProviderBoundary": null,
+    "finalCanonicalResolution": null
+  },
+  "permanentHardening": {
+    "attempted": false,
+    "reason": "Deferred until PM_MEDIATED_LIVE_PROOF_PASS; the pre-release chain stop fired first."
+  },
+  "hostActions": {
+    "oldDaemonStoppedForConsistentBackup": true,
+    "sameOldDaemonRestartedUnchanged": true,
+    "newImageInstalled": false,
+    "liveDatabaseMutatedManually": false,
+    "productionMutated": false
+  },
+  "forbiddenBoundaries": {
+    "providerSends": 0,
+    "paidInference": false,
+    "replacementFixtureCreated": false,
+    "manualSqliteMutation": false,
+    "secondEventStoreWriter": false,
+    "epoch4Resurrected": false,
+    "assistantDomOutputInspected": false,
+    "controllerSemanticSubstitution": false,
+    "retryOriginalUsed": false
+  },
+  "testEfficiency": {
+    "observedSeconds": 63.90,
+    "taskWallTimePercent": 5.13,
+    "forcedRedundantGreenSeconds": 0.0
+  },
+  "ownerAction": "Authorize or reject a narrowly scoped raw-persisted-payload event-hash compatibility repair. Until then, leave epoch 4 stale, epoch 5 uncreated, provider sends at zero, and the existing fixture untouched."
+}

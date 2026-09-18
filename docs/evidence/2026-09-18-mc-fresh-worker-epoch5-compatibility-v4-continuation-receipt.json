@@ -1,0 +1,71 @@
+{
+  "verdict": "RELEASE_CANDIDATE_READY_FOR_HOSTED_REVIEW",
+  "checkedAt": "2026-09-18T23:04:30Z",
+  "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
+  "ownerAuthority": {
+    "issue": 53,
+    "comment": 5736910093,
+    "coordinationCheckpoint": 5737121675,
+    "epoch4ResurrectionForbidden": true
+  },
+  "sourceChat": {
+    "title": "Reject API Migration Recommendation",
+    "url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83ea-be82-17824d75ef75"
+  },
+  "provenanceCommitsPreserved": [
+    "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+    "54e61d27b42ca8e065d1967c89d797d4371d4c07"
+  ],
+  "candidate": {
+    "branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+    "eventChainRepairCommit": "0ede46c",
+    "reconciledMain": "018779da94159c7f9521ba1acfc66aa4944af89e",
+    "reconciliationMerge": "d5de60c4b8c9566b67674ffcd01aaa6e674a8d2e",
+    "scope": "event hashes use JSON.parse(payload_json) while current schema parsing remains separate and the current-main immutable-suffix cache is preserved"
+  },
+  "liveCloneValidation": {
+    "sqliteIntegrity": "ok",
+    "eventCount": 12291,
+    "sequenceRange": [1, 12291],
+    "chain": "VALID",
+    "formerlyFalseInvalidSequences": [7, 8, 21, 22, 28, 39, 40, 56, 57],
+    "authorityLedger": "VALID",
+    "precompositionRecoveryProof": "VALID",
+    "deployedUnchangedRuntime": {
+      "status": "ok",
+      "chain": "VALID"
+    },
+    "rawDatabaseFixtureCommitted": false,
+    "temporaryCloneDeletedLocally": true,
+    "temporaryCloneDeletedRemotely": true
+  },
+  "failClosedValidation": {
+    "changedPersistedPayload": "REJECTED",
+    "changedStoredEventHash": "REJECTED",
+    "changedPreviousHash": "REJECTED",
+    "malformedPersistedJson": "REJECTED",
+    "unknownSchema": "REJECTED",
+    "parserDefaultDrift": "ACCEPTED_WITH_ORIGINAL_HASH_INPUT",
+    "newCurrentEvent": "VALID"
+  },
+  "releaseValidation": {
+    "focusedEventChainTests": "7/7 PASS",
+    "precompositionCompatibility": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "repositorySuite": "354/354 PASS before current-main reconciliation; current-main exact delta independently hosted green",
+    "relaySuite": "232/232 PASS before current-main reconciliation; current-main exact delta independently hosted green",
+    "audit": "0 errors",
+    "reconciledApplicationSuite": "311/312 local; one unrelated current-main daemon startup test exceeded its 2.5-second local startup wait before assertions; exact-head hosted checks are required before merge"
+  },
+  "forbiddenBoundaries": {
+    "providerSends": 0,
+    "paidInference": false,
+    "replacementFixtureCreated": false,
+    "manualSqliteMutation": false,
+    "secondLiveEventStoreWriter": false,
+    "epoch4Resurrected": false,
+    "productionMutated": false
+  },
+  "nextAction": "Publish the focused PR, require exact-head hosted checks and review, merge if green, then execute the authorized epoch-5 successor activation and two-interval zero-send soak."
+}

@@ -245,7 +245,7 @@ test("authenticated relay health drives owner status and expires fail closed", a
   }
 });
 
-test("expired same-owner lease restores fail-closed and a fresh healthy heartbeat renews only that durable owner", async () => {
+test("expired same-owner lease stays fail-closed after a fresh healthy heartbeat", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };
   try {
@@ -272,19 +272,18 @@ test("expired same-owner lease restores fail-closed and a fresh healthy heartbea
     };
     const accepted = await restarted.execute("relay-health", report, producer);
     assert.equal(accepted.accepted, true);
-    assert.equal(accepted.leaseRenewal.renewed, true);
-    assert.equal(accepted.leaseRenewal.reason, "ACTIVE_OWNER_HEARTBEAT");
+    assert.equal(Object.hasOwn(accepted, "leaseRenewal"), false);
 
-    const renewed = await restarted.status(producer);
-    assert.equal(renewed.schedulerState, "ACTIVE_LEASE");
-    assert.equal(renewed.activeLease.leaseId, primaryLease().leaseId);
-    assert.equal(renewed.activeLease.epoch, primaryLease().epoch);
-    assert.equal(renewed.activeLease.activeHostAlias, "primary-test");
+    const stillStale = await restarted.status(producer);
+    assert.equal(stillStale.schedulerState, "LEASE_STALE");
+    assert.equal(stillStale.activeLease.leaseId, primaryLease().leaseId);
+    assert.equal(stillStale.activeLease.epoch, primaryLease().epoch);
+    assert.equal(stillStale.activeLease.activeHostAlias, "primary-test");
 
     now.value += 1_000;
     const replay = await restarted.execute("relay-health", { ...report, observedAt: new Date(now.value).toISOString() }, producer);
-    assert.equal(replay.leaseRenewal.renewed, false);
-    assert.equal(replay.leaseRenewal.reason, "RENEWAL_NOT_DUE");
+    assert.equal(replay.accepted, true);
+    assert.equal((await restarted.status(producer)).schedulerState, "LEASE_STALE");
   } finally {
     store.close();
   }

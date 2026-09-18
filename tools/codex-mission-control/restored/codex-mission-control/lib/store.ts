@@ -288,6 +288,26 @@ export class EventStore {
     }));
   }
 
+  submissionAuthorityRecoveryLedger(pacingDomain: string): Array<Record<string, unknown>> {
+    const rows = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? AND event_kind = 'RECOVERED_BEFORE_COMPOSITION'
+      ORDER BY sequence
+    `).all(pacingDomain) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    return rows.map((row) => ({
+      sequence: Number(row.sequence),
+      ...JSON.parse(row.ledger_json),
+      previousHash: row.previous_hash,
+      eventHash: row.event_hash,
+    }));
+  }
+
   verifySubmissionAuthorityLedger(pacingDomain: string): { valid: boolean; errors: string[] } {
     const persisted = this.db.prepare(`
       SELECT sequence, ledger_json, previous_hash, event_hash
@@ -326,24 +346,42 @@ export class EventStore {
     const errors = [...this.chainVerificationCache.errors];
     let previousHash = this.chainVerificationCache.eventHash;
     let sequence = this.chainVerificationCache.sequence;
-    for (const event of this.eventsAfter(sequence)) {
-      if (event.previousHash !== previousHash) errors.push(`Sequence ${event.sequence} has an invalid previous hash.`);
-      const calculated = calculateEventHash({
-        schemaVersion: event.schemaVersion,
-        eventId: event.eventId,
-        missionId: event.missionId,
-        worker: event.worker,
-        type: event.type,
-        occurredAt: event.occurredAt,
-        data: event.data,
-        previousHash: event.previousHash,
-      });
-      if (calculated !== event.eventHash) errors.push(`Sequence ${event.sequence} has an invalid event hash.`);
-      previousHash = event.eventHash;
-      sequence = event.sequence;
+    const rows = this.chainRowsAfter(sequence);
+    for (const row of rows) {
+      sequence = Number(row.sequence);
+      const storedPreviousHash = row.previous_hash === null ? null : String(row.previous_hash);
+      const storedEventHash = String(row.event_hash);
+      if (storedPreviousHash !== previousHash) errors.push(`Sequence ${sequence} has an invalid previous hash.`);
+      try {
+        const schemaVersion = Number(row.schema_version);
+        if (schemaVersion !== 1 && schemaVersion !== 2) throw new Error("unsupported schema version");
+        const persistedData = JSON.parse(String(row.payload_json));
+        const parsedData = schemaVersion === 1 ? parseLegacyEvent(persistedData) : parseEventV2(persistedData);
+        if (String(row.type) !== parsedData.type) throw new Error("stored event type does not match its payload");
+        const calculated = calculateEventHash({
+          schemaVersion,
+          eventId: String(row.event_id),
+          missionId: String(row.mission_id),
+          worker: row.worker === null ? null : String(row.worker),
+          type: String(row.type),
+          occurredAt: String(row.occurred_at),
+          data: persistedData as MissionControlEvent,
+          previousHash: storedPreviousHash,
+        });
+        if (calculated !== storedEventHash) errors.push(`Sequence ${sequence} has an invalid event hash.`);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "unknown persisted event state";
+        errors.push(`Sequence ${sequence} has invalid persisted event data: ${detail}.`);
+      }
+      previousHash = storedEventHash;
     }
     this.chainVerificationCache = { sequence, eventHash: previousHash, errors };
     return { valid: errors.length === 0, errors: [...errors] };
+  }
+
+  private chainRowsAfter(sequence: number): Array<Record<string, unknown>> {
+    return this.db.prepare("SELECT * FROM events WHERE sequence > ? ORDER BY sequence")
+      .all(sequence) as Array<Record<string, unknown>>;
   }
 
   private initialize() {

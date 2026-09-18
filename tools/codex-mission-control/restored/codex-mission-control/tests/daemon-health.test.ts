@@ -63,12 +63,15 @@ test("chain readiness verifies only the immutable suffix after the first pass", 
   const store = new EventStore(":memory:");
   try {
     appendReview(store, "review-one");
-    const originalEventsAfter = store.eventsAfter.bind(store);
+    const internalStore = store as unknown as {
+      chainRowsAfter: (sequence: number) => Array<Record<string, unknown>>;
+    };
+    const originalChainRowsAfter = internalStore.chainRowsAfter.bind(store);
     const lowerBounds: number[] = [];
-    store.eventsAfter = ((sequence: number) => {
+    internalStore.chainRowsAfter = (sequence: number) => {
       lowerBounds.push(sequence);
-      return originalEventsAfter(sequence);
-    }) as EventStore["eventsAfter"];
+      return originalChainRowsAfter(sequence);
+    };
 
     const first = store.verifyChain();
     assert.equal(first.valid, true);
@@ -95,12 +98,15 @@ test("a reopened store revalidates its durable prefix once, then continues incre
     store.close();
 
     store = new EventStore(filename);
-    const originalEventsAfter = store.eventsAfter.bind(store);
+    const internalStore = store as unknown as {
+      chainRowsAfter: (sequence: number) => Array<Record<string, unknown>>;
+    };
+    const originalChainRowsAfter = internalStore.chainRowsAfter.bind(store);
     const lowerBounds: number[] = [];
-    store.eventsAfter = ((sequence: number) => {
+    internalStore.chainRowsAfter = (sequence: number) => {
       lowerBounds.push(sequence);
-      return originalEventsAfter(sequence);
-    }) as EventStore["eventsAfter"];
+      return originalChainRowsAfter(sequence);
+    };
 
     assert.equal(store.verifyChain().valid, true);
     appendReview(store, "review-three");
