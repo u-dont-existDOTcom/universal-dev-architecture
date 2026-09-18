@@ -7,6 +7,7 @@ Updated: 2026-09-18
 Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json`.
 Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget.owner-requirement.json`.
 Work-thread lineage naming requirement: `docs/requirements/2026-09-18-work-thread-lineage-naming.owner-requirement.json`.
+Work origin-chat backlink requirement: `docs/requirements/2026-09-18-work-receipt-origin-chat-backlink.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -90,6 +91,28 @@ Apply the title at the handoff boundary:
 3. Use the actual originating Chat title when it is exposed. If the UI title is not available to the current Chat, use the explicit source-chat title already established in the current conversation; do not invent or claim an unseen UI title.
 4. Keep the prefix and source title stable across the handoff. This naming convention is for owner traceability only; it does not transfer semantic authority, prove execution identity, or create a new permission or completion gate.
 5. If the platform cannot set or rename the Work title, proceed with the authorized handoff and report that title-setting limitation rather than blocking otherwise valid execution.
+
+## Originating Chat backlink
+
+Every ChatGPT-to-Work directive must carry a clearly labeled source locator for the reasoning thread:
+
+```text
+Originating Chat title: <exact source Chat title>
+Originating Chat URL: <exact source conversation URL>
+Receipt backlink: REQUIRED
+```
+
+Resolve the exact conversation URL at the handoff boundary from the current authorized UI/controller/browser surface when it is available. Do not invent, shorten, rewrite, or substitute another chat URL. An opaque session ID is useful metadata but is not a substitute for the owner-clickable source conversation URL.
+
+Work must preserve those values unchanged and include the backlink in **every** owner-facing receipt, including completed, partial, blocked, failed, and not-attempted results:
+
+```text
+Originating Chat: [<exact source Chat title>](<exact source conversation URL>)
+```
+
+The receipt echoes the directive value; Work must not rediscover or replace it. For a ChatGPT source conversation with a stable URL, omitting the URL makes the handoff incomplete. If the handoff creator cannot resolve it through an authorized current surface, do not fabricate one: classify `HANDOFF_BLOCKED_SOURCE_CHAT_URL` unless the owner explicitly authorizes proceeding without the backlink.
+
+The backlink is navigation/provenance only. It does not create a native Work -> originating Chat messaging edge or transfer semantic authority.
 
 ## Mixed tasks
 
@@ -262,6 +285,7 @@ Mission Control should reuse native Work-internal coordination, while continuing
 
 A valid Work handoff records:
 
+- originating Chat title and exact conversation URL, plus an explicit requirement that the final Work receipt echo them as an owner-clickable backlink;
 - source Chat decision/receipt;
 - exact execution objective;
 - allowed and forbidden actions;
