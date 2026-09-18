@@ -2,7 +2,11 @@ import { daemonFetch, daemonMutationHeaders } from "@/lib/daemon-client";
 import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 import { parseGitHubReceiptPolicy, validateConfiguredDecisionLocation } from "@/lib/github-decision-receipts";
 import { continuationIntentForAdmission, parseSupervisionAdmissionInput, evaluateSupervisionAdmission } from "@/lib/supervision-admission-runtime";
-import { buildWorkExecutionAuthorizationEnvelope, currentExecutionDirectiveProof } from "@/lib/work-execution-runtime";
+import {
+  buildTrustedTaskCreationSelectionEnvelope,
+  buildWorkExecutionAuthorizationEnvelope,
+  currentExecutionDirectiveProof,
+} from "@/lib/work-execution-runtime";
 import { parseWorkExecutionProfile } from "@/lib/work-execution-profile";
 import type { AuthenticatedProducer } from "@/lib/ingestion-auth";
 
@@ -87,6 +91,47 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       profileAuthorizationEvent = payload.event ?? null;
     }
     let routeEvent = null;
+    let setterEvidenceEvent = null;
+    let setterEvidenceId = null;
+    if (result.mayExecute && result.authorizedWorkExecutionProfile && result.profileAuthorizationId) {
+      const binding = parsedInput.request.executionDirectiveBinding;
+      if (!binding) throw new Error("Admitted execution is missing its directive binding.");
+      const authorizedProfile = parseWorkExecutionProfile(result.authorizedWorkExecutionProfile);
+      const setterEnvelope = buildTrustedTaskCreationSelectionEnvelope({
+        worker,
+        authorizationId: result.profileAuthorizationId,
+        directiveId: binding.directiveId,
+        directiveRevision: binding.directiveRevision,
+        taskId: binding.taskId,
+        authorizedProfile,
+        now,
+      });
+      const systemProducer: AuthenticatedProducer = {
+        id: "system:trusted-task-creation",
+        kind: "SYSTEM",
+        workerScopes: [worker],
+        taskScopes: [binding.taskId],
+      };
+      const upstream = await daemonFetch("/events", {
+        method: "POST",
+        headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
+        body: JSON.stringify(setterEnvelope),
+      });
+      const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
+      if (!upstream.ok) {
+        return Response.json({
+          ...result,
+          admitted: false,
+          mayExecute: false,
+          setterEvidenceId: null,
+          error: payload.error ?? "Mission Control could not persist trusted task-creation setter evidence.",
+        }, { status: upstream.status });
+      }
+      setterEvidenceEvent = payload.event ?? null;
+      setterEvidenceId = setterEnvelope.data.type === "work_task_creation_selection_applied"
+        ? setterEnvelope.data.evidence_id
+        : null;
+    }
     if (result.routeEnvelope) {
       const upstream = await daemonFetch("/events", {
         method: "POST",
@@ -105,7 +150,14 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       routeEvent = payload.event ?? null;
     }
     const status = result.mayExecute ? 200 : result.admitted ? 202 : 409;
-    return Response.json({ ...result, routeEnvelope: undefined, routeEvent, profileAuthorizationEvent }, { status });
+    return Response.json({
+      ...result,
+      routeEnvelope: undefined,
+      routeEvent,
+      profileAuthorizationEvent,
+      setterEvidenceId,
+      setterEvidenceEvent,
+    }, { status });
   } catch (error) {
     const status = error instanceof Error && "statusCode" in error && (error.statusCode === 400 || error.statusCode === 403)
       ? error.statusCode

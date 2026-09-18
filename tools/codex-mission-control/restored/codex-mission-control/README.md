@@ -94,6 +94,17 @@ metadata-only. This implementation has deterministic test coverage; live routing
 provider source timestamps, deployments, and production promotion are separate
 boundaries and are not established by these tests.
 
+Schema-version-3 canonical decisions may also include one complete optional
+`bounded_execution` residue. After every existing repository, issue, writer,
+nonce, binding, session, lane, owner-outcome, evidence, freshness, capability,
+and ordered-relay check passes, the GitHub receipt SYSTEM atomically derives one
+schema-version-3 `execution_directive_recorded`. The directive names the exact
+accepted receipt event, canonical envelope digest, bounded-residue digest, and
+derived execution payload. Missing or malformed residue creates no directive;
+an edited immutable comment identity is rejected; and a WORKER cannot emit the
+equivalent authority event. Existing verified and owner-attested direct-source
+directives remain supported without reinterpretation.
+
 ## Architecture
 
 ```text
@@ -225,7 +236,7 @@ The complete runtime contract is the Zod union in `lib/schema.ts`. Significant e
 
 Outcome progress is an independent control plane. Numeric receipts declare `HIGHER_IS_BETTER` or `LOWER_IS_BETTER`; the store validates exact current-minus-baseline/current-minus-previous deltas, and projection derives advancement from those bytes instead of trusting a supplied healthy label. Nonnumeric `ADVANCING` requires current and best same-worker durable receipts classified as direct outcome evidence or a validated leading indicator. A leading indicator records its predictive basis and later direct-outcome decision boundary; missing, stale, unverified, cross-worker, supporting-only, or activity-only evidence fails closed. A regression holds same-strategy continuation and cannot project GREEN.
 
-Substantive Codex execution is also independently supervised: a current reasoning review bound to the exact owner-outcome ID, epoch, and hash authorizes one exact versioned directive; the worker records a directive-bound start; Codex emits an execution-only receipt with supervisory fields fixed to `null`; and a later independent review is required before another directive. The successor review must occur later in the durable ledger than the matching prior receipt, and the new directive must bind that review's exact owner authority and capsule. Legacy reasoning records without owner-outcome bindings remain readable but cannot authorize directives or progress. A missing directive, stale owner epoch, predated review, capsule mismatch, or pending review fails closed visibly.
+Substantive Codex execution is also independently supervised: either a current reasoning review bound to the exact owner-outcome ID, epoch, and hash, or the exact accepted canonical GitHub decision receipt described above, authorizes one exact versioned directive. The worker records a directive-bound start; Codex emits an execution-only receipt with supervisory fields fixed to `null`; and a later independent review or accepted decision receipt is required before another directive. The successor authority event must occur later in the durable ledger than the matching prior receipt and bind the exact owner authority and capsule. Legacy reasoning records without owner-outcome bindings remain readable but cannot authorize directives or progress. A missing directive, stale owner epoch, predated authority event, capsule mismatch, or pending review fails closed visibly.
 
 Legacy PR #41 events remain decodable and migrate without being reinterpreted as current owner authority. Legacy completion remains nonterminal until independently sourced owner outcome and reconciliation exist.
 

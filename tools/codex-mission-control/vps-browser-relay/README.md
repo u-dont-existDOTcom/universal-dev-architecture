@@ -12,6 +12,67 @@ VPS browser relay = no-content UI orchestration only
 GitHub = durable supervisor decision receipt bus
 ```
 
+## Mission Control Codex execution candidate
+
+The iteration-only candidate is integrated into the normal relay cycle. The
+cycle reads each scoped worker's durable timeline and recognizes only the
+current active schema-v3 directive. Authority may come from its exact
+verified/owner-attested source message, or from a SYSTEM-derived proof bound to
+an accepted canonical GitHub supervisory-decision receipt. In the latter path,
+GitHub-session-attested text remains `UNVERIFIED`; the server-validated receipt,
+residue digest, and exact derived payload establish authority. The payload
+begins with `MISSION_CONTROL_CODEX_EXECUTION_PAYLOAD_V1` and supplies the
+mechanical job, deadline, workspace, closed capability, result schema, and
+prompt. Mission Control supplies the task/directive/source identity and Work
+profile. Their reconstructed artifact must match the persisted directive
+digest.
+
+The relay then posts the reconstructed source-bound request with a dedicated
+worker credential to the existing admission endpoint, requires
+`mayExecute: true`, uses the admission endpoint's persisted trusted task-creation
+selection, and requires the persisted Work execution preflight before it can
+start a Codex child. No operator-supplied directive or admission file is needed.
+A caller-supplied receipt string cannot authorize execution. The standalone
+file-based form of `worker:codex-exec` remains diagnostic; invoking it without
+files performs one automatic durable-state cycle.
+
+The preview remains disabled unless `MC_CODEX_EXEC_PREVIEW_ENABLED=1`. When it
+is disabled, or the closed capability classifier selects an unsupported browser
+operation, the normal relay retains the directive's worker, task, and originating
+decision-request identity and filters the existing browser route by all three.
+Zero or multiple exact matches fail closed. The `once-exact` diagnostic path
+uses the same filter and verifies the returned route before attributing an
+outcome to the directive.
+
+The candidate records one immutable directory per attempt with raw
+`events.jsonl`, process exit state, structured result, deadline, final status,
+and finish time. It removes API-key variables, fixes the sandbox to
+`workspace-write`, fixes approval policy to `never`, disables workspace network,
+and fails closed if the effective MCP set differs from the selected route. An
+explicit retry references a prior terminal attempt and always receives a new
+attempt ID.
+
+Each attempt copies only the subscription credential into a mode-`0700`
+`mkdtemp` Codex home under the configured runtime/temp area, outside the durable
+Mission Control state tree. It writes project trust there, verifies `ChatGPT`
+authentication, sets the auth file to mode `0600`, and removes the entire home
+before finalizing evidence. A setup failure also removes any partial runtime
+home. Durable attempt evidence contains source and authority digests, lifecycle
+events, result and exit state, but no reusable credential.
+
+Retries must name a prior terminal attempt. The new attempt gets a distinct
+identity and must match the exact prior directive artifact, Chat source,
+directive revision, task, execution profile, capability, prompt, workspace,
+output schema, model and effort. Only the deadline and retry reference may
+change.
+
+The restricted route accepts only the closed
+`EXAMPLE_TARGET_LIFECYCLE` capability. The adapter path and SHA-256 are supplied
+by deployment configuration; the job configuration contains no raw CDP
+endpoint. Unknown or broader browser capabilities use the existing legacy
+handler.
+
+
 The accepted Personal Pro paths use one reusable browser tab and a new provider
 conversation for every mandatory external-tool stage:
 

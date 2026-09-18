@@ -420,6 +420,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       routes.push({
         routeKey,
         requestId: packet.requestId,
+        taskId: typeof packet.factualPacket?.taskId === 'string' ? packet.factualPacket.taskId : null,
         messageId: typeof event.data.message_id === 'string' ? event.data.message_id : null,
         eventId: typeof event.eventId === 'string' ? event.eventId : null,
         workerId,
@@ -586,7 +587,7 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
       : 'Use the ordinary semantic decision lane in the fixed visible GPT-5.6 Sol session with Thinking effort Extra High, 4 of 5.';
     const continuationInstruction = route.packet.continuationBinding
       ? ' Copy the supplied continuation_binding and continuation_binding_sha256 exactly into the canonical schema_version 3 decision as optional top-level fields outside binding_envelope.' : '';
-    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}.${continuationInstruction} Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`, { omitContinuationOwnerExactText });
+    return freshToolStagePrompt(route, step, `${laneInstruction} Use the connected ${github} tool to read the immutable evidence and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 3 in this same first message. Set decision_provider_session_id to ${providerSessionId}, copy the supplied binding envelope and digest exactly, and set decision_session_provenance to ${provenance}.${continuationInstruction}${boundedExecutionResidueInstruction(route)} Do not use or call Mission Control. No later writer, reader, liveness, continue, or follow-up tool turn is permitted.`, { omitContinuationOwnerExactText });
   }
   if (step === 'EXTRA_HIGH_DIRECT') {
     return freshToolStagePrompt(route, step, `Read the substantive evidence only from the immutable GitHub references, make the bounded decision requested, and write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message. Set stage_provider_session_id to ${providerSessionId}.`);
@@ -601,6 +602,11 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
     return freshToolStagePrompt(route, step, `Use ${github} to read the current ordered EXTRA_HIGH_READER and PRO_DECISION_STAGE receipts from ${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.stageIssueNumber}. Check completeness without reinterpreting the Pro decision. If complete, write MISSION_CONTROL_CANONICAL_DECISION_V1 to ${location} as schema_version 2 in this same first message, set stage_provider_session_id to ${providerSessionId}, set Pro provenance to DURABLE_STAGE_RECEIPT_ATTESTED, and preserve the Pro decision by exact copy or structured transformation only.`);
   }
   throw new Error(`Unknown supervisory-cycle step: ${step}`);
+}
+
+function boundedExecutionResidueInstruction(route) {
+  const taskId = route.packet.factualPacket?.taskId;
+  return ` If and only if the accepted decision leaves bounded local filesystem/command work or an already-qualified restricted-browser operation that Chat cannot execute, include one optional top-level bounded_execution object authored completely in this decision. It must use schema_version 1 and contain exactly task_id, job_id, execution_objective, reasoning_summary, strategy_id, strategy_causal_hypothesis, predicted_outcome_change, success_threshold, failure_threshold, next_decision_changing_evidence, reviewed_evidence_boundary, inputs, allowed_actions, allowed_paths, allowed_commands, forbidden_actions, forbidden_paths, forbidden_decisions, required_evidence, required_tests_or_checks, stop_and_return_triggers, maximum_execution_cycles, execution_capability, workspace, output_schema, prompt, deadline, work_execution_profile, and optional retry_of_attempt_id. task_id must be ${JSON.stringify(taskId)}. execution_capability must be either {"type":"LOCAL_FILESYSTEM_COMMAND"} or {"type":"BROWSER","name":"EXAMPLE_TARGET_LIFECYCLE"}; another browser name deliberately routes to the existing exact legacy path. work_execution_profile must explicitly contain model, effort, routingTier, routingTriggers, fastModeRequest, assuranceRequirement, policyRef "patterns/work-model-and-effort-routing.md", routingPolicyBaseCommit "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb", and contractVersion "TRUSTED_SETTER_V1". Author every semantic field now; if any required field is unavailable, omit bounded_execution entirely. Work must never fill, infer, or upgrade missing residue.`;
 }
 
 function freshToolStagePrompt(route, step, instruction, { omitContinuationOwnerExactText = false } = {}) {

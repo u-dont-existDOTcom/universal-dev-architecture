@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-CODEX-EXEC-AUTHORITY-INTEGRATION-REPAIR-20260917",
+  "recorded_at": "2026-09-17T18:16:26.035490Z",
+  "status": "IMPLEMENTED_VERIFIED_WITH_EXTERNAL_SMOKE_BLOCKER",
+  "completion_allowed": false,
+  "owner_source": {
+    "source_type": "owner_chat_attachment",
+    "source_ref": "owner-request:mission-control-codex-exec-authority-integration-repair-20260917",
+    "verbatim": "Continue from the exact reviewed candidate commit:\n\n`a39b36eaffc6759705ae01dd3b46cf61d3b5b2e7`\n\nRepository:\n\n`u-dont-existDOTcom/universal-dev-architecture`\n\nThe architecture remains frozen:\n\nChat/supervisor owns reasoning and authority → Mission Control performs authenticated admission → already-authorized bounded work may route to local `codex exec` or restricted Chromium MCP → unsupported browser work retains the existing legacy browser path.\n\nDo not redesign that architecture.\n\nCreate a successor branch from the exact candidate commit, for example:\n\n`task/mission-control-codex-exec-authority-repair-20260917`\n\nDo not modify or force-update the reviewed candidate branch.\n\n## Model / effort\n\nUse **GPT-6 Astra Low** for the outer repair because this crosses Mission Control dispatch, authenticated runtime admission, Codex process execution, credential handling, and browser fallback.\n\nDo not escalate unless an actual execution-reasoning shortfall occurs.\n\nFast mode disabled.\n\nDeterministic nested smoke jobs should use the lowest sufficient tier, normally GPT-5.6 Sol Low.\n\n## Repair 1 — integrate behind the real Mission Control dispatch/admission seam\n\nThe current candidate is a standalone sidecar. The README explicitly states that the normal relay never invokes it.\n\nRepair this.\n\nLocate the existing canonical Mission Control execution-dispatch path and authenticated runtime admission mechanism in the current source. Reuse them; do not create a second authority system.\n\nThe Codex candidate may launch only after the real runtime admission path has established the equivalent of:\n\n`mayExecute: true`\n\nfor that exact bounded execution.\n\nA client-supplied or locally generated `admissionReceiptId` string is not sufficient authority.\n\nBind execution to the existing authoritative source identity and fields already used by Mission Control, including the exact task/directive identity and revision/digest where available, plus the selected execution profile/capability.\n\nAny missing admission, denial, stale receipt, source mismatch, or capability mismatch must fail closed before a Codex child process starts.\n\nDo not give Work/Codex semantic authority. It receives only the already-admitted bounded directive.\n\n## Repair 2 — make legacy fallback real\n\nWhen preview mode is disabled, behavior must remain exactly the existing Mission Control behavior.\n\nWhen the capability classifier selects `LEGACY_BROWSER`, invoke the actual existing legacy browser execution/dispatch handler through the real Mission Control seam.\n\nDo not return a synthetic placeholder such as:\n\n`DELEGATED_TO_EXISTING_LEGACY_BROWSER_HANDLER`\n\nwithout actually delegating.\n\nThe standalone diagnostic CLI may remain if useful, but clearly separate it from the actual integrated dispatch path.\n\n## Repair 3 — keep authentication outside durable attempt evidence\n\nDo not place `auth.json` or another reusable authentication credential anywhere under the durable Mission Control attempt/job directory.\n\nCreate each Codex execution environment in a private ephemeral runtime directory outside the durable evidence tree, preferably a narrowly namespaced `mkdtemp` directory under the user's runtime/temp area.\n\nRequirements:\n\n- directory permissions private to the user;\n- authentication file permissions private;\n- durable job metadata must never contain credential contents;\n- do not persist a reusable credential merely to aid recovery;\n- best-effort cleanup on normal completion;\n- abrupt runner death must not leave the credential inside durable Mission Control evidence.\n\nThe durable attempt directory should retain only non-secret execution evidence such as directive identity, events, result, status, timing, and exit state.\n\n## Repair 4 — preserve source-bound retry semantics\n\nReuse Mission Control's existing task/retry identity semantics rather than inventing another retry framework.\n\nA retry must have a distinct attempt ID while remaining bound to the same admitted source directive and authorized execution profile.\n\nA caller must not be able to label a materially different prompt, browser capability, sandbox profile, model/effort request, or source directive as a retry of an earlier authorized attempt.\n\nFail closed before execution when existing source/retry bindings disagree.\n\n## Focused validation\n\nAdd focused tests at the real integration seam covering the following cases:\n\n1. Preview disabled: the actual legacy Mission Control handler runs unchanged.\n2. Non-empty fake admission receipt without verified runtime admission: no Codex process starts.\n3. Explicitly denied admission: no Codex process starts.\n4. Valid source-bound `mayExecute: true`: the Codex backend becomes eligible.\n5. Admission/source digest or revision mismatch: fail closed.\n6. `CODEX_LOCAL`: actual Mission Control dispatch reaches the candidate.\n7. `CODEX_BROWSER_RESTRICTED`: actual Mission Control dispatch reaches Codex plus the restricted MCP adapter.\n8. Unsupported browser capability: actual legacy handler receives the task.\n9. Authentication/runtime files are outside the durable attempt directory.\n10. Durable attempt evidence contains no auth material.\n11. Timeout remains job-process-group scoped.\n12. Retry with changed source semantics is rejected; a valid same-source retry receives a new attempt identity.\n13. Raw CDP remains unavailable to the Codex shell.\n\nDo not run the full repository/release suite. Run focused and directly affected tests plus the smallest syntax/typecheck/build checks required by the changed Mission Control surface.\n\n## Integrated smoke tests\n\nAfter deterministic tests pass, run two disposable smokes through the **actual Mission Control dispatch/admission seam**, not the standalone CLI.\n\nSmoke A: one harmless local filesystem/command task admitted normally and routed through `CODEX_LOCAL`.\n\nSmoke B: one harmless read-only `example.com` lifecycle admitted normally and routed through `CODEX_BROWSER_RESTRICTED`.\n\nFor both, verify that the real admission occurs before execution and that Mission Control records the execution lifecycle.\n\nDo not run natural owner work yet.\n\nDo not repeat the already-passed raw-CDP qualification unless this repair changes the sandbox/network boundary.\n\n## Repository and delivery boundaries\n\nRemain on the successor task branch.\n\nDo not modify unrelated active controller-recovery work.\n\nDo not modify production leases or routing.\n\nDo not deploy.\n\nDo not merge.\n\nDo not open a PR.\n\nDo not change `state/CURRENT-STATE.md` to promote this candidate.\n\nCommit the complete repair and push the exact successor branch to GitHub so Chat can review the actual diff.\n\nBefore pushing, perform the normal public-repository secret/private-locator check.\n\nReturn:\n\n- successor branch;\n- exact commit SHA and parent;\n- exact existing Mission Control dispatch/admission seam reused;\n- how `mayExecute: true` is established and bound;\n- how real legacy fallback is invoked;\n- where ephemeral Codex authentication now resides;\n- focused test results;\n- integrated Smoke A and Smoke B results;\n- confirmation that no model execution can occur from a forged receipt alone;\n- confirmation that production and unrelated active recovery work are unchanged.\n\nTerminal result:\n\n`MC_CODEX_EXEC_AUTHORITY_INTEGRATION_REPAIR: PASS`\n\nor\n\n`MC_CODEX_EXEC_AUTHORITY_INTEGRATION_REPAIR: FAIL`\n\nor\n\n`MC_CODEX_EXEC_AUTHORITY_INTEGRATION_REPAIR: BLOCKED`\n\nStop after pushing the exact reviewable repair commit. Do not start natural-task trials until Chat reviews that remote diff.",
+    "sha256": "6129e6cb1ea2eba5b8d2b9e8418fecc763058949b3b8ba16bd8c1368a36f05c9"
+  },
+  "normalized_outcome": "Bind the Codex candidate to authenticated Mission Control admission and persisted execution preflight, invoke the actual legacy browser path for fallback, keep reusable authentication outside durable attempts, enforce source-bound retries, validate the real seam, and publish an isolated successor branch without production or controller-recovery changes.",
+  "required_outcomes": [
+    {
+      "id": "RO-AUTHORITY-001",
+      "observable": "Codex can start only after the existing authenticated worker admission returns source-bound mayExecute true and the exact persisted profile preflight allows launch.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    },
+    {
+      "id": "RO-AUTHORITY-002",
+      "observable": "A fake receipt, denial, stale or mismatched source binding, and capability or profile mismatch fail before Codex starts.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    },
+    {
+      "id": "RO-AUTHORITY-003",
+      "observable": "Preview-disabled and unsupported-browser routes invoke the existing Mission Control legacy browser dispatch path rather than returning a synthetic marker.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    },
+    {
+      "id": "RO-AUTHORITY-004",
+      "observable": "Per-attempt ChatGPT subscription authentication resides in a private ephemeral runtime directory outside durable evidence and is removed on normal completion or setup failure.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    },
+    {
+      "id": "RO-AUTHORITY-005",
+      "observable": "Retries receive distinct attempt identities and cannot change source directive, prompt, capability, workspace, schema, profile, model, effort, or execution contract.",
+      "status": "DETERMINISTIC_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    },
+    {
+      "id": "RO-AUTHORITY-006",
+      "observable": "Integrated Smoke A and Smoke B run through the authenticated Mission Control seam with lifecycle recording.",
+      "status": "PARTIAL_EXTERNAL_BLOCKER",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    },
+    {
+      "id": "RO-AUTHORITY-007",
+      "observable": "The repair is committed and pushed on the isolated successor branch without PR, merge, deploy, production change, active recovery change, or CURRENT-STATE promotion.",
+      "status": "IMPLEMENTED_AWAITING_PUBLICATION",
+      "terminal_required": true,
+      "evidence_refs": [
+        "docs/evidence/2026-09-17-mission-control-codex-exec-authority-repair.json"
+      ]
+    }
+  ],
+  "active_blocker": {
+    "code": "EXISTING_MISSION_CONTROL_BROWSER_FENCED_BY_ACTIVE_RECOVERY",
+    "scope": "Integrated live restricted-browser Smoke B only",
+    "effect": "The qualified adapter has no existing Mission Control Chromium endpoint to attach to.",
+    "required_resolution": "The separate controller-recovery owner must release its deliberate browser fence; this repair must not release or bypass it."
+  },
+  "non_satisfying_proxies": [
+    "A caller-supplied receipt string treated as authority",
+    "A synthetic legacy delegation marker without invoking the legacy path",
+    "Credentials copied into durable attempt evidence",
+    "A retry that changes admitted source semantics",
+    "A fake browser smoke represented as the requested live existing-Chromium smoke"
+  ],
+  "assurance_lane": "iteration",
+  "production_authorized": false,
+  "next_direct_evidence": "After the independent controller-recovery fence is legitimately released, run only live Smoke B through this exact branch and record the result. Natural owner work remains prohibited until Chat reviews the remote diff."
+}

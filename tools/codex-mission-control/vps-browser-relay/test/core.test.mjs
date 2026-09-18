@@ -335,6 +335,8 @@ test('new direct routes contain only fresh preload and first-message decision st
     assert.match(prompt, new RegExp(provenance));
     assert.match(prompt, /first and only message/);
     assert.match(prompt, /selectable composer chip is not required/);
+    assert.match(prompt, /optional top-level bounded_execution/);
+    assert.match(prompt, /Work must never fill, infer, or upgrade missing residue/);
     assert.doesNotMatch(prompt, /MISSION_CONTROL_CHAT_STAGE_RECEIPT|EXTRA_HIGH_READER|EXTRA_HIGH_WRITER|get_stage_liveness_state/);
     assert.match(prompt, /Do not use or call Mission Control/);
   }
