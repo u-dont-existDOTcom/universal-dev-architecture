@@ -27,6 +27,8 @@ test("VPS container keeps one loopback single-writer stack, durable state, and n
   assert.match(healthcheck, /kind !== "liveness"/);
   assert.doesNotMatch(healthcheck, /verifyChain|submissionAuthorityLedger|runtime-status/);
   assert.match(launcher, /new URL\("\/live", url\)/);
+  assert.match(launcher, /MISSION_CONTROL_DAEMON_STARTUP_TIMEOUT_MS \?\? 120_000/);
+  assert.match(launcher, /while \(Date\.now\(\) < deadline\)/);
   assert.match(launcher, /Production start requires explicit owner-only runtime configuration/);
   assert.match(launcher, /MISSION_CONTROL_OWNER_TOKEN is required/);
   assert.doesNotMatch(launcher, /Mission Control local owner token|console\.(?:log|error).*OWNER_TOKEN/);
