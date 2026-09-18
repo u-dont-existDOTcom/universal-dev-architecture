@@ -150,5 +150,12 @@
     "releaseAdequacy": null,
     "ownerOutcomeAchieved": null
   },
-  "notes": []
+  "notes": [],
+  "workThread": {
+    "title": "echo-exact-created-work-thread-title",
+    "locator": "echo-exact-codex-thread-uri-or-canonical-work-url-or-null",
+    "locatorStatus": "RESOLVED | UNRESOLVED",
+    "exactCreationLocatorEcho": true,
+    "trackingLimitation": null
+  }
 }
