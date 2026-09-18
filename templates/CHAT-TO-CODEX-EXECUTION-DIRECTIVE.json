@@ -4,6 +4,12 @@
   "directiveRevision": 1,
   "createdAt": "1970-01-01T00:00:00Z",
   "taskId": "replace-with-task-id",
+  "sourceChat": {
+    "title": "replace-with-exact-originating-chat-title",
+    "url": "replace-with-exact-originating-chat-conversation-url",
+    "urlStatus": "RESOLVED",
+    "receiptBacklinkRequired": true
+  },
   "actionClass": "SUBSTANTIVE_EXECUTION",
   "ownerOutcome": {
     "ownerOutcomeId": "replace-with-owner-outcome-id",
@@ -148,6 +154,9 @@
       "requiredOwnerOutcomeEpochEcho": true,
       "requiredChatEpochEcho": true,
       "requiredReviewedEvidenceBoundaryEcho": true,
+      "requiredSourceChatTitleEcho": true,
+      "requiredSourceChatUrlEcho": true,
+      "requiredOwnerClickableSourceChatBacklink": true,
       "requiredResponseKind": true,
       "requiredNextDirectiveSchemaVersion": 3,
       "largePayloadPolicy": "PERSIST_OUTSIDE_CONVERSATION_AND_REFERENCE",
