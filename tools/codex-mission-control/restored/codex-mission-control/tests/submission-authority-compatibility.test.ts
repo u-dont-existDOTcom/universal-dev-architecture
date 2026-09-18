@@ -18,9 +18,9 @@ test("historical PRECOMPOSITION_RECOVERED evidence stays exact and permits only 
   const now = { value: origin };
   let state: any = defaultSchedulerState(new Date(now.value).toISOString());
   const stateStore = {
-    read: async () => structuredClone(state),
+    read: async () => structuredClone(normalizeSchedulerState(state, new Date(now.value).toISOString())),
     write: async (value: unknown) => {
-      state = structuredClone(value);
+      state = normalizeSchedulerState(value, new Date(now.value).toISOString());
       return structuredClone(state);
     },
   };
