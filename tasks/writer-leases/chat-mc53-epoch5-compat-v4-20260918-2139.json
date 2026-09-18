@@ -5,12 +5,14 @@
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
   "integration_base_sha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
-  "last_verified_head": "54e61d27b42ca8e065d1967c89d797d4371d4c07",
+  "last_verified_head": "d5de60c4b8c9566b67674ffcd01aaa6e674a8d2e",
   "scope": "V4 recovered-state compatibility correction, epoch-5 successor activation, same-route MCP_BINDING_PRELOAD proof, and post-proof hardening",
   "created_at": "2026-09-18T21:39:36Z",
   "prior_released_at": "2026-09-18T22:02:12Z",
   "prior_release_reason": "V4 explicit stop: current-main event-chain verification is incompatible with exact persisted historical schema-v2 payloads.",
   "reactivated_at": "2026-09-18T22:27:37Z",
   "reactivation_authority": "issue-53-comment-5736910093",
-  "owner_authority": "issue-53-comment-5736910093"
+  "owner_authority": "issue-53-comment-5736910093",
+  "current_main_reconciliation": "issue-53-comment-5737121675",
+  "reconciled_main_sha": "018779da94159c7f9521ba1acfc66aa4944af89e"
 }

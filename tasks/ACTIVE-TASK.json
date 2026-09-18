@@ -25,6 +25,8 @@
   "priorBlockedAt": "2026-09-18T22:02:12Z",
   "priorBlockedReason": "The exact current-main candidate validates the recovered admission and its authority ledger, but reports nine unchanged historical schema-v2 Mission Control events as hash-invalid because current parsers add default fields before verifyChain re-hashes them. The deployed state-compatible runtime verifies the same live event chain as valid. V4 explicitly stopped on a candidate chain failure.",
   "priorBlockResolvedBy": "issue-53-comment-5736910093",
+  "currentMainReconciledBy": "issue-53-comment-5737121675",
+  "currentMainReconciledSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
   "writerLease": "tasks/writer-leases/chat-mc53-epoch5-compat-v4-20260918-2139.json",
   "suspendedTaskSources": [
     "issue-53-comment-5735472294 expired epoch-4 heartbeat revival",
