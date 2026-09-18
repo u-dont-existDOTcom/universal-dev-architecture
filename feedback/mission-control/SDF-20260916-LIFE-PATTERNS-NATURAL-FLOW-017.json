@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-NATURAL-FLOW-017",
+  "recordedAt": "2026-09-16T21:36:00Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_MISSION_CONTROL_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "i clicked continue, it scrolled to top then failed to scroll to botttom\nthe scrolling back down did work sometimes. maybe instead of scrolling up and down you can just put the progress indicator at the bottom..?\nalso i feel like it's sometimes offering a synthesis that's too obvious but idk if that's because it's normal like that section is done, or what, but you can see in the transcript on the last one. also it disabled all buttons at the end and got frozen saying \"working on it\" after synthesis came",
+  "sourceSha256": "18196c4a7d7355398faaf83eb31daea87c8d65cd0ed8a8c09c6e11a16a5e0b54",
+  "privacyBoundary": "The private interview narrative and uploaded audit ledger are not reproduced. Only the owner's non-sensitive product/logic correction is published.",
+  "observedFailures": [
+    {
+      "id": "017-A",
+      "failure": "The progress/liveness surfaces were positioned near the page top, so showing them pulled the participant away from the current interaction and required a second scroll to recover the active control.",
+      "mechanism": "INFORMATION-LOCATION/FOCUS COUPLING: a global status surface was treated as a navigation target instead of contextual information adjacent to the current action.",
+      "lesson": "Persistent progress should remain visible near the active interaction; liveness feedback must not create a two-scroll round trip."
+    },
+    {
+      "id": "017-B",
+      "failure": "A locally complete measurement area could be converted into a participant-facing synthesis even when the synthesis mostly repackaged the participant's immediately preceding answer.",
+      "mechanism": "MEASUREMENT-COMPLETION/SYNTHESIS CONFLATION: the runtime had a way to ask more questions or surface a pattern, but no distinct successful state for 'enough measurement information, no useful person-level synthesis.'",
+      "lesson": "Scientific coverage can close without manufacturing a named Life Pattern. Reserve participant adjudication for syntheses that add meaningful person-specific integration rather than obvious paraphrase."
+    },
+    {
+      "id": "017-C",
+      "failure": "Pattern-decision buttons could remain disabled while the UI showed 'Working on it' because participant adjudication synchronously waited on another model-driven coverage assessment.",
+      "mechanism": "LOCAL-DECISION/REMOTE-ENRICHMENT COUPLING: a deterministic participant judgment was made dependent on a slower auxiliary LLM operation that had already been performed at synthesis time.",
+      "lesson": "Commit the participant decision using already-cached coverage metadata; do not make an authoritative local action wait on redundant remote enrichment."
+    }
+  ],
+  "repairDirection": [
+    "Keep progress and request-liveness at the active end of the page rather than scrolling to a top status card.",
+    "Introduce an explicit topic-complete outcome distinct from surface-hypothesis so adequate measurement does not force an obvious synthesis.",
+    "Reuse the coverage report already computed when the synthesis was surfaced; participant adjudication should not trigger a second LLM coverage call."
+  ],
+  "status": "IMPLEMENTED_IN_HUMANDESIGN_CANDIDATE_PENDING_OWNER_CONSUMER_SEAM_RETEST",
+  "nextVerificationBoundary": "Verify that Continue interview stays at the active end, obvious local measurement closure can advance without a synthesis judgment, and Yes/Reject return promptly with buttons restored."
+}

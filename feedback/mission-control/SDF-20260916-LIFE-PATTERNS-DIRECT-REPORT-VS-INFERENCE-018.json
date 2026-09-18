@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-DIRECT-REPORT-VS-INFERENCE-018",
+  "recordedAt": "2026-09-16T22:09:24Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "i don't understand \"true but too obvious\" -- you're saying that would not record life pattern or adjudication? a life pattern can be obvious. ... the too obvious thing would only not be an interesting life pattern if it's too general to all people. if something is specific to me but obvious because it's what i already said, you don't need to repeat it back to me. the only time you need to check is when you make an inference... any questions?",
+  "sourceSha256": "adc2fb2faff6f6a8c846cc7201cb376828ddab59b023e799c177fb400e92d994",
+  "observedFailure": "The interview architecture conflated two different notions of obviousness: a pattern being obvious because the participant already stated it, versus a pattern being uninformative because it is generic to people in general. The resulting 'True, but too obvious — just move on' path discarded a potentially valid person-specific Life Pattern and skipped adjudication solely because the synthesis repeated known material.",
+  "failureMechanism": "TARGET-VARIABLE COLLAPSE: participant novelty was substituted for person-specificity, and confirmation burden was keyed to whether a statement felt obvious rather than whether the interviewer added an inference. This merged three independent states: generic/high-base-rate material, direct participant-authored person-specific pattern, and interviewer-inferred person-specific synthesis.",
+  "logicLesson": "Keep genericness, direct self-report, and inference separate. A direct participant-authored pattern can be obvious yet still be valid and person-specific. Do not repeat it back merely for confirmation; preserve the participant's original source as authority. Ask for explicit judgment only when the interviewer adds an inference, synthesis, comparison, scope claim, causal relation, or other proposition the participant did not already state. Generic/high-base-rate material remains non-pattern evidence regardless of whether it was directly stated.",
+  "repairBoundary": "Life Patterns development interview should implement three distinct outcomes: generic/no person-specific pattern -> complete the measurement area without creating a Life Pattern; direct participant-authored person-specific pattern -> record it from original participant provenance without redundant confirmation; interviewer inference -> surface it tentatively for participant judgment.",
+  "privacyBoundary": "This record contains only the non-sensitive product-logic correction. No private interview narrative, account identifiers, birth data, or infrastructure secrets are included.",
+  "status": "IMPLEMENTATION_IN_PROGRESS_IN_HUMANDESIGN",
+  "nextVerificationBoundary": "Consumer-seam test must show that direct person-specific self-report is recorded without a redundant synthesis approval screen, while model-added inference still requires participant judgment and generic/high-base-rate material is not promoted to a Life Pattern."
+}

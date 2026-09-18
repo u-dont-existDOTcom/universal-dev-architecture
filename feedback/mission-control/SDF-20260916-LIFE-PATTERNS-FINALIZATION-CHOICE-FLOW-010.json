@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-FINALIZATION-CHOICE-FLOW-010",
+  "recordedAt": "2026-09-16T01:15:26Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "so there's that error at bottom whenever the final synthesis comes or i hit yes... \nalso i didn' tunderstand the diff between keep trying to pin it down vs No, keep investigating. And after hitting yes it asks if I want to continue interview or talk about another pattern. I think we could remove the talk about another pattern button since that will leave people potentially in an endless questionnaire right? or at least don't make it default idk",
+  "observedFailures": [
+    {
+      "failure": "Pattern finalization can leave the browser on the active synthesis with a duplicate-adjudication validation error.",
+      "supportedMechanism": "The recoverability session performed the core participant adjudication before running the post-decision coverage assessment, without an outer transaction spanning both steps. If that later step failed, the browser saw failure while the first adjudication remained in memory; a natural retry could append a second adjudication to the same proposal and trigger the contract error. The prior UI also did not guard the decision request against repeated in-flight clicks."
+    },
+    {
+      "failure": "Two visible nonterminal buttons—'Keep trying to pin it down' and 'No — keep investigating'—presented a distinction that was not legible to the participant.",
+      "supportedMechanism": "BACKEND-STATE DISTINCTION LEAK: separate refinement modes were exposed as participant choices even though both actions meant 'do not finalize; continue discovery' at the product level. The implementation detail created unnecessary decision burden."
+    },
+    {
+      "failure": "After accepting a pattern, the UI offered both the finite required-coverage continuation and an open-ended 'Explore another pattern' branch.",
+      "supportedMechanism": "FINITE-INSTRUMENT / OPEN-BRANCH CONFLICT: the optional branch could repeatedly create new pattern threads even though the scientific instrument already has a finite adaptive coverage target, weakening the meaning of the progress horizon and inviting an effectively endless questionnaire."
+    }
+  ],
+  "logicLessons": [
+    "A participant-visible success/failure boundary must be transactional across all dependent post-decision work; never leave a durable decision committed when the browser was told the action failed.",
+    "Do not expose internal refinement-state distinctions as separate buttons unless the participant can understand and benefit from the distinction.",
+    "When a finite adaptive interview already owns completion, make that continuation the default and do not present an unlimited parallel branch as an equally normal next step."
+  ],
+  "repairStatus": "IMPLEMENTED_MECHANICALLY_VERIFIED_AND_LIVE_IN_HUMANDESIGN; OWNER_CONSUMER_SEAM_RETEST_PENDING",
+  "repairEvidence": {
+    "humandesignApplicationHead": "cef6ad16546448355a3e624016b46333b2730573",
+    "humandesignRegressionHead": "d68380b0d33ace513f6b705cd27283e2fe1aa79f",
+    "ciRun": "35044113034",
+    "ci": "success_tests_ruff_strict_mypy",
+    "railwayDeployment": "6126c7b7-d207-4552-a12f-65304be89ea5",
+    "railwayStatus": "success",
+    "health": "200_ok"
+  },
+  "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
+  "nextVerificationBoundary": "Owner refreshes into a fresh live session, accepts one synthesis once, confirms no duplicate-adjudication error, confirms one visible Keep investigating path plus free-form correction, and confirms Continue interview is the finite default with Explore another pattern absent."
+}

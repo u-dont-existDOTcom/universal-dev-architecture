@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-LIVENESS-AND-BLUEPRINT-HYDRATION-015",
+  "recordedAt": "2026-09-16T15:26:29Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "there should be a progress bar so people see it is doing something. same with \"yes keep that\" it took like 5 or more seconds, should at least say \"working on it...\" Interview progress never went past \"preparing...\" and after i clicked \"continue interview\" after \"yes keep that\" it said interview coverage is complete ..?",
+  "observedFailures": [
+    "Long-running model-backed operations appeared idle even though work was still in flight.",
+    "Recovered interview progress remained in an initialization state instead of rendering restored coverage.",
+    "The continuation control could falsely report scientific coverage complete despite many unresolved measurement dimensions."
+  ],
+  "failureMechanism": "Two state layers were conflated/decoupled incorrectly. Request liveness existed internally but was not surfaced to the participant, while recovery restored coverage rows without restoring the fixed coverage blueprint required to interpret those rows. An empty blueprint therefore looked both 'not initialized' to the progress renderer and 'zero missing' to the completion predicate.",
+  "logicLessons": [
+    "Every user-triggered operation that can take human-noticeable time needs an explicit in-flight state; disabled controls alone are insufficient feedback.",
+    "Restoring data without restoring the schema/blueprint needed to interpret that data is an incomplete state restoration.",
+    "A completion predicate must fail closed when its reference universe is not loaded; an empty reference set must never imply successful completeness.",
+    "Scientific progress and request-liveness progress are different concepts and should be represented separately."
+  ],
+  "privacyBoundary": "No private interview narrative or hidden-ledger contents are stored here. The record preserves only the non-sensitive UI/state correction and abstract generating mechanism.",
+  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_CANDIDATE_AND_DEPLOYED; OWNER_CONSUMER_SEAM_RETEST_PENDING",
+  "nextVerificationBoundary": "Restore the same development checkpoint and verify that the fixed blueprint loads before progress/completion evaluation, long operations expose a visible working state, and Continue interview advances when unresolved dimensions remain."
+}

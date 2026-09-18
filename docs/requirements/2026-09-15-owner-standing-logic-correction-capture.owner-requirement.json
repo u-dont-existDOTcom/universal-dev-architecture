@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirementId": "owner-standing-logic-correction-capture-20260915",
+  "status": "owner_explicit",
+  "ownerIntent": "Preserve the owner's explicit reasoning, instruction-following, routing, execution, and product-logic corrections as durable Mission Control evidence rather than leaving them only in conversation context.",
+  "activation": "After this standing instruction, when the owner explicitly identifies a concrete logic/reasoning/instruction/routing/execution defect and gives the correction or counterexample, treat that as Mission Control capture intent unless the owner says not to record it.",
+  "captureRequirements": [
+    "Preserve the exact owner correction when it is actually available and safe to publish; otherwise store the smallest bounded summary and label recovery quality.",
+    "Record the observed failure separately from the inferred generating mechanism.",
+    "Bind each exact source text with a digest when practical.",
+    "Deduplicate against existing Mission Control recovery/capture artifacts.",
+    "Never publish secrets, private locators, account identifiers, medical/private personal material, or third-party sensitive content merely to preserve an example.",
+    "If exact text is sensitive, preserve a sanitized semantic description and state that exact text was intentionally not published.",
+    "Do not classify every correction as a SUPERVISION_ESCAPE automatically; capture and adjudication are separate operations."
+  ],
+  "nonTrigger": "Ordinary stylistic preference, casual disagreement, or a substantive domain opinion that does not identify a reasoning/instruction/routing/execution defect is not automatically Mission Control evidence.",
+  "canonicalMechanism": "patterns/owner-marked-mission-control-failure-capture.md",
+  "currentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json"
+}
