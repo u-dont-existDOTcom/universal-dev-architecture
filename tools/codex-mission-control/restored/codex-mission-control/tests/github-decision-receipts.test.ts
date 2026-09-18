@@ -487,6 +487,39 @@ test("later ingestedAt does not rescue stale request, owner, capability, or bind
   );
 });
 
+test("reconciliation snapshots the ledger once across many historical receipt comments", async () => {
+  const p = policy();
+  const store = fakeStore([]);
+  ensureConfiguredCapabilityChallenges(store, p, "2026-09-02T00:00:00.000Z");
+  let allEventsCalls = 0;
+  const originalAllEvents = store.allEvents.bind(store);
+  store.allEvents = ((maxSequence?: number) => {
+    allEventsCalls += 1;
+    return originalAllEvents(maxSequence);
+  }) as EventStore["allEvents"];
+
+  const capabilityComments = Array.from({ length: 40 }, (_, index) => {
+    const base = webhookPayload(capabilityReceiptBody("mc-nonce", "github-only-nonce"), p.capabilityIssueNumber).comment;
+    const id = 9100 + index;
+    return {
+      ...base,
+      id,
+      html_url: `https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${id}`,
+    };
+  });
+  const result = await reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:02:00.000Z",
+    fetchImpl: async (url) => new Response(JSON.stringify(
+      String(url).includes(`/issues/${p.capabilityIssueNumber}/`) ? capabilityComments : [],
+    ), { status: 200 }),
+  });
+
+  assert.equal(allEventsCalls, 1);
+  assert.equal(result.filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === capabilityVerifiedSummary).length, capabilityComments.length);
+});
+
 test("public reconciliation polls all centrally configured buses without Authorization", async () => {
   const p = policy();
   const store = fakeStore([]);
