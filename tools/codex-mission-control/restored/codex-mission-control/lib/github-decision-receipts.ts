@@ -262,11 +262,19 @@ export function ingestGitHubSupervisionCandidate(
   candidate: GitHubDecisionCandidate,
   policy: GitHubReceiptPolicy | null,
   ingestedAt = new Date().toISOString(),
-  eventsSnapshot?: StoredEvent[],
+): StoredEvent[] {
+  return ingestGitHubSupervisionCandidateFromEvents(store, candidate, policy, ingestedAt, store.allEvents());
+}
+
+function ingestGitHubSupervisionCandidateFromEvents(
+  store: EventStore,
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy | null,
+  ingestedAt: string,
+  events: StoredEvent[],
 ): StoredEvent[] {
   if (!policy) throw new Error("GitHub supervisory receipt policy is not configured.");
   assertAuthorizedWriter(candidate, policy);
-  const events = eventsSnapshot ?? store.allEvents();
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
     const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
@@ -520,7 +528,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
         body: comment.body, ingestionMethod: "RECONCILIATION_POLL",
       };
       try {
-        const ingested = ingestGitHubSupervisionCandidate(store, candidate, options.policy, options.now, events);
+        const ingested = ingestGitHubSupervisionCandidateFromEvents(store, candidate, options.policy, options.now ?? new Date().toISOString(), events);
         appended.push(...ingested);
         for (const event of ingested) {
           if (knownEventIds.has(event.eventId)) continue;
