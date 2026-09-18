@@ -388,7 +388,7 @@ async function candidateFixture(name) {
       };
     },
     async dispatch(directive, { admission = null, environment = {} } = {}, legacyBrowserHandler = async () => { throw new Error('legacy handler should not run'); }) {
-      config.environment = { OPENAI_API_KEY: 'must-not-reach-child', CODEX_API_KEY: 'must-not-reach-child', ...environment };
+      config.environment = { ...process.env, OPENAI_API_KEY: 'must-not-reach-child', CODEX_API_KEY: 'must-not-reach-child', ...environment };
       const admissionInput = admission ?? fixture.admissionFor(directive);
       missionControl.bind(admissionInput, directive.workExecutionProfile);
       return dispatchMissionControlExecution({
