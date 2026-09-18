@@ -178,5 +178,14 @@
     "onWaitHorizonExceeded": "PERSIST_HANDOFF_BLOCKED_AND_TRANSFER_DURABLE_LEASE",
     "ownerMayBeUsedAsMessageBus": false
   },
-  "status": "ACTIVE"
+  "status": "ACTIVE",
+  "workThread": {
+    "desiredTitle": "Work — <exact originating Chat title>",
+    "locator": null,
+    "locatorStatus": "PENDING_CREATION",
+    "captureCreatedLocatorRequired": true,
+    "sourceChatMustSurfaceLocatorWhenAvailable": true,
+    "finalReceiptExactLocatorEchoRequired": true,
+    "ifPlatformDoesNotExposeLocator": "SET_UNRESOLVED_AND_SURFACE_TRACKING_LIMITATION"
+  }
 }
