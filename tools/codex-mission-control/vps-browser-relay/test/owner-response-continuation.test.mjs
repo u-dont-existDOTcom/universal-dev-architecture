@@ -4,6 +4,8 @@ import {
   MCP_BINDING_PRELOAD_STEP,
   INTERNAL_ROUTE_PREFIX,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
+  REQUEST_BOUND_CYCLE_ROUTE_PREFIX,
+  REQUEST_BOUND_STEP,
   STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   canonicalJson,
   cycleControlPrompt,
@@ -157,6 +159,29 @@ test('continuation instruction starts at its line boundary while exact OWNER whi
     assert.equal(composerTextState({ tagName: 'TEXTAREA', value: prompt }, prompt).exact, true);
     assert.equal(composerTextState({ tagName: 'TEXTAREA', value: alteredPrompt }, prompt).exact, false);
   }
+});
+
+test('V5 PM-mediated OWNER continuation is one exact request with no preload or recursive delegation', () => {
+  const packet = continuationPacket('PROJECT_MANAGER');
+  packet.schemaVersion = 5;
+  packet.executionContext = { task_id: 't1' };
+  packet.factualPacket.pmAssistantOutput = 'DO NOT TRANSPORT PM ASSISTANT OUTPUT';
+  const parsed = parseSupervisoryCycleRouteBody(
+    REQUEST_BOUND_CYCLE_ROUTE_PREFIX + JSON.stringify(packet),
+  );
+  assert.equal(parsed?.routeSchemaVersion, 5);
+  assert.equal(parsed?.continuationBinding.path, 'PROJECT_MANAGER');
+  const route = routeFrom(packet);
+  route.packet = { ...packet, routeSchemaVersion: 5 };
+  route.bindingProviderSessionId = route.providerSessionId;
+  const prompt = cycleControlPrompt(route, REQUEST_BOUND_STEP);
+  assert.ok(prompt.includes(`Copy continuation_binding ${canonicalJson(packet.continuationBinding)}`));
+  assert.ok(prompt.includes(`continuation_binding_sha256 ${packet.continuationBindingSha256}`));
+  assert.ok(prompt.includes(`Exact OWNER response data: ${JSON.stringify(ownerText)}.`));
+  assert.match(prompt, /There is no earlier proof or stage receipt/);
+  assert.match(prompt, /Do not delegate to Work or another supervisor/);
+  assert.doesNotMatch(prompt, /binding preload only|capability test for challenge|DO NOT TRANSPORT PM ASSISTANT OUTPUT/i);
+  assert.throws(() => cycleControlPrompt(route, MCP_BINDING_PRELOAD_STEP), /exactly one semantic message/);
 });
 
 test('route-v4 binding envelope stays unchanged while fixed-control prompt bytes are explicit', () => {

@@ -590,7 +590,7 @@ export class CentralSubmissionScheduler {
       const admissionId = boundedString(root.admissionId, 'admissionId', 300);
       const relayStage = boundedString(root.relayStage, 'relayStage', 100);
       const failureKind = root.failureKind === 'PROVIDER_RATE_LIMIT' ? 'PROVIDER_RATE_LIMIT' : 'PRECLICK_FAILURE';
-      if (['CLICKED', 'GENERATION_STARTED', 'UNKNOWN'].includes(relayStage)) {
+      if (!['BEFORE_SUBMIT', 'CONNECTING', 'PREPARING', 'READY_TO_CLICK', 'COMPOSER_FILLED'].includes(relayStage)) {
         throw new SubmissionSchedulerError('SUBMISSION_ABORT_BOUNDARY_UNPROVEN', 'A specific pre-click stage is required to release an admission.');
       }
       const state = await this.stateStore.read();

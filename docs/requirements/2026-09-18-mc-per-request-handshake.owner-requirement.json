@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-PER-REQUEST-HANDSHAKE-20260918",
+  "recorded_at": "2026-09-18T18:39:34.774195+00:00",
+  "status": "BLOCKED_EXACT_REASON",
+  "root_owner_outcome": "OPEN",
+  "implementation_state": "PARTIAL_CANDIDATE_TESTED",
+  "owner_source": {
+    "verbatim_introduction": "we are continuing from mission control sept 7 chat. i will paste the last turn before context ran out. continue as far as you can with best implementation. if you absolutely need work then get the work instructions into a file and i will branch you into work. i am pasting last turn:",
+    "sha256_of_verbatim_introduction": "df674cffae03fef72921bbf618d710003c497f1c304c6e7726d1beccf2fe93ab",
+    "scope": "Digest covers only the verbatim current-task introduction, not the owner-pasted prior assistant architecture analysis.",
+    "source_sent_time": "TIMESTAMP_UNAVAILABLE_UNVERIFIED"
+  },
+  "normalized_outcome": "Implement the owner-adopted zero-paid-inference per-real-request ChatGPT supervisor handshake rather than resuming standalone capability/preload ceremonies. Preserve existing evidence, global send authority, pacing, registry and host fences. Prove useful bounded execution before resuming frozen experiments.",
+  "non_satisfying_proxies": [
+    "Green tests alone",
+    "A written plan or pull request",
+    "Generic MCP transport contact",
+    "An old reusable capability certificate",
+    "A model claiming it accessed a tool",
+    "Claiming a known-safe resend from an unknown click outcome"
+  ],
+  "implemented": [
+    "Opt-in V5 route and schema-4 single-session decision",
+    "Actual MCP HTTP handler with durable server access observation",
+    "Request/session/task/run/family/round-bound digest",
+    "Atomic GitHub decision/attestation intake, unchanged receipt replay and SQLite restart recovery",
+    "Single-request relay prompt without a standalone preload",
+    "Stable V5 route and queue identities",
+    "Fail-closed click-dispatch uncertainty and explicit known-preclick abort evidence",
+    "App chips as telemetry; visible model controls retained"
+  ],
+  "remaining": [
+    "Enqueue replay acknowledgement through original exact-key record, including post-expiry and concurrent retries; do not weaken immutable EventStore identity",
+    "Complete safe pre-click retry and controller-mediated continuation consumer tests",
+    "Exercise actual browser click-dispatch failure with a controlled CDP transport, not just mocked stage errors",
+    "Resolve observed live service-access/performance boundary and run one isolated synthetic request, then one bounded real request"
+  ],
+  "blocker": {
+    "class": "ACCESS_CONTEXT_DEFECT",
+    "facts": [
+      "Connected execution accounts cannot inspect Docker or write the deployed release directory.",
+      "Privileged inspection was not admitted.",
+      "The production browser health service was already failed at read-only inspection.",
+      "Source is an isolated local candidate; no production service, fence, lease or provider send was changed."
+    ],
+    "next_actor": "OWNER_BRANCH_TO_WORK_WITH_EXISTING_AUTHORIZED_MAINTENANCE_ACCESS"
+  },
+  "assurance": {
+    "lane": "ITERATION",
+    "focused_affected_tests": 142,
+    "typecheck": "PASS",
+    "live_model_calls": 0,
+    "paid_model_api_calls": 0,
+    "production_deployed": false,
+    "merge_release_certified": false
+  },
+  "followup_derivation": {
+    "admission": "OWNER_GOAL_DERIVED",
+    "remaining_gap": "A working unattended useful zero-spend supervisor request at the actual execution boundary.",
+    "added_mandatory_owner_requirements": [],
+    "stronger_provider_attestation": "NOT_INTRODUCED",
+    "unknown_delivery": "Reconcile without creating a second semantic request; hold genuinely irreducible ambiguity."
+  },
+  "evidence_limits": [
+    "Current MCP metadata does not cryptographically attest the originating ChatGPT conversation.",
+    "A final GitHub write does not independently attest the ordering of a prior GitHub read and internal reasoning. These are declared limits, not added mandatory implementation requirements."
+  ]
+}
