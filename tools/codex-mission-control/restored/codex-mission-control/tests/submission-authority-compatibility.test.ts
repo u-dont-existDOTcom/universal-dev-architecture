@@ -9,6 +9,7 @@ import {
   normalizeSchedulerState,
   recoverySha256,
 } from "../lib/provider-submission-authority.mjs";
+import { MissionControlSubmissionStateStore } from "../lib/submission-authority-runtime";
 
 const origin = Date.parse("2026-09-18T12:00:00.000Z");
 const producerId = "collector:compat-relay";
@@ -115,6 +116,33 @@ test("historical PRECOMPOSITION_RECOVERED evidence stays exact and permits only 
   assert.equal(state.admissions[0].status, PRECOMPOSITION_RECOVERED);
   assert.deepEqual(state.admissions[0].precompositionRecovery.permit, permit);
   assert.equal(state.queueItems[0].status, "PRECLICK_RETRY_PENDING");
+
+  let persisted = structuredClone(state);
+  const durableStore = {
+    submissionAuthorityState: () => structuredClone(persisted),
+    commitSubmissionAuthorityState: (_domain: string, next: unknown) => {
+      persisted = structuredClone(next);
+      return {};
+    },
+  };
+  const ordinaryWriter = new MissionControlSubmissionStateStore(
+    durableStore as any,
+    pacingDomain,
+    60_000,
+    () => now.value,
+  );
+  await ordinaryWriter.write(structuredClone(state));
+
+  const rewritten = structuredClone(state);
+  const replacement = rewritten.admissions[0].precompositionRecovery;
+  replacement.permit.ownerAuthorization.sourceRef = "owner:compatibility-fixture-altered";
+  replacement.permit.ownerAuthorization.sourceSha256 = "5".repeat(64);
+  replacement.permit.ownerAuthorizationSha256 = recoverySha256(replacement.permit.ownerAuthorization);
+  replacement.permitSha256 = recoverySha256(replacement.permit);
+  await assert.rejects(
+    ordinaryWriter.write(rewritten),
+    (error: any) => error.code === "SUBMISSION_RECOVERY_ORDINARY_WRITE_FORBIDDEN",
+  );
 
   const fresh = await scheduler.admit(request(), producerId);
   assert.notEqual(fresh.admissionId, first.admissionId);
