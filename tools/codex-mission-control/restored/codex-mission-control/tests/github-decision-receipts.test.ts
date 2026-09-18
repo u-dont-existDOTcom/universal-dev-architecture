@@ -40,6 +40,9 @@ import { continuationId } from "../lib/owner-response-continuation-schema";
 import { decisionRouteStates } from "../lib/reasoning-message-state";
 import { producerMayEmit } from "../lib/ingestion-auth";
 import { publicSupervisoryRequestBinding } from "../lib/public-mcp";
+import { daemonLiveness } from "../lib/daemon-health";
+import { workerTransportSnapshotFromStore } from "../lib/dashboard-data";
+import { seedIssue47Store } from "../lib/seed";
 
 const outcomeSha = "a".repeat(64);
 const evidenceSha = "b".repeat(64);
@@ -508,6 +511,132 @@ test("public reconciliation polls all centrally configured buses without Authori
   assert.equal(result.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === capabilityVerifiedSummary), true);
 });
 
+test("reconciliation indexes 10k durable events once, skips 100 finalized comments, and yields below the relay timeout budget", async () => {
+  const p = policy();
+  const historical = Array.from({ length: 100 }, (_, index) => {
+    const commentId = 10_000 + index;
+    return evidenceEvent(`historical-${commentId}`, index + 1, capabilityVerifiedSummary, [
+      `github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${commentId}`,
+    ], "2026-09-02T00:01:30.000Z");
+  });
+  const irrelevant = Array.from({ length: 9_900 }, (_, index) => evidenceEvent(
+    `irrelevant-${index}`,
+    historical.length + index + 1,
+    "IRRELEVANT_HISTORICAL_EVIDENCE",
+    [`item:${index}`],
+    "2026-09-01T00:00:00.000Z",
+  ));
+  const store = fakeStore([...historical, ...irrelevant]);
+  const originalAllEvents = store.allEvents.bind(store);
+  let fullHistoryLoads = 0;
+  store.allEvents = () => { fullHistoryLoads += 1; return originalAllEvents(); };
+  const comments = historical.map((_, index) => githubComment(
+    10_000 + index,
+    p.capabilityIssueNumber,
+    capabilityReceiptBody("mc-nonce", "github-only-nonce"),
+    "2026-09-02T00:01:30.000Z",
+  ));
+  const urls: string[] = [];
+  let eventLoopYielded = false;
+  const representativeStore = new EventStore(":memory:");
+  seedIssue47Store(representativeStore);
+  const responsivenessProbe = new Promise<number>((resolve, reject) => setImmediate(() => {
+    const probeStartedAt = Date.now();
+    try {
+      assert.deepEqual(daemonLiveness(), { status: "ok", kind: "liveness" });
+      const worker = workerTransportSnapshotFromStore(representativeStore, "mission-control-live-slice");
+      assert.equal(worker?.worker.id, "mission-control-live-slice");
+      eventLoopYielded = true;
+      resolve(Date.now() - probeStartedAt);
+    } catch (error) {
+      reject(error);
+    }
+  }));
+  const startedAt = Date.now();
+  const reconciliation = reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:03:00.000Z",
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      urls.push(url.toString());
+      if (url.pathname.includes(`/issues/${p.capabilityIssueNumber}/comments`)) {
+        return new Response(JSON.stringify(url.searchParams.get("page") === "1" ? comments : []), { status: 200 });
+      }
+      return new Response("[]", { status: 200 });
+    },
+  });
+  const responsivenessLatencyMs = await responsivenessProbe;
+  const result = await reconciliation;
+  representativeStore.close();
+
+  assert.deepEqual(result, []);
+  assert.equal(fullHistoryLoads, 1);
+  assert.equal(eventLoopYielded, true);
+  assert.equal(urls.length, 4);
+  assert.equal(urls.some((url) => url.includes("since=")), true);
+  assert.ok(responsivenessLatencyMs < 10_000, "concurrent liveness and representative worker read must remain materially below 30s");
+  assert.ok(Date.now() - startedAt < 10_000, "10k-event reconciliation must remain materially below the relay's 30s timeout");
+});
+
+test("reconciliation ingests a late valid comment after the reconstructed high-water mark", async () => {
+  const p = policy();
+  const oldCommentId = 20_001;
+  const newCommentId = 20_002;
+  const store = fakeStore([
+    evidenceEvent("challenge", 1, capabilityChallengeSummary, [
+      "challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`,
+      "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`,
+      "expires_at:2026-09-03T00:00:00.000Z",
+    ]),
+    evidenceEvent("old-capability", 2, capabilityVerifiedSummary, [
+      `github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${oldCommentId}`,
+    ], "2026-09-02T00:01:00.000Z"),
+  ]);
+  const result = await reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:03:00.000Z",
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      const payload = url.pathname.includes(`/issues/${p.capabilityIssueNumber}/comments`)
+        ? [githubComment(newCommentId, p.capabilityIssueNumber, capabilityReceiptBody("mc-nonce", "github-only-nonce"), "2026-09-02T00:02:00.000Z")]
+        : [];
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.data.type, "evidence_receipt_recorded");
+  assert.equal(result[0]?.data.type === "evidence_receipt_recorded" && result[0].data.refs.includes(`github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${newCommentId}`), true);
+});
+
+test("restart overlap skips the committed comment, admits the next one, and ignores invalid or unrelated comments", async () => {
+  const p = policy();
+  const store = fakeStore([]);
+  ensureConfiguredCapabilityChallenges(store, p, "2026-09-02T00:00:00.000Z");
+  const first = githubComment(30_001, p.capabilityIssueNumber, capabilityReceiptBody("mc-nonce", "github-only-nonce"), "2026-09-02T00:01:00.000Z");
+  const second = githubComment(30_002, p.capabilityIssueNumber, capabilityReceiptBody("mc-nonce", "github-only-nonce"), "2026-09-02T00:02:00.000Z");
+  const invalid = githubComment(30_003, p.capabilityIssueNumber, capabilityReceiptBody("wrong", "wrong"), "2026-09-02T00:02:30.000Z");
+  const unrelated = githubComment(30_004, p.capabilityIssueNumber, "ordinary issue discussion", "2026-09-02T00:02:40.000Z");
+  let pass = 1;
+  const fetchImpl = async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    const payload = url.pathname.includes(`/issues/${p.capabilityIssueNumber}/comments`)
+      ? pass === 1 ? [first] : [first, second, invalid, unrelated]
+      : [];
+    return new Response(JSON.stringify(payload), { status: 200 });
+  };
+  const firstResult = await reconcileGitHubDecisionReceipts(store, { policy: p, now: "2026-09-02T00:03:00.000Z", fetchImpl });
+  assert.equal(firstResult.length, 1);
+  pass = 2;
+  const restartResult = await reconcileGitHubDecisionReceipts(store, { policy: p, now: "2026-09-02T00:04:00.000Z", fetchImpl });
+  assert.equal(restartResult.length, 1);
+  const receipts = store.allEvents().filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === capabilityVerifiedSummary
+    && event.data.refs.some((ref) => ref.startsWith("github_comment:")));
+  assert.equal(receipts.length, 2);
+  assert.equal(receipts.filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.refs.includes(`github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-30001`)).length, 1);
+});
+
 function policy(): GitHubReceiptPolicy {
   return {
     repository: "u-dont-existDOTcom/universal-dev-architecture",
@@ -766,6 +895,17 @@ function directCandidate(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): GitHubDec
 function decisionBody() { return `${canonicalDecisionCommentPrefix}${JSON.stringify(decisionEnvelope())}`; }
 function capabilityReceiptBody(mcNonce: string, githubNonce: string) { return `${capabilityReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, challenge_id: "challenge-spec", chat_id: bootstrapChatId, mc_nonce: mcNonce, github_nonce: githubNonce, capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"] })}`; }
 function webhookPayload(body: string, issueNumber = policy().decisionIssueNumber) { return { action: "created", repository: { full_name: policy().repository }, issue: { number: issueNumber }, comment: { id: 9001, html_url: `https://github.com/${policy().repository}/issues/${issueNumber}#issuecomment-9001`, created_at: "2026-09-02T00:01:30.000Z", body, user: { login: "u-dont-existDOTcom" } } }; }
+
+function githubComment(commentId: number, issueNumber: number, body: string, createdAt: string) {
+  return {
+    id: commentId,
+    html_url: `https://github.com/${policy().repository}/issues/${issueNumber}#issuecomment-${commentId}`,
+    created_at: createdAt,
+    updated_at: createdAt,
+    body,
+    user: { login: "u-dont-existDOTcom" },
+  };
+}
 
 function relayReceipt(events: StoredEvent[], step: string, generationState: "STARTED" | "COMPLETE") {
   const event = events.find((item) => item.data.type === "evidence_receipt_recorded"

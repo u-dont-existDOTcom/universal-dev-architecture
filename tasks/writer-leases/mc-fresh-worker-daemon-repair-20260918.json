@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "codex/mc-fresh-worker-daemon-repair-20260918",
+  "integration_branch": "main",
+  "integration_base_sha": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "last_verified_head": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "scope": "Central daemon availability repair, same-route PM fixture completion, and directive-authorized deferred hardening",
+  "created_at": "2026-09-18T17:09:21Z"
+}

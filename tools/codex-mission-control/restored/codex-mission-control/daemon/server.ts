@@ -2,7 +2,7 @@ import http from "node:http";
 import { EventEmitter } from "node:events";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { ZodError } from "zod";
-import { snapshotFromStore, workerSnapshotFromStore } from "../lib/dashboard-data";
+import { snapshotFromStore, workerSnapshotFromStore, workerTransportSnapshotFromStore } from "../lib/dashboard-data";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import { startLiveWorkerSourceWatcher } from "../lib/live-worker-source";
 import {
@@ -24,6 +24,7 @@ import {
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
+import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -51,16 +52,11 @@ const githubReconciliationTimer = startGitHubReconciliation();
 const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `${host}:${port}`}`);
+    if (request.method === "GET" && url.pathname === "/live") {
+      return json(response, 200, daemonLiveness());
+    }
     if (request.method === "GET" && url.pathname === "/health") {
-      const authorityHealth = await submissionAuthority.health();
-      return json(response, 200, {
-        status: "ok",
-        latestSequence: store.latestSequence(),
-        chain: store.verifyChain(),
-        submissionAuthorityConfigured: authorityHealth.configured,
-        submissionAuthoritySchedulerState: authorityHealth.schedulerState,
-        submissionAuthorityLedger: authorityHealth.ledger,
-      });
+      return json(response, 200, await daemonReadiness(store, submissionAuthority));
     }
     if (request.method === "GET" && url.pathname === "/submission-authority/status") {
       const producer = authorizeMutation(request);
@@ -102,6 +98,7 @@ const server = http.createServer(async (request, response) => {
       if (body.method === "tools/list") return json(response, 200, { jsonrpc: "2.0", id, result: { tools: [
         { name: "mission_control_get_fleet", description: "Read the current projected Mission Control fleet and work queue.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: {}, additionalProperties: false } },
         { name: "mission_control_get_worker", description: "Read one worker's projected state, owner channel, queue, blockers, proposals, capability challenges, and transport evidence.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
+        { name: "mission_control_get_worker_transport", description: "Read one worker's bounded provider-relay route and transport evidence without the full operator history.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
       ] } });
       if (body.method === "tools/call") {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
@@ -113,6 +110,12 @@ const server = http.createServer(async (request, response) => {
           const worker = params.arguments.worker;
           if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
           const snapshot = workerSnapshotFromStore(store, worker, dashboardProjectionOptions);
+          return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
+        }
+        if (params?.name === "mission_control_get_worker_transport" && typeof params.arguments?.worker === "string") {
+          const worker = params.arguments.worker;
+          if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
+          const snapshot = workerTransportSnapshotFromStore(store, worker, dashboardProjectionOptions);
           return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
         }
       }
@@ -374,11 +377,27 @@ function startGitHubReconciliation(): NodeJS.Timeout | null {
   const reconcile = async () => {
     if (running) return;
     running = true;
+    const startedAt = new Date().toISOString();
+    const startedAtMs = Date.now();
+    console.log(JSON.stringify({ event: "github_supervision_reconciliation_started", startedAt }));
     try {
       const events = await reconcileGitHubDecisionReceipts(store, { token, policy: githubPolicy });
       for (const event of events) notifications.emit("event", event);
+      console.log(JSON.stringify({
+        event: "github_supervision_reconciliation_completed",
+        startedAt,
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAtMs,
+        appendedEvents: events.length,
+      }));
     } catch (error) {
-      console.error("GitHub supervision reconciliation failed", error);
+      console.error(JSON.stringify({
+        event: "github_supervision_reconciliation_failed",
+        startedAt,
+        failedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAtMs,
+        error: error instanceof Error ? error.message : "Unknown reconciliation failure",
+      }));
     } finally {
       running = false;
     }
