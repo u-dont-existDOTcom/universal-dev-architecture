@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+  "integration_branch": "main",
+  "integration_base_sha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+  "last_verified_head": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+  "scope": "V4 recovered-state compatibility correction, epoch-5 successor activation, same-route MCP_BINDING_PRELOAD proof, and post-proof hardening",
+  "created_at": "2026-09-18T21:39:36Z",
+  "owner_authority": "issue-53-comment-5735189869"
+}

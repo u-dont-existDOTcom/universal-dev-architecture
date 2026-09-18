@@ -281,6 +281,26 @@ export class EventStore {
     }));
   }
 
+  submissionAuthorityRecoveryLedger(pacingDomain: string): Array<Record<string, unknown>> {
+    const rows = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? AND event_kind = 'RECOVERED_BEFORE_COMPOSITION'
+      ORDER BY sequence
+    `).all(pacingDomain) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    return rows.map((row) => ({
+      sequence: Number(row.sequence),
+      ...JSON.parse(row.ledger_json),
+      previousHash: row.previous_hash,
+      eventHash: row.event_hash,
+    }));
+  }
+
   verifySubmissionAuthorityLedger(pacingDomain: string): { valid: boolean; errors: string[] } {
     const persisted = this.db.prepare(`
       SELECT sequence, ledger_json, previous_hash, event_hash

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
+  "updatedAt": "2026-09-18T22:02:12Z",
+  "phase": "STOPPED_CANDIDATE_EVENT_CHAIN_COMPATIBILITY",
+  "status": "BLOCKED",
+  "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+  "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+  "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
+  "replacementFixtureCreated": false,
+  "providerSendsThisTask": 0,
+  "currentGap": "Current canonical event parsing adds default fields to nine historical schema-v2 event payloads before verifyChain re-hashes them. The exact persisted event bytes verify under the deployed state-compatible runtime, but current-main reports sequences 7, 8, 21, 22, 28, 39, 40, 56, and 57 as invalid. The candidate therefore cannot pass the directive's chain-integrity gate.",
+  "nextAction": "Obtain explicit owner authority for the smallest raw-persisted-payload hash-verification compatibility repair, or another owner-approved resolution. Do not release/install the candidate, activate epoch 5, start the soak, admit a provider operation, retry the binding preload, or continue the PM fixture before that stop is resolved.",
+  "compatibilityEvidence": {
+    "implementation": "LOCAL_TESTED_NOT_RELEASED",
+    "recoveredStatus": "RECOVERED_BEFORE_COMPOSITION",
+    "proofValidationAgainstClonedLiveState": "PASS",
+    "proofPresent": true,
+    "recoveredAdmissionCount": 1,
+    "authorityLedgerValid": true,
+    "sqliteIntegrity": "ok",
+    "expiredEpochHeartbeatRevivalRemoved": true,
+    "ordinaryProofMutationOrDeletionRejected": true,
+    "negativeCasesCovered": [
+      "missing proof",
+      "corrupt proof digest",
+      "relay-binding mismatch",
+      "prior-state-hash mismatch",
+      "missing recovery receipt",
+      "invalid authority ledger",
+      "unknown recovered status",
+      "proof attached to another status",
+      "provider-boundary evidence"
+    ]
+  },
+  "authoritySnapshot": {
+    "epoch": 4,
+    "leaseId": "lease:issue90-secondary-epoch4:6180780a-f6d8-42e0-9ee7-a0a88000b0f6",
+    "activeHostAlias": "owner-secondary",
+    "activeHostRole": "SECONDARY",
+    "expiresAt": "2026-09-18T18:50:40.711Z",
+    "lastBoundaryAt": "2026-09-17T21:55:26.258Z",
+    "safetyHalt": null,
+    "relayTargetTransition": null,
+    "epoch4Resurrected": false,
+    "epoch5Attempted": false
+  },
+  "stopEvidence": {
+    "deployedRuntimeChainValid": true,
+    "candidateOfflineChainValid": false,
+    "candidateInvalidSequences": [7, 8, 21, 22, 28, 39, 40, 56, 57],
+    "mechanism": "Hash verification uses normalized parsed payloads. Current parsers add backward-compatible defaults that were absent from the exact persisted payload bytes, changing the re-hash input without any durable event mutation.",
+    "authorityLedgerValid": true,
+    "providerSends": 0
+  }
+}

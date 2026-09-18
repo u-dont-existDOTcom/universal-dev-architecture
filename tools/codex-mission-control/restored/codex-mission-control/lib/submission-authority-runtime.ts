@@ -70,6 +70,24 @@ export class MissionControlSubmissionStateStore {
     );
     return state;
   }
+
+  async validateRecoveryProofs(): Promise<void> {
+    const state = await this.read();
+    const recovered = state.admissions.filter((record: SchedulerState) => record.status === PRECOMPOSITION_RECOVERED);
+    if (recovered.length === 0) return;
+    const integrity = this.store.verifySubmissionAuthorityLedger(this.pacingDomain);
+    if (!integrity.valid) {
+      throw new SubmissionSchedulerError(
+        "SUBMISSION_RECOVERY_LEDGER_INVALID",
+        "Retained pre-composition recovery evidence requires a valid authority ledger.",
+      );
+    }
+    assertRecoveryProofReceipts(
+      state,
+      this.store.submissionAuthorityRecoveryLedger(this.pacingDomain),
+      this.minimumIntervalMs,
+    );
+  }
 }
 
 function assertRecoveryRecordsUnchanged(prior: SchedulerState | null, state: SchedulerState) {
@@ -81,6 +99,65 @@ function assertRecoveryRecordsUnchanged(prior: SchedulerState | null, state: Sch
       "Ordinary authority writes cannot introduce, alter, or remove retained pre-composition recovery evidence.",
     );
   }
+}
+
+function assertRecoveryProofReceipts(
+  state: SchedulerState,
+  receipts: Array<Record<string, any>>,
+  minimumIntervalMs: number,
+) {
+  const recovered = state.admissions.filter((record: SchedulerState) => record.status === PRECOMPOSITION_RECOVERED);
+  if (receipts.length !== recovered.length) throw invalidRecoveryReceipt();
+  for (const admission of recovered) {
+    const proof = admission.precompositionRecovery;
+    const permit = proof?.permit;
+    const queueItem = state.queueItems.find((item: SchedulerState) => item.queueItemId === admission.queueItemId);
+    const binding = state.relayBindings?.[admission.producerId];
+    const matches = receipts.filter((receipt) => receipt.admissionId === admission.admissionId);
+    if (!proof || !permit || !queueItem || !binding || matches.length !== 1) throw invalidRecoveryReceipt();
+    const receipt = matches[0];
+    const failureAt = Date.parse(permit.failureEvidence?.observedAt ?? "");
+    if (receipt.eventKind !== PRECOMPOSITION_RECOVERED
+      || receipt.permitId !== permit.permitId
+      || receipt.permitSha256 !== proof.permitSha256
+      || recoverySha256(receipt.permit) !== proof.permitSha256
+      || recoverySha256(permit) !== proof.permitSha256
+      || receipt.queueItemId !== admission.queueItemId
+      || receipt.producerId !== "operator:startup-recovery"
+      || receipt.recoveredProducerId !== admission.producerId
+      || receipt.priorStateSha256 !== permit.expectedStateSha256
+      || typeof receipt.resultingStateSha256 !== "string"
+      || !/^[a-f0-9]{64}$/.test(receipt.resultingStateSha256)
+      || receipt.recoveredAt !== proof.recoveredAt
+      || receipt.admissionStatus !== PRECOMPOSITION_RECOVERED
+      || receipt.queueStatus !== "PRECLICK_RETRY_PENDING"
+      || receipt.actualSubmissionBoundaryAt !== null
+      || receipt.previousGlobalSubmissionBoundaryAt !== admission.previousGlobalBoundaryAt
+      || receipt.minimumIntervalMs !== minimumIntervalMs
+      || permit.admissionId !== admission.admissionId
+      || permit.queueItemId !== admission.queueItemId
+      || permit.requestId !== admission.requestId
+      || permit.producerId !== admission.producerId
+      || permit.sendPath !== admission.sendPath
+      || permit.bodySha256 !== admission.bodySha256
+      || permit.requestFingerprint !== queueItem.requestFingerprint
+      || permit.logicalFingerprint !== queueItem.logicalFingerprint
+      || permit.expectedRelayBindingSha256 !== recoverySha256(binding)
+      || !queueItem.admissionIds.includes(admission.admissionId)
+      || !Number.isFinite(failureAt)
+      || failureAt < Date.parse(admission.admittedAt)
+      || failureAt > Date.parse(permit.issuedAt)
+      || Date.parse(admission.expiresAt) > Date.parse(permit.issuedAt)) {
+      throw invalidRecoveryReceipt();
+    }
+  }
+}
+
+function invalidRecoveryReceipt() {
+  return new SubmissionSchedulerError(
+    "SUBMISSION_RECOVERY_RECORDED_EVIDENCE_INVALID",
+    "Retained pre-composition recovery evidence failed ledger correspondence validation.",
+  );
 }
 
 export class SubmissionAuthorityRuntime {
@@ -165,7 +242,8 @@ export class SubmissionAuthorityRuntime {
     this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
     this.relayBindings = new Map(Object.entries(relayBindings));
     const lease = parseDeploymentLease(JSON.parse(leaseRaw));
-    this.initialization = this.scheduler.activateLease(lease, { restorePersisted: true }).then(
+    this.initialization = this.stateStore.validateRecoveryProofs()
+      .then(() => this.scheduler.activateLease(lease, { restorePersisted: true })).then(
       () => null,
       (error: unknown) => error,
     );
@@ -333,12 +411,10 @@ export class SubmissionAuthorityRuntime {
       receivedAt: new Date(nowMs).toISOString(),
     };
     this.relayHealth.set(producer.id, stored);
-    const leaseRenewal = await scheduler.renewLeaseFromHealth(report, producer.id);
     return {
       accepted: true,
       observedAt: stored.observedAt,
       expiresAt: new Date(observedMs + this.relayHealthMaxAgeMs).toISOString(),
-      leaseRenewal,
     };
   }
 

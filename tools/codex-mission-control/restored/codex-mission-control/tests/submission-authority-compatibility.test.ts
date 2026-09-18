@@ -117,6 +117,32 @@ test("historical PRECOMPOSITION_RECOVERED evidence stays exact and permits only 
   assert.deepEqual(state.admissions[0].precompositionRecovery.permit, permit);
   assert.equal(state.queueItems[0].status, "PRECLICK_RETRY_PENDING");
 
+  const recoveryReceipt = {
+    eventKind: PRECOMPOSITION_RECOVERED,
+    permitId: permit.permitId,
+    permitSha256: recoverySha256(permit),
+    permit: structuredClone(permit),
+    admissionId: originalAdmission.admissionId,
+    queueItemId: queue.queueItemId,
+    producerId: "operator:startup-recovery",
+    recoveredProducerId: producerId,
+    priorStateSha256: permit.expectedStateSha256,
+    resultingStateSha256: recoverySha256(state),
+    recoveredAt: new Date(now.value + 1).toISOString(),
+    admissionStatus: PRECOMPOSITION_RECOVERED,
+    queueStatus: "PRECLICK_RETRY_PENDING",
+    actualSubmissionBoundaryAt: null,
+    previousGlobalSubmissionBoundaryAt: originalAdmission.previousGlobalBoundaryAt,
+    minimumIntervalMs: 60_000,
+  };
+  const validatingStore = recoveryValidationStore(state, [recoveryReceipt]);
+  await new MissionControlSubmissionStateStore(
+    validatingStore as any,
+    pacingDomain,
+    60_000,
+    () => now.value,
+  ).validateRecoveryProofs();
+
   let persisted = structuredClone(state);
   const durableStore = {
     submissionAuthorityState: () => structuredClone(persisted),
@@ -144,6 +170,64 @@ test("historical PRECOMPOSITION_RECOVERED evidence stays exact and permits only 
     (error: any) => error.code === "SUBMISSION_RECOVERY_ORDINARY_WRITE_FORBIDDEN",
   );
 
+  const removed = structuredClone(state);
+  removed.admissions = [];
+  removed.queueItems = [];
+  await assert.rejects(
+    ordinaryWriter.write(removed),
+    (error: any) => error.code === "SUBMISSION_RECOVERY_ORDINARY_WRITE_FORBIDDEN",
+  );
+
+  const bindingMismatch = structuredClone(state);
+  bindingMismatch.admissions[0].precompositionRecovery.permit.expectedRelayBindingSha256 = "6".repeat(64);
+  reseal(bindingMismatch.admissions[0].precompositionRecovery);
+  await assert.rejects(
+    new MissionControlSubmissionStateStore(
+      recoveryValidationStore(bindingMismatch, [{
+        ...recoveryReceipt,
+        permit: structuredClone(bindingMismatch.admissions[0].precompositionRecovery.permit),
+        permitSha256: bindingMismatch.admissions[0].precompositionRecovery.permitSha256,
+      }]) as any,
+      pacingDomain,
+      60_000,
+      () => now.value,
+    ).validateRecoveryProofs(),
+    (error: any) => error.code === "SUBMISSION_RECOVERY_RECORDED_EVIDENCE_INVALID",
+  );
+
+  const stateHashMismatch = structuredClone(state);
+  stateHashMismatch.admissions[0].precompositionRecovery.permit.expectedStateSha256 = "7".repeat(64);
+  reseal(stateHashMismatch.admissions[0].precompositionRecovery);
+  await assert.rejects(
+    new MissionControlSubmissionStateStore(
+      recoveryValidationStore(stateHashMismatch, [recoveryReceipt]) as any,
+      pacingDomain,
+      60_000,
+      () => now.value,
+    ).validateRecoveryProofs(),
+    (error: any) => error.code === "SUBMISSION_RECOVERY_RECORDED_EVIDENCE_INVALID",
+  );
+
+  await assert.rejects(
+    new MissionControlSubmissionStateStore(
+      recoveryValidationStore(state, []) as any,
+      pacingDomain,
+      60_000,
+      () => now.value,
+    ).validateRecoveryProofs(),
+    (error: any) => error.code === "SUBMISSION_RECOVERY_RECORDED_EVIDENCE_INVALID",
+  );
+
+  await assert.rejects(
+    new MissionControlSubmissionStateStore(
+      recoveryValidationStore(state, [recoveryReceipt], false) as any,
+      pacingDomain,
+      60_000,
+      () => now.value,
+    ).validateRecoveryProofs(),
+    (error: any) => error.code === "SUBMISSION_RECOVERY_LEDGER_INVALID",
+  );
+
   const fresh = await scheduler.admit(request(), producerId);
   assert.notEqual(fresh.admissionId, first.admissionId);
   assert.equal(fresh.queueItemId, first.queueItemId);
@@ -162,7 +246,47 @@ test("historical PRECOMPOSITION_RECOVERED evidence stays exact and permits only 
   const corrupted = structuredClone(state);
   corrupted.admissions[0].precompositionRecovery.permitSha256 = "0".repeat(64);
   assert.throws(() => normalizeSchedulerState(corrupted), /RECORDED_EVIDENCE_INVALID|recovery evidence/i);
+
+  const proofMissing = structuredClone(state);
+  delete proofMissing.admissions[0].precompositionRecovery;
+  assert.throws(() => normalizeSchedulerState(proofMissing), /Pre-composition recovery|recovery evidence/i);
+
+  const wrongStatus = structuredClone(state);
+  wrongStatus.admissions[0].status = "UNKNOWN_RECOVERED_STATUS";
+  assert.throws(() => normalizeSchedulerState(wrongStatus), /status is invalid/i);
+
+  const proofOnOtherStatus = structuredClone(state);
+  proofOnOtherStatus.admissions[0].status = "ABORTED_BEFORE_BOUNDARY";
+  proofOnOtherStatus.admissions[0].abortedAt = new Date(now.value + 2).toISOString();
+  proofOnOtherStatus.admissions[0].abortStage = "APP_SELECTION_FAILED";
+  assert.throws(() => normalizeSchedulerState(proofOnOtherStatus), /recovery evidence/i);
+
+  const providerEvidence = structuredClone(state);
+  providerEvidence.admissions[0].boundaryAt = new Date(now.value + 2).toISOString();
+  providerEvidence.admissions[0].boundaryKind = "CLICKED";
+  providerEvidence.admissions[0].boundaryRecordedAt = new Date(now.value + 2).toISOString();
+  assert.throws(() => normalizeSchedulerState(providerEvidence), /RECORDED_EVIDENCE_INVALID|recovery evidence/i);
 });
+
+function recoveryValidationStore(
+  state: any,
+  receipts: Array<Record<string, unknown>>,
+  ledgerValid = true,
+) {
+  return {
+    submissionAuthorityState: () => structuredClone(state),
+    verifySubmissionAuthorityLedger: () => ({ valid: ledgerValid, errors: ledgerValid ? [] : ["invalid"] }),
+    submissionAuthorityRecoveryLedger: () => structuredClone(receipts),
+  };
+}
+
+function reseal(recovery: any) {
+  const permit = recovery.permit;
+  const { ownerAuthorization: _authorization, ownerAuthorizationSha256: _authorizationSha, ...scope } = permit;
+  permit.ownerAuthorization.scopeSha256 = recoverySha256(scope);
+  permit.ownerAuthorizationSha256 = recoverySha256(permit.ownerAuthorization);
+  recovery.permitSha256 = recoverySha256(permit);
+}
 
 function configuredChat() {
   return {
