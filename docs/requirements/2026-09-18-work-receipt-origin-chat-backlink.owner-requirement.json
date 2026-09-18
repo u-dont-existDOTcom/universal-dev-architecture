@@ -1,0 +1,35 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-WORK-ORIGIN-CHAT-BACKLINK-20260918",
+  "recorded_at": "2026-09-18T19:34:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "universal development architecture Chat-to-Work handoffs and Work execution receipts",
+  "requirements": [
+    {
+      "id": "WORK-ORIGIN-CHAT-001",
+      "text": "Every Work directive must carry the exact originating Chat title and the exact originating Chat conversation URL so the execution thread retains a direct path back to its reasoning/supervisor thread.",
+      "operationalization": "Resolve the source Chat URL at the handoff boundary from the current UI/controller/browser surface when available. Put a clearly labeled Originating Chat block near the start of the Work directive. Do not invent, shorten, rewrite, or substitute another chat URL."
+    },
+    {
+      "id": "WORK-ORIGIN-CHAT-002",
+      "text": "Every owner-facing Work receipt, including COMPLETED, PARTIAL, BLOCKED, FAILED, and NOT_ATTEMPTED receipts, must include a clickable link back to the originating Chat.",
+      "operationalization": "Work must echo the exact source Chat title and URL supplied in the directive. The final receipt must render `Originating Chat: [<source title>](<exact source URL>)` or an equivalent clickable form. Work must not rediscover or replace the URL."
+    },
+    {
+      "id": "WORK-ORIGIN-CHAT-003",
+      "text": "A ChatGPT-to-Work handoff is incomplete when the source Chat has a stable URL but the directive omits it.",
+      "operationalization": "If the handoff creator can access the source Chat URL through an authorized current browser/controller surface, it must resolve it before launching Work. If the URL cannot be resolved, do not fabricate it: classify `HANDOFF_BLOCKED_SOURCE_CHAT_URL` unless the owner explicitly authorizes proceeding without the backlink."
+    }
+  ],
+  "non_goals": [
+    "The backlink does not create a native Work-to-originating-Chat messaging edge.",
+    "The backlink does not transfer semantic authority to Work.",
+    "Do not expose private credentials, provider session secrets, or browser cookies in the backlink.",
+    "Do not treat an opaque session ID as a substitute for a resolvable conversation URL."
+  ],
+  "source": {
+    "date": "2026-09-18",
+    "kind": "explicit owner request",
+    "owner_words_summary": "Every Work receipt should give a link back to the original Chat, the link should already be present in the Work instructions, and the rule should be merged into UDA so the owner never loses the reasoning thread."
+  }
+}
