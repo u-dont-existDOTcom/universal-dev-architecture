@@ -15,7 +15,7 @@ Owner outcome: **OPEN — code complete; live send stopped on stale authority**
 - Final implementation branch: `work/mc-per-request-finish-20260918-1928`.
 - Final implementation commit: `38b36fbaaab580e9133e546740c3a81a663acf5f`.
 - Final implementation tree: `bcc7a4669069ade670ad04468f28c8a6f3a41006`.
-- The receipt-publication commit is the immediate child of the implementation commit. Git cannot embed a commit's own object ID in that commit; its exact ID is recorded in the pull request and originating-Chat return.
+- Receipt commits follow the implementation commit. Git cannot embed a commit's own object ID in that commit; the exact final branch head is recorded in the originating-Chat return.
 
 The sealed candidate branch, source packet, and prior test telemetry were not rewritten, amended, deleted, or force-pushed.
 
@@ -84,7 +84,8 @@ The full repository/app/build/security/packaging release gates were intentionall
 
 ## Release, deployment, and rollback
 
-- Publication unit: the owned work branch and pull request only.
+- Intended publication unit: the owned work branch and a non-draft pull request only.
+- GitHub publication: **blocked**. The remote was verified as the canonical repository, but the remote-control safety gate rejected the push as an external export. No remote branch or pull request was created, and no alternate publication path was attempted.
 - Live deployment: **not performed**.
 - Live build/install/restart: **not performed**.
 - Deployed tree identity: not claimed. The running source did not expose a trustworthy release-commit marker and differed from the current reviewed tree.
