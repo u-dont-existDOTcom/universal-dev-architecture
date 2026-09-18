@@ -10,6 +10,18 @@
     "urlStatus": "RESOLVED",
     "receiptBacklinkRequired": true
   },
+  "humanAssistPolicy": {
+    "humanOnlyUiGateState": "OWNER_INTERACTION_PENDING",
+    "configuredChannelRef": "replace-with-owner-or-runtime-human-assist-channel",
+    "prepareExactBlockedSession": true,
+    "openOrFocusViewerWhenAuthorized": true,
+    "preserveResumableStateWhileWaiting": true,
+    "resumeAutomaticallyAfterGateClears": true,
+    "fallbackOwnerAcknowledgement": "done",
+    "terminalOnlyIfAssistUnavailableTimeoutOrNewAuthorityGate": true,
+    "mustNotAutomateHumanVerification": true,
+    "mustNotRequestCredentialsInChat": true
+  },
   "actionClass": "SUBSTANTIVE_EXECUTION",
   "ownerOutcome": {
     "ownerOutcomeId": "replace-with-owner-outcome-id",
