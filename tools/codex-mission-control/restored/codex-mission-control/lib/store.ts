@@ -338,20 +338,34 @@ export class EventStore {
   verifyChain(): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     let previousHash: string | null = null;
-    for (const event of this.allEvents()) {
-      if (event.previousHash !== previousHash) errors.push(`Sequence ${event.sequence} has an invalid previous hash.`);
-      const calculated = calculateEventHash({
-        schemaVersion: event.schemaVersion,
-        eventId: event.eventId,
-        missionId: event.missionId,
-        worker: event.worker,
-        type: event.type,
-        occurredAt: event.occurredAt,
-        data: event.data,
-        previousHash: event.previousHash,
-      });
-      if (calculated !== event.eventHash) errors.push(`Sequence ${event.sequence} has an invalid event hash.`);
-      previousHash = event.eventHash;
+    const rows = this.db.prepare("SELECT * FROM events ORDER BY sequence").all() as Array<Record<string, unknown>>;
+    for (const row of rows) {
+      const sequence = Number(row.sequence);
+      const storedPreviousHash = row.previous_hash === null ? null : String(row.previous_hash);
+      const storedEventHash = String(row.event_hash);
+      if (storedPreviousHash !== previousHash) errors.push(`Sequence ${sequence} has an invalid previous hash.`);
+      try {
+        const schemaVersion = Number(row.schema_version);
+        if (schemaVersion !== 1 && schemaVersion !== 2) throw new Error("unsupported schema version");
+        const persistedData = JSON.parse(String(row.payload_json));
+        const parsedData = schemaVersion === 1 ? parseLegacyEvent(persistedData) : parseEventV2(persistedData);
+        if (String(row.type) !== parsedData.type) throw new Error("stored event type does not match its payload");
+        const calculated = calculateEventHash({
+          schemaVersion,
+          eventId: String(row.event_id),
+          missionId: String(row.mission_id),
+          worker: row.worker === null ? null : String(row.worker),
+          type: String(row.type),
+          occurredAt: String(row.occurred_at),
+          data: persistedData as MissionControlEvent,
+          previousHash: storedPreviousHash,
+        });
+        if (calculated !== storedEventHash) errors.push(`Sequence ${sequence} has an invalid event hash.`);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "unknown persisted event state";
+        errors.push(`Sequence ${sequence} has invalid persisted event data: ${detail}.`);
+      }
+      previousHash = storedEventHash;
     }
     return { valid: errors.length === 0, errors };
   }

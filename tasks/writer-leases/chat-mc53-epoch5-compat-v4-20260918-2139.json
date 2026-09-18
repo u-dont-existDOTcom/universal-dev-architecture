@@ -1,14 +1,16 @@
 {
   "schema_version": 1,
-  "status": "released",
-  "exclusive_writer": false,
+  "status": "active",
+  "exclusive_writer": true,
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
   "integration_base_sha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
-  "last_verified_head": "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+  "last_verified_head": "54e61d27b42ca8e065d1967c89d797d4371d4c07",
   "scope": "V4 recovered-state compatibility correction, epoch-5 successor activation, same-route MCP_BINDING_PRELOAD proof, and post-proof hardening",
   "created_at": "2026-09-18T21:39:36Z",
-  "released_at": "2026-09-18T22:02:12Z",
-  "release_reason": "V4 explicit stop: current-main event-chain verification is incompatible with exact persisted historical schema-v2 payloads.",
-  "owner_authority": "issue-53-comment-5735189869"
+  "prior_released_at": "2026-09-18T22:02:12Z",
+  "prior_release_reason": "V4 explicit stop: current-main event-chain verification is incompatible with exact persisted historical schema-v2 payloads.",
+  "reactivated_at": "2026-09-18T22:27:37Z",
+  "reactivation_authority": "issue-53-comment-5736910093",
+  "owner_authority": "issue-53-comment-5736910093"
 }

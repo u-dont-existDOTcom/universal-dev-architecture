@@ -1,16 +1,25 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-18T22:02:12Z",
-  "phase": "STOPPED_CANDIDATE_EVENT_CHAIN_COMPATIBILITY",
-  "status": "BLOCKED",
+  "updatedAt": "2026-09-18T22:27:37Z",
+  "phase": "EVENT_CHAIN_PERSISTED_PAYLOAD_COMPATIBILITY_REPAIR",
+  "status": "ACTIVE",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
   "replacementFixtureCreated": false,
   "providerSendsThisTask": 0,
-  "currentGap": "Current canonical event parsing adds default fields to nine historical schema-v2 event payloads before verifyChain re-hashes them. The exact persisted event bytes verify under the deployed state-compatible runtime, but current-main reports sequences 7, 8, 21, 22, 28, 39, 40, 56, and 57 as invalid. The candidate therefore cannot pass the directive's chain-integrity gate.",
-  "nextAction": "Obtain explicit owner authority for the smallest raw-persisted-payload hash-verification compatibility repair, or another owner-approved resolution. Do not release/install the candidate, activate epoch 5, start the soak, admit a provider operation, retry the binding preload, or continue the PM fixture before that stop is resolved.",
+  "currentGap": "Implement and validate the newly authorized narrow repair so event-chain verification hashes JSON.parse(payload_json) while ordinary event consumption retains current schema parsing and validation.",
+  "nextAction": "Add the focused persisted-payload verifier regression, prove the full cloned live chain and tamper negatives, then run release gates and continue V4 automatically if green.",
+  "priorStopResolution": {
+    "authority": "issue-53-comment-5736910093",
+    "authorizedAt": "2026-09-18T22:24:16Z",
+    "scope": "raw-persisted-payload event-chain hash verification only",
+    "provenanceCommitsPreserved": [
+      "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+      "54e61d27b42ca8e065d1967c89d797d4371d4c07"
+    ]
+  },
   "compatibilityEvidence": {
     "implementation": "LOCAL_TESTED_NOT_RELEASED",
     "recoveredStatus": "RECOVERED_BEFORE_COMPOSITION",
@@ -45,7 +54,7 @@
     "epoch4Resurrected": false,
     "epoch5Attempted": false
   },
-  "stopEvidence": {
+  "previousStopEvidence": {
     "deployedRuntimeChainValid": true,
     "candidateOfflineChainValid": false,
     "candidateInvalidSequences": [7, 8, 21, 22, 28, 39, 40, 56, 57],

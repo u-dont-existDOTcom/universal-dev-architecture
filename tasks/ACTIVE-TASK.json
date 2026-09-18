@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
   "title": "Release recovered-state compatibility and complete the same PM fixture under epoch 5",
-  "status": "blocked",
+  "status": "active",
   "exclusive": false,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
@@ -12,8 +12,8 @@
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
-    "authorityClarification": "issue-53-comment-5735189869",
-    "capturedAt": "2026-09-18T21:39:36Z"
+    "authorityClarification": "issue-53-comment-5736910093",
+    "capturedAt": "2026-09-18T22:24:16Z"
   },
   "ownerOutcome": {
     "status": "OPEN",
@@ -22,8 +22,9 @@
     "replacementFixtureAllowed": false
   },
   "taskLocalCheckpoint": "state/mc-fresh-worker-epoch5-compatibility-v4/CURRENT.json",
-  "blockedAt": "2026-09-18T22:02:12Z",
-  "blockedReason": "The exact current-main candidate validates the recovered admission and its authority ledger, but reports nine unchanged historical schema-v2 Mission Control events as hash-invalid because current parsers add default fields before verifyChain re-hashes them. The deployed state-compatible runtime verifies the same live event chain as valid. V4 explicitly stops on a candidate chain failure and authorizes only the narrow recovered-admission compatibility seam.",
+  "priorBlockedAt": "2026-09-18T22:02:12Z",
+  "priorBlockedReason": "The exact current-main candidate validates the recovered admission and its authority ledger, but reports nine unchanged historical schema-v2 Mission Control events as hash-invalid because current parsers add default fields before verifyChain re-hashes them. The deployed state-compatible runtime verifies the same live event chain as valid. V4 explicitly stopped on a candidate chain failure.",
+  "priorBlockResolvedBy": "issue-53-comment-5736910093",
   "writerLease": "tasks/writer-leases/chat-mc53-epoch5-compat-v4-20260918-2139.json",
   "suspendedTaskSources": [
     "issue-53-comment-5735472294 expired epoch-4 heartbeat revival",
