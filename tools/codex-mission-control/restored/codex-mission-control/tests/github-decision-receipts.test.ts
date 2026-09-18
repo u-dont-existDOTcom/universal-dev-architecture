@@ -520,6 +520,35 @@ test("reconciliation snapshots the ledger once across many historical receipt co
     && event.data.summary === capabilityVerifiedSummary).length, capabilityComments.length);
 });
 
+test("reconciliation snapshot incorporates newly ingested receipts before later comments", async () => {
+  const p = policy();
+  const store = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  const first = directCandidate("EXTRA_HIGH_DIRECT");
+  const second = {
+    ...first,
+    commentId: first.commentId + 1,
+    immutableUrl: first.immutableUrl.replace(/issuecomment-\d+$/, `issuecomment-${first.commentId + 1}`),
+    createdAt: "2026-09-02T00:15:01.000Z",
+  };
+  const toComment = (candidate: GitHubDecisionCandidate) => ({
+    id: candidate.commentId,
+    html_url: candidate.immutableUrl,
+    created_at: candidate.createdAt,
+    body: candidate.body,
+    user: { login: candidate.authorLogin },
+  });
+
+  const result = await reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:15:20.000Z",
+    fetchImpl: async (url) => new Response(JSON.stringify(
+      String(url).includes(`/issues/${p.decisionIssueNumber}/`) ? [toComment(second), toComment(first)] : [],
+    ), { status: 200 }),
+  });
+
+  assert.equal(result.filter((event) => event.data.type === "github_decision_receipt_ingested").length, 1);
+});
+
 test("public reconciliation polls all centrally configured buses without Authorization", async () => {
   const p = policy();
   const store = fakeStore([]);
