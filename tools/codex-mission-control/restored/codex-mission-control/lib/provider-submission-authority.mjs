@@ -69,13 +69,20 @@ export class CentralSubmissionScheduler {
     this.tail = Promise.resolve();
   }
 
-  async activateLease(rawLease) {
+  async activateLease(rawLease, { restorePersisted = false } = {}) {
     return this.#serialized(async () => {
       const candidate = parseDeploymentLease(rawLease);
       const state = await this.stateStore.read();
       const relayBindingsInitialized = initializeOrValidateRelayBindings(state, this.producerBindings);
       const previous = state.activeLease;
       const nowMs = this.now();
+      // A restart must not roll a heartbeat-renewed lease back to static boot
+      // configuration. Restoring a stale lease permits health recovery, not sends.
+      if (restorePersisted && previous && sameLeaseIdentity(previous, candidate)
+        && sameRenewalFields(previous, candidate) && Date.parse(candidate.expiresAt) <= Date.parse(previous.expiresAt)) {
+        if (relayBindingsInitialized) await this.stateStore.write(state);
+        return previous;
+      }
       if (Date.parse(candidate.issuedAt) > nowMs || Date.parse(candidate.expiresAt) <= nowMs) {
         throw new SubmissionSchedulerError('DEPLOYMENT_LEASE_STALE', 'A scheduler may activate only a currently valid lease.');
       }
@@ -106,6 +113,45 @@ export class CentralSubmissionScheduler {
       state.leaseHistory.push(candidate);
       await this.stateStore.write(state);
       return candidate;
+    });
+  }
+
+  async renewLeaseFromHealth(report, producerId) {
+    return this.#serialized(async () => {
+      const state = await this.stateStore.read();
+      const binding = requireDurableRelayBinding(state, producerId);
+      const lease = state.activeLease;
+      const nowMs = this.now();
+      const observedMs = Date.parse(report.observedAt);
+      if (!lease || report.deploymentEpoch !== lease.epoch
+        || binding.hostAlias !== lease.activeHostAlias || binding.hostRole !== lease.activeHostRole
+        || lease.splitBrainStatus !== 'SINGLE_ACTIVE_CONFIRMED'
+        || report.hostAlias !== binding.hostAlias || report.hostRole !== binding.hostRole) {
+        return { renewed: false, reason: 'NOT_ACTIVE_LEASE_OWNER' };
+      }
+      if (!Number.isFinite(observedMs) || observedMs < nowMs - 150_000 || observedMs > nowMs + 30_000) {
+        return { renewed: false, reason: 'HEARTBEAT_NOT_FRESH' };
+      }
+      if (report.relayWorkerState !== 'HEALTHY' || report.browserState !== 'HEALTHY'
+        || report.authorityBindingState !== 'BOUND') {
+        return { renewed: false, reason: 'HEARTBEAT_NOT_HEALTHY' };
+      }
+      if (state.safetyHalt || state.relayTargetTransition
+        || state.admissions.some((item) => item.status === 'AMBIGUOUS_AFTER_RESTART')) {
+        return { renewed: false, reason: 'AUTHORITY_REQUIRES_RECONCILIATION' };
+      }
+      // Derive expiry from observation time so replaying one old heartbeat cannot
+      // extend ownership. This may recover an expired lease only for the same
+      // durable owner/epoch already recorded in the single-writer state.
+      const expiresMs = Math.min(observedMs, nowMs) + 600_000;
+      if (Date.parse(lease.expiresAt) > nowMs + 300_000 || expiresMs <= Date.parse(lease.expiresAt)) {
+        return { renewed: false, reason: 'RENEWAL_NOT_DUE', expiresAt: lease.expiresAt };
+      }
+      const renewed = { ...lease, expiresAt: new Date(expiresMs).toISOString() };
+      state.activeLease = renewed;
+      state.leaseHistory.push(renewed);
+      await this.stateStore.write(state);
+      return { renewed: true, reason: 'ACTIVE_OWNER_HEARTBEAT', expiresAt: renewed.expiresAt };
     });
   }
 
@@ -825,7 +871,7 @@ function canonicalJson(value) {
 }
 
 export function recoverySha256(value) {
-  // Match EventStore's existing canonical JSON, including its key ordering.
+  // Match EventStore's canonical JSON ordering for the retained historical proof.
   function sorted(item) {
     if (Array.isArray(item)) return item.map(sorted);
     if (item && typeof item === 'object') return Object.fromEntries(Object.entries(item)
@@ -836,15 +882,12 @@ export function recoverySha256(value) {
   return sha256(JSON.stringify(sorted(value)));
 }
 
-export function recoveryPermitScopeSha256(value) {
+function recoveryPermitScopeSha256(value) {
   const { ownerAuthorization: _authorization, ownerAuthorizationSha256: _digest, ...scope } = value;
   return recoverySha256(scope);
 }
 
-// Positive evidence is an operator-audited, retained receipt. submitInvoked
-// refers to browser submitExactMessage, not the outer pacing callback. Digests are
-// content bindings, not credentials. Only protected daemon startup may supply it.
-export function parsePrecompositionRecoveryPermit(value) {
+function parsePrecompositionRecoveryPermit(value) {
   try {
     const root = exactRecoveryRecord(value, [
       'schemaVersion', 'permitId', 'pacingDomain', 'issuedAt', 'expiresAt',
@@ -912,7 +955,7 @@ function recoverySourceRef(value) {
 }
 
 function recoveryError(reason) {
-  return new SubmissionSchedulerError(`SUBMISSION_RECOVERY_${reason}`, 'Operator startup recovery failed closed.');
+  return new SubmissionSchedulerError(`SUBMISSION_RECOVERY_${reason}`, 'Historical pre-composition recovery evidence failed validation.');
 }
 
 function hasSubmissionEvidence(admission) {
@@ -1087,7 +1130,9 @@ function normalizeAdmissionRecord(value, index) {
       || hasSubmissionEvidence(admission) || admission.abortedAt !== null || admission.abortStage !== null
       || admission.providerRateLimitObservedAt !== null) throw recoveryError('RECORDED_EVIDENCE_INVALID');
     const recoveredAt = isoTimestamp(recovery.recoveredAt, 'recoveredAt');
-    if (Date.parse(recoveredAt) < Date.parse(permit.issuedAt) || Date.parse(recoveredAt) >= Date.parse(permit.expiresAt)) throw recoveryError('RECORDED_EVIDENCE_INVALID');
+    if (Date.parse(recoveredAt) < Date.parse(permit.issuedAt) || Date.parse(recoveredAt) >= Date.parse(permit.expiresAt)) {
+      throw recoveryError('RECORDED_EVIDENCE_INVALID');
+    }
     admission.precompositionRecovery = { permit, permitSha256: recovery.permitSha256, recoveredAt };
   } else if (Object.hasOwn(root, 'precompositionRecovery')) {
     throw recoveryError('RECORDED_EVIDENCE_INVALID');

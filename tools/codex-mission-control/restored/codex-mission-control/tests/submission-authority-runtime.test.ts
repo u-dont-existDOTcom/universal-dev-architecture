@@ -245,6 +245,51 @@ test("authenticated relay health drives owner status and expires fail closed", a
   }
 });
 
+test("expired same-owner lease restores fail-closed and a fresh healthy heartbeat renews only that durable owner", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const initial = runtime(store, now);
+    assert.equal((await initial.status(producer)).schedulerState, "ACTIVE_LEASE");
+
+    now.value = Date.parse(primaryLease().expiresAt) + 1;
+    const restarted = runtime(store, now);
+    const stale = await restarted.status(producer);
+    assert.equal(stale.schedulerState, "LEASE_STALE");
+    assert.equal(stale.activeLease.leaseId, primaryLease().leaseId);
+    assert.equal(stale.activeLease.epoch, primaryLease().epoch);
+
+    const report = {
+      schemaVersion: 1,
+      hostAlias: "primary-test",
+      hostRole: "PRIMARY",
+      deploymentEpoch: 1,
+      observedAt: new Date(now.value).toISOString(),
+      relayWorkerState: "HEALTHY",
+      browserState: "HEALTHY",
+      authorityBindingState: "BOUND",
+      detail: "READY",
+    };
+    const accepted = await restarted.execute("relay-health", report, producer);
+    assert.equal(accepted.accepted, true);
+    assert.equal(accepted.leaseRenewal.renewed, true);
+    assert.equal(accepted.leaseRenewal.reason, "ACTIVE_OWNER_HEARTBEAT");
+
+    const renewed = await restarted.status(producer);
+    assert.equal(renewed.schedulerState, "ACTIVE_LEASE");
+    assert.equal(renewed.activeLease.leaseId, primaryLease().leaseId);
+    assert.equal(renewed.activeLease.epoch, primaryLease().epoch);
+    assert.equal(renewed.activeLease.activeHostAlias, "primary-test");
+
+    now.value += 1_000;
+    const replay = await restarted.execute("relay-health", { ...report, observedAt: new Date(now.value).toISOString() }, producer);
+    assert.equal(replay.leaseRenewal.renewed, false);
+    assert.equal(replay.leaseRenewal.reason, "RENEWAL_NOT_DUE");
+  } finally {
+    store.close();
+  }
+});
+
 test("unconfigured Mission Control authority fails closed", async () => {
   const store = new EventStore(":memory:");
   try {

@@ -58,6 +58,18 @@ Admission: `ADMITTED | BLOCKED`
 
 A substantive `FAIL`, `UNKNOWN` evidence for a mandatory obligation, stale contract, or required-but-unactivated guidance layer blocks the affected delivery/action. `I read it`, `the prompt included it`, and `I remembered it` are not application evidence.
 
+## Continuation / stop admission
+
+For substantive OPEN work, apply the existing GitHub operating-system continuation rule before final delivery:
+
+- Parent outcome and exact remaining gap: `<status / gap>`
+- Next safe action, responsible actor, and continuing authority: `<action / actor / source>`
+- Executability or exact blocker evidence: `<evidence, not a self-authored phase label>`
+- Action actually executed or genuine stopping boundary: `<result / boundary>`
+- Independent authorized work still executable: `<none, or execute it before stopping>`
+
+An assistant-authored diagnosis-only subtask does not supersede parent implementation authority. A listed next step or saved report is not execution. Respect explicit owner stop/diagnostic-only scope. Policy tests are not proof of agent behavior.
+
 ## Feedback refresh
 
 If the owner corrects/rejects the work or the task materially changes:
