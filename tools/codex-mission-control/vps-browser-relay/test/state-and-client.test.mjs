@@ -85,7 +85,7 @@ test('Mission Control client reads only explicitly scoped worker snapshots', asy
   assert.equal(requests.length, 2);
   assert.equal(requests[0].url, 'https://mission-control.example/api/mcp');
   assert.equal(requests[0].options.headers.authorization, `Bearer ${'x'.repeat(32)}`);
-  assert.equal(requests[0].requestBody.params.name, 'mission_control_get_worker');
+  assert.equal(requests[0].requestBody.params.name, 'mission_control_get_worker_transport');
   assert.equal(requests[0].requestBody.params.arguments.worker, 'worker-a');
 });
 

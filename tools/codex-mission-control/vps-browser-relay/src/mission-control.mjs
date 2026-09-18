@@ -18,7 +18,7 @@ export class MissionControlClient {
     if (!Array.isArray(workerIds) || workerIds.length === 0) throw new Error('At least one scoped Mission Control worker ID is required.');
     const workers = [];
     for (const worker of [...new Set(workerIds)]) {
-      const structured = await this.#callTool('mission_control_get_worker', { worker });
+      const structured = await this.#callTool('mission_control_get_worker_transport', { worker });
       const snapshot = structured?.worker && typeof structured.worker === 'object' && !Array.isArray(structured.worker)
         ? structured.worker
         : structured;

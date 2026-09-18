@@ -161,8 +161,11 @@ Build the locked `deploy/Dockerfile` from the application root after `npm ci`,
 tagged image to the authorized standby rather than rebuilding a different
 source tree. `deploy/compose.example.yaml` runs the daemon and BFF as one
 unprivileged, read-only container with a persistent `/data` volume, loopback
-network binding, dropped capabilities, and a health check covering the daemon,
-BFF, event ledger, and submission-authority ledger. Supply all credentials,
+network binding, dropped capabilities, and a cheap process-liveness health
+check covering the daemon and BFF without scanning the event or authority
+ledgers. Deep `/health` and `/api/runtime-status` readiness checks continue to
+verify the event chain and submission-authority ledger at explicit operational
+boundaries. Supply all credentials,
 the MC-only registry, relay-host bindings, and the active lease from an
 owner-only external environment file. Start exactly one container against the
 authoritative SQLite state. The daemon holds an SQLite exclusive writer lock,

@@ -1,6 +1,20 @@
 import { projectWorkers, summarizeChanges } from "./projection";
 import { EventStore } from "./store";
 
+const relayTransportEvidenceSummaries = new Set([
+  "MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1",
+  "MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1",
+  "MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1",
+  "MISSION_CONTROL_RELAY_STAGE_V1",
+  "MISSION_CONTROL_CHAT_STAGE_LIVENESS_V1",
+  "MISSION_CONTROL_PROVIDER_SESSION_V1",
+  "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1",
+  "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1",
+  "MISSION_CONTROL_BINDING_CAPSULE_V1",
+  "MISSION_CONTROL_BINDING_ENVELOPE_V1",
+  "MISSION_CONTROL_PM_CONTROLLER_STAGE_V1",
+]);
+
 export function snapshotFromStore(store: EventStore, options: { includeFixtureOnly?: boolean } = {}) {
   const events = store.allEvents();
   const projectedWorkers = projectWorkers(events);
@@ -52,4 +66,27 @@ export function workerSnapshotFromStore(
   const selected = projectWorkers(store.allEvents()).find((candidate) => candidate.id === worker);
   if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
   return { worker: selected, generatedAt: new Date().toISOString() };
+}
+
+export function workerTransportSnapshotFromStore(
+  store: EventStore,
+  worker: string,
+  options: { includeFixtureOnly?: boolean } = {},
+) {
+  const workerEvents = store.workerEvents(worker);
+  const selected = projectWorkers(workerEvents).find((candidate) => candidate.id === worker);
+  if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
+  return {
+    worker: {
+      id: selected.id,
+      name: selected.name,
+      timeline: workerEvents.filter(isRelayTransportEvent).reverse(),
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export function isRelayTransportEvent(event: ReturnType<EventStore["allEvents"]>[number]) {
+  if (["worker_message_recorded", "github_decision_receipt_ingested", "reasoning_message_recorded"].includes(event.data.type)) return true;
+  return event.data.type === "evidence_receipt_recorded" && relayTransportEvidenceSummaries.has(event.data.summary);
 }

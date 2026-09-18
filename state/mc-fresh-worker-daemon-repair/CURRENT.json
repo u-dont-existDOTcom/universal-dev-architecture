@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "taskId": "mc-fresh-worker-daemon-repair-same-fixture-v3-20260918",
+  "updatedAt": "2026-09-18T18:02:00Z",
+  "phase": "RELEASE_REVIEW_AND_INSTALL",
+  "status": "INCOMPLETE",
+  "canonicalMainStart": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
+  "replacementFixtureCreated": false,
+  "providerSendsThisTask": 0,
+  "currentGap": "Commit and obtain exact-head hosted review, then install reversibly with sends disabled and begin the two-interval no-send soak.",
+  "nextAction": "Commit the green candidate on the owned branch, open the reviewed PR, require hosted checks, merge, then perform the volume-preserving central and relay install.",
+  "phaseAEvidence": {
+    "traceStartedAt": "2026-09-18T17:20:39.614Z",
+    "traceEndedAt": "2026-09-18T17:32:45.590Z",
+    "reconciliationIntervalsObserved": 2,
+    "daemonCpuSamples": 360,
+    "daemonCpuMedianPercentOfOneCore": 100.3,
+    "daemonCpuSamplesAtOrAbove90Percent": 281,
+    "daemonRssMiBRange": [580.9, 982.6],
+    "tcpListenerSamples": 360,
+    "tcpListenerMissingSamples": 0,
+    "deepHealthLatencyMs": [6830.3, 8129.7, 7990.4],
+    "authenticatedWorkerReadLatencyMs": [27825.7, 26734.5, 19925.0, 45003.8],
+    "authenticatedWorkerReadLastResult": "TIMEOUT",
+    "authenticatedWorkerReadResponseBytes": 32247319,
+    "dockerHealthDurationSeconds": [20.9, 21.4, 38.1, 43.5, 25.3],
+    "authorityEpoch": 4,
+    "authorityRole": "SECONDARY",
+    "queueDepth": 0,
+    "unresolvedAdmission": null,
+    "ledgerValid": true,
+    "providerSends": 0,
+    "reconciliationCorrelationProven": true,
+    "diagnosis": "Same-event-loop repeated historical reconciliation/deep-history work and a 32 MB full-history relay read projection starve otherwise-live request serving."
+  },
+  "phaseBEvidence": {
+    "repair": [
+      "finalized-comment index reconstructed from the append-only event ledger",
+      "pending-route/challenge floor plus bounded overlap for unchanged late-valid receipts",
+      "one batch event-history load with state updated after successful appends",
+      "bounded event-loop yield during reconciliation",
+      "cheap daemon and BFF liveness separated from deep readiness",
+      "relay-only scoped transport projection; full operator projection unchanged"
+    ],
+    "focusedMissionControl": "42/42 PASS",
+    "focusedRelayAndController": "92/92 PASS",
+    "fullMissionControl": "276/276 PASS; typecheck PASS; production build PASS",
+    "fullRelay": "208/208 PASS; syntax and service assets PASS",
+    "repository": "338/338 PASS; audit 0 errors/1 pre-existing root-size warning",
+    "instructionChainBytes": 32650,
+    "testEfficiency": {
+      "observedSeconds": 280.13,
+      "taskWallTimePercent": 13.36,
+      "forcedRedundantGreenSeconds": 0.0
+    },
+    "providerSends": 0
+  },
+  "activeLessonContract": [
+    {
+      "source": "issue-53-comment-5723378677",
+      "trigger": "same route has one reconciled binding-only crossed boundary",
+      "requiredBehavior": "preserve general fail-closed behavior while allowing only the explicit same-route MCP_BINDING_PRELOAD retry after repair and soak",
+      "failureCondition": "replacement route, semantic send, or retry before daemon readiness",
+      "enforcement": "mechanical_and_semantic"
+    },
+    {
+      "source": "patterns/parallel-chat-write-isolation.md",
+      "trigger": "another worker may be active on the same repository task",
+      "requiredBehavior": "mutate only this owned branch and verify lease/head before writes",
+      "failureCondition": "unexpected branch advance or shared mutable branch",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/test-efficiency-and-verification-budget.md",
+      "trigger": "non-trivial implementation with repeated tests",
+      "requiredBehavior": "measure test cost and use focused tests before release gates",
+      "failureCondition": "unmeasured repeated full suites or redundant unchanged green reruns",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/outcome-advancement-and-strategy-efficacy.md",
+      "trigger": "daemon-starvation hypothesis must be tested",
+      "requiredBehavior": "switch causal seam if the two-interval trace falsifies the hypothesis",
+      "failureCondition": "materially similar optimization continues despite falsification",
+      "enforcement": "semantic"
+    },
+    {
+      "source": "MC-FRESH-WORKER-DAEMON-REPAIR-SAME-FIXTURE-V3-20260918",
+      "trigger": "provider and live-control-plane boundaries",
+      "requiredBehavior": "zero provider sends before repair and soak; no production mutation, paid inference, assistant-output inspection, manual SQLite writes, or second EventStore writer",
+      "failureCondition": "any forbidden boundary is crossed",
+      "enforcement": "mechanical_and_semantic"
+    }
+  ]
+}

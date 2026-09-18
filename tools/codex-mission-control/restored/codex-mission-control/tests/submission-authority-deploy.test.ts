@@ -22,8 +22,11 @@ test("VPS container keeps one loopback single-writer stack, durable state, and n
   assert.match(compose, /read_only: true/);
   assert.match(compose, /mission-control-state:\/data/);
   assert.match(compose, /no-new-privileges:true/);
-  assert.match(healthcheck, /submissionAuthoritySchedulerState !== "ACTIVE_LEASE"/);
-  assert.match(healthcheck, /submissionAuthorityLedger\?\.valid !== true/);
+  assert.match(healthcheck, /127\.0\.0\.1:4100\/live/);
+  assert.match(healthcheck, /127\.0\.0\.1:3000\/api\/live/);
+  assert.match(healthcheck, /kind !== "liveness"/);
+  assert.doesNotMatch(healthcheck, /verifyChain|submissionAuthorityLedger|runtime-status/);
+  assert.match(launcher, /new URL\("\/live", url\)/);
   assert.match(launcher, /Production start requires explicit owner-only runtime configuration/);
   assert.match(launcher, /MISSION_CONTROL_OWNER_TOKEN is required/);
   assert.doesNotMatch(launcher, /Mission Control local owner token|console\.(?:log|error).*OWNER_TOKEN/);
