@@ -9,16 +9,27 @@
       "id": "WORK-THREAD-NAME-001",
       "text": "When Chat creates a new Work chat, name it after the originating Chat with `Work — ` prefixed so the owner can keep execution threads associated with their source.",
       "operationalization": "Preferred exact title: `Work — <originating Chat title>`. If the handoff surface exposes a title/name field, set it directly. Otherwise put the exact requested Work title at the start of the runnable Work directive and instruct Work to apply it before substantive execution when the Work surface supports renaming. If the actual source UI title is not exposed, use the explicit source-chat title established in the current conversation; do not claim an unseen UI title."
+    },
+    {
+      "id": "WORK-THREAD-LOCATOR-001",
+      "text": "When Chat creates or resumes a Work thread, capture and surface the exact created Work-thread locator returned or exposed by the platform so the owner can reopen the execution thread without searching the sidebar.",
+      "operationalization": "Persist the exact codex://threads/<id> URI or canonical Work URL in the source handoff/task record and echo it in every final Work receipt when exposed. If the platform exposes no locator, record UNRESOLVED and surface the tracking limitation immediately; do not invent a locator or call the handoff fully discoverable."
     }
   ],
   "non_goals": [
     "Do not claim a handoff API set the title when that API exposes no title field.",
     "Do not make naming a new semantic-authority, spending, publication, access, or execution gate.",
-    "Do not invent an unseen originating UI title."
+    "Do not invent an unseen originating UI title.",
+    "Do not treat source Chat URLs, Git branches, PRs, commits, titles, or receipt paths as substitutes for the Work thread's own locator when that locator is available."
   ],
   "source": {
     "date": "2026-09-18",
     "kind": "explicit owner request",
     "owner_words_summary": "Use the same title as the originating chat with `Work` first, and merge the convention into UDA so it is durable."
+  },
+  "source_locator_correction": {
+    "date": "2026-09-18",
+    "kind": "explicit owner correction",
+    "owner_words_summary": "The owner could not find work that was believed to have been done and objected that Work execution still was not reliably discoverable."
   }
 }
