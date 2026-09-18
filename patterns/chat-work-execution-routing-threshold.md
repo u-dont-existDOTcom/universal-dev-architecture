@@ -2,10 +2,11 @@
 
 Status: REQUIRED OWNER CORRECTION
 Date: 2026-09-02
-Updated: 2026-09-12
+Updated: 2026-09-18
 
 Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json`.
 Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget.owner-requirement.json`.
+Work-thread lineage naming requirement: `docs/requirements/2026-09-18-work-thread-lineage-naming.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -73,6 +74,22 @@ Invoke Work/Codex when the bounded action genuinely requires one or more of:
 - genuinely long-range repository implementation where many stateful edits/commands make Chat-level direct execution impractical.
 
 A long-range repository operation means sustained execution complexity, not simply a large repository or a multi-file idea. Prefer Chat for a bounded multi-file change when Chat can safely make and review the edits itself.
+
+## Work-thread lineage naming
+
+When Chat creates a new Work/Codex conversation, give it a deterministic owner-facing lineage title:
+
+```text
+Work — <originating Chat title>
+```
+
+Apply the title at the handoff boundary:
+
+1. If the handoff surface exposes a title or name field, set that field directly.
+2. If it does not, put the exact requested title at the start of the runnable Work directive and instruct Work to apply it before substantive execution when that surface supports renaming.
+3. Use the actual originating Chat title when it is exposed. If the UI title is not available to the current Chat, use the explicit source-chat title already established in the current conversation; do not invent or claim an unseen UI title.
+4. Keep the prefix and source title stable across the handoff. This naming convention is for owner traceability only; it does not transfer semantic authority, prove execution identity, or create a new permission or completion gate.
+5. If the platform cannot set or rename the Work title, proceed with the authorized handoff and report that title-setting limitation rather than blocking otherwise valid execution.
 
 ## Mixed tasks
 
