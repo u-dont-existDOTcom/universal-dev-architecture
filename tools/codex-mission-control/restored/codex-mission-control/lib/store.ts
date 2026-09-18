@@ -316,22 +316,28 @@ export class EventStore {
   }
 
   verifyChain(): { valid: boolean; errors: string[] } {
+    const rows = this.db.prepare("SELECT * FROM events ORDER BY sequence").all() as Array<Record<string, unknown>>;
     const errors: string[] = [];
     let previousHash: string | null = null;
-    for (const event of this.allEvents()) {
-      if (event.previousHash !== previousHash) errors.push(`Sequence ${event.sequence} has an invalid previous hash.`);
-      const calculated = calculateEventHash({
-        schemaVersion: event.schemaVersion,
-        eventId: event.eventId,
-        missionId: event.missionId,
-        worker: event.worker,
-        type: event.type,
-        occurredAt: event.occurredAt,
-        data: event.data,
-        previousHash: event.previousHash,
-      });
-      if (calculated !== event.eventHash) errors.push(`Sequence ${event.sequence} has an invalid event hash.`);
-      previousHash = event.eventHash;
+    for (const row of rows) {
+      const sequence = Number(row.sequence);
+      const storedPreviousHash = row.previous_hash === null ? null : String(row.previous_hash);
+      const storedEventHash = String(row.event_hash);
+      const previousHashValid = storedPreviousHash === previousHash;
+      if (!previousHashValid) errors.push(`Sequence ${sequence} has an invalid previous hash.`);
+      const eventHashValid = calculatePersistedEventHash(row) === storedEventHash;
+      if (!eventHashValid) errors.push(`Sequence ${sequence} has an invalid event hash.`);
+      if (previousHashValid && eventHashValid) {
+        try {
+          const event = toStoredEvent(row);
+          if (event.type !== String(row.type) || eventWorker(event.data) !== event.worker) {
+            errors.push(`Sequence ${sequence} has payload metadata inconsistent with its stored columns.`);
+          }
+        } catch {
+          errors.push(`Sequence ${sequence} has an invalid persisted payload.`);
+        }
+      }
+      previousHash = storedEventHash;
     }
     return { valid: errors.length === 0, errors };
   }
@@ -1493,6 +1499,25 @@ function sameLogicalEvent(existing: StoredEvent, envelope: AppendEnvelope): bool
 
 function calculateEventHash(input: EventHashInput): string {
   return sha256(canonicalJson(input));
+}
+
+function calculatePersistedEventHash(row: Record<string, unknown>): string {
+  const rawPayloadJson = String(row.payload_json);
+  const previousHash = row.previous_hash === null ? null : String(row.previous_hash);
+  // payload_json was written as the exact canonical event data used by
+  // calculateEventHash. Insert those persisted bytes directly into the original
+  // canonical envelope so later parser defaults can never rewrite history.
+  const canonicalEnvelope = [
+    `"data":${rawPayloadJson}`,
+    `"eventId":${canonicalJson(String(row.event_id))}`,
+    `"missionId":${canonicalJson(String(row.mission_id))}`,
+    `"occurredAt":${canonicalJson(String(row.occurred_at))}`,
+    `"previousHash":${canonicalJson(previousHash)}`,
+    `"schemaVersion":${canonicalJson(Number(row.schema_version))}`,
+    `"type":${canonicalJson(String(row.type))}`,
+    `"worker":${canonicalJson(row.worker === null ? null : String(row.worker))}`,
+  ].join(",");
+  return sha256(`{${canonicalEnvelope}}`);
 }
 
 function toStoredEvent(row: Record<string, unknown>): StoredEvent {

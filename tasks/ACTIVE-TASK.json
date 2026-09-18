@@ -8,7 +8,7 @@
   "requiredBranch": "codex/mc-fresh-worker-daemon-repair-20260918",
   "requiredRef": "refs/heads/codex/mc-fresh-worker-daemon-repair-20260918",
   "integrationBranch": "main",
-  "integrationBaseSha": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "integrationBaseSha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-DAEMON-REPAIR-SAME-FIXTURE-V3-20260918",
@@ -31,6 +31,13 @@
     "sourceThreadId": "01a0b586-e19d-7223-9dcb-baeb8e2d1e21",
     "sourceTurnId": "01a0b5fa-ed99-7ec1-b5bc-5caa957e421c",
     "ownerWords": "Approve the backward-compatible PRECOMPOSITION_RECOVERED repair and controlled successor-lease activation on the non-production SECONDARY, with zero provider sends, production untouched, PRIMARY/browser fence unchanged, and no pilot execution until the repaired authority state is revalidated."
+  },
+  "currentRepair": {
+    "authorizedAt": "2026-09-18T22:55:34Z",
+    "scope": "Verify historical event hashes from exact persisted payload_json before parser normalization, cover the nine known historical sequences and current records, fail closed on real corruption, then merge and install reversibly with live authoritative bytes and rows preserved.",
+    "providerSendsAllowed": false,
+    "productionAllowed": false,
+    "primaryFenceChangesAllowed": false
   },
   "writerLease": "tasks/writer-leases/mc-fresh-worker-daemon-repair-20260918.json",
   "suspendedTaskSources": [
