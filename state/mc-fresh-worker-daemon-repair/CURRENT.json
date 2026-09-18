@@ -1,15 +1,16 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-daemon-repair-same-fixture-v3-20260918",
-  "updatedAt": "2026-09-18T18:02:00Z",
-  "phase": "RELEASE_REVIEW_AND_INSTALL",
-  "status": "INCOMPLETE",
+  "updatedAt": "2026-09-18T19:08:44Z",
+  "phase": "STOPPED_AUTHORITY_STALE",
+  "status": "BLOCKED_OWNER_OR_SECURITY_BOUNDARY",
   "canonicalMainStart": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "canonicalMainEnd": "0a05d46461c7fbbb81411eda6567b3a63024bc62",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
   "replacementFixtureCreated": false,
   "providerSendsThisTask": 0,
-  "currentGap": "Commit and obtain exact-head hosted review, then install reversibly with sends disabled and begin the two-interval no-send soak.",
-  "nextAction": "Commit the green candidate on the owned branch, open the reviewed PR, require hosted checks, merge, then perform the volume-preserving central and relay install.",
+  "currentGap": "The epoch-4 lease is stale, so the directive's explicit authority stop fired before a two-interval post-install soak or same-route retry. Canonical main also cannot parse the live volume's existing PRECOMPOSITION_RECOVERED admission state from the previously deployed PR #120-derived runtime.",
+  "nextAction": "Do not continue automatically. Re-establish single-active authority through an authorized lease path and reconcile the durable PRECOMPOSITION_RECOVERED state compatibility before any new central install, soak, admission, route retry, or permanent hardening.",
   "phaseAEvidence": {
     "traceStartedAt": "2026-09-18T17:20:39.614Z",
     "traceEndedAt": "2026-09-18T17:32:45.590Z",
@@ -54,6 +55,56 @@
       "taskWallTimePercent": 13.36,
       "forcedRedundantGreenSeconds": 0.0
     },
+    "providerSends": 0
+  },
+  "phaseCEvidence": {
+    "availabilityRepairPr": "#148 merged as c156e3e7843aac850c9fcbc5dee725c34ca1a26b",
+    "startupReadinessPr": "#151 merged as 22a70fdbf9b4f098562b4633bbb34cfc37267ea0",
+    "relayPackagePr": "#149 merged as 0a05d46461c7fbbb81411eda6567b3a63024bc62 and installed on SECONDARY by the coordinated release task",
+    "exactHeadHostedChecks": "PASS on both merged repair heads",
+    "candidateInstall": "22a70fdbf9b4f098562b4633bbb34cfc37267ea0 started and passed cheap container liveness, then failed closed at deep authority read because admissions.17.status PRECOMPOSITION_RECOVERED is unsupported by canonical main",
+    "manualSqliteMutation": false,
+    "secondEventStoreWriter": false,
+    "replacementFixtureCreated": false,
+    "providerSends": 0
+  },
+  "stopEvidence": {
+    "checkedAt": "2026-09-18T19:08:44Z",
+    "stopCondition": "epoch/lease/single-active authority no longer current",
+    "schedulerState": "LEASE_STALE",
+    "activeLease": {
+      "leaseId": "lease:issue90-secondary-epoch4:6180780a-f6d8-42e0-9ee7-a0a88000b0f6",
+      "epoch": 4,
+      "activeHostAlias": "owner-secondary",
+      "activeHostRole": "SECONDARY",
+      "expiresAt": "2026-09-18T18:50:40.711Z",
+      "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED"
+    },
+    "centralRecovery": {
+      "runtime": "deployed state-compatible 5873984 runtime plus reviewed bounded startup-wait overlay",
+      "containerRunning": true,
+      "dataVolume": "codex-mission-control-issue90-live-v2",
+      "chainValid": true,
+      "ledgerValid": true,
+      "latestSequence": 12056,
+      "deepHealthLatencyMs": 7277.0,
+      "authorityStatusLatencyMs": 9690.1,
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "relayTargetTransition": "CLEAR",
+      "safetyHalt": null,
+      "lastSubmissionAt": "2026-09-17T21:55:26.258Z",
+      "dockerHealth": "unhealthy because the prior deep healthcheck requires ACTIVE_LEASE; process and explicit deep integrity read remain available"
+    },
+    "secondary": {
+      "relayService": "inactive",
+      "browserService": "active",
+      "submitEnabled": false,
+      "capabilityTestEnabled": false,
+      "previewEnabled": false
+    },
+    "postFixSoakIntervalsObserved": 0,
+    "bindingRetryAttempted": false,
     "providerSends": 0
   },
   "activeLessonContract": [
