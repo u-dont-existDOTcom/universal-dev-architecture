@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "sealed_for_handoff",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-per-request-handshake-20260918-1801",
+  "integration_branch": "main",
+  "integration_base_sha": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "scope": "isolated per-request handshake candidate; no live migration or provider sends",
+  "next_writer_instruction": "Create a fresh owned work branch from the sealed candidate; do not reuse another chat branch."
+}

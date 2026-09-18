@@ -375,3 +375,38 @@ function centralStatus() {
 function admissionAuthority(overrides = {}) {
   return { admissionId: 'admission:test', expiresAt: '2030-01-01T00:00:00.000Z', minimumIntervalMs: 60_000, leaseEpoch: 1, hostAlias: 'primary', hostRole: 'PRIMARY', ...overrides };
 }
+
+for (const stage of ['CLICK_DISPATCHED', 'UNKNOWN', 'PREPARING']) {
+  test(`per-request scheduler ${stage} fault preserves boundary truth`, async () => {
+    const events = [];
+    const client = {
+      async status() { return centralStatus(); },
+      async admit() { return admissionAuthority({ admitted: true, singleUse: true }); },
+      async validateAdmission() { return admissionAuthority({ valid: true }); },
+      async recordBoundary() { events.push('boundary'); return { recorded: true }; },
+      async bindTarget() {}, async recordRateLimit() {}, async recordOutcome() { events.push('outcome'); },
+      async abortBeforeBoundary() { events.push('abort'); return { aborted: true }; },
+    };
+    const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: new MemoryStateStore(), host: host(), minIntervalMs: 60_000 });
+    const error = Object.assign(new Error('injected browser interruption'), { relayStage: stage });
+    await assert.rejects(scheduler.submit({ context: { ...context(), sendPath: 'SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION' }, submit: async () => { throw error; } }), /injected/);
+    assert.deepEqual(events, stage === 'PREPARING' ? ['abort'] : []);
+    assert.equal(error.preBoundaryAbortConfirmed === true, stage === 'PREPARING');
+  });
+}
+
+test('request-bound post-click rate limit never launches a second provider transaction', async () => {
+  let sends = 0, boundaries = 0, retries = 0;
+  const client = {
+    async status() { return centralStatus(); },
+    async admit() { return admissionAuthority({ admitted: true, singleUse: true }); },
+    async validateAdmission() { return admissionAuthority({ valid: true }); },
+    async recordBoundary() { boundaries++; return { recorded: true }; },
+    async bindTarget() {}, async recordRateLimit() { retries++; return { providerRateLimitCount: 1 }; },
+    async recordOutcome() {}, async abortBeforeBoundary() { throw new Error('Must not abort a clicked request'); },
+  };
+  const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: new MemoryStateStore(), host: host(), minIntervalMs: 60_000 });
+  const error = new ChatGptRateLimitRetryError({ relayStage: 'CLICKED', clickedAtObserved: '2026-09-10T12:00:01.000Z' });
+  await assert.rejects(scheduler.submit({ context: { ...context(), sendPath: 'SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION' }, submit: async () => { sends++; throw error; } }));
+  assert.equal(sends, 1); assert.equal(boundaries, 1); assert.equal(retries, 0);
+});

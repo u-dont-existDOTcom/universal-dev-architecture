@@ -4,6 +4,7 @@ import {
   CAPABILITY_CHALLENGE_SUMMARY,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
+  REQUEST_BOUND_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_MODEL_SUMMARY,
   PROVIDER_SESSION_MCP_SUMMARY,
@@ -437,9 +438,16 @@ export class RelayRuntime {
       }
       const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
       if (withReceipt) {
-        const providerSessionId = withReceipt.decisionReceipt.decision_provider_session_id
+        const providerSessionId = withReceipt.decisionReceipt.provider_session_id
+          ?? withReceipt.decisionReceipt.decision_provider_session_id
           ?? withReceipt.decisionReceipt.stage_provider_session_id;
         const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
+        if (!session && withReceipt.packet.routeSchemaVersion === 5 && withReceipt.decisionReceipt.execution_provenance === 'REQUEST_BOUND_MCP_GITHUB_OBSERVED') {
+          // The daemon already admitted the exact execution evidence. Recover a lost local acknowledgement without a new browser transaction.
+          state.deliveries[withReceipt.routeKey] = { status: 'DECISION_RECEIPT_INGESTED', requestId: withReceipt.requestId, workerId: withReceipt.workerId, supervisorId: withReceipt.supervisorId, providerSessionId, receiptId: withReceipt.decisionReceipt.receipt_id, recoveredFrom: 'DURABLE_GITHUB_ADMISSION', receivedAt: new Date().toISOString() };
+          state = await this.stateStore.write(state);
+          return this.#writeStandaloneStatus('DECISION_RECEIPT_INGESTED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(withReceipt) });
+        }
         if (!session || session.requestId !== withReceipt.requestId || session.supervisorId !== withReceipt.supervisorId) {
           throw new Error(`Canonical receipt for ${withReceipt.requestId} is not bound to its active provider session.`);
         }
@@ -485,6 +493,9 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('LEGACY_ROUTE_NOT_AUTOMATED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate) });
       }
 
+      if (candidate.packet.routeSchemaVersion === 5 && this.config.runtime.requestBoundEnabled !== true) {
+        return this.#writeStandaloneStatus('REQUEST_BOUND_PROTOCOL_DISABLED', state, { memory, route: publicRoute(candidate) });
+      }
       const capability = chatCapabilityState(snapshot, candidate.chat);
       if (!this.config.runtime.submitEnabled) {
         state.health.lastError = null;
@@ -621,6 +632,7 @@ export class RelayRuntime {
   }
 
   async #processSupervisoryCycle(route, routes, state, memory) {
+    const perRequest = route.packet.routeSchemaVersion === 5;
     let prior = state.deliveries[route.routeKey] ?? null;
     route = {
       ...route,
@@ -709,12 +721,12 @@ export class RelayRuntime {
       // attempt until the universal submission boundary is actually open.
       await this.submissionPacer.assertReady();
       const semanticStage = action.step !== MCP_BINDING_PRELOAD_STEP;
-      const directDecisionStage = route.packet.routeSchemaVersion === 4 && semanticStage;
-      if (semanticStage && (!route.bindingCapsule || !route.bindingProviderSessionId)) {
+      const directDecisionStage = route.packet.routeSchemaVersion >= 4 && semanticStage;
+      if (semanticStage && !perRequest && (!route.bindingCapsule || !route.bindingProviderSessionId)) {
         throw new Error(`Fresh tool stage ${action.step} cannot start before the binding capsule is durably recorded.`);
       }
-      const providerSessionId = newProviderSessionId();
-      if (semanticStage && providerSessionId === route.bindingProviderSessionId) throw new Error('Stage provider session must differ from the binding provider session.');
+      const providerSessionId = perRequest && prior?.providerSessionId ? prior.providerSessionId : newProviderSessionId();
+      if (semanticStage && !perRequest && providerSessionId === route.bindingProviderSessionId) throw new Error('Stage provider session must differ from the binding provider session.');
       const openedAt = new Date().toISOString();
       target = await this.browser.createFreshChatTarget({
         reusableTargetId: this.#selectReusableTargetId(state, await this.browser.listTargets()),
@@ -734,7 +746,7 @@ export class RelayRuntime {
           `supervisor:${route.supervisorId}`,
           `provider_session:${providerSessionId}`,
           `session_role:${sessionRole}`,
-          ...(semanticStage ? [
+          ...(semanticStage && !perRequest ? [
             `binding_provider_session:${route.bindingProviderSessionId}`,
             `${directDecisionStage ? 'decision' : 'stage'}_provider_session:${providerSessionId}`,
           ] : [`binding_provider_session:${providerSessionId}`]),
@@ -747,7 +759,7 @@ export class RelayRuntime {
       });
       session = {
         providerSessionId,
-        bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
+        bindingProviderSessionId: perRequest ? providerSessionId : semanticStage ? route.bindingProviderSessionId : providerSessionId,
         supervisorId: route.supervisorId,
         requestId: route.requestId,
         workerId: route.workerId,
@@ -772,7 +784,7 @@ export class RelayRuntime {
         supervisorId: route.supervisorId,
         providerSessionId,
         decisionProviderSessionId: directDecisionStage ? providerSessionId : (prior?.decisionProviderSessionId ?? null),
-        bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
+        bindingProviderSessionId: perRequest ? providerSessionId : semanticStage ? route.bindingProviderSessionId : providerSessionId,
         bindingCapsule: route.bindingCapsule,
         stageAttempts,
       };
@@ -781,7 +793,7 @@ export class RelayRuntime {
       route = {
         ...route,
         providerSessionId,
-        bindingProviderSessionId: semanticStage ? route.bindingProviderSessionId : providerSessionId,
+        bindingProviderSessionId: perRequest ? providerSessionId : semanticStage ? route.bindingProviderSessionId : providerSessionId,
         providerSession: session,
       };
       await this.#recordProviderSession(route, session, 'PENDING_PROVIDER_ASSIGNMENT');
@@ -842,7 +854,7 @@ export class RelayRuntime {
       const start = await this.submissionPacer.submit({
         context: submissionSchedulerContext({
           chat: route.chat, target, expectedUrl, providerSessionId: session.providerSessionId,
-          requestId: route.requestId, queueKey: `${route.routeKey}:${action.step}:${session.providerSessionId}`, sendPath: `SUPERVISORY_CYCLE_${action.step}`,
+          requestId: route.requestId, queueKey: perRequest ? `${route.routeKey}:${action.step}` : `${route.routeKey}:${action.step}:${session.providerSessionId}`, sendPath: `SUPERVISORY_CYCLE_${action.step}`,
           bodySha256: promptSha256,
         }),
         beforeSubmit: async () => {
@@ -853,6 +865,7 @@ export class RelayRuntime {
           state.deliveries[route.routeKey] = {
             ...current,
             status: 'SUBMISSION_INTENT_RECORDED',
+            ...(perRequest ? { preBoundaryAbortConfirmed: false } : {}),
             requestId: route.requestId,
             workerId: route.workerId,
             supervisorId: route.supervisorId,
@@ -874,9 +887,20 @@ export class RelayRuntime {
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const appPlan = appSelectionForMessage(route.chat, action.step);
-          const messageApps = appPlan.requiredLabels.length > 0
-            ? await this.browser.selectAppsForMessage(target, appPlan)
-            : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
+          let messageApps;
+          try {
+            messageApps = appPlan.requiredLabels.length > 0
+              ? await this.browser.selectAppsForMessage(target, appPlan)
+              : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
+          } catch (error) {
+            if (!perRequest) throw error;
+            messageApps = { status: 'APP_SELECTION_UNCONFIRMED', requiredLabels: appPlan.requiredLabels, selectedLabels: [], inspectedAssistantOutput: false };
+          }
+          if (perRequest && Date.now() >= Date.parse(route.packet.expiresAt)) {
+            const error = new Error('Request expired before provider dispatch; no new send is permitted.');
+            error.relayStage = 'PREPARING';
+            throw error;
+          }
           const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
@@ -919,7 +943,8 @@ export class RelayRuntime {
         return this.#cooldownStatus(state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route) }, error);
       }
       const stage = error?.relayStage ?? 'UNKNOWN';
-      const afterClick = generationStarted || stage === 'CLICKED';
+      const afterClick = generationStarted || stage === 'CLICKED' || stage === 'CLICK_DISPATCHED' || stage === 'GENERATION_STARTED'
+        || (perRequest && error?.preBoundaryAbortConfirmed !== true);
       state = await this.stateStore.read();
       session = state.providerSessions[route.providerSessionId] ?? session;
       if (session) {
@@ -935,6 +960,7 @@ export class RelayRuntime {
       state.deliveries[route.routeKey] = {
         ...state.deliveries[route.routeKey],
         status: afterClick ? 'AMBIGUOUS_AFTER_RESTART' : 'FAILED_RETRYABLE',
+        ...(perRequest ? { preBoundaryAbortConfirmed: error?.preBoundaryAbortConfirmed === true } : {}),
         failedAt: new Date().toISOString(),
         failureStage: stage,
         lastError: redactError(error),
@@ -956,7 +982,7 @@ export class RelayRuntime {
   async #recordRelayStage(route, step, modelUiLabel, promptSha256, generationState, observedAt, startSignal, messageApps) {
     const bindingProviderSessionId = route.bindingProviderSessionId ?? route.providerSessionId;
     const isBindingSession = step === MCP_BINDING_PRELOAD_STEP;
-    const isDirectDecision = route.packet.routeSchemaVersion === 4 && !isBindingSession;
+    const isDirectDecision = route.packet.routeSchemaVersion >= 4 && !isBindingSession;
     const refs = [
       `request:${route.requestId}`,
       `supervisor:${route.supervisorId}`,
@@ -1000,7 +1026,7 @@ export class RelayRuntime {
         `provider_session:${session.providerSessionId}`,
         `binding_provider_session:${session.bindingProviderSessionId ?? session.providerSessionId}`,
         ...(session.sessionRole === 'MC_BINDING_PRELOAD_SESSION' ? [] : [
-          `${route.packet.routeSchemaVersion === 4 ? 'decision' : 'stage'}_provider_session:${session.providerSessionId}`,
+          `${route.packet.routeSchemaVersion >= 4 ? 'decision' : 'stage'}_provider_session:${session.providerSessionId}`,
         ]),
         `session_role:${session.sessionRole ?? 'LEGACY'}`,
         `message_ordinal:${session.messageOrdinal ?? 1}`,

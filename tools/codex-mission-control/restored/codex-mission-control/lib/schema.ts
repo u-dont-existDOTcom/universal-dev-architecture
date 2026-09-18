@@ -828,8 +828,18 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     bounded_execution: boundedExecutionResidueSchema.optional(),
     ...canonicalDecisionEnvelopeFields,
   }),
+  z.object({
+    schema_version: z.literal(4),
+    supervisor_id: StableId,
+    provider_session_id: StableId,
+    request_binding_sha256: Sha256,
+    execution_provenance: z.literal("REQUEST_BOUND_MCP_GITHUB_OBSERVED"),
+    continuation_binding: ownerResponseContinuationBindingSchema.optional(),
+    continuation_binding_sha256: Sha256.optional(),
+    ...canonicalDecisionEnvelopeFields,
+  }).strict(),
 ]).superRefine((envelope, context) => {
-  if (envelope.schema_version === 3 && (envelope.continuation_binding !== undefined || envelope.continuation_binding_sha256 !== undefined)) {
+  if ((envelope.schema_version === 3 || envelope.schema_version === 4) && (envelope.continuation_binding !== undefined || envelope.continuation_binding_sha256 !== undefined)) {
     try { validateContinuationBinding(envelope.continuation_binding, envelope.continuation_binding_sha256); }
     catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Canonical continuation binding/digest is invalid or incomplete." }); }
   }
@@ -903,6 +913,8 @@ export const githubDecisionReceiptIngestedSchema = z.object({
     mode: z.literal("EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY"),
     reinterpretation_allowed: z.literal(false),
   }),
+  execution_provenance: z.literal("REQUEST_BOUND_MCP_GITHUB_OBSERVED").optional(),
+  execution_mcp_receipt_id: StableId.optional(),
   canonical_envelope_sha256: Sha256,
   github_receipt: z.object({
     repository: NonEmpty.max(300),
@@ -922,7 +934,7 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   if (receipt.continuation_binding !== undefined || receipt.continuation_binding_sha256 !== undefined) {
     try { validateContinuationBinding(receipt.continuation_binding, receipt.continuation_binding_sha256); }
     catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Ingested continuation binding/digest is invalid or incomplete." }); }
-    if (!receipt.decision_provider_session_id) context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Continuation requires a direct decision session." });
+    if (!receipt.decision_provider_session_id && !(receipt.provider_session_id && receipt.execution_provenance)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Continuation requires a direct decision session." });
   }
   const proRequired = receipt.reasoning_lane === "PRO_ESCALATED";
   if (receipt.pro_decision_block.used !== proRequired) {
@@ -931,6 +943,10 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   if (proRequired && (receipt.pro_decision_block.exact_text !== receipt.decision_block.exact_text
     || receipt.pro_decision_block.sha256 !== receipt.decision_block.sha256)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_block"], message: "The ingested decision block must preserve the exact Pro decision bytes." });
+  }
+  if (receipt.execution_provenance !== undefined && (!receipt.provider_session_id || !receipt.execution_mcp_receipt_id
+    || receipt.binding_provider_session_id !== null || receipt.decision_provider_session_id !== null || receipt.stage_provider_session_id !== null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["execution_provenance"], message: "A request-bound receipt requires one execution session and its MCP receipt, never split-stage identities." });
   }
   const direct = receipt.decision_provider_session_id !== null;
   if (direct && (!receipt.binding_provider_session_id || !receipt.binding_envelope

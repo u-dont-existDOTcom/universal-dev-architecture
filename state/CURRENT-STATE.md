@@ -467,3 +467,7 @@ or source-time probe
 unless a later executable/environment change specifically invalidates that
 accepted evidence. Do not repeat PR #66 implementation/review unless a later
 canonical change invalidates it. Do not touch production.
+
+## 2026-09-18 — Per-request Mission Control candidate (not deployed)
+
+Owner outcome OPEN. A separate opt-in per-request candidate has 142 focused/affected passing tests and a passing typecheck. Existing rotation/preload work is not the migration base; old runtime evidence is retained. The candidate is not merged or deployed, and V2/V3 remain sealed/frozen. See `docs/exec-plans/active/2026-09-18-mc-per-request-handshake.md` and `docs/requirements/2026-09-18-mc-per-request-handshake.owner-requirement.json` for exact remaining execution gaps. Current runtime permissions block deployment; Work receives only the specified residue.

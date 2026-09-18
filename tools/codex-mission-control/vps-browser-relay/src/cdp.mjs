@@ -944,8 +944,14 @@ export class ChromeDevtoolsBrowser {
 
         relayStage = 'READY_TO_CLICK';
         if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
+        // Once the RPC is dispatched a lost reply cannot prove that no click occurred.
+        relayStage = 'CLICK_DISPATCHED';
         const send = await client.callFunction(CLICK_SEND_FN, []);
-        if (!send?.ok) throw new Error(`ChatGPT send control is unavailable: ${send?.reason ?? 'UNKNOWN'}.`);
+        if (send?.ok === false) {
+          relayStage = 'READY_TO_CLICK'; // The browser function explicitly reports no click.
+          throw new Error(`ChatGPT send control is unavailable: ${send?.reason ?? 'UNKNOWN'}.`);
+        }
+        if (send?.ok !== true) throw new Error('ChatGPT click result is unknown; reconciliation is required.');
         relayStage = 'CLICKED';
         clickedAtObserved = new Date().toISOString();
         if (onSubmissionBoundary) {

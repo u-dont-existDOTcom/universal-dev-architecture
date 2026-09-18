@@ -58,7 +58,7 @@ export function validateContinuationBinding(value: unknown, expectedDigest: unkn
 export function parseRouteContinuation(route: Record<string, unknown>): OwnerResponseContinuation | undefined {
   const fields = ["continuationBinding", "continuationBindingSha256", "continuationOwnerResponseExactText"];
   if (!fields.some((field) => Object.hasOwn(route, field))) return undefined;
-  if (route.schemaVersion !== 4 || !fields.every((field) => Object.hasOwn(route, field))) {
+  if ((route.schemaVersion !== 4 && route.schemaVersion !== 5) || !fields.every((field) => Object.hasOwn(route, field))) {
     throw new Error("Continuation requires all three private route-v4 fields.");
   }
   const binding = validateContinuationBinding(route.continuationBinding, route.continuationBindingSha256);

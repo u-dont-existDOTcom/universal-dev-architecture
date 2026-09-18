@@ -45,8 +45,15 @@ interface EventHashInput {
   previousHash: string | null;
 }
 
+interface ChainVerificationCache {
+  sequence: number;
+  eventHash: string | null;
+  errors: string[];
+}
+
 export class EventStore {
   private readonly db: DatabaseSync;
+  private chainVerificationCache: ChainVerificationCache = { sequence: 0, eventHash: null, errors: [] };
 
   constructor(filename = process.env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db")) {
     if (filename !== ":memory:") fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -316,9 +323,10 @@ export class EventStore {
   }
 
   verifyChain(): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    let previousHash: string | null = null;
-    for (const event of this.allEvents()) {
+    const errors = [...this.chainVerificationCache.errors];
+    let previousHash = this.chainVerificationCache.eventHash;
+    let sequence = this.chainVerificationCache.sequence;
+    for (const event of this.eventsAfter(sequence)) {
       if (event.previousHash !== previousHash) errors.push(`Sequence ${event.sequence} has an invalid previous hash.`);
       const calculated = calculateEventHash({
         schemaVersion: event.schemaVersion,
@@ -332,8 +340,10 @@ export class EventStore {
       });
       if (calculated !== event.eventHash) errors.push(`Sequence ${event.sequence} has an invalid event hash.`);
       previousHash = event.eventHash;
+      sequence = event.sequence;
     }
-    return { valid: errors.length === 0, errors };
+    this.chainVerificationCache = { sequence, eventHash: previousHash, errors };
+    return { valid: errors.length === 0, errors: [...errors] };
   }
 
   private initialize() {
@@ -1301,7 +1311,8 @@ export class EventStore {
     if (data.type === "worker_message_recorded") {
       // Workers can also use the event endpoint directly. Revalidate here so a
       // fabricated OWNER continuation never reaches the private relay outbox.
-      const prefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
+      const prefix = data.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n")
+        ? "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n" : "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
       if (data.body.startsWith(prefix)) {
         let packet: Record<string, unknown> | null = null;
         try {
