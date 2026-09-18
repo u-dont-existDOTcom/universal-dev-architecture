@@ -18,7 +18,7 @@ export class MissionControlClient {
     if (!Array.isArray(workerIds) || workerIds.length === 0) throw new Error('At least one scoped Mission Control worker ID is required.');
     const workers = [];
     for (const worker of [...new Set(workerIds)]) {
-      const structured = await this.#callTool('mission_control_get_worker', { worker });
+      const structured = await this.#callTool('mission_control_get_worker_transport', { worker });
       const snapshot = structured?.worker && typeof structured.worker === 'object' && !Array.isArray(structured.worker)
         ? structured.worker
         : structured;
@@ -64,6 +64,34 @@ export class MissionControlClient {
     return payload.event;
   }
 
+  async requestExecutionAdmission(worker, input) {
+    return this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/admission`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }, { allowConflict: true });
+  }
+
+  async requestWorkExecutionPreflight(worker, input) {
+    return this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/preflight`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }, { allowConflict: true });
+  }
+
+  async recordWorkerEvents(worker, events) {
+    const payload = await this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ events }),
+    });
+    if (!Array.isArray(payload?.events) || payload.events.length !== events.length) {
+      throw new Error('Mission Control worker-channel ingestion did not persist every lifecycle event.');
+    }
+    return payload;
+  }
+
   async #callTool(name, args) {
     const payload = await this.#requestJson('/api/mcp', {
       method: 'POST',
@@ -81,7 +109,7 @@ export class MissionControlClient {
     return structured;
   }
 
-  async #requestJson(path, options) {
+  async #requestJson(path, options, { allowConflict = false } = {}) {
     const response = await this.fetchImpl(`${this.url}${path}`, {
       ...options,
       headers: {
@@ -95,7 +123,9 @@ export class MissionControlClient {
     let payload;
     try { payload = JSON.parse(text); }
     catch { throw new Error(`Mission Control ${path} returned non-JSON HTTP ${response.status}.`); }
-    if (!response.ok) throw new Error(`Mission Control ${path} failed with HTTP ${response.status}: ${safeMessage(payload)}`);
+    if (!response.ok && !(allowConflict && response.status === 409)) {
+      throw new Error(`Mission Control ${path} failed with HTTP ${response.status}: ${safeMessage(payload)}`);
+    }
     return payload;
   }
 }

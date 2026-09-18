@@ -4,31 +4,31 @@ Scoped instructions supplement the root; rationale stays in root patterns.
 
 ## Owner-request integrity gate
 
-A direct owner request or correction to change owner-visible behavior is an active requirement, not conversational context.
+A direct owner request or correction is an active owner-visible requirement, not context.
 
-Before action: preserve exact owner wording/source digest; record observable result and `non-satisfying proxies`; activate root owner-outcome, requirement-accretion, and lesson rules; trace evidence to the request; continue unless a genuine owner decision remains.
+Before action, bind exact owner wording/source digest to the observable result and `non-satisfying proxies`; apply root owner-outcome, requirement-accretion, and lesson rules; continue unless a genuine owner decision remains.
 
-Durable work uses `docs/requirements/*.owner-requirement.json`. States: `RECORDED_NOT_IMPLEMENTED`, `IMPLEMENTED_NOT_LIVE_VERIFIED`, `LIVE_VERIFIED`, `BLOCKED_EXACT_REASON`, `SUPERSEDED_BY_OWNER`. Do not say `fixed`, `done`, or equivalent unless requested behavior is demonstrated at the correct boundary.
+Durable records use `docs/requirements/*.owner-requirement.json`, including `IMPLEMENTED_NOT_LIVE_VERIFIED`. Do not say `fixed`/`done` until behavior is demonstrated at the correct boundary.
 
 ## Chat reasoning and Work execution authority
 
 Inherit `patterns/chat-work-execution-routing-threshold.md` and `patterns/runtime-chat-work-authority-admission-and-internal-routing.md`; do not restate them as a second policy.
 
-Local binding: `lib/chat-work-authority-gate.ts` and `npm run supervision:admit -- --input <request.json>`. Authenticated runtime admission required by nested instructions remains mandatory. A local check is not a runtime receipt. A non-allow decision blocks the affected action. A worker may not fabricate Chat provenance, reinterpret owner intent, add mandatory requirements, or legitimize its own semantic proposal through an owner-relay request.
+Local binding: `lib/chat-work-authority-gate.ts` and `npm run supervision:admit -- --input <request.json>`. Nested authenticated runtime admission remains mandatory; local checks are not runtime receipts. Non-allow blocks the action. Workers cannot fabricate Chat provenance, reinterpret owner intent, add requirements, or self-legitimize proposals through owner relay.
 
 ## Spending boundary
 
-Current owner spending policy controls; zero-spend bars worker-authored paid-path revival.
+Current owner spending policy controls; zero-spend bars paid-path revival.
 
 ## Internal routing and capability edges
 
-Internal routing stays bound to authenticated transport, exact packet identity, and provider receipt; queue, delivery, ingestion, and semantic acceptance are distinct. It grants no external communication, publication, purchase, account-change, or missing-platform authority.
+Internal routing requires authenticated transport, exact packet identity, and provider receipt; queue, delivery, ingestion, and semantic acceptance remain distinct. It grants no external communication, publication, purchase, account change, or missing-platform authority.
 
-Use the topology in `patterns/chat-work-execution-routing-threshold.md`; **do not infer a native Work → originating Chat return edge** from Mission Control's mediated route. Capability edges remain directional with every user/UI/permission/authorization gate.
+Use `patterns/chat-work-execution-routing-threshold.md`; **do not infer a native Work → originating Chat return edge** from the mediated route. Capability edges remain directional across user/UI/permission/authorization gates.
 
 ## Browser ownership and submission
 
-Automate only explicitly automation-owned browser targets; never adopt manual/foreign targets. Standing authority includes creating/private-registering a missing `MISSION_CONTROL_ONLY` supervisor conversation while retaining private identity, pacing, fixed controls, and personal-chat exclusion.
+Automate explicit automation-owned targets; never adopt manual/foreign targets. Standing authority permits private creation/registration of a missing `MISSION_CONTROL_ONLY` supervisor conversation while preserving privacy, pacing, fixed controls, and personal-chat exclusion.
 
 For the exact ChatGPT rate-limit UI `too many chat requests are coming too quick`/`too quickly` with exactly one `Got it` control, dismiss and retry the same submission once after at least 30 seconds while preserving the repository-wide 60-second post-send interval. Changed/ambiguous repeat state fails closed.
 
@@ -36,17 +36,17 @@ Work selects authorized task-scoped access and the automatic reviewer; it cannot
 
 ## Completion and continuation
 
-The owner-requested outcome—not a green subtask, PR, test, plan, or artifact—is the stopping target. Any stop names the unmet outcome, blocker, actor, and next executable action.
+The owner outcome—not a green subtask, PR, test, plan, or artifact—is the stopping target. Any stop names the unmet outcome, blocker, actor, and next executable action.
 
-A consequential follow-up must pass the root follow-up goal/requirement-accretion gate before becoming a Work directive. A new assurance mechanism, proof burden, bridge, or blocker is not unfinished owner work merely because it is technically attractive.
+Consequential follow-ups must pass the root goal/requirement-accretion gate before becoming Work directives. A new assurance mechanism, proof, bridge, or blocker is not owner work merely because it is attractive.
 
 ## Time and timestamp truth
 
-Current wall-clock time is obtainable from a trusted runtime or time service when exposed. Distinguish `CURRENT_CHECK_TIME`, `SOURCE_SENT_TIME`, `MISSION_CONTROL_CAPTURE_TIME`, and `TIMESTAMP_UNAVAILABLE`; never relabel capture time as source sent time. ChatGPT-originated messages show exact source date/time/timezone when available, otherwise `TIMESTAMP UNAVAILABLE · UNVERIFIED`.
+Current wall-clock time is obtainable from trusted runtime time when exposed. Distinguish `CURRENT_CHECK_TIME`, `SOURCE_SENT_TIME`, `MISSION_CONTROL_CAPTURE_TIME`, and `TIMESTAMP_UNAVAILABLE`; never relabel capture as source time. ChatGPT messages show exact source date/time/timezone when available, otherwise `TIMESTAMP UNAVAILABLE · UNVERIFIED`.
 
 ## Learned-attractor correction
 
-For the Somatic prose experiment, **The model can accurately state the defect and still reproduce it** because generation can remain in the same learned basin. Do not default to more self-critique/prohibition. Test mechanisms that can change search/generation behavior—isolated sampling, quality-diversity coverage, external selection, steering where available, preference adaptation, or owner-source transformation. n8n/Hermes may enforce process isolation; neither is presumed to alter the learned distribution.
+For Somatic prose, **The model can accurately state the defect and still reproduce it** while the learned basin persists. Prefer isolated sampling, quality-diversity, external selection, available steering, preference adaptation, or owner-source transformation over more self-critique. n8n/Hermes only isolate process.
 
 ## Owner-authorized maintenance
 

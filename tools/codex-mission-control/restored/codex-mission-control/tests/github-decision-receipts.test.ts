@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { canonicalJson, sha256 } from "../lib/canonical";
@@ -33,13 +37,26 @@ import {
   type GitHubDecisionCandidate,
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
-import type { BindingCapsule, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
+import { parseAppendEnvelope, type BindingCapsule, type CanonicalDecisionEnvelope, type StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 import { deriveOwnerResponseContinuation } from "../lib/owner-response-continuation";
 import { continuationId } from "../lib/owner-response-continuation-schema";
 import { decisionRouteStates } from "../lib/reasoning-message-state";
-import { producerMayEmit } from "../lib/ingestion-auth";
+import { producerMayEmit, type AuthenticatedProducer } from "../lib/ingestion-auth";
 import { publicSupervisoryRequestBinding } from "../lib/public-mcp";
+import { evaluateSupervisionAdmission } from "../lib/supervision-admission-runtime";
+import {
+  buildWorkExecutionAuthorizationEnvelope,
+  currentExecutionDirectiveProof,
+  evaluatePersistedWorkExecutionPreflight,
+} from "../lib/work-execution-runtime";
+import {
+  WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
+  WORK_MODEL_ROUTING_POLICY_REF,
+} from "../lib/work-execution-profile";
+import { daemonLiveness } from "../lib/daemon-health";
+import { workerTransportSnapshotFromStore } from "../lib/dashboard-data";
+import { seedIssue47Store } from "../lib/seed";
 
 const outcomeSha = "a".repeat(64);
 const evidenceSha = "b".repeat(64);
@@ -289,6 +306,187 @@ test("route-v4 Pro uses the same first-message transport window without issue 61
   assert.ok(attestation.data.refs.includes("backend_model_identity_claimed:false"));
 });
 
+test("accepted canonical decision materializes one SYSTEM directive only when complete bounded residue exists", () => {
+  const withoutResidue = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  const ordinary = ingestGitHubSupervisionCandidate(withoutResidue, directCandidate("EXTRA_HIGH_DIRECT"), policy(), "2026-09-02T00:15:20.000Z");
+  assert.equal(ordinary.filter((event) => event.data.type === "execution_directive_recorded").length, 0);
+
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  decision.bounded_execution = boundedExecutionResidue("/tmp/mission-control-decision-directive");
+  const store = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  const executionCandidate = { ...directCandidate("EXTRA_HIGH_DIRECT"), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` };
+  const admitted = ingestGitHubSupervisionCandidate(store, executionCandidate, policy(), "2026-09-02T00:15:20.000Z");
+  const directive = admitted.find((event) => event.data.type === "execution_directive_recorded");
+  assert.ok(directive);
+  assert.equal(directive.producerId, "system:github-decision-receipts");
+  assert.equal(directive.producerKind, "SYSTEM");
+  if (directive.data.type !== "execution_directive_recorded") throw new Error("Expected execution directive");
+  assert.equal(directive.data.directive_schema_version, 3);
+  assert.equal(directive.data.validated_decision_proof?.authority_path, "VALIDATED_GITHUB_SUPERVISORY_DECISION");
+  assert.equal(directive.data.source_message_id?.startsWith("github-decision-source:"), true);
+  assert.equal(admitted.some((event) => event.data.type === "reasoning_message_recorded"), false);
+  assert.deepEqual(ingestGitHubSupervisionCandidate(store, executionCandidate, policy(), "2026-09-02T00:15:21.000Z"), []);
+  assert.equal(store.allEvents().filter((event) => event.data.type === "execution_directive_recorded").length, 1);
+
+  const changed = structuredClone(decision);
+  changed.bounded_execution!.prompt = "materially changed executable residue";
+  assert.throws(
+    () => ingestGitHubSupervisionCandidate(store, { ...executionCandidate, body: `${canonicalDecisionCommentPrefix}${JSON.stringify(changed)}` }, policy(), "2026-09-02T00:15:22.000Z"),
+    /changed canonical content/,
+  );
+});
+
+test("malformed or untrusted bounded residue fails before directive publication", () => {
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT") as Record<string, unknown>;
+  decision.bounded_execution = { ...boundedExecutionResidue("/tmp/mission-control-decision-directive"), prompt: "" };
+  const malformedStore = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  assert.throws(
+    () => ingestGitHubSupervisionCandidate(malformedStore, { ...directCandidate("EXTRA_HIGH_DIRECT"), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}` }, policy()),
+  );
+  assert.equal(malformedStore.allEvents().some((event) => event.data.type === "execution_directive_recorded"), false);
+
+  const validDecision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  validDecision.bounded_execution = boundedExecutionResidue("/tmp/mission-control-decision-directive");
+  const untrustedStore = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  assert.throws(
+    () => ingestGitHubSupervisionCandidate(untrustedStore, {
+      ...directCandidate("EXTRA_HIGH_DIRECT"), authorLogin: "untrusted-writer",
+      body: `${canonicalDecisionCommentPrefix}${JSON.stringify(validDecision)}`,
+    }, policy()),
+    /not authorized/,
+  );
+  assert.equal(untrustedStore.allEvents().some((event) => event.data.type === "execution_directive_recorded"), false);
+});
+
+test("EventStore accepts only the exact SYSTEM-derived directive and rejects WORKER authority minting", () => {
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  decision.bounded_execution = boundedExecutionResidue("/tmp/mission-control-decision-directive");
+  const store = continuationStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  try {
+    const admitted = ingestGitHubSupervisionCandidate(store, {
+      ...directCandidate("EXTRA_HIGH_DIRECT"), body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}`,
+    }, policy(), "2026-09-02T00:15:20.000Z");
+    const directive = admitted.find((event) => event.data.type === "execution_directive_recorded");
+    assert.ok(directive);
+    if (!directive || directive.data.type !== "execution_directive_recorded") throw new Error("Expected execution directive");
+    const proof = currentExecutionDirectiveProof("mission-control-live-slice", store.allEvents());
+    assert.equal(proof?.authoritySource?.kind, "VALIDATED_GITHUB_DECISION");
+    assert.equal(proof?.sourceBodySha256, directive.data.source_body_sha256);
+    const forgedProducerEvents = store.allEvents().map((event) => structuredClone(event));
+    const receiptEventId = directive.data.validated_decision_proof?.receipt_event_id;
+    const acceptedReceipt = forgedProducerEvents.find((event) => event.eventId === receiptEventId);
+    assert.ok(acceptedReceipt);
+    if (acceptedReceipt) acceptedReceipt.producerId = "worker:mission-control-live-slice";
+    assert.equal(currentExecutionDirectiveProof("mission-control-live-slice", forgedProducerEvents), null);
+    const workerProducer: AuthenticatedProducer = {
+      id: "worker:mission-control-live-slice", kind: "WORKER",
+      workerScopes: ["mission-control-live-slice"], taskScopes: ["task-1"],
+    };
+    assert.equal(producerMayEmit(workerProducer, directive.data), false);
+    assert.throws(() => store.append({
+      ...appendEnvelope(directive),
+      event_id: "worker-forged-equivalent-directive",
+    }, "2026-09-02T00:15:21.000Z", workerProducer), /exact mechanical derivation|not authorized|cannot emit/i);
+  } finally { store.close(); }
+});
+
+test("canonical GitHub decision reaches fake CODEX_LOCAL through RelayRuntime without manual execution-state seeding", async () => {
+  const relay = await import(new URL("../../../vps-browser-relay/src/relay.mjs", import.meta.url).href);
+  const relayCore = await import(new URL("../../../vps-browser-relay/src/core.mjs", import.meta.url).href);
+  const candidateRuntime = await import(new URL("../../../vps-browser-relay/src/codex-exec-candidate.mjs", import.meta.url).href);
+  const root = await mkdtemp(join(tmpdir(), "mc-decision-directive-e2e-"));
+  const workspace = join(root, "workspace");
+  const sourceCodexHome = join(root, "source-codex-home");
+  await mkdir(workspace);
+  await mkdir(sourceCodexHome);
+  await writeFile(join(sourceCodexHome, "auth.json"), "DETERMINISTIC_FIXTURE_SUBSCRIPTION_CREDENTIAL\n", { mode: 0o600 });
+  const fakeCodex = join(root, "fake-codex.mjs");
+  await writeFile(fakeCodex, fakeCodexSource(), { mode: 0o700 });
+
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  decision.bounded_execution = {
+    ...boundedExecutionResidue(workspace),
+    deadline: new Date(Date.now() + 30_000).toISOString(),
+  };
+  const store = continuationStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  try {
+    ingestGitHubSupervisionCandidate(store, {
+      ...directCandidate("EXTRA_HIGH_DIRECT"),
+      body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}`,
+    }, policy(), "2026-09-02T00:15:20.000Z");
+    const authoritativeRuntime = new DecisionExecutionRuntime("mission-control-live-slice", store.allEvents());
+    const codexConfig = {
+      previewEnabled: true,
+      stateDir: join(root, "durable-state"),
+      runtimeDir: join(root, "ephemeral-runtime"),
+      codexBinary: fakeCodex,
+      sourceCodexHome,
+      nodeBinary: process.execPath,
+      restrictedBrowserAdapterPath: null,
+      restrictedBrowserAdapterSha256: null,
+      maxTimeoutMs: 60_000,
+      mcpStartupTimeoutSeconds: 5,
+      mcpToolTimeoutSeconds: 5,
+      environment: { ...process.env },
+    };
+    let browserInspected = false;
+    const runtime = new relay.RelayRuntime({
+      config: relayConfig(),
+      missionControl: authoritativeRuntime,
+      browser: { listTargets: async () => { browserInspected = true; throw new Error("browser must not gate CODEX_LOCAL"); } },
+      stateStore: new DecisionMemoryStateStore(relayCore.defaultState()),
+      submissionPacer: { remoteStatus: async () => ({}), status: () => ({}) },
+      codexExecutionDispatcher: ({ snapshot, legacyBrowserHandler }: any) => candidateRuntime.dispatchAutomaticMissionControlExecution({
+        snapshot,
+        config: codexConfig,
+        missionControl: authoritativeRuntime,
+        legacyBrowserHandler,
+        spawnImpl: spawn,
+      }),
+      memoryReader: async () => { throw new Error("browser memory must not gate CODEX_LOCAL"); },
+      logger: { log() {}, warn() {}, error() {} },
+    });
+    const result = await runtime.cycle();
+    assert.equal(result.status, "CODEX_EXECUTION_DISPATCHED", JSON.stringify(result));
+    assert.equal(result.codexExecution.route, "CODEX_LOCAL");
+    assert.equal(result.codexExecution.status, "COMPLETED");
+    assert.equal(browserInspected, false);
+    assert.equal(authoritativeRuntime.actualAdmission?.mayExecute, true);
+    assert.equal(authoritativeRuntime.actualPreflight?.allowed, true);
+    assert.deepEqual(authoritativeRuntime.lifecycleTypes, ["codex_execution_started", "execution_receipt_recorded"]);
+    assert.equal(store.allEvents().some((event) => event.data.type === "reasoning_message_recorded"), false);
+  } finally { store.close(); }
+});
+
+test("unsupported browser residue preserves the exact existing legacy route binding", async () => {
+  const candidateRuntime = await import(new URL("../../../vps-browser-relay/src/codex-exec-candidate.mjs", import.meta.url).href);
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  decision.bounded_execution = boundedExecutionResidue(
+    "/tmp/mission-control-decision-directive",
+    { type: "BROWSER", name: "UNSUPPORTED_BROWSER_FIXTURE" },
+  );
+  const store = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  ingestGitHubSupervisionCandidate(store, {
+    ...directCandidate("EXTRA_HIGH_DIRECT"),
+    body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}`,
+  }, policy(), "2026-09-02T00:15:20.000Z");
+  let received: any = null;
+  const result = await candidateRuntime.dispatchAutomaticMissionControlExecution({
+    snapshot: { workers: [{ id: "mission-control-live-slice", timeline: store.allEvents() }] },
+    config: { previewEnabled: true },
+    missionControl: { fetchFleet: async () => { throw new Error("snapshot is already supplied"); } },
+    legacyBrowserHandler: async (directive: any, routing: any) => {
+      received = { directive, routing };
+      return { status: "EXACT_LEGACY_HANDLER_CALLED", route: routing.route };
+    },
+  });
+  assert.equal(result.status, "EXACT_LEGACY_HANDLER_CALLED");
+  assert.equal(result.route, "LEGACY_BROWSER");
+  assert.equal(received.directive.executionCapability.name, "UNSUPPORTED_BROWSER_FIXTURE");
+  assert.equal(received.routing.missionControlBinding.taskId, "task-1");
+  assert.equal(received.routing.missionControlBinding.decisionRequestId, "decision-request-1");
+});
+
 test("new direct binding envelope rejects forged, stale, cross-supervisor, and cross-session values", () => {
   const base = directDecisionEvents("PRO_ESCALATED");
   const mutations: Array<[string, (decision: ReturnType<typeof directDecisionEnvelope>) => void]> = [
@@ -506,6 +704,132 @@ test("public reconciliation polls all centrally configured buses without Authori
   assert.equal(urls.length, 3);
   assert.deepEqual(authorizationHeaders, [null, null, null]);
   assert.equal(result.some((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === capabilityVerifiedSummary), true);
+});
+
+test("reconciliation indexes 10k durable events once, skips 100 finalized comments, and yields below the relay timeout budget", async () => {
+  const p = policy();
+  const historical = Array.from({ length: 100 }, (_, index) => {
+    const commentId = 10_000 + index;
+    return evidenceEvent(`historical-${commentId}`, index + 1, capabilityVerifiedSummary, [
+      `github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${commentId}`,
+    ], "2026-09-02T00:01:30.000Z");
+  });
+  const irrelevant = Array.from({ length: 9_900 }, (_, index) => evidenceEvent(
+    `irrelevant-${index}`,
+    historical.length + index + 1,
+    "IRRELEVANT_HISTORICAL_EVIDENCE",
+    [`item:${index}`],
+    "2026-09-01T00:00:00.000Z",
+  ));
+  const store = fakeStore([...historical, ...irrelevant]);
+  const originalAllEvents = store.allEvents.bind(store);
+  let fullHistoryLoads = 0;
+  store.allEvents = () => { fullHistoryLoads += 1; return originalAllEvents(); };
+  const comments = historical.map((_, index) => githubComment(
+    10_000 + index,
+    p.capabilityIssueNumber,
+    capabilityReceiptBody("mc-nonce", "github-only-nonce"),
+    "2026-09-02T00:01:30.000Z",
+  ));
+  const urls: string[] = [];
+  let eventLoopYielded = false;
+  const representativeStore = new EventStore(":memory:");
+  seedIssue47Store(representativeStore);
+  const responsivenessProbe = new Promise<number>((resolve, reject) => setImmediate(() => {
+    const probeStartedAt = Date.now();
+    try {
+      assert.deepEqual(daemonLiveness(), { status: "ok", kind: "liveness" });
+      const worker = workerTransportSnapshotFromStore(representativeStore, "mission-control-live-slice");
+      assert.equal(worker?.worker.id, "mission-control-live-slice");
+      eventLoopYielded = true;
+      resolve(Date.now() - probeStartedAt);
+    } catch (error) {
+      reject(error);
+    }
+  }));
+  const startedAt = Date.now();
+  const reconciliation = reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:03:00.000Z",
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      urls.push(url.toString());
+      if (url.pathname.includes(`/issues/${p.capabilityIssueNumber}/comments`)) {
+        return new Response(JSON.stringify(url.searchParams.get("page") === "1" ? comments : []), { status: 200 });
+      }
+      return new Response("[]", { status: 200 });
+    },
+  });
+  const responsivenessLatencyMs = await responsivenessProbe;
+  const result = await reconciliation;
+  representativeStore.close();
+
+  assert.deepEqual(result, []);
+  assert.equal(fullHistoryLoads, 1);
+  assert.equal(eventLoopYielded, true);
+  assert.equal(urls.length, 4);
+  assert.equal(urls.some((url) => url.includes("since=")), true);
+  assert.ok(responsivenessLatencyMs < 10_000, "concurrent liveness and representative worker read must remain materially below 30s");
+  assert.ok(Date.now() - startedAt < 10_000, "10k-event reconciliation must remain materially below the relay's 30s timeout");
+});
+
+test("reconciliation ingests a late valid comment after the reconstructed high-water mark", async () => {
+  const p = policy();
+  const oldCommentId = 20_001;
+  const newCommentId = 20_002;
+  const store = fakeStore([
+    evidenceEvent("challenge", 1, capabilityChallengeSummary, [
+      "challenge:challenge-spec", `supervisor:${supervisorId}`, `chat:${bootstrapChatId}`,
+      "mc_nonce:mc-nonce", `github_nonce_sha256:${sha256("github-only-nonce")}`,
+      "expires_at:2026-09-03T00:00:00.000Z",
+    ]),
+    evidenceEvent("old-capability", 2, capabilityVerifiedSummary, [
+      `github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${oldCommentId}`,
+    ], "2026-09-02T00:01:00.000Z"),
+  ]);
+  const result = await reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:03:00.000Z",
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      const payload = url.pathname.includes(`/issues/${p.capabilityIssueNumber}/comments`)
+        ? [githubComment(newCommentId, p.capabilityIssueNumber, capabilityReceiptBody("mc-nonce", "github-only-nonce"), "2026-09-02T00:02:00.000Z")]
+        : [];
+      return new Response(JSON.stringify(payload), { status: 200 });
+    },
+  });
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.data.type, "evidence_receipt_recorded");
+  assert.equal(result[0]?.data.type === "evidence_receipt_recorded" && result[0].data.refs.includes(`github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-${newCommentId}`), true);
+});
+
+test("restart overlap skips the committed comment, admits the next one, and ignores invalid or unrelated comments", async () => {
+  const p = policy();
+  const store = fakeStore([]);
+  ensureConfiguredCapabilityChallenges(store, p, "2026-09-02T00:00:00.000Z");
+  const first = githubComment(30_001, p.capabilityIssueNumber, capabilityReceiptBody("mc-nonce", "github-only-nonce"), "2026-09-02T00:01:00.000Z");
+  const second = githubComment(30_002, p.capabilityIssueNumber, capabilityReceiptBody("mc-nonce", "github-only-nonce"), "2026-09-02T00:02:00.000Z");
+  const invalid = githubComment(30_003, p.capabilityIssueNumber, capabilityReceiptBody("wrong", "wrong"), "2026-09-02T00:02:30.000Z");
+  const unrelated = githubComment(30_004, p.capabilityIssueNumber, "ordinary issue discussion", "2026-09-02T00:02:40.000Z");
+  let pass = 1;
+  const fetchImpl = async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    const payload = url.pathname.includes(`/issues/${p.capabilityIssueNumber}/comments`)
+      ? pass === 1 ? [first] : [first, second, invalid, unrelated]
+      : [];
+    return new Response(JSON.stringify(payload), { status: 200 });
+  };
+  const firstResult = await reconcileGitHubDecisionReceipts(store, { policy: p, now: "2026-09-02T00:03:00.000Z", fetchImpl });
+  assert.equal(firstResult.length, 1);
+  pass = 2;
+  const restartResult = await reconcileGitHubDecisionReceipts(store, { policy: p, now: "2026-09-02T00:04:00.000Z", fetchImpl });
+  assert.equal(restartResult.length, 1);
+  const receipts = store.allEvents().filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === capabilityVerifiedSummary
+    && event.data.refs.some((ref) => ref.startsWith("github_comment:")));
+  assert.equal(receipts.length, 2);
+  assert.equal(receipts.filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.refs.includes(`github_comment:https://github.com/${p.repository}/issues/${p.capabilityIssueNumber}#issuecomment-30001`)).length, 1);
 });
 
 function policy(): GitHubReceiptPolicy {
@@ -740,6 +1064,53 @@ function directDecisionEnvelope(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): Ex
   };
 }
 
+function boundedExecutionResidue(workspace: string, executionCapability: { type: "LOCAL_FILESYSTEM_COMMAND" } | { type: "BROWSER"; name: string } = { type: "LOCAL_FILESYSTEM_COMMAND" }) {
+  return {
+    schema_version: 1 as const,
+    task_id: "task-1",
+    job_id: "job-decision-directive-fixture",
+    execution_objective: "Execute the exact harmless local fixture.",
+    reasoning_summary: "The accepted supervisory decision selected this bounded mechanical residue.",
+    strategy_id: "strategy:decision-directive-fixture",
+    strategy_causal_hypothesis: "A server-derived directive removes manual EventStore seeding.",
+    predicted_outcome_change: "The relay automatically discovers one executable task.",
+    success_threshold: "One deterministic fake Codex receipt is recorded.",
+    failure_threshold: "No directive or more than one directive is recorded.",
+    next_decision_changing_evidence: "The direct RelayRuntime consumer seam result.",
+    reviewed_evidence_boundary: "Canonical GitHub decision fixture and current owner outcome.",
+    inputs: [{ type: "ARTIFACT", ref: "fixture:canonical-decision", sha256: null }],
+    allowed_actions: ["Run the deterministic fake local command."],
+    allowed_paths: [workspace],
+    allowed_commands: ["fake-codex"],
+    forbidden_actions: ["Modify production."],
+    forbidden_paths: ["/etc"],
+    forbidden_decisions: ["Do not change strategy or scope."],
+    required_evidence: ["codex_execution_started", "execution_receipt_recorded"],
+    required_tests_or_checks: ["Validate structured fake runner output."],
+    stop_and_return_triggers: ["Any authority or preflight rejection."],
+    maximum_execution_cycles: 1,
+    execution_capability: executionCapability,
+    workspace,
+    output_schema: {
+      type: "object", additionalProperties: false, required: ["success", "value"],
+      properties: { success: { type: "boolean" }, value: { type: "string" } },
+    },
+    prompt: "Return the harmless deterministic fixture result.",
+    deadline: "2099-09-18T00:00:00.000Z",
+    work_execution_profile: {
+      model: "GPT_5_6_SOL" as const,
+      effort: "LOW" as const,
+      routingTier: "SOL_LOW" as const,
+      routingTriggers: [],
+      fastModeRequest: "DO_NOT_ENABLE_FAST" as const,
+      assuranceRequirement: "SET_REQUEST_SUFFICIENT" as const,
+      policyRef: WORK_MODEL_ROUTING_POLICY_REF,
+      routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
+      contractVersion: "TRUSTED_SETTER_V1" as const,
+    },
+  };
+}
+
 function stageReceiptBody(stage: "EXTRA_HIGH_READER" | "PRO_DECISION_STAGE", stageSessionId: string, capsule = bindingCapsule()) {
   const body: Record<string, unknown> = {
     schema_version: 2, request_id: "decision-request-1", request_nonce: "nonce-1", supervisor_id: supervisorId,
@@ -766,6 +1137,17 @@ function directCandidate(lane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED"): GitHubDec
 function decisionBody() { return `${canonicalDecisionCommentPrefix}${JSON.stringify(decisionEnvelope())}`; }
 function capabilityReceiptBody(mcNonce: string, githubNonce: string) { return `${capabilityReceiptCommentPrefix}${JSON.stringify({ schema_version: 1, challenge_id: "challenge-spec", chat_id: bootstrapChatId, mc_nonce: mcNonce, github_nonce: githubNonce, capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"] })}`; }
 function webhookPayload(body: string, issueNumber = policy().decisionIssueNumber) { return { action: "created", repository: { full_name: policy().repository }, issue: { number: issueNumber }, comment: { id: 9001, html_url: `https://github.com/${policy().repository}/issues/${issueNumber}#issuecomment-9001`, created_at: "2026-09-02T00:01:30.000Z", body, user: { login: "u-dont-existDOTcom" } } }; }
+
+function githubComment(commentId: number, issueNumber: number, body: string, createdAt: string) {
+  return {
+    id: commentId,
+    html_url: `https://github.com/${policy().repository}/issues/${issueNumber}#issuecomment-${commentId}`,
+    created_at: createdAt,
+    updated_at: createdAt,
+    body,
+    user: { login: "u-dont-existDOTcom" },
+  };
+}
 
 function relayReceipt(events: StoredEvent[], step: string, generationState: "STARTED" | "COMPLETE") {
   const event = events.find((item) => item.data.type === "evidence_receipt_recorded"
@@ -806,7 +1188,21 @@ function evidenceEvent(id: string, sequence: number, summary: string, refs: stri
 function fakeStore(initial: StoredEvent[]) {
   const events = initial.map((event) => structuredClone(event));
   let sequence = Math.max(0, ...events.map((event) => event.sequence));
-  return { allEvents: () => events, append: (input: unknown) => { const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] }; const existing = events.find((event) => event.eventId === envelope.event_id); if (existing) return existing; const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at); events.push(stored); return stored; } } as unknown as EventStore;
+  const append = (input: unknown, receivedAt?: string, producer?: AuthenticatedProducer) => {
+    const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] };
+    const existing = events.find((event) => event.eventId === envelope.event_id);
+    if (existing) return existing;
+    const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at, receivedAt ?? envelope.occurred_at);
+    stored.producerId = producer?.id ?? "test";
+    stored.producerKind = producer?.kind ?? "COLLECTOR";
+    events.push(stored);
+    return stored;
+  };
+  return {
+    allEvents: () => events,
+    append,
+    appendMany: (items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>) => items.map((item) => append(item.event, item.receivedAt, item.producer)),
+  } as unknown as EventStore;
 }
 function storedEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string, receivedAt = occurredAt): StoredEvent {
   return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };
@@ -987,6 +1383,152 @@ function continuationStore(events: StoredEvent[]) {
     } }, event.receivedAt);
   }
   return store;
+}
+
+class DecisionMemoryStateStore {
+  private state: unknown;
+  constructor(initial: unknown) { this.state = structuredClone(initial); }
+  async read() { return structuredClone(this.state); }
+  async write(value: unknown) { this.state = structuredClone(value); return structuredClone(value); }
+  async writeStatus(_value: unknown) {}
+}
+
+class DecisionExecutionRuntime {
+  events: StoredEvent[];
+  lifecycleTypes: string[] = [];
+  actualAdmission: any = null;
+  actualPreflight: any = null;
+  private sequence: number;
+  private readonly producer: AuthenticatedProducer;
+
+  constructor(private readonly worker: string, initialEvents: StoredEvent[]) {
+    this.events = initialEvents.map((event) => structuredClone(event));
+    this.sequence = Math.max(0, ...this.events.map((event) => event.sequence));
+    const directive = this.events.findLast((event) => event.data.type === "execution_directive_recorded")?.data;
+    if (directive?.type !== "execution_directive_recorded") throw new Error("Expected derived execution directive");
+    this.producer = { id: `worker:${worker}`, kind: "WORKER", workerScopes: [worker], taskScopes: [directive.task_id] };
+  }
+
+  async fetchFleet() {
+    return { generatedAt: new Date().toISOString(), workers: [{ id: this.worker, timeline: this.events }] };
+  }
+
+  async requestExecutionAdmission(worker: string, input: any) {
+    assert.equal(worker, this.worker);
+    const proof = currentExecutionDirectiveProof(worker, this.events);
+    assert.ok(proof);
+    const now = new Date().toISOString();
+    const result = evaluateSupervisionAdmission(worker, this.producer, input, now, undefined, proof);
+    this.actualAdmission = result;
+    const setterEvidenceId = "setter:decision-directive-e2e:1";
+    if (result.mayExecute && result.authorizedWorkExecutionProfile
+      && result.authorizedWorkExecutionProfile !== "LEGACY_MODEL_PROFILE_UNSPECIFIED") {
+      const authorization = buildWorkExecutionAuthorizationEnvelope({
+        worker,
+        request: input.request,
+        authorizedProfile: result.authorizedWorkExecutionProfile,
+        now,
+      });
+      this.events.push(this.stored(authorization, "SYSTEM", "system:work-profile-admission"));
+      this.events.push(this.stored({
+        schema_version: 2,
+        event_id: setterEvidenceId,
+        mission_id: "mission-control-live",
+        occurred_at: now,
+        data: {
+          type: "work_task_creation_selection_applied",
+          worker,
+          evidence_id: setterEvidenceId,
+          authorization_id: result.profileAuthorizationId!,
+          directive_id: proof.directiveId,
+          directive_revision: proof.directiveRevision,
+          task_id: proof.taskId,
+          authorized_profile: result.authorizedWorkExecutionProfile,
+          model_setter: "gpt-5.6-sol",
+          effort_setter: "low",
+          fast_request: "DO_NOT_ENABLE_FAST",
+          fast_setter: null,
+          producer_id: "system:trusted-task-creation",
+          source: "TRUSTED_TASK_CREATION_BOUNDARY",
+          provider_task_locator: null,
+          applied_at: now,
+        },
+      }, "SYSTEM", "system:trusted-task-creation"));
+    }
+    return { ...result, setterEvidenceId };
+  }
+
+  async requestWorkExecutionPreflight(worker: string, body: any) {
+    const now = new Date().toISOString();
+    const evaluated = evaluatePersistedWorkExecutionPreflight({ worker, body, events: this.events, now });
+    this.events.push(this.stored(evaluated.envelope, "SYSTEM", "system:work-execution-preflight"));
+    this.actualPreflight = evaluated.preflight;
+    return {
+      ...evaluated.preflight,
+      preflightId: evaluated.envelope.data.type === "work_execution_preflight_recorded"
+        ? evaluated.envelope.data.preflight_id : null,
+    };
+  }
+
+  async recordWorkerEvents(worker: string, events: unknown[]) {
+    assert.equal(worker, this.worker);
+    const parsed = events.map((event) => parseAppendEnvelope(event));
+    this.lifecycleTypes.push(...parsed.map((event) => event.data.type));
+    return { events: parsed };
+  }
+
+  private stored(envelope: any, producerKind: StoredEvent["producerKind"], producerId: string): StoredEvent {
+    this.sequence += 1;
+    return {
+      id: this.sequence,
+      sequence: this.sequence,
+      eventId: envelope.event_id,
+      schemaVersion: envelope.schema_version,
+      missionId: envelope.mission_id,
+      worker: envelope.data.worker ?? null,
+      type: envelope.data.type,
+      occurredAt: envelope.occurred_at,
+      receivedAt: envelope.occurred_at,
+      previousHash: null,
+      eventHash: "f".repeat(64),
+      producerKind,
+      producerId,
+      data: envelope.data,
+    };
+  }
+}
+
+function relayConfig() {
+  return {
+    missionControl: { url: "https://mission-control.example" },
+    browser: { profileDir: "/tmp/mission-control-decision-directive-browser" },
+    runtime: {
+      chats: [],
+      workerIds: ["mission-control-live-slice"],
+      submitEnabled: false,
+      capabilityTestEnabled: false,
+      pollIntervalMs: 15_000,
+      minSubmissionIntervalMs: 60_000,
+      retryDelayMs: 300_000,
+      maxHotTabs: 3,
+      submissionHost: { alias: "fixture", role: "PRIMARY", deploymentEpoch: 1, leaseId: "fixture-lease" },
+    },
+    memory: { profile: "AUTO", overrides: {} },
+  };
+}
+
+function fakeCodexSource() {
+  return `#!/usr/bin/env node
+import { writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === 'login' && args[1] === 'status') { process.stderr.write('Logged in using ChatGPT\\n'); process.exit(0); }
+if (args[0] === 'mcp' && args[1] === 'list') { process.stdout.write('[]'); process.exit(0); }
+if (args[0] !== 'exec') process.exit(64);
+const resultPath = args[args.indexOf('--output-last-message') + 1];
+process.stdout.write(JSON.stringify({ type: 'turn.started' }) + '\\n');
+writeFileSync(resultPath, JSON.stringify({ success: true, value: 'ok' }));
+process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+`;
 }
 
 

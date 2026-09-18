@@ -91,15 +91,20 @@ function stopChild(child, signal) {
 }
 
 async function waitForDaemon() {
-  const url = process.env.MISSION_CONTROL_DAEMON_URL ?? "http://127.0.0.1:4100/health";
-  const healthUrl = url.endsWith("/health") ? url : new URL("/health", url).toString();
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  const url = process.env.MISSION_CONTROL_DAEMON_URL ?? "http://127.0.0.1:4100";
+  const liveUrl = new URL("/live", url).toString();
+  const timeoutMs = Number(process.env.MISSION_CONTROL_DAEMON_STARTUP_TIMEOUT_MS ?? 120_000);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 10_000 || timeoutMs > 300_000) {
+    throw new Error("MISSION_CONTROL_DAEMON_STARTUP_TIMEOUT_MS must be 10000-300000.");
+  }
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
     if (daemon.exitCode !== null) throw new Error("Mission Control daemon exited before becoming ready.");
     try {
-      const response = await fetch(healthUrl);
+      const response = await fetch(liveUrl);
       if (response.ok) return;
     } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Mission Control daemon did not become ready at ${healthUrl}.`);
+  throw new Error(`Mission Control daemon did not become live at ${liveUrl} within ${timeoutMs}ms.`);
 }

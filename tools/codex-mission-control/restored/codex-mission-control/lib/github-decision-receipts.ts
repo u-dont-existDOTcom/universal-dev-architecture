@@ -6,6 +6,7 @@ import { bindingCapsuleSchema, parseCanonicalDecisionEnvelope, type AppendEnvelo
 import type { EventStore } from "./store";
 import { parseRouteContinuation, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
 import { validateOwnerResponseContinuation } from "./owner-response-continuation";
+import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -269,36 +270,55 @@ export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: 
 }
 
 export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: GitHubDecisionCandidate, policy: GitHubReceiptPolicy | null, ingestedAt = new Date().toISOString()): StoredEvent[] {
+  return ingestGitHubSupervisionCandidateFromEvents(store, candidate, policy, store.allEvents(), ingestedAt);
+}
+
+function ingestGitHubSupervisionCandidateFromEvents(
+  store: EventStore,
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy | null,
+  events: StoredEvent[],
+  ingestedAt = new Date().toISOString(),
+): StoredEvent[] {
   if (!policy) throw new Error("GitHub supervisory receipt policy is not configured.");
   assertAuthorizedWriter(candidate, policy);
-  const events = store.allEvents();
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
     const parsedDecision = parseCanonicalDecisionComment(candidate.body);
+    const incomingEnvelopeSha256 = sha256(canonicalJson(parsedDecision));
     if (parsedDecision.schema_version === 4) {
       const expectedUrl = `https://github.com/${candidate.repository}/issues/${candidate.issueNumber}#issuecomment-${candidate.commentId}`;
       if (candidate.immutableUrl !== expectedUrl) throw new Error("Request-bound GitHub locator mismatch.");
-      const existing = events.find((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === parsedDecision.request_id);
+      const existing = events.find((event) => event.data.type === "github_decision_receipt_ingested"
+        && event.data.request_id === parsedDecision.request_id);
       if (existing?.data.type === "github_decision_receipt_ingested") {
         if (existing.data.provider_session_id !== parsedDecision.provider_session_id
           || existing.data.execution_provenance !== parsedDecision.execution_provenance
-          || existing.data.canonical_envelope_sha256 !== sha256(canonicalJson(parsedDecision))) {
+          || existing.data.canonical_envelope_sha256 !== incomingEnvelopeSha256) {
           throw new Error("Request-bound receipt replay conflicts with the accepted request/session/content.");
         }
         return []; // Exact semantic duplicate, including recovery after expiry.
       }
     }
-    const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
-  && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
-  && event.data.github_receipt.issue_number === candidate.issueNumber
-  && event.data.github_receipt.comment_id === candidate.commentId
-  && event.data.github_receipt.immutable_url === candidate.immutableUrl);
-if (exactDuplicate) return [];
+    const existingReceipt = events.find((event) => event.data.type === "github_decision_receipt_ingested"
+      && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
+      && event.data.github_receipt.issue_number === candidate.issueNumber
+      && event.data.github_receipt.comment_id === candidate.commentId
+      && event.data.github_receipt.immutable_url === candidate.immutableUrl);
+    if (existingReceipt?.data.type === "github_decision_receipt_ingested") {
+      if (existingReceipt.data.canonical_envelope_sha256 === incomingEnvelopeSha256) return [];
+      throw new Error("An immutable GitHub decision identity was re-presented with changed canonical content; publish a new authoritative decision instead.");
+    }
     const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
     if (envelope.data.type !== "github_decision_receipt_ingested") throw new Error("Canonical decision envelope has an unexpected event type.");
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
     const decisionData = envelope.data;
     const requestBoundDecision = decisionData.execution_provenance === "REQUEST_BOUND_MCP_GITHUB_OBSERVED";
+    const directiveEnvelope = buildExecutionDirectiveFromGitHubDecision({
+      eventId: envelope.event_id,
+      occurredAt: envelope.occurred_at,
+      data: decisionData,
+    }, events, ingestedAt);
     const directDecision = decisionData.decision_provider_session_id !== null;
     const attestationEnvelope = evidenceEnvelope({
       worker: decisionData.worker, receiptId: `durable-stage-receipt-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
@@ -349,16 +369,15 @@ if (exactDuplicate) return [];
       return store.appendMany([
         { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
         { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
+        ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
         { event: resolution, receivedAt: ingestedAt, producer },
       ]);
     }
-    if (requestBoundDecision) return store.appendMany([
+    return store.appendMany([
       { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
       { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
+      ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
     ]);
-    const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
-    const attestation = store.append(attestationEnvelope, ingestedAt, githubReceiptCollector);
-    return [decision, attestation];
   }
   if (candidate.body.startsWith(capabilityReceiptCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.capabilityIssueNumber) throw new Error("Capability receipt arrived outside the configured GitHub capability channel.");
@@ -471,6 +490,9 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     assertEqual(decision.supervisor_id, request.supervisorId, "supervisor ID");
     assertExactBindingCapsule(events, request, decision.binding_envelope, decision.binding_envelope_sha256, decision.binding_provider_session_id, candidate.createdAt, policy);
     assertFreshDecisionProviderSession(events, request, decision.binding_provider_session_id, decision.decision_provider_session_id, candidate.createdAt, ingestedAt, policy);
+    if (decision.bounded_execution && decision.bounded_execution.task_id !== request.taskId) {
+      throw new Error("Bounded execution task identity does not match the pending supervisory request.");
+    }
   }
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");
@@ -508,6 +530,10 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
       binding_envelope: decision.schema_version === 3 ? decision.binding_envelope : null,
       binding_envelope_sha256: decision.schema_version === 3 ? decision.binding_envelope_sha256 : null,
       decision_session_provenance: decision.schema_version === 3 ? decision.decision_session_provenance : null,
+      ...(decision.schema_version === 3 && decision.bounded_execution ? {
+        bounded_execution: decision.bounded_execution,
+        bounded_execution_sha256: sha256(canonicalJson(decision.bounded_execution)),
+      } : {}),
       ...(request.continuation ? {
         continuation_binding: request.continuation.binding,
         continuation_binding_sha256: request.continuation.digest,
@@ -526,8 +552,15 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   };
 }
 
+const githubReconciliationOverlapMs = 10 * 60_000;
+const githubReconciliationPageSize = 100;
+const githubReconciliationMaximumPages = 20;
+const githubReconciliationYieldEvery = 20;
+
 export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
+  const batchEvents = [...store.allEvents()];
+  const accepted = reconstructGitHubReconciliationState(batchEvents, options.policy, options.now);
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
@@ -535,26 +568,116 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
   };
   if (options.token?.trim()) headers.authorization = `Bearer ${options.token}`;
   for (const issueNumber of [...new Set([options.policy.decisionIssueNumber, options.policy.capabilityIssueNumber, options.policy.stageIssueNumber])]) {
-    const response = await fetchImpl(`https://api.github.com/repos/${options.policy.repository}/issues/${issueNumber}/comments?per_page=100&sort=created&direction=desc`, {
-      headers,
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!response.ok) throw new Error(`GitHub reconciliation failed for ${options.policy.repository}#${issueNumber} with HTTP ${response.status}.`);
-    const comments = await response.json();
-    if (!Array.isArray(comments)) throw new Error("GitHub reconciliation returned a non-array comment payload.");
-    for (const value of [...comments].reverse()) {
-      const comment = record(value, "GitHub issue comment");
-      if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix))) continue;
-      const user = record(comment.user, "comment.user");
-      const candidate: GitHubDecisionCandidate = {
-        repository: options.policy.repository, issueNumber, commentId: positiveInteger(comment.id, "comment.id"), immutableUrl: httpsUrl(comment.html_url, "comment.html_url"),
-        createdAt: timestamp(comment.created_at, "comment.created_at"), authorLogin: requiredString(user.login, "comment.user.login"), deliveryId: null,
-        body: comment.body, ingestionMethod: "RECONCILIATION_POLL",
-      };
-      try { appended.push(...ingestGitHubSupervisionCandidate(store, candidate, options.policy, options.now)); } catch { /* skip invalid/unrelated receipts */ }
+    let page = 1;
+    for (;;) {
+      if (page > githubReconciliationMaximumPages) {
+        throw new Error(`GitHub reconciliation exceeded ${githubReconciliationMaximumPages} pages for ${options.policy.repository}#${issueNumber}; refusing a partial cursor advance.`);
+      }
+      const url = new URL(`https://api.github.com/repos/${options.policy.repository}/issues/${issueNumber}/comments`);
+      url.searchParams.set("per_page", String(githubReconciliationPageSize));
+      url.searchParams.set("sort", "created");
+      url.searchParams.set("direction", "asc");
+      url.searchParams.set("page", String(page));
+      const highWater = accepted.highWaterByIssue.get(issueNumber);
+      const pendingFloor = accepted.pendingFloorByIssue.get(issueNumber);
+      const since = [highWater, pendingFloor]
+        .filter((value): value is number => value !== undefined)
+        .map((value) => Math.max(0, value - githubReconciliationOverlapMs));
+      if (since.length > 0) url.searchParams.set("since", new Date(Math.min(...since)).toISOString());
+      const response = await fetchImpl(url, { headers, signal: AbortSignal.timeout(30_000) });
+      if (!response.ok) throw new Error(`GitHub reconciliation failed for ${options.policy.repository}#${issueNumber} with HTTP ${response.status}.`);
+      const comments = await response.json();
+      if (!Array.isArray(comments)) throw new Error("GitHub reconciliation returned a non-array comment payload.");
+      for (const value of comments) {
+        const comment = record(value, "GitHub issue comment");
+        if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix))) continue;
+        accepted.recognizedSinceYield += 1;
+        if (accepted.recognizedSinceYield >= githubReconciliationYieldEvery) {
+          accepted.recognizedSinceYield = 0;
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        const user = record(comment.user, "comment.user");
+        const candidate: GitHubDecisionCandidate = {
+          repository: options.policy.repository, issueNumber, commentId: positiveInteger(comment.id, "comment.id"), immutableUrl: httpsUrl(comment.html_url, "comment.html_url"),
+          createdAt: timestamp(comment.created_at, "comment.created_at"), authorLogin: requiredString(user.login, "comment.user.login"), deliveryId: null,
+          body: comment.body, ingestionMethod: "RECONCILIATION_POLL",
+        };
+        if (accepted.immutableUrls.has(candidate.immutableUrl)) continue;
+        try {
+          const newlyAppended = ingestGitHubSupervisionCandidateFromEvents(store, candidate, options.policy, batchEvents, options.now);
+          if (newlyAppended.length === 0) continue;
+          appended.push(...newlyAppended);
+          batchEvents.push(...newlyAppended);
+          accepted.immutableUrls.add(candidate.immutableUrl);
+          const createdAt = Date.parse(candidate.createdAt);
+          accepted.highWaterByIssue.set(issueNumber, Math.max(accepted.highWaterByIssue.get(issueNumber) ?? 0, createdAt));
+        } catch { /* skip invalid/unrelated receipts */ }
+      }
+      if (comments.length < githubReconciliationPageSize) break;
+      page += 1;
     }
   }
   return appended;
+}
+
+function reconstructGitHubReconciliationState(events: StoredEvent[], policy: GitHubReceiptPolicy, now = new Date().toISOString()) {
+  const immutableUrls = new Set<string>();
+  const highWaterByIssue = new Map<number, number>();
+  const pendingFloorByIssue = new Map<number, number>();
+  const accept = (url: string, occurredAt: string) => {
+    const identity = githubCommentIdentity(url);
+    if (!identity || identity.repository.toLowerCase() !== policy.repository.toLowerCase()) return;
+    const timestamp = Date.parse(occurredAt);
+    if (!Number.isFinite(timestamp)) return;
+    immutableUrls.add(url);
+    highWaterByIssue.set(identity.issueNumber, Math.max(highWaterByIssue.get(identity.issueNumber) ?? 0, timestamp));
+  };
+  for (const event of events) {
+    if (event.data.type === "github_decision_receipt_ingested") {
+      accept(event.data.github_receipt.immutable_url, event.data.github_receipt.github_created_at);
+      continue;
+    }
+    if (event.data.type !== "evidence_receipt_recorded"
+      || ![capabilityVerifiedSummary, stageLivenessSummary].includes(event.data.summary)) continue;
+    for (const ref of event.data.refs) {
+      if (ref.startsWith("github_comment:")) accept(ref.slice("github_comment:".length), event.occurredAt);
+    }
+  }
+  for (const request of pendingDecisionRequests(events)) {
+    const queuedAt = Date.parse(request.queuedAt);
+    if (!Number.isFinite(queuedAt)) continue;
+    for (const issueNumber of [policy.decisionIssueNumber, policy.stageIssueNumber]) {
+      pendingFloorByIssue.set(issueNumber, Math.min(pendingFloorByIssue.get(issueNumber) ?? queuedAt, queuedAt));
+    }
+  }
+  const verifiedChallenges = new Set(events.flatMap((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === capabilityVerifiedSummary
+    ? event.data.refs.filter((ref) => ref.startsWith("challenge:")).map((ref) => ref.slice("challenge:".length))
+    : []));
+  const nowMs = Date.parse(now);
+  for (const event of events) {
+    if (event.data.type !== "evidence_receipt_recorded" || event.data.summary !== capabilityChallengeSummary) continue;
+    const challengeId = event.data.refs.find((ref) => ref.startsWith("challenge:"))?.slice("challenge:".length);
+    const expiresAt = event.data.refs.find((ref) => ref.startsWith("expires_at:"))?.slice("expires_at:".length);
+    if (!challengeId || verifiedChallenges.has(challengeId) || !expiresAt || Date.parse(expiresAt) < nowMs) continue;
+    const occurredAt = Date.parse(event.occurredAt);
+    if (Number.isFinite(occurredAt)) pendingFloorByIssue.set(policy.capabilityIssueNumber,
+      Math.min(pendingFloorByIssue.get(policy.capabilityIssueNumber) ?? occurredAt, occurredAt));
+  }
+  return { immutableUrls, highWaterByIssue, pendingFloorByIssue, recognizedSinceYield: 0 };
+}
+
+function githubCommentIdentity(value: string): { repository: string; issueNumber: number; commentId: number } | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.hostname !== "github.com") return null;
+    const match = url.pathname.match(/^\/([^/]+\/[^/]+)\/issues\/(\d+)$/);
+    const comment = url.hash.match(/^#issuecomment-(\d+)$/);
+    if (!match || !comment) return null;
+    return { repository: match[1]!, issueNumber: Number(match[2]), commentId: Number(comment[1]) };
+  } catch {
+    return null;
+  }
 }
 
 function assertCurrentChatCapabilities(events: StoredEvent[], request: PendingDecisionRequest, at: string, policy: GitHubReceiptPolicy) {

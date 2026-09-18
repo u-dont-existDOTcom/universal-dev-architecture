@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "classification": "ITERATION_COMPATIBILITY_INTEGRATION",
+  "requirement_ref": "docs/requirements/2026-09-17-mission-control-codex-exec-mainline-port.owner-requirement.json",
+  "base": {
+    "fresh_origin_main": "80aeef8ac138bfb2e9cf1809ffb6b0144da7be29",
+    "reviewed_candidate_tip": "87625db886461cad1e7ef995140d55d34495d185",
+    "merge_base": "ad76fcac1aed29658dbdab6575f91965573e6c51",
+    "main_only_commits": 16,
+    "candidate_only_commits": 3
+  },
+  "forward_port_mapping": [
+    {
+      "accepted": "a39b36eaffc6759705ae01dd3b46cf61d3b5b2e7",
+      "ported": "691856c22909afa5be17730c9fa372fbfe5ad933",
+      "stable_patch_id_equal": true
+    },
+    {
+      "accepted": "f383da2d8ced0209a861cea126289c70658db67d",
+      "ported": "ed0fdf2948e0a386ca0d1983263a43bb53ef274b",
+      "stable_patch_id_equal": true
+    },
+    {
+      "accepted": "87625db886461cad1e7ef995140d55d34495d185",
+      "ported": "e732904110410de8a256a62095afc317d1a84975",
+      "stable_patch_id_equal": false,
+      "difference_reason": "Semantic conflict resolution retained current-main health observation and expired-controller regression while preserving the accepted Codex additions. Range-diff shows only those retained mainline lines around the accepted patch."
+    }
+  ],
+  "explicit_conflicts": [
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/bin/mc-chatgpt-relay.mjs",
+      "current_main_preserved": [
+        "live observeRelayHealth collection",
+        "browser and health separation"
+      ],
+      "accepted_codex_preserved": [
+        "automatic dispatcher wiring",
+        "separate authenticated WORKER client",
+        "exact source-bound legacy command"
+      ]
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/relay.test.mjs",
+      "current_main_preserved": [
+        "expired controller history does not monopolize fresh relay admission"
+      ],
+      "accepted_codex_preserved": [
+        "automatic local dispatch before browser inspection",
+        "exact legacy task selection with adjacent-task non-attribution"
+      ]
+    }
+  ],
+  "reviewed_auto_merge": {
+    "path": "tools/codex-mission-control/vps-browser-relay/src/relay.mjs",
+    "current_main_preserved": [
+      "isTerminalControllerCycle admission check",
+      "expired-cycle terminalization compatibility",
+      "current capability-receipt diagnostic semantics"
+    ],
+    "accepted_codex_preserved": [
+      "normal RelayRuntime.cycle automatic dispatch hook",
+      "durable source-bound automatic discovery",
+      "CODEX_LOCAL before browser availability",
+      "exact worker task request legacy binding",
+      "zero or multiple exact matches fail closed"
+    ]
+  },
+  "validation": {
+    "conflict_focused_relay": "3 passed, 0 failed",
+    "expired_controller_focused": "4 passed, 0 failed",
+    "complete_vps_browser_relay": "232 passed, 0 failed",
+    "work_profile_authority_and_automatic_dispatch": "37 passed, 0 failed",
+    "relay_javascript_syntax": "passed",
+    "mission_control_typescript": "passed",
+    "repository_python_policy": "338 passed, 0 failed",
+    "initial_dependency_failure": "The first Work test invocation could not load declared package dependencies in the fresh worktree. npm ci --ignore-scripts restored the lockfile-declared local dependencies; the identical affected tests then passed.",
+    "paid_or_api_inference_run": false,
+    "live_codex_model_smoke_run": false
+  },
+  "preservation": {
+    "browser_fence_present_and_tested": true,
+    "current_controller_and_expiry_behavior_present_and_tested": true,
+    "current_work_model_policy_diff_from_fresh_main": false,
+    "state_current_state_diff_from_fresh_main": false,
+    "old_candidate_branch_modified": false,
+    "main_modified": false,
+    "production_modified": false,
+    "controller_recovery_modified": false,
+    "browser_fence_released_or_bypassed": false,
+    "pull_request_opened": false,
+    "merged": false,
+    "deployed": false
+  },
+  "work_preflight": {
+    "classification": "GENUINELY_DIFFICULT",
+    "recommended_model": "GPT-5.6 Sol",
+    "recommended_effort": "XHIGH",
+    "fast_mode_requested": false,
+    "runtime_model_effort_readback": "UNAVAILABLE"
+  }
+}

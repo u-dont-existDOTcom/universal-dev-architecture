@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "candidate_status": "MC_CODEX_EXEC_INTEGRATION_CANDIDATE: PASS",
+  "assurance_lane": "iteration",
+  "canonical_base": {
+    "branch": "main",
+    "sha": "ad76fcac1aed29658dbdab6575f91965573e6c51"
+  },
+  "task_branch": "task/mission-control-codex-exec-candidate-20260917",
+  "production_authorized": false,
+  "deployed": false,
+  "merged": false,
+  "pull_request_opened": false,
+  "current_state_checkpoint_modified": false,
+  "routing": {
+    "preview_default": "disabled",
+    "routes": [
+      "CODEX_LOCAL",
+      "CODEX_BROWSER_RESTRICTED",
+      "LEGACY_BROWSER"
+    ],
+    "classification_source": "closed executionCapability field on an already-admitted directive",
+    "semantic_authority_added": false,
+    "unsupported_browser_route": "LEGACY_BROWSER"
+  },
+  "execution_invariants": {
+    "authentication": "ChatGPT subscription",
+    "api_key_fallback": false,
+    "sandbox": "workspace-write",
+    "approval_policy": "never",
+    "workspace_network_access": false,
+    "ephemeral_codex_home": true,
+    "global_config_sha256_before_after": "c97faa7934ac73ca8a7ddf3f93808bb07460a1fe54ec155615203ff6f780e2da",
+    "terminal_statuses": [
+      "RUNNING",
+      "COMPLETED",
+      "FAILED",
+      "TIMED_OUT",
+      "PROTOCOL_ERROR"
+    ]
+  },
+  "restricted_browser": {
+    "adapter_sha256": "e8d7b481b3c9e9d95f9012053a2db296e284a3bb2037a28dbdb60a9431423b8c",
+    "effective_mcp_servers": [
+      "existing_chromium_bridge"
+    ],
+    "allowed_completion_tool": "example_target_lifecycle",
+    "raw_cdp_endpoint_exposed_to_job_config": false,
+    "general_browser_capabilities_added": false,
+    "raw_cdp_qualification_repeated": false
+  },
+  "focused_validation": {
+    "command": "node --test tools/codex-mission-control/vps-browser-relay/test/codex-exec-candidate.test.mjs",
+    "result": "10 passed, 0 failed",
+    "coverage": [
+      "preview disabled preserves exact legacy handler result",
+      "admitted local directive routes to Codex",
+      "approved restricted browser directive routes to Codex plus digest-bound MCP",
+      "restricted route cannot complete without the actual qualified MCP call",
+      "unsupported browser capability routes to legacy handler",
+      "timeout records TIMED_OUT and terminates the attempt process group",
+      "malformed result and absent terminal event are non-success",
+      "retry has a distinct attempt identity",
+      "completed work cannot be silently duplicated",
+      "raw CDP endpoint is absent from job configuration"
+    ],
+    "affected_check": {
+      "command": "npm --prefix tools/codex-mission-control/vps-browser-relay run check",
+      "result": "passed"
+    },
+    "full_repository_suite_run": false
+  },
+  "test_efficiency": {
+    "task_elapsed_seconds": 1413.04,
+    "observed_test_seconds": 56.95,
+    "test_share_percent": 4.03,
+    "focused_runs": 8,
+    "focused_seconds": 54.0,
+    "focused_failure_discovering_runs": 2,
+    "affected_runs": 2,
+    "affected_seconds": 2.95,
+    "forced_redundant_green_seconds": 0.0,
+    "redundant_green_runs_skipped": 0,
+    "mutation_seconds": 0.0,
+    "full_suite_seconds": 0.0
+  },
+  "smoke_a": {
+    "result": "PASS",
+    "route": "CODEX_LOCAL",
+    "attempt_id": "20260917T155558Z-f475a1ef-ad9c-4f16-b948-7cc8a22f9f43",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "low",
+    "status": "COMPLETED",
+    "process_exit_code": 0,
+    "output_file_exact": true,
+    "output_value": "MC_CODEX_EXEC_SMOKE_A",
+    "enabled_mcp_servers": [],
+    "managed_chatgpt_tab_count_before_after": [
+      1,
+      1
+    ],
+    "managed_chatgpt_target_unchanged": true,
+    "mission_control_browser_root_unchanged": true,
+    "global_codex_config_unchanged": true,
+    "production_git_unchanged": true
+  },
+  "smoke_b": {
+    "result": "PASS",
+    "route": "CODEX_BROWSER_RESTRICTED",
+    "attempt_id": "20260917T160047Z-317e99aa-b166-40c6-b91f-32586a6141d0",
+    "retry_of_attempt_id": "20260917T155826Z-acad6e1b-23d1-430f-97b8-214c6e12056e",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "low",
+    "status": "COMPLETED",
+    "process_exit_code": 0,
+    "terminal_turn_completed_count": 1,
+    "completed_restricted_mcp_call_count": 1,
+    "command_execution_count": 0,
+    "approval_event_count": 0,
+    "disposable_target_created_observed_closed": true,
+    "disposable_target_baseline_restored": true,
+    "managed_chatgpt_tab_count_before_after": [
+      1,
+      1
+    ],
+    "managed_chatgpt_target_unchanged": true,
+    "mission_control_chromium_pid_before_after": [
+      4102706,
+      4102706
+    ],
+    "mission_control_browser_root_and_profile_unchanged": true,
+    "global_codex_config_unchanged": true,
+    "production_git_unchanged": true,
+    "browser_route_hashes_unchanged": true
+  },
+  "corrective_iterations": [
+    {
+      "finding": "The first local smoke let Codex append candidate trust to the global config.",
+      "external_effect": "The exact added trust block was removed and the prior SHA-256 restored.",
+      "repair": "Each attempt now uses a mode-0700 ephemeral Codex home with a transient subscription credential copy and local trust; the copy is removed before finalization.",
+      "verified": "The fixed local smoke and final browser smoke both preserved the original global config hash."
+    },
+    {
+      "finding": "The first browser attempt lacked the qualified per-tool approval_mode setting and failed closed before opening a target.",
+      "external_effect": "No browser target was created; the independent observer remained at baseline.",
+      "repair": "The candidate now carries the exact pilot preapproval for example_target_lifecycle while the global approval policy remains never.",
+      "verified": "Distinct retry attempts completed with zero approval prompts; final completion mechanically requires the exact successful MCP event."
+    }
+  ],
+  "architecture_divergence": [],
+  "rollback": {
+    "runtime": "Keep MC_CODEX_EXEC_PREVIEW_ENABLED unset or set to 0; all work stays on the legacy handler.",
+    "source": "Delete the isolated task branch/worktree or revert its single candidate commit.",
+    "vps_test_artifacts": "Remove the isolated candidate test directory; no production service references it."
+  },
+  "review_readiness": "READY_FOR_OWNER_CHAT_REVIEW"
+}

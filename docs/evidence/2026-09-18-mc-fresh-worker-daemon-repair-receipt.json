@@ -1,0 +1,157 @@
+{
+  "verdict": "BLOCKED_OWNER_OR_SECURITY_BOUNDARY",
+  "checkedAt": "2026-09-18T19:08:44Z",
+  "canonicalMainStart": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "canonicalMainEnd": "0a05d46461c7fbbb81411eda6567b3a63024bc62",
+  "authorityClarification": {
+    "issue53Comment": 5723378677,
+    "sameRouteBindingPreloadRetryAuthorized": true,
+    "generalCrossedBoundaryFailClosedPreserved": true
+  },
+  "workModelPreflight": {
+    "required": false,
+    "reason": "No Work launch or paid inference occurred."
+  },
+  "epoch4AuthorityPreserved": false,
+  "authorityStop": {
+    "condition": "epoch/lease/single-active authority no longer current",
+    "schedulerState": "LEASE_STALE",
+    "epoch": 4,
+    "role": "SECONDARY",
+    "leaseId": "lease:issue90-secondary-epoch4:6180780a-f6d8-42e0-9ee7-a0a88000b0f6",
+    "expiresAt": "2026-09-18T18:50:40.711Z",
+    "observedAt": "2026-09-18T19:08:44Z"
+  },
+  "existingFixture": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "reused": false,
+    "preserved": true,
+    "replacementFixtureCreated": false,
+    "priorCrossedBoundaryAt": "2026-09-17T21:55:26.258Z",
+    "priorCrossedOperation": "MCP_BINDING_PRELOAD",
+    "priorFailureStage": "MCP_BINDING_PRELOAD_RECEIPT_MISSING",
+    "retryStateBeforeRepair": "RETRY_AUTHORIZED"
+  },
+  "daemonAvailabilityDiagnosis": {
+    "mechanism": "Same-event-loop repeated historical GitHub reconciliation/deep-history work, deep-integrity routine probing, and a roughly 32.25 MB full worker projection starved request serving while the daemon process remained alive.",
+    "reconciliationCorrelationProven": true,
+    "preFixLatencyEvidence": {
+      "traceStartedAt": "2026-09-18T17:20:39.614Z",
+      "traceEndedAt": "2026-09-18T17:32:45.590Z",
+      "reconciliationIntervalsObserved": 2,
+      "deepHealthLatencyMs": [6830.3, 8129.7, 7990.4],
+      "authenticatedWorkerReadLatencyMs": [27825.7, 26734.5, 19925.0, 45003.8],
+      "lastWorkerReadResult": "TIMEOUT",
+      "daemonCpuMedianPercentOfOneCore": 100.3
+    },
+    "postFixLatencyEvidence": {
+      "complete": false,
+      "reason": "The reviewed image could not read the existing PRECOMPOSITION_RECOVERED durable admission state; the authority lease then became stale before a two-interval soak."
+    }
+  },
+  "availabilityRepair": {
+    "incrementalGitHubReconciliation": "IMPLEMENTED",
+    "durableCursorOrEquivalent": "Safely reconstructed finalized-comment/high-water state with pending-route floor, overlap, pagination, batch history, and bounded yielding.",
+    "cheapLivenessSeparated": "IMPLEMENTED",
+    "boundedRelayTransportProjection": "IMPLEMENTED",
+    "measuredStartupReadiness": "IMPLEMENTED",
+    "deepIntegrityPreserved": true,
+    "singleWriterPreserved": true,
+    "merged": true,
+    "liveActivation": "BLOCKED by durable-state compatibility and stale authority"
+  },
+  "noSendSoak": {
+    "complete": false,
+    "reconciliationIntervalsObserved": 0,
+    "daemonUnavailable503Count": 0,
+    "readTimeoutCount": 0,
+    "providerSends": 0,
+    "ledgerValid": true,
+    "chainValid": true
+  },
+  "bindingRetry": {
+    "attempted": false,
+    "freshAdmissionId": null,
+    "providerBoundaryAt": null,
+    "serverObservedBindingReceipt": null,
+    "bindingEnvelopeCreated": false
+  },
+  "liveFixture": {
+    "originArtifactEvidence": null,
+    "originRecoveryNudges": [],
+    "originContinueRetryEvents": [],
+    "pmArtifactEvidence": null,
+    "pmRecoveryNudges": [],
+    "pmContinueRetryEvents": [],
+    "returnEvidence": null,
+    "finalCanonicalResolution": null
+  },
+  "permanentPreventionAfterProof": {
+    "browserAuthoritySeparated": "NOT_REACHED",
+    "reversibleSenderFence": "NOT_REACHED",
+    "diagnosticCannotRawReleaseFence": "NOT_REACHED",
+    "ownerLeaseOperatorApi": "NOT_REACHED",
+    "leaseCli": "NOT_REACHED",
+    "healthyPreExpiryRenewal": "NOT_REACHED",
+    "expiredLeaseAutoResurrectionForbidden": true,
+    "wrongResultIntakeRegression": "NOT_REACHED"
+  },
+  "prMergeEvidence": [
+    {
+      "pr": 148,
+      "mergeCommit": "c156e3e7843aac850c9fcbc5dee725c34ca1a26b",
+      "result": "MERGED_EXACT_HEAD_CHECKS_PASS"
+    },
+    {
+      "pr": 151,
+      "mergeCommit": "22a70fdbf9b4f098562b4633bbb34cfc37267ea0",
+      "result": "MERGED_EXACT_HEAD_CHECKS_PASS"
+    },
+    {
+      "pr": 149,
+      "mergeCommit": "0a05d46461c7fbbb81411eda6567b3a63024bc62",
+      "result": "MERGED_AND_INSTALLED_ON_SECONDARY_BY_COORDINATED_RELEASE_TASK"
+    }
+  ],
+  "installedRuntimeEvidence": [
+    {
+      "candidateRevision": "22a70fdbf9b4f098562b4633bbb34cfc37267ea0",
+      "dataVolumePreserved": "codex-mission-control-issue90-live-v2",
+      "cheapContainerHealth": "PASS",
+      "deepAuthorityRead": "FAIL_CLOSED: admissions.17.status PRECOMPOSITION_RECOVERED unsupported by canonical main",
+      "rollbackCompleted": true
+    },
+    {
+      "recoveryRuntime": "5873984f6475054d8ee34aae7238f4ef79d4ac2e plus bounded startup-wait overlay",
+      "running": true,
+      "chainValid": true,
+      "ledgerValid": true,
+      "latestSequence": 12056,
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "relayTargetTransition": "CLEAR",
+      "safetyHalt": null,
+      "lastSubmissionAt": "2026-09-17T21:55:26.258Z"
+    },
+    {
+      "secondaryRelay": "installed exact PR #149 package; service inactive",
+      "submitEnabled": false,
+      "capabilityTestEnabled": false,
+      "previewEnabled": false,
+      "browserService": "active"
+    }
+  ],
+  "assistantDomOutputInspected": false,
+  "controllerSemanticSubstitution": false,
+  "paidInference": false,
+  "productionMutated": false,
+  "manualSqliteMutation": false,
+  "secondEventStoreWriter": false,
+  "providerSends": 0,
+  "testEfficiencySummary": {
+    "observedSeconds": 280.13,
+    "taskWallTimePercentAtReleaseGate": 13.36,
+    "forcedRedundantGreenSeconds": 0.0
+  },
+  "ownerAction": "Re-establish current single-active authority through an authorized lease path and explicitly authorize continuation only after the durable PRECOMPOSITION_RECOVERED compatibility seam is reconciled."
+}

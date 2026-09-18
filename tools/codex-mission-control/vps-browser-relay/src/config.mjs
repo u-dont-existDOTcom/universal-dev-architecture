@@ -1,5 +1,5 @@
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { parseChatDirectory, parseChatProvisionDirectory } from './core.mjs';
 
@@ -113,6 +113,52 @@ export async function loadConfig(env = process.env) {
         hardSwapUsedMb: optionalInteger(env.MC_RELAY_SWAP_HARD_USED_MB, 0, 65_536),
       },
     },
+  };
+}
+
+export function loadCodexExecCandidateConfig(env = process.env) {
+  const home = homedir();
+  const stateDir = resolve(expandHome(
+    env.MC_CODEX_EXEC_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay/codex-exec-preview`,
+    home,
+  ));
+  const runtimeBase = env.MC_CODEX_EXEC_RUNTIME_DIR
+    ?? join(env.XDG_RUNTIME_DIR || tmpdir(), 'mission-control-codex-exec');
+  return {
+    previewEnabled: env.MC_CODEX_EXEC_PREVIEW_ENABLED === '1',
+    stateDir,
+    runtimeDir: resolve(expandHome(runtimeBase, home)),
+    codexBinary: expandHome(env.MC_CODEX_EXEC_BINARY ?? `${home}/.local/bin/codex`, home),
+    sourceCodexHome: resolve(expandHome(env.MC_CODEX_EXEC_SOURCE_HOME ?? env.CODEX_HOME ?? `${home}/.codex`, home)),
+    nodeBinary: expandHome(env.MC_CODEX_EXEC_NODE_BINARY ?? '/usr/bin/node', home),
+    restrictedBrowserAdapterPath: env.MC_CODEX_RESTRICTED_BROWSER_ADAPTER_PATH
+      ? resolve(expandHome(env.MC_CODEX_RESTRICTED_BROWSER_ADAPTER_PATH, home))
+      : null,
+    restrictedBrowserAdapterSha256: env.MC_CODEX_RESTRICTED_BROWSER_ADAPTER_SHA256?.toLowerCase() ?? null,
+    maxTimeoutMs: integer(env.MC_CODEX_EXEC_MAX_TIMEOUT_MS, 900_000, 1_000, 3_600_000),
+    mcpStartupTimeoutSeconds: integer(env.MC_CODEX_MCP_STARTUP_TIMEOUT_SECONDS, 20, 1, 120),
+    mcpToolTimeoutSeconds: integer(env.MC_CODEX_MCP_TOOL_TIMEOUT_SECONDS, 60, 1, 300),
+  };
+}
+
+export function loadCodexExecMissionControlConfig(env = process.env) {
+  const url = normalizeBaseUrl(required(
+    env.MC_CODEX_EXEC_MISSION_CONTROL_URL ?? env.MC_RELAY_MISSION_CONTROL_URL,
+    'MC_CODEX_EXEC_MISSION_CONTROL_URL',
+  ));
+  const workerId = required(env.MC_CODEX_EXEC_WORKER_ID, 'MC_CODEX_EXEC_WORKER_ID');
+  const producerId = env.MC_CODEX_EXEC_PRODUCER_ID ?? `worker:${workerId}`;
+  const token = required(
+    env.MC_CODEX_EXEC_WORKER_TOKEN ?? env.MISSION_CONTROL_WORKER_TOKEN,
+    'MC_CODEX_EXEC_WORKER_TOKEN',
+  );
+  if (token.length < 32) throw new Error('MC_CODEX_EXEC_WORKER_TOKEN must contain at least 32 characters.');
+  return {
+    url,
+    workerId,
+    producerId,
+    token,
+    requestTimeoutMs: integer(env.MC_CODEX_EXEC_MISSION_CONTROL_TIMEOUT_MS, 30_000, 1_000, 120_000),
   };
 }
 

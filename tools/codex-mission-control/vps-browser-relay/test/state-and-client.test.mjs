@@ -85,7 +85,7 @@ test('Mission Control client reads only explicitly scoped worker snapshots', asy
   assert.equal(requests.length, 2);
   assert.equal(requests[0].url, 'https://mission-control.example/api/mcp');
   assert.equal(requests[0].options.headers.authorization, `Bearer ${'x'.repeat(32)}`);
-  assert.equal(requests[0].requestBody.params.name, 'mission_control_get_worker');
+  assert.equal(requests[0].requestBody.params.name, 'mission_control_get_worker_transport');
   assert.equal(requests[0].requestBody.params.arguments.worker, 'worker-a');
 });
 
@@ -100,6 +100,46 @@ test('Mission Control client fails closed on an unscoped or mismatched worker re
   });
   await assert.rejects(() => client.fetchWorkers(['worker-a']), /invalid scoped worker snapshot/);
   await assert.rejects(() => client.fetchWorkers([]), /At least one scoped/);
+});
+
+test('Mission Control client uses authenticated worker admission, preflight, and lifecycle routes', async () => {
+  const requests = [];
+  const token = 'w'.repeat(32);
+  const producerId = 'worker:worker-a';
+  const responses = [
+    { status: 409, body: { admitted: false, mayExecute: false, reason: 'EXECUTION_NOT_AUTHORIZED' } },
+    { status: 200, body: { allowed: true, preflightId: 'preflight:worker-a:1' } },
+    { status: 200, body: { events: [{ eventId: 'codex-start:1' }, { eventId: 'codex-receipt:1' }] } },
+  ];
+  const client = new MissionControlClient({
+    url: 'https://mission-control.example',
+    producerId,
+    token,
+    workerIds: ['worker-a'],
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options, body: JSON.parse(options.body) });
+      const response = responses.shift();
+      return Response.json(response.body, { status: response.status });
+    },
+  });
+
+  const admission = await client.requestExecutionAdmission('worker-a', { request: { requestId: 'admission:1' } });
+  assert.equal(admission.mayExecute, false);
+  const preflight = await client.requestWorkExecutionPreflight('worker-a', { profileAuthorizationId: 'authorization:1' });
+  assert.equal(preflight.allowed, true);
+  const lifecycle = [{ schema_version: 2, event_id: 'codex-start:1' }, { schema_version: 2, event_id: 'codex-receipt:1' }];
+  await client.recordWorkerEvents('worker-a', lifecycle);
+
+  assert.deepEqual(requests.map((request) => request.url), [
+    'https://mission-control.example/api/worker-channel/worker-a/admission',
+    'https://mission-control.example/api/worker-channel/worker-a/preflight',
+    'https://mission-control.example/api/worker-channel/worker-a/events',
+  ]);
+  for (const request of requests) {
+    assert.equal(request.options.headers.authorization, `Bearer ${token}`);
+    assert.equal(request.options.headers['x-mission-control-producer-id'], producerId);
+  }
+  assert.deepEqual(requests[2].body, { events: lifecycle });
 });
 
 test('submission interval config defaults to 60000 and exposes the public value', async () => {
