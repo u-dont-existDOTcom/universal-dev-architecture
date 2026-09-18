@@ -3,6 +3,12 @@ import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 import { parseGitHubReceiptPolicy, validateConfiguredDecisionLocation } from "@/lib/github-decision-receipts";
 import { continuationIntentForAdmission, parseSupervisionAdmissionInput, evaluateSupervisionAdmission } from "@/lib/supervision-admission-runtime";
 import {
+  acknowledgeRequestBoundRoute,
+  requestBoundRouteQueuedAt,
+  requestRouteEventId,
+  type RequestBoundRouteAcknowledgement,
+} from "@/lib/request-bound-supervision";
+import {
   buildTrustedTaskCreationSelectionEnvelope,
   buildWorkExecutionAuthorizationEnvelope,
   currentExecutionDirectiveProof,
@@ -39,23 +45,56 @@ export async function POST(request: Request, context: { params: Promise<{ worker
     const body = cycleLocation && policy ? withConfiguredStageIssue(requestedBody, policy.stageIssueNumber) : requestedBody;
     const now = new Date().toISOString();
     const parsedInput = parseSupervisionAdmissionInput(body);
-    const intent = continuationIntentForAdmission(worker, parsedInput, now);
+    const requestBoundEventId = policy?.requestBound?.enabled
+      && parsedInput.request.internalRoute
+      && parsedInput.factualPacket?.supervisoryCycle
+      ? requestRouteEventId(parsedInput.request.requestId)
+      : null;
+    const existingRouteEvent = requestBoundEventId
+      ? await readExactRouteEvent(requestBoundEventId, authentication.producer)
+      : null;
+    const evaluationTime = existingRouteEvent && requestBoundEventId
+      ? requestBoundRouteQueuedAt(existingRouteEvent, {
+        eventId: requestBoundEventId,
+        requestId: parsedInput.request.requestId,
+        worker,
+        producerId: authentication.producer.id,
+        producerKind: authentication.producer.kind,
+      })
+      : now;
     const needsDirectiveProof = parsedInput.request.action === "EXECUTE_BOUNDED_TASK"
       && parsedInput.request.directiveSchemaVersion === 3;
     let historyEvents: StoredEvent[] = [];
-    if (intent || needsDirectiveProof) {
+    if (parsedInput.resumeDecisionRequestId !== undefined || needsDirectiveProof) {
       const history = await daemonFetch("/events");
       if (!history.ok) throw new Error("Mission Control event history is unavailable for admission derivation.");
       const payload = await history.json() as { events?: StoredEvent[] };
       if (!Array.isArray(payload.events)) throw new Error("Mission Control admission history is invalid.");
       historyEvents = payload.events;
     }
-    let continuation;
-    if (intent) {
-      continuation = deriveOwnerResponseContinuation(historyEvents, intent, now);
+    const evaluateAt = (at: string) => {
+      const intent = continuationIntentForAdmission(worker, parsedInput, at);
+      const continuation = intent ? deriveOwnerResponseContinuation(historyEvents, intent, at) : undefined;
+      const directiveProof = needsDirectiveProof ? currentExecutionDirectiveProof(worker, historyEvents) : null;
+      return evaluateSupervisionAdmission(worker, authentication.producer, body, at, continuation, directiveProof,
+        policy?.requestBound?.enabled ? "PER_REQUEST_V1" : "SPLIT_SESSION_V4");
+    };
+    let result = evaluateAt(evaluationTime);
+    if (existingRouteEvent) {
+      if (!result.routeEnvelope) {
+        throw new Error("Request-bound admission replay conflicts with the original routed action.");
+      }
+      const routeAcknowledgement = acknowledgeRequestBoundRoute(existingRouteEvent, result.routeEnvelope, now);
+      return Response.json({
+        ...result,
+        routeEnvelope: undefined,
+        routeEvent: existingRouteEvent,
+        routeAcknowledgement,
+        profileAuthorizationEvent: null,
+        setterEvidenceId: null,
+        setterEvidenceEvent: null,
+      }, { status: admissionStatus(result) });
     }
-    const directiveProof = needsDirectiveProof ? currentExecutionDirectiveProof(worker, historyEvents) : null;
-    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation, directiveProof, policy?.requestBound?.enabled ? "PER_REQUEST_V1" : "SPLIT_SESSION_V4");
     let profileAuthorizationEvent = null;
     if (result.mayExecute && result.authorizedWorkExecutionProfile) {
       const authorizedProfile = parseWorkExecutionProfile(result.authorizedWorkExecutionProfile);
@@ -91,6 +130,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       profileAuthorizationEvent = payload.event ?? null;
     }
     let routeEvent = null;
+    let routeAcknowledgement: RequestBoundRouteAcknowledgement | null = null;
     let setterEvidenceEvent = null;
     let setterEvidenceId = null;
     if (result.mayExecute && result.authorizedWorkExecutionProfile && result.profileAuthorizationId) {
@@ -139,6 +179,32 @@ export async function POST(request: Request, context: { params: Promise<{ worker
         body: JSON.stringify(result.routeEnvelope),
       });
       const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
+      if (!upstream.ok && requestBoundEventId && upstream.status === 409) {
+        const racedRouteEvent = await readExactRouteEvent(requestBoundEventId, authentication.producer);
+        if (racedRouteEvent) {
+          const racedQueuedAt = requestBoundRouteQueuedAt(racedRouteEvent, {
+            eventId: requestBoundEventId,
+            requestId: parsedInput.request.requestId,
+            worker,
+            producerId: authentication.producer.id,
+            producerKind: authentication.producer.kind,
+          });
+          result = evaluateAt(racedQueuedAt);
+          if (!result.routeEnvelope) {
+            throw new Error("Request-bound admission race conflicts with the original routed action.");
+          }
+          routeAcknowledgement = acknowledgeRequestBoundRoute(racedRouteEvent, result.routeEnvelope, now);
+          return Response.json({
+            ...result,
+            routeEnvelope: undefined,
+            routeEvent: racedRouteEvent,
+            routeAcknowledgement,
+            profileAuthorizationEvent,
+            setterEvidenceId,
+            setterEvidenceEvent,
+          }, { status: admissionStatus(result) });
+        }
+      }
       if (!upstream.ok) {
         return Response.json({
           ...result,
@@ -148,22 +214,47 @@ export async function POST(request: Request, context: { params: Promise<{ worker
         }, { status: upstream.status });
       }
       routeEvent = payload.event ?? null;
+      if (requestBoundEventId) {
+        if (!routeEvent) throw new Error("Mission Control did not return the persisted request-bound route.");
+        routeAcknowledgement = acknowledgeRequestBoundRoute(routeEvent as StoredEvent, result.routeEnvelope, now);
+      }
     }
-    const status = result.mayExecute ? 200 : result.admitted ? 202 : 409;
     return Response.json({
       ...result,
       routeEnvelope: undefined,
       routeEvent,
+      routeAcknowledgement,
       profileAuthorizationEvent,
       setterEvidenceId,
       setterEvidenceEvent,
-    }, { status });
+    }, { status: admissionStatus(result) });
   } catch (error) {
     const status = error instanceof Error && "statusCode" in error && (error.statusCode === 400 || error.statusCode === 403)
       ? error.statusCode
       : 400;
     return Response.json({ error: error instanceof Error ? error.message : "Invalid supervision admission request." }, { status });
   }
+}
+
+async function readExactRouteEvent(eventId: string, producer: AuthenticatedProducer): Promise<StoredEvent | null> {
+  const upstream = await daemonFetch(`/events?event_id=${encodeURIComponent(eventId)}`, {
+    headers: daemonMutationHeaders(producer),
+  });
+  const payload = await upstream.json().catch(() => ({})) as { event?: StoredEvent; error?: string };
+  if (upstream.status === 404) return null;
+  if (!upstream.ok) {
+    const error = new Error(payload.error ?? "Mission Control exact event lookup failed.");
+    Object.assign(error, { statusCode: upstream.status === 403 ? 403 : 400 });
+    throw error;
+  }
+  if (!payload.event || payload.event.eventId !== eventId) {
+    throw new Error("Mission Control exact event lookup returned an invalid event.");
+  }
+  return payload.event;
+}
+
+function admissionStatus(result: { mayExecute: boolean; admitted: boolean }): number {
+  return result.mayExecute ? 200 : result.admitted ? 202 : 409;
 }
 
 function withConfiguredStageIssue(value: unknown, stageIssueNumber: number): unknown {

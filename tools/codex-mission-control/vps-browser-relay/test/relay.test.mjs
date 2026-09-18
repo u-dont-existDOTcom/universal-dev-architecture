@@ -848,6 +848,31 @@ for (const stage of ['CLICK_DISPATCHED', 'CLICKED', 'GENERATION_STARTED', 'UNKNO
   });
 }
 
+test('V5 centrally confirmed pre-click abort reuses the same provider session and managed target', async () => {
+  const { browser, runtime, store } = requestBoundFixture({ submitErrorStage: 'PREPARING' });
+  assert.equal((await runtime.cycle()).status, 'SUBMISSION_AMBIGUOUS');
+  const first = structuredClone(store.state.deliveries['request:r-1']);
+  const targetCount = browser.targets.length;
+  store.state.deliveries['request:r-1'] = {
+    ...first,
+    status: 'FAILED_RETRYABLE',
+    preBoundaryAbortConfirmed: true,
+    lastAttemptAt: '2026-09-01T00:00:00.000Z',
+  };
+  store.state.providerSessions[first.providerSessionId] = {
+    ...store.state.providerSessions[first.providerSessionId],
+    status: 'FAILED',
+    failureStage: 'PREPARING',
+  };
+  browser.submitErrorStage = null;
+  const retry = await runtime.cycle();
+  assert.equal(retry.status, 'REQUEST_BOUND_DECISION_GENERATION_STARTED', JSON.stringify(retry));
+  assert.equal(store.state.deliveries['request:r-1'].providerSessionId, first.providerSessionId);
+  assert.equal(store.state.deliveries['request:r-1'].targetId, first.targetId);
+  assert.equal(browser.targets.length, targetCount);
+  assert.equal(browser.submitCalls, 2);
+});
+
 test('V5 missing app chip is telemetry, not capability authorization', async () => {
   const { browser, runtime } = requestBoundFixture();
   browser.selectAppsForMessage = async () => { throw new Error('Chip missing'); };

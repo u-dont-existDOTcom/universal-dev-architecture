@@ -83,6 +83,22 @@ const server = http.createServer(async (request, response) => {
       return json(response, 200, snapshotFromStore(store, dashboardProjectionOptions));
     }
     if (request.method === "GET" && url.pathname === "/events") {
+      const eventId = url.searchParams.get("event_id");
+      if (eventId !== null) {
+        const producer = authorizeMutation(request);
+        if (!eventId || eventId.length > 180 || url.searchParams.size !== 1) {
+          return json(response, 400, { error: "Exact event lookup requires one bounded event_id." });
+        }
+        const event = store.eventByEventId(eventId);
+        if (!event) return json(response, 404, { error: "Event not found." });
+        if (event.producerId !== producer.id || event.producerKind !== producer.kind
+          || event.worker !== null
+            && !producer.workerScopes.includes("*")
+            && !producer.workerScopes.includes(event.worker)) {
+          return json(response, 403, { error: "Exact event lookup does not match the authenticated producer and worker scope." });
+        }
+        return json(response, 200, { event });
+      }
       return json(response, 200, { events: store.allEvents() });
     }
     if (request.method === "POST" && url.pathname === "/mcp") {

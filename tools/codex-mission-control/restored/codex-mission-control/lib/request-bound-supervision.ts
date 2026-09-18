@@ -1,6 +1,6 @@
 import { canonicalJson, sha256 } from "./canonical";
 import type { GitHubDecisionCandidate, GitHubReceiptPolicy, PendingDecisionRequest } from "./github-decision-receipts";
-import type { CanonicalDecisionEnvelope, StoredEvent } from "./schema";
+import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "./schema";
 
 export const requestBoundRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n";
 export const requestBoundStep = "REQUEST_BOUND_DECISION";
@@ -24,6 +24,30 @@ export interface RequestExecutionContext {
   run_id?: string;
   family_id?: string;
   round?: number;
+}
+
+export interface RequestBoundRouteAcknowledgement {
+  acknowledgedOriginal: true;
+  eventId: string;
+  messageId: string;
+  queuedAt: string;
+  expiresAt: string;
+  expiredAtAcknowledgement: boolean;
+  sendEligible: boolean;
+  binding: {
+    requestId: string;
+    worker: string;
+    producerId: string;
+    destination: string;
+    destinationSupervisorId: string;
+    executionContext: unknown;
+    nonce: string;
+    reasoningLane: string;
+    evidenceCapsule: unknown;
+    ownerOutcome: unknown;
+    githubReceipt: unknown;
+    continuationSource: unknown;
+  };
 }
 
 /** A context is bound only when supplied. Do not manufacture a scientific run/family/round. */
@@ -143,4 +167,106 @@ function isTrustedEvidence(event: StoredEvent, summary: string, producers: strin
 /** Stable enqueue identity; retries acknowledge the original durable queue event. */
 export function requestRouteEventId(requestId: string): string {
   return `supervision-request-v5:${sha256(requestId)}`;
+}
+
+export function requestBoundRouteQueuedAt(
+  event: StoredEvent,
+  expected: { eventId: string; requestId: string; worker: string; producerId: string; producerKind: string },
+): string {
+  const body = requestBoundRouteBody(event.data);
+  if (event.eventId !== expected.eventId || event.worker !== expected.worker
+    || event.producerId !== expected.producerId || event.producerKind !== expected.producerKind
+    || body.requestId !== expected.requestId || body.worker !== expected.worker
+    || body.producerId !== expected.producerId) {
+    throw new Error("Existing request-bound route does not match the authenticated request, worker, or producer.");
+  }
+  const queuedAt = requiredRouteString(body, "queuedAt");
+  const expiresAt = requiredRouteString(body, "expiresAt");
+  if (!Number.isFinite(Date.parse(queuedAt)) || !Number.isFinite(Date.parse(expiresAt))
+    || Date.parse(expiresAt) <= Date.parse(queuedAt) || event.occurredAt !== queuedAt) {
+    throw new Error("Existing request-bound route has an invalid durable queue window.");
+  }
+  return queuedAt;
+}
+
+export function acknowledgeRequestBoundRoute(
+  existing: StoredEvent,
+  intended: AppendEnvelope,
+  observedAt: string,
+): RequestBoundRouteAcknowledgement {
+  if (existing.eventId !== intended.event_id || existing.missionId !== intended.mission_id
+    || existing.occurredAt !== intended.occurred_at
+    || canonicalJson(existing.data) !== canonicalJson(intended.data)) {
+    throw new Error("Request-bound admission replay conflicts with the original durable request intent.");
+  }
+  const body = requestBoundRouteBody(existing.data);
+  const intendedBody = requestBoundRouteBody(intended.data);
+  if (canonicalJson(body) !== canonicalJson(intendedBody)) {
+    throw new Error("Request-bound admission replay changed the durable request binding.");
+  }
+  const expiresAt = requiredRouteString(body, "expiresAt");
+  const observed = Date.parse(observedAt);
+  if (!Number.isFinite(observed)) throw new Error("Request-bound acknowledgement time is invalid.");
+  const continuation = body.continuationBinding;
+  const continuationRecord = isRouteRecord(continuation) ? continuation : null;
+  const delivery = continuationRecord && isRouteRecord(continuationRecord.supervisor_delivery)
+    ? continuationRecord.supervisor_delivery : null;
+  return {
+    acknowledgedOriginal: true,
+    eventId: existing.eventId,
+    messageId: existing.data.type === "worker_message_recorded" ? existing.data.message_id : "",
+    queuedAt: requiredRouteString(body, "queuedAt"),
+    expiresAt,
+    expiredAtAcknowledgement: Date.parse(expiresAt) <= observed,
+    sendEligible: Date.parse(expiresAt) > observed,
+    binding: {
+      requestId: requiredRouteString(body, "requestId"),
+      worker: requiredRouteString(body, "worker"),
+      producerId: requiredRouteString(body, "producerId"),
+      destination: requiredRouteString(body, "destination"),
+      destinationSupervisorId: requiredRouteString(body, "destinationSupervisorId"),
+      executionContext: body.executionContext,
+      nonce: requiredRouteString(body, "nonce"),
+      reasoningLane: requiredRouteString(body, "reasoningLane"),
+      evidenceCapsule: body.evidenceCapsule,
+      ownerOutcome: body.ownerOutcome,
+      githubReceipt: body.githubReceipt,
+      continuationSource: continuationRecord ? {
+        continuationId: continuationRecord.continuation_id,
+        decisionRequestId: continuationRecord.decision_request_id,
+        path: continuationRecord.path,
+        sourceMessageId: delivery?.message_id,
+        sourceBodySha256: delivery?.body_sha256,
+        digest: body.continuationBindingSha256,
+      } : null,
+    },
+  };
+}
+
+function requestBoundRouteBody(data: AppendEnvelope["data"] | StoredEvent["data"]): Record<string, unknown> {
+  if (data.type !== "worker_message_recorded" || !data.body.startsWith(requestBoundRoutePrefix)) {
+    throw new Error("Existing event is not a request-bound supervisory route.");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data.body.slice(requestBoundRoutePrefix.length));
+  } catch {
+    throw new Error("Existing request-bound route body is invalid JSON.");
+  }
+  if (!isRouteRecord(parsed) || parsed.schemaVersion !== 5) {
+    throw new Error("Existing request-bound route body has the wrong schema.");
+  }
+  return parsed;
+}
+
+function requiredRouteString(value: Record<string, unknown>, key: string): string {
+  const item = value[key];
+  if (typeof item !== "string" || item.length === 0) {
+    throw new Error(`Existing request-bound route is missing ${key}.`);
+  }
+  return item;
+}
+
+function isRouteRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

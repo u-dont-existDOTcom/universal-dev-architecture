@@ -11,6 +11,8 @@ import {
   pendingDecisionRequests, type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
 import { requestBindingDigest, requestBoundRoutePrefix, requestExecutionContext, requestRouteEventId } from "../lib/request-bound-supervision";
+import { deriveOwnerResponseContinuation } from "../lib/owner-response-continuation";
+import { decisionRouteStates } from "../lib/reasoning-message-state";
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
 
 const worker = "request-bound-fixture", requestId = "per-request-test-1", supervisor = "fixture-supervisor";
@@ -24,11 +26,13 @@ const policy: GitHubReceiptPolicy = {
 const controls = ["model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false", "backend_model_identity_claimed:false", "assistant_content_observed:false"];
 const common = [`request:${requestId}`, `supervisor:${supervisor}`, `provider_session:${session}`];
 const conversation = "https://chatgpt.com/c/synthetic-request-bound";
+const continuationDecisionRequestId = "original-owner-question";
+const continuationOwnerText = "Use the exact bounded owner response through the project manager.";
 
 function append(store: EventStore, id: string, data: AppendEnvelope["data"], at = time(0)) {
   return store.append({ schema_version: 2, event_id: id, mission_id: "mission-control-live", occurred_at: at, data }, at);
 }
-function fixture(filename = ":memory:") {
+function fixture(filename = ":memory:", continuationPath?: "DIRECT" | "PROJECT_MANAGER") {
   const store = new EventStore(filename);
   append(store, "owner-source", {
     type: "owner_source_recorded", worker, receipt_id: "owner-source-1", owner_request_id: "owner-request-1", canonical_locator: "synthetic-owner-source",
@@ -46,11 +50,36 @@ function fixture(filename = ":memory:") {
     forbidden_scope: [], omitted_owner_outcome_ids: [], weakened_owner_outcome_ids: [], proxy_substitutions: [], authorized_scope_changes: [],
     allowed_scope: ["fixture"], effective_finish_line: "Receipt admitted", required_owner_outcome_ids: ["outcome-1"], parent_outcome_remains_open: true,
   });
+  const message = (id: string, author: "ASSISTANT" | "OWNER", surface: "SUPERVISOR" | "PROJECT_MANAGER", parent: string | null, text: string) => append(store, id, {
+    type: "reasoning_message_recorded", worker, message_id: id, thread_id: "original-supervisor-thread",
+    surface_role: surface, stable_supervisor_id: supervisor, provider_surface: "CHATGPT_CONSUMER", model_mode: "UNKNOWN", account_workspace: "UNKNOWN",
+    author_role: author, sent_at_source: null, received_at_mission_control: time(0), body_sha256: sha256(text), exact_visible_body: text,
+    immutable_provider_locator: null, parent_message_id: parent, owner_direction_id: null, decision_request_id: continuationDecisionRequestId,
+    acquisition_method: author === "OWNER" ? "OWNER_ATTESTED" : "UNKNOWN", provenance_status: author === "OWNER" ? "OWNER_ATTESTED" : "UNVERIFIED",
+    limitations: [], recorded_by: author === "OWNER" ? "owner:fixture" : "supervisor:fixture",
+  });
+  let continuation: ReturnType<typeof deriveOwnerResponseContinuation> | undefined;
+  if (continuationPath) {
+    message("original-question", "ASSISTANT", "SUPERVISOR", null, "Owner, choose the bounded option.");
+    if (continuationPath === "PROJECT_MANAGER") {
+      message("pm-owner-input", "OWNER", "PROJECT_MANAGER", "original-question", continuationOwnerText);
+      message("pm-assistant-output", "ASSISTANT", "PROJECT_MANAGER", "pm-owner-input", "PM ASSISTANT OUTPUT MUST NOT TRAVEL");
+      message("supervisor-owner-delivery", "OWNER", "SUPERVISOR", "pm-owner-input", continuationOwnerText);
+    } else {
+      message("supervisor-owner-delivery", "OWNER", "SUPERVISOR", "original-question", continuationOwnerText);
+    }
+    continuation = deriveOwnerResponseContinuation(store.allEvents(), {
+      worker, resumeDecisionRequestId: continuationDecisionRequestId, supervisorId: supervisor,
+      ownerOutcome: { id: "owner-outcome-1", epoch: 1, sha256: "a".repeat(64) },
+      evidenceCapsule: { id: "capsule-1", sha256: "b".repeat(64) }, issuedAt: time(0), expiresAt: expiry,
+    });
+  }
   const packet = {
-    schemaVersion: 5, packetKind: "PROVIDER_SESSION_SUPERVISORY_CYCLE", requestId, destinationSupervisorId: supervisor,
+    schemaVersion: 5, packetKind: "PROVIDER_SESSION_SUPERVISORY_CYCLE", worker, requestId, destinationSupervisorId: supervisor,
     nonce: "request-nonce-1", reasoningLane: "EXTRA_HIGH_DIRECT", providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
     evidenceCapsule: { id: "capsule-1", sha256: "b".repeat(64) }, ownerOutcome: { id: "owner-outcome-1", epoch: 1, sha256: "a".repeat(64) },
     githubReceipt: { repository: policy.repository, issueNumber: 59, stageIssueNumber: 61 }, factualPacket: { taskId: "task-1" },
+    ...(continuation ? { continuationBinding: continuation.binding, continuationBindingSha256: continuation.digest, continuationOwnerResponseExactText: continuation.exactOwnerResponseText } : {}),
     executionContext: { task_id: "task-1", run_id: "run-1", family_id: "family-1", round: 0 }, queuedAt: time(0), expiresAt: expiry,
   };
   append(store, requestRouteEventId(requestId), { type: "worker_message_recorded", worker, message_id: "request-message-1", thread_id: "thread-1", message_kind: "QUESTION", body: requestBoundRoutePrefix + JSON.stringify(packet), reply_to_message_id: null, direction_id: null });
@@ -91,7 +120,9 @@ function candidate(store: EventStore) {
     schema_version: 4, envelope_kind: "MISSION_CONTROL_CANONICAL_DECISION", request_id: requestId, supervisor_id: supervisor, provider_session_id: session,
     request_binding_sha256: requestBindingDigest(request, session, policy), execution_provenance: "REQUEST_BOUND_MCP_GITHUB_OBSERVED", nonce: request.nonce,
     evidence_capsule: request.evidenceCapsule, owner_outcome: request.ownerOutcome, reasoning_lane: "EXTRA_HIGH_DIRECT",
-    decision_block: { decision_id: "decision-1", exact_text: text, sha256: sha256(text) }, pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null }, writer_contract: { mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: false },
+    decision_block: { decision_id: "decision-1", exact_text: text, sha256: sha256(text) }, pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+    ...(request.continuation ? { continuation_binding: request.continuation.binding, continuation_binding_sha256: request.continuation.digest } : {}),
+    writer_contract: { mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: false },
   };
   return { repository: policy.repository, issueNumber: 59, commentId: 9001, immutableUrl: `https://github.com/${policy.repository}/issues/59#issuecomment-9001`, createdAt: time(4), authorLogin: "u-dont-existDOTcom", deliveryId: null, body: canonicalDecisionCommentPrefix + JSON.stringify(decision), ingestionMethod: "RECONCILIATION_POLL" as const };
 }
@@ -157,6 +188,34 @@ test("failure between decision and attestation rolls back both and unchanged ret
     assert.throws(() => ingestGitHubSupervisionCandidate(store, receipt, policy, time(6)), /injected storage/);
     store.append = original; assert.equal(store.count(), before);
     assert.equal(ingestGitHubSupervisionCandidate(store, receipt, policy, time(6)).length, 2);
+  } finally { store.close(); }
+});
+
+test("V5 project-manager continuation is exact and decision, attestation, and resolution commit atomically", async () => {
+  const store = fixture(":memory:", "PROJECT_MANAGER");
+  try {
+    await callBinding(store); complete(store); const receipt = candidate(store); const before = store.count();
+    const pending = pendingDecisionRequests(store.allEvents())[0]!;
+    assert.equal(pending.continuation?.binding.path, "PROJECT_MANAGER");
+    assert.equal(pending.continuation?.exactOwnerResponseText, continuationOwnerText);
+    assert.equal(JSON.stringify(pending.continuation).includes("PM ASSISTANT OUTPUT MUST NOT TRAVEL"), false);
+    assert.equal(decisionRouteStates(store.allEvents())[0]?.status, "SUPERVISOR_RESOLUTION_REQUIRED");
+    const original = store.append.bind(store);
+    store.append = ((...args: Parameters<EventStore["append"]>) => {
+      if ((args[0] as { data?: { type?: string } }).data?.type === "reasoning_message_recorded") throw new Error("injected V5 resolution write failure");
+      return original(...args);
+    }) as EventStore["append"];
+    assert.throws(() => ingestGitHubSupervisionCandidate(store, receipt, policy, time(6)), /injected V5/);
+    assert.equal(store.count(), before);
+    assert.equal(decisionRouteStates(store.allEvents())[0]?.status, "SUPERVISOR_RESOLUTION_REQUIRED");
+    store.append = original;
+    const admitted = ingestGitHubSupervisionCandidate(store, receipt, policy, time(6));
+    assert.equal(admitted.length, 3);
+    assert.equal(admitted[0]?.data.type, "github_decision_receipt_ingested");
+    assert.equal(admitted[2]?.data.type, "reasoning_message_recorded");
+    assert.equal(decisionRouteStates(store.allEvents())[0]?.status, "RESOLVED");
+    assert.equal(pendingDecisionRequests(store.allEvents()).length, 0);
+    assert.equal(store.verifyChain().valid, true);
   } finally { store.close(); }
 });
 
