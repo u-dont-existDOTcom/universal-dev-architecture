@@ -549,6 +549,39 @@ test("reconciliation snapshot incorporates newly ingested receipts before later 
   assert.equal(result.filter((event) => event.data.type === "github_decision_receipt_ingested").length, 1);
 });
 
+test("reconciliation refreshes concurrent event deltas before validating a GitHub bus", async () => {
+  const p = policy();
+  const initial = directDecisionEvents("EXTRA_HIGH_DIRECT");
+  const store = fakeStore(initial);
+  const staleCandidate = directCandidate("EXTRA_HIGH_DIRECT");
+  const newerOwner = structuredClone(initial.find((event) => event.data.type === "owner_outcome_recorded")!);
+  newerOwner.eventId = "newer-owner-outcome-during-fetch";
+  newerOwner.occurredAt = "2026-09-02T00:14:30.000Z";
+  newerOwner.receivedAt = newerOwner.occurredAt;
+  if (newerOwner.data.type !== "owner_outcome_recorded") throw new Error("Expected owner outcome fixture.");
+  newerOwner.data.epoch += 1;
+
+  const result = await reconcileGitHubDecisionReceipts(store, {
+    policy: p,
+    now: "2026-09-02T00:15:20.000Z",
+    fetchImpl: async (url) => {
+      if (!String(url).includes(`/issues/${p.decisionIssueNumber}/`)) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      store.append(appendEnvelope(newerOwner));
+      return new Response(JSON.stringify([{
+        id: staleCandidate.commentId,
+        html_url: staleCandidate.immutableUrl,
+        created_at: staleCandidate.createdAt,
+        body: staleCandidate.body,
+        user: { login: staleCandidate.authorLogin },
+      }]), { status: 200 });
+    },
+  });
+
+  assert.equal(result.some((event) => event.data.type === "github_decision_receipt_ingested"), false);
+});
+
 test("public reconciliation polls all centrally configured buses without Authorization", async () => {
   const p = policy();
   const store = fakeStore([]);
@@ -868,7 +901,18 @@ function evidenceEvent(id: string, sequence: number, summary: string, refs: stri
 function fakeStore(initial: StoredEvent[]) {
   const events = initial.map((event) => structuredClone(event));
   let sequence = Math.max(0, ...events.map((event) => event.sequence));
-  return { allEvents: () => events, append: (input: unknown) => { const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] }; const existing = events.find((event) => event.eventId === envelope.event_id); if (existing) return existing; const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at); events.push(stored); return stored; } } as unknown as EventStore;
+  return {
+    allEvents: () => events,
+    eventsAfter: (after: number) => events.filter((event) => event.sequence > after),
+    append: (input: unknown) => {
+      const envelope = input as { event_id: string; occurred_at: string; data: StoredEvent["data"] };
+      const existing = events.find((event) => event.eventId === envelope.event_id);
+      if (existing) return existing;
+      const stored = storedEvent(envelope.data, envelope.event_id, ++sequence, envelope.occurred_at);
+      events.push(stored);
+      return stored;
+    },
+  } as unknown as EventStore;
 }
 function storedEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string, receivedAt = occurredAt): StoredEvent {
   return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };
