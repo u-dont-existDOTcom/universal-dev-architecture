@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { snapshotFromStore, workerSnapshotFromStore } from "../lib/dashboard-data";
+import { isRelayTransportEvent, snapshotFromStore, workerSnapshotFromStore, workerTransportSnapshotFromStore } from "../lib/dashboard-data";
 import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
 
@@ -52,6 +52,46 @@ test("production snapshots suppress fixture-only workers and admit authenticated
     assert.deepEqual(live.workers.map((worker) => worker.id), ["mission-control-live-slice"]);
     assert.equal(live.workers[0].connection.state, "CONNECTED");
     assert.ok(workerSnapshotFromStore(store, "mission-control-live-slice", { includeFixtureOnly: false }));
+  } finally {
+    store.close();
+  }
+});
+
+test("relay transport projection preserves route evidence and omits unrelated worker history", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    store.append({
+      schema_version: 2,
+      event_id: "relay-transport:test",
+      mission_id: "mission-control-live",
+      occurred_at: "2026-09-18T00:00:00.000Z",
+      data: {
+        type: "evidence_receipt_recorded",
+        worker: "mission-control-live-slice",
+        receipt_id: "relay-transport:test",
+        producer_id: "collector:test",
+        producer_role: "COLLECTOR",
+        evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE",
+        freshness: "CURRENT",
+        exact_candidate_sha256: null,
+        summary: "MISSION_CONTROL_PROVIDER_SESSION_V1",
+        refs: ["request:test", "provider_session:test", "semantic_authority:false"],
+        verified: true,
+        changed_path_manifest: null,
+      },
+    }, undefined, { id: "collector:test", kind: "COLLECTOR", workerScopes: ["mission-control-live-slice"], taskScopes: ["*"] });
+    const all = store.workerEvents("mission-control-live-slice");
+    const transportEvidence = all.find(isRelayTransportEvent);
+    assert.ok(transportEvidence);
+    const transport = workerTransportSnapshotFromStore(store, "mission-control-live-slice");
+    assert.ok(transport);
+    assert.equal(transport.worker.id, "mission-control-live-slice");
+    assert.equal(transport.worker.timeline.every(isRelayTransportEvent), true);
+    assert.equal(transport.worker.timeline.some((event) => event.eventId === transportEvidence.eventId), true);
+    assert.ok(transport.worker.timeline.length < all.length);
+    assert.equal(JSON.stringify(transport).length < JSON.stringify(workerSnapshotFromStore(store, "mission-control-live-slice")).length, true);
   } finally {
     store.close();
   }
