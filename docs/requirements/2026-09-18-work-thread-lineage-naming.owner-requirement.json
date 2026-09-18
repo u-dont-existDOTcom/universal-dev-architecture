@@ -1,0 +1,24 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-WORK-THREAD-LINEAGE-NAMING-20260918",
+  "recorded_at": "2026-09-18T18:05:54+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "universal development architecture Chat-to-Work handoffs",
+  "requirements": [
+    {
+      "id": "WORK-THREAD-NAME-001",
+      "text": "When Chat creates a new Work chat, name it after the originating Chat with `Work — ` prefixed so the owner can keep execution threads associated with their source.",
+      "operationalization": "Preferred exact title: `Work — <originating Chat title>`. If the handoff surface exposes a title/name field, set it directly. Otherwise put the exact requested Work title at the start of the runnable Work directive and instruct Work to apply it before substantive execution when the Work surface supports renaming. If the actual source UI title is not exposed, use the explicit source-chat title established in the current conversation; do not claim an unseen UI title."
+    }
+  ],
+  "non_goals": [
+    "Do not claim a handoff API set the title when that API exposes no title field.",
+    "Do not make naming a new semantic-authority, spending, publication, access, or execution gate.",
+    "Do not invent an unseen originating UI title."
+  ],
+  "source": {
+    "date": "2026-09-18",
+    "kind": "explicit owner request",
+    "owner_words_summary": "Use the same title as the originating chat with `Work` first, and merge the convention into UDA so it is durable."
+  }
+}
