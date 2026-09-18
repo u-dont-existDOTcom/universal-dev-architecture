@@ -1,0 +1,177 @@
+{
+  "verdict": "BLOCKED_EXPLICIT_NO_SEND_SOAK_FAILURE",
+  "checkedAt": "2026-09-18T23:49:48Z",
+  "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
+  "ownerAuthority": {
+    "issue": 53,
+    "comment": 5736910093,
+    "predecessorDecisionComment": 5735189869,
+    "epoch4Resurrected": false
+  },
+  "sourceChat": {
+    "title": "Reject API Migration Recommendation",
+    "url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83ea-be82-17824d75ef75",
+    "backlinkRequired": true
+  },
+  "compatibilityRelease": {
+    "provenanceCommitsPreserved": [
+      "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+      "54e61d27b42ca8e065d1967c89d797d4371d4c07"
+    ],
+    "eventChainRepairCommit": "0ede46c",
+    "pullRequest": 161,
+    "pullRequestUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/161",
+    "reviewedHead": "f51cfb6acdf51fa40019b29558280061c597991c",
+    "mergeCommit": "48eb5422a23574c2895daf3eb21eaa04f65e7200",
+    "mergedAt": "2026-09-18T23:08:37Z",
+    "hostedChecks": "ALL_PASS",
+    "deployedImage": "codex-mission-control:48eb5422-epoch5-v4",
+    "deployedImageId": "sha256:20b46fc34e471db6eb779844ea35fb915813437c9b320d6d9756ea2aa293f64e",
+    "dataVolume": "codex-mission-control-issue90-live-v2",
+    "historicalRowsRewritten": false,
+    "rawDatabaseFixtureCommitted": false
+  },
+  "compatibilityValidation": {
+    "sqliteIntegrity": "ok",
+    "clonedLiveEventCount": 12291,
+    "clonedLiveChain": "VALID",
+    "formerlyFalseInvalidSequences": [7, 8, 21, 22, 28, 39, 40, 56, 57],
+    "deployedUnchangedRuntimeChain": "VALID",
+    "changedPersistedPayload": "REJECTED",
+    "changedStoredEventHash": "REJECTED",
+    "changedPreviousHash": "REJECTED",
+    "malformedPersistedJson": "REJECTED",
+    "unknownSchema": "REJECTED",
+    "parserDefaultDrift": "NO_FALSE_FAILURE",
+    "precompositionRecoveryProof": "VALID",
+    "authorityLedger": "VALID"
+  },
+  "epoch5Successor": {
+    "activated": true,
+    "hostAlias": "owner-secondary",
+    "hostRole": "SECONDARY",
+    "leaseId": "lease:issue90-secondary-epoch5:b93b09c5-d3cc-493a-9e82-9cb7de1b1140",
+    "issuedAt": "2026-09-18T23:19:41.743Z",
+    "expiresAt": "2026-09-19T23:19:41.743Z",
+    "predecessorLeaseId": "lease:issue90-secondary-epoch4:6180780a-f6d8-42e0-9ee7-a0a88000b0f6",
+    "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED",
+    "lastProviderBoundary": "2026-09-17T21:55:26.258Z",
+    "pacingTransferredExactly": true,
+    "manualSqliteMutation": false,
+    "secondLiveEventStoreWriter": false
+  },
+  "browserBindingRecovery": {
+    "stalePreparedTransitionId": "a37b0149-f74e-44fa-bda0-27b2f265803f",
+    "classification": "ABANDONED_LOCAL_PREPARATION",
+    "centralTransitionBeforeRecovery": "CLEAR",
+    "replacementCandidateCreated": false,
+    "backup": "/home/cloudbrowser/.local/state/mission-control-chatgpt-relay/state.json.browser-ownership.json.before-epoch5-transition-recovery-20260918T2338Z",
+    "backupSha256": "6e66f178517033ec2240c98c9e5298a984aaa6b854f9c1810e4aa4c654e199ed",
+    "normalEpoch5WindowReplaceCommitted": true,
+    "bindingRevision": 6,
+    "centralTransitionAfterRecovery": "CLEAR",
+    "providerSend": false
+  },
+  "noSendSoak": {
+    "complete": false,
+    "qualifyingWindowStartedAt": "2026-09-18T23:38:54Z",
+    "stoppedAt": "2026-09-18T23:47:18.762Z",
+    "requiredDurationSeconds": 600,
+    "reconciliationIntervalsObserved": 2,
+    "reconciliations": [
+      {
+        "startedAt": "2026-09-18T23:42:08.889Z",
+        "failedAt": "2026-09-18T23:42:43.395Z",
+        "durationMs": 34506,
+        "result": "FAILED_EXTERNAL_FETCH",
+        "daemonLivenessAfter": "PASS",
+        "scopedHealthReadAfter": "PASS"
+      },
+      {
+        "startedAt": "2026-09-18T23:47:17.536Z",
+        "completedAt": "2026-09-18T23:47:43.428Z",
+        "durationMs": 25892,
+        "appendedEvents": 0,
+        "result": "COMPLETED",
+        "overlappingScheduledHealth": "FAIL_CLOSED_CENTRAL_SCHEDULER_UNREACHABLE"
+      }
+    ],
+    "scheduledHealthSuccesses": [
+      "2026-09-18T23:38:54Z",
+      "2026-09-18T23:39:48Z",
+      "2026-09-18T23:40:51Z",
+      "2026-09-18T23:41:53Z",
+      "2026-09-18T23:42:56Z",
+      "2026-09-18T23:44:00Z",
+      "2026-09-18T23:45:04Z",
+      "2026-09-18T23:46:16Z"
+    ],
+    "failedSamples": [
+      {
+        "observedAt": "2026-09-18T23:45:18Z",
+        "kind": "BOUNDED_LIVENESS",
+        "result": "NO_RESPONSE_WITHIN_15_SECONDS",
+        "immediateRetry": "HTTP_200_IN_0.064615_SECONDS"
+      },
+      {
+        "observedAt": "2026-09-18T23:47:18.762Z",
+        "kind": "SCHEDULED_RELAY_HEALTH",
+        "result": "CENTRAL_SCHEDULER_UNREACHABLE"
+      }
+    ],
+    "providerSends": 0,
+    "admissionsOpened": 0,
+    "lastProviderBoundaryUnchanged": true,
+    "stopConditionFired": true
+  },
+  "finalFailClosedState": {
+    "observedAt": "2026-09-18T23:49:00Z",
+    "latestSequence": 12365,
+    "eventChainValid": true,
+    "authorityLedgerValid": true,
+    "schedulerState": "ACTIVE_LEASE",
+    "activeLeaseEpoch": 5,
+    "queueDepth": 0,
+    "unresolvedAdmission": null,
+    "relayTargetTransition": "CLEAR",
+    "safetyHalt": null,
+    "lastProviderBoundary": "2026-09-17T21:55:26.258Z",
+    "submitEnabled": false,
+    "capabilityTestEnabled": false,
+    "relayService": "INACTIVE",
+    "browserService": "INACTIVE_FENCED",
+    "healthTimer": "INACTIVE",
+    "cdpListener": "ABSENT"
+  },
+  "sameFixture": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "routeKey": "request:mc53-epoch4-pm-proof-v2-route-20260917",
+    "status": "RETRY_AUTHORIZED",
+    "cycleStep": "MCP_BINDING_PRELOAD",
+    "retryAttempted": false,
+    "freshEpoch5AdmissionCreated": false,
+    "replacementFixtureCreated": false,
+    "pmMediatedLiveProofPass": false
+  },
+  "deferredPermanentHardening": {
+    "started": false,
+    "reason": "Required only after PM_MEDIATED_LIVE_PROOF_PASS; the no-send soak stop fired first."
+  },
+  "forbiddenBoundaries": {
+    "providerSends": 0,
+    "paidInference": false,
+    "replacementFixtureCreated": false,
+    "manualSqliteMutation": false,
+    "secondLiveEventStoreWriter": false,
+    "epoch4Resurrected": false,
+    "historicalEventMutation": false
+  },
+  "testEfficiencySummary": {
+    "taskId": "mc53-epoch5-compat-v4-resume-5736910093",
+    "observedSeconds": 1294.46,
+    "taskWallTimePercent": 26.27,
+    "forcedRedundantGreenSeconds": 0.0,
+    "redundantGreenRunsSkipped": 0
+  },
+  "nextAction": "Keep owner-secondary fenced. Do not retry MCP_BINDING_PRELOAD and do not begin deferred hardening. A new owner-authorized availability repair and fresh two-interval no-send soak are required."
+}

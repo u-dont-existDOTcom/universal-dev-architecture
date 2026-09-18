@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
   "title": "Release recovered-state compatibility and complete the same PM fixture under epoch 5",
-  "status": "active",
+  "status": "blocked",
   "exclusive": false,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
@@ -27,6 +27,15 @@
   "priorBlockResolvedBy": "issue-53-comment-5736910093",
   "currentMainReconciledBy": "issue-53-comment-5737121675",
   "currentMainReconciledSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
+  "currentStop": {
+    "classification": "EXPLICIT_NO_SEND_SOAK_FAILURE",
+    "observedAt": "2026-09-18T23:47:18.762Z",
+    "reason": "The second epoch-5 reconciliation interval completed, but the overlapping scheduled relay health read failed closed with CENTRAL_SCHEDULER_UNREACHABLE. A separate bounded liveness sample also failed once inside the qualifying soak window. The required two-interval availability soak therefore did not pass.",
+    "providerBoundaryOpened": false,
+    "sameRouteRetryAttempted": false,
+    "successorHostRefenced": true,
+    "receipt": "docs/evidence/2026-09-18-mc-fresh-worker-epoch5-live-soak-stop-receipt.json"
+  },
   "writerLease": "tasks/writer-leases/chat-mc53-epoch5-compat-v4-20260918-2139.json",
   "suspendedTaskSources": [
     "issue-53-comment-5735472294 expired epoch-4 heartbeat revival",

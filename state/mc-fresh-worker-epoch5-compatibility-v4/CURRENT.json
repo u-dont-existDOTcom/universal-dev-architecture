@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-18T23:04:30Z",
-  "phase": "RECONCILED_RELEASE_CANDIDATE",
-  "status": "ACTIVE",
+  "updatedAt": "2026-09-18T23:49:48Z",
+  "phase": "BLOCKED_LIVE_NO_SEND_SOAK",
+  "status": "BLOCKED",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
   "replacementFixtureCreated": false,
   "providerSendsThisTask": 0,
-  "currentGap": "Publish the focused compatibility PR from the current-main-reconciled candidate and require exact-head hosted checks plus review before merge.",
-  "nextAction": "Push the reconciled branch, open the focused PR, complete independent review and hosted gates, then merge and begin the controlled epoch-5 successor transition.",
+  "currentGap": "The epoch-5 candidate and same-route state are valid, but the required no-send daemon-availability soak failed: a scheduled relay health read returned CENTRAL_SCHEDULER_UNREACHABLE during the second reconciliation interval after an earlier bounded liveness sample also failed once.",
+  "nextAction": "Remain fail-closed with owner-secondary fenced. Do not retry MCP_BINDING_PRELOAD or begin deferred hardening until new authority resolves the live availability failure and authorizes another soak.",
   "priorStopResolution": {
     "authority": "issue-53-comment-5736910093",
     "authorizedAt": "2026-09-18T22:24:16Z",
@@ -71,18 +71,80 @@
     "audit": "0 errors",
     "reconciledMissionControl": "311/312 local; only failure is unrelated newly merged daemon startup fixture exceeding its 2.5-second local wait before assertions; exact canonical test is hosted green and exact-head PR checks remain required"
   },
+  "release": {
+    "pullRequest": 161,
+    "pullRequestUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/161",
+    "headSha": "f51cfb6acdf51fa40019b29558280061c597991c",
+    "mergeCommit": "48eb5422a23574c2895daf3eb21eaa04f65e7200",
+    "mergedAt": "2026-09-18T23:08:37Z",
+    "hostedChecks": "ALL_PASS",
+    "deployedImage": "codex-mission-control:48eb5422-epoch5-v4",
+    "deployedImageId": "sha256:20b46fc34e471db6eb779844ea35fb915813437c9b320d6d9756ea2aa293f64e",
+    "dataVolumePreserved": "codex-mission-control-issue90-live-v2",
+    "secondLiveWriter": false
+  },
   "authoritySnapshot": {
-    "epoch": 4,
-    "leaseId": "lease:issue90-secondary-epoch4:6180780a-f6d8-42e0-9ee7-a0a88000b0f6",
+    "epoch": 5,
+    "leaseId": "lease:issue90-secondary-epoch5:b93b09c5-d3cc-493a-9e82-9cb7de1b1140",
     "activeHostAlias": "owner-secondary",
     "activeHostRole": "SECONDARY",
-    "expiresAt": "2026-09-18T18:50:40.711Z",
+    "expiresAt": "2026-09-19T23:19:41.743Z",
     "lastBoundaryAt": "2026-09-17T21:55:26.258Z",
     "safetyHalt": null,
     "relayTargetTransition": null,
     "epoch4Resurrected": false,
-    "epoch5Attempted": false
+    "epoch5Attempted": true,
+    "epoch5Activated": true,
+    "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED",
+    "bindingRevision": 6,
+    "unresolvedAdmission": null,
+    "queueDepth": 0,
+    "ledgerValid": true,
+    "successorHostRefencedAfterStop": true
   },
+  "noSendSoak": {
+    "complete": false,
+    "qualifyingWindowStartedAt": "2026-09-18T23:38:54Z",
+    "stoppedAt": "2026-09-18T23:47:18.762Z",
+    "reconciliationIntervalsObserved": 2,
+    "reconciliations": [
+      {
+        "startedAt": "2026-09-18T23:42:08.889Z",
+        "result": "FAILED_EXTERNAL_FETCH",
+        "finishedAt": "2026-09-18T23:42:43.395Z",
+        "daemonLivenessAfter": "PASS",
+        "scopedHealthReadAfter": "PASS"
+      },
+      {
+        "startedAt": "2026-09-18T23:47:17.536Z",
+        "result": "COMPLETED",
+        "finishedAt": "2026-09-18T23:47:43.428Z",
+        "appendedEvents": 0,
+        "overlappingRelayHealth": "FAIL_CLOSED_CENTRAL_SCHEDULER_UNREACHABLE"
+      }
+    ],
+    "scheduledHealthSuccesses": 8,
+    "scheduledHealthFailuresInsideQualifyingWindow": 1,
+    "boundedLivenessFailuresInsideQualifyingWindow": 1,
+    "finalDeepHealth": {
+      "checkedAt": "2026-09-18T23:49:00Z",
+      "latestSequence": 12365,
+      "chainValid": true,
+      "ledgerValid": true
+    },
+    "providerSends": 0,
+    "lastBoundaryAtUnchanged": true
+  },
+  "sameRouteAfterStop": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "status": "RETRY_AUTHORIZED",
+    "retryStage": "MCP_BINDING_PRELOAD",
+    "retryAttempted": false,
+    "freshEpoch5AdmissionCreated": false,
+    "replacementFixtureCreated": false,
+    "unresolvedAmbiguities": []
+  },
+  "stopReceipt": "docs/evidence/2026-09-18-mc-fresh-worker-epoch5-live-soak-stop-receipt.json",
   "previousStopEvidence": {
     "deployedRuntimeChainValid": true,
     "candidateOfflineChainValid": false,
