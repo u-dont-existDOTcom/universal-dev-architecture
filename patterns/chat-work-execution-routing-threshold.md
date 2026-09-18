@@ -93,6 +93,19 @@ Apply the title at the handoff boundary:
 4. Keep the prefix and source title stable across the handoff. This naming convention is for owner traceability only; it does not transfer semantic authority, prove execution identity, or create a new permission or completion gate.
 5. If the platform cannot set or rename the Work title, proceed with the authorized handoff and report that title-setting limitation rather than blocking otherwise valid execution.
 
+
+### Created Work-thread locator capture
+
+A created Work thread is not durably discoverable from its title alone. At the handoff boundary, capture the exact Work-thread locator returned or exposed by the platform (for example a `codex://threads/<id>` URI or canonical Work URL) and preserve it with the task lineage.
+
+- The source Chat must surface the exact locator to the owner in the same turn when the platform exposes it, and persist it in the durable handoff/task record when such a record exists.
+- Every final Work receipt must echo the exact created Work title and locator supplied or captured at creation; Work must not invent, normalize, or rediscover a different locator.
+- If creation succeeds but the platform exposes no locator, record `work_thread_locator_status=UNRESOLVED` immediately and surface that tracking limitation. The execution may continue when otherwise authorized, but the handoff must not be represented as fully discoverable.
+- A source-Chat URL, branch, PR, commit, task title, or receipt path is useful lineage metadata but is not a substitute for the created Work thread's own locator when that locator is available.
+- When resuming existing Work, reuse the stored locator rather than asking the owner to search the sidebar or reconstruct the thread from filenames.
+
+This is a navigation/traceability control only. It does not create semantic authority, authorize execution, or prove that Work completed.
+
 ## Originating Chat backlink
 
 Every ChatGPT-to-Work directive must carry a clearly labeled source locator for the reasoning thread:
