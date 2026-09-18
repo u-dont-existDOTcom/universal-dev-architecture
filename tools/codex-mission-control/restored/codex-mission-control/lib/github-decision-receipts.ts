@@ -257,10 +257,16 @@ export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: 
   return appended;
 }
 
-export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: GitHubDecisionCandidate, policy: GitHubReceiptPolicy | null, ingestedAt = new Date().toISOString()): StoredEvent[] {
+export function ingestGitHubSupervisionCandidate(
+  store: EventStore,
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy | null,
+  ingestedAt = new Date().toISOString(),
+  eventsSnapshot?: StoredEvent[],
+): StoredEvent[] {
   if (!policy) throw new Error("GitHub supervisory receipt policy is not configured.");
   assertAuthorizedWriter(candidate, policy);
-  const events = store.allEvents();
+  const events = eventsSnapshot ?? store.allEvents();
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
     const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
@@ -488,6 +494,8 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
 
 export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
+  const events = store.allEvents();
+  const knownEventIds = new Set(events.map((event) => event.eventId));
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
@@ -511,8 +519,19 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
         createdAt: timestamp(comment.created_at, "comment.created_at"), authorLogin: requiredString(user.login, "comment.user.login"), deliveryId: null,
         body: comment.body, ingestionMethod: "RECONCILIATION_POLL",
       };
-      try { appended.push(...ingestGitHubSupervisionCandidate(store, candidate, options.policy, options.now)); } catch { /* skip invalid/unrelated receipts */ }
+      try {
+        const ingested = ingestGitHubSupervisionCandidate(store, candidate, options.policy, options.now, events);
+        appended.push(...ingested);
+        for (const event of ingested) {
+          if (knownEventIds.has(event.eventId)) continue;
+          knownEventIds.add(event.eventId);
+          events.push(event);
+        }
+      } catch { /* skip invalid/unrelated receipts */ }
     }
+    // Reconciliation is maintenance work. Yield between buses so request handling
+    // cannot be starved by one large historical receipt scan.
+    await new Promise<void>((resolve) => setImmediate(resolve));
   }
   return appended;
 }
