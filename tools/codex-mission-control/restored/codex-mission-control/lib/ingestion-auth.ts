@@ -76,6 +76,10 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
     if (event.type === "work_task_creation_selection_applied") return true;
     if (["work_execution_profile_authorized", "work_execution_preflight_recorded", "work_model_routing_checkpoint_recorded"].includes(event.type)) return true;
     if (event.type === "github_decision_receipt_ingested") return true;
+    if (event.type === "execution_directive_recorded") {
+      return producer.id === "system:github-decision-receipts"
+        && event.validated_decision_proof?.authority_path === "VALIDATED_GITHUB_SUPERVISORY_DECISION";
+    }
     if (event.type === "outbound_delivery_lifecycle_recorded") return true;
     if (event.type === "worker_connection_observed" && event.state !== "CONNECTED") return true;
     return event.type === "correction_lifecycle_recorded"

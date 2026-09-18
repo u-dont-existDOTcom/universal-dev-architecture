@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "candidate_status": "MC_CODEX_EXEC_AUTHORITY_INTEGRATION_REPAIR: BLOCKED",
+  "recorded_at": "2026-09-17T18:17:21.427021Z",
+  "assurance_lane": "iteration",
+  "base": {
+    "reviewed_candidate_commit": "a39b36eaffc6759705ae01dd3b46cf61d3b5b2e7",
+    "candidate_parent": "ad76fcac1aed29658dbdab6575f91965573e6c51"
+  },
+  "successor_branch": "task/mission-control-codex-exec-authority-repair-20260917",
+  "production_authorized": false,
+  "deployed": false,
+  "merged": false,
+  "pull_request_opened": false,
+  "current_state_checkpoint_modified": false,
+  "active_controller_recovery_modified": false,
+  "architecture_divergence": [],
+  "dispatch_integration": {
+    "canonical_entrypoint": "tools/codex-mission-control/restored/codex-mission-control/scripts/run-codex-execution.mjs",
+    "admission_route": "app/api/worker-channel/[worker]/admission/route.ts",
+    "preflight_route": "app/api/worker-channel/[worker]/preflight/route.ts",
+    "lifecycle_route": "app/api/worker-channel/[worker]/events/route.ts",
+    "authentication": "Bearer worker credential plus x-mission-control-producer-id",
+    "authority_sequence": [
+      "classify closed capability",
+      "authenticated admission",
+      "require admitted and mayExecute true",
+      "require exact persisted Work profile preflight",
+      "record execution start",
+      "spawn bounded Codex child",
+      "record successful receipt"
+    ],
+    "bound_fields": [
+      "request identity",
+      "Chat source message identity and body digest",
+      "directive identity and revision",
+      "task identity",
+      "directive artifact digest",
+      "execution capability",
+      "Work profile",
+      "model",
+      "effort",
+      "Fast disabled"
+    ],
+    "forged_receipt_can_execute": false
+  },
+  "legacy_fallback": {
+    "preview_disabled": "existing Mission Control relay once path",
+    "unsupported_browser": "existing Mission Control relay once path",
+    "synthetic_delegation_marker": false,
+    "standalone_candidate_cli": "diagnostic only"
+  },
+  "authentication_runtime": {
+    "location": "private mkdtemp attempt home under configured runtime/temp area outside durable state",
+    "directory_mode": "0700",
+    "auth_file_mode": "0600",
+    "normal_cleanup": true,
+    "partial_setup_cleanup": true,
+    "durable_auth_material": false
+  },
+  "retry_binding": {
+    "distinct_attempt_identity": true,
+    "same_source_required": true,
+    "bound_semantics": [
+      "source directive",
+      "directive artifact",
+      "prompt",
+      "capability",
+      "workspace",
+      "output schema",
+      "Work profile",
+      "model",
+      "effort",
+      "sandbox",
+      "approval policy",
+      "network policy"
+    ]
+  },
+  "focused_validation": {
+    "candidate_tests": {
+      "result": "16 passed, 0 failed",
+      "scope": "focused"
+    },
+    "authenticated_http_client_tests": {
+      "result": "10 passed, 0 failed",
+      "scope": "affected"
+    },
+    "existing_admission_and_profile_tests": {
+      "result": "42 passed, 0 failed",
+      "scope": "affected"
+    },
+    "integrated_evaluator_tests": {
+      "result": "2 passed, 0 failed",
+      "cases": [
+        "CODEX_LOCAL",
+        "CODEX_BROWSER_RESTRICTED"
+      ]
+    },
+    "syntax_checks": "passed",
+    "typescript_check": "passed",
+    "full_repository_suite_run": false,
+    "raw_cdp_qualification_repeated": false
+  },
+  "live_smoke_a": {
+    "result": "PASS",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "low",
+    "fast_mode": false,
+    "route": "CODEX_LOCAL",
+    "admission_authenticated": true,
+    "may_execute": true,
+    "persisted_preflight_allowed": true,
+    "lifecycle": [
+      "codex_execution_started",
+      "execution_receipt_recorded"
+    ],
+    "structured_completion": true,
+    "subscription_authentication": true,
+    "api_key_fallback": false,
+    "runtime_auth_removed": true,
+    "browser_fence_unchanged": true,
+    "global_codex_config_unchanged": true
+  },
+  "live_smoke_b": {
+    "result": "BLOCKED_BEFORE_MODEL_EXECUTION",
+    "blocker": "The existing Mission Control browser is deliberately fenced by unrelated active controller-recovery work.",
+    "reason_for_no_repair_here": "Releasing or bypassing that fence would modify the explicitly protected recovery and production boundary.",
+    "deterministic_seam_case": "PASS",
+    "next_allowed_action": "After legitimate recovery-fence release, run only the disposable live restricted-browser smoke from this exact branch."
+  },
+  "test_efficiency": {
+    "task_elapsed_seconds": 2406.01,
+    "observed_test_seconds": 159.78,
+    "test_share_percent": 6.64,
+    "forced_redundant_green_seconds": 0.0,
+    "full_suite_seconds": 0.0
+  },
+  "changed_surface": [
+    "authenticated Mission Control Codex worker entrypoint",
+    "candidate authority binding and lifecycle emission",
+    "Mission Control worker HTTP client methods",
+    "ephemeral authentication runtime placement and cleanup",
+    "source-bound retry enforcement",
+    "diagnostic-only candidate CLI",
+    "focused and integrated tests",
+    "candidate documentation and evidence"
+  ],
+  "rollback": {
+    "runtime": "Leave MC_CODEX_EXEC_PREVIEW_ENABLED unset or set to 0; execution remains on the existing legacy browser path.",
+    "source": "Delete the isolated successor branch/worktree or revert its repair commit."
+  },
+  "review_readiness": "READY_FOR_CHAT_DIFF_REVIEW_WITH_EXTERNAL_LIVE_BROWSER_SMOKE_BLOCKER"
+}

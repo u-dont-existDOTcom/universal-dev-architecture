@@ -5,6 +5,7 @@ import { bindingCapsuleSchema, parseCanonicalDecisionEnvelope, type AppendEnvelo
 import type { EventStore } from "./store";
 import { parseRouteContinuation, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
 import { validateOwnerResponseContinuation } from "./owner-response-continuation";
+import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -272,16 +273,26 @@ function ingestGitHubSupervisionCandidateFromEvents(
   assertAuthorizedWriter(candidate, policy);
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
-    const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
-  && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
-  && event.data.github_receipt.issue_number === candidate.issueNumber
-  && event.data.github_receipt.comment_id === candidate.commentId
-  && event.data.github_receipt.immutable_url === candidate.immutableUrl);
-if (exactDuplicate) return [];
+    const parsedDecision = parseCanonicalDecisionComment(candidate.body);
+    const incomingEnvelopeSha256 = sha256(canonicalJson(parsedDecision));
+    const existingReceipt = events.find((event) => event.data.type === "github_decision_receipt_ingested"
+      && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
+      && event.data.github_receipt.issue_number === candidate.issueNumber
+      && event.data.github_receipt.comment_id === candidate.commentId
+      && event.data.github_receipt.immutable_url === candidate.immutableUrl);
+    if (existingReceipt?.data.type === "github_decision_receipt_ingested") {
+      if (existingReceipt.data.canonical_envelope_sha256 === incomingEnvelopeSha256) return [];
+      throw new Error("An immutable GitHub decision identity was re-presented with changed canonical content; publish a new authoritative decision instead.");
+    }
     const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, ingestedAt);
     if (envelope.data.type !== "github_decision_receipt_ingested") throw new Error("Canonical decision envelope has an unexpected event type.");
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
     const decisionData = envelope.data;
+    const directiveEnvelope = buildExecutionDirectiveFromGitHubDecision({
+      eventId: envelope.event_id,
+      occurredAt: envelope.occurred_at,
+      data: decisionData,
+    }, events, ingestedAt);
     const directDecision = decisionData.decision_provider_session_id !== null;
     const attestationEnvelope = evidenceEnvelope({
       worker: decisionData.worker, receiptId: `durable-stage-receipt-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
@@ -331,12 +342,15 @@ if (exactDuplicate) return [];
       return store.appendMany([
         { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
         { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
+        ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
         { event: resolution, receivedAt: ingestedAt, producer },
       ]);
     }
-    const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
-    const attestation = store.append(attestationEnvelope, ingestedAt, githubReceiptCollector);
-    return [decision, attestation];
+    return store.appendMany([
+      { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
+      { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
+      ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
+    ]);
   }
   if (candidate.body.startsWith(capabilityReceiptCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.capabilityIssueNumber) throw new Error("Capability receipt arrived outside the configured GitHub capability channel.");
@@ -448,6 +462,9 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     assertEqual(decision.supervisor_id, request.supervisorId, "supervisor ID");
     assertExactBindingCapsule(events, request, decision.binding_envelope, decision.binding_envelope_sha256, decision.binding_provider_session_id, candidate.createdAt, policy);
     assertFreshDecisionProviderSession(events, request, decision.binding_provider_session_id, decision.decision_provider_session_id, candidate.createdAt, ingestedAt, policy);
+    if (decision.bounded_execution && decision.bounded_execution.task_id !== request.taskId) {
+      throw new Error("Bounded execution task identity does not match the pending supervisory request.");
+    }
   }
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");
@@ -478,6 +495,10 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
       binding_envelope: decision.schema_version === 3 ? decision.binding_envelope : null,
       binding_envelope_sha256: decision.schema_version === 3 ? decision.binding_envelope_sha256 : null,
       decision_session_provenance: decision.schema_version === 3 ? decision.decision_session_provenance : null,
+      ...(decision.schema_version === 3 && decision.bounded_execution ? {
+        bounded_execution: decision.bounded_execution,
+        bounded_execution_sha256: sha256(canonicalJson(decision.bounded_execution)),
+      } : {}),
       ...(request.continuation ? {
         continuation_binding: request.continuation.binding,
         continuation_binding_sha256: request.continuation.digest,

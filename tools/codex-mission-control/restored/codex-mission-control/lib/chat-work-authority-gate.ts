@@ -92,6 +92,16 @@ export interface PersistedExecutionDirectiveProof {
   sourceBodySha256: string;
   status: "ACTIVE";
   workExecutionProfile: WorkExecutionProfile;
+  authoritySource?:
+    | { kind: "DIRECT_REASONING_MESSAGE" }
+    | {
+      kind: "VALIDATED_GITHUB_DECISION";
+      receiptEventId: string;
+      receiptId: string;
+      requestId: string;
+      canonicalEnvelopeSha256: string;
+      boundedExecutionSha256: string;
+    };
 }
 
 export type ExecutionScope =
@@ -256,7 +266,9 @@ export function evaluateChatWorkAuthorityGate(
   }
 
   if (request.action === "EXECUTE_BOUNDED_TASK") {
-    const sourceError = reasoningSourceError(request.sourceReceipt, null);
+    const sourceError = persistedDirective?.authoritySource?.kind === "VALIDATED_GITHUB_DECISION"
+      ? validatedDecisionSourceError(request.sourceReceipt)
+      : reasoningSourceError(request.sourceReceipt, null);
     if (sourceError) {
       return reject(
         "REJECT_UNVERIFIED_REASONING_SOURCE",
@@ -338,6 +350,22 @@ function reasoningSourceError(
   }
   if (!chatAuthorities.has(receipt.authorActor)) {
     return `${receipt.authorActor} cannot supply reasoning authority.`;
+  }
+  return null;
+}
+
+function validatedDecisionSourceError(receipt: ReasoningSourceReceipt | null): string | null {
+  if (!receipt) return "No source binding exists for the validated GitHub supervisory decision.";
+  if (!isSha256(receipt.bodySha256) || !receipt.messageId.trim()) {
+    return "The validated-decision source identity or payload digest is invalid.";
+  }
+  if (receipt.claimedSurface !== "CHATGPT_SPECIALIST_SUPERVISOR"
+    || receipt.observedSurface !== "CHATGPT_SPECIALIST_SUPERVISOR"
+    || receipt.authorActor !== "SPECIALIST_SUPERVISOR_CHAT") {
+    return "The validated GitHub decision must remain bound to its specialist-supervisor Chat surface.";
+  }
+  if (receipt.provenanceStatus !== "UNVERIFIED") {
+    return "GitHub-session-attested decision content must remain UNVERIFIED; authority comes from the server-validated decision receipt.";
   }
   return null;
 }
