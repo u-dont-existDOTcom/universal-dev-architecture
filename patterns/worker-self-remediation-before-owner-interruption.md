@@ -82,6 +82,26 @@ Fresh worker verifies the new permission and resumes automatically.
 
 Do not require the owner to reconstruct or repeat context after the restart; the worker directive or durable task state must carry the continuation.
 
+### 3A. Human-only browser gates are resumable owner-assist states
+
+A CAPTCHA, anti-bot challenge, 2FA/passkey prompt, login approval, or equivalent human-only browser gate does **not** by itself terminate an otherwise-authorized Work run.
+
+When such a gate appears:
+
+1. finish every safe preparatory step Work can perform without crossing the human gate;
+2. preserve the exact browser page/window/session at the gate;
+3. expose that exact live browser state through the configured owner-interactive GUI channel;
+4. if Work has authorized control of the owner's local viewer, open or focus the viewer instead of asking the owner to set it up;
+5. tell the owner only the exact human action required, without asking for credentials or codes in chat;
+6. keep the task-scoped resumable state alive while waiting, including temporary browser/tunnel/session state needed to continue, subject to a bounded security timeout;
+7. detect the gate clearing and resume automatically; if reliable detection is unavailable, ask only for a minimal acknowledgement such as `done`.
+
+Do not emit a terminal execution receipt merely because a human-only gate was encountered when the configured assist channel is available. Use an intermediate `OWNER_INTERACTION_PENDING` state. A terminal blocker is appropriate only if the human-assist channel is unavailable, the bounded security timeout expires, or the gate introduces a new owner decision/authority boundary.
+
+The worker must not solve or bypass CAPTCHAs itself, capture passwords/2FA codes/passkeys, or use the assist channel to substitute for a new spending, publication, destructive-action, or semantic owner decision.
+
+Owner-specific assist channels are deployment bindings rather than universal infrastructure. Apply the current owner binding when one exists; private hostnames, ports, passwords, cookies, and tokens remain outside the public portable rule.
+
 ### 4. Diagnose the controlling surface before repeating remediation
 
 If a proposed repair is present but the fresh worker still exposes the same blocked namespace, treat that as evidence that the attempted repair may not control the runtime.
