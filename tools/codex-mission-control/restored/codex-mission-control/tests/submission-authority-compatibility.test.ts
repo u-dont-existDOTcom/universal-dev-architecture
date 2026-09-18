@@ -162,8 +162,8 @@ function relayBinding() {
 function lease() {
   return {
     schemaVersion: 1,
-    leaseId: "lease:secondary:4",
-    epoch: 4,
+    leaseId: "lease:secondary:1",
+    epoch: 1,
     activeHostAlias: "secondary-test",
     activeHostRole: "SECONDARY",
     issuedAt: new Date(origin - 60_000).toISOString(),
@@ -182,8 +182,8 @@ function request() {
     sendPath: "MCP_PREFLIGHT",
     hostAlias: "secondary-test",
     hostRole: "SECONDARY",
-    deploymentEpoch: 4,
-    leaseId: "lease:secondary:4",
+    deploymentEpoch: 1,
+    leaseId: "lease:secondary:1",
     supervisorId: "spec",
     registrationId: "registration:compat",
     targetId: "owned-target",
