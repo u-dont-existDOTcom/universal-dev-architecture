@@ -327,7 +327,7 @@ async function candidateFixture(name) {
     previewEnabled: true, stateDir, runtimeDir, codexBinary: fakeCodex, sourceCodexHome,
     nodeBinary: process.execPath, restrictedBrowserAdapterPath: null,
     restrictedBrowserAdapterSha256: null, maxTimeoutMs: 60_000,
-    mcpStartupTimeoutSeconds: 5, mcpToolTimeoutSeconds: 5, environment: {},
+    mcpStartupTimeoutSeconds: 5, mcpToolTimeoutSeconds: 5, environment: { ...process.env },
   };
   const missionControl = new FakeMissionControl();
   const spawnCalls = [];
@@ -388,7 +388,7 @@ async function candidateFixture(name) {
       };
     },
     async dispatch(directive, { admission = null, environment = {} } = {}, legacyBrowserHandler = async () => { throw new Error('legacy handler should not run'); }) {
-      config.environment = { ...process.env, OPENAI_API_KEY: 'must-not-reach-child', CODEX_API_KEY: 'must-not-reach-child', ...environment };
+      config.environment = { ...config.environment, OPENAI_API_KEY: 'must-not-reach-child', CODEX_API_KEY: 'must-not-reach-child', ...environment };
       const admissionInput = admission ?? fixture.admissionFor(directive);
       missionControl.bind(admissionInput, directive.workExecutionProfile);
       return dispatchMissionControlExecution({
