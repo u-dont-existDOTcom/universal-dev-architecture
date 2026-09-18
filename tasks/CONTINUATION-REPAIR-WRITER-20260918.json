@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "ready_for_reviewed_merge",
   "exclusive_writer": true,
   "owned_branch": "chat/continuation-stop-admission-20260918-1931",
   "integration_branch": "main",
   "integration_base_sha": "59a5799f3c964f39d326b1f922fc5863fbe8d806",
-  "scope": "Harden diagnosis-to-execution continuation and deliver the authorized survey paraphrase/frontier repair; this lease scopes writes, not the parent owner outcome."
+  "reconciled_main_sha": "12c24e8406c592977eb533b06b04ebc01f5375c1",
+  "scope": "Owner-requested continuation rule hardening at subordinate-scope and final-delivery boundaries. Only this supervising Chat integrates the checked candidate after hosted checks. The independent survey implementation continues in humandesign."
 }

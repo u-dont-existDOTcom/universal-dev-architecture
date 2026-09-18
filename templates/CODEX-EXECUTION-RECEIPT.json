@@ -6,6 +6,13 @@
   "directiveRevision": 1,
   "taskId": "replace-with-task-id",
   "runId": "replace-with-run-id",
+  "sourceChat": {
+    "title": "echo-exact-source-chat-title-from-directive",
+    "url": "echo-exact-source-chat-url-from-directive",
+    "urlStatus": "RESOLVED",
+    "exactDirectiveEcho": true,
+    "ownerFacingBacklinkMarkdown": "Originating Chat: [<exact source Chat title>](<exact source conversation URL>)"
+  },
   "repositoryState": {
     "repository": "owner/repository",
     "branch": "replace-with-branch",
