@@ -400,3 +400,52 @@ The adapter consumes stock Symphony `GET /api/v1/state` output pinned to the aud
 Mission Control does not own Symphony dispatch, claim/release, retry, continue/stop/resume, tracker eligibility, concurrency/backoff, workspace lifecycle, App Server integration, workflow configuration, tracker writes, or recovery.
 
 Unmapped Symphony items are persisted as diagnostic-only events with `control_semantics: false`; diagnostic-only identities are excluded from the worker projection, so they cannot create or crash a dashboard worker.
+
+### Private desktop access without a human token
+
+The candidate `scripts/desktop-launcher.mjs` reuses an owner-authenticated SSH
+master and its exact loopback forward. It invokes the installed application's
+existing `createOwnerSession` signer through owner-authorized `sudo docker exec`.
+The signed session and CSRF value travel only through SSH stdout and a private
+Chromium debugging pipe, into a new owner-only temporary application profile.
+There is no web bootstrap route, public debugging port, URL credential, or
+second long-lived laptop secret. Closing the app and reopening establishes a
+fresh session; opening the app never asks for a dashboard credential. The
+launcher requires Node, OpenSSH, and a Chromium-compatible browser.
+
+Install a reviewed launcher at the desktop entry's existing executable path.
+Copy `deploy/desktop.example.json` to the owner's private configuration directory
+as `mission-control/desktop.json`, mode 0600, using the verified existing SSH
+alias, master socket, container and browser. `MISSION_CONTROL_LAUNCHER_CONFIG`
+can name an alternate protected configuration file. It contains configuration,
+not credentials. The configured alias must already permit noninteractive SSH
+and owner-authorized Docker execution. Do not grant this access to worker OS
+accounts; access to the session signer, Docker, or the SSH owner key is OWNER
+capability. Workers sharing the same OS identity as the owner cannot be isolated
+by web tokens or this launcher. Keep their OS identities and key access separate.
+
+`node scripts/desktop-launcher.mjs --check` verifies SSH/dashboard reachability,
+automatic owner-session establishment, and authenticated task JSON separately.
+A login redirect is a failure. Normal launch additionally verifies the rendered
+page and an authenticated task fetch inside the browser. Failure messages never
+include raw SSH output, session material, or task content. Browser profiles are
+mode 0700 and removed after exit; cookies are session cookies, with the owner
+cookie HttpOnly and both cookies SameSite=Strict. Forced launcher termination
+can leave an owner-only temporary profile; it is not reused on later launches.
+
+For an SSH-only deployment set `MISSION_CONTROL_PRIVATE_DESKTOP_AUTH=1`, keep
+explicit `MISSION_CONTROL_SESSION_SECRET`, `MISSION_CONTROL_OWNER_ID`, and
+`MISSION_CONTROL_INTERNAL_TOKEN`, and omit `MISSION_CONTROL_OWNER_TOKEN`.
+The stack requires loopback binding in this mode. No session validation or
+mutation/CSRF check is relaxed. A separately exposed deployment may retain the
+existing owner-token login mode; the private launcher never reads that token.
+Existing deployments can use the launcher with their current session signer
+without restarting or changing the web app. Removing an old owner-token setting
+is an optional later reviewed deployment change, not a desktop prerequisite.
+
+The owner view and assistant-readable data share authenticated `GET /api/workers`
+and `GET /api/operator-status`. No mirror or write credential is introduced.
+Queue dependencies are resolved within exact worker/project/task/revision scope.
+Missing goals, owner actions, and unblock conditions are labeled rather than
+inferred. Offline configured tasks retain their stored state. Coverage is only
+Mission Control's reported work, never a complete project/chat portfolio.

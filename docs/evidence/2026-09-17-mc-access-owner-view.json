@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "directive_id": "MC-ACCESS-AND-OWNER-VIEW-20260917-v2",
+  "recorded_at": "2026-09-17T00:40:47.404383+00:00",
+  "branch": "task/mc-access-owner-view-20260917",
+  "implementation_commit": "88a594f0df35c8e35e447c499ed4e607a8d96150",
+  "baseline": "ad76fcac1aed29658dbdab6575f91965573e6c51",
+  "status": "CANDIDATE_READY_FOR_REVIEW",
+  "supervisory_acceptance": "NOT_CLAIMED",
+  "changed_files": [
+    "docs/requirements/2026-09-17-mc-access-owner-view.owner-requirement.json",
+    "state/CURRENT-STATE.md",
+    "tasks/MC-ACCESS-OWNER-VIEW-20260917.md",
+    "tools/codex-mission-control/SOURCE-ARCHIVE.sha256",
+    "tools/codex-mission-control/restored/codex-mission-control/.env.example",
+    "tools/codex-mission-control/restored/codex-mission-control/README.md",
+    "tools/codex-mission-control/restored/codex-mission-control/app/globals.css",
+    "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+    "tools/codex-mission-control/restored/codex-mission-control/components/WorkerChannel.tsx",
+    "tools/codex-mission-control/restored/codex-mission-control/deploy/desktop.example.json",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/owner-view.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/scripts/dashboard-binding.mjs",
+    "tools/codex-mission-control/restored/codex-mission-control/scripts/desktop-launcher.mjs",
+    "tools/codex-mission-control/restored/codex-mission-control/scripts/run-stack.mjs",
+    "tools/codex-mission-control/restored/codex-mission-control/scripts/verify-owner-view-browser.mjs",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/desktop-auth.test.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/owner-view.test.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/submission-authority-deploy.test.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/worker-channel.test.ts"
+  ],
+  "generated_archive": "81 base64 source parts; checksum/CRC/all 171 source files byte-verified",
+  "access": {
+    "launcher_installed": true,
+    "server_redesign_deployed": false,
+    "server_database_mutated": false,
+    "desktop_icon_authenticated": true,
+    "desktop_close_reopen_authenticated": true,
+    "cleared_session_redirects_to_login": true,
+    "fresh_session_reopens_without_credentials": true,
+    "ordinary_http_and_worker_non_escalation": "PASS: focused authentication tests plus unchanged existing negative auth suite",
+    "existing_server_source_commit": "NOT_UNIQUELY_ESTABLISHED; deployed module availability and real behavior verified without claiming a source commit"
+  },
+  "verification": {
+    "app_tests": {
+      "passed": 279,
+      "failed": 0
+    },
+    "root_tests": {
+      "passed": 338,
+      "failed": 0
+    },
+    "typecheck": "PASS",
+    "production_build": "PASS",
+    "repository_audit": "PASS: zero errors; pre-existing root AGENTS size warning",
+    "owner_request_integrity": "PASS",
+    "browser_candidate": "PASS: rendered goal/current-step match same authenticated snapshot; initial 503 error; partial-data retention; Retry recovery; 390px overflow check",
+    "screenshots": {
+      "data": "ISOLATED_TEST_DATA",
+      "storage": "LOCAL_ONLY",
+      "files": [
+        "candidate-authenticated-test-data.png",
+        "candidate-initial-error-test-data.png"
+      ]
+    },
+    "independent_code_review": "Hostname flag bypass found and fixed; no remaining actionable issue reported. Not supervisory acceptance."
+  },
+  "prevention_mechanisms": [
+    "SSH owner authority and exact owned forward, not loopback identity",
+    "Existing signed owner session passed only through private process pipes",
+    "No new HTTP bootstrap endpoint, URL secret, debug listener or owner token handling",
+    "Existing owner CSRF and worker authorization unchanged",
+    "Initial errors precede loading; endpoint failures retain labeled last-known data",
+    "Dependency lookup bound to worker/project/task/revision; absent conditions explicit"
+  ],
+  "test_efficiency": {
+    "observed_test_seconds": 405.31,
+    "task_elapsed_seconds_at_measurement": 1340.62,
+    "test_share_percent": 30.23,
+    "forced_redundant_green_seconds": 0,
+    "full_runs": 4,
+    "note": "Two failed checkpoint runs localized to outdated token-required assertion and external-address fixture heuristic, repaired before green checkpoint. Early ad hoc browser diagnostics outside observer; final built browser check measured."
+  },
+  "remaining": [
+    "Chat reviews candidate; owner authorizes dashboard deployment before any merge/deployment",
+    "Complete portfolio reconciliation, handoff tooling and universal integration lifecycle remain outside this increment"
+  ],
+  "lesson_disposition": "Project-local implementation of existing consumer-seam, authority-boundary and truthful-data lessons; no universal policy change."
+}

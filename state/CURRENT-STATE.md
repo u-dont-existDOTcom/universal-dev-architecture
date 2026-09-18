@@ -1,5 +1,18 @@
 # Current State
 
+## Current owner access/view candidate (2026-09-17)
+
+Direct owner maintenance directive MC-ACCESS-AND-OWNER-VIEW-20260917-v2 controls
+branch `task/mc-access-owner-view-20260917`. Recovery: `tasks/MC-ACCESS-OWNER-VIEW-20260917.md`.
+The earlier controller task below remains separate; it does not select this
+worker's next work. Access candidate and first owner view are implemented with
+279 app tests, 338 repository tests, typecheck/build, audit, and isolated browser evidence.
+The live desktop launcher is installed and icon reopen/session clearing checks pass.
+The owner-view redesign remains reviewable candidate code.
+No redesign deployment, merge, automated handoff or live database change.
+
+
+
 Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT** where this file
 records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and

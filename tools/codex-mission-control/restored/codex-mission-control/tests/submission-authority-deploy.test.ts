@@ -25,7 +25,8 @@ test("VPS container keeps one loopback single-writer stack, durable state, and n
   assert.match(healthcheck, /submissionAuthoritySchedulerState !== "ACTIVE_LEASE"/);
   assert.match(healthcheck, /submissionAuthorityLedger\?\.valid !== true/);
   assert.match(launcher, /Production start requires explicit owner-only runtime configuration/);
-  assert.match(launcher, /MISSION_CONTROL_OWNER_TOKEN is required/);
+  assert.match(launcher, /!process.env.MISSION_CONTROL_OWNER_TOKEN && process.env.MISSION_CONTROL_PRIVATE_DESKTOP_AUTH !== "1"/);
+  assert.match(launcher, /dashboardBindingArguments/);
   assert.doesNotMatch(launcher, /Mission Control local owner token|console\.(?:log|error).*OWNER_TOKEN/);
   for (const content of [dockerfile, compose, healthcheck, launcher]) {
     assert.doesNotMatch(content, /Bearer\s+[A-Za-z0-9_-]{20,}/);
