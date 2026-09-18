@@ -110,9 +110,7 @@ When you explicitly commit to a substantive operation, method, comparison, audit
 
 Adjacent analysis, planning, preparation, or a different method does not count as completion. Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. If a still-valid promised step was displaced by later work, execute it before continuing.
 
-## Parallel chat write isolation
-
-When two or more chats/agents may work on the same repository task concurrently, do not let them share a mutable branch. Follow `patterns/parallel-chat-write-isolation.md`: one integration branch, one unique child branch/worktree per writer, a branch-local writer lease, pre-write head verification, and one designated integrator for reconciliation. The integration branch is read/reconcile-only for ordinary parallel writers. A task lock selects the task; a writer lease selects who may mutate which branch. Unexpected branch advancement fails closed rather than being auto-absorbed.
+Concurrent writers must follow `patterns/parallel-chat-write-isolation.md`; never share a mutable branch.
 
 ## Follow-up goal derivation and assistant-added requirements
 
