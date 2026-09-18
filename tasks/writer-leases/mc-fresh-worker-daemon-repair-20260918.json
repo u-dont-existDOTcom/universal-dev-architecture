@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "status": "released",
-  "exclusive_writer": false,
+  "status": "active",
+  "exclusive_writer": true,
   "owned_branch": "codex/mc-fresh-worker-daemon-repair-20260918",
   "integration_branch": "main",
   "integration_base_sha": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
-  "last_verified_head": "0a05d46461c7fbbb81411eda6567b3a63024bc62",
+  "last_verified_head": "59a5799f3c964f39d326b1f922fc5863fbe8d806",
   "scope": "Central daemon availability repair, same-route PM fixture completion, and directive-authorized deferred hardening",
   "created_at": "2026-09-18T17:09:21Z",
-  "released_at": "2026-09-18T19:08:44Z",
-  "release_reason": "Directive stop condition: epoch-4 lease stale before required post-install soak and exact same-route retry."
+  "resumed_at": "2026-09-18T19:27:00Z",
+  "resume_authority_source": "thread:01a0b586-e19d-7223-9dcb-baeb8e2d1e21/turn:01a0b5fa-ed99-7ec1-b5bc-5caa957e421c"
 }

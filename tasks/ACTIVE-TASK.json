@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-daemon-repair-same-fixture-v3-20260918",
   "title": "Repair central Mission Control daemon and complete the same PM fixture",
-  "status": "blocked",
-  "exclusive": false,
+  "status": "active",
+  "exclusive": true,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
   "requiredBranch": "codex/mc-fresh-worker-daemon-repair-20260918",
   "requiredRef": "refs/heads/codex/mc-fresh-worker-daemon-repair-20260918",
@@ -17,7 +17,7 @@
     "capturedAt": "2026-09-18T17:09:21Z"
   },
   "ownerOutcome": {
-    "status": "AUTHORITY_UNRESOLVED",
+    "status": "OPEN",
     "normalizedResult": "Repair and soak-test central daemon availability with zero provider sends, retry only MCP_BINDING_PRELOAD on the same reconciled route, complete canonical PM-mediated resolution, then finish the directive's deferred permanent hardening.",
     "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
     "replacementFixtureAllowed": false
@@ -25,8 +25,13 @@
   "preflightCommand": "python3 scripts/mc_fresh_worker_task.py preflight",
   "completionCommand": "python3 scripts/mc_fresh_worker_task.py acceptance",
   "taskLocalCheckpoint": "state/mc-fresh-worker-daemon-repair/CURRENT.json",
-  "blockedAt": "2026-09-18T19:08:44Z",
-  "blockedReason": "The epoch-4 active lease is stale; the directive requires stopping before soak, admission, provider retry, fixture continuation, or hardening. Canonical main also rejects the live durable PRECOMPOSITION_RECOVERED admission state.",
+  "resumedAt": "2026-09-18T19:27:00Z",
+  "resumeAuthority": {
+    "kind": "direct owner message relayed from source task and independently read",
+    "sourceThreadId": "01a0b586-e19d-7223-9dcb-baeb8e2d1e21",
+    "sourceTurnId": "01a0b5fa-ed99-7ec1-b5bc-5caa957e421c",
+    "ownerWords": "Approve the backward-compatible PRECOMPOSITION_RECOVERED repair and controlled successor-lease activation on the non-production SECONDARY, with zero provider sends, production untouched, PRIMARY/browser fence unchanged, and no pilot execution until the repaired authority state is revalidated."
+  },
   "writerLease": "tasks/writer-leases/mc-fresh-worker-daemon-repair-20260918.json",
   "suspendedTaskSources": [
     "earlier daemon-repair directives superseded by V3",

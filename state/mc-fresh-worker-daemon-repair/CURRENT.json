@@ -1,16 +1,22 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-daemon-repair-same-fixture-v3-20260918",
-  "updatedAt": "2026-09-18T19:08:44Z",
-  "phase": "STOPPED_AUTHORITY_STALE",
-  "status": "BLOCKED_OWNER_OR_SECURITY_BOUNDARY",
+  "updatedAt": "2026-09-18T19:27:00Z",
+  "phase": "AUTHORIZED_COMPATIBILITY_AND_SUCCESSOR_LEASE_REPAIR",
+  "status": "INCOMPLETE",
   "canonicalMainStart": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
   "canonicalMainEnd": "0a05d46461c7fbbb81411eda6567b3a63024bc62",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
   "replacementFixtureCreated": false,
   "providerSendsThisTask": 0,
-  "currentGap": "The epoch-4 lease is stale, so the directive's explicit authority stop fired before a two-interval post-install soak or same-route retry. Canonical main also cannot parse the live volume's existing PRECOMPOSITION_RECOVERED admission state from the previously deployed PR #120-derived runtime.",
-  "nextAction": "Do not continue automatically. Re-establish single-active authority through an authorized lease path and reconcile the durable PRECOMPOSITION_RECOVERED state compatibility before any new central install, soak, admission, route retry, or permanent hardening.",
+  "currentGap": "Implement and review backward-compatible PRECOMPOSITION_RECOVERED state parsing, install it reversibly, then activate and revalidate a controlled successor lease on non-production SECONDARY with zero provider sends.",
+  "nextAction": "Derive the smallest compatibility and successor-lease patch from the already-deployed runtime, test it, merge it through exact-head gates, install it, and perform the owner-authorized no-send successor activation.",
+  "resumeAuthority": {
+    "sourceThreadId": "01a0b586-e19d-7223-9dcb-baeb8e2d1e21",
+    "sourceTurnId": "01a0b5fa-ed99-7ec1-b5bc-5caa957e421c",
+    "authorizedAt": "2026-09-18T19:15:00Z",
+    "scope": "backward-compatible PRECOMPOSITION_RECOVERED repair plus controlled successor lease on non-production SECONDARY; zero sends; production and PRIMARY/browser fence untouched; no pilot or route/proof before revalidation"
+  },
   "phaseAEvidence": {
     "traceStartedAt": "2026-09-18T17:20:39.614Z",
     "traceEndedAt": "2026-09-18T17:32:45.590Z",

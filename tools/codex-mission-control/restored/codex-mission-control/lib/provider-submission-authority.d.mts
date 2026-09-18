@@ -42,6 +42,11 @@ export class CentralSubmissionScheduler {
 }
 
 export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS: number;
+export const MAXIMUM_RECOVERY_PERMIT_LIFETIME_MS: number;
+export const PRECOMPOSITION_RECOVERED: "RECOVERED_BEFORE_COMPOSITION";
+export function recoverySha256(value: unknown): string;
+export function recoveryPermitScopeSha256(value: Record<string, unknown>): string;
+export function parsePrecompositionRecoveryPermit(value: unknown): Record<string, any>;
 export function parseDeploymentLease(value: unknown): Record<string, unknown>;
 export function parseSubmissionRelayBindings(value: unknown): Record<string, Record<string, unknown>>;
 export function parseSubmissionRelayAttestors(value: unknown, producerIds: string[]): Record<string, string>;
