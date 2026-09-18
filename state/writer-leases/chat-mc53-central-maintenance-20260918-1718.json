@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc53-central-maintenance-20260918-1718",
+  "integration_branch": "main",
+  "integration_base_sha": "1df60d86a08acceb34076488d7cbb33363a1c4d9",
+  "scope": "Bound central GitHub reconciliation maintenance so it cannot starve Mission Control request handling; preserve issue #53 Epoch-4 fixture state."
+}
