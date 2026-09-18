@@ -1,6 +1,6 @@
 # Central daemon repair and same-fixture PM proof
 
-Status: ACTIVE
+Status: BLOCKED — EXPLICIT AUTHORITY STOP
 
 Assurance: iteration for diagnosis/implementation, release before merge/install.
 
@@ -74,3 +74,30 @@ release gates pass Mission Control 276/276 plus typecheck/build, relay 208/208
 plus syntax/service assets, and repository 338/338 with zero audit errors. The
 10k-event concurrent responsiveness case completes in 2–5.3 seconds across
 runs, materially below the 30-second relay timeout. No provider send occurred.
+
+## Install and stop checkpoint — 2026-09-18
+
+PR #148 merged the availability repair at `c156e3e7843aac850c9fcbc5dee725c34ca1a26b`.
+A live startup measurement then proved that authoritative-volume initialization
+took 25.14 seconds while the stack launcher allowed only 10 seconds; PR #151
+merged the bounded 120-second liveness gate at
+`22a70fdbf9b4f098562b4633bbb34cfc37267ea0`.
+
+The exact merged image started against the preserved epoch-4 volume and passed
+cheap liveness. Its explicit deep authority read failed closed because canonical
+main does not accept the existing durable `PRECOMPOSITION_RECOVERED` status at
+admission index 17, written by the previously deployed PR #120-derived runtime.
+No SQLite mutation or second writer was used. The candidate was stopped and the
+state-compatible runtime restored with only the reviewed bounded startup wait.
+At `2026-09-18T19:08:44Z`, chain and ledger were valid, sequence was 12056,
+queue depth was zero, unresolved admission and safety halt were null, transition
+was CLEAR, and the last provider boundary remained
+`2026-09-17T21:55:26.258Z`. The epoch-4 lease had expired at
+`2026-09-18T18:50:40.711Z`, so scheduler state was `LEASE_STALE`.
+
+That is an explicit directive stop. The post-install two-interval soak, binding
+preload admission/retry, fixture continuation, and deferred hardening were not
+attempted. Provider sends remained zero. SECONDARY has the exact merged relay
+package from PR #149 installed, but the relay remains inactive with submit and
+capability-test gates disabled. The blocked receipt is
+`docs/evidence/2026-09-18-mc-fresh-worker-daemon-repair-receipt.json`.
