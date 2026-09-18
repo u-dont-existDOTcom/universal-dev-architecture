@@ -1,0 +1,41 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-WORK-HUMAN-GATE-ASSIST-20260918",
+  "recorded_at": "2026-09-18T21:05:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "ChatGPT Work/Codex execution when an otherwise-authorized task reaches an irreducible human-only UI gate",
+  "requirements": [
+    {
+      "id": "WORK-HUMAN-GATE-001",
+      "text": "A CAPTCHA, anti-bot verification, 2FA/passkey prompt, login approval, or equivalent human-only UI gate is a resumable owner-assist state, not by itself a terminal Work failure.",
+      "operationalization": "If the underlying action is already authorized and the gate does not introduce a new semantic/spending/publication/destructive decision, Work keeps the run and exact browser state alive, requests the minimum human action, and resumes automatically after the gate clears."
+    },
+    {
+      "id": "WORK-HUMAN-GATE-002",
+      "text": "Before asking the owner to help with a human-only browser gate, Work must expose the exact blocked browser session through the configured owner-interactive GUI channel and make the required control visible.",
+      "operationalization": "Prepare the exact page/window at the gate, preserve session/auth state, start or verify the configured human-assist GUI if needed, and do not tear down resumable browser/tunnel/token state before the owner has a chance to act unless a security timeout or explicit abort requires cleanup."
+    },
+    {
+      "id": "WORK-HUMAN-GATE-003",
+      "text": "When Work has authorized control of the owner's local viewer, it should open or focus that viewer instead of making the owner perform setup; otherwise it should leave the remote session ready and give only the minimal connection/click instruction.",
+      "operationalization": "Do not send command sequences or configuration work to the owner when Work can prepare the assist channel itself. After the owner action, detect the cleared gate and continue automatically; if reliable detection is unavailable, ask only for a minimal acknowledgement such as `done`."
+    }
+  ],
+  "owner_deployment_binding": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "human_assist_channel": "VNC",
+    "binding": "For this owner's VPS/GUI Work runs, VNC is the default human-assist channel for irreducible browser/UI gates. Work should ensure the blocked browser is visible in the VNC session and, when authorized local viewer control exists, open/focus the VNC viewer for the owner.",
+    "private_locator_policy": "Do not commit VNC hostnames, ports, passwords, tokens, cookies, or other private locators/credentials to the public repository."
+  },
+  "non_goals": [
+    "Do not automate, solve, or bypass CAPTCHAs or other human-verification gates.",
+    "Do not ask the owner to paste passwords, 2FA codes, passkeys, cookies, or credentials into chat.",
+    "Do not use VNC as a substitute for an explicit owner decision about new spending, publication, destructive actions, or material semantic tradeoffs.",
+    "Do not keep temporary credentials or public tunnels alive indefinitely; a bounded security timeout may clean up and produce a truthful blocker if the owner does not act."
+  ],
+  "source": {
+    "date": "2026-09-18",
+    "kind": "explicit owner request",
+    "owner_words_summary": "Whenever Work genuinely needs the owner during GUI/browser execution, it should open or expose the VNC session so the owner can help, then continue rather than losing the thread."
+  }
+}

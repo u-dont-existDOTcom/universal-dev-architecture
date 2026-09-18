@@ -8,6 +8,7 @@ Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-re
 Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget.owner-requirement.json`.
 Work-thread lineage naming requirement: `docs/requirements/2026-09-18-work-thread-lineage-naming.owner-requirement.json`.
 Work origin-chat backlink requirement: `docs/requirements/2026-09-18-work-receipt-origin-chat-backlink.owner-requirement.json`.
+Work human-gate assist requirement: `docs/requirements/2026-09-18-work-human-gate-assist.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -286,6 +287,7 @@ Mission Control should reuse native Work-internal coordination, while continuing
 A valid Work handoff records:
 
 - originating Chat title and exact conversation URL, plus an explicit requirement that the final Work receipt echo them as an owner-clickable backlink;
+- configured human-assist behavior for irreducible browser/UI gates, including `OWNER_INTERACTION_PENDING`, live-session preservation, and automatic resume after the gate clears;
 - source Chat decision/receipt;
 - exact execution objective;
 - allowed and forbidden actions;

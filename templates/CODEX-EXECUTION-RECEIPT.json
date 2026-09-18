@@ -13,6 +13,13 @@
     "exactDirectiveEcho": true,
     "ownerFacingBacklinkMarkdown": "Originating Chat: [<exact source Chat title>](<exact source conversation URL>)"
   },
+  "humanAssist": {
+    "invocations": [],
+    "ownerInteractionPendingAtFinalReceipt": false,
+    "assistChannelUnavailable": false,
+    "securityTimeoutExpired": false,
+    "newAuthorityGateReached": false
+  },
   "repositoryState": {
     "repository": "owner/repository",
     "branch": "replace-with-branch",
