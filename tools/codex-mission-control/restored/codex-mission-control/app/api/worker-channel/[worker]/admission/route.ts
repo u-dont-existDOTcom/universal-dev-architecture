@@ -51,7 +51,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       continuation = deriveOwnerResponseContinuation(historyEvents, intent, now);
     }
     const directiveProof = needsDirectiveProof ? currentExecutionDirectiveProof(worker, historyEvents) : null;
-    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation, directiveProof);
+    const result = evaluateSupervisionAdmission(worker, authentication.producer, body, now, continuation, directiveProof, policy?.requestBound?.enabled ? "PER_REQUEST_V1" : "SPLIT_SESSION_V4");
     let profileAuthorizationEvent = null;
     if (result.mayExecute && result.authorizedWorkExecutionProfile) {
       const authorizedProfile = parseWorkExecutionProfile(result.authorizedWorkExecutionProfile);

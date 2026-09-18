@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { assertRequestBoundExecution, requestBoundRoutePrefix, requestBoundAttestationSummary, requestExecutionContext, type RequestExecutionContext } from "./request-bound-supervision";
 import { canonicalJson, sha256 } from "./canonical";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { bindingCapsuleSchema, parseCanonicalDecisionEnvelope, type AppendEnvelope, type BindingCapsule, type CanonicalDecisionEnvelope, type StoredEvent } from "./schema";
@@ -35,6 +36,7 @@ export interface GitHubReceiptPolicy {
   stageIssueNumber: number;
   authorizedWriterLogins: string[];
   capabilityChallenges: CapabilityChallenge[];
+  requestBound?: { enabled: boolean; relayProducerIds: string[] };
 }
 export interface CapabilityChallenge {
   challengeId: string; supervisorId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
@@ -54,7 +56,8 @@ export interface PublicCapabilityChallenge {
 }
 export interface PendingDecisionRequest {
   continuation?: OwnerResponseContinuation;
-  worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4; nonce: string;
+  executionContext?: RequestExecutionContext;
+  worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4 | 5; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
   reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
@@ -116,7 +119,15 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
   });
   if (new Set(capabilityChallenges.map((c) => c.supervisorId)).size !== capabilityChallenges.length) throw new Error("Capability challenge supervisor IDs must be unique.");
   if (new Set(capabilityChallenges.map((c) => c.challengeId)).size !== capabilityChallenges.length) throw new Error("Capability challenge IDs must be unique.");
-  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges };
+  let requestBound: GitHubReceiptPolicy["requestBound"];
+  if (root.requestBound !== undefined) {
+    const config = record(root.requestBound, "requestBound");
+    if (typeof config.enabled !== "boolean" || !Array.isArray(config.relayProducerIds)
+      || config.relayProducerIds.some((id) => typeof id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(id))
+      || (config.enabled && config.relayProducerIds.length === 0)) throw new Error("requestBound requires an explicit enabled flag and trusted relay producer IDs.");
+    requestBound = { enabled: config.enabled, relayProducerIds: [...new Set(config.relayProducerIds as string[])] };
+  }
+  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges, ...(requestBound ? { requestBound } : {}) };
 }
 
 export function validateConfiguredDecisionLocation(repository: string, issueNumber: number, policy: GitHubReceiptPolicy | null) {
@@ -172,7 +183,7 @@ export function parseCanonicalDecisionComment(body: string): CanonicalDecisionEn
   try { parsed = JSON.parse(body.slice(canonicalDecisionCommentPrefix.length)); } catch { throw new Error("Canonical Mission Control decision comment contains invalid JSON."); }
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     const raw = parsed as Record<string, unknown>;
-    if (raw.schema_version !== 3 && (Object.hasOwn(raw, "continuation_binding") || Object.hasOwn(raw, "continuation_binding_sha256"))) {
+    if (raw.schema_version !== 3 && raw.schema_version !== 4 && (Object.hasOwn(raw, "continuation_binding") || Object.hasOwn(raw, "continuation_binding_sha256"))) {
       throw new Error("Continuation fields require canonical decision schema_version 3.");
     }
   }
@@ -263,6 +274,20 @@ export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: G
   const events = store.allEvents();
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
+    const parsedDecision = parseCanonicalDecisionComment(candidate.body);
+    if (parsedDecision.schema_version === 4) {
+      const expectedUrl = `https://github.com/${candidate.repository}/issues/${candidate.issueNumber}#issuecomment-${candidate.commentId}`;
+      if (candidate.immutableUrl !== expectedUrl) throw new Error("Request-bound GitHub locator mismatch.");
+      const existing = events.find((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === parsedDecision.request_id);
+      if (existing?.data.type === "github_decision_receipt_ingested") {
+        if (existing.data.provider_session_id !== parsedDecision.provider_session_id
+          || existing.data.execution_provenance !== parsedDecision.execution_provenance
+          || existing.data.canonical_envelope_sha256 !== sha256(canonicalJson(parsedDecision))) {
+          throw new Error("Request-bound receipt replay conflicts with the accepted request/session/content.");
+        }
+        return []; // Exact semantic duplicate, including recovery after expiry.
+      }
+    }
     const exactDuplicate = events.some((event) => event.data.type === "github_decision_receipt_ingested"
   && event.data.github_receipt.repository.toLowerCase() === candidate.repository.toLowerCase()
   && event.data.github_receipt.issue_number === candidate.issueNumber
@@ -273,16 +298,18 @@ if (exactDuplicate) return [];
     if (envelope.data.type !== "github_decision_receipt_ingested") throw new Error("Canonical decision envelope has an unexpected event type.");
     if (events.some((e) => e.eventId === envelope.event_id)) return [];
     const decisionData = envelope.data;
+    const requestBoundDecision = decisionData.execution_provenance === "REQUEST_BOUND_MCP_GITHUB_OBSERVED";
     const directDecision = decisionData.decision_provider_session_id !== null;
     const attestationEnvelope = evidenceEnvelope({
       worker: decisionData.worker, receiptId: `durable-stage-receipt-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
-      summary: directDecision ? splitDecisionSessionAttestationSummary : durableStageReceiptAttestationSummary, occurredAt: candidate.createdAt, verified: true,
+      summary: requestBoundDecision ? requestBoundAttestationSummary : directDecision ? splitDecisionSessionAttestationSummary : durableStageReceiptAttestationSummary, occurredAt: candidate.createdAt, verified: true,
       refs: [
         `request:${decisionData.request_id}`,
         ...(decisionData.supervisor_id ? [`supervisor:${decisionData.supervisor_id}`] : []),
         ...(decisionData.binding_provider_session_id ? [`binding_provider_session:${decisionData.binding_provider_session_id}`] : []),
         ...(decisionData.stage_provider_session_id ? [`stage_provider_session:${decisionData.stage_provider_session_id}`] : []),
         ...(decisionData.decision_provider_session_id ? [`decision_provider_session:${decisionData.decision_provider_session_id}`] : []),
+        ...(requestBoundDecision ? [`provider_session:${decisionData.provider_session_id}`, `mcp_receipt:${decisionData.execution_mcp_receipt_id}`, "cryptographic_provider_session_attestation:false"] : []),
         `reasoning_lane:${decisionData.reasoning_lane}`,
         `github_comment:${candidate.immutableUrl}`,
         ...(decisionData.decision_session_provenance ? [`provenance:${decisionData.decision_session_provenance}`, "backend_model_identity_claimed:false"]
@@ -301,7 +328,7 @@ if (exactDuplicate) return [];
           type: "reasoning_message_recorded", worker: decisionData.worker,
           stable_supervisor_id: decisionData.supervisor_id!,
           message_id: `github-owner-resolution:${decisionData.continuation_binding.continuation_id}`,
-          thread_id: decisionData.decision_provider_session_id!,
+          thread_id: decisionData.provider_session_id ?? decisionData.decision_provider_session_id!,
           surface_role: "SUPERVISOR", provider_surface: "CHATGPT_CONSUMER",
           model_mode: "UNKNOWN", account_workspace: "UNKNOWN", author_role: "ASSISTANT",
           sent_at_source: null, received_at_mission_control: ingestedAt,
@@ -325,6 +352,10 @@ if (exactDuplicate) return [];
         { event: resolution, receivedAt: ingestedAt, producer },
       ]);
     }
+    if (requestBoundDecision) return store.appendMany([
+      { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
+      { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
+    ]);
     const decision = store.append(envelope, ingestedAt, githubDecisionProducer);
     const attestation = store.append(attestationEnvelope, ingestedAt, githubReceiptCollector);
     return [decision, attestation];
@@ -390,7 +421,8 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
   return events.flatMap((event) => {
     if (event.data.type !== "worker_message_recorded"
-      || (!event.data.body.startsWith(supervisoryCycleRoutePrefix)
+      || (!event.data.body.startsWith(requestBoundRoutePrefix)
+        && !event.data.body.startsWith(supervisoryCycleRoutePrefix)
         && !event.data.body.startsWith(stagedSupervisoryCycleRoutePrefix)
         && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
     const request = parseCycleRequest(event.data.body, event.data.worker);
@@ -404,7 +436,7 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   if (matches.length !== 1) throw new Error(`Expected one pending supervisory decision request for ${decision.request_id}; found ${matches.length}.`);
   const request = matches[0]!;
   if (request.continuation) {
-    if (decision.schema_version !== 3 || !decision.continuation_binding || !decision.continuation_binding_sha256) {
+    if ((decision.schema_version !== 3 && decision.schema_version !== 4) || !decision.continuation_binding || !decision.continuation_binding_sha256) {
       throw new Error("Continuation decision must echo the exact continuation binding and digest.");
     }
     if (canonicalJson(decision.continuation_binding) !== canonicalJson(request.continuation.binding)
@@ -416,7 +448,7 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
       supervisorId: request.supervisorId, ownerOutcome: request.ownerOutcome, evidenceCapsule: request.evidenceCapsule,
       issuedAt: request.queuedAt, expiresAt: request.expiresAt,
     }, request.continuation, ingestedAt);
-  } else if (decision.schema_version === 3 && (decision.continuation_binding !== undefined || decision.continuation_binding_sha256 !== undefined)) {
+  } else if ((decision.schema_version === 3 || decision.schema_version === 4) && (decision.continuation_binding !== undefined || decision.continuation_binding_sha256 !== undefined)) {
     throw new Error("Unexpected continuation on an ordinary decision request.");
   }
   validateConfiguredDecisionLocation(request.repository, request.issueNumber, policy);
@@ -448,9 +480,16 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
   if (currentOutcome?.type !== "owner_outcome_recorded" || currentOutcome.owner_outcome_id !== request.ownerOutcome.id || currentOutcome.epoch !== request.ownerOutcome.epoch || currentOutcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) {
     throw new Error("GitHub decision receipt is stale against the current owner-outcome epoch.");
   }
-  assertCurrentChatCapabilities(events, request, candidate.createdAt, policy);
-  assertSemanticStageCompletion(events, request, candidate.createdAt, decision);
-  assertOrderedRelayStages(events, request, candidate.createdAt, ingestedAt, policy, decision);
+  let requestMcpReceipt: string | null = null;
+  if (request.routeSchemaVersion === 5) {
+    if (decision.schema_version !== 4) throw new Error("Per-request routes require canonical decision schema_version 4.");
+    requestMcpReceipt = assertRequestBoundExecution(events, request, policy, decision, candidate, ingestedAt);
+  } else {
+    if (decision.schema_version === 4) throw new Error("Per-request decisions cannot satisfy a legacy route.");
+    assertCurrentChatCapabilities(events, request, candidate.createdAt, policy);
+    assertSemanticStageCompletion(events, request, candidate.createdAt, decision);
+    assertOrderedRelayStages(events, request, candidate.createdAt, ingestedAt, policy, decision);
+  }
   return {
     schema_version: 2,
     event_id: `github-decision-receipt:${sha256(`${candidate.repository}:${candidate.commentId}`).slice(0, 32)}`,
@@ -459,8 +498,8 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
     data: {
       type: "github_decision_receipt_ingested", worker: request.worker, task_id: request.taskId, receipt_id: `github-comment:${candidate.commentId}`,
       request_id: request.requestId, supervisor_id: decision.schema_version === 1 ? null : decision.supervisor_id,
-      provider_session_id: null,
-      binding_provider_session_id: decision.schema_version === 1 ? null : decision.binding_provider_session_id,
+      provider_session_id: decision.schema_version === 4 ? decision.provider_session_id : null,
+      binding_provider_session_id: decision.schema_version === 2 || decision.schema_version === 3 ? decision.binding_provider_session_id : null,
       stage_provider_session_id: decision.schema_version === 2 ? decision.stage_provider_session_id : null,
       decision_provider_session_id: decision.schema_version === 3 ? decision.decision_provider_session_id : null,
       binding_capsule: decision.schema_version === 2 ? decision.binding_capsule : null,
@@ -476,6 +515,7 @@ export function buildGitHubDecisionReceiptEnvelope(events: StoredEvent[], candid
       nonce: request.nonce, evidence_capsule: request.evidenceCapsule,
       owner_outcome_id: request.ownerOutcome.id, owner_outcome_epoch: request.ownerOutcome.epoch, owner_outcome_sha256: request.ownerOutcome.sha256,
       reasoning_lane: request.reasoningLane, decision_block: decision.decision_block, pro_decision_block: decision.pro_decision_block,
+      ...(decision.schema_version === 4 ? { execution_provenance: decision.execution_provenance, execution_mcp_receipt_id: requestMcpReceipt! } : {}),
       writer_contract: decision.writer_contract, canonical_envelope_sha256: sha256(canonicalJson(decision)),
       github_receipt: {
         repository: candidate.repository, issue_number: candidate.issueNumber, comment_id: candidate.commentId, immutable_url: candidate.immutableUrl,
@@ -928,12 +968,12 @@ function stageReceiptFor(events: StoredEvent[], request: PendingDecisionRequest,
 
 function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
   try {
-    const version = body.startsWith(supervisoryCycleRoutePrefix) ? 4
+    const version = body.startsWith(requestBoundRoutePrefix) ? 5 : body.startsWith(supervisoryCycleRoutePrefix) ? 4
       : body.startsWith(stagedSupervisoryCycleRoutePrefix) ? 3
         : body.startsWith(legacySupervisoryCycleRoutePrefix) ? 2
           : null;
     if (!version) return null;
-    const prefix = version === 4 ? supervisoryCycleRoutePrefix
+    const prefix = version === 5 ? requestBoundRoutePrefix : version === 4 ? supervisoryCycleRoutePrefix
       : version === 3 ? stagedSupervisoryCycleRoutePrefix
         : legacySupervisoryCycleRoutePrefix;
     const root = record(JSON.parse(body.slice(prefix.length)), "cycle request"), evidence = record(root.evidenceCapsule, "evidenceCapsule"), outcome = record(root.ownerOutcome, "ownerOutcome"), github = record(root.githubReceipt, "githubReceipt"), factual = record(root.factualPacket, "factualPacket");
@@ -945,6 +985,7 @@ function parseCycleRequest(body: string, worker: string): PendingDecisionRequest
     if (continuation && (continuation.binding.worker !== worker || root.worker !== worker)) return null;
     return {
       ...(continuation ? { continuation } : {}),
+      ...(version === 5 ? { executionContext: requestExecutionContext(root.executionContext, requiredString(factual.taskId, "factualPacket.taskId")) } : {}),
       worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: version, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },

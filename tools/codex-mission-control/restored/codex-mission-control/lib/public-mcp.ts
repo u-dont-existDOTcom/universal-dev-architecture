@@ -1,3 +1,4 @@
+import { requestBoundSession, requestBindingDigest, type RequestExecutionContext } from "./request-bound-supervision";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
@@ -63,7 +64,10 @@ export function publicMcpBindingTransportAttempt(value: unknown): PublicMcpBindi
 }
 
 export interface PublicSupervisoryRequestBinding {
-  schema_version: 2;
+  schema_version: 2 | 3;
+  execution_protocol?: "PER_REQUEST_V1";
+  execution_context?: RequestExecutionContext;
+  request_binding_sha256?: string;
   request_id: string;
   request_nonce: string;
   supervisor_id: string;
@@ -163,7 +167,10 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
       provider_session_id: exactId("Exact fresh provider-session ID allocated to this request."),
     },
     outputSchema: {
-      schema_version: z.literal(2), request_id: z.string(), request_nonce: z.string(), supervisor_id: z.string(), provider_session_id: z.string(),
+      schema_version: z.union([z.literal(2), z.literal(3)]),
+      execution_protocol: z.literal("PER_REQUEST_V1").optional(),
+      execution_context: z.object({ task_id: z.string(), run_id: z.string().optional(), family_id: z.string().optional(), round: z.number().int().nonnegative().optional() }).optional(),
+      request_binding_sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), request_id: z.string(), request_nonce: z.string(), supervisor_id: z.string(), provider_session_id: z.string(),
       worker_id: z.string(), reasoning_lane: z.enum(["EXTRA_HIGH_DIRECT", "PRO_ESCALATED"]), queued_at: z.string(), expires_at: z.string(),
       evidence_capsule_id: z.string(), evidence_capsule_sha256: z.string(), owner_outcome_id: z.string(), owner_outcome_epoch: z.number().int(), owner_outcome_sha256: z.string(),
       github_repository: z.string(), decision_issue_number: z.number().int(), stage_issue_number: z.number().int(),
@@ -177,11 +184,12 @@ export function createPublicMissionControlMcpServer(dependencies: PublicMcpDepen
       const events = await dependencies.loadEvents();
       const result = publicSupervisoryRequestBinding(events, dependencies.loadPolicy(), request_id, supervisor_id, provider_session_id, now);
       if (!result) {
-        const pending = pendingDecisionRequests(events).find((request) => (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4)
+        const pending = pendingDecisionRequests(events).find((request) => (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4 || request.routeSchemaVersion === 5)
           && request.requestId === request_id && request.supervisorId === supervisor_id);
         await access(dependencies, { tool: publicMcpToolNames[1], request_id, supervisor_id, provider_session_id, worker_id: pending?.worker, status: "NOT_FOUND", occurred_at: now });
         throw notFound();
       }
+      if (result.execution_protocol === "PER_REQUEST_V1" && !dependencies.recordAccess) throw unavailable();
       await access(dependencies, { tool: publicMcpToolNames[1], request_id, supervisor_id, provider_session_id, worker_id: result.worker_id, status: "OK", occurred_at: now });
       return structuredResult(result, "The exact current supervisory request binding is in structuredContent.");
     } catch (error) {
@@ -260,7 +268,7 @@ export function publicSupervisoryRequestBinding(
 ): PublicSupervisoryRequestBinding | null {
   if (!policy || !Number.isFinite(Date.parse(now))) return null;
   const matches = pendingDecisionRequests(events).filter((request) => request.requestId === requestId
-    && (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4) && request.supervisorId === supervisorId);
+    && (request.routeSchemaVersion === 3 || request.routeSchemaVersion === 4 || request.routeSchemaVersion === 5) && request.supervisorId === supervisorId);
   if (matches.length !== 1) return null;
   const request = matches[0]!;
   if (Date.parse(request.queuedAt) > Date.parse(now) || Date.parse(request.expiresAt) <= Date.parse(now)) return null;
@@ -270,10 +278,12 @@ export function publicSupervisoryRequestBinding(
     || currentOutcome.owner_outcome_id !== request.ownerOutcome.id
     || currentOutcome.epoch !== request.ownerOutcome.epoch
     || currentOutcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) return null;
-  if (!hasBindingProviderSession(events, requestId, supervisorId, providerSessionId, request.queuedAt, now, ["ACTIVE"])) return null;
+  if (request.routeSchemaVersion === 5
+    ? !requestBoundSession(events, request, policy, providerSessionId, now, ["ACTIVE"])
+    : !hasBindingProviderSession(events, requestId, supervisorId, providerSessionId, request.queuedAt, now, ["ACTIVE"])) return null;
   const issueBase = `https://github.com/${policy.repository}/issues`;
   return {
-    schema_version: 2,
+    schema_version: request.routeSchemaVersion === 5 ? 3 : 2,
     request_id: request.requestId,
     request_nonce: request.nonce,
     supervisor_id: request.supervisorId,
@@ -293,6 +303,11 @@ export function publicSupervisoryRequestBinding(
     decision_receipt_target: `${issueBase}/${policy.decisionIssueNumber}`,
     stage_receipt_target: `${issueBase}/${policy.stageIssueNumber}`,
     admission_status: "ADMITTED_PENDING",
+    ...(request.routeSchemaVersion === 5 ? {
+      execution_protocol: "PER_REQUEST_V1" as const,
+      execution_context: request.executionContext ?? { task_id: request.taskId },
+      request_binding_sha256: requestBindingDigest(request, providerSessionId, policy),
+    } : {}),
   };
 }
 

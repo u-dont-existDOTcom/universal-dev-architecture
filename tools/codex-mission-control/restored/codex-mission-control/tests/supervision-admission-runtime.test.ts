@@ -256,3 +256,27 @@ test("configured stable supervisor identity is distinct from its bootstrap conve
   assert.notEqual(directory.entries[0]?.supervisorId, directory.entries[0]?.bootstrapCapability.chatId);
   assert.equal(directory.entries[0]?.locatorVerification, "OWNER_CONFIGURED_UNVERIFIED");
 });
+
+test("server-selected per-request admission emits V5 with stable request identity and exact execution context", () => {
+  const data = input({ factualPacket: {
+    ...input().factualPacket,
+    supervisoryCycle: {
+      nonce: "nonce-v5", evidenceCapsule: { id: "capsule-v5", sha256: "b".repeat(64) },
+      ownerOutcome: { id: "outcome-v5", epoch: 3, sha256: "c".repeat(64) }, reasoningLane: "EXTRA_HIGH_DIRECT",
+      githubReceipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issueNumber: 58, stageIssueNumber: 61 },
+      executionContext: { task_id: "task:askrigor:mast", run_id: "run-v5", family_id: "family-v5", round: 2 }, expiresAt: "2026-09-03T00:00:00.000Z",
+    },
+  } });
+  const first = evaluateSupervisionAdmission("askrigor-mast", workerProducer, data, "2026-09-02T00:00:00.000Z", undefined, null, "PER_REQUEST_V1");
+  const retry = evaluateSupervisionAdmission("askrigor-mast", workerProducer, data, "2026-09-02T00:00:01.000Z", undefined, null, "PER_REQUEST_V1");
+  assert.ok(first.routeEnvelope && retry.routeEnvelope);
+  assert.equal(first.routeEnvelope.event_id, retry.routeEnvelope.event_id);
+  assert.equal(first.routeEnvelope.data.type, "worker_message_recorded");
+  if (first.routeEnvelope.data.type !== "worker_message_recorded") return;
+  const prefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n";
+  assert.ok(first.routeEnvelope.data.body.startsWith(prefix));
+  const packet = JSON.parse(first.routeEnvelope.data.body.slice(prefix.length));
+  assert.equal(packet.schemaVersion, 5);
+  assert.deepEqual(packet.executionContext, { task_id: "task:askrigor:mast", run_id: "run-v5", family_id: "family-v5", round: 2 });
+  assert.equal(packet.nonce, "nonce-v5");
+});

@@ -1276,7 +1276,8 @@ export class EventStore {
     if (data.type === "worker_message_recorded") {
       // Workers can also use the event endpoint directly. Revalidate here so a
       // fabricated OWNER continuation never reaches the private relay outbox.
-      const prefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
+      const prefix = data.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n")
+        ? "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n" : "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
       if (data.body.startsWith(prefix)) {
         let packet: Record<string, unknown> | null = null;
         try {

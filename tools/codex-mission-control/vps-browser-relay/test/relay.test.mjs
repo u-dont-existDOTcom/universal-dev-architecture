@@ -743,3 +743,68 @@ function directRouteEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 
   });
   return { eventId, sequence: requestId === 'r-1' ? 10 : 11, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: `message-${requestId}`, body } };
 }
+
+function requestBoundFixture({ enabled = true, submitErrorStage = null } = {}) {
+  const event = directRouteEvent('r-1', 'v5-route', 'EXTRA_HIGH_DIRECT');
+  const packet = JSON.parse(event.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  packet.schemaVersion = 5;
+  packet.executionContext = { task_id: 'task-1' };
+  event.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n' + JSON.stringify(packet);
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: [], routes: [event], autoFirstTurnMcp: false });
+  const browser = new FakeBrowser({ submitErrorStage });
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  runtime.config.runtime.requestBoundEnabled = enabled;
+  return { store, mc, browser, runtime };
+}
+
+test('V5 actual relay cycle sends one real request with MC and GitHub, never a preload', async () => {
+  const { store, mc, browser, runtime } = requestBoundFixture();
+  const first = await runtime.cycle();
+  assert.equal(first.status, 'REQUEST_BOUND_DECISION_GENERATION_STARTED', JSON.stringify(first));
+  assert.equal(browser.submitCalls, 1);
+  assert.match(browser.lastSubmittedBody, /get_supervisory_request_binding/);
+  assert.match(browser.lastSubmittedBody, /schema_version 4/);
+  assert.match(browser.lastSubmittedBody, /ONE final/);
+  assert.doesNotMatch(browser.lastSubmittedBody, /binding preload only|capability test for challenge/i);
+  assert.equal(mc.recordedEvidence.some(e => e.refs.includes('step:MCP_BINDING_PRELOAD')), false);
+  assert.equal((await runtime.cycle()).status, 'REQUEST_BOUND_DECISION_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal(browser.submitCalls, 1);
+  const providerId = store.state.deliveries['request:r-1'].providerSessionId;
+  assert.equal(store.state.providerSessions[providerId].sessionRole, 'REQUEST_BOUND_DECISION_SESSION');
+  mc.evidence.push({ eventId: 'accepted-v5', sequence: 100, data: {
+    type: 'github_decision_receipt_ingested', request_id: 'r-1', supervisor_id: 'spec', provider_session_id: providerId,
+    execution_provenance: 'REQUEST_BOUND_MCP_GITHUB_OBSERVED', receipt_id: 'receipt-v5', github_receipt: { immutable_url: 'https://github.com/o/r/issues/1#issuecomment-1' },
+  } });
+  store.state.providerSessions = {}; // Lost local acknowledgement, not lost daemon evidence.
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(store.state.deliveries['request:r-1'].recoveredFrom, 'DURABLE_GITHUB_ADMISSION');
+  assert.equal(browser.submitCalls, 1);
+});
+
+test('V5 is disabled by default and never sends on its opt-out path', async () => {
+  const { browser, runtime } = requestBoundFixture({ enabled: false });
+  assert.equal((await runtime.cycle()).status, 'REQUEST_BOUND_PROTOCOL_DISABLED');
+  assert.equal(browser.submitCalls, 0);
+});
+
+for (const stage of ['CLICK_DISPATCHED', 'CLICKED', 'GENERATION_STARTED', 'UNKNOWN']) {
+  test(`V5 ${stage} interruption is not automatically resent`, async () => {
+    const { browser, runtime, store } = requestBoundFixture({ submitErrorStage: stage });
+    const first = await runtime.cycle();
+    assert.equal(first.status, 'SUBMISSION_AMBIGUOUS', JSON.stringify(first));
+    browser.submitErrorStage = null;
+    assert.equal((await runtime.cycle()).status, 'AMBIGUITY_REQUIRES_OPERATOR');
+    assert.equal(browser.submitCalls, 1);
+    assert.equal(store.state.deliveries['request:r-1'].preBoundaryAbortConfirmed, false);
+  });
+}
+
+test('V5 missing app chip is telemetry, not capability authorization', async () => {
+  const { browser, runtime } = requestBoundFixture();
+  browser.selectAppsForMessage = async () => { throw new Error('Chip missing'); };
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'REQUEST_BOUND_DECISION_GENERATION_STARTED', JSON.stringify(result));
+  assert.equal(browser.submitCalls, 1);
+});
