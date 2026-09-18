@@ -14,6 +14,8 @@ function normalizeConversationUrl(value) {
 }
 
 export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS = 60_000;
+export const MAXIMUM_RECOVERY_PERMIT_LIFETIME_MS = 30 * 60_000;
+export const PRECOMPOSITION_RECOVERED = 'RECOVERED_BEFORE_COMPOSITION';
 
 const OPEN_QUEUE_STATUSES = new Set(['QUEUED', 'PRECLICK_RETRY_PENDING', 'RATE_LIMIT_RETRY_PENDING', 'ADMITTED']);
 const QUEUE_STATUSES = new Set([
@@ -27,6 +29,7 @@ const QUEUE_STATUSES = new Set([
   'CANCELLED_AT_TAKEOVER',
 ]);
 const ADMISSION_STATUSES = new Set([
+  PRECOMPOSITION_RECOVERED,
   'ADMITTED',
   'BOUNDARY_RECORDED',
   'ABORTED_BEFORE_BOUNDARY',
@@ -66,13 +69,20 @@ export class CentralSubmissionScheduler {
     this.tail = Promise.resolve();
   }
 
-  async activateLease(rawLease) {
+  async activateLease(rawLease, { restorePersisted = false } = {}) {
     return this.#serialized(async () => {
       const candidate = parseDeploymentLease(rawLease);
       const state = await this.stateStore.read();
       const relayBindingsInitialized = initializeOrValidateRelayBindings(state, this.producerBindings);
       const previous = state.activeLease;
       const nowMs = this.now();
+      // A restart must not roll a heartbeat-renewed lease back to static boot
+      // configuration. Restoring a stale lease permits health recovery, not sends.
+      if (restorePersisted && previous && sameLeaseIdentity(previous, candidate)
+        && sameRenewalFields(previous, candidate) && Date.parse(candidate.expiresAt) <= Date.parse(previous.expiresAt)) {
+        if (relayBindingsInitialized) await this.stateStore.write(state);
+        return previous;
+      }
       if (Date.parse(candidate.issuedAt) > nowMs || Date.parse(candidate.expiresAt) <= nowMs) {
         throw new SubmissionSchedulerError('DEPLOYMENT_LEASE_STALE', 'A scheduler may activate only a currently valid lease.');
       }
@@ -103,6 +113,45 @@ export class CentralSubmissionScheduler {
       state.leaseHistory.push(candidate);
       await this.stateStore.write(state);
       return candidate;
+    });
+  }
+
+  async renewLeaseFromHealth(report, producerId) {
+    return this.#serialized(async () => {
+      const state = await this.stateStore.read();
+      const binding = requireDurableRelayBinding(state, producerId);
+      const lease = state.activeLease;
+      const nowMs = this.now();
+      const observedMs = Date.parse(report.observedAt);
+      if (!lease || report.deploymentEpoch !== lease.epoch
+        || binding.hostAlias !== lease.activeHostAlias || binding.hostRole !== lease.activeHostRole
+        || lease.splitBrainStatus !== 'SINGLE_ACTIVE_CONFIRMED'
+        || report.hostAlias !== binding.hostAlias || report.hostRole !== binding.hostRole) {
+        return { renewed: false, reason: 'NOT_ACTIVE_LEASE_OWNER' };
+      }
+      if (!Number.isFinite(observedMs) || observedMs < nowMs - 150_000 || observedMs > nowMs + 30_000) {
+        return { renewed: false, reason: 'HEARTBEAT_NOT_FRESH' };
+      }
+      if (report.relayWorkerState !== 'HEALTHY' || report.browserState !== 'HEALTHY'
+        || report.authorityBindingState !== 'BOUND') {
+        return { renewed: false, reason: 'HEARTBEAT_NOT_HEALTHY' };
+      }
+      if (state.safetyHalt || state.relayTargetTransition
+        || state.admissions.some((item) => item.status === 'AMBIGUOUS_AFTER_RESTART')) {
+        return { renewed: false, reason: 'AUTHORITY_REQUIRES_RECONCILIATION' };
+      }
+      // Derive expiry from observation time so replaying one old heartbeat cannot
+      // extend ownership. This may recover an expired lease only for the same
+      // durable owner/epoch already recorded in the single-writer state.
+      const expiresMs = Math.min(observedMs, nowMs) + 600_000;
+      if (Date.parse(lease.expiresAt) > nowMs + 300_000 || expiresMs <= Date.parse(lease.expiresAt)) {
+        return { renewed: false, reason: 'RENEWAL_NOT_DUE', expiresAt: lease.expiresAt };
+      }
+      const renewed = { ...lease, expiresAt: new Date(expiresMs).toISOString() };
+      state.activeLease = renewed;
+      state.leaseHistory.push(renewed);
+      await this.stateStore.write(state);
+      return { renewed: true, reason: 'ACTIVE_OWNER_HEARTBEAT', expiresAt: renewed.expiresAt };
     });
   }
 
@@ -821,6 +870,99 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
+export function recoverySha256(value) {
+  // Match EventStore's canonical JSON ordering for the retained historical proof.
+  function sorted(item) {
+    if (Array.isArray(item)) return item.map(sorted);
+    if (item && typeof item === 'object') return Object.fromEntries(Object.entries(item)
+      .filter(([, child]) => child !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, sorted(child)]));
+    if (typeof item === 'number' && !Number.isFinite(item)) throw recoveryError('PERMIT_INVALID');
+    return item;
+  }
+  return sha256(JSON.stringify(sorted(value)));
+}
+
+function recoveryPermitScopeSha256(value) {
+  const { ownerAuthorization: _authorization, ownerAuthorizationSha256: _digest, ...scope } = value;
+  return recoverySha256(scope);
+}
+
+function parsePrecompositionRecoveryPermit(value) {
+  try {
+    const root = exactRecoveryRecord(value, [
+      'schemaVersion', 'permitId', 'pacingDomain', 'issuedAt', 'expiresAt',
+      'admissionId', 'queueItemId', 'requestId', 'producerId', 'sendPath', 'bodySha256',
+      'expectedAdmissionStatus', 'expectedQueueStatus', 'expectedStateSha256', 'expectedLedgerHead',
+      'expectedAdmissionSha256', 'expectedQueueItemSha256', 'requestFingerprint', 'logicalFingerprint',
+      'expectedLeaseSha256', 'expectedRelayBindingSha256',
+      'failureEvidence', 'failureEvidenceSha256', 'ownerAuthorization', 'ownerAuthorizationSha256',
+    ]);
+    if (root.schemaVersion !== 1 || !['CAPABILITY', 'MCP_PREFLIGHT'].includes(root.sendPath)
+      || root.expectedAdmissionStatus !== 'AMBIGUOUS_AFTER_RESTART'
+      || root.expectedQueueStatus !== 'AMBIGUOUS_AFTER_RESTART') throw recoveryError('SCOPE_MISMATCH');
+    for (const key of ['permitId', 'pacingDomain', 'admissionId', 'queueItemId', 'requestId', 'producerId']) {
+      boundedString(root[key], key, 300);
+    }
+    for (const key of ['bodySha256', 'expectedStateSha256', 'expectedAdmissionSha256', 'expectedQueueItemSha256',
+      'requestFingerprint', 'logicalFingerprint', 'expectedLeaseSha256', 'expectedRelayBindingSha256',
+      'failureEvidenceSha256', 'ownerAuthorizationSha256']) sha(root[key], key);
+    const issuedMs = Date.parse(isoTimestamp(root.issuedAt, 'issuedAt'));
+    const expiresMs = Date.parse(isoTimestamp(root.expiresAt, 'expiresAt'));
+    if (expiresMs <= issuedMs || expiresMs - issuedMs > MAXIMUM_RECOVERY_PERMIT_LIFETIME_MS) throw recoveryError('PERMIT_LIFETIME_INVALID');
+    const head = exactRecoveryRecord(root.expectedLedgerHead, ['sequence', 'eventHash']);
+    positiveInteger(head.sequence, 'ledger sequence');
+    sha(head.eventHash, 'ledger eventHash');
+    const evidence = exactRecoveryRecord(root.failureEvidence, [
+      'kind', 'admissionId', 'queueItemId', 'requestId', 'bodySha256', 'observedAt', 'failureCode',
+      'compositionStarted', 'submitInvoked', 'boundaryObserved', 'sourceRef', 'sourceSha256', 'retainedArtifactSha256s',
+    ]);
+    if (evidence.kind !== 'APP_SELECTION_FAILED_BEFORE_COMPOSITION' || evidence.compositionStarted !== false
+      || evidence.submitInvoked !== false || evidence.boundaryObserved !== false) throw recoveryError('POSITIVE_EVIDENCE_REQUIRED');
+    for (const key of ['admissionId', 'queueItemId', 'requestId', 'bodySha256']) {
+      if (evidence[key] !== root[key]) throw recoveryError('EVIDENCE_BINDING_MISMATCH');
+    }
+    isoTimestamp(evidence.observedAt, 'failure observedAt');
+    if (!/^[A-Z][A-Z0-9_]{0,99}$/.test(evidence.failureCode)) throw recoveryError('PERMIT_INVALID');
+    recoverySourceRef(evidence.sourceRef);
+    sha(evidence.sourceSha256, 'failure sourceSha256');
+    if (!Array.isArray(evidence.retainedArtifactSha256s) || evidence.retainedArtifactSha256s.length < 1
+      || evidence.retainedArtifactSha256s.length > 16) throw recoveryError('POSITIVE_EVIDENCE_REQUIRED');
+    evidence.retainedArtifactSha256s.forEach((digest) => sha(digest, 'retained artifact SHA-256'));
+    unique(evidence.retainedArtifactSha256s, 'retained evidence digests');
+    if (recoverySha256(evidence) !== root.failureEvidenceSha256) throw recoveryError('EVIDENCE_HASH_MISMATCH');
+    const authorization = exactRecoveryRecord(root.ownerAuthorization, ['authorizedBy', 'action', 'sourceRef', 'sourceSha256', 'scopeSha256']);
+    if (authorization.authorizedBy !== 'OWNER' || authorization.action !== PRECOMPOSITION_RECOVERED) throw recoveryError('OWNER_AUTHORIZATION_REQUIRED');
+    recoverySourceRef(authorization.sourceRef);
+    sha(authorization.sourceSha256, 'owner sourceSha256');
+    sha(authorization.scopeSha256, 'owner scopeSha256');
+    if (authorization.scopeSha256 !== recoveryPermitScopeSha256(root)
+      || recoverySha256(authorization) !== root.ownerAuthorizationSha256) throw recoveryError('OWNER_AUTHORIZATION_MISMATCH');
+    return structuredClone(root);
+  } catch (error) {
+    if (error instanceof SubmissionSchedulerError) throw error;
+    throw recoveryError('PERMIT_INVALID');
+  }
+}
+
+function exactRecoveryRecord(value, fields) {
+  const root = requiredRecord(value, 'Pre-composition recovery');
+  if (Object.keys(root).sort().join('\0') !== [...fields].sort().join('\0')) throw recoveryError('PERMIT_INVALID');
+  return root;
+}
+
+function recoverySourceRef(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,299}$/.test(value)) throw recoveryError('PERMIT_INVALID');
+}
+
+function recoveryError(reason) {
+  return new SubmissionSchedulerError(`SUBMISSION_RECOVERY_${reason}`, 'Historical pre-composition recovery evidence failed validation.');
+}
+
+function hasSubmissionEvidence(admission) {
+  return ['boundaryAt', 'boundaryKind', 'boundaryRecordedAt', 'conversationUrlSha256',
+    'deliveryStatus', 'recoveryStatus', 'outcomeRecordedAt'].some((key) => admission[key] != null);
+}
+
 export function defaultSchedulerState(now = new Date().toISOString()) {
   return { schemaVersion: 1, createdAt: now, updatedAt: now, activeLease: null, leaseHistory: [], lastBoundaryAt: null, nextSequence: 1, nextQueueSequence: 1, queueItems: [], admissions: [], targetBindings: {}, relayBindings: {}, relayTargetTransition: null, safetyHalt: null };
 }
@@ -979,6 +1121,22 @@ function normalizeAdmissionRecord(value, index) {
     recoveryStatus: root.recoveryStatus == null ? null : boundedString(root.recoveryStatus, `admissions.${index}.recoveryStatus`, 100),
     outcomeRecordedAt: optionalTimestamp(root.outcomeRecordedAt, `admissions.${index}.outcomeRecordedAt`),
   };
+  if (status === PRECOMPOSITION_RECOVERED) {
+    const recovery = exactRecoveryRecord(root.precompositionRecovery, ['permit', 'permitSha256', 'recoveredAt']);
+    const permit = parsePrecompositionRecoveryPermit(recovery.permit);
+    if (recovery.permitSha256 !== recoverySha256(permit)
+      || permit.admissionId !== admission.admissionId || permit.queueItemId !== admission.queueItemId
+      || recoverySha256({ ...admission, status: 'AMBIGUOUS_AFTER_RESTART' }) !== permit.expectedAdmissionSha256
+      || hasSubmissionEvidence(admission) || admission.abortedAt !== null || admission.abortStage !== null
+      || admission.providerRateLimitObservedAt !== null) throw recoveryError('RECORDED_EVIDENCE_INVALID');
+    const recoveredAt = isoTimestamp(recovery.recoveredAt, 'recoveredAt');
+    if (Date.parse(recoveredAt) < Date.parse(permit.issuedAt) || Date.parse(recoveredAt) >= Date.parse(permit.expiresAt)) {
+      throw recoveryError('RECORDED_EVIDENCE_INVALID');
+    }
+    admission.precompositionRecovery = { permit, permitSha256: recovery.permitSha256, recoveredAt };
+  } else if (Object.hasOwn(root, 'precompositionRecovery')) {
+    throw recoveryError('RECORDED_EVIDENCE_INVALID');
+  }
   if (admission.deliveryStatus !== null && !['DELIVERED', 'GENERATION_STARTED', 'PROVIDER_RATE_LIMITED', 'FAILED_CLOSED'].includes(admission.deliveryStatus)) {
     throw new Error(`admissions.${index}.deliveryStatus is invalid.`);
   }
@@ -1013,7 +1171,7 @@ function normalizeAdmissionRecord(value, index) {
 function validateQueueAdmissionCorrespondence(item, linked) {
   const latest = linked.at(-1) ?? null;
   const earlier = linked.slice(0, -1);
-  if (earlier.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY'].includes(entry.status)
+  if (earlier.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED].includes(entry.status)
     && !(entry.status === 'BOUNDARY_RECORDED' && entry.providerRateLimitObservedAt))) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} has a non-retryable earlier admission.`);
   }
@@ -1031,7 +1189,7 @@ function validateQueueAdmissionCorrespondence(item, linked) {
   if (item.status === 'QUEUED' && linked.length !== 0) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} cannot be newly queued with prior admissions.`);
   }
-  if (item.status === 'PRECLICK_RETRY_PENDING' && !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY'].includes(latest?.status)) {
+  if (item.status === 'PRECLICK_RETRY_PENDING' && !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED].includes(latest?.status)) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} retry status lacks a safe pre-click abort.`);
   }
   if (item.status === 'RATE_LIMIT_RETRY_PENDING'
@@ -1043,7 +1201,7 @@ function validateQueueAdmissionCorrespondence(item, linked) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} exhausted status lacks its rate-limit abort.`);
   }
   if (item.status === 'CANCELLED_AT_TAKEOVER'
-    && linked.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY'].includes(entry.status))) {
+    && linked.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED].includes(entry.status))) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} cannot cancel crossed or ambiguous admission history.`);
   }
 }

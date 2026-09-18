@@ -151,7 +151,7 @@ export class SubmissionAuthorityRuntime {
     this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
     this.relayBindings = new Map(Object.entries(relayBindings));
     const lease = parseDeploymentLease(JSON.parse(leaseRaw));
-    this.initialization = this.scheduler.activateLease(lease).then(
+    this.initialization = this.scheduler.activateLease(lease, { restorePersisted: true }).then(
       () => null,
       (error: unknown) => error,
     );
@@ -319,10 +319,12 @@ export class SubmissionAuthorityRuntime {
       receivedAt: new Date(nowMs).toISOString(),
     };
     this.relayHealth.set(producer.id, stored);
+    const leaseRenewal = await scheduler.renewLeaseFromHealth(report, producer.id);
     return {
       accepted: true,
       observedAt: stored.observedAt,
       expiresAt: new Date(observedMs + this.relayHealthMaxAgeMs).toISOString(),
+      leaseRenewal,
     };
   }
 
