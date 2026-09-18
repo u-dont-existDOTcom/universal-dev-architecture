@@ -21,10 +21,10 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`.
 The restore script reconstructs `codex-mission-control.zip`, verifies it against `SOURCE-ARCHIVE.sha256`, and extracts the application. Current archive identity:
 
 ```text
-bb87eb5304c56100c99b180bd40b2451a586acddcbfbd5ca99e48838573d1141
+07120e2e286b02cf8f2d52ff23c75f71d8fc47061e0a7923560acd18bdc3f2b7
 ```
 
-The checked archive contains 164 source files in 78 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
+The checked archive contains 167 source files in 81 base64 parts. A fresh reconstruction is checksum-verified, passes `unzip -t`, and matches the current restored application byte-for-byte after excluding generated dependencies, build output, runtime databases, and local design-workbench files.
 
 ## Current operator model
 
