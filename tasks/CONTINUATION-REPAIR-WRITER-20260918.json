@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/continuation-stop-admission-20260918-1931",
+  "integration_branch": "main",
+  "integration_base_sha": "59a5799f3c964f39d326b1f922fc5863fbe8d806",
+  "scope": "Harden diagnosis-to-execution continuation and deliver the authorized survey paraphrase/frontier repair; this lease scopes writes, not the parent owner outcome."
+}

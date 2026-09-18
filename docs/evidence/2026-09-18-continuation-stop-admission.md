@@ -1,0 +1,11 @@
+# Continuation stop-admission hardening — 18 September 2026
+
+Owner-required correction: do not end an already-authorized implementation at diagnosis while a safe executable repair remains. Origin: the humandesign owner-retest diagnosis and subsequent explicit continuation correction; the source-private interview remains in its original private artifact, not here.
+
+Observed mechanism: a supervising agent created a documentation-only writer scope, completed that child scope, and stopped despite an OPEN parent outcome and a named authorized repair. The rule existed and had been retrieved. This is scope/terminal-boundary misapplication, not evidence that the rule was absent or a claim about hidden mental processes.
+
+Normative owner stays `patterns/codex-github-operating-system.md`, with a compact root final-boundary activation reminder and a stop-admission section in the existing Active Lesson Contract. A diagnosis/report/lease cannot supersede parent authority. Continue the next safe action in the current turn; if actually blocked, identify the exact missing dependency and complete independent authorized work. Respect explicit diagnostic-only/stop instructions and real authority, spending, privacy, access, platform, and irreversible-action limits. Owner-only evaluation is a legitimate next boundary after delivering a changed usable candidate, not an excuse to re-test an unchanged failure.
+
+Verification: 344 repository tests pass; deterministic audit returns zero errors and one root-size warning. The first root reminder exceeded the combined native instruction-chain limit; it was shortened without deleting the operative rule. The existing 32 KiB combined-chain test passes. Three new tests check normative coverage, not compliance by an arbitrary model. No runtime interceptor has been installed in ChatGPT. The policy hardening does not authorize an unrelated Mission Control runtime rollout.
+
+Public source binding: humandesign diagnostic head `69429453e1dda94eaaff947ae9deb132d6237ced`, `state/LIFE-PATTERNS-OWNER-PARAPHRASE-STALL-20260918.md`. Transferable remainder: subordinate operation scope must not become a fabricated parent stop boundary. This applies to ongoing authorized tasks, not every informational question or completed task.
