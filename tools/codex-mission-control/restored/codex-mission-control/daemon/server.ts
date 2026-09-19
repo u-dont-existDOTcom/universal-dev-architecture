@@ -16,6 +16,7 @@ import { parseAppendEnvelope } from "../lib/schema";
 import { pullWorkerOutbox, recordOwnerMessage } from "../lib/worker-channel";
 import {
   ensureConfiguredCapabilityChallenges,
+  GitHubReconciliationEventCache,
   githubDecisionProducer,
   ingestGitHubSupervisionCandidate,
   parseGitHubReceiptPolicy,
@@ -40,14 +41,23 @@ if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
   else seedStore(store);
 }
 const githubPolicy = parseGitHubReceiptPolicy();
-ensureConfiguredCapabilityChallenges(store, githubPolicy);
+const githubReconciliationStartupEvents = githubPolicy ? store.allEvents() : null;
+const githubChallengeEvents = ensureConfiguredCapabilityChallenges(
+  store,
+  githubPolicy,
+  new Date().toISOString(),
+  githubReconciliationStartupEvents ?? undefined,
+);
+const githubReconciliationEventCache = githubPolicy && githubReconciliationStartupEvents
+  ? GitHubReconciliationEventCache.fromEvents(store, [...githubReconciliationStartupEvents, ...githubChallengeEvents])
+  : null;
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
     worktreePath: process.env.MISSION_CONTROL_LIVE_WORKTREE,
   }, (event) => notifications.emit("event", event))
   : null;
-const githubReconciliationTimer = startGitHubReconciliation();
+const githubReconciliationTimer = startGitHubReconciliation(githubReconciliationEventCache);
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -382,8 +392,8 @@ function mcpResult(id: unknown, value: unknown) {
   return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value } };
 }
 
-function startGitHubReconciliation(): NodeJS.Timeout | null {
-  if (!githubPolicy) return null;
+function startGitHubReconciliation(eventCache: GitHubReconciliationEventCache | null): NodeJS.Timeout | null {
+  if (!githubPolicy || !eventCache) return null;
   const token = process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN;
   const configured = Number(process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS ?? 300_000);
   if (!Number.isInteger(configured) || configured < 30_000 || configured > 3_600_000) {
@@ -397,7 +407,7 @@ function startGitHubReconciliation(): NodeJS.Timeout | null {
     const startedAtMs = Date.now();
     console.log(JSON.stringify({ event: "github_supervision_reconciliation_started", startedAt }));
     try {
-      const events = await reconcileGitHubDecisionReceipts(store, { token, policy: githubPolicy });
+      const events = await reconcileGitHubDecisionReceipts(store, { token, policy: githubPolicy, eventCache });
       for (const event of events) notifications.emit("event", event);
       console.log(JSON.stringify({
         event: "github_supervision_reconciliation_completed",
