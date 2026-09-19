@@ -53,6 +53,23 @@ Prefer read-only metadata such as:
 
 Browser titles can change when a thread is reopened. Preserve and search exact URLs/branch IDs rather than relying on a historical title remaining stable.
 
+## Desktop ordinary Chat recovery
+
+Ordinary Chat recovery is not limited to a desktop-local conversation database.
+
+When a durable Work receipt, execution receipt, handoff artifact, or task record carries an exact `sourceChat` object with:
+
+- source Chat title;
+- exact ChatGPT conversation URL;
+
+treat that pair as a durable ordinary-Chat locator.
+
+Index those bounded source-chat fields together with the artifact filename/path and other non-message task metadata needed to find the right supervisor. This allows a query such as a task/version label to resolve its supervising Chat without searching arbitrary conversation bodies.
+
+If the exact HTTPS conversation URL is recovered, the desktop ChatGPT launcher may be used to open that ordinary Chat directly when the current client accepts the URL. Preserve the exact URL; do not rewrite it from an ID guess.
+
+This proves ordinary-Chat recovery **when a durable sourceChat locator exists**. It does not establish that every arbitrary desktop Chat has a locally searchable app index.
+
 ## Desktop Work/Codex recovery
 
 When the desktop client exposes a structured local Work/Codex thread index, prefer that index over UI search.
@@ -123,7 +140,7 @@ A missing backlink should trigger recovery; it should not force the owner to rec
 
 Owner-specific local paths, conversation IDs, project IDs, private locators, and account identifiers must remain outside portable public guidance.
 
-A deployment may maintain a local helper that searches browser-history metadata plus desktop Work-thread metadata and opens the selected exact locator. Record only the existence/capability of that helper in portable guidance, not private thread identifiers.
+A deployment may maintain a local helper that searches browser-history metadata, durable ordinary-Chat `sourceChat` locators, plus desktop Work-thread metadata and opens the selected exact locator. Record only the existence/capability of that helper in portable guidance, not private thread identifiers.
 
 ## Revalidation
 
@@ -138,7 +155,7 @@ If a previously reliable path fails:
 ## Limits
 
 - Browser History is not guaranteed to contain every ChatGPT thread.
-- Desktop Work/Codex metadata does not prove ordinary desktop Chat conversations are locally indexed.
+- Desktop Work/Codex metadata does not prove arbitrary ordinary desktop Chat conversations are locally indexed; ordinary-Chat recovery is separately valid when an exact durable `sourceChat` locator exists.
 - A native Work-thread URI is a locator, not proof that the remote conversation still exists.
 - Cross-surface visibility can depend on account/project state and must not be inferred from one client.
 - This pattern improves recovery/routing; it does not bypass access controls or create new Chat/Work authority.
