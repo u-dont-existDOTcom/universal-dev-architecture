@@ -32,7 +32,7 @@ test("daemon exact event lookup is bounded to the original producer and worker s
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => { stderr += chunk; });
   try {
-    await waitForListening(child, stderr);
+    await waitForListening(child, () => stderr);
     const origin = `http://127.0.0.1:${port}`;
     const occurredAt = new Date().toISOString();
     const envelope = {
@@ -113,16 +113,16 @@ async function availablePort(): Promise<number> {
   await once(server, "close");
   return port;
 }
-async function waitForListening(child: ReturnType<typeof spawn>, initialStderr: string): Promise<void> {
+async function waitForListening(child: ReturnType<typeof spawn>, currentStderr: () => string): Promise<void> {
   let output = "";
   child.stdout!.setEncoding("utf8");
   child.stdout!.on("data", (chunk) => { output += chunk; });
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
     if (output.includes("Mission Control daemon listening")) return;
     if (child.exitCode !== null) {
-      throw new Error(`Daemon exited before listening: ${initialStderr}`);
+      throw new Error(`Daemon exited before listening: ${currentStderr()}`);
     }
     await delay(25);
   }
-  throw new Error(`Timed out waiting for daemon startup: ${initialStderr}`);
+  throw new Error(`Timed out waiting for daemon startup: ${currentStderr()}`);
 }

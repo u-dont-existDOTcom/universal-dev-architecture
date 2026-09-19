@@ -1,4 +1,5 @@
 {
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "verdict": "BLOCKED_EXPLICIT_V5_REQUEST_BOUND_MCP_RECEIPT_MISSING",
   "checkedAt": "2026-09-19T18:32:23.337Z",
   "ownerAuthority": {

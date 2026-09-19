@@ -16,7 +16,7 @@
   "normalized_outcome": "Replace the exhausted model-mediated Mission Control MCP invocation premise with route-schema-v6 IN_BAND_REQUEST_BINDING_V1. Mission Control and the trusted relay must mint and durably record an exact pre-send binding and prompt hash; the one-message provider route selects only GitHub; canonical GitHub ingestion validates the echoed in-band binding, admission, relay identity, provider lifecycle, timing, writer/location, owner outcome, and evidence capsule without requiring or fabricating MCP evidence.",
   "required_outcomes": [
     "A canonical route-schema-v6 request and binding envelope are derived from current event-sourced Mission Control authority.",
-    "A trusted pre-send binding receipt binds the request, provider session, binding digest, prompt digest, and trusted relay producer with semantic_authority false before admission and send.",
+    "A trusted pre-send binding receipt binds the request, provider session, binding digest, prompt digest, admission, and trusted relay producer with semantic_authority false after central admission and before provider submission.",
     "The exact admitted body hash equals the exact one-message V6 prompt hash.",
     "The V6 consumer route selects GitHub and explicitly excludes Mission Control, MCP preload, capability tests, reader/writer staging, Continue, and Retry.",
     "V6 GitHub decisions use IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED and fail closed against the current route, recomputed binding, pre-send receipt, admission, producer, provider lifecycle, one-send invariant, timing, writer/location, owner outcome, and evidence capsule.",

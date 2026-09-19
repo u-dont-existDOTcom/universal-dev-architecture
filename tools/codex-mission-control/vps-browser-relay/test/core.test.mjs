@@ -5,6 +5,7 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   CONTINUE_NUDGE_DELAY_MS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
+  IN_BAND_REQUEST_STEP,
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
@@ -14,12 +15,14 @@ import {
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   appSelectionForMessage,
   capabilityControlPrompt,
+  canonicalJson,
   chatCapabilityState,
   classifyMemoryPressure,
   completedCycleStepStatus,
   continueNudgeEligible,
   cycleControlPrompt,
   deriveBindingCapsule,
+  deriveInBandRequestBinding,
   defaultState,
   extractQueuedRoutes,
   freshChatTargetPlan,
@@ -197,6 +200,27 @@ test('binding preload and every mandatory GitHub write use distinct fresh first-
   assert.match(direct, /write MISSION_CONTROL_CANONICAL_DECISION_V1/);
   assert.doesNotMatch(direct, /get_supervisory_request_binding|get_stage_liveness_state/);
   assert.throws(() => cycleControlPrompt({ ...directRouteFixture(), providerSessionId: 'provider-session:binding' }, 'EXTRA_HIGH_DIRECT'), /distinct/);
+});
+
+test('V6 carries exact request authority in-band and selects GitHub without any Mission Control or MCP step', () => {
+  const route = { ...routeFixture('v6-request', 'EXTRA_HIGH_DIRECT', 'provider-session:v6', 6), bindingProviderSessionId: 'provider-session:v6' };
+  const binding = deriveInBandRequestBinding(route);
+  const prompt = cycleControlPrompt(route, IN_BAND_REQUEST_STEP);
+  assert.equal(binding.execution_protocol, 'IN_BAND_REQUEST_BINDING_V1');
+  assert.equal(binding.request_id, 'v6-request');
+  assert.equal(binding.provider_session_id, 'provider-session:v6');
+  assert.ok(prompt.includes(canonicalJson(binding)), 'the exact canonical binding envelope must be embedded verbatim');
+  assert.match(prompt, new RegExp(binding.in_band_binding_sha256));
+  assert.match(prompt, /IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED/);
+  assert.match(prompt, /schema_version 5/);
+  assert.doesNotMatch(prompt, /get_supervisory_request_binding|MCP_BINDING_PRELOAD|REQUEST_BOUND_MCP_GITHUB_OBSERVED/);
+  assert.deepEqual(appSelectionForMessage(route.chat, IN_BAND_REQUEST_STEP), {
+    knownLabels: ['Mission Control', 'GitHub'], requiredLabels: ['GitHub'], referencedLabels: [],
+  });
+  assert.deepEqual(nextSupervisoryCycleAction(route, null, Date.parse('2026-09-02T00:01:00.000Z')), {
+    type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH',
+  });
+  assert.equal(nextSupervisoryCycleAction(route, { status: 'FAILED_RETRYABLE', preBoundaryAbortConfirmed: true }, Date.parse('2026-09-02T00:01:00.000Z')).recovery, 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY');
 });
 
 test('route extraction binds durable stage-liveness receipts to the exact worker/request', () => {
@@ -438,7 +462,7 @@ function directV4Route(reasoningLane) {
 
 function routeFixture(requestId, reasoningLane, providerSessionId, routeSchemaVersion = 3) {
   const base = {
-    routeKind: 'SUPERVISORY_CYCLE', requestId, supervisorId: 'spec', workerId: 'worker-a', providerSessionId,
+    routeKind: 'SUPERVISORY_CYCLE', requestId, taskId: 'task-1', supervisorId: 'spec', workerId: 'worker-a', providerSessionId,
     bindingProviderSessionId: 'provider-session:binding', decisionReceipt: null, stageLiveness: {},
     chat: { supervisorId: 'spec', requiredApps: { missionControl: 'Mission Control', github: 'GitHub' } },
     packet: {

@@ -218,7 +218,8 @@ export class CentralSubmissionScheduler {
           }
           // A real per-request turn is never internally replayed after a crossed boundary,
           // even when a rate-limit UI appeared. Recovery must reconcile that exact request.
-          const requestBoundTurn = context.sendPath === 'SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION';
+          const requestBoundTurn = context.sendPath === 'SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION'
+            || context.sendPath === 'SUPERVISORY_CYCLE_IN_BAND_REQUEST_DECISION';
           if (!isChatGptRateLimitRetry(error) || requestBoundTurn) {
             if (boundaryRecorded) await this.schedulerClient.recordOutcome({
               admissionId: admission.admissionId,

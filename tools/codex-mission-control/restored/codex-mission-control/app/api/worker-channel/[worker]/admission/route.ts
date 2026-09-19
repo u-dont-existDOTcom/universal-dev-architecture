@@ -45,10 +45,14 @@ export async function POST(request: Request, context: { params: Promise<{ worker
     const body = cycleLocation && policy ? withConfiguredStageIssue(requestedBody, policy.stageIssueNumber) : requestedBody;
     const now = new Date().toISOString();
     const parsedInput = parseSupervisionAdmissionInput(body);
+    const requestedInBand = parsedInput.factualPacket?.supervisoryCycle?.bindingProtocol === "IN_BAND_REQUEST_BINDING_V1";
+    if (requestedInBand && !policy?.requestBound?.enabled) {
+      throw new Error("In-band request binding requires the trusted requestBound relay policy.");
+    }
     const requestBoundEventId = policy?.requestBound?.enabled
       && parsedInput.request.internalRoute
       && parsedInput.factualPacket?.supervisoryCycle
-      ? requestRouteEventId(parsedInput.request.requestId)
+      ? requestRouteEventId(parsedInput.request.requestId, requestedInBand ? 6 : 5)
       : null;
     const existingRouteEvent = requestBoundEventId
       ? await readExactRouteEvent(requestBoundEventId, authentication.producer)
@@ -77,7 +81,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       const continuation = intent ? deriveOwnerResponseContinuation(historyEvents, intent, at) : undefined;
       const directiveProof = needsDirectiveProof ? currentExecutionDirectiveProof(worker, historyEvents) : null;
       return evaluateSupervisionAdmission(worker, authentication.producer, body, at, continuation, directiveProof,
-        policy?.requestBound?.enabled ? "PER_REQUEST_V1" : "SPLIT_SESSION_V4");
+        requestedInBand ? "IN_BAND_REQUEST_BINDING_V1" : policy?.requestBound?.enabled ? "PER_REQUEST_V1" : "SPLIT_SESSION_V4");
     };
     let result = evaluateAt(evaluationTime);
     if (existingRouteEvent) {
