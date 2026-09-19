@@ -29,6 +29,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
                 "CHATGPT-SURFACE-002",
                 "CHATGPT-SURFACE-003",
                 "CHATGPT-SURFACE-004",
+                "CHATGPT-SURFACE-005",
             ],
         )
         joined = "\n".join(item["text"] for item in self.req["requirements"])
@@ -36,6 +37,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         self.assertIn("search every locally available authorized surface index", joined)
         self.assertIn("metadata-first and privacy-preserving", joined)
         self.assertIn("open the thread in its native client", joined)
+        self.assertIn("Ordinary Chat recovery must be indexed alongside Work recovery", joined)
 
     def test_owner_deployment_evidence_is_version_bounded(self) -> None:
         binding = self.req["owner_deployment_binding"]
@@ -43,7 +45,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         self.assertEqual(binding["tested_versions"]["chatgpt_desktop"], "26.903.61454")
         self.assertEqual(binding["tested_versions"]["brave"], "153.1.95.102")
         limits = "\n".join(binding["current_limits"])
-        self.assertIn("ordinary non-Work desktop Chat conversations has not yet been proven", limits)
+        self.assertIn("ordinary Chat recovery is proven when an exact durable sourceChat locator exists", limits)
         self.assertIn("Do not commit owner-specific conversation IDs", limits)
 
     def test_pattern_requires_all_surface_search_before_missing_claim(self) -> None:
@@ -53,6 +55,9 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
             "Do not declare the thread missing after checking only web search",
             "Preserve and search exact URLs/branch IDs",
             "prefer that index over UI search",
+            "Desktop ordinary Chat recovery",
+            "treat that pair as a durable ordinary-Chat locator",
+            "This proves ordinary-Chat recovery **when a durable sourceChat locator exists**",
             "Metadata-first privacy boundary",
             "Do not inspect cookies",
             "native thread URI",
