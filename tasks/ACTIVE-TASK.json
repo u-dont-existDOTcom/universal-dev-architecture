@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
   "title": "Release recovered-state compatibility and complete the same PM fixture under epoch 5",
-  "status": "blocked",
+  "status": "active",
   "exclusive": false,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
@@ -17,7 +17,7 @@
   },
   "ownerOutcome": {
     "status": "OPEN",
-    "normalizedResult": "Release narrow recovered-admission compatibility without expired epoch-4 resurrection, activate a controlled epoch-5 owner-secondary successor, soak the repaired daemon with zero sends, retry only MCP_BINDING_PRELOAD on the existing route, complete PM-mediated resolution, and then harden permanently.",
+    "normalizedResult": "Add the authorized startup-reconstructed, incrementally refreshed reconciliation event cache; release it through normal gates; pass a continuous two-interval zero-send availability soak under the existing epoch-5 owner-secondary authority; then retry only MCP_BINDING_PRELOAD on the same route, complete PM-mediated resolution, and harden permanently after proof PASS.",
     "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
     "replacementFixtureAllowed": false
   },
@@ -34,7 +34,16 @@
     "providerBoundaryOpened": false,
     "sameRouteRetryAttempted": false,
     "successorHostRefenced": true,
-    "receipt": "docs/evidence/2026-09-18-mc-fresh-worker-epoch5-live-soak-stop-receipt.json"
+    "receipt": "docs/evidence/2026-09-18-mc-fresh-worker-epoch5-live-soak-stop-receipt.json",
+    "resolvedBy": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
+    "resolutionScope": "One narrow safely reconstructable reconciliation event cache; epoch-5 authority and all provider-send controls remain unchanged."
+  },
+  "currentAuthority": {
+    "source": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
+    "capturedAt": "2026-09-19T01:47:05Z",
+    "requirement": "docs/requirements/2026-09-19-mission-control-reconciliation-event-cache.owner-requirement.json",
+    "sourceChatTitle": "Reject API Migration Recommendation",
+    "sourceChatUrl": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7"
   },
   "writerLease": "tasks/writer-leases/chat-mc53-epoch5-compat-v4-20260918-2139.json",
   "suspendedTaskSources": [

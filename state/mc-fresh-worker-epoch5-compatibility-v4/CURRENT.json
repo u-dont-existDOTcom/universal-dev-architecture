@@ -1,16 +1,23 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-18T23:49:48Z",
-  "phase": "BLOCKED_LIVE_NO_SEND_SOAK",
-  "status": "BLOCKED",
+  "updatedAt": "2026-09-19T01:47:05Z",
+  "phase": "RECONCILIATION_EVENT_CACHE_REPAIR",
+  "status": "ACTIVE",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
   "replacementFixtureCreated": false,
   "providerSendsThisTask": 0,
-  "currentGap": "The epoch-5 candidate and same-route state are valid, but the required no-send daemon-availability soak failed: a scheduled relay health read returned CENTRAL_SCHEDULER_UNREACHABLE during the second reconciliation interval after an earlier bounded liveness sample also failed once.",
-  "nextAction": "Remain fail-closed with owner-secondary fenced. Do not retry MCP_BINDING_PRELOAD or begin deferred hardening until new authority resolves the live availability failure and authorizes another soak.",
+  "currentGap": "The recurring GitHub reconciliation path still synchronously reloads and parses the complete 12k+ durable event history before its first await, blocking liveness and scheduler status for the duration of that CPU-bound work.",
+  "nextAction": "Implement the startup-reconstructed, eventsAfter-refreshed reconciliation event cache with sequence consistency checks; run focused concurrency regressions; then cross release gates and repeat the continuous two-interval zero-send soak while owner-secondary remains fenced.",
+  "soakStopResolution": {
+    "authority": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
+    "capturedAt": "2026-09-19T01:47:05Z",
+    "requirement": "docs/requirements/2026-09-19-mission-control-reconciliation-event-cache.owner-requirement.json",
+    "scope": "One narrow derived in-process reconciliation event cache; no timeout increase, disabled reconciliation, authority change, provider send, or new durable source of truth.",
+    "ownerSecondaryMustRemainFencedUntilSoakPass": true
+  },
   "priorStopResolution": {
     "authority": "issue-53-comment-5736910093",
     "authorizedAt": "2026-09-18T22:24:16Z",

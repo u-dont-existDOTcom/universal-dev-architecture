@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-RECONCILIATION-EVENT-CACHE-20260919",
+  "recorded_at": "2026-09-19T01:47:05Z",
+  "status": "ACTIVE_IMPLEMENTATION",
+  "root_owner_outcome": "OPEN",
+  "owner_source": {
+    "source_type": "direct_owner_chat",
+    "source_ref": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
+    "source_sent_time": "TIMESTAMP_UNAVAILABLE_UNVERIFIED",
+    "source_chat_title": "Reject API Migration Recommendation",
+    "source_chat_url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+    "verbatim": "Continue the existing V4 Mission Control task on the current isolated branch chat/mc53-epoch5-compat-v4-20260918-2139. The explicit no-send soak stop is resolved for one narrow availability repair. Do not start over, create another fixture, or change the already-valid epoch-5 authority. Implement the smallest safely reconstructable reconciliation event cache: build the complete reconciliation event history once per daemon process startup from the durable EventStore; on later cycles do not call store.allEvents() again; append only store.eventsAfter(lastSequence) in exact order; run existing reconciliation and candidate validation against the complete cached history; add reconciliation-appended events exactly once; pick up externally appended events next cycle; fail closed and safely rebuild on sequence regression, gap, or cache/durable inconsistency; keep the cache derived runtime state only. Preserve raw-persisted-payload hash verification, recovered-admission proof semantics, epoch-5 authority, global pacing, and provider-send controls. Prove the specified file-backed 12k-event, between-cycle append, restart, idempotency, new receipt, inconsistency, slow-fetch liveness, and live-cycle responsiveness regressions. Do not solve with larger timeouts, longer grace, looser soak acceptance, or disabled reconciliation. After focused validation cross normal release gates, install reversibly against the existing epoch-5 volume, and repeat the continuous two-interval zero-send soak. Keep owner-secondary fenced and open no admission until the soak passes. If it passes, resume only MCP_BINDING_PRELOAD on the same existing route and continue the same PM-mediated fixture; harden permanently only after PM_MEDIATED_LIVE_PROOF_PASS. No epoch-4 resurrection, replacement fixture, manual SQLite mutation, second EventStore writer, production mutation, paid inference, assistant-output DOM inspection, controller semantic substitution, or public disclosure of detailed live host/lease operational state.",
+    "sha256": "5deb96be08d48e9ca8b467e76e6b549ed8387f76ddd82bc4b2259904220c0f99"
+  },
+  "normalized_outcome": "Eliminate the recurring synchronous full-history reconciliation reload with a safely reconstructable in-process cache, prove request responsiveness during real reconciliation work, release and install the exact candidate reversibly, pass a continuous two-interval zero-send soak under unchanged epoch-5 authority, then resume only the already-authorized same-route binding preload and PM-mediated fixture.",
+  "required_outcomes": [
+    "Startup reconstructs the complete ordered reconciliation event cache from the durable EventStore exactly once per daemon process.",
+    "Later cycles use eventsAfter(lastSequence), never allEvents(), and ingest every durable suffix event exactly once.",
+    "Reconciliation-generated events update the cache exactly once while externally generated events are discovered on the next cycle.",
+    "Sequence regression, gap, or durable/cache inconsistency fails closed and safely rebuilds without skipping history.",
+    "Candidate validation and GitHub receipt idempotency semantics remain unchanged.",
+    "Continuous /api/live and authenticated scheduler status probes stay well below the existing ten-second client timeout throughout two reconciliation intervals.",
+    "No admission or provider send occurs before the soak passes."
+  ],
+  "non_satisfying_proxies": [
+    "Increasing request or health timeouts",
+    "Disabling or delaying reconciliation",
+    "Testing only before and after reconciliation",
+    "Caching only the latest cursor rather than the complete semantic history",
+    "Creating a second durable authority or writer",
+    "Passing unit tests without a continuous live two-interval soak"
+  ],
+  "assurance_lane": "release",
+  "privacy_boundary": "Keep live host, lease, route, and timing evidence in bounded local/task receipts; do not publish it to the public issue.",
+  "receipt_backlink_required": true
+}
