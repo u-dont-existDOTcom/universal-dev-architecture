@@ -26,6 +26,7 @@ For multi-worker Codex operation with ChatGPT semantic supervision, load all cur
 10. `../patterns/structured-output-failure-boundary.md`
 11. `../patterns/reasoning-selection.md`
 12. `../patterns/mission-control-multi-host-submission-scheduling.md`
+13. `../patterns/chatgpt-work-cloud-dispatch.md`
 
 **Controlling separation:** chats perform the reasoning; Codex performs only bounded execution that chats cannot reliably perform. Extra High is the default reasoning supervisor, Pro handles the highest-intelligence decisions, and Codex acts only from a current chat-authored execution directive. Codex may collect evidence and make tactical execution choices, but it may not choose strategy, interpret the owner outcome, author substantive prose, classify alignment/progress/adequacy/completion, decide Pro or owner escalation, or supervise itself.
 

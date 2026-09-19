@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-17
+Updated: 2026-09-19
 
 ## Goal
 
@@ -72,6 +72,31 @@ turn visibly fails may the controller Retry that exact failed continue once.
   controls. It is removed from ordinary admission but retained as a diagnostic;
   no live capability probe was sent. Focused regressions and the complete relay
   suite pass locally. The candidate is not merged, installed, or live-tested.
+
+## Native ChatGPT Work dispatch checkpoint (2026-09-19)
+
+- Candidate branch: `task/mission-control-work-cloud-adapter-20260919`.
+- The portable `chatgptWorkCloud` rule is already canonical on `main`; this
+  candidate adds the missing Mission Control reference adapter, typed ledger
+  events, projection/UI state, and exact native-Work lineage enforcement.
+- A dispatch request is durably source-bound before the authenticated app
+  executor is called, and the normalized result is recorded afterward.
+  `PENDING_APPROVAL`, `PENDING_SETUP`, `READY`, `FAILED`, and `UNAVAILABLE`
+  remain distinct. A Codex task cannot satisfy a Work request merely because its
+  title begins with `Work —`.
+- Continuation requires the exact previously verified native Work thread ID.
+  Completed retries are idempotent; a request-only crash boundary is treated as
+  ambiguous and blocks a second app call until recovered.
+- The app-executor producer identity and explicit native-surface evidence are
+  mandatory. Missing authenticated executor capability records
+  `WORK_CLOUD_DISPATCH_UNAVAILABLE`; it never silently falls back to Codex.
+- The current candidate is not installed or deployed. Validation is green:
+  focused native-Work tests 15/15, affected Mission Control tests 151/151,
+  full Mission Control tests 334/334 with bounded concurrency, production
+  build, repository tests 360/360, and deterministic audit with zero errors.
+  One initial unconstrained full-suite run hit a daemon startup timeout while a
+  10k-event stress test saturated the same machine; the isolated daemon test
+  passed and the complete bounded-concurrency rerun passed.
 
 ## Completed outcome
 
