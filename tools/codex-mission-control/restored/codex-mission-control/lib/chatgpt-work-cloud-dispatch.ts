@@ -89,14 +89,19 @@ export async function dispatchAndRecordChatGptWorkCloud(
   recordedAt = input.requestedAt,
 ): Promise<{ request: AppendEnvelope; result: AppendEnvelope }> {
   validateInput(input);
+  const request = buildWorkCloudDispatchRequestedEnvelope(input);
   const existing = await sink.getWorkCloudDispatch(input.binding.worker, input.dispatchId);
+  if (existing && canonicalJson(existing.request) !== canonicalJson(request)) {
+    throw new WorkCloudDispatchAmbiguityError(
+      `Native Work dispatch ${input.dispatchId} already exists with different source-bound request content.`,
+    );
+  }
   if (existing?.result) return { request: existing.request, result: existing.result };
   if (existing?.request) {
     throw new WorkCloudDispatchAmbiguityError(
       `Native Work dispatch ${input.dispatchId} has a durable request but no result; recover the app boundary before retrying.`,
     );
   }
-  const request = buildWorkCloudDispatchRequestedEnvelope(input);
   await sink.recordWorkerEvents(input.binding.worker, [request]);
   const outcome = normalizeExecutorOutcome(await executeWorkCloudAppCall(input, executor));
   const result = buildWorkCloudDispatchRecordedEnvelope(input, outcome, recordedAt);

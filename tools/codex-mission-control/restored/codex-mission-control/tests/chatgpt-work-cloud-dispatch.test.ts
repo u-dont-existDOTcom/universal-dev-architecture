@@ -46,10 +46,10 @@ function input(overrides: Partial<WorkCloudDispatchInput> = {}): WorkCloudDispat
       sourceMessageId: "chat-message:auth:work-cloud",
       sourceBodySha256,
     },
-    sourceChatTitle: "Polymarket strat",
-    sourceChatUrl: "chatgpt-conversation://6aad494e-c5c8-83ea-916c-0259790eff27",
-    requestedWorkTitle: "Work — Polymarket strat",
-    chatgptProjectId: "g-p-6aa97722bdf48191807730b8a9303a74",
+    sourceChatTitle: "Native Work fixture source",
+    sourceChatUrl: "chatgpt-conversation://fixture-source",
+    requestedWorkTitle: "Work — Native fixture",
+    chatgptProjectId: "fixture-project",
     existingWorkThreadId: null,
     prompt: "Execute the exact source-bound directive and return a receipt.",
     approvalState: "NOT_REQUIRED",
@@ -78,7 +78,7 @@ test("CREATE uses only the native chatgptWorkCloud target and omits Codex-only s
   const result = await dispatchChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, calls));
   assert.equal(calls.length, 1);
   const call = calls[0] as Record<string, unknown>;
-  assert.deepEqual(call.target, { type: CHATGPT_WORK_CLOUD_TARGET, projectId: "g-p-6aa97722bdf48191807730b8a9303a74" });
+  assert.deepEqual(call.target, { type: CHATGPT_WORK_CLOUD_TARGET, projectId: "fixture-project" });
   assert.equal("model" in call, false);
   assert.equal("thinking" in call, false);
   assert.equal(result.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
@@ -197,6 +197,19 @@ test("durable retry returns an existing completed dispatch without invoking the 
   });
   assert.equal(calls.length, 0);
   assert.deepEqual(result, completed);
+});
+
+test("same dispatch id with different source-bound content fails closed", async () => {
+  const completed = await dispatchChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, []));
+  const calls: unknown[] = [];
+  await assert.rejects(
+    dispatchAndRecordChatGptWorkCloud(input({ prompt: "different prompt under a reused dispatch id" }), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "duplicate", hostId: null }, calls), {
+      getWorkCloudDispatch: async () => completed,
+      recordWorkerEvents: async () => { throw new Error("must not rewrite a mismatched dispatch"); },
+    }),
+    WorkCloudDispatchAmbiguityError,
+  );
+  assert.equal(calls.length, 0);
 });
 
 test("request-only recovery fails closed before a second app call", async () => {

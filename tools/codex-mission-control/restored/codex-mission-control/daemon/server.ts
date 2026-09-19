@@ -12,7 +12,7 @@ import {
 } from "../lib/store";
 import { CorrectionInvariantError } from "../lib/correction-lifecycle";
 import { producerKinds, producerMayEmit, type AuthenticatedProducer, type ProducerKind } from "../lib/ingestion-auth";
-import { parseAppendEnvelope } from "../lib/schema";
+import { parseAppendEnvelope, type StoredEvent } from "../lib/schema";
 import { pullWorkerOutbox, recordOwnerMessage } from "../lib/worker-channel";
 import {
   ensureConfiguredCapabilityChallenges,
@@ -188,6 +188,30 @@ const server = http.createServer(async (request, response) => {
       const worker = decodeURIComponent(workerMatch[1]);
       const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
       return snapshot ? json(response, 200, snapshot) : json(response, 404, { error: "Worker not found" });
+    }
+    const workCloudDispatchMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-cloud-dispatches\/([^/]+)$/);
+    if (request.method === "GET" && workCloudDispatchMatch) {
+      const producer = authorizeMutation(request);
+      const worker = decodeURIComponent(workCloudDispatchMatch[1]);
+      const dispatchId = decodeURIComponent(workCloudDispatchMatch[2]);
+      if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) {
+        return json(response, 403, { error: "Worker scope mismatch." });
+      }
+      if (!dispatchId || dispatchId.length > 180) return json(response, 400, { error: "A bounded dispatch id is required." });
+      const matching = eventHistory().filter((event) => event.worker === worker
+        && (event.data.type === "chatgpt_work_cloud_dispatch_requested" || event.data.type === "chatgpt_work_cloud_dispatch_recorded")
+        && event.data.dispatch_id === dispatchId);
+      if (matching.length === 0) return json(response, 404, { error: "Work-cloud dispatch not found." });
+      if (matching.some((event) => event.producerId !== producer.id || event.producerKind !== producer.kind)) {
+        return json(response, 403, { error: "Work-cloud dispatch does not match the authenticated producer." });
+      }
+      const requestEvent = matching.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested");
+      const resultEvent = matching.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded");
+      if (!requestEvent) return json(response, 409, { error: "Work-cloud result lacks its durable request." });
+      return json(response, 200, {
+        request: appendEnvelopeFromStored(requestEvent),
+        result: resultEvent ? appendEnvelopeFromStored(resultEvent) : null,
+      });
     }
     const messageMatch = url.pathname.match(/^\/workers\/([^/]+)\/messages$/);
     if (request.method === "POST" && messageMatch) {
@@ -400,6 +424,16 @@ function parseScopes(value: string | string[] | undefined): string[] {
 
 function mcpResult(id: unknown, value: unknown) {
   return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value } };
+}
+
+function appendEnvelopeFromStored(event: StoredEvent) {
+  return {
+    schema_version: event.schemaVersion,
+    event_id: event.eventId,
+    mission_id: event.missionId,
+    occurred_at: event.occurredAt,
+    data: event.data,
+  };
 }
 
 function startGitHubReconciliation(eventCache: GitHubReconciliationEventCache | null): NodeJS.Timeout | null {

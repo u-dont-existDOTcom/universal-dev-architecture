@@ -63,13 +63,29 @@ Mission Control rejects:
 
 The worker dashboard projects Work-cloud state independently from the existing Codex execution/profile state.
 
-## Current execution boundary
+## Controller execution boundary
 
-The Mission Control daemon does not directly call the desktop app's bundled executor. The bundled app tool requires authenticated executor thread metadata; a raw server-side MCP call is rejected.
+`npm run work-cloud:dispatch -- --request <controller-request.json>` is the production controller call site. The request supplies the exact active-directive binding, the matching directive artifact, and exactly one inline prompt or prompt file. The CLI verifies the directive artifact digest before dispatch.
 
-The controller therefore injects a trusted `WorkCloudAppExecutor` into `dispatchAndRecordChatGptWorkCloud`. The adapter owns source binding, event ordering, normalization, lineage, and fail-closed semantics. The authenticated desktop/app executor owns the actual `create_thread(target.type="chatgptWorkCloud")` or `send_message_to_thread` call and supplies explicit native-surface evidence.
+The controller connects to the authenticated desktop app's bundled executor with explicit private deployment configuration. Static MCP tool discovery establishes versioned capability evidence. The durable request is then recorded before the first app-owned `create_thread`, `read_thread`, `list_threads`, or `send_message_to_thread` call for that dispatch.
 
-If that executor is absent, the durable result is `WORK_CLOUD_DISPATCH_UNAVAILABLE`; Mission Control must not invoke Codex as a substitute unless the owner separately authorizes Codex.
+The app executor resolves a temporary `clientThreadId` only through exact app-owned identity fields returned by `read_thread` or `list_threads`; it never uses a title match. It reads back the exact stable ChatGPT thread before reporting `READY`, and continuation reads, sends to, and re-reads the exact persisted stable ID.
+
+The adapter continues to own source binding, event ordering, normalization, lineage, and fail-closed semantics. If the authenticated app bridge or required tools are absent, the durable result is `WORK_CLOUD_DISPATCH_UNAVAILABLE`; Mission Control never invokes Codex as a substitute.
+
+Private deployment environment:
+
+```text
+MISSION_CONTROL_INTERNAL_TOKEN=<existing daemon token>
+MISSION_CONTROL_DAEMON_URL=http://127.0.0.1:4100
+MISSION_CONTROL_CHATGPT_APP_MCP_COMMAND=<private app-executor launcher>
+MISSION_CONTROL_CHATGPT_APP_MCP_SERVER=<private app-tools server module>
+MISSION_CONTROL_CHATGPT_APP_TOOLS_PIPE_PATH=<current authenticated app bridge socket>
+MISSION_CONTROL_CHATGPT_APP_EXECUTOR_THREAD_ID=<app-executor thread metadata>
+MISSION_CONTROL_CHATGPT_APP_VERSION=<observed desktop app version>
+```
+
+The executable/module paths, pipe path, executor thread ID, provider thread IDs, credentials, and owner-specific locators must remain private deployment state.
 
 ## Capability revalidation
 
