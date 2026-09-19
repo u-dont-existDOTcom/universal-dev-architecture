@@ -9,6 +9,7 @@ Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget
 Work-thread lineage naming requirement: `docs/requirements/2026-09-18-work-thread-lineage-naming.owner-requirement.json`.
 Work origin-chat backlink requirement: `docs/requirements/2026-09-18-work-receipt-origin-chat-backlink.owner-requirement.json`.
 Work human-gate assist requirement: `docs/requirements/2026-09-18-work-human-gate-assist.owner-requirement.json`.
+ChatGPT multi-surface recovery requirement: `docs/requirements/2026-09-19-chatgpt-multi-surface-thread-recovery.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -114,6 +115,14 @@ Originating Chat: [<exact source Chat title>](<exact source conversation URL>)
 The receipt echoes the directive value; Work must not rediscover or replace it. For a ChatGPT source conversation with a stable URL, omitting the URL makes the handoff incomplete. If the handoff creator cannot resolve it through an authorized current surface, do not fabricate one: classify `HANDOFF_BLOCKED_SOURCE_CHAT_URL` unless the owner explicitly authorizes proceeding without the backlink.
 
 The backlink is navigation/provenance only. It does not create a native Work -> originating Chat messaging edge or transfer semantic authority.
+
+## Multi-surface ChatGPT capability and recovery
+
+Apply `patterns/chatgpt-client-surface-capability-and-thread-recovery.md` whenever routing or recovering work across consumer ChatGPT web, desktop-app, ordinary Chat, Work, or branch/thread surfaces.
+
+Do not assume capability parity or conversation visibility between clients. When a prior thread appears missing, search the exact source backlink/durable locator first, then every authorized local surface index that could contain it, before asking the owner to search manually. Prefer exact URLs/native thread URIs and IDs over title-only matches.
+
+Treat current differences in loading behavior, Work creation/opening, branching, search quality, local-machine access, and cross-client visibility as version-dated evidence rather than permanent product truth.
 
 ## Mixed tasks
 
