@@ -30,6 +30,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
                 "CHATGPT-SURFACE-003",
                 "CHATGPT-SURFACE-004",
                 "CHATGPT-SURFACE-005",
+                "CHATGPT-SURFACE-006",
             ],
         )
         joined = "\n".join(item["text"] for item in self.req["requirements"])
@@ -38,6 +39,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         self.assertIn("metadata-first and privacy-preserving", joined)
         self.assertIn("open the thread in its native client", joined)
         self.assertIn("Ordinary Chat recovery must be indexed alongside Work recovery", joined)
+        self.assertIn("Launcher acceptance is not completion proof", joined)
 
     def test_owner_deployment_evidence_is_version_bounded(self) -> None:
         binding = self.req["owner_deployment_binding"]
@@ -45,7 +47,8 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         self.assertEqual(binding["tested_versions"]["chatgpt_desktop"], "26.903.61454")
         self.assertEqual(binding["tested_versions"]["brave"], "153.1.95.102")
         limits = "\n".join(binding["current_limits"])
-        self.assertIn("ordinary Chat recovery is proven when an exact durable sourceChat locator exists", limits)
+        self.assertIn("no proven supported external direct-by-ID ordinary-Chat deep link", limits)
+        self.assertIn("exact Chat URL can establish identity without being a valid native desktop navigation mechanism", limits)
         self.assertIn("Do not commit owner-specific conversation IDs", limits)
 
     def test_pattern_requires_all_surface_search_before_missing_claim(self) -> None:
@@ -57,7 +60,11 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
             "prefer that index over UI search",
             "Desktop ordinary Chat recovery",
             "treat that pair as a durable ordinary-Chat locator",
-            "This proves ordinary-Chat recovery **when a durable sourceChat locator exists**",
+            "identity locator**, not automatically a native-desktop navigation mechanism",
+            "embedded browser panel rather than navigating the native Chat surface",
+            "multiple conversations share the same logical title",
+            "Native-surface completion proof",
+            "WRONG_SURFACE_OR_UNVERIFIED",
             "Metadata-first privacy boundary",
             "Do not inspect cookies",
             "native thread URI",
