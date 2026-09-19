@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "evidence_id": "EVIDENCE-MC-DEFAULT-FLEET-SUPERVISOR-20260920",
+  "recorded_at": "2026-09-19T22:15:31Z",
+  "requirement_ref": "docs/requirements/2026-09-19-default-fleet-supervisor.owner-requirement.json",
+  "truthful_disposition": "LIVE_VERIFIED",
+  "completion_allowed": true,
+  "source_control": {
+    "branch": "task/mission-control-default-fleet-supervisor-20260919",
+    "pull_request": 180,
+    "reviewed_head": "77beca27f83f5869441f2d9cc5d66d31a377cf24",
+    "merged_commit": "57e3c18537475b1697d9554c005376b1b6a7e7bc",
+    "merged_tree": "42446e566702f4dbbbe5068f8c4c0c767029316f",
+    "hosted_ci": "ALL_REQUIRED_JOBS_PASS"
+  },
+  "deployment": {
+    "environment": "AUTHORIZED_NONPRODUCTION_MISSION_CONTROL",
+    "started_at": "2026-09-19T22:09:10.833423763Z",
+    "source_revision": "57e3c18537475b1697d9554c005376b1b6a7e7bc",
+    "image_id": "sha256:e1fe2ad64e4d8cd9239df9b01963752dceaaa8cb5bab914c256500de6d2d4790",
+    "container_health": "HEALTHY",
+    "event_chain_valid": true,
+    "authority_ledger_valid": true,
+    "active_epoch": 5,
+    "active_host_role": "SECONDARY",
+    "queue_depth": 0,
+    "unresolved_admission": null,
+    "target_transition": "CLEAR",
+    "safety_halt": null,
+    "provider_send_attempted": false,
+    "paid_inference": false,
+    "production_mutated": false
+  },
+  "live_acceptance": {
+    "kind": "DISPOSABLE_SYNTHETIC_PROJECT",
+    "isolated_database": true,
+    "default_cadence_ms": 3600000,
+    "auto_enrolled_project_count": 2,
+    "accelerated_project": "project:human-design",
+    "tick_at": "2026-09-19T22:13:55.013Z",
+    "trigger": "HEALTHY_ADVANCING",
+    "result": "Healthy project tick completed silently.",
+    "notification_disposition": "SUPPRESSED_NOT_ACTIONABLE",
+    "notification_reason": null,
+    "next_tick_at": "2026-09-19T22:14:55.013Z",
+    "disposable_runtime_removed": true,
+    "result_status": "PASS"
+  },
+  "owner_notification_conditions": [
+    "GENUINE_OWNER_DECISION",
+    "UNAVOIDABLE_HUMAN_AUTH_OR_PERMISSION",
+    "PROJECT_VALIDITY_OR_INTEGRITY_FAILURE_OR_INDETERMINATE",
+    "OWNER_AUTHORITY_REQUIRED_STRATEGY_REPLACEMENT",
+    "TERMINAL_RESULT"
+  ],
+  "rollback": {
+    "stopped_container": "mission-control-issue90-live-pre-v6-f89f2898",
+    "image_id": "sha256:2aaa5e8b28594379a511bace06ae16b30b7c41f28fdddf569d1eebac23ecd98c",
+    "source_revision": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
+    "volume_archive_sha256": "c311725923cefc43d3c162036825538a53599255e96eb07c2ef65b2182da5a2f",
+    "verified_before_deployment": true
+  },
+  "external_hourly_fallback": {
+    "native_runtime_dependency": false,
+    "disposition": "MAY_BE_RETIRED_SEPARATELY"
+  },
+  "remaining_limitation": "Owner notification is emitted through the native Mission Control event stream and durable dashboard disposition; no new external notification provider was authorized or added."
+}
