@@ -90,7 +90,12 @@ export class EventStore {
     return Number(row.count);
   }
 
-  append(input: unknown, receivedAt = new Date().toISOString(), producer?: AuthenticatedProducer): StoredEvent {
+  append(
+    input: unknown,
+    receivedAt = new Date().toISOString(),
+    producer?: AuthenticatedProducer,
+    validationHistory?: readonly StoredEvent[],
+  ): StoredEvent {
     const envelope = parseAppendEnvelope(input);
     const trustedSystemBoundaryTypes = new Set<MissionControlEventV2["type"]>([
       "work_task_creation_selection_applied",
@@ -110,9 +115,10 @@ export class EventStore {
       throw new IdempotencyConflictError(`Event ID ${envelope.event_id} already exists with different content.`);
     }
 
-    this.validateAuthorityInvariants(envelope);
-    this.validateWorkerChannel(envelope, authenticatedProducer, receivedAt);
-    this.validateCorrection(envelope);
+    if (validationHistory) this.assertValidationHistoryCurrent(validationHistory);
+    this.validateAuthorityInvariants(envelope, validationHistory);
+    this.validateWorkerChannel(envelope, authenticatedProducer, receivedAt, validationHistory);
+    this.validateCorrection(envelope, validationHistory);
     const previousHash = this.latestEventHash();
     const eventHash = calculateEventHash({
       schemaVersion: 2,
@@ -145,10 +151,20 @@ export class EventStore {
     return this.eventBySequence(Number(result.lastInsertRowid))!;
   }
 
-  appendMany(items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>): StoredEvent[] {
+  appendMany(
+    items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>,
+    validationHistory?: readonly StoredEvent[],
+  ): StoredEvent[] {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const result = items.map(({ event, receivedAt, producer }) => this.append(event, receivedAt, producer));
+      const currentHistory = validationHistory ? [...validationHistory] : undefined;
+      const result = items.map(({ event, receivedAt, producer }) => {
+        const appended = this.append(event, receivedAt, producer, currentHistory);
+        if (currentHistory && !currentHistory.some((candidate) => candidate.eventId === appended.eventId)) {
+          currentHistory.push(appended);
+        }
+        return appended;
+      });
       this.db.exec("COMMIT");
       return result;
     } catch (error) {
@@ -597,13 +613,14 @@ export class EventStore {
     );
   }
 
-  private validateAuthorityInvariants(envelope: AppendEnvelope) {
+  private validateAuthorityInvariants(envelope: AppendEnvelope, validationHistory?: readonly StoredEvent[]) {
     const data = envelope.data;
     const worker = eventWorker(data);
     if (data.type === "review_marked") return;
     if (!worker) throw new ContractInvariantError("Worker-scoped events require a worker identity.");
 
-    const events = this.workerEvents(worker).filter((event) => event.schemaVersion === 2);
+    const events = this.eventsForWorkerValidation(worker, validationHistory)
+      .filter((event) => event.schemaVersion === 2);
     const sources = events.filter((event) => event.data.type === "owner_source_recorded");
     const outcomes = events.filter((event) => event.data.type === "owner_outcome_recorded");
     const contracts = events.filter((event) => event.data.type === "task_contract_recorded");
@@ -723,8 +740,8 @@ export class EventStore {
         && sha256(canonicalJson(data.bounded_execution)) !== data.bounded_execution_sha256) {
         throw new ContractInvariantError("GitHub decision receipt bounded-execution digest must bind the exact canonical residue.");
       }
-      this.assertUniqueDomainId(data.worker, data.type, "request_id", data.request_id);
-      this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id);
+      this.assertUniqueDomainId(data.worker, data.type, "request_id", data.request_id, validationHistory);
+      this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id, validationHistory);
     }
     if (data.type === "execution_directive_recorded") {
       const currentOutcome = outcomes.at(-1)?.data;
@@ -863,7 +880,7 @@ export class EventStore {
         || authorization.task_id !== data.task_id || !workExecutionProfilesEqual(authorization.authorized_profile, data.authorized_profile)) {
         throw new ContractInvariantError("Task-creation evidence must bind the current exact directive, task, and authorized profile.");
       }
-      this.assertUniqueDomainId(data.worker, data.type, "evidence_id", data.evidence_id);
+      this.assertUniqueDomainId(data.worker, data.type, "evidence_id", data.evidence_id, validationHistory);
     }
     if (data.type === "work_execution_preflight_recorded") {
       const authorization = [...events].reverse().find((event) => event.data.type === "work_execution_profile_authorized"
@@ -989,7 +1006,7 @@ export class EventStore {
           }
         }
         const telemetry = binding.routing_telemetry;
-        const eligibleCount = this.allEvents().filter((event) => event.data.type === "execution_receipt_recorded"
+        const eligibleCount = (validationHistory ?? this.allEvents()).filter((event) => event.data.type === "execution_receipt_recorded"
           && event.data.receipt_schema_version === 3
           && event.data.work_execution !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
           && event.data.work_execution.routing_telemetry.eligible).length;
@@ -1077,8 +1094,8 @@ export class EventStore {
       if (progressErrors.length) throw new ContractInvariantError(`Invalid outcome progress receipt: ${progressErrors.join("; ")}.`);
       if (data.outcome_advancement === "ADVANCING"
         && (data.previous_evidence.numeric_value === null || data.current_evidence.numeric_value === null)) {
-        this.validateQualitativeAdvancementEvidence(data.worker, "current", data.current_evidence);
-        this.validateQualitativeAdvancementEvidence(data.worker, "best", data.best_evidence);
+        this.validateQualitativeAdvancementEvidence(data.worker, "current", data.current_evidence, validationHistory);
+        this.validateQualitativeAdvancementEvidence(data.worker, "best", data.best_evidence, validationHistory);
       }
     }
     if (data.type === "supervision_route_recorded") {
@@ -1094,7 +1111,7 @@ export class EventStore {
         }
       }
       if (data.handoff_capsule_id && data.handoff_capsule_sha256 && data.accepted_state_vector_sha256) {
-        const acceptedEvents = this.workerEvents(data.worker)
+        const acceptedEvents = this.eventsForWorkerValidation(data.worker, validationHistory)
           .filter((event) => event.sequence <= data.authority_high_water_sequence);
         const acceptedStateVectorSha256 = authorityStateVectorHash(acceptedEvents);
         if (data.accepted_state_vector_sha256 !== acceptedStateVectorSha256) {
@@ -1126,7 +1143,7 @@ export class EventStore {
     }
   }
 
-  private validateCorrection(envelope: AppendEnvelope) {
+  private validateCorrection(envelope: AppendEnvelope, validationHistory?: readonly StoredEvent[]) {
     const data = envelope.data;
     if ("owner_action" in data) {
       const continuationPolicy = "continuation_policy" in data ? data.continuation_policy : undefined;
@@ -1136,12 +1153,13 @@ export class EventStore {
         continuationPolicy?.basis_finding_ids ?? [],
         continuationPolicy?.basis_evidence_ids ?? [],
         data.type === "finding_recorded" ? data.finding_id : undefined,
+        validationHistory,
       );
     }
-    if (data.type === "owner_source_recorded") this.assertUniqueDomainId(data.worker, "owner_source_recorded", "receipt_id", data.receipt_id);
-    if (data.type === "objective_reconciliation_recorded") this.assertUniqueDomainId(data.worker, data.type, "reconciliation_id", data.reconciliation_id);
+    if (data.type === "owner_source_recorded") this.assertUniqueDomainId(data.worker, "owner_source_recorded", "receipt_id", data.receipt_id, validationHistory);
+    if (data.type === "objective_reconciliation_recorded") this.assertUniqueDomainId(data.worker, data.type, "reconciliation_id", data.reconciliation_id, validationHistory);
     if (data.type === "evidence_receipt_recorded") {
-      this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id);
+      this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id, validationHistory);
       const manifest = data.changed_path_manifest;
       if (manifest) {
         const expected = sha256(canonicalJson({
@@ -1152,20 +1170,20 @@ export class EventStore {
         if (manifest.manifest_sha256 !== expected) throw new CorrectionInvariantError("Changed-path manifest digest must bind the complete base-to-candidate path list.");
       }
     }
-    if (data.type === "verification_validity_recorded") this.assertUniqueDomainId(data.worker, data.type, "context_id", data.context_id);
-    if (data.type === "owner_decision_recorded") this.assertUniqueDomainId(data.worker, data.type, "owner_decision_id", data.owner_decision_id);
-    if (data.type === "completion_claim_recorded") this.assertUniqueDomainId(data.worker, data.type, "claim_id", data.claim_id);
-    if (data.type === "reasoning_supervision_recorded") this.assertUniqueDomainId(data.worker, data.type, "decision_id", data.decision_id);
-    if (data.type === "execution_directive_recorded") this.assertUniqueDomainId(data.worker, data.type, "directive_id", data.directive_id);
-    if (data.type === "codex_execution_started") this.assertUniqueDomainId(data.worker, data.type, "execution_start_id", data.execution_start_id);
-    if (data.type === "execution_receipt_recorded") this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id);
-    if (data.type === "outcome_progress_recorded") this.assertUniqueDomainId(data.worker, data.type, "progress_receipt_id", data.progress_receipt_id);
-    if (data.type === "supervision_alert_recorded") this.assertUniqueDomainId(data.worker, data.type, "alert_id", data.alert_id);
+    if (data.type === "verification_validity_recorded") this.assertUniqueDomainId(data.worker, data.type, "context_id", data.context_id, validationHistory);
+    if (data.type === "owner_decision_recorded") this.assertUniqueDomainId(data.worker, data.type, "owner_decision_id", data.owner_decision_id, validationHistory);
+    if (data.type === "completion_claim_recorded") this.assertUniqueDomainId(data.worker, data.type, "claim_id", data.claim_id, validationHistory);
+    if (data.type === "reasoning_supervision_recorded") this.assertUniqueDomainId(data.worker, data.type, "decision_id", data.decision_id, validationHistory);
+    if (data.type === "execution_directive_recorded") this.assertUniqueDomainId(data.worker, data.type, "directive_id", data.directive_id, validationHistory);
+    if (data.type === "codex_execution_started") this.assertUniqueDomainId(data.worker, data.type, "execution_start_id", data.execution_start_id, validationHistory);
+    if (data.type === "execution_receipt_recorded") this.assertUniqueDomainId(data.worker, data.type, "receipt_id", data.receipt_id, validationHistory);
+    if (data.type === "outcome_progress_recorded") this.assertUniqueDomainId(data.worker, data.type, "progress_receipt_id", data.progress_receipt_id, validationHistory);
+    if (data.type === "supervision_alert_recorded") this.assertUniqueDomainId(data.worker, data.type, "alert_id", data.alert_id, validationHistory);
     if (data.type === "finding_recorded") {
-      const duplicate = this.workerEvents(data.worker)
+      const duplicate = this.eventsForWorkerValidation(data.worker, validationHistory)
         .some((event) => event.data.type === "finding_recorded" && event.data.finding_id === data.finding_id);
       if (duplicate) throw new CorrectionInvariantError("Finding records are immutable; change current status with a finding-status event.");
-      const events = this.workerEvents(data.worker);
+      const events = this.eventsForWorkerValidation(data.worker, validationHistory);
       const receipts = new Set(events.flatMap((event) => event.data.type === "evidence_receipt_recorded" ? [event.data.receipt_id] : []));
       if (data.evidence_receipt_ids.some((receiptId) => !receipts.has(receiptId))) {
         throw new CorrectionInvariantError("Findings must bind existing durable evidence receipts, not free-form evidence assertions.");
@@ -1173,7 +1191,7 @@ export class EventStore {
       return;
     }
     if (data.type === "finding_status_changed") {
-      const events = this.workerEvents(data.worker);
+      const events = this.eventsForWorkerValidation(data.worker, validationHistory);
       const finding = events.find((event) => event.data.type === "finding_recorded" && event.data.finding_id === data.finding_id);
       if (!finding) throw new CorrectionInvariantError("Finding status changes must bind an existing immutable finding.");
       let currentStatus = "OPEN";
@@ -1258,23 +1276,23 @@ export class EventStore {
     }
     if (data.type !== "correction_lifecycle_recorded") return;
     const findingIds = new Set(
-      this.workerEvents(data.worker)
+      this.eventsForWorkerValidation(data.worker, validationHistory)
         .filter((event) => event.data.type === "finding_recorded")
         .map((event) => event.data.type === "finding_recorded" ? event.data.finding_id : ""),
     );
     if (data.finding_ids.some((findingId) => !findingIds.has(findingId))) {
       throw new CorrectionInvariantError("Correction directives must bind existing finding IDs.");
     }
-    const reusedDirective = this.workerEvents(data.worker).find((event) => event.data.type === "correction_lifecycle_recorded"
+    const reusedDirective = this.eventsForWorkerValidation(data.worker, validationHistory).find((event) => event.data.type === "correction_lifecycle_recorded"
       && event.data.directive_id === data.directive_id && event.data.correction_attempt_id !== data.correction_attempt_id);
     if (reusedDirective) throw new CorrectionInvariantError("A directive ID cannot be reused across correction attempts.");
-    const priorEvent = this.workerEvents(data.worker)
+    const priorEvent = this.eventsForWorkerValidation(data.worker, validationHistory)
       .filter((event) => event.data.type === "correction_lifecycle_recorded" && event.data.correction_attempt_id === data.correction_attempt_id)
       .at(-1);
     const prior = priorEvent?.data;
     if (!priorEvent) {
       const currentStatuses = new Map<string, string>();
-      for (const event of this.workerEvents(data.worker)) {
+      for (const event of this.eventsForWorkerValidation(data.worker, validationHistory)) {
         if (event.data.type === "finding_recorded") currentStatuses.set(event.data.finding_id, "OPEN");
         if (event.data.type === "finding_status_changed") currentStatuses.set(event.data.finding_id, event.data.status);
       }
@@ -1284,7 +1302,7 @@ export class EventStore {
       }
     }
     validateCorrectionTransition(data, prior?.type === "correction_lifecycle_recorded" ? prior : undefined, priorEvent?.eventId);
-    const workerEvents = this.workerEvents(data.worker);
+    const workerEvents = this.eventsForWorkerValidation(data.worker, validationHistory);
     const currentContract = [...workerEvents].reverse().find((event) => event.data.type === "task_contract_recorded")?.data;
     const currentOutcome = [...workerEvents].reverse().find((event) => event.data.type === "owner_outcome_recorded")?.data;
     if (data.status !== "CORRECTION_REOPENED") {
@@ -1337,7 +1355,7 @@ export class EventStore {
     }
     if (data.status === "CORRECTION_RESOLVED") {
       const currentStatuses = new Map<string, string>();
-      for (const event of this.workerEvents(data.worker)) {
+      for (const event of this.eventsForWorkerValidation(data.worker, validationHistory)) {
         if (event.data.type === "finding_recorded") currentStatuses.set(event.data.finding_id, "OPEN");
         if (event.data.type === "finding_status_changed") currentStatuses.set(event.data.finding_id, event.data.status);
       }
@@ -1358,7 +1376,12 @@ export class EventStore {
     }
   }
 
-  private validateWorkerChannel(envelope: AppendEnvelope, producer: AuthenticatedProducer, receivedAt: string) {
+  private validateWorkerChannel(
+    envelope: AppendEnvelope,
+    producer: AuthenticatedProducer,
+    receivedAt: string,
+    validationHistory?: readonly StoredEvent[],
+  ) {
     const data = envelope.data;
     if (data.type === "change_proposal_recorded") {
       throw new ContractInvariantError(
@@ -1369,7 +1392,7 @@ export class EventStore {
       "worker_message_recorded", "direction_acknowledged", "work_queue_published", "direction_reconciled",
       "structured_blocker_recorded"].includes(data.type)) return;
     if (!data.worker) throw new ContractInvariantError("Worker-channel events require a worker identity.");
-    const events = this.workerEvents(data.worker);
+    const events = this.eventsForWorkerValidation(data.worker, validationHistory);
     const ownerMessages = events.filter((event) => event.data.type === "owner_message_recorded");
     const directionMessage = (directionId: string) => ownerMessages.find((event) => event.data.type === "owner_message_recorded"
       && event.data.direction_id === directionId);
@@ -1436,7 +1459,7 @@ export class EventStore {
       if (!message || delivered?.type !== "outbound_delivery_lifecycle_recorded" || delivered.status !== "DELIVERED") {
         throw new ContractInvariantError("A message acknowledgement requires the exact delivered same-worker message.");
       }
-      this.assertUniqueDomainId(data.worker, data.type, "acknowledgement_id", data.acknowledgement_id);
+      this.assertUniqueDomainId(data.worker, data.type, "acknowledgement_id", data.acknowledgement_id, validationHistory);
       return;
     }
 
@@ -1463,7 +1486,7 @@ export class EventStore {
           }, continuation, receivedAt);
         }
       }
-      this.assertUniqueDomainId(data.worker, data.type, "message_id", data.message_id);
+      this.assertUniqueDomainId(data.worker, data.type, "message_id", data.message_id, validationHistory);
       if (data.reply_to_message_id && !events.some((event) => (event.data.type === "owner_message_recorded" || event.data.type === "worker_message_recorded")
         && event.data.message_id === data.reply_to_message_id)) {
         throw new ContractInvariantError("Worker replies must bind an existing same-worker channel message.");
@@ -1480,7 +1503,7 @@ export class EventStore {
       if (!events.some((event) => event.data.type === "outbound_message_acknowledged" && event.data.message_id === data.message_id)) {
         throw new ContractInvariantError("Direction interpretation cannot precede transport acknowledgement.");
       }
-      this.assertUniqueDomainId(data.worker, data.type, "acknowledgement_id", data.acknowledgement_id);
+      this.assertUniqueDomainId(data.worker, data.type, "acknowledgement_id", data.acknowledgement_id, validationHistory);
       return;
     }
 
@@ -1489,7 +1512,7 @@ export class EventStore {
       if (!events.some((event) => event.data.type === "direction_acknowledged" && event.data.direction_id === data.direction_id)) {
         throw new ContractInvariantError("A worker must acknowledge a direction before publishing its direction-bound queue.");
       }
-      this.assertUniqueDomainId(data.worker, data.type, "queue_revision_id", data.queue_revision_id);
+      this.assertUniqueDomainId(data.worker, data.type, "queue_revision_id", data.queue_revision_id, validationHistory);
       const priorQueue = events.findLast((event) => event.data.type === "work_queue_published" && event.data.direction_id === data.direction_id)?.data;
       const expectedRevision = priorQueue?.type === "work_queue_published" ? priorQueue.revision + 1 : 1;
       const expectedPrevious = priorQueue?.type === "work_queue_published" ? priorQueue.queue_revision_id : null;
@@ -1508,7 +1531,7 @@ export class EventStore {
       if (queue?.type !== "work_queue_published" || queue.direction_id !== data.direction_id) {
         throw new ContractInvariantError("Direction reconciliation must bind an exact queue revision for the same direction.");
       }
-      this.assertUniqueDomainId(data.worker, data.type, "reconciliation_id", data.reconciliation_id);
+      this.assertUniqueDomainId(data.worker, data.type, "reconciliation_id", data.reconciliation_id, validationHistory);
       return;
     }
 
@@ -1526,8 +1549,14 @@ export class EventStore {
     }
   }
 
-  private assertUniqueDomainId(worker: string, type: MissionControlEventV2["type"], field: string, value: string) {
-    const duplicate = this.workerEvents(worker).some((event) => event.data.type === type
+  private assertUniqueDomainId(
+    worker: string,
+    type: MissionControlEventV2["type"],
+    field: string,
+    value: string,
+    validationHistory?: readonly StoredEvent[],
+  ) {
+    const duplicate = this.eventsForWorkerValidation(worker, validationHistory).some((event) => event.data.type === type
       && (event.data as unknown as Record<string, unknown>)[field] === value);
     if (duplicate) throw new CorrectionInvariantError(`${type}.${field} must be unique within the worker ledger.`);
   }
@@ -1536,10 +1565,11 @@ export class EventStore {
     worker: string,
     boundary: "current" | "best",
     evidence: Extract<MissionControlEventV2, { type: "outcome_progress_recorded" }>["current_evidence"],
+    validationHistory?: readonly StoredEvent[],
   ) {
     const directClasses = new Set(["TEST", "ARTIFACT", "SEMANTIC_REVIEW", "OWNER_OBSERVATION", "RESEARCH_VERDICT"]);
     for (const receiptId of evidence.evidence_receipt_ids) {
-      const matching = this.allEvents().filter((event) => event.data.type === "evidence_receipt_recorded"
+      const matching = (validationHistory ?? this.allEvents()).filter((event) => event.data.type === "evidence_receipt_recorded"
         && event.data.receipt_id === receiptId);
       const receiptEvent = matching.find((event) => event.worker === worker);
       const receipt = receiptEvent?.data;
@@ -1562,16 +1592,42 @@ export class EventStore {
     findingIds: string[],
     evidenceIds: string[],
     pendingFindingId?: string,
+    validationHistory?: readonly StoredEvent[],
   ) {
     if (sourceEventIds.some((eventId) => {
       const source = this.eventByEventId(eventId);
       return !source || source.worker !== worker;
     })) throw new CorrectionInvariantError("Owner-action source_event_ids must exist in the same worker ledger.");
-    const events = this.workerEvents(worker);
+    const events = this.eventsForWorkerValidation(worker, validationHistory);
     const findings = new Set(events.flatMap((event) => event.data.type === "finding_recorded" ? [event.data.finding_id] : []));
     const evidence = new Set(events.flatMap((event) => event.data.type === "evidence_receipt_recorded" ? [event.data.receipt_id] : []));
     if (findingIds.some((findingId) => findingId !== pendingFindingId && !findings.has(findingId))) throw new CorrectionInvariantError("Continuation-policy finding bases must exist.");
     if (evidenceIds.some((evidenceId) => !evidence.has(evidenceId))) throw new CorrectionInvariantError("Continuation-policy evidence bases must exist.");
+  }
+
+  private eventsForWorkerValidation(worker: string, validationHistory?: readonly StoredEvent[]): StoredEvent[] {
+    return validationHistory
+      ? validationHistory.filter((event) => event.worker === worker)
+      : this.workerEvents(worker);
+  }
+
+  private assertValidationHistoryCurrent(validationHistory: readonly StoredEvent[]) {
+    const durableLatest = this.latestSequence();
+    if (validationHistory.length !== durableLatest
+      || (validationHistory.at(-1)?.sequence ?? 0) !== durableLatest) {
+      throw new ContractInvariantError("Preloaded append-validation history must cover the complete current durable sequence.");
+    }
+    let previousHash: string | null = null;
+    for (let index = 0; index < validationHistory.length; index += 1) {
+      const event = validationHistory[index]!;
+      if (event.sequence !== index + 1 || event.previousHash !== previousHash) {
+        throw new ContractInvariantError("Preloaded append-validation history must preserve exact durable ordering and hash linkage.");
+      }
+      previousHash = event.eventHash;
+    }
+    if (durableLatest > 0 && this.eventHashAtSequence(durableLatest) !== previousHash) {
+      throw new ContractInvariantError("Preloaded append-validation history must match the current durable hash anchor.");
+    }
   }
 
   private verificationStillCurrent(events: StoredEvent[], verification: Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }>): boolean {

@@ -63,6 +63,40 @@ test("file-backed reconciliation cache stays incremental, reconstructs on restar
     assert.equal(cachedSnapshot.latestEventId, 12_000);
     assert.equal(fullHistoryLoads, 1, "read projections must reuse the same parsed durable history");
 
+    const originalWorkerEvents = store.workerEvents.bind(store);
+    let workerHistoryLoads = 0;
+    const workerProducer = {
+      id: "worker:cache-test",
+      kind: "WORKER" as const,
+      workerScopes: ["mission-control-live-slice"],
+      taskScopes: ["*"],
+    };
+    const cachedHistory = cache.eventsForRead(store);
+    assert.throws(
+      () => store.append(
+        { ...workerConnectionEnvelope(), event_id: "cache-fixture-worker-connection-incomplete-history" },
+        occurredAt,
+        workerProducer,
+        cachedHistory.slice(1),
+      ),
+      /complete current durable sequence/,
+      "incomplete cached validation history must fail closed before append",
+    );
+    store.workerEvents = (worker) => {
+      workerHistoryLoads += 1;
+      return originalWorkerEvents(worker);
+    };
+    const connection = store.append(
+      workerConnectionEnvelope(),
+      occurredAt,
+      workerProducer,
+      cachedHistory,
+    );
+    store.workerEvents = originalWorkerEvents;
+    assert.equal(workerHistoryLoads, 0, "cached append validation must not reparse the worker's full durable history");
+    assert.equal(cache.eventsForRead(store).filter((event) => event.eventId === connection.eventId).length, 1,
+      "an externally appended event must enter the shared cache exactly once");
+
     store.append(evidenceEnvelope("chat-capability-challenge:challenge-spec", capabilityChallengeSummary, [
       "challenge:challenge-spec",
       "chat:spec-bootstrap",
@@ -117,7 +151,7 @@ test("file-backed reconciliation cache stays incremental, reconstructs on restar
     const restarted = new EventStore(filename);
     try {
       const restartedCache = GitHubReconciliationEventCache.fromStore(restarted);
-      assert.equal(restartedCache.eventsForCycle(restarted).length, 12_003);
+      assert.equal(restartedCache.eventsForCycle(restarted).length, 12_004);
       assert.equal(restarted.verifyChain().valid, true);
     } finally {
       restarted.close();
@@ -161,7 +195,7 @@ test("file-backed reconciliation cache stays incremental, reconstructs on restar
       const snapshot = await fetch(`${origin}/snapshot`, { signal: AbortSignal.timeout(2_000) });
       latencies.push(Date.now() - snapshotStartedAt);
       assert.equal(snapshot.status, 200);
-      assert.equal((await snapshot.json()).latestEventId, 12_003);
+      assert.equal((await snapshot.json()).latestEventId, 12_004);
       await delay(100);
     }
     assert.equal(output().includes("github_supervision_reconciliation_completed"), false,
@@ -239,6 +273,27 @@ function reviewEnvelope(index: number) {
       type: "review_marked",
       worker: null,
       reviewed_through_sequence: index,
+    },
+  };
+}
+
+function workerConnectionEnvelope() {
+  return {
+    schema_version: 2,
+    event_id: "cache-fixture-worker-connection",
+    mission_id: "mission-control-live",
+    occurred_at: occurredAt,
+    data: {
+      type: "worker_connection_observed",
+      worker: "mission-control-live-slice",
+      connection_id: "connection:cache-test",
+      state: "CONNECTED",
+      runtime_kind: "POLLING_SIDECAR",
+      endpoint_id: "worker:cache-test:poll",
+      observed_at: occurredAt,
+      lease_expires_at: "2026-09-02T00:05:00.000Z",
+      source: null,
+      detail: "Cached append-validation regression fixture.",
     },
   };
 }

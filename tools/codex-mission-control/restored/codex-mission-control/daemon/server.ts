@@ -152,7 +152,7 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       const envelope = parseAppendEnvelope(await readJson(request));
       if (!producerMayEmit(producer, envelope.data)) return json(response, 403, { error: `Producer ${producer.id} cannot emit ${envelope.data.type}.` });
-      const event = store.append(envelope, undefined, producer);
+      const event = store.append(envelope, undefined, producer, eventHistory());
       notifications.emit("event", event);
       const routingCheckpoints = appendWorkRoutingCheckpoints();
       return json(response, 201, { event, routingCheckpoints });
@@ -241,7 +241,7 @@ const server = http.createServer(async (request, response) => {
       if (envelopes.some((envelope) => envelope.data.worker !== worker || !producerMayEmit(producer, envelope.data))) {
         return json(response, 403, { error: "Worker-channel events must match the authenticated worker and its allowed event families." });
       }
-      const events = store.appendMany(envelopes.map((event) => ({ event, producer })));
+      const events = store.appendMany(envelopes.map((event) => ({ event, producer })), eventHistory());
       notifications.emit("event", events.at(-1));
       const routingCheckpoints = appendWorkRoutingCheckpoints();
       return json(response, 201, { events, routingCheckpoints, cursor: store.latestSequence() });
@@ -265,7 +265,7 @@ const server = http.createServer(async (request, response) => {
           supervisor_chat_label: body.supervisor_chat_label,
           reason: body.reason,
         },
-      }, undefined, producer);
+      }, undefined, producer, eventHistory());
       notifications.emit("event", event);
       return json(response, 201, { event });
     }
@@ -289,7 +289,8 @@ const server = http.createServer(async (request, response) => {
 });
 
 function appendWorkRoutingCheckpoints() {
-  const envelopes = buildWorkRoutingCheckpointEnvelopes(eventHistory());
+  const history = eventHistory();
+  const envelopes = buildWorkRoutingCheckpointEnvelopes(history);
   if (envelopes.length === 0) return [];
   const systemProducer: AuthenticatedProducer = {
     id: "system:work-model-routing-telemetry",
@@ -297,7 +298,7 @@ function appendWorkRoutingCheckpoints() {
     workerScopes: ["*"],
     taskScopes: ["*"],
   };
-  const appended = store.appendMany(envelopes.map((event) => ({ event, producer: systemProducer })));
+  const appended = store.appendMany(envelopes.map((event) => ({ event, producer: systemProducer })), history);
   notifications.emit("event", appended.at(-1));
   return appended;
 }

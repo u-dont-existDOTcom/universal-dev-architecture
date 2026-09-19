@@ -254,11 +254,11 @@ export function ensureConfiguredCapabilityChallenges(
   startupEvents?: StoredEvent[],
 ) {
   if (!policy) return [];
-  const events = startupEvents ?? store.allEvents(), appended: StoredEvent[] = [];
+  const events = [...(startupEvents ?? store.allEvents())], appended: StoredEvent[] = [];
   for (const challenge of policy.capabilityChallenges) {
     const receiptId = `chat-capability-challenge:${challenge.challengeId}`;
     if (events.some((e) => e.data.type === "evidence_receipt_recorded" && e.data.receipt_id === receiptId)) continue;
-    appended.push(store.append(evidenceEnvelope({
+    const event = store.append(evidenceEnvelope({
       worker: challenge.worker, receiptId, producer: githubReceiptCollector, summary: capabilityChallengeSummary, occurredAt: now, verified: true,
       refs: [
         `challenge:${challenge.challengeId}`, `chat:${challenge.chatId}`, `mc_nonce:${challenge.mcNonce}`,
@@ -269,7 +269,9 @@ export function ensureConfiguredCapabilityChallenges(
         `stage_receipt_target:https://github.com/${policy.repository}/issues/${policy.stageIssueNumber}`,
         `expires_at:${challenge.expiresAt}`, ...consumerControlRefs(challenge),
       ],
-    }), now, githubReceiptCollector));
+    }), now, githubReceiptCollector, events);
+    appended.push(event);
+    events.push(event);
   }
   return appended;
 }
@@ -382,13 +384,13 @@ function ingestGitHubSupervisionCandidateFromEvents(
         { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
         ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
         { event: resolution, receivedAt: ingestedAt, producer },
-      ]);
+      ], events);
     }
     return store.appendMany([
       { event: envelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
       { event: attestationEnvelope, receivedAt: ingestedAt, producer: githubReceiptCollector },
       ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
-    ]);
+    ], events);
   }
   if (candidate.body.startsWith(capabilityReceiptCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.capabilityIssueNumber) throw new Error("Capability receipt arrived outside the configured GitHub capability channel.");
@@ -402,7 +404,7 @@ function ingestGitHubSupervisionCandidateFromEvents(
     return [store.append(evidenceEnvelope({
       worker: challenge.worker, receiptId, producer: githubReceiptCollector, summary: capabilityVerifiedSummary, occurredAt: candidate.createdAt, verified: true,
       refs: [`challenge:${challenge.challengeId}`, `supervisor:${challenge.supervisorId}`, `chat:${challenge.chatId}`, "capability:missionControlRead", "capability:githubRead", "capability:githubWrite", `expires_at:${challenge.expiresAt}`, `github_comment:${candidate.immutableUrl}`],
-    }), ingestedAt, githubReceiptCollector)];
+    }), ingestedAt, githubReceiptCollector, events)];
   }
   if (candidate.body.startsWith(stageReceiptCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.stageIssueNumber) throw new Error("Stage receipt arrived outside the configured GitHub stage-liveness channel.");
@@ -442,7 +444,7 @@ function ingestGitHubSupervisionCandidateFromEvents(
         ...(stage.evidenceReadingCapsule ? [`evidence_reading_capsule:${stage.evidenceReadingCapsule.id}`, `evidence_reading_capsule_sha256:${stage.evidenceReadingCapsule.sha256}`] : []),
         ...(stage.proDecisionBlock ? [`pro_decision_id:${stage.proDecisionBlock.decisionId}`, `pro_decision_sha256:${stage.proDecisionBlock.sha256}`, "semantic_authority:PRO"] : ["semantic_authority:false"]),
       ],
-    }), ingestedAt, githubReceiptCollector)];
+    }), ingestedAt, githubReceiptCollector, events)];
   }
   throw new Error("GitHub comment is not a recognized Mission Control supervision receipt.");
 }
