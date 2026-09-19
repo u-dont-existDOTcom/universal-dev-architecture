@@ -34,6 +34,15 @@ export class IdempotencyConflictError extends Error {}
 export class LedgerIntegrityError extends Error {}
 export class WriterLockError extends Error {}
 
+export type FleetSupervisorWatchState = "ACTIVE" | "PAUSED" | "TERMINAL" | "DISABLED";
+export interface FleetSupervisorWatchRecord {
+  projectId: string; taskId: string; worker: string; state: FleetSupervisorWatchState;
+  cadenceMs: number; nextTickAt: string | null; lastTickAt: string | null;
+  lastTrigger: string | null; lastResult: string | null; notificationDisposition: string;
+  notificationReason: string | null; notificationFingerprint: string | null;
+  lastNotifiedAt: string | null; updatedAt: string;
+}
+
 interface EventHashInput {
   schemaVersion: 1 | 2;
   eventId: string;
@@ -88,6 +97,78 @@ export class EventStore {
       ? this.db.prepare("SELECT COUNT(*) AS count FROM events").get()
       : this.db.prepare("SELECT COUNT(*) AS count FROM events WHERE schema_version = ?").get(schemaVersion)) as { count: number };
     return Number(row.count);
+  }
+
+  ensureFleetSupervisorWatch(projectId: string, taskId: string, worker: string, now = new Date().toISOString(), cadenceMs = 3_600_000) {
+    const nextTickAt = new Date(Date.parse(now) + cadenceMs).toISOString();
+    this.db.prepare(`INSERT INTO fleet_supervisor_watches(
+      project_id, task_id, worker, state, cadence_ms, next_tick_at, last_tick_at,
+      last_trigger, last_result, notification_disposition, notification_reason,
+      notification_fingerprint, last_notified_at, updated_at
+    ) VALUES (?, ?, ?, 'ACTIVE', ?, ?, NULL, NULL, NULL, 'NONE', NULL, NULL, NULL, ?)
+    ON CONFLICT(project_id) DO UPDATE SET task_id = excluded.task_id, worker = excluded.worker, updated_at = excluded.updated_at
+    WHERE fleet_supervisor_watches.state = 'ACTIVE'`)
+      .run(projectId, taskId, worker, cadenceMs, nextTickAt, now);
+    return this.fleetSupervisorWatch(projectId)!;
+  }
+
+  configureFleetSupervisorWatch(projectId: string, input: { state?: FleetSupervisorWatchState; cadenceMs?: number }, now = new Date().toISOString()) {
+    const current = this.fleetSupervisorWatch(projectId);
+    if (!current) throw new ContractInvariantError(`Fleet supervisor watch ${projectId} does not exist.`);
+    const state = input.state ?? current.state;
+    const cadenceMs = input.cadenceMs ?? current.cadenceMs;
+    if (!Number.isInteger(cadenceMs) || cadenceMs < 60_000 || cadenceMs > 604_800_000) {
+      throw new ContractInvariantError("Fleet supervisor cadence must be 60000-604800000 ms.");
+    }
+    const nextTickAt = state === "ACTIVE" ? new Date(Date.parse(now) + cadenceMs).toISOString() : null;
+    this.db.prepare("UPDATE fleet_supervisor_watches SET state = ?, cadence_ms = ?, next_tick_at = ?, updated_at = ? WHERE project_id = ?")
+      .run(state, cadenceMs, nextTickAt, now, projectId);
+    return this.fleetSupervisorWatch(projectId)!;
+  }
+
+  fleetSupervisorWatch(projectId: string): FleetSupervisorWatchRecord | null {
+    const row = this.db.prepare("SELECT * FROM fleet_supervisor_watches WHERE project_id = ?").get(projectId) as Record<string, unknown> | undefined;
+    return row ? toFleetSupervisorWatch(row) : null;
+  }
+
+  fleetSupervisorWatches(): FleetSupervisorWatchRecord[] {
+    return (this.db.prepare("SELECT * FROM fleet_supervisor_watches ORDER BY project_id").all() as Array<Record<string, unknown>>).map(toFleetSupervisorWatch);
+  }
+
+  dueFleetSupervisorWatches(now = new Date().toISOString()): FleetSupervisorWatchRecord[] {
+    return (this.db.prepare("SELECT * FROM fleet_supervisor_watches WHERE state = 'ACTIVE' AND next_tick_at IS NOT NULL AND next_tick_at <= ? ORDER BY next_tick_at, project_id").all(now) as Array<Record<string, unknown>>).map(toFleetSupervisorWatch);
+  }
+
+  completeFleetSupervisorTick(input: {
+    projectId: string; dueAt: string; tickAt: string; trigger: string; result: string;
+    state: FleetSupervisorWatchState; notificationDisposition: string; notificationReason: string | null;
+    notificationFingerprint: string | null; notifiedAt: string | null;
+  }): boolean {
+    const watch = this.fleetSupervisorWatch(input.projectId);
+    if (!watch || watch.state !== "ACTIVE" || watch.nextTickAt !== input.dueAt) return false;
+    const nextTickAt = input.state === "ACTIVE" ? new Date(Date.parse(input.tickAt) + watch.cadenceMs).toISOString() : null;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const changed = this.db.prepare(`UPDATE fleet_supervisor_watches SET state = ?, next_tick_at = ?, last_tick_at = ?,
+        last_trigger = ?, last_result = ?, notification_disposition = ?, notification_reason = ?,
+        notification_fingerprint = ?, last_notified_at = COALESCE(?, last_notified_at), updated_at = ?
+        WHERE project_id = ? AND state = 'ACTIVE' AND next_tick_at = ?`)
+        .run(input.state, nextTickAt, input.tickAt, input.trigger, input.result, input.notificationDisposition,
+          input.notificationReason, input.notificationFingerprint, input.notifiedAt, input.tickAt, input.projectId, input.dueAt);
+      if (Number(changed.changes) !== 1) { this.db.exec("ROLLBACK"); return false; }
+      this.db.prepare(`INSERT INTO fleet_supervisor_ticks(project_id, task_id, worker, due_at, tick_at, trigger,
+        result, notification_disposition, notification_reason, notification_fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(watch.projectId, watch.taskId, watch.worker, input.dueAt, input.tickAt, input.trigger, input.result,
+          input.notificationDisposition, input.notificationReason, input.notificationFingerprint);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
+  fleetSupervisorTicks(projectId?: string): Array<Record<string, unknown>> {
+    return (projectId
+      ? this.db.prepare("SELECT * FROM fleet_supervisor_ticks WHERE project_id = ? ORDER BY sequence").all(projectId)
+      : this.db.prepare("SELECT * FROM fleet_supervisor_ticks ORDER BY sequence").all()) as Array<Record<string, unknown>>;
   }
 
   append(
@@ -148,6 +229,10 @@ export class EventStore {
       authenticatedProducer.id,
       authenticatedProducer.kind,
     );
+    if (envelope.data.type === "work_queue_published"
+      && envelope.data.items.some((item) => !["DONE", "SUPERSEDED", "CANCELED"].includes(item.status))) {
+      this.ensureFleetSupervisorWatch(envelope.data.project_id, envelope.data.task_id, envelope.data.worker, receivedAt);
+    }
     return this.eventBySequence(Number(result.lastInsertRowid))!;
   }
 
@@ -496,6 +581,21 @@ export class EventStore {
       );
       CREATE INDEX IF NOT EXISTS provider_submission_authority_ledger_domain_sequence
         ON provider_submission_authority_ledger(pacing_domain, sequence);
+      CREATE TABLE IF NOT EXISTS fleet_supervisor_watches (
+        project_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, worker TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('ACTIVE', 'PAUSED', 'TERMINAL', 'DISABLED')),
+        cadence_ms INTEGER NOT NULL CHECK (cadence_ms >= 60000 AND cadence_ms <= 604800000),
+        next_tick_at TEXT, last_tick_at TEXT, last_trigger TEXT, last_result TEXT,
+        notification_disposition TEXT NOT NULL, notification_reason TEXT,
+        notification_fingerprint TEXT, last_notified_at TEXT, updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS fleet_supervisor_watches_due ON fleet_supervisor_watches(state, next_tick_at);
+      CREATE TABLE IF NOT EXISTS fleet_supervisor_ticks (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT NOT NULL, task_id TEXT NOT NULL,
+        worker TEXT NOT NULL, due_at TEXT NOT NULL, tick_at TEXT NOT NULL, trigger TEXT NOT NULL,
+        result TEXT NOT NULL, notification_disposition TEXT NOT NULL, notification_reason TEXT,
+        notification_fingerprint TEXT, UNIQUE(project_id, due_at)
+      );
       PRAGMA user_version = 2;
     `);
     const columns = this.db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
@@ -1716,6 +1816,22 @@ function toStoredEvent(row: Record<string, unknown>): StoredEvent {
     producerId: String(row.producer_id),
     producerKind: String(row.producer_kind),
     data,
+  };
+}
+
+function toFleetSupervisorWatch(row: Record<string, unknown>): FleetSupervisorWatchRecord {
+  return {
+    projectId: String(row.project_id), taskId: String(row.task_id), worker: String(row.worker),
+    state: String(row.state) as FleetSupervisorWatchState, cadenceMs: Number(row.cadence_ms),
+    nextTickAt: row.next_tick_at === null ? null : String(row.next_tick_at),
+    lastTickAt: row.last_tick_at === null ? null : String(row.last_tick_at),
+    lastTrigger: row.last_trigger === null ? null : String(row.last_trigger),
+    lastResult: row.last_result === null ? null : String(row.last_result),
+    notificationDisposition: String(row.notification_disposition),
+    notificationReason: row.notification_reason === null ? null : String(row.notification_reason),
+    notificationFingerprint: row.notification_fingerprint === null ? null : String(row.notification_fingerprint),
+    lastNotifiedAt: row.last_notified_at === null ? null : String(row.last_notified_at),
+    updatedAt: String(row.updated_at),
   };
 }
 

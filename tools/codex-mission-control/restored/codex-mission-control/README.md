@@ -105,6 +105,16 @@ an edited immutable comment identity is rejected; and a WORKER cannot emit the
 equivalent authority event. Existing verified and owner-attested direct-source
 directives remain supported without reinterpretation.
 
+## Native fleet supervisor
+
+Every nonterminal project queue is enrolled automatically in the daemon-owned fleet supervisor. The default cadence is 3,600,000 ms (one hour); authenticated owner surfaces can set a project cadence or mark its watch `ACTIVE`, `PAUSED`, `TERMINAL`, or `DISABLED` through `/fleet-supervisor/:projectId`. Paused, terminal, and disabled watches have no next tick.
+
+Each tick performs deterministic ledger, project, queue, outcome-progress, strategy, reasoning-review, continuity, blocker, owner-action, terminality, and pre-send/process-recovery checks before any deeper route. Strategy decisions are queued through the existing Project Manager reasoning lane; a tick never authors a replacement strategy or broadens provider-send, spend, permission, scientific, safety, publication, invalidation, or no-resend authority.
+
+Healthy, externally blocked, mechanically recoverable, and reasoning-routed ticks are owner-silent. Notification is limited and fingerprint-deduplicated to an owner decision, unavoidable owner/manual authentication or permission, project integrity/validity failure or INDETERMINATE state, owner-authority strategy replacement, or a terminal result. The dashboard shows watch state, cadence, last/next tick, trigger/result, and notification disposition/reason.
+
+The external hourly watch remains a temporary fallback, not a runtime dependency. It may be retired separately only after the merged native deployment passes live acceptance.
+
 ## Architecture
 
 ```text
