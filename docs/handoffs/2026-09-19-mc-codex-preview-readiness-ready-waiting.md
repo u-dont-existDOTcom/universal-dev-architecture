@@ -1,6 +1,10 @@
 # Mission Control Codex preview readiness — ready and waiting
 
-Status: `READY_WAITING_FOR_FIRST_NATURAL_CODEX_LOCAL`
+Status: `SUPERSEDED_BY_CONCURRENT_ROOT_REFENCE`
+
+This file preserves the verified transient readiness interval. The actual final
+state is recorded in
+`docs/handoffs/2026-09-19-mc-codex-preview-readiness-concurrent-refence-blocked.md`.
 
 Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**
 
@@ -151,6 +155,8 @@ environment credential exclusion, process/timeout result, and exact execution
 receipt. Chat, not the executor, adjudicates that pilot.
 
 No task was fabricated to prove installation.
+
+Historical transient result before the concurrent root action:
 
 `READY_WAITING_FOR_FIRST_NATURAL_CODEX_LOCAL: YES`
 
