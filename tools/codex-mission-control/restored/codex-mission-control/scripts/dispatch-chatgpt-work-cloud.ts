@@ -7,12 +7,13 @@ import {
   HttpWorkCloudEventSink,
   appVersionFromEnvironment,
   capabilityEvidenceFromTools,
+  connectCodexAppServerMutationBridge,
   connectNativeAppToolClient,
   type WorkCloudAppToolClient,
+  type WorkCloudProductMutationBridge,
 } from "../lib/chatgpt-work-cloud-controller";
 import {
   dispatchAndRecordChatGptWorkCloud,
-  type WorkCloudApprovalState,
   type WorkCloudDirectiveBinding,
   type WorkCloudDispatchMode,
 } from "../lib/chatgpt-work-cloud-dispatch";
@@ -31,7 +32,6 @@ interface ControllerRequest {
   existingWorkThreadId: string | null;
   prompt?: string;
   promptFile?: string;
-  approvalState: WorkCloudApprovalState;
   requestedAt?: string;
 }
 
@@ -47,6 +47,7 @@ const token = requiredEnvironment("MISSION_CONTROL_INTERNAL_TOKEN");
 const baseUrl = process.env.MISSION_CONTROL_DAEMON_URL ?? "http://127.0.0.1:4100";
 const observedAt = new Date().toISOString();
 let appClient: WorkCloudAppToolClient | null = null;
+let mutationBridge: WorkCloudProductMutationBridge | null = null;
 let executor: NativeChatGptWorkCloudExecutor | null = null;
 let capabilityEvidence = capabilityEvidenceFromTools([], appVersionFromEnvironment(), observedAt);
 let setupError: string | null = null;
@@ -60,10 +61,22 @@ try {
       ?? requiredEnvironment("CODEX_THREAD_ID"),
   });
   const tools = await appClient.listTools();
-  capabilityEvidence = capabilityEvidenceFromTools(tools.tools, appVersionFromEnvironment(), observedAt);
-  executor = new NativeChatGptWorkCloudExecutor(appClient);
+  try {
+    const mutationConfig = productMutationConfigFromEnvironment();
+    if (mutationConfig) mutationBridge = await connectCodexAppServerMutationBridge(mutationConfig);
+    else setupError = productMutationApprovalGate();
+  } catch (error) {
+    setupError = error instanceof Error ? error.message : productMutationApprovalGate();
+  }
+  capabilityEvidence = capabilityEvidenceFromTools(
+    tools.tools,
+    appVersionFromEnvironment(),
+    observedAt,
+    mutationBridge !== null,
+  );
+  executor = new NativeChatGptWorkCloudExecutor(appClient, mutationBridge);
 } catch (error) {
-  setupError = error instanceof Error ? error.message : "Native app executor setup failed.";
+  setupError = error instanceof Error ? error.message : "Native app read/verification setup failed.";
 }
 
 const sink = new HttpWorkCloudEventSink({
@@ -85,13 +98,17 @@ try {
     chatgptProjectId: request.chatgptProjectId,
     existingWorkThreadId: request.existingWorkThreadId,
     prompt,
-    approvalState: request.approvalState,
     capabilityEvidence,
     requestedAt: request.requestedAt ?? observedAt,
     producerId: PRODUCER_ID,
   }, executor, sink, new Date().toISOString());
-  process.stdout.write(`${JSON.stringify({ ...completed, setupError }, null, 2)}\n`);
+  const approvalGate = completed.result.data.type === "chatgpt_work_cloud_dispatch_recorded"
+    && completed.result.data.status === "PENDING_APPROVAL"
+    ? setupError ?? "Accept the pending app-tool request in the configured Codex/ChatGPT product approval surface."
+    : null;
+  process.stdout.write(`${JSON.stringify({ ...completed, setupError, approvalGate }, null, 2)}\n`);
 } finally {
+  await mutationBridge?.close().catch(() => undefined);
   await appClient?.close().catch(() => undefined);
 }
 
@@ -127,4 +144,32 @@ function verifyDirectiveArtifact(request: ControllerRequest, requestDirectory: s
 
 function resolveFrom(base: string, target: string): string {
   return path.isAbsolute(target) ? target : path.resolve(base, target);
+}
+
+function productMutationConfigFromEnvironment(): {
+  command: string;
+  args: string[];
+  threadId: string;
+  appServerName: string;
+} | null {
+  const names = [
+    "MISSION_CONTROL_CODEX_APP_SERVER_COMMAND",
+    "MISSION_CONTROL_CODEX_APP_SERVER_ARGS_JSON",
+    "MISSION_CONTROL_CODEX_APP_SERVER_THREAD_ID",
+    "MISSION_CONTROL_CHATGPT_APP_SERVER_NAME",
+  ] as const;
+  const values = names.map((name) => process.env[name]?.trim() ?? "");
+  if (values.every((value) => !value)) return null;
+  if (values.some((value) => !value)) {
+    throw new Error(`Product-approved mutation bridge requires ${names.join(", ")}.`);
+  }
+  const args = JSON.parse(values[1]) as unknown;
+  if (!Array.isArray(args) || args.some((value) => typeof value !== "string")) {
+    throw new Error("MISSION_CONTROL_CODEX_APP_SERVER_ARGS_JSON must be a JSON array of strings.");
+  }
+  return { command: values[0], args, threadId: values[2], appServerName: values[3] };
+}
+
+function productMutationApprovalGate(): string {
+  return "Configure the authenticated Codex app-server product-tool route for this controller; direct bundled-MCP mutation is forbidden.";
 }

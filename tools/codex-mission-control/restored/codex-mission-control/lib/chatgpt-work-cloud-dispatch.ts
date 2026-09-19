@@ -36,7 +36,6 @@ export interface WorkCloudDispatchInput {
   chatgptProjectId: string | null;
   existingWorkThreadId: string | null;
   prompt: string;
-  approvalState: WorkCloudApprovalState;
   capabilityEvidence: WorkCloudCapabilityEvidence;
   requestedAt: string;
   producerId: string;
@@ -54,9 +53,16 @@ export interface WorkCloudAppExecutor {
   createThread(input: {
     title: string;
     prompt: string;
+    requestedAt: string;
     target: { type: typeof CHATGPT_WORK_CLOUD_TARGET; projectId?: string };
   }): Promise<WorkCloudExecutorOutcome>;
   sendMessageToThread(input: { threadId: string; prompt: string }): Promise<WorkCloudExecutorOutcome>;
+  resolveCreatedThread?(input: {
+    clientThreadId: string;
+    prompt: string;
+    requestedAt: string;
+    projectId: string | null;
+  }): Promise<WorkCloudExecutorOutcome>;
 }
 
 export interface WorkCloudDispatchState {
@@ -91,12 +97,29 @@ export async function dispatchAndRecordChatGptWorkCloud(
   validateInput(input);
   const request = buildWorkCloudDispatchRequestedEnvelope(input);
   const existing = await sink.getWorkCloudDispatch(input.binding.worker, input.dispatchId);
-  if (existing && canonicalJson(existing.request) !== canonicalJson(request)) {
+  if (existing && canonicalJson(dispatchIntent(existing.request)) !== canonicalJson(dispatchIntent(request))) {
     throw new WorkCloudDispatchAmbiguityError(
       `Native Work dispatch ${input.dispatchId} already exists with different source-bound request content.`,
     );
   }
-  if (existing?.result) return { request: existing.request, result: existing.result };
+  if (existing?.result) {
+    if (existing.result.data.type !== "chatgpt_work_cloud_dispatch_recorded"
+      || existing.result.data.status !== "PENDING_SETUP") {
+      return { request: existing.request, result: existing.result };
+    }
+    if (input.mode !== "CREATE" || !existing.result.data.client_thread_id || !executor?.resolveCreatedThread) {
+      return { request: existing.request, result: existing.result };
+    }
+    const outcome = normalizeExecutorOutcome(await executor.resolveCreatedThread({
+      clientThreadId: existing.result.data.client_thread_id,
+      prompt: input.prompt,
+      requestedAt: requestedAtFrom(existing.request),
+      projectId: input.chatgptProjectId,
+    }));
+    const result = buildWorkCloudDispatchRecordedEnvelope(input, outcome, recordedAt);
+    await sink.recordWorkerEvents(input.binding.worker, [result]);
+    return { request: existing.request, result };
+  }
   if (existing?.request) {
     throw new WorkCloudDispatchAmbiguityError(
       `Native Work dispatch ${input.dispatchId} has a durable request but no result; recover the app boundary before retrying.`,
@@ -113,21 +136,20 @@ async function executeWorkCloudAppCall(
   input: WorkCloudDispatchInput,
   executor: WorkCloudAppExecutor | null,
 ): Promise<WorkCloudExecutorOutcome> {
-  if (input.approvalState === "DECLINED") {
-    return { kind: "FAILED", reasonCode: "WORK_CLOUD_OWNER_DECLINED" };
-  }
   const capabilityAvailable = input.mode === "CREATE"
     ? input.capabilityEvidence.createThreadTargetAvailable
     : input.capabilityEvidence.sendMessageToThreadAvailable;
-  if (!capabilityAvailable || !input.capabilityEvidence.nativeSurfaceVerificationAvailable || !executor) {
+  if (!input.capabilityEvidence.nativeSurfaceVerificationAvailable || !executor) {
     return { kind: "UNAVAILABLE", reasonCode: !input.capabilityEvidence.nativeSurfaceVerificationAvailable
       ? "WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE" : "WORK_CLOUD_DISPATCH_UNAVAILABLE" };
   }
+  if (!capabilityAvailable) return { kind: "PENDING_APPROVAL" };
   try {
     return input.mode === "CREATE"
       ? await executor.createThread({
         title: input.requestedWorkTitle,
         prompt: input.prompt,
+        requestedAt: input.requestedAt,
         target: {
           type: CHATGPT_WORK_CLOUD_TARGET,
           ...(input.chatgptProjectId ? { projectId: input.chatgptProjectId } : {}),
@@ -171,7 +193,7 @@ export function buildWorkCloudDispatchRequestedEnvelope(input: WorkCloudDispatch
       chatgpt_project_id: input.chatgptProjectId,
       existing_work_thread_id: input.existingWorkThreadId,
       prompt_sha256: sha256(input.prompt),
-      approval_state: input.approvalState,
+      approval_state: "PENDING_OWNER_ACCEPT",
       capability_evidence: {
         observed_at: input.capabilityEvidence.observedAt,
         app_version: input.capabilityEvidence.appVersion,
@@ -204,7 +226,7 @@ export function buildWorkCloudDispatchRecordedEnvelope(
     app_tool: input.mode === "CREATE" ? "create_thread" as const : "send_message_to_thread" as const,
     work_thread_id: null as string | null,
     client_thread_id: null as string | null,
-    approval_state: input.approvalState,
+    approval_state: "PENDING_OWNER_ACCEPT" as WorkCloudApprovalState,
     surface_verification: "NOT_VERIFIED" as "NOT_VERIFIED" | "VERIFIED_NATIVE_WORK" | "REJECTED_WRONG_SURFACE",
     native_surface_evidence: null as null | "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET" | "TRUSTED_APP_EXECUTOR_EXISTING_WORK_THREAD",
     host_id: null as string | null,
@@ -216,7 +238,7 @@ export function buildWorkCloudDispatchRecordedEnvelope(
   if (outcome.kind === "READY") {
     base.work_thread_id = outcome.threadId;
     base.host_id = outcome.hostId;
-    base.approval_state = input.approvalState === "PENDING_OWNER_ACCEPT" ? "ACCEPTED" : input.approvalState;
+    base.approval_state = "ACCEPTED";
     base.surface_verification = "VERIFIED_NATIVE_WORK";
     base.native_surface_evidence = input.mode === "CREATE"
       ? "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET"
@@ -251,4 +273,42 @@ function validateInput(input: WorkCloudDispatchInput): void {
 function sanitizeReasonCode(value: string): string {
   const normalized = value.trim().toUpperCase().replace(/[^A-Z0-9_:./-]+/g, "_").slice(0, 120);
   return normalized || "WORK_CLOUD_DISPATCH_FAILED";
+}
+
+function requestedAtFrom(request: AppendEnvelope): string {
+  if (request.data.type !== "chatgpt_work_cloud_dispatch_requested") {
+    throw new WorkCloudDispatchAmbiguityError("Durable Work-cloud dispatch request has the wrong event type.");
+  }
+  return request.data.requested_at;
+}
+
+/**
+ * Same-dispatch replay is bound to immutable source intent. Observation and
+ * recording clocks are evidence about an attempt, not part of its identity.
+ */
+function dispatchIntent(request: AppendEnvelope): unknown {
+  if (request.data.type !== "chatgpt_work_cloud_dispatch_requested") {
+    throw new WorkCloudDispatchAmbiguityError("Durable Work-cloud dispatch request has the wrong event type.");
+  }
+  const data = request.data;
+  return {
+    worker: data.worker,
+    dispatch_id: data.dispatch_id,
+    mode: data.mode,
+    requested_surface: data.requested_surface,
+    directive_id: data.directive_id,
+    directive_revision: data.directive_revision,
+    task_id: data.task_id,
+    directive_artifact_sha256: data.directive_artifact_sha256,
+    source_message_id: data.source_message_id,
+    source_body_sha256: data.source_body_sha256,
+    source_chat_title: data.source_chat_title,
+    source_chat_url: data.source_chat_url,
+    requested_work_title: data.requested_work_title,
+    chatgpt_project_id: data.chatgpt_project_id,
+    existing_work_thread_id: data.existing_work_thread_id,
+    prompt_sha256: data.prompt_sha256,
+    producer_id: data.producer_id,
+    source: data.source,
+  };
 }
