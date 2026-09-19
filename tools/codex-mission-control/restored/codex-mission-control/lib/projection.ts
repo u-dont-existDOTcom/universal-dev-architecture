@@ -205,6 +205,18 @@ export interface WorkerState {
     proEscalationState: string;
     alerts: string[];
   };
+  workCloudDispatch: {
+    requestedSurface: "CHATGPT_WORK_CLOUD" | null;
+    status: string;
+    mode: string | null;
+    requestedTitle: string | null;
+    workThreadId: string | null;
+    clientThreadId: string | null;
+    approvalState: string;
+    surfaceVerification: string;
+    lastDispatchAt: string | null;
+    blocker: string | null;
+  };
   workExecution: {
     requestedModel: string | null;
     requestedEffort: string | null;
@@ -272,6 +284,10 @@ function projectV2Worker(
   const receipt = latest(events, "execution_receipt_recorded");
   const profileAuthorization = latest(events, "work_execution_profile_authorized");
   const workPreflight = latest(events, "work_execution_preflight_recorded");
+  const workCloudRequest = latest(events, "chatgpt_work_cloud_dispatch_requested");
+  const latestWorkCloudResult = latest(events, "chatgpt_work_cloud_dispatch_recorded");
+  const workCloudResult = latestWorkCloudResult?.dispatch_id === workCloudRequest?.dispatch_id
+    ? latestWorkCloudResult : undefined;
   const directiveProfile = directive?.work_execution_profile !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
     ? directive?.work_execution_profile
     : null;
@@ -443,6 +459,20 @@ function projectV2Worker(
         "SUPERVISION_DIRECTIVE_MISSING", "REASONING_REVIEW_OVERDUE", "PENDING_REASONING_REVIEW",
         "PROGRESS_EVIDENCE_OVERDUE", "OWNER_OUTCOME_REGRESSING", "STRATEGY_REPLACEMENT_REQUIRED",
       ].includes(code) || code.startsWith("CODEX_") || code === "DIRECTIVE_SCOPE_EXCEEDED" || code === "OWNER_FORCED_PROGRESS_REVIEW"),
+    },
+    workCloudDispatch: {
+      requestedSurface: workCloudRequest?.requested_surface ?? null,
+      status: workCloudResult?.status ?? (workCloudRequest ? "REQUESTED" : "NOT_REQUESTED"),
+      mode: workCloudRequest?.mode ?? null,
+      requestedTitle: workCloudRequest?.requested_work_title ?? null,
+      workThreadId: workCloudResult?.work_thread_id ?? null,
+      clientThreadId: workCloudResult?.client_thread_id ?? null,
+      approvalState: workCloudResult?.approval_state ?? workCloudRequest?.approval_state ?? "NOT_REQUIRED",
+      surfaceVerification: workCloudResult?.surface_verification ?? "NOT_VERIFIED",
+      lastDispatchAt: workCloudResult?.recorded_at ?? workCloudRequest?.requested_at ?? null,
+      blocker: workCloudResult && ["FAILED", "UNAVAILABLE"].includes(workCloudResult.status)
+        ? workCloudResult.error_code
+        : workCloudResult?.status === "PENDING_APPROVAL" ? "OWNER_INTERACTION_PENDING" : null,
     },
     workExecution: {
       requestedModel: receiptWorkExecution?.requested_profile.model ?? workPreflight?.requested_profile.model ?? directiveProfile?.model ?? null,
@@ -821,6 +851,11 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       codexExecutionState: "UNKNOWN_LEGACY_EXECUTION",
       stopBoundary: [], latestReceiptId: null, receiptClaim: "No execution receipt in legacy schema.",
       pendingReasoningReview: true, proEscalationState: "NOT_REQUIRED", alerts: ["SUPERVISION_DIRECTIVE_MISSING"],
+    },
+    workCloudDispatch: {
+      requestedSurface: null, status: "NOT_REQUESTED", mode: null, requestedTitle: null,
+      workThreadId: null, clientThreadId: null, approvalState: "NOT_REQUIRED",
+      surfaceVerification: "NOT_VERIFIED", lastDispatchAt: null, blocker: null,
     },
     workExecution: {
       requestedModel: null, requestedEffort: null, authorizedModel: null, authorizedEffort: null,

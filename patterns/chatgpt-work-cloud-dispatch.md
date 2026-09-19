@@ -90,6 +90,10 @@ Follow-ups use the persisted Work thread locator plus `send_message_to_thread`; 
 
 Mission Control must keep Codex and Work task identifiers in separate typed fields even if both appear in one project.
 
+The current reference adapter is documented in
+`tools/codex-mission-control/restored/codex-mission-control/docs/CHATGPT-WORK-CLOUD-DISPATCH.md`.
+It persists the source-bound request before crossing the authenticated app-executor boundary, persists the normalized result afterward, and requires explicit native-surface evidence before a dispatch may become `READY`. A raw Mission Control daemon call is not equivalent to the authenticated desktop/app executor and must remain unavailable rather than falling back to Codex.
+
 ## Current observed capability
 
 As of 2026-09-19, the tested ChatGPT Linux desktop app's bundled app-executor schema exposes:

@@ -97,9 +97,14 @@ export class EventStore {
     validationHistory?: readonly StoredEvent[],
   ): StoredEvent {
     const envelope = parseAppendEnvelope(input);
-    if (envelope.data.type === "work_task_creation_selection_applied"
+    const trustedSystemBoundaryTypes = new Set<MissionControlEventV2["type"]>([
+      "work_task_creation_selection_applied",
+      "chatgpt_work_cloud_dispatch_requested",
+      "chatgpt_work_cloud_dispatch_recorded",
+    ]);
+    if (trustedSystemBoundaryTypes.has(envelope.data.type)
       && (!producer || !producerMayEmit(producer, envelope.data))) {
-      throw new ContractInvariantError("Trusted task-creation evidence requires an explicit authenticated SYSTEM producer.");
+      throw new ContractInvariantError("Trusted task-creation and native Work dispatch evidence requires an explicit matching authenticated SYSTEM producer.");
     }
     const authenticatedProducer = producer ?? internalProducerFor(envelope.data);
     const worker = eventWorker(envelope.data);
@@ -799,6 +804,54 @@ export class EventStore {
         throw new ContractInvariantError("A new directive requires a later independent reasoning review after the prior execution receipt.");
       }
     }
+    if (data.type === "chatgpt_work_cloud_dispatch_requested") {
+      const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
+      if (directive?.type !== "execution_directive_recorded"
+        || directive.status !== "ACTIVE"
+        || directive.directive_schema_version !== 3
+        || directive.directive_id !== data.directive_id
+        || directive.directive_revision !== data.directive_revision
+        || directive.task_id !== data.task_id
+        || directive.directive_artifact_sha256 !== data.directive_artifact_sha256
+        || directive.source_message_id !== data.source_message_id
+        || directive.source_body_sha256 !== data.source_body_sha256) {
+        throw new ContractInvariantError("Native Work dispatch must bind the current exact active Chat execution directive and source provenance.");
+      }
+      if (data.mode === "CONTINUE") {
+        const priorReady = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+          && event.data.status === "READY" && event.data.work_thread_id === data.existing_work_thread_id)?.data;
+        if (priorReady?.type !== "chatgpt_work_cloud_dispatch_recorded"
+          || priorReady.surface_verification !== "VERIFIED_NATIVE_WORK") {
+          throw new ContractInvariantError("Native Work continuation requires a previously verified exact Work thread locator.");
+        }
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "dispatch_id", data.dispatch_id);
+    }
+    if (data.type === "chatgpt_work_cloud_dispatch_recorded") {
+      const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      if (request?.type !== "chatgpt_work_cloud_dispatch_requested"
+        || request.worker !== data.worker || request.mode !== data.mode
+        || request.directive_id !== data.directive_id || request.directive_revision !== data.directive_revision
+        || request.task_id !== data.task_id) {
+        throw new ContractInvariantError("Native Work dispatch result must bind its exact prior Work-cloud request and directive.");
+      }
+      const priorResult = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      if (priorResult?.type === "chatgpt_work_cloud_dispatch_recorded"
+        && ["READY", "FAILED", "UNAVAILABLE"].includes(priorResult.status)) {
+        throw new ContractInvariantError("A terminal native Work dispatch result cannot be overwritten or resumed under the same dispatch id.");
+      }
+      if (data.mode === "CONTINUE" && data.status === "READY"
+        && data.work_thread_id !== request.existing_work_thread_id) {
+        throw new ContractInvariantError("Native Work continuation must preserve the exact previously verified Work thread id.");
+      }
+      if (data.status === "READY") {
+        const codexCollision = events.some((event) => event.data.type === "codex_execution_started"
+          && event.data.worker_run_id === data.work_thread_id);
+        if (codexCollision) throw new ContractInvariantError("A Codex run id cannot be promoted into a native Work thread id.");
+      }
+    }
     if (data.type === "work_execution_profile_authorized") {
       const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       if (directive?.type !== "execution_directive_recorded"
@@ -1082,7 +1135,7 @@ export class EventStore {
       "supervision_route_recorded", "research_verdict_recorded", "supervision_design_feedback_recorded",
       "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed", "live_worker_evidence_observed",
       "reasoning_supervision_recorded", "execution_directive_recorded", "work_execution_profile_authorized",
-      "work_execution_preflight_recorded", "codex_execution_started", "execution_receipt_recorded",
+      "work_execution_preflight_recorded", "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_dispatch_recorded", "codex_execution_started", "execution_receipt_recorded",
       "outcome_progress_recorded", "supervision_alert_recorded",
     ]);
     if (contractRequiredTypes.has(data.type) && contracts.length === 0) {
