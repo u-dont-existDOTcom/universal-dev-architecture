@@ -432,6 +432,23 @@ test("submission-authority reads reject unbound collectors and non-relay produce
   }
 });
 
+test("operator status uses the supplied parsed event history without reloading EventStore", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  let eventHistoryReads = 0;
+  try {
+    const authority = runtime(store, now, {}, () => {
+      eventHistoryReads += 1;
+      return [];
+    });
+    const status = await authority.operatorStatus();
+    assert.equal(status.authority.ledgerIntegrity, "VALID");
+    assert.equal(eventHistoryReads, 1);
+  } finally {
+    store.close();
+  }
+});
+
 test("scheduler status verifies a large authority ledger once at startup and only checks durable suffixes afterward", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };
@@ -459,7 +476,12 @@ test("scheduler status verifies a large authority ledger once at startup and onl
   }
 });
 
-function runtime(store: EventStore, now: { value: number }, overrides: Record<string, string | undefined> = {}) {
+function runtime(
+  store: EventStore,
+  now: { value: number },
+  overrides: Record<string, string | undefined> = {},
+  eventHistory?: ConstructorParameters<typeof SubmissionAuthorityRuntime>[3],
+) {
   return new SubmissionAuthorityRuntime(store, {
     NODE_ENV: "test",
     MISSION_CONTROL_SUPERVISOR_CHATS_JSON: JSON.stringify([configuredChat()]),
@@ -482,7 +504,7 @@ function runtime(store: EventStore, now: { value: number }, overrides: Record<st
     MISSION_CONTROL_MIN_SUBMISSION_INTERVAL_MS: "60000",
     MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS: "120000",
     ...overrides,
-  }, () => now.value);
+  }, () => now.value, eventHistory);
 }
 
 function observeAuthorityVerificationStarts(store: EventStore): number[] {

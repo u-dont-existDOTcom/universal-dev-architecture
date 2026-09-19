@@ -15,6 +15,7 @@ import type {
   RelayHealthReport,
 } from "./operator-status-contract";
 import type { EventStore } from "./store";
+import type { StoredEvent } from "./schema";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -172,12 +173,15 @@ export class SubmissionAuthorityRuntime {
   private readonly relayHealth = new Map<string, StoredRelayHealthReport>();
   private readonly relayHealthMaxAgeMs: number;
   private readonly hostLabels: Record<"PRIMARY" | "SECONDARY", string>;
+  private readonly eventHistory: () => StoredEvent[];
 
   constructor(
     private readonly store: EventStore,
     env: Record<string, string | undefined> = process.env,
     private readonly now: () => number = Date.now,
+    eventHistory?: () => StoredEvent[],
   ) {
+    this.eventHistory = eventHistory ?? (() => this.store.allEvents());
     this.relayHealthMaxAgeMs = boundedInteger(env.MISSION_CONTROL_RELAY_HEALTH_MAX_AGE_MS, 150_000, 30_000, 900_000);
     this.hostLabels = {
       PRIMARY: boundedLabel(env.MISSION_CONTROL_PRIMARY_HOST_LABEL, "Primary VPS"),
@@ -453,7 +457,7 @@ export class SubmissionAuthorityRuntime {
     state: SchedulerState,
     providerRelayState: LiveHealthState,
   ): OperatorSupervisorStatus[] {
-    const events = this.store.allEvents();
+    const events = this.eventHistory();
     const targetBindings = Object.values(state.targetBindings ?? {}) as SchedulerState[];
     return [...this.chats.values()].map((chat) => {
       const admissions = (state.admissions ?? [])
