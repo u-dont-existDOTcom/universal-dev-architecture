@@ -25,6 +25,7 @@ const Timestamp = z.string().datetime({ offset: true });
 const Url = z.string().url().refine((value) => value.startsWith("https://"), {
   message: "External links must use HTTPS",
 });
+const ChatGptConversationUrl = z.string().regex(/^chatgpt-conversation:\/\/[A-Za-z0-9-]+$/);
 
 export const trafficSchema = z.enum(["GREEN", "YELLOW", "RED", "UNKNOWN"]);
 export const workerAlignmentSchema = z.enum(["GREEN", "YELLOW", "RED", "UNKNOWN"]);
@@ -1123,6 +1124,94 @@ export const workTaskCreationSelectionAppliedSchema = z.object({
   applied_at: Timestamp,
 }).strict();
 
+export const chatGptWorkCloudDispatchRequestedSchema = z.object({
+  type: z.literal("chatgpt_work_cloud_dispatch_requested"),
+  worker: WorkerId,
+  dispatch_id: StableId,
+  mode: z.enum(["CREATE", "CONTINUE"]),
+  requested_surface: z.literal("CHATGPT_WORK_CLOUD"),
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  directive_artifact_sha256: Sha256,
+  source_message_id: StableId,
+  source_body_sha256: Sha256,
+  source_chat_title: NonEmpty.max(300),
+  source_chat_url: ChatGptConversationUrl,
+  requested_work_title: NonEmpty.max(300).refine((value) => value.startsWith("Work — "), "Work title must preserve the Work — lineage prefix."),
+  chatgpt_project_id: StableId.nullable(),
+  existing_work_thread_id: StableId.nullable(),
+  prompt_sha256: Sha256,
+  approval_state: z.enum(["NOT_REQUIRED", "PENDING_OWNER_ACCEPT", "ACCEPTED", "DECLINED"]),
+  capability_evidence: z.object({
+    observed_at: Timestamp,
+    app_version: NonEmpty.max(120),
+    create_thread_target_available: z.boolean(),
+    send_message_to_thread_available: z.boolean(),
+    native_surface_verification_available: z.boolean(),
+  }).strict(),
+  requested_at: Timestamp,
+  producer_id: StableId,
+  source: z.literal("TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY"),
+}).strict().superRefine((request, context) => {
+  if (request.mode === "CREATE" && request.existing_work_thread_id !== null) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["existing_work_thread_id"], message: "CREATE must not carry an existing Work thread id." });
+  }
+  if (request.mode === "CONTINUE" && request.existing_work_thread_id === null) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["existing_work_thread_id"], message: "CONTINUE requires a persisted native Work thread id." });
+  }
+});
+
+export const chatGptWorkCloudDispatchRecordedSchema = z.object({
+  type: z.literal("chatgpt_work_cloud_dispatch_recorded"),
+  worker: WorkerId,
+  dispatch_id: StableId,
+  mode: z.enum(["CREATE", "CONTINUE"]),
+  requested_surface: z.literal("CHATGPT_WORK_CLOUD"),
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  app_tool: z.enum(["create_thread", "send_message_to_thread"]),
+  status: z.enum(["PENDING_APPROVAL", "PENDING_SETUP", "READY", "FAILED", "UNAVAILABLE"]),
+  work_thread_id: StableId.nullable(),
+  client_thread_id: StableId.nullable(),
+  approval_state: z.enum(["NOT_REQUIRED", "PENDING_OWNER_ACCEPT", "ACCEPTED", "DECLINED"]),
+  surface_verification: z.enum(["NOT_VERIFIED", "VERIFIED_NATIVE_WORK", "REJECTED_WRONG_SURFACE"]),
+  native_surface_evidence: z.enum([
+    "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET",
+    "TRUSTED_APP_EXECUTOR_EXISTING_WORK_THREAD",
+  ]).nullable(),
+  host_id: StableId.nullable(),
+  error_code: z.string().trim().min(1).max(120).regex(/^[A-Z0-9][A-Z0-9_:.\/-]*$/).nullable(),
+  recorded_at: Timestamp,
+  producer_id: StableId,
+  source: z.literal("TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY"),
+}).strict().superRefine((result, context) => {
+  const expectedTool = result.mode === "CREATE" ? "create_thread" : "send_message_to_thread";
+  if (result.app_tool !== expectedTool) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["app_tool"], message: `${result.mode} requires ${expectedTool}.` });
+  }
+  if (result.status === "READY") {
+    if (!result.work_thread_id || result.client_thread_id || result.error_code
+      || result.surface_verification !== "VERIFIED_NATIVE_WORK" || !result.native_surface_evidence) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "READY requires one native Work thread id and verified native-surface evidence." });
+    }
+  } else if (result.status === "PENDING_SETUP") {
+    if (!result.client_thread_id || result.work_thread_id || result.error_code
+      || result.surface_verification !== "NOT_VERIFIED" || result.native_surface_evidence) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "PENDING_SETUP requires only a client thread id and cannot claim native-surface verification." });
+    }
+  } else if (result.status === "PENDING_APPROVAL") {
+    if (result.work_thread_id || result.client_thread_id || result.error_code
+      || result.approval_state !== "PENDING_OWNER_ACCEPT" || result.surface_verification !== "NOT_VERIFIED") {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "PENDING_APPROVAL must preserve the product approval gate without a thread identity claim." });
+    }
+  } else if (!result.error_code || result.work_thread_id || result.client_thread_id
+    || result.surface_verification === "VERIFIED_NATIVE_WORK" || result.native_surface_evidence) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "FAILED/UNAVAILABLE requires an error code and cannot claim a Work thread or verified surface." });
+  }
+});
+
 export const workExecutionPreflightRecordedSchema = z.object({
   type: z.literal("work_execution_preflight_recorded"),
   worker: WorkerId,
@@ -1675,6 +1764,7 @@ export const eventSchemaV2 = z.union([
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema,
   workExecutionProfileAuthorizedSchema, workTaskCreationSelectionAppliedSchema, workExecutionPreflightRecordedSchema,
+  chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema,
   codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,
   githubDecisionReceiptIngestedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,
