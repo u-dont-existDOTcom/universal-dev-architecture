@@ -51,9 +51,16 @@ interface ChainVerificationCache {
   errors: string[];
 }
 
+interface SubmissionAuthorityLedgerVerificationCache {
+  sequence: number;
+  eventHash: string | null;
+  errors: string[];
+}
+
 export class EventStore {
   private readonly db: DatabaseSync;
   private chainVerificationCache: ChainVerificationCache = { sequence: 0, eventHash: null, errors: [] };
+  private readonly submissionAuthorityLedgerVerificationCaches = new Map<string, SubmissionAuthorityLedgerVerificationCache>();
 
   constructor(filename = process.env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db")) {
     if (filename !== ":memory:") fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -314,32 +321,54 @@ export class EventStore {
   }
 
   verifySubmissionAuthorityLedger(pacingDomain: string): { valid: boolean; errors: string[] } {
-    const persisted = this.db.prepare(`
+    const cached = this.submissionAuthorityLedgerVerificationCaches.get(pacingDomain)
+      ?? { sequence: 0, eventHash: null, errors: [] };
+    if (cached.sequence > 0) {
+      const durableAnchor = this.db.prepare(`
+        SELECT event_hash FROM provider_submission_authority_ledger
+        WHERE pacing_domain = ? AND sequence = ?
+      `).get(pacingDomain, cached.sequence) as { event_hash: string } | undefined;
+      if (!durableAnchor || durableAnchor.event_hash !== cached.eventHash) {
+        const errors = [...cached.errors, `Submission ledger cache anchor ${cached.sequence} is inconsistent with durable state.`];
+        this.submissionAuthorityLedgerVerificationCaches.set(pacingDomain, { ...cached, errors });
+        return { valid: false, errors: [...errors] };
+      }
+    }
+
+    const errors = [...cached.errors];
+    let previousHash = cached.eventHash;
+    let sequence = cached.sequence;
+    const rows = this.submissionAuthorityLedgerRowsAfter(pacingDomain, sequence);
+    for (const row of rows) {
+      sequence = Number(row.sequence);
+      const storedPreviousHash = row.previous_hash === null ? null : String(row.previous_hash);
+      const eventHash = String(row.event_hash);
+      const payload = JSON.parse(String(row.ledger_json)) as Record<string, unknown>;
+      if (storedPreviousHash !== previousHash) errors.push(`Submission ledger sequence ${sequence} has an invalid previous hash.`);
+      const calculated = sha256(canonicalJson({ payload, previousHash }));
+      if (calculated !== eventHash) errors.push(`Submission ledger sequence ${sequence} has an invalid event hash.`);
+      previousHash = eventHash;
+    }
+    this.submissionAuthorityLedgerVerificationCaches.set(pacingDomain, { sequence, eventHash: previousHash, errors });
+    return { valid: errors.length === 0, errors: [...errors] };
+  }
+
+  private submissionAuthorityLedgerRowsAfter(pacingDomain: string, sequence: number): Array<{
+    sequence: number;
+    ledger_json: string;
+    previous_hash: string | null;
+    event_hash: string;
+  }> {
+    return this.db.prepare(`
       SELECT sequence, ledger_json, previous_hash, event_hash
       FROM provider_submission_authority_ledger
-      WHERE pacing_domain = ? ORDER BY sequence
-    `).all(pacingDomain) as Array<{
+      WHERE pacing_domain = ? AND sequence > ? ORDER BY sequence
+    `).all(pacingDomain, sequence) as Array<{
       sequence: number;
       ledger_json: string;
       previous_hash: string | null;
       event_hash: string;
     }>;
-    const rows = persisted.map((row) => ({
-      sequence: Number(row.sequence),
-      ...JSON.parse(row.ledger_json),
-      previousHash: row.previous_hash,
-      eventHash: row.event_hash,
-    }));
-    const errors: string[] = [];
-    let previousHash: string | null = null;
-    for (const row of rows) {
-      const { sequence, previousHash: storedPreviousHash, eventHash, ...payload } = row;
-      if (storedPreviousHash !== previousHash) errors.push(`Submission ledger sequence ${sequence} has an invalid previous hash.`);
-      const calculated = sha256(canonicalJson({ payload, previousHash }));
-      if (calculated !== eventHash) errors.push(`Submission ledger sequence ${sequence} has an invalid event hash.`);
-      previousHash = String(eventHash);
-    }
-    return { valid: errors.length === 0, errors };
   }
 
   getObjective(worker: string) {
