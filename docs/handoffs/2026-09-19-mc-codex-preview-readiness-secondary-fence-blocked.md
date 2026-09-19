@@ -1,6 +1,11 @@
 # Mission Control Codex preview readiness — SECONDARY fence blocker
 
-Status: `BLOCKED_ON_EXPLICIT_SECONDARY_BROWSER_FENCE_RELEASE`
+Status: `SUPERSEDED_BY_AUTHORIZED_SECONDARY_FENCE_RELEASE`
+
+Superseded by
+`docs/handoffs/2026-09-19-mc-codex-preview-readiness-ready-waiting.md`
+after the owner explicitly authorized release of the SECONDARY
+`cloudbrowser` fence with both send-capable flags disabled.
 
 Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**
 
