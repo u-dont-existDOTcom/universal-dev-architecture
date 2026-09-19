@@ -2,7 +2,7 @@
 
 Status: REQUIRED OWNER CORRECTION
 Date: 2026-09-02
-Updated: 2026-09-18
+Updated: 2026-09-19
 
 Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json`.
 Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget.owner-requirement.json`.
@@ -11,6 +11,7 @@ Work origin-chat backlink requirement: `docs/requirements/2026-09-18-work-receip
 Work human-gate assist requirement: `docs/requirements/2026-09-18-work-human-gate-assist.owner-requirement.json`.
 ChatGPT multi-surface recovery requirement: `docs/requirements/2026-09-19-chatgpt-multi-surface-thread-recovery.owner-requirement.json`.
 ChatGPT Work cloud dispatch requirement: `docs/requirements/2026-09-19-chatgpt-work-cloud-dispatch.owner-requirement.json`.
+Direct-Chat execution capability requirement: `docs/requirements/2026-09-19-chat-direct-execution-capability-preflight.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -24,9 +25,9 @@ The routing question is not:
 
 It is:
 
-> Does the next bounded action materially require a terminal/computer execution surface, or is the repository operation genuinely long-range enough that Chat should supervise rather than execute it directly?
+> Can the current Chat surface reliably perform the next bounded action with its own authorized tools, including any directly exposed terminal, filesystem, browser, computer-use, remote-desktop, or connected-device tool? If not, is the missing execution capability or sustained statefulness substantial enough to justify Work/Codex?
 
-If the answer is no, keep the action in Chat.
+If Chat can perform the action directly and reliably, keep the action in Chat. Action category alone is never a Work trigger.
 
 For supervisory/control-plane chats, this is an automation invariant: **when the chat itself can read or write the required GitHub artifact, it must do that GitHub operation directly and must not delegate that operation to Work/Codex.** A Chat -> Work handoff requires explicit user acceptance; delegating a routine GitHub receipt, issue comment, PR update, or evidence read therefore inserts an avoidable human gate and can make an otherwise unattended Mission Control cycle invisible to the owner.
 
@@ -57,24 +58,25 @@ Chat normally retains:
 - creating/updating GitHub issues and pull requests;
 - ordinary GitHub file reads/writes when the active Chat surface supports them;
 - bounded branch/file edits that can be performed directly with Chat's GitHub tools;
+- bounded terminal, filesystem, browser, GUI, OS, or connected-computer actions when the current Chat surface exposes a direct authorized tool that can reliably perform them;
 - code/diff review;
 - deciding whether a Work run is needed and authoring its exact directive;
 - reviewing Work receipts and selecting the next consequential step.
 
-GitHub availability in Work is **not** an execution requirement when Chat already has adequate GitHub actions.
+GitHub availability in Work is **not** an execution requirement when Chat already has adequate GitHub actions. The same rule applies to other execution capabilities: a remote-desktop, connected-computer, terminal, filesystem, or browser tool exposed directly to Chat counts as Chat execution even when it operates on another machine. Do not delegate merely because the action is local, GUI-based, terminal-based, or remote.
 
 For a Chat-supervised Mission Control cycle, prefer GitHub as the durable mailbox between reasoning chats and the execution controller: the current chat writes its source-bound artifact to GitHub; Codex/controller waits for that artifact, reads it after the chat turn finishes, transports the exact required data to the next registered reasoning chat, waits for that chat's GitHub artifact, and then continues the authorized route. This is controller-mediated Chat <-> GitHub <-> controller <-> Chat coordination, not native Chat-to-Chat or Work-to-Chat communication. The reasoning chat must not offload its own required GitHub write to Work merely because Work can access GitHub.
 
 ## Use Work / Codex
 
-Invoke Work/Codex when the bounded action genuinely requires one or more of:
+Invoke Work/Codex only when the bounded action genuinely requires execution that the current Chat surface cannot reliably perform, or sustained stateful execution that is genuinely impractical to keep in Chat. Examples include:
 
-- terminal commands;
+- terminal commands when no adequate terminal/connected-computer tool is available to Chat;
 - local filesystem or worktree operations unavailable to Chat;
-- SSH or remote-shell execution;
-- browser/computer/OS automation;
-- local builds, tests, runtime/process inspection, or dependency installation;
-- deployment mechanics that require an execution surface;
+- SSH or remote-shell execution when no direct authorized Chat tool exposes the required host/action;
+- browser/computer/OS automation unavailable to Chat's current direct tools;
+- local builds, tests, runtime/process inspection, or dependency installation that Chat cannot reliably execute with its current tools;
+- deployment mechanics requiring an execution surface Chat does not have;
 - genuinely long-range repository implementation where many stateful edits/commands make Chat-level direct execution impractical.
 
 A long-range repository operation means sustained execution complexity, not simply a large repository or a multi-file idea. Prefer Chat for a bounded multi-file change when Chat can safely make and review the edits itself.
@@ -258,10 +260,10 @@ Reject these routing rationales:
 Replace them with a bounded execution test:
 
 ```text
-Can Chat make the required judgment and perform the next safe GitHub action directly?
-  YES -> stay in Chat and perform the GitHub action here.
-  NO, because terminal/computer execution is required -> delegate only that residue.
-  NO, because the repo operation is genuinely long-range/stateful -> delegate bounded execution, keep reasoning in Chat.
+Can Chat make the required judgment and perform the next safe action directly with any authorized tool currently exposed to this Chat?
+  YES -> stay in Chat and perform the action here, including bounded terminal/browser/remote-desktop execution when directly available.
+  NO, because the required execution capability is not available or reliable in Chat -> delegate only that residue.
+  NO, because the operation is genuinely long-range/stateful and impractical to keep in Chat -> delegate bounded execution, keep reasoning in Chat.
 
 After Chat has reduced the task:
 What is the lowest Work reasoning level reasonably expected to execute the remaining directive correctly?

@@ -135,6 +135,8 @@ This gate runs at follow-up-task authoring, before the new framing is handed to 
 Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,
 ordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work
 thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only.
+Before Work, inventory Chat tools. If Chat can reliably perform the bounded
+terminal/browser/GUI/remote-desktop action, keep it in Chat.
 When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the
 canonical GPT-5.6 Sol / GPT-6 Astra model-and-effort ladder and telemetry contract.
 For controlled supervisory routes also apply
