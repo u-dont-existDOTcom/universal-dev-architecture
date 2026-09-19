@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
   "title": "Release recovered-state compatibility and complete the same PM fixture under epoch 5",
-  "status": "blocked",
-  "exclusive": false,
+  "status": "active",
+  "exclusive": true,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "requiredRef": "refs/heads/chat/mc53-epoch5-compat-v4-20260918-2139",
@@ -12,16 +12,19 @@
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
-    "authorityClarification": "issue-53-comment-5743640100",
-    "capturedAt": "2026-09-19T16:50:06Z"
+    "authorityClarification": "issue-53-comment-5744485891",
+    "capturedAt": "2026-09-19T18:50:43Z"
   },
   "ownerOutcome": {
     "status": "OPEN",
-    "normalizedResult": "Truthfully terminalize the exhausted V4 preload strategy with discard, then execute exactly one fresh route-schema-v5 PER_REQUEST_V1 semantic acceptance for the same parent owner outcome and bounded factual task. Success requires both the exact server-observed request-binding receipt and the canonical bound GitHub decision before the existing PM-mediated cycle may continue.",
+    "normalizedResult": "Replace the exhausted model-mediated Mission Control MCP invocation premise with route-schema-v6 IN_BAND_REQUEST_BINDING_V1, preserving event-sourced and central-admission authority while carrying an exact trusted pre-send request binding in the one GitHub-enabled provider message and validating the canonical GitHub decision fail-closed without MCP evidence.",
     "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
     "replacementFixtureAllowed": true,
     "replacementFixtureLimit": 1,
-    "v4RetryAllowed": false
+    "v4RetryAllowed": false,
+    "v5RetryAllowed": false,
+    "liveV6DeploymentAllowed": false,
+    "liveV6ProviderSendAllowed": false
   },
   "taskLocalCheckpoint": "state/mc-fresh-worker-epoch5-compatibility-v4/CURRENT.json",
   "priorBlockedAt": "2026-09-18T22:02:12Z",
@@ -42,13 +45,13 @@
     "bindingEnvelopeCreated": false,
     "successorHostRefenced": true,
     "receipt": "docs/evidence/2026-09-19-mc-request-bound-v5-live-acceptance-stop-receipt.json",
-    "resolvedBy": null,
-    "resolutionScope": null
+    "resolvedBy": "issue-53-comment-5744485891",
+    "resolutionScope": "Implement and release-validate route-schema-v6 IN_BAND_REQUEST_BINDING_V1 offline; do not deploy or send it live."
   },
   "currentAuthority": {
-    "source": "issue-53-comment-5744027199",
-    "capturedAt": "2026-09-19T17:43:21Z",
-    "requirement": "docs/requirements/2026-09-19-mission-control-v5-policy-activation-exception.owner-requirement.json",
+    "source": "issue-53-comment-5744485891",
+    "capturedAt": "2026-09-19T18:50:43Z",
+    "requirement": "docs/requirements/2026-09-19-mission-control-in-band-request-binding-v6.owner-requirement.json",
     "sourceChatTitle": "Reject API Migration Recommendation",
     "sourceChatUrl": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7"
   },
