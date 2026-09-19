@@ -1,0 +1,53 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-CHATGPT-WORK-CLOUD-DISPATCH-20260919",
+  "recorded_at": "2026-09-19T03:14:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "ChatGPT Work dispatch, Mission Control routing, and Work/Codex surface identity",
+  "requirements": [
+    {
+      "id": "WORK-CLOUD-001",
+      "text": "When the owner explicitly requests ChatGPT Work, Mission Control and supervising Chat must use the native ChatGPT Work cloud dispatch path when it is available; a Codex thread is not an acceptable silent substitute.",
+      "operationalization": "Prefer the app executor create_thread target chatgptWorkCloud for new Work tasks and send_message_to_thread for verified existing Work tasks. Do not treat a Work-like title, shared project, shared filesystem, or Codex execution as proof of the Work surface."
+    },
+    {
+      "id": "WORK-CLOUD-002",
+      "text": "Visible/steerable Work execution is part of the outcome when the owner asks to see or control progress in Work.",
+      "operationalization": "Before reporting Work started, verify the native Work surface. A queued Codex message, codex exec/resume process, or renamed Codex thread is insufficient."
+    },
+    {
+      "id": "WORK-CLOUD-003",
+      "text": "Mission Control must persist Work-cloud lineage separately from Codex lineage.",
+      "operationalization": "Persist requested surface, source Chat title and URL, Work title, ChatGPT project id when present, Work threadId/clientThreadId, approval state, and surface verification. Keep Codex ids in separate typed fields."
+    },
+    {
+      "id": "WORK-CLOUD-004",
+      "text": "A product-level approval gate remains authoritative even after the owner has semantically requested Work.",
+      "operationalization": "Attempt the native Work dispatch under the owner's request, but do not bypass any app approval/accept control. If native Work dispatch is unavailable, report WORK_CLOUD_DISPATCH_UNAVAILABLE rather than silently falling back to Codex."
+    },
+    {
+      "id": "WORK-CLOUD-005",
+      "text": "The Work dispatch capability map is version-sensitive and must be revalidated after material client changes.",
+      "operationalization": "Record dated evidence for the app-executor schema. Current 2026-09-19 evidence exposes create_thread target chatgptWorkCloud and send_message_to_thread; Codex-only model/thinking overrides are omitted for Work cloud."
+    }
+  ],
+  "owner_deployment_binding": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "tested_at": "2026-09-19",
+    "verified_behavior": [
+      "A local Codex thread renamed with a Work prefix remained backing kind codex and was not visible as active Work execution.",
+      "codex queue could enqueue into an idle Codex thread but did not wake it; codex exec resume started Codex execution, not ChatGPT Work.",
+      "The bundled desktop app-executor schema independently exposed a native chatgptWorkCloud creation target and send_message_to_thread."
+    ],
+    "current_limits": [
+      "Raw direct MCP calls outside an authenticated app executor were rejected because executor thread metadata was required.",
+      "Native Work dispatch may still surface a product-level approval prompt.",
+      "Do not publish owner-specific thread ids, project ids, socket paths, or account identifiers."
+    ]
+  },
+  "source": {
+    "date": "2026-09-19",
+    "kind": "explicit owner correction plus local capability verification",
+    "owner_words_summary": "The owner requires actual visible ChatGPT Work, not a headless Codex execution that happens to share the same project or title, and requested that the real Work-dispatch mechanism be made durable in Mission Control and/or UDA."
+  }
+}
