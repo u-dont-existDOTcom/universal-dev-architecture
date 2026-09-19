@@ -17,10 +17,13 @@ const relayTransportEvidenceSummaries = new Set([
 ]);
 
 export function snapshotFromStore(store: EventStore, options: { includeFixtureOnly?: boolean } = {}) {
-  return snapshotFromEvents(store.allEvents(), options);
+  return snapshotFromEvents(store.allEvents(), { ...options, fleetSupervisorWatches: store.fleetSupervisorWatches() });
 }
 
-export function snapshotFromEvents(events: StoredEvent[], options: { includeFixtureOnly?: boolean } = {}) {
+export function snapshotFromEvents(events: StoredEvent[], options: {
+  includeFixtureOnly?: boolean;
+  fleetSupervisorWatches?: ReturnType<EventStore["fleetSupervisorWatches"]>;
+} = {}) {
   const projectedWorkers = projectWorkers(events);
   const workers = options.includeFixtureOnly === false
     ? projectedWorkers.filter((worker) => worker.connection.state !== "FIXTURE_ONLY")
@@ -56,6 +59,11 @@ export function snapshotFromEvents(events: StoredEvent[], options: { includeFixt
       suppressedFixtureOnly: projectedWorkers.length - workers.length,
     },
     liveSource,
+    fleetSupervisor: {
+      defaultCadenceMs: 3_600_000,
+      watches: options.fleetSupervisorWatches ?? [],
+      activeCount: (options.fleetSupervisorWatches ?? []).filter((watch) => watch.state === "ACTIVE").length,
+    },
     summary: summarizeChanges(events, lastViewedEventId),
     lastViewedEventId,
     latestEventId: events.at(-1)?.sequence ?? 0,
