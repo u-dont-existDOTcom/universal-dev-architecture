@@ -23,12 +23,17 @@
     {
       "id": "CHATGPT-SURFACE-004",
       "text": "When an exact locator is recovered, open the thread in its native client rather than forcing the owner to search manually.",
-      "operationalization": "Use the exact web conversation/Work URL for browser-owned threads and the exact native desktop Work-thread URI when available. If the launch surface is unavailable, return the exact locator and the narrowest manual action."
+      "operationalization": "Use the exact web conversation/Work URL for browser-owned threads and the exact native desktop Work-thread URI when available. For desktop ordinary Chat, distinguish the recovered identity locator from the navigation mechanism and use only a verified native-Chat route. Verify the intended surface actually opened before reporting success. If the launch surface is unavailable, return the exact locator and the narrowest manual action."
     },
     {
       "id": "CHATGPT-SURFACE-005",
       "text": "Ordinary Chat recovery must be indexed alongside Work recovery when durable source-Chat locators exist.",
-      "operationalization": "Index exact sourceChat title + conversation URL pairs from bounded durable receipt/handoff artifacts. Allow task/receipt metadata such as V4 or project identity to resolve the linked source Chat without searching message bodies. When selected, open the exact HTTPS conversation locator in the ChatGPT desktop app or native browser surface as appropriate."
+      "operationalization": "Index exact sourceChat title + conversation URL pairs from bounded durable receipt/handoff artifacts. Allow task/receipt metadata such as V4 or project identity to resolve the linked source Chat without searching message bodies. The HTTPS sourceChat URL is an identity locator; it must not be assumed to be a native desktop deep link. On the tested desktop client, native Chat opening uses the native Chat-search surface with an unambiguous or discriminating query; title collisions fail closed rather than selecting an arbitrary match."
+    },
+    {
+      "id": "CHATGPT-SURFACE-006",
+      "text": "Launcher acceptance is not completion proof; native Chat/Work recovery must verify the intended surface actually opened.",
+      "operationalization": "Do not treat a successful process launch, 'Opening in existing browser session', or disappearance of an error as proof of native navigation. Bind completion to observable surface evidence. For the tested ordinary-Chat path, verify the native search/result transition and that in-app browser address chrome is absent after selection. If title-only search is ambiguous, require a discriminating task/message token or stop without selecting."
     }
   ],
   "owner_deployment_binding": {
@@ -49,17 +54,23 @@
       "The desktop registers the codex URI scheme to the ChatGPT application; direct invocation with the native Work-thread URI opens the thread in the existing app session.",
       "A local read-only helper named chatgpt-thread-find searches the proven Brave and desktop Work metadata surfaces and can open the selected result in the correct client.",
       "Durable execution receipts containing sourceChat.title and sourceChat.url can recover ordinary supervising Chat threads even when the desktop app exposes no proven browser-style Chat history index; a V4 Mission Control receipt resolved its supervising ordinary Chat exactly.",
-      "Invoking the ChatGPT desktop launcher with the exact durable ordinary-Chat HTTPS conversation URL was accepted into the existing desktop app session, and the local chatgpt-thread-find helper now indexes bounded receipt/handoff sourceChat locators as app_chat_source_locator results."
+      "In ChatGPT desktop 26.903.61454, invoking `chatgpt <https://chatgpt.com/...>` for an ordinary Chat does not open the native Chat thread: the main process routes HTTP(S) OS-open events into the in-app browser panel via `toggle-browser-panel`.",
+      "The bundled desktop deep-link parser exposes native local/Work conversation routing for `codex://threads/...` but no equivalent supported external deep link for an ordinary private Chat conversation; ordinary Chat has an internal native `/c/<conversationId>` route.",
+      "For the V4 Mission Control supervisor, the exact durable `sourceChat` locator identified the target; the tested native sidebar Search path was driven through the app's Xwayland window, and the unique `NO_SEND_SOAK_FAILURE` token removed duplicate-title ambiguity before selection.",
+      "The V4 native-open completion check compared the owner-provided wrong-surface screenshot with the post-selection native window: the prior browser address glyph region had zero remaining bright glyph pixels/correlation and the search overlay closed, falsifying the earlier browser-panel state.",
+      "The local `chatgpt-thread-find` helper now refuses ambiguous ordinary-Chat title opens and requires `--native-query` for a discriminating task/message token when multiple logical title matches exist; Work native URIs remain direct."
     ],
     "current_limits": [
       "The desktop Chromium History database was empty in the tested installation, so desktop recovery must not assume browser-style History.",
-      "A general local desktop-app index for arbitrary ordinary Chat conversations is still unproven; ordinary Chat recovery is proven when an exact durable sourceChat locator exists, with Brave History remaining an additional fallback where available.",
+      "A general local desktop-app index for arbitrary ordinary Chat conversations is still unproven; durable sourceChat metadata identifies ordinary Chat targets, but the tested desktop client has no proven supported external direct-by-ID ordinary-Chat deep link.",
+      "Native ordinary-Chat UI automation is version/layout bounded and must be revalidated after a ChatGPT desktop update or material UI change.",
+      "A durable exact Chat URL can establish identity without being a valid native desktop navigation mechanism.",
       "Do not commit owner-specific conversation IDs, project IDs, filesystem locators, account identifiers, or credentials into the public repository."
     ]
   },
   "source": {
     "date": "2026-09-19",
     "kind": "explicit owner workflow correction plus read-only local verification",
-    "owner_words_summary": "The owner uses both Brave and the ChatGPT app because capabilities and load behavior differ, wants Mission Control to learn the interface differences, and explicitly requires recovery/opening to work for ordinary Chat supervisor threads as well as Work threads."
+    "owner_words_summary": "The owner uses both Brave and the ChatGPT app because capabilities and load behavior differ, requires recovery/opening for ordinary Chat supervisor threads as well as Work threads, and corrected a false success when an HTTPS Chat URL opened only the desktop app's embedded browser surface instead of the native Chat."
   }
 }
