@@ -4,6 +4,9 @@ import {
   CAPABILITY_CHALLENGE_SUMMARY,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
+  IN_BAND_PRE_SEND_SUMMARY,
+  IN_BAND_REQUEST_PROTOCOL,
+  IN_BAND_REQUEST_STEP,
   REQUEST_BOUND_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_MODEL_SUMMARY,
@@ -19,6 +22,7 @@ import {
   consumerControlRefs,
   cycleControlPrompt,
   deriveBindingCapsule,
+  deriveInBandRequestBinding,
   extractQueuedRoutes,
   mcpReadPreflightPrompt,
   managedChatGptTabTelemetry,
@@ -442,7 +446,8 @@ export class RelayRuntime {
           ?? withReceipt.decisionReceipt.decision_provider_session_id
           ?? withReceipt.decisionReceipt.stage_provider_session_id;
         const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
-        if (!session && withReceipt.packet.routeSchemaVersion === 5 && withReceipt.decisionReceipt.execution_provenance === 'REQUEST_BOUND_MCP_GITHUB_OBSERVED') {
+        if (!session && ((withReceipt.packet.routeSchemaVersion === 5 && withReceipt.decisionReceipt.execution_provenance === 'REQUEST_BOUND_MCP_GITHUB_OBSERVED')
+          || (withReceipt.packet.routeSchemaVersion === 6 && withReceipt.decisionReceipt.execution_provenance === 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED'))) {
           // The daemon already admitted the exact execution evidence. Recover a lost local acknowledgement without a new browser transaction.
           state.deliveries[withReceipt.routeKey] = { status: 'DECISION_RECEIPT_INGESTED', requestId: withReceipt.requestId, workerId: withReceipt.workerId, supervisorId: withReceipt.supervisorId, providerSessionId, receiptId: withReceipt.decisionReceipt.receipt_id, recoveredFrom: 'DURABLE_GITHUB_ADMISSION', receivedAt: new Date().toISOString() };
           state = await this.stateStore.write(state);
@@ -493,7 +498,7 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('LEGACY_ROUTE_NOT_AUTOMATED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate) });
       }
 
-      if (candidate.packet.routeSchemaVersion === 5 && this.config.runtime.requestBoundEnabled !== true) {
+      if ((candidate.packet.routeSchemaVersion === 5 || candidate.packet.routeSchemaVersion === 6) && this.config.runtime.requestBoundEnabled !== true) {
         return this.#writeStandaloneStatus('REQUEST_BOUND_PROTOCOL_DISABLED', state, { memory, route: publicRoute(candidate) });
       }
       const capability = chatCapabilityState(snapshot, candidate.chat);
@@ -632,7 +637,8 @@ export class RelayRuntime {
   }
 
   async #processSupervisoryCycle(route, routes, state, memory) {
-    const perRequest = route.packet.routeSchemaVersion === 5;
+    const perRequest = route.packet.routeSchemaVersion === 5 || route.packet.routeSchemaVersion === 6;
+    const inBandRequest = route.packet.routeSchemaVersion === 6;
     let prior = state.deliveries[route.routeKey] ?? null;
     route = {
       ...route,
@@ -857,9 +863,33 @@ export class RelayRuntime {
           requestId: route.requestId, queueKey: perRequest ? `${route.routeKey}:${action.step}` : `${route.routeKey}:${action.step}:${session.providerSessionId}`, sendPath: `SUPERVISORY_CYCLE_${action.step}`,
           bodySha256: promptSha256,
         }),
-        beforeSubmit: async () => {
+        beforeSubmit: async (admission) => {
           model = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: route.chat.consumerControls });
           const intentAt = new Date().toISOString();
+          if (inBandRequest) {
+            const binding = deriveInBandRequestBinding(route, session.providerSessionId);
+            await this.missionControl.recordEvidence(route.workerId, {
+              receiptId: `in-band-pre-send:${route.requestId}:${session.providerSessionId}`,
+              summary: IN_BAND_PRE_SEND_SUMMARY,
+              refs: [
+                `request:${route.requestId}`,
+                `supervisor:${route.supervisorId}`,
+                `provider_session:${session.providerSessionId}`,
+                `worker:${route.workerId}`,
+                `binding_protocol:${IN_BAND_REQUEST_PROTOCOL}`,
+                `binding_schema:${binding.binding_schema}`,
+                `in_band_binding_sha256:${binding.in_band_binding_sha256}`,
+                `provider_body_sha256:${promptSha256}`,
+                `decision_receipt_target:${binding.decision_receipt_target.immutable_issue_url}`,
+                `submission_admission:${admission.admissionId}`,
+                `admitted_at:${admission.admittedAt}`,
+                `admission_expires_at:${admission.expiresAt}`,
+                `trusted_relay_producer:${this.missionControl.producerId}`,
+                'semantic_authority:false',
+              ],
+              occurredAt: intentAt,
+            });
+          }
           state = await this.stateStore.read();
           const current = state.deliveries[route.routeKey] ?? prior;
           state.deliveries[route.routeKey] = {
@@ -893,7 +923,7 @@ export class RelayRuntime {
               ? await this.browser.selectAppsForMessage(target, appPlan)
               : { status: 'APP_SELECTION_NOT_ATTEMPTED', requiredLabels: [], selectedLabels: [], inspectedAssistantOutput: false };
           } catch (error) {
-            if (!perRequest) throw error;
+            if (!perRequest || inBandRequest) throw error;
             messageApps = { status: 'APP_SELECTION_UNCONFIRMED', requiredLabels: appPlan.requiredLabels, selectedLabels: [], inspectedAssistantOutput: false };
           }
           if (perRequest && Date.now() >= Date.parse(route.packet.expiresAt)) {

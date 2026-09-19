@@ -25,6 +25,15 @@ interface Snapshot {
     openProposals: number;
   };
   connectionSummary: { connected: number; offlineConfigured: number; fixtureOnly: number; suppressedFixtureOnly: number };
+  fleetSupervisor: {
+    defaultCadenceMs: number;
+    activeCount: number;
+    watches: Array<{
+      projectId: string; taskId: string; worker: string; state: "ACTIVE" | "PAUSED" | "TERMINAL" | "DISABLED";
+      cadenceMs: number; nextTickAt: string | null; lastTickAt: string | null; lastTrigger: string | null;
+      lastResult: string | null; notificationDisposition: string; notificationReason: string | null;
+    }>;
+  };
   liveSource: {
     worker: string;
     source_kind: "READ_ONLY_FILE_GIT";
@@ -105,6 +114,7 @@ export function Dashboard() {
       {error && <div className="error-banner">{error}</div>}
       <InfrastructureHealth status={operatorStatus} />
       <LiveWorkerStrip source={snapshot.liveSource} />
+      <FleetSupervisorStatus supervisor={snapshot.fleetSupervisor} />
 
       <div className="mission-heading">
         <div><p className="eyebrow">CURRENT LIVE FLEET</p><h2>What is running, parked, failed, or waiting?</h2></div>
@@ -142,6 +152,18 @@ export function Dashboard() {
       <footer><span>Append-only v2 ledger · daemon-owned SQLite · read-only file/Git evidence</span><span>Projection updated {relativeTime(snapshot.generatedAt)}</span></footer>
     </main>
   );
+}
+
+function FleetSupervisorStatus({ supervisor }: { supervisor: Snapshot["fleetSupervisor"] }) {
+  return <section className="channel-fleet-summary" aria-label="Fleet supervisor status">
+    <div><span>Fleet watches active</span><strong>{supervisor.activeCount}</strong></div>
+    <div><span>Default cadence</span><strong>{formatInterval(supervisor.defaultCadenceMs)}</strong></div>
+    {supervisor.watches.map((watch) => <div key={watch.projectId} title={watch.lastResult ?? "No tick completed yet"}>
+      <span>{watch.projectId} · {watch.state}</span>
+      <strong>{watch.lastTickAt ? `last ${relativeTime(watch.lastTickAt)}` : "awaiting first tick"}</strong>
+      <small>{watch.nextTickAt ? `next ${relativeTime(watch.nextTickAt)}` : "not scheduled"} · {watch.lastTrigger ?? "no trigger"} · {watch.notificationDisposition}{watch.notificationReason ? `: ${watch.notificationReason}` : ""}</small>
+    </div>)}
+  </section>;
 }
 
 function InfrastructureHealth({ status }: { status: OperatorStatusProjection }) {

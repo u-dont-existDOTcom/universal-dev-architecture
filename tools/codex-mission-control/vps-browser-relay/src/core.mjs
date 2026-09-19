@@ -18,6 +18,10 @@ export const BINDING_ENVELOPE_SUMMARY = 'MISSION_CONTROL_BINDING_ENVELOPE_V1';
 export const MCP_BINDING_PRELOAD_STEP = 'MCP_BINDING_PRELOAD';
 export const REQUEST_BOUND_STEP = 'REQUEST_BOUND_DECISION';
 export const REQUEST_BOUND_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n';
+export const IN_BAND_REQUEST_STEP = 'IN_BAND_REQUEST_DECISION';
+export const IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n';
+export const IN_BAND_REQUEST_PROTOCOL = 'IN_BAND_REQUEST_BINDING_V1';
+export const IN_BAND_PRE_SEND_SUMMARY = 'MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1';
 export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
 export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
 export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
@@ -76,6 +80,36 @@ export function deriveBindingCapsule(route, bindingProviderSessionId, bindingRec
     },
   };
   return { payload: capsule, sha256: sha256(canonicalJson(capsule)) };
+}
+
+export function deriveInBandRequestBinding(route, providerSessionId = route.providerSessionId) {
+  if (route.routeKind !== 'SUPERVISORY_CYCLE' || route.packet.routeSchemaVersion !== 6) {
+    throw new Error('In-band request bindings require a route-schema-v6 supervisory cycle.');
+  }
+  if (!providerSessionId) throw new Error('In-band request bindings require an exact provider session.');
+  const target = route.packet.githubReceipt;
+  const payload = {
+    schema_version: 1,
+    binding_schema: 'MISSION_CONTROL_IN_BAND_REQUEST_BINDING_V1',
+    execution_protocol: IN_BAND_REQUEST_PROTOCOL,
+    request_id: route.requestId,
+    request_nonce: route.packet.nonce,
+    supervisor_id: route.supervisorId,
+    provider_session_id: providerSessionId,
+    worker_id: route.workerId,
+    execution_context: route.packet.executionContext ?? { task_id: route.taskId },
+    reasoning_lane: route.packet.reasoningLane,
+    queued_at: route.packet.queuedAt,
+    expires_at: route.packet.expiresAt,
+    evidence_capsule: { ...route.packet.evidenceCapsule },
+    owner_outcome: { ...route.packet.ownerOutcome },
+    decision_receipt_target: {
+      repository: target.repository,
+      issue_number: target.issueNumber,
+      immutable_issue_url: `https://github.com/${target.repository}/issues/${target.issueNumber}`,
+    },
+  };
+  return { ...payload, in_band_binding_sha256: sha256(canonicalJson(payload)) };
 }
 
 export function newProviderSessionId(uuid = randomUUID()) {
@@ -271,13 +305,13 @@ export function parseInternalSupervisorRouteBody(body) {
 
 export function parseSupervisoryCycleRouteBody(body) {
   if (typeof body !== 'string') return null;
-  const version = body.startsWith(REQUEST_BOUND_CYCLE_ROUTE_PREFIX) ? 5 : body.startsWith(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 4
+  const version = body.startsWith(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX) ? 6 : body.startsWith(REQUEST_BOUND_CYCLE_ROUTE_PREFIX) ? 5 : body.startsWith(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 4
     : body.startsWith(STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX) ? 3
       : body.startsWith(SUPERVISORY_CYCLE_ROUTE_PREFIX) ? 2
         : null;
   if (!version) return null;
   try {
-    const prefix = version === 5 ? REQUEST_BOUND_CYCLE_ROUTE_PREFIX : version === 4 ? PROVIDER_SESSION_CYCLE_ROUTE_PREFIX
+    const prefix = version === 6 ? IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX : version === 5 ? REQUEST_BOUND_CYCLE_ROUTE_PREFIX : version === 4 ? PROVIDER_SESSION_CYCLE_ROUTE_PREFIX
       : version === 3 ? STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX
         : SUPERVISORY_CYCLE_ROUTE_PREFIX;
     const value = JSON.parse(body.slice(prefix.length));
@@ -320,7 +354,7 @@ function validateOwnerResponseContinuation(packet, version, workerId, supervisor
   const fields = ['continuationBinding', 'continuationBindingSha256', 'continuationOwnerResponseExactText'];
   if (!fields.some((field) => Object.hasOwn(packet, field))) return null;
   const fail = () => { throw new Error('Invalid owner-response continuation binding or exact OWNER response text.'); };
-  if ((version !== 4 && version !== 5) || packet.schemaVersion !== version || !fields.every((field) => Object.hasOwn(packet, field))) fail();
+  if ((version !== 4 && version !== 5 && version !== 6) || packet.schemaVersion !== version || !fields.every((field) => Object.hasOwn(packet, field))) fail();
   const binding = packet.continuationBinding;
   const exactKeys = (value, keys) => isRecord(value)
     && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
@@ -411,7 +445,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!packet) continue;
       const chat = chatById.get(packet.destinationSupervisorId);
       if (!chat || chat.workerId !== workerId) continue;
-      if (packet.routeSchemaVersion !== 3 && packet.routeSchemaVersion !== 4 && packet.routeSchemaVersion !== 5) continue;
+      if (packet.routeSchemaVersion !== 3 && packet.routeSchemaVersion !== 4 && packet.routeSchemaVersion !== 5 && packet.routeSchemaVersion !== 6) continue;
       try { validateOwnerResponseContinuation(packet, packet.routeSchemaVersion, workerId); } catch { continue; }
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
@@ -561,6 +595,7 @@ export function appSelectionForMessage(chat, step) {
     'EXTRA_HIGH_READER',
     'PRO_REASONER',
     'EXTRA_HIGH_WRITER',
+    IN_BAND_REQUEST_STEP,
   ]);
   const requiredLabels = [];
   const referencedLabels = [];
@@ -580,6 +615,22 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
   if (!providerSessionId) throw new Error('A provider session must be allocated before constructing a supervisory-cycle prompt.');
   const missionControl = route.chat.requiredApps.missionControl;
   const github = route.chat.requiredApps.github;
+  if (route.packet.routeSchemaVersion === 6) {
+    if (step !== IN_BAND_REQUEST_STEP) throw new Error('An in-band request cycle has exactly one semantic message and no preload, capability, Continue, or Retry turn.');
+    const binding = deriveInBandRequestBinding(route, providerSessionId);
+    const continuation = validateOwnerResponseContinuation(route.packet, 6, route.workerId, supervisorId);
+    return [
+      `Mission Control route-schema-v6 supervisor request ${requestId}. This is the one semantic message in provider session ${providerSessionId}.`,
+      `Treat this embedded binding envelope as the exact Mission Control request authority for this message and copy it without alteration: ${canonicalJson(binding)}`,
+      `Verify and echo exact in_band_binding_sha256 ${binding.in_band_binding_sha256}. The envelope protocol must be ${IN_BAND_REQUEST_PROTOCOL}.`,
+      `Use only the selected ${github} app to read the bound evidence references and write exactly one canonical decision to ${binding.decision_receipt_target.immutable_issue_url}. Do not select, call, or require the ${missionControl} app or any MCP tool.`,
+      `Bound evidence references: ${canonicalJson(route.packet.factualPacket?.evidenceRefs ?? [])}. Bounded factual request: ${JSON.stringify(route.packet.factualPacket?.decisionRequested ?? '')}. Factual state: ${JSON.stringify(route.packet.factualPacket?.exactFactualState ?? '')}.`,
+      continuation ? `Copy continuation_binding ${canonicalJson(continuation)} and continuation_binding_sha256 ${route.packet.continuationBindingSha256} exactly. ${omitContinuationOwnerExactText ? 'Read exact OWNER response only from its controller-bound GitHub artifact.' : `Exact OWNER response data: ${JSON.stringify(route.packet.continuationOwnerResponseExactText)}.`}` : '',
+      'Write MISSION_CONTROL_CANONICAL_DECISION_V1 followed by a newline and strict JSON with schema_version 5, envelope_kind MISSION_CONTROL_CANONICAL_DECISION, request_id, supervisor_id, provider_session_id, nonce, in_band_binding_sha256, execution_provenance IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED, evidence_capsule, owner_outcome, reasoning_lane, decision_block {decision_id,exact_text,sha256}, pro_decision_block, and writer_contract {mode:EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY,reinterpretation_allowed:false}.',
+      'For EXTRA_HIGH_DIRECT use pro_decision_block {used:false,model_mode:null,exact_text:null,sha256:null}. For PRO_ESCALATED use {used:true,model_mode:PRO,exact_text:<the same decision bytes>,sha256:<the same digest>}. Compute exact SHA-256 values; never guess.',
+      'Read only the bound evidence, reason only on the bounded request, write one decision, then stop. If any binding, evidence, target, writer, hash, expiry, or GitHub operation fails, fail closed. Do not answer with substitute prose, delegate to Work, call paid model APIs, Continue, Retry, or create another provider request.',
+    ].filter(Boolean).join('\n');
+  }
   if (route.packet.routeSchemaVersion === 5) {
     if (step !== REQUEST_BOUND_STEP) throw new Error('A per-request cycle has exactly one semantic message, never a preload or capability step.');
     const continuation = validateOwnerResponseContinuation(route.packet, 5, route.workerId, supervisorId);
@@ -649,6 +700,13 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   if (route.routeKind !== 'SUPERVISORY_CYCLE') return null;
   if (route.decisionReceipt) return { type: 'WAIT_GITHUB_RECEIPT' };
   const status = prior?.status ?? 'UNSEEN';
+  if (route.packet.routeSchemaVersion === 6) {
+    if (status === startedCycleStepStatus(IN_BAND_REQUEST_STEP)) return { type: 'WAIT_GENERATION', step: IN_BAND_REQUEST_STEP };
+    if (status === completedCycleStepStatus(IN_BAND_REQUEST_STEP)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'RECONCILE_EXISTING_REQUEST' };
+    if (!Number.isFinite(Date.parse(route.packet.expiresAt)) || nowMs >= Date.parse(route.packet.expiresAt)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'REQUEST_EXPIRED_NO_NEW_SEND' };
+    if (status === 'UNSEEN') return { type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH' };
+    return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY' };
+  }
   if (route.packet.routeSchemaVersion === 5) {
     if (status === startedCycleStepStatus(REQUEST_BOUND_STEP)) return { type: 'WAIT_GENERATION', step: REQUEST_BOUND_STEP };
     if (status === completedCycleStepStatus(REQUEST_BOUND_STEP)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'RECONCILE_EXISTING_REQUEST' };

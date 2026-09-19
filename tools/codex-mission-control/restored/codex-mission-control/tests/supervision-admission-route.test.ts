@@ -5,6 +5,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import type { AppendEnvelope } from "../lib/schema";
 import { EventStore, IdempotencyConflictError } from "../lib/store";
+import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
+import { requestBoundRoutePrefix } from "../lib/request-bound-supervision";
 
 const worker = "route-worker";
 const otherWorker = "other-worker";
@@ -191,6 +193,33 @@ test("request-bound admission acknowledges the one original durable enqueue", as
   });
   try {
     const { POST } = await import("../app/api/worker-channel/[worker]/admission/route");
+
+    await t.test("explicit V6 admission is distinct while unchanged requestBound policy still defaults to V5", async () => {
+      const v6Daemon = daemonHarness();
+      globalThis.fetch = v6Daemon.fetch;
+      const v6 = admissionInput("request:v6", new Date(Date.now() + 60_000).toISOString());
+      Object.assign(v6.factualPacket.supervisoryCycle, { bindingProtocol: "IN_BAND_REQUEST_BINDING_V1" });
+      const v6Response = await send(POST, v6);
+      assert.equal(v6Response.status, 202);
+      const v6Event = v6Daemon.store.allEvents()[0]!;
+      assert.equal(v6Event.data.type, "worker_message_recorded");
+      if (v6Event.data.type === "worker_message_recorded") {
+        assert.equal(v6Event.data.body.startsWith(inBandRequestRoutePrefix), true);
+        assert.equal(JSON.parse(v6Event.data.body.slice(inBandRequestRoutePrefix.length)).schemaVersion, 6);
+      }
+      assert.match(v6Event.eventId, /^supervision-request-v6:/);
+      v6Daemon.close();
+
+      const v5Daemon = daemonHarness();
+      globalThis.fetch = v5Daemon.fetch;
+      const v5Response = await send(POST, admissionInput("request:v5-unchanged", new Date(Date.now() + 60_000).toISOString()));
+      assert.equal(v5Response.status, 202);
+      const v5Event = v5Daemon.store.allEvents()[0]!;
+      assert.equal(v5Event.data.type, "worker_message_recorded");
+      if (v5Event.data.type === "worker_message_recorded") assert.equal(v5Event.data.body.startsWith(requestBoundRoutePrefix), true);
+      assert.match(v5Event.eventId, /^supervision-request-v5:/);
+      v5Daemon.close();
+    });
 
     await t.test("lost HTTP acknowledgement returns the original record on retry", async () => {
       const daemon = daemonHarness({ loseFirstAcknowledgement: true });

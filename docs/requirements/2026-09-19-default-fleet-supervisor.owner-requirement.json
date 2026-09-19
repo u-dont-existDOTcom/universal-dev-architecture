@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-DEFAULT-FLEET-SUPERVISOR-20260919",
+  "status": "LIVE_VERIFIED",
+  "owner_source": {
+    "kind": "GITHUB_ISSUE",
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 177,
+    "body_sha256": "293700c1b159dc01c8532eb3c6f9a89296f1ef34163319ee117e14230aa93483"
+  },
+  "outcome": "All new nontrivial Mission Control projects receive native timed fleet supervision without owner relay.",
+  "frozen_architecture": {
+    "native_daemon_loop": true,
+    "default_cadence_ms": 3600000,
+    "deterministic_preflight_first": true,
+    "reasoning_owns_strategy": true,
+    "external_automation_dependency": false
+  },
+  "owner_notification_conditions": [
+    "GENUINE_OWNER_DECISION",
+    "UNAVOIDABLE_HUMAN_AUTH_OR_PERMISSION",
+    "PROJECT_VALIDITY_OR_INTEGRITY_FAILURE_OR_INDETERMINATE",
+    "OWNER_AUTHORITY_REQUIRED_STRATEGY_REPLACEMENT",
+    "TERMINAL_RESULT"
+  ],
+  "non_satisfying_proxies": [
+    "an external ChatGPT hourly automation without native runtime state",
+    "a healthy-tick dashboard update that notifies the owner",
+    "Codex selecting or authoring a replacement strategy",
+    "a worker receipt that still requires owner copy/paste"
+  ]
+}

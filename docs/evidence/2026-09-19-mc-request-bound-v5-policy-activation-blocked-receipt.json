@@ -1,0 +1,102 @@
+{
+  "verdict": "BLOCKED_V5_SERVER_POLICY_ACTIVATION_REQUIRES_EXPLICIT_PRODUCTION_MUTATION_AUTHORITY",
+  "checkedAt": "2026-09-19T17:17:52.141Z",
+  "ownerAuthority": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 53,
+    "comment": 5743640100,
+    "url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5743640100",
+    "parentOwnerOutcome": "OPEN"
+  },
+  "sourceChat": {
+    "title": "Reject API Migration Recommendation",
+    "url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+    "receiptBacklinkRequired": true
+  },
+  "v4Terminalization": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "priorStatus": "FAILED_RETRYABLE",
+    "finalStatus": "DISCARDED",
+    "resolution": "OPERATOR_DISCARDED",
+    "resolvedAt": "2026-09-19T17:11:14.677Z",
+    "markedSubmitted": false,
+    "failedSessionHistoryPreserved": true,
+    "additionalV4ProviderSend": false,
+    "epoch4Resurrected": false
+  },
+  "relayReadiness": {
+    "canonicalFileCount": 58,
+    "installedFileCount": 58,
+    "canonicalManifestSha256": "93dedb27acefb5977ee6f58deb8926436127125d78199485586f77ed5bc0335c",
+    "installedManifestSha256": "93dedb27acefb5977ee6f58deb8926436127125d78199485586f77ed5bc0335c",
+    "exactCanonicalBytes": true,
+    "requestBoundPathPresent": true,
+    "requestBoundFlagEnabled": true,
+    "requestBoundFlagRollbackPreserved": true,
+    "persistentSubmitEnabled": false,
+    "persistentCapabilityTestEnabled": false,
+    "browserFence": "HOST_BROWSER_FENCED"
+  },
+  "serverReadiness": {
+    "image": "codex-mission-control:a4dd25a-epoch5-outbox-cache",
+    "imageId": "sha256:2aaa5e8b28594379a511bace06ae16b30b7c41f28fdddf569d1eebac23ecd98c",
+    "requestBoundCodePresent": true,
+    "requestBoundPolicyEnabled": false,
+    "activationRequirement": "Stop and reversibly recreate the live primary container with the exact current image and durable volume while adding only requestBound.enabled=true and the trusted owner-secondary relay producer.",
+    "activationAttempted": false,
+    "containerRecreated": false,
+    "dataVolume": "codex-mission-control-issue90-live-v2",
+    "dataVolumeMutatedByActivation": false,
+    "runtimeChain": {
+      "latestSequence": 14148,
+      "valid": true,
+      "errorCount": 0
+    },
+    "liveness": "PASS"
+  },
+  "centralAuthority": {
+    "schedulerState": "ACTIVE_LEASE",
+    "authority": "MISSION_CONTROL_SINGLE_WRITER",
+    "activeEpoch": 5,
+    "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED",
+    "queueDepth": 0,
+    "unresolvedAdmission": null,
+    "relayTargetTransition": "CLEAR",
+    "safetyHalt": null,
+    "authorityLedgerValid": true,
+    "globalPacing": {
+      "minimumIntervalMs": 60000,
+      "lastSubmissionAt": "2026-09-19T06:22:25.685Z",
+      "retryAfterMs": 0,
+      "ready": true
+    },
+    "senderFenced": true
+  },
+  "v5Boundary": {
+    "authorizedFixtureLimit": 1,
+    "fixtureCreated": false,
+    "requestIdAllocated": false,
+    "admissionCreated": false,
+    "providerSessionCreated": false,
+    "providerRequestsSent": 0,
+    "serverObservedMcpReceipt": null,
+    "canonicalGitHubDecision": null,
+    "pmControllerInitialized": false
+  },
+  "stop": {
+    "reason": "The safety gate rejected live primary container replacement as production mutation under the directive's explicit no-production-mutation boundary. The disabled server policy would otherwise cause the admission endpoint to emit V4, so creating or sending the V5 route would be false and was not attempted.",
+    "workaroundAttempted": false,
+    "explicitAuthorityRequired": "Authorize the reversible live primary container recreation needed solely to enable the already-merged request-bound policy on the existing epoch-5 volume, or provide a distinct non-production canonical endpoint that already has the policy enabled."
+  },
+  "forbiddenBoundaries": {
+    "paidModelOrApiInference": false,
+    "productionMutation": false,
+    "assistantOutputDomInspection": false,
+    "controllerSemanticSubstitution": false,
+    "manualSqliteMutation": false,
+    "secondLiveEventStoreWriter": false,
+    "replacementBeyondAuthorizedV5": false,
+    "v5ProviderRequest": false,
+    "deferredPermanentHardening": false
+  }
+}

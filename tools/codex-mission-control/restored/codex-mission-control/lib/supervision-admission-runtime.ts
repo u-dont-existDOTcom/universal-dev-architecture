@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { requestBoundRoutePrefix, requestRouteEventId, requestExecutionContext, type RequestExecutionContext } from "./request-bound-supervision";
+import { inBandRequestProtocol, inBandRequestRoutePrefix } from "./in-band-request-binding";
 
 import {
   evaluateChatWorkAuthorityGate,
@@ -28,6 +29,7 @@ export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY
 export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n";
 
 export interface SupervisoryCycleRequest {
+  bindingProtocol?: "IN_BAND_REQUEST_BINDING_V1";
   executionContext?: RequestExecutionContext;
   nonce: string;
   evidenceCapsule: { id: string; sha256: string };
@@ -93,7 +95,7 @@ export function evaluateSupervisionAdmission(
   now = new Date().toISOString(),
   authoritativeContinuation?: OwnerResponseContinuation,
   persistedDirective: PersistedExecutionDirectiveProof | null = null,
-  protocol: "SPLIT_SESSION_V4" | "PER_REQUEST_V1" = "SPLIT_SESSION_V4",
+  protocol: "SPLIT_SESSION_V4" | "PER_REQUEST_V1" | "IN_BAND_REQUEST_BINDING_V1" = "SPLIT_SESSION_V4",
 ): SupervisionAdmissionResult {
   const parsed = parseSupervisionAdmissionInput(input);
   assertProducerActor(producer, parsed.request.actor);
@@ -213,7 +215,7 @@ function buildRouteEnvelope(
   routeDecision: AuthorityGateResult,
   now: string,
   continuation?: OwnerResponseContinuation,
-  protocol: "SPLIT_SESSION_V4" | "PER_REQUEST_V1" = "SPLIT_SESSION_V4",
+  protocol: "SPLIT_SESSION_V4" | "PER_REQUEST_V1" | "IN_BAND_REQUEST_BINDING_V1" = "SPLIT_SESSION_V4",
 ): AppendEnvelope {
   const route = input.request.internalRoute!;
   const packet = input.factualPacket!;
@@ -223,9 +225,10 @@ function buildRouteEnvelope(
     throw admissionError(400, "A provider-session supervisory cycle must expire after its queue time.");
   }
   const perRequest = Boolean(cycle && protocol === "PER_REQUEST_V1");
-  const body = (cycle ? perRequest ? requestBoundRoutePrefix : supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
-    schemaVersion: cycle ? perRequest ? 5 : 4 : 1,
-    ...(perRequest ? { executionContext: cycle!.executionContext ?? { task_id: packet.taskId } } : {}),
+  const inBand = Boolean(cycle && protocol === inBandRequestProtocol);
+  const body = (cycle ? inBand ? inBandRequestRoutePrefix : perRequest ? requestBoundRoutePrefix : supervisoryCycleRoutePrefix : internalSupervisorRoutePrefix) + JSON.stringify({
+    schemaVersion: cycle ? inBand ? 6 : perRequest ? 5 : 4 : 1,
+    ...((perRequest || inBand) ? { executionContext: cycle!.executionContext ?? { task_id: packet.taskId } } : {}),
     packetKind: cycle ? "PROVIDER_SESSION_SUPERVISORY_CYCLE" : "FACTUAL_STATE_ONLY",
     requestId: input.request.requestId,
     actionBlockedOrRouted: input.request.action,
@@ -262,13 +265,13 @@ function buildRouteEnvelope(
   if (body.length > 20_000) throw admissionError(400, "The factual supervisor packet exceeds the durable message limit.");
   return {
     schema_version: 2,
-    event_id: perRequest ? requestRouteEventId(input.request.requestId) : `supervision-route-request:${suffix}`,
+    event_id: inBand ? requestRouteEventId(input.request.requestId, 6) : perRequest ? requestRouteEventId(input.request.requestId) : `supervision-route-request:${suffix}`,
     mission_id: "mission-control-live",
     occurred_at: now,
     data: {
       type: "worker_message_recorded",
       worker,
-      message_id: perRequest ? `message:${requestRouteEventId(input.request.requestId)}` : `message:supervision-route:${suffix}`,
+      message_id: inBand ? `message:${requestRouteEventId(input.request.requestId, 6)}` : perRequest ? `message:${requestRouteEventId(input.request.requestId)}` : `message:supervision-route:${suffix}`,
       thread_id: `thread:supervision-route:${worker}`,
       message_kind: "QUESTION",
       body,
@@ -454,6 +457,9 @@ function parseSupervisoryCycle(value: unknown, taskId: string): SupervisoryCycle
   const expiresAt = requiredString(record.expiresAt, "factualPacket.supervisoryCycle.expiresAt", 100);
   if (!Number.isFinite(Date.parse(expiresAt))) throw admissionError(400, "Supervisory-cycle expiry must be an ISO timestamp.");
   return {
+    ...(record.bindingProtocol !== undefined ? {
+      bindingProtocol: requiredEnum(record.bindingProtocol, [inBandRequestProtocol] as const, "factualPacket.supervisoryCycle.bindingProtocol"),
+    } : {}),
     ...(record.executionContext !== undefined ? { executionContext: requestExecutionContext(record.executionContext, taskId) } : {}),
     nonce: requiredString(record.nonce, "factualPacket.supervisoryCycle.nonce", 180),
     evidenceCapsule: {

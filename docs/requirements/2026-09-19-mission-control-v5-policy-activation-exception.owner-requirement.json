@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-V5-POLICY-ACTIVATION-EXCEPTION-20260919",
+  "recorded_at": "2026-09-19T18:07:21Z",
+  "status": "ACTIVE",
+  "root_owner_outcome": "OPEN",
+  "owner_source": {
+    "source_type": "github_issue_comment",
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 53,
+    "comment_id": 5744027199,
+    "source_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744027199",
+    "created_at": "2026-09-19T17:43:21Z",
+    "sha256": "eeae4c62c67bd04ffc373d4f8e33fcc3c74a0b180488ec95d2e75f57298e1944"
+  },
+  "authorization": "One narrow reversible recreation of the live Mission Control primary container solely to enable the already-merged request-bound V5 policy, preserving the exact deployed image, existing epoch-5 durable volume, stopped rollback container, all unrelated configuration, authority, pacing and history.",
+  "only_policy_delta": {
+    "requestBound.enabled": true,
+    "requestBound.relayProducerIds": [
+      "collector:issue90-secondary"
+    ]
+  },
+  "post_activation": "Resume issue-53-comment-5743640100 automatically and create/send at most one fresh route-schema-v5 PER_REQUEST_V1 acceptance.",
+  "source_chat_title": "Reject API Migration Recommendation",
+  "source_chat_url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+  "receipt_backlink_required": true
+}

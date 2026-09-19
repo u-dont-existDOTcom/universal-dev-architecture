@@ -26,13 +26,17 @@ import {
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
+import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
 const internalToken = process.env.MISSION_CONTROL_INTERNAL_TOKEN;
 if (!internalToken) throw new Error("MISSION_CONTROL_INTERNAL_TOKEN is required; use npm run dev/start or provide a secret for standalone daemon mode.");
 const store = new EventStore();
-const dashboardProjectionOptions = { includeFixtureOnly: process.env.MISSION_CONTROL_SKIP_SEED !== "1" };
+const dashboardProjectionOptions = () => ({
+  includeFixtureOnly: process.env.MISSION_CONTROL_SKIP_SEED !== "1",
+  fleetSupervisorWatches: store.fleetSupervisorWatches(),
+});
 const notifications = new EventEmitter();
 notifications.setMaxListeners(100);
 if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
@@ -59,6 +63,7 @@ const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env
   }, (event) => notifications.emit("event", event))
   : null;
 const githubReconciliationTimer = startGitHubReconciliation(githubReconciliationEventCache);
+const fleetSupervisorTimer = startFleetSupervisor();
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -68,6 +73,20 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === "GET" && url.pathname === "/health") {
       return json(response, 200, await daemonReadiness(store, submissionAuthority));
+    }
+    if (request.method === "GET" && url.pathname === "/fleet-supervisor") {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet watch reads require owner or supervisor scope." });
+      return json(response, 200, { defaultCadenceMs: 3_600_000, watches: store.fleetSupervisorWatches() });
+    }
+    const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);
+    if (request.method === "POST" && fleetWatchMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may configure a fleet watch." });
+      const body = await readJson(request) as { state?: "ACTIVE" | "PAUSED" | "TERMINAL" | "DISABLED"; cadenceMs?: number };
+      const watch = store.configureFleetSupervisorWatch(decodeURIComponent(fleetWatchMatch[1]), { state: body.state, cadenceMs: body.cadenceMs });
+      notifications.emit("event", { type: "fleet_supervisor_watch_configured", projectId: watch.projectId });
+      return json(response, 200, { watch });
     }
     if (request.method === "GET" && url.pathname === "/submission-authority/status") {
       const producer = authorizeMutation(request);
@@ -91,7 +110,7 @@ const server = http.createServer(async (request, response) => {
       return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
-      return json(response, 200, snapshotFromEvents(eventHistory(), dashboardProjectionOptions));
+      return json(response, 200, snapshotFromEvents(eventHistory(), dashboardProjectionOptions()));
     }
     if (request.method === "GET" && url.pathname === "/events") {
       const eventId = url.searchParams.get("event_id");
@@ -131,18 +150,18 @@ const server = http.createServer(async (request, response) => {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
         if (params?.name === "mission_control_get_fleet") {
           if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet reads require owner or supervisor scope." });
-          return json(response, 200, mcpResult(id, snapshotFromEvents(eventHistory(), dashboardProjectionOptions)));
+          return json(response, 200, mcpResult(id, snapshotFromEvents(eventHistory(), dashboardProjectionOptions())));
         }
         if (params?.name === "mission_control_get_worker" && typeof params.arguments?.worker === "string") {
           const worker = params.arguments.worker;
           if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
-          const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
+          const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions());
           return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
         }
         if (params?.name === "mission_control_get_worker_transport" && typeof params.arguments?.worker === "string") {
           const worker = params.arguments.worker;
           if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
-          const snapshot = workerTransportSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
+          const snapshot = workerTransportSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions());
           return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
         }
       }
@@ -186,7 +205,7 @@ const server = http.createServer(async (request, response) => {
     const workerMatch = url.pathname.match(/^\/workers\/([^/]+)$/);
     if (request.method === "GET" && workerMatch) {
       const worker = decodeURIComponent(workerMatch[1]);
-      const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
+      const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions());
       return snapshot ? json(response, 200, snapshot) : json(response, 404, { error: "Worker not found" });
     }
     const workCloudDispatchMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-cloud-dispatches\/([^/]+)$/);
@@ -347,6 +366,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     server.close(() => {
       liveSourceWatcher?.close();
       if (githubReconciliationTimer) clearInterval(githubReconciliationTimer);
+      if (fleetSupervisorTimer) clearInterval(fleetSupervisorTimer);
       store.close();
       process.exit(0);
     });
@@ -475,5 +495,35 @@ function startGitHubReconciliation(eventCache: GitHubReconciliationEventCache | 
   const timer = setInterval(() => void reconcile(), configured);
   timer.unref();
   void reconcile();
+  return timer;
+}
+
+function startFleetSupervisor(): NodeJS.Timeout | null {
+  if (process.env.MISSION_CONTROL_FLEET_SUPERVISOR_DISABLED === "1") return null;
+  const configured = Number(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS ?? 60_000);
+  if (!Number.isInteger(configured) || configured < 1_000 || configured > 3_600_000) {
+    throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS must be 1000-3600000.");
+  }
+  let running = false;
+  const runtime = new FleetSupervisorRuntime(store, {
+    routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
+    notifyOwner: (watch, decision) => notifications.emit("event", {
+      type: "fleet_supervisor_owner_notification", projectId: watch.projectId, taskId: watch.taskId,
+      trigger: decision.trigger, reason: decision.notificationReason,
+    }),
+  });
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const results = await runtime.tick();
+      if (results.length) notifications.emit("event", { type: "fleet_supervisor_tick", results });
+    } catch (error) {
+      console.error(JSON.stringify({ event: "fleet_supervisor_tick_failed", error: error instanceof Error ? error.message : "Unknown fleet supervisor failure" }));
+    } finally { running = false; }
+  };
+  const timer = setInterval(() => void tick(), configured);
+  timer.unref();
+  void tick();
   return timer;
 }

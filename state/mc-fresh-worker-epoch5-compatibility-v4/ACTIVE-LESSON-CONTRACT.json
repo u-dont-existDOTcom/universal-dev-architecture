@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "task_id": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
+  "compiled_at": "2026-09-19T19:39:12Z",
+  "guidance_activation": {
+    "status": "ACTIVE",
+    "source_repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "source_commit": "7eb393d6894c6c5dd921dc78beeb0b4ebac03d0d",
+    "trigger": "Live default-branch AGENTS.md and current owner authority issue-53-comment-5744485891"
+  },
+  "assurance_lane": "release",
+  "active_lessons": [
+    {
+      "source": "current owner directive issue-53-comment-5744485891",
+      "trigger": "V6 replaces the exhausted model-mediated MCP strategy",
+      "required_behavior": "Implement and verify V6 offline; do not deploy or send any provider request",
+      "failure_condition": "Any live deployment, production mutation, or V4/V5/V6 provider send occurs",
+      "repair": "Fail closed, preserve evidence, and re-fence the sender",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/chat-led-reasoning-codex-execution-separation.md",
+      "trigger": "The owner supplied the exact replacement architecture and execution boundary",
+      "required_behavior": "Make only tactical implementation choices inside the supplied V6 design",
+      "failure_condition": "Codex changes protocol semantics, trust boundaries, or stop conditions",
+      "repair": "Stop substantive execution and return the ambiguity to Chat",
+      "enforcement": "semantic"
+    },
+    {
+      "source": "patterns/mission-control-multi-host-submission-scheduling.md",
+      "trigger": "V6 changes the controlled provider-send path",
+      "required_behavior": "Preserve central single-use admission, exact body hash binding, pacing, lease, and sender fencing",
+      "failure_condition": "A direct or host-local send path bypasses central authority",
+      "repair": "Reject the candidate and restore the central admission boundary",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/executable-frontier-coherence.md",
+      "trigger": "V6 is a server-controlled one-message workflow",
+      "required_behavior": "Keep route, pre-send receipt, admission, provider lifecycle, GitHub ingestion, and terminal state coherent",
+      "failure_condition": "A nonfinal state loses its exact next capability or a failed V6 route becomes retryable/continuable",
+      "repair": "Fail closed at the affected transition and preserve prior evidence",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/test-efficiency-and-verification-budget.md",
+      "trigger": "The release candidate requires nontrivial focused and full validation",
+      "required_behavior": "Start telemetry before implementation tests, use focused tests first, and run full gates only at the release checkpoint",
+      "failure_condition": "Unmeasured testing or redundant unchanged-state full-suite reruns",
+      "repair": "Route remaining tests through scripts/test_efficiency.py and record the reason for every full gate",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/parallel-chat-write-isolation.md",
+      "trigger": "This is a resumed long-running branch",
+      "required_behavior": "Reactivate the exact branch-local lease, verify HEAD, and reconcile unexpected branch movement before writes",
+      "failure_condition": "Writes occur on another branch or after unexpected HEAD movement",
+      "repair": "Stop and reconcile the branch and lease",
+      "enforcement": "mechanical"
+    },
+    {
+      "source": "patterns/owner-goal-followup-and-requirement-accretion.md",
+      "trigger": "V6 is a consequential follow-up after V5 failure",
+      "required_behavior": "Treat every new V6 proof and boundary as owner-required and preserve the open parent outcome",
+      "failure_condition": "Assistant-inferred requirements become mandatory or the release-ready subtask is called root completion",
+      "repair": "Remove the accreted requirement and keep the parent outcome open",
+      "enforcement": "semantic"
+    },
+    {
+      "source": "AGENTS.md per-turn bootstrap invariants",
+      "trigger": "Final owner-facing delivery",
+      "required_behavior": "Begin the final answer with a fresh timestamp and include the unchanged originating-Chat backlink",
+      "failure_condition": "Timestamp is not the literal first line or the receipt backlink changes",
+      "repair": "Rewrite and recheck the final payload",
+      "enforcement": "mechanical"
+    }
+  ],
+  "pre_attempt_activation": "PASS"
+}

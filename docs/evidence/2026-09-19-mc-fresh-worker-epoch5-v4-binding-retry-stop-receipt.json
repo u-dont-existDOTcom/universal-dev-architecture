@@ -1,0 +1,131 @@
+{
+  "verdict": "BLOCKED_EXPLICIT_MCP_BINDING_PRELOAD_RECEIPT_MISSING",
+  "checkedAt": "2026-09-19T06:33:05.609Z",
+  "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
+  "ownerAuthority": {
+    "issue": 53,
+    "currentComment": 5736910093,
+    "sameRouteRetryClarification": 5723378677,
+    "epoch4Resurrected": false
+  },
+  "sourceChat": {
+    "title": "Reject API Migration Recommendation",
+    "url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+    "receiptBacklinkRequired": true
+  },
+  "availabilityRelease": {
+    "pullRequests": [166, 168, 170, 172, 173],
+    "mergeCommits": [
+      "a182bb5",
+      "4fc89b2",
+      "6f7771c",
+      "518e906b508a682f919b24bc9eb4cbd2a1ce4c07",
+      "a4dd25aadab33a9f02cd0930880a0ae398c232da"
+    ],
+    "deployedImage": "codex-mission-control:a4dd25a-epoch5-outbox-cache",
+    "deployedImageId": "sha256:2aaa5e8b28594379a511bace06ae16b30b7c41f28fdddf569d1eebac23ecd98c",
+    "dataVolumePreserved": "codex-mission-control-issue90-live-v2",
+    "rollbackPreserved": true,
+    "secondEventStoreWriter": false,
+    "manualSqliteMutation": false
+  },
+  "noSendSoak": {
+    "complete": true,
+    "startedAt": "2026-09-19T06:00:18.095Z",
+    "completedAt": "2026-09-19T06:11:18.180Z",
+    "durationMs": 660085,
+    "reconciliationIntervalsObserved": 2,
+    "reconciliations": [
+      {
+        "startedAt": "2026-09-19T06:03:30.093Z",
+        "completedAt": "2026-09-19T06:03:30.705Z",
+        "durationMs": 612,
+        "appendedEvents": 0
+      },
+      {
+        "startedAt": "2026-09-19T06:08:30.094Z",
+        "completedAt": "2026-09-19T06:08:30.701Z",
+        "durationMs": 607,
+        "appendedEvents": 0
+      }
+    ],
+    "liveAndSchedulerSamples": 132,
+    "snapshotAndOperatorSamples": 44,
+    "failures": 0,
+    "latencyMs": {
+      "live": { "max": 17, "p95": 12, "timeout": 3000 },
+      "schedulerStatus": { "max": 70, "p95": 20, "timeout": 5000 },
+      "snapshot": { "max": 541, "p95": 482, "timeout": 8000 },
+      "operator": { "max": 482, "p95": 462, "timeout": 5000 }
+    },
+    "providerSends": 0,
+    "admissionsOpened": 0,
+    "lastProviderBoundaryUnchanged": true,
+    "result": "PASS"
+  },
+  "existingFixture": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "reused": true,
+    "replacementFixtureCreated": false,
+    "stateBeforeRetry": "RETRY_AUTHORIZED",
+    "retryStage": "MCP_BINDING_PRELOAD",
+    "freshEpoch5AdmissionCreated": true,
+    "providerSessionId": "provider-session:55d4784d-853d-40e0-901e-e7b3111f13a8",
+    "providerBoundaryAt": "2026-09-19T06:22:25.685Z",
+    "generationStartedAt": "2026-09-19T06:22:29.517Z",
+    "generationCompletedAt": "2026-09-19T06:23:14.586Z",
+    "appSelection": "MISSION_CONTROL_EXACTLY_ONCE",
+    "assistantDomOutputInspected": false,
+    "serverObservedBindingReceipt": null,
+    "bindingEnvelopeCreated": false,
+    "failureRecordedAt": "2026-09-19T06:30:23.746Z",
+    "failureStage": "MCP_BINDING_PRELOAD_RECEIPT_MISSING",
+    "stateAfterRetry": "FAILED_RETRYABLE",
+    "unresolvedAmbiguity": false,
+    "semanticMessagesSent": 0,
+    "pmControllerInitialized": false,
+    "finalCanonicalResolution": null
+  },
+  "explicitStop": {
+    "fired": true,
+    "reason": "The one authorized fresh binding-only retry completed without a current-session server-observed get_supervisory_request_binding receipt. Issue #53 comment 5723378677 requires any later unreconciled provider boundary to fail closed.",
+    "additionalRetryAttempted": false,
+    "controllerSemanticSubstitution": false,
+    "deferredPermanentHardeningStarted": false
+  },
+  "finalFailClosedState": {
+    "observedAt": "2026-09-19T06:33:05.609Z",
+    "latestSequence": 12862,
+    "eventChainValid": true,
+    "chainErrorCount": 0,
+    "authorityLedgerValid": true,
+    "schedulerState": "ACTIVE_LEASE",
+    "activeEpoch": 5,
+    "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED",
+    "queueDepth": 0,
+    "unresolvedAdmission": null,
+    "relayTargetTransition": "CLEAR",
+    "safetyHalt": null,
+    "senderFenced": true,
+    "relayService": "INACTIVE_DISABLED",
+    "browserService": "INACTIVE_MASKED",
+    "healthTimer": "INACTIVE_DISABLED",
+    "cdpListener": "ABSENT",
+    "submitEnabled": false,
+    "capabilityTestEnabled": false
+  },
+  "forbiddenBoundaries": {
+    "providerSends": 1,
+    "providerSendClassification": "AUTHORIZED_BINDING_ONLY_MCP_BINDING_PRELOAD",
+    "semanticProviderSends": 0,
+    "paidInference": false,
+    "productionMutated": false,
+    "replacementFixtureCreated": false,
+    "manualSqliteMutation": false,
+    "secondLiveEventStoreWriter": false,
+    "assistantDomOutputInspected": false,
+    "controllerSemanticSubstitution": false,
+    "epoch4Resurrected": false
+  },
+  "nextAction": "Keep owner-secondary fenced. Do not retry the binding preload again, initialize the PM controller, or begin deferred hardening unless new owner authority explicitly resolves the second missing-receipt stop."
+}

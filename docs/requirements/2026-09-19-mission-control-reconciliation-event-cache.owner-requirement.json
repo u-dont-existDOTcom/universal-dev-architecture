@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirement_id": "REQ-MC-RECONCILIATION-EVENT-CACHE-20260919",
   "recorded_at": "2026-09-19T01:47:05Z",
-  "status": "ACTIVE_IMPLEMENTATION",
+  "status": "BLOCKED_EXPLICIT_MCP_BINDING_PRELOAD_RECEIPT_MISSING",
   "root_owner_outcome": "OPEN",
   "owner_source": {
     "source_type": "direct_owner_chat",
@@ -33,5 +33,10 @@
   ],
   "assurance_lane": "release",
   "privacy_boundary": "Keep live host, lease, route, and timing evidence in bounded local/task receipts; do not publish it to the public issue.",
-  "receipt_backlink_required": true
+  "receipt_backlink_required": true,
+  "terminal_receipt": "docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json",
+  "availability_outcome": "PASS",
+  "same_route_binding_retry_outcome": "FAIL_CLOSED_MCP_BINDING_PRELOAD_RECEIPT_MISSING",
+  "pm_mediated_live_proof": "NOT_REACHED",
+  "deferred_hardening": "NOT_STARTED"
 }

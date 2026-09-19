@@ -839,8 +839,18 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     continuation_binding_sha256: Sha256.optional(),
     ...canonicalDecisionEnvelopeFields,
   }).strict(),
+  z.object({
+    schema_version: z.literal(5),
+    supervisor_id: StableId,
+    provider_session_id: StableId,
+    in_band_binding_sha256: Sha256,
+    execution_provenance: z.literal("IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"),
+    continuation_binding: ownerResponseContinuationBindingSchema.optional(),
+    continuation_binding_sha256: Sha256.optional(),
+    ...canonicalDecisionEnvelopeFields,
+  }).strict(),
 ]).superRefine((envelope, context) => {
-  if ((envelope.schema_version === 3 || envelope.schema_version === 4) && (envelope.continuation_binding !== undefined || envelope.continuation_binding_sha256 !== undefined)) {
+  if ((envelope.schema_version === 3 || envelope.schema_version === 4 || envelope.schema_version === 5) && (envelope.continuation_binding !== undefined || envelope.continuation_binding_sha256 !== undefined)) {
     try { validateContinuationBinding(envelope.continuation_binding, envelope.continuation_binding_sha256); }
     catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Canonical continuation binding/digest is invalid or incomplete." }); }
   }
@@ -914,8 +924,15 @@ export const githubDecisionReceiptIngestedSchema = z.object({
     mode: z.literal("EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY"),
     reinterpretation_allowed: z.literal(false),
   }),
-  execution_provenance: z.literal("REQUEST_BOUND_MCP_GITHUB_OBSERVED").optional(),
+  execution_provenance: z.enum([
+    "REQUEST_BOUND_MCP_GITHUB_OBSERVED",
+    "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED",
+  ]).optional(),
   execution_mcp_receipt_id: StableId.optional(),
+  in_band_binding_sha256: Sha256.optional(),
+  execution_pre_send_receipt_id: StableId.optional(),
+  execution_submission_admission_id: StableId.optional(),
+  execution_provider_body_sha256: Sha256.optional(),
   canonical_envelope_sha256: Sha256,
   github_receipt: z.object({
     repository: NonEmpty.max(300),
@@ -945,9 +962,22 @@ export const githubDecisionReceiptIngestedSchema = z.object({
     || receipt.pro_decision_block.sha256 !== receipt.decision_block.sha256)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["decision_block"], message: "The ingested decision block must preserve the exact Pro decision bytes." });
   }
-  if (receipt.execution_provenance !== undefined && (!receipt.provider_session_id || !receipt.execution_mcp_receipt_id
+  if (receipt.execution_provenance === "REQUEST_BOUND_MCP_GITHUB_OBSERVED" && (!receipt.provider_session_id || !receipt.execution_mcp_receipt_id
+    || receipt.in_band_binding_sha256 || receipt.execution_pre_send_receipt_id || receipt.execution_submission_admission_id || receipt.execution_provider_body_sha256
     || receipt.binding_provider_session_id !== null || receipt.decision_provider_session_id !== null || receipt.stage_provider_session_id !== null)) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["execution_provenance"], message: "A request-bound receipt requires one execution session and its MCP receipt, never split-stage identities." });
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["execution_provenance"], message: "An MCP request-bound receipt requires one execution session and its MCP receipt, never in-band or split-stage identities." });
+  }
+  if (receipt.execution_provenance === "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED" && (!receipt.provider_session_id || receipt.execution_mcp_receipt_id
+    || !receipt.in_band_binding_sha256 || !receipt.execution_pre_send_receipt_id || !receipt.execution_submission_admission_id || !receipt.execution_provider_body_sha256
+    || receipt.binding_provider_session_id !== null || receipt.decision_provider_session_id !== null || receipt.stage_provider_session_id !== null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["execution_provenance"], message: "An in-band request-bound receipt requires one execution session, binding/body/admission proof, and no MCP or split-stage identity." });
+  }
+  if (receipt.execution_provenance !== "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"
+    && (receipt.in_band_binding_sha256 || receipt.execution_pre_send_receipt_id || receipt.execution_submission_admission_id || receipt.execution_provider_body_sha256)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["execution_provenance"], message: "In-band binding/body/admission proof is valid only for in-band GitHub-observed provenance." });
+  }
+  if (receipt.execution_provenance !== "REQUEST_BOUND_MCP_GITHUB_OBSERVED" && receipt.execution_mcp_receipt_id) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["execution_mcp_receipt_id"], message: "An MCP receipt is valid only for MCP GitHub-observed provenance." });
   }
   const direct = receipt.decision_provider_session_id !== null;
   if (direct && (!receipt.binding_provider_session_id || !receipt.binding_envelope
