@@ -1,0 +1,178 @@
+{
+  "verdict": "BLOCKED_EXPLICIT_V5_REQUEST_BOUND_MCP_RECEIPT_MISSING",
+  "checkedAt": "2026-09-19T18:32:23.337Z",
+  "ownerAuthority": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 53,
+    "policyActivationComment": 5744027199,
+    "v5StrategyComment": 5743640100,
+    "policyActivationUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744027199",
+    "v5StrategyUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5743640100",
+    "parentOwnerOutcome": "OPEN"
+  },
+  "sourceChat": {
+    "title": "Reject API Migration Recommendation",
+    "url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+    "receiptBacklinkRequired": true
+  },
+  "provenance": {
+    "branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+    "resumedCheckpoint": "c005f26a86196322bc13a617b384c0d94dd155fc",
+    "authorityActivationCommit": "cf39a0f319c641077ad6df903eb08146840f7b4d",
+    "historicalCompatibilityCommitsPreserved": [
+      "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+      "54e61d27b42ca8e065d1967c89d797d4371d4c07"
+    ]
+  },
+  "policyActivation": {
+    "completed": true,
+    "sameExactImage": "codex-mission-control:a4dd25a-epoch5-outbox-cache",
+    "sameExactImageId": "sha256:2aaa5e8b28594379a511bace06ae16b30b7c41f28fdddf569d1eebac23ecd98c",
+    "sameDurableVolume": "codex-mission-control-issue90-live-v2",
+    "onlyPolicyDelta": {
+      "requestBound.enabled": true,
+      "requestBound.relayProducerIds": [
+        "collector:issue90-secondary"
+      ]
+    },
+    "unrelatedEnvironmentEqual": true,
+    "containerConfigEqual": true,
+    "hostConfigEqual": true,
+    "mountsEqual": true,
+    "unrelatedPolicySha256": "1e96551d211d7be25b0d87faee16ea91f41d4d2adc80f137f3892c5f52dcb8fb",
+    "stoppedRollbackContainer": "mission-control-issue90-live-pre-v5-5744027199",
+    "rollbackContainerStatus": "EXITED_RESTART_DISABLED",
+    "consistentBackup": "/home/joel/.mission-control-v5-policy-5744027199/backup/epoch5-volume-pre-v5.tar.gz",
+    "consistentBackupSha256": "4f9f11fc6454f072a5b94e9f02624250432f172f44ec0bd577dd6b88380d9ec1",
+    "secondLiveEventStoreWriter": false,
+    "manualSqliteMutation": false,
+    "postActivationContainer": "RUNNING_HEALTHY",
+    "daemonLiveness": "PASS",
+    "bffLiveness": "PASS",
+    "runtimeChain": {
+      "checkedAt": "2026-09-19T18:31:40.912Z",
+      "latestSequence": 14300,
+      "valid": true,
+      "errorCount": 0
+    }
+  },
+  "v4Terminalization": {
+    "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
+    "finalStatus": "DISCARDED",
+    "resolution": "OPERATOR_DISCARDED",
+    "resolvedAt": "2026-09-19T17:11:14.677Z",
+    "markedSubmitted": false,
+    "additionalV4ProviderSend": false,
+    "failedSessionHistoryPreserved": true,
+    "epoch4Resurrected": false
+  },
+  "v5Fixture": {
+    "authorizedLimit": 1,
+    "createdCount": 1,
+    "requestId": "mc53-request-bound-v5-live-acceptance-20260919",
+    "requestEventId": "supervision-request-v5:c2a9b357c56f59f637281cc9221a02dd856bf45d527758d3bc0840c8eaf0f451",
+    "messageId": "message:supervision-request-v5:c2a9b357c56f59f637281cc9221a02dd856bf45d527758d3bc0840c8eaf0f451",
+    "routeSchemaVersion": 5,
+    "executionProtocol": "PER_REQUEST_V1",
+    "queuedAt": "2026-09-19T18:19:16.373Z",
+    "expiresAt": "2026-09-19T22:19:16.257Z",
+    "workerId": "mission-control-live-slice",
+    "supervisorId": "specialist-relay-smoke",
+    "reasoningLane": "EXTRA_HIGH_DIRECT",
+    "ownerOutcome": {
+      "id": "outcome:mission-control-live-slice",
+      "epoch": 4,
+      "sha256": "68fc4c405998f1df7bb53d7c99ccab74cf131044da8e32cc158d57146539780a"
+    },
+    "evidenceCapsule": {
+      "id": "evidence:mc53-epoch4-pm-proof-v2-owner-directive",
+      "sha256": "c23f41ec169068f83e20edcaabfb533f92e4c8fcad517e228793a176623f7ff6"
+    },
+    "continuationBindingSha256": "4fac3d7aa2bbb4dc467f9a5ab281aa2dbeed21f4756e60fdb21c02e5a07e9078",
+    "sameParentOutcomeAndBoundedTask": true,
+    "standalonePreloadSent": false,
+    "capabilityTestSent": false
+  },
+  "singleV5ProviderRequest": {
+    "sentCount": 1,
+    "providerSessionId": "provider-session:f243dffb-c99b-46c7-a88b-4ad8c25cd051",
+    "bindingProviderSessionId": "provider-session:f243dffb-c99b-46c7-a88b-4ad8c25cd051",
+    "decisionProviderSessionId": "provider-session:f243dffb-c99b-46c7-a88b-4ad8c25cd051",
+    "sendPath": "SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION",
+    "queueItemId": "send-queue-item:ab790e4e-a035-49d8-81a9-ae2a0334cbc5",
+    "admittedAt": "2026-09-19T18:24:30.555Z",
+    "admissionExpiresAt": "2026-09-19T18:26:30.555Z",
+    "providerBoundaryAt": "2026-09-19T18:24:32.735Z",
+    "priorProviderBoundaryAt": "2026-09-19T06:22:25.685Z",
+    "interSendIntervalMs": 43327050,
+    "bodySha256": "48d83942fad17ecee0f3cef798596a7876556c769a660223f03f5a854f66748c",
+    "generationStartedAt": "2026-09-19T18:24:35.865Z",
+    "generationCompletedAt": "2026-09-19T18:26:21.501Z",
+    "generationCompletionSignal": "STABLE_COMPOSER_WITHOUT_GENERATION_CONTROL",
+    "missionControlSelectedExactlyOnce": true,
+    "githubSelectedInComposer": false,
+    "assistantOutputDomInspected": false,
+    "persistentSubmitEnabled": false,
+    "persistentCapabilityTestEnabled": false
+  },
+  "acceptanceResult": {
+    "serverObservedMcpTransportReceipt": null,
+    "exactSessionMcpReceiptCount": 0,
+    "returnedExecutionProtocol": null,
+    "returnedRequestBindingSha256": null,
+    "canonicalV5GitHubDecision": null,
+    "exactRequestGitHubCommentCount": 0,
+    "decisionReceiptCount": 0,
+    "authoritativeWorkerCheckAt": "2026-09-19T18:32:23.337Z",
+    "localRouteState": "REQUEST_BOUND_DECISION_COMPLETE",
+    "successThresholdMet": false
+  },
+  "explicitStop": {
+    "fired": true,
+    "reason": "The one authorized V5 semantic request completed without a server-observed get_supervisory_request_binding transport/access receipt for its exact provider session. No canonical V5 GitHub decision was observed.",
+    "continueAttempted": false,
+    "retryAttempted": false,
+    "secondV5RequestSent": false,
+    "v4FallbackAttempted": false,
+    "pmControllerInitialized": false,
+    "controllerSemanticSubstitution": false,
+    "deferredPermanentHardeningStarted": false
+  },
+  "finalFailClosedState": {
+    "observedAt": "2026-09-19T18:32:23.337Z",
+    "eventChainValid": true,
+    "eventChainLatestSequence": 14300,
+    "authorityLedgerValid": true,
+    "schedulerState": "ACTIVE_LEASE",
+    "activeEpoch": 5,
+    "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED",
+    "queueDepth": 0,
+    "unresolvedAdmission": null,
+    "relayTargetTransition": "CLEAR",
+    "safetyHalt": null,
+    "globalLastProviderBoundaryAt": "2026-09-19T18:24:32.735Z",
+    "senderFenced": true,
+    "relayService": "INACTIVE_DISABLED",
+    "browserService": "INACTIVE_MASKED",
+    "cdpListener": "ABSENT",
+    "persistentSubmitEnabled": false,
+    "persistentCapabilityTestEnabled": false,
+    "requestBoundRelayEnabled": true,
+    "requestBoundServerPolicyEnabled": true,
+    "rollbackContainerPreserved": true,
+    "consistentBackupPreserved": true
+  },
+  "forbiddenBoundaries": {
+    "paidModelOrApiInference": false,
+    "productionMutationBeyondAuthorizedPolicyActivation": false,
+    "assistantOutputDomInspection": false,
+    "controllerSemanticSubstitution": false,
+    "manualSqliteMutation": false,
+    "secondLiveEventStoreWriter": false,
+    "epoch4Resurrection": false,
+    "replacementFixtureBeyondAuthorizedV5": false,
+    "v5ProviderRequestsBeyondOne": false,
+    "deferredPermanentHardening": false
+  },
+  "nextAction": "Keep owner-secondary fenced. Do not Continue, Retry, send another V5 request, or fall back to V4. Await a new owner architecture decision that removes or replaces the failed consumer-app MCP invocation dependency."
+}

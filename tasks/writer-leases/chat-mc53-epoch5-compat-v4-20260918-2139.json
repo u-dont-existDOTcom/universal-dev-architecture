@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "exclusive_writer": true,
+  "status": "released",
+  "exclusive_writer": false,
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
   "integration_base_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
-  "last_verified_head": "e0ec26be7dbd1ea6cda5a3bbe34d8549a6216b8e",
+  "last_verified_head": "cf39a0f319c641077ad6df903eb08146840f7b4d",
   "scope": "Preserve and discard the exhausted V4 route, execute the single authorized request-bound V5 live acceptance, continue the existing PM-mediated cycle only on exact dual success, and defer hardening until live proof PASS",
   "created_at": "2026-09-18T21:39:36Z",
   "prior_released_at": "2026-09-18T22:02:12Z",
@@ -35,5 +35,8 @@
   "v5_release_receipt": "docs/evidence/2026-09-19-mc-request-bound-v5-policy-activation-blocked-receipt.json",
   "policy_exception_reactivated_at": "2026-09-19T18:07:21Z",
   "policy_exception_authority": "issue-53-comment-5744027199",
-  "policy_exception_requirement": "docs/requirements/2026-09-19-mission-control-v5-policy-activation-exception.owner-requirement.json"
+  "policy_exception_requirement": "docs/requirements/2026-09-19-mission-control-v5-policy-activation-exception.owner-requirement.json",
+  "policy_exception_released_at": "2026-09-19T18:32:23Z",
+  "policy_exception_release_reason": "The authorized policy activation passed, but the sole V5 request completed without the required exact-session server-observed MCP receipt or canonical V5 GitHub decision. The explicit stop fired and owner-secondary was re-fenced.",
+  "policy_exception_release_receipt": "docs/evidence/2026-09-19-mc-request-bound-v5-live-acceptance-stop-receipt.json"
 }
