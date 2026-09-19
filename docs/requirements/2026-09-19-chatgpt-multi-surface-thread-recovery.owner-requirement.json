@@ -1,0 +1,58 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-CHATGPT-MULTI-SURFACE-RECOVERY-20260919",
+  "recorded_at": "2026-09-19T00:59:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "Mission Control and Chat/Work recovery across consumer ChatGPT web and desktop-app surfaces",
+  "requirements": [
+    {
+      "id": "CHATGPT-SURFACE-001",
+      "text": "Do not assume ChatGPT web, desktop app, Chat, Work, or branch/thread surfaces have identical conversation visibility, navigation, branching, or execution capability.",
+      "operationalization": "Treat each surface as a version-sensitive capability edge. Record observed behavior with date, client/version, evidence source, and limits; revalidate after material client changes instead of relying on stale assumptions."
+    },
+    {
+      "id": "CHATGPT-SURFACE-002",
+      "text": "Before declaring a prior Chat or Work thread missing, Mission Control must search every locally available authorized surface index that could contain it.",
+      "operationalization": "Prefer exact durable locators first. For web, search local browser-history metadata for ChatGPT conversation and Work-branch URLs. For desktop Work/Codex, search local thread metadata and durable Work-thread locator records. Do not rely only on the product search UI."
+    },
+    {
+      "id": "CHATGPT-SURFACE-003",
+      "text": "Thread recovery should be metadata-first and privacy-preserving.",
+      "operationalization": "Use titles, IDs, timestamps, project IDs, source type, branch/URL/native-URI locators, and parent-child relations before message bodies. Do not read cookies, auth tokens, passwords, local/session-storage secrets, or arbitrary conversation contents merely to locate a thread."
+    },
+    {
+      "id": "CHATGPT-SURFACE-004",
+      "text": "When an exact locator is recovered, open the thread in its native client rather than forcing the owner to search manually.",
+      "operationalization": "Use the exact web conversation/Work URL for browser-owned threads and the exact native desktop Work-thread URI when available. If the launch surface is unavailable, return the exact locator and the narrowest manual action."
+    }
+  ],
+  "owner_deployment_binding": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "tested_at": "2026-09-19",
+    "tested_versions": {
+      "chatgpt_desktop": "26.903.61454",
+      "brave": "153.1.95.102"
+    },
+    "observed_owner_workflow": [
+      "The owner intentionally uses both Brave web and the ChatGPT desktop app because heavy chats and Work features can behave differently across surfaces.",
+      "The owner reports inconsistent cross-surface conversation visibility and different branch/Work-thread behavior between web and desktop; these observations are version-sensitive and must not be generalized as permanent product facts."
+    ],
+    "verified_local_recovery": [
+      "Brave Chromium History contains direct chatgpt.com conversation and surface=work branch URLs and can be queried read-only through RDC.",
+      "The desktop app uses a persistent local Codex state store with structured user-thread metadata including thread ID, title, timestamps, project ID, and parent-child thread edges.",
+      "Durable WORK-THREAD-LOCATOR.json records can bind a Work thread ID to a codex://threads/<id> native URI, title, project, branch, receipt, and rollout provenance.",
+      "The desktop registers the codex URI scheme to the ChatGPT application; direct invocation with the native Work-thread URI opens the thread in the existing app session.",
+      "A local read-only helper named chatgpt-thread-find searches the proven Brave and desktop Work metadata surfaces and can open the selected result in the correct client."
+    ],
+    "current_limits": [
+      "The desktop Chromium History database was empty in the tested installation, so desktop recovery must not assume browser-style History.",
+      "Local metadata recovery for ordinary non-Work desktop Chat conversations has not yet been proven; do not claim full desktop-chat search coverage from the Work/Codex thread index.",
+      "Do not commit owner-specific conversation IDs, project IDs, filesystem locators, account identifiers, or credentials into the public repository."
+    ]
+  },
+  "source": {
+    "date": "2026-09-19",
+    "kind": "explicit owner workflow correction plus read-only local verification",
+    "owner_words_summary": "The owner uses both Brave and the ChatGPT app because capabilities and load behavior differ, finds cross-surface chat visibility inconsistent, wants Mission Control to learn the interface differences, and wants RDC-based search/recovery for app threads as well as web threads."
+  }
+}
