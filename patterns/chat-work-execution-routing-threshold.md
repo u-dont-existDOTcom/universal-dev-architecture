@@ -10,6 +10,7 @@ Work-thread lineage naming requirement: `docs/requirements/2026-09-18-work-threa
 Work origin-chat backlink requirement: `docs/requirements/2026-09-18-work-receipt-origin-chat-backlink.owner-requirement.json`.
 Work human-gate assist requirement: `docs/requirements/2026-09-18-work-human-gate-assist.owner-requirement.json`.
 ChatGPT multi-surface recovery requirement: `docs/requirements/2026-09-19-chatgpt-multi-surface-thread-recovery.owner-requirement.json`.
+ChatGPT Work cloud dispatch requirement: `docs/requirements/2026-09-19-chatgpt-work-cloud-dispatch.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -280,13 +281,16 @@ Would this Work handoff create a user-Accept gate for an operation Chat can alre
   YES -> do not hand it off.
 ```
 
+When the owner specifically requests ChatGPT Work, do not use a Codex-only route merely because it avoids a visible Work approval or because it is easier to automate. Surface identity is part of the requested execution contract.
+
 ## Mission Control implication
 
 Mission Control coordinates a gated, mediated cycle; do not model it as native Chat ↔ Work bidirectionality. The currently established topology for this architecture is:
 
-- **Chat → Work:** requires explicit user acceptance; until the user accepts, unattended dispatch is blocked.
-- **Work ↔ Work:** native coordination exists within Work once the Work tasks exist.
-- **Work → the originating Chat:** unavailable.
+- **Chat → ChatGPT Work cloud:** when the owner explicitly requests Work and the current authenticated app executor exposes the native Work-cloud target, use `create_thread(target.type="chatgptWorkCloud")` for a new Work task or `send_message_to_thread` for a verified existing Work task. Honor any product-level approval gate. Apply `patterns/chatgpt-work-cloud-dispatch.md`.
+- **Chat → Codex:** Codex remains a separate execution surface. A Codex thread, including one titled `Work — ...`, is not proof of ChatGPT Work and must not be substituted silently when the owner requested visible Work.
+- **Work ↔ Work:** native coordination may exist within Work once Work tasks exist.
+- **Work → the originating Chat:** unavailable as a native semantic edge; preserve the existing controller/receipt route.
 - **Chat ↔ GitHub:** ordinary supported GitHub reads/writes are performed directly by the reasoning Chat when available; do not insert Work between Chat and GitHub for routine supervisory artifacts.
 
 The practical Mission Control reasoning loop is therefore controller-mediated: a reasoning Chat publishes an exact durable GitHub artifact; Codex/controller observes it after that Chat turn completes, transports the required source-bound data to the next registered reasoning Chat, waits for that Chat to publish its own GitHub artifact, and continues the admitted route. Codex/controller is a transport/execution coordinator in this loop, not the semantic author of the GitHub decision.

@@ -1,0 +1,132 @@
+# ChatGPT Work cloud dispatch
+
+**Status:** REQUIRED OWNER CORRECTION  
+**Date:** 2026-09-19  
+**Scope:** Chat -> visible ChatGPT Work creation/continuation and Mission Control routing.
+
+## Purpose
+
+Prevent a Codex execution from being mislabeled as ChatGPT Work merely because it shares a project, title, filesystem, or allowance pool.
+
+The governing rule is:
+
+> **When the owner explicitly asks for ChatGPT Work, dispatch to the native ChatGPT Work cloud surface when that capability is available. A Codex thread, including one renamed with a `Work —` prefix, is not a substitute.**
+
+## Surface identity
+
+Treat these as distinct execution surfaces:
+
+- **ChatGPT Work cloud** — a ChatGPT task created through the desktop/app executor's Work-cloud target, currently exposed as `create_thread(target.type="chatgptWorkCloud")`.
+- **Codex** — a Codex-backed thread or task, including local CLI/TUI execution such as `codex exec`, `codex resume`, or a thread whose backing kind is `codex`.
+- **Ordinary Chat** — a normal ChatGPT conversation.
+
+Title, project membership, shared local state, or shared billing/allowance does not prove surface identity.
+
+## Creation
+
+Use native Work-cloud creation when all are true:
+
+1. the owner explicitly requested Work or an existing authorized workflow specifically requires visible ChatGPT Work;
+2. the current app executor exposes the native Work-cloud target;
+3. the requested task is otherwise admitted by the Chat/Work routing rules.
+
+For the currently observed desktop app schema:
+
+- call `create_thread` with `target.type = "chatgptWorkCloud"`;
+- pass the ChatGPT project id only when the Work task should belong to that project;
+- omit Codex-only `model` and `thinking` overrides for Work-cloud creation;
+- preserve the deterministic owner-facing title `Work — <originating Chat title>`;
+- put the exact source Chat title and URL in the Work directive and require the receipt backlink.
+
+If creation returns a pending `clientThreadId` rather than a ready `threadId`, treat setup as incomplete and recover/wait for the ready thread before calling tools that require `threadId`.
+
+## Continuation
+
+When the intended Work task already exists:
+
+1. recover it from exact durable lineage first;
+2. verify that the destination is the intended ChatGPT Work surface rather than a Codex thread with a similar title;
+3. use the app executor's `send_message_to_thread` capability for the follow-up;
+4. preserve current Work settings unless the Work surface itself exposes an authorized setting change.
+
+Do not use `codex queue`, `codex exec resume`, or another Codex-only route to claim that a Work task was continued.
+
+## Visibility and steering
+
+If the owner asks for Work because they want to see, inspect, or steer execution in the Work UI, **visible native-surface execution is part of the requested outcome**.
+
+A headless Codex run that edits the same files can still be useful execution evidence, but it does not satisfy a request for visible Work execution.
+
+Before reporting that Work has started, require evidence that the native Work task was created/continued on the Work surface. A queued message, renamed Codex thread, started Codex process, or shared project path is insufficient.
+
+## Approval boundary
+
+An explicit owner request for Work supplies the semantic authorization to attempt Work dispatch. It does not bypass any product-level approval prompt.
+
+If the app executor requires an approval/accept gesture, preserve that gate. Do not silently fall back to Codex merely to avoid it.
+
+If native Work dispatch is unavailable, classify `WORK_CLOUD_DISPATCH_UNAVAILABLE` and either:
+
+- return the exact minimum owner action needed to launch Work; or
+- use Codex only when the owner already authorized Codex or explicitly accepts it as the substitute.
+
+## Mission Control durable adapter
+
+Mission Control should implement Work dispatch as a first-class surface adapter rather than a title convention.
+
+Persist, when available:
+
+- requested surface = `chatgptWorkCloud`;
+- source Chat title + exact URL;
+- requested Work title;
+- ChatGPT project id;
+- returned `threadId` or temporary `clientThreadId`;
+- creation/continuation timestamp;
+- native surface verification state;
+- tool/app version or capability evidence used for dispatch;
+- approval state if a human gate was required.
+
+Follow-ups use the persisted Work thread locator plus `send_message_to_thread`; they must not rediscover by title alone.
+
+Mission Control must keep Codex and Work task identifiers in separate typed fields even if both appear in one project.
+
+## Current observed capability
+
+As of 2026-09-19, the tested ChatGPT Linux desktop app's bundled app-executor schema exposes:
+
+- `create_thread` with target type `chatgptWorkCloud`, described as creating a cloud ChatGPT Work task;
+- `send_message_to_thread` for existing threads/chats;
+- Codex-only model/thinking fields that explicitly should be omitted for Work-cloud threads.
+
+This is version-sensitive capability evidence, not a permanent API guarantee. Revalidate after a material ChatGPT desktop/app-tools update.
+
+## Privacy and portability
+
+Portable guidance must not contain owner-specific thread ids, project ids, filesystem paths, account identifiers, socket paths, or credentials.
+
+Owner deployments may persist those locators locally as `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT` evidence.
+
+## Failure regression
+
+Given:
+
+- the owner asks Chat to send a prepared directive to a visible Work chat;
+- local metadata contains a Codex thread titled `Work — <source title>`;
+- `codex queue` or `codex exec resume` can send/run the directive there;
+- the desktop app also exposes native `chatgptWorkCloud` creation;
+
+then:
+
+- do **not** claim the Codex route is Work;
+- do **not** treat the title as surface proof;
+- use native Work-cloud dispatch, subject to the real approval gate;
+- if Codex was accidentally started, label it Codex and preserve its evidence separately.
+
+Expected findings:
+
+```text
+surface_requested: CHATGPT_WORK
+codex_title_match: NOT_SURFACE_PROOF
+native_work_target_available: true
+required_route: chatgptWorkCloud
+```

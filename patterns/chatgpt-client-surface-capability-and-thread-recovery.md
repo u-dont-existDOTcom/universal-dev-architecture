@@ -99,6 +99,18 @@ Useful metadata can include:
 
 When a native thread URI is available, use the registered desktop handler to open that exact Work thread instead of asking the owner to browse the app manually.
 
+## Native ChatGPT Work cloud dispatch
+
+When the owner explicitly asks for **ChatGPT Work**, apply `patterns/chatgpt-work-cloud-dispatch.md`.
+
+Do not infer Work surface identity from a title, project, filesystem, allowance pool, or local thread record alone. In particular, a backing `kind: codex` thread renamed with a `Work —` prefix remains Codex.
+
+On the currently tested desktop app, the bundled authenticated app executor exposes a native Work-cloud target through `create_thread(target.type="chatgptWorkCloud")` and supports follow-up through `send_message_to_thread`. That capability is distinct from Codex CLI/TUI routes such as `codex queue` and `codex exec resume`.
+
+If visible/steerable Work is part of the owner's request, native Work-surface execution is part of completion. A successful headless Codex run may be useful evidence but does not satisfy the surface requirement.
+
+This capability is version-sensitive. Revalidate it after a material desktop/app-tools update and preserve any product-level approval gate.
+
 ## Native-surface completion proof
 
 A thread locator and a navigation mechanism are separate facts.
