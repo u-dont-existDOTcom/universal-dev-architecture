@@ -176,6 +176,11 @@ export class EventStore {
     return Number(row.sequence);
   }
 
+  eventHashAtSequence(sequence: number): string | null {
+    const row = this.db.prepare("SELECT event_hash FROM events WHERE sequence = ?").get(sequence) as { event_hash: string } | undefined;
+    return row?.event_hash ?? null;
+  }
+
   lastViewedEventId(): number {
     return this.lastViewedSequence();
   }

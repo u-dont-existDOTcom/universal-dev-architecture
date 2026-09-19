@@ -247,9 +247,14 @@ export function parseStageReceiptComment(body: string): StageReceiptBody {
   };
 }
 
-export function ensureConfiguredCapabilityChallenges(store: EventStore, policy: GitHubReceiptPolicy | null, now = new Date().toISOString()) {
+export function ensureConfiguredCapabilityChallenges(
+  store: EventStore,
+  policy: GitHubReceiptPolicy | null,
+  now = new Date().toISOString(),
+  startupEvents?: StoredEvent[],
+) {
   if (!policy) return [];
-  const events = store.allEvents(), appended: StoredEvent[] = [];
+  const events = startupEvents ?? store.allEvents(), appended: StoredEvent[] = [];
   for (const challenge of policy.capabilityChallenges) {
     const receiptId = `chat-capability-challenge:${challenge.challengeId}`;
     if (events.some((e) => e.data.type === "evidence_receipt_recorded" && e.data.receipt_id === receiptId)) continue;
@@ -557,9 +562,130 @@ const githubReconciliationPageSize = 100;
 const githubReconciliationMaximumPages = 20;
 const githubReconciliationYieldEvery = 20;
 
-export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string }): Promise<StoredEvent[]> {
+export class GitHubReconciliationCacheInconsistencyError extends Error {}
+
+export class GitHubReconciliationEventCache {
+  private events: StoredEvent[];
+
+  private constructor(events: StoredEvent[]) {
+    validateCompleteReconciliationHistory(events);
+    this.events = [...events];
+  }
+
+  static fromStore(store: EventStore): GitHubReconciliationEventCache {
+    return GitHubReconciliationEventCache.fromEvents(store, store.allEvents());
+  }
+
+  static fromEvents(store: EventStore, events: StoredEvent[]): GitHubReconciliationEventCache {
+    const latestSequence = store.latestSequence();
+    if ((events.at(-1)?.sequence ?? 0) !== latestSequence) {
+      throw new GitHubReconciliationCacheInconsistencyError(
+        `Reconciliation cache startup snapshot ended at sequence ${events.at(-1)?.sequence ?? 0}, but durable high-water is ${latestSequence}.`,
+      );
+    }
+    return new GitHubReconciliationEventCache(events);
+  }
+
+  eventsForCycle(store: EventStore): StoredEvent[] {
+    this.refreshOrRebuildAndFailClosed(store);
+    return [...this.events];
+  }
+
+  recordReconciliationAppend(store: EventStore, expected: StoredEvent[]): StoredEvent[] {
+    const observed = this.refreshOrRebuildAndFailClosed(store);
+    for (const event of expected) {
+      if (!observed.some((candidate) => candidate.sequence === event.sequence
+        && candidate.eventId === event.eventId
+        && candidate.eventHash === event.eventHash)) {
+        return this.rebuildAndFailClosed(store, new GitHubReconciliationCacheInconsistencyError(
+          `Reconciliation append ${event.eventId} at sequence ${event.sequence} was not present in the durable cache suffix.`,
+        ));
+      }
+    }
+    return observed;
+  }
+
+  private refreshOrRebuildAndFailClosed(store: EventStore): StoredEvent[] {
+    try {
+      const last = this.events.at(-1);
+      const lastSequence = last?.sequence ?? 0;
+      const durableLatest = store.latestSequence();
+      if (durableLatest < lastSequence) {
+        throw new GitHubReconciliationCacheInconsistencyError(
+          `Durable reconciliation sequence regressed from cached ${lastSequence} to ${durableLatest}.`,
+        );
+      }
+      if (last && store.eventHashAtSequence(lastSequence) !== last.eventHash) {
+        throw new GitHubReconciliationCacheInconsistencyError(
+          `Durable reconciliation event hash at cached sequence ${lastSequence} no longer matches the cache.`,
+        );
+      }
+      const suffix = store.eventsAfter(lastSequence);
+      validateReconciliationSuffix(suffix, lastSequence, last?.eventHash ?? null);
+      if ((suffix.at(-1)?.sequence ?? lastSequence) !== durableLatest
+        || suffix.length !== durableLatest - lastSequence) {
+        throw new GitHubReconciliationCacheInconsistencyError(
+          `Durable reconciliation suffix after ${lastSequence} does not reach high-water ${durableLatest} contiguously.`,
+        );
+      }
+      this.events.push(...suffix);
+      return suffix;
+    } catch (error) {
+      return this.rebuildAndFailClosed(store, error);
+    }
+  }
+
+  private rebuildAndFailClosed(store: EventStore, cause: unknown): never {
+    try {
+      const rebuilt = store.allEvents();
+      validateCompleteReconciliationHistory(rebuilt);
+      if ((rebuilt.at(-1)?.sequence ?? 0) !== store.latestSequence()) {
+        throw new GitHubReconciliationCacheInconsistencyError("Rebuilt reconciliation cache does not match the durable high-water.");
+      }
+      this.events = [...rebuilt];
+    } catch (rebuildError) {
+      throw new GitHubReconciliationCacheInconsistencyError(
+        `Reconciliation event cache is inconsistent and its durable rebuild failed: ${errorMessage(rebuildError)}`,
+        { cause },
+      );
+    }
+    throw new GitHubReconciliationCacheInconsistencyError(
+      `Reconciliation event cache was inconsistent and was rebuilt; the current cycle is refused: ${errorMessage(cause)}`,
+      { cause },
+    );
+  }
+}
+
+function validateCompleteReconciliationHistory(events: StoredEvent[]) {
+  validateReconciliationSuffix(events, 0, null);
+}
+
+function validateReconciliationSuffix(events: StoredEvent[], precedingSequence: number, precedingHash: string | null) {
+  let expectedSequence = precedingSequence + 1;
+  let expectedPreviousHash = precedingHash;
+  for (const event of events) {
+    if (event.sequence !== expectedSequence) {
+      throw new GitHubReconciliationCacheInconsistencyError(
+        `Reconciliation event sequence gap: expected ${expectedSequence}, received ${event.sequence}.`,
+      );
+    }
+    if (event.previousHash !== expectedPreviousHash) {
+      throw new GitHubReconciliationCacheInconsistencyError(
+        `Reconciliation event previous-hash mismatch at sequence ${event.sequence}.`,
+      );
+    }
+    expectedSequence += 1;
+    expectedPreviousHash = event.eventHash;
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown cache failure";
+}
+
+export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string; eventCache?: GitHubReconciliationEventCache }): Promise<StoredEvent[]> {
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
-  const batchEvents = [...store.allEvents()];
+  const batchEvents = options.eventCache ? options.eventCache.eventsForCycle(store) : [...store.allEvents()];
   const accepted = reconstructGitHubReconciliationState(batchEvents, options.policy, options.now);
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
@@ -606,12 +732,18 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
         try {
           const newlyAppended = ingestGitHubSupervisionCandidateFromEvents(store, candidate, options.policy, batchEvents, options.now);
           if (newlyAppended.length === 0) continue;
+          const newlyObserved = options.eventCache
+            ? options.eventCache.recordReconciliationAppend(store, newlyAppended)
+            : newlyAppended;
           appended.push(...newlyAppended);
-          batchEvents.push(...newlyAppended);
+          batchEvents.push(...newlyObserved);
           accepted.immutableUrls.add(candidate.immutableUrl);
           const createdAt = Date.parse(candidate.createdAt);
           accepted.highWaterByIssue.set(issueNumber, Math.max(accepted.highWaterByIssue.get(issueNumber) ?? 0, createdAt));
-        } catch { /* skip invalid/unrelated receipts */ }
+        } catch (error) {
+          if (error instanceof GitHubReconciliationCacheInconsistencyError) throw error;
+          /* skip invalid/unrelated receipts */
+        }
       }
       if (comments.length < githubReconciliationPageSize) break;
       page += 1;
