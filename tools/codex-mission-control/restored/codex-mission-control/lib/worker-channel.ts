@@ -91,7 +91,12 @@ export interface WorkerChannelProjection {
   }>;
 }
 
-export function recordOwnerMessage(store: EventStore, input: OwnerMessageInput, producer: AuthenticatedProducer) {
+export function recordOwnerMessage(
+  store: EventStore,
+  input: OwnerMessageInput,
+  producer: AuthenticatedProducer,
+  eventHistory?: readonly StoredEvent[],
+) {
   const suffix = randomUUID();
   const messageId = input.messageId ?? `message:${suffix}`;
   const directionId = input.kind === "DIRECTION" ? input.directionId ?? `direction:${suffix}` : null;
@@ -102,7 +107,9 @@ export function recordOwnerMessage(store: EventStore, input: OwnerMessageInput, 
   const now = existingOwnerEvent?.occurredAt ?? input.now ?? new Date().toISOString();
   const missionId = input.missionId ?? "mission-control";
   const threadId = input.threadId ?? `thread:${input.worker}`;
-  const workerEvents = store.workerEvents(input.worker);
+  const workerEvents = eventHistory
+    ? eventHistory.filter((event) => event.worker === input.worker)
+    : store.workerEvents(input.worker);
   const priorDirectionEvent = workerEvents.findLast((event) => event.data.type === "owner_message_recorded"
     && event.data.message_kind === "DIRECTION" && event.data.message_id !== messageId);
   const priorDirection = priorDirectionEvent?.data;
@@ -173,7 +180,7 @@ export function recordOwnerMessage(store: EventStore, input: OwnerMessageInput, 
     }
   }
   appendItems.push({ event: queuedEvent, producer: systemProducer });
-  const appended = store.appendMany(appendItems);
+  const appended = store.appendMany(appendItems, eventHistory);
   const message = appended[0];
   const delivery = appended.at(-1)!;
   return { message, delivery, directionId, messageId, deliveryId };
@@ -184,6 +191,7 @@ export function pullWorkerOutbox(
   worker: string,
   producer: AuthenticatedProducer,
   options: { now?: string; limit?: number; leaseSeconds?: number } = {},
+  eventHistory?: readonly StoredEvent[],
 ) {
   if (producer.kind !== "WORKER" || !scopeIncludes(producer.workerScopes, worker)) {
     throw Object.assign(new Error("Worker outbox access is limited to the authenticated worker."), { statusCode: 403 });
@@ -192,7 +200,10 @@ export function pullWorkerOutbox(
   const nowMs = new Date(now).getTime();
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
   const leaseSeconds = Math.min(Math.max(options.leaseSeconds ?? 300, 30), 3600);
-  const events = store.workerEvents(worker);
+  const currentHistory = eventHistory ? [...eventHistory] : undefined;
+  const events = currentHistory
+    ? currentHistory.filter((event) => event.worker === worker)
+    : store.workerEvents(worker);
   const ownerMessages = events.filter((event): event is StoredEvent & { data: Extract<MissionControlEventV2, { type: "owner_message_recorded" }> } => event.data.type === "owner_message_recorded");
   const acknowledgements = new Set(events.flatMap((event) => event.data.type === "outbound_message_acknowledged" ? [event.data.message_id] : []));
   const latestDelivery = new Map<string, Extract<MissionControlEventV2, { type: "outbound_delivery_lifecycle_recorded" }>>();
@@ -222,8 +233,9 @@ export function pullWorkerOutbox(
         ...prior, status: "DELIVERED", attempt, next_attempt_at: null, lease_expires_at: leaseExpiresAt,
         remote_receipt_id: receiptId, error_code: null,
       }), producer: systemProducer },
-    ]);
+    ], currentHistory);
     appended.push(attempted, delivered);
+    currentHistory?.push(attempted, delivered);
     return {
       messageId: message.data.message_id,
       directionId: message.data.direction_id,

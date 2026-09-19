@@ -197,7 +197,9 @@ const server = http.createServer(async (request, response) => {
       const body = await readJson(request) as Record<string, unknown>;
       const idempotencyKey = typeof body.idempotency_key === "string" ? body.idempotency_key : randomUUID();
       const messageId = `message:${idempotencyKey}`;
-      const latestDirection = store.workerEvents(worker).findLast((event) => event.data.type === "owner_message_recorded"
+      const history = eventHistory();
+      const latestDirection = history.findLast((event) => event.worker === worker
+        && event.data.type === "owner_message_recorded"
         && event.data.message_kind === "DIRECTION" && event.data.message_id !== messageId)?.data;
       const result = recordOwnerMessage(store, {
         worker,
@@ -218,7 +220,7 @@ const server = http.createServer(async (request, response) => {
         deliveryId: `delivery:${idempotencyKey}`,
         ownerEventId: `owner-message:${idempotencyKey}`,
         deliveryEventId: `outbound-queued:${idempotencyKey}`,
-      }, producer);
+      }, producer, history);
       notifications.emit("event", result.delivery);
       return json(response, 201, result);
     }
@@ -226,7 +228,13 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "GET" && outboxMatch) {
       const producer = authorizeMutation(request);
       const worker = decodeURIComponent(outboxMatch[1]);
-      const result = pullWorkerOutbox(store, worker, producer, { limit: Number(url.searchParams.get("limit") ?? 20) });
+      const result = pullWorkerOutbox(
+        store,
+        worker,
+        producer,
+        { limit: Number(url.searchParams.get("limit") ?? 20) },
+        eventHistory(),
+      );
       if (result.appended.length) notifications.emit("event", result.appended.at(-1));
       return json(response, 200, { deliveries: result.deliveries, cursor: result.cursor });
     }
