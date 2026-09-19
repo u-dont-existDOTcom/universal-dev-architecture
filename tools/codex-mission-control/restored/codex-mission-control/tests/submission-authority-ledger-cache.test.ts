@@ -90,6 +90,24 @@ test("submission-authority verification preserves hash and previous-hash checks 
   }
 });
 
+test("submission-authority verification preserves rejection of payload fields reserved by stored ledger metadata", () => {
+  const store = new EventStore(":memory:");
+  try {
+    store.commitSubmissionAuthorityState(domain, { revision: 1 }, {
+      eventKind: "STATE_COMMITTED",
+      revision: 1,
+      sequence: 42,
+      previousHash: "payload-value",
+      eventHash: "payload-value",
+    });
+    const result = store.verifySubmissionAuthorityLedger(domain);
+    assert.equal(result.valid, false);
+    assert.match(result.errors.join("\n"), /Submission ledger sequence 42 has an invalid event hash/);
+  } finally {
+    store.close();
+  }
+});
+
 function observeVerificationStarts(store: EventStore): number[] {
   const target = store as any;
   const original = target.submissionAuthorityLedgerRowsAfter.bind(store);

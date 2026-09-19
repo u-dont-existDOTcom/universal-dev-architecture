@@ -340,14 +340,21 @@ export class EventStore {
     let sequence = cached.sequence;
     const rows = this.submissionAuthorityLedgerRowsAfter(pacingDomain, sequence);
     for (const row of rows) {
-      sequence = Number(row.sequence);
+      const durableSequence = Number(row.sequence);
       const storedPreviousHash = row.previous_hash === null ? null : String(row.previous_hash);
       const eventHash = String(row.event_hash);
-      const payload = JSON.parse(String(row.ledger_json)) as Record<string, unknown>;
-      if (storedPreviousHash !== previousHash) errors.push(`Submission ledger sequence ${sequence} has an invalid previous hash.`);
+      const persisted = {
+        sequence: durableSequence,
+        ...(JSON.parse(String(row.ledger_json)) as Record<string, unknown>),
+        previousHash: storedPreviousHash,
+        eventHash,
+      };
+      const { sequence: verifiedSequence, previousHash: _storedPreviousHash, eventHash: _eventHash, ...payload } = persisted;
+      if (storedPreviousHash !== previousHash) errors.push(`Submission ledger sequence ${verifiedSequence} has an invalid previous hash.`);
       const calculated = sha256(canonicalJson({ payload, previousHash }));
-      if (calculated !== eventHash) errors.push(`Submission ledger sequence ${sequence} has an invalid event hash.`);
+      if (calculated !== eventHash) errors.push(`Submission ledger sequence ${verifiedSequence} has an invalid event hash.`);
       previousHash = eventHash;
+      sequence = durableSequence;
     }
     this.submissionAuthorityLedgerVerificationCaches.set(pacingDomain, { sequence, eventHash: previousHash, errors });
     return { valid: errors.length === 0, errors: [...errors] };
