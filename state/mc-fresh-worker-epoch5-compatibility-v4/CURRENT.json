@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-19T17:04:49Z",
-  "phase": "V4_TERMINALIZATION_AND_V5_REQUEST_BOUND_READINESS",
-  "status": "ACTIVE",
+  "updatedAt": "2026-09-19T17:17:52Z",
+  "phase": "BLOCKED_V5_SERVER_POLICY_ACTIVATION",
+  "status": "BLOCKED_AUTHORITY_CONFLICT",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
@@ -12,8 +12,8 @@
   "replacementFixtureLimit": 1,
   "replacementFixtureCount": 0,
   "providerSendsThisTask": 1,
-  "currentGap": "The V4 standalone preload strategy is exhausted and must be terminalized with the existing discard outcome while preserving all history. Then exactly one new route-schema-v5 PER_REQUEST_V1 semantic request must prove both a server-observed request-binding receipt and an accepted canonical bound GitHub decision.",
-  "nextAction": "Keep the sender fenced while discarding the V4 route, verify/install exact canonical V5-capable relay bytes reversibly, create one V5 route for the same owner outcome and bounded factual task through the canonical durable path, prove current epoch-5 readiness, obtain one fresh admission, and send once.",
+  "currentGap": "The exhausted V4 route is now DISCARDED with history preserved. The installed relay is byte-identical to canonical and V5-capable, but the live Mission Control server policy still has requestBound.enabled=false. Enabling it requires a live primary container replacement on the existing durable volume, which the execution safety gate rejected under the no-production-mutation boundary.",
+  "nextAction": "Keep owner-secondary fenced and create no V5 route or admission. Resume only after explicit authority resolves whether the live primary container may be reversibly recreated with the already-merged request-bound policy enabled while preserving the exact image, data volume, stopped rollback container, and epoch-5 authority.",
   "v5StrategyAuthority": {
     "authority": "issue-53-comment-5743640100",
     "authorityUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5743640100",
@@ -221,7 +221,7 @@
   "sameRouteBindingRetry": {
     "requestId": "mc53-epoch4-pm-proof-v2-route-20260917",
     "reused": true,
-    "status": "FAILED_RETRYABLE",
+    "status": "DISCARDED",
     "retryStage": "MCP_BINDING_PRELOAD",
     "retryAttempted": true,
     "freshEpoch5AdmissionCreated": true,
@@ -234,11 +234,14 @@
     "semanticMessagesSent": 0,
     "pmControllerInitialized": false,
     "replacementFixtureCreated": false,
-    "unresolvedAmbiguities": []
+    "unresolvedAmbiguities": [],
+    "discardedAt": "2026-09-19T17:11:14.677Z",
+    "resolution": "OPERATOR_DISCARDED",
+    "historyPreserved": true
   },
   "finalFailClosedState": {
-    "observedAt": "2026-09-19T06:33:05.609Z",
-    "latestSequence": 12862,
+    "observedAt": "2026-09-19T17:17:52.141Z",
+    "latestSequence": 14148,
     "eventChainValid": true,
     "authorityLedgerValid": true,
     "schedulerState": "ACTIVE_LEASE",
@@ -254,13 +257,37 @@
     "healthTimer": "INACTIVE_DISABLED",
     "cdpListener": "ABSENT",
     "submitEnabled": false,
-    "capabilityTestEnabled": false
+    "capabilityTestEnabled": false,
+    "requestBoundRelayEnabled": true,
+    "requestBoundServerPolicyEnabled": false,
+    "v5RouteCount": 0,
+    "v5ProviderRequestsSent": 0
+  },
+  "v5ReadinessStop": {
+    "classification": "SERVER_POLICY_ACTIVATION_REQUIRES_EXPLICIT_PRODUCTION_MUTATION_AUTHORITY",
+    "v4RouteTerminalized": true,
+    "v4Resolution": "DISCARD",
+    "installedRelayManifestSha256": "93dedb27acefb5977ee6f58deb8926436127125d78199485586f77ed5bc0335c",
+    "canonicalRelayManifestSha256": "93dedb27acefb5977ee6f58deb8926436127125d78199485586f77ed5bc0335c",
+    "relayFileCount": 58,
+    "relayRequestBoundEnabled": true,
+    "relayRollbackConfigPreserved": true,
+    "serverRequestBoundPolicyEnabled": false,
+    "serverImageUnchanged": "codex-mission-control:a4dd25a-epoch5-outbox-cache",
+    "serverDataVolumeUnchanged": "codex-mission-control-issue90-live-v2",
+    "serverContainerRecreated": false,
+    "v5FixtureCreated": false,
+    "admissionCreated": false,
+    "browserStarted": false,
+    "providerSendOccurred": false,
+    "senderFenced": true,
+    "stopReceipt": "docs/evidence/2026-09-19-mc-request-bound-v5-policy-activation-blocked-receipt.json"
   },
   "deferredPermanentHardening": {
     "started": false,
     "reason": "PM_MEDIATED_LIVE_PROOF_PASS was not reached before the explicit missing-receipt stop."
   },
-  "stopReceipt": "docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json",
+  "stopReceipt": "docs/evidence/2026-09-19-mc-request-bound-v5-policy-activation-blocked-receipt.json",
   "previousStopEvidence": {
     "deployedRuntimeChainValid": true,
     "candidateOfflineChainValid": false,

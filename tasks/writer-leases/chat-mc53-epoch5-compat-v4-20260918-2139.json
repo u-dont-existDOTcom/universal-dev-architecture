@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "exclusive_writer": true,
+  "status": "released",
+  "exclusive_writer": false,
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
   "integration_base_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
-  "last_verified_head": "182ab3d7d3be1bc48710a47b96708ff819723d67",
+  "last_verified_head": "e0ec26be7dbd1ea6cda5a3bbe34d8549a6216b8e",
   "scope": "Preserve and discard the exhausted V4 route, execute the single authorized request-bound V5 live acceptance, continue the existing PM-mediated cycle only on exact dual success, and defer hardening until live proof PASS",
   "created_at": "2026-09-18T21:39:36Z",
   "prior_released_at": "2026-09-18T22:02:12Z",
@@ -29,5 +29,8 @@
   "v5_reactivated_at": "2026-09-19T17:04:49Z",
   "v5_reactivation_authority": "issue-53-comment-5743640100",
   "v5_requirement": "docs/requirements/2026-09-19-mission-control-request-bound-v5-live-acceptance.owner-requirement.json",
-  "v5_reconciled_main_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da"
+  "v5_reconciled_main_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
+  "v5_released_at": "2026-09-19T17:17:52Z",
+  "v5_release_reason": "V5 server policy activation would stop/recreate the live primary container on the existing durable volume and was rejected under the no-production-mutation boundary. No V5 fixture or send was created.",
+  "v5_release_receipt": "docs/evidence/2026-09-19-mc-request-bound-v5-policy-activation-blocked-receipt.json"
 }
