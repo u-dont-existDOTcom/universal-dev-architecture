@@ -2,24 +2,26 @@
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
   "title": "Release recovered-state compatibility and complete the same PM fixture under epoch 5",
-  "status": "blocked",
-  "exclusive": false,
+  "status": "active",
+  "exclusive": true,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "requiredRef": "refs/heads/chat/mc53-epoch5-compat-v4-20260918-2139",
   "integrationBranch": "main",
-  "integrationBaseSha": "d75d1032b63c8e0e7af6649df79cd60fd6b6f1b9",
+  "integrationBaseSha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
-    "authorityClarification": "issue-53-comment-5736910093",
-    "capturedAt": "2026-09-18T22:24:16Z"
+    "authorityClarification": "issue-53-comment-5743640100",
+    "capturedAt": "2026-09-19T16:50:06Z"
   },
   "ownerOutcome": {
     "status": "OPEN",
-    "normalizedResult": "Add the authorized startup-reconstructed, incrementally refreshed reconciliation event cache; release it through normal gates; pass a continuous two-interval zero-send availability soak under the existing epoch-5 owner-secondary authority; then retry only MCP_BINDING_PRELOAD on the same route, complete PM-mediated resolution, and harden permanently after proof PASS.",
+    "normalizedResult": "Truthfully terminalize the exhausted V4 preload strategy with discard, then execute exactly one fresh route-schema-v5 PER_REQUEST_V1 semantic acceptance for the same parent owner outcome and bounded factual task. Success requires both the exact server-observed request-binding receipt and the canonical bound GitHub decision before the existing PM-mediated cycle may continue.",
     "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
-    "replacementFixtureAllowed": false
+    "replacementFixtureAllowed": true,
+    "replacementFixtureLimit": 1,
+    "v4RetryAllowed": false
   },
   "taskLocalCheckpoint": "state/mc-fresh-worker-epoch5-compatibility-v4/CURRENT.json",
   "priorBlockedAt": "2026-09-18T22:02:12Z",
@@ -40,13 +42,13 @@
     "bindingEnvelopeCreated": false,
     "successorHostRefenced": true,
     "receipt": "docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json",
-    "resolvedBy": null,
-    "resolutionScope": null
+    "resolvedBy": "issue-53-comment-5743640100",
+    "resolutionScope": "Discard the failed V4 route as terminal for the exhausted preload strategy, then permit one fresh request-bound V5 semantic acceptance only."
   },
   "currentAuthority": {
-    "source": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
-    "capturedAt": "2026-09-19T01:47:05Z",
-    "requirement": "docs/requirements/2026-09-19-mission-control-reconciliation-event-cache.owner-requirement.json",
+    "source": "issue-53-comment-5743640100",
+    "capturedAt": "2026-09-19T16:50:06Z",
+    "requirement": "docs/requirements/2026-09-19-mission-control-request-bound-v5-live-acceptance.owner-requirement.json",
     "sourceChatTitle": "Reject API Migration Recommendation",
     "sourceChatUrl": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7"
   },

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "status": "released",
-  "exclusive_writer": false,
+  "status": "active",
+  "exclusive_writer": true,
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
-  "integration_base_sha": "d75d1032b63c8e0e7af6649df79cd60fd6b6f1b9",
-  "last_verified_head": "ce211c0883d69b282d09ffcdb2da8193ced1762b",
-  "scope": "V4 narrow reconciliation event-cache repair, two-interval zero-send soak, same-route MCP_BINDING_PRELOAD proof, and post-proof hardening",
+  "integration_base_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
+  "last_verified_head": "182ab3d7d3be1bc48710a47b96708ff819723d67",
+  "scope": "Preserve and discard the exhausted V4 route, execute the single authorized request-bound V5 live acceptance, continue the existing PM-mediated cycle only on exact dual success, and defer hardening until live proof PASS",
   "created_at": "2026-09-18T21:39:36Z",
   "prior_released_at": "2026-09-18T22:02:12Z",
   "prior_release_reason": "V4 explicit stop: current-main event-chain verification is incompatible with exact persisted historical schema-v2 payloads.",
@@ -25,5 +25,9 @@
   "latest_requirement": "docs/requirements/2026-09-19-mission-control-reconciliation-event-cache.owner-requirement.json",
   "latest_released_at": "2026-09-19T06:33:05Z",
   "latest_release_reason": "Explicit stop after the single authorized same-route epoch-5 MCP_BINDING_PRELOAD retry completed without a current-session server-observed binding receipt. No semantic or PM message was sent; the sender was durably re-fenced.",
-  "latest_release_receipt": "docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json"
+  "latest_release_receipt": "docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json",
+  "v5_reactivated_at": "2026-09-19T17:04:49Z",
+  "v5_reactivation_authority": "issue-53-comment-5743640100",
+  "v5_requirement": "docs/requirements/2026-09-19-mission-control-request-bound-v5-live-acceptance.owner-requirement.json",
+  "v5_reconciled_main_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da"
 }
