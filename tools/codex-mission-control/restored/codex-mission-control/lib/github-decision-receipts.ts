@@ -274,8 +274,14 @@ export function ensureConfiguredCapabilityChallenges(
   return appended;
 }
 
-export function ingestGitHubSupervisionCandidate(store: EventStore, candidate: GitHubDecisionCandidate, policy: GitHubReceiptPolicy | null, ingestedAt = new Date().toISOString()): StoredEvent[] {
-  return ingestGitHubSupervisionCandidateFromEvents(store, candidate, policy, store.allEvents(), ingestedAt);
+export function ingestGitHubSupervisionCandidate(
+  store: EventStore,
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy | null,
+  ingestedAt = new Date().toISOString(),
+  events = store.allEvents(),
+): StoredEvent[] {
+  return ingestGitHubSupervisionCandidateFromEvents(store, candidate, policy, events, ingestedAt);
 }
 
 function ingestGitHubSupervisionCandidateFromEvents(
@@ -587,6 +593,11 @@ export class GitHubReconciliationEventCache {
   }
 
   eventsForCycle(store: EventStore): StoredEvent[] {
+    this.refreshOrRebuildAndFailClosed(store);
+    return [...this.events];
+  }
+
+  eventsForRead(store: EventStore): StoredEvent[] {
     this.refreshOrRebuildAndFailClosed(store);
     return [...this.events];
   }

@@ -21,6 +21,7 @@ import {
 } from "../lib/github-decision-receipts";
 import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
+import { snapshotFromEvents } from "../lib/dashboard-data";
 
 const token = `reconciliation-cache-test-${"x".repeat(40)}`;
 const occurredAt = "2026-09-02T00:00:00.000Z";
@@ -58,6 +59,9 @@ test("file-backed reconciliation cache stays incremental, reconstructs on restar
     await reconcileGitHubDecisionReceipts(store, { policy: p, eventCache: cache, fetchImpl });
     await reconcileGitHubDecisionReceipts(store, { policy: p, eventCache: cache, fetchImpl });
     assert.equal(fullHistoryLoads, 1, "the second cycle must not reload the complete durable history");
+    const cachedSnapshot = snapshotFromEvents(cache.eventsForRead(store), { includeFixtureOnly: false });
+    assert.equal(cachedSnapshot.latestEventId, 12_000);
+    assert.equal(fullHistoryLoads, 1, "read projections must reuse the same parsed durable history");
 
     store.append(evidenceEnvelope("chat-capability-challenge:challenge-spec", capabilityChallengeSummary, [
       "challenge:challenge-spec",
@@ -152,12 +156,18 @@ test("file-backed reconciliation cache stays incremental, reconstructs on restar
       });
       latencies.push(Date.now() - statusStartedAt);
       assert.equal(status.status, 503);
+
+      const snapshotStartedAt = Date.now();
+      const snapshot = await fetch(`${origin}/snapshot`, { signal: AbortSignal.timeout(2_000) });
+      latencies.push(Date.now() - snapshotStartedAt);
+      assert.equal(snapshot.status, 200);
+      assert.equal((await snapshot.json()).latestEventId, 12_003);
       await delay(100);
     }
     assert.equal(output().includes("github_supervision_reconciliation_completed"), false,
       "responsiveness probes must run while the deliberately slow cycle is still active");
     assert.ok(Math.max(...latencies) < 2_000,
-      `live and authenticated scheduler status must remain well below 10s; observed ${Math.max(...latencies)}ms`);
+      `live, authenticated scheduler status, and cached snapshot reads must remain well below 10s; observed ${Math.max(...latencies)}ms`);
   } finally {
     if (child) {
       child.kill("SIGTERM");

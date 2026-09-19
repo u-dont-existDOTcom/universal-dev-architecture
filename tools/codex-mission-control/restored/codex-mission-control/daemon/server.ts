@@ -2,7 +2,7 @@ import http from "node:http";
 import { EventEmitter } from "node:events";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { ZodError } from "zod";
-import { snapshotFromStore, workerSnapshotFromStore, workerTransportSnapshotFromStore } from "../lib/dashboard-data";
+import { snapshotFromEvents, workerSnapshotFromEvents, workerTransportSnapshotFromEvents } from "../lib/dashboard-data";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import { startLiveWorkerSourceWatcher } from "../lib/live-worker-source";
 import {
@@ -32,7 +32,6 @@ const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
 const internalToken = process.env.MISSION_CONTROL_INTERNAL_TOKEN;
 if (!internalToken) throw new Error("MISSION_CONTROL_INTERNAL_TOKEN is required; use npm run dev/start or provide a secret for standalone daemon mode.");
 const store = new EventStore();
-const submissionAuthority = new SubmissionAuthorityRuntime(store);
 const dashboardProjectionOptions = { includeFixtureOnly: process.env.MISSION_CONTROL_SKIP_SEED !== "1" };
 const notifications = new EventEmitter();
 notifications.setMaxListeners(100);
@@ -51,6 +50,8 @@ const githubChallengeEvents = ensureConfiguredCapabilityChallenges(
 const githubReconciliationEventCache = githubPolicy && githubReconciliationStartupEvents
   ? GitHubReconciliationEventCache.fromEvents(store, [...githubReconciliationStartupEvents, ...githubChallengeEvents])
   : null;
+const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
+const submissionAuthority = new SubmissionAuthorityRuntime(store, process.env, Date.now, eventHistory);
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
@@ -90,7 +91,7 @@ const server = http.createServer(async (request, response) => {
       return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
-      return json(response, 200, snapshotFromStore(store, dashboardProjectionOptions));
+      return json(response, 200, snapshotFromEvents(eventHistory(), dashboardProjectionOptions));
     }
     if (request.method === "GET" && url.pathname === "/events") {
       const eventId = url.searchParams.get("event_id");
@@ -109,7 +110,7 @@ const server = http.createServer(async (request, response) => {
         }
         return json(response, 200, { event });
       }
-      return json(response, 200, { events: store.allEvents() });
+      return json(response, 200, { events: eventHistory() });
     }
     if (request.method === "POST" && url.pathname === "/mcp") {
       const producer = authorizeMutation(request);
@@ -130,18 +131,18 @@ const server = http.createServer(async (request, response) => {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
         if (params?.name === "mission_control_get_fleet") {
           if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet reads require owner or supervisor scope." });
-          return json(response, 200, mcpResult(id, snapshotFromStore(store, dashboardProjectionOptions)));
+          return json(response, 200, mcpResult(id, snapshotFromEvents(eventHistory(), dashboardProjectionOptions)));
         }
         if (params?.name === "mission_control_get_worker" && typeof params.arguments?.worker === "string") {
           const worker = params.arguments.worker;
           if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
-          const snapshot = workerSnapshotFromStore(store, worker, dashboardProjectionOptions);
+          const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
           return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
         }
         if (params?.name === "mission_control_get_worker_transport" && typeof params.arguments?.worker === "string") {
           const worker = params.arguments.worker;
           if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Worker scope mismatch." });
-          const snapshot = workerTransportSnapshotFromStore(store, worker, dashboardProjectionOptions);
+          const snapshot = workerTransportSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
           return json(response, 200, snapshot ? mcpResult(id, snapshot) : { jsonrpc: "2.0", id, error: { code: -32004, message: "Worker not found." } });
         }
       }
@@ -163,7 +164,7 @@ const server = http.createServer(async (request, response) => {
       }
       try {
         const candidate = await readJson(request) as GitHubDecisionCandidate;
-        const events = ingestGitHubSupervisionCandidate(store, candidate, githubPolicy);
+        const events = ingestGitHubSupervisionCandidate(store, candidate, githubPolicy, undefined, eventHistory());
         if (events.length) notifications.emit("event", events.at(-1));
         return json(response, events.length ? 201 : 200, { events, duplicate: events.length === 0 });
       } catch (error) {
@@ -185,7 +186,7 @@ const server = http.createServer(async (request, response) => {
     const workerMatch = url.pathname.match(/^\/workers\/([^/]+)$/);
     if (request.method === "GET" && workerMatch) {
       const worker = decodeURIComponent(workerMatch[1]);
-      const snapshot = workerSnapshotFromStore(store, worker, dashboardProjectionOptions);
+      const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions);
       return snapshot ? json(response, 200, snapshot) : json(response, 404, { error: "Worker not found" });
     }
     const messageMatch = url.pathname.match(/^\/workers\/([^/]+)\/messages$/);
@@ -288,7 +289,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 function appendWorkRoutingCheckpoints() {
-  const envelopes = buildWorkRoutingCheckpointEnvelopes(store.allEvents());
+  const envelopes = buildWorkRoutingCheckpointEnvelopes(eventHistory());
   if (envelopes.length === 0) return [];
   const systemProducer: AuthenticatedProducer = {
     id: "system:work-model-routing-telemetry",

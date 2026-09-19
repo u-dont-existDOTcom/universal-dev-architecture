@@ -1,5 +1,6 @@
 import { projectWorkers, summarizeChanges } from "./projection";
 import { EventStore } from "./store";
+import type { StoredEvent } from "./schema";
 
 const relayTransportEvidenceSummaries = new Set([
   "MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1",
@@ -16,12 +17,16 @@ const relayTransportEvidenceSummaries = new Set([
 ]);
 
 export function snapshotFromStore(store: EventStore, options: { includeFixtureOnly?: boolean } = {}) {
-  const events = store.allEvents();
+  return snapshotFromEvents(store.allEvents(), options);
+}
+
+export function snapshotFromEvents(events: StoredEvent[], options: { includeFixtureOnly?: boolean } = {}) {
   const projectedWorkers = projectWorkers(events);
   const workers = options.includeFixtureOnly === false
     ? projectedWorkers.filter((worker) => worker.connection.state !== "FIXTURE_ONLY")
     : projectedWorkers;
-  const lastViewedEventId = store.lastViewedEventId();
+  const reviewEvent = events.findLast((event) => event.data.type === "review_marked");
+  const lastViewedEventId = reviewEvent?.data.type === "review_marked" ? reviewEvent.data.reviewed_through_sequence : 0;
   const liveSourceEvent = [...events].reverse().find((event) => event.data.type === "live_worker_evidence_observed");
   const liveSource = liveSourceEvent?.data.type === "live_worker_evidence_observed" ? liveSourceEvent.data : null;
   return {
@@ -53,7 +58,7 @@ export function snapshotFromStore(store: EventStore, options: { includeFixtureOn
     liveSource,
     summary: summarizeChanges(events, lastViewedEventId),
     lastViewedEventId,
-    latestEventId: store.latestEventId(),
+    latestEventId: events.at(-1)?.sequence ?? 0,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -63,7 +68,15 @@ export function workerSnapshotFromStore(
   worker: string,
   options: { includeFixtureOnly?: boolean } = {},
 ) {
-  const selected = projectWorkers(store.allEvents()).find((candidate) => candidate.id === worker);
+  return workerSnapshotFromEvents(store.allEvents(), worker, options);
+}
+
+export function workerSnapshotFromEvents(
+  events: StoredEvent[],
+  worker: string,
+  options: { includeFixtureOnly?: boolean } = {},
+) {
+  const selected = projectWorkers(events).find((candidate) => candidate.id === worker);
   if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
   return { worker: selected, generatedAt: new Date().toISOString() };
 }
@@ -73,7 +86,15 @@ export function workerTransportSnapshotFromStore(
   worker: string,
   options: { includeFixtureOnly?: boolean } = {},
 ) {
-  const workerEvents = store.workerEvents(worker);
+  return workerTransportSnapshotFromEvents(store.workerEvents(worker), worker, options);
+}
+
+export function workerTransportSnapshotFromEvents(
+  events: StoredEvent[],
+  worker: string,
+  options: { includeFixtureOnly?: boolean } = {},
+) {
+  const workerEvents = events.filter((event) => event.worker === worker);
   const selected = projectWorkers(workerEvents).find((candidate) => candidate.id === worker);
   if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
   return {
