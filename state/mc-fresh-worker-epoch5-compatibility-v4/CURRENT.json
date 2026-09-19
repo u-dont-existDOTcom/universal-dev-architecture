@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-19T02:31:51Z",
+  "updatedAt": "2026-09-19T02:33:32Z",
   "phase": "RECONCILIATION_EVENT_CACHE_RELEASE_CANDIDATE",
   "status": "ACTIVE",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
@@ -89,8 +89,8 @@
   },
   "latestMainReconciliation": {
     "requiredBy": "mandatory-bootstrap-default-branch-read-2026-09-19",
-    "canonicalMain": "691ff3fd04787a977f67f84879310d3d3b2b0f8a",
-    "mergeCommit": "8b2c98f",
+    "canonicalMain": "d75d1032b63c8e0e7af6649df79cd60fd6b6f1b9",
+    "mergeCommit": "ce211c0883d69b282d09ffcdb2da8193ced1762b",
     "scope": "Unrelated current-main changes preserved before the narrow cache repair."
   },
   "releaseValidation": {

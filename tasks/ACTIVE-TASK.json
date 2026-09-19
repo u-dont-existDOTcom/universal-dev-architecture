@@ -8,7 +8,7 @@
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "requiredRef": "refs/heads/chat/mc53-epoch5-compat-v4-20260918-2139",
   "integrationBranch": "main",
-  "integrationBaseSha": "691ff3fd04787a977f67f84879310d3d3b2b0f8a",
+  "integrationBaseSha": "d75d1032b63c8e0e7af6649df79cd60fd6b6f1b9",
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
@@ -28,7 +28,7 @@
   "priorMainReconciledBy": "issue-53-comment-5737121675",
   "priorMainReconciledSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
   "currentMainReconciledBy": "mandatory-bootstrap-default-branch-read-2026-09-19",
-  "currentMainReconciledSha": "691ff3fd04787a977f67f84879310d3d3b2b0f8a",
+  "currentMainReconciledSha": "d75d1032b63c8e0e7af6649df79cd60fd6b6f1b9",
   "currentStop": {
     "classification": "EXPLICIT_NO_SEND_SOAK_FAILURE",
     "observedAt": "2026-09-18T23:47:18.762Z",
