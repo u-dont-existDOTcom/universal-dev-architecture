@@ -22,6 +22,7 @@ import {
 import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
 import { snapshotFromEvents } from "../lib/dashboard-data";
+import { pullWorkerOutbox } from "../lib/worker-channel";
 
 const token = `reconciliation-cache-test-${"x".repeat(40)}`;
 const occurredAt = "2026-09-02T00:00:00.000Z";
@@ -96,6 +97,23 @@ test("file-backed reconciliation cache stays incremental, reconstructs on restar
     assert.equal(workerHistoryLoads, 0, "cached append validation must not reparse the worker's full durable history");
     assert.equal(cache.eventsForRead(store).filter((event) => event.eventId === connection.eventId).length, 1,
       "an externally appended event must enter the shared cache exactly once");
+
+    workerHistoryLoads = 0;
+    store.workerEvents = (worker) => {
+      workerHistoryLoads += 1;
+      return originalWorkerEvents(worker);
+    };
+    const outbox = pullWorkerOutbox(
+      store,
+      "mission-control-live-slice",
+      workerProducer,
+      { now: occurredAt },
+      cache.eventsForRead(store),
+    );
+    store.workerEvents = originalWorkerEvents;
+    assert.deepEqual(outbox.deliveries, []);
+    assert.equal(workerHistoryLoads, 0,
+      "a recurring worker outbox poll must not reparse the worker's complete durable history");
 
     store.append(evidenceEnvelope("chat-capability-challenge:challenge-spec", capabilityChallengeSummary, [
       "challenge:challenge-spec",

@@ -75,6 +75,31 @@ test("authenticated local or remote workers poll a durable outbox with retry lea
   store.close();
 });
 
+test("cached worker history preserves multi-message outbox delivery without durable history reloads", () => {
+  const store = new EventStore(":memory:");
+  for (const suffix of ["cached-1", "cached-2"]) {
+    recordOwnerMessage(store, {
+      worker: "alpha", kind: "CONVERSATION", body: `Cached outbox message ${suffix}.`, now,
+      messageId: `message:alpha:${suffix}`, deliveryId: `delivery:alpha:${suffix}`,
+      ownerEventId: `event:owner-message:alpha:${suffix}`, deliveryEventId: `event:delivery-queued:alpha:${suffix}`,
+    }, owner);
+  }
+  const history = store.allEvents();
+  const originalWorkerEvents = store.workerEvents.bind(store);
+  let durableWorkerHistoryLoads = 0;
+  store.workerEvents = (workerId) => {
+    durableWorkerHistoryLoads += 1;
+    return originalWorkerEvents(workerId);
+  };
+  const result = pullWorkerOutbox(store, "alpha", worker, { now, limit: 2 }, history);
+  store.workerEvents = originalWorkerEvents;
+  assert.equal(durableWorkerHistoryLoads, 0);
+  assert.equal(result.deliveries.length, 2);
+  assert.equal(result.appended.length, 4);
+  assert.deepEqual(store.verifyChain(), { valid: true, errors: [] });
+  store.close();
+});
+
 test("worker acknowledgement, interpretation, queue, and reconciliation advance one direction to CURRENT", () => {
   const store = new EventStore(":memory:");
   recordOwnerMessage(store, {
