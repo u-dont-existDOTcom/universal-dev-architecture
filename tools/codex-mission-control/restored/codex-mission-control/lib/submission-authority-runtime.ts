@@ -225,6 +225,9 @@ export class SubmissionAuthorityRuntime {
     if (!relayAttestorsRaw) throw new Error("Mission Control submission authority requires MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON.");
     const relayAttestors = parseSubmissionRelayAttestors(JSON.parse(relayAttestorsRaw), Object.keys(relayBindings));
     assertAttestorsDistinctFromIngestBearers(relayAttestors, env.MISSION_CONTROL_INGEST_CREDENTIALS);
+    // Build the derived verification cache during bounded daemon startup so
+    // recurring status reads only validate the durable ledger suffix.
+    store.verifySubmissionAuthorityLedger(domain);
     const stateStore = new MissionControlSubmissionStateStore(store, domain, minimumIntervalMs, this.now);
     this.stateStore = stateStore;
     this.scheduler = new CentralSubmissionScheduler({

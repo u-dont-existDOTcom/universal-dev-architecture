@@ -6,6 +6,7 @@ import test from "node:test";
 import { createHash, createHmac } from "node:crypto";
 
 import { EventStore } from "../lib/store";
+import { defaultSchedulerState } from "../lib/provider-submission-authority.mjs";
 import { pacingDiagnostics, SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime } from "../lib/submission-authority-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 
@@ -431,6 +432,33 @@ test("submission-authority reads reject unbound collectors and non-relay produce
   }
 });
 
+test("scheduler status verifies a large authority ledger once at startup and only checks durable suffixes afterward", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const state = defaultSchedulerState(new Date(now.value).toISOString());
+    let latestSequence = 0;
+    for (let revision = 1; revision <= 12_000; revision += 1) {
+      const record = store.commitSubmissionAuthorityState(
+        "chatgpt:owner-account",
+        state,
+        { eventKind: "STATE_COMMITTED", revision },
+      );
+      latestSequence = Number(record.sequence);
+    }
+    const starts = observeAuthorityVerificationStarts(store);
+    const authority = runtime(store, now);
+    await authority.status(producer);
+    await authority.status(producer);
+
+    assert.equal(starts[0], 0);
+    assert.ok(starts.slice(1).every((sequence) => sequence >= latestSequence));
+    assert.equal(starts.filter((sequence) => sequence === 0).length, 1);
+  } finally {
+    store.close();
+  }
+});
+
 function runtime(store: EventStore, now: { value: number }, overrides: Record<string, string | undefined> = {}) {
   return new SubmissionAuthorityRuntime(store, {
     NODE_ENV: "test",
@@ -455,6 +483,17 @@ function runtime(store: EventStore, now: { value: number }, overrides: Record<st
     MISSION_CONTROL_SUBMISSION_ADMISSION_TTL_MS: "120000",
     ...overrides,
   }, () => now.value);
+}
+
+function observeAuthorityVerificationStarts(store: EventStore): number[] {
+  const target = store as any;
+  const original = target.submissionAuthorityLedgerRowsAfter.bind(store);
+  const starts: number[] = [];
+  target.submissionAuthorityLedgerRowsAfter = (pacingDomain: string, sequence: number) => {
+    starts.push(sequence);
+    return original(pacingDomain, sequence);
+  };
+  return starts;
 }
 
 function relayTransition(phase: "BEGIN" | "COMMIT" | "ABORT", overrides: Record<string, any>) {
