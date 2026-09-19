@@ -1,7 +1,7 @@
 # Default timed fleet supervisor
 
-Owner outcome: **OPEN** until the merged source is installed and one disposable
-native live acceptance passes. Controlling source: GitHub issue #177 and
+Owner outcome: **SATISFIED**. The merged source is installed and a disposable
+native live acceptance passed. Controlling source: GitHub issue #177 and
 `docs/requirements/2026-09-19-default-fleet-supervisor.owner-requirement.json`.
 
 Assurance lane: **release** because the owner explicitly requires PR, hosted CI,
@@ -30,7 +30,23 @@ merge, reversible deployment, and live acceptance.
 - [x] Complete Mission Control suite and production build.
 - [x] Repository test and deterministic audit release gates.
 - [x] Exact diff review and source-archive parity.
-- [ ] Hosted CI green on the exact PR head.
-- [ ] Merge, reversible non-production deployment, and synthetic live acceptance.
+- [x] Hosted CI green on the exact PR head.
+- [x] Merge, reversible non-production deployment, and synthetic live acceptance.
 
 ## External fallback disposition
+
+The external hourly watch is no longer a native-runtime dependency and may be
+retired separately. This deployment does not itself delete or disable that
+fallback.
+
+## Live completion
+
+The exact merged source at `57e3c18537475b1697d9554c005376b1b6a7e7bc`
+is healthy on the authorized non-production Mission Control runtime. The
+disposable acceptance auto-enrolled two synthetic projects at the one-hour
+default; its accelerated healthy watch completed a native daemon tick as
+`HEALTHY_ADVANCING`, advanced its next tick, and recorded
+`SUPPRESSED_NOT_ACTIONABLE`. The disposable runtime was removed afterward.
+The prior stopped container/image and a verified pre-deployment volume archive
+remain the rollback identity. Full evidence is in
+`docs/evidence/2026-09-20-default-fleet-supervisor-live-acceptance.json`.
