@@ -1,0 +1,176 @@
+{
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "verdict": "RELEASE_READY_V6_AWAITING_EXPLICIT_LIVE_DEPLOYMENT_AND_ONE_SEND_AUTHORITY",
+  "checkedAt": "2026-09-19T20:34:00Z",
+  "ownerAuthority": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 53,
+    "comment": 5744485891,
+    "url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744485891",
+    "bodySha256": "d086c8d6f662be787cd5011b56def107c2ff6272cac2b7168cba072e3e7066d1",
+    "createdAt": "2026-09-19T18:50:43Z"
+  },
+  "sourceChat": {
+    "title": "Reject API Migration Recommendation",
+    "url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+    "receiptBacklinkRequired": true
+  },
+  "provenance": {
+    "branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
+    "resumedCheckpoint": "70e2a60e2bd22d016167be4d840dbec904787e79",
+    "authorityActivationCommit": "59530fbad3ffb51d0325f2fbf69fae6747ed8121",
+    "canonicalMain": "7eb393d6894c6c5dd921dc78beeb0b4ebac03d0d",
+    "mainReconciliationCommit": "95132eb65fd2edfcf04b9321633f5115fdc3687c",
+    "candidateCommit": "89cf8571bd3491fabdca9da3dc768691f4dbdfe0",
+    "pullRequest": 176,
+    "pullRequestUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/176",
+    "historicalCompatibilityCommitsPreserved": [
+      "4ae2a979fd44be3f887ab471d13ffbabd554d939",
+      "54e61d27b42ca8e065d1967c89d797d4371d4c07"
+    ]
+  },
+  "candidateDiff": {
+    "base": "95132eb65fd2edfcf04b9321633f5115fdc3687c",
+    "head": "89cf8571bd3491fabdca9da3dc768691f4dbdfe0",
+    "filesChanged": 19,
+    "additions": 912,
+    "deletions": 55,
+    "files": [
+      "docs/evidence/2026-09-19-mc-request-bound-v5-live-acceptance-stop-receipt.json",
+      "docs/requirements/2026-09-19-mission-control-in-band-request-binding-v6.md",
+      "docs/requirements/2026-09-19-mission-control-in-band-request-binding-v6.owner-requirement.json",
+      "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/in-band-request-binding.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/owner-response-continuation-schema.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/request-bound-supervision.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/lib/supervision-admission-runtime.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/daemon-exact-event-read.test.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/in-band-request-binding.test.ts",
+      "tools/codex-mission-control/restored/codex-mission-control/tests/supervision-admission-route.test.ts",
+      "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+      "tools/codex-mission-control/vps-browser-relay/src/relay.mjs",
+      "tools/codex-mission-control/vps-browser-relay/src/submission-pacing.mjs",
+      "tools/codex-mission-control/vps-browser-relay/test/core.test.mjs",
+      "tools/codex-mission-control/vps-browser-relay/test/relay.test.mjs"
+    ]
+  },
+  "protocol": {
+    "routeSchemaVersion": 6,
+    "bindingSchema": "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_V1",
+    "executionProtocol": "IN_BAND_REQUEST_BINDING_V1",
+    "executionProvenance": "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED",
+    "canonicalDecisionSchemaVersion": 5,
+    "relayStep": "IN_BAND_REQUEST_DECISION",
+    "providerSessions": 1,
+    "providerMessages": 1,
+    "requiredSelectedApps": ["GitHub"],
+    "missionControlAppSelected": false,
+    "mcpReceiptRequired": false,
+    "continueOrRetryAllowed": false
+  },
+  "trustBoundary": {
+    "durableAuthority": "Mission Control EventStore plus the central single-use submission admission",
+    "transport": "The exact canonical binding envelope is embedded verbatim in the one provider message.",
+    "preSendProof": "One authenticated trusted-relay EventStore receipt binds the exact request, provider session, binding digest, body digest, GitHub target, admission, and semantic_authority:false before browser submission.",
+    "githubObservation": "The canonical GitHub decision is accepted only after server recomputation and exact durable-evidence validation.",
+    "parallelAuthorityCreated": false,
+    "additionalSignatureOrHmac": false,
+    "cryptographyRationale": "The existing canonical SHA-256, authenticated immutable pre-send event, exact central admission, and provider body hash provide the required binding without a generic signing service."
+  },
+  "failClosedValidation": {
+    "changedBindingField": "REJECTED",
+    "changedBindingDigest": "REJECTED",
+    "changedPromptOrBodyDigest": "REJECTED",
+    "wrongPreSendProducer": "REJECTED",
+    "mismatchedProviderSession": "REJECTED",
+    "moreThanOneProviderSendSession": "REJECTED",
+    "staleOrExpiredBinding": "REJECTED",
+    "wrongGitHubIssueOrWriter": "REJECTED",
+    "changedCurrentOwnerOutcome": "REJECTED",
+    "missingTrustedPreSendReceipt": "REJECTED",
+    "v5McpProvenanceOnV6": "REJECTED",
+    "mcpEvidenceOnV6": "REJECTED",
+    "v4AndV5Compatibility": "PASS"
+  },
+  "mcpAbsenceProof": {
+    "relayAppPlan": "GitHub is the sole required selected app for IN_BAND_REQUEST_DECISION.",
+    "relayStateMachine": "V6 exposes one send action and no capability, preload, reader/writer, Continue, or Retry action.",
+    "prompt": "The V6 prompt embeds the exact envelope and explicitly prohibits selecting or calling Mission Control or MCP.",
+    "ingestion": "V6 requires no MCP receipt and rejects observed MCP request-binding evidence.",
+    "publicMcp": "The public MCP compatibility path remains V4/V5-only and cannot satisfy V6.",
+    "regressions": "Relay and ingestion tests prove GitHub-only selection, one message, no MCP receipt, and rejection of REQUEST_BOUND_MCP_GITHUB_OBSERVED."
+  },
+  "validation": {
+    "focusedV6MissionControl": "12/12 PASS",
+    "missionControlSuite": "342/342 PASS",
+    "relaySuite": "255/255 PASS",
+    "relaySyntax": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "repositorySuite": "363/363 PASS",
+    "deterministicAudit": "0 errors; 1 pre-existing root AGENTS.md size warning",
+    "diffCheck": "PASS",
+    "rawDatabaseFixtureCommitted": false,
+    "testEfficiency": {
+      "taskId": "mc53-v6-in-band-binding-20260919",
+      "checkpointElapsedSeconds": 3160.91,
+      "observedTestSeconds": 1465.78,
+      "testSharePercent": 46.37,
+      "forcedRedundantGreenSeconds": 0.0,
+      "redundantGreenRunsSkipped": 0
+    }
+  },
+  "liveStatePreservation": {
+    "liveDeploymentPerformed": false,
+    "providerRequestSent": false,
+    "productionMutationPerformed": false,
+    "livePrimaryContainerRecreated": false,
+    "manualSqliteMutation": false,
+    "secondEventStoreWriter": false,
+    "paidInference": false,
+    "senderFenceChanged": false,
+    "persistentSubmitGateChanged": false,
+    "persistentCapabilityTestGateChanged": false,
+    "epoch4Resurrected": false,
+    "v4HistoryRewritten": false,
+    "v5HistoryRewritten": false
+  },
+  "liveDeploymentDeltaRequired": [
+    "Build and attest one Mission Control image from the exact reviewed candidate commit; replace only the currently installed application bytes while preserving the existing durable EventStore volume, environment, epoch-5 authority inputs, and rollback runtime.",
+    "Install the exact relay package bytes from the same reviewed commit on the already trusted relay; preserve its producer identity, configuration, fence, pacing state, browser ownership, and rollback copy.",
+    "Keep persistent submit and capability-test gates disabled and the sender fenced throughout installation and post-install validation.",
+    "Do not change requestBound policy fields: the existing enabled policy and trusted relay allowlist activate V6 only when admission explicitly requests IN_BAND_REQUEST_BINDING_V1.",
+    "After restart, revalidate liveness, event chain, authority ledger, epoch-5 single-active lease, zero queue, null unresolved admission, clear target transition, null safety halt, and unchanged global pacing before any V6 route is created."
+  ],
+  "rollbackPlan": [
+    "Preserve the pre-deployment Mission Control container/image/configuration, relay bytes/configuration, and a transactionally consistent durable-volume backup before installation.",
+    "If any invariant or hosted candidate check fails, keep the sender fenced, stop the candidate, and restore the preserved Mission Control and relay versions against the unchanged durable authority.",
+    "Never repair rollback by editing SQLite, rewriting events, changing V4/V5 history, creating a second writer, or replaying a provider request."
+  ],
+  "requestBoundPolicyCoexistence": {
+    "canCoexistUnchanged": true,
+    "reason": "V6 reuses requestBound.enabled and the trusted relay-producer allowlist. An explicit bindingProtocol selects V6; unchanged admissions continue to create V5."
+  },
+  "proposedOneSendLiveAcceptance": [
+    "Obtain a new explicit consequential authorization covering deployment and one V6 provider send.",
+    "Deploy the exact reviewed Mission Control and relay candidate reversibly with the sender fenced and both persistent send gates disabled.",
+    "Pass all post-install authority, chain, ledger, lease, queue, transition, safety, and pacing checks before creating a route.",
+    "Create exactly one fresh route-schema-v6 request for the same parent outcome and bounded task with IN_BAND_REQUEST_BINDING_V1.",
+    "Allocate one fresh provider session and construct the exact canonical binding envelope and one-message GitHub-only prompt.",
+    "Obtain one central single-use admission for the exact provider body hash, then durably record the exact trusted pre-send receipt before browser submission.",
+    "Release only the bounded sender fence, select GitHub only, and submit exactly one provider message with no MCP, preload, capability, Continue, or Retry action.",
+    "Accept success only if the authorized GitHub writer publishes one canonical schema-v5 decision and ingestion validates the exact binding, pre-send receipt, admission, provider lifecycle, one-send timing, target, owner outcome, evidence capsule, and provenance.",
+    "On any failure or missing accepted receipt, re-fence immediately, preserve evidence, send nothing else, and do not fall back to V4 or V5.",
+    "After accepted V6 proof, continue the existing PM-mediated controller cycle; defer permanent hardening until PM_MEDIATED_LIVE_PROOF_PASS."
+  ],
+  "stopBoundary": {
+    "classification": "EXPLICIT_NO_DEPLOY_NO_SEND_BOUNDARY",
+    "fired": true,
+    "remainingOwnerOutcome": "Deploy the reviewed V6 candidate and conduct the one-send live acceptance under new consequential authority.",
+    "responsibleActor": "Owner/Chat must authorize the consequential live deployment and one-send boundary.",
+    "nextExecutableActionWithoutNewAuthority": null
+  }
+}

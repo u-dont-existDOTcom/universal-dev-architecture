@@ -6,6 +6,7 @@ import {
   CAPABILITY_VERIFIED_SUMMARY,
   CURRENT_CONSUMER_CONTROLS,
   CURRENT_DECISION_SESSION_PROVENANCE,
+  IN_BAND_PRE_SEND_SUMMARY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
@@ -607,7 +608,7 @@ test('doctor fails closed when the live browser target set differs inside the co
 });
 
 function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled = false, codexExecutionDispatcher = null, memoryReader = async () => normalMetrics, now = Date.now,
-  submissionHost = { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' } }) {
+  submissionHost = { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' }, submissionPacer: suppliedSubmissionPacer = null }) {
   const config = {
     missionControl: { url: 'https://mission-control.example' },
     browser: { profileDir: '/tmp/test-profile' },
@@ -617,7 +618,7 @@ function makeRuntime({ store, mc, browser, submitEnabled, capabilityTestEnabled 
     },
     memory: { profile: 'AUTO', overrides: {} },
   };
-  const submissionPacer = new GlobalSubmissionPacer({ stateStore: store, minIntervalMs: config.runtime.minSubmissionIntervalMs, now });
+  const submissionPacer = suppliedSubmissionPacer ?? new GlobalSubmissionPacer({ stateStore: store, minIntervalMs: config.runtime.minSubmissionIntervalMs, now });
   submissionPacer.remoteStatus = async () => ({
     ...submissionPacer.status(await store.read()), authority: 'MISSION_CONTROL_SINGLE_WRITER', schedulerState: 'ACTIVE_LEASE', safetyHalt: null,
     ledger: { valid: true }, authenticatedRelayBinding: { hostAlias: submissionHost.alias, hostRole: submissionHost.role, automationWindowId: 101, ownedTargetCount: 1, ownedTargetIdsSha256: sha256(JSON.stringify(['automation-owned-target'])) },
@@ -648,6 +649,7 @@ class MemoryStateStore {
 class FakeMissionControl {
   constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0 } = {}) {
     this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50;
+    this.producerId = 'collector:fixture-relay';
     this.autoFirstTurnMcp = autoFirstTurnMcp; this.projectionLagReads = projectionLagReads; this.fetchFleetCalls = 0;
   }
   async fetchFleet() {
@@ -804,6 +806,54 @@ function requestBoundFixture({ enabled = true, submitErrorStage = null } = {}) {
   runtime.config.runtime.requestBoundEnabled = enabled;
   return { store, mc, browser, runtime };
 }
+
+function inBandRequestFixture() {
+  const event = directRouteEvent('r-1', 'v6-route', 'EXTRA_HIGH_DIRECT');
+  const packet = JSON.parse(event.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  packet.schemaVersion = 6;
+  packet.executionContext = { task_id: 'task-1' };
+  event.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(packet);
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: [], routes: [event], autoFirstTurnMcp: false });
+  const browser = new FakeBrowser();
+  const admission = {
+    admitted: true, admissionId: 'send-admission:v6', queueItemId: 'send-queue-item:v6',
+    admittedAt: '2026-09-02T00:00:00.500Z', expiresAt: '2026-09-02T00:02:00.000Z',
+  };
+  const pacer = {
+    status: () => ({ ready: true, minimumIntervalMs: 60_000, retryAfterMs: 0 }),
+    remoteStatus: async () => ({ ready: true }),
+    assertReady: async () => ({ ready: true }),
+    submit: async ({ beforeSubmit, submit }) => {
+      await beforeSubmit(admission);
+      return submit(async () => {}, admission, async () => ({ valid: true }));
+    },
+  };
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, submissionPacer: pacer });
+  runtime.config.runtime.requestBoundEnabled = true;
+  return { store, mc, browser, runtime, admission };
+}
+
+test('V6 records one trusted binding/body/admission receipt before one GitHub-only provider message', async () => {
+  const { store, mc, browser, runtime, admission } = inBandRequestFixture();
+  const first = await runtime.cycle();
+  assert.equal(first.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(first));
+  assert.equal(browser.submitCalls, 1);
+  assert.deepEqual(browser.selectAppsCalls.at(-1).requiredLabels, ['GitHub']);
+  assert.match(browser.lastSubmittedBody, /IN_BAND_REQUEST_BINDING_V1/);
+  assert.match(browser.lastSubmittedBody, /IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED/);
+  assert.doesNotMatch(browser.lastSubmittedBody, /get_supervisory_request_binding|REQUEST_BOUND_MCP_GITHUB_OBSERVED/);
+  const preSend = mc.recordedEvidence.filter((item) => item.summary === IN_BAND_PRE_SEND_SUMMARY);
+  assert.equal(preSend.length, 1);
+  assert.ok(preSend[0].refs.includes(`submission_admission:${admission.admissionId}`));
+  assert.ok(preSend[0].refs.includes(`provider_body_sha256:${sha256(browser.lastSubmittedBody)}`));
+  assert.ok(preSend[0].refs.includes('semantic_authority:false'));
+  assert.equal(mc.recordedEvidence.some((item) => item.summary === PROVIDER_SESSION_MCP_SUMMARY), false);
+  assert.equal(store.state.providerSessions[store.state.deliveries['request:r-1'].providerSessionId].sessionRole, 'IN_BAND_REQUEST_DECISION_SESSION');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal(browser.submitCalls, 1);
+});
 
 test('V5 actual relay cycle sends one real request with MC and GitHub, never a preload', async () => {
   const { store, mc, browser, runtime } = requestBoundFixture();

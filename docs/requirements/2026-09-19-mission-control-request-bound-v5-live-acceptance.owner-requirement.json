@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-REQUEST-BOUND-V5-LIVE-ACCEPTANCE-20260919",
+  "recorded_at": "2026-09-19T17:04:49Z",
+  "status": "ACTIVE",
+  "root_owner_outcome": "OPEN",
+  "owner_source": {
+    "source_type": "github_issue_comment",
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 53,
+    "comment_id": 5743640100,
+    "source_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5743640100",
+    "created_at": "2026-09-19T16:50:06Z",
+    "sha256": "45e23325c9933d763d40156a5a6cfe6ced3252b383e86cbb780d82bfb7e7b057"
+  },
+  "normalized_outcome": "Preserve and truthfully discard the exhausted V4 preload strategy, then run exactly one fresh route-schema-v5 PER_REQUEST_V1 semantic acceptance for the same parent owner outcome and bounded factual task. Continue the existing PM-mediated cycle only if the exact provider session produces both a server-observed binding receipt and an accepted canonical bound GitHub decision.",
+  "required_outcomes": [
+    "The current V4 route is resolved with discard, is never marked submitted, and retains all failed-session and provider-boundary history.",
+    "Exactly one new route-schema-v5 fixture is created through the canonical durable path for the same parent owner outcome and bounded factual task.",
+    "The V5 request uses one fresh provider session and one real semantic REQUEST_BOUND_DECISION turn with Mission Control selected and no standalone preload or capability-test turn.",
+    "Before substantive reasoning, the provider calls get_supervisory_request_binding with the exact request_id, supervisor_id, and provider_session_id and requires PER_REQUEST_V1 plus the exact live request binding hash.",
+    "Success requires both the exact server-observed transport/access receipt and the canonical V5 GitHub decision accepted under the exact request binding.",
+    "Every provider send uses a fresh single-use central admission and truthful global pacing; persistent submit and capability-test gates remain disabled.",
+    "A no-MCP-receipt result after the one V5 request fails closed without retry, continuation, V4 fallback, or another provider request."
+  ],
+  "hard_boundaries": [
+    "No paid model or API inference.",
+    "No production mutation.",
+    "No assistant-output DOM inspection.",
+    "No controller semantic substitution.",
+    "No manual SQLite mutation or second live EventStore writer.",
+    "No epoch-4 resurrection.",
+    "No more than one V5 provider request before success or stop.",
+    "No deferred permanent hardening before PM_MEDIATED_LIVE_PROOF_PASS."
+  ],
+  "assurance_lane": "release",
+  "strategy": {
+    "v4_binding_preload": "EXHAUSTED",
+    "v5_request_bound_decision": "AUTHORIZED_ONCE",
+    "success_threshold": "SERVER_OBSERVED_BINDING_RECEIPT_AND_CANONICAL_GITHUB_DECISION_ACCEPTED",
+    "failure_threshold": "ONE_V5_GENERATION_WITHOUT_SERVER_OBSERVED_MCP_RECEIPT"
+  },
+  "source_chat_title": "Reject API Migration Recommendation",
+  "source_chat_url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+  "receipt_backlink_required": true,
+  "privacy_boundary": "Keep detailed live host, lease, route, and execution evidence in bounded local/task receipt surfaces; do not publish it to the public issue."
+}

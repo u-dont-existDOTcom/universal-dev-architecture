@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-IN-BAND-REQUEST-BINDING-V6-20260919",
+  "recorded_at": "2026-09-19T19:39:12Z",
+  "status": "ACTIVE",
+  "root_owner_outcome": "OPEN",
+  "owner_source": {
+    "source_type": "github_issue_comment",
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "issue": 53,
+    "comment_id": 5744485891,
+    "source_url": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744485891",
+    "created_at": "2026-09-19T18:50:43Z",
+    "sha256": "d086c8d6f662be787cd5011b56def107c2ff6272cac2b7168cba072e3e7066d1"
+  },
+  "normalized_outcome": "Replace the exhausted model-mediated Mission Control MCP invocation premise with route-schema-v6 IN_BAND_REQUEST_BINDING_V1. Mission Control and the trusted relay must mint and durably record an exact pre-send binding and prompt hash; the one-message provider route selects only GitHub; canonical GitHub ingestion validates the echoed in-band binding, admission, relay identity, provider lifecycle, timing, writer/location, owner outcome, and evidence capsule without requiring or fabricating MCP evidence.",
+  "required_outcomes": [
+    "A canonical route-schema-v6 request and binding envelope are derived from current event-sourced Mission Control authority.",
+    "A trusted pre-send binding receipt binds the request, provider session, binding digest, prompt digest, admission, and trusted relay producer with semantic_authority false after central admission and before provider submission.",
+    "The exact admitted body hash equals the exact one-message V6 prompt hash.",
+    "The V6 consumer route selects GitHub and explicitly excludes Mission Control, MCP preload, capability tests, reader/writer staging, Continue, and Retry.",
+    "V6 GitHub decisions use IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED and fail closed against the current route, recomputed binding, pre-send receipt, admission, producer, provider lifecycle, one-send invariant, timing, writer/location, owner outcome, and evidence capsule.",
+    "V4 and V5 behavior remains unchanged, and V6 rejects REQUEST_BOUND_MCP_GITHUB_OBSERVED.",
+    "A release-ready candidate and receipt describe the exact deployment delta, rollback, coexistence with the current requestBound policy, and proposed one-send acceptance procedure."
+  ],
+  "hard_boundaries": [
+    "Do not deploy V6 live in this execution.",
+    "Do not send a V4, V5, or V6 provider request.",
+    "Do not mutate the live primary container or production state.",
+    "Keep the sender fenced and persistent send and capability-test gates at zero.",
+    "Do not manually edit SQLite or create a second EventStore writer or authority store.",
+    "Do not perform paid inference.",
+    "Preserve epoch-5 authority, V4 DISCARDED history, and the failed V5 evidence."
+  ],
+  "assurance_lane": "release",
+  "stop_boundary": "RELEASE_READY_CANDIDATE_ONLY_NO_DEPLOY_NO_PROVIDER_SEND",
+  "source_chat_title": "Reject API Migration Recommendation",
+  "source_chat_url": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7",
+  "receipt_backlink_required": true
+}

@@ -1,6 +1,6 @@
 # Central daemon repair and same-fixture PM proof
 
-Status: BLOCKED — EXPLICIT AUTHORITY STOP
+Status: BLOCKED — EXPLICIT BINDING-RECEIPT STOP
 
 Assurance: iteration for diagnosis/implementation, release before merge/install.
 
@@ -101,3 +101,35 @@ attempted. Provider sends remained zero. SECONDARY has the exact merged relay
 package from PR #149 installed, but the relay remains inactive with submit and
 capability-test gates disabled. The blocked receipt is
 `docs/evidence/2026-09-18-mc-fresh-worker-daemon-repair-receipt.json`.
+
+## Epoch-5 continuation and final stop — 2026-09-19
+
+Owner authority re-established the already-valid epoch-5 SECONDARY lease and
+authorized the raw-persisted-payload compatibility seam, the availability
+repair, one two-interval no-send soak, and one same-route binding-preload retry.
+The compatibility repair and successive derived-history caches merged through
+PRs #166, #168, #170, #172, and #173. The exact final image was installed
+reversibly against the existing volume with rollback preserved.
+
+The fresh continuous soak ran for 660,085 ms and covered two completed
+reconciliation intervals. All 132 live/scheduler samples and 44
+snapshot/operator samples passed. Maximum live and scheduler latencies were 17
+ms and 70 ms respectively, with zero admissions and zero provider sends.
+
+After a final live authority reread, the same route
+`mc53-epoch4-pm-proof-v2-route-20260917` received one fresh epoch-5 single-use
+admission for `MCP_BINDING_PRELOAD`. The binding-only generation started and
+completed, but Mission Control never observed the required current-session
+`get_supervisory_request_binding` receipt. The relay therefore recorded
+`MCP_BINDING_PRELOAD_RECEIPT_MISSING` and returned the route to
+`FAILED_RETRYABLE`. No binding envelope, semantic message, controller cycle, or
+PM message was created.
+
+The explicit later-boundary fail-closed condition in issue #53 comment
+`5723378677` fired. The sender was durably re-fenced, submission and capability
+gates are disabled, services are inactive, the queue and unresolved admission
+are empty, the target transition and safety halt are clear, and the final
+12,862-event chain plus authority ledger remain valid. Deferred permanent
+hardening did not start because `PM_MEDIATED_LIVE_PROOF_PASS` was not reached.
+The current receipt is
+`docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json`.

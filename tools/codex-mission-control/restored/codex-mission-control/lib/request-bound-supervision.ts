@@ -1,6 +1,7 @@
 import { canonicalJson, sha256 } from "./canonical";
 import type { GitHubDecisionCandidate, GitHubReceiptPolicy, PendingDecisionRequest } from "./github-decision-receipts";
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "./schema";
+import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 
 export const requestBoundRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n";
 export const requestBoundStep = "REQUEST_BOUND_DECISION";
@@ -165,8 +166,8 @@ function isTrustedEvidence(event: StoredEvent, summary: string, producers: strin
 }
 
 /** Stable enqueue identity; retries acknowledge the original durable queue event. */
-export function requestRouteEventId(requestId: string): string {
-  return `supervision-request-v5:${sha256(requestId)}`;
+export function requestRouteEventId(requestId: string, schemaVersion: 5 | 6 = 5): string {
+  return `supervision-request-v${schemaVersion}:${sha256(requestId)}`;
 }
 
 export function requestBoundRouteQueuedAt(
@@ -244,16 +245,18 @@ export function acknowledgeRequestBoundRoute(
 }
 
 function requestBoundRouteBody(data: AppendEnvelope["data"] | StoredEvent["data"]): Record<string, unknown> {
-  if (data.type !== "worker_message_recorded" || !data.body.startsWith(requestBoundRoutePrefix)) {
+  if (data.type !== "worker_message_recorded"
+    || !data.body.startsWith(requestBoundRoutePrefix) && !data.body.startsWith(inBandRequestRoutePrefix)) {
     throw new Error("Existing event is not a request-bound supervisory route.");
   }
+  const prefix = data.body.startsWith(inBandRequestRoutePrefix) ? inBandRequestRoutePrefix : requestBoundRoutePrefix;
   let parsed: unknown;
   try {
-    parsed = JSON.parse(data.body.slice(requestBoundRoutePrefix.length));
+    parsed = JSON.parse(data.body.slice(prefix.length));
   } catch {
     throw new Error("Existing request-bound route body is invalid JSON.");
   }
-  if (!isRouteRecord(parsed) || parsed.schemaVersion !== 5) {
+  if (!isRouteRecord(parsed) || parsed.schemaVersion !== (prefix === inBandRequestRoutePrefix ? 6 : 5)) {
     throw new Error("Existing request-bound route body has the wrong schema.");
   }
   return parsed;
