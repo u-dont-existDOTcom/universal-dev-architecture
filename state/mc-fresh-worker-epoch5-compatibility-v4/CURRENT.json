@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-19T01:47:05Z",
-  "phase": "RECONCILIATION_EVENT_CACHE_REPAIR",
+  "updatedAt": "2026-09-19T02:31:51Z",
+  "phase": "RECONCILIATION_EVENT_CACHE_RELEASE_CANDIDATE",
   "status": "ACTIVE",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
   "replacementFixtureCreated": false,
   "providerSendsThisTask": 0,
-  "currentGap": "The recurring GitHub reconciliation path still synchronously reloads and parses the complete 12k+ durable event history before its first await, blocking liveness and scheduler status for the duration of that CPU-bound work.",
-  "nextAction": "Implement the startup-reconstructed, eventsAfter-refreshed reconciliation event cache with sequence consistency checks; run focused concurrency regressions; then cross release gates and repeat the continuous two-interval zero-send soak while owner-secondary remains fenced.",
+  "currentGap": "The recurring full-history reload is repaired and locally release-validated. Hosted review, exact-candidate merge/install, and the repeated continuous two-interval zero-send soak remain before any admission or provider boundary may open.",
+  "nextAction": "Push the focused candidate, obtain hosted review/checks, merge normally, install the exact merged image reversibly on owner-secondary with the epoch-5 volume and rollback preserved, and repeat the continuous two-interval zero-send soak while owner-secondary remains fenced.",
   "soakStopResolution": {
     "authority": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
     "capturedAt": "2026-09-19T01:47:05Z",
@@ -26,6 +26,25 @@
       "4ae2a979fd44be3f887ab471d13ffbabd554d939",
       "54e61d27b42ca8e065d1967c89d797d4371d4c07"
     ]
+  },
+  "reconciliationEventCacheEvidence": {
+    "implementationCommit": "63db216e1754c354b77ec32a2db9fd8f76bd484c",
+    "startupFullHistoryLoads": 1,
+    "normalCycleFullHistoryReloads": 0,
+    "normalRefresh": "eventsAfter(lastSequence)",
+    "durableAuthority": "EventStore",
+    "secondDurableAuthorityCreated": false,
+    "fileBackedEventCount": 12000,
+    "secondCycleNoAllEvents": "PASS",
+    "betweenCycleExternalAppendObserved": "PASS",
+    "restartReconstruction": "PASS",
+    "duplicateReceiptIdempotency": "PASS",
+    "newReceiptIngestion": "PASS",
+    "sequenceGapFailsClosedAndRebuilds": "PASS",
+    "slowFetchLivenessResponsiveBelowTwoSeconds": "PASS",
+    "authenticatedSchedulerStatusPathResponsiveBelowTwoSeconds": "PASS",
+    "eventChainValidAfterRestart": true,
+    "rawDatabaseFixtureCommitted": false
   },
   "compatibilityEvidence": {
     "implementation": "RECONCILED_RELEASE_CANDIDATE",
@@ -68,6 +87,12 @@
     "incrementalChainCachePreserved": true,
     "v5PerRequestPathNotActivated": true
   },
+  "latestMainReconciliation": {
+    "requiredBy": "mandatory-bootstrap-default-branch-read-2026-09-19",
+    "canonicalMain": "691ff3fd04787a977f67f84879310d3d3b2b0f8a",
+    "mergeCommit": "8b2c98f",
+    "scope": "Unrelated current-main changes preserved before the narrow cache repair."
+  },
   "releaseValidation": {
     "focusedCompatibility": "PASS",
     "recoveredProofCompatibility": "PASS",
@@ -76,7 +101,21 @@
     "repositoryTests": "354/354 PASS before current-main reconciliation; current-main delta independently hosted green per issue-53-comment-5737121675",
     "relayTests": "232/232 PASS before current-main reconciliation; current-main delta independently hosted green per issue-53-comment-5737121675",
     "audit": "0 errors",
-    "reconciledMissionControl": "311/312 local; only failure is unrelated newly merged daemon startup fixture exceeding its 2.5-second local wait before assertions; exact canonical test is hosted green and exact-head PR checks remain required"
+    "reconciledMissionControl": "313/313 PASS on exact candidate",
+    "reconciliationCacheFocused": "PASS against one temporary 12,000-event file-backed EventStore",
+    "repositoryTestsCurrentCandidate": "360/360 PASS",
+    "relayTestsCurrentCandidate": "232/232 PASS",
+    "typecheckCurrentCandidate": "PASS",
+    "productionBuildCurrentCandidate": "PASS",
+    "deterministicAuditCurrentCandidate": "0 errors",
+    "testEfficiency": {
+      "taskId": "mc53-epoch5-reconciliation-cache-20260919",
+      "elapsedSeconds": 2630.77,
+      "observedTestSeconds": 1521.14,
+      "testSharePercent": 57.82,
+      "forcedRedundantGreenSeconds": 0.0,
+      "redundantGreenRunsSkipped": 0
+    }
   },
   "release": {
     "pullRequest": 161,

@@ -8,7 +8,7 @@
   "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "requiredRef": "refs/heads/chat/mc53-epoch5-compat-v4-20260918-2139",
   "integrationBranch": "main",
-  "integrationBaseSha": "bca53006d674afbba771c382a6d1e10f2bafddbd",
+  "integrationBaseSha": "691ff3fd04787a977f67f84879310d3d3b2b0f8a",
   "ownerAuthorized": true,
   "ownerSource": {
     "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
@@ -25,8 +25,10 @@
   "priorBlockedAt": "2026-09-18T22:02:12Z",
   "priorBlockedReason": "The exact current-main candidate validates the recovered admission and its authority ledger, but reports nine unchanged historical schema-v2 Mission Control events as hash-invalid because current parsers add default fields before verifyChain re-hashes them. The deployed state-compatible runtime verifies the same live event chain as valid. V4 explicitly stopped on a candidate chain failure.",
   "priorBlockResolvedBy": "issue-53-comment-5736910093",
-  "currentMainReconciledBy": "issue-53-comment-5737121675",
-  "currentMainReconciledSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
+  "priorMainReconciledBy": "issue-53-comment-5737121675",
+  "priorMainReconciledSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
+  "currentMainReconciledBy": "mandatory-bootstrap-default-branch-read-2026-09-19",
+  "currentMainReconciledSha": "691ff3fd04787a977f67f84879310d3d3b2b0f8a",
   "currentStop": {
     "classification": "EXPLICIT_NO_SEND_SOAK_FAILURE",
     "observedAt": "2026-09-18T23:47:18.762Z",
