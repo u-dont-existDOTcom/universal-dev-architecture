@@ -11,7 +11,7 @@ class ChatDirectExecutionRoutingTests(unittest.TestCase):
             (ROOT / "docs/requirements/2026-09-19-chat-direct-execution-capability-preflight.owner-requirement.json").read_text()
         )
         self.assertEqual(data["status"], "ACTIVE_OWNER_REQUIREMENT")
-        self.assertIn("actual capabilities of the current Chat surface", data["normalized_rule"])
+        self.assertIn("actual capability of the current Chat surface", data["normalized_rule"])
 
     def test_routing_uses_actual_chat_capability_before_work(self):
         text = (ROOT / "patterns/chat-work-execution-routing-threshold.md").read_text()
