@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "exclusive_writer": true,
+  "status": "released",
+  "exclusive_writer": false,
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
   "integration_base_sha": "d75d1032b63c8e0e7af6649df79cd60fd6b6f1b9",
@@ -22,5 +22,8 @@
   "release_receipt": "docs/evidence/2026-09-18-mc-fresh-worker-epoch5-live-soak-stop-receipt.json",
   "latest_reactivated_at": "2026-09-19T01:47:05Z",
   "latest_reactivation_authority": "direct-owner-chat-2026-09-19-reconciliation-event-cache",
-  "latest_requirement": "docs/requirements/2026-09-19-mission-control-reconciliation-event-cache.owner-requirement.json"
+  "latest_requirement": "docs/requirements/2026-09-19-mission-control-reconciliation-event-cache.owner-requirement.json",
+  "latest_released_at": "2026-09-19T06:33:05Z",
+  "latest_release_reason": "Explicit stop after the single authorized same-route epoch-5 MCP_BINDING_PRELOAD retry completed without a current-session server-observed binding receipt. No semantic or PM message was sent; the sender was durably re-fenced.",
+  "latest_release_receipt": "docs/evidence/2026-09-19-mc-fresh-worker-epoch5-v4-binding-retry-stop-receipt.json"
 }
