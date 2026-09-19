@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "released",
-  "exclusive_writer": false,
+  "status": "active",
+  "exclusive_writer": true,
   "owned_branch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "integration_branch": "main",
   "integration_base_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
@@ -32,5 +32,8 @@
   "v5_reconciled_main_sha": "a4dd25aadab33a9f02cd0930880a0ae398c232da",
   "v5_released_at": "2026-09-19T17:17:52Z",
   "v5_release_reason": "V5 server policy activation would stop/recreate the live primary container on the existing durable volume and was rejected under the no-production-mutation boundary. No V5 fixture or send was created.",
-  "v5_release_receipt": "docs/evidence/2026-09-19-mc-request-bound-v5-policy-activation-blocked-receipt.json"
+  "v5_release_receipt": "docs/evidence/2026-09-19-mc-request-bound-v5-policy-activation-blocked-receipt.json",
+  "policy_exception_reactivated_at": "2026-09-19T18:07:21Z",
+  "policy_exception_authority": "issue-53-comment-5744027199",
+  "policy_exception_requirement": "docs/requirements/2026-09-19-mission-control-v5-policy-activation-exception.owner-requirement.json"
 }

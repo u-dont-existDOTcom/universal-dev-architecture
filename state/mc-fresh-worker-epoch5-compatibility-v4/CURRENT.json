@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "updatedAt": "2026-09-19T17:17:52Z",
-  "phase": "BLOCKED_V5_SERVER_POLICY_ACTIVATION",
-  "status": "BLOCKED_AUTHORITY_CONFLICT",
+  "updatedAt": "2026-09-19T18:07:21Z",
+  "phase": "V5_SERVER_POLICY_ACTIVATION_AUTHORIZED",
+  "status": "ACTIVE",
   "canonicalMainStart": "bca53006d674afbba771c382a6d1e10f2bafddbd",
   "ownedBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
   "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
@@ -12,8 +12,16 @@
   "replacementFixtureLimit": 1,
   "replacementFixtureCount": 0,
   "providerSendsThisTask": 1,
-  "currentGap": "The exhausted V4 route is now DISCARDED with history preserved. The installed relay is byte-identical to canonical and V5-capable, but the live Mission Control server policy still has requestBound.enabled=false. Enabling it requires a live primary container replacement on the existing durable volume, which the execution safety gate rejected under the no-production-mutation boundary.",
-  "nextAction": "Keep owner-secondary fenced and create no V5 route or admission. Resume only after explicit authority resolves whether the live primary container may be reversibly recreated with the already-merged request-bound policy enabled while preserving the exact image, data volume, stopped rollback container, and epoch-5 authority.",
+  "currentGap": "The exact live-primary recreation exception is authorized. Perform the frozen backup/recreation transaction, validate unchanged epoch-5 authority and pacing with requestBound enabled, then create and send the single authorized V5 request.",
+  "nextAction": "Re-verify every pre-mutation invariant, preserve protected Docker inspect/config evidence, stop the sole EventStore writer, take the consistent durable-volume backup, recreate from the exact same image and volume with only requestBound policy changed, and run post-activation acceptance before any V5 route or admission.",
+  "policyActivationAuthority": {
+    "authority": "issue-53-comment-5744027199",
+    "authorityUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744027199",
+    "capturedAt": "2026-09-19T17:43:21Z",
+    "requirement": "docs/requirements/2026-09-19-mission-control-v5-policy-activation-exception.owner-requirement.json",
+    "scope": "ONE_REVERSIBLE_LIVE_PRIMARY_RECREATION_FOR_REQUEST_BOUND_POLICY_ONLY",
+    "generalProductionMutationAuthority": false
+  },
   "v5StrategyAuthority": {
     "authority": "issue-53-comment-5743640100",
     "authorityUrl": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5743640100",
