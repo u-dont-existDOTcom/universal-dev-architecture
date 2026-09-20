@@ -79,6 +79,7 @@ export class EventStore {
       database.exec("PRAGMA busy_timeout = 0; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA locking_mode = EXCLUSIVE; BEGIN IMMEDIATE; COMMIT;");
       this.db = database;
       this.initialize();
+      this.reconcileFleetSupervisorWatchesFromQueues();
     } catch (error) {
       try { database?.close(); } catch {}
       if (filename !== ":memory:" && isSqliteLockError(error)) {
@@ -97,6 +98,23 @@ export class EventStore {
       ? this.db.prepare("SELECT COUNT(*) AS count FROM events").get()
       : this.db.prepare("SELECT COUNT(*) AS count FROM events WHERE schema_version = ?").get(schemaVersion)) as { count: number };
     return Number(row.count);
+  }
+
+  private reconcileFleetSupervisorWatchesFromQueues(now = new Date().toISOString()) {
+    const latestQueues = new Map<string, Extract<MissionControlEventV2, { type: "work_queue_published" }>>();
+    const rows = this.db.prepare(
+      "SELECT payload_json FROM events WHERE type = 'work_queue_published' ORDER BY sequence ASC",
+    ).all() as Array<{ payload_json: string }>;
+    for (const row of rows) {
+      const queue = JSON.parse(row.payload_json) as Extract<MissionControlEventV2, { type: "work_queue_published" }>;
+      latestQueues.set(queue.project_id, queue);
+    }
+    for (const queue of latestQueues.values()) {
+      const nonterminal = queue.items.some((item) => !["DONE", "SUPERSEDED", "CANCELED"].includes(item.status));
+      if (nonterminal && !this.fleetSupervisorWatch(queue.project_id)) {
+        this.ensureFleetSupervisorWatch(queue.project_id, queue.task_id, queue.worker, now);
+      }
+    }
   }
 
   ensureFleetSupervisorWatch(projectId: string, taskId: string, worker: string, now = new Date().toISOString(), cadenceMs = 3_600_000) {

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "status": "sealed_for_review",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mission-control-self-development-issue178-recovery-20260920",
+  "integration_branch": "main",
+  "integration_base_sha": "a7e9d372604ad474f3f37d918e11a9c61b536a0d",
+  "scope": "issue #178 startup recovery for persisted Mission Control fleet-supervisor watches; isolated from native Work-cloud experiments",
+  "writer": "chat:issue178-integrator-20260920",
+  "next_writer_instruction": "Review and merge this exact branch head only after required checks pass; create a fresh isolated writer lease for any successor execution."
+}
