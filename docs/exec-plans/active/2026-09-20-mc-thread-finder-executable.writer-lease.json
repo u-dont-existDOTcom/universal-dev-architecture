@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "sealed_for_review",
+  "status": "complete",
   "exclusive_writer": false,
   "owned_branch": "chat/mc-thread-finder-executable-20260920",
   "integration_branch": "main",
@@ -12,5 +12,7 @@
     "audit": "0 errors; pre-existing root AGENTS size warning only",
     "direct_executable_launch": "PASS",
     "diff_check": "PASS"
-  }
+  },
+  "merged_commit": "7f9fe95fea9909d9e5e4f5a22f8f6ee8fc6c776f",
+  "completion": "Implementation merged as PR #189. Later reconciliation adds only stronger executable-entrypoint regression coverage."
 }

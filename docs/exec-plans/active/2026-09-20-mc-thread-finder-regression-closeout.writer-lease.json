@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-thread-finder-regression-closeout-20260920",
+  "integration_branch": "main",
+  "integration_base_sha": "7f9fe95fea9909d9e5e4f5a22f8f6ee8fc6c776f",
+  "scope": "Close the merged PR #189 writer lease and add the missing executable-bit plus direct-subprocess regression. No helper semantics, runtime mutation, or provider send.",
+  "verification": {
+    "focused_recovery": "5/5 PASS",
+    "direct_executable_launch": "PASS",
+    "repository_full": "370/370 PASS",
+    "audit": "0 errors; pre-existing AGENTS size warning only",
+    "diff_check": "PASS"
+  },
+  "completion": "Reconciled PR #189 onto current main: close merged writer lease and add executable-bit plus direct-subprocess regression only."
+}
