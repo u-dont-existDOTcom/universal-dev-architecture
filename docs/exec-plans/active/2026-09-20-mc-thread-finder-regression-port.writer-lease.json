@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "sealed_for_review",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-thread-finder-regression-port-20260920",
+  "integration_branch": "main",
+  "integration_base_sha": "7f9fe95fea9909d9e5e4f5a22f8f6ee8fc6c776f",
+  "scope": "Port only the stronger direct-executable regression from superseded PR #190 onto canonical main.",
+  "verification": {
+    "focused_recovery": "5/5 PASS",
+    "repository_full": "370/370 PASS",
+    "audit": "0 errors; pre-existing root AGENTS size warning only",
+    "diff_check": "PASS"
+  }
+}
