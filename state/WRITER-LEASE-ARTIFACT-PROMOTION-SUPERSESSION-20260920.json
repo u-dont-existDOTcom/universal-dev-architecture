@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/artifact-promotion-supersession-guard-20260920",
+  "integration_branch": "main",
+  "integration_base_sha": "7542e392455ec2ebf601254c429930fa638b5063",
+  "scope": "Add universal artifact-authority promotion and supersession admission so experiments/reviews/snapshots cannot silently become canonical/current authority."
+}
