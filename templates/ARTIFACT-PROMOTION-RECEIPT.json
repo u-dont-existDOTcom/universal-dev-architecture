@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "promotion_id": "",
+  "status": "PROPOSED",
+  "artifact": {
+    "path": "",
+    "sha256": "",
+    "prior_authority_class": ""
+  },
+  "destination": {
+    "authority_role": "",
+    "path": ""
+  },
+  "acceptance": {
+    "authority_actor": "",
+    "evidence": "",
+    "accepted_at": ""
+  },
+  "supersession": {
+    "displaced_artifact_path": null,
+    "displaced_artifact_sha256": null,
+    "disposition": ""
+  },
+  "effective_state": {
+    "path": "",
+    "sha256": ""
+  },
+  "notes": ""
+}
