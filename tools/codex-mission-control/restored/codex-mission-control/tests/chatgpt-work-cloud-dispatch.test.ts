@@ -46,13 +46,12 @@ function input(overrides: Partial<WorkCloudDispatchInput> = {}): WorkCloudDispat
       sourceMessageId: "chat-message:auth:work-cloud",
       sourceBodySha256,
     },
-    sourceChatTitle: "Polymarket strat",
-    sourceChatUrl: "chatgpt-conversation://6aad494e-c5c8-83ea-916c-0259790eff27",
-    requestedWorkTitle: "Work — Polymarket strat",
-    chatgptProjectId: "g-p-6aa97722bdf48191807730b8a9303a74",
+    sourceChatTitle: "Native Work fixture source",
+    sourceChatUrl: "chatgpt-conversation://fixture-source",
+    requestedWorkTitle: "Work — Native fixture",
+    chatgptProjectId: "fixture-project",
     existingWorkThreadId: null,
     prompt: "Execute the exact source-bound directive and return a receipt.",
-    approvalState: "NOT_REQUIRED",
     capabilityEvidence: {
       observedAt: now,
       appVersion: "2026.09.19",
@@ -78,7 +77,8 @@ test("CREATE uses only the native chatgptWorkCloud target and omits Codex-only s
   const result = await dispatchChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, calls));
   assert.equal(calls.length, 1);
   const call = calls[0] as Record<string, unknown>;
-  assert.deepEqual(call.target, { type: CHATGPT_WORK_CLOUD_TARGET, projectId: "g-p-6aa97722bdf48191807730b8a9303a74" });
+  assert.deepEqual(call.target, { type: CHATGPT_WORK_CLOUD_TARGET, projectId: "fixture-project" });
+  assert.equal(call.requestedAt, now);
   assert.equal("model" in call, false);
   assert.equal("thinking" in call, false);
   assert.equal(result.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
@@ -112,7 +112,7 @@ test("a pending clientThreadId remains setup-pending and is not reported as a re
 
 test("the product approval gate is preserved instead of falling back to Codex", async () => {
   const result = await dispatchChatGptWorkCloud(
-    input({ approvalState: "PENDING_OWNER_ACCEPT" }),
+    input(),
     executor({ kind: "PENDING_APPROVAL" }, []),
   );
   assert.equal(result.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
@@ -122,7 +122,7 @@ test("the product approval gate is preserved instead of falling back to Codex", 
   assert.equal(result.result.data.work_thread_id, null);
 });
 
-test("missing native app capability records WORK_CLOUD_DISPATCH_UNAVAILABLE and never calls an executor", async () => {
+test("missing product-approved mutation capability records the exact approval gate and never calls an executor", async () => {
   const calls: unknown[] = [];
   const result = await dispatchChatGptWorkCloud(
     input({ capabilityEvidence: { ...input().capabilityEvidence, createThreadTargetAvailable: false } }),
@@ -131,8 +131,9 @@ test("missing native app capability records WORK_CLOUD_DISPATCH_UNAVAILABLE and 
   assert.equal(calls.length, 0);
   assert.equal(result.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
   if (result.result.data.type !== "chatgpt_work_cloud_dispatch_recorded") return;
-  assert.equal(result.result.data.status, "UNAVAILABLE");
-  assert.equal(result.result.data.error_code, "WORK_CLOUD_DISPATCH_UNAVAILABLE");
+  assert.equal(result.result.data.status, "PENDING_APPROVAL");
+  assert.equal(result.result.data.approval_state, "PENDING_OWNER_ACCEPT");
+  assert.equal(result.result.data.error_code, null);
 });
 
 test("missing native-surface verification fails closed before app execution", async () => {
@@ -199,17 +200,97 @@ test("durable retry returns an existing completed dispatch without invoking the 
   assert.deepEqual(result, completed);
 });
 
+test("same logical HTTP retry at a later wall clock reuses the durable request", async () => {
+  const completed = await dispatchChatGptWorkCloud(input(), executor({
+    kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null,
+  }, []));
+  const calls: unknown[] = [];
+  const laterInput = input({
+    requestedAt: "2026-09-19T03:25:00.000Z",
+    capabilityEvidence: { ...input().capabilityEvidence, observedAt: "2026-09-19T03:24:59.000Z" },
+  });
+  const replayed = await dispatchAndRecordChatGptWorkCloud(laterInput, executor({
+    kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "duplicate", hostId: null,
+  }, calls), {
+    getWorkCloudDispatch: async () => completed,
+    recordWorkerEvents: async () => { throw new Error("must not rewrite a completed logical dispatch"); },
+  }, "2026-09-19T03:25:01.000Z");
+  assert.equal(calls.length, 0);
+  assert.deepEqual(replayed, completed);
+  assert.equal(replayed.request.occurred_at, now);
+});
+
+test("PENDING_SETUP replay re-resolves from original request time without a second create", async () => {
+  const pending = await dispatchChatGptWorkCloud(input(), executor({
+    kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:pending-1",
+  }, []));
+  const calls: string[] = [];
+  const app: WorkCloudAppExecutor = {
+    createThread: async () => { calls.push("create"); throw new Error("must not create twice"); },
+    sendMessageToThread: async () => { throw new Error("not used"); },
+    resolveCreatedThread: async (request) => {
+      calls.push("resolve");
+      assert.deepEqual(request, {
+        clientThreadId: "local-chatgpt:pending-1",
+        prompt: input().prompt,
+        requestedAt: now,
+        projectId: "fixture-project",
+      });
+      return { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "stable-after-pending", hostId: null };
+    },
+  };
+  const appended: unknown[] = [];
+  const replayed = await dispatchAndRecordChatGptWorkCloud(input({
+    requestedAt: "2026-09-19T03:25:00.000Z",
+    capabilityEvidence: { ...input().capabilityEvidence, observedAt: "2026-09-19T03:24:59.000Z" },
+  }), app, {
+    getWorkCloudDispatch: async () => pending,
+    recordWorkerEvents: async (_worker, events) => { appended.push(...events); },
+  }, "2026-09-19T03:25:01.000Z");
+  assert.deepEqual(calls, ["resolve"]);
+  assert.equal(appended.length, 1);
+  assert.deepEqual(replayed.request, pending.request);
+  assert.equal(replayed.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
+  if (replayed.result.data.type !== "chatgpt_work_cloud_dispatch_recorded") return;
+  assert.equal(replayed.result.data.status, "READY");
+  assert.equal(replayed.result.data.work_thread_id, "stable-after-pending");
+});
+
+test("same dispatch id with different source-bound content fails closed", async () => {
+  const completed = await dispatchChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, []));
+  const calls: unknown[] = [];
+  await assert.rejects(
+    dispatchAndRecordChatGptWorkCloud(input({ prompt: "different prompt under a reused dispatch id" }), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "duplicate", hostId: null }, calls), {
+      getWorkCloudDispatch: async () => completed,
+      recordWorkerEvents: async () => { throw new Error("must not rewrite a mismatched dispatch"); },
+    }),
+    WorkCloudDispatchAmbiguityError,
+  );
+  assert.equal(calls.length, 0);
+});
+
 test("request-only recovery fails closed before a second app call", async () => {
   const request = buildRequestForRetry();
   const calls: unknown[] = [];
   await assert.rejects(
-    dispatchAndRecordChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "duplicate", hostId: null }, calls), {
+    dispatchAndRecordChatGptWorkCloud(input({
+      requestedAt: "2026-09-19T03:25:00.000Z",
+      capabilityEvidence: { ...input().capabilityEvidence, observedAt: "2026-09-19T03:24:59.000Z" },
+    }), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "duplicate", hostId: null }, calls), {
       getWorkCloudDispatch: async () => ({ request, result: null }),
       recordWorkerEvents: async () => { throw new Error("must not append during ambiguous recovery"); },
     }),
     WorkCloudDispatchAmbiguityError,
   );
   assert.equal(calls.length, 0);
+});
+
+test("unavailable executor records an unavailable result", async () => {
+  const result = await dispatchChatGptWorkCloud(input(), null);
+  assert.equal(result.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
+  if (result.result.data.type !== "chatgpt_work_cloud_dispatch_recorded") return;
+  assert.equal(result.result.data.status, "UNAVAILABLE");
+  assert.equal(result.result.data.error_code, "WORK_CLOUD_DISPATCH_UNAVAILABLE");
 });
 
 test("runtime normalizes a READY response that reports Codex as the actual surface", async () => {
@@ -221,14 +302,12 @@ test("runtime normalizes a READY response that reports Codex as the actual surfa
   assert.equal(result.result.data.error_code, "WORK_CLOUD_WRONG_SURFACE_CODEX");
 });
 
-test("declined owner approval prevents the app boundary from being crossed", async () => {
-  const calls: unknown[] = [];
-  const result = await dispatchChatGptWorkCloud(input({ approvalState: "DECLINED" }), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "must-not-run", hostId: null }, calls));
-  assert.equal(calls.length, 0);
-  assert.equal(result.result.data.type, "chatgpt_work_cloud_dispatch_recorded");
-  if (result.result.data.type !== "chatgpt_work_cloud_dispatch_recorded") return;
-  assert.equal(result.result.data.status, "FAILED");
-  assert.equal(result.result.data.error_code, "WORK_CLOUD_OWNER_DECLINED");
+test("caller input cannot self-attest ACCEPTED approval", () => {
+  const forged = { ...input(), approvalState: "ACCEPTED" } as WorkCloudDispatchInput;
+  const request = buildWorkCloudDispatchRequestedEnvelope(forged);
+  assert.equal(request.data.type, "chatgpt_work_cloud_dispatch_requested");
+  if (request.data.type !== "chatgpt_work_cloud_dispatch_requested") return;
+  assert.equal(request.data.approval_state, "PENDING_OWNER_ACCEPT");
 });
 
 test("trusted app-executor events reject a mismatched authenticated system producer", async () => {
