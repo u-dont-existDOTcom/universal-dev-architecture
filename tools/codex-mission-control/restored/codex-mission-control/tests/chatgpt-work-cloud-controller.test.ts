@@ -101,6 +101,50 @@ test("real local-chatgpt create resolves by time, project, and exact prompt with
   assert.equal(reads.calls.some((call) => call.arguments.threadId === "local-chatgpt:client-1"), false);
 });
 
+test("a long Work prompt resolves from the exact 2000-character provider readback prefix only", async () => {
+  const prompt = "round4-".repeat(400);
+  const preview = prompt.slice(0, 2_000);
+  const makeReads = (observed: string) => new FakeReadClient((name, args) => {
+    if (name === "list_threads") return value({
+      unavailableSources: [],
+      threads: [{ kind: "chatgpt", id: "stable-long", updatedAt: 1_789_848_001_000 }],
+    });
+    if (name === "read_thread" && args.threadId === "stable-long") return value({
+      thread: { kind: "chatgpt", id: "stable-long", turns: [{ params: { input: [{ type: "text", text: observed }] } }] },
+    });
+    throw new Error(`Unexpected ${name}`);
+  });
+
+  const accepted = await new NativeChatGptWorkCloudExecutor(makeReads(preview), null, { resolutionAttempts: 1 })
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:long", prompt, requestedAt, projectId: null });
+  assert.deepEqual(accepted, { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "stable-long", hostId: null });
+
+  const rejected = await new NativeChatGptWorkCloudExecutor(makeReads(preview.slice(0, 1_999)), null, { resolutionAttempts: 1 })
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:short-prefix", prompt, requestedAt, projectId: null });
+  assert.deepEqual(rejected, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:short-prefix" });
+});
+
+test("two stable threads with the same exact provider prompt prefix fail closed as ambiguous", async () => {
+  const prompt = "same-prefix-".repeat(250);
+  const preview = prompt.slice(0, 2_000);
+  const reads = new FakeReadClient((name, args) => {
+    if (name === "list_threads") return value({
+      unavailableSources: [],
+      threads: [
+        { kind: "chatgpt", id: "stable-prefix-a", updatedAt: 1_789_848_001_000 },
+        { kind: "chatgpt", id: "stable-prefix-b", updatedAt: 1_789_848_002_000 },
+      ],
+    });
+    if (name === "read_thread" && (args.threadId === "stable-prefix-a" || args.threadId === "stable-prefix-b")) return value({
+      thread: { kind: "chatgpt", id: args.threadId, turns: [{ params: { input: [{ type: "text", text: preview }] } }] },
+    });
+    throw new Error(`Unexpected ${name}`);
+  });
+  const outcome = await new NativeChatGptWorkCloudExecutor(reads, null, { resolutionAttempts: 1 })
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:ambiguous-prefix", prompt, requestedAt, projectId: null });
+  assert.deepEqual(outcome, { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" });
+});
+
 test("unavailable ChatGPT source remains retryable PENDING_SETUP and never replays create", async () => {
   const reads = new FakeReadClient((name) => {
     assert.equal(name, "list_threads");
