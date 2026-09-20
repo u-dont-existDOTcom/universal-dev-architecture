@@ -175,6 +175,16 @@ Apply this decision at the last controllable boundary before final delivery:
 
 For substantive work record the compact stop-admission result in the existing active contract/checkpoint: parent outcome and remaining gap; next action and responsible actor; current authority; executable or exact blocker evidence; action actually performed or justified stopping boundary. Do not expose private reasoning. When no valid stopping boundary exists, finalization is not admitted: continue execution. Recheck after a final-answer rewrite. Policy/fixture tests protect this instruction contract; they do not prove universal compliance by every agent or install a runtime interceptor in ChatGPT.
 
+### Engineering blockers are not owner decisions
+
+When the parent owner outcome is OPEN and existing authority covers the affected scope, ordinary engineering blockers remain execution work. Do not convert configuration failures, stale leases, transport defects, test failures, branch conflicts, worker collisions, recoverable permissions problems, deployment mechanics, or merge mechanics into owner-action items merely because they interrupt the current method.
+
+Before stopping, use the available authorized technical routes: diagnose the generating condition, repair or replace the failing method, use the existing internal supervisor or Mission Control route, isolate or stop conflicting writers, preserve recoverable work, assume serialized integration ownership when necessary, and complete the validated in-scope merge when that merge is already required by the authorized outcome. A safe authorized action that removes the blocker must be executed rather than reported as a reason for the owner to say “continue” or “fix it.”
+
+If another worker or workspace can contaminate the same mutable branch or semantic integration boundary, the integrator may interrupt, stop, quarantine, or supersede that conflicting execution as needed, while preserving useful work and provenance. This is coordination authority, not permission to overwrite unrelated changes or expand semantic scope.
+
+Owner interruption remains appropriate only for a genuine substantive tradeoff under the decision test below, or for a non-bypassable human gate such as a platform confirmation, unavailable credential/access grant, spending/publication decision, or irreversible-risk authorization. Finish all independent authorized work first and surface only the smallest exact human action. Source: `docs/requirements/2026-09-20-autonomous-engineering-blocker-resolution.owner-requirement.json`.
+
 ### Owner-interruption decision test
 
 Ask for an owner decision only when **all five** conditions hold:
