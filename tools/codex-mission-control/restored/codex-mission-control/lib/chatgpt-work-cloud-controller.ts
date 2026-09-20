@@ -264,6 +264,7 @@ export async function connectCodexAppServerMutationBridge(
 ): Promise<WorkCloudProductMutationBridge> {
   const rpc = new AppServerJsonRpc(config.command, config.args);
   await rpc.initialize();
+  await rpc.request("thread/resume", { threadId: config.threadId });
   return createCodexAppServerMutationBridge(config, {
     async call(input) {
       try {
@@ -323,7 +324,10 @@ class AppServerJsonRpc {
   private activeToolRequestId: number | null = null;
 
   constructor(command: string, args: string[]) {
-    this.child = spawn(command, args, { stdio: "pipe", env: process.env });
+    const env = { ...process.env };
+    const appToolsPipePath = env.MISSION_CONTROL_CHATGPT_APP_TOOLS_PIPE_PATH?.trim();
+    if (!env.CODEX_APP_TOOLS_PIPE_PATH && appToolsPipePath) env.CODEX_APP_TOOLS_PIPE_PATH = appToolsPipePath;
+    this.child = spawn(command, args, { stdio: "pipe", env });
     this.lines = createInterface({ input: this.child.stdout });
     this.lines.on("line", (line) => this.receive(line));
     this.child.once("error", (error) => this.rejectAll(error));
