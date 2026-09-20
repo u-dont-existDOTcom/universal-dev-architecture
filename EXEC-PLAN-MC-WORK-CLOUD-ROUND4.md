@@ -13,7 +13,7 @@ Canonical Mission Control now contains the native Work controller and the live c
 - [x] Preserve durable request-before-boundary ordering, request-only fail-closed behavior, same-dispatch replay, exact stable-thread continuation, wrong-surface rejection, and no Codex substitution.
 - [x] Add focused deterministic controller tests and route test runs through the repository test-efficiency observer.
 - [x] Run typecheck/build and the repository-declared release verification checkpoint.
-- [ ] Commit the isolated Universal change, push it, and open/update its review request when authenticated transport permits.
+- [x] Commit the isolated Universal change, push it, and open the review request from the current integration base.
 - [ ] Install/update the existing non-production Mission Control runtime with rollback evidence.
 - [x] Run one harmless native-Work controller canary, replay its dispatch ID without duplicate creation, continue its exact stable thread, replay continuation without duplicate send, and recover/reopen it from the originally requested Work title.
 - [ ] Dispatch the exact frozen Round-4 directive contents through the controller with Sol Medium engineering settings preserved.
