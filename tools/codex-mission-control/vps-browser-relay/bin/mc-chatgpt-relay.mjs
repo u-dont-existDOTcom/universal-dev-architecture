@@ -17,6 +17,7 @@ import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 import { submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
+import { ControllerCycleWatchdog } from '../src/controller-watchdog.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 import { dispatchAutomaticMissionControlExecution } from '../src/codex-exec-candidate.mjs';
@@ -91,6 +92,7 @@ try {
     }),
   });
   const controller = new ControllerMediatedPmRuntime({ config, missionControl, browser, stateStore, submissionPacer });
+  const controllerWatchdog = new ControllerCycleWatchdog({ stateStore, controller });
   await stateStore.acquireLock();
   installSignalHandlers(stateStore);
 
@@ -151,6 +153,8 @@ try {
     print(await provisionMcOnlyChat({ config, provision, browser: rawBrowser, submissionPacer, body }));
   } else if (command === 'run') {
     for (;;) {
+      const controllerResult = await controllerWatchdog.tick();
+      if (controllerResult.status !== 'NO_ACTIVE_CONTROLLER_CYCLES') print(controllerResult);
       const result = await runtime.cycle();
       print(result);
       await sleep(config.runtime.pollIntervalMs);
