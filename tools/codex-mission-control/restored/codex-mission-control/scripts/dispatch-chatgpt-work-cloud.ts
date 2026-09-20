@@ -35,6 +35,7 @@ interface ControllerRequest {
   requestedAt?: string;
 }
 
+async function main(): Promise<void> {
 const requestPath = argument("--request");
 if (!requestPath) throw new Error("Usage: npm run work-cloud:dispatch -- --request <controller-request.json>");
 const absoluteRequestPath = path.resolve(requestPath);
@@ -111,6 +112,13 @@ try {
   await mutationBridge?.close().catch(() => undefined);
   await appClient?.close().catch(() => undefined);
 }
+}
+
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+});
 
 function argument(name: string): string | null {
   const index = process.argv.indexOf(name);
