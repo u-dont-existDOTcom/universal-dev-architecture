@@ -24,6 +24,10 @@ Before final delivery, apply `patterns/codex-github-operating-system.md` → **C
 
 For instruction maintenance and cross-project composition, use `patterns/instruction-composition-and-portable-intelligence.md`. The existing active-contract lifecycle is owned by `patterns/task-time-lesson-activation.md`. These supplement current authority; do not load unrelated specialist guidance or duplicate an already active rule.
 
+## Artifact authority promotion and supersession
+
+For any workflow that has experimental/review/staging artifacts alongside current or canonical authority, apply `patterns/artifact-authority-promotion-and-supersession.md` before treating an artifact as current. Evaluator/test success, assistant labels such as `solved` or `current`, owner silence, recency, or inclusion in a review/rolling assembly are not promotion authority. Resolve later supersession before projecting any derived view as current; if exact authority cannot be proven, fail closed to `AUTHORITY_UNRESOLVED` rather than selecting by inference.
+
 ## Authority
 
 1. Current owner and task requirements
