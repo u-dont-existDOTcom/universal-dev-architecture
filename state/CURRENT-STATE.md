@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-19
+Updated: 2026-09-20
 
 ## Goal
 
@@ -509,3 +509,53 @@ Owner outcome OPEN. A separate opt-in per-request candidate has 142 focused/affe
 - Evidence limit: this canary used a synthetic exact source-Chat binding. Native Work creation, stable-id continuation, duplicate suppression, and recovery are live-proven; the final natural Round-4 run must still bind the actual originating Chat URL/receipt lineage before the owner outcome can close.
 - Parent outcome remains OPEN: publish/install the exact repair, dispatch the frozen AskRigor MAST Round-4 directive through native Work, supervise that same Work thread to terminal completion or a genuine boundary, and write the automation receipt.
 
+
+
+## MAST Round-4 native Work terminal reconciliation — 2026-09-20
+
+- The natural AskRigor MAST Round-4 execution used the already-created native
+  ChatGPT Work task; no duplicate Work task was created during reconciliation.
+  The exact stable Work identity and source-Chat locator remain private owner
+  deployment state and are not committed here.
+- The CREATE dispatch had already resolved to `READY / VERIFIED_NATIVE_WORK`.
+  Provider title normalization changed the requested title, so durable recovery
+  remains stable-ID-first with the owner-private requested-title locator and the
+  authenticated live thread metadata index.
+- The frozen Round-4 workflow is terminal **INDETERMINATE**. Provider response
+  #1 completed, then frozen local admission rejected it because the admitted
+  response schema rejected the required `chatMode` field. Generation therefore
+  remained 0/120; J1/J2/J3 remained 0/0/0; no judging or adjudication ran; and no
+  later generation prompt was sent.
+- Card002 remains DEVELOPMENT. No post-response scientific patch, retuning, or
+  substitute execution was admitted. The frozen AskRigor evidence branch is
+  `task/mast-fresh-validation-round-4-20260919` at
+  `dd324d19f7224bc4a55feea8831d5e3a433a2491` (PR #232). Both AskRigor
+  deterministic verification and repository workflow policy were green on that
+  frozen head.
+- The owner-private Mission Control automation receipt now records the terminal
+  Work lineage and an owner-openable recovery route through
+  `chatgpt-thread-find`. Private stable thread IDs, source-Chat locators, and
+  local locator contents remain outside this public repository.
+- After the issue-178 lane explicitly ceded shared-runtime ownership, the
+  non-production central Mission Control runtime was updated reversibly from the
+  older `c45facd…` application image to canonical application commit
+  `a03e19ee6aff88cb67cef2be1c3d6285203d0c49`. The existing durable state
+  volume was preserved and the prior healthy container remains stopped as
+  rollback.
+- Post-install readiness reported event-chain validity, authority-ledger
+  validity, and `ACTIVE_LEASE`. The fenced owner-secondary relay/browser state
+  was not changed. No provider send, Work CREATE, Work CONTINUE, paid API
+  inference, or scientific execution occurred during this runtime
+  reconciliation.
+- This final repository reconciliation changes only documentation/state. It does
+  not change Mission Control executable bytes and does not invalidate the
+  accepted exact-current application build or require another runtime reinstall.
+- Issue #178 remains OPEN for its distinct automated-self-development
+  acceptance. Round 4 demonstrates native Work dispatch, isolated execution, and
+  terminal receipt preservation, but does not independently prove the required
+  automatic supervisor-return/closure loop. No duplicate issue-178 canary was
+  run in this lane; shared-runtime ownership is released back to that lane after
+  this checkpoint is merged.
+- The Round-4 owner outcome is satisfied at the automation boundary. The
+  scientific result is INDETERMINATE by the frozen study rule; continuing the
+  same Work thread would violate its terminal stop condition.
