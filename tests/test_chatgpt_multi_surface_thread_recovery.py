@@ -91,7 +91,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         )
 
     def test_owner_helper_searches_live_app_metadata_before_stale_fallbacks(self) -> None:
-        self.assertTrue(self.helper.startswith("# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT"))
+        self.assertTrue(self.helper.startswith("#!/usr/bin/env python3\n# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT"))
         for phrase in (
             "def live_app_threads()",
             '"name": "list_threads"',
