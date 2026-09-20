@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import stat
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -91,7 +93,13 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         )
 
     def test_owner_helper_searches_live_app_metadata_before_stale_fallbacks(self) -> None:
-        self.assertTrue(self.helper.startswith("# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT"))
+        lines = self.helper.splitlines()
+        self.assertEqual(lines[0], "#!/usr/bin/env python3")
+        self.assertEqual(lines[1], "# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT")
+        self.assertTrue(HELPER.stat().st_mode & stat.S_IXUSR)
+        smoke = subprocess.run([str(HELPER), "--help"], text=True, capture_output=True, check=False)
+        self.assertEqual(smoke.returncode, 0, smoke.stderr)
+        self.assertIn("Search local ChatGPT thread metadata", smoke.stdout)
         for phrase in (
             "def live_app_threads()",
             '"name": "list_threads"',
