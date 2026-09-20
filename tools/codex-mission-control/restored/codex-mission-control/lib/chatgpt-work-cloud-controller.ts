@@ -148,7 +148,8 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         try {
           const read = await this.readExactThread(candidate.threadId);
           if (surfaceKind(read) !== "chatgpt" || directThreadId(read) !== candidate.threadId) continue;
-          if (initialUserPrompt(read) === input.prompt) matchingIds.push(candidate.threadId);
+          const observedPrompt = initialUserPrompt(read);
+          if (observedPrompt !== null && promptReadbackMatches(input.prompt, observedPrompt)) matchingIds.push(candidate.threadId);
         } catch {
           // A listed provider candidate may not yet be readable. Retry the
           // source-bound resolver; never infer identity from its title.
@@ -548,6 +549,15 @@ function chatGptCandidates(
     candidates.push({ threadId });
   }
   return candidates;
+}
+
+const PROVIDER_PROMPT_READBACK_LIMIT = 2_000;
+
+function promptReadbackMatches(expected: string, observed: string): boolean {
+  if (observed === expected) return true;
+  return expected.length > PROVIDER_PROMPT_READBACK_LIMIT
+    && observed.length === PROVIDER_PROMPT_READBACK_LIMIT
+    && expected.startsWith(observed);
 }
 
 function timestampMilliseconds(value: unknown): number | null {
