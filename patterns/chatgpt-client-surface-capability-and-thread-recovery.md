@@ -83,7 +83,9 @@ This proves ordinary-Chat recovery **when a durable sourceChat locator exists an
 
 ## Desktop Work/Codex recovery
 
-When the desktop client exposes a structured local Work/Codex thread index, prefer that index over UI search.
+When the desktop client exposes a structured local Work/Codex thread index, prefer that index over UI search. When an authorized live app-tools surface also exposes a current `list_threads`-style metadata index, query that live index before declaring a fresh cloud Chat/Work thread missing; local SQLite/catalog state and browser history can lag newly created cloud tasks.
+
+Treat the provider-returned stable thread ID as the primary Work identity. A requested creation title is owner-facing lineage metadata, not durable identity: the provider may normalize or replace it after creation. Recovery therefore must not require the requested title to survive unchanged.
 
 Useful metadata can include:
 

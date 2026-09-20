@@ -8,9 +8,11 @@ import {
   appVersionFromEnvironment,
   capabilityEvidenceFromTools,
   connectCodexAppServerMutationBridge,
+  connectCodexDriverMutationBridge,
   connectNativeAppToolClient,
   type WorkCloudAppToolClient,
   type WorkCloudProductMutationBridge,
+  writePrivateWorkThreadLocator,
 } from "../lib/chatgpt-work-cloud-controller";
 import {
   dispatchAndRecordChatGptWorkCloud,
@@ -63,8 +65,10 @@ try {
   });
   const tools = await appClient.listTools();
   try {
+    const driverConfig = codexDriverMutationConfigFromEnvironment();
     const mutationConfig = productMutationConfigFromEnvironment();
-    if (mutationConfig) mutationBridge = await connectCodexAppServerMutationBridge(mutationConfig);
+    if (driverConfig) mutationBridge = await connectCodexDriverMutationBridge(driverConfig);
+    else if (mutationConfig) mutationBridge = await connectCodexAppServerMutationBridge(mutationConfig);
     else setupError = productMutationApprovalGate();
   } catch (error) {
     setupError = error instanceof Error ? error.message : productMutationApprovalGate();
@@ -107,7 +111,23 @@ try {
     && completed.result.data.status === "PENDING_APPROVAL"
     ? setupError ?? "Accept the pending app-tool request in the configured Codex/ChatGPT product approval surface."
     : null;
-  process.stdout.write(`${JSON.stringify({ ...completed, setupError, approvalGate }, null, 2)}\n`);
+  let privateLocatorPath: string | null = null;
+  const locatorDirectory = process.env.MISSION_CONTROL_CHATGPT_WORK_LOCATOR_DIR?.trim();
+  if (locatorDirectory && request.mode === "CREATE"
+    && completed.result.data.type === "chatgpt_work_cloud_dispatch_recorded"
+    && completed.result.data.status === "READY" && completed.result.data.work_thread_id) {
+    privateLocatorPath = await writePrivateWorkThreadLocator({
+      directory: locatorDirectory,
+      dispatchId: request.dispatchId,
+      requestedWorkTitle: request.requestedWorkTitle,
+      sourceChatTitle: request.sourceChatTitle,
+      sourceChatUrl: request.sourceChatUrl,
+      workThreadId: completed.result.data.work_thread_id,
+      chatgptProjectId: request.chatgptProjectId,
+      verifiedAt: completed.result.data.recorded_at,
+    });
+  }
+  process.stdout.write(`${JSON.stringify({ ...completed, setupError, approvalGate, privateLocatorPath }, null, 2)}\n`);
 } finally {
   await mutationBridge?.close().catch(() => undefined);
   await appClient?.close().catch(() => undefined);
@@ -154,6 +174,36 @@ function resolveFrom(base: string, target: string): string {
   return path.isAbsolute(target) ? target : path.resolve(base, target);
 }
 
+function codexDriverMutationConfigFromEnvironment(): {
+  command: string;
+  threadId: string;
+  rolloutPath: string;
+  timeoutMs?: number;
+  pollMs?: number;
+} | null {
+  const names = [
+    "MISSION_CONTROL_CHATGPT_WORK_DRIVER_COMMAND",
+    "MISSION_CONTROL_CHATGPT_WORK_DRIVER_THREAD_ID",
+    "MISSION_CONTROL_CHATGPT_WORK_DRIVER_ROLLOUT_PATH",
+  ] as const;
+  const values = names.map((name) => process.env[name]?.trim() ?? "");
+  if (values.every((value) => !value)) return null;
+  if (values.some((value) => !value)) {
+    throw new Error(`Desktop Work driver requires ${names.join(", ")}.`);
+  }
+  const timeout = optionalPositiveIntegerEnvironment("MISSION_CONTROL_CHATGPT_WORK_DRIVER_TIMEOUT_MS");
+  const poll = optionalPositiveIntegerEnvironment("MISSION_CONTROL_CHATGPT_WORK_DRIVER_POLL_MS");
+  return { command: values[0], threadId: values[1], rolloutPath: values[2], ...(timeout ? { timeoutMs: timeout } : {}), ...(poll ? { pollMs: poll } : {}) };
+}
+
+function optionalPositiveIntegerEnvironment(name: string): number | null {
+  const raw = process.env[name]?.trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) throw new Error(`${name} must be a positive integer.`);
+  return value;
+}
+
 function productMutationConfigFromEnvironment(): {
   command: string;
   args: string[];
@@ -179,5 +229,5 @@ function productMutationConfigFromEnvironment(): {
 }
 
 function productMutationApprovalGate(): string {
-  return "Configure the authenticated Codex app-server product-tool route for this controller; direct bundled-MCP mutation is forbidden.";
+  return "Configure either the authenticated desktop Work driver or Codex app-server product-tool route for this controller; direct bundled-MCP mutation is forbidden.";
 }
