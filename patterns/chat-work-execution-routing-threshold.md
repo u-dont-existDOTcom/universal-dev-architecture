@@ -2,7 +2,7 @@
 
 Status: REQUIRED OWNER CORRECTION
 Date: 2026-09-02
-Updated: 2026-09-19
+Updated: 2026-09-20
 
 Authority addendum: `docs/requirements/2026-09-12-chat-session-timestamp-work-reasoning-budget.owner-requirement.json`.
 Additional owner requirement: `docs/requirements/2026-09-12-work-thinking-budget.owner-requirement.json`.
@@ -28,6 +28,43 @@ It is:
 > Can the current Chat surface reliably perform the next bounded action with its own authorized tools, including any directly exposed terminal, filesystem, browser, computer-use, remote-desktop, or connected-device tool? If not, is the missing execution capability or sustained statefulness substantial enough to justify Work/Codex?
 
 If Chat can perform the action directly and reliably, keep the action in Chat. Action category alone is never a Work trigger.
+
+### Work admission requires current-turn direct-capability discovery
+
+Before proposing or creating a Work/Codex handoff for terminal, filesystem, SSH,
+VPS, deployment, browser, GUI, remote-desktop, Docker, Coolify, or comparable
+execution, perform an actual current-turn capability preflight for the exact
+bounded action. **Do not equate "not present in the initially expanded tool
+schema" with "unavailable to Chat."** When the surface exposes deferred tools,
+connector/plugin discovery, Code Mode tool catalogs, or another capability
+lookup, inspect that catalog before making the routing decision.
+
+A directly authorized connected computer or Remote Desktop Commander path counts
+as Chat execution even when the ultimate target is another machine. If Chat can
+reach an authorized computer and that computer can SSH to the VPS, run the
+deployment command, edit the filesystem, or operate the required UI, the action
+remains in Chat unless the operation is genuinely too long-range/stateful to be
+practical here. VPS administration, SSH, Docker/Coolify operations, local
+builds/tests, and deployment are therefore **not Work triggers by category**.
+
+When a mixed task contains substantive prose, architecture, scientific/safety
+judgment, or an exact patch that Chat can resolve, finish that semantic work in
+Chat before considering any residual execution handoff. Do not make Work invent
+content merely because Work might later perform a mechanical deployment step.
+
+If Work is still selected after this preflight, the handoff must be explainable
+in the form:
+
+```text
+CHAT_DIRECT_EXECUTION_PREFLIGHT:
+  residual_action: <exact bounded action>
+  direct_chat_route: unavailable | unreliable | impractical_for_sustained_state
+  evidence: <specific missing capability or concrete impracticality>
+```
+
+"This needs SSH," "this is on a VPS," "this requires deployment," or "Work has a
+terminal" is never sufficient evidence by itself. If a usable direct Chat route
+is discovered, Work admission fails and Chat performs the action.
 
 For supervisory/control-plane chats, this is an automation invariant: **when the chat itself can read or write the required GitHub artifact, it must do that GitHub operation directly and must not delegate that operation to Work/Codex.** A Chat -> Work handoff requires explicit user acceptance; delegating a routine GitHub receipt, issue comment, PR update, or evidence read therefore inserts an avoidable human gate and can make an otherwise unattended Mission Control cycle invisible to the owner.
 

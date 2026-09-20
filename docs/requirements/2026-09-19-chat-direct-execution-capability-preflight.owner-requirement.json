@@ -2,19 +2,23 @@
   "schema_version": 1,
   "requirement_id": "2026-09-19-chat-direct-execution-capability-preflight",
   "status": "ACTIVE_OWNER_REQUIREMENT",
-  "date": "2026-09-19",
-  "owner_correction": "Pangram GUI does not require Work when Chat itself has direct connected-computer/browser/terminal access.",
-  "normalized_rule": "Route by actual capability of the current Chat surface, not by action category alone. A terminal, browser, GUI, remote-desktop, filesystem, or OS action remains in Chat when Chat has a direct authorized tool that can reliably perform it. Work/Codex is required only when the needed execution capability is unavailable or impractical in Chat, or the operation is genuinely long-range/stateful enough to merit delegation.",
-  "causal_failure": "The prior routing list treated terminal commands and browser/computer/OS automation as unconditional Work triggers. This contradicted the higher-level rule that Work is for execution Chat cannot reliably perform and caused an unnecessary Work handoff despite direct connected-computer capability being available in Chat.",
+  "date": "2026-09-20",
+  "owner_correction": "Work is only for execution Chat really cannot do. Before a Work handoff, Chat must discover and use its own authorized execution capabilities, including Remote Desktop Commander or another connected computer that can SSH to a VPS or operate the target directly.",
+  "normalized_rule": "Route by actual capability of the current Chat surface after current-turn capability discovery, not by action category or the initially visible tool list. Terminal, browser, GUI, remote-desktop, filesystem, SSH, VPS, deployment, Docker, or OS work remains in Chat when an authorized direct or discoverable Chat tool can reliably perform it. A connected computer that can SSH to the target counts as direct Chat execution. Work/Codex is admitted only for the exact residual action that remains unavailable or impractical after this preflight, or for genuinely long-range/stateful execution that is impractical to keep in Chat.",
+  "causal_failure": "The prior rule already said to inventory Chat tools, but enforcement permitted a routing decision before discovering deferred or connector-provided execution tools. That let an assistant classify SSH/VPS deployment as Work merely because Remote Desktop Commander was not in the immediately visible tool set, even though Chat could discover RDC, reach an authorized connected computer, SSH to the target, edit the canonical repository, test, and deploy directly.",
   "enforcement": [
-    "Before admitting Work for an execution task, inventory the current Chat surface's direct authorized tools for that exact action.",
-    "Do not treat remote execution as non-Chat merely because the command or browser runs on another machine; a connected-computer or remote-desktop tool exposed directly to Chat counts as Chat execution.",
-    "Delegate only the residual action Chat cannot reliably perform or when sustained stateful execution is genuinely impractical in Chat."
+    "Before admitting Work for an execution task, perform a current-turn capability preflight for the exact bounded action; do not rely only on the initially expanded tool schema.",
+    "When tool namespaces, plugins, connectors, or Code Mode actions are discoverable/deferred, inspect the available tool catalog before concluding that terminal, filesystem, browser, GUI, remote-desktop, SSH, VPS, or deployment capability is unavailable.",
+    "Do not treat remote execution as non-Chat merely because the command or browser runs on another machine; a connected-computer or remote-desktop tool exposed to Chat counts as Chat execution, including when that machine can SSH to the ultimate target.",
+    "VPS administration, SSH, Docker/Coolify operations, local tests, deployment, browser automation, and filesystem edits are not Work triggers when Chat has an authorized direct path that can perform them reliably.",
+    "If Chat can resolve substantive wording, architecture, scientific/safety judgment, or an exact patch before execution, do so in Chat; do not delegate semantic authoring merely because a later mechanical step may require another execution surface.",
+    "A Work handoff is admitted only after the preflight identifies the specific residual action Chat cannot reliably execute, or establishes that the operation is genuinely long-range/stateful enough to be impractical in Chat. 'This needs SSH/VPS/deployment' is not a sufficient reason by itself."
   ],
   "nonclaims": [
-    "This does not make every Chat surface capable of local execution.",
+    "This does not make every Chat surface capable of local or remote execution.",
     "This does not bypass user approvals, credentials, spending, destructive-action, publication, privacy, or other hard gates.",
-    "This does not authorize free-form GUI action when a safer deterministic tool exists."
+    "This does not authorize free-form GUI action when a safer deterministic tool exists.",
+    "This does not prohibit Work when direct Chat execution is genuinely unavailable, unreliable, or impractical for a sustained stateful operation."
   ],
-  "origin": "Owner correction during Inner Child Therapy humanization after an unnecessary Work handoff was proposed for a Pangram GUI run while direct connected-computer tooling was available in Chat."
+  "origin": "Owner corrections on 2026-09-19 and 2026-09-20 after unnecessary Work handoffs were proposed despite direct connected-computer execution being available or discoverable in Chat."
 }
