@@ -542,12 +542,23 @@ function chatGptCandidates(
     if (kind !== "chatgpt" && kind !== "chatgptworkcloud" && kind !== "chatgpt_work_cloud") continue;
     const threadId = stringField(thread, "threadId", "thread_id", "id");
     if (!threadId || isTemporaryThreadId(threadId)) continue;
-    const updatedAt = stringField(thread, "updatedAt", "updated_at");
-    if (!updatedAt || Date.parse(updatedAt) < requestedTime) continue;
+    const updatedTime = timestampMilliseconds(thread.updatedAt ?? thread.updated_at);
+    if (updatedTime === null || updatedTime < requestedTime) continue;
     if (projectId !== null && stringField(thread, "projectId", "project_id") !== projectId) continue;
     candidates.push({ threadId });
   }
   return candidates;
+}
+
+function timestampMilliseconds(value: unknown): number | null {
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  if (value < 100_000_000_000) return value * 1_000;
+  if (value > 100_000_000_000_000) return value / 1_000;
+  return value;
 }
 
 function initialUserPrompt(value: unknown): string | null {
