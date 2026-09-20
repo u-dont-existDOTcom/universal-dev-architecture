@@ -70,9 +70,9 @@ test("real local-chatgpt create resolves by time, project, and exact prompt with
     if (name === "list_threads") return value({
       unavailableSources: [],
       threads: [
-        { kind: "chatgpt", id: "stable-work-1", updatedAt: "2026-09-19T20:00:01.000Z", projectId: "project-1", title: "provider changed this title" },
-        { kind: "chatgpt", id: "stable-wrong-project", updatedAt: "2026-09-19T20:00:02.000Z", projectId: "project-2", title: "Work — requested title" },
-        { kind: "chatgpt", id: "stable-too-old", updatedAt: "2026-09-19T19:59:59.000Z", projectId: "project-1" },
+        { kind: "chatgpt", id: "stable-work-1", updatedAt: 1_789_848_001_000, projectId: "project-1", title: "provider changed this title" },
+        { kind: "chatgpt", id: "stable-wrong-project", updatedAt: 1_789_848_002, projectId: "project-2", title: "Work — requested title" },
+        { kind: "chatgpt", id: "stable-too-old", updatedAt: 1_789_847_999_000, projectId: "project-1" },
       ],
     });
     if (name === "read_thread" && args.threadId === "stable-work-1") return value({
