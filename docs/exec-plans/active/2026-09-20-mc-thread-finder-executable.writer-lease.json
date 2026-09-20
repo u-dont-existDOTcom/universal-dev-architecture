@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "status": "sealed_for_review",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-thread-finder-executable-20260920",
+  "integration_branch": "main",
+  "integration_base_sha": "1798d6639fb08ce3d9e9809ef22e301a0885038b",
+  "scope": "Make the merged owner-deployment chatgpt-thread-find helper directly executable without changing recovery semantics.",
+  "verification": {
+    "focused_recovery": "5/5 PASS",
+    "repository_full": "370/370 PASS",
+    "audit": "0 errors; pre-existing root AGENTS size warning only",
+    "direct_executable_launch": "PASS",
+    "diff_check": "PASS"
+  }
+}

@@ -1,5 +1,5 @@
-# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT
 #!/usr/bin/env python3
+# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT
 import argparse
 import ctypes
 import ctypes.util
