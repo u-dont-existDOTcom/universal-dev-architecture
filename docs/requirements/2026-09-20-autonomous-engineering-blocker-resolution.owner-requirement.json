@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "requirement_id": "2026-09-20-autonomous-engineering-blocker-resolution",
+  "status": "ACTIVE_OWNER_REQUIREMENT",
+  "date": "2026-09-20",
+  "owner_correction": "The owner is here for material tradeoff decisions, not routine engineering blockers. Resolve engineering issues autonomously, coordinate with Mission Control, stop or isolate interfering workers, take over integration when needed, and merge authorized validated repairs without asking the owner to direct ordinary execution.",
+  "normalized_rule": "When the parent owner outcome is OPEN and existing authority covers the affected scope, engineering, configuration, coordination, recovery, transport, merge, and writer-conflict blockers are agent-owned execution work. Diagnose and perform the safe repair; use authorized internal supervisor and Mission Control routes; stop, interrupt, quarantine, or supersede conflicting writers when necessary; preserve their useful work; serialize integration; and merge validated in-scope changes when merge is required to restore or advance the authorized outcome. Interrupt the owner only for a genuine substantive tradeoff or a non-bypassable human gate.",
+  "enforcement": [
+    "Do not present a technically solvable engineering blocker as an owner-action item.",
+    "Before stopping on an engineering problem, exhaust safe authorized repairs, supported alternate transport paths, internal supervisor or Mission Control coordination, conflict isolation, and integration takeover that remain inside existing authority.",
+    "When another writer or workspace can contaminate the same mutable branch or semantic integration boundary, stop or isolate the conflicting writer, preserve recoverable work, and continue through one serialized integrator.",
+    "When a validated in-scope repair is ready and merge is necessary to advance the already-authorized outcome, perform the ordinary merge under existing authority rather than asking for an extra continue or merge confirmation.",
+    "Owner interruption is reserved for choices that materially change product behavior, architecture, safety, cost, external commitment, irreversible state, or owner intent, or for a platform-enforced human action that the agents cannot perform.",
+    "If a mandatory human gate exists, finish all independent preparation first and surface only the smallest exact human action; do not reframe the engineering diagnosis as an owner tradeoff."
+  ],
+  "nonclaims": [
+    "This does not authorize paid inference, spending, external production promotion, publication, credential disclosure, privacy violations, destructive data loss, or other boundaries the owner has not authorized.",
+    "This does not permit overwriting another writer's work; conflicting mutable state must be isolated and reconciled deliberately.",
+    "This does not permit Work or Codex to acquire semantic authority that belongs to Chat, Mission Control reasoning, or the owner.",
+    "This does not eliminate unavoidable product or platform confirmations when no authorized technical path can perform them."
+  ],
+  "origin": "Owner correction during Mission Control automated self-development supervision on 2026-09-20 after routine engineering blockers were repeatedly surfaced to the owner instead of being autonomously repaired."
+}
