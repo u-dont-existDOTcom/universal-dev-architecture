@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "requirement_id": "2026-09-20-functional-neighborhood-monitoring",
+  "status": "ACTIVE_OWNER_REQUIREMENT",
+  "date": "2026-09-20",
+  "owner_correction": "A watched topic is not just its literal entity name. If the owner is interested in SR-17018 or another target because of what it does, monitoring must also look for anything people or researchers find as effective, more effective, safer, easier to discontinue, or useful as an adjunct, even when there is no ban, shortage, reformulation, or other displacement event.",
+  "normalized_rule": "For recurring monitoring, infer and preserve the underlying function/outcome behind each priority target. On every substantive pass, search the decision-relevant functional neighborhood: equivalent or superior alternatives, adjuncts/complements, sibling/family candidates, different-mechanism solutions, community innovations/aliases, and successors after displacement. Named entities are anchors, not closed watchlists.",
+  "causal_failure": "The first repair after missing SR-15099 generalized only to successor discovery after bans, restrictions, supply loss, or migration. That still encoded the wrong trigger. The owner clarified that the latent interest exists continuously: anything solving the same practical problem equally well, better, or as a useful adjunct is relevant regardless of whether the original target remains available.",
+  "enforcement": [
+    "Do not require a displacement event before expanding beyond the named target.",
+    "Every recurring priority-topic scan must include equivalent/better alternatives and useful adjuncts/complements when those could change the conclusion.",
+    "Search both family/mechanism neighbors and different-mechanism solutions to the same practical outcome.",
+    "Use comparative and function-first community language, not only canonical entity names.",
+    "Keep identity confidence and evidence class explicit; marketing aliases are discovery leads, not identity proof."
+  ],
+  "nonclaims": [
+    "This does not require exhaustive enumeration of every remote alternative.",
+    "Functional adjacency does not establish equivalent efficacy or safety.",
+    "Current task exclusions and evidence thresholds still control what is reported."
+  ],
+  "origin": "Owner correction after the SR-15099 monitoring miss on 2026-09-20."
+}
