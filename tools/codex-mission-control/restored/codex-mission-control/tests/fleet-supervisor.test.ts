@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 import { snapshotFromStore } from "../lib/dashboard-data";
 import { classifyFleetSupervisorTick, DEFAULT_FLEET_SUPERVISOR_CADENCE_MS, FleetSupervisorRuntime } from "../lib/fleet-supervisor";
 import { seedIssue47Store, seedStore } from "../lib/seed";
@@ -20,6 +21,36 @@ test("new nontrivial project queues auto-enroll with the hourly default and allo
     assert.ok(watches.every((watch) => watch.state === "ACTIVE" && watch.cadenceMs === DEFAULT_FLEET_SUPERVISOR_CADENCE_MS));
     assert.equal(store.configureFleetSupervisorWatch("project:human-design", { state: "DISABLED" }, t0).nextTickAt, null);
   } finally { store.close(); }
+});
+
+test("startup backfills watches for persisted nonterminal queues created before fleet supervision existed", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mc-fleet-backfill-"));
+  const database = path.join(directory, "mission-control.db");
+  let store = new EventStore(database);
+  try {
+    seedIssue47Store(store);
+    store.close();
+    const db = new DatabaseSync(database);
+    db.exec("DELETE FROM fleet_supervisor_watches");
+    db.close();
+    store = new EventStore(database);
+    assert.deepEqual(store.fleetSupervisorWatches().map((watch) => watch.projectId),
+      ["project:human-design", "project:mission-control"]);
+    assert.ok(store.fleetSupervisorWatches().every((watch) => watch.state === "ACTIVE"));
+  } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("startup does not reactivate an explicitly disabled persisted watch", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mc-fleet-disabled-"));
+  const database = path.join(directory, "mission-control.db");
+  let store = new EventStore(database);
+  try {
+    seedIssue47Store(store);
+    store.configureFleetSupervisorWatch("project:mission-control", { state: "DISABLED" }, t0);
+    store.close();
+    store = new EventStore(database);
+    assert.equal(store.fleetSupervisorWatch("project:mission-control")?.state, "DISABLED");
+  } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
 test("healthy ticks are silent, durable, idempotent, and remain visible after restart", async () => {
