@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-round4-terminal-reconcile-20260920",
+  "integration_branch": "main",
+  "integration_base_sha": "a03e19ee6aff88cb67cef2be1c3d6285203d0c49",
+  "scope": "Record the privacy-safe MAST Round 4 terminal result and non-production runtime reconciliation. Documentation/state only; no executable or frozen-study changes."
+}
