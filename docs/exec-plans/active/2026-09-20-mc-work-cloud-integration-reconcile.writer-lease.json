@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-work-cloud-integration-reconcile-20260920-1935",
+  "integration_branch": "main",
+  "integration_base_sha": "1aa61d91cf77819987dabf8f8518420ee270f772",
+  "scope": "Reconcile unique native Work-cloud controller/recovery changes from the quarantined shared worktree onto current main without regressing merged resolver or monitoring work.",
+  "validated_head_parent": "1aa61d91cf77819987dabf8f8518420ee270f772",
+  "verification": {
+    "work_cloud_controller": "17/17 PASS",
+    "multi_surface_recovery": "5/5 PASS",
+    "work_cloud_dispatch": "19/19 PASS",
+    "mission_control_full": "375/375 PASS",
+    "repository_full": "370/370 PASS",
+    "typecheck": "PASS",
+    "production_build": "PASS",
+    "audit": "0 errors; pre-existing AGENTS size warning only",
+    "diff_check": "PASS"
+  },
+  "completion": "Implementation/reconciliation scope validated, committed, pushed, and opened as PR #188; integration is owned by the canonical main merge gate."
+}

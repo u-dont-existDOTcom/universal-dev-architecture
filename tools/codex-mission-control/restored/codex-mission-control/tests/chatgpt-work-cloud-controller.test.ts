@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { appendFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -6,6 +9,8 @@ import {
   NativeChatGptWorkCloudExecutor,
   capabilityEvidenceFromTools,
   createCodexAppServerMutationBridge,
+  connectCodexDriverMutationBridge,
+  writePrivateWorkThreadLocator,
   type AppToolResult,
   type ProductMutationResult,
   type WorkCloudAppToolClient,
@@ -280,6 +285,114 @@ test("Codex app-server bridge validates exact arguments and rejects an extra mut
     }), { kind: "UNAVAILABLE", reasonCode: "WORK_CLOUD_EXTRA_MUTATION_REJECTED" });
   } finally {
     await bridge.close();
+  }
+});
+
+test("desktop Codex driver accepts only the exact structured app-tool receipt", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mc-work-driver-test-"));
+  const rollout = join(dir, "rollout.jsonl");
+  await writeFile(rollout, "");
+  const expectedArguments = {
+    title: "Work — driver exact",
+    prompt: "exact Work prompt",
+    target: { type: "chatgptWorkCloud" },
+  };
+  const bridge = await connectCodexDriverMutationBridge({
+    command: "/fake/codex", threadId: "driver-thread-1", rolloutPath: rollout, timeoutMs: 1_000, pollMs: 1,
+  }, {
+    requestId: () => "driver-request-exact-1",
+    sleep: async () => undefined,
+    queueMessage: async ({ command, threadId, message }) => {
+      assert.equal(command, "/fake/codex");
+      assert.equal(threadId, "driver-thread-1");
+      assert.match(message, /driver-request-exact-1/);
+      assert.match(message, /create_thread exactly once/);
+      await appendFile(rollout, [
+        JSON.stringify({ type: "message", payload: { role: "user", content: [{ type: "input_text", text: message }] } }),
+        JSON.stringify({ type: "event_msg", payload: { type: "item_completed", item: {
+          type: "McpToolCall", server: "codex_app", tool: "create_thread", arguments: expectedArguments,
+          status: "completed", result: { content: [{ type: "text", text: JSON.stringify({ kind: "chatgpt", clientThreadId: "local-chatgpt:driver-1" }) }], isError: false },
+        } } }),
+        JSON.stringify({ type: "event_msg", payload: { type: "task_complete" } }),
+      ].join("\n") + "\n");
+    },
+  });
+  try {
+    const outcome = await bridge.callTool({ name: "create_thread", arguments: expectedArguments });
+    assert.deepEqual(outcome, {
+      kind: "RESULT",
+      result: { content: [{ type: "text", text: JSON.stringify({ kind: "chatgpt", clientThreadId: "local-chatgpt:driver-1" }) }], isError: false },
+    });
+    assert.deepEqual(await bridge.callTool({ name: "create_thread", arguments: expectedArguments }), {
+      kind: "UNAVAILABLE", reasonCode: "WORK_CLOUD_EXTRA_MUTATION_REJECTED",
+    });
+  } finally {
+    await bridge.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("desktop Codex driver fails closed when the turn performs a different MCP action", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mc-work-driver-test-"));
+  const rollout = join(dir, "rollout.jsonl");
+  await writeFile(rollout, "");
+  const expectedArguments = { threadId: "stable-work-1", prompt: "continue exactly" };
+  const bridge = await connectCodexDriverMutationBridge({
+    command: "/fake/codex", threadId: "driver-thread-2", rolloutPath: rollout, timeoutMs: 1_000, pollMs: 1,
+  }, {
+    requestId: () => "driver-request-wrong-1",
+    sleep: async () => undefined,
+    queueMessage: async ({ message }) => {
+      await appendFile(rollout, [
+        JSON.stringify({ type: "message", payload: { role: "user", content: [{ type: "input_text", text: message }] } }),
+        JSON.stringify({ type: "event_msg", payload: { type: "item_completed", item: {
+          type: "McpToolCall", server: "codex_app", tool: "list_threads", arguments: { limit: 1 },
+          status: "completed", result: { content: [{ type: "text", text: "{}" }], isError: false },
+        } } }),
+        JSON.stringify({ type: "event_msg", payload: { type: "task_complete" } }),
+      ].join("\n") + "\n");
+    },
+  });
+  try {
+    assert.deepEqual(await bridge.callTool({ name: "send_message_to_thread", arguments: expectedArguments }), {
+      kind: "UNAVAILABLE", reasonCode: "WORK_CLOUD_DRIVER_UNEXPECTED_ACTION",
+    });
+  } finally {
+    await bridge.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("private Work locator cache preserves requested title to verified cloud thread mapping", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mc-work-locator-test-"));
+  try {
+    const locator = await writePrivateWorkThreadLocator({
+      directory: dir,
+      dispatchId: "dispatch:auth:work-cloud:test",
+      requestedWorkTitle: "Work — requested owner title",
+      sourceChatTitle: "Source Chat",
+      sourceChatUrl: "chatgpt-conversation://source-chat-test",
+      workThreadId: "stable-cloud-work-1",
+      chatgptProjectId: null,
+      verifiedAt: requestedAt,
+    });
+    const stat = await import("node:fs/promises").then((fs) => fs.stat(locator));
+    assert.equal(stat.mode & 0o777, 0o600);
+    const payload = JSON.parse(await import("node:fs/promises").then((fs) => fs.readFile(locator, "utf8")));
+    assert.deepEqual(payload, {
+      schema_version: 1,
+      surface: "CHATGPT_WORK_CLOUD",
+      dispatch_id: "dispatch:auth:work-cloud:test",
+      requested_work_title: "Work — requested owner title",
+      source_chat_title: "Source Chat",
+      source_chat_url: "chatgpt-conversation://source-chat-test",
+      work_thread_id: "stable-cloud-work-1",
+      chatgpt_project_id: null,
+      verified_at: requestedAt,
+      authority: "MISSION_CONTROL_LEDGER",
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 });
 

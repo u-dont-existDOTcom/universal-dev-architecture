@@ -38,7 +38,7 @@
   ],
   "owner_deployment_binding": {
     "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
-    "tested_at": "2026-09-19",
+    "tested_at": "2026-09-20",
     "tested_versions": {
       "chatgpt_desktop": "26.903.61454",
       "brave": "153.1.95.102"
@@ -58,11 +58,14 @@
       "The bundled desktop deep-link parser exposes native local/Work conversation routing for `codex://threads/...` but no equivalent supported external deep link for an ordinary private Chat conversation; ordinary Chat has an internal native `/c/<conversationId>` route.",
       "For the V4 Mission Control supervisor, the exact durable `sourceChat` locator identified the target; the tested native sidebar Search path was driven through the app's Xwayland window, and the unique `NO_SEND_SOAK_FAILURE` token removed duplicate-title ambiguity before selection.",
       "The V4 native-open completion check compared the owner-provided wrong-surface screenshot with the post-selection native window: the prior browser address glyph region had zero remaining bright glyph pixels/correlation and the search overlay closed, falsifying the earlier browser-panel state.",
-      "The local `chatgpt-thread-find` helper now refuses ambiguous ordinary-Chat title opens and requires `--native-query` for a discriminating task/message token when multiple logical title matches exist; Work native URIs remain direct."
+      "The local `chatgpt-thread-find` helper now refuses ambiguous ordinary-Chat title opens and requires `--native-query` for a discriminating task/message token when multiple logical title matches exist; Work native URIs remain direct.",
+      "On ChatGPT desktop 26.903.61454, the authenticated read-only codex_app `list_threads` tool exposes current cloud ChatGPT thread metadata including stable ID, title, status, project ID and update time; the fresh native-Work canary appeared there immediately while the older local finder sources did not.",
+      "The owner deployment `chatgpt-thread-find` helper now queries that live app metadata index before Brave/local catalog fallbacks and located the fresh native-Work canary without reading conversation bodies.",
+      "The live native-Work canary showed that the requested `Work — ...` creation title may be replaced by an automatic provider title, so stable thread ID plus live metadata/receipts outrank requested-title matching for recovery."
     ],
     "current_limits": [
       "The desktop Chromium History database was empty in the tested installation, so desktop recovery must not assume browser-style History.",
-      "A general local desktop-app index for arbitrary ordinary Chat conversations is still unproven; durable sourceChat metadata identifies ordinary Chat targets, but the tested desktop client has no proven supported external direct-by-ID ordinary-Chat deep link.",
+      "The authenticated live app metadata index can enumerate current ChatGPT cloud threads, but there is still no proven supported external direct-by-ID ordinary-Chat deep link; durable sourceChat metadata remains the identity source for ordinary supervising Chat recovery.",
       "Native ordinary-Chat UI automation is version/layout bounded and must be revalidated after a ChatGPT desktop update or material UI change.",
       "A durable exact Chat URL can establish identity without being a valid native desktop navigation mechanism.",
       "Do not commit owner-specific conversation IDs, project IDs, filesystem locators, account identifiers, or credentials into the public repository."

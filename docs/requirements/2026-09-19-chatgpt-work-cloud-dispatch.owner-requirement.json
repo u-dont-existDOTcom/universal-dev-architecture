@@ -33,16 +33,21 @@
   ],
   "owner_deployment_binding": {
     "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
-    "tested_at": "2026-09-19",
+    "tested_at": "2026-09-20",
     "verified_behavior": [
-      "A local Codex thread renamed with a Work prefix remained backing kind codex and was not visible as active Work execution.",
-      "codex queue could enqueue into an idle Codex thread but did not wake it; codex exec resume started Codex execution, not ChatGPT Work.",
-      "The bundled desktop app-executor schema independently exposed a native chatgptWorkCloud creation target and send_message_to_thread."
+      "A local Codex thread renamed with a Work prefix remained backing kind codex and was not accepted as ChatGPT Work surface evidence.",
+      "On ChatGPT desktop 26.903.61454, codex queue wakes the tested idle desktop-owned Codex driver task; its product auto-review lifecycle completed an exact codex_app tool-only turn and produced a structured McpToolCall receipt.",
+      "The bundled desktop app-executor schema independently exposes native chatgptWorkCloud creation and exact-thread send_message_to_thread.",
+      "A live Mission Control controller canary created native Work through the desktop-owned driver, durably recorded PENDING_SETUP, resolved the same dispatch read-only to one stable READY thread, and replayed READY with zero additional driver activity.",
+      "A live continuation dispatch sent to that exact stable Work thread, was read back from the same thread, and same-dispatch replay produced zero additional driver activity.",
+      "The native provider replaced the requested Work title with an automatic title; set_thread_title rejected the cloud Work id as non-Codex, so recovery now uses a private requested-title-to-stable-thread locator plus the live app metadata index instead of assuming title preservation.",
+      "The installed chatgpt-thread-find helper recovered the canary from its originally requested Work title and invoked the native desktop reopen path without reading conversation bodies."
     ],
     "current_limits": [
-      "Raw direct MCP calls outside an authenticated app executor were rejected because executor thread metadata was required.",
-      "Native Work dispatch may still surface a product-level approval prompt.",
-      "Do not publish owner-specific thread ids, project ids, socket paths, or account identifiers."
+      "A fresh raw app-server controller mutation reaches a PENDING_APPROVAL request that is not surfaced in the tested desktop UI; the owner deployment therefore uses an already desktop-owned Codex driver task with the product automatic reviewer rather than fabricating an approval response.",
+      "Requested Work titles are not stable provider identities and cloud Work cannot currently be renamed with the Codex-only set_thread_title tool.",
+      "The controller canary used a synthetic exact source-Chat binding, so it proves native Work transport/idempotency/recovery but does not prove the final natural-work originating-Chat backlink for this supervising conversation.",
+      "Do not publish owner-specific thread ids, project ids, socket paths, rollout paths, or account identifiers."
     ]
   },
   "source": {

@@ -9,6 +9,7 @@ REQ = ROOT / "docs" / "requirements" / "2026-09-19-chatgpt-multi-surface-thread-
 PATTERN = ROOT / "patterns" / "chatgpt-client-surface-capability-and-thread-recovery.md"
 ROUTING = ROOT / "patterns" / "chat-work-execution-routing-threshold.md"
 INDEX = ROOT / "LESSON-INDEX.md"
+HELPER = ROOT / "tools" / "codex-mission-control" / "restored" / "codex-mission-control" / "scripts" / "chatgpt-thread-find.py"
 
 
 class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
@@ -17,6 +18,7 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
         self.pattern = PATTERN.read_text(encoding="utf-8")
         self.routing = ROUTING.read_text(encoding="utf-8")
         self.index = INDEX.read_text(encoding="utf-8")
+        self.helper = HELPER.read_text(encoding="utf-8")
 
     def test_owner_requirement_is_active_and_surface_specific(self) -> None:
         self.assertEqual(self.req["authority"], "owner")
@@ -87,6 +89,24 @@ class ChatGptMultiSurfaceThreadRecoveryTests(unittest.TestCase):
             "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
             self.index,
         )
+
+    def test_owner_helper_searches_live_app_metadata_before_stale_fallbacks(self) -> None:
+        self.assertTrue(self.helper.startswith("# NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT"))
+        for phrase in (
+            "def live_app_threads()",
+            '"name": "list_threads"',
+            '"limit": 50',
+            '"confidence": "live_app_thread_index"',
+            "live_app_results(args.query)",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.helper)
+        self.assertLess(
+            self.helper.index("live_app_results(args.query)"),
+            self.helper.index("source_chat_results(args.query)"),
+        )
+        self.assertIn("never inspect message bodies", self.helper)
+        self.assertNotIn("6ab00acf-", self.helper)
 
 
 if __name__ == "__main__":
