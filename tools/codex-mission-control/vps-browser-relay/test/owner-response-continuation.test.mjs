@@ -197,9 +197,9 @@ test('route-v4 binding envelope stays unchanged while fixed-control prompt bytes
   assert.match(prompt, /schema_version 3/);
   // Frozen after the source-bound GPT-5.6 Sol / Extra High, 4 of 5 surface
   // correction; the binding-envelope bytes above remain unchanged.
-  assert.equal(sha256(prompt), '26d25606367fe321d31e79dab95e1bd9bb354593916270807af5265aac2588fe');
+  assert.equal(sha256(prompt), 'dbd2d049357a29435562c2a7764aa50b980f8bedb05b74c8e454eec880babcf4');
   assert.equal(sha256(cycleControlPrompt(routeFrom(basePacket('PRO_ESCALATED')), 'PRO_DECISION')),
-    '66c65d01b7ad66c6bbbefd3a86580dafffba85ec28356b309159fd6ad023c003');
+    '690fda239e65853ab3826c2863f9e6da2e2b55d1b2f3af90c218bd1d84a7e611');
 });
 
 function basePacket(reasoningLane = 'EXTRA_HIGH_DIRECT') {

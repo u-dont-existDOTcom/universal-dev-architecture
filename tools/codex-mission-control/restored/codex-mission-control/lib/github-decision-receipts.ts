@@ -606,9 +606,9 @@ export function buildGitHubDecisionReceiptEnvelope(
     assertEqual(decision.supervisor_id, request.supervisorId, "supervisor ID");
     assertExactBindingCapsule(events, request, decision.binding_envelope, decision.binding_envelope_sha256, decision.binding_provider_session_id, candidate.createdAt, policy);
     assertFreshDecisionProviderSession(events, request, decision.binding_provider_session_id, decision.decision_provider_session_id, candidate.createdAt, ingestedAt, policy);
-    if (decision.bounded_execution && decision.bounded_execution.task_id !== request.taskId) {
-      throw new Error("Bounded execution task identity does not match the pending supervisory request.");
-    }
+  }
+  if ("bounded_execution" in decision && decision.bounded_execution && decision.bounded_execution.task_id !== request.taskId) {
+    throw new Error("Bounded execution task identity does not match the pending supervisory request.");
   }
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");
@@ -651,7 +651,7 @@ export function buildGitHubDecisionReceiptEnvelope(
       binding_envelope: decision.schema_version === 3 ? decision.binding_envelope : null,
       binding_envelope_sha256: decision.schema_version === 3 ? decision.binding_envelope_sha256 : null,
       decision_session_provenance: decision.schema_version === 3 ? decision.decision_session_provenance : null,
-      ...(decision.schema_version === 3 && decision.bounded_execution ? {
+      ...((decision.schema_version === 3 || decision.schema_version === 4 || decision.schema_version === 5) && decision.bounded_execution ? {
         bounded_execution: decision.bounded_execution,
         bounded_execution_sha256: sha256(canonicalJson(decision.bounded_execution)),
       } : {}),

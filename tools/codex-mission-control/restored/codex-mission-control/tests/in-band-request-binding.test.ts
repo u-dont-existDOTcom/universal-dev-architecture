@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sha256 } from "../lib/canonical";
+import { canonicalJson, sha256 } from "../lib/canonical";
 import {
   buildGitHubDecisionReceiptEnvelope,
   canonicalDecisionCommentPrefix,
@@ -18,6 +18,7 @@ import {
 } from "../lib/in-band-request-binding";
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
+import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
 
 const worker = "in-band-fixture", requestId = "in-band-request-1", supervisor = "fixture-supervisor";
 const session = "provider-session:in-band-1", relayId = "collector:fixture-relay";
@@ -129,6 +130,41 @@ function fixture() {
   return { store, events: store.allEvents(), request, binding, decision, candidate, authority };
 }
 
+
+function nativeWorkResidue() {
+  return {
+    schema_version: 1 as const, task_id: "task-1", job_id: "issue178-inert-canary",
+    execution_objective: "Create one inert documentation-only canary artifact on an isolated child branch.",
+    reasoning_summary: "The supervisor selected a harmless bounded transport-loop acceptance residue.",
+    strategy_id: "strategy:issue178-inert-canary",
+    strategy_causal_hypothesis: "A native Work execution receipt should return automatically to the original reasoning supervisor.",
+    predicted_outcome_change: "The Mission Control Chat-to-Work-to-reasoning loop is proven without owner clipboard transport.",
+    success_threshold: "One isolated child branch, one inert artifact, focused checks, one privacy-safe Work receipt, and one reasoning return.",
+    failure_threshold: "Any duplicate dispatch, scope expansion, production mutation, or missing reasoning return.",
+    next_decision_changing_evidence: "The exact native Work execution receipt and automatic post-Work V6 route.",
+    reviewed_evidence_boundary: "Current V6 request binding, owner outcome, and inert canary scope only.",
+    inputs: [{ type: "GITHUB", ref: "current-main", sha256: null }],
+    allowed_actions: ["Create one isolated child branch and one inert JSON canary artifact."],
+    allowed_paths: ["docs/evidence"], allowed_commands: ["git diff --check", "focused deterministic test"],
+    forbidden_actions: ["Production deployment or runtime mutation."], forbidden_paths: ["tools/codex-mission-control"],
+    forbidden_decisions: ["Do not change strategy, architecture, methodology, or owner requirements."],
+    required_evidence: ["Child-branch commit SHA and artifact SHA-256", "privacy-safe Work execution receipt"],
+    required_tests_or_checks: ["git diff --check"], stop_and_return_triggers: ["Completion or any scope/authority blocker."],
+    maximum_execution_cycles: 1, execution_capability: { type: "LOCAL_FILESYSTEM_COMMAND" as const },
+    workspace: "/tmp/mission-control-issue178-inert-canary",
+    output_schema: { type: "object", required: ["status"], properties: { status: { type: "string" } } },
+    prompt: "Create only the inert issue-178 transport-loop canary artifact, run the allowed check, publish the privacy-safe receipt, and stop.",
+    deadline: "2099-09-22T00:00:00.000Z",
+    work_execution_profile: {
+      model: "GPT_5_6_SOL" as const, effort: "MEDIUM" as const, routingTier: "SOL_MEDIUM" as const,
+      routingTriggers: [], fastModeRequest: "DO_NOT_ENABLE_FAST" as const, assuranceRequirement: "SET_REQUEST_SUFFICIENT" as const,
+      policyRef: WORK_MODEL_ROUTING_POLICY_REF, routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
+      contractVersion: "TRUSTED_SETTER_V1" as const,
+    },
+    execution_surface: "CHATGPT_WORK_CLOUD" as const,
+  };
+}
+
 function build(f: ReturnType<typeof fixture>, events = f.events, candidate = f.candidate, authority = f.authority) {
   return buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("06.000"), { submissionAuthorityState: authority });
 }
@@ -164,6 +200,37 @@ test("V6 production ingestion reads and verifies the current central authority s
     assert.equal(appended[1]?.data.type, "evidence_receipt_recorded");
     assert.equal(f.store.verifyChain().valid, true);
     assert.equal(f.store.verifySubmissionAuthorityLedger("chatgpt:v6-fixture").valid, true);
+  } finally {
+    if (priorDomain === undefined) delete process.env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN;
+    else process.env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN = priorDomain;
+    f.store.close();
+  }
+});
+
+
+test("V6 bounded native Work decision is preserved and materializes one source-bound active directive", () => {
+  const f = fixture();
+  const priorDomain = process.env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN;
+  try {
+    process.env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN = "chatgpt:v6-bounded-fixture";
+    f.store.commitSubmissionAuthorityState("chatgpt:v6-bounded-fixture", f.authority, { eventKind: "V6_BOUNDED_TEST_AUTHORITY" });
+    const decision = structuredClone(f.decision) as typeof f.decision & { bounded_execution?: ReturnType<typeof nativeWorkResidue> };
+    decision.bounded_execution = nativeWorkResidue();
+    const candidate = { ...f.candidate, commentId: 5744000002, immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000002`, body: canonicalDecisionCommentPrefix + JSON.stringify(decision) };
+    const appended = ingestGitHubSupervisionCandidate(f.store, candidate, policy, time("06.000"), f.events);
+    assert.equal(appended.length, 3);
+    const receipt = appended.find((event) => event.data.type === "github_decision_receipt_ingested");
+    const directive = appended.find((event) => event.data.type === "execution_directive_recorded");
+    assert.ok(receipt && directive);
+    if (!receipt || receipt.data.type !== "github_decision_receipt_ingested" || !directive || directive.data.type !== "execution_directive_recorded") return;
+    assert.equal(receipt.data.bounded_execution?.execution_surface, "CHATGPT_WORK_CLOUD");
+    assert.equal(receipt.data.bounded_execution_sha256, sha256(canonicalJson(receipt.data.bounded_execution)));
+    assert.equal(directive.data.execution_surface, "CHATGPT_WORK_CLOUD");
+    assert.equal(directive.data.task_id, "task-1");
+    assert.equal(directive.data.reasoning_supervisor_session_id, session);
+    assert.equal(directive.data.reasoning_chat_epoch, session);
+    assert.equal(directive.data.validated_decision_proof?.authority_path, "VALIDATED_GITHUB_SUPERVISORY_DECISION");
+    assert.equal(directive.data.validated_decision_proof?.receipt_event_id, receipt.eventId);
   } finally {
     if (priorDomain === undefined) delete process.env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN;
     else process.env.MISSION_CONTROL_SUBMISSION_PACING_DOMAIN = priorDomain;
