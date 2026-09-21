@@ -212,8 +212,8 @@ export function assertInBandRequestExecution(
     || admission.queueKey !== `request:${request.requestId}:${inBandRequestStep}`
     || admission.retryRootKey !== `request:${request.requestId}:${inBandRequestStep}`
     || admission.sendPath !== `SUPERVISORY_CYCLE_${inBandRequestStep}`
-    || admission.status !== "BOUNDARY_RECORDED" || admission.boundaryKind !== "GENERATION_STARTED") {
-    fail("central admission does not authorize the exact relay/session/provider body");
+    || admission.status !== "BOUNDARY_RECORDED" || admission.boundaryKind !== "CLICKED") {
+    fail("central admission does not authorize the exact relay/session/provider body at the irreversible click boundary");
   }
   const queueItems = Array.isArray(authority?.queueItems) ? authority.queueItems.map(asRecord).filter(Boolean) : [];
   const queue = queueItems.filter((item) => item!.queueItemId === admission.queueItemId);

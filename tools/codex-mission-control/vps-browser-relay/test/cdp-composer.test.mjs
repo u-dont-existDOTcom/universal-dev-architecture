@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { composerTextState, PREPARE_COMPOSER_FN, VERIFY_COMPOSER_FN } from '../src/cdp.mjs';
+import { composerTextState, hasSystemsThinkingNudgeCue, PREPARE_COMPOSER_FN, VERIFY_COMPOSER_FN } from '../src/cdp.mjs';
 
 const text = (nodeValue) => ({ nodeType: 3, nodeValue });
 const element = (tagName, childNodes = [], attributes = {}) => ({
@@ -31,6 +31,14 @@ function run(source, composers, expectedBody) {
   });
   return JSON.parse(JSON.stringify(vm.runInContext(`(${source})(expectedBody)`, context)));
 }
+
+test('systems-thinking nudge cue keys on the stable faster-model phrase in English or French', () => {
+  assert.equal(hasSystemsThinkingNudgeCue('Our systems are checking a few extra things before responding. You can retry with a faster model to get an answer sooner.'), true);
+  assert.equal(hasSystemsThinkingNudgeCue('Nos systèmes effectuent quelques vérifications supplémentaires avant de répondre. Vous pouvez réessayer avec un modèle plus rapide pour obtenir une réponse plus vite.'), true);
+  assert.equal(hasSystemsThinkingNudgeCue('NOS SYSTEMES — REESSAYER AVEC UN MODELE PLUS RAPIDE — texte variable autour'), true);
+  assert.equal(hasSystemsThinkingNudgeCue('Our systems are thinking more than usual.'), false);
+  assert.equal(hasSystemsThinkingNudgeCue('Please use a faster model if you want.'), false);
+});
 
 test('five composer paragraphs preserve a synthetic continuation and OWNER fixture in prepare and verify', () => {
   const syntheticOwner = 'SYNTHETIC OWNER FIXTURE '.padEnd(70, 'X');

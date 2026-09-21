@@ -124,7 +124,7 @@ function fixture() {
       admissionId, queueItemId, producerId: relayId, requestId, supervisorId: supervisor,
       targetKind: "FRESH_PROVIDER_SESSION", targetKey: session, bodySha256: promptSha256,
       queueKey: `request:${requestId}:${inBandRequestStep}`, retryRootKey: `request:${requestId}:${inBandRequestStep}`,
-      sendPath: `SUPERVISORY_CYCLE_${inBandRequestStep}`, status: "BOUNDARY_RECORDED", boundaryKind: "GENERATION_STARTED",
+      sendPath: `SUPERVISORY_CYCLE_${inBandRequestStep}`, status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED",
       admittedAt: time("01.500"), expiresAt: time("20.000"), boundaryAt: time("02.500"),
     }],
     queueItems: [{ queueItemId, status: "BOUNDARY_RECORDED", admissionIds: [admissionId] }],
@@ -176,6 +176,23 @@ function candidateWith(f: ReturnType<typeof fixture>, change: (decision: any) =>
   change(decision);
   return { ...f.candidate, body: canonicalDecisionCommentPrefix + JSON.stringify(decision) };
 }
+
+test("V6 binds central authority at CLICKED and requires trusted generation-start evidence separately", () => {
+  const f = fixture();
+  try {
+    assert.equal(f.authority.admissions[0].boundaryKind, "CLICKED");
+    assert.equal(build(f).data.type, "github_decision_receipt_ingested");
+
+    const wrongBoundary = structuredClone(f.authority) as any;
+    wrongBoundary.admissions[0].boundaryKind = "GENERATION_STARTED";
+    assert.throws(() => build(f, f.events, f.candidate, wrongBoundary), /irreversible click boundary/);
+
+    const noStart = f.events.filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:STARTED")));
+    assert.throws(() => build(f, noStart), /generation evidence incomplete|more than one provider generation\/send session/);
+  } finally { f.store.close(); }
+});
 
 test("V6 admits one exact GitHub decision without any MCP receipt and records distinct provenance", () => {
   const f = fixture();
