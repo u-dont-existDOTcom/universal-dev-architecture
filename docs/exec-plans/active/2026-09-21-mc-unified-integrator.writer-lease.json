@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-unified-integrator-20260921",
+  "integration_branch": "main",
+  "integration_base_sha": "e41bb54779a71533fd32a858eb3100ea13185026",
+  "scope": "Single designated Mission Control integrator for native Work autodispatch/reasoning return, issue #178 supervisor-loop acceptance, and shared non-production runtime reconciliation.",
+  "shared_runtime_mutation_owner": true,
+  "child_lane_policy": "HANDOFF_TO_INTEGRATOR_ONLY",
+  "source_branch_policy": "NO_WHOLE_BRANCH_MERGES; PORT_UNIQUE_CURRENT-AUTHORIZED_DELTAS_ONLY",
+  "owner_instruction": "No new Mission Control lane may independently mutate main or shared Mission Control runtime while this lease is active; useful child work must be handed to this integrator for reconciliation.",
+  "domain": "MISSION_CONTROL",
+  "parent_integrator": null
+}

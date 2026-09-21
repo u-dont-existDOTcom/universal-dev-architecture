@@ -24,6 +24,10 @@ Use:
 
 The integration branch is read/reconcile-only for ordinary writers while parallel work is active.
 
+### Active integration-owner locks
+
+When a repository carries an ACTIVE machine-readable integration-owner lock, such as `state/MISSION-CONTROL-INTEGRATION-OWNER.json`, that lock designates the sole shared integration/runtime writer for its domain. Other domain writers may use isolated child branches only, must name the active integrator as `parent_integrator`, must not independently mutate the integration branch or shared runtime, and must hand useful deltas to the integrator for reconciliation. A child lane is not a competing integrator.
+
 ## Writer lease
 
 Each writer branch should contain a machine-readable lease such as:

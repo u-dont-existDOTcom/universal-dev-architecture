@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "ACTIVE",
+  "domain": "MISSION_CONTROL",
+  "integrator_branch": "chat/mc-unified-integrator-20260921",
+  "integration_base_sha": "e41bb54779a71533fd32a858eb3100ea13185026",
+  "shared_runtime_owner": true,
+  "child_lane_policy": "ISOLATED_CHILD_HANDOFF_ONLY",
+  "direct_main_write_by_children": false,
+  "shared_runtime_write_by_children": false,
+  "issue_178_owned_here": true,
+  "native_work_autodispatch_owned_here": true,
+  "round5_mast_execution_separate_repository_but_supervised_from_here": true,
+  "activated_at": "2026-09-21T01:31:00Z"
+}
