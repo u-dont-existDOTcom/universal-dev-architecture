@@ -70,6 +70,34 @@ If native Work dispatch is unavailable, classify `WORK_CLOUD_DISPATCH_UNAVAILABL
 - return the exact minimum owner action needed to launch Work; or
 - use Codex only when the owner already authorized Codex or explicitly accepts it as the substitute.
 
+## Mission Control automated handoff and return
+
+Mission Control must implement native Work as a first-class execution surface, not as a title convention or a manual clipboard workflow. A source-bound execution directive that targets Work carries explicit `execution_surface: CHATGPT_WORK_CLOUD`; historical/default directives retain their existing Codex/default route. The automatic Codex dispatcher must ignore an explicit native-Work directive.
+
+**No clipboard relay:** once a current source-bound native-Work directive is admitted, Mission Control derives the direct controller request from durable state and invokes the current authenticated native Work controller automatically. The owner does not create a request JSON, paste the Work prompt, or paste the completion receipt back into Chat. A genuine product-level Work Accept/approval gesture remains a human gate when ChatGPT itself requires it.
+
+Use the current directly verified controller path. Do not interpose a supervisor Chat merely to create Work and do not downgrade `VERIFIED_NATIVE_WORK` evidence to source-attested fallback semantics when the direct app executor can verify the Work surface.
+
+### Dispatch recovery boundary
+
+Persist the exact source-bound request before any authenticated product mutation. Immediately before the app mutation boundary, persist one durable handoff-intent record. Recovery semantics are then mechanical:
+
+- request exists, no handoff intent, no result -> proven unsent; the same deterministic dispatch may resume;
+- handoff intent exists, no result -> ambiguous; automatic replay is prohibited absent later exact proven-unsent evidence;
+- `PENDING_SETUP` -> resolve/read the already-created client task; do not create again;
+- `PENDING_APPROVAL` or `READY` -> wait for new durable evidence and allow unrelated eligible routes to continue;
+- terminal dispatch result -> same-dispatch replay returns the durable result without a provider mutation.
+
+The dispatch identity binds worker, directive id/revision, task, exact directive/source provenance, originating Chat locator, and exact bounded prompt identity. Waiting or ambiguous Work must not starve unrelated Mission Control routes.
+
+### Automatic Work completion -> reasoning return
+
+Work returns execution facts through one privacy-safe machine receipt. The receipt may include dispatch/thread lineage, execution status, a bounded terminal code, check counts, privacy-safe blocker codes, and artifact SHA-256 values. It must not contain prompts, private source text, credentials, absolute private filesystem paths, raw logs, or model reasoning.
+
+Mission Control accepts a Work completion receipt only when it binds the exact prior directly verified `READY` native Work thread. Accepted receipt ingestion atomically creates exactly one fresh current request-bound reasoning-review route to the original stable supervisor, bound to the current owner outcome and the exact execution receipt. Use the current V6 in-band request-binding protocol rather than inventing a second supervisor-return transport.
+
+Work has execution-facts authority only. The reasoning supervisor decides adequacy, methodology, strategy, owner-outcome satisfaction, and the next consequential action.
+
 ## Mission Control durable adapter
 
 Mission Control should implement Work dispatch as a first-class surface adapter rather than a title convention.

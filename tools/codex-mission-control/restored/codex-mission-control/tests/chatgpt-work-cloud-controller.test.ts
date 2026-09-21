@@ -424,13 +424,13 @@ test("HTTP sink retrieves exact dispatch state and appends through authenticated
   const fetcher = async (input: string | URL | Request, init?: RequestInit) => {
     requests.push({ url: String(input), init });
     if (init?.method === "POST") return new Response(JSON.stringify({ event: {} }), { status: 201 });
-    return new Response(JSON.stringify({ request: requestEnvelope, result: null }), { status: 200 });
+    return new Response(JSON.stringify({ request: requestEnvelope, handoffIntent: null, result: null }), { status: 200 });
   };
   const sink = new HttpWorkCloudEventSink({
     baseUrl: "http://mission-control.test/", token: "secret", producerId: "system:chatgpt-work-cloud-dispatch",
     workerScopes: ["askrigor"], taskScopes: ["task:askrigor"], fetch: fetcher as typeof fetch,
   });
-  assert.deepEqual(await sink.getWorkCloudDispatch("askrigor", "dispatch:1"), { request: requestEnvelope, result: null });
+  assert.deepEqual(await sink.getWorkCloudDispatch("askrigor", "dispatch:1"), { request: requestEnvelope, handoffIntent: null, result: null });
   await sink.recordWorkerEvents("askrigor", [requestEnvelope]);
   assert.equal(requests.length, 2);
   assert.equal(requests[1].url, "http://mission-control.test/events");

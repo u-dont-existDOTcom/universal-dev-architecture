@@ -239,6 +239,20 @@ test('automatic preview-disabled and unsupported-browser fallback retain the exa
   }
 });
 
+test('automatic Codex dispatcher ignores an explicit CHATGPT_WORK_CLOUD directive', async () => {
+  const fixture = await automaticFixture('native-work-excluded', { type: 'LOCAL_FILESYSTEM_COMMAND' });
+  fixture.missionControl.snapshot.workers[0].timeline[1].data.execution_surface = 'CHATGPT_WORK_CLOUD';
+  const result = await dispatchAutomaticMissionControlExecution({
+    config: fixture.config, missionControl: fixture.missionControl,
+    legacyBrowserHandler: async () => { throw new Error('legacy path must not run'); },
+    spawnImpl: fixture.spawnImpl,
+  });
+  assert.equal(result.status, AUTOMATIC_CODEX_DISPATCH_IDLE);
+  assert.equal(result.codexChildStarted, false);
+  assert.equal(fixture.spawnCalls.length, 0);
+  assert.equal(fixture.missionControl.admissionCalls, 0);
+});
+
 test('no durable executable directive is idle and cannot start Codex', async () => {
   const fixture = await candidateFixture('automatic-idle');
   fixture.missionControl.snapshot = { workers: [{ id: 'worker-automatic-idle', timeline: [] }] };

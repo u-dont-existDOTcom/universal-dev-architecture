@@ -559,3 +559,12 @@ Owner outcome OPEN. A separate opt-in per-request candidate has 142 focused/affe
 - The Round-4 owner outcome is satisfied at the automation boundary. The
   scientific result is INDETERMINATE by the frozen study rule; continuing the
   same Work thread would violate its terminal stop condition.
+
+## Unified native Work autodispatch / issue #178 integration — 2026-09-21
+
+- Mission Control integration/runtime writes are serialized through the canonical ACTIVE integration-owner lock for `chat/mc-unified-integrator-20260921`. Child Mission Control lanes may only hand isolated deltas to that integrator; they may not independently mutate canonical main or the shared non-production runtime.
+- The stale native-Work autodispatch branch is reference-only and is not a merge source. The current candidate preserves the canonical direct native Work controller and request-binding V6 architecture.
+- Candidate behavior now includes explicit native-Work execution-surface routing, Codex exclusion, automatic direct-controller launch from durable state, durable pre-boundary handoff intent, request-only proven-unsent recovery, post-intent ambiguity/no replay, queue fairness, privacy-safe Work completion receipt ingestion, and exactly one V6 return route to the original stable supervisor/current owner outcome.
+- Native Work completion receipts are first-class execution receipts for pending reasoning review/final-response state while Codex-specific profile/preflight requirements remain Codex-only. Direct `VERIFIED_NATIVE_WORK` evidence is required; weaker source-attested fallback semantics were not ported.
+- Focused/affected local acceptance is green and TypeScript passes. Hosted exact-head release gates and live non-production acceptance are not yet claimed.
+- Issue #178 remains OPEN until one harmless live `mission-control-development` cycle proves supervisor reasoning -> durable decision -> automatic bounded executor -> isolated child branch -> execution receipt -> automatic reasoning return/closure without owner clipboard relay. No production deployment is authorized.

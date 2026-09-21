@@ -762,6 +762,30 @@ test("the 13.82 percent contract-laundering fixture preserves worker GREEN and m
   assert.equal(worker.correction.directiveKind, "CONTRACT_REPAIR");
 });
 
+test("native Work execution receipt becomes pending reasoning review until a later reasoning review", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  const directive = events.findLast((event) => event.data.type === "execution_directive_recorded")!.data;
+  if (directive.type !== "execution_directive_recorded") throw new Error("fixture directive missing");
+  pushV2(events, "work-execution-receipt:auth:test", {
+    type: "chatgpt_work_cloud_execution_receipt_recorded", worker: "auth",
+    dispatch_id: "work-cloud:auth:test", directive_id: directive.directive_id,
+    directive_revision: directive.directive_revision, task_id: directive.task_id,
+    work_thread_id: "native-work-auth-test", status: "COMPLETED", terminal_state: "READY_FOR_REASONING_REVIEW",
+    check_summary: { passed: 4, failed: 0, not_run: 0 }, blocker_codes: [], artifact_sha256s: ["9".repeat(64)],
+    github_comment_sha256: "8".repeat(64), github_receipt: {
+      repository: "u-dont-existDOTcom/universal-dev-architecture", issue_number: 61, comment_id: 999,
+      immutable_url: "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-999",
+      github_created_at: "2026-08-30T20:05:02.000Z",
+    }, recorded_at: "2026-08-30T20:05:03.000Z", producer_id: "system:github-decision-receipts",
+    source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED",
+  }, "2026-08-30T20:05:03.000Z");
+  assert.equal(compareTerminalState(events).pendingReasoningReview, true);
+  const reasoning = events.findLast((event) => event.data.type === "reasoning_supervision_recorded")!.data;
+  if (reasoning.type !== "reasoning_supervision_recorded") throw new Error("fixture reasoning missing");
+  pushV2(events, "reasoning:auth:after-work", structuredClone(reasoning), "2026-08-30T20:05:04.000Z");
+  assert.equal(compareTerminalState(events).pendingReasoningReview, false);
+});
+
 test("an honest completed subtask can close while its parent outcome remains open", () => {
   const events = cloneEvents(workerEvents("auth"));
   replaceLatest(events, "completion_claim_recorded", (claim) => ({
@@ -1005,6 +1029,34 @@ test("every authenticated event family rejects a producer scoped to another work
       id: "scope-probe:wrong-task", kind: "UI", workerScopes: ["*"], taskScopes: ["task:wrong"],
     }, scopeProbe), false, `${type} accepted a producer outside its task scope`);
   }
+});
+
+test("native Work system events are admitted only from their dedicated producers", () => {
+  const handoff = {
+    type: "chatgpt_work_cloud_handoff_intent_recorded", worker: "auth", dispatch_id: "dispatch:auth:test",
+    directive_id: "directive:auth:test", directive_revision: 1, task_id: "task:auth", app_tool: "create_thread",
+    intent_at: "2026-09-21T01:00:00.000Z", producer_id: "system:chatgpt-work-cloud-dispatch",
+    source: "TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY",
+  } as MissionControlEventV2;
+  assert.equal(producerMayEmit({ id: "system:chatgpt-work-cloud-dispatch", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["task:auth"] }, handoff), true);
+  assert.equal(producerMayEmit({ id: "system:other", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["task:auth"] }, handoff), false);
+
+  const workReceipt = {
+    type: "chatgpt_work_cloud_execution_receipt_recorded", worker: "auth", dispatch_id: "dispatch:auth:test",
+    directive_id: "directive:auth:test", directive_revision: 1, task_id: "task:auth", work_thread_id: "native-work-auth",
+    status: "COMPLETED", terminal_state: "READY_FOR_REASONING_REVIEW",
+    check_summary: { passed: 1, failed: 0, not_run: 0 }, blocker_codes: [], artifact_sha256s: [],
+    github_comment_sha256: "a".repeat(64), github_receipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issue_number: 61, comment_id: 1,
+      immutable_url: "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-1", github_created_at: "2026-09-21T01:00:00.000Z" },
+    recorded_at: "2026-09-21T01:00:01.000Z", producer_id: "system:github-decision-receipts", source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED",
+  } as MissionControlEventV2;
+  assert.equal(producerMayEmit({ id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["task:auth"] }, workReceipt), true);
+  assert.equal(producerMayEmit({ id: "system:chatgpt-work-cloud-dispatch", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["task:auth"] }, workReceipt), false);
+
+  const route = { type: "worker_message_recorded", worker: "auth", message_id: "post-work-route", thread_id: "thread:post-work-review:auth",
+    message_kind: "QUESTION", body: "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n{}", reply_to_message_id: null, direction_id: null } as MissionControlEventV2;
+  assert.equal(producerMayEmit({ id: "system:post-execution-reasoning-router", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, route), true);
+  assert.equal(producerMayEmit({ id: "system:other", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, route), false);
 });
 
 test("authenticated producer provenance is immutable and persisted on every append", () => {

@@ -216,6 +216,10 @@ export interface WorkerState {
     surfaceVerification: string;
     lastDispatchAt: string | null;
     blocker: string | null;
+    executionStatus: string | null;
+    terminalState: string | null;
+    checksPassed: number | null;
+    checksFailed: number | null;
   };
   workExecution: {
     requestedModel: string | null;
@@ -288,6 +292,15 @@ function projectV2Worker(
   const latestWorkCloudResult = latest(events, "chatgpt_work_cloud_dispatch_recorded");
   const workCloudResult = latestWorkCloudResult?.dispatch_id === workCloudRequest?.dispatch_id
     ? latestWorkCloudResult : undefined;
+  const latestWorkCloudExecutionReceipt = latest(events, "chatgpt_work_cloud_execution_receipt_recorded");
+  const workCloudExecutionReceipt = latestWorkCloudExecutionReceipt?.dispatch_id === workCloudRequest?.dispatch_id
+    ? latestWorkCloudExecutionReceipt : undefined;
+  const latestCodexReceiptEvent = events.findLast((event) => event.data.type === "execution_receipt_recorded");
+  const latestWorkCloudReceiptEvent = events.findLast((event) => event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+    && event.data.dispatch_id === workCloudRequest?.dispatch_id);
+  const latestExecutionReceiptEvent = [latestCodexReceiptEvent, latestWorkCloudReceiptEvent]
+    .filter((event): event is StoredEvent => Boolean(event))
+    .sort((left, right) => right.sequence - left.sequence)[0];
   const directiveProfile = directive?.work_execution_profile !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
     ? directive?.work_execution_profile
     : null;
@@ -449,10 +462,10 @@ function projectV2Worker(
       activeDirectiveId: strategyParked ? null : directive?.directive_id ?? null,
       directiveStatus: strategyParked ? "INTENTIONALLY_ABSENT_WHILE_PARKED" : directive?.status ?? "MISSING",
       directiveObjective: strategyParked ? "No executable directive while the strategy boundary is parked." : directive?.execution_objective ?? "No current chat-authored execution directive is recorded.",
-      codexExecutionState: strategyParked ? "PARKED" : receipt ? "STOPPED_FOR_REASONING_REVIEW" : executionStart ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
+      codexExecutionState: strategyParked ? "PARKED" : latestExecutionReceiptEvent ? "STOPPED_FOR_REASONING_REVIEW" : executionStart ? "RUNNING_WITH_DIRECTIVE" : workCloudResult?.status === "READY" ? "RUNNING_WITH_DIRECTIVE" : "NOT_STARTED",
       stopBoundary: directive?.stop_and_return_triggers ?? [],
-      latestReceiptId: receipt?.receipt_id ?? null,
-      receiptClaim: receipt?.execution_claim ?? "No execution receipt recorded.",
+      latestReceiptId: receipt?.receipt_id ?? (workCloudExecutionReceipt ? `work-cloud:${workCloudExecutionReceipt.dispatch_id}` : null),
+      receiptClaim: receipt?.execution_claim ?? (workCloudExecutionReceipt ? `${workCloudExecutionReceipt.status}: ${workCloudExecutionReceipt.terminal_state}` : "No execution receipt recorded."),
       pendingReasoningReview: comparison.pendingReasoningReview,
       proEscalationState: reasoning?.pro_escalation_state ?? "NOT_REQUIRED",
       alerts: comparison.reasonCodes.filter((code) => [
@@ -473,6 +486,10 @@ function projectV2Worker(
       blocker: workCloudResult && ["FAILED", "UNAVAILABLE"].includes(workCloudResult.status)
         ? workCloudResult.error_code
         : workCloudResult?.status === "PENDING_APPROVAL" ? "OWNER_INTERACTION_PENDING" : null,
+      executionStatus: workCloudExecutionReceipt?.status ?? null,
+      terminalState: workCloudExecutionReceipt?.terminal_state ?? null,
+      checksPassed: workCloudExecutionReceipt?.check_summary.passed ?? null,
+      checksFailed: workCloudExecutionReceipt?.check_summary.failed ?? null,
     },
     workExecution: {
       requestedModel: receiptWorkExecution?.requested_profile.model ?? workPreflight?.requested_profile.model ?? directiveProfile?.model ?? null,
@@ -856,6 +873,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       requestedSurface: null, status: "NOT_REQUESTED", mode: null, requestedTitle: null,
       workThreadId: null, clientThreadId: null, approvalState: "NOT_REQUIRED",
       surfaceVerification: "NOT_VERIFIED", lastDispatchAt: null, blocker: null,
+      executionStatus: null, terminalState: null, checksPassed: null, checksFailed: null,
     },
     workExecution: {
       requestedModel: null, requestedEffort: null, authorizedModel: null, authorizedEffort: null,

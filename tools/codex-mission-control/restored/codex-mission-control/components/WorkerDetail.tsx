@@ -279,6 +279,8 @@ function eventSummary(event: StoredEvent): string {
     case "work_execution_preflight_recorded": return `${data.preflight}: ${data.decision}`;
     case "chatgpt_work_cloud_dispatch_requested": return `${data.mode}: ${data.requested_work_title} · ${data.requested_surface}`;
     case "chatgpt_work_cloud_dispatch_recorded": return `${data.status}: ${data.work_thread_id ?? data.client_thread_id ?? data.error_code ?? "awaiting native Work"}`;
+    case "chatgpt_work_cloud_handoff_intent_recorded": return `${data.app_tool}: app-boundary intent recorded for ${data.dispatch_id}`;
+    case "chatgpt_work_cloud_execution_receipt_recorded": return `${data.status}: ${data.terminal_state} · ${data.check_summary.passed} passed / ${data.check_summary.failed} failed`;
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
     case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;
     case "work_model_routing_checkpoint_recorded": return `${data.checkpoint_kind}: ${data.eligible_execution_count}/10 eligible executions`;

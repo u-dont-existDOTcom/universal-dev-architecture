@@ -913,7 +913,8 @@ export class EventStore {
       }
       const priorDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       const priorReceiptEvent = priorDirective?.type === "execution_directive_recorded"
-        ? [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded"
+        ? [...events].reverse().find((event) => (event.data.type === "execution_receipt_recorded"
+          || event.data.type === "chatgpt_work_cloud_execution_receipt_recorded")
           && event.data.directive_id === priorDirective.directive_id
           && event.data.directive_revision === priorDirective.directive_revision)
         : undefined;
@@ -927,6 +928,7 @@ export class EventStore {
       if (directive?.type !== "execution_directive_recorded"
         || directive.status !== "ACTIVE"
         || directive.directive_schema_version !== 3
+        || directive.execution_surface !== "CHATGPT_WORK_CLOUD"
         || directive.directive_id !== data.directive_id
         || directive.directive_revision !== data.directive_revision
         || directive.task_id !== data.task_id
@@ -970,6 +972,51 @@ export class EventStore {
         if (codexCollision) throw new ContractInvariantError("A Codex run id cannot be promoted into a native Work thread id.");
       }
     }
+    if (data.type === "chatgpt_work_cloud_handoff_intent_recorded") {
+      const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      if (request?.type !== "chatgpt_work_cloud_dispatch_requested"
+        || request.worker !== data.worker
+        || request.directive_id !== data.directive_id
+        || request.directive_revision !== data.directive_revision
+        || request.task_id !== data.task_id
+        || data.app_tool !== (request.mode === "CREATE" ? "create_thread" : "send_message_to_thread")
+        || data.producer_id !== request.producer_id) {
+        throw new ContractInvariantError("Native Work handoff intent must bind the exact durable dispatch request before the app boundary.");
+      }
+      if (events.some((event) => event.data.type === "chatgpt_work_cloud_handoff_intent_recorded"
+        && event.data.dispatch_id === data.dispatch_id)) {
+        throw new ContractInvariantError("Native Work handoff intent may be recorded only once per dispatch.");
+      }
+      if (events.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+        && event.data.dispatch_id === data.dispatch_id)) {
+        throw new ContractInvariantError("Native Work handoff intent cannot be recorded after a dispatch result.");
+      }
+    }
+    if (data.type === "chatgpt_work_cloud_execution_receipt_recorded") {
+      const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      const result = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      if (request?.type !== "chatgpt_work_cloud_dispatch_requested"
+        || request.worker !== data.worker
+        || request.directive_id !== data.directive_id
+        || request.directive_revision !== data.directive_revision
+        || request.task_id !== data.task_id) {
+        throw new ContractInvariantError("Native Work execution receipt must bind its exact source-bound dispatch request.");
+      }
+      if (result?.type !== "chatgpt_work_cloud_dispatch_recorded"
+        || result.status !== "READY"
+        || result.surface_verification !== "VERIFIED_NATIVE_WORK"
+        || result.work_thread_id !== data.work_thread_id) {
+        throw new ContractInvariantError("Native Work execution receipt requires the exact directly verified READY Work thread.");
+      }
+      if (data.producer_id !== "system:github-decision-receipts") {
+        throw new ContractInvariantError("Native Work execution receipt must originate from the authenticated GitHub receipt reconciler.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "dispatch_id", data.dispatch_id, validationHistory);
+    }
+
     if (data.type === "work_execution_profile_authorized") {
       const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       if (directive?.type !== "execution_directive_recorded"

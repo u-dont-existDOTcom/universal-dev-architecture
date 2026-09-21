@@ -14,6 +14,8 @@ import type { EventStore } from "./store";
 import { parseRouteContinuation, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
 import { validateOwnerResponseContinuation } from "./owner-response-continuation";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
+import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "./chatgpt-work-cloud-autodispatch";
+import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -36,6 +38,7 @@ export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
+const postExecutionReasoningRouter: AuthenticatedProducer = { id: POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 
 export interface GitHubReceiptPolicy {
   repository: string;
@@ -410,6 +413,22 @@ function ingestGitHubSupervisionCandidateFromEvents(
       ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
     ], events);
   }
+  if (candidate.body.startsWith(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX)) {
+    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.stageIssueNumber) {
+      throw new Error("Native Work execution receipt arrived outside the configured stage/diagnostic channel.");
+    }
+    const existingByUrl = events.find((event) => event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+      && event.data.github_receipt.immutable_url === candidate.immutableUrl);
+    if (existingByUrl?.data.type === "chatgpt_work_cloud_execution_receipt_recorded") {
+      if (existingByUrl.data.github_comment_sha256 === sha256(candidate.body)) return [];
+      throw new Error("An immutable native Work execution receipt changed content.");
+    }
+    const envelopes = buildWorkCloudExecutionReceiptAndReturnRoute(events, candidate, policy, ingestedAt);
+    return store.appendMany([
+      { event: envelopes.executionReceipt, receivedAt: ingestedAt, producer: githubDecisionProducer },
+      { event: envelopes.reasoningRoute, receivedAt: ingestedAt, producer: postExecutionReasoningRouter },
+    ], events);
+  }
   if (candidate.body.startsWith(capabilityReceiptCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.capabilityIssueNumber) throw new Error("Capability receipt arrived outside the configured GitHub capability channel.");
     const capability = parseCapabilityReceiptComment(candidate.body);
@@ -465,6 +484,68 @@ function ingestGitHubSupervisionCandidateFromEvents(
     }), ingestedAt, githubReceiptCollector, events)];
   }
   throw new Error("GitHub comment is not a recognized Mission Control supervision receipt.");
+}
+
+export function buildWorkCloudExecutionReceiptAndReturnRoute(
+  events: StoredEvent[],
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy,
+  ingestedAt = new Date().toISOString(),
+): { executionReceipt: AppendEnvelope; reasoningRoute: AppendEnvelope } {
+  assertAuthorizedWriter(candidate, policy);
+  const value = parsePrefixedJson(candidate.body, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX, "native Work execution receipt");
+  if (value.schemaVersion !== 1) throw new Error("Native Work execution receipt must use schemaVersion 1.");
+  const dispatchId = requiredString(value.dispatchId, "dispatchId");
+  const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+    && event.data.dispatch_id === dispatchId)?.data;
+  const result = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+    && event.data.dispatch_id === dispatchId)?.data;
+  if (!request || request.type !== "chatgpt_work_cloud_dispatch_requested"
+    || !result || result.type !== "chatgpt_work_cloud_dispatch_recorded"
+    || result.status !== "READY" || result.surface_verification !== "VERIFIED_NATIVE_WORK" || !result.work_thread_id) {
+    throw new Error("Native Work execution receipt requires an exact directly verified READY native Work dispatch.");
+  }
+  if (requiredString(value.worker, "worker") !== request.worker
+    || requiredString(value.taskId, "taskId") !== request.task_id
+    || requiredString(value.directiveId, "directiveId") !== request.directive_id
+    || positiveInteger(value.directiveRevision, "directiveRevision") !== request.directive_revision) {
+    throw new Error("Native Work execution receipt does not match its exact dispatch directive.");
+  }
+  const status = exactEnum(value.status, ["COMPLETED", "PARTIAL", "BLOCKED", "FAILED"] as const, "status");
+  const blockerCodes = privacySafeCodeArray(value.blockerCodes, "blockerCodes", 50);
+  const artifactSha256s = sha256Array(value.artifactSha256s, "artifactSha256s", 200);
+  const executionReceipt: AppendEnvelope = {
+    schema_version: 2,
+    event_id: `github-work-cloud-execution:${sha256(`${candidate.commentId}:${dispatchId}`).slice(0, 32)}`,
+    mission_id: "mission-control-live",
+    occurred_at: candidate.createdAt,
+    data: {
+      type: "chatgpt_work_cloud_execution_receipt_recorded",
+      worker: request.worker, dispatch_id: dispatchId, directive_id: request.directive_id,
+      directive_revision: request.directive_revision, task_id: request.task_id, work_thread_id: result.work_thread_id,
+      status, terminal_state: privacySafeCode(value.terminalState, "terminalState"),
+      check_summary: {
+        passed: nonnegativeInteger(value.checksPassed, "checksPassed"),
+        failed: nonnegativeInteger(value.checksFailed, "checksFailed"),
+        not_run: nonnegativeInteger(value.checksNotRun, "checksNotRun"),
+      },
+      blocker_codes: blockerCodes, artifact_sha256s: artifactSha256s,
+      github_comment_sha256: sha256(candidate.body),
+      github_receipt: {
+        repository: candidate.repository, issue_number: candidate.issueNumber, comment_id: candidate.commentId,
+        immutable_url: candidate.immutableUrl, github_created_at: candidate.createdAt,
+      },
+      recorded_at: ingestedAt, producer_id: githubDecisionProducer.id, source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED",
+    },
+  };
+  const reasoningRoute = buildPostWorkReasoningRouteEnvelope({
+    events,
+    executionReceipt: executionReceipt as AppendEnvelope & {
+      data: Extract<AppendEnvelope["data"], { type: "chatgpt_work_cloud_execution_receipt_recorded" }>;
+    },
+    policy, recordedAt: ingestedAt,
+  });
+  return { executionReceipt, reasoningRoute };
 }
 
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
@@ -763,7 +844,10 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
       if (!Array.isArray(comments)) throw new Error("GitHub reconciliation returned a non-array comment payload.");
       for (const value of comments) {
         const comment = record(value, "GitHub issue comment");
-        if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix))) continue;
+        if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix)
+          && !comment.body.startsWith(capabilityReceiptCommentPrefix)
+          && !comment.body.startsWith(stageReceiptCommentPrefix)
+          && !comment.body.startsWith(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX))) continue;
         accepted.recognizedSinceYield += 1;
         if (accepted.recognizedSinceYield >= githubReconciliationYieldEvery) {
           accepted.recognizedSinceYield = 0;
@@ -813,6 +897,10 @@ function reconstructGitHubReconciliationState(events: StoredEvent[], policy: Git
   };
   for (const event of events) {
     if (event.data.type === "github_decision_receipt_ingested") {
+      accept(event.data.github_receipt.immutable_url, event.data.github_receipt.github_created_at);
+      continue;
+    }
+    if (event.data.type === "chatgpt_work_cloud_execution_receipt_recorded") {
       accept(event.data.github_receipt.immutable_url, event.data.github_receipt.github_created_at);
       continue;
     }
@@ -1334,6 +1422,32 @@ function consumerControlRefs(challenge: CapabilityChallenge): string[] {
   ];
 }
 function repositoryName(value: unknown, field: string): string { const result = requiredString(value, field); if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(result)) throw new Error(`${field} must be an owner/name GitHub repository.`); return result; }
+function parsePrefixedJson(body: string, prefix: string, label: string): Record<string, unknown> {
+  let value: unknown;
+  try { value = JSON.parse(body.slice(prefix.length)); } catch { throw new Error(`${label} must contain one JSON object after its prefix.`); }
+  return record(value, label);
+}
+function exactEnum<const T extends readonly string[]>(value: unknown, allowed: T, field: string): T[number] {
+  if (typeof value !== "string" || !allowed.includes(value)) throw new Error(`${field} must be one of ${allowed.join(", ")}.`);
+  return value as T[number];
+}
+function nonnegativeInteger(value: unknown, field: string): number {
+  if (!Number.isInteger(value) || Number(value) < 0) throw new Error(`${field} must be a nonnegative integer.`);
+  return Number(value);
+}
+function privacySafeCode(value: unknown, field: string): string {
+  const code = requiredString(value, field);
+  if (code.length > 120 || !/^[A-Z0-9][A-Z0-9_:.\/-]*$/.test(code)) throw new Error(`${field} must be a bounded privacy-safe code.`);
+  return code;
+}
+function privacySafeCodeArray(value: unknown, field: string, max: number): string[] {
+  if (!Array.isArray(value) || value.length > max) throw new Error(`${field} must be an array with at most ${max} entries.`);
+  return value.map((item, index) => privacySafeCode(item, `${field}[${index}]`));
+}
+function sha256Array(value: unknown, field: string, max: number): string[] {
+  if (!Array.isArray(value) || value.length > max) throw new Error(`${field} must be an array with at most ${max} entries.`);
+  return value.map((item, index) => digest(item, `${field}[${index}]`));
+}
 function digest(value: unknown, field: string): string { const result = requiredString(value, field); if (!/^[a-f0-9]{64}$/.test(result)) throw new Error(`${field} must be a lowercase SHA-256 digest.`); return result; }
 function positiveInteger(value: unknown, field: string): number { if (!Number.isInteger(value) || Number(value) < 1) throw new Error(`${field} must be a positive integer.`); return Number(value); }
 function timestamp(value: unknown, field: string): string { const result = requiredString(value, field); if (!Number.isFinite(Date.parse(result))) throw new Error(`${field} must be an ISO timestamp.`); return result; }

@@ -1,0 +1,20 @@
+[Unit]
+Description=Mission Control native ChatGPT Work autodispatcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/codex-mission-control
+EnvironmentFile=%h/.config/mission-control/work-cloud-autodispatch.env
+ExecStart=/usr/bin/npm run work-cloud:autodispatch
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=%h/.local/share/mission-control-work-cloud
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=default.target

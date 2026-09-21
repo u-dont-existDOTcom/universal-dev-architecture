@@ -218,17 +218,21 @@ const server = http.createServer(async (request, response) => {
       }
       if (!dispatchId || dispatchId.length > 180) return json(response, 400, { error: "A bounded dispatch id is required." });
       const matching = eventHistory().filter((event) => event.worker === worker
-        && (event.data.type === "chatgpt_work_cloud_dispatch_requested" || event.data.type === "chatgpt_work_cloud_dispatch_recorded")
+        && (event.data.type === "chatgpt_work_cloud_dispatch_requested"
+          || event.data.type === "chatgpt_work_cloud_handoff_intent_recorded"
+          || event.data.type === "chatgpt_work_cloud_dispatch_recorded")
         && event.data.dispatch_id === dispatchId);
       if (matching.length === 0) return json(response, 404, { error: "Work-cloud dispatch not found." });
       if (matching.some((event) => event.producerId !== producer.id || event.producerKind !== producer.kind)) {
         return json(response, 403, { error: "Work-cloud dispatch does not match the authenticated producer." });
       }
       const requestEvent = matching.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested");
+      const handoffIntentEvent = matching.findLast((event) => event.data.type === "chatgpt_work_cloud_handoff_intent_recorded");
       const resultEvent = matching.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded");
       if (!requestEvent) return json(response, 409, { error: "Work-cloud result lacks its durable request." });
       return json(response, 200, {
         request: appendEnvelopeFromStored(requestEvent),
+        handoffIntent: handoffIntentEvent ? appendEnvelopeFromStored(handoffIntentEvent) : null,
         result: resultEvent ? appendEnvelopeFromStored(resultEvent) : null,
       });
     }

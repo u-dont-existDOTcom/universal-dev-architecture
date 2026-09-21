@@ -4,6 +4,7 @@ import test from "node:test";
 import { evaluateFinalResponseAdmission } from "../lib/final-response-gate";
 import type { WorkerState } from "../lib/projection";
 import { internalSupervisorRoutePrefix } from "../lib/supervision-admission-runtime";
+import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 
 function worker(overrides: Record<string, unknown> = {}): WorkerState {
   const base = {
@@ -144,6 +145,41 @@ test("a routed directive stop may end only the current execution turn while the 
   assert.equal(result.mustContinue, false);
   assert.equal(result.decision, "ALLOW_REASONING_HANDOFF_PAUSE");
   assert.match(result.requiredNextAction, /task remains open|resume automatically/i);
+});
+
+function nativeWorkTimeline(includeReturnRoute: boolean) {
+  const events: any[] = [
+    { sequence: 10, data: { type: "execution_directive_recorded", directive_schema_version: 3,
+      directive_id: "directive:native-work", directive_revision: 1, execution_surface: "CHATGPT_WORK_CLOUD" } },
+    { sequence: 20, data: { type: "chatgpt_work_cloud_dispatch_recorded", directive_id: "directive:native-work",
+      directive_revision: 1, status: "READY", surface_verification: "VERIFIED_NATIVE_WORK", work_thread_id: "native-work-1" } },
+    { sequence: 30, data: { type: "chatgpt_work_cloud_execution_receipt_recorded", directive_id: "directive:native-work",
+      directive_revision: 1, work_thread_id: "native-work-1", status: "COMPLETED", terminal_state: "READY_FOR_REASONING_REVIEW" } },
+  ];
+  if (includeReturnRoute) events.push({ sequence: 40, data: { type: "worker_message_recorded", message_kind: "QUESTION",
+    body: `${inBandRequestRoutePrefix}{"schemaVersion":6}` } });
+  return events;
+}
+
+test("native Work stop cannot hand off until its post-receipt V6 reasoning route is durable", () => {
+  const result = evaluateFinalResponseAdmission(worker({
+    nextSteps: [], terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
+    executionSupervision: { codexExecutionState: "STOPPED_FOR_REASONING_REVIEW", pendingReasoningReview: true },
+    timeline: nativeWorkTimeline(false),
+  }));
+  assert.equal(result.terminalResponseAllowed, false);
+  assert.equal(result.decision, "REJECT_UNROUTED_REASONING_STOP");
+});
+
+test("directly verified native Work receipt plus later V6 route returns control to reasoning", () => {
+  const result = evaluateFinalResponseAdmission(worker({
+    nextSteps: [], terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
+    executionSupervision: { codexExecutionState: "STOPPED_FOR_REASONING_REVIEW", pendingReasoningReview: true },
+    timeline: nativeWorkTimeline(true),
+  }));
+  assert.equal(result.terminalResponseAllowed, true);
+  assert.equal(result.decision, "ALLOW_REASONING_HANDOFF_PAUSE");
+  assert.match(result.requiredNextAction, /resume automatically/i);
 });
 
 test("an external blocker with a recorded workaround cannot terminalize the task", () => {

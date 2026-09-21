@@ -329,7 +329,7 @@ Mission Control coordinates a gated, mediated cycle; do not model it as native C
 - **Chat → ChatGPT Work cloud:** when the owner explicitly requests Work and the current authenticated app executor exposes the native Work-cloud target, use `create_thread(target.type="chatgptWorkCloud")` for a new Work task or `send_message_to_thread` for a verified existing Work task. Honor any product-level approval gate. Apply `patterns/chatgpt-work-cloud-dispatch.md`.
 - **Chat → Codex:** Codex remains a separate execution surface. A Codex thread, including one titled `Work — ...`, is not proof of ChatGPT Work and must not be substituted silently when the owner requested visible Work.
 - **Work ↔ Work:** native coordination may exist within Work once Work tasks exist.
-- **Work → the originating Chat:** unavailable as a native semantic edge; preserve the existing controller/receipt route.
+- **Work → the originating Chat:** unavailable as a native semantic edge; Mission Control automatically ingests the privacy-safe Work execution receipt and queues one fresh request-bound review to the original stable reasoning supervisor. The owner must not serve as a clipboard transport.
 - **Chat ↔ GitHub:** ordinary supported GitHub reads/writes are performed directly by the reasoning Chat when available; do not insert Work between Chat and GitHub for routine supervisory artifacts.
 
 The practical Mission Control reasoning loop is therefore controller-mediated: a reasoning Chat publishes an exact durable GitHub artifact; Codex/controller observes it after that Chat turn completes, transports the required source-bound data to the next registered reasoning Chat, waits for that Chat to publish its own GitHub artifact, and continues the admitted route. Codex/controller is a transport/execution coordinator in this loop, not the semantic author of the GitHub decision.
@@ -350,4 +350,4 @@ A valid Work handoff records:
 - explicit Work-side reasoning-level preflight result and recommended level when the current setting is observable;
 - explicit semantic authority = none beyond the bounded implementation choices.
 
-The execution receipt becomes input to Chat only through a verified Mission Control/controller route. It is not permission for Work to select the next consequential step.
+The execution receipt becomes input to Chat only through a verified Mission Control/controller route. In the normal path, that return is automatic: receipt ingestion creates exactly one fresh source-bound reasoning review for the original supervisor/current owner outcome. It is not permission for Work to select the next consequential step, and the owner must not copy the receipt between surfaces.

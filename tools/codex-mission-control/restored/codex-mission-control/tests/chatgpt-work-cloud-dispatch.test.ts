@@ -5,6 +5,7 @@ import { sha256 } from "../lib/canonical";
 import {
   CHATGPT_WORK_CLOUD_TARGET,
   buildWorkCloudDispatchRequestedEnvelope,
+  buildWorkCloudHandoffIntentEnvelope,
   dispatchAndRecordChatGptWorkCloud,
   dispatchChatGptWorkCloud,
   type WorkCloudAppExecutor,
@@ -184,6 +185,7 @@ test("runtime records the exact request before invoking the app executor and rec
   await dispatchAndRecordChatGptWorkCloud(input(), app, sink);
   assert.deepEqual(order, [
     "chatgpt_work_cloud_dispatch_requested",
+    "chatgpt_work_cloud_handoff_intent_recorded",
     "app:create_thread",
     "chatgpt_work_cloud_dispatch_recorded",
   ]);
@@ -269,19 +271,43 @@ test("same dispatch id with different source-bound content fails closed", async 
   assert.equal(calls.length, 0);
 });
 
-test("request-only recovery fails closed before a second app call", async () => {
+test("request-only recovery with no handoff intent is proven unsent and resumes exactly once", async () => {
   const request = buildRequestForRetry();
   const calls: unknown[] = [];
-  await assert.rejects(
-    dispatchAndRecordChatGptWorkCloud(input({
-      requestedAt: "2026-09-19T03:25:00.000Z",
-      capabilityEvidence: { ...input().capabilityEvidence, observedAt: "2026-09-19T03:24:59.000Z" },
-    }), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "duplicate", hostId: null }, calls), {
-      getWorkCloudDispatch: async () => ({ request, result: null }),
-      recordWorkerEvents: async () => { throw new Error("must not append during ambiguous recovery"); },
-    }),
-    WorkCloudDispatchAmbiguityError,
-  );
+  const appended: Array<{ data: { type: string } }> = [];
+  const recovered = await dispatchAndRecordChatGptWorkCloud(input({
+    requestedAt: "2026-09-19T03:25:00.000Z",
+    capabilityEvidence: { ...input().capabilityEvidence, observedAt: "2026-09-19T03:24:59.000Z" },
+  }), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "recovered-once", hostId: null }, calls), {
+    getWorkCloudDispatch: async () => ({ request, handoffIntent: null, result: null }),
+    recordWorkerEvents: async (_worker, events) => { appended.push(...events as Array<{ data: { type: string } }>); },
+  }, "2026-09-19T03:25:01.000Z");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(appended.map((event) => event.data.type), [
+    "chatgpt_work_cloud_handoff_intent_recorded",
+    "chatgpt_work_cloud_dispatch_recorded",
+  ]);
+  assert.deepEqual(recovered.request, request);
+});
+
+test("request recovery after durable handoff intent is ambiguous and never replays the app call", async () => {
+  const request = buildRequestForRetry();
+  const handoffIntent = {
+    schema_version: 2 as const, event_id: `work-cloud-handoff-intent:${input().dispatchId}`,
+    mission_id: "mission-control-live", occurred_at: now,
+    data: {
+      type: "chatgpt_work_cloud_handoff_intent_recorded" as const, worker: "auth", dispatch_id: input().dispatchId,
+      directive_id: input().binding.directiveId, directive_revision: 1, task_id: taskId, app_tool: "create_thread" as const,
+      intent_at: now, producer_id: systemProducer.id, source: "TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY" as const,
+    },
+  };
+  const calls: unknown[] = [];
+  await assert.rejects(dispatchAndRecordChatGptWorkCloud(input(), executor({
+    kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "must-not-replay", hostId: null,
+  }, calls), {
+    getWorkCloudDispatch: async () => ({ request, handoffIntent, result: null }),
+    recordWorkerEvents: async () => { throw new Error("must not append after ambiguous app-boundary intent"); },
+  }), WorkCloudDispatchAmbiguityError);
   assert.equal(calls.length, 0);
 });
 
@@ -317,6 +343,41 @@ test("trusted app-executor events reject a mismatched authenticated system produ
     assert.throws(() => store.append(created.request, now, {
       id: "system:other-dispatcher", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: [taskId],
     }));
+  } finally { store.close(); }
+});
+
+test("EventStore enforces handoff intent ordering and accepts only exact directly verified Work execution receipt", async () => {
+  const store = currentDirectiveStore();
+  try {
+    const request = buildWorkCloudDispatchRequestedEnvelope(input());
+    const intent = buildWorkCloudHandoffIntentEnvelope(input(), now);
+    const created = await dispatchChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-store", hostId: null }, []));
+    store.append(request, now, systemProducer);
+    store.append(intent, now, systemProducer);
+    assert.equal(store.append(intent, now, systemProducer).eventId, intent.event_id); // exact replay is idempotent
+    const secondIntent = { ...intent, event_id: `${intent.event_id}:duplicate` };
+    assert.throws(() => store.append(secondIntent, now, systemProducer), ContractInvariantError);
+    store.append(created.result, now, systemProducer);
+    const receipt = {
+      schema_version: 2 as const,
+      event_id: "github-work-cloud-execution:store-fixture",
+      mission_id: "mission-control-live",
+      occurred_at: now,
+      data: {
+        type: "chatgpt_work_cloud_execution_receipt_recorded" as const,
+        worker: "auth", dispatch_id: input().dispatchId,
+        directive_id: input().binding.directiveId, directive_revision: 1, task_id: taskId,
+        work_thread_id: "work-thread-native-store", status: "COMPLETED" as const,
+        terminal_state: "IMPLEMENTATION_READY_FOR_REVIEW",
+        check_summary: { passed: 3, failed: 0, not_run: 0 }, blocker_codes: [], artifact_sha256s: ["7".repeat(64)],
+        github_comment_sha256: "8".repeat(64),
+        github_receipt: { repository: "u-dont-existDOTcom/universal-dev-architecture", issue_number: 61, comment_id: 123,
+          immutable_url: "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-123", github_created_at: now },
+        recorded_at: now, producer_id: "system:github-decision-receipts", source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED" as const,
+      },
+    };
+    store.append(receipt, now, { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: [taskId] });
+    assert.equal(store.workerEvents("auth").filter((event) => event.data.type === "chatgpt_work_cloud_execution_receipt_recorded").length, 1);
   } finally { store.close(); }
 });
 
@@ -417,6 +478,7 @@ function currentDirectiveStore(): EventStore {
         policyRef: WORK_MODEL_ROUTING_POLICY_REF, routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
         contractVersion: "TRUSTED_SETTER_V1",
       },
+      execution_surface: "CHATGPT_WORK_CLOUD",
       status: "ACTIVE",
     },
   });
