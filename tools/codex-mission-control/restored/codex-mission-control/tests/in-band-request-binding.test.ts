@@ -125,7 +125,7 @@ function fixture() {
       sendPath: `SUPERVISORY_CYCLE_${inBandRequestStep}`, status: "BOUNDARY_RECORDED", boundaryKind: "GENERATION_STARTED",
       admittedAt: time("01.500"), expiresAt: time("20.000"), boundaryAt: time("02.500"),
     }],
-    queueItems: [{ queueItemId, admissionIds: [admissionId] }],
+    queueItems: [{ queueItemId, status: "BOUNDARY_RECORDED", admissionIds: [admissionId] }],
   };
   return { store, events: store.allEvents(), request, binding, decision, candidate, authority };
 }
@@ -185,6 +185,59 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
     assert.equal(envelope.data.execution_mcp_receipt_id, undefined);
     assert.equal(envelope.data.execution_submission_admission_id, admissionId);
     assert.equal(envelope.data.execution_provider_body_sha256, promptSha256);
+  } finally { f.store.close(); }
+});
+
+test("V6 accepts multiple admissions only when every earlier retry is centrally proven pre-boundary safe", () => {
+  const f = fixture();
+  try {
+    const abortedAdmissionId = "send-admission:in-band-aborted";
+    const authority = structuredClone(f.authority) as any;
+    authority.admissions.unshift({
+      ...structuredClone(authority.admissions[0]),
+      admissionId: abortedAdmissionId,
+      status: "ABORTED_BEFORE_BOUNDARY",
+      admittedAt: time("00.500"), expiresAt: time("10.000"),
+      boundaryAt: null, boundaryKind: null, abortedAt: time("01.000"), abortStage: "PREPARING",
+    });
+    authority.queueItems[0].admissionIds = [abortedAdmissionId, admissionId];
+    const events = structuredClone(f.events);
+    const finalPre = events.find((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandPreSendSummary)!;
+    const priorPre = structuredClone(finalPre);
+    priorPre.eventId = "evidence:pre-send-aborted";
+    priorPre.sequence = Math.max(1, finalPre.sequence - 1);
+    priorPre.occurredAt = time("00.750");
+    priorPre.receivedAt = time("00.750");
+    if (priorPre.data.type === "evidence_receipt_recorded") {
+      priorPre.data.receipt_id = "pre-send-aborted";
+      priorPre.data.refs = priorPre.data.refs.map((ref) => ref.startsWith("submission_admission:")
+        ? `submission_admission:${abortedAdmissionId}`
+        : ref.startsWith("admitted_at:") ? `admitted_at:${time("00.500")}`
+          : ref.startsWith("admission_expires_at:") ? `admission_expires_at:${time("10.000")}` : ref);
+    }
+    events.push(priorPre);
+    const envelope = build(f, events, f.candidate, authority);
+    assert.equal(envelope.data.type, "github_decision_receipt_ingested");
+    if (envelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.equal(envelope.data.execution_submission_admission_id, admissionId);
+
+    const unsafe = structuredClone(authority);
+    unsafe.admissions[0].status = "AMBIGUOUS_AFTER_RESTART";
+    assert.throws(() => build(f, events, f.candidate, unsafe), /prior retry admissions/);
+  } finally { f.store.close(); }
+});
+
+test("V6 final proof accepts an exact WEB-prefixed provider conversation URL", () => {
+  const f = fixture();
+  try {
+    const events = structuredClone(f.events);
+    const webUrl = "https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81";
+    for (const event of events) {
+      if (event.data.type !== "evidence_receipt_recorded") continue;
+      event.data.refs = event.data.refs.map((ref) => ref.startsWith("conversation_url:") && ref !== "conversation_url:PENDING_PROVIDER_ASSIGNMENT"
+        ? `conversation_url:${webUrl}` : ref);
+    }
+    assert.equal(build(f, events).data.type, "github_decision_receipt_ingested");
   } finally { f.store.close(); }
 });
 
@@ -303,7 +356,7 @@ test("V6 rejects multiple sends, MCP evidence, central admission changes, and cu
       (authority: any) => { authority.queueItems[0].admissionIds.push("send-admission:second"); },
     ]) {
       const authority = structuredClone(f.authority); mutate(authority);
-      assert.throws(() => build(f, f.events, f.candidate, authority), /central admission|single-use/);
+      assert.throws(() => build(f, f.events, f.candidate, authority), /central admission|single-use|retry pre-send history/);
     }
 
     const changedOutcome = structuredClone(f.events);

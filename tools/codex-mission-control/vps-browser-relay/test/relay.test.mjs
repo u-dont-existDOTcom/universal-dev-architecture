@@ -807,7 +807,7 @@ function requestBoundFixture({ enabled = true, submitErrorStage = null } = {}) {
   return { store, mc, browser, runtime };
 }
 
-function inBandRequestFixture() {
+function inBandRequestFixture({ admissions = null, confirmPreBoundaryAbort = false } = {}) {
   const event = directRouteEvent('r-1', 'v6-route', 'EXTRA_HIGH_DIRECT');
   const packet = JSON.parse(event.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
   packet.schemaVersion = 6;
@@ -820,13 +820,20 @@ function inBandRequestFixture() {
     admitted: true, admissionId: 'send-admission:v6', queueItemId: 'send-queue-item:v6',
     admittedAt: '2026-09-02T00:00:00.500Z', expiresAt: '2026-09-02T00:02:00.000Z',
   };
+  const admissionSequence = admissions ?? [admission];
+  let admissionIndex = 0;
   const pacer = {
     status: () => ({ ready: true, minimumIntervalMs: 60_000, retryAfterMs: 0 }),
     remoteStatus: async () => ({ ready: true }),
     assertReady: async () => ({ ready: true }),
     submit: async ({ beforeSubmit, submit }) => {
-      await beforeSubmit(admission);
-      return submit(async () => {}, admission, async () => ({ valid: true }));
+      const currentAdmission = admissionSequence[Math.min(admissionIndex++, admissionSequence.length - 1)];
+      await beforeSubmit(currentAdmission);
+      try { return await submit(async () => {}, currentAdmission, async () => ({ valid: true })); }
+      catch (error) {
+        if (confirmPreBoundaryAbort && error?.relayStage === 'PREPARING') error.preBoundaryAbortConfirmed = true;
+        throw error;
+      }
     },
   };
   const runtime = makeRuntime({ store, mc, browser, submitEnabled: true, submissionPacer: pacer });
@@ -897,6 +904,29 @@ test('V6 operator-authorized proven-unsent retry re-enters the same one-send con
   const retry = await runtime.cycle();
   assert.equal(retry.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(retry));
   assert.equal(store.state.deliveries['request:r-1'].providerSessionId, 'provider-session:v6-unsent');
+});
+
+test('V6 proven-unsent retry emits admission-unique pre-send receipt identities', async () => {
+  const admissions = [
+    { admitted: true, admissionId: 'send-admission:v6:first', queueItemId: 'send-queue-item:v6', admittedAt: '2026-09-02T00:00:00.500Z', expiresAt: '2026-09-02T00:02:00.000Z' },
+    { admitted: true, admissionId: 'send-admission:v6:retry', queueItemId: 'send-queue-item:v6', admittedAt: '2026-09-02T00:03:00.500Z', expiresAt: '2026-09-02T00:05:00.000Z' },
+  ];
+  const { store, mc, browser, runtime } = inBandRequestFixture({ admissions, confirmPreBoundaryAbort: true });
+  browser.submitErrorStage = 'PREPARING';
+  const first = await runtime.cycle();
+  assert.equal(first.status, 'SUBMISSION_FAILED_RETRYABLE', JSON.stringify(first));
+  assert.equal(store.state.deliveries['request:r-1'].preBoundaryAbortConfirmed, true);
+  browser.submitErrorStage = null;
+  assert.equal((await runtime.resolve('request:r-1', 'retry')).status, 'AMBIGUITY_RESOLVED');
+  const second = await runtime.cycle();
+  assert.equal(second.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(second));
+  const receipts = mc.recordedEvidence.filter((item) => item.summary === IN_BAND_PRE_SEND_SUMMARY);
+  assert.equal(receipts.length, 2);
+  assert.deepEqual(receipts.map((item) => item.receiptId), [
+    'in-band-pre-send:r-1:' + store.state.deliveries['request:r-1'].providerSessionId + ':send-admission:v6:first',
+    'in-band-pre-send:r-1:' + store.state.deliveries['request:r-1'].providerSessionId + ':send-admission:v6:retry',
+  ]);
+  assert.notEqual(receipts[0].receiptId, receipts[1].receiptId);
 });
 
 test('V6 records one trusted binding/body/admission receipt before one GitHub-only provider message', async () => {

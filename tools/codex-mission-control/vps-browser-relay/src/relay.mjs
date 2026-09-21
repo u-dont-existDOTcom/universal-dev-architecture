@@ -885,7 +885,7 @@ export class RelayRuntime {
           if (inBandRequest) {
             const binding = deriveInBandRequestBinding(route, session.providerSessionId);
             await this.missionControl.recordEvidence(route.workerId, {
-              receiptId: `in-band-pre-send:${route.requestId}:${session.providerSessionId}`,
+              receiptId: `in-band-pre-send:${route.requestId}:${session.providerSessionId}:${admission.admissionId}`,
               summary: IN_BAND_PRE_SEND_SUMMARY,
               refs: [
                 `request:${route.requestId}`,
