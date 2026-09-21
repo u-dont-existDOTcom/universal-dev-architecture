@@ -464,6 +464,17 @@ export const VERIFY_COMPOSER_FN = `function(expectedBody) {
   return { exact: state.ok && state.exact, length: state.length, ...(state.ok ? {} : { reason: state.reason }) };
 }`;
 
+export function hasSystemsThinkingNudgeCue(value) {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+  return normalized.includes('retry with a faster model')
+    || normalized.includes('reessayer avec un modele plus rapide');
+}
+
 const CLICK_SEND_FN = `function() {
   const selectors = [
     'button[data-testid="send-button"]',
@@ -493,10 +504,9 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
-  const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
   const systemsThinkingMoreThanUsual = stopVisible && [...document.querySelectorAll('[role="status"], [aria-live], [data-testid], div, span, p')].some((element) => {
     if (!visible(element) || element.closest('.markdown, [class*="markdown"], [class*="prose"]')) return false;
-    return /^our systems are thinking more than usual[.!…]*$/.test(normalizeText(element.textContent));
+    return (${hasSystemsThinkingNudgeCue.toString()})(element.textContent);
   });
   const normalizedCurrent = normalizeUrl(location.href);
   const current = new URL(location.href);
