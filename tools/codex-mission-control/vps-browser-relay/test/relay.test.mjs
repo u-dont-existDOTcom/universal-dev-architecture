@@ -834,6 +834,40 @@ function inBandRequestFixture() {
   return { store, mc, browser, runtime, admission };
 }
 
+test('expired historical supervisory route cannot starve a later valid route', async () => {
+  const expired = directRouteEvent('expired-old', 'v5-route', 'EXTRA_HIGH_DIRECT');
+  const expiredPacket = JSON.parse(expired.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  expiredPacket.schemaVersion = 5;
+  expiredPacket.executionContext = { task_id: 'task-old' };
+  expiredPacket.queuedAt = '2026-09-01T00:00:00.000Z';
+  expiredPacket.expiresAt = '2026-09-01T01:00:00.000Z';
+  expired.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n' + JSON.stringify(expiredPacket);
+
+  const current = directRouteEvent('current-new', 'v6-route', 'EXTRA_HIGH_DIRECT');
+  const currentPacket = JSON.parse(current.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  currentPacket.schemaVersion = 6;
+  currentPacket.executionContext = { task_id: 'task-new' };
+  currentPacket.factualPacket.taskId = 'task-new';
+  currentPacket.queuedAt = '2026-09-21T00:00:00.000Z';
+  currentPacket.expiresAt = '2099-09-21T01:00:00.000Z';
+  current.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(currentPacket);
+
+  const store = new MemoryStateStore();
+  store.state.deliveries['request:expired-old'] = {
+    status: 'REQUEST_BOUND_DECISION_COMPLETE', requestId: 'expired-old', workerId: 'worker-1',
+    supervisorId: 'spec', providerSessionId: 'provider-session:expired-old',
+  };
+  const mc = new FakeMissionControl({ evidence: [], routes: [expired, current], autoFirstTurnMcp: false });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'current-new');
+  assert.equal(result.route.taskId, 'task-new');
+  assert.equal(browser.submitCalls, 0);
+});
+
 test('V6 records one trusted binding/body/admission receipt before one GitHub-only provider message', async () => {
   const { store, mc, browser, runtime, admission } = inBandRequestFixture();
   const first = await runtime.cycle();
