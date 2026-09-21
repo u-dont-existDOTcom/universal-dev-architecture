@@ -19,7 +19,7 @@ NOW = dt.datetime(2026, 9, 21, 14, 0, tzinfo=dt.timezone.utc)
 
 
 def event(seq: int, data: dict) -> dict:
-    return {"sequence": seq, "eventId": f"event:{seq}", "data": data}
+    return {"sequence": seq, "eventId": f"event:{seq}", "occurredAt": "2026-09-21T13:56:00Z", "data": data}
 
 
 def route_event(request_id: str = "issue178-v3", expires: str = "2026-09-21T15:00:00Z") -> dict:
@@ -88,14 +88,25 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         with self.assertRaises(copier.CopierError):
             copier.extract_machine_block(machine + "\ntrailing prose", copier.DECISION_PREFIX)
 
-    def test_current_v6_route_discovers_exact_completed_provider_thread_and_expired_route_does_not(self) -> None:
+    def test_crossed_provider_response_remains_reconcilable_after_route_expiry_but_unsent_expired_route_does_not(self) -> None:
         events = [route_event(), pre_send(), session_complete(), stage_started()]
         found = copier.discover_decision_candidates(events, min_sequence=90, now=NOW)
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0].conversation_url, "https://chatgpt.com/c/provider-thread-v3")
         self.assertEqual(found[0].provider_session_id, "provider-session:v3")
-        expired = [route_event("old", "2026-09-21T13:00:00Z"), pre_send("old"), session_complete("old"), stage_started("old")]
-        self.assertEqual(copier.discover_decision_candidates(expired, min_sequence=0, now=NOW), [])
+        expired_crossed = [route_event("old", "2026-09-21T14:00:00Z"), pre_send("old"), session_complete("old"), stage_started("old")]
+        self.assertEqual(len(copier.discover_decision_candidates(expired_crossed, min_sequence=0, now=NOW)), 1)
+        expired_unsent = [route_event("old-unsent", "2026-09-21T14:00:00Z"), pre_send("old-unsent"), session_complete("old-unsent")]
+        self.assertEqual(copier.discover_decision_candidates(expired_unsent, min_sequence=0, now=NOW), [])
+
+    def test_worker_snapshot_feed_is_bounded_to_exact_configured_worker(self) -> None:
+        payload = {"worker": {"id": "mission-control-development", "timeline": [route_event(), {"junk": True}]}}
+        events = copier.events_from_worker_snapshot(payload, "mission-control-development")
+        self.assertEqual(events, payload["worker"]["timeline"] )
+        with self.assertRaisesRegex(copier.CopierError, "identity"):
+            copier.events_from_worker_snapshot(payload, "other-worker")
+        with self.assertRaisesRegex(copier.CopierError, "response"):
+            copier.events_from_worker_snapshot({"worker": {"id": "mission-control-development", "timeline": None}}, "mission-control-development")
 
     def test_web_prefixed_provider_thread_is_discovered_exactly(self) -> None:
         url = "https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81"

@@ -21,6 +21,7 @@ import re
 import shlex
 import subprocess
 import time
+import urllib.parse
 from typing import Any, Iterable
 
 V6_ROUTE_PREFIX = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n"
@@ -135,7 +136,7 @@ def discover_decision_candidates(
         expires = route.get("expiresAt")
         if not all(isinstance(value, str) and value for value in (request_id, worker, supervisor, expires)):
             continue
-        if request_id in completed or parse_iso(expires) <= now:
+        if request_id in completed:
             continue
         pre_send_events = []
         for event in events:
@@ -181,6 +182,12 @@ def discover_decision_candidates(
                 starts.append(event)
         if not exact_sessions or not starts:
             continue
+        if parse_iso(expires) <= now:
+            # Expiry ends new provider work, not deterministic recovery of an already-crossed response.
+            # STARTED is mandatory here, so an unsent expired route never becomes a candidate.
+            started_at = max(starts, key=event_sequence).get("occurredAt") or max(starts, key=event_sequence).get("occurred_at")
+            if not isinstance(started_at, str) or parse_iso(started_at) > parse_iso(expires):
+                continue
         exact_session = max(exact_sessions, key=event_sequence)
         session_refs = event_data(exact_session).get("refs") or []
         conversation_url = ref_value(session_refs, "conversation_url:")
@@ -335,6 +342,7 @@ def validate_work_receipt(block: str, payload: dict[str, Any], candidate: WorkCa
 @dataclasses.dataclass(frozen=True)
 class Config:
     primary_ssh: str
+    worker: str
     remote_app_root: str
     remote_env_file: str
     repository: str
@@ -356,6 +364,7 @@ def config_from_env() -> Config:
     )).expanduser().resolve()
     return Config(
         primary_ssh=os.environ.get("MISSION_CONTROL_COPIER_PRIMARY_SSH", "mission-control-primary").strip(),
+        worker=os.environ.get("MISSION_CONTROL_COPIER_WORKER", "mission-control-development").strip() or "mission-control-development",
         remote_app_root=required("MISSION_CONTROL_COPIER_REMOTE_APP_ROOT"),
         remote_env_file=required("MISSION_CONTROL_COPIER_REMOTE_ENV_FILE"),
         repository=required("MISSION_CONTROL_COPIER_REPOSITORY"),
@@ -382,12 +391,20 @@ def ssh_json(config: Config, remote_command: str, *, timeout: float = 90) -> Any
     return json.loads(output)
 
 
-def fetch_events(config: Config) -> list[dict[str, Any]]:
-    payload = ssh_json(config, "curl -fsS --max-time 30 http://127.0.0.1:4100/events", timeout=45)
-    events = payload.get("events") if isinstance(payload, dict) else None
+def events_from_worker_snapshot(payload: Any, expected_worker: str) -> list[dict[str, Any]]:
+    worker = payload.get("worker") if isinstance(payload, dict) else None
+    if not isinstance(worker, dict) or worker.get("id") != expected_worker:
+        raise CopierError("Mission Control worker snapshot identity is invalid")
+    events = worker.get("timeline")
     if not isinstance(events, list):
-        raise CopierError("Mission Control /events response is invalid")
+        raise CopierError("Mission Control worker snapshot response is invalid")
     return [event for event in events if isinstance(event, dict)]
+
+
+def fetch_events(config: Config) -> list[dict[str, Any]]:
+    worker_url = f"http://127.0.0.1:4100/workers/{urllib.parse.quote(config.worker, safe='')}"
+    payload = ssh_json(config, f"curl -fsS --max-time 30 {shlex.quote(worker_url)}", timeout=45)
+    return events_from_worker_snapshot(payload, config.worker)
 
 
 def read_thread(config: Config, thread_id: str) -> dict[str, Any]:
