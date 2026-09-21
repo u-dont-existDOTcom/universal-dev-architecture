@@ -188,6 +188,10 @@ Before closing an owner-facing handoff, verify that the owner can use what was d
 
 Use `patterns/human-readable-operational-references.md` for the full outbound-link and artifact-delivery rules, rationale, examples, and recovery rule.
 
+## Paid purchase and subscription recommendation gate
+
+Before recommending a new recurring charge, upgrade, prepaid/annual plan, or paid replacement, apply `patterns/recommendation-preflight-integrity.md`. Bind the claimed value to the owner's exact account/workspace/surface/mode/workload; distinguish account-level from workspace-level entitlements and included allowances from workspace/API/external credits; prove what current cost is actually replaceable and state what the purchase does not replace. For annual/prepaid commitments, validate the decisive premise through the cheapest reversible path when available. If a decision-relevant entitlement, allowance, surface, or billing boundary could reverse the recommendation and remains unresolved, do not recommend the purchase.
+
 ## Research before reinvention
 
 Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`.
