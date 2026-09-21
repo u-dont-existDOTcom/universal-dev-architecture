@@ -30,7 +30,7 @@ Do not merge/rebase/cherry-pick it wholesale. Port only owner-aligned mechanisms
 - receipt ingestion atomically emits one ordinary V6 request-bound reasoning route to the original stable supervisor/current owner outcome;
 - Work receipt participates in terminal/pending-reasoning-review/final-response state like a Codex execution receipt, without importing Codex-only model/preflight semantics;
 - single-integrator lock is canonical; child Mission Control lanes must hand deltas here and cannot mutate shared runtime/main independently.
-- owner nudge rule: while a generation is active, any visible system UI notice containing the stable phrase `retry with a faster model` or `réessayer avec un modèle plus rapide` is a special recovery signal even when surrounding wording changes and even on V6 one-message stages; click Stop, wait until generation is fully stopped and the send/up-arrow control is visible again, then submit exactly `continue` through the central scheduler. Accent-insensitive French matching is accepted. This narrow signal does not enable generic same-chat retries.
+- owner nudge rule: while a generation is active, any visible system UI notice containing the stable phrase `retry with a faster model`, `réessayer avec un modèle plus rapide`, `connection interrupted`, or `connexion interrompue` is a special recovery signal even when surrounding wording changes and even on V6 one-message stages; click Stop, wait until generation is fully stopped and the send/up-arrow control is visible again, then submit exactly `continue` through the central scheduler. French matching is accent-insensitive. These narrow cues do not enable generic same-chat retries.
 
 
 ## Provider-write safety failure and current repair

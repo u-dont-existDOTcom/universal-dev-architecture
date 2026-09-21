@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { installStuckRecovery, isGenerationStallTimeout, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
+import { installStuckRecovery, isConnectionInterrupted, isGenerationStallTimeout, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
 import { sha256 } from '../src/core.mjs';
 import { defaultState } from '../src/core.mjs';
 import { GlobalSubmissionPacer, GLOBAL_SUBMISSION_COOLDOWN } from '../src/submission-pacing.mjs';
@@ -75,6 +75,50 @@ test('exact systems-thinking banner overrides V6 generic recovery ban with Stop 
   assert.equal(result.stuckRecovery.nudgesSent, 1);
   assert.equal(result.stuckRecovery.recoveries[0].source, 'SYSTEMS_THINKING_MORE_THAN_USUAL');
   assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Our systems are thinking more than usual');
+  assert.equal(result.stuckRecovery.recoveries[0].interruption.sendControlObserved, true);
+});
+
+test('connection-interrupted banner also overrides V6 generic recovery ban with Stop then send-control then continue', async () => {
+  let waits = 0;
+  const steps = [];
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) {
+        const error = new Error('CHATGPT_CONNECTION_INTERRUPTED: visible connection-interrupted system notice detected.');
+        error.code = 'CHATGPT_CONNECTION_INTERRUPTED';
+        throw error;
+      }
+      steps.push('wait-complete');
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: '2026-09-21T19:45:00.000Z', inspectedAssistantOutput: false };
+    },
+    async submitExactMessage(_target, input) {
+      steps.push(`submit:${input.body}`);
+      return { generationStarted: true, startedAtObserved: '2026-09-21T19:44:30.000Z' };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
+    beforeRecoverySend: async () => { steps.push('authority-ready'); },
+    maxNudges: 3,
+    logger: { warn() {} },
+    stopStalledGeneration: async (_target, _expectedUrl, recoveryOptions) => {
+      steps.push('stop-and-wait-send-control');
+      assert.deepEqual(recoveryOptions, { requireSendControl: true });
+      return { stoppedGeneration: true, sendControlObserved: true, inspectedAssistantOutput: false };
+    },
+    inspectRecoverableControl: noRecoverableControl,
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'v6-connection-interrupted' }, {
+    expectedUrl: 'https://chatgpt.com/c/WEB:connection-interrupted', generationStarted: true, allowSameChatRecovery: false,
+  });
+
+  assert.equal(isConnectionInterrupted(Object.assign(new Error('x'), { code: 'CHATGPT_CONNECTION_INTERRUPTED' })), true);
+  assert.deepEqual(steps, ['stop-and-wait-send-control', 'authority-ready', 'submit:continue', 'wait-complete']);
+  assert.equal(result.stuckRecovery.nudgesSent, 1);
+  assert.equal(result.stuckRecovery.recoveries[0].source, 'CONNECTION_INTERRUPTED');
+  assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Connection interrupted');
   assert.equal(result.stuckRecovery.recoveries[0].interruption.sendControlObserved, true);
 });
 

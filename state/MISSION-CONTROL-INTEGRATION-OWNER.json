@@ -1,16 +1,25 @@
 {
   "schema_version": 1,
-  "status": "ACTIVE",
+  "status": "RELEASED",
   "domain": "MISSION_CONTROL",
   "integrator_branch": "chat/mc-unified-integrator-20260921",
   "integration_base_sha": "971b74cddd04e4e5217c1d2aeea213ef3b05da5b",
-  "shared_runtime_owner": true,
+  "shared_runtime_owner": false,
   "child_lane_policy": "ISOLATED_CHILD_HANDOFF_ONLY",
   "direct_main_write_by_children": false,
   "shared_runtime_write_by_children": false,
-  "issue_178_owned_here": true,
-  "native_work_autodispatch_owned_here": true,
-  "round5_mast_execution_separate_repository_but_supervised_from_here": true,
+  "issue_178_owned_here": false,
+  "native_work_autodispatch_owned_here": false,
+  "round5_mast_execution_separate_repository_but_supervised_from_here": false,
   "activated_at": "2026-09-21T01:31:00Z",
-  "supervisor_receipt_copier_owned_here": true
+  "supervisor_receipt_copier_owned_here": false,
+  "released_at": "2026-09-21T20:26:44Z",
+  "terminal_owner_outcome_status": "OWNER_OUTCOME_SATISFIED",
+  "release_basis": {
+    "issue_178": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/178",
+    "work_receipt": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-5765485180",
+    "closure_decision": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5766458125",
+    "closure_decision_sequence": 18271,
+    "followup_nudge_commit": "cf916e528a5faa9fccc86147cb914a7d5e992b6c"
+  }
 }

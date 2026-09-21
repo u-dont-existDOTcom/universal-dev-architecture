@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { composerTextState, hasSystemsThinkingNudgeCue, PREPARE_COMPOSER_FN, VERIFY_COMPOSER_FN } from '../src/cdp.mjs';
+import { composerTextState, hasConnectionInterruptedNudgeCue, hasSystemsThinkingNudgeCue, PREPARE_COMPOSER_FN, VERIFY_COMPOSER_FN } from '../src/cdp.mjs';
 
 const text = (nodeValue) => ({ nodeType: 3, nodeValue });
 const element = (tagName, childNodes = [], attributes = {}) => ({
@@ -38,6 +38,13 @@ test('systems-thinking nudge cue keys on the stable faster-model phrase in Engli
   assert.equal(hasSystemsThinkingNudgeCue('NOS SYSTEMES — REESSAYER AVEC UN MODELE PLUS RAPIDE — texte variable autour'), true);
   assert.equal(hasSystemsThinkingNudgeCue('Our systems are thinking more than usual.'), false);
   assert.equal(hasSystemsThinkingNudgeCue('Please use a faster model if you want.'), false);
+});
+
+test('connection-interrupted nudge cue keys on the stable interruption phrase', () => {
+  assert.equal(hasConnectionInterruptedNudgeCue('Connection interrupted, waiting to reconnect…'), true);
+  assert.equal(hasConnectionInterruptedNudgeCue('Connection interrupted — reconnecting now.'), true);
+  assert.equal(hasConnectionInterruptedNudgeCue('Connexion interrompue — reconnexion en cours.'), true);
+  assert.equal(hasConnectionInterruptedNudgeCue('Connection is slow but still active.'), false);
 });
 
 test('five composer paragraphs preserve a synthetic continuation and OWNER fixture in prepare and verify', () => {
