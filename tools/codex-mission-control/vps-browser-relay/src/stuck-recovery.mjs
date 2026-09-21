@@ -121,9 +121,11 @@ export function installStuckRecovery(browser, {
         };
       } catch (error) {
         const systemsThinkingStall = isSystemsThinkingMoreThanUsual(error);
-        if ((!systemsThinkingStall && (!allowGenericRecovery || !isGenerationStallTimeout(error))) || recoveries.length >= maxNudges) throw error;
+        const connectionInterruptedStall = isConnectionInterrupted(error);
+        const explicitSystemStall = systemsThinkingStall || connectionInterruptedStall;
+        if ((!explicitSystemStall && (!allowGenericRecovery || !isGenerationStallTimeout(error))) || recoveries.length >= maxNudges) throw error;
         let interruption;
-        if (systemsThinkingStall) {
+        if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
           if (beforeRecoverySend) await beforeRecoverySend();
         } else {
@@ -131,8 +133,12 @@ export function installStuckRecovery(browser, {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
         }
         const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
-          source: systemsThinkingStall ? 'SYSTEMS_THINKING_MORE_THAN_USUAL' : 'ACTIVE_GENERATION_TIMEOUT',
-          controlLabel: systemsThinkingStall ? 'Our systems are thinking more than usual' : null,
+          source: systemsThinkingStall
+            ? 'SYSTEMS_THINKING_MORE_THAN_USUAL'
+            : (connectionInterruptedStall ? 'CONNECTION_INTERRUPTED' : 'ACTIVE_GENERATION_TIMEOUT'),
+          controlLabel: systemsThinkingStall
+            ? 'Our systems are thinking more than usual'
+            : (connectionInterruptedStall ? 'Connection interrupted' : null),
           interruption,
         });
         recoveries.push(recovery);
@@ -154,6 +160,13 @@ export function isSystemsThinkingMoreThanUsual(error) {
   const message = error instanceof Error ? error.message : String(error);
   return code === 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL'
     || message.includes('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL');
+}
+
+export function isConnectionInterrupted(error) {
+  const code = error && typeof error === 'object' ? error.code : null;
+  const message = error instanceof Error ? error.message : String(error);
+  return code === 'CHATGPT_CONNECTION_INTERRUPTED'
+    || message.includes('CHATGPT_CONNECTION_INTERRUPTED');
 }
 
 async function sendContinue(submitMessage, target, options, index, maxNudges, logger, context) {

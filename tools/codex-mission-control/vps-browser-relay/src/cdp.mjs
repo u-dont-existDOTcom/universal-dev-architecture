@@ -475,6 +475,17 @@ export function hasSystemsThinkingNudgeCue(value) {
     || normalized.includes('reessayer avec un modele plus rapide');
 }
 
+export function hasConnectionInterruptedNudgeCue(value) {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+  return normalized.includes('connection interrupted')
+    || normalized.includes('connexion interrompue');
+}
+
 const CLICK_SEND_FN = `function() {
   const selectors = [
     'button[data-testid="send-button"]',
@@ -504,9 +515,14 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
-  const systemsThinkingMoreThanUsual = stopVisible && [...document.querySelectorAll('[role="status"], [aria-live], [data-testid], div, span, p')].some((element) => {
+  const systemNoticeNodes = [...document.querySelectorAll('[role="status"], [aria-live], [data-testid], div, span, p')];
+  const systemsThinkingMoreThanUsual = stopVisible && systemNoticeNodes.some((element) => {
     if (!visible(element) || element.closest('.markdown, [class*="markdown"], [class*="prose"]')) return false;
     return (${hasSystemsThinkingNudgeCue.toString()})(element.textContent);
+  });
+  const connectionInterrupted = stopVisible && systemNoticeNodes.some((element) => {
+    if (!visible(element) || element.closest('.markdown, [class*="markdown"], [class*="prose"]')) return false;
+    return (${hasConnectionInterruptedNudgeCue.toString()})(element.textContent);
   });
   const normalizedCurrent = normalizeUrl(location.href);
   const current = new URL(location.href);
@@ -521,6 +537,7 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
     loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
     stopVisible,
     systemsThinkingMoreThanUsual,
+    connectionInterrupted,
     composerVisible,
     composerDisabled,
     generating: conversationAssigned || stopVisible || !composerVisible || composerDisabled,
@@ -1042,12 +1059,18 @@ export class ChromeDevtoolsBrowser {
         if (state?.urlMismatch) throw new Error(`Chat target changed while waiting for generation: ${state.currentUrl}`);
         if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
         if (state?.systemsThinkingMoreThanUsual) return { ...state, recoverySignal: 'SYSTEMS_THINKING_MORE_THAN_USUAL' };
+        if (state?.connectionInterrupted) return { ...state, recoverySignal: 'CONNECTION_INTERRUPTED' };
         consecutiveIdle = state?.idleReady ? consecutiveIdle + 1 : 0;
         return consecutiveIdle >= 3 ? state : false;
       }, this.generationTimeoutMs, 500, 'ChatGPT generation did not reach a stable complete UI state.');
       if (completed.recoverySignal === 'SYSTEMS_THINKING_MORE_THAN_USUAL') {
         const error = new Error('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL: visible system thinking stall detected.');
         error.code = 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL';
+        throw error;
+      }
+      if (completed.recoverySignal === 'CONNECTION_INTERRUPTED') {
+        const error = new Error('CHATGPT_CONNECTION_INTERRUPTED: visible connection-interrupted system notice detected.');
+        error.code = 'CHATGPT_CONNECTION_INTERRUPTED';
         throw error;
       }
       return {
