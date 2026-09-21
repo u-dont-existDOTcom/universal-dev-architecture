@@ -168,6 +168,13 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         with self.assertRaisesRegex(copier.CopierError, "more than one app-owned thread"):
             copier.select_decision_machine_block(threads + [{**threads[1], "threadId": "duplicate"}], candidate)
 
+    def test_github_comment_parser_supports_installed_and_slurp_page_shapes(self) -> None:
+        flat = [{"id": 1, "body": "a"}, {"id": 2, "body": "b"}]
+        self.assertEqual(copier.parse_github_comments_json(json.dumps(flat)), flat)
+        self.assertEqual(copier.parse_github_comments_json(json.dumps([[flat[0]], [flat[1]]])), flat)
+        with self.assertRaisesRegex(copier.CopierError, "mixed page shapes"):
+            copier.parse_github_comments_json(json.dumps([flat[0], [flat[1]]]))
+
     def test_work_receipt_requires_exact_dispatch_binding_and_privacy_safe_fields(self) -> None:
         request = event(200, {
             "type": "chatgpt_work_cloud_dispatch_requested", "worker": "mission-control-development",

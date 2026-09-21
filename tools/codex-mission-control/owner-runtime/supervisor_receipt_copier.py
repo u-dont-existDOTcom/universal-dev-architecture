@@ -491,19 +491,23 @@ def record_app_readback(config: Config, candidate: DecisionCandidate, *, thread_
     return value
 
 
+def parse_github_comments_json(raw: str) -> list[dict[str, Any]]:
+    value = json.loads(raw)
+    if not isinstance(value, list):
+        raise CopierError("GitHub comments response is invalid")
+    if all(isinstance(item, dict) for item in value):
+        return list(value)
+    if all(isinstance(page, list) for page in value):
+        return [item for page in value for item in page if isinstance(item, dict)]
+    raise CopierError("GitHub comments response has mixed page shapes")
+
+
 def github_comments(config: Config, issue: int) -> list[dict[str, Any]]:
     raw = run([
-        config.gh_command, "api", "--paginate", "--slurp",
+        config.gh_command, "api", "--paginate",
         f"repos/{config.repository}/issues/{issue}/comments?per_page=100",
     ], timeout=90)
-    pages = json.loads(raw)
-    if not isinstance(pages, list):
-        raise CopierError("GitHub comments response is invalid")
-    comments: list[dict[str, Any]] = []
-    for page in pages:
-        if isinstance(page, list):
-            comments.extend(item for item in page if isinstance(item, dict))
-    return comments
+    return parse_github_comments_json(raw)
 
 
 def _machine_identity(body: str, prefix: str, identity_field: str) -> str | None:
