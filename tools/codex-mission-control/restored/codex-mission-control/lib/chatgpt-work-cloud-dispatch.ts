@@ -67,6 +67,7 @@ export interface WorkCloudAppExecutor {
 
 export interface WorkCloudDispatchState {
   request: AppendEnvelope;
+  handoffIntent?: AppendEnvelope | null;
   result: AppendEnvelope | null;
 }
 
@@ -120,16 +121,19 @@ export async function dispatchAndRecordChatGptWorkCloud(
     await sink.recordWorkerEvents(input.binding.worker, [result]);
     return { request: existing.request, result };
   }
-  if (existing?.request) {
+  const durableRequest = existing?.request ?? request;
+  if (existing?.handoffIntent) {
     throw new WorkCloudDispatchAmbiguityError(
-      `Native Work dispatch ${input.dispatchId} has a durable request but no result; recover the app boundary before retrying.`,
+      `Native Work dispatch ${input.dispatchId} has durable app-boundary intent but no result; automatic replay is prohibited.`,
     );
   }
-  await sink.recordWorkerEvents(input.binding.worker, [request]);
+  if (!existing?.request) await sink.recordWorkerEvents(input.binding.worker, [request]);
+  const handoffIntent = buildWorkCloudHandoffIntentEnvelope(input, recordedAt);
+  await sink.recordWorkerEvents(input.binding.worker, [handoffIntent]);
   const outcome = normalizeExecutorOutcome(await executeWorkCloudAppCall(input, executor));
   const result = buildWorkCloudDispatchRecordedEnvelope(input, outcome, recordedAt);
   await sink.recordWorkerEvents(input.binding.worker, [result]);
-  return { request, result };
+  return { request: durableRequest, result };
 }
 
 async function executeWorkCloudAppCall(
@@ -202,6 +206,31 @@ export function buildWorkCloudDispatchRequestedEnvelope(input: WorkCloudDispatch
         native_surface_verification_available: input.capabilityEvidence.nativeSurfaceVerificationAvailable,
       },
       requested_at: input.requestedAt,
+      producer_id: input.producerId,
+      source: "TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY",
+    },
+  };
+}
+
+export function buildWorkCloudHandoffIntentEnvelope(
+  input: WorkCloudDispatchInput,
+  intentAt = input.requestedAt,
+): AppendEnvelope {
+  validateInput(input);
+  return {
+    schema_version: 2,
+    event_id: `work-cloud-handoff-intent:${input.dispatchId}`,
+    mission_id: "mission-control-live",
+    occurred_at: intentAt,
+    data: {
+      type: "chatgpt_work_cloud_handoff_intent_recorded",
+      worker: input.binding.worker,
+      dispatch_id: input.dispatchId,
+      directive_id: input.binding.directiveId,
+      directive_revision: input.binding.directiveRevision,
+      task_id: input.binding.taskId,
+      app_tool: input.mode === "CREATE" ? "create_thread" : "send_message_to_thread",
+      intent_at: intentAt,
       producer_id: input.producerId,
       source: "TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY",
     },

@@ -30,7 +30,8 @@
     "experiment:attractor:prepare": "node scripts/prepare-attractor-experiment.mjs",
     "experiment:attractor:record-run": "node scripts/record-attractor-run.mjs",
     "experiment:attractor:record-evaluation": "node scripts/record-attractor-evaluation.mjs",
-    "experiment:attractor:report": "node scripts/report-attractor-experiment.mjs"
+    "experiment:attractor:report": "node scripts/report-attractor-experiment.mjs",
+    "work-cloud:autodispatch": "tsx scripts/run-chatgpt-work-cloud-autodispatcher.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

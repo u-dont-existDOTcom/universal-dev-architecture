@@ -50,18 +50,9 @@ export function buildExecutionDirectiveFromGitHubDecision(
     sourceMessageId,
     sourceBodySha256,
   };
-  const directiveArtifactSha256 = codexDirectiveArtifactSha256({
-    schemaVersion: 2,
-    jobId: bounded.job_id,
-    sourceDirective,
-    prompt: bounded.prompt,
-    workspace: bounded.workspace,
-    executionCapability: bounded.execution_capability,
-    outputSchema: bounded.output_schema,
-    workExecutionProfile: bounded.work_execution_profile,
-    requestedModel: selection.model,
-    reasoningEffort: selection.thinking,
-  });
+  const directiveArtifactSha256 = sha256(executionDirectiveArtifactCanonicalJson({
+    bounded, sourceDirective, requestedModel: selection.model, reasoningEffort: selection.thinking,
+  }));
 
   return {
     schema_version: 2,
@@ -122,6 +113,7 @@ export function buildExecutionDirectiveFromGitHubDecision(
         exact_execution_payload: exactExecutionPayload,
       },
       work_execution_profile: bounded.work_execution_profile,
+      execution_surface: bounded.execution_surface ?? "CODEX",
       status: "ACTIVE",
     },
   };
@@ -164,28 +156,29 @@ export function executionPayloadFor(bounded: BoundedExecutionResidue): string {
   return `${CODEX_EXECUTION_PAYLOAD_PREFIX}${canonicalJson(payload)}`;
 }
 
-function codexDirectiveArtifactSha256(directive: Record<string, unknown>): string {
-  const source = directive as {
-    jobId?: unknown; sourceDirective?: unknown; prompt?: unknown; workspace?: unknown;
-    executionCapability?: unknown; outputSchema?: unknown; workExecutionProfile?: unknown;
-    requestedModel?: unknown; reasoningEffort?: unknown;
-  };
-  return sha256(canonicalJson({
+export function executionDirectiveArtifactCanonicalJson(input: {
+  bounded: BoundedExecutionResidue;
+  sourceDirective: { id: string; revision: number; taskId: string; sourceMessageId: string; sourceBodySha256: string };
+  requestedModel: string;
+  reasoningEffort: string;
+}): string {
+  return canonicalJson({
     schemaVersion: 2,
-    jobId: source.jobId ?? null,
-    sourceDirective: source.sourceDirective ?? null,
-    prompt: source.prompt ?? null,
-    workspace: typeof source.workspace === "string" ? path.resolve(source.workspace) : null,
-    executionCapability: source.executionCapability ?? null,
-    outputSchema: source.outputSchema ?? null,
-    workExecutionProfile: source.workExecutionProfile ?? null,
-    requestedModel: source.requestedModel ?? null,
-    reasoningEffort: source.reasoningEffort ?? null,
+    jobId: input.bounded.job_id,
+    sourceDirective: input.sourceDirective,
+    prompt: input.bounded.prompt,
+    workspace: path.resolve(input.bounded.workspace),
+    executionCapability: input.bounded.execution_capability,
+    outputSchema: input.bounded.output_schema,
+    workExecutionProfile: input.bounded.work_execution_profile,
+    ...(input.bounded.execution_surface ? { executionSurface: input.bounded.execution_surface } : {}),
+    requestedModel: input.requestedModel,
+    reasoningEffort: input.reasoningEffort,
     executionContract: {
       sandbox: "workspace-write",
       approvalPolicy: "never",
       workspaceNetworkAccess: false,
       apiKeyFallback: false,
     },
-  }));
+  });
 }

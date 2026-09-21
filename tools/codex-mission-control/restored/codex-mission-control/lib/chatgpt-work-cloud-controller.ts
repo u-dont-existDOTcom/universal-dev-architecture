@@ -683,10 +683,10 @@ export class HttpWorkCloudEventSink implements WorkCloudEventSink {
       { headers: this.headers },
     );
     if (response.status === 404) return null;
-    const body = await response.json() as { error?: string; request?: AppendEnvelope; result?: AppendEnvelope | null };
+    const body = await response.json() as { error?: string; request?: AppendEnvelope; handoffIntent?: AppendEnvelope | null; result?: AppendEnvelope | null };
     if (!response.ok) throw new Error(`${response.status} ${body.error ?? response.statusText}`);
     if (!body.request) throw new Error("Mission Control returned an incomplete Work-cloud dispatch state.");
-    return { request: body.request, result: body.result ?? null };
+    return { request: body.request, handoffIntent: body.handoffIntent ?? null, result: body.result ?? null };
   }
 
   async recordWorkerEvents(worker: string, events: AppendEnvelope[]): Promise<unknown> {

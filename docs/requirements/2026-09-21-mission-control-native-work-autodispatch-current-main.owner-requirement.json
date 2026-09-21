@@ -1,0 +1,58 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-MISSION-CONTROL-NATIVE-WORK-AUTODISPATCH-CURRENT-MAIN-20260921",
+  "recorded_at": "2026-09-21T01:31:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "Mission Control reasoning Chat -> native ChatGPT Work -> Mission Control reasoning return",
+  "owner_outcome": "Automate Chat to native ChatGPT Work and Work completion back to the original Mission Control reasoning supervisor so the owner is not used as a clipboard transport.",
+  "requirements": [
+    {
+      "id": "MC-WORK-SURFACE-001",
+      "text": "A native Work execution directive must carry an explicit machine-readable execution surface. The automatic Codex dispatcher must ignore CHATGPT_WORK_CLOUD directives, and Mission Control must not infer Work from a title or prose."
+    },
+    {
+      "id": "MC-WORK-AUTO-LAUNCH-002",
+      "text": "A current source-bound admitted CHATGPT_WORK_CLOUD directive must automatically derive and invoke the canonical direct native Work controller from durable Mission Control state. The owner must not create a request JSON or paste the directive into Work."
+    },
+    {
+      "id": "MC-WORK-LINEAGE-003",
+      "text": "Automatic launch preserves deterministic Work title, exact originating Chat title and conversation locator, exact source-bound directive/prompt identity, current native-surface verification, and any irreducible product Accept gate."
+    },
+    {
+      "id": "MC-WORK-IDEMPOTENCY-004",
+      "text": "Dispatch identity is deterministic over worker, directive id/revision, task, exact directive/source binding and exact bounded prompt. A persisted request with no durable app-boundary handoff intent is mechanically unsent and may resume. Once handoff intent exists, missing outcome is ambiguous and automatic replay is prohibited unless exact proven-unsent evidence is added later."
+    },
+    {
+      "id": "MC-WORK-FAIRNESS-005",
+      "text": "A Work task waiting for setup, approval, execution, completion receipt, or ambiguity resolution must not starve unrelated eligible Mission Control execution routes."
+    },
+    {
+      "id": "MC-WORK-RETURN-006",
+      "text": "Work COMPLETED/PARTIAL/BLOCKED/FAILED facts must return to Mission Control automatically through a privacy-safe machine receipt without owner relay. Accepted completion creates exactly one fresh source-bound V6 reasoning-review route to the original stable supervisor and current owner outcome."
+    },
+    {
+      "id": "MC-WORK-PRIVACY-007",
+      "text": "The machine receipt may contain only control-plane identity/status facts, check counts, blocker codes, and artifact SHA-256 values. It must not publish prompts, private source text, credentials, absolute private filesystem paths, raw logs, or model reasoning."
+    },
+    {
+      "id": "MC-WORK-AUTHORITY-008",
+      "text": "Work supplies execution facts only. The original reasoning supervisor decides adequacy, methodology, strategy, owner-outcome satisfaction, and the next consequential action."
+    },
+    {
+      "id": "MC-WORK-EVIDENCE-009",
+      "text": "Current direct app-executor VERIFIED_NATIVE_WORK evidence remains authoritative. Do not downgrade direct verification to stale supervisor-mediated SOURCE_ATTESTED_NATIVE_WORK semantics."
+    }
+  ],
+  "integration_constraints": [
+    "Do not merge or cherry-pick chat/mission-control-native-work-autodispatch-20260919 wholesale.",
+    "Prefer the current chatgpt-work-cloud-controller.ts and its authenticated app-server/product bridge.",
+    "Preserve current request-binding v6, fleet-supervisor, controller-watchdog, issue-178 recovery and Work-thread recovery semantics.",
+    "No production deployment is authorized by this requirement."
+  ],
+  "source": {
+    "kind": "explicit owner handoff/correction",
+    "source_branch_reference": "chat/mission-control-native-work-autodispatch-20260919@ff9c29855a2f19996b5d08e47fa01f894e3a1bc9",
+    "current_main_at_owner_handoff": "c751cd32a33700d927c77694853f98d6b96c55b0",
+    "current_main_re_resolved_by_integrator": "e41bb54779a71533fd32a858eb3100ea13185026"
+  }
+}
