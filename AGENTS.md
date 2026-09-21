@@ -41,6 +41,16 @@ When explaining an instruction-following, reasoning, routing, tool, execution, o
 
 Do not use agentic shorthand such as `I chose wrong`, `I forgot`, `I should have`, or `I made a bad choice` as a causal explanation or substitute for repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and the smallest useful discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or internal model mechanisms. A successful intervention establishes its observed effect in the tested scope, not a unique unobserved cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary rather than merely promising different behavior next time.
 
+## Quantitative comparison sanity check
+
+Before an owner-facing quantitative comparison, ranking, threshold claim, or value judgment derived from numbers:
+
+- normalize the compared quantities to the same units, currency/basis, time window, product/model/variant, and denominator when those differences could change the conclusion; if they are not genuinely comparable, say so rather than treating them as like-for-like;
+- re-check the direction of every material inequality, ratio, delta, and “cheaper/more/less/higher/lower” statement against the actual source or displayed values immediately before delivery;
+- do not use an example as support for a broader comparative claim when the example numerically contradicts that claim or compares a materially different variant. Mixed evidence requires a qualified claim, not a forced generalization.
+
+This is a semantic delivery check, not a demand for redundant arithmetic ceremony. Apply it when quantitative direction or comparability is decision-relevant.
+
 ## Owner-marked Mission Control failure capture
 
 When the owner explicitly identifies a current or prior assistant/Chat/Work/Codex reasoning, instruction-following, routing, or execution failure as a Mission Control example; asks to save/record/capture it for Mission Control; or asks to recover/check such examples, load `patterns/owner-marked-mission-control-failure-capture.md` before further substantive action. A generic complaint or disagreement alone is not authorization to publish conversation content.
