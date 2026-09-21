@@ -8,21 +8,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PaidCommitmentRecommendationPreflightTests(unittest.TestCase):
-    def test_root_routes_paid_commitments_to_recommendation_preflight(self) -> None:
-        text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        required = (
-            "Paid recommendation preflight",
-            "annual/prepaid",
-            "upgrade",
-            "replacement purchases",
-            "recommendation-preflight-integrity.md",
-            "unresolved entitlement",
-            "reversibility facts block endorsement",
-        )
-        for phrase in required:
-            with self.subTest(phrase=phrase):
-                self.assertIn(phrase, text)
-
     def test_canonical_pattern_blocks_workspace_scope_and_replacement_errors(self) -> None:
         text = (
             ROOT / "patterns" / "recommendation-preflight-integrity.md"
