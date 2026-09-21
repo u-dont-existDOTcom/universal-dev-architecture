@@ -9,6 +9,8 @@ export const inBandRequestStep = "IN_BAND_REQUEST_DECISION";
 export const inBandRequestRole = "IN_BAND_REQUEST_DECISION_SESSION";
 export const inBandPreSendSummary = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1";
 export const inBandAttestationSummary = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_EXECUTION_V1";
+export const inBandAppReadbackSummary = "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1";
+export const inBandAppReadbackProducerId = "collector:chatgpt-app-readback";
 const sessionSummary = "MISSION_CONTROL_PROVIDER_SESSION_V1";
 const modelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
 const stageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
@@ -155,12 +157,25 @@ export function assertInBandRequestExecution(
 
   const sessionRecords = scoped.filter((event) => isTrustedEvidence(event, sessionSummary, relayIds));
   if (sessionRecords.some((event) => exactRef(event, "session_role") !== inBandRequestRole)) fail("provider session role mismatch");
-  const session = sessionRecords.sort((a, b) => a.sequence - b.sequence).at(-1);
-  if (!session || exactRef(session, "message_ordinal") !== "1"
-    || exactRef(session, "lifecycle_status") !== "COMPLETE"
-    || exactRef(session, "url_binding_status") !== "EXACT") fail("completed exact provider session missing");
-  const conversationUrl = exactRef(session!, "conversation_url");
-  if (!conversationUrl || !/^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/.test(conversationUrl)) fail("exact conversation binding missing");
+  const exactSessions = sessionRecords.filter((event) => exactRef(event, "message_ordinal") === "1"
+    && exactRef(event, "url_binding_status") === "EXACT"
+    && /^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/.test(exactRef(event, "conversation_url") ?? ""));
+  const exactSession = exactSessions.sort((a, b) => a.sequence - b.sequence).at(-1);
+  if (!exactSession) fail("exact provider session binding missing");
+  const conversationUrl = exactRef(exactSession!, "conversation_url") ?? fail("exact conversation binding missing");
+  const relayComplete = exactSessions.find((event) => exactRef(event, "lifecycle_status") === "COMPLETE");
+  const machineBlockSha256 = sha256(candidate.body);
+  const appReadbacks = events.filter((event) => event.worker === request.worker
+    && inWindow(event, request.queuedAt, ingestedAt) && isTrustedAppReadback(event)
+    && hasRefs(event, {
+      request: request.requestId, supervisor: request.supervisorId, provider_session: decision.provider_session_id,
+      status: "COMPLETE", machine_block_sha256: machineBlockSha256, provider_prompt_sha256: promptSha256!,
+      conversation_url: conversationUrl, thread_surface: "chatgpt", semantic_authority: "false",
+      readback_method: "APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
+    }));
+  if (appReadbacks.length > 1) fail("app-owned provider completion evidence is ambiguous");
+  const appReadback = appReadbacks[0] ?? null;
+  if (!relayComplete && !appReadback) fail("provider completion evidence missing; reconcile unchanged app-owned artifact");
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
     && exactRef(event, "session_role") === inBandRequestRole && hasRefs(event, controlRefs));
   if (!model) fail("fixed visible model/control observation missing");
@@ -173,7 +188,7 @@ export function assertInBandRequestExecution(
   const completes = stages.filter((event) => exactRef(event, "generation_state") === "COMPLETE");
   const start = starts.sort((a, b) => a.sequence - b.sequence)[0];
   const complete = completes.sort((a, b) => a.sequence - b.sequence).at(-1);
-  if (!start || !complete) fail("provider generation evidence incomplete; reconcile unchanged artifact");
+  if (!start || (!complete && !appReadback)) fail("provider generation evidence incomplete; reconcile unchanged artifact");
   if (stages.some((event) => exactRef(event, "prompt_sha256") !== promptSha256
     || event.data.type === "evidence_receipt_recorded" && event.data.refs.some((ref) => ref === "selected_app:Mission Control"))) {
     fail("provider prompt identity or selected app changed");
@@ -216,13 +231,19 @@ export function assertInBandRequestExecution(
   const createdUpper = created + (/T\d\d:\d\d:\d\dZ$/.test(candidate.createdAt) ? 999 : 0);
   const admitted = Date.parse(String(admission.admittedAt));
   const boundary = Date.parse(String(admission.boundaryAt));
-  if (!Number.isFinite(created) || !Number.isFinite(admitted) || !Number.isFinite(boundary)
+  const startAt = Date.parse(start!.occurredAt);
+  const appReadbackAt = appReadback ? Date.parse(appReadback.occurredAt) : null;
+  const relayCompleteAt = complete ? Date.parse(complete.occurredAt) : null;
+  const commonTimingInvalid = !Number.isFinite(created) || !Number.isFinite(admitted) || !Number.isFinite(boundary)
     || admitted > Date.parse(pre.occurredAt) || Date.parse(pre.occurredAt) > boundary
-    || boundary > Date.parse(start!.occurredAt) || Date.parse(start!.occurredAt) > createdUpper
-    || Date.parse(complete!.occurredAt) < created || Date.parse(complete!.occurredAt) > Date.parse(ingestedAt)
+    || boundary > startAt || startAt > createdUpper
     || Date.parse(model!.occurredAt) > Date.parse(pre.occurredAt)
-    || Date.parse(start!.occurredAt) > Date.parse(complete!.occurredAt)
-    || Date.parse(request.expiresAt) <= Date.parse(pre.occurredAt)) fail("binding/admission/generation/artifact timing is invalid or stale");
+    || Date.parse(request.expiresAt) <= Date.parse(pre.occurredAt);
+  const completionTimingInvalid = appReadback
+    ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt))
+    : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
+      || startAt > relayCompleteAt!);
+  if (commonTimingInvalid || completionTimingInvalid) fail("binding/admission/generation/artifact timing is invalid or stale");
   return {
     preSendReceiptId: pre.data.type === "evidence_receipt_recorded" ? pre.data.receipt_id : fail("invalid pre-send receipt"),
     admissionId: admissionId!,
@@ -248,6 +269,11 @@ function inWindow(event: StoredEvent, from: string, to: string): boolean {
 function isTrustedEvidence(event: StoredEvent, summary: string, producers: string[]): boolean {
   return event.data.type === "evidence_receipt_recorded" && event.data.summary === summary && event.data.verified
     && event.producerKind === "COLLECTOR" && producers.includes(event.producerId)
+    && event.data.producer_id === event.producerId && event.data.producer_role === "COLLECTOR";
+}
+function isTrustedAppReadback(event: StoredEvent): boolean {
+  return event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandAppReadbackSummary && event.data.verified
+    && event.producerKind === "COLLECTOR" && event.producerId === inBandAppReadbackProducerId
     && event.data.producer_id === event.producerId && event.data.producer_role === "COLLECTOR";
 }
 function asRecord(value: unknown): Record<string, any> | null {

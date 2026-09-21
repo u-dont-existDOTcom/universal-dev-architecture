@@ -64,6 +64,17 @@ def session_complete(request_id: str = "issue178-v3", conversation_url: str = "h
         ],
     })
 
+def stage_started(request_id: str = "issue178-v3", conversation_url: str = "https://chatgpt.com/c/provider-thread-v3") -> dict:
+    return event(103, {
+        "type": "evidence_receipt_recorded", "worker": "mission-control-development",
+        "summary": "MISSION_CONTROL_RELAY_STAGE_V1",
+        "refs": [
+            f"request:{request_id}", "supervisor:mc-project-manager",
+            "provider_session:provider-session:v3", "step:IN_BAND_REQUEST_DECISION",
+            "generation_state:STARTED", f"conversation_url:{conversation_url}",
+        ],
+    })
+
 
 class MissionControlReceiptCopierTests(unittest.TestCase):
     def test_timestamp_prefixed_machine_block_is_extracted_without_rewriting(self) -> None:
@@ -78,23 +89,23 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
             copier.extract_machine_block(machine + "\ntrailing prose", copier.DECISION_PREFIX)
 
     def test_current_v6_route_discovers_exact_completed_provider_thread_and_expired_route_does_not(self) -> None:
-        events = [route_event(), pre_send(), session_complete()]
+        events = [route_event(), pre_send(), session_complete(), stage_started()]
         found = copier.discover_decision_candidates(events, min_sequence=90, now=NOW)
         self.assertEqual(len(found), 1)
-        self.assertEqual(found[0].thread_id, "provider-thread-v3")
+        self.assertEqual(found[0].conversation_url, "https://chatgpt.com/c/provider-thread-v3")
         self.assertEqual(found[0].provider_session_id, "provider-session:v3")
-        expired = [route_event("old", "2026-09-21T13:00:00Z"), pre_send("old"), session_complete("old")]
+        expired = [route_event("old", "2026-09-21T13:00:00Z"), pre_send("old"), session_complete("old"), stage_started("old")]
         self.assertEqual(copier.discover_decision_candidates(expired, min_sequence=0, now=NOW), [])
 
     def test_web_prefixed_provider_thread_is_discovered_exactly(self) -> None:
         url = "https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81"
-        events = [route_event(), pre_send(), session_complete(conversation_url=url)]
+        events = [route_event(), pre_send(), session_complete(conversation_url=url), stage_started(conversation_url=url)]
         found = copier.discover_decision_candidates(events, min_sequence=90, now=NOW)
         self.assertEqual(len(found), 1)
-        self.assertEqual(found[0].thread_id, "WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81")
+        self.assertEqual(found[0].conversation_url, url)
 
     def test_decision_block_is_bound_to_route_provider_session_and_hash(self) -> None:
-        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete()], now=NOW)[0]
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
         exact = "Create one harmless isolated child branch and return execution facts only."
         payload = {
             "schema_version": 5,
@@ -117,6 +128,34 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         bad = dict(payload, provider_session_id="provider-session:wrong")
         with self.assertRaisesRegex(copier.CopierError, "provider_session_id"):
             copier.validate_decision_block(block, bad, candidate)
+
+    def test_app_thread_resolution_uses_unique_validated_machine_block_not_url_id(self) -> None:
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        exact = "Create one harmless isolated child branch and return execution facts only."
+        payload = {
+            "schema_version": 5, "envelope_kind": "MISSION_CONTROL_CANONICAL_DECISION",
+            "request_id": "issue178-v3", "supervisor_id": "mc-project-manager",
+            "provider_session_id": "provider-session:v3", "nonce": "nonce-v3",
+            "in_band_binding_sha256": "3" * 64, "execution_provenance": copier.IN_BAND_PROVENANCE,
+            "evidence_capsule": {"id": "capsule:v3", "sha256": "1" * 64},
+            "owner_outcome": {"id": "owner-outcome:issue178", "epoch": 2, "sha256": "2" * 64},
+            "reasoning_lane": "EXTRA_HIGH_DIRECT",
+            "decision_block": {"decision_id": "decision:v3", "exact_text": exact, "sha256": copier.sha256_text(exact)},
+            "pro_decision_block": {"used": False, "model_mode": None, "exact_text": None, "sha256": None},
+            "writer_contract": {"mode": "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed": False},
+        }
+        block = copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
+        threads = [
+            {"threadId": "unrelated", "status": "idle", "updatedAt": 1790000000000, "finalAgentMessage": "not a receipt"},
+            {"threadId": "stable-app-thread", "status": "idle", "updatedAt": 1790000001000, "finalAgentMessage": "2026-09-21 14:00 UTC\n\n" + block},
+        ]
+        resolved = copier.select_decision_machine_block(threads, candidate)
+        self.assertIsNotNone(resolved)
+        assert resolved
+        self.assertEqual(resolved[0], "stable-app-thread")
+        self.assertEqual(resolved[2], block)
+        with self.assertRaisesRegex(copier.CopierError, "more than one app-owned thread"):
+            copier.select_decision_machine_block(threads + [{**threads[1], "threadId": "duplicate"}], candidate)
 
     def test_work_receipt_requires_exact_dispatch_binding_and_privacy_safe_fields(self) -> None:
         request = event(200, {
