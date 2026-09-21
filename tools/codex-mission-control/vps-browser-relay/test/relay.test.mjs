@@ -897,6 +897,8 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.deepEqual(browser.selectAppsCalls.at(-1).requiredLabels, ['GitHub']);
   assert.match(browser.lastSubmittedBody, /IN_BAND_REQUEST_BINDING_V1/);
   assert.match(browser.lastSubmittedBody, /IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED/);
+  assert.match(browser.lastSubmittedBody, /bounded_execution/);
+  assert.match(browser.lastSubmittedBody, /CHATGPT_WORK_CLOUD/);
   assert.doesNotMatch(browser.lastSubmittedBody, /get_supervisory_request_binding|REQUEST_BOUND_MCP_GITHUB_OBSERVED/);
   const preSend = mc.recordedEvidence.filter((item) => item.summary === IN_BAND_PRE_SEND_SUMMARY);
   assert.equal(preSend.length, 1);

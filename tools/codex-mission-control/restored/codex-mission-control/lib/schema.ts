@@ -838,6 +838,7 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     execution_provenance: z.literal("REQUEST_BOUND_MCP_GITHUB_OBSERVED"),
     continuation_binding: ownerResponseContinuationBindingSchema.optional(),
     continuation_binding_sha256: Sha256.optional(),
+    bounded_execution: boundedExecutionResidueSchema.optional(),
     ...canonicalDecisionEnvelopeFields,
   }).strict(),
   z.object({
@@ -848,6 +849,7 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     execution_provenance: z.literal("IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"),
     continuation_binding: ownerResponseContinuationBindingSchema.optional(),
     continuation_binding_sha256: Sha256.optional(),
+    bounded_execution: boundedExecutionResidueSchema.optional(),
     ...canonicalDecisionEnvelopeFields,
   }).strict(),
 ]).superRefine((envelope, context) => {

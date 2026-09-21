@@ -26,8 +26,9 @@ export function buildExecutionDirectiveFromGitHubDecision(
     || sha256(canonicalJson(bounded)) !== receipt.bounded_execution_sha256) {
     throw new Error("Accepted GitHub decision bounded-execution digest is invalid.");
   }
-  if (!receipt.decision_provider_session_id || !receipt.supervisor_id) {
-    throw new Error("Bounded execution requires the current validated split-session canonical decision path.");
+  const reasoningSessionId = receipt.decision_provider_session_id ?? receipt.provider_session_id;
+  if (!reasoningSessionId || !receipt.supervisor_id) {
+    throw new Error("Bounded execution requires a validated canonical decision provider session.");
   }
   if (bounded.task_id !== receipt.task_id) {
     throw new Error("Bounded execution task identity does not match the admitted supervisory request.");
@@ -68,8 +69,8 @@ export function buildExecutionDirectiveFromGitHubDecision(
       owner_outcome_id: receipt.owner_outcome_id,
       owner_outcome_epoch: receipt.owner_outcome_epoch,
       owner_outcome_sha256: receipt.owner_outcome_sha256,
-      reasoning_supervisor_session_id: receipt.decision_provider_session_id,
-      reasoning_chat_epoch: receipt.decision_provider_session_id,
+      reasoning_supervisor_session_id: reasoningSessionId,
+      reasoning_chat_epoch: reasoningSessionId,
       chat_decision_id: receipt.decision_block.decision_id,
       capsule_id: receipt.evidence_capsule.id,
       strategy_id: bounded.strategy_id,
