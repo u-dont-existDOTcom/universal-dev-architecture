@@ -103,11 +103,11 @@ const server = http.createServer(async (request, response) => {
       }
       return json(response, 200, await submissionAuthority.operatorStatus());
     }
-    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|outcomes|relay-health)$/);
+    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|expired-preclick-retries\/cancel|outcomes|relay-health)$/);
     if (request.method === "POST" && submissionAuthorityMatch) {
       const producer = authorizeMutation(request);
       const result = await submissionAuthority.execute(submissionAuthorityMatch[1], await readJson(request), producer);
-      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" ? 200 : 201, result);
+      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" || submissionAuthorityMatch[1] === "expired-preclick-retries/cancel" ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
       return json(response, 200, snapshotFromEvents(eventHistory(), dashboardProjectionOptions()));
