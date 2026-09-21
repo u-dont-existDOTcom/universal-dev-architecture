@@ -11,13 +11,13 @@ class PaidCommitmentRecommendationPreflightTests(unittest.TestCase):
     def test_root_routes_paid_commitments_to_recommendation_preflight(self) -> None:
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         required = (
-            "Paid purchase and subscription recommendation gate",
-            "new recurring charge",
-            "prepaid/annual plan",
-            "account/workspace/surface/mode/workload",
-            "what the purchase does not replace",
-            "cheapest reversible path",
-            "do not recommend the purchase",
+            "Paid recommendation preflight",
+            "annual/prepaid",
+            "upgrade",
+            "replacement purchases",
+            "recommendation-preflight-integrity.md",
+            "unresolved entitlement",
+            "reversibility facts block endorsement",
         )
         for phrase in required:
             with self.subTest(phrase=phrase):
