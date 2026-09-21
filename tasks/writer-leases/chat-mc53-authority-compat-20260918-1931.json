@@ -1,9 +1,11 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "exclusive_writer": true,
+  "status": "released",
+  "exclusive_writer": false,
   "owned_branch": "chat/mc53-authority-compat-20260918-1931",
   "integration_branch": "main",
   "integration_base_sha": "59a5799f3c964f39d326b1f922fc5863fbe8d806",
-  "scope": "Restore canonical compatibility with the existing PRECOMPOSITION_RECOVERED authority record and healthy same-owner lease renewal, then resume issue #53 from the same route."
+  "scope": "Restore canonical compatibility with the existing PRECOMPOSITION_RECOVERED authority record and healthy same-owner lease renewal, then resume issue #53 from the same route.",
+  "release_reason": "Superseded by the owner-designated unified Mission Control integrator on 2026-09-21; branch is already an ancestor of current main (0 commits ahead), so no unique delta remains to integrate.",
+  "superseded_by": "chat/mc-unified-integrator-20260921"
 }
