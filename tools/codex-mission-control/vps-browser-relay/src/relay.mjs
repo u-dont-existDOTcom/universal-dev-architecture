@@ -1272,6 +1272,7 @@ function publicRoute(route) {
 }
 
 function shouldProcessSupervisoryCycle(route, prior, nowMs, retryDelayMs) {
+  if (Number.isFinite(Date.parse(route.packet.expiresAt)) && Date.parse(route.packet.expiresAt) <= nowMs) return false;
   if (prior?.status === 'DECISION_RECEIPT_INGESTED') return false;
   if (prior?.status === 'AMBIGUOUS_AFTER_RESTART' || prior?.status === 'SUBMISSION_INTENT_RECORDED') return false;
   if (prior?.status === 'FAILED_RETRYABLE' && !shouldAttemptRoute(prior, nowMs, retryDelayMs)) return false;
