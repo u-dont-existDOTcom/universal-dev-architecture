@@ -266,7 +266,7 @@ function normalizeConversationUrl(value: string, index: number): string {
   if (url.protocol !== "https:" || url.username || url.password || url.hostname !== "chatgpt.com") {
     throw new Error(`Configured chat ${index} must be an HTTPS chatgpt.com conversation URL.`);
   }
-  const match = url.pathname.match(/^\/c\/([A-Za-z0-9_-]+)\/?$/);
+  const match = url.pathname.match(/^\/c\/((?:WEB:)?[A-Za-z0-9_-]+)\/?$/);
   if (!match) throw new Error(`Configured chat ${index} must identify one concrete /c/<conversation-id> conversation.`);
   return `https://chatgpt.com/c/${match[1]}`;
 }

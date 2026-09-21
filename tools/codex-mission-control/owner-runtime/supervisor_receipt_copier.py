@@ -174,7 +174,7 @@ def discover_decision_candidates(
         conversation_url = ref_value(session_refs, "conversation_url:")
         if not conversation_url:
             continue
-        match = re.fullmatch(r"https://chatgpt\.com/c/([A-Za-z0-9_-]+)", conversation_url)
+        match = re.fullmatch(r"https://chatgpt\.com/c/((?:WEB:)?[A-Za-z0-9_-]+)", conversation_url)
         if not match:
             continue
         candidates.append(DecisionCandidate(

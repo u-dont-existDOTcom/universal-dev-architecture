@@ -60,6 +60,18 @@ test("the global Project Manager identity is exactly mc-project-manager", () => 
   assert.equal(directory.entries[0].supervisorId, CANONICAL_PROJECT_MANAGER_ID);
 });
 
+test("WEB-prefixed provider conversation IDs are normalized for configured supervisors", () => {
+  const directory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry({
+    bootstrapCapability: {
+      chatId: "pm-web-bootstrap-test",
+      url: "https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81/?source=bootstrap",
+      challengeId: "pm-web-capability-test",
+    },
+  })]));
+  assert.equal(directory.configurationState, "CONFIGURED");
+  assert.equal(directory.entries[0].bootstrapCapability.url, "https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81");
+});
+
 test("alternate global Project Manager identities fail closed", () => {
   const directory = loadConfiguredSupervisorChats(JSON.stringify([
     configuredEntry({ supervisorId: "project-manager-primary" }),

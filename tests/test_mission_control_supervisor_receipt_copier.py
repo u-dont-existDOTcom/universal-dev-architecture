@@ -52,7 +52,7 @@ def pre_send(request_id: str = "issue178-v3") -> dict:
     })
 
 
-def session_complete(request_id: str = "issue178-v3") -> dict:
+def session_complete(request_id: str = "issue178-v3", conversation_url: str = "https://chatgpt.com/c/provider-thread-v3") -> dict:
     return event(102, {
         "type": "evidence_receipt_recorded", "worker": "mission-control-development",
         "summary": copier.PROVIDER_SESSION_SUMMARY,
@@ -60,7 +60,7 @@ def session_complete(request_id: str = "issue178-v3") -> dict:
             f"request:{request_id}", "supervisor:mc-project-manager",
             "provider_session:provider-session:v3", "session_role:IN_BAND_REQUEST_DECISION_SESSION",
             "lifecycle_status:COMPLETE", "url_binding_status:EXACT",
-            "conversation_url:https://chatgpt.com/c/provider-thread-v3",
+            f"conversation_url:{conversation_url}",
         ],
     })
 
@@ -85,6 +85,13 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         self.assertEqual(found[0].provider_session_id, "provider-session:v3")
         expired = [route_event("old", "2026-09-21T13:00:00Z"), pre_send("old"), session_complete("old")]
         self.assertEqual(copier.discover_decision_candidates(expired, min_sequence=0, now=NOW), [])
+
+    def test_web_prefixed_provider_thread_is_discovered_exactly(self) -> None:
+        url = "https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81"
+        events = [route_event(), pre_send(), session_complete(conversation_url=url)]
+        found = copier.discover_decision_candidates(events, min_sequence=90, now=NOW)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].thread_id, "WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81")
 
     def test_decision_block_is_bound_to_route_provider_session_and_hash(self) -> None:
         candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete()], now=NOW)[0]

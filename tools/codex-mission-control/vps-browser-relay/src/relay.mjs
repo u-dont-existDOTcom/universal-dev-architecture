@@ -584,7 +584,7 @@ export class RelayRuntime {
       && binding.providerSessionId !== failed.providerSessionId
       && binding.bindingProviderSessionId === binding.providerSessionId && binding.status === 'COMPLETE'
       && binding.cycleStep === MCP_BINDING_PRELOAD_STEP && binding.sessionRole === 'MC_BINDING_PRELOAD_SESSION'
-      && binding.messageOrdinal === 1 && /^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/.test(binding.conversationUrl ?? '')
+      && binding.messageOrdinal === 1 && /^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/.test(binding.conversationUrl ?? '')
       && Date.parse(binding.completedAt) <= Date.parse(failed.openedAt), 'completed binding session does not match');
 
     const snapshot = await this.missionControl.fetchFleet();
