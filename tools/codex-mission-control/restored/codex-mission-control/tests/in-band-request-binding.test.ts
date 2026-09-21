@@ -193,7 +193,7 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
 test("V6 app-owned final-message readback may replace only missing web completion evidence", () => {
   const f = fixture();
   try {
-    const candidate = { ...f.candidate, commentId: 5744000099, createdAt: time("05.000"),
+    const candidate = { ...f.candidate, commentId: 5744000099, createdAt: time("31.000"),
       immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000099` };
     const exactActive = evidence(f.store, "session-exact-active", "MISSION_CONTROL_PROVIDER_SESSION_V1", [
       "session_role:IN_BAND_REQUEST_DECISION_SESSION", "message_ordinal:1", "lifecycle_status:ACTIVE",
@@ -208,7 +208,7 @@ test("V6 app-owned final-message readback may replace only missing web completio
       && ((event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1" && event.data.refs.includes("lifecycle_status:COMPLETE"))
         || (event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1" && event.data.refs.includes("generation_state:COMPLETE")))));
     events.push(exactActive, appReadback);
-    const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("06.000"), { submissionAuthorityState: f.authority });
+    const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority });
     assert.equal(envelope.data.type, "github_decision_receipt_ingested");
 
     const bad = structuredClone(events);
@@ -217,7 +217,8 @@ test("V6 app-owned final-message readback may replace only missing web completio
       readback.data.refs = readback.data.refs.map((ref) => ref.startsWith("machine_block_sha256:")
         ? `machine_block_sha256:${"8".repeat(64)}` : ref);
     }
-    assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("06.000"), { submissionAuthorityState: f.authority }), /completion evidence missing/);
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /completion evidence missing/);
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /post-expiry transport copy requires/);
   } finally { f.store.close(); }
 });
 

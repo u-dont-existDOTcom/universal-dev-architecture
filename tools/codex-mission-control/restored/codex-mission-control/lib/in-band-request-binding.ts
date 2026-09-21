@@ -239,10 +239,13 @@ export function assertInBandRequestExecution(
     || boundary > startAt || startAt > createdUpper
     || Date.parse(model!.occurredAt) > Date.parse(pre.occurredAt)
     || Date.parse(request.expiresAt) <= Date.parse(pre.occurredAt);
+  const copiedAfterRequestExpiry = created > Date.parse(request.expiresAt);
   const completionTimingInvalid = appReadback
-    ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt))
+    ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
+      || appReadbackAt! > Date.parse(request.expiresAt))
     : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
       || startAt > relayCompleteAt!);
+  if (copiedAfterRequestExpiry && !appReadback) fail("post-expiry transport copy requires current app-owned completion evidence");
   if (commonTimingInvalid || completionTimingInvalid) fail("binding/admission/generation/artifact timing is invalid or stale");
   return {
     preSendReceiptId: pre.data.type === "evidence_receipt_recorded" ? pre.data.receipt_id : fail("invalid pre-send receipt"),

@@ -613,7 +613,10 @@ export function buildGitHubDecisionReceiptEnvelope(
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");
   const created = Date.parse(candidate.createdAt);
-  if (created < Date.parse(request.queuedAt) || created > Date.parse(request.expiresAt)) throw new Error("GitHub decision receipt is stale for the admitted request window.");
+  if (created < Date.parse(request.queuedAt)
+    || created > Date.parse(request.expiresAt) && request.routeSchemaVersion !== 6) {
+    throw new Error("GitHub decision receipt is stale for the admitted request window.");
+  }
   const currentOutcome = [...events].reverse().find((e) => e.worker === request.worker && e.data.type === "owner_outcome_recorded")?.data;
   if (currentOutcome?.type !== "owner_outcome_recorded" || currentOutcome.owner_outcome_id !== request.ownerOutcome.id || currentOutcome.epoch !== request.ownerOutcome.epoch || currentOutcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) {
     throw new Error("GitHub decision receipt is stale against the current owner-outcome epoch.");
