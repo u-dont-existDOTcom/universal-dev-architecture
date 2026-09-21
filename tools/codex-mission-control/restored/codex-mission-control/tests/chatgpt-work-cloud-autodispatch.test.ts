@@ -78,6 +78,8 @@ test("direct autodispatch derives one exact current-controller request and priva
   assert.equal(candidate.controllerRequest.binding.directiveArtifactSha256, sha256(candidate.directiveArtifactText));
   assert.match(candidate.workPrompt, /EXACT BOUNDED DIRECTIVE FOR alpha/);
   assert.match(candidate.workPrompt, new RegExp(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX.trim()));
+  assert.match(candidate.workPrompt, /Do not write the receipt to GitHub yourself/);
+  assert.match(candidate.workPrompt, /deterministic Mission Control copier/);
   assert.doesNotMatch(candidate.workPrompt, /SOURCE_ATTESTED_NATIVE_WORK/);
   assert.doesNotMatch(candidate.workPrompt, /Create a native ChatGPT Work cloud task/);
 });

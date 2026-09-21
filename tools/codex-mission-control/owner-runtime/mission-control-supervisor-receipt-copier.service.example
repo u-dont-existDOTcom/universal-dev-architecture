@@ -1,0 +1,20 @@
+[Unit]
+Description=Mission Control deterministic supervisor/Work receipt copier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/mission-control/supervisor-receipt-copier.env
+ExecStart=/usr/bin/python3 %h/universal-dev-architecture/tools/codex-mission-control/owner-runtime/supervisor_receipt_copier.py
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/state/mission-control-supervisor-receipt-copier
+
+[Install]
+WantedBy=default.target

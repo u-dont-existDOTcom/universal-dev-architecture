@@ -1,63 +1,51 @@
 {
   "schemaVersion": 1,
-  "taskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "title": "Release route-schema-v6 in-band request binding under epoch 5",
+  "taskId": "mission-control-issue178-native-work-closed-loop-20260921",
+  "title": "Finish Mission Control native Work closed loop and issue #178 acceptance",
   "status": "active",
   "exclusive": true,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
-  "requiredBranch": "chat/mc53-epoch5-compat-v4-20260918-2139",
-  "requiredRef": "refs/heads/chat/mc53-epoch5-compat-v4-20260918-2139",
+  "requiredBranch": "chat/mc-unified-integrator-20260921",
+  "requiredRef": "refs/heads/chat/mc-unified-integrator-20260921",
   "integrationBranch": "main",
-  "integrationBaseSha": "7eb393d6894c6c5dd921dc78beeb0b4ebac03d0d",
+  "integrationBaseSha": "971b74cddd04e4e5217c1d2aeea213ef3b05da5b",
   "ownerAuthorized": true,
   "ownerSource": {
-    "directive": "MC-FRESH-WORKER-EPOCH5-COMPATIBILITY-SAME-FIXTURE-V4-20260918",
-    "authorityClarification": "issue-53-comment-5744485891",
-    "capturedAt": "2026-09-19T18:50:43Z"
+    "directive": "CURRENT_OWNER_CHAT_20260921_FIX_MISSION_CONTROL_ISSUE178",
+    "authorityClarification": "issue-178-comment-5754276613 plus current owner instruction to continue until fixed",
+    "capturedAt": "2026-09-21T13:45:00Z"
   },
   "ownerOutcome": {
     "status": "OPEN",
-    "normalizedResult": "Replace the exhausted model-mediated Mission Control MCP invocation premise with route-schema-v6 IN_BAND_REQUEST_BINDING_V1, preserving event-sourced and central-admission authority while carrying an exact trusted pre-send request binding in the one GitHub-enabled provider message and validating the canonical GitHub decision fail-closed without MCP evidence.",
-    "sameRoute": "mc53-epoch4-pm-proof-v2-route-20260917",
-    "replacementFixtureAllowed": true,
-    "replacementFixtureLimit": 1,
-    "v4RetryAllowed": false,
-    "v5RetryAllowed": false,
-    "liveV6DeploymentAllowed": false,
-    "liveV6ProviderSendAllowed": false
+    "normalizedResult": "Mission Control automatically routes source-bound Chat reasoning to native ChatGPT Work, receives a privacy-safe machine execution receipt without owner clipboard transport, and automatically returns that exact receipt to the original stable reasoning supervisor for the next consequential decision or terminal closure.",
+    "requiredAcceptance": [
+      "one fresh non-expired mission-control-development V6 reasoning request reaches the registered source-bound supervisor",
+      "the supervisor returns one canonical bound decision without performing a control-plane GitHub write",
+      "a deterministic non-semantic copier publishes those exact machine bytes to the configured GitHub decision channel",
+      "Mission Control admits exactly one native Work directive and creates exactly one directly verified native Work task",
+      "Work returns a privacy-safe machine receipt without performing the control-plane GitHub receipt write",
+      "the deterministic copier publishes those exact Work receipt bytes to the configured stage channel",
+      "Mission Control ingests the Work receipt and queues exactly one fresh V6 reasoning return to the original stable supervisor/current owner outcome",
+      "the supervisor reviews the returned receipt and records terminal closure or the next exact source-bound directive without owner relay"
+    ],
+    "noOwnerClipboardRelay": true,
+    "productionDeploymentAuthorized": false,
+    "paidApiInferenceAuthorized": false
   },
-  "taskLocalCheckpoint": "state/mc-fresh-worker-epoch5-compatibility-v4/CURRENT.json",
-  "priorBlockedAt": "2026-09-18T22:02:12Z",
-  "priorBlockedReason": "The exact current-main candidate validates the recovered admission and its authority ledger, but reports nine unchanged historical schema-v2 Mission Control events as hash-invalid because current parsers add default fields before verifyChain re-hashes them. The deployed state-compatible runtime verifies the same live event chain as valid. V4 explicitly stopped on a candidate chain failure.",
-  "priorBlockResolvedBy": "issue-53-comment-5736910093",
-  "priorMainReconciledBy": "issue-53-comment-5737121675",
-  "priorMainReconciledSha": "018779da94159c7f9521ba1acfc66aa4944af89e",
-  "currentMainReconciledBy": "issue-53-comment-5744485891",
-  "currentMainReconciledSha": "7eb393d6894c6c5dd921dc78beeb0b4ebac03d0d",
-  "currentStop": {
-    "classification": "EXPLICIT_V6_NO_DEPLOY_NO_SEND_BOUNDARY",
-    "observedAt": "2026-09-19T20:34:00Z",
-    "reason": "The route-schema-v6 candidate is implemented, release-validated, and published for hosted review. Current authority explicitly forbids live deployment and a V6 provider send in this execution.",
-    "providerBoundaryOpened": false,
-    "providerBoundaryKind": null,
-    "v4OrV5RetryAttempted": false,
-    "v6ProviderRequestSent": false,
-    "productionMutated": false,
-    "receipt": "docs/evidence/2026-09-19-mc-in-band-request-binding-v6-release-ready-receipt.json",
-    "requiredNextAuthority": "Explicit consequential authorization for reversible V6 deployment and exactly one live acceptance send."
-  },
+  "taskLocalCheckpoint": "docs/exec-plans/active/2026-09-21-mc-native-work-autodispatch-issue178.md",
+  "supersedesTaskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
+  "supersessionReason": "The prior issue-53 task's writer lease is released and its explicit no-deploy/no-send boundary is superseded by later owner authorization and the canonical issue-178 unified integration lease. Keeping it active created a false authority conflict with the current integrator.",
   "currentAuthority": {
-    "source": "issue-53-comment-5744485891",
-    "capturedAt": "2026-09-19T18:50:43Z",
-    "requirement": "docs/requirements/2026-09-19-mission-control-in-band-request-binding-v6.owner-requirement.json",
-    "sourceChatTitle": "Reject API Migration Recommendation",
-    "sourceChatUrl": "https://chatgpt.com/g/g-p-6a9dd02e724c8191bc41b5202580718f-mission-control/c/6aa8117e-6714-83e9-af68-233747ceceb7"
+    "source": "current owner chat + issue #178 unified integration ownership",
+    "capturedAt": "2026-09-21T13:45:00Z",
+    "integrationOwner": "state/MISSION-CONTROL-INTEGRATION-OWNER.json",
+    "writerLease": "docs/exec-plans/active/2026-09-21-mc-unified-integrator.writer-lease.json"
   },
-  "writerLease": "tasks/writer-leases/chat-mc53-epoch5-compat-v4-20260918-2139.json",
+  "writerLease": "docs/exec-plans/active/2026-09-21-mc-unified-integrator.writer-lease.json",
   "suspendedTaskSources": [
-    "issue-53-comment-5735472294 expired epoch-4 heartbeat revival",
-    "earlier epoch-4 continuation directives",
-    "replacement-fixture proposals",
+    "released issue-53 V6 task and writer lease",
+    "expired/discarded issue178 canary v1/v2 provider requests",
+    "old Mission Control runtime branches and rollback releases",
     "unrelated repository roadmap and pull requests"
   ]
 }

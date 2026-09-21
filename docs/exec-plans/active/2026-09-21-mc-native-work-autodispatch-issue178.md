@@ -31,6 +31,20 @@ Do not merge/rebase/cherry-pick it wholesale. Port only owner-aligned mechanisms
 - Work receipt participates in terminal/pending-reasoning-review/final-response state like a Codex execution receipt, without importing Codex-only model/preflight semantics;
 - single-integrator lock is canonical; child Mission Control lanes must hand deltas here and cannot mutate shared runtime/main independently.
 
+
+## Provider-write safety failure and current repair
+
+Live issue-178 V6 reasoning reached the exact `mc-project-manager` provider session, but the model's requested GitHub issue-comment write was blocked by OpenAI safety checks. The supervisor correctly failed closed and did not retry. This demonstrates that control-plane receipt transport cannot depend on the reasoning model performing GitHub mutations.
+
+Current repair:
+- V6 reasoning uses GitHub only for bound evidence reads and returns one canonical machine decision block in the final provider message;
+- native Work returns one privacy-safe execution receipt block in its final Work message;
+- an owner-runtime deterministic copier reads those exact messages through the app-owned `read_thread` surface, validates request/session/binding/dispatch hashes against Mission Control, and publishes only the exact machine block through the owner's existing authenticated `gh` credential;
+- the copier has no semantic authority and cannot invent, paraphrase, or repair a decision/receipt; missing or mismatched machine blocks remain fail-closed;
+- GitHub remains the durable ingestion channel, so existing event-sourced admission and exactly-once reasoning-return semantics remain intact.
+
+The stale `tasks/ACTIVE-TASK.json` issue-53 no-deploy/no-send task is superseded by this later owner-authorized issue-178 task because its writer lease is released and it conflicts mechanically with the current exclusive integrator. Expired/discarded canary v1/v2 requests remain historical and must not be replayed.
+
 ## Current verification
 
 - direct autodispatch/fairness/surface/artifact-binding focused tests: PASS;
