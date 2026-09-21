@@ -188,10 +188,6 @@ Before closing an owner-facing handoff, verify that the owner can use what was d
 
 Use `patterns/human-readable-operational-references.md` for the full outbound-link and artifact-delivery rules, rationale, examples, and recovery rule.
 
-## Paid recommendation preflight
-
-For recurring, annual/prepaid, upgrade, or replacement purchases, apply `patterns/recommendation-preflight-integrity.md`; unresolved entitlement, surface, allowance, billing, replacement, or reversibility facts block endorsement.
-
 ## Research before reinvention
 
 Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`.
