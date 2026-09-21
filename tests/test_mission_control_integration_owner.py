@@ -24,9 +24,8 @@ def looks_like_mission_control_lease(path: Path, lease: dict) -> bool:
 class MissionControlIntegrationOwnerTests(unittest.TestCase):
     def test_active_lock_serializes_shared_integration_and_runtime(self) -> None:
         lock = json.loads(LOCK.read_text(encoding="utf-8"))
-        self.assertEqual(lock["status"], "ACTIVE")
+        self.assertIn(lock["status"], {"ACTIVE", "RELEASED"})
         self.assertEqual(lock["domain"], "MISSION_CONTROL")
-        self.assertTrue(lock["shared_runtime_owner"])
         self.assertEqual(lock["child_lane_policy"], "ISOLATED_CHILD_HANDOFF_ONLY")
         self.assertFalse(lock["direct_main_write_by_children"])
         self.assertFalse(lock["shared_runtime_write_by_children"])
@@ -42,6 +41,20 @@ class MissionControlIntegrationOwnerTests(unittest.TestCase):
             if lease.get("status") != "active" or not looks_like_mission_control_lease(path, lease):
                 continue
             active_mc.append((path, lease))
+
+        if lock["status"] == "RELEASED":
+            self.assertFalse(lock["shared_runtime_owner"])
+            self.assertFalse(lock["issue_178_owned_here"])
+            self.assertFalse(lock["native_work_autodispatch_owned_here"])
+            self.assertIn("released_at", lock)
+            self.assertFalse(
+                any(lease.get("owned_branch") == integrator for _, lease in active_mc),
+                "A released integration owner cannot retain an active writer lease.",
+            )
+            return
+
+        self.assertTrue(lock["shared_runtime_owner"])
+        for path, lease in active_mc:
             if lease.get("owned_branch") == integrator:
                 self.assertTrue(lease.get("shared_runtime_mutation_owner"))
                 continue
