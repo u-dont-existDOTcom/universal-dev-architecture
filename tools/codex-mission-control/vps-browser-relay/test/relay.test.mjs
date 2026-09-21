@@ -943,6 +943,12 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.doesNotMatch(browser.lastSubmittedBody, /write exactly one canonical decision to/);
   assert.match(browser.lastSubmittedBody, /bounded_execution/);
   assert.match(browser.lastSubmittedBody, /CHATGPT_WORK_CLOUD/);
+  assert.match(browser.lastSubmittedBody, /job_id and retry_of_attempt_id must match/);
+  assert.match(browser.lastSubmittedBody, /reviewed_evidence_boundary must be one non-empty STRING/);
+  assert.match(browser.lastSubmittedBody, /workspace must be one absolute path STRING/);
+  assert.match(browser.lastSubmittedBody, /\"routingTier\":\"SOL_MEDIUM\"/);
+  assert.match(browser.lastSubmittedBody, /\"model\":\"GPT_5_6_SOL\"/);
+  assert.match(browser.lastSubmittedBody, /\"effort\":\"MEDIUM\"/);
   assert.match(browser.lastSubmittedBody, /\nIf and only if the accepted decision leaves bounded/);
   assert.doesNotMatch(browser.lastSubmittedBody, /\n If and only if the accepted decision leaves bounded/);
   assert.doesNotMatch(browser.lastSubmittedBody, /get_supervisory_request_binding|REQUEST_BOUND_MCP_GITHUB_OBSERVED/);

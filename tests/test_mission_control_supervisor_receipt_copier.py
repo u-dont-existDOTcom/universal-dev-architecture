@@ -168,6 +168,42 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         with self.assertRaisesRegex(copier.CopierError, "more than one app-owned thread"):
             copier.select_decision_machine_block(threads + [{**threads[1], "threadId": "duplicate"}], candidate)
 
+    def test_bounded_execution_requires_machine_schema_not_human_display_shapes(self) -> None:
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        valid = {
+            "schema_version": 1, "task_id": "task:mission-control-development", "job_id": "issue178-v4",
+            "execution_objective": "Create one harmless deterministic canary artifact.",
+            "reasoning_summary": "All semantic choices are frozen by the supervisor.",
+            "strategy_id": "strategy:issue178-v4", "strategy_causal_hypothesis": "A bounded Work task proves the execution-return loop.",
+            "predicted_outcome_change": "One verified native Work receipt becomes available.",
+            "success_threshold": "One isolated child branch, one artifact, and all required checks pass.",
+            "failure_threshold": "Any scope, branch, content, or check mismatch.",
+            "next_decision_changing_evidence": "The exact privacy-safe Work execution receipt.",
+            "reviewed_evidence_boundary": "Issue #178 current canary state through the source-bound V6 request.",
+            "inputs": [{"type": "GITHUB_REF", "ref": "main", "sha256": None}],
+            "allowed_actions": ["CREATE_CHILD_BRANCH"], "allowed_paths": ["docs/evidence/issue178-canary.txt"],
+            "allowed_commands": ["git diff --check"], "forbidden_actions": ["MERGE_MAIN"], "forbidden_paths": [],
+            "forbidden_decisions": ["CHANGE_METHODOLOGY"], "required_evidence": ["COMMIT_SHA"],
+            "required_tests_or_checks": ["git diff --check"], "stop_and_return_triggers": ["ANY_MISMATCH"],
+            "maximum_execution_cycles": 1, "execution_capability": {"type": "LOCAL_FILESYSTEM_COMMAND"},
+            "workspace": "/workspace", "output_schema": {"status": "string"},
+            "prompt": "Execute only the exact bounded canary residue and return execution facts.",
+            "deadline": "2026-09-21T18:30:00Z",
+            "work_execution_profile": {"model": "GPT_5_6_SOL", "effort": "MEDIUM", "routingTier": "SOL_MEDIUM", "routingTriggers": [], "fastModeRequest": "DO_NOT_ENABLE_FAST", "assuranceRequirement": "SET_REQUEST_SUFFICIENT", "policyRef": "patterns/work-model-and-effort-routing.md", "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb", "contractVersion": "TRUSTED_SETTER_V1"},
+            "execution_surface": "CHATGPT_WORK_CLOUD",
+        }
+        copier.validate_bounded_execution(valid, candidate)
+        failures = [
+            {**valid, "job_id": "job:invalid-colon"},
+            {**valid, "reviewed_evidence_boundary": ["not", "a", "string"]},
+            {**valid, "inputs": {"type": "GITHUB_REF", "ref": "main", "sha256": None}},
+            {**valid, "workspace": {"path": "/workspace"}},
+            {**valid, "work_execution_profile": {**valid["work_execution_profile"], "model": "GPT-5.6 Sol", "effort": "medium"}},
+        ]
+        for malformed in failures:
+            with self.assertRaises(copier.CopierError):
+                copier.validate_bounded_execution(malformed, candidate)
+
     def test_github_comment_parser_supports_installed_and_slurp_page_shapes(self) -> None:
         flat = [{"id": 1, "body": "a"}, {"id": 2, "body": "b"}]
         self.assertEqual(copier.parse_github_comments_json(json.dumps(flat)), flat)

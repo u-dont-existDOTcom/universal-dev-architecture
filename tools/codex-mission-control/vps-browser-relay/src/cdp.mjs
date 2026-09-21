@@ -493,6 +493,11 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
+  const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const systemsThinkingMoreThanUsual = stopVisible && [...document.querySelectorAll('[role="status"], [aria-live], [data-testid], div, span, p')].some((element) => {
+    if (!visible(element) || element.closest('.markdown, [class*="markdown"], [class*="prose"]')) return false;
+    return /^our systems are thinking more than usual[.!…]*$/.test(normalizeText(element.textContent));
+  });
   const normalizedCurrent = normalizeUrl(location.href);
   const current = new URL(location.href);
   const creatingConversation = expectedUrl === 'https://chatgpt.com/';
@@ -505,6 +510,7 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
       : normalizedCurrent !== expectedUrl,
     loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
     stopVisible,
+    systemsThinkingMoreThanUsual,
     composerVisible,
     composerDisabled,
     generating: conversationAssigned || stopVisible || !composerVisible || composerDisabled,
@@ -1025,9 +1031,15 @@ export class ChromeDevtoolsBrowser {
         const state = await client.callFunction(GENERATION_STATE_FN, [normalized]);
         if (state?.urlMismatch) throw new Error(`Chat target changed while waiting for generation: ${state.currentUrl}`);
         if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
+        if (state?.systemsThinkingMoreThanUsual) return { ...state, recoverySignal: 'SYSTEMS_THINKING_MORE_THAN_USUAL' };
         consecutiveIdle = state?.idleReady ? consecutiveIdle + 1 : 0;
         return consecutiveIdle >= 3 ? state : false;
       }, this.generationTimeoutMs, 500, 'ChatGPT generation did not reach a stable complete UI state.');
+      if (completed.recoverySignal === 'SYSTEMS_THINKING_MORE_THAN_USUAL') {
+        const error = new Error('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL: visible system thinking stall detected.');
+        error.code = 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL';
+        throw error;
+      }
       return {
         status: 'GENERATION_COMPLETE',
         generationStarted: true,
