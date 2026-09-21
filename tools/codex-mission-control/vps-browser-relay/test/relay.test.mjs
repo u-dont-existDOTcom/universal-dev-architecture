@@ -868,6 +868,27 @@ test('expired historical supervisory route cannot starve a later valid route', a
   assert.equal(browser.submitCalls, 0);
 });
 
+test('V6 operator-authorized proven-unsent retry re-enters the same one-send control step', async () => {
+  const { store, runtime } = inBandRequestFixture();
+  store.state.deliveries['request:r-1'] = {
+    status: 'AMBIGUOUS_AFTER_RESTART', requestId: 'r-1', workerId: 'worker-1', supervisorId: 'spec',
+    providerSessionId: 'provider-session:v6-unsent', decisionProviderSessionId: 'provider-session:v6-unsent',
+    bindingProviderSessionId: 'provider-session:v6-unsent', failureStage: 'UNKNOWN', preBoundaryAbortConfirmed: false,
+  };
+  store.state.providerSessions['provider-session:v6-unsent'] = {
+    providerSessionId: 'provider-session:v6-unsent', bindingProviderSessionId: 'provider-session:v6-unsent',
+    supervisorId: 'spec', requestId: 'r-1', workerId: 'worker-1', sessionRole: 'IN_BAND_REQUEST_DECISION_SESSION',
+    cycleStep: 'IN_BAND_REQUEST_DECISION', messageOrdinal: 1, conversationUrl: null, openedAt: '2026-09-02T00:00:00.000Z',
+    status: 'AMBIGUOUS', failureStage: 'UNKNOWN', targetId: null,
+  };
+  const resolved = await runtime.resolve('request:r-1', 'retry');
+  assert.equal(resolved.status, 'AMBIGUITY_RESOLVED');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'RETRY_AUTHORIZED');
+  const retry = await runtime.cycle();
+  assert.equal(retry.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(retry));
+  assert.equal(store.state.deliveries['request:r-1'].providerSessionId, 'provider-session:v6-unsent');
+});
+
 test('V6 records one trusted binding/body/admission receipt before one GitHub-only provider message', async () => {
   const { store, mc, browser, runtime, admission } = inBandRequestFixture();
   const first = await runtime.cycle();

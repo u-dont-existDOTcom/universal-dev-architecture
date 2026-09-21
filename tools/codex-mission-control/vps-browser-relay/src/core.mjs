@@ -704,7 +704,7 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
     if (status === startedCycleStepStatus(IN_BAND_REQUEST_STEP)) return { type: 'WAIT_GENERATION', step: IN_BAND_REQUEST_STEP };
     if (status === completedCycleStepStatus(IN_BAND_REQUEST_STEP)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'RECONCILE_EXISTING_REQUEST' };
     if (!Number.isFinite(Date.parse(route.packet.expiresAt)) || nowMs >= Date.parse(route.packet.expiresAt)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'REQUEST_EXPIRED_NO_NEW_SEND' };
-    if (status === 'UNSEEN') return { type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH' };
+    if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH' };
     return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY' };
   }
   if (route.packet.routeSchemaVersion === 5) {
