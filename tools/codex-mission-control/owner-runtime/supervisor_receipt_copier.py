@@ -270,9 +270,134 @@ def _equal(actual: Any, expected: Any, field: str) -> None:
         raise CopierError(f"{field} does not match durable Mission Control binding")
 
 
+def _nonempty_string(value: Any, field: str, *, maximum: int | None = None) -> str:
+    if not isinstance(value, str) or not value.strip() or maximum is not None and len(value) > maximum:
+        raise CopierError(f"{field} must be a non-empty string")
+    return value
+
+
+def _string_array(value: Any, field: str, *, minimum: int = 1) -> list[str]:
+    if not isinstance(value, list) or len(value) < minimum or any(not isinstance(item, str) or not item.strip() for item in value):
+        raise CopierError(f"{field} must be an array of non-empty strings")
+    return value
+
+
+def validate_bounded_execution(value: Any, candidate: DecisionCandidate) -> None:
+    if value is None:
+        return
+    if not isinstance(value, dict):
+        raise CopierError("bounded_execution must be an object")
+    required = {
+        "schema_version", "task_id", "job_id", "execution_objective", "reasoning_summary", "strategy_id",
+        "strategy_causal_hypothesis", "predicted_outcome_change", "success_threshold", "failure_threshold",
+        "next_decision_changing_evidence", "reviewed_evidence_boundary", "inputs", "allowed_actions",
+        "allowed_paths", "allowed_commands", "forbidden_actions", "forbidden_paths", "forbidden_decisions",
+        "required_evidence", "required_tests_or_checks", "stop_and_return_triggers", "maximum_execution_cycles",
+        "execution_capability", "workspace", "output_schema", "prompt", "deadline", "work_execution_profile",
+    }
+    optional = {"execution_surface", "retry_of_attempt_id"}
+    if not required.issubset(value) or set(value) - required - optional:
+        raise CopierError("bounded_execution fields do not match the canonical strict schema")
+    _equal(value.get("schema_version"), 1, "bounded_execution.schema_version")
+    expected_task = (candidate.route.get("factualPacket") or {}).get("taskId")
+    _equal(value.get("task_id"), expected_task, "bounded_execution.task_id")
+    job_id = value.get("job_id")
+    if not isinstance(job_id, str) or len(job_id) > 128 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", job_id):
+        raise CopierError("bounded_execution.job_id must be a CodexSafeId")
+    retry = value.get("retry_of_attempt_id")
+    if retry is not None and (not isinstance(retry, str) or len(retry) > 128 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", retry)):
+        raise CopierError("bounded_execution.retry_of_attempt_id must be a CodexSafeId")
+    stable = value.get("strategy_id")
+    if not isinstance(stable, str) or len(stable) > 180 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]*", stable):
+        raise CopierError("bounded_execution.strategy_id must be a StableId")
+    for field in (
+        "execution_objective", "reasoning_summary", "strategy_causal_hypothesis", "predicted_outcome_change",
+        "success_threshold", "failure_threshold", "next_decision_changing_evidence", "reviewed_evidence_boundary",
+    ):
+        _nonempty_string(value.get(field), f"bounded_execution.{field}", maximum=20_000)
+    _nonempty_string(value.get("prompt"), "bounded_execution.prompt", maximum=50_000)
+    workspace = _nonempty_string(value.get("workspace"), "bounded_execution.workspace", maximum=4_096)
+    if not workspace.startswith("/"):
+        raise CopierError("bounded_execution.workspace must be an absolute path string")
+    try:
+        parse_iso(_nonempty_string(value.get("deadline"), "bounded_execution.deadline"))
+    except CopierError as exc:
+        raise CopierError("bounded_execution.deadline must be an offset-aware ISO timestamp") from exc
+    inputs = value.get("inputs")
+    if not isinstance(inputs, list) or not inputs:
+        raise CopierError("bounded_execution.inputs must be a non-empty array")
+    for i, item in enumerate(inputs):
+        if not isinstance(item, dict) or set(item) != {"type", "ref", "sha256"}:
+            raise CopierError(f"bounded_execution.inputs[{i}] must match the strict input schema")
+        _nonempty_string(item.get("type"), f"bounded_execution.inputs[{i}].type")
+        _nonempty_string(item.get("ref"), f"bounded_execution.inputs[{i}].ref")
+        digest = item.get("sha256")
+        if digest is not None and (not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest)):
+            raise CopierError(f"bounded_execution.inputs[{i}].sha256 must be null or SHA-256")
+    for field in (
+        "allowed_actions", "allowed_paths", "allowed_commands", "forbidden_actions", "forbidden_decisions",
+        "required_evidence", "required_tests_or_checks", "stop_and_return_triggers",
+    ):
+        _string_array(value.get(field), f"bounded_execution.{field}")
+    _string_array(value.get("forbidden_paths"), "bounded_execution.forbidden_paths", minimum=0)
+    cycles = value.get("maximum_execution_cycles")
+    if not isinstance(cycles, int) or isinstance(cycles, bool) or cycles <= 0:
+        raise CopierError("bounded_execution.maximum_execution_cycles must be a positive integer")
+    capability = value.get("execution_capability")
+    if capability == {"type": "LOCAL_FILESYSTEM_COMMAND"}:
+        pass
+    elif isinstance(capability, dict) and set(capability) == {"type", "name"} and capability.get("type") == "BROWSER":
+        _nonempty_string(capability.get("name"), "bounded_execution.execution_capability.name", maximum=180)
+    else:
+        raise CopierError("bounded_execution.execution_capability is invalid")
+    if not isinstance(value.get("output_schema"), dict):
+        raise CopierError("bounded_execution.output_schema must be an object")
+    surface = value.get("execution_surface")
+    if surface is not None and surface not in {"CODEX", "CHATGPT_WORK_CLOUD"}:
+        raise CopierError("bounded_execution.execution_surface is invalid")
+    profile = value.get("work_execution_profile")
+    profile_fields = {
+        "model", "effort", "routingTier", "routingTriggers", "fastModeRequest", "assuranceRequirement",
+        "policyRef", "routingPolicyBaseCommit", "contractVersion",
+    }
+    if not isinstance(profile, dict) or set(profile) != profile_fields:
+        raise CopierError("bounded_execution.work_execution_profile must match the strict schema")
+    tier_map = {
+        "SOL_LOW": ("GPT_5_6_SOL", "LOW"), "SOL_MEDIUM": ("GPT_5_6_SOL", "MEDIUM"),
+        "SOL_HIGH_EXCEPTION": ("GPT_5_6_SOL", "HIGH"), "ASTRA_LOW": ("GPT_6_ASTRA", "LOW"),
+        "ASTRA_MEDIUM": ("GPT_6_ASTRA", "MEDIUM"), "ASTRA_HIGH": ("GPT_6_ASTRA", "HIGH"),
+        "ASTRA_XHIGH": ("GPT_6_ASTRA", "XHIGH"), "ASTRA_MAX": ("GPT_6_ASTRA", "MAX"),
+    }
+    tier = profile.get("routingTier")
+    if tier not in tier_map:
+        raise CopierError("bounded_execution.work_execution_profile.routingTier is invalid")
+    model, effort = tier_map[tier]
+    _equal(profile.get("model"), model, "bounded_execution.work_execution_profile.model")
+    _equal(profile.get("effort"), effort, "bounded_execution.work_execution_profile.effort")
+    triggers = profile.get("routingTriggers")
+    if not isinstance(triggers, list) or len(triggers) > 20 or any(
+        not isinstance(item, str) or len(item) > 120 or not re.fullmatch(r"[A-Z0-9][A-Z0-9_:.\/-]*", item)
+        for item in triggers
+    ):
+        raise CopierError("bounded_execution.work_execution_profile.routingTriggers is invalid")
+    if (tier.startswith("ASTRA_") or tier == "SOL_HIGH_EXCEPTION") and not triggers:
+        raise CopierError("bounded_execution.work_execution_profile requires a source-bound routing trigger")
+    if profile.get("fastModeRequest") not in {"DO_NOT_ENABLE_FAST", "ENABLE_FAST"}:
+        raise CopierError("bounded_execution.work_execution_profile.fastModeRequest is invalid")
+    if profile.get("assuranceRequirement") not in {"SET_REQUEST_SUFFICIENT", "INDEPENDENT_READBACK_REQUIRED"}:
+        raise CopierError("bounded_execution.work_execution_profile.assuranceRequirement is invalid")
+    _equal(profile.get("policyRef"), "patterns/work-model-and-effort-routing.md", "bounded_execution.work_execution_profile.policyRef")
+    _equal(profile.get("routingPolicyBaseCommit"), "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb", "bounded_execution.work_execution_profile.routingPolicyBaseCommit")
+    _equal(profile.get("contractVersion"), "TRUSTED_SETTER_V1", "bounded_execution.work_execution_profile.contractVersion")
+
+
 def validate_decision_block(block: str, payload: dict[str, Any], candidate: DecisionCandidate) -> None:
     route = candidate.route
     binding_sha = ref_value(candidate.pre_send_refs, "in_band_binding_sha256:")
+    required_top = {"schema_version", "envelope_kind", "request_id", "supervisor_id", "provider_session_id", "nonce", "in_band_binding_sha256", "execution_provenance", "evidence_capsule", "owner_outcome", "reasoning_lane", "decision_block", "pro_decision_block", "writer_contract"}
+    optional_top = {"continuation_binding", "continuation_binding_sha256", "bounded_execution"}
+    if not required_top.issubset(payload) or set(payload) - required_top - optional_top:
+        raise CopierError("canonical decision fields do not match the strict schema")
     _equal(payload.get("schema_version"), 5, "schema_version")
     _equal(payload.get("envelope_kind"), "MISSION_CONTROL_CANONICAL_DECISION", "envelope_kind")
     _equal(payload.get("request_id"), candidate.request_id, "request_id")
@@ -301,6 +426,7 @@ def validate_decision_block(block: str, payload: dict[str, Any], candidate: Deci
         _equal(pro.get("sha256"), decision.get("sha256"), "pro_decision_block.sha256")
     else:
         raise CopierError("unsupported reasoning lane")
+    validate_bounded_execution(payload.get("bounded_execution"), candidate)
     if not block.startswith(DECISION_PREFIX):
         raise CopierError("decision block prefix mismatch")
 
