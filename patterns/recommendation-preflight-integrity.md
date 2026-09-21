@@ -163,10 +163,6 @@ The originating recurrence demonstrated that **capture without projection/enforc
 
 A cross-project owner correction exposed a replacement-claim failure in a software-plan recommendation: a capability scoped to one workspace was treated as though it extended to the owner's other workspace and existing workflow, and an annual commitment was recommended before that surface boundary and workload allowance were proven.
 
-Portable source lesson:
-- repository: `u-dont-existDOTcom/AskRigor-lessons`
-- source commit: `e33f52b8611ec3d6f7bb7b1950e8b75fd1beab0a`
-- source path: `docs/logic-lessons-paid-plan-entitlement-fit-2026-09-21.md`
-- source SHA-256: `7f9620de9fb431b26487d4108c0a641bb2aea338c7b80345d991714159b30be5`
+The exact private source provenance is retained in the owner's private logic-lesson ledger rather than copied into Universal infrastructure. Public promotion records only the generalized recurrence and source-byte SHA-256 `7f9620de9fb431b26487d4108c0a641bb2aea338c7b80345d991714159b30be5`.
 
 The promotion is limited to the entitlement-fit, replacement-proof, allowance, billing-separation, and reversibility controls above. It does not encode any named vendor's current plan capabilities; those remain version-sensitive and must be reverified at recommendation time.
