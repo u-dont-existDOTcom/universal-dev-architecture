@@ -102,9 +102,31 @@ export function assertInBandRequestExecution(
   const relayIds = requestBoundPolicy!.relayProducerIds;
   const scoped = events.filter((event) => boundTo(event, request, decision.provider_session_id)
     && inWindow(event, request.queuedAt, ingestedAt));
+
+  const authority = asRecord(submissionAuthorityState);
+  const admissions = Array.isArray(authority?.admissions) ? authority.admissions.map(asRecord).filter(Boolean) : [];
+  const requestAdmissions = admissions.filter((item) => item!.requestId === request.requestId);
+  if (requestAdmissions.length === 0) fail("at least one central single-use admission is required");
+  const crossedAdmissions = requestAdmissions.filter((item) => item!.status === "BOUNDARY_RECORDED");
+  if (crossedAdmissions.length !== 1) fail("exactly one central admission may cross the provider boundary");
+  const admission = crossedAdmissions[0]!;
+  const safePriorStatuses = new Set(["ABORTED_BEFORE_BOUNDARY", "EXPIRED_BEFORE_BOUNDARY", "RECOVERED_BEFORE_COMPOSITION"]);
+  const priorAdmissions = requestAdmissions.filter((item) => item !== admission);
+  if (priorAdmissions.some((item) => item!.queueItemId !== admission.queueItemId
+    || item!.producerId !== admission.producerId || item!.supervisorId !== request.supervisorId
+    || item!.targetKind !== "FRESH_PROVIDER_SESSION" || item!.targetKey !== decision.provider_session_id
+    || item!.bodySha256 !== admission.bodySha256
+    || item!.queueKey !== `request:${request.requestId}:${inBandRequestStep}`
+    || item!.retryRootKey !== `request:${request.requestId}:${inBandRequestStep}`
+    || item!.sendPath !== `SUPERVISORY_CYCLE_${inBandRequestStep}`
+    || !safePriorStatuses.has(String(item!.status)) || item!.boundaryAt !== null)) {
+    fail("prior retry admissions are not all centrally proven pre-boundary safe");
+  }
+
   const preSend = scoped.filter((event) => isTrustedEvidence(event, inBandPreSendSummary, relayIds));
-  if (preSend.length !== 1) fail("exactly one trusted pre-send binding receipt is required");
-  const pre = preSend[0]!;
+  const finalPreSend = preSend.filter((event) => exactRef(event, "submission_admission") === admission.admissionId);
+  if (finalPreSend.length !== 1) fail("exactly one trusted pre-send binding receipt is required for the crossed admission");
+  const pre = finalPreSend[0]!;
   const promptSha256 = exactRef(pre, "provider_body_sha256");
   const admissionId = exactRef(pre, "submission_admission");
   if (!promptSha256 || !/^[a-f0-9]{64}$/.test(promptSha256)
@@ -114,6 +136,22 @@ export function assertInBandRequestExecution(
     || exactRef(pre, "decision_receipt_target") !== expected.decision_receipt_target.immutable_issue_url
     || exactRef(pre, "trusted_relay_producer") !== pre.producerId
     || exactRef(pre, "semantic_authority") !== "false") fail("trusted pre-send binding receipt does not match the exact envelope/body");
+  const admissionsById = new Map(requestAdmissions.map((item) => [String(item!.admissionId), item!]));
+  for (const receipt of preSend) {
+    const receiptAdmissionId = exactRef(receipt, "submission_admission");
+    const linked = receiptAdmissionId ? admissionsById.get(receiptAdmissionId) : null;
+    if (!linked || linked.producerId !== receipt.producerId
+      || exactRef(receipt, "binding_protocol") !== inBandRequestProtocol
+      || exactRef(receipt, "binding_schema") !== expected.binding_schema
+      || exactRef(receipt, "in_band_binding_sha256") !== expected.in_band_binding_sha256
+      || exactRef(receipt, "provider_body_sha256") !== promptSha256
+      || exactRef(receipt, "decision_receipt_target") !== expected.decision_receipt_target.immutable_issue_url
+      || exactRef(receipt, "trusted_relay_producer") !== receipt.producerId
+      || exactRef(receipt, "semantic_authority") !== "false"
+      || (linked !== admission && (!safePriorStatuses.has(String(linked.status)) || linked.boundaryAt !== null))) {
+      fail("retry pre-send history is not bound to the exact safe admission chain");
+    }
+  }
 
   const sessionRecords = scoped.filter((event) => isTrustedEvidence(event, sessionSummary, relayIds));
   if (sessionRecords.some((event) => exactRef(event, "session_role") !== inBandRequestRole)) fail("provider session role mismatch");
@@ -122,7 +160,7 @@ export function assertInBandRequestExecution(
     || exactRef(session, "lifecycle_status") !== "COMPLETE"
     || exactRef(session, "url_binding_status") !== "EXACT") fail("completed exact provider session missing");
   const conversationUrl = exactRef(session!, "conversation_url");
-  if (!conversationUrl || !/^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/.test(conversationUrl)) fail("exact conversation binding missing");
+  if (!conversationUrl || !/^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/.test(conversationUrl)) fail("exact conversation binding missing");
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
     && exactRef(event, "session_role") === inBandRequestRole && hasRefs(event, controlRefs));
   if (!model) fail("fixed visible model/control observation missing");
@@ -153,11 +191,6 @@ export function assertInBandRequestExecution(
     fail("more than one provider generation/send session observed");
   }
 
-  const authority = asRecord(submissionAuthorityState);
-  const admissions = Array.isArray(authority?.admissions) ? authority.admissions.map(asRecord).filter(Boolean) : [];
-  const requestAdmissions = admissions.filter((item) => item!.requestId === request.requestId);
-  if (requestAdmissions.length !== 1) fail("exactly one central single-use admission is required");
-  const admission = requestAdmissions[0]!;
   if (admission.admissionId !== admissionId || admission.producerId !== pre.producerId
     || admission.supervisorId !== request.supervisorId || admission.targetKind !== "FRESH_PROVIDER_SESSION"
     || admission.targetKey !== decision.provider_session_id || admission.bodySha256 !== promptSha256
@@ -169,8 +202,15 @@ export function assertInBandRequestExecution(
   }
   const queueItems = Array.isArray(authority?.queueItems) ? authority.queueItems.map(asRecord).filter(Boolean) : [];
   const queue = queueItems.filter((item) => item!.queueItemId === admission.queueItemId);
-  if (queue.length !== 1 || !Array.isArray(queue[0]!.admissionIds) || queue[0]!.admissionIds.length !== 1
-    || queue[0]!.admissionIds[0] !== admissionId) fail("central admission is not single-use for this provider body");
+  const queueAdmissionIds = queue.length === 1 && Array.isArray(queue[0]!.admissionIds) ? queue[0]!.admissionIds.map(String) : [];
+  const requestAdmissionIds = requestAdmissions.map((item) => String(item!.admissionId));
+  if (queue.length !== 1 || queue[0]!.status !== "BOUNDARY_RECORDED"
+    || queueAdmissionIds.length !== requestAdmissionIds.length
+    || queueAdmissionIds.some((id) => !requestAdmissionIds.includes(id))
+    || requestAdmissionIds.some((id) => !queueAdmissionIds.includes(id))
+    || queueAdmissionIds.at(-1) !== admissionId) {
+    fail("central admission chain is not single-use with only proven pre-boundary retries");
+  }
 
   const created = Date.parse(candidate.createdAt);
   const createdUpper = created + (/T\d\d:\d\d:\d\dZ$/.test(candidate.createdAt) ? 999 : 0);
