@@ -385,6 +385,7 @@ export class SubmissionAuthorityRuntime {
     if (operation === "target-bindings") return scheduler.bindTarget(body, producer.id);
     if (operation === "provider-rate-limits") return scheduler.recordRateLimit(body, producer.id);
     if (operation === "aborts") return scheduler.abortBeforeBoundary(body, producer.id);
+    if (operation === "expired-preclick-retries/cancel") return scheduler.cancelExpiredPreclickRetry(body, producer.id);
     if (operation === "outcomes") return scheduler.recordOutcome(body, producer.id);
     const error = new Error("Submission-authority operation was not found.");
     Object.assign(error, { statusCode: 404, code: "SUBMISSION_AUTHORITY_OPERATION_UNKNOWN" });

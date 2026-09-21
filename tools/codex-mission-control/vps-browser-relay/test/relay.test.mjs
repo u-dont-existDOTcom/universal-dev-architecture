@@ -854,17 +854,27 @@ test('expired historical supervisory route cannot starve a later valid route', a
 
   const store = new MemoryStateStore();
   store.state.deliveries['request:expired-old'] = {
-    status: 'REQUEST_BOUND_DECISION_COMPLETE', requestId: 'expired-old', workerId: 'worker-1',
+    status: 'DISCARDED', requestId: 'expired-old', workerId: 'worker-1',
     supervisorId: 'spec', providerSessionId: 'provider-session:expired-old',
   };
   const mc = new FakeMissionControl({ evidence: [], routes: [expired, current], autoFirstTurnMcp: false });
   const browser = new FakeBrowser();
-  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  const cancellations = [];
+  const pacer = {
+    status: () => ({
+      ready: false, queueHead: { queueItemId: 'queue-item:expired-old', requestId: 'expired-old', status: 'PRECLICK_RETRY_PENDING' },
+    }),
+    cancelExpiredPreclickRetry: async (input) => { cancellations.push(input); return { cancelled: true }; },
+  };
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, submissionPacer: pacer });
   runtime.config.runtime.requestBoundEnabled = true;
   const result = await runtime.cycle();
   assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
   assert.equal(result.route.requestId, 'current-new');
   assert.equal(result.route.taskId, 'task-new');
+  assert.deepEqual(cancellations, [{
+    queueItemId: 'queue-item:expired-old', requestId: 'expired-old', sourceRouteExpiresAt: '2026-09-01T01:00:00.000Z',
+  }]);
   assert.equal(browser.submitCalls, 0);
 });
 

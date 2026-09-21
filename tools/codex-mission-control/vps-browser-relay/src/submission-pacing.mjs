@@ -42,6 +42,13 @@ export class CentralSubmissionScheduler {
     return status;
   }
 
+  async cancelExpiredPreclickRetry({ queueItemId, requestId, sourceRouteExpiresAt }) {
+    if (typeof this.schedulerClient.cancelExpiredPreclickRetry !== 'function') {
+      throw new Error('CENTRAL_SCHEDULER_CANCEL_UNAVAILABLE: scheduler client lacks expired-retry cancellation.');
+    }
+    return this.schedulerClient.cancelExpiredPreclickRetry({ queueItemId, requestId, sourceRouteExpiresAt });
+  }
+
   async assertReady() {
     const status = await this.remoteStatus();
     this.#assertLocalLease(status);

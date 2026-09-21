@@ -449,7 +449,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       try { validateOwnerResponseContinuation(packet, packet.routeSchemaVersion, workerId); } catch { continue; }
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
-      if (prior && ['SUBMITTED_CONFIRMED', 'DISCARDED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
+      if (prior && ['SUBMITTED_CONFIRMED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
       const providerSessionId = prior?.providerSessionId ?? null;
       const bindingProviderSessionId = prior?.bindingProviderSessionId ?? (prior?.cycleStep === MCP_BINDING_PRELOAD_STEP ? providerSessionId : null);
       const workerRequestKey = `${workerId}:${packet.requestId}`;

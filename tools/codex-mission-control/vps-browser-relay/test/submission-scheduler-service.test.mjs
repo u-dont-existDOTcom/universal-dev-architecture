@@ -71,6 +71,56 @@ test('FIFO queue is durable before grant, exposes its head/depth, and protects q
   assert.equal(store.state.queueItems[0].admissionIds.length, 2);
 });
 
+test('expired source route cancels only the same-producer proven pre-click retry', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const first = await scheduler.admit(request({ requestId: 'expired-route', queueKey: 'queue:expired-route' }), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: first.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+  const expiredAt = new Date(now.value - 1).toISOString();
+  await assert.rejects(
+    scheduler.cancelExpiredPreclickRetry({ queueItemId: first.queueItemId, requestId: 'wrong', sourceRouteExpiresAt: expiredAt }, 'collector:relay'),
+    hasCode('SUBMISSION_QUEUE_REQUEST_MISMATCH'),
+  );
+  await assert.rejects(
+    scheduler.cancelExpiredPreclickRetry({ queueItemId: first.queueItemId, requestId: 'expired-route', sourceRouteExpiresAt: new Date(now.value + 1).toISOString() }, 'collector:relay'),
+    hasCode('SOURCE_ROUTE_NOT_EXPIRED'),
+  );
+  await assert.rejects(
+    scheduler.cancelExpiredPreclickRetry({ queueItemId: first.queueItemId, requestId: 'expired-route', sourceRouteExpiresAt: expiredAt }, 'collector:standby'),
+    hasCode('SUBMISSION_ADMISSION_PRODUCER_MISMATCH'),
+  );
+  const cancelled = await scheduler.cancelExpiredPreclickRetry({
+    queueItemId: first.queueItemId, requestId: 'expired-route', sourceRouteExpiresAt: expiredAt,
+  }, 'collector:relay');
+  assert.equal(cancelled.cancelled, true);
+  assert.equal(cancelled.duplicate, false);
+  assert.equal(store.state.queueItems[0].status, 'CANCELLED_EXPIRED_ROUTE');
+  assert.equal((await scheduler.status()).queueDepth, 0);
+  const duplicate = await scheduler.cancelExpiredPreclickRetry({
+    queueItemId: first.queueItemId, requestId: 'expired-route', sourceRouteExpiresAt: expiredAt,
+  }, 'collector:relay');
+  assert.equal(duplicate.duplicate, true);
+  assert.equal((await scheduler.admit(request({ requestId: 'fresh-route', queueKey: 'queue:fresh-route', bodySha256: 'f'.repeat(64) }), 'collector:relay')).admitted, true);
+});
+
+test('expired-route cancellation cannot erase crossed submission history', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const admitted = await scheduler.admit(request({ requestId: 'crossed-route', queueKey: 'queue:crossed-route' }), 'collector:relay');
+  await scheduler.recordBoundary({
+    admissionId: admitted.admissionId, boundaryAt: new Date(now.value).toISOString(), boundaryKind: 'CLICKED',
+    conversationUrlSha256: sha256('https://chatgpt.com/c/crossed'),
+  }, 'collector:relay');
+  await assert.rejects(
+    scheduler.cancelExpiredPreclickRetry({ queueItemId: admitted.queueItemId, requestId: 'crossed-route', sourceRouteExpiresAt: new Date(now.value - 1).toISOString() }, 'collector:relay'),
+    hasCode('SUBMISSION_QUEUE_CANCEL_STAGE_INVALID'),
+  );
+});
+
 test('concurrent host requests share one serialization point and only one receives an admission', async () => {
   const now = { value: origin };
   const scheduler = makeScheduler(new MemoryStore(), now);
