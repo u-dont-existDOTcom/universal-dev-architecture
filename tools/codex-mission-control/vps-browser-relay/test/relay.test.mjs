@@ -510,6 +510,129 @@ test('hard memory pressure performs no submission', async () => {
   assert.equal(browser.submitCalls, 0);
 });
 
+test('native Work auto-dispatch sends once, never replays while waiting, and consumes durable receipts', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  let dispatchResult = null;
+  let executionReceipt = null;
+  let dispatchCalls = 0;
+  mc.requestNativeWorkCloudDispatch = async (_worker, input) => {
+    dispatchCalls += 1;
+    assert.equal(input.sourceChatTitle, 'Mission Control - Goal Alignment');
+    assert.match(input.sourceChatUrl, /^chatgpt-conversation:\/\//);
+    return {
+      dispatchId: 'work-cloud:test-auto', status: executionReceipt ? 'EXECUTION_RECEIPT_RECORDED' : dispatchResult?.status ?? 'REQUESTED',
+      requestedWorkTitle: 'Work — Mission Control - Goal Alignment', workPromptSha256: 'd'.repeat(64),
+      handoffPrompt: dispatchResult ? null : 'MISSION_CONTROL_NATIVE_WORK_HANDOFF_V1\nEXACT',
+      receiptTarget: 'https://github.com/o/r/issues/2', dispatchResult, executionReceipt,
+    };
+  };
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  const sourceTarget = browser.targets.find((target) => target.url.includes('/c/'));
+  if (sourceTarget) sourceTarget.title = 'Mission Control - Goal Alignment';
+  mc.evidence.push({ eventId: 'decision-work-cloud', sequence: 99, occurredAt: '2026-09-19T19:00:00.000Z', data: {
+    type: 'github_decision_receipt_ingested', request_id: 'r-1', stage_provider_session_id: providerSessionId,
+    binding_provider_session_id: providerSessionId, supervisor_id: 'spec', receipt_id: 'github-comment:work-cloud', reasoning_lane: 'PRO_ESCALATED',
+    github_receipt: { repository: 'o/r', issue_number: 1, comment_id: 99, immutable_url: 'https://github.com/o/r/issues/1#issuecomment-99' },
+    bounded_execution: { execution_surface: 'CHATGPT_WORK_CLOUD', task_id: 'task-1' },
+  } });
+  const launched = await runtime.cycle();
+  assert.equal(launched.status, 'WORK_CLOUD_HANDOFF_SUBMITTED');
+  assert.equal(browser.submitCalls, 2);
+  assert.equal(browser.lastSubmittedBody, 'MISSION_CONTROL_NATIVE_WORK_HANDOFF_V1\nEXACT');
+  assert.equal(browser.selectAppsCalls.at(-1).requiredLabels[0], 'GitHub');
+
+  const waiting = await runtime.cycle();
+  assert.notEqual(waiting.status, 'WORK_CLOUD_HANDOFF_SUBMITTED');
+  assert.equal(browser.submitCalls, 2, 'waiting dispatch must not replay the native Work handoff');
+
+  dispatchResult = {
+    type: 'chatgpt_work_cloud_dispatch_recorded', dispatch_id: 'work-cloud:test-auto', status: 'READY',
+    work_thread_id: 'native-work-thread-1', client_thread_id: null, approval_state: 'ACCEPTED', error_code: null,
+    recorded_at: '2026-09-19T19:01:00.000Z',
+  };
+  mc.evidence.push({ eventId: 'work-dispatch-ready', sequence: 100, occurredAt: dispatchResult.recorded_at, data: {
+    ...dispatchResult, worker: 'worker-a', task_id: 'task-1', directive_id: 'directive:task-1', directive_revision: 1,
+  } });
+  const ready = await runtime.cycle();
+  assert.equal(ready.status, 'WORK_CLOUD_EXECUTION_PENDING');
+  assert.equal(browser.submitCalls, 2);
+
+  executionReceipt = {
+    type: 'chatgpt_work_cloud_execution_receipt_recorded', dispatch_id: 'work-cloud:test-auto', status: 'COMPLETED',
+    terminal_state: 'IMPLEMENTATION_READY_FOR_REVIEW', recorded_at: '2026-09-19T19:02:00.000Z',
+  };
+  mc.evidence.push({ eventId: 'work-exec-done', sequence: 101, occurredAt: executionReceipt.recorded_at, data: {
+    ...executionReceipt, worker: 'worker-a', task_id: 'task-1', directive_id: 'directive:task-1', directive_revision: 1,
+  } });
+  const done = await runtime.cycle();
+  assert.equal(done.status, 'WORK_CLOUD_EXECUTION_RECEIPT_RECORDED');
+  assert.equal(store.state.deliveries['request:r-1'].workCloudTerminalState, 'IMPLEMENTATION_READY_FOR_REVIEW');
+  assert.equal(browser.submitCalls, 2);
+  assert.ok(dispatchCalls >= 3);
+});
+
+test('native Work request-only restart with no local handoff intent resumes automatically once', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  mc.requestNativeWorkCloudDispatch = async () => ({
+    dispatchId: 'work-cloud:restart-safe', requestAlreadyExisted: true, status: 'REQUESTED',
+    requestedWorkTitle: 'Work — Specialist', workPromptSha256: 'd'.repeat(64),
+    handoffPrompt: 'MISSION_CONTROL_NATIVE_WORK_HANDOFF_V1\nEXACT', receiptTarget: 'https://github.com/o/r/issues/2',
+    dispatchResult: null, executionReceipt: null,
+  });
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  mc.evidence.push({ eventId: 'decision-work-cloud-restart-safe', sequence: 99, occurredAt: '2026-09-19T19:00:00.000Z', data: {
+    type: 'github_decision_receipt_ingested', request_id: 'r-1', stage_provider_session_id: providerSessionId,
+    binding_provider_session_id: providerSessionId, supervisor_id: 'spec', receipt_id: 'github-comment:work-cloud-restart-safe', reasoning_lane: 'PRO_ESCALATED',
+    github_receipt: { repository: 'o/r', issue_number: 1, comment_id: 99, immutable_url: 'https://github.com/o/r/issues/1#issuecomment-99' },
+    bounded_execution: { execution_surface: 'CHATGPT_WORK_CLOUD', task_id: 'task-1' },
+  } });
+  const resumed = await runtime.cycle();
+  assert.equal(resumed.status, 'WORK_CLOUD_HANDOFF_SUBMITTED');
+  assert.equal(browser.submitCalls, 2, 'binding preload plus one native Work handoff');
+  const waiting = await runtime.cycle();
+  assert.notEqual(waiting.status, 'WORK_CLOUD_HANDOFF_SUBMITTED');
+  assert.equal(browser.submitCalls, 2, 'waiting state must not replay the handoff');
+});
+
+test('native Work restart after local handoff intent fails closed and never duplicates the handoff', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser();
+  mc.requestNativeWorkCloudDispatch = async () => ({
+    dispatchId: 'work-cloud:restart-ambiguous', requestAlreadyExisted: true, status: 'REQUESTED',
+    requestedWorkTitle: 'Work — Specialist', workPromptSha256: 'd'.repeat(64),
+    handoffPrompt: 'MISSION_CONTROL_NATIVE_WORK_HANDOFF_V1\nEXACT', receiptTarget: 'https://github.com/o/r/issues/2',
+    dispatchResult: null, executionReceipt: null,
+  });
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  store.state.deliveries['request:r-1'] = {
+    ...store.state.deliveries['request:r-1'],
+    status: 'WORK_CLOUD_HANDOFF_INTENT_RECORDED',
+    workCloudDispatchId: 'work-cloud:restart-ambiguous',
+    handoffPromptSha256: 'e'.repeat(64),
+  };
+  mc.evidence.push({ eventId: 'decision-work-cloud-restart-ambiguous', sequence: 99, occurredAt: '2026-09-19T19:00:00.000Z', data: {
+    type: 'github_decision_receipt_ingested', request_id: 'r-1', stage_provider_session_id: providerSessionId,
+    binding_provider_session_id: providerSessionId, supervisor_id: 'spec', receipt_id: 'github-comment:work-cloud-restart-ambiguous', reasoning_lane: 'PRO_ESCALATED',
+    github_receipt: { repository: 'o/r', issue_number: 1, comment_id: 99, immutable_url: 'https://github.com/o/r/issues/1#issuecomment-99' },
+    bounded_execution: { execution_surface: 'CHATGPT_WORK_CLOUD', task_id: 'task-1' },
+  } });
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS_NO_REPLAY');
+  assert.equal(browser.submitCalls, 1, 'only the already-completed binding preload may have been sent');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS');
+});
+
 test('an admitted canonical receipt completes the provider session and retains one reusable ChatGPT tab', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });

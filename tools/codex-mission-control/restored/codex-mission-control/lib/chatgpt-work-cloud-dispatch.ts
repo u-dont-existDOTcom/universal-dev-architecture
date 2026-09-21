@@ -32,6 +32,7 @@ export interface WorkCloudDispatchInput {
   binding: WorkCloudDirectiveBinding;
   sourceChatTitle: string;
   sourceChatUrl: string;
+  sourceChatBrowserUrl?: string | null;
   requestedWorkTitle: string;
   chatgptProjectId: string | null;
   existingWorkThreadId: string | null;
@@ -162,6 +163,7 @@ export function buildWorkCloudDispatchRequestedEnvelope(input: WorkCloudDispatch
       source_body_sha256: input.binding.sourceBodySha256,
       source_chat_title: input.sourceChatTitle,
       source_chat_url: input.sourceChatUrl,
+      source_chat_browser_url: input.sourceChatBrowserUrl ?? null,
       requested_work_title: input.requestedWorkTitle,
       chatgpt_project_id: input.chatgptProjectId,
       existing_work_thread_id: input.existingWorkThreadId,

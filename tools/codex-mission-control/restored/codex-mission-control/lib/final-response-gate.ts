@@ -1,6 +1,7 @@
 import type { WorkerState } from "./projection";
 import { receiptHasTrustedSetterEvidence } from "./work-task-creation-evidence";
 import { internalSupervisorRoutePrefix, supervisoryCycleRoutePrefix } from "./supervision-admission-runtime";
+import { requestBoundRoutePrefix } from "./request-bound-supervision";
 import { launchSelectionFor, workExecutionProfilesEqual } from "./work-execution-profile";
 
 export type FinalResponseGateDecision =
@@ -66,10 +67,21 @@ export function evaluateFinalResponseAdmission(worker: WorkerState): FinalRespon
 
   const activeQueue = worker.channel.queue.filter((item) => executableQueueStatuses.has(item.status));
   const timeline = worker.timeline ?? [];
-  const latestInternalRouteEvent = timeline.find((event) => event.data.type === "worker_message_recorded"
-    && event.data.message_kind === "QUESTION"
-    && (event.data.body.startsWith(internalSupervisorRoutePrefix) || event.data.body.startsWith(supervisoryCycleRoutePrefix)));
-  const latestExecutionReceiptEvent = timeline.find((event) => event.data.type === "execution_receipt_recorded");
+  const latestInternalRouteEvent = timeline
+    .filter((event) => (
+      event.data.type === "worker_message_recorded"
+        && event.data.message_kind === "QUESTION"
+        && (event.data.body.startsWith(internalSupervisorRoutePrefix)
+          || event.data.body.startsWith(supervisoryCycleRoutePrefix)
+          || event.data.body.startsWith(requestBoundRoutePrefix))
+      || event.data.type === "reasoning_review_route_recorded"
+        && event.data.body.startsWith(requestBoundRoutePrefix)
+    ))
+    .sort((left, right) => right.sequence - left.sequence)[0];
+  const latestExecutionReceiptEvent = timeline
+    .filter((event) => event.data.type === "execution_receipt_recorded"
+      || event.data.type === "chatgpt_work_cloud_execution_receipt_recorded")
+    .sort((left, right) => right.sequence - left.sequence)[0];
   const reasoningStopped = ["STOPPED_FOR_REASONING_REVIEW", "PARKED"].includes(worker.executionSupervision.codexExecutionState)
     && worker.executionSupervision.pendingReasoningReview;
   const currentReasoningRoute = Boolean(latestInternalRouteEvent
@@ -241,6 +253,27 @@ function executionProfileRejection(
   const directiveEvent = timeline.find((event) => event.data.type === "execution_directive_recorded");
   const directive = directiveEvent?.data;
   if (!directive || directive.type !== "execution_directive_recorded" || directive.directive_schema_version !== 3) return null;
+  if (directive.execution_surface === "CHATGPT_WORK_CLOUD") {
+    const dispatchResult = [...timeline].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+      && event.data.directive_id === directive.directive_id
+      && event.data.directive_revision === directive.directive_revision)?.data;
+    const workReceipt = [...timeline].reverse().find((event) => event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+      && event.data.directive_id === directive.directive_id
+      && event.data.directive_revision === directive.directive_revision)?.data;
+    if (dispatchResult?.type !== "chatgpt_work_cloud_dispatch_recorded"
+      || dispatchResult.status !== "READY"
+      || !["VERIFIED_NATIVE_WORK", "SOURCE_ATTESTED_NATIVE_WORK"].includes(dispatchResult.surface_verification)
+      || workReceipt?.type !== "chatgpt_work_cloud_execution_receipt_recorded"
+      || workReceipt.work_thread_id !== dispatchResult.work_thread_id) {
+      return reject(
+        "REJECT_TERMINAL_PROOF_MISSING",
+        ["The current native ChatGPT Work directive has no exact ready dispatch plus source-bound native Work execution receipt."],
+        "Wait for or repair the exact native Work dispatch/execution receipt before finalization.",
+        terminalHash,
+      );
+    }
+    return null;
+  }
   const receiptEvent = timeline.find((event) => event.data.type === "execution_receipt_recorded"
     && event.data.directive_id === directive.directive_id
     && event.data.directive_revision === directive.directive_revision);

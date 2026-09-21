@@ -281,6 +281,56 @@ test("ledger persists verified Work lineage and rejects unverified continuation 
   } finally { store.close(); }
 });
 
+test("native Work completion projects as an execution stop pending reasoning review", async () => {
+  const store = currentDirectiveStore();
+  const githubProducer: AuthenticatedProducer = {
+    id: "system:github-decision-receipts",
+    kind: "SYSTEM",
+    workerScopes: ["auth"],
+    taskScopes: [taskId],
+  };
+  try {
+    const create = await dispatchChatGptWorkCloud(
+      input(),
+      executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, []),
+    );
+    store.append(create.request, now, systemProducer);
+    store.append(create.result, now, systemProducer);
+    const stoppedAt = "2026-09-19T03:21:00.000Z";
+    store.append({
+      schema_version: 2,
+      event_id: "work-cloud-execution:auth:1",
+      mission_id: "mission-control-demo",
+      occurred_at: stoppedAt,
+      data: {
+        type: "chatgpt_work_cloud_execution_receipt_recorded",
+        worker: "auth",
+        dispatch_id: input().dispatchId,
+        directive_id: input().binding.directiveId,
+        directive_revision: input().binding.directiveRevision,
+        task_id: taskId,
+        work_thread_id: "work-thread-native-1",
+        status: "COMPLETED",
+        terminal_state: "IMPLEMENTATION_READY_FOR_REASONING_REVIEW",
+        check_summary: { passed: 12, failed: 0, not_run: 0 },
+        blocker_codes: [],
+        artifact_count: 3,
+        github_comment_sha256: "a".repeat(64),
+        recorded_at: stoppedAt,
+        producer_id: githubProducer.id,
+        source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED",
+      },
+    }, stoppedAt, githubProducer);
+    const projected = projectWorker(store.workerEvents("auth"));
+    assert.equal(projected.workCloudDispatch.executionStatus, "COMPLETED");
+    assert.equal(projected.workCloudDispatch.terminalState, "IMPLEMENTATION_READY_FOR_REASONING_REVIEW");
+    assert.equal(projected.workCloudDispatch.checksPassed, 12);
+    assert.equal(projected.executionSupervision.codexExecutionState, "STOPPED_FOR_REASONING_REVIEW");
+    assert.equal(projected.executionSupervision.pendingReasoningReview, true);
+    assert.match(projected.executionSupervision.receiptClaim, /IMPLEMENTATION_READY_FOR_REASONING_REVIEW/);
+  } finally { store.close(); }
+});
+
 test("ledger rejects CONTINUE when no prior verified native Work locator exists", async () => {
   const store = currentDirectiveStore();
   try {
@@ -332,6 +382,7 @@ function currentDirectiveStore(): EventStore {
       chat_decision_id: "reasoning-decision:auth:work-cloud", directive_schema_version: 3,
       directive_artifact_sha256: directiveArtifactSha256,
       source_message_id: sourceMessageId, source_body_sha256: sourceBodySha256,
+      execution_surface: "CHATGPT_WORK_CLOUD",
       work_execution_profile: {
         model: "GPT_5_6_SOL", effort: "MEDIUM", routingTier: "SOL_MEDIUM", routingTriggers: [],
         fastModeRequest: "DO_NOT_ENABLE_FAST", assuranceRequirement: "SET_REQUEST_SUFFICIENT",

@@ -4,6 +4,7 @@ import test from "node:test";
 import { evaluateFinalResponseAdmission } from "../lib/final-response-gate";
 import type { WorkerState } from "../lib/projection";
 import { internalSupervisorRoutePrefix } from "../lib/supervision-admission-runtime";
+import { requestBoundRoutePrefix } from "../lib/request-bound-supervision";
 
 function worker(overrides: Record<string, unknown> = {}): WorkerState {
   const base = {
@@ -144,6 +145,47 @@ test("a routed directive stop may end only the current execution turn while the 
   assert.equal(result.mustContinue, false);
   assert.equal(result.decision, "ALLOW_REASONING_HANDOFF_PAUSE");
   assert.match(result.requiredNextAction, /task remains open|resume automatically/i);
+});
+
+test("native Work completion plus fresh SYSTEM V5 route pauses for reasoning without Codex profile evidence", () => {
+  const result = evaluateFinalResponseAdmission(worker({
+    nextSteps: [],
+    terminal: { decision: "HOLD_COMPLETION_EVIDENCE" },
+    executionSupervision: { codexExecutionState: "STOPPED_FOR_REASONING_REVIEW", pendingReasoningReview: true },
+    timeline: [
+      {
+        sequence: 10,
+        data: {
+          type: "execution_directive_recorded", directive_id: "directive:work", directive_revision: 1,
+          directive_schema_version: 3, execution_surface: "CHATGPT_WORK_CLOUD",
+        },
+      },
+      {
+        sequence: 15,
+        data: {
+          type: "chatgpt_work_cloud_dispatch_recorded", directive_id: "directive:work", directive_revision: 1,
+          status: "READY", work_thread_id: "native-work-thread-1", surface_verification: "SOURCE_ATTESTED_NATIVE_WORK",
+        },
+      },
+      {
+        sequence: 20,
+        data: {
+          type: "chatgpt_work_cloud_execution_receipt_recorded", directive_id: "directive:work", directive_revision: 1,
+          work_thread_id: "native-work-thread-1",
+        },
+      },
+      {
+        sequence: 30,
+        data: {
+          type: "reasoning_review_route_recorded",
+          body: `${requestBoundRoutePrefix}{"schemaVersion":5}`,
+        },
+      },
+    ],
+  }));
+  assert.equal(result.terminalResponseAllowed, true);
+  assert.equal(result.decision, "ALLOW_REASONING_HANDOFF_PAUSE");
+  assert.doesNotMatch(result.requiredNextAction, /profile|preflight/i);
 });
 
 test("an external blocker with a recorded workaround cannot terminalize the task", () => {

@@ -747,6 +747,7 @@ export const boundedExecutionResidueSchema = z.object({
   prompt: NonEmpty.max(50_000),
   deadline: Timestamp,
   work_execution_profile: workExecutionProfileSchema,
+  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD"]).optional(),
   retry_of_attempt_id: CodexSafeId.optional(),
 }).strict();
 
@@ -1063,6 +1064,7 @@ export const executionDirectiveRecordedSchema = z.object({
     workExecutionProfileSchema,
     z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
   ]).default(LEGACY_MODEL_PROFILE_UNSPECIFIED),
+  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD"]).optional(),
   status: z.enum(["ACTIVE", "SATISFIED", "SUPERSEDED", "EXPIRED"]),
 }).superRefine((directive, context) => {
   if (directive.directive_schema_version === 3
@@ -1138,6 +1140,7 @@ export const chatGptWorkCloudDispatchRequestedSchema = z.object({
   source_body_sha256: Sha256,
   source_chat_title: NonEmpty.max(300),
   source_chat_url: ChatGptConversationUrl,
+  source_chat_browser_url: Url.nullable().default(null),
   requested_work_title: NonEmpty.max(300).refine((value) => value.startsWith("Work — "), "Work title must preserve the Work — lineage prefix."),
   chatgpt_project_id: StableId.nullable(),
   existing_work_thread_id: StableId.nullable(),
@@ -1152,7 +1155,7 @@ export const chatGptWorkCloudDispatchRequestedSchema = z.object({
   }).strict(),
   requested_at: Timestamp,
   producer_id: StableId,
-  source: z.literal("TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY"),
+  source: z.enum(["TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY", "MISSION_CONTROL_SUPERVISOR_WORK_DISPATCH"]),
 }).strict().superRefine((request, context) => {
   if (request.mode === "CREATE" && request.existing_work_thread_id !== null) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["existing_work_thread_id"], message: "CREATE must not carry an existing Work thread id." });
@@ -1176,16 +1179,17 @@ export const chatGptWorkCloudDispatchRecordedSchema = z.object({
   work_thread_id: StableId.nullable(),
   client_thread_id: StableId.nullable(),
   approval_state: z.enum(["NOT_REQUIRED", "PENDING_OWNER_ACCEPT", "ACCEPTED", "DECLINED"]),
-  surface_verification: z.enum(["NOT_VERIFIED", "VERIFIED_NATIVE_WORK", "REJECTED_WRONG_SURFACE"]),
+  surface_verification: z.enum(["NOT_VERIFIED", "VERIFIED_NATIVE_WORK", "SOURCE_ATTESTED_NATIVE_WORK", "REJECTED_WRONG_SURFACE"]),
   native_surface_evidence: z.enum([
     "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET",
     "TRUSTED_APP_EXECUTOR_EXISTING_WORK_THREAD",
+    "CHATGPT_SUPERVISOR_NATIVE_WORK_TOOL_RESULT",
   ]).nullable(),
   host_id: StableId.nullable(),
   error_code: z.string().trim().min(1).max(120).regex(/^[A-Z0-9][A-Z0-9_:.\/-]*$/).nullable(),
   recorded_at: Timestamp,
   producer_id: StableId,
-  source: z.literal("TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY"),
+  source: z.enum(["TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY", "CHATGPT_SUPERVISOR_WORK_DISPATCH_ATTESTED"]),
 }).strict().superRefine((result, context) => {
   const expectedTool = result.mode === "CREATE" ? "create_thread" : "send_message_to_thread";
   if (result.app_tool !== expectedTool) {
@@ -1193,7 +1197,7 @@ export const chatGptWorkCloudDispatchRecordedSchema = z.object({
   }
   if (result.status === "READY") {
     if (!result.work_thread_id || result.client_thread_id || result.error_code
-      || result.surface_verification !== "VERIFIED_NATIVE_WORK" || !result.native_surface_evidence) {
+      || !["VERIFIED_NATIVE_WORK", "SOURCE_ATTESTED_NATIVE_WORK"].includes(result.surface_verification) || !result.native_surface_evidence) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "READY requires one native Work thread id and verified native-surface evidence." });
     }
   } else if (result.status === "PENDING_SETUP") {
@@ -1207,10 +1211,49 @@ export const chatGptWorkCloudDispatchRecordedSchema = z.object({
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "PENDING_APPROVAL must preserve the product approval gate without a thread identity claim." });
     }
   } else if (!result.error_code || result.work_thread_id || result.client_thread_id
-    || result.surface_verification === "VERIFIED_NATIVE_WORK" || result.native_surface_evidence) {
+    || ["VERIFIED_NATIVE_WORK", "SOURCE_ATTESTED_NATIVE_WORK"].includes(result.surface_verification) || result.native_surface_evidence) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "FAILED/UNAVAILABLE requires an error code and cannot claim a Work thread or verified surface." });
   }
 });
+
+export const chatGptWorkCloudExecutionReceiptRecordedSchema = z.object({
+  type: z.literal("chatgpt_work_cloud_execution_receipt_recorded"),
+  worker: WorkerId,
+  dispatch_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  work_thread_id: StableId.nullable(),
+  status: z.enum(["COMPLETED", "PARTIAL", "BLOCKED", "FAILED"]),
+  terminal_state: NonEmpty.max(300),
+  check_summary: z.object({
+    passed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    not_run: z.number().int().nonnegative(),
+  }).strict(),
+  blocker_codes: z.array(z.string().trim().min(1).max(120).regex(/^[A-Z0-9][A-Z0-9_:.\/-]*$/)).max(50),
+  artifact_count: z.number().int().nonnegative().max(10000),
+  github_comment_sha256: Sha256,
+  recorded_at: Timestamp,
+  producer_id: StableId,
+  source: z.literal("CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED"),
+}).strict();
+
+export const reasoningReviewRouteRecordedSchema = z.object({
+  type: z.literal("reasoning_review_route_recorded"),
+  worker: WorkerId,
+  request_id: StableId,
+  message_id: StableId,
+  thread_id: StableId,
+  source_execution_receipt_event_id: StableId,
+  source_dispatch_id: StableId,
+  destination_supervisor_id: StableId,
+  body: NonEmpty.max(20_000),
+  body_sha256: Sha256,
+  recorded_at: Timestamp,
+  producer_id: StableId,
+  source: z.literal("MISSION_CONTROL_POST_EXECUTION_REASONING_ROUTER"),
+}).strict();
 
 export const workExecutionPreflightRecordedSchema = z.object({
   type: z.literal("work_execution_preflight_recorded"),
@@ -1764,7 +1807,8 @@ export const eventSchemaV2 = z.union([
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema,
   workExecutionProfileAuthorizedSchema, workTaskCreationSelectionAppliedSchema, workExecutionPreflightRecordedSchema,
-  chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema,
+  chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema, chatGptWorkCloudExecutionReceiptRecordedSchema,
+  reasoningReviewRouteRecordedSchema,
   codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,
   githubDecisionReceiptIngestedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,

@@ -104,12 +104,18 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
             <Identity label="Chat epoch" value={worker.executionSupervision.chatEpoch ?? "MISSING"} />
             <Identity label="Active directive" value={worker.executionSupervision.activeDirectiveId ?? "MISSING"} />
             <Identity label="Directive status" value={worker.executionSupervision.directiveStatus} />
-            <Identity label="Codex execution" value={worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} />
+            <Identity label="Execution state" value={worker.executionSupervision.codexExecutionState.replaceAll("_", " ")} />
             <Identity label="Pro escalation" value={worker.executionSupervision.proEscalationState} />
             <Identity label="Requested execution surface" value={worker.workCloudDispatch.requestedSurface?.replaceAll("_", " ") ?? "NOT REQUESTED"} />
             <Identity label="Native Work dispatch" value={`${worker.workCloudDispatch.status.replaceAll("_", " ")} · ${worker.workCloudDispatch.surfaceVerification.replaceAll("_", " ")}`} />
             <Identity label="Native Work thread" value={worker.workCloudDispatch.workThreadId ?? worker.workCloudDispatch.clientThreadId ?? "NOT AVAILABLE"} />
             <Identity label="Work approval" value={worker.workCloudDispatch.approvalState.replaceAll("_", " ")} />
+            <Identity label="Native Work execution" value={worker.workCloudDispatch.executionStatus
+              ? `${worker.workCloudDispatch.executionStatus.replaceAll("_", " ")} · ${worker.workCloudDispatch.terminalState ?? "terminal state unavailable"}`
+              : "NOT COMPLETED"} />
+            <Identity label="Native Work checks" value={worker.workCloudDispatch.checksPassed === null
+              ? "NOT REPORTED"
+              : `${worker.workCloudDispatch.checksPassed} passed · ${worker.workCloudDispatch.checksFailed ?? 0} failed`} />
             <Identity label="Requested Work profile" value={worker.workExecution.requestedModel
               ? `${worker.workExecution.requestedModel} · ${worker.workExecution.requestedEffort} · ${worker.workExecution.routingTier}`
               : "LEGACY / UNSPECIFIED"} />
@@ -279,6 +285,8 @@ function eventSummary(event: StoredEvent): string {
     case "work_execution_preflight_recorded": return `${data.preflight}: ${data.decision}`;
     case "chatgpt_work_cloud_dispatch_requested": return `${data.mode}: ${data.requested_work_title} · ${data.requested_surface}`;
     case "chatgpt_work_cloud_dispatch_recorded": return `${data.status}: ${data.work_thread_id ?? data.client_thread_id ?? data.error_code ?? "awaiting native Work"}`;
+    case "chatgpt_work_cloud_execution_receipt_recorded": return `${data.status}: ${data.terminal_state} · ${data.check_summary.passed} checks passed, ${data.check_summary.failed} failed`;
+    case "reasoning_review_route_recorded": return `Post-Work reasoning review queued for ${data.destination_supervisor_id}: ${data.request_id}`;
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
     case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;
     case "work_model_routing_checkpoint_recorded": return `${data.checkpoint_kind}: ${data.eligible_execution_count}/10 eligible executions`;

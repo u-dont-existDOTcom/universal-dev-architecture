@@ -436,12 +436,16 @@ export class RelayRuntime {
           { missionControlLegacyBinding: exactLegacyBinding, unrelatedRouteCount: allRoutes.length - routes.length },
         );
       }
-      const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
+      const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt && shouldAdvanceDecisionReceipt(route, state));
       if (withReceipt) {
         const providerSessionId = withReceipt.decisionReceipt.provider_session_id
           ?? withReceipt.decisionReceipt.decision_provider_session_id
           ?? withReceipt.decisionReceipt.stage_provider_session_id;
         const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
+        const nativeWorkCloud = withReceipt.decisionReceipt.bounded_execution?.execution_surface === 'CHATGPT_WORK_CLOUD';
+        if (nativeWorkCloud) {
+          return await this.#advanceNativeWorkCloudDispatch({ route: withReceipt, routes, state, memory, providerSessionId, session, targets });
+        }
         if (!session && withReceipt.packet.routeSchemaVersion === 5 && withReceipt.decisionReceipt.execution_provenance === 'REQUEST_BOUND_MCP_GITHUB_OBSERVED') {
           // The daemon already admitted the exact execution evidence. Recover a lost local acknowledgement without a new browser transaction.
           state.deliveries[withReceipt.routeKey] = { status: 'DECISION_RECEIPT_INGESTED', requestId: withReceipt.requestId, workerId: withReceipt.workerId, supervisorId: withReceipt.supervisorId, providerSessionId, receiptId: withReceipt.decisionReceipt.receipt_id, recoveredFrom: 'DURABLE_GITHUB_ADMISSION', receivedAt: new Date().toISOString() };
@@ -517,6 +521,169 @@ export class RelayRuntime {
       state.health.pausedReason = null;
       state = await this.stateStore.write(state);
       return this.#writeStandaloneStatus('ERROR', state, { error: redactError(error) });
+    }
+  }
+
+  async #advanceNativeWorkCloudDispatch({ route, routes, state, memory, providerSessionId, session, targets }) {
+    const expectedUrl = session?.conversationUrl ?? route.chat.bootstrapCapability.url;
+    const sourceConversationId = conversationIdFromUrl(expectedUrl) ?? route.chat.bootstrapCapability.chatId;
+    const sourceChatUrl = `chatgpt-conversation://${sourceConversationId}`;
+    const sourceChatTitle = sourceChatTitleFromTargets(targets, sourceConversationId, route.chat.label);
+    const now = new Date().toISOString();
+    const dispatch = await this.missionControl.requestNativeWorkCloudDispatch(route.workerId, {
+      sourceChatTitle,
+      sourceChatUrl,
+      sourceChatBrowserUrl: expectedUrl,
+      chatgptProjectId: route.chat.chatgptProjectId ?? projectIdFromUrl(expectedUrl),
+      capabilityEvidence: {
+        observedAt: now,
+        appVersion: 'SUPERVISOR_MEDIATED_CAPABILITY_UNVERIFIED',
+        createThreadTargetAvailable: false,
+        sendMessageToThreadAvailable: false,
+        nativeSurfaceVerificationAvailable: false,
+      },
+    });
+    const current = state.deliveries[route.routeKey] ?? {};
+    if (dispatch.executionReceipt) {
+      state.deliveries[route.routeKey] = {
+        ...current, status: 'WORK_CLOUD_EXECUTION_RECEIPT_RECORDED', requestId: route.requestId,
+        workerId: route.workerId, supervisorId: route.supervisorId, providerSessionId,
+        receiptId: route.decisionReceipt.receipt_id, workCloudDispatchId: dispatch.dispatchId,
+        workCloudExecutionStatus: dispatch.executionReceipt.status,
+        workCloudTerminalState: dispatch.executionReceipt.terminal_state,
+        receivedAt: now, lastError: null,
+      };
+      state.health.lastError = null;
+      state.health.pausedReason = null;
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus('WORK_CLOUD_EXECUTION_RECEIPT_RECORDED', state, {
+        memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), workCloud: publicWorkCloudDispatch(dispatch),
+      });
+    }
+    if (dispatch.dispatchResult) {
+      const result = dispatch.dispatchResult;
+      if (current.workCloudDispatchRecordedAt !== result.recorded_at || current.workCloudDispatchStatus !== result.status) {
+        state.deliveries[route.routeKey] = {
+          ...current, status: workCloudDeliveryStatus(result.status), requestId: route.requestId,
+          workerId: route.workerId, supervisorId: route.supervisorId, providerSessionId,
+          receiptId: route.decisionReceipt.receipt_id, workCloudDispatchId: dispatch.dispatchId,
+          workCloudDispatchStatus: result.status, workCloudDispatchRecordedAt: result.recorded_at,
+          workCloudThreadId: result.work_thread_id, workCloudClientThreadId: result.client_thread_id,
+          lastError: result.error_code,
+        };
+        state.health.lastError = result.status === 'FAILED' || result.status === 'UNAVAILABLE' ? result.error_code : null;
+        state.health.pausedReason = result.status === 'PENDING_APPROVAL'
+          ? 'Native ChatGPT Work is waiting for the product-level owner Accept gesture.' : null;
+        state = await this.stateStore.write(state);
+      }
+      return this.#writeStandaloneStatus(workCloudDeliveryStatus(result.status), state, {
+        memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), workCloud: publicWorkCloudDispatch(dispatch),
+      });
+    }
+    if (current.status === 'WORK_CLOUD_HANDOFF_SUBMITTED' || current.status === 'WORK_CLOUD_HANDOFF_AMBIGUOUS') {
+      return this.#writeStandaloneStatus(
+        current.status === 'WORK_CLOUD_HANDOFF_AMBIGUOUS' ? 'WORK_CLOUD_HANDOFF_AMBIGUOUS_NO_REPLAY' : 'AWAITING_WORK_CLOUD_DISPATCH_RECEIPT',
+        state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), workCloud: publicWorkCloudDispatch(dispatch) },
+      );
+    }
+    if (dispatch.requestAlreadyExisted === true) {
+      const hasProviderBoundaryIntent = current.workCloudDispatchId === dispatch.dispatchId
+        || typeof current.handoffPromptSha256 === 'string'
+        || String(current.status ?? '').startsWith('WORK_CLOUD_HANDOFF_');
+      const safeRetry = !hasProviderBoundaryIntent || (
+        current.status === 'WORK_CLOUD_HANDOFF_FAILED_RETRYABLE'
+        && current.workCloudDispatchId === dispatch.dispatchId
+        && current.preBoundaryAbortConfirmed === true
+      );
+      if (!safeRetry) {
+        state.deliveries[route.routeKey] = {
+          ...current,
+          status: 'WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS',
+          requestId: route.requestId,
+          workerId: route.workerId,
+          supervisorId: route.supervisorId,
+          providerSessionId,
+          receiptId: route.decisionReceipt.receipt_id,
+          workCloudDispatchId: dispatch.dispatchId,
+          workCloudPromptSha256: dispatch.workPromptSha256,
+          lastError: 'WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS',
+        };
+        state.health.lastError = 'WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS';
+        state.health.pausedReason = 'A durable native Work dispatch request exists without a dispatch receipt or local proven-unsent boundary; automatic replay is prohibited.';
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus('WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS_NO_REPLAY', state, {
+          memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), workCloud: publicWorkCloudDispatch(dispatch),
+        });
+      }
+    }
+    if (typeof dispatch.handoffPrompt !== 'string' || !dispatch.handoffPrompt) throw new Error('Mission Control native Work dispatch did not return the exact handoff prompt.');
+    const target = await this.browser.findOrCreateChatTarget(expectedUrl, {
+      reusableTargetId: session?.targetId ?? this.#selectReusableTargetId(state, await this.browser.listTargets()),
+      hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+    });
+    const promptSha256 = sha256(dispatch.handoffPrompt);
+    let boundaryStarted = false;
+    try {
+      const start = await this.submissionPacer.submit({
+        context: submissionSchedulerContext({
+          chat: route.chat, target, expectedUrl,
+          providerSessionId: providerSessionId ?? `work-dispatch:${dispatch.dispatchId}`,
+          requestId: route.requestId, queueKey: `${route.routeKey}:WORK_CLOUD_HANDOFF:${dispatch.dispatchId}`,
+          sendPath: 'WORK_CLOUD_HANDOFF', bodySha256: promptSha256,
+        }),
+        beforeSubmit: async () => {
+          const controls = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: route.chat.consumerControls });
+          state = await this.stateStore.read();
+          const latest = state.deliveries[route.routeKey] ?? current;
+          state.deliveries[route.routeKey] = {
+            ...latest, status: 'WORK_CLOUD_HANDOFF_INTENT_RECORDED', requestId: route.requestId,
+            workerId: route.workerId, supervisorId: route.supervisorId, providerSessionId,
+            receiptId: route.decisionReceipt.receipt_id, workCloudDispatchId: dispatch.dispatchId,
+            workCloudPromptSha256: dispatch.workPromptSha256, handoffPromptSha256: promptSha256,
+            modelUiLabel: controls.modelVisibleLabel, intentRecordedAt: new Date().toISOString(), lastError: null,
+          };
+          state = await this.stateStore.write(state);
+        },
+        submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
+          const githubLabel = route.chat.requiredApps?.github;
+          if (!githubLabel) throw new Error('Registered supervisor chat is missing its GitHub app label for native Work dispatch receipts.');
+          const knownLabels = [...new Set(Object.values(route.chat.requiredApps ?? {}).filter((value) => typeof value === 'string' && value))];
+          const messageApps = await this.browser.selectAppsForMessage(target, { knownLabels, requiredLabels: [githubLabel] });
+          const start = await this.browser.submitExactMessage(target, {
+            expectedUrl, body: dispatch.handoffPrompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary,
+          });
+          return { ...start, messageApps };
+        },
+      });
+      boundaryStarted = true;
+      state = await this.stateStore.read();
+      state.deliveries[route.routeKey] = {
+        ...state.deliveries[route.routeKey], status: 'WORK_CLOUD_HANDOFF_SUBMITTED', workCloudDispatchId: dispatch.dispatchId,
+        workCloudPromptSha256: dispatch.workPromptSha256, handoffPromptSha256: promptSha256,
+        generationStartedAt: start.startedAtObserved, generationStart: start, lastError: null,
+      };
+      state.health.lastError = null;
+      state.health.pausedReason = null;
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus('WORK_CLOUD_HANDOFF_SUBMITTED', state, {
+        memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), workCloud: publicWorkCloudDispatch(dispatch), generationStart: start,
+      });
+    } catch (error) {
+      const stage = error?.relayStage ?? 'UNKNOWN';
+      const afterBoundary = boundaryStarted || stage === 'CLICKED' || stage === 'CLICK_DISPATCHED' || stage === 'GENERATION_STARTED'
+        || error?.preBoundaryAbortConfirmed !== true;
+      state = await this.stateStore.read();
+      state.deliveries[route.routeKey] = {
+        ...state.deliveries[route.routeKey], status: afterBoundary ? 'WORK_CLOUD_HANDOFF_AMBIGUOUS' : 'WORK_CLOUD_HANDOFF_FAILED_RETRYABLE',
+        workCloudDispatchId: dispatch.dispatchId, workCloudPromptSha256: dispatch.workPromptSha256, handoffPromptSha256: promptSha256,
+        failedAt: new Date().toISOString(), failureStage: stage, preBoundaryAbortConfirmed: error?.preBoundaryAbortConfirmed === true, lastError: redactError(error),
+      };
+      state.health.lastError = redactError(error);
+      state.health.pausedReason = afterBoundary ? 'Native Work handoff may have crossed the provider boundary; automatic replay is prohibited.' : null;
+      state = await this.stateStore.write(state);
+      return this.#writeStandaloneStatus(afterBoundary ? 'WORK_CLOUD_HANDOFF_AMBIGUOUS_NO_REPLAY' : 'WORK_CLOUD_HANDOFF_FAILED_RETRYABLE', state, {
+        memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), error: redactError(error),
+      });
     }
   }
 
@@ -1203,6 +1370,69 @@ function findChallengeExpiry(snapshot, chat) {
     && event.data.refs?.includes(`chat:${chat.bootstrapCapability.chatId}`));
   const expiry = challenge?.data?.refs?.find((ref) => typeof ref === 'string' && ref.startsWith('expires_at:'))?.slice('expires_at:'.length);
   return expiry && Number.isFinite(Date.parse(expiry)) ? expiry : null;
+}
+
+function shouldAdvanceDecisionReceipt(route, state) {
+  if (route.decisionReceipt?.bounded_execution?.execution_surface !== 'CHATGPT_WORK_CLOUD') return true;
+  const prior = state.deliveries?.[route.routeKey] ?? null;
+  if (route.workCloudExecutionReceipt) {
+    return prior?.status !== 'WORK_CLOUD_EXECUTION_RECEIPT_RECORDED'
+      || prior?.workCloudTerminalState !== route.workCloudExecutionReceipt.terminal_state;
+  }
+  if (route.workCloudDispatchResult) {
+    return prior?.workCloudDispatchRecordedAt !== route.workCloudDispatchResult.recorded_at
+      || prior?.workCloudDispatchStatus !== route.workCloudDispatchResult.status;
+  }
+  return !['WORK_CLOUD_HANDOFF_SUBMITTED', 'WORK_CLOUD_HANDOFF_AMBIGUOUS', 'WORK_CLOUD_REQUEST_ONLY_RECOVERY_AMBIGUOUS', 'WORK_CLOUD_EXECUTION_PENDING', 'OWNER_INTERACTION_PENDING', 'WORK_CLOUD_SETUP_PENDING'].includes(prior?.status);
+}
+
+function workCloudDeliveryStatus(status) {
+  if (status === 'READY') return 'WORK_CLOUD_EXECUTION_PENDING';
+  if (status === 'PENDING_APPROVAL') return 'OWNER_INTERACTION_PENDING';
+  if (status === 'PENDING_SETUP') return 'WORK_CLOUD_SETUP_PENDING';
+  if (status === 'FAILED') return 'WORK_CLOUD_DISPATCH_FAILED';
+  return 'WORK_CLOUD_DISPATCH_UNAVAILABLE';
+}
+
+function publicWorkCloudDispatch(dispatch) {
+  return {
+    dispatchId: dispatch?.dispatchId ?? null,
+    status: dispatch?.executionReceipt ? 'EXECUTION_RECEIPT_RECORDED' : dispatch?.dispatchResult?.status ?? dispatch?.status ?? null,
+    requestedWorkTitle: dispatch?.requestedWorkTitle ?? null,
+    workPromptSha256: dispatch?.workPromptSha256 ?? null,
+    receiptTarget: dispatch?.receiptTarget ?? null,
+    workThreadId: dispatch?.dispatchResult?.work_thread_id ?? null,
+    clientThreadId: dispatch?.dispatchResult?.client_thread_id ?? null,
+    approvalState: dispatch?.dispatchResult?.approval_state ?? null,
+    executionStatus: dispatch?.executionReceipt?.status ?? null,
+    terminalState: dispatch?.executionReceipt?.terminal_state ?? null,
+  };
+}
+
+function conversationIdFromUrl(value) {
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/\/c\/([A-Za-z0-9_-]+)\/?$/);
+    return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? match[1] : null;
+  } catch { return null; }
+}
+
+function sourceChatTitleFromTargets(targets, conversationId, fallback) {
+  const target = Array.isArray(targets)
+    ? targets.find((item) => conversationIdFromUrl(item?.url) === conversationId)
+    : null;
+  const raw = typeof target?.title === 'string' ? target.title.trim() : '';
+  if (!raw || /^ChatGPT$/i.test(raw)) return fallback;
+  const normalized = raw.replace(/^ChatGPT\s*[-–—]\s*/i, '').trim();
+  return normalized || fallback;
+}
+
+function projectIdFromUrl(value) {
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/^\/g\/(g-p-[A-Za-z0-9_-]+)\/c\//);
+    return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? match[1] : null;
+  } catch { return null; }
 }
 
 function unresolvedAmbiguities(state) {

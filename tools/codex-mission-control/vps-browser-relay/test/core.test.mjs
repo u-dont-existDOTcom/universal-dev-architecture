@@ -8,6 +8,7 @@ import {
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
+  REQUEST_BOUND_CYCLE_ROUTE_PREFIX,
   STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGE_LIVENESS_SUMMARY,
   STAGE_RECEIPT_GRACE_MS,
@@ -216,6 +217,32 @@ test('route extraction binds durable stage-liveness receipts to the exact worker
   assert.equal(routes[0].stageLiveness.EXTRA_HIGH_READER.latest.status, 'STAGE_COMPLETE');
   assert.equal(routes[0].stageLiveness.EXTRA_HIGH_READER.continueRequiredCount, 1);
   assert.equal(routes[0].stageLiveness.PRO_DECISION_STAGE, undefined);
+});
+
+test('SYSTEM post-Work reasoning route is discovered and starts the ordinary request-bound preload cycle', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const body = requestBoundSupervisoryBody('EXTRA_HIGH_DIRECT');
+  const timeline = [{
+    eventId: 'post-work-route-1',
+    sequence: 1,
+    occurredAt: '2026-09-02T12:00:00.000Z',
+    data: {
+      type: 'reasoning_review_route_recorded',
+      request_id: 'post-work-r1',
+      message_id: 'post-work-message-1',
+      body,
+    },
+  }];
+  const routes = extractQueuedRoutes({ workers: [{ id: 'worker-a', name: 'Worker A', timeline }] }, [chat], defaultState());
+  assert.equal(routes.length, 1);
+  assert.equal(routes[0].requestId, 'post-work-r1');
+  assert.equal(routes[0].messageId, 'post-work-message-1');
+  assert.equal(routes[0].routeKind, 'SUPERVISORY_CYCLE');
+  assert.equal(routes[0].packet.routeSchemaVersion, 5);
+  assert.equal(routes[0].supervisorId, 'spec');
+  assert.deepEqual(nextSupervisoryCycleAction(routes[0], null, Date.parse('2026-09-02T12:10:00.000Z')), {
+    type: 'SEND_CONTROL', step: 'REQUEST_BOUND_DECISION', model: 'EXTRA_HIGH',
+  });
 });
 
 test('escalated route waits for durable reader liveness before entering Pro', () => {
@@ -503,6 +530,18 @@ function supervisoryBody(lane) {
     evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
     githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'p1', taskId: 't1', exactFactualState: 'x', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2026-09-03T00:00:00.000Z',
+  });
+}
+
+function requestBoundSupervisoryBody(lane) {
+  return REQUEST_BOUND_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    schemaVersion: 5, executionContext: { task_id: 't1' }, packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE',
+    requestId: 'post-work-r1', nonce: 'post-work-n1', reasoningLane: lane,
+    destination: 'SPECIALIST_SUPERVISOR_CHAT', destinationSupervisorId: 'spec', providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    evidenceCapsule: { id: 'cap-post-work', sha256: 'a'.repeat(64) }, ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 },
+    factualPacket: { packetId: 'post-work-p1', taskId: 't1', exactFactualState: 'native Work finished', evidenceRefs: ['work:receipt'], decisionRequested: 'review' },
+    queuedAt: '2026-09-02T12:00:00.000Z', expiresAt: '2026-09-02T13:00:00.000Z',
   });
 }
 

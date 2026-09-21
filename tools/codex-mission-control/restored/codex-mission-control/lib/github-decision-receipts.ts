@@ -7,6 +7,8 @@ import type { EventStore } from "./store";
 import { parseRouteContinuation, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
 import { validateOwnerResponseContinuation } from "./owner-response-continuation";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
+import { WORK_CLOUD_DISPATCH_RECEIPT_PREFIX, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "./chatgpt-work-cloud-autodispatch";
+import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -29,6 +31,7 @@ export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
+const postExecutionReasoningRouter: AuthenticatedProducer = { id: POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 
 export interface GitHubReceiptPolicy {
   repository: string;
@@ -392,6 +395,94 @@ function ingestGitHubSupervisionCandidateFromEvents(
       ...(directiveEnvelope ? [{ event: directiveEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer }] : []),
     ], events);
   }
+  if (candidate.body.startsWith(WORK_CLOUD_DISPATCH_RECEIPT_PREFIX)) {
+    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.stageIssueNumber) {
+      throw new Error("Native Work dispatch receipt arrived outside the configured stage/diagnostic channel.");
+    }
+    const value = parsePrefixedJson(candidate.body, WORK_CLOUD_DISPATCH_RECEIPT_PREFIX, "native Work dispatch receipt");
+    if (value.schemaVersion !== 1) throw new Error("Native Work dispatch receipt must use schemaVersion 1.");
+    const dispatchId = requiredString(value.dispatchId, "dispatchId");
+    const requestEvent = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+      && event.data.dispatch_id === dispatchId);
+    const workRequest = requestEvent?.data;
+    if (!workRequest || workRequest.type !== "chatgpt_work_cloud_dispatch_requested") throw new Error("Native Work dispatch receipt has no exact prior dispatch request.");
+    if (requiredString(value.worker, "worker") !== workRequest.worker
+      || requiredString(value.taskId, "taskId") !== workRequest.task_id
+      || requiredString(value.directiveId, "directiveId") !== workRequest.directive_id
+      || positiveInteger(value.directiveRevision, "directiveRevision") !== workRequest.directive_revision
+      || sha256String(value.promptSha256, "promptSha256") !== workRequest.prompt_sha256) {
+      throw new Error("Native Work dispatch receipt does not match its exact request/directive/prompt binding.");
+    }
+    const status = enumString(value.status, ["READY", "PENDING_APPROVAL", "PENDING_SETUP", "FAILED", "UNAVAILABLE"] as const, "status");
+    const surface = enumString(value.surface, ["CHATGPT_WORK_CLOUD", "UNKNOWN"] as const, "surface");
+    const workThreadId = nullableString(value.workThreadId, "workThreadId");
+    const clientThreadId = nullableString(value.clientThreadId, "clientThreadId");
+    const errorCode = nullableString(value.errorCode, "errorCode");
+    if (status === "READY" && (surface !== "CHATGPT_WORK_CLOUD" || !workThreadId || clientThreadId || errorCode)) {
+      throw new Error("READY native Work receipt requires the actual native Work surface and one returned Work thread id.");
+    }
+    if (status === "PENDING_SETUP" && (!clientThreadId || workThreadId || errorCode)) throw new Error("PENDING_SETUP native Work receipt requires one client thread id only.");
+    if (status === "PENDING_APPROVAL" && (workThreadId || clientThreadId || errorCode)) throw new Error("PENDING_APPROVAL native Work receipt cannot claim a thread id or error.");
+    if ((status === "FAILED" || status === "UNAVAILABLE") && (!errorCode || workThreadId || clientThreadId)) throw new Error("FAILED/UNAVAILABLE native Work receipt requires an error code and no thread id.");
+    const workEnvelope: AppendEnvelope = {
+      schema_version: 2,
+      event_id: `github-work-cloud-dispatch:${sha256(`${candidate.commentId}:${dispatchId}`).slice(0, 32)}`,
+      mission_id: "mission-control-live",
+      occurred_at: candidate.createdAt,
+      data: {
+        type: "chatgpt_work_cloud_dispatch_recorded", worker: workRequest.worker, dispatch_id: workRequest.dispatch_id, mode: workRequest.mode,
+        requested_surface: "CHATGPT_WORK_CLOUD", directive_id: workRequest.directive_id, directive_revision: workRequest.directive_revision, task_id: workRequest.task_id,
+        app_tool: workRequest.mode === "CREATE" ? "create_thread" : "send_message_to_thread", status, work_thread_id: workThreadId, client_thread_id: clientThreadId,
+        approval_state: status === "PENDING_APPROVAL" ? "PENDING_OWNER_ACCEPT" : status === "READY" || status === "PENDING_SETUP" ? "ACCEPTED" : workRequest.approval_state,
+        surface_verification: status === "READY" ? "SOURCE_ATTESTED_NATIVE_WORK" : "NOT_VERIFIED",
+        native_surface_evidence: status === "READY" ? "CHATGPT_SUPERVISOR_NATIVE_WORK_TOOL_RESULT" : null, host_id: null, error_code: errorCode,
+        recorded_at: candidate.createdAt, producer_id: githubDecisionProducer.id, source: "CHATGPT_SUPERVISOR_WORK_DISPATCH_ATTESTED",
+      },
+    };
+    return [store.append(workEnvelope, ingestedAt, githubDecisionProducer, events)];
+  }
+  if (candidate.body.startsWith(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX)) {
+    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.stageIssueNumber) {
+      throw new Error("Native Work execution receipt arrived outside the configured stage/diagnostic channel.");
+    }
+    const value = parsePrefixedJson(candidate.body, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX, "native Work execution receipt");
+    if (value.schemaVersion !== 1) throw new Error("Native Work execution receipt must use schemaVersion 1.");
+    const dispatchId = requiredString(value.dispatchId, "dispatchId");
+    const requestEvent = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested" && event.data.dispatch_id === dispatchId);
+    const workRequest = requestEvent?.data;
+    const resultEvent = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded" && event.data.dispatch_id === dispatchId);
+    const workResult = resultEvent?.data;
+    if (!workRequest || workRequest.type !== "chatgpt_work_cloud_dispatch_requested" || !workResult || workResult.type !== "chatgpt_work_cloud_dispatch_recorded"
+      || workResult.status !== "READY" || !workResult.work_thread_id) throw new Error("Native Work execution receipt requires an exact ready native Work dispatch.");
+    if (requiredString(value.worker, "worker") !== workRequest.worker || requiredString(value.taskId, "taskId") !== workRequest.task_id
+      || requiredString(value.directiveId, "directiveId") !== workRequest.directive_id
+      || positiveInteger(value.directiveRevision, "directiveRevision") !== workRequest.directive_revision) {
+      throw new Error("Native Work execution receipt does not match its exact dispatch directive.");
+    }
+    const status = enumString(value.status, ["COMPLETED", "PARTIAL", "BLOCKED", "FAILED"] as const, "status");
+    const executionEnvelope: AppendEnvelope = {
+      schema_version: 2, event_id: `github-work-cloud-execution:${sha256(`${candidate.commentId}:${dispatchId}`).slice(0, 32)}`,
+      mission_id: "mission-control-live", occurred_at: candidate.createdAt,
+      data: { type: "chatgpt_work_cloud_execution_receipt_recorded", worker: workRequest.worker, dispatch_id: dispatchId, directive_id: workRequest.directive_id,
+        directive_revision: workRequest.directive_revision, task_id: workRequest.task_id, work_thread_id: workResult.work_thread_id, status,
+        terminal_state: requiredString(value.terminalState, "terminalState"),
+        check_summary: { passed: nonnegativeInteger(value.checksPassed, "checksPassed"), failed: nonnegativeInteger(value.checksFailed, "checksFailed"), not_run: nonnegativeInteger(value.checksNotRun, "checksNotRun") },
+        blocker_codes: stringArray(value.blockerCodes, "blockerCodes", 50), artifact_count: nonnegativeInteger(value.artifactCount, "artifactCount"),
+        github_comment_sha256: sha256(candidate.body), recorded_at: candidate.createdAt, producer_id: githubDecisionProducer.id, source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED" },
+    };
+    const reasoningRoute = buildPostWorkReasoningRouteEnvelope({
+      events,
+      executionReceipt: executionEnvelope as AppendEnvelope & {
+        data: Extract<AppendEnvelope["data"], { type: "chatgpt_work_cloud_execution_receipt_recorded" }>;
+      },
+      policy,
+      recordedAt: ingestedAt,
+    });
+    return store.appendMany([
+      { event: executionEnvelope, receivedAt: ingestedAt, producer: githubDecisionProducer },
+      { event: reasoningRoute, receivedAt: ingestedAt, producer: postExecutionReasoningRouter },
+    ], events);
+  }
   if (candidate.body.startsWith(capabilityReceiptCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.capabilityIssueNumber) throw new Error("Capability receipt arrived outside the configured GitHub capability channel.");
     const capability = parseCapabilityReceiptComment(candidate.body);
@@ -452,12 +543,17 @@ function ingestGitHubSupervisionCandidateFromEvents(
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
   return events.flatMap((event) => {
-    if (event.data.type !== "worker_message_recorded"
-      || (!event.data.body.startsWith(requestBoundRoutePrefix)
-        && !event.data.body.startsWith(supervisoryCycleRoutePrefix)
-        && !event.data.body.startsWith(stagedSupervisoryCycleRoutePrefix)
-        && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
-    const request = parseCycleRequest(event.data.body, event.data.worker);
+    const body = event.data.type === "worker_message_recorded" || event.data.type === "reasoning_review_route_recorded"
+      ? event.data.body
+      : null;
+    if (!body
+      || (!body.startsWith(requestBoundRoutePrefix)
+        && !body.startsWith(supervisoryCycleRoutePrefix)
+        && !body.startsWith(stagedSupervisoryCycleRoutePrefix)
+        && !body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
+    const worker = event.data.worker;
+    if (!worker) return [];
+    const request = parseCycleRequest(body, worker);
     return request && !completed.has(request.requestId) ? [request] : [];
   });
 }
@@ -729,7 +825,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
       if (!Array.isArray(comments)) throw new Error("GitHub reconciliation returned a non-array comment payload.");
       for (const value of comments) {
         const comment = record(value, "GitHub issue comment");
-        if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix))) continue;
+        if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix) && !comment.body.startsWith(capabilityReceiptCommentPrefix) && !comment.body.startsWith(stageReceiptCommentPrefix) && !comment.body.startsWith(WORK_CLOUD_DISPATCH_RECEIPT_PREFIX) && !comment.body.startsWith(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX))) continue;
         accepted.recognizedSinceYield += 1;
         if (accepted.recognizedSinceYield >= githubReconciliationYieldEvery) {
           accepted.recognizedSinceYield = 0;
@@ -1275,6 +1371,18 @@ function assertAuthorizedWriter(candidate: GitHubDecisionCandidate, policy: GitH
   if (!policy.authorizedWriterLogins.some((login) => login.toLowerCase() === candidateLogin)) throw new Error(`GitHub writer ${candidate.authorLogin} is not authorized for supervisory receipts.`);
 }
 function assertEqual(actual: unknown, expected: unknown, field: string) { if (actual !== expected) throw new Error(`Canonical decision ${field} does not match the pending request.`); }
+function parsePrefixedJson(body: string, prefix: string, label: string): Record<string, unknown> {
+  let value: unknown;
+  try { value = JSON.parse(body.slice(prefix.length)); }
+  catch { throw new Error(`${label} must contain one JSON object after its prefix.`); }
+  return record(value, label);
+}
+function sha256String(value: unknown, label: string): string { const text = requiredString(value, label); if (!/^[a-f0-9]{64}$/.test(text)) throw new Error(`${label} must be a lowercase SHA-256.`); return text; }
+function nullableString(value: unknown, label: string): string | null { return value === null || value === undefined ? null : requiredString(value, label); }
+function enumString<const T extends readonly string[]>(value: unknown, allowed: T, label: string): T[number] { const text = requiredString(value, label); if (!allowed.includes(text)) throw new Error(`${label} is outside the allowed values.`); return text as T[number]; }
+function nonnegativeInteger(value: unknown, label: string): number { if (!Number.isInteger(value) || Number(value) < 0) throw new Error(`${label} must be a nonnegative integer.`); return Number(value); }
+function stringArray(value: unknown, label: string, maximum: number): string[] { if (!Array.isArray(value) || value.length > maximum) throw new Error(`${label} must be an array with at most ${maximum} items.`); return value.map((item, index) => requiredString(item, `${label}[${index}]`)); }
+
 function record(value: unknown, field: string): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`); return value as Record<string, unknown>; }
 function requiredString(value: unknown, field: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${field} must be a non-empty string.`); return value; }
 function exactString<T extends string>(value: unknown, expected: T, field: string): T { if (value !== expected) throw new Error(`${field} must exactly equal ${expected}.`); return expected; }

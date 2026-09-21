@@ -1,0 +1,45 @@
+{
+  "requirement_id": "REQ-UNIVERSAL-MISSION-CONTROL-NATIVE-WORK-AUTODISPATCH-20260919",
+  "recorded_at": "2026-09-19T19:47:00+00:00",
+  "authority": "owner",
+  "status": "ACTIVE",
+  "scope": "Mission Control routing from reasoning Chat to native ChatGPT Work cloud",
+  "requirements": [
+    {
+      "id": "MC-WORK-AUTO-001",
+      "text": "When Mission Control has an admitted source-bound execution directive whose requested execution surface is native ChatGPT Work, Mission Control must automate the handoff instead of requiring the owner to copy and paste the directive.",
+      "operationalization": "Persist the exact Work dispatch request, wake the bound source supervisor, have that authenticated ChatGPT surface invoke native Work with the exact persisted prompt, and preserve deterministic Work title plus source-chat lineage."
+    },
+    {
+      "id": "MC-WORK-APPROVAL-002",
+      "text": "Automation must preserve any irreducible product-level Work approval/Accept gate.",
+      "operationalization": "If ChatGPT requires an owner Accept gesture, surface only that minimum interaction, preserve live state, and resume automatically after it clears. Never bypass the gate or substitute Codex."
+    },
+    {
+      "id": "MC-WORK-RETURN-003",
+      "text": "Native Work dispatch and completion status must return durably to Mission Control without requiring the owner to copy and paste Work receipts.",
+      "operationalization": "Use source-bound privacy-safe machine receipts carrying status, hashes, check counts, terminal state, blocker codes, and native Work lineage. Do not publish prompts, private content, credentials, raw logs, local paths, or model reasoning into public control-plane receipts."
+    },
+    {
+      "id": "MC-WORK-IDEMPOTENCY-004",
+      "text": "Ambiguous or restart-interrupted native Work handoffs must not be automatically replayed, and a waiting Work approval/execution must not starve unrelated eligible Mission Control routes.",
+      "operationalization": "Bind one deterministic dispatch id to the exact directive/prompt. A server-only persisted request with no local provider-boundary handoff intent is mechanically unsent and may resume; after local handoff intent exists, missing receipt state is ambiguous unless exact proven-unsent evidence exists. Re-enter a waiting route only on new durable dispatch/execution evidence."
+    },
+    {
+      "id": "MC-WORK-SURFACE-005",
+      "text": "Codex is not a substitute for a requested native ChatGPT Work execution surface.",
+      "operationalization": "Require explicit CHATGPT_WORK_CLOUD surface authority and native Work evidence. A Work-like title or Codex thread is not native Work proof."
+    }
+  ],
+  "non_goals": [
+    "Do not make Mission Control server impersonate the client-side authenticated ChatGPT app executor.",
+    "Do not remove genuine ChatGPT product approval gates.",
+    "Do not treat source-attested supervisor-mediated Work creation as independent server-side native-surface observation.",
+    "Do not require manual copy/paste as the normal dispatch or receipt path."
+  ],
+  "source": {
+    "date": "2026-09-19",
+    "kind": "explicit owner correction",
+    "owner_words_summary": "This needs to be automated in Mission Control; the owner cannot keep copy-pasting Work handoffs."
+  }
+}

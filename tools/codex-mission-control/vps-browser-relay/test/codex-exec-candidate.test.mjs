@@ -212,6 +212,23 @@ test('durable schema-v3 state automatically reaches CODEX_LOCAL without directiv
   assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
 });
 
+test('automatic Codex dispatcher ignores directives explicitly routed to native ChatGPT Work', async () => {
+  const fixture = await automaticFixture('automatic-native-work-surface', { type: 'LOCAL_FILESYSTEM_COMMAND' });
+  const worker = fixture.missionControl.snapshot.workers[0];
+  const directiveEvent = worker.timeline.find((event) => event?.data?.type === 'execution_directive_recorded');
+  directiveEvent.data.execution_surface = 'CHATGPT_WORK_CLOUD';
+  const result = await dispatchAutomaticMissionControlExecution({
+    config: fixture.config,
+    missionControl: fixture.missionControl,
+    legacyBrowserHandler: async () => { throw new Error('native Work must not fall through to the legacy Codex/browser route'); },
+    spawnImpl: fixture.spawnImpl,
+  });
+  assert.equal(result.status, AUTOMATIC_CODEX_DISPATCH_IDLE);
+  assert.equal(result.codexChildStarted, false);
+  assert.equal(fixture.spawnCalls.length, 0);
+  assert.equal(fixture.missionControl.admissionCalls, 0);
+});
+
 test('automatic preview-disabled and unsupported-browser fallback retain the exact durable task and request', async (t) => {
   for (const [name, capability, previewEnabled, reason] of [
     ['preview-off', { type: 'LOCAL_FILESYSTEM_COMMAND' }, false, 'PREVIEW_DISABLED'],

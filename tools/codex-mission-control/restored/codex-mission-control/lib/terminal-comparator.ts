@@ -105,7 +105,6 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     && reasoningRecord.owner_outcome_sha256 === outcome.owner_outcome_sha256
     ? reasoningRecord : undefined;
   const directive = latest(events, "execution_directive_recorded");
-  const receipt = latest(events, "execution_receipt_recorded");
   const progressRecord = latest(events, "outcome_progress_recorded");
   const progress = progressRecord && outcome && reasoning
     && progressRecord.owner_outcome_id === outcome.owner_outcome_id
@@ -206,7 +205,11 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     && directive.reasoning_supervisor_session_id === reasoning.reasoning_supervisor_session_id
     && directive.reasoning_chat_epoch === reasoning.reasoning_supervisor_chat_epoch
     && directive.chat_decision_id === reasoning.decision_id);
-  const latestReceiptEvent = latestStored(events, "execution_receipt_recorded");
+  const latestReceiptEvent = [
+    latestStored(events, "execution_receipt_recorded"),
+    latestStored(events, "chatgpt_work_cloud_execution_receipt_recorded"),
+  ].filter((event): event is StoredEvent => Boolean(event))
+    .sort((left, right) => right.sequence - left.sequence)[0];
   const latestReasoningReviewEvent = [reasoning ? latestStored(events, "reasoning_supervision_recorded") : undefined,
     progress ? latestStored(events, "outcome_progress_recorded") : undefined]
     .filter((event): event is StoredEvent => Boolean(event)).sort((left, right) => right.sequence - left.sequence)[0];

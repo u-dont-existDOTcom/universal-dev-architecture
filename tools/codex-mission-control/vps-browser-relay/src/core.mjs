@@ -163,6 +163,7 @@ function parseChatProvisionEntry(item, index) {
     purpose: boundedString(item.purpose, `Supervisor provision ${index} purpose`, 500),
     accountAlias: boundedString(item.accountAlias, `Supervisor provision ${index} accountAlias`, 180),
     workspaceAlias: boundedString(item.workspaceAlias, `Supervisor provision ${index} workspaceAlias`, 180),
+    chatgptProjectId: item.chatgptProjectId == null ? null : boundedString(item.chatgptProjectId, `Supervisor provision ${index} chatgptProjectId`, 300),
     privateLocatorRef: boundedString(item.privateLocatorRef, `Supervisor provision ${index} privateLocatorRef`, 500),
     provisioningProvenance: {
       authorizedBy: 'OWNER',
@@ -202,6 +203,7 @@ function parseChatEntry(item, index) {
     purpose: boundedString(item.purpose, `Chat entry ${index} purpose`, 500),
     accountAlias: boundedString(item.accountAlias, `Chat entry ${index} accountAlias`, 180),
     workspaceAlias: boundedString(item.workspaceAlias, `Chat entry ${index} workspaceAlias`, 180),
+    chatgptProjectId: item.chatgptProjectId == null ? null : boundedString(item.chatgptProjectId, `Chat entry ${index} chatgptProjectId`, 300),
     privateLocatorRef: boundedString(item.privateLocatorRef, `Chat entry ${index} privateLocatorRef`, 500),
     registrationProvenance: {
       registeredBy: 'OWNER',
@@ -370,6 +372,9 @@ export function extractQueuedRoutes(snapshot, chats, state) {
   const receiptByWorkerRequest = new Map();
   const livenessByWorkerRequest = new Map();
   const mcpByWorkerRequest = new Map();
+  const workDispatchRequestByWorkerTask = new Map();
+  const workDispatchResultByWorkerTask = new Map();
+  const workExecutionReceiptByWorkerTask = new Map();
   for (const worker of snapshot.workers) {
     if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
     const workerId = typeof worker.id === 'string' ? worker.id : 'unknown-worker';
@@ -377,6 +382,18 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!isRecord(event?.data)) continue;
       if (event.data.type === 'github_decision_receipt_ingested' && typeof event.data.request_id === 'string') {
         receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}`, event.data);
+        continue;
+      }
+      if (event.data.type === 'chatgpt_work_cloud_dispatch_requested' && typeof event.data.task_id === 'string') {
+        workDispatchRequestByWorkerTask.set(`${workerId}:${event.data.task_id}`, event.data);
+        continue;
+      }
+      if (event.data.type === 'chatgpt_work_cloud_dispatch_recorded' && typeof event.data.task_id === 'string') {
+        workDispatchResultByWorkerTask.set(`${workerId}:${event.data.task_id}`, event.data);
+        continue;
+      }
+      if (event.data.type === 'chatgpt_work_cloud_execution_receipt_recorded' && typeof event.data.task_id === 'string') {
+        workExecutionReceiptByWorkerTask.set(`${workerId}:${event.data.task_id}`, event.data);
         continue;
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.summary === PROVIDER_SESSION_MCP_SUMMARY
@@ -406,7 +423,8 @@ export function extractQueuedRoutes(snapshot, chats, state) {
     const workerId = typeof worker.id === 'string' ? worker.id : 'unknown-worker';
     const workerName = typeof worker.name === 'string' ? worker.name : workerId;
     for (const event of worker.timeline) {
-      if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'worker_message_recorded') continue;
+      if (!isRecord(event) || !isRecord(event.data)
+        || (event.data.type !== 'worker_message_recorded' && event.data.type !== 'reasoning_review_route_recorded')) continue;
       const packet = parseSupervisoryCycleRouteBody(event.data.body) ?? parseInternalSupervisorRouteBody(event.data.body);
       if (!packet) continue;
       const chat = chatById.get(packet.destinationSupervisorId);
@@ -439,6 +457,9 @@ export function extractQueuedRoutes(snapshot, chats, state) {
           ? mcpByWorkerRequest.get(`${workerId}:${packet.requestId}:${bindingProviderSessionId}`) ?? null
           : null,
         stageLiveness: livenessByWorkerRequest.get(workerRequestKey) ?? {},
+        workCloudDispatchRequest: workDispatchRequestByWorkerTask.get(`${workerId}:${typeof packet.factualPacket?.taskId === 'string' ? packet.factualPacket.taskId : ''}`) ?? null,
+        workCloudDispatchResult: workDispatchResultByWorkerTask.get(`${workerId}:${typeof packet.factualPacket?.taskId === 'string' ? packet.factualPacket.taskId : ''}`) ?? null,
+        workCloudExecutionReceipt: workExecutionReceiptByWorkerTask.get(`${workerId}:${typeof packet.factualPacket?.taskId === 'string' ? packet.factualPacket.taskId : ''}`) ?? null,
         body: event.data.body,
         bodySha256: sha256(event.data.body),
         queuedAt: packet.queuedAt,

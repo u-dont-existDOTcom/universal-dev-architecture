@@ -809,6 +809,7 @@ export class EventStore {
       if (directive?.type !== "execution_directive_recorded"
         || directive.status !== "ACTIVE"
         || directive.directive_schema_version !== 3
+        || directive.execution_surface !== "CHATGPT_WORK_CLOUD"
         || directive.directive_id !== data.directive_id
         || directive.directive_revision !== data.directive_revision
         || directive.task_id !== data.task_id
@@ -821,7 +822,7 @@ export class EventStore {
         const priorReady = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
           && event.data.status === "READY" && event.data.work_thread_id === data.existing_work_thread_id)?.data;
         if (priorReady?.type !== "chatgpt_work_cloud_dispatch_recorded"
-          || priorReady.surface_verification !== "VERIFIED_NATIVE_WORK") {
+          || !["VERIFIED_NATIVE_WORK", "SOURCE_ATTESTED_NATIVE_WORK"].includes(priorReady.surface_verification)) {
           throw new ContractInvariantError("Native Work continuation requires a previously verified exact Work thread locator.");
         }
       }
@@ -850,6 +851,110 @@ export class EventStore {
         const codexCollision = events.some((event) => event.data.type === "codex_execution_started"
           && event.data.worker_run_id === data.work_thread_id);
         if (codexCollision) throw new ContractInvariantError("A Codex run id cannot be promoted into a native Work thread id.");
+      }
+    }
+    if (data.type === "chatgpt_work_cloud_execution_receipt_recorded") {
+      const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      const result = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+        && event.data.dispatch_id === data.dispatch_id)?.data;
+      if (request?.type !== "chatgpt_work_cloud_dispatch_requested"
+        || request.worker !== data.worker
+        || request.directive_id !== data.directive_id
+        || request.directive_revision !== data.directive_revision
+        || request.task_id !== data.task_id) {
+        throw new ContractInvariantError("Native Work execution receipt must bind its exact dispatch request and directive.");
+      }
+      if (result?.type !== "chatgpt_work_cloud_dispatch_recorded"
+        || result.status !== "READY"
+        || result.work_thread_id !== data.work_thread_id
+        || !["VERIFIED_NATIVE_WORK", "SOURCE_ATTESTED_NATIVE_WORK"].includes(result.surface_verification)) {
+        throw new ContractInvariantError("Native Work execution receipt requires a ready source-bound native Work dispatch.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "dispatch_id", data.dispatch_id);
+    }
+    if (data.type === "reasoning_review_route_recorded") {
+      const sourceReceiptEvent = events.find((event) => event.eventId === data.source_execution_receipt_event_id);
+      const sourceReceipt = sourceReceiptEvent?.data;
+      if (!sourceReceipt || sourceReceipt.type !== "chatgpt_work_cloud_execution_receipt_recorded"
+        || sourceReceipt.worker !== data.worker
+        || sourceReceipt.dispatch_id !== data.source_dispatch_id) {
+        throw new ContractInvariantError("Post-Work reasoning route must bind the exact prior native Work execution receipt.");
+      }
+      if (data.producer_id !== "system:post-execution-reasoning-router"
+        || data.body_sha256 !== sha256(data.body)) {
+        throw new ContractInvariantError("Post-Work reasoning route producer/body identity is invalid.");
+      }
+      const prefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n";
+      if (!data.body.startsWith(prefix)) throw new ContractInvariantError("Post-Work reasoning route must use the request-bound V5 protocol.");
+      let route: Record<string, unknown>;
+      try {
+        const parsed: unknown = JSON.parse(data.body.slice(prefix.length));
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not object");
+        route = parsed as Record<string, unknown>;
+      } catch {
+        throw new ContractInvariantError("Post-Work reasoning route body is not valid JSON.");
+      }
+      const factual = route.factualPacket;
+      const evidence = route.evidenceCapsule;
+      const outcome = route.ownerOutcome;
+      if (!factual || typeof factual !== "object" || Array.isArray(factual)
+        || !evidence || typeof evidence !== "object" || Array.isArray(evidence)
+        || !outcome || typeof outcome !== "object" || Array.isArray(outcome)) {
+        throw new ContractInvariantError("Post-Work reasoning route is missing factual/evidence/outcome bindings.");
+      }
+      const factualRecord = factual as Record<string, unknown>;
+      const evidenceRecord = evidence as Record<string, unknown>;
+      const outcomeRecord = outcome as Record<string, unknown>;
+      const expectedEvidenceSha256 = sha256(canonicalJson({
+        dispatch_id: sourceReceipt.dispatch_id,
+        directive_id: sourceReceipt.directive_id,
+        directive_revision: sourceReceipt.directive_revision,
+        task_id: sourceReceipt.task_id,
+        status: sourceReceipt.status,
+        terminal_state: sourceReceipt.terminal_state,
+        check_summary: sourceReceipt.check_summary,
+        blocker_codes: sourceReceipt.blocker_codes,
+        artifact_count: sourceReceipt.artifact_count,
+        github_comment_sha256: sourceReceipt.github_comment_sha256,
+      }));
+      const directive = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded"
+        && event.data.directive_id === sourceReceipt.directive_id
+        && event.data.directive_revision === sourceReceipt.directive_revision)?.data;
+      const originDecisionEvent = directive?.type === "execution_directive_recorded"
+        && directive.validated_decision_proof?.authority_path === "VALIDATED_GITHUB_SUPERVISORY_DECISION"
+        ? events.find((event) => event.eventId === directive.validated_decision_proof!.receipt_event_id)
+        : undefined;
+      const originDecision = originDecisionEvent?.data;
+      const currentOutcome = [...events].reverse().find((event) => event.worker === data.worker
+        && event.data.type === "owner_outcome_recorded")?.data;
+      if (directive?.type !== "execution_directive_recorded" || directive.status !== "ACTIVE"
+        || directive.execution_surface !== "CHATGPT_WORK_CLOUD"
+        || originDecision?.type !== "github_decision_receipt_ingested" || !originDecision.supervisor_id
+        || currentOutcome?.type !== "owner_outcome_recorded") {
+        throw new ContractInvariantError("Post-Work reasoning route lost its active directive, supervisor, or owner-outcome authority.");
+      }
+      if (route.schemaVersion !== 5 || route.packetKind !== "PROVIDER_SESSION_SUPERVISORY_CYCLE"
+        || route.requestId !== data.request_id || route.worker !== data.worker
+        || route.producerId !== data.producer_id
+        || route.destinationSupervisorId !== data.destination_supervisor_id
+        || data.destination_supervisor_id !== originDecision.supervisor_id
+        || route.reasoningLane !== originDecision.reasoning_lane
+        || route.queuedAt !== data.recorded_at || data.recorded_at !== envelope.occurred_at
+        || typeof route.expiresAt !== "string" || Date.parse(route.expiresAt) <= Date.parse(data.recorded_at)
+        || factualRecord.taskId !== sourceReceipt.task_id
+        || (evidenceRecord as Record<string, unknown>).sha256 !== expectedEvidenceSha256
+        || canonicalJson(outcomeRecord) !== canonicalJson({
+          id: currentOutcome.owner_outcome_id,
+          epoch: currentOutcome.epoch,
+          sha256: currentOutcome.owner_outcome_sha256,
+        })) {
+        throw new ContractInvariantError("Post-Work reasoning route does not rederive from its exact current authority state.");
+      }
+      this.assertUniqueDomainId(data.worker, data.type, "request_id", data.request_id, validationHistory);
+      if (events.some((event) => event.data.type === "reasoning_review_route_recorded"
+        && event.data.source_execution_receipt_event_id === data.source_execution_receipt_event_id)) {
+        throw new ContractInvariantError("One native Work execution receipt may create only one post-execution reasoning route.");
       }
     }
     if (data.type === "work_execution_profile_authorized") {

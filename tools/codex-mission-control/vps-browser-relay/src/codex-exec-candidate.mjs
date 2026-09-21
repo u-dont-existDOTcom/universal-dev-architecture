@@ -54,6 +54,7 @@ export function discoverMissionControlExecution(snapshot) {
     const persisted = directiveEvent?.data;
     if (!persisted || persisted.directive_schema_version !== 3 || persisted.status !== 'ACTIVE'
       || persisted.work_execution_profile === 'LEGACY_MODEL_PROFILE_UNSPECIFIED') continue;
+    if (persisted.execution_surface === 'CHATGPT_WORK_CLOUD') continue;
     const completed = timeline.some((event) => event?.data?.type === 'execution_receipt_recorded'
       && event.data.directive_id === persisted.directive_id
       && event.data.directive_revision === persisted.directive_revision

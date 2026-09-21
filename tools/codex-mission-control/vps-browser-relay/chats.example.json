@@ -10,6 +10,7 @@
     "purpose": "Dedicated Mission Control Project Manager supervision only; never use as a personal or shared-purpose conversation.",
     "accountAlias": "REPLACE_PRIVATE_ACCOUNT_ALIAS",
     "workspaceAlias": "REPLACE_PRIVATE_WORKSPACE_ALIAS",
+    "chatgptProjectId": "REPLACE_CHATGPT_PROJECT_ID_OR_REMOVE_FIELD",
     "privateLocatorRef": "owner-config:supervisors/mc-project-manager",
     "registrationProvenance": {
       "registeredBy": "OWNER",
@@ -46,6 +47,7 @@
     "purpose": "Dedicated Mission Control specialist supervision only; never use as a personal or shared-purpose conversation.",
     "accountAlias": "REPLACE_PRIVATE_ACCOUNT_ALIAS",
     "workspaceAlias": "REPLACE_PRIVATE_WORKSPACE_ALIAS",
+    "chatgptProjectId": "REPLACE_CHATGPT_PROJECT_ID_OR_REMOVE_FIELD",
     "privateLocatorRef": "owner-config:supervisors/specialist-relay-smoke",
     "registrationProvenance": {
       "registeredBy": "OWNER",

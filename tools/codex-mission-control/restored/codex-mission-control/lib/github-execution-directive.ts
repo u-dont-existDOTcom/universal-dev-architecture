@@ -122,6 +122,7 @@ export function buildExecutionDirectiveFromGitHubDecision(
         exact_execution_payload: exactExecutionPayload,
       },
       work_execution_profile: bounded.work_execution_profile,
+      ...(bounded.execution_surface ? { execution_surface: bounded.execution_surface } : {}),
       status: "ACTIVE",
     },
   };

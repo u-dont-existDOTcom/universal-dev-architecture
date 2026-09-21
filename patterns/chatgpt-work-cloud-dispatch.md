@@ -3,6 +3,7 @@
 **Status:** REQUIRED OWNER CORRECTION  
 **Date:** 2026-09-19  
 **Scope:** Chat -> visible ChatGPT Work creation/continuation and Mission Control routing.
+**Owner automation requirement:** `docs/requirements/2026-09-19-mission-control-native-work-autodispatch.owner-requirement.json`.
 
 ## Purpose
 
@@ -93,6 +94,38 @@ Mission Control must keep Codex and Work task identifiers in separate typed fiel
 The current reference adapter is documented in
 `tools/codex-mission-control/restored/codex-mission-control/docs/CHATGPT-WORK-CLOUD-DISPATCH.md`.
 It persists the source-bound request before crossing the authenticated app-executor boundary, persists the normalized result afterward, and requires explicit native-surface evidence before a dispatch may become `READY`. A raw Mission Control daemon call is not equivalent to the authenticated desktop/app executor and must remain unavailable rather than falling back to Codex.
+
+## Mission Control automated handoff and return
+
+When an admitted Mission Control execution directive explicitly selects `CHATGPT_WORK_CLOUD`, **manual owner copy/paste is not the normal transport.** Mission Control must carry the exact bounded directive through the native Work handoff automatically.
+
+The current control-plane route is controller-mediated because the Mission Control server cannot impersonate the authenticated client-side ChatGPT app-executor boundary:
+
+```text
+accepted source-bound CHATGPT_WORK_CLOUD directive
+-> Mission Control persists one deterministic Work dispatch request
+-> relay wakes the exact bound source supervisor with a transport-only handoff
+-> that ChatGPT supervisor invokes native Work with the exact persisted prompt
+-> any real product Accept gate remains owner-controlled
+-> source supervisor publishes a bound dispatch receipt
+-> Work publishes a privacy-safe completion receipt
+-> Mission Control ingests both and resumes reasoning/control flow
+```
+
+Hard requirements:
+
+1. **No clipboard relay.** Do not ask the owner to download/copy a directive into Work or copy Work output back to Chat merely because the controller failed to automate the bridge. Manual copy/paste is recovery-only after a concrete automation/capability failure has been identified.
+2. **Exact source binding.** The Work prompt must be derived server-side from the current active source-bound execution directive and canonical accepted decision. A relay or browser worker may not replace the task body.
+3. **Explicit surface authority.** Native Work auto-dispatch is admitted only when the execution directive says `CHATGPT_WORK_CLOUD`. Historical/directives without the field retain their existing Codex/default meaning; title heuristics cannot upgrade them.
+4. **Deterministic lineage.** Use one dispatch id derived from worker + directive + revision + task + exact Work prompt; preserve `Work — <originating Chat title>` and the source-chat backlink. Persist the ChatGPT project id when the owner-only registration knows it so the Work task stays associated with the intended project.
+5. **Approval preservation.** A ChatGPT product-level Accept/approval prompt remains a genuine owner gate. The automation may prepare everything around it, but may not bypass it or silently substitute Codex.
+6. **Evidence honesty.** A native Work result returned directly by the trusted app executor may be `VERIFIED_NATIVE_WORK`. A result reported through the bound ChatGPT supervisor is `SOURCE_ATTESTED_NATIVE_WORK`; do not relabel it as independent server-side observation.
+7. **Durable return path.** Dispatch and Work completion receipts return through the configured Mission Control control channel. Keep those receipts privacy-safe: status, lineage, hashes, check counts, terminal state, blocker codes, and artifact counts are allowed; prompts, private source text, credentials, absolute local paths, raw logs, and model reasoning are not.
+8. **No ambiguous replay.** Persist the dispatch request before provider mutation. A durable server-side request with no local provider-boundary handoff intent is mechanical proof that the Work handoff was not sent and may resume. Once local handoff intent exists, recovery requires a source-bound receipt or exact proven-unsent evidence; otherwise fail closed as ambiguous rather than creating a second Work task.
+9. **Queue fairness.** `PENDING_OWNER_ACCEPT`, Work execution, or receipt wait states for one dispatch must not monopolize Mission Control. Other eligible routes continue; the Work route becomes eligible again only when new durable evidence arrives.
+10. **Receipt-driven continuation.** A privacy-safe machine receipt is sufficient to wake the control plane. Work-completion ingestion atomically creates one `reasoning_review_route_recorded` event carrying a fresh V5 request-bound supervisory route to the original stable supervisor, bound to the current owner outcome and exact Work receipt; one Work receipt may create only one such route. The reasoning Chat may then inspect the actual Git/GitHub/local artifacts using its own authorized tools; the owner should not serve as a transport bus.
+
+If the automated handoff path is unavailable, record the exact capability/transport blocker. Do not normalize the fallback into a permanent owner copy/paste workflow.
 
 ## Current observed capability
 

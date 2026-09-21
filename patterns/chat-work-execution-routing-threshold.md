@@ -297,6 +297,8 @@ Mission Control coordinates a gated, mediated cycle; do not model it as native C
 
 The practical Mission Control reasoning loop is therefore controller-mediated: a reasoning Chat publishes an exact durable GitHub artifact; Codex/controller observes it after that Chat turn completes, transports the required source-bound data to the next registered reasoning Chat, waits for that Chat to publish its own GitHub artifact, and continues the admitted route. Codex/controller is a transport/execution coordinator in this loop, not the semantic author of the GitHub decision.
 
+When an admitted Mission Control execution directive explicitly selects native `CHATGPT_WORK_CLOUD`, apply `chatgpt-work-cloud-dispatch.md` and automate the handoff/return path through the bound supervisor. The owner must not be used as a clipboard transport for the Work directive or Work receipt. Preserve only a genuine product-level Accept/approval gesture as owner interaction, and resume automatically from durable dispatch/execution receipts.
+
 Mission Control should reuse native Work-internal coordination, while continuing to own autonomous control-plane routing of supervision and escalation plus durable control across the Chat/Work boundary through verified controller or relay routes. A queued, persisted, or delivered Mission Control record is evidence of that mediated route, not proof of a native Work → originating Chat edge. These facts are scoped to the current architecture and must not be generalized to other interfaces or future versions without verification.
 
 A valid Work handoff records:

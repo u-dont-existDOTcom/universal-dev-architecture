@@ -23,6 +23,7 @@ import {
   modeCapabilityVerifiedSummary,
   parseCanonicalDecisionComment,
   parseStageReceiptComment,
+  pendingDecisionRequests,
   providerSessionMcpSummary,
   providerSessionModelSummary,
   providerSessionSummary,
@@ -55,6 +56,7 @@ import {
   WORK_MODEL_ROUTING_POLICY_REF,
 } from "../lib/work-execution-profile";
 import { daemonLiveness } from "../lib/daemon-health";
+import { WORK_CLOUD_DISPATCH_RECEIPT_PREFIX, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
 import { workerTransportSnapshotFromStore } from "../lib/dashboard-data";
 import { seedIssue47Store } from "../lib/seed";
 
@@ -1208,6 +1210,106 @@ function storedEvent(data: StoredEvent["data"], eventId: string, sequence: numbe
   return { id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live", worker: data.worker, type: data.type, occurredAt, receivedAt, previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "COLLECTOR", data };
 }
 
+
+test("GitHub native Work dispatch receipt binds exact persisted prompt and admits source-attested Work", () => {
+  const p = policy();
+  const request = storedEvent({
+    type: "chatgpt_work_cloud_dispatch_requested", worker: "mission-control-live-slice", dispatch_id: "work-cloud:test-dispatch", mode: "CREATE",
+    requested_surface: "CHATGPT_WORK_CLOUD", directive_id: "directive:work-cloud", directive_revision: 1, task_id: "task:work-cloud",
+    directive_artifact_sha256: "1".repeat(64), source_message_id: "message:work-cloud", source_body_sha256: "2".repeat(64),
+    source_chat_title: "Goal Alignment", source_chat_url: "chatgpt-conversation://abc-123", source_chat_browser_url: "https://chatgpt.com/c/abc-123",
+    requested_work_title: "Work — Goal Alignment", chatgpt_project_id: null, existing_work_thread_id: null, prompt_sha256: "3".repeat(64),
+    approval_state: "NOT_REQUIRED", capability_evidence: { observed_at: "2026-09-19T19:00:00.000Z", app_version: "VERSIONED_PRODUCT_SCHEMA_2026-09-19", create_thread_target_available: true, send_message_to_thread_available: true, native_surface_verification_available: true },
+    requested_at: "2026-09-19T19:00:00.000Z", producer_id: "system:chatgpt-work-cloud-dispatch", source: "MISSION_CONTROL_SUPERVISOR_WORK_DISPATCH",
+  } as StoredEvent["data"], "work-request", 1, "2026-09-19T19:00:00.000Z");
+  const body = `${WORK_CLOUD_DISPATCH_RECEIPT_PREFIX}${JSON.stringify({ schemaVersion: 1, dispatchId: "work-cloud:test-dispatch", worker: "mission-control-live-slice", taskId: "task:work-cloud", directiveId: "directive:work-cloud", directiveRevision: 1, promptSha256: "3".repeat(64), status: "READY", surface: "CHATGPT_WORK_CLOUD", workThreadId: "native-work-thread-1", clientThreadId: null, errorCode: null })}`;
+  const candidate: GitHubDecisionCandidate = { repository: p.repository, issueNumber: p.stageIssueNumber, commentId: 901, immutableUrl: `https://github.com/${p.repository}/issues/${p.stageIssueNumber}#issuecomment-901`, createdAt: "2026-09-19T19:01:00.000Z", authorLogin: p.authorizedWriterLogins[0], deliveryId: "delivery-work-1", body, ingestionMethod: "GITHUB_WEBHOOK" };
+  const appended = ingestGitHubSupervisionCandidate(fakeStore([request]), candidate, p, "2026-09-19T19:01:01.000Z");
+  assert.equal(appended.length, 1);
+  assert.equal(appended[0].data.type, "chatgpt_work_cloud_dispatch_recorded");
+  if (appended[0].data.type !== "chatgpt_work_cloud_dispatch_recorded") return;
+  assert.equal(appended[0].data.status, "READY");
+  assert.equal(appended[0].data.surface_verification, "SOURCE_ATTESTED_NATIVE_WORK");
+  assert.equal(appended[0].data.work_thread_id, "native-work-thread-1");
+  const wrong = body.replace("3".repeat(64), "4".repeat(64));
+  assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore([request]), { ...candidate, commentId: 902, body: wrong }, p), /prompt binding/);
+});
+
+test("GitHub native Work execution receipt atomically creates a fresh reasoning-review route", () => {
+  const p = policy();
+  const currentOutcome = structuredClone(pendingEvents("EXTRA_HIGH_DIRECT")[0]!);
+  currentOutcome.sequence = 1;
+  const originRouteBody = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n" + JSON.stringify({
+    schemaVersion: 5,
+    packetKind: "PROVIDER_SESSION_SUPERVISORY_CYCLE",
+    requestId: "origin-work-request",
+    worker: "mission-control-live-slice",
+    producerId: "worker:fixture",
+    destination: "SPECIALIST_SUPERVISOR_CHAT",
+    destinationSupervisorId: supervisorId,
+    providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
+    factualPacket: { taskId: "task:exec" },
+    queuedAt: "2026-09-19T18:00:00.000Z",
+    expiresAt: "2026-09-19T19:00:00.000Z",
+  });
+  const originRoute = storedEvent({
+    type: "worker_message_recorded", worker: "mission-control-live-slice", message_id: "origin-work-message", thread_id: "thread-origin-work",
+    message_kind: "QUESTION", body: originRouteBody, reply_to_message_id: null, direction_id: null,
+  }, "origin-work-route", 2, "2026-09-19T18:00:00.000Z");
+  const originDecision = storedEvent({
+    type: "github_decision_receipt_ingested", worker: "mission-control-live-slice", task_id: "task:exec",
+    receipt_id: "origin-work-decision-receipt", request_id: "origin-work-request", supervisor_id: supervisorId,
+    reasoning_lane: "EXTRA_HIGH_DIRECT",
+  } as unknown as StoredEvent["data"], "origin-work-decision", 3, "2026-09-19T18:10:00.000Z");
+  const directive = storedEvent({
+    type: "execution_directive_recorded", worker: "mission-control-live-slice", directive_id: "directive:exec",
+    directive_revision: 2, task_id: "task:exec", status: "ACTIVE", directive_schema_version: 3,
+    execution_surface: "CHATGPT_WORK_CLOUD",
+    validated_decision_proof: {
+      authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: "origin-work-decision",
+      receipt_id: "origin-work-decision-receipt", request_id: "origin-work-request",
+      canonical_envelope_sha256: "4".repeat(64), bounded_execution_sha256: "5".repeat(64), exact_execution_payload: "fixture",
+    },
+  } as unknown as StoredEvent["data"], "origin-work-directive", 4, "2026-09-19T18:10:01.000Z");
+  const request = storedEvent({
+    type: "chatgpt_work_cloud_dispatch_requested", worker: "mission-control-live-slice", dispatch_id: "work-cloud:test-exec", mode: "CREATE",
+    requested_surface: "CHATGPT_WORK_CLOUD", directive_id: "directive:exec", directive_revision: 2, task_id: "task:exec",
+    directive_artifact_sha256: "1".repeat(64), source_message_id: "message:exec", source_body_sha256: "2".repeat(64),
+    source_chat_title: "Goal Alignment", source_chat_url: "chatgpt-conversation://abc-123", source_chat_browser_url: "https://chatgpt.com/c/abc-123",
+    requested_work_title: "Work — Goal Alignment", chatgpt_project_id: null, existing_work_thread_id: null, prompt_sha256: "3".repeat(64),
+    approval_state: "NOT_REQUIRED", capability_evidence: { observed_at: "2026-09-19T19:00:00.000Z", app_version: "SUPERVISOR_MEDIATED_CAPABILITY_UNVERIFIED", create_thread_target_available: false, send_message_to_thread_available: false, native_surface_verification_available: false },
+    requested_at: "2026-09-19T19:00:00.000Z", producer_id: "system:chatgpt-work-cloud-dispatch", source: "MISSION_CONTROL_SUPERVISOR_WORK_DISPATCH",
+  } as StoredEvent["data"], "work-request-exec", 5, "2026-09-19T19:00:00.000Z");
+  const ready = storedEvent({
+    type: "chatgpt_work_cloud_dispatch_recorded", worker: "mission-control-live-slice", dispatch_id: "work-cloud:test-exec", mode: "CREATE", requested_surface: "CHATGPT_WORK_CLOUD",
+    directive_id: "directive:exec", directive_revision: 2, task_id: "task:exec", app_tool: "create_thread", status: "READY", work_thread_id: "native-work-thread-2", client_thread_id: null,
+    approval_state: "ACCEPTED", surface_verification: "SOURCE_ATTESTED_NATIVE_WORK", native_surface_evidence: "CHATGPT_SUPERVISOR_NATIVE_WORK_TOOL_RESULT", host_id: null, error_code: null,
+    recorded_at: "2026-09-19T19:01:00.000Z", producer_id: "system:github-decision-receipts", source: "CHATGPT_SUPERVISOR_WORK_DISPATCH_ATTESTED",
+  } as StoredEvent["data"], "work-ready-exec", 6, "2026-09-19T19:01:00.000Z");
+  const body = `${WORK_CLOUD_EXECUTION_RECEIPT_PREFIX}${JSON.stringify({ schemaVersion: 1, dispatchId: "work-cloud:test-exec", worker: "mission-control-live-slice", taskId: "task:exec", directiveId: "directive:exec", directiveRevision: 2, status: "COMPLETED", terminalState: "IMPLEMENTATION_READY_FOR_REVIEW", checksPassed: 12, checksFailed: 0, checksNotRun: 1, blockerCodes: [], artifactCount: 4 })}`;
+  const candidate: GitHubDecisionCandidate = { repository: p.repository, issueNumber: p.stageIssueNumber, commentId: 903, immutableUrl: `https://github.com/${p.repository}/issues/${p.stageIssueNumber}#issuecomment-903`, createdAt: "2026-09-19T19:02:00.000Z", authorLogin: p.authorizedWriterLogins[0], deliveryId: "delivery-work-2", body, ingestionMethod: "GITHUB_WEBHOOK" };
+  const store = fakeStore([currentOutcome, originRoute, originDecision, directive, request, ready]);
+  const appended = ingestGitHubSupervisionCandidate(store, candidate, p, "2026-09-19T19:02:01.000Z");
+  assert.equal(appended.length, 2);
+  assert.equal(appended[0].data.type, "chatgpt_work_cloud_execution_receipt_recorded");
+  assert.equal(appended[1].data.type, "reasoning_review_route_recorded");
+  if (appended[0].data.type !== "chatgpt_work_cloud_execution_receipt_recorded"
+    || appended[1].data.type !== "reasoning_review_route_recorded") return;
+  assert.equal(appended[0].data.work_thread_id, "native-work-thread-2");
+  assert.deepEqual(appended[0].data.check_summary, { passed: 12, failed: 0, not_run: 1 });
+  assert.equal(appended[0].data.github_comment_sha256, sha256(body));
+  assert.equal("raw_logs" in appended[0].data, false);
+  assert.equal(appended[1].data.source_execution_receipt_event_id, appended[0].eventId);
+  assert.equal(appended[1].data.destination_supervisor_id, supervisorId);
+  assert.equal(appended[1].data.body_sha256, sha256(appended[1].data.body));
+  const pending = pendingDecisionRequests(store.allEvents()).filter((item) => item.taskId === "task:exec");
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].routeSchemaVersion, 5);
+  assert.equal(pending[0].supervisorId, supervisorId);
+  assert.equal(pending[0].ownerOutcome.id, "owner-outcome-1");
+  assert.equal(pending[0].reasoningLane, "EXTRA_HIGH_DIRECT");
+  assert.equal(pending[0].evidenceCapsule.sha256.length, 64);
+});
 
 const continuationIngestedAt = "2026-09-02T00:15:20.000Z";
 
