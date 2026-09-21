@@ -1,15 +1,21 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "exclusive_writer": true,
+  "status": "released",
+  "exclusive_writer": false,
   "owned_branch": "chat/mc-unified-integrator-20260921",
   "integration_branch": "main",
   "integration_base_sha": "971b74cddd04e4e5217c1d2aeea213ef3b05da5b",
   "scope": "Single designated Mission Control integrator for native Work autodispatch/reasoning return, deterministic provider-message receipt copying, issue #178 supervisor-loop acceptance, and shared non-production runtime reconciliation.",
-  "shared_runtime_mutation_owner": true,
+  "shared_runtime_mutation_owner": false,
   "child_lane_policy": "HANDOFF_TO_INTEGRATOR_ONLY",
   "source_branch_policy": "NO_WHOLE_BRANCH_MERGES; PORT_UNIQUE_CURRENT-AUTHORIZED_DELTAS_ONLY",
   "owner_instruction": "No new Mission Control lane may independently mutate main or shared Mission Control runtime while this lease is active; useful child work must be handed to this integrator for reconciliation.",
   "domain": "MISSION_CONTROL",
-  "parent_integrator": null
+  "parent_integrator": null,
+  "released_at": "2026-09-21T19:46:25.780Z",
+  "release_reason": "Issue #178 closed-loop acceptance reached OWNER_OUTCOME_SATISFIED with the completed native Work receipt, fresh GitHub-readable same-supervisor review, and durable decision ingestion at sequence 18271.",
+  "release_evidence": [
+    "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-5765485180",
+    "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5766458125"
+  ]
 }
