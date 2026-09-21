@@ -38,6 +38,7 @@ export class CentralSubmissionScheduler {
   bindTarget(input: unknown, producerId: string): Promise<Record<string, unknown>>;
   recordRateLimit(input: unknown, producerId: string): Promise<Record<string, unknown>>;
   abortBeforeBoundary(input: unknown, producerId: string): Promise<Record<string, unknown>>;
+  cancelExpiredPreclickRetry(input: unknown, producerId: string): Promise<Record<string, unknown>>;
   recordOutcome(input: unknown, producerId: string): Promise<Record<string, unknown>>;
 }
 

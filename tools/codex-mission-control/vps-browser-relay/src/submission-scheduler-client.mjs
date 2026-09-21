@@ -25,6 +25,7 @@ export class SubmissionSchedulerClient {
   abortTargetTransition(input) { return this.#signedTargetTransition('/relay-target-transitions/abort', 'ABORT', input); }
   recordRateLimit(input) { return this.#json('/provider-rate-limits', input); }
   abortBeforeBoundary(input) { return this.#json('/aborts', input); }
+  cancelExpiredPreclickRetry(input) { return this.#json('/expired-preclick-retries/cancel', input); }
   recordOutcome(input) { return this.#json('/outcomes', input); }
   reportHealth(input) { return this.#json('/relay-health', input); }
   ledger(limit = 200) { return this.#request(`/ledger?limit=${encodeURIComponent(limit)}`, { method: 'GET' }); }

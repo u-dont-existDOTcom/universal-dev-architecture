@@ -27,6 +27,7 @@ const QUEUE_STATUSES = new Set([
   'AMBIGUOUS_LEASE_VIOLATION',
   'RATE_LIMIT_RETRY_EXHAUSTED',
   'CANCELLED_AT_TAKEOVER',
+  'CANCELLED_EXPIRED_ROUTE',
 ]);
 const ADMISSION_STATUSES = new Set([
   PRECOMPOSITION_RECOVERED,
@@ -623,6 +624,46 @@ export class CentralSubmissionScheduler {
     });
   }
 
+  async cancelExpiredPreclickRetry(raw, producerId) {
+    return this.#serialized(async () => {
+      const root = requiredRecord(raw, 'Expired pre-click retry cancellation');
+      const queueItemId = boundedString(root.queueItemId, 'queueItemId', 300);
+      const requestId = boundedString(root.requestId, 'requestId', 300);
+      const sourceRouteExpiresAt = isoTimestamp(root.sourceRouteExpiresAt, 'sourceRouteExpiresAt');
+      const nowMs = this.now();
+      if (Date.parse(sourceRouteExpiresAt) > nowMs) {
+        throw new SubmissionSchedulerError('SOURCE_ROUTE_NOT_EXPIRED', 'A pre-click retry may be cancelled only after its exact source route has expired.', 409);
+      }
+      const state = await this.stateStore.read();
+      const queueItem = state.queueItems.find((item) => item.queueItemId === queueItemId);
+      if (!queueItem) throw new SubmissionSchedulerError('SUBMISSION_QUEUE_ITEM_UNKNOWN', 'The cancellation names no durable queue item.', 404);
+      if (queueItem.request.requestId !== requestId) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_REQUEST_MISMATCH', 'The queue item does not match the exact expired source request.', 409);
+      }
+      if (queueItem.status === 'CANCELLED_EXPIRED_ROUTE') {
+        return { cancelled: true, duplicate: true, queueItemId, requestId, sourceRouteExpiresAt };
+      }
+      if (queueItem.status !== 'PRECLICK_RETRY_PENDING') {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_CANCEL_STAGE_INVALID', `Queue item is ${queueItem.status}; only a proven pre-click retry may be cancelled.`, 409);
+      }
+      const linked = queueItem.admissionIds.map((admissionId) => state.admissions.find((item) => item.admissionId === admissionId));
+      if (linked.length === 0 || linked.some((item) => !item)) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_BINDING_INVALID', 'The queue item lacks complete durable admission history.');
+      }
+      if (linked.some((item) => item.producerId !== producerId)) {
+        throw new SubmissionSchedulerError('SUBMISSION_ADMISSION_PRODUCER_MISMATCH', 'Only the producer that owns every linked safe admission may cancel the retry.', 403);
+      }
+      const safe = new Set(['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED]);
+      if (linked.some((item) => !safe.has(item.status) || item.boundaryAt !== null)) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_CANCEL_BOUNDARY_UNPROVEN', 'Cancellation is forbidden because linked history is crossed or ambiguous.', 409);
+      }
+      queueItem.status = 'CANCELLED_EXPIRED_ROUTE';
+      queueItem.terminalAt = new Date(nowMs).toISOString();
+      await this.stateStore.write(state);
+      return { cancelled: true, duplicate: false, queueItemId, requestId, sourceRouteExpiresAt, cancelledAt: queueItem.terminalAt };
+    });
+  }
+
   async recordOutcome(raw, producerId) {
     return this.#serialized(async () => {
       const root = requiredRecord(raw, 'Submission outcome');
@@ -1162,9 +1203,9 @@ function validateQueueAdmissionCorrespondence(item, linked) {
     && (!['BOUNDARY_RECORDED', 'ABORTED_BEFORE_BOUNDARY'].includes(latest?.status) || !latest.providerRateLimitObservedAt)) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} exhausted status lacks its rate-limit abort.`);
   }
-  if (item.status === 'CANCELLED_AT_TAKEOVER'
-    && linked.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED].includes(entry.status))) {
-    throw new Error(`Submission scheduler queue item ${item.queueItemId} cannot cancel crossed or ambiguous admission history.`);
+  if (['CANCELLED_AT_TAKEOVER', 'CANCELLED_EXPIRED_ROUTE'].includes(item.status)
+    && (linked.length === 0 || linked.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED].includes(entry.status) || entry.boundaryAt !== null))) {
+    throw new Error(`Submission scheduler queue item ${item.queueItemId} cannot cancel crossed, ambiguous, or missing admission history.`);
   }
 }
 
@@ -1464,7 +1505,7 @@ function schedulerStatus(state, minIntervalMs, nowMs) {
     activeLease: state.activeLease ? { leaseId: state.activeLease.leaseId, epoch: state.activeLease.epoch, activeHostAlias: state.activeLease.activeHostAlias, activeHostRole: state.activeLease.activeHostRole, expiresAt: state.activeLease.expiresAt, splitBrainStatus: state.activeLease.splitBrainStatus } : null,
     unresolvedAdmission: open ? { admissionId: open.admissionId, admittedAt: open.admittedAt, expiresAt: open.expiresAt, status: open.status } : null,
     queueDepth: queue.length,
-    queueHead: queue[0] ? { queueItemId: queue[0].queueItemId, queueKey: queue[0].queueKey, status: queue[0].status, queuedAt: queue[0].queuedAt } : null,
+    queueHead: queue[0] ? { queueItemId: queue[0].queueItemId, queueKey: queue[0].queueKey, requestId: queue[0].request.requestId, status: queue[0].status, queuedAt: queue[0].queuedAt } : null,
     providerAccountRateLimit: rateLimitItem ? {
       state: 'ONE_BOUNDED_RETRY',
       queueItemId: rateLimitItem.queueItemId,

@@ -422,6 +422,22 @@ export class RelayRuntime {
       }
 
       const allRoutes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
+      const expiredDiscardedRoutes = allRoutes.filter((route) => {
+        const prior = state.deliveries[route.routeKey];
+        return prior?.status === 'DISCARDED'
+          && Number.isFinite(Date.parse(route.packet.expiresAt))
+          && Date.parse(route.packet.expiresAt) <= Date.now();
+      });
+      if (expiredDiscardedRoutes.length > 0) {
+        const central = await this.submissionPacer.remoteStatus();
+        const head = central.queueHead;
+        const matching = expiredDiscardedRoutes.find((route) => route.requestId === head?.requestId);
+        if (matching && head?.status === 'PRECLICK_RETRY_PENDING' && typeof head.queueItemId === 'string') {
+          await this.submissionPacer.cancelExpiredPreclickRetry({
+            queueItemId: head.queueItemId, requestId: matching.requestId, sourceRouteExpiresAt: matching.packet.expiresAt,
+          });
+        }
+      }
       const routes = exactLegacyBinding
         ? allRoutes.filter((route) => route.workerId === exactLegacyBinding.worker
           && route.taskId === exactLegacyBinding.taskId
@@ -1272,6 +1288,7 @@ function publicRoute(route) {
 }
 
 function shouldProcessSupervisoryCycle(route, prior, nowMs, retryDelayMs) {
+  if (prior?.status === 'DISCARDED') return false;
   if (Number.isFinite(Date.parse(route.packet.expiresAt)) && Date.parse(route.packet.expiresAt) <= nowMs) return false;
   if (prior?.status === 'DECISION_RECEIPT_INGESTED') return false;
   if (prior?.status === 'AMBIGUOUS_AFTER_RESTART' || prior?.status === 'SUBMISSION_INTENT_RECORDED') return false;
