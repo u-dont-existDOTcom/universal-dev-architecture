@@ -628,7 +628,7 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
       continuation ? `Copy continuation_binding ${canonicalJson(continuation)} and continuation_binding_sha256 ${route.packet.continuationBindingSha256} exactly. ${omitContinuationOwnerExactText ? 'Read exact OWNER response only from its controller-bound GitHub artifact.' : `Exact OWNER response data: ${JSON.stringify(route.packet.continuationOwnerResponseExactText)}.`}` : '',
       'Write MISSION_CONTROL_CANONICAL_DECISION_V1 followed by a newline and strict JSON with schema_version 5, envelope_kind MISSION_CONTROL_CANONICAL_DECISION, request_id, supervisor_id, provider_session_id, nonce, in_band_binding_sha256, execution_provenance IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED, evidence_capsule, owner_outcome, reasoning_lane, decision_block {decision_id,exact_text,sha256}, pro_decision_block, and writer_contract {mode:EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY,reinterpretation_allowed:false}.',
       'For EXTRA_HIGH_DIRECT use pro_decision_block {used:false,model_mode:null,exact_text:null,sha256:null}. For PRO_ESCALATED use {used:true,model_mode:PRO,exact_text:<the same decision bytes>,sha256:<the same digest>}. Compute exact SHA-256 values; never guess.',
-      boundedExecutionResidueInstruction(route),
+      boundedExecutionResidueInstruction(route).trimStart(),
       'Read only the bound evidence, reason only on the bounded request, write one decision, then stop. If any binding, evidence, target, writer, hash, expiry, or GitHub operation fails, fail closed. Do not answer with substitute prose, delegate to Work, call paid model APIs, Continue, Retry, or create another provider request.',
     ].filter(Boolean).join('\n');
   }
@@ -646,7 +646,7 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
       `Reason within this request, then write ONE final ${'MISSION_CONTROL_CANONICAL_DECISION_V1'} comment to the exact returned decision_receipt_target (expected ${location}). There is no earlier proof or stage receipt.`,
       'The comment prefix is MISSION_CONTROL_CANONICAL_DECISION_V1 followed by a newline and JSON: schema_version 4, envelope_kind MISSION_CONTROL_CANONICAL_DECISION, request_id, supervisor_id, provider_session_id, nonce (live request_nonce), request_binding_sha256, execution_provenance REQUEST_BOUND_MCP_GITHUB_OBSERVED, evidence_capsule {id,sha256}, owner_outcome {id,epoch,sha256}, reasoning_lane, decision_block {decision_id,exact_text,sha256}, pro_decision_block, writer_contract {mode:EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY,reinterpretation_allowed:false}. Compute the exact decision text SHA-256; do not guess it.',
       'For EXTRA_HIGH_DIRECT, pro_decision_block is {used:false,model_mode:null,exact_text:null,sha256:null}. For the legacy PRO_ESCALATED semantic lane use {used:true,model_mode:PRO,exact_text:<the same decision bytes>,sha256:<the same digest>}; this is not a claim about hidden model identity or the account plan.',
-      boundedExecutionResidueInstruction(route),
+      boundedExecutionResidueInstruction(route).trimStart(),
       'If a GitHub write times out, reconcile the existing exact request/session comment before another write. Never create a second semantic request to recover this one. If a required tool/read/binding/write is unavailable, fail closed rather than claiming success. Do not delegate to Work or another supervisor, call paid model APIs, or publish private locators/secrets. Stop after the bounded result.',
     ].filter(Boolean).join('\n');
   }
