@@ -40,6 +40,7 @@ import {
 } from "../lib/github-decision-receipts";
 import { parseAppendEnvelope, type BindingCapsule, type CanonicalDecisionEnvelope, type StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
+import { buildPostWorkReasoningRouteEnvelope } from "../lib/post-work-reasoning-route";
 import { deriveOwnerResponseContinuation } from "../lib/owner-response-continuation";
 import { continuationId } from "../lib/owner-response-continuation-schema";
 import { decisionRouteStates } from "../lib/reasoning-message-state";
@@ -1278,7 +1279,31 @@ test("direct native Work execution receipt atomically queues exactly one fresh V
   assert.equal(pending[0]!.supervisorId, supervisorId);
   assert.equal(pending[0]!.ownerOutcome.id, "owner-outcome-1");
   assert.equal(pending[0]!.reasoningLane, "EXTRA_HIGH_DIRECT");
-  assert.equal(pending[0]!.evidenceCapsule.sha256.length, 64);
+  assert.equal(pending[0]!.evidenceCapsule.sha256, sha256(body));
+  const routeBody = JSON.parse(appended[1]!.data.body.slice("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n".length));
+  assert.deepEqual(routeBody.factualPacket.evidenceRefs, [
+    candidate.immutableUrl,
+    `work_execution_receipt_sha256:${sha256(body)}`,
+  ]);
+  assert.equal(routeBody.evidenceCapsule.id, `github-work-receipt:${candidate.commentId}`);
+  assert.equal(routeBody.evidenceCapsule.sha256, sha256(body));
+  assert.equal(routeBody.factualPacket.exactFactualState.includes("work_thread_id"), false);
+  assert.equal(routeBody.factualPacket.exactFactualState.includes(candidate.immutableUrl), true);
+  assert.equal(routeBody.factualPacket.evidenceRefs.some((ref: string) => ref.startsWith("work_execution_receipt_event:")), false);
+  const recoveryRoute = buildPostWorkReasoningRouteEnvelope({
+    events: store.allEvents(),
+    executionReceipt: {
+      schema_version: 2, event_id: appended[0]!.eventId, mission_id: "mission-control-live",
+      occurred_at: appended[0]!.occurredAt, data: appended[0]!.data,
+    },
+    policy: p, recordedAt: "2026-09-19T19:10:00.000Z", reviewAttemptId: "evidence-access-retry-1",
+  });
+  assert.equal(recoveryRoute.data.type, "worker_message_recorded");
+  if (recoveryRoute.data.type !== "worker_message_recorded") return;
+  const recoveryBody = JSON.parse(recoveryRoute.data.body.slice("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n".length));
+  assert.notEqual(recoveryBody.requestId, routeBody.requestId);
+  assert.deepEqual(recoveryBody.factualPacket.evidenceRefs, routeBody.factualPacket.evidenceRefs);
+  assert.equal(recoveryBody.evidenceCapsule.sha256, sha256(body));
   assert.equal(store.allEvents().filter((event) => event.data.type === "worker_message_recorded" && event.data.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n") && event.data.body.includes("post-work-review:")).length, 1);
 });
 

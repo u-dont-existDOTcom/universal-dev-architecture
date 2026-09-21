@@ -13,6 +13,7 @@ export function buildPostWorkReasoningRouteEnvelope(input: {
   };
   policy: GitHubReceiptPolicy;
   recordedAt: string;
+  reviewAttemptId?: string;
 }): AppendEnvelope {
   const receipt = input.executionReceipt.data;
   const directiveEvent = [...input.events].reverse().find((event) => event.worker === receipt.worker
@@ -53,18 +54,25 @@ export function buildPostWorkReasoningRouteEnvelope(input: {
     directive_id: receipt.directive_id,
     directive_revision: receipt.directive_revision,
     task_id: receipt.task_id,
-    work_thread_id: receipt.work_thread_id,
     status: receipt.status,
     terminal_state: receipt.terminal_state,
     check_summary: receipt.check_summary,
     blocker_codes: receipt.blocker_codes,
     artifact_sha256s: receipt.artifact_sha256s,
     github_comment_sha256: receipt.github_comment_sha256,
+    github_receipt: receipt.github_receipt,
   };
-  const evidenceSha256 = sha256(canonicalJson(evidencePayload));
-  const requestId = `post-work-review:${sha256(`${receipt.dispatch_id}:${input.executionReceipt.event_id}`).slice(0, 32)}`;
-  const nonce = `post-work-nonce:${sha256(`${input.executionReceipt.event_id}:${currentOutcome.owner_outcome_sha256}`).slice(0, 32)}`;
-  const evidenceCapsule = { id: `work-execution:${sha256(input.executionReceipt.event_id).slice(0, 32)}`, sha256: evidenceSha256 };
+  // The reasoning supervisor is intentionally GitHub-read-only. Bind its evidence
+  // capsule to the exact immutable Work receipt bytes it can independently read,
+  // not to a Mission-Control-only event projection or a private Work thread id.
+  const evidenceSha256 = receipt.github_comment_sha256;
+  if (input.reviewAttemptId !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(input.reviewAttemptId)) {
+    throw new Error("Post-Work review attempt id is invalid.");
+  }
+  const attemptBinding = input.reviewAttemptId === undefined ? "" : `:${input.reviewAttemptId}`;
+  const requestId = `post-work-review:${sha256(`${receipt.dispatch_id}:${input.executionReceipt.event_id}${attemptBinding}`).slice(0, 32)}`;
+  const nonce = `post-work-nonce:${sha256(`${input.executionReceipt.event_id}:${currentOutcome.owner_outcome_sha256}${attemptBinding}`).slice(0, 32)}`;
+  const evidenceCapsule = { id: `github-work-receipt:${receipt.github_receipt.comment_id}`, sha256: evidenceSha256 };
   const ownerOutcome = { id: currentOutcome.owner_outcome_id, epoch: currentOutcome.epoch, sha256: currentOutcome.owner_outcome_sha256 };
   const body = inBandRequestRoutePrefix + canonicalJson({
     schemaVersion: 6,
@@ -88,18 +96,18 @@ export function buildPostWorkReasoningRouteEnvelope(input: {
       exactFactualState: canonicalJson({
         executor: "CHATGPT_WORK_CLOUD",
         dispatch_id: receipt.dispatch_id,
-        work_thread_id: receipt.work_thread_id,
         status: receipt.status,
         terminal_state: receipt.terminal_state,
         check_summary: receipt.check_summary,
         blocker_codes: receipt.blocker_codes,
         artifact_sha256s: receipt.artifact_sha256s,
+        github_receipt: receipt.github_receipt,
+        github_comment_sha256: receipt.github_comment_sha256,
         semantic_authority: false,
       }),
       evidenceRefs: [
-        `work_dispatch:${receipt.dispatch_id}`,
-        `work_execution_receipt_event:${input.executionReceipt.event_id}`,
-        `work_execution_receipt_sha256:${evidenceSha256}`,
+        receipt.github_receipt.immutable_url,
+        `work_execution_receipt_sha256:${receipt.github_comment_sha256}`,
       ],
       decisionRequested: "Review the native Work execution facts against the current owner outcome. Decide whether the owner outcome is satisfied or issue the next exact source-bound execution directive. Work has no semantic authority.",
       supervisoryCycle: {
