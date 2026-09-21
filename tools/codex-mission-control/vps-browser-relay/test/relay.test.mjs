@@ -897,6 +897,10 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.deepEqual(browser.selectAppsCalls.at(-1).requiredLabels, ['GitHub']);
   assert.match(browser.lastSubmittedBody, /IN_BAND_REQUEST_BINDING_V1/);
   assert.match(browser.lastSubmittedBody, /IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED/);
+  assert.match(browser.lastSubmittedBody, /Do not write, comment, mutate, or otherwise use GitHub/);
+  assert.match(browser.lastSubmittedBody, /deterministic Mission Control copier/);
+  assert.match(browser.lastSubmittedBody, /final assistant message/);
+  assert.doesNotMatch(browser.lastSubmittedBody, /write exactly one canonical decision to/);
   assert.match(browser.lastSubmittedBody, /bounded_execution/);
   assert.match(browser.lastSubmittedBody, /CHATGPT_WORK_CLOUD/);
   assert.match(browser.lastSubmittedBody, /\nIf and only if the accepted decision leaves bounded/);
