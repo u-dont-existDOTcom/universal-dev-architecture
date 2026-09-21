@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { installStuckRecovery, isGenerationStallTimeout } from '../src/stuck-recovery.mjs';
+import { installStuckRecovery, isGenerationStallTimeout, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
 import { sha256 } from '../src/core.mjs';
 import { defaultState } from '../src/core.mjs';
 import { GlobalSubmissionPacer, GLOBAL_SUBMISSION_COOLDOWN } from '../src/submission-pacing.mjs';
@@ -12,7 +12,7 @@ test('recognizes only the stable-generation timeout as recoverable', () => {
   assert.equal(isGenerationStallTimeout(new Error('ChatGPT login is required')), false);
 });
 
-test('mandatory external-tool stages disable same-chat recovery completely', async () => {
+test('mandatory external-tool stages disable generic same-chat recovery without the exact systems-thinking signal', async () => {
   let submits = 0;
   const browser = {
     async waitForGenerationComplete() {
@@ -32,6 +32,50 @@ test('mandatory external-tool stages disable same-chat recovery completely', asy
     /stable complete UI state/,
   );
   assert.equal(submits, 0);
+});
+
+test('exact systems-thinking banner overrides V6 generic recovery ban with Stop then idle-send-control then continue', async () => {
+  let waits = 0;
+  const steps = [];
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) {
+        const error = new Error('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL: visible system thinking stall detected.');
+        error.code = 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL';
+        throw error;
+      }
+      steps.push('wait-complete');
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: '2026-09-21T16:40:00.000Z', inspectedAssistantOutput: false };
+    },
+    async submitExactMessage(_target, input) {
+      steps.push(`submit:${input.body}`);
+      return { generationStarted: true, startedAtObserved: '2026-09-21T16:39:30.000Z' };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
+    beforeRecoverySend: async () => { steps.push('authority-ready'); },
+    maxNudges: 3,
+    logger: { warn() {} },
+    stopStalledGeneration: async (_target, _expectedUrl, recoveryOptions) => {
+      steps.push('stop-and-wait-send-control');
+      assert.deepEqual(recoveryOptions, { requireSendControl: true });
+      return { stoppedGeneration: true, sendControlObserved: true, inspectedAssistantOutput: false };
+    },
+    inspectRecoverableControl: noRecoverableControl,
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'v6-systems-stall' }, {
+    expectedUrl: 'https://chatgpt.com/c/WEB:systems-stall', generationStarted: true, allowSameChatRecovery: false,
+  });
+
+  assert.equal(isSystemsThinkingMoreThanUsual(Object.assign(new Error('x'), { code: 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL' })), true);
+  assert.deepEqual(steps, ['stop-and-wait-send-control', 'authority-ready', 'submit:continue', 'wait-complete']);
+  assert.equal(result.stuckRecovery.nudgesSent, 1);
+  assert.equal(result.stuckRecovery.recoveries[0].source, 'SYSTEMS_THINKING_MORE_THAN_USUAL');
+  assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Our systems are thinking more than usual');
+  assert.equal(result.stuckRecovery.recoveries[0].interruption.sendControlObserved, true);
 });
 
 test('any model turn that remains actively generating gets same-chat continue and then resumes waiting', async () => {

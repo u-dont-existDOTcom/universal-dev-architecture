@@ -27,12 +27,19 @@ const IDLE_STATE_FN = `function(expectedUrl) {
   if (normalize(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
   const stop = [...document.querySelectorAll('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]')].find(visible) || null;
+  const send = [
+    'button[data-testid="send-button"]',
+    'button[aria-label="Send prompt"]',
+    'button[aria-label="Send message"]',
+    'button[data-testid="fruitjuice-send-button"]',
+  ].map((selector) => document.querySelector(selector)).find(visible) || null;
   const composer = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   return {
     urlMismatch: false,
     stopVisible: visible(stop),
+    sendControlVisible: visible(send),
     composerVisible,
     composerDisabled,
     idleReady: !visible(stop) && composerVisible && !composerDisabled,
@@ -83,12 +90,12 @@ export function installStuckRecovery(browser, {
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
 
   browser.waitForGenerationComplete = async (target, options) => {
-    if (options?.allowSameChatRecovery === false) return originalWait(target, options);
+    const allowGenericRecovery = options?.allowSameChatRecovery !== false;
     const recoveries = [];
     for (;;) {
       try {
         const completed = await originalWait(target, options);
-        const control = await inspectFn(target, options.expectedUrl);
+        const control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
         if (control?.recoverable) {
           if (recoveries.length >= maxNudges) {
             throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
@@ -113,12 +120,19 @@ export function installStuckRecovery(browser, {
           },
         };
       } catch (error) {
-        if (!isGenerationStallTimeout(error) || recoveries.length >= maxNudges) throw error;
-        if (beforeRecoverySend) await beforeRecoverySend();
-        const interruption = await stopFn(target, options.expectedUrl);
+        const systemsThinkingStall = isSystemsThinkingMoreThanUsual(error);
+        if ((!systemsThinkingStall && (!allowGenericRecovery || !isGenerationStallTimeout(error))) || recoveries.length >= maxNudges) throw error;
+        let interruption;
+        if (systemsThinkingStall) {
+          interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
+          if (beforeRecoverySend) await beforeRecoverySend();
+        } else {
+          if (beforeRecoverySend) await beforeRecoverySend();
+          interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
+        }
         const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
-          source: 'ACTIVE_GENERATION_TIMEOUT',
-          controlLabel: null,
+          source: systemsThinkingStall ? 'SYSTEMS_THINKING_MORE_THAN_USUAL' : 'ACTIVE_GENERATION_TIMEOUT',
+          controlLabel: systemsThinkingStall ? 'Our systems are thinking more than usual' : null,
           interruption,
         });
         recoveries.push(recovery);
@@ -133,6 +147,13 @@ export function installStuckRecovery(browser, {
 export function isGenerationStallTimeout(error) {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes('ChatGPT generation did not reach a stable complete UI state.');
+}
+
+export function isSystemsThinkingMoreThanUsual(error) {
+  const code = error && typeof error === 'object' ? error.code : null;
+  const message = error instanceof Error ? error.message : String(error);
+  return code === 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL'
+    || message.includes('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL');
 }
 
 async function sendContinue(submitMessage, target, options, index, maxNudges, logger, context) {
@@ -179,7 +200,7 @@ async function detectRecoverableControl(browser, target, expectedUrl) {
   }
 }
 
-async function interruptStalledGeneration(browser, target, expectedUrl) {
+async function interruptStalledGeneration(browser, target, expectedUrl, { requireSendControl = false } = {}) {
   const { client, normalized } = await openRecoveryClient(browser, target, expectedUrl);
   try {
     const before = await client.callFunction(IDLE_STATE_FN, [normalized]);
@@ -193,11 +214,14 @@ async function interruptStalledGeneration(browser, target, expectedUrl) {
     await waitFor(async () => {
       const state = await client.callFunction(IDLE_STATE_FN, [normalized]);
       if (state?.urlMismatch) throw new Error(`Chat target changed while waiting for stuck recovery: ${state.currentUrl}`);
-      return state?.idleReady ? state : false;
-    }, 30_000, 250, 'ChatGPT composer did not become idle after stopping a stalled generation.');
+      return state?.idleReady && (!requireSendControl || state?.sendControlVisible) ? state : false;
+    }, 30_000, 250, requireSendControl
+      ? 'ChatGPT send control did not reappear after stopping the systems-thinking stall.'
+      : 'ChatGPT composer did not become idle after stopping a stalled generation.');
     return {
       stoppedGeneration: Boolean(stopResult.stopped),
       stopReason: stopResult.reason ?? null,
+      sendControlObserved: requireSendControl,
       inspectedAssistantOutput: false,
     };
   } finally {
