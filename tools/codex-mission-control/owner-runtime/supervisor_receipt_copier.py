@@ -39,9 +39,12 @@ class CopierError(RuntimeError):
 class DecisionCandidate:
     sequence: int
     worker: str
+    task_id: str
     request_id: str
-    thread_id: str
     provider_session_id: str
+    conversation_url: str
+    pre_send_at: str
+    prompt_sha256: str
     route: dict[str, Any]
     pre_send_refs: list[str]
 
@@ -151,38 +154,47 @@ def discover_decision_candidates(
         pre_refs = event_data(pre_send).get("refs") or []
         provider_session_id = ref_value(pre_refs, "provider_session:")
         binding_sha = ref_value(pre_refs, "in_band_binding_sha256:")
-        if not provider_session_id or not binding_sha:
+        prompt_sha256 = ref_value(pre_refs, "provider_body_sha256:")
+        task_id = route.get("factualPacket", {}).get("taskId") if isinstance(route.get("factualPacket"), dict) else None
+        if not provider_session_id or not binding_sha or not prompt_sha256 or not isinstance(task_id, str) or not task_id:
             continue
-        completed_sessions = []
+        exact_sessions = []
+        starts = []
         for event in events:
             ed = event_data(event)
             refs = ed.get("refs") if isinstance(ed.get("refs"), list) else []
-            if (event_sequence(event) >= event_sequence(pre_send)
-                and ed.get("type") == "evidence_receipt_recorded"
+            if event_sequence(event) < event_sequence(pre_send) or ed.get("worker") != worker:
+                continue
+            if (ed.get("type") == "evidence_receipt_recorded"
                 and ed.get("summary") == PROVIDER_SESSION_SUMMARY
-                and ed.get("worker") == worker
                 and refs_include(refs, f"request:{request_id}")
                 and refs_include(refs, f"provider_session:{provider_session_id}")
                 and refs_include(refs, "session_role:IN_BAND_REQUEST_DECISION_SESSION")
-                and refs_include(refs, "lifecycle_status:COMPLETE")
                 and refs_include(refs, "url_binding_status:EXACT")):
-                completed_sessions.append(event)
-        if not completed_sessions:
+                exact_sessions.append(event)
+            if (ed.get("type") == "evidence_receipt_recorded"
+                and ed.get("summary") == "MISSION_CONTROL_RELAY_STAGE_V1"
+                and refs_include(refs, f"request:{request_id}")
+                and refs_include(refs, f"provider_session:{provider_session_id}")
+                and refs_include(refs, "step:IN_BAND_REQUEST_DECISION")
+                and refs_include(refs, "generation_state:STARTED")):
+                starts.append(event)
+        if not exact_sessions or not starts:
             continue
-        completed_session = max(completed_sessions, key=event_sequence)
-        session_refs = event_data(completed_session).get("refs") or []
+        exact_session = max(exact_sessions, key=event_sequence)
+        session_refs = event_data(exact_session).get("refs") or []
         conversation_url = ref_value(session_refs, "conversation_url:")
-        if not conversation_url:
-            continue
-        match = re.fullmatch(r"https://chatgpt\.com/c/((?:WEB:)?[A-Za-z0-9_-]+)", conversation_url)
-        if not match:
+        if not conversation_url or not re.fullmatch(r"https://chatgpt\.com/c/(?:WEB:)?[A-Za-z0-9_-]+", conversation_url):
             continue
         candidates.append(DecisionCandidate(
             sequence=sequence,
             worker=worker,
+            task_id=task_id,
             request_id=request_id,
-            thread_id=match.group(1),
             provider_session_id=provider_session_id,
+            conversation_url=conversation_url,
+            pre_send_at=str(pre_send.get("occurredAt") or pre_send.get("occurred_at") or ""),
+            prompt_sha256=prompt_sha256,
             route=route,
             pre_send_refs=list(pre_refs),
         ))
@@ -389,6 +401,79 @@ def read_thread(config: Config, thread_id: str) -> dict[str, Any]:
     return value
 
 
+def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict[str, Any]]:
+    command = (
+        f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
+        f"node_modules/.bin/tsx scripts/list-chatgpt-thread-final-messages.ts --updated-after {shlex.quote(updated_after)}"
+    )
+    value = ssh_json(config, command, timeout=120)
+    threads = value.get("threads") if isinstance(value, dict) else None
+    if not isinstance(threads, list):
+        raise CopierError("provider thread listing returned invalid JSON")
+    return [item for item in threads if isinstance(item, dict)]
+
+
+def _updated_at_iso(value: Any) -> str:
+    if isinstance(value, str):
+        return parse_iso(value).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
+        raise CopierError("provider thread updatedAt is invalid")
+    seconds = float(value)
+    if seconds > 100_000_000_000_000:
+        seconds /= 1_000_000
+    elif seconds > 100_000_000_000:
+        seconds /= 1_000
+    elif seconds > 10_000_000_000:
+        seconds /= 1_000
+    return dt.datetime.fromtimestamp(seconds, dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def select_decision_machine_block(threads: list[dict[str, Any]], candidate: DecisionCandidate) -> tuple[str, str, str, dict[str, Any]] | None:
+    matches: list[tuple[str, str, str, dict[str, Any]]] = []
+    for thread in threads:
+        if thread.get("status") != "idle":
+            continue
+        thread_id = thread.get("threadId")
+        message = thread.get("finalAgentMessage")
+        if not isinstance(thread_id, str) or not thread_id or not isinstance(message, str):
+            continue
+        parsed = extract_machine_block(message, DECISION_PREFIX)
+        if not parsed:
+            continue
+        block, payload = parsed
+        try:
+            validate_decision_block(block, payload, candidate)
+        except CopierError:
+            continue
+        matches.append((thread_id, _updated_at_iso(thread.get("updatedAt")), block, payload))
+    if len(matches) > 1:
+        raise CopierError(f"more than one app-owned thread matches canonical decision {candidate.request_id}")
+    return matches[0] if matches else None
+
+
+def resolve_decision_machine_block(config: Config, candidate: DecisionCandidate) -> tuple[str, str, str, dict[str, Any]] | None:
+    return select_decision_machine_block(list_chatgpt_final_messages(config, candidate.pre_send_at), candidate)
+
+
+def record_app_readback(config: Config, candidate: DecisionCandidate, *, thread_id: str, observed_at: str, block: str) -> dict[str, Any]:
+    args = {
+        "--worker": candidate.worker, "--task-id": candidate.task_id, "--request-id": candidate.request_id,
+        "--supervisor-id": str(candidate.route.get("destinationSupervisorId")),
+        "--provider-session-id": candidate.provider_session_id, "--conversation-url": candidate.conversation_url,
+        "--prompt-sha256": candidate.prompt_sha256, "--machine-block-sha256": sha256_text(block),
+        "--thread-id-sha256": sha256_text(thread_id), "--observed-at": observed_at,
+    }
+    tail = " ".join(f"{key} {shlex.quote(value)}" for key, value in args.items())
+    command = (
+        f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
+        f"node_modules/.bin/tsx scripts/record-chatgpt-app-readback.ts {tail}"
+    )
+    value = ssh_json(config, command, timeout=90)
+    if not isinstance(value, dict) or value.get("status") != "RECORDED":
+        raise CopierError("app-owned provider completion receipt was not recorded")
+    return value
+
+
 def github_comments(config: Config, issue: int) -> list[dict[str, Any]]:
     raw = run([
         config.gh_command, "api", "--paginate", "--slurp",
@@ -464,12 +549,12 @@ def process_once(config: Config) -> dict[str, Any]:
         key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
         if key in published:
             continue
-        thread = read_thread(config, candidate.thread_id)
-        parsed = extract_machine_block(thread.get("finalAgentMessage"), DECISION_PREFIX)
-        if not parsed:
+        resolved = resolve_decision_machine_block(config, candidate)
+        if not resolved:
             continue
-        block, payload = parsed
+        thread_id, observed_at, block, payload = resolved
         validate_decision_block(block, payload, candidate)
+        record_app_readback(config, candidate, thread_id=thread_id, observed_at=observed_at, block=block)
         issue = candidate.route.get("githubReceipt", {}).get("issueNumber")
         repository = candidate.route.get("githubReceipt", {}).get("repository")
         if repository != config.repository or not isinstance(issue, int):

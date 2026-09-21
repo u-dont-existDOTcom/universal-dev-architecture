@@ -10,6 +10,8 @@ import {
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
 import {
+  inBandAppReadbackProducerId,
+  inBandAppReadbackSummary,
   inBandPreSendSummary,
   inBandRequestBindingEnvelope,
   inBandRequestProvenance,
@@ -185,6 +187,37 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
     assert.equal(envelope.data.execution_mcp_receipt_id, undefined);
     assert.equal(envelope.data.execution_submission_admission_id, admissionId);
     assert.equal(envelope.data.execution_provider_body_sha256, promptSha256);
+  } finally { f.store.close(); }
+});
+
+test("V6 app-owned final-message readback may replace only missing web completion evidence", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000099, createdAt: time("05.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000099` };
+    const exactActive = evidence(f.store, "session-exact-active", "MISSION_CONTROL_PROVIDER_SESSION_V1", [
+      "session_role:IN_BAND_REQUEST_DECISION_SESSION", "message_ordinal:1", "lifecycle_status:ACTIVE",
+      "url_binding_status:EXACT", `conversation_url:${conversation}`,
+    ], time("03.200"));
+    const appReadback = evidence(f.store, "app-readback", inBandAppReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sha256(candidate.body)}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "app_thread_id_sha256:" + "9".repeat(64),
+      "semantic_authority:false", "readback_method:APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
+    ], time("04.500"), inBandAppReadbackProducerId);
+    const events = f.events.filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && ((event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1" && event.data.refs.includes("lifecycle_status:COMPLETE"))
+        || (event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1" && event.data.refs.includes("generation_state:COMPLETE")))));
+    events.push(exactActive, appReadback);
+    const envelope = buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("06.000"), { submissionAuthorityState: f.authority });
+    assert.equal(envelope.data.type, "github_decision_receipt_ingested");
+
+    const bad = structuredClone(events);
+    const readback = bad.find((event) => event.eventId === appReadback.eventId)!;
+    if (readback.data.type === "evidence_receipt_recorded") {
+      readback.data.refs = readback.data.refs.map((ref) => ref.startsWith("machine_block_sha256:")
+        ? `machine_block_sha256:${"8".repeat(64)}` : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("06.000"), { submissionAuthorityState: f.authority }), /completion evidence missing/);
   } finally { f.store.close(); }
 });
 
