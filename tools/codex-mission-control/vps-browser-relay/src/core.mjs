@@ -123,7 +123,7 @@ export function normalizeConversationUrl(value) {
   if (url.protocol !== 'https:' || url.username || url.password || url.hostname !== 'chatgpt.com') {
     throw new Error('Chat URL must be an HTTPS chatgpt.com URL without embedded credentials.');
   }
-  const match = url.pathname.match(/^\/c\/([A-Za-z0-9_-]+)\/?$/);
+  const match = url.pathname.match(/^\/c\/((?:WEB:)?[A-Za-z0-9_-]+)\/?$/);
   if (!match) throw new Error('Chat URL must identify one concrete /c/<conversation-id> conversation.');
   return `https://chatgpt.com/c/${match[1]}`;
 }

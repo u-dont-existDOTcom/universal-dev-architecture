@@ -18,7 +18,7 @@ const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
@@ -37,7 +37,7 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
@@ -483,7 +483,7 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
@@ -517,7 +517,7 @@ const CONTINUE_TURN_STRUCTURE_FN = `function(expectedUrl) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
@@ -550,7 +550,7 @@ const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };

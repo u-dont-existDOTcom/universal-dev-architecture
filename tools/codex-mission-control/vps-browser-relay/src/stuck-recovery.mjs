@@ -4,7 +4,7 @@ const STOP_GENERATION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
@@ -20,7 +20,7 @@ const IDLE_STATE_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
@@ -43,7 +43,7 @@ const RECOVERABLE_CONTROL_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
       const url = new URL(value);
-      const match = url.pathname.match(/^\\/c\\/([A-Za-z0-9_-]+)\\/?$/);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
