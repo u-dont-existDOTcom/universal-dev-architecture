@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "status": "ROUTING_METADATA_NOT_NORMATIVE_AUTHORITY",
+  "canonical_authority": "Each node's canonical_path and current owner/project authority remain normative.",
+  "fallback": "Rules not represented here continue to route through LESSON-INDEX.md and canonical prose.",
+  "relation_semantics": {
+    "requires": "The selected rule is not safely complete without the target rule in the active set.",
+    "inherits": "The selected rule is a scoped specialization that carries the target rule's applicable constraints plus local deltas.",
+    "supersedes": "The selected active rule replaces the target rule for current use; historical provenance remains readable.",
+    "conflicts_with": "The two rules cannot both govern the same scope without an explicit authority resolution.",
+    "enforcement_phase": "Lifecycle boundaries where the rule can create an open obligation."
+  },
+  "allowed_enforcement_phases": [
+    "retrieval",
+    "reasoning",
+    "action",
+    "handoff",
+    "persistence",
+    "delivery",
+    "release"
+  ],
+  "nodes": [
+    {
+      "rule_id": "codex-github-operating-system",
+      "canonical_path": "patterns/codex-github-operating-system.md",
+      "status": "active",
+      "trigger": "Repository-governed development, recovery, GitHub mutation, verification, continuation, or release work.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [
+        "codex-github-operating-standard"
+      ],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "action",
+        "persistence",
+        "delivery",
+        "release"
+      ]
+    },
+    {
+      "rule_id": "codex-github-operating-standard",
+      "canonical_path": "patterns/codex-github-operating-standard.md",
+      "status": "superseded",
+      "trigger": "Historical compatibility only; route current use to codex-github-operating-system.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval"
+      ]
+    },
+    {
+      "rule_id": "instruction-composition-and-portable-intelligence",
+      "canonical_path": "patterns/instruction-composition-and-portable-intelligence.md",
+      "status": "active",
+      "trigger": "Instruction maintenance, inheritance, deduplication, transfer, public/internal composition, or bootstrap changes.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning",
+        "persistence"
+      ]
+    },
+    {
+      "rule_id": "task-time-lesson-activation",
+      "canonical_path": "patterns/task-time-lesson-activation.md",
+      "status": "active",
+      "trigger": "A task is governed by durable lessons or owner corrections that must be activated and enforced before consequential work.",
+      "requires": [
+        "instruction-composition-and-portable-intelligence"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning",
+        "action",
+        "handoff",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "development-assurance-lanes",
+      "canonical_path": "patterns/development-assurance-lanes.md",
+      "status": "active",
+      "trigger": "Software/product development needs an iteration, decision, or release assurance level.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "action",
+        "release"
+      ]
+    },
+    {
+      "rule_id": "test-efficiency-and-verification-budget",
+      "canonical_path": "patterns/test-efficiency-and-verification-budget.md",
+      "status": "active",
+      "trigger": "Non-trivial software work may run repeated tests with material wall-time cost.",
+      "requires": [
+        "development-assurance-lanes"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "action",
+        "release"
+      ]
+    },
+    {
+      "rule_id": "research-before-reinvention",
+      "canonical_path": "patterns/research-before-reinvention.md",
+      "status": "active",
+      "trigger": "Substantial bespoke architecture, framework, method, metric, protocol, taxonomy, or workflow work may overlap established practice.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning",
+        "action"
+      ]
+    },
+    {
+      "rule_id": "existing-work-scan-and-scholarly-discovery",
+      "canonical_path": "patterns/existing-work-scan-and-scholarly-discovery.md",
+      "status": "active",
+      "trigger": "Academic literature is materially relevant to a research-before-reinvention scan.",
+      "requires": [
+        "research-before-reinvention"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning"
+      ]
+    },
+    {
+      "rule_id": "parallel-chat-write-isolation",
+      "canonical_path": "patterns/parallel-chat-write-isolation.md",
+      "status": "active",
+      "trigger": "Two or more chats, agents, or workers may mutate the same repository task concurrently.",
+      "requires": [
+        "codex-github-operating-system"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "action",
+        "persistence"
+      ]
+    },
+    {
+      "rule_id": "canonical-design-os-bootstrap",
+      "canonical_path": "patterns/canonical-design-os-bootstrap.md",
+      "status": "active",
+      "trigger": "UI/UX, frontend visual implementation, layout, typography, interaction, design critique, or design-system work.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning",
+        "action",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "chat-work-execution-routing-threshold",
+      "canonical_path": "patterns/chat-work-execution-routing-threshold.md",
+      "status": "active",
+      "trigger": "A task may need routing between Chat reasoning and native Work/Codex execution.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "handoff",
+        "action"
+      ]
+    },
+    {
+      "rule_id": "runtime-chat-work-authority-admission-and-internal-routing",
+      "canonical_path": "patterns/runtime-chat-work-authority-admission-and-internal-routing.md",
+      "status": "active",
+      "trigger": "Controlled supervisory routing or native Work execution requires runtime authority admission.",
+      "requires": [
+        "chat-work-execution-routing-threshold"
+      ],
+      "inherits": [
+        "chat-work-execution-routing-threshold"
+      ],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "handoff",
+        "action",
+        "persistence"
+      ]
+    },
+    {
+      "rule_id": "work-model-and-effort-routing",
+      "canonical_path": "patterns/work-model-and-effort-routing.md",
+      "status": "active",
+      "trigger": "Chat has admitted a Work task and must select the minimum-sufficient model/effort tier.",
+      "requires": [
+        "chat-work-execution-routing-threshold"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "handoff"
+      ]
+    },
+    {
+      "rule_id": "owner-outcome-invariant-and-contract-laundering-prevention",
+      "canonical_path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "status": "active",
+      "trigger": "A derived task, contract, checkpoint, acceptance criterion, or completion claim could drift from the owner's outcome.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning",
+        "handoff",
+        "delivery",
+        "release"
+      ]
+    },
+    {
+      "rule_id": "outcome-advancement-and-strategy-efficacy",
+      "canonical_path": "patterns/outcome-advancement-and-strategy-efficacy.md",
+      "status": "active",
+      "trigger": "Substantive or iterative work needs evidence that the current strategy is actually advancing the owner outcome.",
+      "requires": [
+        "owner-outcome-invariant-and-contract-laundering-prevention"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "action",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "supervision-assurance-planes-and-pro-meta-review",
+      "canonical_path": "patterns/supervision-assurance-planes-and-pro-meta-review.md",
+      "status": "active",
+      "trigger": "Supervision must distinguish worker-to-contract alignment from contract-to-owner alignment or route meta-review.",
+      "requires": [
+        "owner-outcome-invariant-and-contract-laundering-prevention"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "handoff",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "chat-led-reasoning-codex-execution-separation",
+      "canonical_path": "patterns/chat-led-reasoning-codex-execution-separation.md",
+      "status": "active",
+      "trigger": "Chat and Codex/Work participate in the same task and semantic reasoning must remain with Chat.",
+      "requires": [
+        "chat-work-execution-routing-threshold"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "handoff",
+        "action"
+      ]
+    },
+    {
+      "rule_id": "codex-pro-supervision-mission-control",
+      "canonical_path": "patterns/codex-pro-supervision-mission-control.md",
+      "status": "active",
+      "trigger": "Mission Control supervises multi-worker execution, reasoning routes, owner attention, or worker-channel state.",
+      "requires": [
+        "chat-led-reasoning-codex-execution-separation",
+        "owner-outcome-invariant-and-contract-laundering-prevention",
+        "outcome-advancement-and-strategy-efficacy",
+        "supervision-assurance-planes-and-pro-meta-review"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "handoff",
+        "action",
+        "persistence",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "mission-control-multi-host-submission-scheduling",
+      "canonical_path": "patterns/mission-control-multi-host-submission-scheduling.md",
+      "status": "active",
+      "trigger": "More than one browser relay host can submit to shared ChatGPT/provider surfaces.",
+      "requires": [
+        "runtime-chat-work-authority-admission-and-internal-routing"
+      ],
+      "inherits": [
+        "runtime-chat-work-authority-admission-and-internal-routing"
+      ],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "action",
+        "persistence"
+      ]
+    },
+    {
+      "rule_id": "structured-output-failure-boundary",
+      "canonical_path": "patterns/structured-output-failure-boundary.md",
+      "status": "active",
+      "trigger": "A structured artifact is malformed, unparsable, schema-invalid, or serialization-invalid.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "action",
+        "persistence",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "worker-directive-delivery-and-chat-output-budget",
+      "canonical_path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+      "status": "active",
+      "trigger": "Worker execution is selected and a runnable directive must be delivered without making the owner reconstruct it.",
+      "requires": [
+        "chat-work-execution-routing-threshold"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "handoff",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "rule-graph-activation-and-dependency-resolution",
+      "canonical_path": "patterns/rule-graph-activation-and-dependency-resolution.md",
+      "status": "active",
+      "trigger": "One or more graph-covered UDA rules have been selected and their dependency/supersession/conflict closure should be resolved mechanically.",
+      "requires": [
+        "instruction-composition-and-portable-intelligence"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval",
+        "reasoning"
+      ]
+    }
+  ]
+}
