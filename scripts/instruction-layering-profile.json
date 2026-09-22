@@ -38,7 +38,9 @@
   "required_fragments": {
     "AGENTS.md": [
       "first line of the final user-visible assistant answer",
-      "patterns/instruction-composition-and-portable-intelligence.md"
+      "patterns/instruction-composition-and-portable-intelligence.md",
+      "rules/UDA-RULE-GRAPH.json",
+      "canonical prose remains authoritative"
     ],
     "patterns/task-time-lesson-activation.md": [
       "Obligation lifecycle and boundary binding",
@@ -48,12 +50,27 @@
     "templates/ACTIVE-LESSON-CONTRACT.md": [
       "Due phase and destination",
       "Non-substitutes",
-      "Carry-through"
+      "Carry-through",
+      "Rule graph expansion",
+      "graph resolved"
     ],
     "tools/codex-mission-control/restored/codex-mission-control/AGENTS.md": [
       "supervision:admit:runtime",
       "`mayExecute` is exactly true",
       "QUEUED_FOR_PROVIDER_RELAY"
+    ],
+    "patterns/rule-graph-activation-and-dependency-resolution.md": [
+      "ROUTING_METADATA_NOT_NORMATIVE_AUTHORITY",
+      "The resolver output is routing evidence, not application evidence.",
+      "Absence from the graph never means the rule is inapplicable."
+    ],
+    "rules/UDA-RULE-GRAPH.json": [
+      "ROUTING_METADATA_NOT_NORMATIVE_AUTHORITY",
+      "\"requires\"",
+      "\"inherits\"",
+      "\"supersedes\"",
+      "\"conflicts_with\"",
+      "\"enforcement_phase\""
     ]
   }
 }
