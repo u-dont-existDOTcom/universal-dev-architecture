@@ -570,6 +570,22 @@ test('doctor reports a healthy secondary as standby-ready while the primary leas
   assert.equal((await runtime.doctor()).status, 'STANDBY_READY');
 });
 
+test('read-only doctor does not reconcile relay state or write status', async () => {
+  const initial = defaultState();
+  initial.deliveries['request:interrupted'] = { status: 'SUBMISSION_INTENT_RECORDED', bodySha256: 'a'.repeat(64) };
+  const store = new MemoryStateStore(initial);
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({
+    store, browser, mc: new FakeMissionControl({ evidence: capabilityEvidence() }), submitEnabled: true,
+  });
+
+  const result = await runtime.doctor({ readOnly: true });
+  assert.equal(result.status, 'READY');
+  assert.equal(store.state.deliveries['request:interrupted'].status, 'SUBMISSION_INTENT_RECORDED');
+  assert.equal(store.status, null);
+  assert.deepEqual(browser.lastDoctorOptions, { readOnly: true });
+});
+
 test('doctor never reports ready when the central authority is halted or not ready', async () => {
   const store = new MemoryStateStore();
   const runtime = makeRuntime({
@@ -684,9 +700,9 @@ class FakeBrowser {
     this.automationWindowId = automationWindowId;
     this.automationOwnedTargetIdsSha256 = automationOwnedTargetIdsSha256;
     this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
-    this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = [];
+    this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = []; this.lastDoctorOptions = null;
   }
-  async doctor() { return { browser: 'Fake', automationWindowId: this.automationWindowId, automationOwnedTabCount: 1, automationOwnedTargetIdsSha256: this.automationOwnedTargetIdsSha256, targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
+  async doctor(options = {}) { this.lastDoctorOptions = structuredClone(options); return { browser: 'Fake', automationWindowId: this.automationWindowId, automationOwnedTabCount: 1, automationOwnedTargetIdsSha256: this.automationOwnedTargetIdsSha256, targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
   async listTargets() { return structuredClone(this.targets); }
   async closeTarget(id) { this.closedTargets.push(id); this.targets = this.targets.filter((target) => target.id !== id); return true; }
   async activateTarget() { return true; }

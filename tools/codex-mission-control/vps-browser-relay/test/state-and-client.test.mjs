@@ -60,9 +60,10 @@ test('stale lock is recovered without deleting a live lock', async () => {
 
 test('health report CLI does not contend with the long-running relay singleton lock', async () => {
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
-  assert.match(cli, /const stateLockRequired = command !== 'health-report'/);
-  assert.match(cli, /if \(stateLockRequired\) \{\n    await stateStore\.acquireLock\(\);/);
-  assert.match(cli, /if \(stateLockRequired\) await stateStore\.releaseLock\(\);/);
+  assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
+  assert.match(cli, /if \(exclusiveLockRequired\) \{\n    await stateStore\.acquireLock\(\);/);
+  assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
+  assert.match(cli, /if \(exclusiveLockRequired\) await stateStore\.releaseLock\(\);/);
 });
 
 test('Mission Control client reads only explicitly scoped worker snapshots', async () => {
