@@ -53,6 +53,12 @@ function queueValid(value: unknown) {
     && ["P0", "P1", "P2", "P3"].includes(String(at(value, "priority"))) && typeof at(value, "ordinal") === "number"
     && stringArray(at(value, "dependsOn")) && date(at(value, "updatedAt"));
 }
+function fleetSupervisorValid(value: unknown) {
+  if (!record(value) || typeof value.activeCount !== "number" || typeof value.defaultCadenceMs !== "number" || !Array.isArray(value.watches)) return false;
+  return value.watches.every(watch => strings(watch, ["projectId", "taskId", "worker", "state", "notificationDisposition"])
+    && typeof at(watch, "cadenceMs") === "number"
+    && ["nextTickAt", "lastTickAt"].every(key => at(watch, key) === null || date(at(watch, key)));
+}
 function workerValid(value: unknown) {
   if (!strings(value, ["id", "name", "status", "objective.goal", "currentStep", "connection.state", "operatorState.traffic", "operatorState.label", "operatorState.reason", "workerToContractAlignment", "contractToOwnerAlignment", "overallTraffic", "channel.freshness", "correction.ownerActionType", "correction.ownerActionText", "correction.statusLabel", "correction.nextReviewTrigger", "correction.ownerAction.kind", "progress.outcomeAdvancement", "progress.strategyEfficacy", "progress.latestEvidence", "progress.previousEvidence", "progress.bestEvidence", "progress.baselineEvidence", "progress.targetEvidence", "progress.requiredIntervention", "executionSupervision.surface", "executionSupervision.proEscalationState", "executionSupervision.codexExecutionState"])) return false;
   if (!["channel.queue", "channel.blockers", "channel.proposals"].every(path => Array.isArray(at(value, path))) || !stringArray(at(value, "nextSteps")) || !date(at(value, "lastCheckpointAt"))) return false;
@@ -71,6 +77,7 @@ export function validTaskSnapshot(value: unknown): boolean {
   if (!record(value) || !date(value.generatedAt) || typeof value.summary !== "string") return false;
   if (!Array.isArray(value.workers) || !value.workers.every(workerValid) || !Array.isArray(value.fleetQueue) || !value.fleetQueue.every(queueValid)) return false;
   if (!["connected", "offlineConfigured", "suppressedFixtureOnly"].every(key => typeof at(value, `connectionSummary.${key}`) === "number")) return false;
+  if (!fleetSupervisorValid(value.fleetSupervisor)) return false;
   return value.liveSource === null || strings(value.liveSource, ["worker", "summary", "branch", "head", "phase", "observed_at"]);
 }
 export function validOperatorSnapshot(value: unknown): boolean {
