@@ -118,7 +118,7 @@ export function assertRequestBoundExecution(
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
     && exactRef(event, "session_role") === requestBoundRole && controlEvidence(event) !== null);
   if (!model) fail("visible model/control observation missing");
-  const modelControls = controlEvidence(model) ?? fail("model/control observation is invalid");
+  const modelControls = controlEvidence(model!) ?? fail("model/control observation is invalid");
   const stages = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
     && exactRef(event, "step") === requestBoundStep && exactRef(event, "conversation_url") === url
     && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
