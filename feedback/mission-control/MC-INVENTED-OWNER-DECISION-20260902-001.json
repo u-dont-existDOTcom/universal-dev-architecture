@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "incidentId": "MC-INVENTED-OWNER-DECISION-20260902-001",
+  "createdAt": "2026-09-02T02:03:29Z",
+  "severity": "CRITICAL",
+  "status": "OWNER_CORRECTION_REPAIR_VERIFIED_DRAFT",
+  "ownerCorrection": {
+    "captureType": "immutable_exact_text_block",
+    "exactText": "NO we already went over that. there was never a completion policy. that was ivnented nonsense by codex",
+    "completionPolicyExists": false,
+    "denominatorDecisionExists": false
+  },
+  "causalChain": [
+    "Codex counted 76 non-validation question-bank records.",
+    "Codex promoted that artifact fact into an unauthorized scientific acceptance rule.",
+    "After the rule was challenged, Codex assumed a completion policy must nevertheless exist and reframed 23 versus 76 as pending owner authority.",
+    "Verified Extra High and Pro reviews reasoned inside that producer-supplied premise instead of reconciling the decision surface against the owner contract.",
+    "The invented blocker entered Human Design code, participant copy, API state, tests, and recovery documents."
+  ],
+  "rootCause": "Mission Control checked who could authorize a proposed policy but did not first check whether the owner contract contained that policy decision at all. Fail-closed escalation therefore preserved and laundered the executor's unsupported premise.",
+  "requiredControl": {
+    "failureCode": "INVENTED_OWNER_DECISION",
+    "rule": "Before OWNER_DECISION_REQUIRED, a missing-policy blocker, or an owner choice menu, require an exact current owner-contract source establishing the decision surface. If absent, remove the unsupported constraint.",
+    "supervisorRepetitionCreatesAuthority": false
+  },
+  "affectedArtifacts": [
+    "feedback/mission-control/SDF-HUMANDESIGN-76-SCOPE-AUTHORITY-001.json",
+    "evals/mission-control/executor-inferred-scientific-scope-authority-laundering.json",
+    "templates/CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json",
+    "templates/OBJECTIVE-RECONCILIATION.json",
+    "patterns/supervision-assurance-planes-and-pro-meta-review.md"
+  ],
+  "prohibitedConsequences": [
+    "SELECT_DENOMINATOR",
+    "ASK_OWNER_TO_SELECT_DENOMINATOR",
+    "MERGE",
+    "DEPLOY",
+    "PARTICIPANT_CONTACT",
+    "SPENDING"
+  ]
+}

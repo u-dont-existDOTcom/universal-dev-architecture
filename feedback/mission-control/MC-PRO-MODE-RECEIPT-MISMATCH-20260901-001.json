@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "incidentId": "MC-PRO-MODE-RECEIPT-MISMATCH-20260901-001",
+  "scopeKey": "supervision-architecture/a40d413-authority-provenance-v1",
+  "incidentDisposition": "ACCEPT",
+  "sameConsolidatedArchitectureKey": true,
+  "priorTransaction": {
+    "sessionRef": "owner-local:prior-mode-mismatch-transaction",
+    "requiredVisibleMode": "Pro",
+    "observedVisibleMode": "Extra High",
+    "aggregateState": "MISMATCH",
+    "failureCode": "REASONING_SURFACE_MODE_MISMATCH",
+    "proMetaReviewAuthoritative": false,
+    "preservation": "APPEND_ONLY_INCIDENT_EVIDENCE"
+  },
+  "correctedTransactionRequirement": {
+    "newTransactionIdRequired": true,
+    "newReceiptIdRequired": true,
+    "supersedesOrIncidentReferenceRequired": true,
+    "sameSessionCompletedResponseBindingRequired": true,
+    "postResponseModeRequired": true,
+    "priorMismatchMayBeOverwritten": false
+  },
+  "implementedControlRefs": [
+    "templates/REASONING-SURFACE-OBSERVATION-RECEIPT.json",
+    "templates/SUPERVISION-VERDICT-ADMISSION.json",
+    "schemas/reasoning-surface-observation-receipt.schema.json",
+    "schemas/supervision-verdict-admission.schema.json",
+    "scripts/mission_control_provenance.py#evaluate_reasoning_surface_receipt"
+  ],
+  "status": "PRO_ACCEPTED_INCIDENT_DISPOSITION_IMPLEMENTED_ON_DRAFT_BRANCH",
+  "privacy": {
+    "rawConversationUrlCommitted": false,
+    "rawSessionIdCommitted": false,
+    "ownerLocalReceiptRequiredForAdmission": true
+  }
+}
