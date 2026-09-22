@@ -40,7 +40,8 @@ export class AutomationOwnedBrowser {
     return this;
   }
 
-  async doctor() {
+  async doctor({ readOnly = false } = {}) {
+    if (readOnly) return this.#readOnlyDoctor();
     const raw = await this.rawBrowser.doctor();
     const all = await this.rawBrowser.listTargets();
     const owned = await this.listTargets();
@@ -54,6 +55,45 @@ export class AutomationOwnedBrowser {
       foreignChatGptTabCount: Math.max(0, allChatGpt.length - owned.length),
       automationWindowId: ownership.windowId,
       automationWindowOwnershipEnforced: true,
+      recencyBasedTargetSelectionAllowed: false,
+    };
+  }
+
+  async #readOnlyDoctor() {
+    const raw = await this.rawBrowser.doctor();
+    const all = await this.rawBrowser.listTargets();
+    const allChatGpt = all.filter(isChatGptPage);
+    const ownership = await this.ownershipStore.read();
+    if (!ownership) {
+      return {
+        ...raw,
+        ...managedChatGptTabTelemetry([]),
+        automationOwnedTabCount: 0,
+        automationOwnedTargetIdsSha256: sha256(JSON.stringify([])),
+        foreignChatGptTabCount: allChatGpt.length,
+        automationWindowId: null,
+        automationWindowOwnershipEnforced: false,
+        recencyBasedTargetSelectionAllowed: false,
+      };
+    }
+    validateOwnership(ownership);
+    const ownedIds = new Set(Object.keys(ownership.targets));
+    const owned = [];
+    for (const target of all) {
+      if (!ownedIds.has(target.id)) continue;
+      const windowId = await this.protocol.getWindowId(target.id).catch(() => null);
+      if (windowId === ownership.windowId) owned.push({ ...target, automationOwned: true, automationWindowId: ownership.windowId });
+    }
+    const exactOwnedIds = owned.map((target) => target.id).sort();
+    const ownershipConsistent = exactOwnedIds.length === ownedIds.size;
+    return {
+      ...raw,
+      ...managedChatGptTabTelemetry(owned),
+      automationOwnedTabCount: owned.length,
+      automationOwnedTargetIdsSha256: sha256(JSON.stringify(exactOwnedIds)),
+      foreignChatGptTabCount: Math.max(0, allChatGpt.length - owned.length),
+      automationWindowId: ownership.windowId,
+      automationWindowOwnershipEnforced: ownershipConsistent,
       recencyBasedTargetSelectionAllowed: false,
     };
   }

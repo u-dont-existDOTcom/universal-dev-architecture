@@ -93,14 +93,17 @@ try {
   });
   const controller = new ControllerMediatedPmRuntime({ config, missionControl, browser, stateStore, submissionPacer });
   const controllerWatchdog = new ControllerCycleWatchdog({ stateStore, controller });
-  await stateStore.acquireLock();
-  installSignalHandlers(stateStore);
+  const exclusiveLockRequired = command !== 'health-report';
+  if (exclusiveLockRequired) {
+    await stateStore.acquireLock();
+    installSignalHandlers(stateStore);
+  }
 
   if (command === 'doctor') {
     print({ config: publicConfig(config), ...(await runtime.doctor()) });
   } else if (command === 'health-report') {
     const doctor = await observeRelayHealth({
-      doctor: () => runtime.doctor(),
+      doctor: () => runtime.doctor({ readOnly: true }),
       browserDoctor: () => browser.doctor(),
       schedulerStatus: () => schedulerClient.status(),
     });
@@ -193,7 +196,7 @@ try {
     throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|run|controller-init|controller-once|controller-run|status|resolve>');
   }
 
-  await stateStore.releaseLock();
+  if (exclusiveLockRequired) await stateStore.releaseLock();
 } catch (error) {
   console.error(JSON.stringify({ status: 'FATAL', time: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));
   process.exitCode = 1;

@@ -26,6 +26,20 @@ test('only explicitly owned targets in the dedicated window are visible to relay
   assert.equal(doctor.recencyBasedTargetSelectionAllowed, false);
 });
 
+test('read-only doctor never creates or repairs browser ownership', async () => {
+  const raw = new FakeRawBrowser([page('user-only', chatA, 1)]);
+  const store = new MemoryOwnershipStore(null);
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 11 });
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+
+  const doctor = await browser.doctor({ readOnly: true });
+  assert.equal(doctor.automationWindowOwnershipEnforced, false);
+  assert.equal(doctor.automationOwnedTabCount, 0);
+  assert.equal(doctor.foreignChatGptTabCount, 1);
+  assert.equal(protocol.dedicatedWindowCreates, 0);
+  assert.equal(await store.read(), null);
+});
+
 test('same conversation open in a user tab is ignored and the owned scratch tab is navigated instead', async () => {
   const raw = new FakeRawBrowser([
     page('user-latest', chatA, 1),
