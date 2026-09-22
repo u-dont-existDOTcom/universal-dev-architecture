@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-jev-shadow-20260921",
+  "integration_branch": "main",
+  "integration_base_sha": "da7aac873b83aecdf7d317e99ad3a9d65c0b784b",
+  "scope": "Add non-authoritative, opt-in Jev shadow classification to Mission Control fleet supervision; no shared-runtime mutation or live paid inference."
+}

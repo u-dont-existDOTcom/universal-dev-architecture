@@ -75,6 +75,32 @@ test("healthy ticks are silent, durable, idempotent, and remain visible after re
   } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+test("Jev shadow telemetry cannot alter deterministic fleet actions", async () => {
+  const store = issue47Store();
+  try {
+    store.configureFleetSupervisorWatch("project:human-design", { cadenceMs: DEFAULT_FLEET_SUPERVISOR_CADENCE_MS }, t0);
+    let notifications = 0;
+    let shadowCalls = 0;
+    const runtime = new FleetSupervisorRuntime(store, {
+      notifyOwner: () => { notifications += 1; },
+      observeJevShadow: async (_watch, decision) => {
+        shadowCalls += 1;
+        return {
+          status: "OK", authoritative: false, model: "typesafe/jev-1.13",
+          deterministic_trigger: decision.trigger,
+          answers: { next_action: { choice: { notify_owner: 1 } } },
+        };
+      },
+    });
+    const [result] = await runtime.tick(due);
+    assert.equal(result.decision.trigger, "HEALTHY_ADVANCING");
+    assert.equal(result.notificationDisposition, "SUPPRESSED_NOT_ACTIONABLE");
+    assert.equal(notifications, 0);
+    assert.equal(shadowCalls, 1);
+    assert.equal(result.jevShadow?.status, "OK");
+  } finally { store.close(); }
+});
+
 test("safe pre-send process recovery uses the mechanical hook and stays owner-silent", async () => {
   const store = issue47Store();
   try {

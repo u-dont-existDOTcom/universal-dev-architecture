@@ -27,6 +27,7 @@ import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/sub
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -511,6 +512,8 @@ function startFleetSupervisor(): NodeJS.Timeout | null {
   let running = false;
   const runtime = new FleetSupervisorRuntime(store, {
     routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
+    observeJevShadow: (_watch, decision, events, chain) =>
+      observeFleetSupervisorWithJev(decision.trigger, events, chain),
     notifyOwner: (watch, decision) => notifications.emit("event", {
       type: "fleet_supervisor_owner_notification", projectId: watch.projectId, taskId: watch.taskId,
       trigger: decision.trigger, reason: decision.notificationReason,
@@ -521,6 +524,11 @@ function startFleetSupervisor(): NodeJS.Timeout | null {
     running = true;
     try {
       const results = await runtime.tick();
+      for (const item of results) {
+        if (item.jevShadow && item.jevShadow.status !== "DISABLED") {
+          console.info(JSON.stringify({ event: "jev_shadow_observation", ...item.jevShadow }));
+        }
+      }
       if (results.length) notifications.emit("event", { type: "fleet_supervisor_tick", results });
     } catch (error) {
       console.error(JSON.stringify({ event: "fleet_supervisor_tick_failed", error: error instanceof Error ? error.message : "Unknown fleet supervisor failure" }));

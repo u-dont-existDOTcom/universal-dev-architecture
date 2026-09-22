@@ -4,6 +4,7 @@ import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
+import type { JevShadowObservation } from "./jev-shadow";
 import { EventStore, type FleetSupervisorWatchRecord, type FleetSupervisorWatchState } from "./store";
 
 export const DEFAULT_FLEET_SUPERVISOR_CADENCE_MS = 3_600_000;
@@ -26,16 +27,20 @@ export interface FleetSupervisorHooks {
   routeReasoning?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[]) => unknown | Promise<unknown>;
   continueMechanical?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[]) => unknown | Promise<unknown>;
   notifyOwner?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision) => unknown | Promise<unknown>;
+  observeJevShadow?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision,
+    events: readonly StoredEvent[], chain: { valid: boolean; errors: string[] }) => JevShadowObservation | Promise<JevShadowObservation>;
 }
 
 export class FleetSupervisorRuntime {
   constructor(private readonly store: EventStore, private readonly hooks: FleetSupervisorHooks = {}) {}
 
   async tick(now = new Date().toISOString()) {
-    const results: Array<{ projectId: string; decision: FleetSupervisorDecision; committed: boolean; notificationDisposition: string }> = [];
+    const results: Array<{ projectId: string; decision: FleetSupervisorDecision; committed: boolean;
+      notificationDisposition: string; jevShadow: JevShadowObservation | null }> = [];
     for (const watch of this.store.dueFleetSupervisorWatches(now)) {
       const events = this.store.workerEvents(watch.worker);
-      const decision = classifyFleetSupervisorTick(watch, events, this.store.verifyChain());
+      const chain = this.store.verifyChain();
+      const decision = classifyFleetSupervisorTick(watch, events, chain);
       if (decision.mechanicalRecoveryEligible) await this.hooks.continueMechanical?.(watch, decision, events);
       if (decision.reasoningRequired) await this.hooks.routeReasoning?.(watch, decision, events);
       const fingerprint = decision.notifyOwner ? sha256(`${decision.trigger}\n${decision.notificationReason ?? ""}`) : null;
@@ -56,7 +61,13 @@ export class FleetSupervisorRuntime {
         notificationFingerprint: fingerprint,
         notifiedAt: notificationDisposition === "OWNER_NOTIFIED" ? now : null,
       });
-      results.push({ projectId: watch.projectId, decision, committed, notificationDisposition });
+      let jevShadow: JevShadowObservation | null = null;
+      try {
+        jevShadow = await this.hooks.observeJevShadow?.(watch, decision, events, chain) ?? null;
+      } catch {
+        // Shadow evaluation is intentionally non-authoritative and may never fail the fleet tick.
+      }
+      results.push({ projectId: watch.projectId, decision, committed, notificationDisposition, jevShadow });
     }
     return results;
   }
