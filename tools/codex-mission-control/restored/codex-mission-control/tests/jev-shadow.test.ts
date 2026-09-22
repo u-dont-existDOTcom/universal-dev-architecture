@@ -108,6 +108,26 @@ test("Jev state explicitly marks an open structured blocker", () => {
   assert.equal(buildJevShadowState(events, { valid: true }).open_blocker_present, false);
 });
 
+
+test("Jev next-action instructions preserve deterministic fleet precedence", () => {
+  const instructions = MISSION_CONTROL_JEV_QUESTIONS.next_action.instructions;
+  const orderedClauses = [
+    "chain_valid is false",
+    "queue_terminal is true",
+    "owner_action_kind is DECISION_REQUIRED",
+    "blocker_actor_kind is EXTERNAL",
+    "contract_owner_alignment is SOURCE_MISSING",
+    "delivery_status is DELIVERY_FAILED",
+    "pending_reasoning_review is true",
+    "outcome_advancement is FLAT",
+    "active_directive_present is false",
+    "no_action_healthy",
+  ];
+  const positions = orderedClauses.map((clause) => instructions.indexOf(clause));
+  assert.ok(positions.every((position) => position >= 0));
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions);
+});
+
 test("state-build and timeout failures stay non-authoritative", async () => {
   const env = {
     MISSION_CONTROL_JEV_SHADOW_ENABLED: "1",

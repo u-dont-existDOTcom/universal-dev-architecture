@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-jev-precedence-20260922",
+  "integration_branch": "main",
+  "integration_base_sha": "eeb6ddae7bc86608cf03085af1f8250e2a965458",
+  "scope": "Correct Jev shadow next-action precedence exposed by passive live Mission Control state"
+}
