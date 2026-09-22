@@ -724,7 +724,7 @@ class FakeBrowser {
     const target = { id: 'target-spec', type: 'page', url, automationOwned: true, automationWindowId: 101, created: true, webSocketDebuggerUrl: 'ws://fake' };
     this.targets.push(target); return target;
   }
-  async ensureExactConsumerControls(target, { controls }) { this.controlChecks.push(structuredClone(controls)); return { status: 'FIXED_CONSUMER_CONTROLS_VERIFIED', ...controls }; }
+  async ensureExactConsumerControls(target, { controls }) { this.controlChecks.push(structuredClone(controls)); return { status: 'CURRENT_CONSUMER_CONTROLS_VERIFIED', ...controls, modelVisibleLabel: 'Latest', modelSelectorIndex: 0, modelOptionCount: 3, backendModelIdentityClaimed: false }; }
   async selectAppsForMessage(target, input) {
     this.selectAppsCalls.push(structuredClone(input));
     const evidence = {

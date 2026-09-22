@@ -148,6 +148,16 @@ test('missing fixed thinking label fails closed instead of accepting a nearby la
   }), 'Extra High'), /was not found in one supported model-menu control/);
 });
 
+test('expired-session recovery is email-only and stops before password or code gates', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  assert.match(source, /EMAIL_LOGIN_RECOVERY_FN/);
+  assert.match(source, /HUMAN_GATE_PASSWORD/);
+  assert.match(source, /HUMAN_GATE_CODE/);
+  assert.match(source, /MC_RELAY_CHATGPT_ACCOUNT_EMAIL|accountEmail/);
+  assert.match(source, /email-only login recovery/);
+  assert.doesNotMatch(source, /MC_RELAY_CHATGPT_PASSWORD/);
+});
+
 test('browser control code does not use generic transcript-editable selectors', async () => {
   const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /div\.ProseMirror\[contenteditable/);

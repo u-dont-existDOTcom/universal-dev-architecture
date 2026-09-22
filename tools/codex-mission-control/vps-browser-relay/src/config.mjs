@@ -73,6 +73,7 @@ export async function loadConfig(env = process.env) {
       cdpHost: env.MC_RELAY_CDP_HOST ?? '127.0.0.1',
       cdpPort: integer(env.MC_RELAY_CDP_PORT, 9222, 1, 65_535),
       profileDir,
+      accountEmail: optionalAccountEmail(env.MC_RELAY_CHATGPT_ACCOUNT_EMAIL),
       pageReadyTimeoutMs: integer(env.MC_RELAY_PAGE_READY_TIMEOUT_MS, 90_000, 5_000, 300_000),
       submitTimeoutMs: integer(env.MC_RELAY_SUBMIT_TIMEOUT_MS, 30_000, 5_000, 120_000),
       generationTimeoutMs: integer(env.MC_RELAY_GENERATION_TIMEOUT_MS, 900_000, 30_000, 3_600_000),
@@ -215,6 +216,16 @@ function integer(value, fallback, minimum, maximum) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) throw new Error(`Invalid integer ${value}; expected ${minimum}-${maximum}.`);
   return parsed;
+}
+
+function optionalAccountEmail(value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string') throw new Error('MC_RELAY_CHATGPT_ACCOUNT_EMAIL must be a string when provided.');
+  const normalized = value.trim();
+  if (normalized.length < 3 || normalized.length > 320 || !/^[^\s@]+@[^\s@]+$/.test(normalized)) {
+    throw new Error('MC_RELAY_CHATGPT_ACCOUNT_EMAIL must be a plausible email address no longer than 320 characters.');
+  }
+  return normalized;
 }
 
 function optionalInteger(value, minimum, maximum) {
