@@ -1,5 +1,6 @@
 "use client";
 
+import { resolvePrerequisites } from "@/lib/owner-view";
 import { useState } from "react";
 import type { WorkerState } from "@/lib/projection";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
@@ -127,7 +128,7 @@ export function FleetQueue({ queue }: { queue: WorkQueueItemProjection[] }) {
       : left.status.localeCompare(right.status) || rank[left.priority] - rank[right.priority]);
   return <section className="fleet-queue" aria-label="Fleet work queue">
     <div className="fleet-queue-head">
-      <div><p className="eyebrow">FLEET WORK QUEUE</p><h2>Direction-bound work across every worker and project</h2></div>
+      <div><p className="eyebrow">RECORDED WORK QUEUE</p><h2>Work items and waiting relationships</h2></div>
       <div className="fleet-filters">
         <label>Worker / project<input type="text" value={workerProject} onChange={(event) => setWorkerProject(event.target.value)} placeholder="Filter…" /></label>
         <label>Status<select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="BLOCKED">Blocked</option><option value="READY">Ready</option><option value="PLANNED">Planned</option><option value="WAITING_REVIEW">Waiting review</option><option value="DONE">Done</option><option value="SUPERSEDED">Superseded</option></select></label>
@@ -136,16 +137,28 @@ export function FleetQueue({ queue }: { queue: WorkQueueItemProjection[] }) {
         <label className="blocked-toggle"><input type="checkbox" checked={blockedOnly} onChange={(event) => setBlockedOnly(event.target.checked)} />Blocked only</label>
       </div>
     </div>
-    <div className="fleet-queue-table" role="table">
-      <div role="row" className="queue-table-head"><span>Worker / project</span><span>Work item</span><span>Direction</span><span>State</span></div>
-      {visible.length === 0 && <p className="empty-channel">No work items match this filter.</p>}
-      {visible.map((item) => <div role="row" className="queue-table-row" key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><strong>{item.worker}<small>{item.projectId}</small></strong><div><b>{item.title}</b><code>{item.itemId}</code><small>{item.detail}</small></div><code>{item.directionId}</code><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></div>)}
+    <p className="owner-queue-order">Priority is stored P0–P3, then recorded queue order; alternate sorts are available above. “Ready” is a queue state, not approval to execute.</p>
+    <div className="owner-queue-list">
+      {visible.length === 0 && <p className="empty-channel">No recorded work items match this filter.</p>}
+      {visible.map((item) => <article className="owner-queue-item" key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}>
+        <div className="owner-task-heading"><h3>{item.title}</h3><span>{item.priority} · {item.status === "READY" ? "Recorded ready · authorization not established" : item.status.replaceAll("_", " ").toLowerCase()}</span></div>
+        <p className="muted">{item.projectId} · {item.taskId}</p>
+        <p>{item.detail}</p>
+        <dl className="owner-four"><div><dt>Goal</dt><dd>Not recorded as a separate goal; work description shown above.</dd></div><div><dt>Where we are</dt><dd>Recorded queue state: {item.status.replaceAll("_", " ").toLowerCase()}. Updated {new Date(item.updatedAt).toLocaleString()}.</dd></div><div><dt>Next needed</dt><dd>{item.status === "WAITING_REVIEW" ? "Waiting for review; reviewer and review condition not recorded here." : item.dependsOn.length ? "Check the recorded work and prerequisites below; no separate unblock condition is recorded." : "Not recorded"}</dd></div><div><dt>Your action</dt><dd>Not recorded for this queue item.</dd></div></dl>
+        <QueueDependencies item={item} queue={queue} />
+        <details><summary>Queue source details</summary><p>Worker {item.worker} · Direction {item.directionId} · Item {item.itemId}</p></details>
+      </article>)}
     </div>
   </section>;
 }
 
+export function QueueDependencies({ item, queue }: { item: WorkQueueItemProjection; queue: WorkQueueItemProjection[] }) {
+  if (!item.dependsOn.length) return <p className="owner-waiting muted">No prerequisite references recorded.</p>;
+  return <div className="owner-waiting"><strong>Named prerequisites</strong><ul>{resolvePrerequisites(item, queue).map(reference => <li key={reference.id}>{reference.item ? <><b>{reference.item.title}</b> · recorded {reference.item.status.replaceAll("_", " ").toLowerCase()}<p>Recorded work: {reference.item.detail}</p></> : <span>{reference.reason}: {reference.id} (within this task’s queue)</span>}<small>Separate structured unblock condition: Not recorded. Use the recorded work description above.</small></li>)}</ul></div>;
+}
+
 function QueuePanel({ queue, directionId }: { queue: WorkQueueItemProjection[]; directionId: string | null }) {
-  return <section className="queue-panel"><div className="channel-panel-head"><div><p className="eyebrow">DIRECTION-BOUND WORK QUEUE</p><h3>{directionId ?? "Awaiting first direction"}</h3></div><span>{queue.filter((item) => !["DONE", "CANCELED", "SUPERSEDED"].includes(item.status)).length} open</span></div><div className="worker-queue-list">{queue.length === 0 && <p className="empty-channel">The worker has not published a queue for this direction.</p>}{queue.map((item) => <article key={item.itemId}><i>{item.ordinal + 1}</i><div><strong>{item.title}</strong><code>{item.itemId}</code><p>{item.detail}</p>{item.dependsOn.length > 0 && <small>After {item.dependsOn.join(", ")}</small>}</div><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></article>)}</div></section>;
+  return <section className="queue-panel"><div className="channel-panel-head"><div><p className="eyebrow">DIRECTION-BOUND WORK QUEUE</p><h3>{directionId ?? "Awaiting first direction"}</h3></div><span>{queue.filter((item) => !["DONE", "CANCELED", "SUPERSEDED"].includes(item.status)).length} open</span></div><div className="worker-queue-list">{queue.length === 0 && <p className="empty-channel">The worker has not published a queue for this direction.</p>}{queue.map((item) => <article key={item.itemId}><i>{item.ordinal + 1}</i><div><strong>{item.title}</strong><code>{item.itemId}</code><p>{item.detail}</p><QueueDependencies item={item} queue={queue} /></div><span className={`queue-status ${item.status.toLowerCase()}`}>{item.priority} · {item.status.replaceAll("_", " ")}</span></article>)}</div></section>;
 }
 
 function IssuePanel({ title, count, tone, children }: { title: string; count: number; tone: string; children: React.ReactNode }) {
