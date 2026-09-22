@@ -1,0 +1,10 @@
+{
+  "name": "uda-venice-model-gateway",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test"
+  }
+}

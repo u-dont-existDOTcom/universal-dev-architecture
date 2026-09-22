@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/venice-provider-20260922",
+  "integration_branch": "main",
+  "integration_base_sha": "ac8c75436028849b671072e5771abe77cf6b79ff",
+  "scope": "Add a Venice-backed authenticated external-model gateway for UDA-controlled standard model API calls"
+}
