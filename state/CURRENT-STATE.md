@@ -568,3 +568,22 @@ Owner outcome OPEN. A separate opt-in per-request candidate has 142 focused/affe
 - Native Work completion receipts are first-class execution receipts for pending reasoning review/final-response state while Codex-specific profile/preflight requirements remain Codex-only. Direct `VERIFIED_NATIVE_WORK` evidence is required; weaker source-attested fallback semantics were not ported.
 - Focused/affected local acceptance is green and TypeScript passes. Hosted exact-head release gates and live non-production acceptance are not yet claimed.
 - Issue #178 remains OPEN until one harmless live `mission-control-development` cycle proves supervisor reasoning -> durable decision -> automatic bounded executor -> isolated child branch -> execution receipt -> automatic reasoning return/closure without owner clipboard relay. No production deployment is authorized.
+
+## Owner external-model API route — 2026-09-22
+
+Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**.
+
+- Owner preference: standard UDA-controlled external LLM API calls use the
+  authenticated model gateway first instead of direct OpenRouter calls when the
+  required model/capability is available.
+- The current gateway is Venice-backed; `gpt-5.6-sol` resolves to
+  `openai-gpt-56-sol`.
+- Canonical portable caller: `scripts/uda_model_gateway.py`.
+- Runtime-only configuration: `UDA_MODEL_GATEWAY_URL` and
+  `UDA_MODEL_GATEWAY_TOKEN`; live values are intentionally absent from Git.
+- Live boundary verified: health 200, unauthenticated chat 401, and one
+  authenticated paid GPT-5.6 Sol smoke returned HTTP 200 with exact
+  `VENICE_GATEWAY_OK`.
+- OpenRouter remains permitted only where the required capability is
+  provider-specific or unavailable through the gateway; current TypeSafe Jev
+  Decisions is the explicit existing exception.
