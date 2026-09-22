@@ -444,7 +444,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       const packet = parseSupervisoryCycleRouteBody(event.data.body) ?? parseInternalSupervisorRouteBody(event.data.body);
       if (!packet) continue;
       const chat = chatById.get(packet.destinationSupervisorId);
-      if (!chat || chat.workerId !== workerId) continue;
+      if (!chat || (chat.scope !== 'PROJECT_MANAGER' && chat.workerId !== workerId)) continue;
       if (packet.routeSchemaVersion !== 3 && packet.routeSchemaVersion !== 4 && packet.routeSchemaVersion !== 5 && packet.routeSchemaVersion !== 6) continue;
       try { validateOwnerResponseContinuation(packet, packet.routeSchemaVersion, workerId); } catch { continue; }
       const routeKey = `request:${packet.requestId}`;
