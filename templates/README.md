@@ -20,6 +20,8 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `EXECUTOR-REASONING-HANDOFF.json` — durable nonterminal lease, request, compact-poll, response-import, and automatic-resume state for a reasoning-review boundary.
 - `MISSION-CONTROL-GLOBAL-PM-BOOTSTRAP.md` — first-message bootstrap for the owner-authorized global Mission Control Project Manager identity `mc-project-manager`; requires fresh canonical reads, preserves the PM/specialist boundary, and forbids fabricating the still-external provider locator/capability.
 - `RESEARCH-SUPERVISION-VERDICT.json` — separate operational, scientific, and release-adequacy judgments for AskRigor and comparable research systems.
+- `RESEARCH-MISSION.json` — durable parent authority for quick, deep, long-range, and living research with versioned questions, evidence frontier, work packages, budgets, snapshots, release firewall, consent/data constraints, and root closure comparator.
+- `CURRENT-CODEX-WORKER-SUPERVISION-RESEARCH-ADDENDUM.md` — current long-range research worker addendum; applies the shared supervision bootstrap and current Chat/Work routing without treating one package, snapshot, PR, or release as root completion.
 - `SUPERVISION-DESIGN-FEEDBACK.json` — architecture question/improvement packet for the shared Pro supervisor-design meta-review lane.
 - `PULL_REQUEST_TEMPLATE.md` — exact verification, risk, diff audit, continuity, and lesson closeout.
 - `PROJECT-LEARNING-POLICY.md` — learning dispositions, provenance, promotion, and CI/orphan-audit policy.
