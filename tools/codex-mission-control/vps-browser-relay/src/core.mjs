@@ -557,9 +557,11 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
 }
 
 export function consumerControlRefs(controls) {
+  const modelRef = controls?.modelSelectionPolicy === 'TOP_VISIBLE_SELECTABLE_MODEL'
+    ? [`model_selection_policy:${controls.modelSelectionPolicy}`, 'model_selector_index:0']
+    : [`model_visible_label:${controls.modelVisibleLabel}`];
   return [
-    `model_selection_policy:${controls.modelSelectionPolicy}`,
-    'model_selector_index:0',
+    ...modelRef,
     `thinking_control_label:${controls.thinkingControlLabel}`,
     `thinking_visible_label:${controls.thinkingVisibleLabel}`,
     `thinking_ordinal:${controls.thinkingOrdinal}`,

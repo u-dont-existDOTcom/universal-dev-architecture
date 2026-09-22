@@ -1,5 +1,6 @@
 import {
   CURRENT_CONSUMER_CONTROLS,
+  LEGACY_FIXED_CONSUMER_CONTROLS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   canonicalJson,
   freshChatTargetPlan,
@@ -302,18 +303,25 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
 }
 
 export function consumerControlSelectionState(currentModel, observation, controls) {
-  if (!controls || Object.keys(CURRENT_CONSUMER_CONTROLS).some((key) => controls[key] !== CURRENT_CONSUMER_CONTROLS[key])) {
-    throw new Error('Consumer controls do not match the current top-model / Thinking effort Extra High, 4 of 5 disposition.');
+  const currentPolicy = controls && Object.keys(CURRENT_CONSUMER_CONTROLS).every((key) => controls[key] === CURRENT_CONSUMER_CONTROLS[key]);
+  const legacyPolicy = controls && Object.keys(LEGACY_FIXED_CONSUMER_CONTROLS).every((key) => controls[key] === LEGACY_FIXED_CONSUMER_CONTROLS[key]);
+  if (!currentPolicy && !legacyPolicy) {
+    throw new Error('Consumer controls do not match either the current top-model policy or the retained historical fixed disposition.');
   }
-  if (controls.modelSelectionPolicy !== 'TOP_VISIBLE_SELECTABLE_MODEL') throw new Error('Top-model selection policy is required.');
-  if (!observation?.menuFound || !Number.isInteger(observation.modelOptionCount) || observation.modelOptionCount < 1) {
-    throw new Error('At least one visible selectable model option is required.');
-  }
-  if (observation.topModelSelected !== true || typeof observation.topModelLabel !== 'string' || observation.topModelLabel.length === 0) {
-    throw new Error('The first visible selectable model option is not semantically selected.');
-  }
-  if (currentModel?.modelVisibleLabel !== observation.topModelLabel || currentModel?.modelSelectorIndex !== 0) {
-    throw new Error('Observed top-model selection does not match the verified model menu.');
+  if (legacyPolicy) {
+    if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
+    if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
+  } else {
+    if (controls.modelSelectionPolicy !== 'TOP_VISIBLE_SELECTABLE_MODEL') throw new Error('Top-model selection policy is required.');
+    if (!observation?.menuFound || !Number.isInteger(observation.modelOptionCount) || observation.modelOptionCount < 1) {
+      throw new Error('At least one visible selectable model option is required.');
+    }
+    if (observation.topModelSelected !== true || typeof observation.topModelLabel !== 'string' || observation.topModelLabel.length === 0) {
+      throw new Error('The first visible selectable model option is not semantically selected.');
+    }
+    if (currentModel?.modelVisibleLabel !== observation.topModelLabel || currentModel?.modelSelectorIndex !== 0) {
+      throw new Error('Observed top-model selection does not match the verified model menu.');
+    }
   }
   if (observation.powerControlCount !== 1 || observation.sliderCount !== 1
     || observation.thinkingControlObservedLabel !== controls.thinkingControlLabel) {
@@ -329,12 +337,22 @@ export function consumerControlSelectionState(currentModel, observation, control
     ? `${observation.sliderPosition - observation.sliderMinimum + 1} of ${observation.sliderMaximum - observation.sliderMinimum + 1}`
     : null;
   if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
-  return {
+  return currentPolicy ? {
     status: 'CURRENT_CONSUMER_CONTROLS_VERIFIED',
     modelSelectionPolicy: controls.modelSelectionPolicy,
     modelSelectorIndex: 0,
     modelOptionCount: observation.modelOptionCount,
     modelVisibleLabel: observation.topModelLabel,
+    thinkingControlLabel: observation.thinkingControlObservedLabel,
+    thinkingVisibleLabel: observation.currentPowerLabel,
+    thinkingOrdinal: ordinal,
+    accountPlanLabel: controls.accountPlanLabel,
+    accountPlanRole: controls.accountPlanRole,
+    accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,
+    backendModelIdentityClaimed: false,
+  } : {
+    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED',
+    modelVisibleLabel: currentModel.label,
     thinkingControlLabel: observation.thinkingControlObservedLabel,
     thinkingVisibleLabel: observation.currentPowerLabel,
     thinkingOrdinal: ordinal,
@@ -824,14 +842,21 @@ export class ChromeDevtoolsBrowser {
       if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
         throw new Error('Registered supervisor chat is not ready for fixed consumer-control verification.');
       }
-      const current = await this.#ensureTopModelSelection(client, normalized);
+      const currentPolicy = controls?.modelSelectionPolicy === 'TOP_VISIBLE_SELECTABLE_MODEL';
+      const current = currentPolicy
+        ? await this.#ensureTopModelSelection(client, normalized)
+        : await this.#ensureExactModelSelection(client, normalized, controls?.modelVisibleLabel);
       await this.#openModelMenu(client, normalized);
       await this.#selectOpenModelMenu(client, controls.thinkingVisibleLabel, {
         allowDirect: false,
         thinkingControlLabel: controls.thinkingControlLabel,
       });
       await this.#openModelMenu(client, normalized);
-      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, controls.thinkingControlLabel, controls.thinkingVisibleLabel]);
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [
+        currentPolicy ? null : controls.modelVisibleLabel,
+        controls.thinkingControlLabel,
+        controls.thinkingVisibleLabel,
+      ]);
       const verified = consumerControlSelectionState(current, observation, controls);
       await this.#closeModelMenu(client);
       return { ...verified, inspectedAssistantOutput: false };
