@@ -12,6 +12,10 @@ The operating path is:
 
 A graph node, successful resolver, or smaller prompt is not evidence that a rule was applied.
 
+The resolver output is routing evidence, not application evidence.
+
+Absence from the graph never means the rule is inapplicable.
+
 ## Reuse boundary
 
 This is an **adapt/compose** change, not a new policy-engine project.
