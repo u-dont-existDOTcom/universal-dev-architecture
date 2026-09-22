@@ -226,6 +226,33 @@ test('V6 carries exact request authority in-band and selects GitHub without any 
   assert.equal(nextSupervisoryCycleAction(route, { status: 'FAILED_RETRYABLE', preBoundaryAbortConfirmed: true }, Date.parse('2026-09-02T00:01:00.000Z')).recovery, 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY');
 });
 
+test('canonical project manager is fleet-wide while specialist routing remains worker-bound', () => {
+  const pm = parseChatDirectory([{ ...chatFixture('mc-project-manager', 'PROJECT_MANAGER'), workerId: 'mission-control-development' }])[0];
+  const specialist = parseChatDirectory([{ ...chatFixture('other-specialist', 'SPECIALIST'), workerId: 'other-worker' }])[0];
+  const base = JSON.parse(directSupervisoryBody('EXTRA_HIGH_DIRECT').slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  const pmBody = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    ...base,
+    requestId: 'cross-worker-pm',
+    destination: 'PROJECT_MANAGER_CHAT',
+    destinationSupervisorId: pm.supervisorId,
+  });
+  const specialistBody = PROVIDER_SESSION_CYCLE_ROUTE_PREFIX + JSON.stringify({
+    ...base,
+    requestId: 'cross-worker-specialist',
+    destination: 'SPECIALIST_SUPERVISOR_CHAT',
+    destinationSupervisorId: specialist.supervisorId,
+  });
+  const snapshot = { workers: [{ id: 'askrigor-system-alignment', name: 'AskRigor', timeline: [
+    { eventId: 'pm-route', sequence: 1, occurredAt: '2026-09-22T21:36:23.798Z', data: { type: 'worker_message_recorded', message_id: 'pm-message', body: pmBody } },
+    { eventId: 'specialist-route', sequence: 2, occurredAt: '2026-09-22T21:36:24.000Z', data: { type: 'worker_message_recorded', message_id: 'specialist-message', body: specialistBody } },
+  ] }] };
+  const routes = extractQueuedRoutes(snapshot, [pm, specialist], defaultState());
+  assert.equal(routes.length, 1);
+  assert.equal(routes[0].requestId, 'cross-worker-pm');
+  assert.equal(routes[0].supervisorId, 'mc-project-manager');
+  assert.equal(routes[0].workerId, 'askrigor-system-alignment');
+});
+
 test('route extraction binds durable stage-liveness receipts to the exact worker/request', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   const body = supervisoryBody('PRO_ESCALATED');
