@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": true,
+  "owned_branch": "chat/venice-provider-closeout-20260922",
+  "integration_branch": "main",
+  "integration_base_sha": "6b1aeff72a8818e67979e5e491f07473c599b453",
+  "scope": "Close out durable state after the Venice gateway merge and canonical-main Railway deployment"
+}
