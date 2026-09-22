@@ -1,9 +1,10 @@
 {
   "requirement_id": "REQ-UNIVERSAL-WORK-HUMAN-GATE-ASSIST-20260918",
   "recorded_at": "2026-09-18T21:05:00+00:00",
+  "updated_at": "2026-09-22T13:02:25+00:00",
   "authority": "owner",
   "status": "ACTIVE",
-  "scope": "ChatGPT Work/Codex execution when an otherwise-authorized task reaches an irreducible human-only UI gate",
+  "scope": "ChatGPT/Work/Codex execution or supervision whenever the owner needs to view or interact with a remote browser or GUI, including irreducible human-only UI gates",
   "requirements": [
     {
       "id": "WORK-HUMAN-GATE-001",
@@ -19,12 +20,17 @@
       "id": "WORK-HUMAN-GATE-003",
       "text": "When Work has authorized control of the owner's local viewer, it should open or focus that viewer instead of making the owner perform setup; otherwise it should leave the remote session ready and give only the minimal connection/click instruction.",
       "operationalization": "Do not send command sequences or configuration work to the owner when Work can prepare the assist channel itself. After the owner action, detect the cleared gate and continue automatically; if reliable detection is unavailable, ask only for a minimal acknowledgement such as `done`."
+    },
+    {
+      "id": "WORK-HUMAN-GATE-004",
+      "text": "Before asking this owner to view or interact with any remote browser or GUI, ChatGPT/Work/Codex must always open or focus the configured VNC viewer and bring the exact relevant window or control into view.",
+      "operationalization": "This viewer-first rule applies to viewing, visual inspection, confirmation, typing, clicking, login, MFA, approval, diagnosis, and every other owner interaction with the remote GUI; it is not limited to irreducible human-only gates. A textual request, connection instruction, link, screenshot, or statement that the session is ready is not a substitute when authorized local viewer control is available. Ask for the smallest owner action only after the VNC window has been brought forward."
     }
   ],
   "owner_deployment_binding": {
     "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
     "human_assist_channel": "VNC",
-    "binding": "For this owner's VPS/GUI Work runs, VNC is the default human-assist channel for irreducible browser/UI gates. Work should ensure the blocked browser is visible in the VNC session and, when authorized local viewer control exists, open/focus the VNC viewer for the owner.",
+    "binding": "For this owner's VPS/GUI ChatGPT/Work/Codex runs, VNC is the required owner-view and owner-interaction channel. Whenever the owner needs to view or interact with a remote browser or GUI, the agent must ensure the exact relevant browser/window/control is visible and must always open/focus the VNC viewer before asking the owner to act. This applies whether or not the situation is an irreducible browser/UI gate.",
     "private_locator_policy": "Do not commit VNC hostnames, ports, passwords, tokens, cookies, or other private locators/credentials to the public repository."
   },
   "non_goals": [
@@ -36,6 +42,13 @@
   "source": {
     "date": "2026-09-18",
     "kind": "explicit owner request",
-    "owner_words_summary": "Whenever Work genuinely needs the owner during GUI/browser execution, it should open or expose the VNC session so the owner can help, then continue rather than losing the thread."
+    "owner_words_summary": "Whenever Work genuinely needs the owner during GUI/browser execution, it should open or expose the VNC session so the owner can help, then continue rather than losing the thread.",
+    "corrections": [
+      {
+        "date": "2026-09-22",
+        "kind": "explicit owner correction",
+        "owner_words_summary": "Whenever the agent needs the owner to view or interact, it must always bring up the VNC window first."
+      }
+    ]
   }
 }

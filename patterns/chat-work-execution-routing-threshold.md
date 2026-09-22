@@ -339,7 +339,7 @@ Mission Control should reuse native Work-internal coordination, while continuing
 A valid Work handoff records:
 
 - originating Chat title and exact conversation URL, plus an explicit requirement that the final Work receipt echo them as an owner-clickable backlink;
-- configured human-assist behavior for irreducible browser/UI gates, including `OWNER_INTERACTION_PENDING`, live-session preservation, and automatic resume after the gate clears;
+- configured owner-view and human-assist behavior, including any viewer-first deployment binding, `OWNER_INTERACTION_PENDING` for irreducible browser/UI gates, live-session preservation, and automatic resume after a gate clears;
 - source Chat decision/receipt;
 - exact execution objective;
 - allowed and forbidden actions;
