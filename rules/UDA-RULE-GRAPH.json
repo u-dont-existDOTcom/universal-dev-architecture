@@ -17,7 +17,10 @@
     "handoff",
     "persistence",
     "delivery",
-    "release"
+    "release",
+    "pre-action",
+    "publication",
+    "final-delivery"
   ],
   "nodes": [
     {
@@ -384,6 +387,126 @@
         "retrieval",
         "reasoning"
       ]
+    },
+    {
+      "rule_id": "uda.final.timestamp",
+      "canonical_path": "AGENTS.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "final-delivery"
+      ]
+    },
+    {
+      "rule_id": "uda.bootstrap.live-root",
+      "canonical_path": "AGENTS.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "retrieval"
+      ]
+    },
+    {
+      "rule_id": "uda.active-contract.boundary-binding",
+      "canonical_path": "patterns/task-time-lesson-activation.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning"
+      ]
+    },
+    {
+      "rule_id": "uda.owner-correction.reactivate",
+      "canonical_path": "patterns/task-time-lesson-activation.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning"
+      ]
+    },
+    {
+      "rule_id": "uda.chat-work.execution-separation",
+      "canonical_path": "AGENTS.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "handoff"
+      ]
+    },
+    {
+      "rule_id": "uda.continuation.open-outcome",
+      "canonical_path": "patterns/codex-github-operating-system.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning"
+      ]
+    },
+    {
+      "rule_id": "uda.scope.explicit-no-change",
+      "canonical_path": "patterns/codex-github-operating-system.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "pre-action"
+      ]
+    },
+    {
+      "rule_id": "uda.worker-directive.same-turn-delivery",
+      "canonical_path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+      "status": "active",
+      "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
+      "requires": [
+        "uda.chat-work.execution-separation",
+        "uda.active-contract.boundary-binding"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "handoff"
+      ]
     }
-  ]
+  ],
+  "task_time_metadata": "rules/rule-graph/task-time-metadata.v1.json"
 }
