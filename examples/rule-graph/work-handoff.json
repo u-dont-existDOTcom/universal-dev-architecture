@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "task_id": "example:mission-control-work-handoff",
+  "facts": {
+    "governance_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "current owner/UDA bootstrap"
+    },
+    "owner_requires_live_root": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "current owner requirement"
+    },
+    "role": {
+      "state": "KNOWN",
+      "value": "mission_control_internal",
+      "provenance": "execution surface"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "chat",
+      "provenance": "current reasoning actor"
+    },
+    "destination": {
+      "state": "KNOWN",
+      "value": "chatgpt_work_cloud",
+      "provenance": "selected execution surface"
+    },
+    "action_classes": {
+      "state": "KNOWN",
+      "value": [
+        "work_handoff",
+        "artifact_delivery"
+      ],
+      "provenance": "bounded action plan"
+    },
+    "owner_outcome_status": {
+      "state": "KNOWN",
+      "value": "OPEN",
+      "provenance": "task contract"
+    },
+    "task_mode": {
+      "state": "KNOWN",
+      "value": "IMPLEMENTATION",
+      "provenance": "owner request"
+    },
+    "owner_correction_present": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "current turn"
+    },
+    "explicit_boundary_binding_requested": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "not directly requested; dependency-only"
+    }
+  },
+  "legacy_rule_ids": [
+    "uda.final.timestamp",
+    "uda.bootstrap.live-root",
+    "uda.chat-work.execution-separation",
+    "uda.continuation.open-outcome",
+    "uda.worker-directive.same-turn-delivery"
+  ]
+}

@@ -112,12 +112,26 @@ def main():
             if relative in agent_paths and relative not in chain: chain.append(relative)
         chains.append({'leaf':name,'files':chain,'bytes':sum(agent_paths[x] for x in chain),'default_budget_bytes':32768})
     errors=check_profile(root,profile)
+    graph_validator=root/'scripts/uda_rule_graph.py'
+    rule_graph_validation={'status':'NOT_RUN'}
+    if not graph_validator.is_file():
+        errors.append('missing UDA rule graph validator')
+        rule_graph_validation={'status':'FAIL','errors':['missing validator']}
+    else:
+        cp=subprocess.run([sys.executable,str(graph_validator),'--root',str(root),'validate'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        try: rule_graph_validation=json.loads(cp.stdout)
+        except json.JSONDecodeError:
+            rule_graph_validation={'status':'FAIL','errors':['validator returned non-JSON output']}
+        if cp.returncode!=0:
+            details='; '.join(rule_graph_validation.get('errors',[])) or cp.stderr.strip() or 'unknown graph validation failure'
+            errors.append('UDA rule graph invalid: '+details)
     for leaf in profile.get('budgeted_native_chains',[]):
         rows=[x for x in chains if x['leaf']==leaf]
         if not rows: errors.append('missing budgeted native chain: '+leaf)
         elif rows[0]['bytes']>32768: errors.append('native chain exceeds 32768 bytes: '+leaf)
     result={'schema_version':1,'evidence_class':'STRUCTURAL_SOURCE_INVENTORY_ONLY',
             'semantic_or_live_compliance_proven':False,'inventory':inventory,'native_agent_chains':chains,
+            'rule_graph_validation':rule_graph_validation,
             'public_protocol_total_bytes':sum(x['bytes'] for x in inventory if x['kind']=='canonical_public_protocol'),
             'normalized_duplicate_candidates':duplicate_groups,'approved_source_export_paths':exports,
             'checks':{'pass':not errors,'errors':errors},

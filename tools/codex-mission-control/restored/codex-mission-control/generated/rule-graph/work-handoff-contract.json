@@ -1,0 +1,331 @@
+{
+  "catalog_schema_version": 1,
+  "content_sha256": "c452b4df53f68bd642440643a14d619b259e434949bf16bd73c798d581d76f32",
+  "direct_evaluations": {
+    "uda.active-contract.boundary-binding": "FALSE",
+    "uda.bootstrap.live-root": "TRUE",
+    "uda.chat-work.execution-separation": "TRUE",
+    "uda.continuation.open-outcome": "TRUE",
+    "uda.final.timestamp": "TRUE",
+    "uda.owner-correction.reactivate": "FALSE",
+    "uda.scope.explicit-no-change": "FALSE",
+    "uda.worker-directive.same-turn-delivery": "TRUE"
+  },
+  "legacy_covered_sources": [
+    "LESSON-INDEX.md",
+    "docs/INDEX.md",
+    "patterns/* except explicitly registered initial slice",
+    "project-specific AGENTS.md and owner/task overlays not registered in this pilot"
+  ],
+  "mode": "graph",
+  "rendered_contract": "# Active Lesson Contract — graph projection\n\nTask: example:mission-control-work-handoff\nProjection owner: existing Active Lesson Contract lifecycle\n\n## Active lessons\n\n### uda.active-contract.boundary-binding @ r1\n- Source: patterns/task-time-lesson-activation.md · blob d465eaab236bb8787e99de1567a7dcc0ccc831c8 · extracted sha256 484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a\n- Authority: task-time lesson activation pattern / application-boundary\n- Exact operative source:\n\nAn instruction is satisfied only where its required effect must exist. Reading, understanding, planning, simulating, or mentioning it elsewhere does not discharge the obligation. This extends the existing Active Lesson Contract; do not create a second parallel ledger.\n\n- Obligation bind-obligation-to-destination\n  - Required behavior: Bind each active obligation to its actual actor, phase, destination, acceptance evidence, non-substitutes, carry-through, repair, and enforcement mode in the existing Active Lesson Contract.\n  - Due: reasoning -> active-lesson-contract\n  - Acceptance evidence: Compiled contract contains a complete boundary binding for each selected obligation.\n  - Non-substitutes: rule ID only; statement that the rule was considered; plan-only evidence\n  - Carry-through: Open obligations remain active across handoff, rewrite, and compaction until satisfied or superseded.\n  - Repair: Recompile the active contract with the missing boundary binding.\n  - Enforcement: semantic\n\n### uda.bootstrap.live-root @ r1\n- Source: AGENTS.md · blob ce216a39c2fb08a29198cd84a0889dacff765c00 · extracted sha256 237c0fe902e6de5dd2efe5628b6023ac7e912a6b0b775480a73847c9463148b8\n- Authority: current UDA root / bootstrap\n- Exact operative source:\n\n- When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation.\n\n- Obligation live-root-refetch\n  - Required behavior: Fetch the live default-branch root AGENTS.md in the current turn before substantive reasoning or execution.\n  - Due: retrieval -> current reasoning/execution turn\n  - Acceptance evidence: Current-turn live root retrieval from default branch.\n  - Non-substitutes: cached root; prior-turn root read; remembered summary\n  - Carry-through: Repeat on the next user turn when the owner requirement remains active.\n  - Repair: Fetch the live root before further substantive work.\n  - Enforcement: semantic\n\n### uda.chat-work.execution-separation @ r1\n- Source: AGENTS.md · blob ce216a39c2fb08a29198cd84a0889dacff765c00 · extracted sha256 0e416e561d4fa345ede1f38302dd155e0837cb60377bc6b5eb63b20d223ffabc\n- Authority: current UDA root / chat-work-routing\n- Exact operative source:\n\nFollow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,\nordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work\nthinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only.\nBefore Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded\nSSH/VPS/deployment action, keep it in Chat.\nWhen Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the\ncanonical GPT-5.6 Sol / GPT-6 Astra model-and-effort ladder and telemetry contract.\nFor controlled supervisory routes also apply\n`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.\nWorker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:\nsame-turn runnable directive; long operational payloads go to `.md`/text artifacts.\nThese references preserve the existing rules rather than creating local copies.\n\n- Obligation reasoning-stays-in-chat\n  - Required behavior: Chat retains semantic/architectural reasoning; Work/Codex receives only bounded execution residue after current routing/admission.\n  - Due: handoff -> work/codex directive\n  - Acceptance evidence: The handoff is a bounded execution directive and does not transfer methodology, strategy, owner-decision, or supervisory authority.\n  - Non-substitutes: worker self-authored methodology; Work used for routine Chat-owned GitHub reasoning\n  - Carry-through: Execution receipts return facts; subsequent consequential reasoning returns to Chat.\n  - Repair: Move substantive reasoning back to Chat and reduce the worker directive to bounded execution.\n  - Enforcement: semantic\n\n### uda.continuation.open-outcome @ r1\n- Source: patterns/codex-github-operating-system.md · blob 7820d73312d73d0afd64e15ea7b02b602dc3fdfd · extracted sha256 c4c005310588dc9c93324725cd4a6093fc3a677f179219ea030efa613bbb6a1a\n- Authority: Codex + GitHub operating system / continuation\n- Exact operative source:\n\n- If the parent outcome is OPEN and a safe, authorized, executable next action exists, perform it in the current turn. A plan, explanation, saved diagnosis, promise, or list of next steps is not a substitute for that action.\n\n- Obligation continue-open-authorized-work\n  - Required behavior: Execute the next safe authorized in-scope action now while the parent owner outcome remains open.\n  - Due: reasoning -> current task frontier\n  - Acceptance evidence: A safe authorized next action was executed, or a genuine stopping boundary is evidenced.\n  - Non-substitutes: diagnostic summary; plan; promise to continue; list of next steps\n  - Carry-through: A subtask completion does not close the parent outcome.\n  - Repair: Resume the next safe authorized action before finalizing.\n  - Enforcement: semantic\n\n### uda.final.timestamp @ r1\n- Source: AGENTS.md · blob ce216a39c2fb08a29198cd84a0889dacff765c00 · extracted sha256 f54750fd62107ff976adea8d51c0dd721cc8029f7872f061f36fafd6c7bde9b0\n- Authority: current UDA root / final-output\n- Exact operative source:\n\n- The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.\n\n- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer.\n\n- Obligation final-first-line-timestamp\n  - Required behavior: The literal first line of the final user-visible answer contains date, time, and timezone/UTC offset.\n  - Due: final-delivery -> owner-visible-final\n  - Acceptance evidence: Literal first line of the final payload matches the timestamp contract.\n  - Non-substitutes: timestamp only in commentary; timestamp only in hidden reasoning; timestamp elsewhere in the answer\n  - Carry-through: Recheck after any final rewrite.\n  - Repair: Prepend a current date/time/timezone first line before emitting.\n  - Enforcement: mechanical\n\n### uda.worker-directive.same-turn-delivery @ r1\n- Source: patterns/worker-directive-delivery-and-chat-output-budget.md · blob 2fdb999ab285f4a0afb6185398172d1b29e84ba5 · extracted sha256 a6175a97170b44fbc07939ded04e3240fb948551d4d8e5969457305b7688291f\n- Authority: worker directive delivery pattern / handoff-delivery\n- Exact operative source:\n\n**When the next concrete action belongs to Codex/Work, the reasoning chat must deliver the runnable execution directive in the same turn. Do not stop at meta-commentary about what the worker should do.**\n\nWhen the directive is packaged inside an archive, folder, or multi-file artifact, artifact delivery alone does not satisfy this rule. The same handoff must also include a concise launch instruction naming the authoritative entrypoint and the action the worker should perform with it.\n\n- Obligation deliver-runnable-directive\n  - Required behavior: Deliver the complete bounded Work/Codex directive in the same turn; if packaged, identify the authoritative entrypoint and launch action.\n  - Due: handoff -> selected execution worker\n  - Acceptance evidence: The actual runnable directive or direct handoff is delivered, including required launch instruction for packaged artifacts.\n  - Non-substitutes: meta-commentary; repository path only; artifact without invocation; offer to provide instructions later\n  - Carry-through: Receipt/stop requirements travel with the directive.\n  - Repair: Materialize and deliver the runnable directive before ending the turn.\n  - Enforcement: semantic\n",
+  "schema_version": 1,
+  "selected_rules": [
+    {
+      "authority_domain": "application-boundary",
+      "authority_owner": "task-time lesson activation pattern",
+      "explanation": [
+        {
+          "from": "uda.bootstrap.live-root",
+          "kind": "requires",
+          "path": [
+            "uda.bootstrap.live-root",
+            "uda.active-contract.boundary-binding"
+          ],
+          "supplies": [
+            "retrieval due boundary"
+          ]
+        },
+        {
+          "from": "uda.chat-work.execution-separation",
+          "kind": "requires",
+          "path": [
+            "uda.chat-work.execution-separation",
+            "uda.active-contract.boundary-binding"
+          ],
+          "supplies": [
+            "handoff boundary binding"
+          ]
+        },
+        {
+          "from": "uda.continuation.open-outcome",
+          "kind": "requires",
+          "path": [
+            "uda.continuation.open-outcome",
+            "uda.active-contract.boundary-binding"
+          ],
+          "supplies": [
+            "continuation stop boundary"
+          ]
+        },
+        {
+          "from": "uda.final.timestamp",
+          "kind": "requires",
+          "path": [
+            "uda.final.timestamp",
+            "uda.active-contract.boundary-binding"
+          ],
+          "supplies": [
+            "final payload destination and recheck binding"
+          ]
+        },
+        {
+          "from": "uda.worker-directive.same-turn-delivery",
+          "kind": "requires",
+          "path": [
+            "uda.worker-directive.same-turn-delivery",
+            "uda.active-contract.boundary-binding"
+          ],
+          "supplies": [
+            "actual recipient and delivery evidence"
+          ]
+        }
+      ],
+      "obligations": [
+        {
+          "acceptance_evidence": "Compiled contract contains a complete boundary binding for each selected obligation.",
+          "carry_through": "Open obligations remain active across handoff, rewrite, and compaction until satisfied or superseded.",
+          "destination": "active-lesson-contract",
+          "due_phase": "reasoning",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "non_substitutes": [
+            "rule ID only",
+            "statement that the rule was considered",
+            "plan-only evidence"
+          ],
+          "obligation_id": "bind-obligation-to-destination",
+          "repair": "Recompile the active contract with the missing boundary binding.",
+          "required_behavior": "Bind each active obligation to its actual actor, phase, destination, acceptance evidence, non-substitutes, carry-through, repair, and enforcement mode in the existing Active Lesson Contract."
+        }
+      ],
+      "revision": 1,
+      "rule_id": "uda.active-contract.boundary-binding",
+      "source": {
+        "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
+        "extracted_utf8_bytes": 268,
+        "git_blob_sha1": "d465eaab236bb8787e99de1567a7dcc0ccc831c8",
+        "path": "patterns/task-time-lesson-activation.md",
+        "repository_revision": "4e4d89d7176642ebe26774adead9fce7c3042406"
+      },
+      "source_text": "An instruction is satisfied only where its required effect must exist. Reading, understanding, planning, simulating, or mentioning it elsewhere does not discharge the obligation. This extends the existing Active Lesson Contract; do not create a second parallel ledger."
+    },
+    {
+      "authority_domain": "bootstrap",
+      "authority_owner": "current UDA root",
+      "explanation": [
+        {
+          "kind": "trigger",
+          "path": [
+            "uda.bootstrap.live-root"
+          ]
+        }
+      ],
+      "obligations": [
+        {
+          "acceptance_evidence": "Current-turn live root retrieval from default branch.",
+          "carry_through": "Repeat on the next user turn when the owner requirement remains active.",
+          "destination": "current reasoning/execution turn",
+          "due_phase": "retrieval",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "non_substitutes": [
+            "cached root",
+            "prior-turn root read",
+            "remembered summary"
+          ],
+          "obligation_id": "live-root-refetch",
+          "repair": "Fetch the live root before further substantive work.",
+          "required_behavior": "Fetch the live default-branch root AGENTS.md in the current turn before substantive reasoning or execution."
+        }
+      ],
+      "revision": 1,
+      "rule_id": "uda.bootstrap.live-root",
+      "source": {
+        "extracted_sha256": "237c0fe902e6de5dd2efe5628b6023ac7e912a6b0b775480a73847c9463148b8",
+        "extracted_utf8_bytes": 435,
+        "git_blob_sha1": "ce216a39c2fb08a29198cd84a0889dacff765c00",
+        "path": "AGENTS.md",
+        "repository_revision": "4e4d89d7176642ebe26774adead9fce7c3042406"
+      },
+      "source_text": "- When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation."
+    },
+    {
+      "authority_domain": "chat-work-routing",
+      "authority_owner": "current UDA root",
+      "explanation": [
+        {
+          "kind": "trigger",
+          "path": [
+            "uda.chat-work.execution-separation"
+          ]
+        },
+        {
+          "from": "uda.worker-directive.same-turn-delivery",
+          "kind": "requires",
+          "path": [
+            "uda.worker-directive.same-turn-delivery",
+            "uda.chat-work.execution-separation"
+          ],
+          "supplies": [
+            "bounded worker authority"
+          ]
+        }
+      ],
+      "obligations": [
+        {
+          "acceptance_evidence": "The handoff is a bounded execution directive and does not transfer methodology, strategy, owner-decision, or supervisory authority.",
+          "carry_through": "Execution receipts return facts; subsequent consequential reasoning returns to Chat.",
+          "destination": "work/codex directive",
+          "due_phase": "handoff",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "non_substitutes": [
+            "worker self-authored methodology",
+            "Work used for routine Chat-owned GitHub reasoning"
+          ],
+          "obligation_id": "reasoning-stays-in-chat",
+          "repair": "Move substantive reasoning back to Chat and reduce the worker directive to bounded execution.",
+          "required_behavior": "Chat retains semantic/architectural reasoning; Work/Codex receives only bounded execution residue after current routing/admission."
+        }
+      ],
+      "revision": 1,
+      "rule_id": "uda.chat-work.execution-separation",
+      "source": {
+        "extracted_sha256": "0e416e561d4fa345ede1f38302dd155e0837cb60377bc6b5eb63b20d223ffabc",
+        "extracted_utf8_bytes": 913,
+        "git_blob_sha1": "ce216a39c2fb08a29198cd84a0889dacff765c00",
+        "path": "AGENTS.md",
+        "repository_revision": "4e4d89d7176642ebe26774adead9fce7c3042406"
+      },
+      "source_text": "Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,\nordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work\nthinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only.\nBefore Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded\nSSH/VPS/deployment action, keep it in Chat.\nWhen Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the\ncanonical GPT-5.6 Sol / GPT-6 Astra model-and-effort ladder and telemetry contract.\nFor controlled supervisory routes also apply\n`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.\nWorker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:\nsame-turn runnable directive; long operational payloads go to `.md`/text artifacts.\nThese references preserve the existing rules rather than creating local copies."
+    },
+    {
+      "authority_domain": "continuation",
+      "authority_owner": "Codex + GitHub operating system",
+      "explanation": [
+        {
+          "kind": "trigger",
+          "path": [
+            "uda.continuation.open-outcome"
+          ]
+        }
+      ],
+      "obligations": [
+        {
+          "acceptance_evidence": "A safe authorized next action was executed, or a genuine stopping boundary is evidenced.",
+          "carry_through": "A subtask completion does not close the parent outcome.",
+          "destination": "current task frontier",
+          "due_phase": "reasoning",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "non_substitutes": [
+            "diagnostic summary",
+            "plan",
+            "promise to continue",
+            "list of next steps"
+          ],
+          "obligation_id": "continue-open-authorized-work",
+          "repair": "Resume the next safe authorized action before finalizing.",
+          "required_behavior": "Execute the next safe authorized in-scope action now while the parent owner outcome remains open."
+        }
+      ],
+      "revision": 1,
+      "rule_id": "uda.continuation.open-outcome",
+      "source": {
+        "extracted_sha256": "c4c005310588dc9c93324725cd4a6093fc3a677f179219ea030efa613bbb6a1a",
+        "extracted_utf8_bytes": 224,
+        "git_blob_sha1": "7820d73312d73d0afd64e15ea7b02b602dc3fdfd",
+        "path": "patterns/codex-github-operating-system.md",
+        "repository_revision": "4e4d89d7176642ebe26774adead9fce7c3042406"
+      },
+      "source_text": "- If the parent outcome is OPEN and a safe, authorized, executable next action exists, perform it in the current turn. A plan, explanation, saved diagnosis, promise, or list of next steps is not a substitute for that action."
+    },
+    {
+      "authority_domain": "final-output",
+      "authority_owner": "current UDA root",
+      "explanation": [
+        {
+          "kind": "trigger",
+          "path": [
+            "uda.final.timestamp"
+          ]
+        }
+      ],
+      "obligations": [
+        {
+          "acceptance_evidence": "Literal first line of the final payload matches the timestamp contract.",
+          "carry_through": "Recheck after any final rewrite.",
+          "destination": "owner-visible-final",
+          "due_phase": "final-delivery",
+          "enforcement": "mechanical",
+          "mechanical_check": {
+            "kind": "final_timestamp_first_line"
+          },
+          "non_substitutes": [
+            "timestamp only in commentary",
+            "timestamp only in hidden reasoning",
+            "timestamp elsewhere in the answer"
+          ],
+          "obligation_id": "final-first-line-timestamp",
+          "repair": "Prepend a current date/time/timezone first line before emitting.",
+          "required_behavior": "The literal first line of the final user-visible answer contains date, time, and timezone/UTC offset."
+        }
+      ],
+      "revision": 1,
+      "rule_id": "uda.final.timestamp",
+      "source": {
+        "extracted_sha256": "f54750fd62107ff976adea8d51c0dd721cc8029f7872f061f36fafd6c7bde9b0",
+        "extracted_utf8_bytes": 542,
+        "git_blob_sha1": "ce216a39c2fb08a29198cd84a0889dacff765c00",
+        "path": "AGENTS.md",
+        "repository_revision": "4e4d89d7176642ebe26774adead9fce7c3042406"
+      },
+      "source_text": "- The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.\n\n- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer."
+    },
+    {
+      "authority_domain": "handoff-delivery",
+      "authority_owner": "worker directive delivery pattern",
+      "explanation": [
+        {
+          "kind": "trigger",
+          "path": [
+            "uda.worker-directive.same-turn-delivery"
+          ]
+        }
+      ],
+      "obligations": [
+        {
+          "acceptance_evidence": "The actual runnable directive or direct handoff is delivered, including required launch instruction for packaged artifacts.",
+          "carry_through": "Receipt/stop requirements travel with the directive.",
+          "destination": "selected execution worker",
+          "due_phase": "handoff",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "non_substitutes": [
+            "meta-commentary",
+            "repository path only",
+            "artifact without invocation",
+            "offer to provide instructions later"
+          ],
+          "obligation_id": "deliver-runnable-directive",
+          "repair": "Materialize and deliver the runnable directive before ending the turn.",
+          "required_behavior": "Deliver the complete bounded Work/Codex directive in the same turn; if packaged, identify the authoritative entrypoint and launch action."
+        }
+      ],
+      "revision": 1,
+      "rule_id": "uda.worker-directive.same-turn-delivery",
+      "source": {
+        "extracted_sha256": "a6175a97170b44fbc07939ded04e3240fb948551d4d8e5969457305b7688291f",
+        "extracted_utf8_bytes": 488,
+        "git_blob_sha1": "2fdb999ab285f4a0afb6185398172d1b29e84ba5",
+        "path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+        "repository_revision": "4e4d89d7176642ebe26774adead9fce7c3042406"
+      },
+      "source_text": "**When the next concrete action belongs to Codex/Work, the reasoning chat must deliver the runnable execution directive in the same turn. Do not stop at meta-commentary about what the worker should do.**\n\nWhen the directive is packaged inside an archive, folder, or multi-file artifact, artifact delivery alone does not satisfy this rule. The same handoff must also include a concise launch instruction naming the authoritative entrypoint and the action the worker should perform with it."
+    }
+  ],
+  "task_id": "example:mission-control-work-handoff",
+  "unresolved": [],
+  "usable": true
+}

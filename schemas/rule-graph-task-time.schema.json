@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://u-dont-exist.com/schemas/uda-rule-graph-task-time-v1.json",
+  "title": "UDA task-time rule metadata",
+  "type": "object",
+  "required": ["schema_version", "status", "graph_path", "legacy_covered_sources", "records"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"const": "REVIEWED_METADATA_NOT_NORMATIVE_AUTHORITY"},
+    "graph_path": {"const": "rules/UDA-RULE-GRAPH.json"},
+    "legacy_covered_sources": {"type": "array", "items": {"type": "string"}},
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "revision", "status", "source", "authority_owner", "authority_domain", "applies_to", "trigger", "obligations", "relations", "provenance"],
+        "properties": {
+          "rule_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+          "revision": {"type": "integer", "minimum": 1},
+          "status": {"enum": ["CANDIDATE", "CURRENT", "HISTORICAL"]},
+          "source": {
+            "type": "object",
+            "required": ["path", "selectors"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "selectors": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["kind", "text"],
+                  "properties": {"kind": {"const": "exact_text"}, "text": {"type": "string", "minLength": 1}},
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "authority_owner": {"type": "string", "minLength": 1},
+          "authority_domain": {"type": "string", "minLength": 1},
+          "applies_to": {"type": "object"},
+          "trigger": {"type": "object"},
+          "obligations": {"type": "array", "minItems": 1},
+          "relations": {"type": "array"},
+          "provenance": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "task_id": "example:instruction-only",
+  "facts": {
+    "governance_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "current owner/UDA bootstrap"
+    },
+    "owner_requires_live_root": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "current owner requirement"
+    },
+    "role": {
+      "state": "KNOWN",
+      "value": "universal_internal",
+      "provenance": "current surface"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "chat",
+      "provenance": "current reasoning actor"
+    },
+    "destination": {
+      "state": "KNOWN",
+      "value": "owner-visible-final",
+      "provenance": "current response"
+    },
+    "action_classes": {
+      "state": "KNOWN",
+      "value": [],
+      "provenance": "instruction-only request"
+    },
+    "owner_outcome_status": {
+      "state": "KNOWN",
+      "value": "OPEN",
+      "provenance": "task contract"
+    },
+    "task_mode": {
+      "state": "KNOWN",
+      "value": "INSTRUCTION_ONLY",
+      "provenance": "explicit owner scope"
+    },
+    "owner_correction_present": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "current turn"
+    },
+    "explicit_boundary_binding_requested": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "dependency-only"
+    }
+  },
+  "legacy_rule_ids": [
+    "uda.final.timestamp",
+    "uda.bootstrap.live-root",
+    "uda.scope.explicit-no-change"
+  ]
+}

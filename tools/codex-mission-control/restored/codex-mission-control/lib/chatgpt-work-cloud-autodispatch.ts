@@ -2,6 +2,7 @@ import { canonicalJson, sha256 } from "./canonical";
 import { executionDirectiveArtifactCanonicalJson } from "./github-execution-directive";
 import { launchSelectionFor } from "./work-execution-profile";
 import type { StoredEvent } from "./schema";
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection } from "./rule-graph-contract";
 
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
 export const WORK_CLOUD_AUTODISPATCH_PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
@@ -190,7 +191,7 @@ export function discoverDirectWorkCloudDispatches(input: {
   return candidates.sort((left, right) => left.order - right.order || left.worker.localeCompare(right.worker));
 }
 
-function buildDirectWorkPrompt(input: {
+export function buildDirectWorkPrompt(input: {
   dispatchId: string;
   worker: string;
   directiveId: string;
@@ -201,6 +202,7 @@ function buildDirectWorkPrompt(input: {
   exactDirective: string;
 }): string {
   const receiptTarget = `https://github.com/${input.receiptTarget.repository}/issues/${input.receiptTarget.stageIssueNumber}`;
+  const ruleGraph = workHandoffRuleGraphProjection();
   const receiptTemplate = canonicalJson({
     schemaVersion: 1,
     dispatchId: input.dispatchId,
@@ -227,6 +229,7 @@ function buildDirectWorkPrompt(input: {
     "The machine receipt may contain only control-plane facts: IDs already shown in the template, status/code fields, check counts, blocker codes, and artifact SHA-256 values.",
     "Do not put prompts, private source text, credentials, absolute private filesystem paths, raw logs, free-form model reasoning, or artifact paths in the machine receipt.",
     `Receipt JSON shape: ${receiptTemplate}`,
+    ...ruleGraphPromptBlock(ruleGraph),
     "EXACT_BOUNDED_DIRECTIVE_BEGIN",
     input.exactDirective,
     "EXACT_BOUNDED_DIRECTIVE_END",
