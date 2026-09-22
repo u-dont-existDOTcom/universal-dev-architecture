@@ -79,6 +79,8 @@ These transfers add no spending, execution, clinical, or publication authority. 
 PROJECT APPLICATION
 This is a reasoning supplement, not a replacement for current project instructions. Resolve the active task/branch and read its authoritative entrypoints fresh. Canonical protocols, owner locks, privacy, budgets and action gates control over this supplement. Reasoning selection grants no new execution, spending, publication or release authority. Keep strategic and semantic decisions with the authorized reasoning chat; execution-only workers remain bounded by its current directive. Preserve validated reusable work and working task architectures in the correct GitHub repository without private data so future sessions do not have to relearn them from chat. Continue the next safe authorized step; isolate blockers rather than stopping unrelated work.
 
+The interview-evidence and information-gain transfer was owner-directed on 2026-09-08; source provenance is preserved in `docs/requirements/2026-09-08-interview-evidence-information-gain.owner-requirement.json`. Its operative core is intentionally composed into the portable evidence-intelligence section here rather than maintained as a second overlapping canonical rule.
+
 ## Mission Control application
 
 MISSION CONTROL

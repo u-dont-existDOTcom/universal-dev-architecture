@@ -1,0 +1,32 @@
+{
+  "schema_version": "owner-requirement-v1",
+  "date": "2026-09-08",
+  "originating_repository": "u-dont-existDOTcom/humandesign",
+  "originating_context": "Life Patterns development interview and human-calibration methodology correction",
+  "owner_quotes": [
+    "concrete episodes don't add support for \"i always X\" they add nuance, but only if it happens to be there or if you ask for episodes that show nuance. don't ask people for concrete incidents pointlessly",
+    "right so if i say \"I always X\" then you should ask, \"are there any conditions which would lead you not to X? how often do you find your rule is not followed?\" right?",
+    "i'm surprised you didn't understand this from all the books i uploaded on interviewing",
+    "ok save all the lessons in universal-dev-architecture, and give them to me to give to the askrigor worker also"
+  ],
+  "normalized_requirements": [
+    "Do not equate concrete detail with independent evidence.",
+    "Treat generalized behavioral recurrence self-report as evidence of reported recurrence; do not require confirming incidents merely to corroborate it.",
+    "After a strong recurrence statement, default to scope/denominator, boundary conditions, exception frequency, and relevant temporal change.",
+    "Ask for concrete incidents only when they have expected information gain, such as resolving ambiguity, process, prerequisites, context, exception boundaries, consequences, or a valid sampling need.",
+    "Do not count self-selected confirming anecdotes as independent frequency observations.",
+    "If actual opportunity-level frequency is the target, use a sampling design appropriate to frequency rather than volunteered examples.",
+    "Separate behavioral recurrence claims from trait labels and other evidence roles.",
+    "Do not collect evidence by format quota when the quota is unrelated to the inference.",
+    "When relevant owner-supplied methodology exists, retrieve and inspect it before substantial bespoke method design or freeze.",
+    "Human judgment tasks should use a human-facing interface; machine serialization is an interchange contract, not the human task.",
+    "If a load-bearing methodological defect is found before collection, preserve the old artifact and create a versioned revision rather than collecting under a known-defective rule or silently reinterpreting it."
+  ],
+  "universal_pattern": "patterns/interview-evidence-information-gain.md",
+  "limits": [
+    "Self-report remains subject to measurement error and is not automatically ground truth.",
+    "Concrete incidents remain useful when they answer a discriminating question or come from a valid sampling frame.",
+    "Mandatory safety, legal, consent, or provenance questions may be required even without immediate information gain for the focal inference.",
+    "This requirement does not authorize post-hoc confirmatory-method revision after target outcomes are visible."
+  ]
+}
