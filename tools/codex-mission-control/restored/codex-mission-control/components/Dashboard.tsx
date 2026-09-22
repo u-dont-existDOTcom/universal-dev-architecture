@@ -26,6 +26,15 @@ interface Snapshot {
     openProposals: number;
   };
   connectionSummary: { connected: number; offlineConfigured: number; fixtureOnly: number; suppressedFixtureOnly: number };
+  fleetSupervisor: {
+    defaultCadenceMs: number;
+    activeCount: number;
+    watches: Array<{
+      projectId: string; taskId: string; worker: string; state: "ACTIVE" | "PAUSED" | "TERMINAL" | "DISABLED";
+      cadenceMs: number; nextTickAt: string | null; lastTickAt: string | null; lastTrigger: string | null;
+      lastResult: string | null; notificationDisposition: string; notificationReason: string | null;
+    }>;
+  };
   liveSource: {
     worker: string;
     source_kind: "READ_ONLY_FILE_GIT";
@@ -85,6 +94,10 @@ export function Dashboard() {
   const workers = snapshot?.workers ?? [];
   const decisions = workers.filter(worker => worker.correction.ownerActionType !== "NONE");
   const recommended = orderedOpenQueue(snapshot?.fleetQueue ?? []).slice(0, 3);
+  const knownProjects = snapshot ? new Set([
+    ...snapshot.fleetQueue.map(item => item.projectId),
+    ...snapshot.fleetSupervisor.watches.map(watch => watch.projectId),
+  ]).size : 0;
   const partial = Object.keys(failures).length > 0;
   return <main className="shell mission-shell owner-shell">
     <header className="topbar"><div className="brand-row"><div className="brand-mark">MC</div><div><p className="eyebrow">YOUR WORK, IN VIEW</p><h1>Mission Control</h1></div></div><button className="owner-retry" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button></header>
@@ -92,8 +105,9 @@ export function Dashboard() {
     {streamError && <div role="status" className="error-banner">Live updates are reconnecting. Displayed information may be stale; use Refresh to check.</div>}
     {!snapshot && loading && !partial && <div role="status" className="loading-panel">Loading your recorded work…</div>}
     {snapshot && <>
-      <p className="owner-coverage">Coverage: {workers.length} recorded worker task{workers.length === 1 ? "" : "s"} and {snapshot.fleetQueue.length} queue items. This view covers only work reported to Mission Control, not every project or chat. Snapshot {new Date(snapshot.generatedAt).toLocaleString()} · {relativeTime(snapshot.generatedAt)}.{failures.Tasks && " Task data is last-known; current status needs checking."}</p>
+      <p className="owner-coverage">Coverage: {knownProjects} known project{knownProjects === 1 ? "" : "s"}, {workers.length} worker task{workers.length === 1 ? "" : "s"}, {snapshot.fleetSupervisor.watches.length} project watch{snapshot.fleetSupervisor.watches.length === 1 ? "" : "es"}, and {snapshot.fleetQueue.length} queue items. This view covers work reported to Mission Control; it does not claim every chat or external project is represented. Snapshot {new Date(snapshot.generatedAt).toLocaleString()} · {relativeTime(snapshot.generatedAt)}.{failures.Tasks && " Task data is last-known; current status needs checking."}</p>
       <section className="owner-section" aria-labelledby="owner-decisions"><h2 id="owner-decisions">Your decisions and actions <span>{decisions.length}</span></h2>{decisions.length ? decisions.map(worker => <article className="owner-decision" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p>{worker.correction.ownerActionText || "Action details not recorded."}</p><OwnerDecisionDetails worker={worker} /></article>) : <p className="muted">No owner action is recorded in this snapshot.{partial || streamError ? " Reporting is incomplete; this does not establish that no action is needed." : ""}</p>}</section>
+      <ProjectWatchSummary supervisor={snapshot.fleetSupervisor} queue={snapshot.fleetQueue} />
       <section className="owner-section" aria-labelledby="owner-next"><h2 id="owner-next">Recommended next to review</h2><p className="muted">Stored priority P0–P3, then stored queue order. This ordering does not grant permission to start.</p>{recommended.length ? <ol className="owner-next-list">{recommended.map(item => <li key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><a href="#recorded-queue"><strong>{item.title}</strong></a><span>{item.priority} · {item.status.replaceAll("_", " ").toLowerCase()}</span><small>{item.projectId} · {item.taskId}</small></li>)}</ol> : <p>No unfinished queue items are recorded. Worker reporting may be incomplete.</p>}</section>
       <section className="owner-section" aria-labelledby="owner-tasks"><h2 id="owner-tasks">Current tasks</h2>{workers.length ? <div className="owner-task-grid">{workers.map(worker => <OwnerTaskCard key={worker.id} worker={worker} />)}</div> : <p className="empty-live-fleet">No known tasks are available in this snapshot. This does not establish that all work is complete; worker reporting may be missing.</p>}</section>
       <div id="recorded-queue"><FleetQueue queue={snapshot.fleetQueue} /></div>
@@ -110,6 +124,32 @@ export function DashboardNotice({ failures, hasSnapshot, loading, onRetry }: { f
 
 export function OwnerTaskCard({ worker }: { worker: WorkerState }) {
   return <article className="owner-task"><div className="owner-task-heading"><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><span>{workerDisposition(worker)}</span></div><dl className="owner-four"><div><dt>Goal</dt><dd>{worker.objective.goal || "Not recorded"}</dd></div><div><dt>Where we are</dt><dd>{worker.currentStep || "Status needs checking"}</dd><dd className="muted">Latest recorded evidence: {worker.progress.latestEvidence || "Not recorded"}</dd></div><div><dt>Next needed</dt><dd>{worker.correction.directive || worker.nextSteps.join("; ") || worker.progress.requiredIntervention || "Not recorded"}</dd></div><div><dt>Your action</dt><dd>{worker.correction.ownerActionType === "NONE" ? "None recorded" : worker.correction.ownerActionText || "Action details not recorded"}</dd></div></dl><p className="owner-task-freshness">Checkpoint {relativeTime(worker.lastCheckpointAt)} · {worker.connection.state.replaceAll("_", " ").toLowerCase()}</p><Link className="owner-evidence" href={`/worker/${worker.id}`}>Open task and evidence →</Link></article>;
+}
+
+export function ProjectWatchSummary({ supervisor, queue }: { supervisor: Snapshot["fleetSupervisor"]; queue: WorkQueueItemProjection[] }) {
+  const projectIds = [...new Set([...supervisor.watches.map(watch => watch.projectId), ...queue.map(item => item.projectId)])].sort();
+  const dependencyLinks = queue.reduce((total, item) => total + item.dependsOn.length, 0);
+  return <section className="owner-section" aria-labelledby="owner-projects">
+    <h2 id="owner-projects">Projects and supervision <span>{projectIds.length}</span></h2>
+    <p className="muted">Project → task/watch → worker/queue → prerequisite relationships derived from recorded Mission Control state.</p>
+    <div className="owner-relationship-strip">
+      <div><span>Active watches</span><strong>{supervisor.activeCount}</strong></div>
+      <div><span>Dependency links</span><strong>{dependencyLinks}</strong></div>
+      <div><span>Open queue items</span><strong>{queue.filter(item => !["DONE", "CANCELED", "SUPERSEDED"].includes(item.status)).length}</strong></div>
+      <div><span>Default review cadence</span><strong>{formatInterval(supervisor.defaultCadenceMs)}</strong></div>
+    </div>
+    {projectIds.length ? <div className="owner-project-grid">{projectIds.map(projectId => {
+      const watches = supervisor.watches.filter(watch => watch.projectId === projectId);
+      const items = queue.filter(item => item.projectId === projectId);
+      const openItems = items.filter(item => !["DONE", "CANCELED", "SUPERSEDED"].includes(item.status));
+      const blocked = openItems.filter(item => ["BLOCKED", "WAITING_REVIEW"].includes(item.status) || item.dependsOn.length > 0);
+      return <article className="owner-project" key={projectId}>
+        <div className="owner-task-heading"><h3>{projectId}</h3><span>{watches.length ? watches.map(watch => watch.state).join(" · ") : "No active watch recorded"}</span></div>
+        <p>{openItems.length} open work item{openItems.length === 1 ? "" : "s"} · {blocked.length} blocked/waiting/dependent.</p>
+        {watches.length ? <ul>{watches.map(watch => <li key={`${watch.projectId}:${watch.taskId}:${watch.worker}`}><strong>{watch.taskId}</strong><span>{watch.worker} · {formatInterval(watch.cadenceMs)}</span><small>{watch.lastTickAt ? `last ${relativeTime(watch.lastTickAt)}` : "awaiting first tick"} · {watch.nextTickAt ? `next ${relativeTime(watch.nextTickAt)}` : "not scheduled"} · {watch.notificationDisposition}{watch.notificationReason ? `: ${watch.notificationReason}` : ""}</small></li>)}</ul> : <p className="muted">Queue evidence exists for this project, but no fleet-supervisor watch is recorded.</p>}
+      </article>;
+    })}</div> : <p>No project or queue relationships are recorded yet.</p>}
+  </section>;
 }
 
 function InfrastructureHealth({ status }: { status: OperatorStatusProjection }) {
