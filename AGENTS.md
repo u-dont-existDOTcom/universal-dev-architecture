@@ -22,7 +22,7 @@ Before final delivery, apply `patterns/codex-github-operating-system.md` → **C
 
 ## Instruction composition
 
-For instruction maintenance and cross-project composition, use `patterns/instruction-composition-and-portable-intelligence.md`. The existing active-contract lifecycle is owned by `patterns/task-time-lesson-activation.md`. After task-triggered rule selection, when graph-covered rules apply, resolve `rules/UDA-RULE-GRAPH.json` with `scripts/uda_rule_graph.py` to expand declared dependencies, inheritance, supersession, conflicts, and enforcement phases; canonical prose remains authoritative, the graph cannot create authority, and unmapped rules continue through `LESSON-INDEX.md`. These supplement current authority; do not load unrelated specialist guidance or duplicate an already active rule.
+For instruction maintenance/cross-project composition, use `patterns/instruction-composition-and-portable-intelligence.md`; task-time activation is owned by `patterns/task-time-lesson-activation.md`. After rule selection, resolve graph-covered dependencies with `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; canonical prose remains authoritative and unmapped rules remain index-routed. Load only task-relevant guidance once.
 
 ## Authority
 
