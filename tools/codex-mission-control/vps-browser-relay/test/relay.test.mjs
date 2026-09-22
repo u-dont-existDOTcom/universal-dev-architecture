@@ -823,8 +823,8 @@ function requestBoundFixture({ enabled = true, submitErrorStage = null } = {}) {
   return { store, mc, browser, runtime };
 }
 
-function inBandRequestFixture({ admissions = null, confirmPreBoundaryAbort = false } = {}) {
-  const event = directRouteEvent('r-1', 'v6-route', 'EXTRA_HIGH_DIRECT');
+function inBandRequestFixture({ admissions = null, confirmPreBoundaryAbort = false, requestId = 'r-1' } = {}) {
+  const event = directRouteEvent(requestId, 'v6-route', 'EXTRA_HIGH_DIRECT');
   const packet = JSON.parse(event.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
   packet.schemaVersion = 6;
   packet.executionContext = { task_id: 'task-1' };
@@ -938,11 +938,28 @@ test('V6 proven-unsent retry emits admission-unique pre-send receipt identities'
   assert.equal(second.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(second));
   const receipts = mc.recordedEvidence.filter((item) => item.summary === IN_BAND_PRE_SEND_SUMMARY);
   assert.equal(receipts.length, 2);
-  assert.deepEqual(receipts.map((item) => item.receiptId), [
-    'in-band-pre-send:r-1:' + store.state.deliveries['request:r-1'].providerSessionId + ':send-admission:v6:first',
-    'in-band-pre-send:r-1:' + store.state.deliveries['request:r-1'].providerSessionId + ':send-admission:v6:retry',
-  ]);
+  assert.equal(receipts.every((item) => item.receiptId.startsWith('in-band-pre-send:')), true);
+  assert.equal(receipts.every((item) => item.receiptId.length <= 180), true);
+  assert.equal(receipts.every((item) => /^in-band-pre-send:[a-f0-9]{64}$/.test(item.receiptId)), true);
   assert.notEqual(receipts[0].receiptId, receipts[1].receiptId);
+});
+
+test('V6 pre-send receipt identity stays schema-bounded for a long request and admission identity', async () => {
+  const longRequestId = 'askrigor231-pr235-review-replacement:' + 'x'.repeat(120);
+  const longAdmissionId = 'send-admission:' + 'y'.repeat(140);
+  const { mc, browser, runtime } = inBandRequestFixture({
+    requestId: longRequestId,
+    admissions: [{ admitted: true, admissionId: longAdmissionId, queueItemId: 'q-long', admittedAt: '2026-09-02T00:00:00.500Z', expiresAt: '2026-09-02T00:02:00.000Z' }],
+  });
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(result));
+  assert.equal(browser.submitCalls, 1);
+  const receipt = mc.recordedEvidence.find((item) => item.summary === IN_BAND_PRE_SEND_SUMMARY);
+  assert.ok(receipt);
+  assert.match(receipt.receiptId, /^in-band-pre-send:[a-f0-9]{64}$/);
+  assert.ok(receipt.receiptId.length <= 180);
+  assert.ok(receipt.refs.includes(`request:${longRequestId}`));
+  assert.ok(receipt.refs.includes(`submission_admission:${longAdmissionId}`));
 });
 
 test('V6 records one trusted binding/body/admission receipt before one GitHub-only provider message', async () => {
