@@ -13,11 +13,17 @@ const modelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
 const stageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
 const mcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1";
 const mcpCollector = "collector:public-mcp-access";
-const controlRefs = {
+const legacyControlRefs = {
   model_visible_label: "GPT-5.6 Sol", thinking_control_label: "Thinking effort",
   thinking_visible_label: "Extra High", thinking_ordinal: "4 of 5", account_plan_label: "Pro",
   account_plan_role: "PROVENANCE_METADATA_ONLY", account_plan_is_reasoning_mode: "false",
   backend_model_identity_claimed: "false", assistant_content_observed: "false",
+};
+const currentControlRefs = {
+  model_selection_policy: "TOP_VISIBLE_SELECTABLE_MODEL", model_selector_index: "0",
+  thinking_control_label: "Thinking effort", thinking_visible_label: "Extra High", thinking_ordinal: "4 of 5",
+  account_plan_label: "Pro", account_plan_role: "PROVENANCE_METADATA_ONLY",
+  account_plan_is_reasoning_mode: "false", backend_model_identity_claimed: "false", assistant_content_observed: "false",
 };
 
 export interface RequestExecutionContext {
@@ -110,12 +116,13 @@ export function assertRequestBoundExecution(
   const scoped = events.filter((event) => boundTo(event, request, decision.provider_session_id)
     && inWindow(event, request.queuedAt, ingestedAt));
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
-    && exactRef(event, "session_role") === requestBoundRole && hasRefs(event, controlRefs));
-  if (!model) fail("fixed visible model/control observation missing");
+    && exactRef(event, "session_role") === requestBoundRole && controlEvidence(event) !== null);
+  if (!model) fail("visible model/control observation missing");
+  const modelControls = controlEvidence(model) ?? fail("model/control observation is invalid");
   const stages = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
     && exactRef(event, "step") === requestBoundStep && exactRef(event, "conversation_url") === url
     && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
-    && hasRefs(event, controlRefs));
+    && controlEvidence(event) !== null);
   const starts = stages.filter((event) => exactRef(event, "generation_state") === "STARTED");
   const completes = stages.filter((event) => exactRef(event, "generation_state") === "COMPLETE");
   const start = starts.sort((a, b) => a.sequence - b.sequence)[0];
@@ -123,7 +130,11 @@ export function assertRequestBoundExecution(
   if (!start || !complete) fail("provider generation evidence incomplete; reconcile unchanged artifact");
   const promptHash = exactRef(start!, "prompt_sha256");
   if (!promptHash || !/^[a-f0-9]{64}$/.test(promptHash)
-    || stages.some((event) => exactRef(event, "prompt_sha256") !== promptHash)) fail("prompt identity changed within one request");
+    || stages.some((event) => {
+      const controls = controlEvidence(event);
+      return !controls || controls.kind !== modelControls.kind || controls.modelLabel !== modelControls.modelLabel
+        || exactRef(event, "prompt_sha256") !== promptHash;
+    })) fail("prompt identity or model/control evidence changed within one request");
   const sentSessions = new Set(events.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
     && event.worker === request.worker && exactRef(event, "request") === request.requestId
     && exactRef(event, "generation_state") === "STARTED" && inWindow(event, request.queuedAt, ingestedAt))
@@ -142,6 +153,17 @@ export function assertRequestBoundExecution(
   if (!access || access.data.type !== "evidence_receipt_recorded") fail("no server-observed request-bound MCP call");
   // Composer chips are telemetry only. They cannot replace either authenticated collector evidence.
   return access!.data.type === "evidence_receipt_recorded" ? access!.data.receipt_id : fail("invalid access receipt");
+}
+
+function controlEvidence(event: StoredEvent): { kind: "CURRENT" | "LEGACY"; modelLabel: string } | null {
+  if (hasRefs(event, currentControlRefs)) {
+    const modelLabel = exactRef(event, "model_ui_label");
+    return modelLabel ? { kind: "CURRENT", modelLabel } : null;
+  }
+  if (hasRefs(event, legacyControlRefs)) {
+    return { kind: "LEGACY", modelLabel: exactRef(event, "model_ui_label") ?? "GPT-5.6 Sol" };
+  }
+  return null;
 }
 
 function exactRef(event: StoredEvent, key: string): string | null {

@@ -207,6 +207,40 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
   } finally { f.store.close(); }
 });
 
+test("V6 accepts top-model policy evidence and binds one observed model label across the session", () => {
+  const f = fixture();
+  try {
+    const events = structuredClone(f.events);
+    const legacyKeys = new Set([
+      "model_visible_label", "thinking_control_label", "thinking_visible_label", "thinking_ordinal",
+      "account_plan_label", "account_plan_role", "account_plan_is_reasoning_mode",
+      "backend_model_identity_claimed", "assistant_content_observed",
+    ]);
+    const currentControls = [
+      "model_selection_policy:TOP_VISIBLE_SELECTABLE_MODEL", "model_selector_index:0",
+      "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5",
+      "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY", "account_plan_is_reasoning_mode:false",
+      "backend_model_identity_claimed:false", "assistant_content_observed:false", "model_ui_label:Latest",
+    ];
+    for (const event of events) {
+      if (event.data.type !== "evidence_receipt_recorded"
+        || !["MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1", "MISSION_CONTROL_RELAY_STAGE_V1"].includes(event.data.summary)) continue;
+      event.data.refs = event.data.refs.filter((ref) => !legacyKeys.has(ref.slice(0, ref.indexOf(":"))));
+      event.data.refs.push(...currentControls);
+    }
+    assert.equal(build(f, events).data.type, "github_decision_receipt_ingested");
+
+    const inconsistent = structuredClone(events);
+    const stage = inconsistent.find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:STARTED"))!;
+    if (stage.data.type === "evidence_receipt_recorded") {
+      stage.data.refs = stage.data.refs.map((ref) => ref === "model_ui_label:Latest" ? "model_ui_label:GPT-5.6 Sol" : ref);
+    }
+    assert.throws(() => build(f, inconsistent), /model\/control|provider prompt identity|selected app changed/);
+  } finally { f.store.close(); }
+});
+
 test("V6 app-owned final-message readback may replace only missing web completion evidence", () => {
   const f = fixture();
   try {

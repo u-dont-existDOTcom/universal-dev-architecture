@@ -60,6 +60,14 @@ test("the global Project Manager identity is exactly mc-project-manager", () => 
   assert.equal(directory.entries[0].supervisorId, CANONICAL_PROJECT_MANAGER_ID);
 });
 
+test("legacy fixed model controls normalize to the current top-model selection policy", () => {
+  const directory = loadConfiguredSupervisorChats(JSON.stringify([entry("PROJECT_MANAGER", CANONICAL_PROJECT_MANAGER_ID)]));
+  assert.equal(directory.configurationState, "CONFIGURED");
+  assert.equal(directory.entries[0]?.consumerControls.modelSelectionPolicy, "TOP_VISIBLE_SELECTABLE_MODEL");
+  assert.equal(directory.entries[0]?.consumerControls.thinkingVisibleLabel, "Extra High");
+  assert.equal(Object.hasOwn(directory.entries[0]?.consumerControls ?? {}, "modelVisibleLabel"), false);
+});
+
 test("WEB-prefixed provider conversation IDs are normalized for configured supervisors", () => {
   const directory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry({
     bootstrapCapability: {
