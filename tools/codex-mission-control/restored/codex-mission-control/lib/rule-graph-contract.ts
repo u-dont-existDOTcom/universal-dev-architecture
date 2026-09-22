@@ -15,14 +15,14 @@ export interface RuleGraphWorkHandoffProjection {
 
 const CONTRACT_PATH = fileURLToPath(new URL("../generated/rule-graph/work-handoff-contract.json", import.meta.url));
 
-export function ruleGraphMode(env: RuleGraphEnvironment = process.env): RuleGraphMode {
+export function ruleGraphMode(env: RuleGraphEnvironment = process.env as RuleGraphEnvironment): RuleGraphMode {
   const raw = (env.MISSION_CONTROL_RULE_GRAPH_MODE ?? "shadow").trim().toLowerCase();
   if (raw === "legacy" || raw === "shadow" || raw === "graph") return raw;
   throw new Error("MISSION_CONTROL_RULE_GRAPH_MODE must be legacy, shadow, or graph.");
 }
 
 export function workHandoffRuleGraphProjection(
-  env: RuleGraphEnvironment = process.env,
+  env: RuleGraphEnvironment = process.env as RuleGraphEnvironment,
   contractPath = CONTRACT_PATH,
 ): RuleGraphWorkHandoffProjection {
   const mode = ruleGraphMode(env);
