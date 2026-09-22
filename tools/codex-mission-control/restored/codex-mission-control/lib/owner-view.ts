@@ -57,7 +57,7 @@ function fleetSupervisorValid(value: unknown) {
   if (!record(value) || typeof value.activeCount !== "number" || typeof value.defaultCadenceMs !== "number" || !Array.isArray(value.watches)) return false;
   return value.watches.every(watch => strings(watch, ["projectId", "taskId", "worker", "state", "notificationDisposition"])
     && typeof at(watch, "cadenceMs") === "number"
-    && ["nextTickAt", "lastTickAt"].every(key => at(watch, key) === null || date(at(watch, key)));
+    && ["nextTickAt", "lastTickAt"].every(key => at(watch, key) === null || date(at(watch, key))));
 }
 function workerValid(value: unknown) {
   if (!strings(value, ["id", "name", "status", "objective.goal", "currentStep", "connection.state", "operatorState.traffic", "operatorState.label", "operatorState.reason", "workerToContractAlignment", "contractToOwnerAlignment", "overallTraffic", "channel.freshness", "correction.ownerActionType", "correction.ownerActionText", "correction.statusLabel", "correction.nextReviewTrigger", "correction.ownerAction.kind", "progress.outcomeAdvancement", "progress.strategyEfficacy", "progress.latestEvidence", "progress.previousEvidence", "progress.bestEvidence", "progress.baselineEvidence", "progress.targetEvidence", "progress.requiredIntervention", "executionSupervision.surface", "executionSupervision.proEscalationState", "executionSupervision.codexExecutionState"])) return false;
