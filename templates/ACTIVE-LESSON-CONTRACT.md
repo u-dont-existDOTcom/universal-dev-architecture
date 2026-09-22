@@ -19,6 +19,19 @@ Record this before claiming that universal/project lesson controls protected the
 
 `rule exists in GitHub`, `the model may know it`, and `a prior chat once loaded it` are not activation evidence. If current authority says the task is governed by this guidance and status is `NOT_ACTIVATED` or `STALE`, consequential method commitment, release, or owner-facing substantive delivery is blocked until current guidance is actually loaded and the relevant lesson set is compiled.
 
+## Rule graph expansion
+
+Use this only when one or more selected rules are represented in `rules/UDA-RULE-GRAPH.json`.
+
+- Selected rule IDs: `<ids or N/A>`
+- Graph source/ref: `<repo/ref/path>`
+- Resolved dependency/inheritance closure: `<ordered rule IDs or N/A>`
+- Supersession redirects: `<none or old -> current>`
+- Declared conflicts: `<none or unresolved conflict>`
+- Enforcement phases carried forward: `<retrieval/reasoning/action/handoff/persistence/delivery/release as applicable>`
+
+`graph resolved` is routing evidence only. It is not proof that the canonical rule was loaded, activated, interpreted correctly, applied at its destination, or that the owner outcome advanced.
+
 ## Active lessons
 
 For each lesson:
