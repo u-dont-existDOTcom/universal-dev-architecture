@@ -587,3 +587,9 @@ Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**.
 - OpenRouter remains permitted only where the required capability is
   provider-specific or unavailable through the gateway; current TypeSafe Jev
   Decisions is the explicit existing exception.
+- Canonical repository closeout: the gateway/client change passed local and
+  hosted release gates, merged as `c89bf0417353fbf480bae82afecd3a1a3d921248`,
+  and Railway is now sourced from `main` with the merge-commit deployment
+  healthy. The obsolete task branch was removed.
+- Owner outcome status: SATISFIED. No further Venice-gateway implementation
+  work is required unless a new caller/runtime needs its own secret injection.
