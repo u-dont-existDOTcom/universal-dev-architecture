@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DashboardNotice, OwnerTaskCard } from "../components/Dashboard";
+import { DashboardNotice, OwnerTaskCard, ProjectWatchSummary } from "../components/Dashboard";
 import { FleetQueue, QueueDependencies } from "../components/WorkerChannel";
 import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, resolvePrerequisites, workerDisposition } from "../lib/owner-view";
 import type { WorkQueueItemProjection } from "../lib/worker-channel";
@@ -53,6 +53,7 @@ test("known unfinished task survives expired reporting and health cannot establi
     const validSnapshot = snapshotFromStore(store);
     assert.equal(validTaskSnapshot(validSnapshot), true);
     assert.equal(validTaskSnapshot({ ...validSnapshot, connectionSummary: null }), false);
+    assert.equal(validTaskSnapshot({ ...validSnapshot, fleetSupervisor: null }), false);
     assert.equal(validTaskSnapshot({ ...validSnapshot, workers: [{}] }), false);
     assert.equal(validOperatorSnapshot({ overallState: "HEALTHY" }), false);
     store.append({ schema_version: 2, event_id: "offline-retention-test", mission_id: "mission-control-live", occurred_at: "2026-09-16T00:00:00Z", data: { type: "worker_connection_observed", worker: "mission-control-live-slice", connection_id: "offline-test", state: "CONNECTED", runtime_kind: "POLLING_SIDECAR", endpoint_id: "worker:mission-control-live-slice:poll", observed_at: "2026-09-16T00:00:00Z", lease_expires_at: "2026-09-16T00:01:00Z", source: null, detail: "Old authenticated report" } }, undefined, { id: "worker:mission-control-live-slice", kind: "WORKER", workerScopes: ["mission-control-live-slice"], taskScopes: ["task:mission-control-live-slice"] });
@@ -65,4 +66,23 @@ test("known unfinished task survives expired reporting and health cannot establi
     worker.overallTraffic = "GREEN";
     assert.doesNotMatch(workerDisposition(worker), /READY TO CONTINUE|complete|approved/i);
   } finally { store.close(); }
+});
+
+test("project supervision view exposes recorded project/watch relationships without inventing coverage", () => {
+  const queue = [
+    queueItem({ projectId: "project-a", taskId: "task-a", itemId: "blocked", dependsOn: ["prerequisite"] }),
+    queueItem({ projectId: "project-a", taskId: "task-a", itemId: "prerequisite", status: "READY", dependsOn: [] }),
+    queueItem({ projectId: "project-b", taskId: "task-b", itemId: "other", status: "IN_PROGRESS", dependsOn: [] }),
+  ];
+  const supervisor = { defaultCadenceMs: 60_000, activeCount: 1, watches: [
+    { projectId: "project-a", taskId: "task-a", worker: "worker-a", state: "ACTIVE" as const, cadenceMs: 60_000,
+      nextTickAt: "2026-09-22T01:01:00Z", lastTickAt: "2026-09-22T01:00:00Z", lastTrigger: "cadence",
+      lastResult: "healthy", notificationDisposition: "NONE", notificationReason: null },
+  ] };
+  const html = renderToStaticMarkup(createElement(ProjectWatchSummary, { supervisor, queue }));
+  assert.match(html, /Projects and supervision/);
+  assert.match(html, /project-a/);
+  assert.match(html, /project-b/);
+  assert.match(html, /Dependency links/);
+  assert.match(html, /Queue evidence exists for this project, but no fleet-supervisor watch is recorded/);
 });
