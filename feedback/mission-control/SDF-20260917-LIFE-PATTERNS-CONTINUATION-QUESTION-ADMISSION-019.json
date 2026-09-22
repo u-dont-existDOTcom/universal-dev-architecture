@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260917-LIFE-PATTERNS-CONTINUATION-QUESTION-ADMISSION-019",
+  "recordedAt": "2026-09-17T14:34:00Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "so the first question it asked was one i already answerd. also, it should just automatically continue without user having to click continue. thats a bit confusing. the button to finish for now should always be visible then if we don't have that continue checkpoint. \nsome of the questions still seem dumb like is there any check in there before it asks like is this even a useful question?\n\nand these buttons are duplicating the function of the existing textbox asking me to write what fits: **Close — I’ll explain what needs changing. Edit exact wording myself. unless i am misunderstanding the intended functions of all 3?**",
+  "privacyBoundary": "The quoted correction is product/workflow feedback only and contains no private interview narrative. The attached audit ledger itself is not copied into this public repository.",
+  "observedFailures": [
+    {
+      "id": "REPEATED-CROSS-AREA-QUESTION",
+      "mechanism": "Cross-area continuation created a fresh server session and planned from compressed coverage/pattern metadata rather than retaining the complete preceding participant-answer context. A semantically answered construct could therefore be selected again when the metadata remained open or incomplete.",
+      "lesson": "A dynamic interview needs continuity of participant-answer memory across measurement areas; compressed coverage state alone is not a substitute for the conversational evidence needed to suppress duplicate questions."
+    },
+    {
+      "id": "UNNECESSARY-CONTINUE-CHECKPOINT",
+      "mechanism": "The product exposed an internal topic-completion boundary as a participant action, requiring a redundant Continue interview click even though the next authorized system action was deterministic.",
+      "lesson": "When the workflow has exactly one nonterminal next action, advance automatically. Preserve a continuously visible Finish/Pause affordance for participant control rather than inserting a redundant continue checkpoint."
+    },
+    {
+      "id": "QUESTION-VALUE-GATE-TOO-WEAK",
+      "mechanism": "Information-gain/redundancy criteria existed only as generation instructions. The generated question itself did not pass a distinct pre-send admission boundary capable of rejecting a redundant, generic, low-discrimination, or questionnaire-for-its-own-sake prompt.",
+      "lesson": "Before exposing another interview question, require an explicit admission check: name the missing discriminator, show how materially different plausible answers would change interpretation, and verify the substance has not already been answered."
+    },
+    {
+      "id": "DUPLICATE-SYNTHESIS-FEEDBACK-CONTROLS",
+      "mechanism": "The always-available free-form textbox already handled explanatory feedback, while a separate 'Close — I’ll explain what needs changing' button merely routed to that same action. This leaked implementation-state distinctions into the participant UI.",
+      "lesson": "Do not expose two controls for the same semantic action. Keep free-form chat for ordinary feedback; retain a separate exact-wording control only when it has a genuinely different contract—literal participant-authored wording recorded unchanged."
+    }
+  ],
+  "currentRepairDirection": [
+    "Keep one server session across subsequent measurement areas so the hidden ledger and conversation continue accumulating.",
+    "Carry a bounded participant-answer memory in browser audit/recovery state and into continuation planning.",
+    "Auto-advance after local topic completion, direct participant-authored pattern recording, and successful inferential synthesis adjudication.",
+    "Keep Finish for now visible at every stage.",
+    "Run a separate low-cost pre-send admission pass for generated questions; replace or stop questions that fail redundancy/information-value checks.",
+    "Hide the redundant explanatory-revision button and rename the distinct literal override to 'Write exact wording to record'."
+  ],
+  "verificationBoundary": "Owner consumer-seam retest: no redundant Continue checkpoint in normal flow; Finish always visible; previously answered material not re-asked; low-value questions rejected/replaced before display; synthesis review exposes one free-form feedback channel plus a distinct exact-wording override."
+}

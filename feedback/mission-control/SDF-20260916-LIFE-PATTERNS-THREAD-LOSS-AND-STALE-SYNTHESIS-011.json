@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-THREAD-LOSS-AND-STALE-SYNTHESIS-011",
+  "recordedAt": "2026-09-16T01:15:26Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "ok it was too repetitive, there was no progress indicated at all during all this time, there was no final synthesis, and pressing Yes just gave an error at bottom, and there was no way progress so i'm afraid i lost all that? no way to recover?",
+  "privacyBoundary": "The exact private interview narrative is intentionally omitted. Only the non-sensitive owner correction and abstract failure mechanisms are recorded.",
+  "observedFailures": [
+    {
+      "failure": "The interviewer repeated semantically equivalent questions after a long thread.",
+      "supportedMechanism": "The planning calls retained only a short tail of recent conversation, so earlier answered observer-view and scope questions fell outside the model-visible window and became eligible to be asked again."
+    },
+    {
+      "failure": "The progress display remained at zero throughout a long active thread.",
+      "supportedMechanism": "Coverage aggregation was updated only after participant adjudication of a completed pattern, so substantial evidence collected inside an unsettled thread was invisible to the participant-facing progress calculation."
+    },
+    {
+      "failure": "The thread ended without a new final synthesis after extensive refinement.",
+      "supportedMechanism": "The refinement schema explicitly prohibited surface_hypothesis, so once refinement began it could only ask more questions or announce that no useful question remained; it could not produce an updated synthesis for participant judgment."
+    },
+    {
+      "failure": "Accepting the stale synthesis failed because its grounding referenced a fact the participant had corrected later in the same thread.",
+      "supportedMechanism": "A tentative proposal was committed into the v2 record before participant adjudication while later refinement could supersede its supporting facts. The proposal therefore remained structurally active after its evidence became non-operative."
+    },
+    {
+      "failure": "The owner reasonably feared the entire interview had been lost after the server-side flow failed.",
+      "supportedMechanism": "The development app kept its hidden ledger in process memory and had no browser-local recovery copy of visible turns. A deployment restart or invalid session therefore had no participant-controlled recovery artifact."
+    }
+  ],
+  "logicLessons": [
+    "A long adaptive interview needs durable semantic memory of what has already been asked and answered; a sliding context tail is not enough when repetition itself is a failure mode.",
+    "Participant-facing progress must update from evidence gathered during the active thread, not only after final adjudication.",
+    "A refinement state that can continue asking questions must also have a lawful path to emit the revised synthesis that ends refinement.",
+    "Do not commit a tentative proposal into the durable semantic record before participant judgment if later refinement can invalidate its evidence; keep the working synthesis ephemeral until adjudication or provide explicit proposal-supersession semantics.",
+    "An in-memory development interview needs participant-controlled local recovery of visible turns so infrastructure restarts do not convert product bugs into data loss."
+  ],
+  "repairStatus": "IMPLEMENTATION_CANDIDATE_IN_HUMANDESIGN; owner transcript recovered privately from current chat, CI/deployment verification pending at capture time",
+  "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
+  "nextVerificationBoundary": "Retest a long thread and verify: no semantic duplicate questions, visible progress changes before adjudication, refinement ends with an actual updated synthesis, acceptance succeeds after participant corrections, and a browser-local recovery copy is available."
+}

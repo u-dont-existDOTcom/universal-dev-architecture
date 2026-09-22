@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-WRONG-RESULT-DETECTION-001",
+  "createdAt": "2026-09-16T19:48:18Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "EXPLICIT_MISSION_CONTROL_RECORDING",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": {
+    "verbatim": "btw you should record in mission control that you failed to tell me i pasted the wrong results the first time.",
+    "sha256": "2040c8aa8a19360c7878293d07c2014a9e6906551d0d3fc2880c10f8b4fd3859"
+  },
+  "type": "FAILURE",
+  "category": "CONTRACT_INTEGRITY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "The assistant failed to detect and explicitly report that an owner-pasted worker receipt belonged to a different task/result than the pending result being reconciled. It treated the unrelated receipt as useful continuation state instead of first validating that the receipt matched the active open obligation.",
+  "failureMechanism": {
+    "class": "RESULT_IDENTITY_BINDING_FAILURE",
+    "boundary": "worker-result intake / open-obligation reconciliation",
+    "observedTraceFacts": [
+      "The owner first pasted a Remote Desktop Commander pairing receipt.",
+      "The assistant responded to that receipt as valid adjacent progress and did not say that it was not the expected worker-result receipt.",
+      "The owner later pasted the actual result for the separate existing-Chromium bridge pilot and explicitly identified the earlier mismatch."
+    ],
+    "supportedCausalInference": "The generating failure was lost carry-through of the active expected-result identity at the result-intake boundary. The assistant did not compare the incoming receipt's task/result identity against the still-open obligation before treating the receipt as progress.",
+    "unverifiedHypotheses": []
+  },
+  "affectedOutcome": "Correctly reconcile a worker result to the exact task that produced it before updating Mission Control state or advising the owner on next steps.",
+  "relevantRules": [
+    {
+      "path": "AGENTS.md",
+      "section": "Workflow / open obligations",
+      "excerpt": "When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, explicitly superseded, or invalidated by new evidence."
+    },
+    {
+      "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "section": "Checkpoint and packet requirements",
+      "excerpt": "A downstream checkpoint or packet must preserve the originating owner outcome and current gaps rather than substituting supporting evidence for the actual required result."
+    },
+    {
+      "path": "patterns/owner-marked-mission-control-failure-capture.md",
+      "section": "Required capture boundary",
+      "excerpt": "Explicit owner-marked failures must be written durably from ordinary Chat when GitHub write access exists."
+    }
+  ],
+  "evidenceRefs": [
+    "current-chat:2026-09-16:owner-first-pasted-rdc-pairing-result",
+    "current-chat:2026-09-16:owner-later-pasted-CODEX_EXISTING_CHROMIUM_BRIDGE_PILOT-result"
+  ],
+  "impact": {
+    "ownerBurden": "The owner had to recognize and correct the result mismatch manually.",
+    "stateRisk": "An unrelated execution receipt could be mistaken for satisfaction or progress on a different active task, causing wrong continuation decisions or hiding the actual missing result."
+  },
+  "proposedChange": "At every worker-result intake, bind the incoming receipt to the current open obligation before interpreting it. Require a task/result identity match from explicit receipt fields, expected verdict family, directive identity, or another source-bound identifier. If the result is unrelated or identity cannot be established, say so immediately, treat the pasted material only as adjacent context, and keep the expected result open.",
+  "acceptanceRegressions": [
+    "Pending task A expects an A-specific result; owner pastes a clearly B-specific receipt -> assistant explicitly identifies the mismatch and does not close or advance A from B's evidence.",
+    "Incoming receipt is useful adjacent context but does not match the open obligation -> assistant may record the adjacent fact while still stating that the expected result remains missing.",
+    "Receipt identity is ambiguous -> assistant reports identity unresolved rather than silently assigning it to the active task.",
+    "A later correct receipt arrives -> assistant reconciles it to the still-open obligation without requiring the owner to reconstruct why the prior receipt was unrelated."
+  ],
+  "privacyBoundary": "No private chat locator, account identifier, credential, device identifier, filesystem path, or private infrastructure detail is published. The record preserves only the non-sensitive task/result mismatch mechanism and the owner's exact current correction.",
+  "status": "PENDING_REVIEW",
+  "nextVerificationBoundary": "The next fresh owner-pasted worker receipt while a different open obligation exists should trigger explicit task/result identity reconciliation before any state update."
+}

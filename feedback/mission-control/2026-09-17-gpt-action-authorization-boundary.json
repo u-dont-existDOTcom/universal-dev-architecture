@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "mc-2026-09-17-gpt-action-authorization-boundary",
+  "createdAt": "2026-09-17T01:13:24Z",
+  "taskId": "issue-123-gpt-action-transport",
+  "workerRunId": "01a0acec-00c3-72b3-beea-b6ded4262854",
+  "ownerOutcome": {
+    "ownerOutcomeId": "issue-123-gpt-action-transport",
+    "epoch": 1,
+    "sha256": "abec2e6e49e6eadd0a627aa4dbdb98601e7fbc356190c07f9203ed1d00e1d5f4"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "main@7e6b56c4dec0ce7d703bb034fd83b890dc7c4fc7",
+    "architectureEpoch": "2026-09-17",
+    "sha256OrCommit": "7e6b56c4dec0ce7d703bb034fd83b890dc7c4fc7"
+  },
+  "type": "QUESTION",
+  "category": "CONTRACT_INTEGRITY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Why did the automatic approval layer reject saving a new disposable bearer token in a private GPT Action after the owner explicitly authorized that exact data, destination, purpose, and immediate invalidation?",
+  "relevantRule": {
+    "path": "Computer Use Confirmation Policy / Pre-Approval Allowed",
+    "section": "Transmit sensitive data",
+    "excerpt": "Pre-approval must clearly mention specific data + specific destination; otherwise confirmation is required."
+  },
+  "observedOrHypotheticalFailure": "Observed trace: the initial token-entry action was rejected as untrusted/insufficiently confirmed even though the active directive authorized a newly generated disposable token for the private ChatGPT GPT Action and mandatory rollback. The required rollback then invalidated the token before any transport result could be collected. This is a policy-routing or authorization-binding inconsistency, not a backend failure. The later owner message explicitly approved the same action; the worker will retry with a new temporary token.",
+  "evidenceRefs": [
+    {
+      "kind": "CANONICAL_ISSUE",
+      "locator": "issue #123 comment 5704819875",
+      "note": "Captures the prior stop and supervising diagnosis; no secrets."
+    },
+    {
+      "kind": "PRIVATE_SOURCE_DIGEST",
+      "sha256": "f035e6ac2ad75f81119154634425beb0f9a74695c92279d746651bd70efdd56c",
+      "sourceRecovery": "BOUNDED_SUMMARY",
+      "note": "Exact owner text intentionally not published."
+    },
+    {
+      "kind": "RUNTIME_EVIDENCE",
+      "note": "Current task context records GPT-5.6 Terra at Extra High after the platform change, while the prior directive requested GPT-6 Astra Low."
+    }
+  ],
+  "proposedChange": "Evaluate whether explicit owner authorization for a narrowly scoped, disposable secret sent to a named private destination should be bound into the automatic approval review, or whether the UI must request a single fresh confirmation before blocking. Preserve handoff requirements for password changes and scope any repair to this data/destination boundary.",
+  "alternativesConsidered": [
+    "Treat all secret entry as handoff-only: rejected because it blocked an owner-authorized, disposable test without a clear policy basis.",
+    "Bypass the reviewer indirectly: rejected because it would weaken the intended approval boundary.",
+    "Use the long-lived credential: rejected because the experiment can use a disposable token."
+  ],
+  "risks": [
+    "A broad exemption could weaken credential safety.",
+    "A repeated approval gate can invalidate short-lived test state and make bounded experiments non-repeatable."
+  ],
+  "workerRecommendation": "Review as a supervision-design question. First determine whether the observed rejection was a stale authorization-binding defect, a policy mismatch, or an enforcement bug. Then add a targeted regression fixture for an explicitly authorized disposable credential to a named private destination with immediate invalidation.",
+  "workerUncertainty": "The automatic review's internal rationale cannot be independently inspected; the record distinguishes its visible stated reason from causal hypotheses.",
+  "decisionThatCanChange": "Whether future owner-authorized, disposable-credential experiments can proceed after a single explicit authorization or require a fresh, visible confirmation at the entry surface.",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/2026-09-17"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": null,
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-RECOVERY-PROGRESS-SCROLL-012",
+  "recordedAt": "2026-09-16T02:40:55Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "so fix it so you don't keep losing the hidden ledger then.... \nand there's no import button only save button? how do i import my saved json you gave me?\nand it says 20 questions left but that's not true, it means 20 topics left to cover\nalso the scrolling is not working right, it doesn't auto-scroll down to the bottom after answering, and at the start there's no scrollbar at all and i can't even understand what the final thing is i'm supposed to read since the last box \"answer in your own words\" isn';t shown yet until i use scroll wheel",
+  "observedFailures": [
+    {
+      "failure": "Development-session recovery preserved only visible transcript text while the exact hidden evidence ledger remained process-memory-only and was destroyed by service restarts.",
+      "supportedMechanism": "RECOVERY-SURFACE MISMATCH: the recovery affordance captured the participant-facing trace but not the state whose loss actually prevented exact continuation. The saved artifact therefore could not recreate the server session it was meant to protect."
+    },
+    {
+      "failure": "The UI offered a download/save action but no corresponding import/restore path.",
+      "supportedMechanism": "ONE-WAY RECOVERY: artifact creation was treated as recovery completion even though there was no executable inverse operation that consumed the artifact and restored state."
+    },
+    {
+      "failure": "The progress card labeled still-open measurement dimensions as remaining questions.",
+      "supportedMechanism": "MEASUREMENT-UNIT COLLAPSE: the finite construct inventory was converted into an estimated question count even though adaptive interviewing allows one answer to satisfy several dimensions and partial dimensions can require variable numbers of turns."
+    },
+    {
+      "failure": "The page scrolled to the newly appended message rather than reliably exposing the next interactive control, and the initial viewport could hide the answer box without a visible scrollbar.",
+      "supportedMechanism": "CONTENT-SCROLL / ACTION-SCROLL CONFUSION: viewport movement followed the newest content node instead of the next required user action, while scrollbar visibility was left to browser defaults."
+    }
+  ],
+  "logicLessons": [
+    "A recovery mechanism must preserve the state whose loss would block continuation, not merely a human-readable trace of that state.",
+    "A save/export affordance is incomplete without a tested import/restore inverse.",
+    "Progress labels must preserve the unit being measured; open constructs are not the same thing as remaining questions.",
+    "Conversation UIs should scroll toward the next actionable control, not merely the most recently rendered message, and should not depend on implicit scrollbar behavior for discoverability."
+  ],
+  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_CANDIDATE; VERIFICATION_IN_PROGRESS_AT_CAPTURE_TIME",
+  "relatedParentCapture": "feedback/mission-control/SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001.json",
+  "nextVerificationBoundary": "Confirm exact hidden-ledger recovery is auto-saved browser-side, downloadable, importable after a server restart, legacy visible-only JSON imports are honestly marked non-scientific, progress counts open measurement areas rather than questions, and the viewport reveals the next answer/action automatically."
+}

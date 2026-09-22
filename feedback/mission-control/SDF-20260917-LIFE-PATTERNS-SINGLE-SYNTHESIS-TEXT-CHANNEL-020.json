@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260917-LIFE-PATTERNS-SINGLE-SYNTHESIS-TEXT-CHANNEL-020",
+  "recordedAt": "2026-09-17T15:24:00Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "these buttons are duplicating the function of the existing textbox asking me to write what fits: **Close — I’ll explain what needs changing. Edit exact wording myself. unless i am misunderstanding the intended functions of all 3?**",
+  "privacyBoundary": "The quoted correction is product/workflow feedback only. No private interview narrative or uploaded hidden-ledger content is copied into this public repository.",
+  "supersedesOnly": {
+    "artifact": "feedback/mission-control/SDF-20260917-LIFE-PATTERNS-CONTINUATION-QUESTION-ADMISSION-019.json",
+    "priorSubconclusion": "Retain a separate participant-facing exact-wording button because literal storage is a distinct backend intent.",
+    "reason": "The backend may need to distinguish conversational correction from literal replacement, but that does not require separate participant controls when one free-form input can carry both intents explicitly."
+  },
+  "observedFailure": {
+    "id": "BACKEND-INTENT-DISTINCTION-LEAKED-INTO-UI",
+    "mechanism": "The repair correctly removed the explanatory-revision button but preserved a second 'exact wording' button because the storage contract was technically different. That converted an internal processing distinction into an unnecessary participant-facing choice even though the existing textbox could express either intent.",
+    "logicLesson": "Do not multiply user controls merely because the backend has multiple intent classes. If one flexible input can express the distinction unambiguously, keep one interaction channel and infer or explicitly mark the narrower intent within it. Product semantics should determine controls, not implementation-state taxonomy."
+  },
+  "repairDirection": [
+    "Use the always-visible synthesis textbox as the single participant text-entry channel for disagreement, nuance, correction, missing context, or replacement wording.",
+    "Hide both 'Close — I’ll explain what needs changing' and 'Edit exact wording myself'.",
+    "When literal wording matters, allow the participant to state that intent in the same textbox, for example with 'Exact wording: ...', while preserving the exact text rather than conversationally paraphrasing it.",
+    "Keep non-text workflow actions such as Accept, Keep investigating, Reject/stop, and Leave unresolved only where they perform genuinely different state transitions."
+  ],
+  "verificationBoundary": "Owner consumer-seam retest: inferred-synthesis review exposes one free-form correction/rewriting textbox rather than multiple text-entry modes; literal wording remains expressible without a dedicated edit button."
+}

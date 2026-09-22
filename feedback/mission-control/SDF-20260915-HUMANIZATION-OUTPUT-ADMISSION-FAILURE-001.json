@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260915-HUMANIZATION-OUTPUT-ADMISSION-FAILURE-001",
+  "createdAt": "2026-09-15T19:43:00Z",
+  "taskId": "inner-child-humanization-owner-teaching-loop",
+  "workerRunId": "chat-direct-20260915",
+  "type": "DEFECT",
+  "category": "OWNER_OUTCOME_AND_OUTPUT_ADMISSION_GATE_FAILURE",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": true,
+  "captureIntent": "EXPLICIT_MISSION_CONTROL_CAPTURE_REQUEST",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "yes i also don't like how it's giving me the writing to check and it already knows there's a problem, stop giving me the writing if you already know it looks a bit ai.",
+  "boundedSummary": "During paragraph-level humanization, Chat cold-read its own candidate as retaining a model-shaped sentence but still surfaced that candidate to the owner for evaluation. In the immediately related detector decision, exact repeated Pangram results later showed Human/Human/Human/AI, yet Chat temporarily reframed the AI result as noise and argued against rewriting. Both behaviors violated the stated operation goal: produce prose that is editorially clean before owner delivery and robustly Human at the intended Pangram boundary.",
+  "failureMechanism": {
+    "observedTraceFacts": [
+      "The assistant explicitly identified a residual model-shaped sentence before owner delivery.",
+      "The assistant nevertheless delivered the candidate and asked the owner to judge it.",
+      "The production humanization preflight already required revising while a substantive AI-shape diagnosis remained before a paid detector call.",
+      "The standing detector completion target required the intended delivery boundary to pass as Human rather than treating a borderline/partial result as completion.",
+      "The owner then explicitly corrected both the detector-acceptance inference and the owner-facing delivery behavior."
+    ],
+    "supportedCausalInference": "The humanization controls had pre-detector surprise/admission logic but no equally explicit owner-facing candidate admission enforcement in the active loop. The diagnostic cold read was therefore treated as commentary rather than as a blocking delivery gate. Separately, detector nondeterminism was allowed to change the acceptance interpretation instead of preserving the owner outcome invariant. This is a phase/destination enforcement failure plus owner-outcome carry-through failure, not evidence that the underlying humanization target was unclear.",
+    "unverifiedHypotheses": []
+  },
+  "affectedControls": [
+    "owner-outcome invariant",
+    "production humanization preflight",
+    "task-time lesson admission",
+    "owner-facing candidate delivery",
+    "detector completion gate"
+  ],
+  "requiredRepair": [
+    "Before showing Joel a humanization candidate, run a literal cold output-admission check. If Chat can name a credible model-shaped defect it actually believes, the candidate is blocked from owner delivery and must be revised first.",
+    "Do not use the owner as the first-line detector/critic for a defect already detected internally.",
+    "Keep detector instability and production acceptance separate: contradictory exact repeats are uncertainty about classification evidence, not permission to lower a robust-Human acceptance target.",
+    "Only surface a candidate for owner judgment when the internal cold read has no known substantive AI-shape defect, or when Chat is genuinely stuck and explicitly needs owner cognition rather than routine proofreading."
+  ],
+  "evidenceRefs": [
+    "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/HUMANIZATION-WRITER-STATE-20260915.md",
+    "u-dont-existDOTcom/joel-articles:articles/inner-child-therapy/experiments/EPISODE-003-RESULT-20260915.json",
+    "u-dont-existDOTcom/pangram-humanization-lab:state/generation/RETRIEVAL-FIRST-OWNER-TEACHING-PROTOCOL.md"
+  ],
+  "status": "CAPTURED_BRANCH_ONLY_REPAIR_PENDING",
+  "nextVerificationBoundary": "On the next Inner Child paragraph, Chat must withhold any candidate that its own cold read still diagnoses as even credibly model-shaped, revise internally, and surface only a candidate that passes the owner-facing admission check or an explicit unresolved-authorial handoff if no faithful repair is known."
+}

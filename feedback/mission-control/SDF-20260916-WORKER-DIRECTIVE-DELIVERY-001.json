@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-WORKER-DIRECTIVE-DELIVERY-001",
+  "createdAt": "2026-09-16T22:33:00Z",
+  "taskId": "chatgpt-storage-canary-continuation",
+  "workerRunId": "chat-supervisor-handoff-20260916",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-WORKER-DIRECTIVE-DELIVERY-001",
+    "epoch": 1,
+    "sha256": "7f0b4ca290d37a877a0990ea22318901594a7bca0f247b346cbb585c03369024"
+  },
+  "ownerSource": {
+    "captureType": "EXACT_TEXT",
+    "capturedAt": "2026-09-16T22:33:00Z",
+    "exactText": "so you are giving a correction without actually giving the instructions? you want me to cut and paste and figur eout how to rewrite the instructions or what are you asking me to do? if this was an error on your part then save that to mission control lessons also",
+    "exactTextSha256": "7f0b4ca290d37a877a0990ea22318901594a7bca0f247b346cbb585c03369024"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "main",
+    "architectureEpoch": "worker-directive-delivery-enforcement",
+    "sha256OrCommit": "ad76fcac1aed29658dbdab6575f91965573e6c51"
+  },
+  "type": "DEFECT",
+  "category": "WORKER_DIRECTIVE_DELIVERY",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": true,
+  "exactIssue": "Chat had already selected Work as the next execution surface and had authored a continuation directive, but the owner-facing launch instruction ended with an ambiguous referent ('the directive above') instead of unambiguously telling the owner to paste the entire supplied block unchanged into the same Work task. Although the detailed block existed in the response, the delivery surface left the owner uncertain whether they were expected to reconstruct or rewrite the correction before execution.",
+  "relevantRule": {
+    "path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+    "section": "Same-turn worker-handoff closure / Packaged directive launchability",
+    "excerpt": "When the next concrete action belongs to Codex/Work, the reasoning chat must deliver the runnable execution directive in the same turn."
+  },
+  "observedOrHypotheticalFailure": "A valid worker directive can be present but still fail operationally when the launch instruction does not identify the exact payload and exact action. The owner then has to infer whether to copy, rewrite, combine, or reconstruct instructions, which defeats the rule's purpose of making the handoff owner-runnable without another clarification turn.",
+  "evidenceRefs": [
+    {
+      "type": "owner_correction",
+      "sourceQuality": "EXACT_TEXT",
+      "exactTextSha256": "7f0b4ca290d37a877a0990ea22318901594a7bca0f247b346cbb585c03369024"
+    },
+    {
+      "type": "assistant_delivery_trace",
+      "sourceQuality": "BOUNDED_SUMMARY",
+      "facts": [
+        "A complete Work continuation block was present in the prior response.",
+        "The final launch instruction referred only to 'the directive above'.",
+        "The owner reported uncertainty about whether they had to cut, paste, and rewrite instructions themselves."
+      ]
+    }
+  ],
+  "proposedChange": "Enforce the existing worker-directive delivery rule at the final owner-facing surface: when a directive is supplied in a writing block, artifact, or inline block, the launch line must identify that exact payload and exact action, e.g. 'Copy the entire block below unchanged into the same Work task and send it as your next message.' Add a regression covering the case where a complete directive exists but the launch text uses an ambiguous referent such as 'use the directive above'.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Treat the presence of the full directive block as sufficient.",
+      "rejectedBecause": "The observed owner confusion demonstrates that payload presence alone does not guarantee launchability."
+    },
+    {
+      "alternative": "Create another handoff schema or lesson database.",
+      "rejectedBecause": "The existing worker-directive rule and Mission Control feedback family already own this failure class; the defect is enforcement/carry-through, not missing storage architecture."
+    }
+  ],
+  "risks": [
+    "Overly repetitive launch text could add minor verbosity.",
+    "A regression must distinguish genuinely ambiguous references from short but still unambiguous copy/paste instructions."
+  ],
+  "workerRecommendation": "Keep the existing rule, add a narrow delivery-enforcement regression, and require exact entrypoint/action language before a worker-bound turn can be considered owner-runnable.",
+  "workerUncertainty": "No uncertainty about the observed delivery failure. The minimal enforcement mechanism can be chosen during implementation.",
+  "decisionThatCanChange": "Whether worker-bound Chat responses are allowed to complete when the directive payload exists but the owner-facing launch instruction does not unambiguously identify what to send and where.",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": false,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/worker-directive-delivery"
+  },
+  "status": "OWNER_MARKED_CAPTURE",
+  "proMetaReview": null,
+  "ownerDecisionRef": "owner-correction-2026-09-16-worker-directive-delivery",
+  "repositoryChangeRefs": [],
+  "testRefs": [
+    "future regression: complete directive present + ambiguous launch referent must not satisfy OWNER_RUNNABLE_DIRECTIVE_DELIVERED"
+  ]
+}

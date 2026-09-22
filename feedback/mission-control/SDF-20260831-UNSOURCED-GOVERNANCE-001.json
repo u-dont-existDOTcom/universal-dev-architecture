@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-UNSOURCED-GOVERNANCE-001",
+  "createdAt": "2026-08-31T16:00:27Z",
+  "taskId": "askrigor-public-evidence-gap-intake",
+  "workerRunId": "codex-root-20260831-issue150",
+  "ownerOutcome": {
+    "ownerOutcomeId": "public-self-serve-evidence-gap-intake",
+    "epoch": 1,
+    "sourceRefs": [
+      "https://github.com/u-dont-existDOTcom/AskRigor/issues/150#issuecomment-5480845723"
+    ]
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "task/mission-control-continuation-hotfix-20260831",
+    "architectureEpoch": "supervision-architecture/2026-08-31",
+    "baseCommit": "f0fbc0ae44b8d2f93ed54ac9a1b68c504fa3fdc0"
+  },
+  "type": "DEFECT",
+  "category": "UNSOURCED_GOVERNANCE_ADDITION",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "A chat-authored AskRigor directive added an invite-only pilot plus consolidated staffing, moderation, jurisdiction, and launch gates that were absent from the owner's request. The execution worker then treated those derived gates as owner authority and reported them as the required next boundary.",
+  "rootCause": {
+    "primary": "The supervision model checked whether the worker followed the derived contract and whether owner requirements were omitted, weakened, or replaced, but did not represent material constraints added by the controller. An invented gate could therefore survive as apparently aligned.",
+    "amplifiers": [
+      "Health/privacy safeguards were generalized from data-handling constraints into a product strategy and organizational operating model.",
+      "Repository vocabulary and earlier artifacts repeatedly used the word pilot, creating a familiar heuristic attractor.",
+      "The worker deferred to a chat-authored issue instead of checking whether its institutional requirements had an independently traceable owner source."
+    ],
+    "ownerDidNotRequest": [
+      "an invite-only pilot",
+      "institutional research operations",
+      "a consolidated staffing gate",
+      "a jurisdictional launch program"
+    ]
+  },
+  "observedFailure": "The owner had to reject a needlessly inflated institutional framing and restate the simple product outcome: the public fills out forms as best they can, partial submissions remain usable and labeled, and AskRigor/GPT examines the submissions as evidence leads.",
+  "evidenceRefs": [
+    "https://github.com/u-dont-existDOTcom/AskRigor/issues/150",
+    "https://github.com/u-dont-existDOTcom/AskRigor/issues/150#issuecomment-5480787428",
+    "https://github.com/u-dont-existDOTcom/AskRigor/issues/150#issuecomment-5480845723"
+  ],
+  "proposedChange": "Require every material constraint added by a derived task contract to be classified as owner-sourced, externally mandatory with exact authority, or unsupported. Make a nonempty unsupported-added-constraint list force contract-to-owner DIVERGED and RED, even when worker-to-contract remains GREEN. State explicitly that safety/privacy requirements constrain handling but do not create an institutional operating model by default.",
+  "implementation": {
+    "schemaField": "task_contract_recorded.unsupported_added_constraints",
+    "reasonCode": "UNSUPPORTED_CONSTRAINT_ADDITION",
+    "projectionBehavior": "Explain that the derived contract added a material gate unsupported by the independent owner source.",
+    "hostileFixture": "A worker remains GREEN while its contract invents an invite-only pilot and staffing gate; Mission Control must mark contract-to-owner DIVERGED, root RED, and root terminalization forbidden."
+  },
+  "alternativesConsidered": [
+    {
+      "alternative": "Rely on future supervisors to notice the mismatch in prose",
+      "disposition": "REJECTED_NON_MECHANICAL"
+    },
+    {
+      "alternative": "Remove privacy and safety safeguards from public intake",
+      "disposition": "REJECTED_FALSE_DICHOTOMY"
+    },
+    {
+      "alternative": "Treat every externally prudent safeguard as an owner decision gate",
+      "disposition": "REJECTED_OWNER_INTENT_INFLATION"
+    }
+  ],
+  "risks": [
+    "The field depends on a reasoning supervisor identifying the added constraint; natural-language semantic detection remains outside this deterministic slice.",
+    "A genuinely mandatory legal or platform constraint must retain its exact external authority rather than being mislabeled unsupported.",
+    "Removing an invented governance gate must not remove directly applicable consent, privacy, security, or release controls."
+  ],
+  "workerRecommendation": "Adopt the schema/comparator control and the bootstrap wording now. In later work, evaluate whether directive generation should require explicit per-constraint provenance rather than only recording unsupported additions.",
+  "workerUncertainty": "The deterministic runtime can reject a declared unsupported addition but cannot independently infer from free text whether a constraint lacks authority. A future structured constraint-provenance table may be warranted if this failure recurs.",
+  "decisionThatCanChange": "Whether Mission Control can report MATCH when a derived contract invents a material organizational or launch constraint that the owner did not request.",
+  "routing": {
+    "extraHighPacketPrepared": true,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "BATCH",
+    "sharedProScopeKey": "supervision-architecture/2026-08-31"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "repositoryChangeRefs": [
+    "templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md",
+    "docs/exec-plans/2026-08-31-current-workers-chat-supervisor-migration-instruction.md",
+    "tools/codex-mission-control/IMPLEMENTATION-SPEC.md",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts"
+  ],
+  "testRefs": [
+    "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts::an unsupported institutional gate cannot remain aligned with the owner"
+  ]
+}
