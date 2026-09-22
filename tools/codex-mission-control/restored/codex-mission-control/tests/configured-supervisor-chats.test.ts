@@ -61,7 +61,7 @@ test("the global Project Manager identity is exactly mc-project-manager", () => 
 });
 
 test("legacy fixed model controls normalize to the current top-model selection policy", () => {
-  const directory = loadConfiguredSupervisorChats(JSON.stringify([entry("PROJECT_MANAGER", CANONICAL_PROJECT_MANAGER_ID)]));
+  const directory = loadConfiguredSupervisorChats(JSON.stringify([configuredEntry()]));
   assert.equal(directory.configurationState, "CONFIGURED");
   assert.equal(directory.entries[0]?.consumerControls.modelSelectionPolicy, "TOP_VISIBLE_SELECTABLE_MODEL");
   assert.equal(directory.entries[0]?.consumerControls.thinkingVisibleLabel, "Extra High");
