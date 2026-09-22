@@ -33,6 +33,8 @@ The UDA-specific remainder is the relation vocabulary and its binding to lesson 
 
 ## Canonical graph
 
+Machine status: `ROUTING_METADATA_NOT_NORMATIVE_AUTHORITY`.
+
 Machine-readable source:
 
 `rules/UDA-RULE-GRAPH.json`
