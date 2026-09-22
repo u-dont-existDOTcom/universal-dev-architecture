@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildJevShadowState, MISSION_CONTROL_JEV_QUESTIONS, observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { seedIssue47Store } from "../lib/seed";
+import type { StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 
 function issue47Events() {
@@ -65,6 +66,46 @@ test("Jev receives only allowlisted control-plane state and returns typed teleme
   assert.deepEqual(Object.keys(request.questions).sort(), Object.keys(MISSION_CONTROL_JEV_QUESTIONS).sort());
   const serialized = JSON.stringify(captured);
   assert.doesNotMatch(serialized, /project:human-design|task:|supervisor_chat|description|exact_text|goal|message/i);
+});
+
+
+test("Jev state explicitly marks an open structured blocker", () => {
+  const events = issue47Events();
+  const template = events.at(-1)!;
+  const withOwnerBlocker = [
+    ...events,
+    {
+      ...template,
+      sequence: template.sequence + 1,
+      eventId: "event:jev-owner-blocker",
+      data: {
+        type: "structured_blocker_recorded",
+        worker: "human-design",
+        blocker_id: "blocker:jev-owner",
+        task_id: "task:human-design",
+        direction_id: "direction:human-design",
+        queue_item_id: null,
+        status: "OPEN",
+        severity: "BLOCKING",
+        title: "Owner action required",
+        description: "Synthetic Jev calibration fixture.",
+        impact: "Blocked until owner action.",
+        blocking_scope: ["task:human-design"],
+        workaround_available: false,
+        workaround: null,
+        required_actor: { kind: "OWNER", id: "owner:primary" },
+        evidence_refs: [],
+        reported_by: "worker:human-design",
+        needs_owner: true,
+        reported_at: "2026-09-22T00:00:00.000Z",
+      },
+    } as StoredEvent,
+  ];
+
+  const state = buildJevShadowState(withOwnerBlocker, { valid: true });
+  assert.equal(state.open_blocker_present, true);
+  assert.equal(state.blocker_actor_kind, "OWNER");
+  assert.equal(buildJevShadowState(events, { valid: true }).open_blocker_present, false);
 });
 
 test("state-build and timeout failures stay non-authoritative", async () => {

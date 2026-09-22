@@ -10,6 +10,7 @@ export interface JevShadowState {
   chain_valid: boolean;
   queue_terminal: boolean;
   owner_action_kind: string;
+  open_blocker_present: boolean;
   blocker_actor_kind: string;
   delivery_status: string;
   delivery_error_family: string;
@@ -57,8 +58,8 @@ export const MISSION_CONTROL_JEV_QUESTIONS = {
     type: "noul",
     instructions: "Does this control state require a substantive owner decision or unavoidable owner-only action before authorized progress can continue?",
     criteria: {
-      true: "An open owner action, owner actor blocker, or decision-required correction is present.",
-      false: "The state is healthy, terminal, externally blocked, mechanically recoverable, or can be handled by the existing reasoning/execution authority.",
+      true: "owner_action_kind is DECISION_REQUIRED or MANUAL_INTERVENTION_REQUIRED; or open_blocker_present is true with blocker_actor_kind OWNER; or correction_owner_action_type is DECISION_REQUIRED.",
+      false: "None of those owner-only conditions is present. VERIFY_RESULT alone does not mean a substantive owner decision is required.",
     },
   },
   engineering_blocker: {
@@ -79,7 +80,7 @@ export const MISSION_CONTROL_JEV_QUESTIONS = {
   },
   next_action: {
     type: "choice",
-    instructions: "Which single control-plane action best matches this state?",
+    instructions: "Apply this ordered control policy exactly. First choose hold_integrity if chain_valid is false, contract_owner_alignment is SOURCE_MISSING, or outcome_advancement is UNKNOWN. Otherwise choose stop_terminal if queue_terminal is true. Otherwise choose notify_owner if owner_action_kind is DECISION_REQUIRED or MANUAL_INTERVENTION_REQUIRED, or if open_blocker_present is true and blocker_actor_kind is OWNER. Otherwise choose wait_external if open_blocker_present is true and blocker_actor_kind is EXTERNAL. Otherwise choose continue_mechanical if delivery_status is DELIVERY_FAILED and delivery_error_family is PRE_SEND or PROCESS. Otherwise choose route_reasoning if pending_reasoning_review is true or review_freshness is OVERDUE. Otherwise choose route_reasoning if outcome_advancement is FLAT or REGRESSING, or strategy_efficacy is FAILED, REPLACEMENT_REQUIRED, or EXHAUSTED. Otherwise choose route_reasoning if active_directive_present is false and execution_state is not PARKED. Otherwise choose no_action_healthy.",
     criteria: {
       no_action_healthy: "Healthy authorized progress; no intervention is needed.",
       continue_mechanical: "A bounded mechanical recovery can continue under existing authority.",
@@ -117,6 +118,7 @@ export function buildJevShadowState(events: readonly StoredEvent[], chain: { val
     chain_valid: chain.valid,
     queue_terminal: Boolean(queueTerminal),
     owner_action_kind: ownerAction && "owner_action" in ownerAction ? ownerAction.owner_action.kind : "NONE",
+    open_blocker_present: blocker?.type === "structured_blocker_recorded",
     blocker_actor_kind: blocker?.type === "structured_blocker_recorded" ? blocker.required_actor.kind : "NONE",
     delivery_status: delivery?.type === "outbound_delivery_lifecycle_recorded" ? delivery.status : "NONE",
     delivery_error_family: delivery?.type === "outbound_delivery_lifecycle_recorded"

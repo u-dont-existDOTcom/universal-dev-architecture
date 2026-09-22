@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-jev-calibration-20260922",
+  "integration_branch": "main",
+  "integration_base_sha": "23505aa62d754c65c397d8d84c704c4747bc74b9",
+  "scope": "Calibrate Jev shadow state encoding and live synthetic Mission Control classification"
+}
