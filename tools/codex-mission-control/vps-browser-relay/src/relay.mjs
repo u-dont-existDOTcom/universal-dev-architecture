@@ -58,12 +58,12 @@ export class RelayRuntime {
     this.logger = logger;
   }
 
-  async doctor() {
+  async doctor({ readOnly = false } = {}) {
     let state = await this.stateStore.read();
-    state = await this.#markInterruptedIntents(state);
+    if (!readOnly) state = await this.#markInterruptedIntents(state);
     const [metrics, browser, snapshot, centralScheduler] = await Promise.all([
       this.memoryReader(this.config.browser.profileDir),
-      this.browser.doctor(),
+      this.browser.doctor({ readOnly }),
       this.missionControl.fetchFleet(),
       this.submissionPacer.remoteStatus(),
     ]);
@@ -104,7 +104,7 @@ export class RelayRuntime {
       chatCapabilities,
       unresolvedAmbiguities: unresolvedAmbiguities(state),
     };
-    await this.stateStore.writeStatus(result);
+    if (!readOnly) await this.stateStore.writeStatus(result);
     return result;
   }
 
