@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-MC-ACCESS-OWNER-VIEW-20260917",
+  "recorded_at": "2026-09-17T00:29:24.864053+00:00",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "Produce the working candidate, not another design-only review.",
+    "sha256": "3a46c9d500e712cb985402bbd72a4b25040b9dba0ef1359ddef821bd1d92b4cb",
+    "source_type": "exact_non_sensitive_owner_message_excerpt",
+    "source_ref": "current-owner-request:2026-09-17",
+    "provider_source_timestamp": null
+  },
+  "directive_artifact": {
+    "filename": "MC-ACCESS-AND-OWNER-VIEW-WORK.md",
+    "directive_id": "MC-ACCESS-AND-OWNER-VIEW-20260917-v2",
+    "sha256": "bfc560d140fee6b7361d573223cbcc546381bdb5e4f62bb4bea297c97a0e72e4",
+    "private_section": "OMITTED_FROM_PUBLIC_REPOSITORY"
+  },
+  "normalized_outcome": "Private desktop path opens authenticated tasks without credential handling; owner view shows goal, progress, next needed and owner action with honest partial/stale states.",
+  "non_satisfying_proxies": [
+    "login redirect",
+    "healthy transport",
+    "design-only review",
+    "green helper tests without browser proof"
+  ],
+  "required_outcomes": [
+    {
+      "id": "PRIVATE-DESKTOP",
+      "observable": "Desktop icon opens authenticated dashboard with zero dashboard credential handling, including after session clearing.",
+      "status": "LIVE_VERIFIED",
+      "terminal_required": true,
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/scripts/desktop-launcher.mjs",
+        "docs/evidence/2026-09-17-mc-access-owner-view.json"
+      ]
+    },
+    {
+      "id": "OWNER-VIEW",
+      "observable": "Four recorded task fields, named scoped dependencies, explicit unknown/partial/offline state and actionable initial errors.",
+      "status": "VERIFIED_CANDIDATE",
+      "terminal_required": true,
+      "evidence_refs": [
+        "tools/codex-mission-control/restored/codex-mission-control/tests/owner-view.test.ts"
+      ]
+    }
+  ],
+  "next_direct_evidence": "Chat review of the owner-view candidate and owner authorization before deployment; full portfolio coverage remains later parent work."
+}
