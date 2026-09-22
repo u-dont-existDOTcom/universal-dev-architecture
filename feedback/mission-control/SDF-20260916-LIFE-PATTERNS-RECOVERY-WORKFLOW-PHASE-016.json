@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260916-LIFE-PATTERNS-RECOVERY-WORKFLOW-PHASE-016",
+  "recordedAt": "2026-09-16T15:50:15Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "STANDING_OWNER_LOGIC_CORRECTION_CAPTURE",
+  "sourceRecoveryQuality": "EXACT_TEXT",
+  "ownerCorrection": "progress now shows but still leaving me here",
+  "sourceSha256": "a680edb4cc80761b600ebc4d63313703bffcfc92e9b51d233760e344b5da49ca",
+  "observedFailure": "After restoring a saved Life Patterns checkpoint whose synthesis had already been adjudicated, the app restored the conversation and progress data but displayed only the generic free-form composer. The actionable post-adjudication controls were absent, making the restored screen look like an unfinished synthesis even though the saved record already contained a participant adjudication.",
+  "failureMechanism": "DATA-STATE / WORKFLOW-STATE DECOUPLING: recovery restored semantic data but did not restore the interaction phase derived from that data. The UI defaulted to composer-visible whenever there was no active draft, collapsing at least two distinct states: ordinary interview continuation and post-adjudication continuation.",
+  "logicLesson": "A resumable workflow must restore both durable data and the executable phase that determines the next valid action. 'No active proposal' does not imply 'show a blank input box'; when the current session already contains a completed adjudication, recovery must re-render the settled result and Continue interview / Finish controls.",
+  "privacyBoundary": "No private interview narrative, screenshot content, or hidden ledger is committed here. The record contains only the non-sensitive owner correction and abstract product-logic mechanism.",
+  "repairStatus": "IMPLEMENTED_IN_HUMANDESIGN_CANDIDATE; OWNER_CONSUMER-SEAM_RETEST_PENDING",
+  "nextVerificationBoundary": "Restore a post-adjudication checkpoint and confirm the participant sees the settled result plus continuation controls, not a blank composer."
+}

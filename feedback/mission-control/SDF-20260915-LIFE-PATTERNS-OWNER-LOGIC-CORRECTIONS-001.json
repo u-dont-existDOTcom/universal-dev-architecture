@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260915-LIFE-PATTERNS-OWNER-LOGIC-CORRECTIONS-001",
+  "recordedAt": "2026-09-15T20:41:40Z",
+  "captureTruth": "CAPTURED_BRANCH_ONLY",
+  "captureIntent": "EXPLICIT_MISSION_CONTROL_CAPTURE",
+  "purpose": "Preserve exact, non-sensitive owner corrections that exposed recurring reasoning and product-logic failures during Life Patterns development, while separating the observed correction from the inferred failure mechanism and from any later repair claim.",
+  "privacyBoundary": "The universal architecture repository is public. This record includes only non-sensitive product/reasoning corrections. It omits private chat locators, account identifiers, birth data, medical material, third-party sensitive content, and private infrastructure details.",
+  "ownerCaptureRequest": {
+    "sourceRecoveryQuality": "EXACT_TEXT",
+    "text": "make sure you are saving all these logic lesson to mission control including the exact corrections i gave you and so forth because you've collected a treasure trove of logic errors",
+    "sha256": "2e0ec4ef6cf6e08149b4320bd047d91e95b702406bf6f3a65e6f109870b03ba4"
+  },
+  "corrections": [
+    {
+      "incidentId": "LP-LOGIC-001-RECURRENCE-NOT-DISCRIMINATION",
+      "sourceRecoveryQuality": "EXACT_TEXT",
+      "ownerCorrection": "but the more basic problem is that I get hungry every day is not interesting. everyone does. so that says nothing about me.",
+      "sourceSha256": "dd3605852002021bf43f87d67347d7eb47fad15bf984f4839453abbbf4e40f7a",
+      "observedFailure": "The interview treated recurrence as sufficient evidence for a useful person-level pattern.",
+      "failureMechanism": "TARGET-VARIABLE SUBSTITUTION: frequency/recurrence was substituted for discriminative person-specific information. A proposition can be recurrent yet carry essentially no information about which person produced it.",
+      "logicLesson": "Before promoting a repeated behavior to a person-level pattern, test whether it discriminates the participant from an ordinary high-base-rate human response. Simple is acceptable; generic is not.",
+      "repairStatus": "REPAIRED_IN_LIFE_PATTERNS_CANDIDATE_OWNER_RETEST_CONTINUES"
+    },
+    {
+      "incidentId": "LP-LOGIC-002-CONTINUE-REPEATED-CONCLUSION",
+      "sourceRecoveryQuality": "EXACT_TEXT",
+      "ownerCorrection": "ok i clicked \"keep trying to pin it down\" and then it just repeated the last conclusion...",
+      "sourceSha256": "0a22b50c63abafddc09fcb151cffe7972ce2b6478429fc9994a3e9e39102b61d",
+      "observedFailure": "A continuation action returned the same conclusion instead of acquiring new evidence.",
+      "failureMechanism": "STATE/ACTION SEMANTICS COLLAPSE: the refinement path reused a synthesis planner, so a request to continue discovery could legally resolve to another synthesis and preserve the same text.",
+      "logicLesson": "A control labeled continue/investigate must have an executable frontier distinct from finalize/restate. If no new discriminating question exists, say so; do not recycle the terminal-looking output.",
+      "repairStatus": "REPAIRED_WITH_DEDICATED_REFINEMENT_PATH"
+    },
+    {
+      "incidentId": "LP-LOGIC-003-SELF-VIEW-NEEDS-OBSERVER-TRIANGULATION",
+      "sourceRecoveryQuality": "EXACT_TEXT",
+      "ownerCorrection": "if i were the interviewer i would have said, \"is that also something others remark about you?\"",
+      "sourceSha256": "584e97aadf9610bc0fdf801aa62ebbaf1eeba1f3ef183b598aa4c3e7bb45ecec",
+      "observedFailure": "The interview treated a global self-description as though self-view alone sufficiently characterized the observable trait.",
+      "failureMechanism": "SOURCE-PERSPECTIVE COLLAPSE: self-concept, outward presentation, and familiar-observer reports were not separated as different evidence sources.",
+      "logicLesson": "For broad personality claims, ask whether familiar others independently describe the person similarly when that answer could materially change the formulation. Preserve observer reports as attributed secondhand evidence rather than objective truth.",
+      "repairStatus": "REPAIRED_IN_INTERVIEWER_CONTRACT"
+    },
+    {
+      "incidentId": "LP-LOGIC-004-OPTION-MENU-NOT-STANDARDIZATION",
+      "sourceRecoveryQuality": "EXACT_TEXT",
+      "ownerCorrection": "if we just have options that means nothing, there's no science there. we need an actual checklist if we want to be scientific right?",
+      "sourceSha256": "3920abb9eb35bf536d0de5f1a3edca93da2e6dfb0867fe62b774679e367d596e",
+      "observedFailure": "A flexible menu of potentially informative follow-ups was described as though it were enough for standardized scientific measurement.",
+      "failureMechanism": "ADAPTIVITY/STANDARDIZATION CONFLATION: adaptive probe selection was mistaken for construct coverage. Without fixed required constructs and explicit missingness/status rules, two interviews could measure materially different things and still appear complete.",
+      "logicLesson": "Standardize what must be measured, evidence/status semantics, and stopping/missingness rules; allow adaptive wording only inside that fixed measurement contract.",
+      "repairStatus": "REPAIRED_WITH_VERSIONED_REQUIRED-COVERAGE_BLUEPRINT"
+    },
+    {
+      "incidentId": "LP-LOGIC-005-PROXY-COMPLETENESS-NOT-OWNER-OUTCOME",
+      "sourceRecoveryQuality": "EXACT_TEXT",
+      "ownerCorrection": "because if the new survey isn't able to guess my dob +_ time it fails",
+      "sourceSha256": "0af7145a69150d962c6de2c58ceeef549016b4e76990d2c42446bd67b204f040",
+      "observedFailure": "Coverage/comprehensiveness risked becoming the acceptance endpoint instead of the owner's actual reverse-recovery objective.",
+      "failureMechanism": "PROXY COMPLETION: an instrument can look comprehensive yet discard the discriminators needed by the downstream task it exists to support.",
+      "logicLesson": "Bind instrument acceptance to the downstream owner outcome. Coverage is supporting evidence; actual post-freeze DOB/time recoverability is the development regression endpoint for this owner case.",
+      "repairStatus": "HARD_POST-FREEZE_RECOVERY_GATE_ADDED; OUTCOME_NOT_YET_PASSED"
+    },
+    {
+      "incidentId": "LP-LOGIC-006-REVISION-FEEDBACK-VS-EXACT-WORDING",
+      "sourceRecoveryQuality": "EXACT_TEXT",
+      "ownerCorrection": "so i selected to revise the synthesis and i told it why and then it said do you want to keep the revised version or change or leave it open? didn't nderstand. what? also it should have an option to go back, and here should also be always a chatbox available because the options might not make sense or be enough..",
+      "sourceSha256": "49c4398bcd1c3c454a2d7baea03b27a5e0effe2f5543ae91d3cc1fd904bea738",
+      "observedFailure": "The UI interpreted explanatory feedback about an imperfect synthesis as participant-authored exact replacement wording and then forced a final-status choice while hiding free-form conversation.",
+      "failureMechanism": "INTENT COLLAPSE + NONFINAL FRONTIER LOSS: two distinct actions—explain what is wrong versus author the literal replacement—shared one form/state, and the nonfinal state removed the general interaction channel.",
+      "logicLesson": "Keep free-form input available in nonfinal states; treat buttons as shortcuts. Separate explanatory feedback from exact-wording authoring, provide reversible navigation, and never ask final-status questions about text the participant did not intend as the final proposition.",
+      "repairStatus": "REPAIRED_AND_DEPLOYED; OWNER_RETEST_PENDING"
+    },
+    {
+      "incidentId": "LP-LOGIC-007-GLOBAL-LABEL-SCOPE",
+      "sourceRecoveryQuality": "EXACT_TEXT_WITH_EXPLICITLY_ILLUSTRATIVE_INNER_QUOTE",
+      "ownerCorrection": "and also i wanted you to update the app so that it would automatically know to ask me \"you say youu're balanced in general, does that include various domains of balance like work/life, spiritual/practical, functional/emotional etc?\" (noit my exact quote but that idea)",
+      "sourceSha256": "1107154838f13124ce4ef0908c2e111366c762b19e59769097825063e390156b",
+      "observedFailure": "A broad descriptor such as 'balanced in general' was narrowed to mood stability because the conversation happened to gather emotional evidence first, without checking whether the claimed scope extended across other life domains.",
+      "failureMechanism": "SCOPE COLLAPSE FROM EVIDENCE AVAILABILITY: the system treated the first well-evidenced subdomain as the meaning of a broader participant claim rather than testing the semantic scope of the claim.",
+      "logicLesson": "When a participant uses a global cross-domain descriptor and available evidence covers only one subdomain, ask one scope-discriminating question before finalizing. Offer a few materially distinct example domains while allowing the answer to be 'mostly just this domain.' Do not silently generalize or silently narrow.",
+      "repairStatus": "IMPLEMENTATION_REQUEST_ACTIVE_IN_HUMANDESIGN"
+    }
+  ],
+  "relatedRecoveredInventory": "feedback/mission-control/RECOVERY-20260915-OWNER-REPORTED-LOGIC-FAILURES.json",
+  "relatedPriorIncident": {
+    "incidentId": "MC-RECOVERED-20260915-INSTALL-RESTART-SEQUENCING",
+    "note": "The existing canonical recovery inventory already preserves the install-versus-restart logic error as PARTIAL_RECOVERY; this record does not duplicate it as a new incident."
+  },
+  "crossIncidentLessons": [
+    "Do not substitute a convenient proxy for the actual target variable.",
+    "Do not treat the first observed subdomain as the scope of a broader claim.",
+    "Do not collapse distinct user intents into one UI/action state.",
+    "Every nonfinal state must preserve a coherent path for further information, including free-form input when fixed options may be incomplete.",
+    "Adaptive questioning can coexist with scientific standardization only when construct coverage and missingness semantics are fixed.",
+    "Owner corrections are high-value counterexamples to the current reasoning contract and should become regression evidence, not remain conversational anecdotes."
+  ],
+  "recoveryLimits": [
+    "This is not claimed to be the complete inventory of all same-day logic errors the owner has observed.",
+    "Only exact text available in the current conversation is quoted as exact; other incidents remain in the pre-existing recovery inventory at their recorded recovery quality.",
+    "The inner example wording for the cross-domain balance question is explicitly illustrative, because the owner said it was not intended as exact production copy.",
+    "A successful local repair does not prove a unique hidden causal mechanism; failureMechanism fields name the narrowest supported generating condition visible from the product trace."
+  ],
+  "nextVerificationBoundary": "Verify the new global-label cross-domain-scope behavior in the Life Patterns consumer seam, then continue appending owner-explicit Mission Control corrections through this canonical capture route rather than relying on chat memory."
+}
