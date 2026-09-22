@@ -23,7 +23,7 @@ export interface ConfiguredSupervisorChat {
     sourceRef: string;
   };
   consumerControls: {
-    modelVisibleLabel: "GPT-5.6 Sol";
+    modelSelectionPolicy: "TOP_VISIBLE_SELECTABLE_MODEL";
     thinkingControlLabel: "Thinking effort";
     thinkingVisibleLabel: "Extra High";
     thinkingOrdinal: "4 of 5";
@@ -228,6 +228,15 @@ function parseProvision(value: unknown, index: number): ConfiguredSupervisorChat
 
 function parseConsumerControls(value: Record<string, unknown>, index: number): ConfiguredSupervisorChat["consumerControls"] {
   const expected: ConfiguredSupervisorChat["consumerControls"] = {
+    modelSelectionPolicy: "TOP_VISIBLE_SELECTABLE_MODEL",
+    thinkingControlLabel: "Thinking effort",
+    thinkingVisibleLabel: "Extra High",
+    thinkingOrdinal: "4 of 5",
+    accountPlanLabel: "Pro",
+    accountPlanRole: "PROVENANCE_METADATA_ONLY",
+    accountPlanIsReasoningMode: false,
+  };
+  const legacy = {
     modelVisibleLabel: "GPT-5.6 Sol",
     thinkingControlLabel: "Thinking effort",
     thinkingVisibleLabel: "Extra High",
@@ -236,10 +245,10 @@ function parseConsumerControls(value: Record<string, unknown>, index: number): C
     accountPlanRole: "PROVENANCE_METADATA_ONLY",
     accountPlanIsReasoningMode: false,
   };
-  for (const [key, expectedValue] of Object.entries(expected)) {
-    if (value[key] !== expectedValue) {
-      throw new Error(`Configured chat ${index} consumerControls.${key} must exactly match the fixed current consumer-surface disposition.`);
-    }
+  const currentMatches = Object.entries(expected).every(([key, expectedValue]) => value[key] === expectedValue);
+  const legacyMatches = Object.entries(legacy).every(([key, expectedValue]) => value[key] === expectedValue);
+  if (!currentMatches && !legacyMatches) {
+    throw new Error(`Configured chat ${index} consumerControls must select the top visible model with Thinking effort Extra High, 4 of 5; the historical GPT-5.6 tuple is migration-only input.`);
   }
   return expected;
 }

@@ -14,11 +14,17 @@ export const inBandAppReadbackProducerId = "collector:chatgpt-app-readback";
 const sessionSummary = "MISSION_CONTROL_PROVIDER_SESSION_V1";
 const modelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
 const stageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
-const controlRefs = {
+const legacyControlRefs = {
   model_visible_label: "GPT-5.6 Sol", thinking_control_label: "Thinking effort",
   thinking_visible_label: "Extra High", thinking_ordinal: "4 of 5", account_plan_label: "Pro",
   account_plan_role: "PROVENANCE_METADATA_ONLY", account_plan_is_reasoning_mode: "false",
   backend_model_identity_claimed: "false", assistant_content_observed: "false",
+};
+const currentControlRefs = {
+  model_selection_policy: "TOP_VISIBLE_SELECTABLE_MODEL", model_selector_index: "0",
+  thinking_control_label: "Thinking effort", thinking_visible_label: "Extra High", thinking_ordinal: "4 of 5",
+  account_plan_label: "Pro", account_plan_role: "PROVENANCE_METADATA_ONLY",
+  account_plan_is_reasoning_mode: "false", backend_model_identity_claimed: "false", assistant_content_observed: "false",
 };
 
 export interface InBandRequestBindingPayload {
@@ -177,20 +183,25 @@ export function assertInBandRequestExecution(
   const appReadback = appReadbacks[0] ?? null;
   if (!relayComplete && !appReadback) fail("provider completion evidence missing; reconcile unchanged app-owned artifact");
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
-    && exactRef(event, "session_role") === inBandRequestRole && hasRefs(event, controlRefs));
-  if (!model) fail("fixed visible model/control observation missing");
+    && exactRef(event, "session_role") === inBandRequestRole && controlEvidence(event) !== null);
+  if (!model) fail("visible model/control observation missing");
+  const modelControls = controlEvidence(model) ?? fail("model/control observation is invalid");
   const stages = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
     && exactRef(event, "step") === inBandRequestStep && exactRef(event, "conversation_url") === conversationUrl
     && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
     && exactRef(event, "selected_app") === "GitHub" && exactRef(event, "semantic_authority") === "false"
-    && hasRefs(event, controlRefs));
+    && controlEvidence(event) !== null);
   const starts = stages.filter((event) => exactRef(event, "generation_state") === "STARTED");
   const completes = stages.filter((event) => exactRef(event, "generation_state") === "COMPLETE");
   const start = starts.sort((a, b) => a.sequence - b.sequence)[0];
   const complete = completes.sort((a, b) => a.sequence - b.sequence).at(-1);
   if (!start || (!complete && !appReadback)) fail("provider generation evidence incomplete; reconcile unchanged artifact");
-  if (stages.some((event) => exactRef(event, "prompt_sha256") !== promptSha256
-    || event.data.type === "evidence_receipt_recorded" && event.data.refs.some((ref) => ref === "selected_app:Mission Control"))) {
+  if (stages.some((event) => {
+    const controls = controlEvidence(event);
+    return !controls || controls.kind !== modelControls.kind || controls.modelLabel !== modelControls.modelLabel
+      || exactRef(event, "prompt_sha256") !== promptSha256
+      || event.data.type === "evidence_receipt_recorded" && event.data.refs.some((ref) => ref === "selected_app:Mission Control");
+  })) {
     fail("provider prompt identity or selected app changed");
   }
   if (scoped.some((event) => event.data.type === "evidence_receipt_recorded"
@@ -252,6 +263,18 @@ export function assertInBandRequestExecution(
     admissionId: admissionId!,
     promptSha256: promptSha256!,
   };
+}
+
+
+function controlEvidence(event: StoredEvent): { kind: "CURRENT" | "LEGACY"; modelLabel: string } | null {
+  if (hasRefs(event, currentControlRefs)) {
+    const modelLabel = exactRef(event, "model_ui_label");
+    return modelLabel ? { kind: "CURRENT", modelLabel } : null;
+  }
+  if (hasRefs(event, legacyControlRefs)) {
+    return { kind: "LEGACY", modelLabel: exactRef(event, "model_ui_label") ?? "GPT-5.6 Sol" };
+  }
+  return null;
 }
 
 function exactRef(event: StoredEvent, key: string): string | null {

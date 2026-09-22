@@ -93,7 +93,7 @@ test('message app requirements are exact and step-specific', () => {
 
 test('the registered specialist requires the exact current consumer controls and rejects legacy Pro-mode configuration', () => {
   const current = parseChatDirectory([chatFixture()])[0];
-  assert.equal(current.consumerControls.modelVisibleLabel, 'GPT-5.6 Sol');
+  assert.equal(current.consumerControls.modelSelectionPolicy, 'TOP_VISIBLE_SELECTABLE_MODEL');
   assert.equal(current.consumerControls.thinkingOrdinal, '4 of 5');
   assert.equal(current.consumerControls.accountPlanIsReasoningMode, false);
   assert.throws(() => parseChatDirectory([{ ...chatFixture(), consumerControls: null, modelLabels: { extraHigh: 'Extra High', pro: '6 Pro' } }]), /consumerControls/);
@@ -147,7 +147,7 @@ test('capability truth comes only from current Mission Control evidence receipts
       'challenge:challenge-spec', 'chat:spec-bootstrap', 'capability:missionControlRead', 'capability:githubRead', 'capability:githubWrite', `expires_at:${future}`,
     ]),
     evidence('mode-cap', 3, MODE_CAPABILITY_VERIFIED_SUMMARY, [
-      'chat:spec-bootstrap', 'capability:modeSwitching', 'model_visible_label:GPT-5.6 Sol', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
+      'chat:spec-bootstrap', 'capability:modeSwitching', 'model_selection_policy:TOP_VISIBLE_SELECTABLE_MODEL', 'model_selector_index:0', 'thinking_control_label:Thinking effort', 'thinking_visible_label:Extra High', 'thinking_ordinal:4 of 5', 'account_plan_label:Pro', 'account_plan_role:PROVENANCE_METADATA_ONLY', 'account_plan_is_reasoning_mode:false', `expires_at:${future}`,
     ]),
   ]);
   const current = chatCapabilityState(snapshot, chat, '2026-09-02T12:00:00.000Z');

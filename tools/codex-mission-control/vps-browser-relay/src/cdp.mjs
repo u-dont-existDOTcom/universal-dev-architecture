@@ -128,6 +128,8 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     || Boolean(element.querySelector('[aria-checked="true"], [aria-selected="true"], [data-state="checked"]'))
   );
   const selectedModelMatches = directMatches.filter(semanticallySelected);
+  const modelOptions = [...menu.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter(visible);
+  const topModel = modelOptions[0] ?? null;
   const menuItems = [...menu.querySelectorAll('[role="menuitem"]')].filter(visible);
   const labeledThinkingControls = menuItems.filter((element) => accessibleLabel(element) === thinkingControlLabel);
   const sliderContainers = menuItems.filter((element) => [...element.querySelectorAll('[role="slider"]')].filter(visible).length === 1);
@@ -154,6 +156,9 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     directMatchCount: directMatches.length,
     selectedModelMatchCount: selectedModelMatches.length,
     availableLabels: selectable.map(accessibleLabel).filter(Boolean),
+    modelOptionCount: modelOptions.length,
+    topModelLabel: topModel ? accessibleLabel(topModel) : null,
+    topModelSelected: Boolean(topModel && semanticallySelected(topModel)),
     powerControlCount: powerControls.length,
     powerIndicatorCount: powerIndicators.length,
     thinkingLabelMatchCount: thinkingLabelMatches.length,
@@ -167,6 +172,23 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
     sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
   };
+}`;
+
+const SELECT_TOP_MODEL_OPTION_FN = `function() {
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\s+/g, ' ');
+  const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
+  const modelOptions = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter(visible));
+  if (modelOptions.length < 1) return { selected: false, reason: 'TOP_MODEL_OPTION_NOT_FOUND', modelOptionCount: 0 };
+  const top = modelOptions[0];
+  const label = accessibleLabel(top);
+  if (!label) return { selected: false, reason: 'TOP_MODEL_LABEL_EMPTY', modelOptionCount: modelOptions.length };
+  top.click();
+  return { selected: true, selectedLabel: label, modelSelectorIndex: 0, modelOptionCount: modelOptions.length };
 }`;
 
 const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
@@ -281,10 +303,18 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
 
 export function consumerControlSelectionState(currentModel, observation, controls) {
   if (!controls || Object.keys(CURRENT_CONSUMER_CONTROLS).some((key) => controls[key] !== CURRENT_CONSUMER_CONTROLS[key])) {
-    throw new Error('Consumer controls do not match the fixed GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 disposition.');
+    throw new Error('Consumer controls do not match the current top-model / Thinking effort Extra High, 4 of 5 disposition.');
   }
-  if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
-  if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
+  if (controls.modelSelectionPolicy !== 'TOP_VISIBLE_SELECTABLE_MODEL') throw new Error('Top-model selection policy is required.');
+  if (!observation?.menuFound || !Number.isInteger(observation.modelOptionCount) || observation.modelOptionCount < 1) {
+    throw new Error('At least one visible selectable model option is required.');
+  }
+  if (observation.topModelSelected !== true || typeof observation.topModelLabel !== 'string' || observation.topModelLabel.length === 0) {
+    throw new Error('The first visible selectable model option is not semantically selected.');
+  }
+  if (currentModel?.modelVisibleLabel !== observation.topModelLabel || currentModel?.modelSelectorIndex !== 0) {
+    throw new Error('Observed top-model selection does not match the verified model menu.');
+  }
   if (observation.powerControlCount !== 1 || observation.sliderCount !== 1
     || observation.thinkingControlObservedLabel !== controls.thinkingControlLabel) {
     throw new Error(`Exact ${controls.thinkingControlLabel} slider is unavailable or ambiguous.`);
@@ -300,8 +330,11 @@ export function consumerControlSelectionState(currentModel, observation, control
     : null;
   if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
   return {
-    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED',
-    modelVisibleLabel: currentModel.label,
+    status: 'CURRENT_CONSUMER_CONTROLS_VERIFIED',
+    modelSelectionPolicy: controls.modelSelectionPolicy,
+    modelSelectorIndex: 0,
+    modelOptionCount: observation.modelOptionCount,
+    modelVisibleLabel: observation.topModelLabel,
     thinkingControlLabel: observation.thinkingControlObservedLabel,
     thinkingVisibleLabel: observation.currentPowerLabel,
     thinkingOrdinal: ordinal,
@@ -791,18 +824,54 @@ export class ChromeDevtoolsBrowser {
       if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
         throw new Error('Registered supervisor chat is not ready for fixed consumer-control verification.');
       }
-      const current = await this.#ensureExactModelSelection(client, normalized, controls?.modelVisibleLabel);
+      const current = await this.#ensureTopModelSelection(client, normalized);
       await this.#openModelMenu(client, normalized);
       await this.#selectOpenModelMenu(client, controls.thinkingVisibleLabel, {
         allowDirect: false,
         thinkingControlLabel: controls.thinkingControlLabel,
       });
       await this.#openModelMenu(client, normalized);
-      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [controls.modelVisibleLabel, controls.thinkingControlLabel, controls.thinkingVisibleLabel]);
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, controls.thinkingControlLabel, controls.thinkingVisibleLabel]);
       const verified = consumerControlSelectionState(current, observation, controls);
       await this.#closeModelMenu(client);
       return { ...verified, inspectedAssistantOutput: false };
     });
+  }
+
+  async #ensureTopModelSelection(client, normalized) {
+    await this.#currentModel(client, normalized);
+    await this.#openModelMenu(client, normalized);
+    let observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null, null]);
+    if (!observation?.menuFound || !Number.isInteger(observation.modelOptionCount) || observation.modelOptionCount < 1
+      || typeof observation.topModelLabel !== 'string' || !observation.topModelLabel) {
+      await this.#closeModelMenu(client);
+      throw new Error('The current ChatGPT model menu does not expose a usable first selectable model option.');
+    }
+    if (observation.topModelSelected !== true) {
+      const selected = await client.callFunction(SELECT_TOP_MODEL_OPTION_FN, []);
+      if (!selected?.selected || selected.modelSelectorIndex !== 0) {
+        await this.#closeModelMenu(client);
+        throw new Error(`Could not select the first visible model option: ${selected?.reason ?? 'UNKNOWN'}.`);
+      }
+      await this.#closeModelMenu(client);
+      await this.#currentModel(client, normalized);
+      await this.#openModelMenu(client, normalized);
+      observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null, null]);
+    }
+    if (!observation?.menuFound || observation.topModelSelected !== true || observation.modelOptionCount < 1
+      || typeof observation.topModelLabel !== 'string' || !observation.topModelLabel) {
+      await this.#closeModelMenu(client);
+      throw new Error('Top visible model selection could not be proven after selection.');
+    }
+    const result = {
+      modelSelectionPolicy: 'TOP_VISIBLE_SELECTABLE_MODEL',
+      modelSelectorIndex: 0,
+      modelOptionCount: observation.modelOptionCount,
+      modelVisibleLabel: observation.topModelLabel,
+      selectionVerification: 'SEMANTIC_TOP_MODEL_SELECTION',
+    };
+    await this.#closeModelMenu(client);
+    return result;
   }
 
   async #ensureExactModelSelection(client, normalized, labelWanted) {
