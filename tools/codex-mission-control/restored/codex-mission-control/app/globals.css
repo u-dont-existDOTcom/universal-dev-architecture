@@ -677,3 +677,53 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
   .secondary-history { display: none; }
   .mission-shell footer { padding-top: 7px; font-size: 7px; }
 }
+
+/* Owner view: preserve the existing palette and expose task meaning before diagnostics. */
+.owner-shell { max-width: 1260px; }
+.owner-shell h2 { font-size: 22px; margin-bottom: 16px; }
+.owner-shell h3 { font-size: 18px; line-height: 1.4; margin: 0; }
+.owner-shell p, .owner-shell dd { font-size: 14px; line-height: 1.65; }
+.owner-shell .muted { color: #a8b8b1; }
+.owner-section { margin-top: 30px; }
+.owner-section h2 > span { margin-left: 8px; font: 14px var(--mono); color: var(--cyan); }
+.owner-coverage { max-width: 88ch; margin: 18px 0 0; color: var(--muted); }
+.owner-retry { padding: 10px 18px; min-height: 42px; border: 1px solid #537469; border-radius: 4px; background: var(--panel-2); color: var(--text); cursor: pointer; }
+.owner-retry:disabled { opacity: .6; cursor: wait; }
+.owner-shell .error-banner p { margin: 8px 0; }
+.owner-decision { border-left: 3px solid var(--yellow); padding: 16px 20px; margin: 12px 0; background: var(--panel); }
+.owner-decision > p { margin: 8px 0 0; }
+.owner-next-list { list-style-position: inside; padding: 0; border-top: 1px solid var(--line); }
+.owner-next-list li { padding: 14px 0; border-bottom: 1px solid var(--line); line-height: 1.6; }
+.owner-next-list span { margin-left: 16px; color: var(--yellow); font-size: 13px; }
+.owner-next-list small { display: block; margin-left: 22px; color: var(--muted); }
+.owner-task-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.owner-task, .owner-queue-item { padding: 22px; border: 1px solid var(--line); background: var(--panel); min-width: 0; overflow-wrap: anywhere; }
+.owner-task-heading { display: flex; flex-wrap: wrap; align-items: start; gap: 10px; justify-content: space-between; }
+.owner-task-heading > span { font-size: 12px; line-height: 1.5; color: var(--yellow); max-width: 28ch; }
+.owner-four { display: grid; gap: 15px; margin: 20px 0; }
+.owner-four dt { font-weight: 700; font-size: 13px; color: var(--cyan); margin-bottom: 4px; }
+.owner-four dd { margin: 0; }
+.owner-task-freshness { color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+.owner-evidence { color: var(--cyan); font-size: 14px; }
+.owner-technical { margin: 30px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.owner-shell summary { padding: 8px 0; cursor: pointer; font-size: 14px; }
+.owner-shell summary::marker { color: var(--cyan); }
+.owner-shell .fleet-queue { margin-top: 30px; }
+.owner-shell .fleet-filters label { font-size: 12px; }
+.owner-shell .fleet-filters input, .owner-shell .fleet-filters select { min-height: 38px; font-size: 13px; }
+.owner-queue-order { padding: 0 20px; color: var(--muted); }
+.owner-queue-list { display: grid; gap: 12px; padding: 0 16px 16px; }
+.owner-queue-item .owner-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.owner-waiting { border-top: 1px solid var(--line); padding-top: 12px; font-size: 14px; }
+.owner-waiting li { margin: 10px 0; }
+.owner-waiting p { margin: 5px 0; }
+.owner-waiting small { color: var(--muted); display: block; }
+.owner-shell :focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
+@media (max-width: 760px) {
+  .owner-shell { width: calc(100% - 28px); padding-top: 18px; }
+  .owner-task-grid, .owner-queue-item .owner-four { grid-template-columns: 1fr; }
+  .owner-task, .owner-queue-item { padding: 16px; }
+  .owner-shell .topbar { gap: 12px; }
+  .owner-next-list span { display: block; margin-left: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .status-dot.pulse { animation: none; } }
