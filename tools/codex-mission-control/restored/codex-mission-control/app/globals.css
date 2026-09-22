@@ -727,3 +727,15 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
   .owner-next-list span { display: block; margin-left: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .status-dot.pulse { animation: none; } }
+
+.owner-relationship-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0 18px; }
+.owner-relationship-strip > div { border: 1px solid var(--line); background: var(--panel-2); padding: 12px 14px; }
+.owner-relationship-strip span { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.owner-relationship-strip strong { display: block; margin-top: 5px; font: 600 17px var(--mono); }
+.owner-project-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.owner-project { border: 1px solid var(--line); background: var(--panel); padding: 18px; min-width: 0; }
+.owner-project > p { margin: 10px 0; }
+.owner-project ul { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.owner-project li { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 3px; }
+.owner-project li > span, .owner-project li > small { color: var(--muted); font-size: 12px; }
+@media (max-width: 760px) { .owner-relationship-strip, .owner-project-grid { grid-template-columns: 1fr; } }
