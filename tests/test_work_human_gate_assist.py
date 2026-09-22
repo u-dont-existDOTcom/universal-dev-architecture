@@ -26,8 +26,20 @@ class WorkHumanGateAssistTests(unittest.TestCase):
         binding = self.req["owner_deployment_binding"]
         self.assertEqual(binding["classification"], "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT")
         self.assertEqual(binding["human_assist_channel"], "VNC")
-        self.assertIn("open/focus the VNC viewer", binding["binding"])
+        self.assertIn("must always open/focus the VNC viewer before asking the owner", binding["binding"])
         self.assertIn("Do not commit VNC hostnames", binding["private_locator_policy"])
+
+    def test_owner_correction_requires_vnc_before_every_view_or_interaction_request(self) -> None:
+        requirement = next(
+            item for item in self.req["requirements"] if item["id"] == "WORK-HUMAN-GATE-004"
+        )
+        self.assertIn("must always open or focus the configured VNC viewer", requirement["text"])
+        self.assertIn(
+            "viewing, visual inspection, confirmation, typing, clicking",
+            requirement["operationalization"],
+        )
+        self.assertIn("not limited to irreducible human-only gates", requirement["operationalization"])
+        self.assertEqual(self.req["source"]["corrections"][-1]["date"], "2026-09-22")
 
     def test_human_only_gate_is_resumable_not_terminal(self) -> None:
         for phrase in (
@@ -40,6 +52,8 @@ class WorkHumanGateAssistTests(unittest.TestCase):
             "resume automatically",
             "ask only for a minimal acknowledgement such as `done`",
             "must not solve or bypass CAPTCHAs itself",
+            "before every request for the owner to view or interact",
+            "visual inspection and ordinary GUI collaboration",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.remediation)
@@ -49,7 +63,8 @@ class WorkHumanGateAssistTests(unittest.TestCase):
             "docs/requirements/2026-09-18-work-human-gate-assist.owner-requirement.json",
             self.routing,
         )
-        self.assertIn("configured human-assist behavior for irreducible browser/UI gates", self.routing)
+        self.assertIn("configured owner-view and human-assist behavior", self.routing)
+        self.assertIn("viewer-first deployment binding", self.routing)
         self.assertIn("OWNER_INTERACTION_PENDING", self.routing)
 
     def test_machine_directive_requires_resumable_human_assist(self) -> None:

@@ -114,6 +114,8 @@ The worker must not solve or bypass CAPTCHAs itself, capture passwords/2FA codes
 
 Owner-specific assist channels are deployment bindings rather than universal infrastructure. Apply the current owner binding when one exists; private hostnames, ports, passwords, cookies, and tokens remain outside the public portable rule.
 
+An owner deployment binding may be broader than the human-gate case above. When the active binding requires viewer-first assistance, open or focus the configured viewer and bring the exact relevant remote window or control into view **before every request for the owner to view or interact**. Apply that requirement to visual inspection and ordinary GUI collaboration as well as login, MFA, approval, and other human-only gates; a textual request or claim that the session is ready does not satisfy the binding when authorized viewer control is available.
+
 ### 4. Diagnose the controlling surface before repeating remediation
 
 If a proposed repair is present but the fresh worker still exposes the same blocked namespace, treat that as evidence that the attempted repair may not control the runtime.
