@@ -28,6 +28,15 @@ export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
 export const CONTINUE_NUDGE_DELAY_MS = 300_000;
 export const STAGE_RECEIPT_GRACE_MS = 360_000;
 export const CURRENT_CONSUMER_CONTROLS = Object.freeze({
+  modelSelectionPolicy: 'TOP_VISIBLE_SELECTABLE_MODEL',
+  thinkingControlLabel: 'Thinking effort',
+  thinkingVisibleLabel: 'Extra High',
+  thinkingOrdinal: '4 of 5',
+  accountPlanLabel: 'Pro',
+  accountPlanRole: 'PROVENANCE_METADATA_ONLY',
+  accountPlanIsReasoningMode: false,
+});
+export const LEGACY_FIXED_CONSUMER_CONTROLS = Object.freeze({
   modelVisibleLabel: 'GPT-5.6 Sol',
   thinkingControlLabel: 'Thinking effort',
   thinkingVisibleLabel: 'Extra High',
@@ -254,8 +263,7 @@ function parseChatEntry(item, index) {
 
 function parseConsumerControls(value, index) {
   if (!isRecord(value)) throw new Error(`Chat entry ${index} consumerControls must be an object.`);
-  const controls = {
-    modelVisibleLabel: boundedString(value.modelVisibleLabel, `Chat entry ${index} consumerControls.modelVisibleLabel`, 100),
+  const common = {
     thinkingControlLabel: boundedString(value.thinkingControlLabel, `Chat entry ${index} consumerControls.thinkingControlLabel`, 100),
     thinkingVisibleLabel: boundedString(value.thinkingVisibleLabel, `Chat entry ${index} consumerControls.thinkingVisibleLabel`, 100),
     thinkingOrdinal: boundedString(value.thinkingOrdinal, `Chat entry ${index} consumerControls.thinkingOrdinal`, 100),
@@ -263,10 +271,13 @@ function parseConsumerControls(value, index) {
     accountPlanRole: boundedString(value.accountPlanRole, `Chat entry ${index} consumerControls.accountPlanRole`, 100),
     accountPlanIsReasoningMode: value.accountPlanIsReasoningMode,
   };
-  if (canonicalJson(controls) !== canonicalJson(CURRENT_CONSUMER_CONTROLS)) {
-    throw new Error(`Chat entry ${index} consumerControls must exactly match the fixed current GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 disposition; Pro is account-plan provenance only.`);
+  const current = { modelSelectionPolicy: value.modelSelectionPolicy, ...common };
+  const legacy = { modelVisibleLabel: value.modelVisibleLabel, ...common };
+  if (canonicalJson(current) === canonicalJson(CURRENT_CONSUMER_CONTROLS)
+    || canonicalJson(legacy) === canonicalJson(LEGACY_FIXED_CONSUMER_CONTROLS)) {
+    return { ...CURRENT_CONSUMER_CONTROLS };
   }
-  return controls;
+  throw new Error(`Chat entry ${index} consumerControls must select the top visible model and fixed Thinking effort Extra High, 4 of 5; the historical GPT-5.6 tuple is accepted only as migration input.`);
 }
 
 function parseRequiredApps(value, index) {
@@ -546,8 +557,11 @@ export function chatCapabilityState(snapshot, chat, now = new Date().toISOString
 }
 
 export function consumerControlRefs(controls) {
+  const modelRef = controls?.modelSelectionPolicy === 'TOP_VISIBLE_SELECTABLE_MODEL'
+    ? [`model_selection_policy:${controls.modelSelectionPolicy}`, 'model_selector_index:0']
+    : [`model_visible_label:${controls.modelVisibleLabel}`];
   return [
-    `model_visible_label:${controls.modelVisibleLabel}`,
+    ...modelRef,
     `thinking_control_label:${controls.thinkingControlLabel}`,
     `thinking_visible_label:${controls.thinkingVisibleLabel}`,
     `thinking_ordinal:${controls.thinkingOrdinal}`,

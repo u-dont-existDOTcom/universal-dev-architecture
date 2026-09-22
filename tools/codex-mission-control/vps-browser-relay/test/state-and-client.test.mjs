@@ -172,6 +172,21 @@ test('submission interval config defaults to 60000 and exposes the public value'
   }
 });
 
+test('ChatGPT account email is private config and never exposed publicly', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-email-config-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const address = 'owner-login@example.test';
+    const config = await loadConfig({ ...configEnv(chatsFile), MC_RELAY_CHATGPT_ACCOUNT_EMAIL: address });
+    assert.equal(config.browser.accountEmail, address);
+    assert.doesNotMatch(JSON.stringify(publicConfig(config)), /owner-login@example\.test/);
+    await assert.rejects(() => loadConfig({ ...configEnv(chatsFile), MC_RELAY_CHATGPT_ACCOUNT_EMAIL: 'not-an-email' }), /plausible email address/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('relay config requires deployment identity and rejects a separate host-local authority', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-legacy-config-'));
   try {

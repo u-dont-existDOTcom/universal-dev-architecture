@@ -1,5 +1,6 @@
 import {
   CURRENT_CONSUMER_CONTROLS,
+  LEGACY_FIXED_CONSUMER_CONTROLS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   canonicalJson,
   freshChatTargetPlan,
@@ -29,8 +30,59 @@ const PAGE_INSPECTION_FN = `function(expectedUrl) {
       ? new URL(location.href).origin !== 'https://chatgpt.com' || new URL(location.href).pathname !== '/'
       : normalize(location.href) !== expectedUrl,
     composerFound: Boolean(composer),
-    loginRequired: location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]')),
+    loginRequired: location.pathname.startsWith('/auth/')
+      || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]'))
+      || /your session has expired/i.test(document.body?.innerText || ''),
   };
+}`;
+
+const EMAIL_LOGIN_RECOVERY_FN = `function(accountEmail) {
+  const visible = (element) => Boolean(element && element.getClientRects().length)
+    && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '')
+    .trim().replace(/\s+/g, ' ');
+  const body = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+  const inputs = [...document.querySelectorAll('input')].filter(visible);
+  const passwordInputs = inputs.filter((element) => element.type === 'password'
+    || /password/i.test((element.name || '') + ' ' + (element.id || '') + ' ' + (element.autocomplete || '') + ' ' + (element.getAttribute('aria-label') || '')));
+  const codeInputs = inputs.filter((element) => element.autocomplete === 'one-time-code'
+    || /(^|\\b)(code|verification|otp|one[- ]?time)(\\b|$)/i.test((element.name || '') + ' ' + (element.id || '') + ' ' + (element.getAttribute('aria-label') || '')));
+  if (passwordInputs.length > 0) return { state: 'HUMAN_GATE_PASSWORD' };
+  if (codeInputs.length > 0) return { state: 'HUMAN_GATE_CODE' };
+  const emailInputs = inputs.filter((element) => element.type === 'email'
+    || element.autocomplete === 'email'
+    || /email/i.test((element.name || '') + ' ' + (element.id || '') + ' ' + (element.getAttribute('aria-label') || '') + ' ' + (element.placeholder || '')));
+  if (emailInputs.length > 1) return { state: 'EMAIL_FIELD_AMBIGUOUS', count: emailInputs.length };
+  if (emailInputs.length === 1) {
+    if (typeof accountEmail !== 'string' || !accountEmail) return { state: 'EMAIL_CONFIG_MISSING' };
+    const input = emailInputs[0];
+    input.focus();
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    if (!descriptor?.set) return { state: 'EMAIL_SETTER_UNAVAILABLE' };
+    descriptor.set.call(input, accountEmail);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    if (input.value !== accountEmail) return { state: 'EMAIL_VALUE_NOT_ACCEPTED' };
+    const form = input.closest('form') || document;
+    const submitCandidates = [...form.querySelectorAll('button, input[type="submit"]')].filter(visible)
+      .filter((element) => !element.disabled && element.getAttribute('aria-disabled') !== 'true')
+      .filter((element) => {
+        const value = label(element) || element.value || '';
+        return element.type === 'submit' || /^(continue|next|log in|sign in)$/i.test(value);
+      });
+    if (submitCandidates.length !== 1) return { state: submitCandidates.length ? 'EMAIL_SUBMIT_AMBIGUOUS' : 'EMAIL_SUBMIT_MISSING', count: submitCandidates.length };
+    submitCandidates[0].click();
+    return { state: 'EMAIL_SUBMITTED' };
+  }
+  const loginCandidates = [...document.querySelectorAll('button, a')].filter(visible)
+    .filter((element) => /^(log in|sign in)$/i.test(label(element)));
+  if (loginCandidates.length > 1) return { state: 'LOGIN_CONTROL_AMBIGUOUS', count: loginCandidates.length };
+  if (loginCandidates.length === 1) {
+    loginCandidates[0].click();
+    return { state: 'LOGIN_CONTROL_CLICKED' };
+  }
+  if (/your session has expired/i.test(body) || location.pathname.startsWith('/auth/')) return { state: 'HUMAN_GATE_UNRESOLVED' };
+  return { state: 'NOT_REQUIRED' };
 }`;
 
 const CURRENT_MODEL_FN = `function(expectedUrl) {
@@ -128,6 +180,8 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     || Boolean(element.querySelector('[aria-checked="true"], [aria-selected="true"], [data-state="checked"]'))
   );
   const selectedModelMatches = directMatches.filter(semanticallySelected);
+  const modelOptions = [...menu.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter(visible);
+  const topModel = modelOptions[0] ?? null;
   const menuItems = [...menu.querySelectorAll('[role="menuitem"]')].filter(visible);
   const labeledThinkingControls = menuItems.filter((element) => accessibleLabel(element) === thinkingControlLabel);
   const sliderContainers = menuItems.filter((element) => [...element.querySelectorAll('[role="slider"]')].filter(visible).length === 1);
@@ -154,6 +208,9 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     directMatchCount: directMatches.length,
     selectedModelMatchCount: selectedModelMatches.length,
     availableLabels: selectable.map(accessibleLabel).filter(Boolean),
+    modelOptionCount: modelOptions.length,
+    topModelLabel: topModel ? accessibleLabel(topModel) : null,
+    topModelSelected: Boolean(topModel && semanticallySelected(topModel)),
     powerControlCount: powerControls.length,
     powerIndicatorCount: powerIndicators.length,
     thinkingLabelMatchCount: thinkingLabelMatches.length,
@@ -167,6 +224,23 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
     sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
   };
+}`;
+
+const SELECT_TOP_MODEL_OPTION_FN = `function() {
+  const visible = (element) => {
+    if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\s+/g, ' ');
+  const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
+  const modelOptions = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter(visible));
+  if (modelOptions.length < 1) return { selected: false, reason: 'TOP_MODEL_OPTION_NOT_FOUND', modelOptionCount: 0 };
+  const top = modelOptions[0];
+  const label = accessibleLabel(top);
+  if (!label) return { selected: false, reason: 'TOP_MODEL_LABEL_EMPTY', modelOptionCount: modelOptions.length };
+  top.click();
+  return { selected: true, selectedLabel: label, modelSelectorIndex: 0, modelOptionCount: modelOptions.length };
 }`;
 
 const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
@@ -280,11 +354,26 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
 }
 
 export function consumerControlSelectionState(currentModel, observation, controls) {
-  if (!controls || Object.keys(CURRENT_CONSUMER_CONTROLS).some((key) => controls[key] !== CURRENT_CONSUMER_CONTROLS[key])) {
-    throw new Error('Consumer controls do not match the fixed GPT-5.6 Sol / Thinking effort Extra High, 4 of 5 disposition.');
+  const currentPolicy = controls && Object.keys(CURRENT_CONSUMER_CONTROLS).every((key) => controls[key] === CURRENT_CONSUMER_CONTROLS[key]);
+  const legacyPolicy = controls && Object.keys(LEGACY_FIXED_CONSUMER_CONTROLS).every((key) => controls[key] === LEGACY_FIXED_CONSUMER_CONTROLS[key]);
+  if (!currentPolicy && !legacyPolicy) {
+    throw new Error('Consumer controls do not match either the current top-model policy or the retained historical fixed disposition.');
   }
-  if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
-  if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
+  if (legacyPolicy) {
+    if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
+    if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
+  } else {
+    if (controls.modelSelectionPolicy !== 'TOP_VISIBLE_SELECTABLE_MODEL') throw new Error('Top-model selection policy is required.');
+    if (!observation?.menuFound || !Number.isInteger(observation.modelOptionCount) || observation.modelOptionCount < 1) {
+      throw new Error('At least one visible selectable model option is required.');
+    }
+    if (observation.topModelSelected !== true || typeof observation.topModelLabel !== 'string' || observation.topModelLabel.length === 0) {
+      throw new Error('The first visible selectable model option is not semantically selected.');
+    }
+    if (currentModel?.modelVisibleLabel !== observation.topModelLabel || currentModel?.modelSelectorIndex !== 0) {
+      throw new Error('Observed top-model selection does not match the verified model menu.');
+    }
+  }
   if (observation.powerControlCount !== 1 || observation.sliderCount !== 1
     || observation.thinkingControlObservedLabel !== controls.thinkingControlLabel) {
     throw new Error(`Exact ${controls.thinkingControlLabel} slider is unavailable or ambiguous.`);
@@ -299,7 +388,20 @@ export function consumerControlSelectionState(currentModel, observation, control
     ? `${observation.sliderPosition - observation.sliderMinimum + 1} of ${observation.sliderMaximum - observation.sliderMinimum + 1}`
     : null;
   if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
-  return {
+  return currentPolicy ? {
+    status: 'CURRENT_CONSUMER_CONTROLS_VERIFIED',
+    modelSelectionPolicy: controls.modelSelectionPolicy,
+    modelSelectorIndex: 0,
+    modelOptionCount: observation.modelOptionCount,
+    modelVisibleLabel: observation.topModelLabel,
+    thinkingControlLabel: observation.thinkingControlObservedLabel,
+    thinkingVisibleLabel: observation.currentPowerLabel,
+    thinkingOrdinal: ordinal,
+    accountPlanLabel: controls.accountPlanLabel,
+    accountPlanRole: controls.accountPlanRole,
+    accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,
+    backendModelIdentityClaimed: false,
+  } : {
     status: 'FIXED_CONSUMER_CONTROLS_VERIFIED',
     modelVisibleLabel: currentModel.label,
     thinkingControlLabel: observation.thinkingControlObservedLabel,
@@ -613,8 +715,9 @@ const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
 }`;
 
 export class ChromeDevtoolsBrowser {
-  constructor({ host = '127.0.0.1', port = 9222, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, generationTimeoutMs = 900_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
+  constructor({ host = '127.0.0.1', port = 9222, accountEmail = null, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, generationTimeoutMs = 900_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
     this.baseUrl = `http://${host}:${port}`;
+    this.accountEmail = accountEmail;
     this.pageReadyTimeoutMs = pageReadyTimeoutMs;
     this.submitTimeoutMs = submitTimeoutMs;
     this.generationTimeoutMs = generationTimeoutMs;
@@ -787,22 +890,69 @@ export class ChromeDevtoolsBrowser {
   async ensureExactConsumerControls(target, { expectedUrl, controls }) {
     const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
-      const inspection = await client.callFunction(PAGE_INSPECTION_FN, [normalized]);
-      if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
-        throw new Error('Registered supervisor chat is not ready for fixed consumer-control verification.');
+      let inspection = await client.callFunction(PAGE_INSPECTION_FN, [normalized]);
+      if (inspection?.loginRequired) {
+        await this.#recoverEmailOnlyLogin(client);
+        inspection = await client.callFunction(PAGE_INSPECTION_FN, [normalized]);
       }
-      const current = await this.#ensureExactModelSelection(client, normalized, controls?.modelVisibleLabel);
+      if (inspection?.urlMismatch || inspection?.loginRequired || !inspection?.composerFound) {
+        throw new Error('Registered supervisor chat is not ready for consumer-control verification.');
+      }
+      const currentPolicy = controls?.modelSelectionPolicy === 'TOP_VISIBLE_SELECTABLE_MODEL';
+      const current = currentPolicy
+        ? await this.#ensureTopModelSelection(client, normalized)
+        : await this.#ensureExactModelSelection(client, normalized, controls?.modelVisibleLabel);
       await this.#openModelMenu(client, normalized);
       await this.#selectOpenModelMenu(client, controls.thinkingVisibleLabel, {
         allowDirect: false,
         thinkingControlLabel: controls.thinkingControlLabel,
       });
       await this.#openModelMenu(client, normalized);
-      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [controls.modelVisibleLabel, controls.thinkingControlLabel, controls.thinkingVisibleLabel]);
+      const observation = await client.callFunction(MODEL_MENU_STATE_FN, [
+        currentPolicy ? null : controls.modelVisibleLabel,
+        controls.thinkingControlLabel,
+        controls.thinkingVisibleLabel,
+      ]);
       const verified = consumerControlSelectionState(current, observation, controls);
       await this.#closeModelMenu(client);
       return { ...verified, inspectedAssistantOutput: false };
     });
+  }
+
+  async #ensureTopModelSelection(client, normalized) {
+    await this.#currentModel(client, normalized);
+    await this.#openModelMenu(client, normalized);
+    let observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null, null]);
+    if (!observation?.menuFound || !Number.isInteger(observation.modelOptionCount) || observation.modelOptionCount < 1
+      || typeof observation.topModelLabel !== 'string' || !observation.topModelLabel) {
+      await this.#closeModelMenu(client);
+      throw new Error('The current ChatGPT model menu does not expose a usable first selectable model option.');
+    }
+    if (observation.topModelSelected !== true) {
+      const selected = await client.callFunction(SELECT_TOP_MODEL_OPTION_FN, []);
+      if (!selected?.selected || selected.modelSelectorIndex !== 0) {
+        await this.#closeModelMenu(client);
+        throw new Error(`Could not select the first visible model option: ${selected?.reason ?? 'UNKNOWN'}.`);
+      }
+      await this.#closeModelMenu(client);
+      await this.#currentModel(client, normalized);
+      await this.#openModelMenu(client, normalized);
+      observation = await client.callFunction(MODEL_MENU_STATE_FN, [null, null, null]);
+    }
+    if (!observation?.menuFound || observation.topModelSelected !== true || observation.modelOptionCount < 1
+      || typeof observation.topModelLabel !== 'string' || !observation.topModelLabel) {
+      await this.#closeModelMenu(client);
+      throw new Error('Top visible model selection could not be proven after selection.');
+    }
+    const result = {
+      modelSelectionPolicy: 'TOP_VISIBLE_SELECTABLE_MODEL',
+      modelSelectorIndex: 0,
+      modelOptionCount: observation.modelOptionCount,
+      modelVisibleLabel: observation.topModelLabel,
+      selectionVerification: 'SEMANTIC_TOP_MODEL_SELECTION',
+    };
+    await this.#closeModelMenu(client);
+    return result;
   }
 
   async #ensureExactModelSelection(client, normalized, labelWanted) {
@@ -1184,6 +1334,25 @@ export class ChromeDevtoolsBrowser {
     return { id: created.id, type: created.type ?? 'page', title: created.title ?? '', url, webSocketDebuggerUrl: created.webSocketDebuggerUrl };
   }
 
+  async #recoverEmailOnlyLogin(client) {
+    if (!this.accountEmail) throw new Error('ChatGPT login is required in the VPS browser profile.');
+    const deadline = Date.now() + Math.min(this.pageReadyTimeoutMs, 30_000);
+    let submittedEmail = false;
+    while (Date.now() < deadline) {
+      const inspection = await client.callFunction(PAGE_INSPECTION_FN, ['https://chatgpt.com/']);
+      if (!inspection?.loginRequired && inspection?.composerFound) return { recovered: true, emailSubmitted: submittedEmail };
+      const action = await client.callFunction(EMAIL_LOGIN_RECOVERY_FN, [this.accountEmail]);
+      if (action?.state === 'LOGIN_CONTROL_CLICKED') { await sleep(500); continue; }
+      if (action?.state === 'EMAIL_SUBMITTED') { submittedEmail = true; await sleep(750); continue; }
+      if (action?.state === 'NOT_REQUIRED') { await sleep(500); continue; }
+      if (String(action?.state ?? '').startsWith('HUMAN_GATE_')) {
+        throw new Error('ChatGPT login requires a human-only step after the configured email was handled.');
+      }
+      throw new Error(`ChatGPT email-only login recovery stopped before any password or code step: ${action?.state ?? 'UNKNOWN'}.`);
+    }
+    throw new Error('ChatGPT email-only login recovery timed out before the authenticated composer returned.');
+  }
+
   async #prepareTarget(target, url, requireModelControl) {
     await this.activateTarget(target.id);
     await this.#withPageClient(target, async (client) => {
@@ -1193,7 +1362,10 @@ export class ChromeDevtoolsBrowser {
       if (navigation?.errorText) throw new Error(`ChatGPT navigation failed: ${navigation.errorText}`);
       await waitFor(async () => {
         const result = await client.callFunction(PAGE_INSPECTION_FN, [url]);
-        if (result?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
+        if (result?.loginRequired) {
+          await this.#recoverEmailOnlyLogin(client);
+          return false;
+        }
         if (result?.urlMismatch) return false;
         return result?.composerFound ? result : false;
       }, this.pageReadyTimeoutMs, 500, 'ChatGPT composer did not become ready after navigation.');

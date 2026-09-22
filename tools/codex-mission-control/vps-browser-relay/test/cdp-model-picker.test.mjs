@@ -10,7 +10,7 @@ import {
 } from '../src/cdp.mjs';
 
 const controls = {
-  modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5',
+  modelSelectionPolicy: 'TOP_VISIBLE_SELECTABLE_MODEL', thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5',
   accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY', accountPlanIsReasoningMode: false,
 };
 
@@ -19,7 +19,10 @@ function currentPowerMenu(overrides = {}) {
     menuFound: true,
     menuRole: 'menu',
     directMatchCount: 0,
-    availableLabels: ['Select model', 'Power', 'GPT-5.6 Sol', 'GPT-5.5'],
+    availableLabels: ['Select model', 'Power', 'Latest', 'GPT-5.6 Sol', 'GPT-5.5'],
+    modelOptionCount: 3,
+    topModelLabel: 'Latest',
+    topModelSelected: true,
     powerControlCount: 1,
     powerIndicatorCount: 1,
     thinkingLabelMatchCount: 1,
@@ -65,7 +68,7 @@ test('thinking slider search begins from a different supported visible tier', ()
 
 test('current combined model control requires one exact thinking-label segment', () => {
   const observation = currentPowerMenu({ directMatchCount: 1, thinkingLabelMatchCount: 0 });
-  assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, controls), /thinking label Extra High must appear once/);
+  assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'Latest', modelSelectorIndex: 0 }, observation, controls), /thinking label Extra High must appear once/);
 });
 
 test('the exact GPT-5.6 Sol selector is a direct model option', () => {
@@ -109,15 +112,25 @@ test('nested model menu requires selection and fails closed on ambiguous selecte
   }, 'GPT-5.6 Sol'), /selected model UI label.*ambiguous/);
 });
 
-test('fixed controls verify GPT-5.6 Sol plus Thinking effort Extra High, 4 of 5 and treat Pro only as account metadata', () => {
-  const observation = currentPowerMenu({ directMatchCount: 1 });
-  assert.deepEqual(consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, controls), {
-    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED', modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Thinking effort',
-    thinkingVisibleLabel: 'Extra High', thinkingOrdinal: '4 of 5', accountPlanLabel: 'Pro', accountPlanRole: 'PROVENANCE_METADATA_ONLY',
-    accountPlanIsReasoningMode: false, backendModelIdentityClaimed: false,
+test('current controls verify top visible model plus Thinking effort Extra High, 4 of 5', () => {
+  const observation = currentPowerMenu();
+  assert.deepEqual(consumerControlSelectionState({ modelVisibleLabel: 'Latest', modelSelectorIndex: 0 }, observation, controls), {
+    status: 'CURRENT_CONSUMER_CONTROLS_VERIFIED',
+    modelSelectionPolicy: 'TOP_VISIBLE_SELECTABLE_MODEL',
+    modelSelectorIndex: 0,
+    modelOptionCount: 3,
+    modelVisibleLabel: 'Latest',
+    thinkingControlLabel: 'Thinking effort',
+    thinkingVisibleLabel: 'Extra High',
+    thinkingOrdinal: '4 of 5',
+    accountPlanLabel: 'Pro',
+    accountPlanRole: 'PROVENANCE_METADATA_ONLY',
+    accountPlanIsReasoningMode: false,
+    backendModelIdentityClaimed: false,
   });
-  assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, { ...observation, currentPowerLabel: 'Pro' }, controls), /thinking label mismatch/);
-  assert.throws(() => consumerControlSelectionState({ label: 'GPT-5.6 Sol' }, observation, { ...controls, accountPlanIsReasoningMode: true }), /fixed GPT-5.6 Sol/);
+  assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'Latest', modelSelectorIndex: 0 }, { ...observation, currentPowerLabel: 'Pro' }, controls), /thinking label mismatch/);
+  assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'Latest', modelSelectorIndex: 0 }, observation, { ...controls, accountPlanIsReasoningMode: true }), /top-model/);
+  assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'GPT-5.6 Sol', modelSelectorIndex: 1 }, observation, controls), /top-model selection/);
 });
 
 test('duplicate exact menu options fail closed as ambiguous', () => {
@@ -133,6 +146,16 @@ test('missing fixed thinking label fails closed instead of accepting a nearby la
     currentPowerLabel: '',
     availableLabels: ['Extra High', 'Plus'],
   }), 'Extra High'), /was not found in one supported model-menu control/);
+});
+
+test('expired-session recovery is email-only and stops before password or code gates', async () => {
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  assert.match(source, /EMAIL_LOGIN_RECOVERY_FN/);
+  assert.match(source, /HUMAN_GATE_PASSWORD/);
+  assert.match(source, /HUMAN_GATE_CODE/);
+  assert.match(source, /MC_RELAY_CHATGPT_ACCOUNT_EMAIL|accountEmail/);
+  assert.match(source, /email-only login recovery/);
+  assert.doesNotMatch(source, /MC_RELAY_CHATGPT_PASSWORD/);
 });
 
 test('browser control code does not use generic transcript-editable selectors', async () => {

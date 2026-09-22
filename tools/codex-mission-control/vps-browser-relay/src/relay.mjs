@@ -6,6 +6,7 @@ import {
   MCP_BINDING_PRELOAD_STEP,
   IN_BAND_PRE_SEND_SUMMARY,
   IN_BAND_REQUEST_PROTOCOL,
+  LEGACY_FIXED_CONSUMER_CONTROLS,
   IN_BAND_REQUEST_STEP,
   REQUEST_BOUND_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
@@ -142,6 +143,8 @@ export class RelayRuntime {
         `chat:${chat.bootstrapCapability.chatId}`,
         'capability:modeSwitching',
         ...consumerControlRefs(chat.consumerControls),
+        `model_ui_label:${mode.modelVisibleLabel}`,
+        `model_option_count:${mode.modelOptionCount}`,
         `expires_at:${challengeExpiry}`,
         'backend_model_identity_claimed:false',
       ],
@@ -756,7 +759,7 @@ export class RelayRuntime {
       });
       const mode = await this.browser.ensureExactConsumerControls(target, {
         expectedUrl: 'https://chatgpt.com/',
-        controls: route.chat.consumerControls,
+        controls: consumerControlsForRoute(route),
       });
       const modelReceiptId = `provider-session-model:${providerSessionId}:${sha256(openedAt).slice(0, 12)}`;
       const sessionRole = action.step === MCP_BINDING_PRELOAD_STEP ? 'MC_BINDING_PRELOAD_SESSION' : `${action.step}_SESSION`;
@@ -772,7 +775,9 @@ export class RelayRuntime {
             `binding_provider_session:${route.bindingProviderSessionId}`,
             `${directDecisionStage ? 'decision' : 'stage'}_provider_session:${providerSessionId}`,
           ] : [`binding_provider_session:${providerSessionId}`]),
-          ...consumerControlRefs(route.chat.consumerControls),
+          ...consumerControlRefs(consumerControlsForRoute(route)),
+          `model_ui_label:${mode.modelVisibleLabel}`,
+          `model_option_count:${mode.modelOptionCount}`,
           'assistant_content_observed:false',
           'backend_model_identity_claimed:false',
           `opened_at:${openedAt}`,
@@ -880,7 +885,7 @@ export class RelayRuntime {
           bodySha256: promptSha256,
         }),
         beforeSubmit: async (admission) => {
-          model = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: route.chat.consumerControls });
+          model = await this.browser.ensureExactConsumerControls(target, { expectedUrl, controls: consumerControlsForRoute(route) });
           const intentAt = new Date().toISOString();
           if (inBandRequest) {
             const binding = deriveInBandRequestBinding(route, session.providerSessionId);
@@ -1040,7 +1045,7 @@ export class RelayRuntime {
       'message_ordinal:1',
       'first_message:true',
       `model_ui_label:${modelUiLabel}`,
-      ...consumerControlRefs(route.chat.consumerControls),
+      ...consumerControlRefs(consumerControlsForRoute(route)),
       `prompt_sha256:${promptSha256}`,
       `generation_state:${generationState}`,
       `observed_at:${observedAt}`,
@@ -1238,6 +1243,10 @@ export class RelayRuntime {
     const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
     this.logger[method](JSON.stringify(line));
   }
+}
+
+function consumerControlsForRoute(route) {
+  return route.packet?.routeSchemaVersion >= 5 ? route.chat.consumerControls : LEGACY_FIXED_CONSUMER_CONTROLS;
 }
 
 function findChallengeExpiry(snapshot, chat) {
