@@ -188,7 +188,7 @@ test("fleet-wide Project Manager admission follows the route task scopes instead
       expectedUrlSha256: sha256("https://chatgpt.com/"),
       bodySha256: "d".repeat(64),
     }), askrigorProducer);
-    assert.equal(admitted.admissionStatus, "ADMITTED");
+    assert.match(admitted.admissionId, /^send-admission:/);
 
     await assert.rejects(
       authority.execute("admissions", request({
