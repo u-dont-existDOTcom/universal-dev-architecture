@@ -6,6 +6,7 @@ import {
   appSelectionState,
   consumerControlSelectionState,
   exactModelSelectionState,
+  generationConversationUrlTransition,
   modelMenuSelectionState,
 } from '../src/cdp.mjs';
 
@@ -35,6 +36,37 @@ function currentPowerMenu(overrides = {}) {
     ...overrides,
   };
 }
+
+test('generation completion accepts only one-way WEB to stable conversation canonicalization', () => {
+  assert.deepEqual(
+    generationConversationUrlTransition(
+      'https://chatgpt.com/c/WEB:provisional-review',
+      'https://chatgpt.com/c/stable-review',
+    ),
+    { accepted: true, conversationUrl: 'https://chatgpt.com/c/stable-review', canonicalized: true },
+  );
+  assert.deepEqual(
+    generationConversationUrlTransition(
+      'https://chatgpt.com/c/stable-review',
+      'https://chatgpt.com/c/stable-review',
+    ),
+    { accepted: true, conversationUrl: 'https://chatgpt.com/c/stable-review', canonicalized: false },
+  );
+  assert.deepEqual(
+    generationConversationUrlTransition(
+      'https://chatgpt.com/c/stable-review',
+      'https://chatgpt.com/c/different-stable-review',
+    ),
+    { accepted: false, conversationUrl: null, canonicalized: false },
+  );
+  assert.deepEqual(
+    generationConversationUrlTransition(
+      'https://chatgpt.com/c/WEB:provisional-review',
+      'https://chatgpt.com/c/WEB:different-provisional-review',
+    ),
+    { accepted: false, conversationUrl: null, canonicalized: false },
+  );
+});
 
 test('current ChatGPT thinking slider structure discovers the exact visible setting', () => {
   assert.deepEqual(modelMenuSelectionState(currentPowerMenu(), 'Extra High'), {
