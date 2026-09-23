@@ -66,6 +66,21 @@ test('thinking slider search begins from a different supported visible tier', ()
   });
 });
 
+test('thinking slider search accepts Instant as the current first power label', () => {
+  assert.deepEqual(modelMenuSelectionState(currentPowerMenu({
+    thinkingLabelMatchCount: 0,
+    currentPowerLabel: 'Instant',
+    sliderPosition: 0,
+  }), 'Extra High'), {
+    type: 'POWER_SEARCH',
+    initialLabel: 'Instant',
+    position: 0,
+    minimum: 0,
+    maximum: 4,
+    observedLabels: ['Instant'],
+  });
+});
+
 test('current combined model control requires one exact thinking-label segment', () => {
   const observation = currentPowerMenu({ directMatchCount: 1, thinkingLabelMatchCount: 0 });
   assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'Latest', modelSelectorIndex: 0 }, observation, controls), /thinking label Extra High must appear once/);

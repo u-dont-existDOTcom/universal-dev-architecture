@@ -197,7 +197,7 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
   const thinkingLabelMatches = thinkingLabelWanted == null
     ? []
     : thinkingLabelSegments.filter((label) => label === thinkingLabelWanted);
-  const supportedThinkingLabels = new Set(['Low', 'Medium', 'High', 'Extra High', 'Pro']);
+  const supportedThinkingLabels = new Set(['Instant', 'Low', 'Medium', 'High', 'Extra High', 'Pro']);
   const currentThinkingLabels = thinkingLabelSegments.filter((label) => supportedThinkingLabels.has(label));
   const sliders = powerControls.length === 1 ? [...powerControls[0].querySelectorAll('[role="slider"]')] : [];
   const slider = sliders.length === 1 ? sliders[0] : null;
