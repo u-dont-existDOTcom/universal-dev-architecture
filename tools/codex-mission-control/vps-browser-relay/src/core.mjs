@@ -134,8 +134,7 @@ export function normalizeConversationUrl(value) {
   }
   const match = url.pathname.match(/^\/c\/((?:WEB:)?[A-Za-z0-9_-]+)\/?$/);
   if (!match) throw new Error('Chat URL must identify one concrete /c/<conversation-id> conversation.');
-  const conversationId = match[1].startsWith('WEB:') ? match[1].slice(4) : match[1];
-  return `https://chatgpt.com/c/${conversationId}`;
+  return `https://chatgpt.com/c/${match[1]}`;
 }
 
 export function parseChatDirectory(value) {
