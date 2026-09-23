@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "status": "released",
+  "exclusive_writer": true,
+  "owned_branch": "task/mc-askrigor-source-review-router-20260923",
+  "integration_branch": "main",
+  "integration_base_sha": "55769b444d14007ba09ebdd921c0824deea1fc35",
+  "scope": "Add the minimum owner-authenticated, system-owned pre-Work source-review V6 routing seam needed to return an immutable corrected-source receipt to the existing registered Mission Control supervisor without worker impersonation, a new scheduler, or AskRigor product changes.",
+  "parent_integrator": null,
+  "released_at": "2026-09-23T18:04:05Z",
+  "release_basis": "Source candidate frozen after focused/affected/full Mission Control tests, repository gates, relay checks, typecheck, production build, and diff review passed."
+}

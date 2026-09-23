@@ -1053,10 +1053,15 @@ test("native Work system events are admitted only from their dedicated producers
   assert.equal(producerMayEmit({ id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["task:auth"] }, workReceipt), true);
   assert.equal(producerMayEmit({ id: "system:chatgpt-work-cloud-dispatch", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["task:auth"] }, workReceipt), false);
 
-  const route = { type: "worker_message_recorded", worker: "auth", message_id: "post-work-route", thread_id: "thread:post-work-review:auth",
-    message_kind: "QUESTION", body: "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n{}", reply_to_message_id: null, direction_id: null } as MissionControlEventV2;
-  assert.equal(producerMayEmit({ id: "system:post-execution-reasoning-router", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, route), true);
-  assert.equal(producerMayEmit({ id: "system:other", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, route), false);
+  const postWorkRoute = { type: "worker_message_recorded", worker: "auth", message_id: "post-work-route", thread_id: "thread:post-work-review:auth",
+    message_kind: "QUESTION", body: "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n{\"producerId\":\"system:post-execution-reasoning-router\"}", reply_to_message_id: null, direction_id: null } as MissionControlEventV2;
+  assert.equal(producerMayEmit({ id: "system:post-execution-reasoning-router", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, postWorkRoute), true);
+  assert.equal(producerMayEmit({ id: "system:source-review-router", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, postWorkRoute), false);
+  const sourceReviewRoute = { ...postWorkRoute, message_id: "source-review-route", thread_id: "thread:source-review:auth",
+    body: "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n{\"producerId\":\"system:source-review-router\"}" } as MissionControlEventV2;
+  assert.equal(producerMayEmit({ id: "system:source-review-router", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, sourceReviewRoute), true);
+  assert.equal(producerMayEmit({ id: "system:post-execution-reasoning-router", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, sourceReviewRoute), false);
+  assert.equal(producerMayEmit({ id: "system:other", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: ["*"] }, sourceReviewRoute), false);
 });
 
 test("authenticated producer provenance is immutable and persisted on every append", () => {
