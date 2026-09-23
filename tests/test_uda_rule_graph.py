@@ -26,6 +26,18 @@ class UdaRuleGraphTests(unittest.TestCase):
         self.assertLess(ids.index("outcome-advancement-and-strategy-efficacy"), ids.index("codex-pro-supervision-mission-control"))
         self.assertEqual(resolved["status"], "RESOLVED_ROUTING_METADATA_NOT_APPLICATION_EVIDENCE")
 
+    def test_followup_goal_rule_expands_owner_outcome_dependency(self):
+        graph = load_graph(ROOT)
+        resolved = resolve_rules(graph, ["owner-goal-followup-and-requirement-accretion"])
+        ids = [item["rule_id"] for item in resolved["ordered_rules"]]
+        self.assertEqual(
+            ids,
+            [
+                "owner-outcome-invariant-and-contract-laundering-prevention",
+                "owner-goal-followup-and-requirement-accretion",
+            ],
+        )
+
     def test_superseded_rule_redirects_to_current_rule(self):
         graph = load_graph(ROOT)
         resolved = resolve_rules(graph, ["codex-github-operating-standard"])

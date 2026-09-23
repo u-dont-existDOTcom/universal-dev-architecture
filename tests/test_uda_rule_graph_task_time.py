@@ -15,6 +15,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         cls.profile = json.loads((ROOT / "scripts/instruction-layering-profile.json").read_text())
         cls.work = json.loads((ROOT / "examples/rule-graph/work-handoff.json").read_text())
         cls.instruction = json.loads((ROOT / "examples/rule-graph/instruction-only.json").read_text())
+        cls.evaluator_followup = json.loads((ROOT / "examples/rule-graph/evaluator-followup.json").read_text())
 
     def ids(self, contract):
         return [item["rule_id"] for item in contract["selected_rules"]]
@@ -25,6 +26,12 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         self.assertNotIn("uda.active-contract.boundary-binding", self.ids(flat))
         self.assertIn("uda.active-contract.boundary-binding", self.ids(graph))
         self.assertGreater(len(graph["selected_rules"]), len(flat["selected_rules"]))
+
+    def test_evaluator_followup_activates_owner_goal_derivation(self):
+        graph = task_time.compile_contract(self.catalog, self.profile, self.evaluator_followup, "graph")
+        ids = self.ids(graph)
+        self.assertIn("uda.owner-goal.followup-derivation", ids)
+        self.assertIn("uda.active-contract.boundary-binding", ids)
 
     def test_instruction_only_blocks_continuation_trigger(self):
         graph = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")

@@ -399,6 +399,90 @@
       ]
     },
     {
+      "rule_id": "uda.owner-goal.followup-derivation",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome and follow `patterns/owner-goal-followup-and-requirement-accretion.md`."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "owner-goal-followup",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex"
+        ],
+        "action_classes": [
+          "followup_task_authoring",
+          "benchmark_design",
+          "evaluator_calibration",
+          "acceptance_criterion_change"
+        ]
+      },
+      "trigger": {
+        "any": [
+          {
+            "fact": "action_classes",
+            "contains": "followup_task_authoring"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "benchmark_design"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "evaluator_calibration"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "acceptance_criterion_change"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "rebind-followup-to-parent-outcome",
+          "required_behavior": "Before the follow-up or benchmark becomes controlling, restate the parent owner evaluation target, classify any proposed proxy or new acceptance criterion, and prevent an unvalidated proxy from replacing the root goal or becoming a blocker.",
+          "due_phase": "reasoning",
+          "destination": "follow-up task or evaluator design",
+          "acceptance_evidence": "The follow-up record identifies the parent owner target, exact remaining gap, proposed proxy or metric if any, what owner decision the experiment can change, and whether proxy equivalence or necessity is established.",
+          "non_substitutes": [
+            "benchmark quality alone",
+            "local score improvement",
+            "interesting evaluator result",
+            "new acceptance criterion without owner-goal derivation"
+          ],
+          "carry_through": "Re-run the derivation check before another optimization round or before promoting a proxy metric into a blocker.",
+          "repair": "Return to the literal owner evaluation target; demote unvalidated proxy metrics to bounded experiment-only status.",
+          "enforcement": "semantic",
+          "mechanical_check": null
+        }
+      ],
+      "provenance": {
+        "origin": "existing owner-goal follow-up and requirement-accretion rule; task-time activation repair after 2026-09-23 proxy-substitution regression",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": [
+        {
+          "type": "requires",
+          "rule_id": "uda.active-contract.boundary-binding",
+          "supplies": [
+            "follow-up task boundary"
+          ]
+        }
+      ]
+    },
+    {
       "rule_id": "uda.scope.explicit-no-change",
       "revision": 1,
       "status": "CURRENT",

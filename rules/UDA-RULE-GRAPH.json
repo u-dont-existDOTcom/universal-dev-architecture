@@ -251,6 +251,23 @@
       ]
     },
     {
+      "rule_id": "owner-goal-followup-and-requirement-accretion",
+      "canonical_path": "patterns/owner-goal-followup-and-requirement-accretion.md",
+      "status": "active",
+      "trigger": "A consequential follow-up, benchmark, evaluator calibration, new acceptance criterion, assurance requirement, or architecture dependency is being authored and could substitute a proxy or accrete a new blocker.",
+      "requires": [
+        "owner-outcome-invariant-and-contract-laundering-prevention"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "action",
+        "handoff"
+      ]
+    },
+    {
       "rule_id": "outcome-advancement-and-strategy-efficacy",
       "canonical_path": "patterns/outcome-advancement-and-strategy-efficacy.md",
       "status": "active",
