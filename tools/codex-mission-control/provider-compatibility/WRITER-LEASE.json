@@ -12,7 +12,11 @@
     "tools/codex-mission-control/restored/codex-mission-control/scripts/**",
     "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
     "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-profile.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/tests/**"
+    "tools/codex-mission-control/restored/codex-mission-control/tests/**",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/claude-execution-profile.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/github-execution-directive.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-runtime.ts"
   ],
   "shared_runtime_write": false,
   "production_switch": false,
