@@ -145,6 +145,85 @@ test("Mission Control durably fences and commits an attested browser target-set 
   }
 });
 
+test("fleet-wide Project Manager admission follows the route task scopes instead of its stale registration worker", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  const askrigorProducer: AuthenticatedProducer = {
+    ...producer,
+    workerScopes: ["askrigor-system-alignment"],
+    taskScopes: ["task:askrigor-system-alignment"],
+  };
+  const projectManager = {
+    ...configuredChat(),
+    scope: "PROJECT_MANAGER",
+    supervisorId: "mc-project-manager",
+    workerId: "mission-control-development",
+    registrationId: "registration:pm:active",
+    bootstrapCapability: {
+      chatId: "pm-active",
+      url: "https://chatgpt.com/c/pm-active",
+      challengeId: "pm-active",
+    },
+  };
+  try {
+    const authority = runtime(store, now, {
+      MISSION_CONTROL_SUPERVISOR_CHATS_JSON: JSON.stringify([projectManager]),
+      MISSION_CONTROL_INGEST_CREDENTIALS: JSON.stringify({
+        [producer.id]: {
+          kind: "COLLECTOR",
+          token: "ordinary-relay-test-" + "b".repeat(32),
+          workers: ["askrigor-system-alignment"],
+          tasks: ["task:askrigor-system-alignment"],
+        },
+      }),
+    });
+    const admitted = await authority.execute("admissions", request({
+      requestId: "request:askrigor",
+      queueKey: "queue:askrigor",
+      authorizationRef: "task:askrigor-system-alignment",
+      supervisorId: "mc-project-manager",
+      registrationId: "registration:pm:active",
+      targetKind: "FRESH_PROVIDER_SESSION",
+      targetKey: "provider-session:askrigor",
+      expectedUrlSha256: sha256("https://chatgpt.com/"),
+      bodySha256: "d".repeat(64),
+    }), askrigorProducer);
+    assert.match(admitted.admissionId, /^send-admission:/);
+
+    await assert.rejects(
+      authority.execute("admissions", request({
+        requestId: "request:wrong-worker",
+        queueKey: "queue:wrong-worker",
+        authorizationRef: "task:another-worker",
+        supervisorId: "mc-project-manager",
+        registrationId: "registration:pm:active",
+        targetKind: "FRESH_PROVIDER_SESSION",
+        targetKey: "provider-session:wrong-worker",
+        expectedUrlSha256: sha256("https://chatgpt.com/"),
+        bodySha256: "e".repeat(64),
+      }), askrigorProducer),
+      (error: any) => error.code === "SUBMISSION_AUTHORIZATION_SCOPE_MISMATCH",
+    );
+
+    await assert.rejects(
+      authority.execute("admissions", request({
+        requestId: "request:missing-task",
+        queueKey: "queue:missing-task",
+        authorizationRef: "task:askrigor-system-alignment",
+        supervisorId: "mc-project-manager",
+        registrationId: "registration:pm:active",
+        targetKind: "FRESH_PROVIDER_SESSION",
+        targetKey: "provider-session:missing-task",
+        expectedUrlSha256: sha256("https://chatgpt.com/"),
+        bodySha256: "f".repeat(64),
+      }), { ...askrigorProducer, taskScopes: ["task:other"] }),
+      (error: any) => error.code === "SUBMISSION_AUTHORIZATION_STALE_OR_MISSING",
+    );
+  } finally {
+    store.close();
+  }
+});
+
 test("provider rate limiting pauses the account and retries the same durable queue item once", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };
