@@ -56,7 +56,7 @@ async function main() {
   try {
     const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: 50 } }));
     const threads = Array.isArray(listed.threads) ? listed.threads : [];
-    const output: Array<{ threadId: string; status: string | null; updatedAt: number; finalAgentMessage: string | null }> = [];
+    const output: Array<{ threadId: string; status: string | null; updatedAt: number; observedAt: string; finalAgentMessage: string | null }> = [];
     for (const summary of threads) {
       if (!summary || typeof summary !== "object" || Array.isArray(summary)) continue;
       const record = summary as Record<string, unknown>;
@@ -73,7 +73,7 @@ async function main() {
         const status = thread && typeof thread === "object" && !Array.isArray(thread)
           && (thread as { status?: unknown }).status && typeof (thread as { status: { type?: unknown } }).status.type === "string"
           ? String((thread as { status: { type: string } }).status.type) : null;
-        output.push({ threadId, status, updatedAt, finalAgentMessage: finalAgentMessage(root) });
+        output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
       } catch { /* unreadable candidates cannot satisfy exact binding */ }
     }
     process.stdout.write(`${JSON.stringify({ threads: output })}\n`);

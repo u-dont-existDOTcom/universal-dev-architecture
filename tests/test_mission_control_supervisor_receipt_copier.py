@@ -77,6 +77,28 @@ def stage_started(request_id: str = "issue178-v3", conversation_url: str = "http
 
 
 class MissionControlReceiptCopierTests(unittest.TestCase):
+    def test_thread_selector_requires_explicit_app_readback_observed_at(self) -> None:
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        exact = "Create one harmless isolated child branch and return execution facts only."
+        payload = {
+            "schema_version": 5, "envelope_kind": "MISSION_CONTROL_CANONICAL_DECISION",
+            "request_id": "issue178-v3", "supervisor_id": "mc-project-manager",
+            "provider_session_id": "provider-session:v3", "nonce": "nonce-v3",
+            "in_band_binding_sha256": "3" * 64, "execution_provenance": copier.IN_BAND_PROVENANCE,
+            "evidence_capsule": {"id": "capsule:v3", "sha256": "1" * 64},
+            "owner_outcome": {"id": "owner-outcome:issue178", "epoch": 2, "sha256": "2" * 64},
+            "reasoning_lane": "EXTRA_HIGH_DIRECT",
+            "decision_block": {"decision_id": "decision:v3", "exact_text": exact, "sha256": copier.sha256_text(exact)},
+            "pro_decision_block": {"used": False, "model_mode": None, "exact_text": None, "sha256": None},
+            "writer_contract": {"mode": "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed": False},
+        }
+        block = copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
+        missing_observation = {
+            "threadId": "stable-app-thread", "status": "idle", "updatedAt": 1790000001000,
+            "finalAgentMessage": "2026-09-23 00:21 UTC\n" + block,
+        }
+        self.assertIsNone(copier.select_decision_machine_block([missing_observation], candidate))
+
     def test_timestamp_prefixed_machine_block_is_extracted_without_rewriting(self) -> None:
         payload = {"schema_version": 5, "request_id": "issue178-v3"}
         machine = copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
@@ -158,15 +180,80 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         block = copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
         threads = [
             {"threadId": "unrelated", "status": "idle", "updatedAt": 1790000000000, "finalAgentMessage": "not a receipt"},
-            {"threadId": "stable-app-thread", "status": "idle", "updatedAt": 1790000001000, "finalAgentMessage": "2026-09-21 14:00 UTC\n\n" + block},
+            {"threadId": "stable-app-thread", "status": "idle", "updatedAt": 1790000001000, "observedAt": "2026-09-23T00:00:05.000Z", "finalAgentMessage": "2026-09-21 14:00 UTC\n\n" + block},
         ]
         resolved = copier.select_decision_machine_block(threads, candidate)
         self.assertIsNotNone(resolved)
         assert resolved
-        self.assertEqual(resolved[0], "stable-app-thread")
-        self.assertEqual(resolved[2], block)
+        self.assertEqual(resolved.thread_id, "stable-app-thread")
+        self.assertEqual(resolved.publish_block, block)
+        self.assertEqual(resolved.source_block, block)
+        self.assertFalse(resolved.transformed)
         with self.assertRaisesRegex(copier.CopierError, "more than one app-owned thread"):
             copier.select_decision_machine_block(threads + [{**threads[1], "threadId": "duplicate"}], candidate)
+
+    def test_digest_only_repair_preserves_exact_decision_text_and_rejects_other_binding_changes(self) -> None:
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        exact = "SOURCE_REWORK_REQUIRED. Preserve this exact semantic decision."
+        payload = {
+            "schema_version": 5, "envelope_kind": "MISSION_CONTROL_CANONICAL_DECISION",
+            "request_id": "issue178-v3", "supervisor_id": "mc-project-manager",
+            "provider_session_id": "provider-session:v3", "nonce": "nonce-v3",
+            "in_band_binding_sha256": "3" * 64, "execution_provenance": copier.IN_BAND_PROVENANCE,
+            "evidence_capsule": {"id": "capsule:v3", "sha256": "1" * 64},
+            "owner_outcome": {"id": "owner-outcome:issue178", "epoch": 2, "sha256": "2" * 64},
+            "reasoning_lane": "EXTRA_HIGH_DIRECT",
+            "decision_block": {"decision_id": "decision:repair", "exact_text": exact, "sha256": "5" * 64},
+            "pro_decision_block": {"used": False, "model_mode": None, "exact_text": None, "sha256": None},
+            "writer_contract": {"mode": "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed": False},
+        }
+        source_block = copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
+        repaired = copier.repair_decision_digest_only(source_block, payload, candidate)
+        self.assertIsNotNone(repaired)
+        assert repaired
+        repaired_block, repaired_payload = repaired
+        self.assertEqual(repaired_payload["decision_block"]["exact_text"], exact)
+        self.assertEqual(repaired_payload["decision_block"]["sha256"], copier.sha256_text(exact))
+        self.assertNotEqual(copier.sha256_text(source_block), copier.sha256_text(repaired_block))
+        source_normalized = json.loads(json.dumps(payload))
+        source_normalized["decision_block"]["sha256"] = copier.sha256_text(exact)
+        self.assertEqual(source_normalized, repaired_payload)
+        copier.validate_decision_block(repaired_block, repaired_payload, candidate)
+
+        wrong_session = json.loads(json.dumps(payload))
+        wrong_session["provider_session_id"] = "provider-session:wrong"
+        wrong_block = copier.DECISION_PREFIX + json.dumps(wrong_session, separators=(",", ":"))
+        with self.assertRaisesRegex(copier.CopierError, "provider_session_id"):
+            copier.repair_decision_digest_only(wrong_block, wrong_session, candidate)
+
+    def test_thread_selector_recovers_digest_only_machine_block(self) -> None:
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        exact = "SOURCE_REWORK_REQUIRED."
+        payload = {
+            "schema_version": 5, "envelope_kind": "MISSION_CONTROL_CANONICAL_DECISION",
+            "request_id": "issue178-v3", "supervisor_id": "mc-project-manager",
+            "provider_session_id": "provider-session:v3", "nonce": "nonce-v3",
+            "in_band_binding_sha256": "3" * 64, "execution_provenance": copier.IN_BAND_PROVENANCE,
+            "evidence_capsule": {"id": "capsule:v3", "sha256": "1" * 64},
+            "owner_outcome": {"id": "owner-outcome:issue178", "epoch": 2, "sha256": "2" * 64},
+            "reasoning_lane": "EXTRA_HIGH_DIRECT",
+            "decision_block": {"decision_id": "decision:repair", "exact_text": exact, "sha256": "0" * 64},
+            "pro_decision_block": {"used": False, "model_mode": None, "exact_text": None, "sha256": None},
+            "writer_contract": {"mode": "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed": False},
+        }
+        source_block = copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
+        resolved = copier.select_decision_machine_block([{
+            "threadId": "source-rework-thread", "status": "idle", "updatedAt": 1790000001000,
+            "observedAt": "2026-09-23T00:00:05.000Z",
+            "finalAgentMessage": "2026-09-23 00:21 UTC\n" + source_block,
+        }], candidate)
+        self.assertIsNotNone(resolved)
+        assert resolved
+        self.assertTrue(resolved.transformed)
+        self.assertEqual(resolved.source_block, source_block)
+        self.assertEqual(resolved.payload["decision_block"]["exact_text"], exact)
+        self.assertEqual(resolved.payload["decision_block"]["sha256"], copier.sha256_text(exact))
+        self.assertNotEqual(resolved.source_block, resolved.publish_block)
 
     def test_bounded_execution_requires_machine_schema_not_human_display_shapes(self) -> None:
         candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]

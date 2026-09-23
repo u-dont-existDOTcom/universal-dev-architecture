@@ -12,6 +12,8 @@ import {
 import {
   inBandAppReadbackProducerId,
   inBandAppReadbackSummary,
+  inBandDigestRepairOperation,
+  inBandMachineTransformSummary,
   inBandPreSendSummary,
   inBandRequestBindingEnvelope,
   inBandRequestProvenance,
@@ -268,8 +270,103 @@ test("V6 app-owned final-message readback may replace only missing web completio
       readback.data.refs = readback.data.refs.map((ref) => ref.startsWith("machine_block_sha256:")
         ? `machine_block_sha256:${"8".repeat(64)}` : ref);
     }
-    assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /completion evidence missing/);
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /completion evidence missing|machine-block transformation/);
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /post-expiry transport copy requires/);
+  } finally { f.store.close(); }
+});
+
+test("V6 app readback admits the observed RDC read-only source reader but no arbitrary substitute", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000101, createdAt: time("06.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000101` };
+    const events = structuredClone(f.events).filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && ((event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1" && event.data.refs.includes("lifecycle_status:COMPLETE"))
+        || (event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1" && event.data.refs.includes("generation_state:COMPLETE")))));
+    for (const event of events) {
+      if (event.data.type === "evidence_receipt_recorded" && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+        && event.data.refs.includes("generation_state:STARTED")) {
+        event.data.refs = event.data.refs.map((ref) => ref === "selected_app:GitHub" ? "selected_app:Remote Desktop Commander" : ref);
+      }
+    }
+    const active = evidence(f.store, "rdc-session-active", "MISSION_CONTROL_PROVIDER_SESSION_V1", [
+      "session_role:IN_BAND_REQUEST_DECISION_SESSION", "message_ordinal:1", "lifecycle_status:ACTIVE",
+      "url_binding_status:EXACT", `conversation_url:${conversation}`,
+    ], time("03.200"));
+    const readback = evidence(f.store, "rdc-app-readback", inBandAppReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sha256(candidate.body)}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "app_thread_id_sha256:" + "9".repeat(64),
+      "source_reader_app:Remote Desktop Commander", "source_reader_mode:READ_ONLY",
+      "semantic_authority:false", "readback_method:APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
+    ], time("05.000"), inBandAppReadbackProducerId);
+    events.push(active, readback);
+    assert.equal(buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }).data.type,
+      "github_decision_receipt_ingested");
+
+    const bad = structuredClone(events);
+    const rb = bad.find((event) => event.eventId === readback.eventId)!;
+    if (rb.data.type === "evidence_receipt_recorded") {
+      rb.data.refs = rb.data.refs.map((ref) => ref === "source_reader_app:Remote Desktop Commander" ? "source_reader_app:AskRigor Reviewer" : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }),
+      /source reader|generation evidence incomplete/);
+  } finally { f.store.close(); }
+});
+
+test("V6 digest-only machine transform must bridge the exact source block to the published candidate", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000102, createdAt: time("06.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000102` };
+    const sourceMachineSha = "7".repeat(64);
+    const events = structuredClone(f.events).filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && ((event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1" && event.data.refs.includes("lifecycle_status:COMPLETE"))
+        || (event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1" && event.data.refs.includes("generation_state:COMPLETE")))));
+    const active = evidence(f.store, "transform-session-active", "MISSION_CONTROL_PROVIDER_SESSION_V1", [
+      "session_role:IN_BAND_REQUEST_DECISION_SESSION", "message_ordinal:1", "lifecycle_status:ACTIVE",
+      "url_binding_status:EXACT", `conversation_url:${conversation}`,
+    ], time("03.200"));
+    const readback = evidence(f.store, "transform-readback", inBandAppReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sourceMachineSha}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "app_thread_id_sha256:" + "8".repeat(64),
+      "source_reader_app:GitHub", "source_reader_mode:READ_ONLY",
+      "semantic_authority:false", "readback_method:APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
+    ], time("04.500"), inBandAppReadbackProducerId);
+    const transform = evidence(f.store, "digest-transform", inBandMachineTransformSummary, [
+      `source_machine_block_sha256:${sourceMachineSha}`, `transformed_machine_block_sha256:${sha256(candidate.body)}`,
+      `operation:${inBandDigestRepairOperation}`, `decision_exact_text_sha256:${f.decision.decision_block.sha256}`,
+      "writer_mode:EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed:false", "semantic_authority:false",
+    ], time("05.000"), inBandAppReadbackProducerId);
+    events.push(active, readback, transform);
+    assert.equal(buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }).data.type,
+      "github_decision_receipt_ingested");
+
+    const missing = events.filter((event) => event.eventId !== transform.eventId);
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(missing, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }),
+      /transformation is missing/);
+
+    const wrong = structuredClone(events);
+    const t = wrong.find((event) => event.eventId === transform.eventId)!;
+    if (t.data.type === "evidence_receipt_recorded") {
+      t.data.refs = t.data.refs.map((ref) => ref.startsWith("operation:") ? "operation:ARBITRARY_REWRITE" : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrong, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }),
+      /transformation is missing/);
+
+    const wrongWriter = structuredClone(events);
+    const tw = wrongWriter.find((event) => event.eventId === transform.eventId)!;
+    if (tw.data.type === "evidence_receipt_recorded") {
+      tw.data.refs = tw.data.refs.map((ref) => ref === "reinterpretation_allowed:false" ? "reinterpretation_allowed:true" : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongWriter, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }),
+      /transformation is missing/);
+
+    const beforeReadback = structuredClone(events);
+    const tb = beforeReadback.find((event) => event.eventId === transform.eventId)!;
+    tb.occurredAt = time("04.000");
+    tb.receivedAt = time("04.000");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(beforeReadback, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid/);
   } finally { f.store.close(); }
 });
 
