@@ -1,16 +1,19 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "complete",
   "exclusive_writer": true,
   "owned_branch": "chat/claude-compatibility-20260923-2251",
   "integration_branch": "main",
   "integration_base_sha": "eaeacee9c187d943e036cb7b299388f3094a1e64",
   "parent_integrator": "RECHECK_CURRENT_INTEGRATOR_BEFORE_INTEGRATION",
   "scope": "Isolated offline provider contract, Claude CLI plan and receipt adapter, existing OpenAI delegation mapping, focused tests and integration instructions.",
-  "allowed_paths": ["tools/codex-mission-control/provider-compatibility/**"],
+  "allowed_paths": [
+    "tools/codex-mission-control/provider-compatibility/**"
+  ],
   "shared_runtime_write": false,
   "production_switch": false,
   "paid_model_inference": false,
   "claude_inference_during_this_iteration": false,
-  "assurance_lane": "iteration"
+  "assurance_lane": "iteration",
+  "closeout": "Offline candidate delivered; no shared integration or runtime ownership claimed."
 }

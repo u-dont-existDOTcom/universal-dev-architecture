@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "task_id": "claude-compatibility-20260923",
+  "assurance_lane": "iteration",
+  "owner_source": {
+    "kind": "current_owner_message",
+    "verbatim": "ok you have github read access now, not sure about write but you can make do what you can and the rest can be work instructions",
+    "sha256": "f6beda5a15cadd9a75d06cd5fcc52b99a3c5c5cf6e583d51cc4142cf519ffb3a",
+    "source_chat_url": null
+  },
+  "owner_outcome": "Develop isolated Claude compatibility alongside existing projects; preserve GPT behavior and provide executable instructions for remaining work.",
+  "parent_outcome_status": "OPEN",
+  "candidate_status": "OFFLINE_CANDIDATE_VERIFIED_NOT_INTEGRATED",
+  "source_baseline": "eaeacee9c187d943e036cb7b299388f3094a1e64",
+  "writer_branch": "chat/claude-compatibility-20260923-2251",
+  "active_contract": [
+    {
+      "rule": "parallel-chat-write-isolation",
+      "effect": "Only candidate directory on owned branch; no shared integration/runtime writes."
+    },
+    {
+      "rule": "development-assurance-lanes",
+      "effect": "Offline Iteration; no release claim or unrelated full-suite campaign."
+    },
+    {
+      "rule": "test-efficiency-and-verification-budget",
+      "effect": "Canonical telemetry started before implementation; focused tests only."
+    },
+    {
+      "rule": "owner-goal-followup-and-requirement-accretion",
+      "effect": "Small optional adapter boundary; do not make a new platform or assurance gate a prerequisite for old GPT work."
+    },
+    {
+      "rule": "task-time-lesson-activation",
+      "effect": "Live root and graph dependency closure loaded this turn; check actual final artifact/branch state."
+    },
+    {
+      "rule": "runtime-chat-work-authority-admission-and-internal-routing",
+      "effect": "No forged admission, no actor impersonation, no paid fallback."
+    }
+  ],
+  "prior_work": {
+    "applicability": "required",
+    "disposition": "adapt",
+    "baseline": "Existing Claude CLI + unchanged OpenAI dispatcher",
+    "new_remainder": "Bounded plan and receipt translation only",
+    "verified_sources": [
+      "https://code.claude.com/docs/en/cli-reference",
+      "https://code.claude.com/docs/en/headless"
+    ]
+  },
+  "not_executed": [
+    "Claude inference",
+    "MCP OAuth change",
+    "live Mission Control routing",
+    "AskRigor production change",
+    "merge",
+    "deployment"
+  ],
+  "remaining_gap": "Trusted runtime integration and resource-authorized live acceptance; full project migration remains unperformed.",
+  "next_action": "Current integrator: consume WORK-INSTRUCTIONS.md, extend real admission and connect a host transport in an isolated lane; no new capability research required.",
+  "lesson_closeout": "Provider-specific auth and evidence semantics retained in this versioned candidate; no new universal rule promoted.",
+  "authoring_start_head": "5994b90c75e0ca36372678518ee9bc8e0a184685",
+  "stop_admission": {
+    "parent_outcome": "OPEN",
+    "delivered_boundary": "Isolated provider contract/CLI plan/receipt code, existing OpenAI mapping, focused tests and executable integration instructions.",
+    "remaining_gap": "Live controller integration, explicit Claude admission, host transport and authorized acceptance.",
+    "reason_to_handoff": "Current owner authorized remaining work instructions; this lane must not mutate the active shared integration/runtime."
+  },
+  "tests": {
+    "count": 42,
+    "passed": 42,
+    "failed": 0,
+    "live_inference_calls": 0
+  }
+}

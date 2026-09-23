@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "kind": "OFFLINE_TEST_RECEIPT",
+  "task_id": "claude-compatibility-20260923",
+  "node_version": "v26.8.1",
+  "command": "node --test tools/codex-mission-control/provider-compatibility/tests/compatibility.test.mjs",
+  "measurement_wrapper": "scripts/test_efficiency.py",
+  "tests": 42,
+  "passed": 42,
+  "failed": 0,
+  "cancelled": 0,
+  "skipped": 0,
+  "exit_code": 0,
+  "node_reported_duration_ms": 780.628861,
+  "observer_reported_test_wall_seconds": 1.46,
+  "forced_redundant_green_reruns": 0,
+  "claude_inference_calls": 0,
+  "cli_version_probe": {
+    "version": "2.1.281",
+    "command": "claude --version",
+    "inference": false,
+    "authentication_verified": false
+  },
+  "scope_limit": "Synthetic plan/parser/delegation tests only. Not real CLI inference, MCP access, actual MC dispatch integration or production verification.",
+  "tested_file_sha256": {
+    "compatibility.mjs": "e32e849e821a889f052aa87e595598a6b9d65865d5b33a2e4bc82cc50fc9460a",
+    "tests/compatibility.test.mjs": "e78e6a48aa9f514d63b39f05d2fd6c628018763a645cda8156047ed91274e6c7"
+  }
+}
