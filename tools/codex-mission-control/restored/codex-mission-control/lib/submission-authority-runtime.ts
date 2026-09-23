@@ -507,6 +507,30 @@ export class SubmissionAuthorityRuntime {
     if (typeof supervisorId !== "string") return;
     const chat = this.chats.get(supervisorId);
     const workerId = chat?.workerId;
+    const projectManager = chat?.scope === "PROJECT_MANAGER";
+    if (projectManager) {
+      const taskWorkerId = typeof authorizationRef === "string" && authorizationRef.startsWith("task:")
+        ? authorizationRef.slice("task:".length)
+        : null;
+      if (!taskWorkerId) {
+        const error = new Error("Submission authorization is missing, stale, or outside the authenticated producer task scope.");
+        Object.assign(error, { statusCode: 403, code: "SUBMISSION_AUTHORIZATION_STALE_OR_MISSING" });
+        throw error;
+      }
+      if (taskWorkerId !== "mission-control"
+        && !producer.workerScopes.includes("*")
+        && !producer.workerScopes.includes(taskWorkerId)) {
+        const error = new Error("Authenticated producer worker scope does not cover the Project Manager task target.");
+        Object.assign(error, { statusCode: 403, code: "SUBMISSION_AUTHORIZATION_SCOPE_MISMATCH" });
+        throw error;
+      }
+      if (!producer.taskScopes.includes("*") && !producer.taskScopes.includes(authorizationRef)) {
+        const error = new Error("Submission authorization is missing, stale, or outside the authenticated producer task scope.");
+        Object.assign(error, { statusCode: 403, code: "SUBMISSION_AUTHORIZATION_STALE_OR_MISSING" });
+        throw error;
+      }
+      return;
+    }
     if (workerId && !producer.workerScopes.includes("*") && !producer.workerScopes.includes(workerId)) {
       const error = new Error("Authenticated producer worker scope does not cover the registered supervisor target.");
       Object.assign(error, { statusCode: 403, code: "SUBMISSION_AUTHORIZATION_SCOPE_MISMATCH" });
