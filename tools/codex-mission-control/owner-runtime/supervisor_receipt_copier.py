@@ -46,6 +46,7 @@ class DecisionCandidate:
     conversation_url: str
     pre_send_at: str
     prompt_sha256: str
+    source_reader_app: str
     route: dict[str, Any]
     pre_send_refs: list[str]
 
@@ -57,6 +58,16 @@ class WorkCandidate:
     thread_id: str
     request: dict[str, Any]
     result: dict[str, Any]
+
+
+@dataclasses.dataclass(frozen=True)
+class DecisionMachineBlockResolution:
+    thread_id: str
+    observed_at: str
+    source_block: str
+    publish_block: str
+    payload: dict[str, Any]
+    transformed: bool
 
 
 def sha256_text(value: str) -> str:
@@ -191,6 +202,11 @@ def discover_decision_candidates(
         exact_session = max(exact_sessions, key=event_sequence)
         session_refs = event_data(exact_session).get("refs") or []
         conversation_url = ref_value(session_refs, "conversation_url:")
+        latest_start = max(starts, key=event_sequence)
+        start_refs = event_data(latest_start).get("refs") or []
+        source_reader_app = ref_value(start_refs, "selected_app:") or "GitHub"
+        if source_reader_app not in {"GitHub", "Remote Desktop Commander"}:
+            continue
         if not conversation_url or not re.fullmatch(r"https://chatgpt\.com/c/(?:WEB:)?[A-Za-z0-9_-]+", conversation_url):
             continue
         candidates.append(DecisionCandidate(
@@ -202,6 +218,7 @@ def discover_decision_candidates(
             conversation_url=conversation_url,
             pre_send_at=str(pre_send.get("occurredAt") or pre_send.get("occurred_at") or ""),
             prompt_sha256=prompt_sha256,
+            source_reader_app=source_reader_app,
             route=route,
             pre_send_refs=list(pre_refs),
         ))
@@ -431,6 +448,33 @@ def validate_decision_block(block: str, payload: dict[str, Any], candidate: Deci
         raise CopierError("decision block prefix mismatch")
 
 
+def repair_decision_digest_only(
+    block: str, payload: dict[str, Any], candidate: DecisionCandidate,
+) -> tuple[str, dict[str, Any]] | None:
+    decision = payload.get("decision_block")
+    if not isinstance(decision, dict) or not isinstance(decision.get("exact_text"), str) or not decision.get("exact_text"):
+        return None
+    claimed = decision.get("sha256")
+    corrected = sha256_text(decision["exact_text"])
+    if claimed == corrected:
+        return None
+    repaired = json.loads(json.dumps(payload))
+    repaired_decision = repaired.get("decision_block")
+    if not isinstance(repaired_decision, dict):
+        return None
+    repaired_decision["sha256"] = corrected
+    repaired_block = DECISION_PREFIX + json.dumps(repaired, separators=(",", ":"), ensure_ascii=False)
+    validate_decision_block(repaired_block, repaired, candidate)
+    source_equivalent = json.loads(json.dumps(payload))
+    source_decision = source_equivalent.get("decision_block")
+    if not isinstance(source_decision, dict):
+        raise CopierError("digest-only repair source decision is invalid")
+    source_decision["sha256"] = corrected
+    if source_equivalent != repaired:
+        raise CopierError("digest-only repair changed semantic decision fields")
+    return repaired_block, repaired
+
+
 def validate_work_receipt(block: str, payload: dict[str, Any], candidate: WorkCandidate) -> None:
     request = candidate.request
     allowed = {
@@ -571,31 +615,50 @@ def _updated_at_iso(value: Any) -> str:
     return dt.datetime.fromtimestamp(seconds, dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def select_decision_machine_block(threads: list[dict[str, Any]], candidate: DecisionCandidate) -> tuple[str, str, str, dict[str, Any]] | None:
-    matches: list[tuple[str, str, str, dict[str, Any]]] = []
+def select_decision_machine_block(
+    threads: list[dict[str, Any]], candidate: DecisionCandidate,
+) -> DecisionMachineBlockResolution | None:
+    matches: list[DecisionMachineBlockResolution] = []
     for thread in threads:
         if thread.get("status") != "idle":
             continue
         thread_id = thread.get("threadId")
         message = thread.get("finalAgentMessage")
-        if not isinstance(thread_id, str) or not thread_id or not isinstance(message, str):
+        observed_at = thread.get("observedAt")
+        if not isinstance(thread_id, str) or not thread_id or not isinstance(message, str) or not isinstance(observed_at, str):
             continue
+        observed_at = parse_iso(observed_at).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         parsed = extract_machine_block(message, DECISION_PREFIX)
         if not parsed:
             continue
-        block, payload = parsed
+        source_block, payload = parsed
+        publish_block = source_block
+        publish_payload = payload
+        transformed = False
         try:
-            validate_decision_block(block, payload, candidate)
+            validate_decision_block(source_block, payload, candidate)
         except CopierError:
-            continue
-        matches.append((thread_id, _updated_at_iso(thread.get("updatedAt")), block, payload))
+            repaired = repair_decision_digest_only(source_block, payload, candidate)
+            if not repaired:
+                continue
+            publish_block, publish_payload = repaired
+            transformed = True
+        matches.append(DecisionMachineBlockResolution(
+            thread_id=thread_id,
+            observed_at=observed_at,
+            source_block=source_block,
+            publish_block=publish_block,
+            payload=publish_payload,
+            transformed=transformed,
+        ))
     if len(matches) > 1:
         raise CopierError(f"more than one app-owned thread matches canonical decision {candidate.request_id}")
     return matches[0] if matches else None
 
 
-def resolve_decision_machine_block(config: Config, candidate: DecisionCandidate) -> tuple[str, str, str, dict[str, Any]] | None:
+def resolve_decision_machine_block(config: Config, candidate: DecisionCandidate) -> DecisionMachineBlockResolution | None:
     return select_decision_machine_block(list_chatgpt_final_messages(config, candidate.pre_send_at), candidate)
+
 
 
 def record_app_readback(config: Config, candidate: DecisionCandidate, *, thread_id: str, observed_at: str, block: str) -> dict[str, Any]:
@@ -604,7 +667,8 @@ def record_app_readback(config: Config, candidate: DecisionCandidate, *, thread_
         "--supervisor-id": str(candidate.route.get("destinationSupervisorId")),
         "--provider-session-id": candidate.provider_session_id, "--conversation-url": candidate.conversation_url,
         "--prompt-sha256": candidate.prompt_sha256, "--machine-block-sha256": sha256_text(block),
-        "--thread-id-sha256": sha256_text(thread_id), "--observed-at": observed_at,
+        "--thread-id-sha256": sha256_text(thread_id), "--source-reader-app": candidate.source_reader_app,
+        "--observed-at": observed_at,
     }
     tail = " ".join(f"{key} {shlex.quote(value)}" for key, value in args.items())
     command = (
@@ -614,6 +678,33 @@ def record_app_readback(config: Config, candidate: DecisionCandidate, *, thread_
     value = ssh_json(config, command, timeout=90)
     if not isinstance(value, dict) or value.get("status") != "RECORDED":
         raise CopierError("app-owned provider completion receipt was not recorded")
+    return value
+
+
+def record_machine_transform(
+    config: Config, candidate: DecisionCandidate, *,
+    source_block: str, transformed_block: str, payload: dict[str, Any], observed_at: str,
+) -> dict[str, Any]:
+    decision = payload.get("decision_block")
+    if not isinstance(decision, dict) or not isinstance(decision.get("exact_text"), str):
+        raise CopierError("transformed decision block is incomplete")
+    args = {
+        "--worker": candidate.worker, "--task-id": candidate.task_id, "--request-id": candidate.request_id,
+        "--supervisor-id": str(candidate.route.get("destinationSupervisorId")),
+        "--provider-session-id": candidate.provider_session_id,
+        "--source-machine-block-sha256": sha256_text(source_block),
+        "--transformed-machine-block-sha256": sha256_text(transformed_block),
+        "--decision-exact-text-sha256": sha256_text(decision["exact_text"]),
+        "--observed-at": observed_at,
+    }
+    tail = " ".join(f"{key} {shlex.quote(value)}" for key, value in args.items())
+    command = (
+        f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
+        f"node_modules/.bin/tsx scripts/record-chatgpt-machine-transform.ts {tail}"
+    )
+    value = ssh_json(config, command, timeout=90)
+    if not isinstance(value, dict) or value.get("status") != "RECORDED":
+        raise CopierError("provider machine-block transformation receipt was not recorded")
     return value
 
 
@@ -699,16 +790,24 @@ def process_once(config: Config) -> dict[str, Any]:
         resolved = resolve_decision_machine_block(config, candidate)
         if not resolved:
             continue
-        thread_id, observed_at, block, payload = resolved
-        validate_decision_block(block, payload, candidate)
-        record_app_readback(config, candidate, thread_id=thread_id, observed_at=observed_at, block=block)
+        validate_decision_block(resolved.publish_block, resolved.payload, candidate)
+        record_app_readback(
+            config, candidate, thread_id=resolved.thread_id,
+            observed_at=resolved.observed_at, block=resolved.source_block,
+        )
+        if resolved.transformed:
+            record_machine_transform(
+                config, candidate, source_block=resolved.source_block,
+                transformed_block=resolved.publish_block, payload=resolved.payload,
+                observed_at=dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            )
         issue = candidate.route.get("githubReceipt", {}).get("issueNumber")
         repository = candidate.route.get("githubReceipt", {}).get("repository")
         if repository != config.repository or not isinstance(issue, int):
             raise CopierError("decision target does not match configured repository")
-        comment_id = publish_exact(config, issue=issue, body=block, prefix=DECISION_PREFIX,
+        comment_id = publish_exact(config, issue=issue, body=resolved.publish_block, prefix=DECISION_PREFIX,
                                    identity_field="request_id", identity=candidate.request_id)
-        published[key] = {"commentId": comment_id, "sha256": sha256_text(block), "kind": "decision"}
+        published[key] = {"commentId": comment_id, "sha256": sha256_text(resolved.publish_block), "kind": "decision"}
         copied.append({"kind": "decision", "requestId": candidate.request_id, "commentId": comment_id})
         save_state(config, state)
 

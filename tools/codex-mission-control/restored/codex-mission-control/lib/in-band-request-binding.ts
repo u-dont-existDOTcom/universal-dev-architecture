@@ -11,6 +11,8 @@ export const inBandPreSendSummary = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE
 export const inBandAttestationSummary = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_EXECUTION_V1";
 export const inBandAppReadbackSummary = "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1";
 export const inBandAppReadbackProducerId = "collector:chatgpt-app-readback";
+export const inBandMachineTransformSummary = "MISSION_CONTROL_PROVIDER_SESSION_MACHINE_TRANSFORM_V1";
+export const inBandDigestRepairOperation = "DECISION_BLOCK_SHA256_RECOMPUTE_ONLY";
 const sessionSummary = "MISSION_CONTROL_PROVIDER_SESSION_V1";
 const modelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
 const stageSummary = "MISSION_CONTROL_RELAY_STAGE_V1";
@@ -175,21 +177,45 @@ export function assertInBandRequestExecution(
     && inWindow(event, request.queuedAt, ingestedAt) && isTrustedAppReadback(event)
     && hasRefs(event, {
       request: request.requestId, supervisor: request.supervisorId, provider_session: decision.provider_session_id,
-      status: "COMPLETE", machine_block_sha256: machineBlockSha256, provider_prompt_sha256: promptSha256!,
+      status: "COMPLETE", provider_prompt_sha256: promptSha256!,
       conversation_url: conversationUrl, thread_surface: "chatgpt", semantic_authority: "false",
       readback_method: "APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
     }));
   if (appReadbacks.length > 1) fail("app-owned provider completion evidence is ambiguous");
   const appReadback = appReadbacks[0] ?? null;
+  let machineTransform: StoredEvent | null = null;
+  if (appReadback) {
+    const sourceMachineBlockSha256 = exactRef(appReadback, "machine_block_sha256") ?? fail("app-owned provider machine block digest is invalid");
+    if (!/^[a-f0-9]{64}$/.test(sourceMachineBlockSha256)) fail("app-owned provider machine block digest is invalid");
+    if (sourceMachineBlockSha256 !== machineBlockSha256) {
+      const transforms = events.filter((event) => event.worker === request.worker
+        && inWindow(event, request.queuedAt, ingestedAt) && isTrustedMachineTransform(event)
+        && hasRefs(event, {
+          request: request.requestId, supervisor: request.supervisorId, provider_session: decision.provider_session_id,
+          source_machine_block_sha256: sourceMachineBlockSha256, transformed_machine_block_sha256: machineBlockSha256,
+          operation: inBandDigestRepairOperation, decision_exact_text_sha256: decision.decision_block.sha256,
+          writer_mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: "false",
+          semantic_authority: "false",
+        }));
+      if (transforms.length !== 1) fail("provider machine-block transformation is missing or ambiguous");
+      machineTransform = transforms[0]!;
+    }
+  }
   if (!relayComplete && !appReadback) fail("provider completion evidence missing; reconcile unchanged app-owned artifact");
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
     && exactRef(event, "session_role") === inBandRequestRole && controlEvidence(event) !== null);
   if (!model) fail("visible model/control observation missing");
   const modelControls = controlEvidence(model!) ?? fail("model/control observation is invalid");
+  const sourceReaderApp = appReadback ? (exactRef(appReadback, "source_reader_app") ?? "GitHub") : "GitHub";
+  const sourceReaderMode = appReadback ? (exactRef(appReadback, "source_reader_mode") ?? "READ_ONLY") : "READ_ONLY";
+  if (!["GitHub", "Remote Desktop Commander"].includes(sourceReaderApp)
+    || sourceReaderMode !== "READ_ONLY" || sourceReaderApp === "Mission Control") {
+    fail("provider source reader is not an approved read-only source reader");
+  }
   const stages = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
     && exactRef(event, "step") === inBandRequestStep && exactRef(event, "conversation_url") === conversationUrl
     && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
-    && exactRef(event, "selected_app") === "GitHub" && exactRef(event, "semantic_authority") === "false"
+    && exactRef(event, "selected_app") === sourceReaderApp && exactRef(event, "semantic_authority") === "false"
     && controlEvidence(event) !== null);
   const starts = stages.filter((event) => exactRef(event, "generation_state") === "STARTED");
   const completes = stages.filter((event) => exactRef(event, "generation_state") === "COMPLETE");
@@ -244,6 +270,7 @@ export function assertInBandRequestExecution(
   const boundary = Date.parse(String(admission.boundaryAt));
   const startAt = Date.parse(start!.occurredAt);
   const appReadbackAt = appReadback ? Date.parse(appReadback.occurredAt) : null;
+  const machineTransformAt = machineTransform ? Date.parse(machineTransform.occurredAt) : null;
   const relayCompleteAt = complete ? Date.parse(complete.occurredAt) : null;
   const commonTimingInvalid = !Number.isFinite(created) || !Number.isFinite(admitted) || !Number.isFinite(boundary)
     || admitted > Date.parse(pre.occurredAt) || Date.parse(pre.occurredAt) > boundary
@@ -251,9 +278,14 @@ export function assertInBandRequestExecution(
     || Date.parse(model!.occurredAt) > Date.parse(pre.occurredAt)
     || Date.parse(request.expiresAt) <= Date.parse(pre.occurredAt);
   const copiedAfterRequestExpiry = created > Date.parse(request.expiresAt);
+  const transformTimingInvalid = machineTransform
+    ? (!Number.isFinite(machineTransformAt) || !Number.isFinite(appReadbackAt)
+      || machineTransformAt! < appReadbackAt! || machineTransformAt! > createdUpper
+      || machineTransformAt! > Date.parse(ingestedAt))
+    : false;
   const completionTimingInvalid = appReadback
     ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
-      || appReadbackAt! > Date.parse(request.expiresAt))
+      || appReadbackAt! > Date.parse(request.expiresAt) || transformTimingInvalid)
     : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
       || startAt > relayCompleteAt!);
   if (copiedAfterRequestExpiry && !appReadback) fail("post-expiry transport copy requires current app-owned completion evidence");
@@ -299,6 +331,11 @@ function isTrustedEvidence(event: StoredEvent, summary: string, producers: strin
 }
 function isTrustedAppReadback(event: StoredEvent): boolean {
   return event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandAppReadbackSummary && event.data.verified
+    && event.producerKind === "COLLECTOR" && event.producerId === inBandAppReadbackProducerId
+    && event.data.producer_id === event.producerId && event.data.producer_role === "COLLECTOR";
+}
+function isTrustedMachineTransform(event: StoredEvent): boolean {
+  return event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandMachineTransformSummary && event.data.verified
     && event.producerKind === "COLLECTOR" && event.producerId === inBandAppReadbackProducerId
     && event.data.producer_id === event.producerId && event.data.producer_role === "COLLECTOR";
 }
