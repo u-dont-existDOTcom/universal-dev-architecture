@@ -29,6 +29,49 @@ It is:
 
 If Chat can perform the action directly and reliably, keep the action in Chat. Action category alone is never a Work trigger.
 
+### Provider-native subscription CLI before metered model API/gateway
+
+When Chat needs a bounded external-model inference, evaluator, critic, or comparison and the exact required model/capability is available through an **already-authenticated provider-native local subscription CLI**, prefer that CLI before spending metered API/gateway credits.
+
+This is an execution-route rule, not authority to change the requested model or evidence contract.
+
+Before choosing the route, preflight:
+- CLI installed and current enough for the task;
+- authentication currently valid;
+- exact requested model available;
+- required reasoning/effort control available when material;
+- output/structured-response capability adequate for the task;
+- required freshness/isolation can be achieved.
+
+For fresh or independent critic evidence, the CLI invocation must use a new non-resumed session and suppress irrelevant local context as far as the current CLI supports: no inherited conversation, no unnecessary tools, no project/user instruction files or memory when they would contaminate the test, and a neutral workspace when workspace discovery matters. If genuine isolation cannot be established, label the result non-isolated rather than treating CLI convenience as independence.
+
+Current provider-native examples include:
+- **Claude Code CLI** for Claude models/effort levels when its Anthropic subscription/OAuth session is authenticated;
+- **Codex CLI** for GPT models/effort levels when its ChatGPT subscription authentication is healthy.
+
+Verify current CLI flags and model availability at execution time; do not treat these examples as permanent product syntax.
+
+Use the provider API/gateway instead when:
+- the provider-native CLI is unavailable or unauthenticated;
+- it does not expose the exact required model, effort, structured output, or isolation needed;
+- the experiment specifically measures provider/API behavior and therefore requires that surface;
+- the owner explicitly requests the API/gateway route; or
+- another current hard requirement establishes that route.
+
+An API/gateway fallback may be technically valid without becoming the new default. When a local subscription CLI later becomes available again, re-evaluate the cheaper/direct route before further metered calls.
+
+### Provider route is independent of credential residence
+
+Credential or secret storage is an implementation detail, not authority to change the requested execution route.
+
+When the owner or active method specifies a direct provider/API/CLI route:
+- recover and use that route first when it remains authorized and technically viable;
+- do not insert Railway, Work, an agent, a deployment, a gateway, or another service merely because that surface happens to store/expose a credential;
+- a secret manager/environment store may supply credentials to a direct call without becoming the semantic or inference route;
+- if the required direct route is blocked, report or classify the actual auth/capability blocker and use only an already-authorized fallback.
+
+Conversely, when a gateway/relay is itself part of the owner-approved evidence contract, do not bypass it merely because a raw provider key or CLI is locally available.
+
 ### Work admission requires current-turn direct-capability discovery
 
 Before proposing or creating a Work/Codex handoff for terminal, filesystem, SSH,
