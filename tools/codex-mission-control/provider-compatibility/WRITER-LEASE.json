@@ -1,19 +1,23 @@
 {
   "schema_version": 1,
-  "status": "complete",
+  "status": "active",
   "exclusive_writer": true,
-  "owned_branch": "chat/claude-compatibility-20260923-2251",
+  "owned_branch": "task/claude-compatibility-continuation-20260923-2332",
   "integration_branch": "main",
   "integration_base_sha": "eaeacee9c187d943e036cb7b299388f3094a1e64",
-  "parent_integrator": "RECHECK_CURRENT_INTEGRATOR_BEFORE_INTEGRATION",
-  "scope": "Isolated offline provider contract, Claude CLI plan and receipt adapter, existing OpenAI delegation mapping, focused tests and integration instructions.",
+  "parent_integrator": "NONE_ACTIVE_RECHECK_BEFORE_SHARED_INTEGRATION",
+  "scope": "Isolated Claude compatibility continuation: real dispatch regression, deliberate admission/profile extension, host-controlled transport candidate, focused tests and non-secret host preflight. No shared runtime write/deploy/provider switch/paid inference.",
   "allowed_paths": [
-    "tools/codex-mission-control/provider-compatibility/**"
+    "tools/codex-mission-control/provider-compatibility/**",
+    "tools/codex-mission-control/restored/codex-mission-control/scripts/**",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-profile.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/**"
   ],
   "shared_runtime_write": false,
   "production_switch": false,
   "paid_model_inference": false,
   "claude_inference_during_this_iteration": false,
   "assurance_lane": "iteration",
-  "closeout": "Offline candidate delivered; no shared integration or runtime ownership claimed."
+  "closeout": null
 }
