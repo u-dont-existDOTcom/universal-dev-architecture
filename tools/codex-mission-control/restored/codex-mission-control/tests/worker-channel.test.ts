@@ -399,6 +399,7 @@ test("new Next machine routes remain daemon proxies rather than SQLite writers",
   const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   for (const route of [
     "app/api/workers/[worker]/messages/route.ts",
+    "app/api/workers/[worker]/source-review/route.ts",
     "app/api/worker-channel/[worker]/outbox/route.ts",
     "app/api/worker-channel/[worker]/events/route.ts",
     "app/api/mcp/route.ts",

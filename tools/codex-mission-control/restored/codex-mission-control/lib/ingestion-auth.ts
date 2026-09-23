@@ -1,4 +1,6 @@
 import type { MissionControlEventV2 } from "./schema";
+import { POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
+import { SOURCE_REVIEW_ROUTER_PRODUCER_ID } from "./source-review-route";
 
 export const producerKinds = [
   "OWNER_AUTHORITY", "WORKER", "SUPERVISOR", "COLLECTOR", "VERIFIER", "SYSTEM", "UI",
@@ -78,8 +80,8 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
     if (["work_execution_profile_authorized", "work_execution_preflight_recorded", "work_model_routing_checkpoint_recorded",
       "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_handoff_intent_recorded",
       "chatgpt_work_cloud_dispatch_recorded", "chatgpt_work_cloud_execution_receipt_recorded"].includes(event.type)) return true;
-    if (event.type === "worker_message_recorded" && producer.id === "system:post-execution-reasoning-router") {
-      return event.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n");
+    if (event.type === "worker_message_recorded") {
+      return systemSupervisoryRouteMatches(producer, event);
     }
     if (event.type === "github_decision_receipt_ingested") return true;
     if (event.type === "execution_directive_recorded") {
@@ -92,6 +94,22 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
       && ["DIRECTIVE_DELIVERED", "DIRECTIVE_DELIVERY_FAILED", "CORRECTION_REOPENED"].includes(event.status);
   }
   return event.type === "review_marked" || event.type === "supervisor_chat_link_set" || event.type === "owner_message_recorded";
+}
+
+function systemSupervisoryRouteMatches(
+  producer: AuthenticatedProducer,
+  event: Extract<MissionControlEventV2, { type: "worker_message_recorded" }>,
+): boolean {
+  if (producer.kind !== "SYSTEM"
+    || ![POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, SOURCE_REVIEW_ROUTER_PRODUCER_ID].includes(producer.id)
+    || !event.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n")) return false;
+  try {
+    const value: unknown = JSON.parse(event.body.slice("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n".length));
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+      && (value as Record<string, unknown>).producerId === producer.id;
+  } catch {
+    return false;
+  }
 }
 
 function eventTaskId(event: MissionControlEventV2): string {
@@ -110,8 +128,7 @@ function embeddedIdentityMatches(producer: AuthenticatedProducer, event: Mission
     return producer.kind === "SYSTEM" && "producer_id" in event && event.producer_id === producer.id;
   }
   if (event.type === "worker_message_recorded" && producer.kind === "SYSTEM") {
-    return producer.id === "system:post-execution-reasoning-router"
-      && event.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n");
+    return systemSupervisoryRouteMatches(producer, event);
   }
   if (event.type === "reasoning_message_recorded") {
     if (event.recorded_by !== producer.id || producer.kind === "WORKER") return false;

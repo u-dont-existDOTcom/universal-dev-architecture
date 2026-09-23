@@ -279,6 +279,7 @@ Dashboard-facing Next.js BFF:
 - `POST /api/viewed`
 - `POST /api/workers/:worker/supervisor-chat`
 - `POST /api/workers/:worker/messages` (same-origin owner UI)
+- `POST /api/workers/:worker/source-review` (owner-authenticated pre-Work source re-review routed through the existing V6 supervisor channel)
 - `GET /api/worker-channel/:worker/outbox` (authenticated worker)
 - `POST /api/worker-channel/:worker/events` (authenticated worker)
 - `POST /api/worker-channel/:worker/admission` (authenticated bounded-execution authorization; version 3 requests require an exact source-bound Work profile)
