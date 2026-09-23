@@ -509,9 +509,12 @@ export class SubmissionAuthorityRuntime {
     const workerId = chat?.workerId;
     const projectManager = chat?.scope === "PROJECT_MANAGER";
     if (projectManager) {
-      const taskWorkerId = typeof authorizationRef === "string" && authorizationRef.startsWith("task:")
-        ? authorizationRef.slice("task:".length)
-        : null;
+      if (typeof authorizationRef !== "string" || !authorizationRef.startsWith("task:")) {
+        const error = new Error("Submission authorization is missing, stale, or outside the authenticated producer task scope.");
+        Object.assign(error, { statusCode: 403, code: "SUBMISSION_AUTHORIZATION_STALE_OR_MISSING" });
+        throw error;
+      }
+      const taskWorkerId = authorizationRef.slice("task:".length);
       if (!taskWorkerId) {
         const error = new Error("Submission authorization is missing, stale, or outside the authenticated producer task scope.");
         Object.assign(error, { statusCode: 403, code: "SUBMISSION_AUTHORIZATION_STALE_OR_MISSING" });
