@@ -51,6 +51,37 @@ A follow-up is not automatically owner-required merely because it seems useful, 
 
 If the root outcome is `SATISFIED`, a new improvement may be proposed or run only under existing authority for optional/reversible improvement. It must not be represented as unfinished owner work, and it must not block the already-satisfied result unless a genuine owner/external hard requirement applies.
 
+## 2A. Preserve the evaluation target; do not substitute a proxy
+
+When the owner asks to debug, calibrate, compare, or improve an evaluator/process, preserve the **literal thing being evaluated** before designing a benchmark.
+
+Record:
+
+- `owner_evaluation_target` — the actual question the owner needs answered;
+- `proposed_proxy` — any substitute metric, benchmark, classifier, judge, or label;
+- `equivalence_basis` — evidence that success/failure on the proxy answers the owner target;
+- `proxy_status` — `EQUIVALENT` / `CONTRIBUTING_ONLY` / `UNVALIDATED`.
+
+A proxy with `CONTRIBUTING_ONLY` or `UNVALIDATED` status may be a bounded experiment. It may not silently become the new root goal, acceptance criterion, or blocker.
+
+Examples of prohibited substitution:
+
+- owner target: `does this prose instantiate any tells in the known tell catalog?`
+- substituted proxy: `can a model infer whether the prose was authored by a Human or AI?`
+
+and:
+
+- owner target: `does this specific detector/editing process catch known defects before paid validation?`
+- substituted proxy: `can a general prose judge classify the whole passage correctly?`
+
+Failure of the proxy does **not** falsify the original method unless proxy equivalence was established first. Success of the proxy does not satisfy the owner target unless the same equivalence was established.
+
+Before each further optimization round, ask:
+
+> If this experiment succeeds or fails, what exact decision about the original owner target changes?
+
+If the answer is `none` or only changes the proxy itself, stop that lane and return to the parent target.
+
 ## 3. Classify every new mandatory requirement by origin
 
 For each requirement introduced by the follow-up that was not already present in the parent owner outcome, record:

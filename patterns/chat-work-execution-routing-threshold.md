@@ -29,6 +29,30 @@ It is:
 
 If Chat can perform the action directly and reliably, keep the action in Chat. Action category alone is never a Work trigger.
 
+### Provider route is independent of credential residence
+
+Credential/secret storage is an implementation detail, not authority to change the requested execution route.
+
+When the owner or active method specifies a direct provider/API route:
+
+- first recover the existing direct provider invocation and authorized credential source;
+- keep the inference/request direct to that provider;
+- do not insert Railway, Work, an agent, a deployment, a gateway, a connector, or another service merely because that surface happens to store or expose the credential;
+- a secret manager, environment store, or host may supply credentials to a direct call without becoming the semantic or inference route;
+- if the direct credential cannot be accessed securely, report the credential/access blocker rather than silently changing providers or routing architecture.
+
+Conversely, when a gateway/relay is itself part of the owner-approved contract, do not bypass it merely because a raw provider key is locally available.
+
+Before changing routes, compare:
+
+`requested provider + endpoint/surface + isolation contract`
+
+against
+
+`proposed provider + endpoint/surface + isolation contract`.
+
+A credential-location clue does not establish equivalence.
+
 ### Work admission requires current-turn direct-capability discovery
 
 Before proposing or creating a Work/Codex handoff for terminal, filesystem, SSH,
