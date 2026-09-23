@@ -856,16 +856,21 @@ export class RelayRuntime {
         // Missing durable receipts are recovered in a new provider session.
         allowSameChatRecovery: false,
       });
-      await this.#recordRelayStage(route, action.step, prior.modelUiLabel, prior.promptSha256, 'COMPLETE', observation.completedAtObserved, null, prior.generationStart?.messageApps ?? null);
       state = await this.stateStore.read();
       session = state.providerSessions[session.providerSessionId] ?? session;
+      if (observation.conversationUrl && observation.conversationUrl !== session.conversationUrl) {
+        session = { ...session, conversationUrl: observation.conversationUrl, urlBoundAt: observation.completedAtObserved };
+      }
       session = { ...session, status: 'COMPLETE', completedAt: observation.completedAtObserved };
       state.providerSessions[session.providerSessionId] = session;
-      await this.#recordProviderSession({ ...route, providerSession: session }, session, 'EXACT');
+      route = { ...route, providerSession: session };
+      await this.#recordRelayStage(route, action.step, prior.modelUiLabel, prior.promptSha256, 'COMPLETE', observation.completedAtObserved, null, prior.generationStart?.messageApps ?? null);
+      await this.#recordProviderSession(route, session, 'EXACT');
       if (session.targetId) this.#rememberReusableTarget(state, session.targetId, session.conversationUrl);
       state.deliveries[route.routeKey] = {
         ...prior,
         status: completedCycleStepStatus(action.step),
+        conversationUrl: session.conversationUrl,
         generationCompletedAt: observation.completedAtObserved,
         generationCompletion: observation,
       };
