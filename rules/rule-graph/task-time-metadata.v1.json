@@ -259,6 +259,118 @@
       ]
     },
     {
+      "rule_id": "uda.followup.owner-goal-rebind",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/owner-goal-followup-and-requirement-accretion.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "The control applies at the moment a new consequential follow-up task, subtask, gate, assurance requirement, architecture dependency, or blocker is proposed."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Before defining the follow-up, classify the current root outcome:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "`ASSISTANT_INFERENCE` or `INHERITED_PROJECT_CHOICE` with `UNRESOLVED` necessity may be used only for a bounded reversible experiment that can decide the question. It may not become:"
+          }
+        ]
+      },
+      "authority_owner": "owner-goal follow-up and requirement-accretion gate",
+      "authority_domain": "follow-up-goal-binding",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex"
+        ],
+        "action_classes": [
+          "followup_task_authoring",
+          "benchmark_authoring",
+          "evaluator_authoring",
+          "acceptance_criterion_authoring",
+          "assurance_gate_authoring"
+        ]
+      },
+      "trigger": {
+        "any": [
+          {
+            "fact": "action_classes",
+            "contains": "followup_task_authoring"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "benchmark_authoring"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "evaluator_authoring"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "acceptance_criterion_authoring"
+          },
+          {
+            "fact": "action_classes",
+            "contains": "assurance_gate_authoring"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "rebind-followup-to-owner-outcome",
+          "required_behavior": "Before defining or launching the consequential follow-up, classify the parent owner outcome and state the exact remaining owner gap; do not substitute a proxy objective.",
+          "due_phase": "reasoning",
+          "destination": "follow-up task definition",
+          "acceptance_evidence": "The proposed follow-up names the parent owner outcome/status, exact remaining gap, and how the follow-up result can change that gap.",
+          "non_substitutes": [
+            "interesting benchmark with no parent-outcome binding",
+            "local metric improvement",
+            "provider/model comparison whose result cannot change the owner decision"
+          ],
+          "carry_through": "Recheck when the follow-up design, acceptance metric, or blocker changes.",
+          "repair": "Return to the parent owner outcome and redesign or drop the follow-up before launching it.",
+          "enforcement": "semantic",
+          "mechanical_check": null
+        },
+        {
+          "obligation_id": "classify-added-requirement-necessity",
+          "required_behavior": "Any assistant-added mandatory requirement or acceptance criterion must declare origin and necessity; unresolved assistant inference may remain only a bounded reversible experiment and cannot become a fail-closed blocker.",
+          "due_phase": "reasoning",
+          "destination": "follow-up acceptance criteria",
+          "acceptance_evidence": "Every newly mandatory condition is owner/external/empirically required, or remains explicitly non-blocking experiment-only.",
+          "non_substitutes": [
+            "stricter proof because it seems safer",
+            "assistant-invented threshold promoted after the experiment begins",
+            "proxy benchmark promoted to root acceptance criterion"
+          ],
+          "carry_through": "Requirement origin/necessity remains attached until the requirement is removed, established, or owner-authorized.",
+          "repair": "Demote the unresolved requirement to optional/diagnostic status or establish necessity against the strongest materially simpler route.",
+          "enforcement": "semantic",
+          "mechanical_check": null
+        }
+      ],
+      "provenance": {
+        "origin": "existing universal owner-goal follow-up rule",
+        "review_state": "REVIEWED"
+      },
+      "relations": [
+        {
+          "type": "requires",
+          "rule_id": "uda.active-contract.boundary-binding",
+          "supplies": [
+            "follow-up definition and acceptance-criterion boundary binding"
+          ]
+        }
+      ]
+    },
+    {
       "rule_id": "uda.chat-work.execution-separation",
       "revision": 1,
       "status": "CURRENT",

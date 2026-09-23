@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task_id": "example:followup-benchmark-authoring",
+  "facts": {
+    "governance_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "current owner/UDA bootstrap"
+    },
+    "owner_requires_live_root": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "current owner requirement"
+    },
+    "role": {
+      "state": "KNOWN",
+      "value": "universal_internal",
+      "provenance": "current surface"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "chat",
+      "provenance": "follow-up author"
+    },
+    "destination": {
+      "state": "KNOWN",
+      "value": "owner-visible-final",
+      "provenance": "current response"
+    },
+    "action_classes": {
+      "state": "KNOWN",
+      "value": [
+        "benchmark_authoring"
+      ],
+      "provenance": "planned follow-up experiment"
+    },
+    "owner_outcome_status": {
+      "state": "KNOWN",
+      "value": "OPEN",
+      "provenance": "parent task"
+    },
+    "task_mode": {
+      "state": "KNOWN",
+      "value": "IMPLEMENTATION",
+      "provenance": "current task"
+    },
+    "owner_correction_present": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "current turn"
+    },
+    "explicit_boundary_binding_requested": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "dependency-only"
+    }
+  },
+  "legacy_rule_ids": [
+    "uda.final.timestamp",
+    "uda.bootstrap.live-root",
+    "uda.continuation.open-outcome",
+    "uda.followup.owner-goal-rebind"
+  ]
+}

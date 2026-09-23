@@ -37,6 +37,19 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         graph = task_time.compile_contract(self.catalog, self.profile, task, "graph")
         self.assertIn("uda.owner-correction.reactivate", self.ids(graph))
 
+    def test_consequential_followup_activates_owner_goal_rebind(self):
+        task = json.loads((ROOT / "examples/rule-graph/followup-benchmark.json").read_text())
+        graph = task_time.compile_contract(self.catalog, self.profile, task, "graph")
+        self.assertIn("uda.followup.owner-goal-rebind", self.ids(graph))
+        rendered = graph["rendered_contract"]
+        self.assertIn("parent owner outcome", rendered)
+        self.assertIn("proxy objective", rendered)
+        self.assertIn("fail-closed blocker", rendered)
+
+    def test_ordinary_implementation_does_not_activate_followup_gate(self):
+        graph = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
+        self.assertNotIn("uda.followup.owner-goal-rebind", self.ids(graph))
+
     def test_three_valued_logic_preserves_unknown(self):
         self.assertEqual(task_time.evaluate({"fact": "x", "eq": True}, {}), task_time.UNKNOWN)
         self.assertEqual(task_time.evaluate({"not": {"fact": "x", "eq": True}}, {}), task_time.UNKNOWN)
