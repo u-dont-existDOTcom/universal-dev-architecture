@@ -901,6 +901,31 @@ test('expired historical supervisory route cannot starve a later valid route', a
   assert.equal(browser.submitCalls, 0);
 });
 
+test('V6 generation-started transport can be operator-confirmed submitted without replay', async () => {
+  const { store, browser, runtime } = inBandRequestFixture();
+  store.state.deliveries['request:r-1'] = {
+    status: 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED',
+    requestId: 'r-1',
+    workerId: 'worker-1',
+    supervisorId: 'spec',
+    providerSessionId: 'provider-session:v6-sent',
+    decisionProviderSessionId: 'provider-session:v6-sent',
+    bindingProviderSessionId: 'provider-session:v6-sent',
+    cycleStep: 'IN_BAND_REQUEST_DECISION',
+    generationStarted: true,
+    generationStartedAt: '2026-09-02T00:00:01.000Z',
+  };
+  const resolved = await runtime.resolve('request:r-1', 'submitted');
+  assert.equal(resolved.status, 'AMBIGUITY_RESOLVED');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'SUBMITTED_CONFIRMED');
+  assert.equal(store.state.deliveries['request:r-1'].resolution, 'OPERATOR_ATTESTED_SUBMITTED');
+  assert.equal(browser.submitCalls, 0);
+  await assert.rejects(
+    runtime.resolve('request:r-1', 'retry'),
+    /SUBMITTED_CONFIRMED; no ambiguity resolution is permitted/,
+  );
+});
+
 test('V6 operator-authorized proven-unsent retry re-enters the same one-send control step', async () => {
   const { store, runtime } = inBandRequestFixture();
   store.state.deliveries['request:r-1'] = {
