@@ -26,6 +26,25 @@ class ChatDirectExecutionRoutingTests(unittest.TestCase):
         self.assertIn("CHAT_DIRECT_EXECUTION_PREFLIGHT", text)
         self.assertIn("If Chat can perform the action directly and reliably, keep the action in Chat", text)
 
+    def test_provider_native_cli_precedes_metered_api_when_capability_equivalent(self):
+        text = (ROOT / "patterns/chat-work-execution-routing-threshold.md").read_text()
+        self.assertIn("Provider-native subscription CLI before metered model API/gateway", text)
+        self.assertIn("already-authenticated provider-native local subscription CLI", text)
+        self.assertIn("prefer that CLI before spending metered API/gateway credits", text)
+        self.assertIn("Claude Code CLI", text)
+        self.assertIn("Codex CLI", text)
+        self.assertIn("new non-resumed session", text)
+        self.assertIn("neutral workspace", text)
+        self.assertIn("unavailable or unauthenticated", text)
+        self.assertIn("experiment specifically measures provider/API behavior", text)
+
+    def test_credential_residence_does_not_rewrite_provider_route(self):
+        text = (ROOT / "patterns/chat-work-execution-routing-threshold.md").read_text()
+        self.assertIn("Provider route is independent of credential residence", text)
+        self.assertIn("Credential or secret storage is an implementation detail", text)
+        self.assertIn("do not insert Railway", text)
+        self.assertIn("secret manager/environment store may supply credentials", text)
+
     def test_root_bootstrap_reminds_direct_execution_preflight(self):
         text = (ROOT / "AGENTS.md").read_text()
         self.assertIn("Before Work, discover deferred Chat tools too", text)
