@@ -584,9 +584,12 @@ Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**.
 - Live boundary verified: health 200, unauthenticated chat 401, and one
   authenticated paid GPT-5.6 Sol smoke returned HTTP 200 with exact
   `VENICE_GATEWAY_OK`.
-- OpenRouter remains permitted only where the required capability is
-  provider-specific or unavailable through the gateway; current TypeSafe Jev
-  Decisions is the explicit existing exception.
+- OpenRouter remains permitted only where the required capability/model is
+  provider-specific or unavailable through the gateway. Canonical direct caller:
+  `scripts/uda_openrouter.py`, using local runtime `OPENROUTER_API_KEY` and the
+  explicit OpenRouter model ID. This path is direct local process -> OpenRouter;
+  Railway is not part of the inference architecture. TypeSafe Jev Decisions
+  remains an existing OpenRouter-specific exception.
 - Canonical repository closeout: the gateway/client change passed local and
   hosted release gates, merged as `c89bf0417353fbf480bae82afecd3a1a3d921248`,
   and Railway is now sourced from `main` with the merge-commit deployment
