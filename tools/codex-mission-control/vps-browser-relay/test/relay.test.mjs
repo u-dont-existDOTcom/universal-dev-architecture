@@ -535,6 +535,27 @@ test('an admitted canonical receipt completes the provider session and retains o
   assert.equal(browser.targets.length, 1);
 });
 
+test('generation completion persists provider WEB-to-stable canonicalization on the same session', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser({
+    provisionalWebUrl: true,
+    completionConversationUrl: 'https://chatgpt.com/c/stable-review',
+  });
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  assert.match(store.state.providerSessions[providerSessionId].conversationUrl, /^https:\/\/chatgpt\.com\/c\/WEB:/);
+
+  const completed = await runtime.cycle();
+  assert.equal(completed.status, 'MCP_BINDING_PRELOAD_COMPLETE', JSON.stringify(completed));
+  assert.equal(store.state.providerSessions[providerSessionId].conversationUrl, 'https://chatgpt.com/c/stable-review');
+  assert.equal(store.state.deliveries['request:r-1'].conversationUrl, 'https://chatgpt.com/c/stable-review');
+  assert.equal(store.state.deliveries['request:r-1'].generationCompletion.conversationUrlCanonicalized, true);
+  assert.ok(mc.recordedEvidence.some((item) => item.refs?.includes('conversation_url:https://chatgpt.com/c/stable-review')));
+});
+
 test('each admitted route gets a different fresh provider session and conversation', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
@@ -695,10 +716,18 @@ class FakeMissionControl {
 }
 
 class FakeBrowser {
-  constructor({ submitErrorStage = null, automationWindowId = 101, automationOwnedTargetIdsSha256 = sha256(JSON.stringify(['automation-owned-target'])) } = {}) {
+  constructor({
+    submitErrorStage = null,
+    automationWindowId = 101,
+    automationOwnedTargetIdsSha256 = sha256(JSON.stringify(['automation-owned-target'])),
+    provisionalWebUrl = false,
+    completionConversationUrl = null,
+  } = {}) {
     this.submitErrorStage = submitErrorStage;
     this.automationWindowId = automationWindowId;
     this.automationOwnedTargetIdsSha256 = automationOwnedTargetIdsSha256;
+    this.provisionalWebUrl = provisionalWebUrl;
+    this.completionConversationUrl = completionConversationUrl;
     this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = []; this.lastDoctorOptions = null;
   }
@@ -738,10 +767,25 @@ class FakeBrowser {
   async submitExactMessage(target, input) {
     this.submitCalls += 1; this.lastSubmittedBody = input.body;
     if (this.submitErrorStage) { const error = new Error('simulated send uncertainty'); error.relayStage = this.submitErrorStage; throw error; }
-    if (target.url === 'https://chatgpt.com/') target.url = `https://chatgpt.com/c/fresh-${this.freshChatCalls}`;
+    if (target.url === 'https://chatgpt.com/') {
+      target.url = this.provisionalWebUrl
+        ? `https://chatgpt.com/c/WEB:fresh-${this.freshChatCalls}`
+        : `https://chatgpt.com/c/fresh-${this.freshChatCalls}`;
+    }
     return { status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE', startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256, conversationUrl: target.url };
   }
-  async waitForGenerationComplete() { this.waitCalls += 1; return { status: 'GENERATION_COMPLETE', generationStarted: true, completedAtObserved: `2026-09-02T00:00:1${this.waitCalls}.000Z`, inspectedAssistantOutput: false }; }
+  async waitForGenerationComplete(target) {
+    this.waitCalls += 1;
+    if (this.completionConversationUrl) target.url = this.completionConversationUrl;
+    return {
+      status: 'GENERATION_COMPLETE',
+      generationStarted: true,
+      conversationUrl: this.completionConversationUrl ?? target.url,
+      conversationUrlCanonicalized: Boolean(this.completionConversationUrl),
+      completedAtObserved: `2026-09-02T00:00:1${this.waitCalls}.000Z`,
+      inspectedAssistantOutput: false,
+    };
+  }
 }
 
 function chat() {

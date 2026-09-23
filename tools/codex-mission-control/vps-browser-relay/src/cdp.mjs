@@ -464,6 +464,21 @@ const FOCUS_APP_OPTION_FN = `function(labelWanted) {
   return { focused: document.activeElement === matches[0], matchCount: 1 };
 }`;
 
+export function generationConversationUrlTransition(expectedUrl, observedUrl) {
+  const expected = normalizeConversationUrl(expectedUrl);
+  const observed = normalizeConversationUrl(observedUrl);
+  if (expected === observed) {
+    return { accepted: true, conversationUrl: observed, canonicalized: false };
+  }
+  const prefix = 'https://chatgpt.com/c/';
+  const expectedId = expected.slice(prefix.length);
+  const observedId = observed.slice(prefix.length);
+  if (expectedId.startsWith('WEB:') && !observedId.startsWith('WEB:')) {
+    return { accepted: true, conversationUrl: observed, canonicalized: true };
+  }
+  return { accepted: false, conversationUrl: null, canonicalized: false };
+}
+
 export function appSelectionState(observation, labelWanted) {
   if (!observation?.composerFormFound) throw new Error('ChatGPT composer form is unavailable for app selection.');
   if (observation.toolsControlCount !== 1) throw new Error(`ChatGPT Tools control is ${observation.toolsControlCount > 1 ? 'ambiguous' : 'unavailable'}.`);
@@ -1204,9 +1219,20 @@ export class ChromeDevtoolsBrowser {
     const normalized = normalizeConversationUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
       let consecutiveIdle = 0;
+      let completionUrl = normalized;
+      let conversationUrlCanonicalized = false;
       const completed = await waitFor(async () => {
-        const state = await client.callFunction(GENERATION_STATE_FN, [normalized]);
-        if (state?.urlMismatch) throw new Error(`Chat target changed while waiting for generation: ${state.currentUrl}`);
+        const state = await client.callFunction(GENERATION_STATE_FN, [completionUrl]);
+        if (state?.urlMismatch) {
+          const transition = state?.conversationUrl
+            ? generationConversationUrlTransition(completionUrl, state.conversationUrl)
+            : { accepted: false };
+          if (!transition.accepted) throw new Error(`Chat target changed while waiting for generation: ${state.currentUrl}`);
+          completionUrl = transition.conversationUrl;
+          conversationUrlCanonicalized ||= transition.canonicalized === true;
+          consecutiveIdle = 0;
+          return false;
+        }
         if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
         if (state?.systemsThinkingMoreThanUsual) return { ...state, recoverySignal: 'SYSTEMS_THINKING_MORE_THAN_USUAL' };
         if (state?.connectionInterrupted) return { ...state, recoverySignal: 'CONNECTION_INTERRUPTED' };
@@ -1227,6 +1253,8 @@ export class ChromeDevtoolsBrowser {
         status: 'GENERATION_COMPLETE',
         generationStarted: true,
         completedBy: completed.idleReady ? 'STABLE_COMPOSER_WITHOUT_GENERATION_CONTROL' : null,
+        conversationUrl: completionUrl,
+        conversationUrlCanonicalized,
         inspectedAssistantOutput: false,
         completedAtObserved: new Date().toISOString(),
       };
