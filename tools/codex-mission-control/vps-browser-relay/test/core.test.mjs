@@ -108,9 +108,9 @@ test('provider sessions are new transport identities and never reuse the stable 
   assert.notEqual(first, 'spec');
 });
 
-test('normalizes legacy and WEB-prefixed concrete chatgpt conversation URLs only', () => {
+test('normalizes concrete chatgpt conversation URLs and strips transient WEB transport prefixes', () => {
   assert.equal(normalizeConversationUrl('https://chatgpt.com/c/abc_123/?x=1'), 'https://chatgpt.com/c/abc_123');
-  assert.equal(normalizeConversationUrl('https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81/?x=1'), 'https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81');
+  assert.equal(normalizeConversationUrl('https://chatgpt.com/c/WEB:06ae4e6c-c87c-4ab9-8478-14449b19ce81/?x=1'), 'https://chatgpt.com/c/06ae4e6c-c87c-4ab9-8478-14449b19ce81');
   assert.throws(() => normalizeConversationUrl('https://chatgpt.com/c/API:abc'), /concrete/);
   assert.throws(() => normalizeConversationUrl('https://chatgpt.com/c/WEB::abc'), /concrete/);
   assert.throws(() => normalizeConversationUrl('https://chatgpt.com/'), /concrete/);
