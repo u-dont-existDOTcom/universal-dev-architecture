@@ -548,7 +548,9 @@ export class RelayRuntime {
     let state = await this.stateStore.read();
     const current = state.deliveries[routeKey];
     if (!current) throw new Error(`Unknown route key: ${routeKey}`);
-    if (!['SUBMISSION_INTENT_RECORDED', 'AMBIGUOUS_AFTER_RESTART', 'FAILED_RETRYABLE'].includes(current.status)) {
+    const v6GenerationStarted = current.status === startedCycleStepStatus(IN_BAND_REQUEST_STEP);
+    const resolvableAmbiguity = ['SUBMISSION_INTENT_RECORDED', 'AMBIGUOUS_AFTER_RESTART', 'FAILED_RETRYABLE'].includes(current.status);
+    if (!resolvableAmbiguity && !(outcome === 'submitted' && v6GenerationStarted)) {
       throw new Error(`Route ${routeKey} is ${current.status}; no ambiguity resolution is permitted.`);
     }
     const resolvedAt = new Date().toISOString();
