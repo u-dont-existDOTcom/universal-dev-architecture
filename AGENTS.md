@@ -129,7 +129,7 @@ Treat stronger assurance as requirement accretion when it changes whether work m
 
 If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative. Preserve useful supporting work, but restore the simpler valid path when necessity is not established.
 
-This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. A later worker faithfully executing a substituted goal is too late.
+This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. A later worker faithfully executing a substituted goal is too late. At experiment launch, apply the operational owner-method contract to the actual runnable configuration.
 
 ## Chat / Work execution routing
 

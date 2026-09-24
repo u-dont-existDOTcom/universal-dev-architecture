@@ -263,3 +263,6 @@ Do not silently change universal supervision rules. Use `templates/SUPERVISION-D
 - Test-efficiency summary: task wall time; test wall time/share; scope breakdown; failure-discovering runs; full/mutation time; forced redundant-green time; redundant runs skipped/estimated time avoided
 - Deviations/blockers/residual risk:
 - Lesson dispositions:
+### Operational owner-method binding
+
+For consequential experiments, bind protected objective/composition/fitting/weight dimensions and required arms to the actual runnable configuration. Name the launch comparator and its direct behavioral regression evidence; a copied assertion is not a configuration readback. Preserve parent-open status after supporting diagnostics. See `patterns/owner-goal-followup-and-requirement-accretion.md` section 11.

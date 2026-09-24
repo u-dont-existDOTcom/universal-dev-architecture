@@ -231,3 +231,15 @@ Before launching a consequential follow-up, ask:
 > Is this still required by the owner's current outcome, or am I adding a new requirement? If I am adding one, who required it, what specifically fails without it, and what evidence rules out the strongest simpler path?
 
 If that cannot be answered with established necessity, the new requirement may not become a mandatory blocker.
+
+## 11. Preserve the authorized method at the execution boundary
+
+A stricter-looking experiment can substitute the goal, not merely add assurance. Preserve the owner's objective, permitted composition/search space, fitting permission, prohibited weights, requested comparison arms, and completion scope in a compact **operational owner-method contract**. Preserve quantifiers: a useful combination of components does not require every component to succeed independently. A narrow diagnostic may complete while the parent remains OPEN.
+
+At consequential method commitment and immediately before execution, compare that contract to a projection of the **actual runnable configuration**, not to a second self-authored promise that merely repeats it. Recheck changed dimensions after a configuration edit. `scripts/owner_method_admission.py` supplies a portable mechanical comparator; consumers bind its inputs to their real launcher/configuration. Semantic extraction and completeness of the projection still require reasoning. The comparator is not a semantic oracle, and a standalone passing fixture is not proof that a consumer invokes it.
+
+An evidence limitation such as in-sample fitting or lack of independent validation qualifies the claim; it must not silently prohibit an owner-authorized development experiment or replace the requested object with a stricter experiment. A historical freeze protects the old result, not a ban on a newly versioned authorized revision. Preserve safety, privacy, source fidelity, honesty, and genuine external constraints.
+
+Exact portable regression: the owner requests an equal-vote pooled-component model, both raw and deduplicated stacking, and staged development challenges. Reject a launcher requiring independent component success, continuous invented weights, omitted requested arms, or unauthorized prohibition of refitting. Admit authorized fitting labeled as development. Reject root closure supported only by a child diagnostic. Implement behavioral fixtures against the callable launch/closure logic, including an over-correction fixture that admits the valid request; do not substitute prose-token assertions. A deliberate bypass of the comparator must fail its behavioral tests.
+
+Required diagnosis: distinguish observed substitution and absent execution checks from hypotheses about an unobserved model's internal reasoning. Do not claim universal prevention from a source edit, finite fixtures, or one successful consumer run.
