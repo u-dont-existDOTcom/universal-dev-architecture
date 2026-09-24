@@ -397,7 +397,7 @@
       "rule_id": "worker-directive-delivery-and-chat-output-budget",
       "canonical_path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
       "status": "active",
-      "trigger": "Worker execution is selected and a runnable directive must be delivered without making the owner reconstruct it.",
+      "trigger": "Any turn that delivers reusable output (worker directive, handoff or continuation packet for any agent, plan, report), or worker execution is selected and a runnable directive must be delivered without making the owner reconstruct it.",
       "requires": [
         "chat-work-execution-routing-threshold"
       ],
@@ -406,7 +406,8 @@
       "conflicts_with": [],
       "enforcement_phase": [
         "handoff",
-        "delivery"
+        "delivery",
+        "final-delivery"
       ]
     },
     {
