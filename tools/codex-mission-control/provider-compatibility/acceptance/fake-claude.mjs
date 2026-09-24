@@ -27,7 +27,9 @@ const allowIndex = args.indexOf('--allowedTools');
 const allowed = allowIndex === -1 ? [] : args.slice(allowIndex + 1).filter((a) => !a.startsWith('--'));
 const disallowed = (value('--disallowedTools') ?? '').split(',');
 const stateDir = process.env.FAKE_CLAUDE_STATE_DIR;
-const mcpVisible = disallowed.includes('mcp__*') ? [] : ['mcp__claude_ai_Railway__whoami', 'mcp__claude_ai_Gmail__search_threads'];
+// Mirrors live 2.1.281 behavior: --strict-mcp-config hides the account's claude.ai connectors.
+const mcpVisible = disallowed.includes('mcp__*') || args.includes('--strict-mcp-config')
+  ? [] : ['mcp__claude_ai_Railway__whoami', 'mcp__claude_ai_Gmail__search_threads'];
 const out = (event) => process.stdout.write(`${JSON.stringify({ session_id: sid, ...event })}\n`);
 
 let prompt = '';
@@ -77,6 +79,8 @@ function run() {
     writeFileSync(join(stateDir, sid), content);
   }
   if (prompt.includes('ACCEPTANCE_RUN_B')) artifacts.push(readFileSync(join(stateDir, sid), 'utf8'));
+  // The real CLI delivers --json-schema output through a synthetic StructuredOutput tool call.
+  use('StructuredOutput', true, { structured: true });
   out({ type: 'assistant', message: { model, content: [{ type: 'thinking', thinking: 'SECRET_THINKING' },
     { type: 'text', text: 'PRIVATE_ASSISTANT_TEXT' }] } });
   out({ type: 'result', subtype: 'success', is_error: false, num_turns: n + 1, total_cost_usd: 0, permission_denials: denials,

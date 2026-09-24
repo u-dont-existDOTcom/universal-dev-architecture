@@ -147,10 +147,14 @@ test('existing Claude.ai connectors stay denied by default but can be source-bou
   const r = request();
   let p = prepareClaudeCode(r);
   assert.ok(p.argv.includes('Agent,Task,Skill,mcp__*'));
+  assert.ok(p.argv.includes('--strict-mcp-config'));
   r.access.autoApprove = ['mcp__google_drive__synthetic_read'];
   p = prepareClaudeCode(r);
   assert.ok(!p.argv.includes('Agent,Task,Skill,mcp__*'));
   assert.ok(p.argv.includes('mcp__google_drive__synthetic_read'));
+  // Strict MCP config hides claude.ai connectors (live 2.1.281 evidence), so an exact approval lifts it.
+  assert.ok(!p.argv.includes('--strict-mcp-config'));
+  assert.equal(p.argv[p.argv.indexOf('--permission-mode') + 1], 'dontAsk');
   assert.deepEqual(JSON.parse(p.argv[p.argv.indexOf('--mcp-config') + 1]), { mcpServers: {} });
 });
 

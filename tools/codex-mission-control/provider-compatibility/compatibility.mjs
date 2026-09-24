@@ -185,12 +185,16 @@ export function prepareClaudeCode(request) {
   const deny = ['Agent', 'Task', 'Skill'];
   const explicitMcpApproval = r.access.autoApprove.some((rule) => rule.startsWith('mcp__'));
   if (Object.keys(r.access.mcpServers).length === 0 && !explicitMcpApproval) deny.push('mcp__*');
+  // Live evidence (Claude Code 2.1.281, 2026-09-24): --strict-mcp-config removes the account's
+  // claude.ai connectors from the session. Keep strict isolation by default; drop it only when the
+  // source-bound request approves an exact MCP tool. Under dontAsk every other tool stays denied.
+  const mcpIsolation = explicitMcpApproval ? [] : ['--strict-mcp-config'];
   const argv = ['--print', '--verbose', '--output-format', 'stream-json',
     '--model', r.selection.model, '--effort', r.selection.effort,
     r.session.mode === 'new' ? '--session-id' : '--resume', r.session.id,
     '--permission-mode', 'dontAsk',
     '--permission-prompts', 'none', '--restricted', '--disable-slash-commands', '--no-chrome',
-    '--strict-mcp-config', '--mcp-config', JSON.stringify({ mcpServers: r.access.mcpServers }),
+    ...mcpIsolation, '--mcp-config', JSON.stringify({ mcpServers: r.access.mcpServers }),
     '--tools', r.access.builtInTools.join(','), '--disallowedTools', deny.join(','),
     '--json-schema', JSON.stringify(WORKER_REPORT_SCHEMA)];
   if (r.access.autoApprove.length) argv.push('--allowedTools', ...r.access.autoApprove);

@@ -404,9 +404,11 @@ async function main() {
       const r = b.receipt!; const report = r.report as Json | null;
       const lineage = JSON.stringify(directiveB.claudeExecutionRequest.session.previousBinding) === JSON.stringify(directiveA.claudeExecutionRequest.binding);
       const recalled = Array.isArray(report?.artifacts) && report!.artifacts.includes(nonce);
-      checks.resume = { status: r.providerSessionId === sessionA && [...b.tap.sessionIds].every((s) => s === sessionA) && lineage && recalled && b.tap.toolUses.length === 0
+      // StructuredOutput is how the CLI returns the --json-schema report, not a workspace tool.
+      const realToolUses = b.tap.toolUses.filter((t) => t.name !== "StructuredOutput");
+      checks.resume = { status: r.providerSessionId === sessionA && [...b.tap.sessionIds].every((s) => s === sessionA) && lineage && recalled && realToolUses.length === 0
         && r.status === "EXECUTION_REPORTED_COMPLETE" ? "PASS" : "FAIL",
-        detail: `same session id=${r.providerSessionId === sessionA}; lineage r1->r2 exact=${lineage}; nonce recalled without tools=${recalled}; tool uses=${b.tap.toolUses.length}; ${r.status}` };
+        detail: `same session id=${r.providerSessionId === sessionA}; lineage r1->r2 exact=${lineage}; nonce recalled without tools=${recalled}; workspace tool uses=${realToolUses.length} (all tool names: ${JSON.stringify(b.tap.toolUses.map((t) => t.name))}); ${r.status}` };
       checks.bindingResume = bindingChain(mc, directiveB, r);
     }
   } else checks.resume = { status: "NOT_EXERCISED", detail: "run A did not complete" };
