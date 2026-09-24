@@ -212,13 +212,34 @@ export function assertInBandRequestExecution(
     || sourceReaderMode !== "READ_ONLY" || sourceReaderApp === "Mission Control") {
     fail("provider source reader is not an approved read-only source reader");
   }
-  const stages = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
-    && exactRef(event, "step") === inBandRequestStep && exactRef(event, "conversation_url") === conversationUrl
+  const stageCandidates = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
+    && exactRef(event, "step") === inBandRequestStep
     && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
     && exactRef(event, "selected_app") === sourceReaderApp && exactRef(event, "semantic_authority") === "false"
     && controlEvidence(event) !== null);
-  const starts = stages.filter((event) => exactRef(event, "generation_state") === "STARTED");
-  const completes = stages.filter((event) => exactRef(event, "generation_state") === "COMPLETE");
+  const provisionalSessionUrls = new Set(exactSessions
+    .map((event) => exactRef(event, "conversation_url"))
+    .filter((url): url is string => Boolean(url && /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(url))));
+  const finalConversationIsProvisional = /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(conversationUrl);
+  if (!finalConversationIsProvisional && provisionalSessionUrls.size > 1) {
+    fail("provider conversation transition is ambiguous");
+  }
+  if (exactSessions.some((event) => {
+    const url = exactRef(event, "conversation_url");
+    return Boolean(url && url !== conversationUrl
+      && !(provisionalSessionUrls.has(url) && !finalConversationIsProvisional));
+  })) {
+    fail("provider conversation identity changed outside the provisional WEB transition");
+  }
+  const allowedStageUrls = new Set([conversationUrl, ...provisionalSessionUrls]);
+  if (stageCandidates.some((event) => !allowedStageUrls.has(exactRef(event, "conversation_url") ?? ""))) {
+    fail("provider stage conversation identity is outside the bound transition");
+  }
+  const starts = stageCandidates.filter((event) => exactRef(event, "generation_state") === "STARTED"
+    && allowedStageUrls.has(exactRef(event, "conversation_url") ?? ""));
+  const completes = stageCandidates.filter((event) => exactRef(event, "generation_state") === "COMPLETE"
+    && exactRef(event, "conversation_url") === conversationUrl);
+  const stages = [...starts, ...completes];
   const start = starts.sort((a, b) => a.sequence - b.sequence)[0];
   const complete = completes.sort((a, b) => a.sequence - b.sequence).at(-1);
   if (!start || (!complete && !appReadback)) fail("provider generation evidence incomplete; reconcile unchanged artifact");
@@ -277,15 +298,21 @@ export function assertInBandRequestExecution(
     || boundary > startAt || startAt > createdUpper
     || Date.parse(model!.occurredAt) > Date.parse(pre.occurredAt)
     || Date.parse(request.expiresAt) <= Date.parse(pre.occurredAt);
-  const copiedAfterRequestExpiry = created > Date.parse(request.expiresAt);
+  const requestExpiresAt = Date.parse(request.expiresAt);
+  const copiedAfterRequestExpiry = created > requestExpiresAt;
   const transformTimingInvalid = machineTransform
     ? (!Number.isFinite(machineTransformAt) || !Number.isFinite(appReadbackAt)
       || machineTransformAt! < appReadbackAt! || machineTransformAt! > createdUpper
       || machineTransformAt! > Date.parse(ingestedAt))
     : false;
+  const delayedReadbackRecovery = appReadback && Number.isFinite(appReadbackAt) && appReadbackAt! > requestExpiresAt;
+  const delayedReadbackInvalid = delayedReadbackRecovery
+    ? (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < startAt || relayCompleteAt! > requestExpiresAt
+      || appReadbackAt! < relayCompleteAt!)
+    : false;
   const completionTimingInvalid = appReadback
     ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
-      || appReadbackAt! > Date.parse(request.expiresAt) || transformTimingInvalid)
+      || transformTimingInvalid || delayedReadbackInvalid)
     : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
       || startAt > relayCompleteAt!);
   if (copiedAfterRequestExpiry && !appReadback) fail("post-expiry transport copy requires current app-owned completion evidence");
