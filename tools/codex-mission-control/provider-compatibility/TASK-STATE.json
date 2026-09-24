@@ -10,7 +10,7 @@
   },
   "owner_outcome": "Develop isolated Claude compatibility alongside existing projects; preserve GPT behavior and provide executable instructions for remaining work.",
   "parent_outcome_status": "OPEN",
-  "candidate_status": "RESUME_FIXED_HARNESS_READY_LIVE_ACCEPTANCE_PENDING_OWNER_HOST",
+  "candidate_status": "LIVE_ACCEPTANCE_PASSED_ON_OWNER_LAPTOP",
   "source_baseline": "eaeacee9c187d943e036cb7b299388f3094a1e64",
   "writer_branch": "chat/claude-acceptance-resume-20260924-0305",
   "active_contract": [
@@ -50,24 +50,23 @@
     ]
   },
   "not_executed": [
-    "Claude inference",
-    "live MCP tool invocation through the adapter",
-    "MCP OAuth change",
-    "automatic no-argument Claude autodiscovery",
-    "AskRigor production change",
     "merge",
     "deployment",
-    "push (git proxy: repository not in this session's sources)"
+    "push (git proxy: repository not in this session's sources)",
+    "MCP OAuth/account change",
+    "AskRigor production change",
+    "automatic no-argument Claude autodiscovery",
+    "connector narrowing via deniedMcpServers"
   ],
-  "remaining_gap": "One live acceptance on the Claude-authenticated host; owner settings (repository sources, AskRigor/Calendar connectors); owner choice on Claude executor role. Full project migration unperformed.",
-  "next_action": "Run the one-command live acceptance on the Claude-authenticated host (WORK-INSTRUCTIONS.md), record the receipt, then follow MIGRATION-ASSESSMENT.md section 7.",
+  "remaining_gap": "Connector exposure/cost narrowing if Mission Control routes connector work to Claude; owner settings (repository sources, AskRigor/Calendar connectors); owner choice on Claude executor role and trial on real tasks. Full project migration unperformed.",
+  "next_action": "Owner decides whether this branch should be pushed (from the laptop worktree, or after adding the repository to Claude sources). Then follow MIGRATION-ASSESSMENT.md section 7 from step 2.",
   "lesson_closeout": "Provider-specific auth and evidence semantics retained in this versioned candidate; no new universal rule promoted.",
   "authoring_start_head": "5994b90c75e0ca36372678518ee9bc8e0a184685",
   "stop_admission": {
     "parent_outcome": "OPEN",
-    "delivered_boundary": "Resume made dispatchable, hermetic tests, Claude AGENTS.md chain fix, owner-host acceptance harness with offline self-test, autodiscovery decision, migration assessment.",
-    "remaining_gap": "Live acceptance requires the Claude-authenticated owner host, unreachable from this session.",
-    "reason_to_stop": "Access boundary: no shell on any Claude-authenticated owner host; the reachable cloud workspace is correctly refused by the adapter and its credential route may not be probed."
+    "delivered_boundary": "Live acceptance accepted on the owner host with exact binding, session, model, read, denial, MCP, resume, cancellation and sanitized receipts; migration assessment updated with measured usage.",
+    "remaining_gap": "Owner-only settings and executor-role decision; push authority.",
+    "reason_to_stop": "Push and connector/account changes are owner-only; routing Mission Control to Claude is an owner decision."
   },
   "tests": {
     "count": 230,
@@ -75,20 +74,15 @@
     "failed": 0,
     "node": 59,
     "typescript": 171,
-    "typescript_suites": [
-      "claude-execution-runtime",
-      "chat-work-authority-gate",
-      "supervision-admission-runtime",
-      "mission-control",
-      "work-execution-profile",
-      "codex-exec-authority-integration",
-      "chatgpt-work-cloud-dispatch"
+    "live_inference_runs": 6,
+    "live_acceptance_verdicts": [
+      "NOT_ACCEPTED (run 1, diagnosed)",
+      "ACCEPTED (run 2)"
     ],
-    "live_inference_calls": 0,
     "typecheck": "INHERITED_BASELINE_FAILURE_ONLY components/WorkerDetail.tsx(256,44) TS2366"
   },
   "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
-  "iteration_outcome_status": "SATISFIED_FOR_REACHABLE_SCOPE",
+  "iteration_outcome_status": "SATISFIED",
   "real_host_non_inference": {
     "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
     "claude_cli_version": "2.1.281 (Claude Code)",
@@ -111,14 +105,18 @@
     "resume_lineage_fix_and_hermetic_tests": "96e0540",
     "live_acceptance_harness": "7a9eaa6",
     "app_claude_md_shadowing_fix": "b2e27dc",
-    "post_review_fixes": "see git log after ee66044"
+    "post_review_fixes": "see git log after ee66044",
+    "connector_route_fix": "7c6f746"
   },
   "live_acceptance": {
-    "status": "NOT_RUN",
-    "reason": "The only host where the continuation session could run commands was a Claude cloud workspace whose CLI reports authMethod oauth_token (no subscriptionType) with ANTHROPIC_BASE_URL set; the adapter correctly refuses that route (CLAUDE_PROVIDER_OVERRIDE_PRESENT), and the workspace safety layer blocked probing its credential route. The Claude-authenticated host is the owner's laptop (owner-confirmed 2026-09-24; it also produced the earlier Node v26.8.1 evidence), reachable from this session for files only, without a shell.",
-    "defect_found_before_run": "Exact-ID resume could never dispatch (digest self-reference); fixed in 96e0540. The acceptance would have failed check 7 on any host.",
-    "next": "Run acceptance/live-acceptance.ts once on the Claude-authenticated host (see WORK-INSTRUCTIONS.md).",
-    "correction": "An earlier note inferred the host was the primary Mission Control VPS from the topology record; the owner corrected this. A laptop home-directory listing had also shown no ~/.claude directory, which did not indicate absence of a Claude login."
+    "status": "ACCEPTED",
+    "host": "owner laptop (Claude Code 2.1.281, claude.ai Max, first-party, no override variables), reached through the owner's Remote Desktop Commander connector",
+    "model": "claude-opus-5-5",
+    "effort": "low",
+    "run_1": "NOT_ACCEPTED at 11232b9: MCP exact tool invisible because --strict-mcp-config hides claude.ai connectors (connector route, not model); resume substantively passed but the harness counted StructuredOutput as a tool (harness defect).",
+    "run_2": "ACCEPTED at laptop e510e83 (= cloud 7c6f746 files): all 12 checks pass including exact MCP tool mcp__claude_ai_Railway__whoami, exact-ID resume and cancellation.",
+    "evidence": "evidence/2026-09-24-live-acceptance-owner-laptop.json",
+    "earlier_access_notes": "The cloud workspace route (oauth_token + ANTHROPIC_BASE_URL) is refused by design; the owner corrected an inference that the host was the VPS."
   },
   "autodiscovery_decision": {
     "decision": "NOT_ADDED",

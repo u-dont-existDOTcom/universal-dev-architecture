@@ -1,4 +1,4 @@
-# Next boundary — run the live Claude acceptance on the owner host
+# Next boundary — after the accepted live Claude acceptance
 
 ## Current checkpoint
 
@@ -12,6 +12,13 @@ Done here without inference:
 - **Removal of the app `CLAUDE.md`,** which hid the root/tools `AGENTS.md` chain from Claude (commit `b2e27dc`).
 - **Post-review fixes.** The resume lineage no longer requires the same directive ID, because the store records each ID once. Store directive invariants now cover Claude receipts. The harness runs on the real `EventStore`.
 - **Autodiscovery decision** (not added) and **migration assessment:** `MIGRATION-ASSESSMENT.md`.
+
+**Live acceptance: ACCEPTED on the owner laptop, 2026-09-24.** It passed 12/12 on run 2 after the connector-route fix (commit `7c6f746`). Evidence: `evidence/2026-09-24-live-acceptance-owner-laptop.json`. Do not rerun it unless the adapter changes.
+
+**Next actions:**
+1. The owner decides how this branch reaches GitHub: add the repository to Claude sources, or push from the laptop worktree.
+2. If Mission Control will route connector work to Claude, add `deniedMcpServers` narrowing through `--settings` and re-verify with the harness.
+3. Otherwise follow `MIGRATION-ASSESSMENT.md` §7 from step 2.
 
 Do **not** redo the adapter, the admission design, the audit, or the assessment.
 

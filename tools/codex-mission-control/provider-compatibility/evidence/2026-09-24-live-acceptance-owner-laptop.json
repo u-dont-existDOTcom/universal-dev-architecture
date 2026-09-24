@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "kind": "CLAUDE_LIVE_ACCEPTANCE_EVIDENCE_SUMMARY",
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "host": "owner laptop (owner-confirmed Claude-authenticated host), reached through the owner's Remote Desktop Commander connector",
+  "host_auth": { "cli_version": "2.1.281 (Claude Code)", "loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "subscriptionType": "max", "provider_override_vars_set": [] },
+  "owner_source": { "messageId": "owner-handoff:claude-compatibility-continuation-20260924", "bodySha256": "19f65503f87a002f41784d93a5440c0ef83996b7e7cb8e5f0ebb5a67ef710661" },
+  "requested": { "model": "claude-opus-5-5", "effort": "low", "mcpTool": "mcp__claude_ai_Railway__whoami" },
+  "full_receipts_location": "owner laptop: ~/claude-acceptance-out/acceptance-receipt.json (run 1) and ~/claude-acceptance-out-2/acceptance-receipt.json (run 2); each with mission-control-events.json",
+  "run_1": {
+    "generatedAt": "2026-09-24T14:01:26.334Z",
+    "repoHead": "11232b9f383c55ea9f568ec70ccdddbb589b99e4",
+    "verdict": "NOT_ACCEPTED",
+    "passed": ["binding", "newSessionExactId", "clientReportedModel", "approvedRead", "deniedOperation", "runAStatus", "bindingResume", "cancellation", "receiptSanitized", "acceptanceReceiptSanitized"],
+    "failed": {
+      "mcpExactTool": "CONNECTOR_OR_AUTH_NOT_MODEL: visible MCP tool count 0, servers []. Cause: --strict-mcp-config removes claude.ai connectors from the session although `claude mcp list` reports them connected.",
+      "resume": "HARNESS_CRITERION_DEFECT: same session id, exact r1->r2 lineage and nonce recalled without tools were all true; the only tool use counted was StructuredOutput, the CLI's --json-schema delivery step."
+    },
+    "usage_cli_estimate_usd": { "A": 0.0508826, "B_session_cumulative": 0.0965866, "C": null }
+  },
+  "fix_between_runs": {
+    "cloud_commit": "7c6f746",
+    "laptop_commit": "e510e83807fb8c3b9916733ef5597dd9b7ef61dc",
+    "equivalence": "git am of the same patch (sha256 4f799885392db7c95b2a77550c730dc1506acb249a57a27b3995a489a43b0d0f) onto 11232b9; the four changed file blobs are identical on both sides",
+    "change": "lift --strict-mcp-config only when an exact mcp__ tool is source-approved; exclude StructuredOutput from the harness no-tools resume check"
+  },
+  "run_2": {
+    "generatedAt": "2026-09-24T14:08:00.229Z",
+    "repoHead": "e510e83807fb8c3b9916733ef5597dd9b7ef61dc",
+    "candidateTreeDirty": false,
+    "verdict": "ACCEPTED",
+    "checks_all_pass": ["binding", "newSessionExactId", "clientReportedModel", "approvedRead", "deniedOperation", "mcpExactTool", "runAStatus", "resume", "bindingResume", "cancellation", "receiptSanitized", "acceptanceReceiptSanitized"],
+    "session_A_and_B": "7a9cf1d1-9cea-4c98-9a82-329b8909a52d",
+    "session_C": "61892fd1-4a81-412d-9b51-f20954708450",
+    "client_reported_model": "claude-opus-5-5 (all runs; independentAttestation false)",
+    "effort_evidence": "SET_REQUEST_ONLY",
+    "run_A_tools": ["Read:ok", "Write:error (denied, file not created)", "mcp__claude_ai_Railway__whoami:ok", "StructuredOutput:ok"],
+    "mcp": { "exact_tool": "mcp__claude_ai_Railway__whoami", "visible": true, "invoked": true, "other_mcp_tools_invoked": [], "visible_mcp_tool_count": 168,
+      "servers": ["claude.ai Claude Docs", "claude.ai Desktop Commander", "claude.ai Elicit", "claude.ai Consensus", "claude.ai Railway", "claude.ai Wolfram", "claude.ai Google Drive", "claude.ai Google Calendar (needs-auth)", "claude.ai Gmail"] },
+    "resume": "same session id; exact r1->r2 lineage (directive id changed, task same); unguessable nonce recalled with no workspace tools",
+    "cancellation": "INTERRUPTED after init; SIGTERM then SIGKILL of process group; independent group and cmdline scans clear; no claude --print process left afterwards",
+    "mission_control_store": "16 run events accepted by the real in-memory EventStore; no nonce, prompt marker, report text or tool content",
+    "usage_cli_estimate_usd": { "A": 0.846041, "B_session_cumulative": 1.670069, "C": null },
+    "automaticRetries": 0,
+    "fallbacks": 0
+  },
+  "usage_finding": "With strict MCP isolation lifted, the run-A estimate rose from about $0.05 to about $0.85 and the resumed run added about $0.82. Supported inference: all 168 connector tool definitions entered the session context (only one was needed), and the resume reused that session. Candidate fix: pass --settings with deniedMcpServers entries for every connector except the approved one (documented as honoured from any settings scope, including --settings; claude.ai connectors match by display name). Not implemented: only needed once Mission Control routes connector-using work to Claude.",
+  "not_persisted": ["prompts", "assistant prose", "thinking", "tool inputs", "tool results", "worker report", "raw provider errors", "stderr"]
+}
