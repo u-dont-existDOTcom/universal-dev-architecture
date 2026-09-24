@@ -180,7 +180,7 @@ export async function runClaudeTransport(preflight, { signal = null, killGraceMs
 
   const termination = await new Promise((resolve, reject) => {
     child.once('error', reject);
-    child.once('close', (exitCode, childSignal) => resolve({ exitCode, signal: childSignal, timedOut }));
+    child.once('close', (exitCode, childSignal) => resolve({ exitCode, signal: childSignal, timedOut, aborted }));
   }).finally(() => {
     clearTimeout(wallTimer);
     if (killTimer) clearTimeout(killTimer);

@@ -222,6 +222,14 @@ test('failure, timeout and signal remain separate from worker success claims', (
   assert.equal(receipt(events(), request(), { exitCode: null, signal: 'SIGTERM' }).status, 'INTERRUPTED');
   assert.equal(receipt(events(), request(), { exitCode: null, signal: 'SIGKILL', timedOut: true }).status, 'TIMED_OUT');
 });
+test('an operator abort is INTERRUPTED even when the CLI traps SIGTERM and exits with a code', () => {
+  const started = events().slice(0, 1);
+  assert.equal(receipt(started, request(), { exitCode: 143, aborted: true }).status, 'INTERRUPTED');
+  assert.equal(receipt(started, request(), { exitCode: 143, aborted: false }).status, 'RESULT_INVALID');
+  assert.equal(receipt(started, request(), { exitCode: 143 }).status, 'RESULT_INVALID');
+  assert.equal(receipt(started, request(), { exitCode: 143, aborted: true, timedOut: true }).status, 'TIMED_OUT');
+  assert.throws(() => receipt(started, request(), { exitCode: 143, aborted: 'yes' }), { code: 'INVALID_ABORT' });
+});
 test('provider error is not a semantic negative verdict', () => {
   const es = events(); es[2].subtype = 'error_during_execution'; es[2].is_error = true;
   delete es[2].structured_output;

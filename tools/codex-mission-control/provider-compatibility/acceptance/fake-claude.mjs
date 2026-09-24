@@ -57,6 +57,8 @@ function run() {
   const binding = JSON.parse(prompt.match(/binding (\{.*?\})\. Report/)[1]);
   const runId = JSON.parse(prompt.match(/runId ("[^"]+")/)[1]);
   if (prompt.includes('ACCEPTANCE_RUN_C')) {
+    // Live 2.1.281 traps SIGTERM and exits 143 rather than dying by signal.
+    process.on('SIGTERM', () => process.exit(143));
     spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
     out({ type: 'assistant', message: { model, content: [{ type: 'text', text: 'PRIVATE_ASSISTANT_TEXT' }] } });
     setInterval(() => {}, 1000);

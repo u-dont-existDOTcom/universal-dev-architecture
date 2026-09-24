@@ -321,11 +321,14 @@ export function createClaudeCollector(request) {
     },
     finish(termination) {
       check(!closed, 'COLLECTOR_CLOSED');
-      keys(termination, ['exitCode', 'signal', 'timedOut']);
+      // aborted: the trusted transport stopped this run on request. The CLI may trap SIGTERM and exit with
+      // a code (live 2.1.281 exits 143) instead of dying by signal; both are the same operator interruption.
+      keys(termination, ['exitCode', 'signal', 'timedOut'], ['aborted']);
       check(termination.exitCode === null || boundedInt(termination.exitCode, 0, 255), 'INVALID_EXIT_CODE');
       check(termination.signal === null || ['SIGINT', 'SIGTERM', 'SIGKILL'].includes(termination.signal),
         'INVALID_SIGNAL');
       check(typeof termination.timedOut === 'boolean', 'INVALID_TIMEOUT');
+      check(termination.aborted === undefined || typeof termination.aborted === 'boolean', 'INVALID_ABORT');
       closed = true;
       if (!problems.has('STREAM_LIMIT') && !problems.has('INVALID_UTF8')) {
         try { buffer += decoder.decode(); drain(); if (buffer.trim()) consume(buffer); }
@@ -349,7 +352,7 @@ export function createClaudeCollector(request) {
       const permissionDenials = Math.max(denials, result?.denialCount ?? 0);
       let status;
       if (termination.timedOut) status = 'TIMED_OUT';
-      else if (termination.signal !== null) status = 'INTERRUPTED';
+      else if (termination.signal !== null || termination.aborted === true) status = 'INTERRUPTED';
       else if (problems.size === 1 && problems.has('TURN_LIMIT')) status = 'LIMIT_REACHED';
       else if (problems.size) status = 'RESULT_INVALID';
       else if (['error_max_turns', 'error_max_budget_usd'].includes(result.subtype)
