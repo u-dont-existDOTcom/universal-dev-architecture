@@ -148,6 +148,12 @@ These references preserve the existing rules rather than creating local copies.
 
 ## Browser-control efficiency
 
+Before any browser or GUI action, perform a **browser-surface preflight**. Discover the browser/computer-control surfaces actually available to the current Chat turn and distinguish them from shell/process access. A remote shell is not the user's graphical browser session unless that linkage has been verified.
+
+Do not treat failure of shell launch helpers such as `xdg-open`, `open`, or `start` as evidence that browser control is unavailable. Those commands can fail simply because the shell lacks DISPLAY/session integration even when a usable browser-control surface exists elsewhere. Never substitute a shell URL-launch attempt for current-turn browser-control discovery.
+
+Before asking the owner to open a URL, copy a code, click a control, or perform another browser step manually, first use any authorized browser/computer-control surface that can do the non-human portion reliably. When a genuine human-only authentication, consent, passkey, CAPTCHA, or similar gate remains, pre-position the exact page when possible, ask only for that irreducible gesture, then resume automatically after the gate clears.
+
 For browser automation or browser control, default to **headless mode**. Use a headed/visible browser only when the task materially depends on visible browser or OS interaction, headed-only behavior, extension UI, native dialogs, window/focus behavior, WebAuthn/passkeys, visual debugging, or another capability that cannot be reproduced reliably headlessly. When deviating from headless mode, preserve the reason in the task record when one exists.
 
 Reuse the existing browser process, context, page, or tab across sequential steps when the same session or target will be used again. Prefer navigating or resetting the existing page over repeatedly opening and closing an equivalent tab. Do not churn tabs merely as a generic cleanup habit.
