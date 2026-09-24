@@ -1,19 +1,24 @@
 {
   "schema_version": 1,
-  "status": "complete",
+  "status": "active",
   "exclusive_writer": true,
-  "owned_branch": "chat/claude-compatibility-20260923-2251",
+  "owned_branch": "chat/claude-compatibility-integration-20260924-0110",
   "integration_branch": "main",
   "integration_base_sha": "eaeacee9c187d943e036cb7b299388f3094a1e64",
-  "parent_integrator": "RECHECK_CURRENT_INTEGRATOR_BEFORE_INTEGRATION",
-  "scope": "Isolated offline provider contract, Claude CLI plan and receipt adapter, existing OpenAI delegation mapping, focused tests and integration instructions.",
+  "parent_candidate_branch": "chat/claude-compatibility-20260923-2251",
+  "parent_candidate_sha": "54ce97992b0ae786f2ede252a49574f8ee555811",
+  "parent_integrator": null,
+  "scope": "Isolated Claude compatibility integration: preserve existing OpenAI dispatch, add explicit Claude admission bindings and a host-controlled transport without merge, deployment, OAuth changes, or paid inference.",
   "allowed_paths": [
-    "tools/codex-mission-control/provider-compatibility/**"
+    "tools/codex-mission-control/provider-compatibility/**",
+    "tools/codex-mission-control/restored/codex-mission-control/scripts/run-codex-execution.mjs",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-profile.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/**/tests/**"
   ],
   "shared_runtime_write": false,
   "production_switch": false,
   "paid_model_inference": false,
   "claude_inference_during_this_iteration": false,
-  "assurance_lane": "iteration",
-  "closeout": "Offline candidate delivered; no shared integration or runtime ownership claimed."
+  "assurance_lane": "iteration"
 }
