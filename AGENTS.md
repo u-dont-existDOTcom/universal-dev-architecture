@@ -86,6 +86,8 @@ Default to the **Iteration lane** unless the owner or current project requiremen
 
 High-risk invariants can require targeted hard gates in Iteration/Decision, but one safety-sensitive surface does not import every unrelated release gate into the inner loop.
 
+Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
+
 Before launching expensive validation, require a concrete answer to: **what current decision can this result change?** If none, defer it as later assurance debt.
 
 Optional evaluator/provider outages or rate limits must not freeze unrelated development. Preserve the blocker, continue safe work, and defer optional evidence unless it is genuinely necessary for the current decision. Never bypass a hard gate or substitute an unauthorized model merely to avoid a limit.

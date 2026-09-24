@@ -127,6 +127,8 @@ For a broad comparison or landscape synthesis where omitted alternatives, config
 
 For a server-controlled, resumable, multi-provider, or multi-stage workflow, load `../patterns/executable-frontier-coherence.md` when unfinished state loses its next capability, terminal and retryable projections diverge, a failed lane suppresses independent work, or a wrapper weakens its specialist contract.
 
+For a reasoning-heavy conclusion that would be costly or hard to undo if wrong and that tests, computation, or sources cannot settle, load `../patterns/cross-family-reasoning-check.md`: one blind check by the other model family before the conclusion is used.
+
 Templates live in `../templates/`. Execution plans live in `exec-plans/`.
 
 `../patterns/codex-github-operating-standard.md` is retained as superseded provenance and routes to the operating-system pattern. It is not a second current standard.
