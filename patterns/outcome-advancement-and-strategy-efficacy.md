@@ -142,6 +142,11 @@ strategy_id
 strategy_description
 causal_hypothesis
 predicted_outcome_change
+repair_admission
+  applicable  # false means the remaining repair-admission fields carry no obligation
+  motivating_failures
+  existing_direct_evidence_check  # NOT_APPLICABLE | NOT_FOUND | CONSISTENT | ALREADY_FALSIFIED
+  development_regression_status  # NOT_APPLICABLE | NOT_APPLICABLE_NO_REPRODUCIBLE_FAILURE | NOT_RUN | DEV_FAIL | DEV_PASS_NONVALIDATING
 success_threshold
 failure_threshold
 measurement_trigger
@@ -153,6 +158,26 @@ supersedes / superseded_by
 ```
 
 A strategy cannot remain `VIABLE` merely because its supporting gates pass. Its predicted owner-outcome effect must survive contact with current evidence.
+
+### 5.1 Repair-candidate admission and evidence ordering
+
+When a repair, intervention, model/method change, or evaluation plan is proposed because an observed owner-outcome failure exists, test the candidate's causal premise before spending broader or cleaner validation evidence.
+
+A detected process or supporting defect—coverage, routing, calibration, code quality, review depth, representation quality, or similar—is a **candidate cause**, not by itself a repair of the owner outcome. It may be recorded as supporting evidence such as `ENABLEMENT_ONLY` or `STRATEGY_LEARNING`, but it is an owner-outcome repair only when the changed system improves the direct target on the failure it was meant to change. The proxy-completion prohibition remains owned by `owner-outcome-invariant-and-contract-laundering-prevention`.
+
+Apply this order when the evidence exists:
+
+1. **Existing direct evidence first.** Check prior runs, ablations, logs, reproductions, or evaluations that already contained the proposed mechanism. If the mechanism was already present while the direct failure persisted, record `ALREADY_FALSIFIED` and set that candidate to `REPLACEMENT_REQUIRED`; do not spend broader evidence on it. A materially revised causal hypothesis is a new candidate and re-enters this sequence at step 1.
+2. **Known-failure regression before broader validation.** When the motivating failure can be rerun or retrodicted from the information that was available at the original decision point, run the candidate on that failure before held-out or prospective validation. If the candidate does not meet its `success_threshold` on the direct target under the original failure's measurement protocol—or, when no numeric threshold exists, does not produce the predeclared qualitative change—record `DEV_FAIL` and set the strategy to `REPLACEMENT_REQUIRED` immediately. Improvements in process or supporting metrics cannot rescue it.
+3. **Development pass is non-validating.** A motivating failure is development evidence. A pass on it is necessary but records only `DEV_PASS_NONVALIDATING` and cannot establish general predictive validity. Treat a case as design-independent only if the candidate was fixed before that case's outcome was examined.
+4. **Then seek design-independent evidence.** After the candidate survives the motivating regression, use the smallest available cases that did not determine the repair, blinded or held out where feasible, before consuming slower, scarcer, or prospective evidence.
+5. **Prospective validation remains the final evidential boundary when the owner outcome requires prospective performance.** Do not skip it merely because development cases pass. Conversely, do not jump to it while an available earlier rung can already reject the candidate.
+
+This ordering is asymmetric by design: a development failure can falsify a candidate immediately, while a development pass cannot validate generalization.
+
+A plan or directive that would spend held-out, blinded, or prospective evidence on a failure-motivated candidate must state both `existing_direct_evidence_check` and `development_regression_status`. Broader evidence spend is admitted only when the existing-evidence state is `NOT_FOUND` or `CONSISTENT`, and the development-regression state is `DEV_PASS_NONVALIDATING` or `NOT_APPLICABLE_NO_REPRODUCIBLE_FAILURE`. `ALREADY_FALSIFIED` always blocks broader evidence spend for that candidate.
+
+If no reproducible or retrodictable failure case exists, record `NOT_APPLICABLE_NO_REPRODUCIBLE_FAILURE` and proceed to the smallest design-independent test that can change the strategy decision. Do not manufacture a regression case or delay evidence collection merely to satisfy this section.
 
 ---
 
@@ -219,7 +244,7 @@ RISK_REDUCTION_ONLY
 NO_DIRECT_EVIDENCE
 ```
 
-A leading indicator counts only when the task contract explains why it predicts the owner outcome and names the later falsification/measurement boundary.
+A leading indicator counts only when the task contract explains why it predicts the owner outcome and names the later falsification/measurement boundary. Do not defer to a leading indicator or future measurement when available direct-outcome evidence can already reject the current repair candidate.
 
 ---
 
@@ -542,7 +567,7 @@ At minimum test:
 
 ## 16. Limits
 
-- Some outcomes have long latency. Use owner-authorized leading indicators and explicit future falsification boundaries rather than demanding immediate final results.
+- Some outcomes have long latency. After available direct-outcome evidence capable of rejecting the current candidate has been checked or shown inapplicable, use owner-authorized leading indicators and explicit future falsification boundaries rather than demanding immediate final results.
 - Exploration can generate value without immediate improvement. Its strategy contract must name the information it is buying, its budget, and the decision it can change.
 - Negative results can be legitimate progress when they eliminate a live strategy. They are `STRATEGY_LEARNING`, not direct owner-outcome advancement.
 - A strategy may temporarily regress one metric to improve a higher-priority owner outcome. That tradeoff requires an explicit multi-outcome contract and cannot be inferred after the fact.

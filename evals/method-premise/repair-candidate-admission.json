@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "suite_id": "repair-candidate-admission-2026-09-24",
+  "status": "development_fixture",
+  "purpose": "Prevent process/support improvements from being admitted as repairs of a direct owner-outcome failure, and enforce cheapest decisive evidence ordering.",
+  "cases": [
+    {
+      "case_id": "RC-001-known-failure-not-improved",
+      "owner_outcome": "Improve the failed direct prediction.",
+      "observed_failure_available": true,
+      "candidate_improves_process_proxy": true,
+      "candidate_improves_direct_failure": false,
+      "expected_strategy_state": "REPLACEMENT_REQUIRED",
+      "expected_next_action": "REJECT_CANDIDATE_AND_REDIAGNOSE",
+      "prospective_validation_admitted": false,
+      "expected_development_status": "DEV_FAIL"
+    },
+    {
+      "case_id": "RC-002-known-failure-pass-is-nonvalidating",
+      "owner_outcome": "Improve the failed direct prediction.",
+      "observed_failure_available": true,
+      "candidate_improves_process_proxy": true,
+      "candidate_improves_direct_failure": true,
+      "failure_informed_candidate_design": true,
+      "expected_development_status": "DEV_PASS_NONVALIDATING",
+      "expected_next_action": "SEEK_DESIGN_INDEPENDENT_EVIDENCE",
+      "full_repair_established": false
+    },
+    {
+      "case_id": "RC-003-prior-run-already-falsifies-mechanism",
+      "owner_outcome": "Improve the failed direct prediction.",
+      "prior_run_contains_candidate_mechanism": true,
+      "prior_run_direct_failure_persisted": true,
+      "expected_strategy_state": "REPLACEMENT_REQUIRED",
+      "expected_next_action": "REVISE_CAUSAL_HYPOTHESIS_BEFORE_NEW_DATA"
+    },
+    {
+      "case_id": "RC-004-no-reproducible-failure",
+      "owner_outcome": "Improve a newly observable outcome.",
+      "observed_failure_available": false,
+      "expected_next_action": "RUN_SMALLEST_DESIGN_INDEPENDENT_TEST",
+      "development_regression_required": false
+    },
+    {
+      "case_id": "RC-005-process-metric-improves-direct-flat",
+      "owner_outcome": "Improve the failed direct prediction.",
+      "candidate_improves_process_proxy": true,
+      "candidate_improves_direct_failure": false,
+      "expected_development_status": "DEV_FAIL",
+      "expected_strategy_state": "REPLACEMENT_REQUIRED",
+      "counts_as_owner_outcome_repair": false
+    },
+    {
+      "case_id": "RC-006-motivating-case-claimed-independent",
+      "owner_outcome": "Improve the failed direct prediction.",
+      "failure_informed_candidate_design": true,
+      "candidate_improves_direct_failure": true,
+      "expected_development_status": "DEV_PASS_NONVALIDATING",
+      "can_count_as_design_independent_validation": false
+    }
+  ]
+}
