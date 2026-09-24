@@ -24,5 +24,21 @@
     "askrigor_project_identity": "No project:askrigor (or any AskRigor project id) exists in central state; only task:askrigor-system-alignment. Watches are enrolled only by work_queue_published with nonterminal items, which AskRigor never published centrally.",
     "classifier_consequence": "Worker askrigor-system-alignment projects progress.outcomeAdvancement=UNKNOWN, so classifyFleetSupervisorTick returns PROJECT_INTEGRITY_FAILURE (stop + notify owner) before the WORKER_DIRECTIVE_CONTINUITY_GAP branch. An enrolled watch would therefore not route A19-A20 to mc-project-manager as the handoff expected.",
     "status": "Owner confirmed project id project:askrigor (2026-09-24 18:32Z) and asked to enroll it. Owner-authorized enrollment added (daemon POST /fleet-supervisor/:projectId/enroll + owner BFF route); it binds only an existing worker/task from the ledger. Enrollment itself is a live owner action, not yet performed. A standing agent-usable owner-action tool was proposed but not built: this session's safety check requires the owner's explicit approval for it."
+  },
+  "live_2026_09_24": {
+    "owner_approval": "2026-09-24T19:03Z: production access to the Mission Control servers, the owner-action tool, and pushing",
+    "primary_deploy": {
+      "image": "codex-mission-control:claude-integrator-22ef1a5",
+      "release": "/opt/mission-control/releases/22ef1a54fb790f350248813e7e4608c9f976beee",
+      "container": "mission-control-issue90-live",
+      "swapped_at": "2026-09-24T19:35Z",
+      "healthy_after_s": 75,
+      "checks": "live 200; readiness ok, chain valid, sequence 18370, ACTIVE_LEASE; unauthenticated POST /api/fleet-supervisor/* -> 401; existing watches intact",
+      "rollback": "stopped container mission-control-issue90-live-prev-7b4c460 (image ingestion-reconcile-7b4c460); root-only pre-deploy inspect + env file in /etc/mission-control"
+    },
+    "askrigor_enrollment": "2026-09-24T19:40:29Z via owner-action watch-enroll: project:askrigor / askrigor-system-alignment / task:askrigor-system-alignment, ACTIVE, hourly, first tick 20:40:29Z (201 created)",
+    "askrigor_a19_a20_request": "2026-09-24T19:48:29Z via owner-action source-review (review_attempt_id a19-a20-execution-decision-20260924-claude): 202 QUEUED_FOR_PROVIDER_RELAY, event supervision-request-v6:551561c5af71f1c490029825a5a751c342bd153fdbf6a201ec1f09da9e5630d9 at sequence 18371. Reconcile beforehand appended 0 events. Do not resend.",
+    "secondary_relay": "NOT YET DEPLOYED: held until the queued AskRigor request's provider generation completes, to avoid interrupting it.",
+    "native_work_endpoint": "native-work-autodispatch:askrigor-system-alignment remains OFFLINE_CONFIGURED; an execution directive will not launch Work until it is online."
   }
 }
