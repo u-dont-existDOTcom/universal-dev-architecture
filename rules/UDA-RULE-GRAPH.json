@@ -121,6 +121,24 @@
       ]
     },
     {
+      "rule_id": "cross-family-reasoning-check",
+      "canonical_path": "patterns/cross-family-reasoning-check.md",
+      "status": "active",
+      "trigger": "A reasoning-heavy conclusion would be costly or hard to undo if wrong and cannot be settled by tests, computation, or sources.",
+      "requires": [
+        "development-assurance-lanes",
+        "work-model-and-effort-routing"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ]
+    },
+    {
       "rule_id": "research-before-reinvention",
       "canonical_path": "patterns/research-before-reinvention.md",
       "status": "active",

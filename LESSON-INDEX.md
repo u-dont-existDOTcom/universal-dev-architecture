@@ -59,6 +59,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 53. `patterns/long-range-research-mission-supervision.md` — for research spanning multiple sessions, workers, releases, future evidence, or recurring refreshes, preserve one invariant owner/user purpose while versioning research questions, evidence frontier, work packages, budgets, snapshots, release authority, independent consent/data constraints, and explicit root closure.
 54. `patterns/normality-base-rate-target-preservation.md` — when the target is normality/commonness/prevalence, preserve the exact population-frequency question and do not substitute mechanistic plausibility, benignity, or inducibility for matched frequency/distribution evidence.
 55. `patterns/interview-evidence-information-gain.md` — distinguish specificity from independent evidence, preserve recurrence self-report and denominators, prefer exception/boundary probes over ritual confirming anecdotes, and ask follow-ups only when they can change the inference or satisfy a real evidence gate.
+56. `patterns/cross-family-reasoning-check.md` — owner rule: have the other model family check a reasoning-heavy, costly-if-wrong conclusion that tests, computation, or sources cannot settle (Opus 5.5 max for GPT reasoning; GPT-5.6 Sol XHigh for Claude reasoning), using a blind packet, one pass and one reconciliation round, and an explicit "not run" line instead of a same-family substitute.
 
 ## Reusable policy templates
 
