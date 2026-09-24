@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "task/mc-v6-generation-resolution-20260924-1322",
+  "integration_branch": "main",
+  "integration_base_sha": "9c58e5cdfba73a369241e632f84024835337876a",
+  "scope": "Repair V6 operator submitted-resolution so a live generation remains reconcilable through completion/stuck recovery; focused relay tests only until separately authorized integration/deploy."
+}
