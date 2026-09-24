@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { chmod, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   CLAUDE_PROVIDER_BINDING, claudeProfileForRequest, inspectClaudeHost, runClaudeTransport,
   dispatchClaudeMissionControlExecution,
@@ -61,7 +62,7 @@ async function fixture({ hang = false, turns = 2 } = {}) {
 `if(args[0]==='mcp'&&args[1]==='list'){console.log('Checking MCP server health…\\n\\nclaude.ai Railway: https://mcp.example.invalid/railway - ✔ Connected\\nclaude.ai Gmail: https://mcp.example.invalid/gmail - ✔ Connected\\nclaude.ai Google Calendar: https://mcp.example.invalid/gcal - ! Needs authentication');process.exit(0)}\n` +
 `if(args[0]==='auth'&&args[1]==='status'){console.log(JSON.stringify({loggedIn:true,authMethod:'claude.ai',apiProvider:'firstParty',subscriptionType:'max'}));process.exit(0)}\n` +
 `if(process.env.ANTHROPIC_API_KEY||process.env.ANTHROPIC_BASE_URL||process.env.CLAUDE_CODE_USE_BEDROCK||process.env.CLAUDE_CODE_USE_VERTEX){process.exit(72)}\n` +
-`if(process.env.FAKE_CLAUDE_HANG==='1'){if(process.env.FAKE_CLAUDE_TRAP_TERM==='1')process.on('SIGTERM',()=>process.exit(143));setInterval(()=>{},1000)}else{let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const sid=args[args.indexOf('--session-id')+1];const model=args[args.indexOf('--model')+1];const report=JSON.parse(process.env.FAKE_CLAUDE_REPORT);console.log(JSON.stringify({type:'system',subtype:'init',session_id:sid,model}));console.log(JSON.stringify({type:'assistant',session_id:sid,message:{model,content:[]}}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,session_id:sid,structured_output:report,num_turns:Number(process.env.FAKE_CLAUDE_TURNS||2),permission_denials:[]}));})}\n`;
+`if(process.env.FAKE_CLAUDE_HANG==='1'){if(process.env.FAKE_CLAUDE_TRAP_TERM==='1'){process.on('SIGTERM',()=>process.exit(143));import('node:fs').then((fs)=>fs.writeFileSync(process.env.FAKE_CLAUDE_READY_FILE,'ready'))}setInterval(()=>{},1000)}else{let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const sid=args[args.indexOf('--session-id')+1];const model=args[args.indexOf('--model')+1];const report=JSON.parse(process.env.FAKE_CLAUDE_REPORT);console.log(JSON.stringify({type:'system',subtype:'init',session_id:sid,model}));console.log(JSON.stringify({type:'assistant',session_id:sid,message:{model,content:[]}}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,session_id:sid,structured_output:report,num_turns:Number(process.env.FAKE_CLAUDE_TURNS||2),permission_denials:[]}));})}\n`;
   await writeFile(binary, source); await chmod(binary, 0o755);
   const request = baseRequest(workspace);
   const report = { runId: request.runId, binding: structuredClone(request.binding), status: 'completed',
@@ -114,11 +115,18 @@ test('wall clock timeout terminates the detached process group before reporting'
 });
 
 test('an abort the CLI handles gracefully (exit 143, no signal) is still INTERRUPTED', async () => {
-  const f = await fixture({ hang: true }); f.env.FAKE_CLAUDE_TRAP_TERM = '1';
+  const f = await fixture({ hang: true });
+  const ready = join(dirname(f.binary), 'sigterm-handler-ready');
+  Object.assign(f.env, { FAKE_CLAUDE_TRAP_TERM: '1', FAKE_CLAUDE_READY_FILE: ready });
   const preflight = await inspectClaudeHost({ request: f.request, admissionInput: f.admissionInput,
     admission: f.admission, claudeBinary: f.binary, environment: f.env });
-  const controller = new AbortController(); setTimeout(() => controller.abort(), 300);
-  const result = await runClaudeTransport(preflight, { signal: controller.signal, killGraceMs: 2000 });
+  const controller = new AbortController();
+  const run = runClaudeTransport(preflight, { signal: controller.signal, killGraceMs: 5000 });
+  // Abort only once the fake CLI has installed its SIGTERM handler: a fixed delay races slower hosts.
+  for (let i = 0; i < 200 && !existsSync(ready); i += 1) await new Promise((done) => setTimeout(done, 50));
+  assert.ok(existsSync(ready), 'fake CLI never became ready');
+  controller.abort();
+  const result = await run;
   assert.deepEqual(result.termination, { exitCode: 143, signal: null, timedOut: false, aborted: true });
   assert.equal(result.status, 'INTERRUPTED'); assert.equal(result.hostEvidence.processTreeStopped, true);
 });

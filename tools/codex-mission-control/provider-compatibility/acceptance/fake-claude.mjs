@@ -51,14 +51,15 @@ function run() {
     out({ type: 'result', subtype: 'error_during_execution', is_error: true, num_turns: 0 });
     process.exit(1);
   }
+  // Live 2.1.281 traps SIGTERM and exits 143 rather than dying by signal. Installed before init so the
+  // harness's abort (sent after it sees init) always exercises that path.
+  if (prompt.includes('ACCEPTANCE_RUN_C')) process.on('SIGTERM', () => process.exit(143));
   out({ type: 'system', subtype: 'init', model, tools: [...tools, ...mcpVisible],
     mcp_servers: mcpVisible.length ? Object.keys(CONNECTOR_TOOLS).filter((name) => !deniedServers.has(name)).map((name) => ({ name, status: 'connected' })) : [],
     permissionMode: value('--permission-mode') });
   const binding = JSON.parse(prompt.match(/binding (\{.*?\})\. Report/)[1]);
   const runId = JSON.parse(prompt.match(/runId ("[^"]+")/)[1]);
   if (prompt.includes('ACCEPTANCE_RUN_C')) {
-    // Live 2.1.281 traps SIGTERM and exits 143 rather than dying by signal.
-    process.on('SIGTERM', () => process.exit(143));
     spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
     out({ type: 'assistant', message: { model, content: [{ type: 'text', text: 'PRIVATE_ASSISTANT_TEXT' }] } });
     setInterval(() => {}, 1000);
