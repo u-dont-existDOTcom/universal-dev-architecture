@@ -20,6 +20,12 @@
     "description": "replace-with-current-method",
     "causalHypothesis": "replace-with-why-this-method-should-move-the-owner-outcome",
     "predictedOutcomeChange": "replace-with-prediction",
+    "repairAdmission": {
+      "applicable": false,
+      "motivatingFailures": [],
+      "existingDirectEvidenceCheck": "NOT_APPLICABLE",
+      "developmentRegressionStatus": "NOT_APPLICABLE"
+    },
     "successThreshold": "replace-with-success-threshold",
     "failureThreshold": "replace-with-failure-threshold",
     "measurementTrigger": "replace-with-trigger",
