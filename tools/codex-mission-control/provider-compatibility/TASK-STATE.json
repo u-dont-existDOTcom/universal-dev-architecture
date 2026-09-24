@@ -10,7 +10,7 @@
   },
   "owner_outcome": "Develop isolated Claude compatibility alongside existing projects; preserve GPT behavior and provide executable instructions for remaining work.",
   "parent_outcome_status": "OPEN",
-  "candidate_status": "LIVE_ACCEPTANCE_PASSED_ON_OWNER_LAPTOP",
+  "candidate_status": "LIVE_ACCEPTANCE_PASSED_ON_OWNER_LAPTOP (run 2); CONNECTOR_NARROWING_LIVE_VERIFIED (run 3); CANCELLATION_LABEL_FIX_OFFLINE_VERIFIED",
   "source_baseline": "eaeacee9c187d943e036cb7b299388f3094a1e64",
   "writer_branch": "chat/claude-acceptance-resume-20260924-0305",
   "active_contract": [
@@ -59,7 +59,7 @@
     "connector narrowing via deniedMcpServers"
   ],
   "remaining_gap": "Connector exposure/cost narrowing if Mission Control routes connector work to Claude; owner settings (repository sources, AskRigor/Calendar connectors); owner choice on Claude executor role and trial on real tasks. Full project migration unperformed.",
-  "next_action": "Owner decides whether this branch should be pushed (from the laptop worktree, or after adding the repository to Claude sources). Then follow MIGRATION-ASSESSMENT.md section 7 from step 2.",
+  "next_action": "Owner decides how the branch reaches GitHub (add the repository to Claude sources, or push from the laptop worktree, which is at the same content). Optional: one live harness rerun (~$0.60 CLI estimate) for a single 12/12 receipt at the final head. Then follow MIGRATION-ASSESSMENT.md section 7 from step 2.",
   "lesson_closeout": "Provider-specific auth and evidence semantics retained in this versioned candidate; no new universal rule promoted.",
   "authoring_start_head": "5994b90c75e0ca36372678518ee9bc8e0a184685",
   "stop_admission": {
@@ -69,17 +69,19 @@
     "reason_to_stop": "Push and connector/account changes are owner-only; routing Mission Control to Claude is an owner decision."
   },
   "tests": {
-    "count": 230,
-    "passed": 230,
+    "count": 234,
+    "passed": 234,
     "failed": 0,
-    "node": 59,
+    "node": 63,
     "typescript": 171,
-    "live_inference_runs": 6,
+    "live_inference_runs": 9,
     "live_acceptance_verdicts": [
       "NOT_ACCEPTED (run 1, diagnosed)",
-      "ACCEPTED (run 2)"
+      "ACCEPTED (run 2)",
+      "NOT_ACCEPTED 11/12 (run 3: connector narrowing verified; cancellation mislabelled after graceful exit 143, fixed offline)"
     ],
-    "typecheck": "INHERITED_BASELINE_FAILURE_ONLY components/WorkerDetail.tsx(256,44) TS2366"
+    "typecheck": "INHERITED_BASELINE_FAILURE_ONLY components/WorkerDetail.tsx(256,44) TS2366",
+    "typescript_note": "TypeScript suite last run before the connector-narrowing and abort fixes; neither touches the Mission Control app."
   },
   "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
   "iteration_outcome_status": "SATISFIED",
@@ -106,17 +108,21 @@
     "live_acceptance_harness": "7a9eaa6",
     "app_claude_md_shadowing_fix": "b2e27dc",
     "post_review_fixes": "see git log after ee66044",
-    "connector_route_fix": "7c6f746"
+    "connector_route_fix": "7c6f746",
+    "connector_narrowing": "f2382bf",
+    "abort_classification_fix": "9c36a36",
+    "abort_test_race_fix": "1aa05d1"
   },
   "live_acceptance": {
-    "status": "ACCEPTED",
+    "status": "ACCEPTED (run 2); run 3 after connector narrowing 11/12, remaining check fixed offline",
     "host": "owner laptop (Claude Code 2.1.281, claude.ai Max, first-party, no override variables), reached through the owner's Remote Desktop Commander connector",
     "model": "claude-opus-5-5",
     "effort": "low",
     "run_1": "NOT_ACCEPTED at 11232b9: MCP exact tool invisible because --strict-mcp-config hides claude.ai connectors (connector route, not model); resume substantively passed but the harness counted StructuredOutput as a tool (harness defect).",
     "run_2": "ACCEPTED at laptop e510e83 (= cloud 7c6f746 files): all 12 checks pass including exact MCP tool mcp__claude_ai_Railway__whoami, exact-ID resume and cancellation.",
     "evidence": "evidence/2026-09-24-live-acceptance-owner-laptop.json",
-    "earlier_access_notes": "The cloud workspace route (oauth_token + ANTHROPIC_BASE_URL) is refused by design; the owner corrected an inference that the host was the VPS."
+    "earlier_access_notes": "The cloud workspace route (oauth_token + ANTHROPIC_BASE_URL) is refused by design; the owner corrected an inference that the host was the VPS.",
+    "run_3": "NOT_ACCEPTED 11/12 at laptop 9100ead (= cloud f2382bf files). Connector narrowing worked: only claude.ai Railway loaded (65 tools, 8 servers denied), run-A CLI estimate $0.30 vs $0.85 in run 2. Cancellation stopped the whole process tree, but the CLI trapped SIGTERM and exited 143, which the collector labelled RESULT_INVALID. Fixed in 9c36a36/1aa05d1 (transport abort flag); verified offline 63/63 in the cloud and on the laptop at 3fbd6c9; not re-run live."
   },
   "autodiscovery_decision": {
     "decision": "NOT_ADDED",

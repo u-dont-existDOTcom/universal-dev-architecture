@@ -13,12 +13,13 @@ Done here without inference:
 - **Post-review fixes.** The resume lineage no longer requires the same directive ID, because the store records each ID once. Store directive invariants now cover Claude receipts. The harness runs on the real `EventStore`.
 - **Autodiscovery decision** (not added) and **migration assessment:** `MIGRATION-ASSESSMENT.md`.
 
-**Live acceptance: ACCEPTED on the owner laptop, 2026-09-24.** It passed 12/12 on run 2 after the connector-route fix (commit `7c6f746`). Evidence: `evidence/2026-09-24-live-acceptance-owner-laptop.json`. Do not rerun it unless the adapter changes.
+**Live acceptance: ACCEPTED on the owner laptop, 2026-09-24.** It passed 12/12 on run 2 after the connector-route fix (commit `7c6f746`). Run 3 (after connector narrowing, `f2382bf`) passed 11/12: narrowing worked, run A's estimate fell from $0.85 to $0.30, and cancellation stopped the process tree but was mislabelled because the CLI exited 143. The label fix (`9c36a36`, `1aa05d1`) is verified offline only. Evidence: `evidence/2026-09-24-live-acceptance-owner-laptop.json`. Rerun live only if the owner wants a single 12/12 receipt at the final head, or if the adapter changes again.
 
 **Next actions:**
 1. The owner decides how this branch reaches GitHub: add the repository to Claude sources, or push from the laptop worktree.
-2. If Mission Control will route connector work to Claude, add `deniedMcpServers` narrowing through `--settings` and re-verify with the harness.
-3. Otherwise follow `MIGRATION-ASSESSMENT.md` §7 from step 2.
+2. Connector narrowing is done (`f2382bf`, live-verified in run 3).
+3. Follow `MIGRATION-ASSESSMENT.md` §7 from step 2.
+4. Instruction budget: this branch leaves 12 bytes under the 32 KiB Codex chain limit for `restored/codex-mission-control`. The separate owner-rule branch `chat/cross-family-reasoning-check-20260924` adds a 78-byte root `AGENTS.md` line, so whichever merges second must trim root guidance first.
 
 Do **not** redo the adapter, the admission design, the audit, or the assessment.
 

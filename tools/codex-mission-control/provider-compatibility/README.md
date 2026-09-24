@@ -1,6 +1,6 @@
 # Provider compatibility — Claude Code integration candidate
 
-**Status: isolated Iteration candidate integrated into the real admission/runner seams; live acceptance ACCEPTED on the owner laptop (2026-09-24, 12/12 checks); not merged or deployed.**
+**Status: isolated Iteration candidate integrated into the real admission/runner seams; live acceptance ACCEPTED on the owner laptop (2026-09-24, 12/12 checks); connector narrowing verified live afterwards; not merged or deployed.**
 
 Implementation checkpoint: `1b14c87b876aeb9c0c41c0e4966575d3c7f3582c` on `chat/claude-compatibility-integration-20260924-0110`.
 
@@ -31,9 +31,9 @@ The subprocess uses a direct argv vector with `shell: false`. Stdout streams int
 
 The adapter now keeps strict isolation by default. It lifts it only when the source-bound request approves an exact `mcp__...` tool; under `dontAsk` with no prompts, every other tool is still denied. No OAuth tokens or connector URLs go into the directive. Custom remote servers remain explicit HTTPS-only configuration with no embedded credentials.
 
-Cost caveat, measured: lifting strict isolation exposes every connector's tools. On the owner laptop that was 168 tools, and the run's usage estimate rose about 16×. Before routing connector work through this adapter at scale, pass `--settings` with `deniedMcpServers` for every connector except the approved one. See `evidence/2026-09-24-live-acceptance-owner-laptop.json`.
+Connector cost, measured and fixed: lifting strict isolation exposed every connector's tools (168 on the owner laptop) and raised the run's usage estimate about 16×. The host preflight now reads `claude mcp list` and passes every configured server except the approved one as `--settings` `deniedMcpServers`; the deny list is part of the plan hash, and an approved server that is absent or signed out fails closed before launch. Live run 3 loaded only the approved connector (65 tools, 8 servers denied) and cut the run's estimate from about $0.85 to $0.30. Runs without an MCP approval still load no connector tools. See `evidence/2026-09-24-live-acceptance-owner-laptop.json`.
 
-This is not yet proof of every connector's tool catalog or read/write semantics. A real MCP tool call has not been made in this iteration. Server-side OAuth and permission enforcement remain authoritative.
+This is not proof of every connector's tool catalog or read/write semantics. One real read-only MCP call (`mcp__claude_ai_Railway__whoami`) has been made, in runs 2 and 3. Server-side OAuth and permission enforcement remain authoritative.
 
 ## Current CLI limitation
 

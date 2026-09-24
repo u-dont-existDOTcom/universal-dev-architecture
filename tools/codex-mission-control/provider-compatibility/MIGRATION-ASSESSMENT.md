@@ -94,9 +94,10 @@ Not done, and why:
 - **Measured usage.** The CLI's own estimates for the acceptance were:
   - **Plain run** (read, denied write, report): about $0.05.
   - **Resume:** about $0.05 more.
-  - **With connectors visible:** about $0.85. That is roughly 16× more, because all 168 tools from your 8 connectors entered the session.
+  - **With all connectors visible:** about $0.85. That is roughly 16× more, because all 168 tools from your 8 connectors entered the session.
+  - **With only the approved connector (fixed, run 3):** about $0.30. The adapter now denies every connector except the one a task needs, through `deniedMcpServers` in `--settings`. What remains is that connector's own 65 tool definitions. Runs that approve no connector load none.
 
-  The fix is to deny every connector except the one a task needs, with `deniedMcpServers` passed through `--settings`. These are notional API-equivalent figures, not invoices or allowance percentages.
+  These are notional API-equivalent figures, not invoices or allowance percentages.
 
 - **Allowance accounting.** The adapter records only a per-session CLI cost estimate; it is neither an invoice nor a weekly-allowance percentage. The acceptance run gives the first real per-run figure. Keep execution effort at low or medium until the numbers exist.
 - **Instruction weight.** The root `AGENTS.md` is 219 lines, and the full chain is 32,756 bytes, 12 bytes under Codex's 32 KiB cap. Claude has no such cap (it skips files over 4 MiB), but its docs target under 200 lines per file for adherence. The per-turn rule "re-fetch live default-branch AGENTS.md" costs a fetch every turn in a Claude session. Test adherence directly: the first-line timestamp invariant is an easy, mechanical probe.
@@ -106,7 +107,7 @@ Not done, and why:
 
 ## 7. Recommended sequence
 
-1. **Live acceptance.** Done on 2026-09-24, and it passed on the second run after two fixes. The run exposed a connector-cost issue that needs a narrowing fix before connector work goes through Mission Control.
+1. **Live acceptance.** Done on 2026-09-24, and it passed on the second run after two fixes. The run exposed a connector-cost issue. The narrowing fix was verified live in run 3. That run also showed the CLI can exit 143 on cancellation instead of dying by signal, which the adapter mislabelled; that is fixed and verified offline.
 2. **Add the repositories to the Claude environment's sources.** This takes about a minute and unblocks pushes from Claude sessions.
 3. **Trial Claude on 2–3 real bounded execution tasks** that currently go to Codex or Work, using Claude cloud sessions directly. No Mission Control change is needed. Compare them against Work on the same tasks, with a governance-adherence check. This is the Decision lane.
 4. **Connect AskRigor as a custom connector** and rerun the harness with one exact AskRigor read tool. Connect Google Calendar too if you use it.

@@ -6,7 +6,7 @@
   "host_auth": { "cli_version": "2.1.281 (Claude Code)", "loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "subscriptionType": "max", "provider_override_vars_set": [] },
   "owner_source": { "messageId": "owner-handoff:claude-compatibility-continuation-20260924", "bodySha256": "19f65503f87a002f41784d93a5440c0ef83996b7e7cb8e5f0ebb5a67ef710661" },
   "requested": { "model": "claude-opus-5-5", "effort": "low", "mcpTool": "mcp__claude_ai_Railway__whoami" },
-  "full_receipts_location": "owner laptop: ~/claude-acceptance-out/acceptance-receipt.json (run 1) and ~/claude-acceptance-out-2/acceptance-receipt.json (run 2); each with mission-control-events.json",
+  "full_receipts_location": "owner laptop: ~/claude-acceptance-out/acceptance-receipt.json (run 1), ~/claude-acceptance-out-2/acceptance-receipt.json (run 2) and ~/claude-acceptance-out-3/acceptance-receipt.json (run 3); each with mission-control-events.json",
   "run_1": {
     "generatedAt": "2026-09-24T14:01:26.334Z",
     "repoHead": "11232b9f383c55ea9f568ec70ccdddbb589b99e4",
@@ -44,6 +44,36 @@
     "automaticRetries": 0,
     "fallbacks": 0
   },
-  "usage_finding": "With strict MCP isolation lifted, the run-A estimate rose from about $0.05 to about $0.85 and the resumed run added about $0.82. Supported inference: all 168 connector tool definitions entered the session context (only one was needed), and the resume reused that session. Candidate fix: pass --settings with deniedMcpServers entries for every connector except the approved one (documented as honoured from any settings scope, including --settings; claude.ai connectors match by display name). Not implemented: only needed once Mission Control routes connector-using work to Claude.",
+  "usage_finding": "Run 2: with strict MCP isolation lifted, the run-A estimate rose from about $0.05 (run 1) to about $0.85; all 168 tools from 9 connector entries were visible when one was needed. Fixed in f2382bf (connector narrowing, below). Run 3 confirmed it live: only claude.ai Railway loaded (65 tools, 0 outside the approved connector, 8 servers denied) and the run-A estimate fell to about $0.30 (-64%). The remaining overhead over a no-connector run is the approved connector's own 65 tool definitions. Runs without an MCP approval keep --strict-mcp-config and load no connector tools.",
+  "fix_before_run_3": {
+    "cloud_commit": "f2382bf",
+    "laptop_commit": "9100eadd074efa1fcc51ce75f6aabed73d1a5af6",
+    "equivalence": "git am of narrow-fix.patch (sha256 d88ebfe25f5de8b7e13432f8172dcbb4bee837acb40d5136663f500f102c5029) onto e510e83; all seven changed file blobs are identical on both sides",
+    "change": "host preflight inventories `claude mcp list` and passes every configured server except the approved one as --settings deniedMcpServers; the deny list is part of the plan hash; an absent or signed-out approved server fails closed before launch"
+  },
+  "run_3": {
+    "generatedAt": "2026-09-24T14:39:50.205Z",
+    "repoHead": "9100eadd074efa1fcc51ce75f6aabed73d1a5af6",
+    "candidateTreeDirty": false,
+    "verdict": "NOT_ACCEPTED (11/12: cancellation mislabelled, fixed afterwards)",
+    "checks_pass": ["binding", "newSessionExactId", "clientReportedModel", "approvedRead", "deniedOperation", "mcpExactTool", "runAStatus", "resume", "bindingResume", "receiptSanitized", "acceptanceReceiptSanitized"],
+    "checks_fail": { "cancellation": "status RESULT_INVALID (RESULT_MISSING) although aborted=true, processTreeStopped=true and the independent group/cmdline scans were clear. Termination was exitCode 143 with no signal: the CLI trapped SIGTERM and exited. Run 2 passed only because that CLI needed SIGKILL." },
+    "session_A_and_B": "b2620f72-a937-4fac-8232-be5379e4eec3",
+    "session_C": "e054eba3-fb1e-439f-a957-2296bec0974f",
+    "client_reported_model": "claude-opus-5-5 (all runs; independentAttestation false)",
+    "run_A_tools": ["Read:ok", "Write:error (denied, file not created)", "mcp__claude_ai_Railway__whoami:ok", "StructuredOutput:ok"],
+    "mcp": { "exact_tool": "mcp__claude_ai_Railway__whoami", "visible": true, "invoked": true, "other_mcp_tools_invoked": [], "visible_mcp_tool_count": 65, "visible_outside_approved_connector": 0,
+      "narrowing": { "approvedServers": ["claude.ai Railway"], "deniedServerCount": 8 }, "servers": ["claude.ai Railway"] },
+    "usage_cli_estimate_usd": { "A": 0.3048076, "B_session_cumulative": 0.5989836, "C": null },
+    "automaticRetries": 0,
+    "fallbacks": 0
+  },
+  "fix_after_run_3": {
+    "cloud_commits": ["9c36a36", "1aa05d1"],
+    "laptop_commits": ["91a930f", "3fbd6c9"],
+    "equivalence": "git am of abort-fix.patch (sha256 7417c0ac298491e4678987ee35fed5e84e39c9c755c069793d1a46be20c54eaf) and abort-test-fix.patch (sha256 2245a808a18eb7e2dd82871509033b43a690780aa4b0d42cbb65d0a573f1729e) onto 9100ead; changed blobs identical on both sides",
+    "change": "the trusted transport passes its own aborted flag in the termination record and the collector treats it like a signal, so an operator abort is INTERRUPTED whether the CLI dies by signal or exits 143; the fake CLI now traps SIGTERM like the live CLI",
+    "verification": "offline only: focused suites 63/63 in the cloud and 63/63 on the laptop at 3fbd6c9, including a transport test with the exact live termination {exitCode:143, signal:null, aborted:true} and the harness self-test run C on the exit-143 path. Not re-run live, to avoid spending allowance re-proving the 11 checks run 3 passed."
+  },
   "not_persisted": ["prompts", "assistant prose", "thinking", "tool inputs", "tool results", "worker report", "raw provider errors", "stderr"]
 }
