@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-progress-heartbeat-20260924-1535",
+  "integration_branch": "main",
+  "integration_base_sha": "e7384522791304626a3b9d675abf9e44dcf9dcf7",
+  "scope": "Add privacy-safe structural generation-progress heartbeat and bounded same-chat stall recovery; focused relay tests only, no merge/deploy/runtime mutation.",
+  "closeout": {
+    "behavior": "After an assistant content surface begins, unchanged structural progress for the configured interval raises a generic same-chat stall; initial thinking is excluded; mandatory external-tool stages remain excluded.",
+    "privacy": "Only assistant-turn structure, a monotonic mutation counter, and timestamps are observed; assistant text is not read or persisted.",
+    "focused": "29/29 heartbeat, stuck-recovery, and config tests PASS; crossed-boundary fixture 3/3 PASS.",
+    "affected": "vps-browser-relay npm test + npm run check PASS.",
+    "test_efficiency": "35.98s observed tests / 865.89s task wall time; 4.15%; zero forced redundant-green reruns.",
+    "shared_runtime_changed": false,
+    "deployed": false
+  }
+}
