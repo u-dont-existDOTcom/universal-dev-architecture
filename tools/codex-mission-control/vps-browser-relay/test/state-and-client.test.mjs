@@ -158,6 +158,9 @@ test('submission interval config defaults to 60000 and exposes the public value'
     const config = await loadConfig(configEnv(chatsFile));
     assert.equal(config.runtime.minSubmissionIntervalMs, 60_000);
     assert.equal(publicConfig(config).minSubmissionIntervalMs, 60_000);
+    assert.equal(config.browser.generationTimeoutMs, 900_000);
+    assert.equal(config.browser.progressStallMs, 120_000);
+    assert.equal(publicConfig(config).progressStallMs, 120_000);
     assert.equal(config.submissionScheduler.url, 'https://mission-control.example/api/submission-authority');
     assert.equal(publicConfig(config).submissionAuthorityUrl, 'https://mission-control.example/api/submission-authority');
     assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
@@ -167,6 +170,28 @@ test('submission interval config defaults to 60000 and exposes the public value'
       ...configEnv(chatsFile),
       MC_RELAY_TARGET_BINDING_ATTESTOR_KEY: 'x'.repeat(32),
     }), /must differ from MC_RELAY_TOKEN/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('progress-stall interval is independently bounded below the unchanged hard generation ceiling', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-progress-stall-config-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    assert.equal((await loadConfig({
+      ...configEnv(chatsFile), MC_RELAY_PROGRESS_STALL_MS: '30000',
+    })).browser.progressStallMs, 30_000);
+    assert.equal((await loadConfig({
+      ...configEnv(chatsFile), MC_RELAY_PROGRESS_STALL_MS: '900000',
+    })).browser.progressStallMs, 900_000);
+    await assert.rejects(() => loadConfig({
+      ...configEnv(chatsFile), MC_RELAY_PROGRESS_STALL_MS: '29999',
+    }), /30000-900000/);
+    await assert.rejects(() => loadConfig({
+      ...configEnv(chatsFile), MC_RELAY_PROGRESS_STALL_MS: '900001',
+    }), /30000-900000/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

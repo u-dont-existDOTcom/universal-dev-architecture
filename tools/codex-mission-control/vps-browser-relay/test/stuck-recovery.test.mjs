@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { installStuckRecovery, isConnectionInterrupted, isGenerationStallTimeout, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
+import { installStuckRecovery, isConnectionInterrupted, isGenerationStallTimeout, isProgressHeartbeatStall, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
 import { sha256 } from '../src/core.mjs';
 import { defaultState } from '../src/core.mjs';
 import { GlobalSubmissionPacer, GLOBAL_SUBMISSION_COOLDOWN } from '../src/submission-pacing.mjs';
@@ -31,6 +31,32 @@ test('mandatory external-tool stages disable generic same-chat recovery without 
     }),
     /stable complete UI state/,
   );
+  assert.equal(submits, 0);
+});
+
+test('mandatory external-tool stages suppress structural progress-stall recovery', async () => {
+  let submits = 0;
+  const error = Object.assign(new Error('CHATGPT_PROGRESS_HEARTBEAT_STALLED: no progress'), {
+    code: 'CHATGPT_PROGRESS_HEARTBEAT_STALLED',
+  });
+  const browser = {
+    async waitForGenerationComplete() { throw error; },
+    async submitExactMessage() { submits += 1; },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
+    stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
+    inspectRecoverableControl: noRecoverableControl,
+  });
+  await assert.rejects(
+    () => browser.waitForGenerationComplete({ id: 'mandatory-progress-stage' }, {
+      expectedUrl: 'https://chatgpt.com/c/mandatory-progress-stage',
+      generationStarted: true,
+      allowSameChatRecovery: false,
+    }),
+    /CHATGPT_PROGRESS_HEARTBEAT_STALLED/,
+  );
+  assert.equal(isProgressHeartbeatStall(error), true);
   assert.equal(submits, 0);
 });
 
@@ -120,6 +146,45 @@ test('connection-interrupted banner also overrides V6 generic recovery ban with 
   assert.equal(result.stuckRecovery.recoveries[0].source, 'CONNECTION_INTERRUPTED');
   assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Connection interrupted');
   assert.equal(result.stuckRecovery.recoveries[0].interruption.sendControlObserved, true);
+});
+
+test('structural progress stall uses bounded same-chat Stop then continue when generic recovery is allowed', async () => {
+  let waits = 0;
+  const steps = [];
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) {
+        const error = new Error('CHATGPT_PROGRESS_HEARTBEAT_STALLED: assistant output stopped changing.');
+        error.code = 'CHATGPT_PROGRESS_HEARTBEAT_STALLED';
+        throw error;
+      }
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: '2026-09-24T15:40:00.000Z', inspectedAssistantOutput: false };
+    },
+    async submitExactMessage(_target, input) {
+      steps.push('submit:' + input.body);
+      return { generationStarted: true, startedAtObserved: '2026-09-24T15:39:30.000Z' };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: (target, input) => browser.submitExactMessage(target, input),
+    maxNudges: 3,
+    logger: { warn() {} },
+    stopStalledGeneration: async (_target, _expectedUrl, recoveryOptions) => {
+      assert.deepEqual(recoveryOptions, { requireSendControl: false });
+      steps.push('stop');
+      return { stoppedGeneration: true, inspectedAssistantOutput: false };
+    },
+    inspectRecoverableControl: noRecoverableControl,
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'progress-stall' }, {
+    expectedUrl: 'https://chatgpt.com/c/progress-stall',
+    generationStarted: true,
+  });
+  assert.deepEqual(steps, ['stop', 'submit:continue']);
+  assert.equal(result.stuckRecovery.recoveries[0].source, 'PROGRESS_HEARTBEAT_STALLED');
+  assert.equal(result.stuckRecovery.inspectedAssistantOutput, false);
 });
 
 test('any model turn that remains actively generating gets same-chat continue and then resumes waiting', async () => {
