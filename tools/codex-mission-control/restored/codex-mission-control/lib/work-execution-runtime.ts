@@ -219,8 +219,14 @@ export function currentExecutionDirectiveProof(
     || directive.directive_schema_version !== 3
     || directive.directive_artifact_sha256 === null
     || directive.source_message_id === null
-    || directive.source_body_sha256 === null
-    || directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") return null;
+    || directive.source_body_sha256 === null) return null;
+  const executionProvider = directive.execution_provider ?? "OPENAI";
+  if (executionProvider === "OPENAI"
+    && directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") return null;
+  if (executionProvider === "ANTHROPIC"
+    && (directive.work_execution_profile !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+      || !directive.claude_execution_profile
+      || directive.execution_surface !== "CLAUDE_CODE_CLI")) return null;
   const validatedDecision = directiveEvent
     ? validatedGitHubDecisionDirectiveProof(events, directiveEvent)
     : null;
@@ -233,7 +239,11 @@ export function currentExecutionDirectiveProof(
     sourceMessageId: directive.source_message_id,
     sourceBodySha256: directive.source_body_sha256,
     status: "ACTIVE",
+    ...(directive.execution_provider ? { executionProvider: directive.execution_provider } : {}),
     workExecutionProfile: directive.work_execution_profile,
+    ...(directive.claude_execution_profile
+      ? { claudeExecutionProfile: directive.claude_execution_profile }
+      : {}),
     authoritySource: validatedDecision ? {
       kind: "VALIDATED_GITHUB_DECISION",
       receiptEventId: validatedDecision.receipt_event_id,

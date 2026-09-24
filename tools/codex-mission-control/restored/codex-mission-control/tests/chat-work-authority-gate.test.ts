@@ -8,10 +8,12 @@ import {
   type ReasoningSourceReceipt,
 } from "../lib/chat-work-authority-gate";
 import {
+  LEGACY_MODEL_PROFILE_UNSPECIFIED,
   WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
   WORK_MODEL_ROUTING_POLICY_REF,
   type WorkExecutionProfile,
 } from "../lib/work-execution-profile";
+import type { ClaudeExecutionProfile } from "../lib/claude-execution-profile";
 
 const sourceDigest = "a".repeat(64);
 const directiveDigest = "b".repeat(64);
@@ -69,6 +71,18 @@ function request(
     ...overrides,
   };
 }
+
+const claudeMediumProfile: ClaudeExecutionProfile = {
+  provider: "ANTHROPIC",
+  surface: "CLAUDE_CODE_CLI",
+  role: "EXECUTION",
+  model: "claude-sonnet-4-6",
+  effort: "MEDIUM",
+  billing: "SUBSCRIPTION",
+  assuranceRequirement: "CLIENT_REPORTED_MODEL_REQUIRED",
+  expensiveEffortApproved: false,
+  contractVersion: "TRUSTED_CLAUDE_CODE_V1",
+};
 
 const directiveProof: PersistedExecutionDirectiveProof = {
   directiveId: "directive:askrigor:mast:1",
@@ -233,6 +247,57 @@ test("Codex may execute only the zero-spend bounded mechanical residue", () => {
   const result = evaluateChatWorkAuthorityGate(request());
   assert.equal(result.allowed, true);
   assert.equal(result.decision, "ALLOW_BOUNDED_EXECUTION");
+});
+
+test("existing GPT bounded execution remains OpenAI and carries no Claude profile", () => {
+  const result = evaluateChatWorkAuthorityGate(request());
+  assert.equal(result.allowed, true);
+  assert.equal(result.executionProvider, "OPENAI");
+  assert.deepEqual(result.authorizedWorkExecutionProfile, solMediumProfile);
+  assert.equal(result.authorizedClaudeExecutionProfile, null);
+});
+
+test("Anthropic bounded execution requires the exact source-bound Claude profile", () => {
+  const claudeRequest = request({
+    executionProvider: "ANTHROPIC",
+    workExecutionProfile: undefined,
+    claudeExecutionProfile: claudeMediumProfile,
+  });
+  const persisted: PersistedExecutionDirectiveProof = {
+    ...directiveProof,
+    executionProvider: "ANTHROPIC",
+    workExecutionProfile: LEGACY_MODEL_PROFILE_UNSPECIFIED,
+    claudeExecutionProfile: claudeMediumProfile,
+  };
+  const result = evaluateGate(claudeRequest, persisted);
+  assert.equal(result.allowed, true);
+  assert.equal(result.executionProvider, "ANTHROPIC");
+  assert.equal(result.authorizedWorkExecutionProfile, null);
+  assert.deepEqual(result.authorizedClaudeExecutionProfile, claudeMediumProfile);
+});
+
+test("caller-only Claude provider/profile changes cannot acquire execution authority", () => {
+  const claudeRequest = request({
+    executionProvider: "ANTHROPIC",
+    workExecutionProfile: undefined,
+    claudeExecutionProfile: claudeMediumProfile,
+  });
+  const wrongProvider = evaluateGate(claudeRequest, directiveProof);
+  assert.equal(wrongProvider.allowed, false);
+  assert.equal(wrongProvider.decision, "REJECT_UNVERIFIED_REASONING_SOURCE");
+
+  const persisted: PersistedExecutionDirectiveProof = {
+    ...directiveProof,
+    executionProvider: "ANTHROPIC",
+    workExecutionProfile: LEGACY_MODEL_PROFILE_UNSPECIFIED,
+    claudeExecutionProfile: claudeMediumProfile,
+  };
+  const escalated = evaluateGate({
+    ...claudeRequest,
+    claudeExecutionProfile: { ...claudeMediumProfile, effort: "HIGH" },
+  }, persisted);
+  assert.equal(escalated.allowed, false);
+  assert.equal(escalated.decision, "REJECT_UNVERIFIED_REASONING_SOURCE");
 });
 
 test("server-validated GitHub decision proof admits its exact UNVERIFIED source without fabricating provider provenance", () => {

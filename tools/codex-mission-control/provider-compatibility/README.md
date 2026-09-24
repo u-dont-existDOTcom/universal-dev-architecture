@@ -1,10 +1,13 @@
 # Provider compatibility — isolated iteration candidate
 
-**Status: offline implementation, not a live launcher or a production migration.**
+**Status: isolated integration candidate, not merged, deployed, provider-switched, or live-inference verified.**
 
-This dependency-free Node.js module supplies the first bounded interface between
-Mission Control and Claude Code. It does not change any existing routing, actor
-permissions, model policy, deployment, AskRigor server, or source archive.
+This branch now carries a bounded Mission Control-to-Claude Code execution path:
+explicit and automatic source-bound provider selection, separate Claude admission,
+a host-controlled CLI transport, persisted session binding, and privacy-bounded
+result collection. The existing OpenAI dispatcher remains the default path and its
+argument/result identity is preserved by regression. No shared runtime, deployment,
+AskRigor server, OAuth registration, or canonical provider routing has been changed.
 
 ## What works in this candidate
 
@@ -26,6 +29,23 @@ provider fields. The validated final report can still contain private task conte
 original argument object and returns the exact result. `describeExistingOpenAIProfile`
 is only a read-only projection of known current profile names. Neither is a new
 validator or an alternative admission path.
+
+The isolated integration adds a separate source-bound `ANTHROPIC` profile and
+`CLAUDE_CODE_CLI` runtime contract to the existing version-3 directive/admission
+boundary. Canonical GitHub decisions persist the provider/profile/session/tool
+controls and their artifact digest; caller-only provider/profile assertions are
+rejected. The no-argument Mission Control dispatcher can discover that durable
+Claude directive, while missing provider metadata continues down the unchanged
+OpenAI path.
+
+`claude-host-transport.mjs` is the candidate host runner. It performs only
+non-inference version/auth/config preflights before authorization, invokes the CLI
+with a direct argv vector (`shell:false`), reserves or verifies the exact session
+binding, streams stdout into the bounded collector, retains no stderr content,
+enforces wall timeout/abort with process-group cleanup, and has no retry/provider
+fallback. Claude Code 2.1.281 does not expose `--max-turns`; the source-bound
+`maxTurns` value is therefore checked against reported `num_turns` after execution
+while the wall-clock limit remains the preemptive bound.
 
 ## Run the offline tests
 
@@ -68,11 +88,12 @@ explicit input; no model selection, retries or fallback are automatic. A supplie
 approval flag is not proof of owner permission: the authenticated controller must
 bind it to the source-authorized directive. No subagents are requested.
 
-Subscription is the only billing route represented here. The module does not read
-credentials or prove the active login. The host must inspect effective authentication,
-environment and managed configuration; a requested subscription route is not proof
-that an inference will be subscription-billed. Do not add API fallback to fix a login
-failure. Do not use `--bare` with this route.
+Subscription is the only billing route represented here. Before authorization/spawn,
+the host transport runs non-inference `claude --version` and `claude auth status --json`,
+requires `claude.ai` / first-party authentication, and scans only environment/setting
+key names for API/provider overrides; token/credential values are never retained or
+returned. This proves the configured login route, not an invoice or weekly allowance
+delta. Do not add API fallback to fix a login failure. Do not use `--bare` with this route.
 
 The tool list constrains built-ins, while the explicit MCP configuration names
 remote HTTP servers using existing OAuth. It does not contain tokens. Auto-approval

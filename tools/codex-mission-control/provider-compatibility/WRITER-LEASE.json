@@ -2,11 +2,11 @@
   "schema_version": 1,
   "status": "active",
   "exclusive_writer": true,
-  "owned_branch": "task/claude-compatibility-continuation-20260923-2332",
+  "owned_branch": "task/claude-compatibility-chat-20260924-0045",
   "integration_branch": "main",
   "integration_base_sha": "eaeacee9c187d943e036cb7b299388f3094a1e64",
   "parent_integrator": "NONE_ACTIVE_RECHECK_BEFORE_SHARED_INTEGRATION",
-  "scope": "Isolated Claude compatibility continuation: real dispatch regression, deliberate admission/profile extension, host-controlled transport candidate, focused tests and non-secret host preflight. No shared runtime write/deploy/provider switch/paid inference.",
+  "scope": "Reconciled isolated Claude compatibility continuation owned by this chat. Reviewed orphan delta accepted as candidate input; complete profile/transport/dispatch tests only. No shared runtime integration, deploy, provider switch, OAuth change, or paid inference.",
   "allowed_paths": [
     "tools/codex-mission-control/provider-compatibility/**",
     "tools/codex-mission-control/restored/codex-mission-control/scripts/**",

@@ -59,6 +59,7 @@ import {
 import { daemonLiveness } from "../lib/daemon-health";
 import { workerTransportSnapshotFromStore } from "../lib/dashboard-data";
 import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
+import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
 import { seedIssue47Store } from "../lib/seed";
 
 const outcomeSha = "a".repeat(64);
@@ -337,6 +338,126 @@ test("accepted canonical decision materializes one SYSTEM directive only when co
     () => ingestGitHubSupervisionCandidate(store, { ...executionCandidate, body: `${canonicalDecisionCommentPrefix}${JSON.stringify(changed)}` }, policy(), "2026-09-02T00:15:22.000Z"),
     /changed canonical content/,
   );
+});
+
+test("canonical GitHub decision source-binds Anthropic profile/runtime while preserving GPT artifact identity", async () => {
+  const decision = directDecisionEnvelope("EXTRA_HIGH_DIRECT");
+  decision.bounded_execution = claudeBoundedExecutionResidue("/tmp/mission-control-claude-directive");
+  const store = fakeStore(directDecisionEvents("EXTRA_HIGH_DIRECT"));
+  const executionCandidate = {
+    ...directCandidate("EXTRA_HIGH_DIRECT"),
+    body: `${canonicalDecisionCommentPrefix}${JSON.stringify(decision)}`,
+  };
+  const admitted = ingestGitHubSupervisionCandidate(
+    store,
+    executionCandidate,
+    policy(),
+    "2026-09-02T00:15:20.000Z",
+  );
+  const directive = admitted.find((event) => event.data.type === "execution_directive_recorded");
+  assert.ok(directive);
+  if (!directive || directive.data.type !== "execution_directive_recorded") {
+    throw new Error("Expected Claude execution directive");
+  }
+  assert.equal(directive.data.execution_provider, "ANTHROPIC");
+  assert.equal(directive.data.execution_surface, "CLAUDE_CODE_CLI");
+  assert.equal(directive.data.work_execution_profile, "LEGACY_MODEL_PROFILE_UNSPECIFIED");
+  assert.deepEqual(
+    directive.data.claude_execution_profile,
+    decision.bounded_execution!.claude_execution_profile,
+  );
+  assert.deepEqual(directive.data.claude_runtime, decision.bounded_execution!.claude_runtime);
+
+  const candidateRuntime = await import(
+    new URL("../../../vps-browser-relay/src/codex-exec-candidate.mjs", import.meta.url).href
+  );
+  const bounded = decision.bounded_execution!;
+  const executableDirective = {
+    schemaVersion: 2,
+    jobId: bounded.job_id,
+    sourceDirective: {
+      id: directive.data.directive_id,
+      revision: directive.data.directive_revision,
+      taskId: directive.data.task_id,
+      sourceMessageId: directive.data.source_message_id,
+      sourceBodySha256: directive.data.source_body_sha256,
+    },
+    executionProvider: "ANTHROPIC",
+    executionSurface: directive.data.execution_surface,
+    requestedModel: directive.data.claude_execution_profile!.model,
+    reasoningEffort: directive.data.claude_execution_profile!.effort.toLowerCase(),
+    workExecutionProfile: directive.data.work_execution_profile,
+    claudeExecutionProfile: directive.data.claude_execution_profile,
+    claudeRuntime: directive.data.claude_runtime,
+    deadline: bounded.deadline,
+    workspace: bounded.workspace,
+    executionCapability: bounded.execution_capability,
+    outputSchema: bounded.output_schema,
+    prompt: bounded.prompt,
+  };
+  assert.equal(
+    candidateRuntime.codexDirectiveArtifactSha256(executableDirective),
+    directive.data.directive_artifact_sha256,
+  );
+
+  const proof = currentExecutionDirectiveProof("mission-control-live-slice", [
+    ...store.allEvents(),
+    directive,
+  ]);
+  assert.equal(proof?.executionProvider, "ANTHROPIC");
+  assert.deepEqual(proof?.claudeExecutionProfile, directive.data.claude_execution_profile);
+
+  let automaticClaudeInput: any = null;
+  const automatic = await candidateRuntime.dispatchAutomaticMissionControlExecution({
+    snapshot: {
+      workers: [{ id: "mission-control-live-slice", timeline: store.allEvents() }],
+    },
+    config: { previewEnabled: true },
+    missionControl: {
+      fetchFleet: async () => {
+        throw new Error("snapshot is already supplied");
+      },
+    },
+    legacyBrowserHandler: async () => {
+      throw new Error("legacy OpenAI handler must not receive an Anthropic directive");
+    },
+    claudeExecutionHandler: async (input: any) => {
+      automaticClaudeInput = input;
+      return {
+        provider: "anthropic",
+        receipt: { status: "EXECUTION_REPORTED_COMPLETE" },
+      };
+    },
+  });
+  assert.equal(automatic.receipt.status, "EXECUTION_REPORTED_COMPLETE");
+  assert.equal(automaticClaudeInput.directive.executionProvider, "ANTHROPIC");
+  assert.equal(automaticClaudeInput.admissionInput.request.executionProvider, "ANTHROPIC");
+  assert.deepEqual(
+    automaticClaudeInput.admissionInput.request.claudeExecutionProfile,
+    directive.data.claude_execution_profile,
+  );
+
+  const gpt = boundedExecutionResidue("/tmp/mission-control-gpt-artifact");
+  const sourceDirective = {
+    id: "directive:gpt-artifact:1",
+    revision: 1,
+    taskId: gpt.task_id,
+    sourceMessageId: "source:gpt-artifact:1",
+    sourceBodySha256: "9".repeat(64),
+  };
+  const implicit = executionDirectiveArtifactCanonicalJson({
+    bounded: gpt,
+    sourceDirective,
+    requestedModel: "gpt-5.6-sol",
+    reasoningEffort: "low",
+  });
+  const explicit = executionDirectiveArtifactCanonicalJson({
+    bounded: { ...gpt, execution_provider: "OPENAI" },
+    sourceDirective,
+    requestedModel: "gpt-5.6-sol",
+    reasoningEffort: "low",
+  });
+  assert.equal(explicit, implicit);
 });
 
 test("malformed or untrusted bounded residue fails before directive publication", () => {
@@ -1110,6 +1231,42 @@ function boundedExecutionResidue(workspace: string, executionCapability: { type:
       policyRef: WORK_MODEL_ROUTING_POLICY_REF,
       routingPolicyBaseCommit: WORK_MODEL_ROUTING_POLICY_BASE_COMMIT,
       contractVersion: "TRUSTED_SETTER_V1" as const,
+    },
+  };
+}
+
+function claudeBoundedExecutionResidue(workspace: string) {
+  return {
+    ...boundedExecutionResidue(workspace),
+    execution_provider: "ANTHROPIC" as const,
+    work_execution_profile: "LEGACY_MODEL_PROFILE_UNSPECIFIED" as const,
+    execution_surface: "CLAUDE_CODE_CLI" as const,
+    claude_execution_profile: {
+      provider: "ANTHROPIC" as const,
+      surface: "CLAUDE_CODE_CLI" as const,
+      role: "EXECUTION" as const,
+      model: "claude-sonnet-4-6",
+      effort: "MEDIUM" as const,
+      billing: "SUBSCRIPTION" as const,
+      assuranceRequirement: "CLIENT_REPORTED_MODEL_REQUIRED" as const,
+      expensiveEffortApproved: false,
+      contractVersion: "TRUSTED_CLAUDE_CODE_V1" as const,
+    },
+    claude_runtime: {
+      session: {
+        id: "11111111-1111-4111-8111-111111111111",
+        mode: "new" as const,
+      },
+      limits: {
+        maxTurns: 4,
+        maxWallTimeMs: 60_000,
+        maxStreamBytes: 1_048_576,
+      },
+      access: {
+        builtInTools: ["Read" as const],
+        autoApprove: [],
+        mcpServers: {},
+      },
     },
   };
 }

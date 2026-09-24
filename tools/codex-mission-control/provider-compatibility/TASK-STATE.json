@@ -1,76 +1,90 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "task_id": "claude-compatibility-20260923",
   "assurance_lane": "iteration",
-  "owner_source": {
-    "kind": "current_owner_message",
-    "verbatim": "ok you have github read access now, not sure about write but you can make do what you can and the rest can be work instructions",
-    "sha256": "f6beda5a15cadd9a75d06cd5fcc52b99a3c5c5cf6e583d51cc4142cf519ffb3a",
-    "source_chat_url": null
-  },
   "owner_outcome": "Develop isolated Claude compatibility alongside existing projects; preserve GPT behavior and provide executable instructions for remaining work.",
   "parent_outcome_status": "OPEN",
-  "candidate_status": "OFFLINE_CANDIDATE_VERIFIED_NOT_INTEGRATED",
+  "candidate_status": "INTEGRATION_CANDIDATE_PREPARED_NOT_SHARED",
   "source_baseline": "eaeacee9c187d943e036cb7b299388f3094a1e64",
-  "writer_branch": "chat/claude-compatibility-20260923-2251",
-  "active_contract": [
-    {
-      "rule": "parallel-chat-write-isolation",
-      "effect": "Only candidate directory on owned branch; no shared integration/runtime writes."
-    },
-    {
-      "rule": "development-assurance-lanes",
-      "effect": "Offline Iteration; no release claim or unrelated full-suite campaign."
-    },
-    {
-      "rule": "test-efficiency-and-verification-budget",
-      "effect": "Canonical telemetry started before implementation; focused tests only."
-    },
-    {
-      "rule": "owner-goal-followup-and-requirement-accretion",
-      "effect": "Small optional adapter boundary; do not make a new platform or assurance gate a prerequisite for old GPT work."
-    },
-    {
-      "rule": "task-time-lesson-activation",
-      "effect": "Live root and graph dependency closure loaded this turn; check actual final artifact/branch state."
-    },
-    {
-      "rule": "runtime-chat-work-authority-admission-and-internal-routing",
-      "effect": "No forged admission, no actor impersonation, no paid fallback."
-    }
+  "source_candidate_head": "54ce97992b0ae786f2ede252a49574f8ee555811",
+  "writer_branch": "task/claude-compatibility-chat-20260924-0045",
+  "entrypoint_discrepancy": {
+    "requested": "START-HERE.md then WORK-INSTRUCTIONS.md",
+    "observed": "No relevant START-HERE.md exists in the supplied branch or Mission Control workspace.",
+    "resolution": "Used provider-compatibility/README.md because WORK-INSTRUCTIONS.md explicitly names README.md as its entrypoint; no file was fabricated."
+  },
+  "implemented": [
+    "Explicit provider selection at the real execution entrypoint; missing provider remains the existing OpenAI path and unknown providers fail closed.",
+    "Separate source-bound Anthropic provider/profile/runtime fields at canonical GitHub decision, persisted directive, authority admission and durable proof boundaries.",
+    "Automatic Mission Control discovery/routing of exact source-bound Anthropic directives without changing the existing OpenAI default path.",
+    "Host-controlled Claude Code transport using direct argv, non-inference version/auth/config preflight, persisted session binding, stdout collector, bounded private stderr, wall timeout and process-tree cancellation, no retries/fallback/subagents/API path.",
+    "Canonical-to-executable Anthropic artifact digest parity and historical GPT artifact identity preservation."
   ],
-  "prior_work": {
-    "applicability": "required",
-    "disposition": "adapt",
-    "baseline": "Existing Claude CLI + unchanged OpenAI dispatcher",
-    "new_remainder": "Bounded plan and receipt translation only",
-    "verified_sources": [
-      "https://code.claude.com/docs/en/cli-reference",
-      "https://code.claude.com/docs/en/headless"
-    ]
+  "host_checks": {
+    "claude_cli_version": "2.1.281 (Claude Code)",
+    "authentication": {
+      "logged_in": true,
+      "method": "claude.ai",
+      "api_provider": "firstParty",
+      "subscription_type": "max",
+      "token_or_secret_values_read": false
+    },
+    "api_or_provider_overrides_present": false,
+    "inference_invoked": false,
+    "current_plan_flags_verified": true,
+    "mcp": {
+      "standard_mcp_cli_inspected": true,
+      "askrigor_configured_in_claude": false,
+      "askrigor_binding_changed": false
+    },
+    "allowance_observation": "UNAVAILABLE_NON_INFERENCE"
+  },
+  "askrigor_observation": {
+    "repository_changed": false,
+    "mcp_live_acceptance_run": false,
+    "reason": "AskRigor is not configured in the Claude MCP client; adding OAuth/account binding is forbidden by this packet.",
+    "current_tool_catalog_observed_count": 27,
+    "protocols": {
+      "universal": {
+        "version": "20.5.26",
+        "revision_date": "2026-09-17"
+      },
+      "hrp": {
+        "version": "20.5.29",
+        "revision_date": "2026-09-12"
+      }
+    }
   },
   "not_executed": [
-    "Claude inference",
-    "MCP OAuth change",
-    "live Mission Control routing",
-    "AskRigor production change",
-    "merge",
-    "deployment"
+    "Claude model inference",
+    "Allowance-consuming live acceptance case",
+    "Live AskRigor MCP read/write/deny acceptance",
+    "MCP OAuth/account change",
+    "Shared runtime integration",
+    "Merge or pull request",
+    "Deployment or service restart",
+    "Canonical provider switch"
   ],
-  "remaining_gap": "Trusted runtime integration and resource-authorized live acceptance; full project migration remains unperformed.",
-  "next_action": "Current integrator: consume WORK-INSTRUCTIONS.md, extend real admission and connect a host transport in an isolated lane; no new capability research required.",
-  "lesson_closeout": "Provider-specific auth and evidence semantics retained in this versioned candidate; no new universal rule promoted.",
-  "authoring_start_head": "5994b90c75e0ca36372678518ee9bc8e0a184685",
+  "remaining_gap": "A current integrator must independently review this isolated branch and obtain separate merge/install authority. After integration, one low/medium-effort subscription acceptance case may run only under explicit resource authorization; AskRigor standard-MCP acceptance additionally requires a separately authorized Claude MCP/OAuth binding.",
+  "next_action": "Review this isolated branch as an integration candidate. Do not merge/deploy/switch providers under this packet. If later authorized, integrate reversibly, then run one bounded low/medium-effort subscription acceptance with exact session/result, one allowed read, one denied operation, resume and cancellation.",
+  "tests": {
+    "live_inference_calls": 0,
+    "forced_redundant_green_reruns": 0,
+    "key_green_results": [
+      "Original delivered compatibility candidate: 42/42.",
+      "Final compatibility + host transport after real CLI flag correction: 50/50.",
+      "Provider selector: 3/3.",
+      "Authority + real OpenAI dispatch integration: 26/26.",
+      "Canonical GitHub decision full affected file: 45/45.",
+      "Source-bound Claude Mission Control bridge: 2/2.",
+      "Provider-aware automatic discovery preserved four existing Codex/OpenAI authority smokes and the legacy fallback regression.",
+      "TypeScript: PASS."
+    ]
+  },
   "stop_admission": {
     "parent_outcome": "OPEN",
-    "delivered_boundary": "Isolated provider contract/CLI plan/receipt code, existing OpenAI mapping, focused tests and executable integration instructions.",
-    "remaining_gap": "Live controller integration, explicit Claude admission, host transport and authorized acceptance.",
-    "reason_to_handoff": "Current owner authorized remaining work instructions; this lane must not mutate the active shared integration/runtime."
-  },
-  "tests": {
-    "count": 42,
-    "passed": 42,
-    "failed": 0,
-    "live_inference_calls": 0
+    "delivered_boundary": "Isolated source-bound Claude execution/admission/transport candidate with focused/affected regression evidence and non-inference host preflight.",
+    "remaining_gap": "Shared integration/release and resource-authorized live model/MCP acceptance.",
+    "reason_to_stop": "The controlling packet explicitly stops before shared integration, production switching, paid inference, OAuth/account changes, or another missing authority boundary."
   }
 }

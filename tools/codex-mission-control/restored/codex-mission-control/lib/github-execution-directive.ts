@@ -1,7 +1,8 @@
 import path from "node:path";
 import { canonicalJson, sha256 } from "./canonical";
 import type { AppendEnvelope, BoundedExecutionResidue, MissionControlEventV2, StoredEvent } from "./schema";
-import { launchSelectionFor } from "./work-execution-profile";
+import { LEGACY_MODEL_PROFILE_UNSPECIFIED, launchSelectionFor } from "./work-execution-profile";
+import { launchSelectionForClaude } from "./claude-execution-profile";
 
 export const CODEX_EXECUTION_PAYLOAD_PREFIX = "MISSION_CONTROL_CODEX_EXECUTION_PAYLOAD_V1\n";
 
@@ -43,7 +44,16 @@ export function buildExecutionDirectiveFromGitHubDecision(
   const sourceMessageId = `github-decision-source:${sha256(receiptEvent.eventId).slice(0, 32)}`;
   const exactExecutionPayload = executionPayloadFor(bounded);
   const sourceBodySha256 = sha256(exactExecutionPayload);
-  const selection = launchSelectionFor(bounded.work_execution_profile);
+  const executionProvider = bounded.execution_provider ?? "OPENAI";
+  const openAiSelection = executionProvider === "OPENAI"
+    && bounded.work_execution_profile !== LEGACY_MODEL_PROFILE_UNSPECIFIED
+    ? launchSelectionFor(bounded.work_execution_profile)
+    : null;
+  const claudeSelection = executionProvider === "ANTHROPIC"
+    ? launchSelectionForClaude(bounded.claude_execution_profile!)
+    : null;
+  const requestedModel = openAiSelection?.model ?? claudeSelection!.model;
+  const reasoningEffort = openAiSelection?.thinking ?? claudeSelection!.effort;
   const sourceDirective = {
     id: directiveId,
     revision: directiveRevision,
@@ -52,7 +62,7 @@ export function buildExecutionDirectiveFromGitHubDecision(
     sourceBodySha256,
   };
   const directiveArtifactSha256 = sha256(executionDirectiveArtifactCanonicalJson({
-    bounded, sourceDirective, requestedModel: selection.model, reasoningEffort: selection.thinking,
+    bounded, sourceDirective, requestedModel, reasoningEffort,
   }));
 
   return {
@@ -113,8 +123,12 @@ export function buildExecutionDirectiveFromGitHubDecision(
         bounded_execution_sha256: receipt.bounded_execution_sha256,
         exact_execution_payload: exactExecutionPayload,
       },
+      ...(bounded.execution_provider ? { execution_provider: bounded.execution_provider } : {}),
       work_execution_profile: bounded.work_execution_profile,
-      execution_surface: bounded.execution_surface ?? "CODEX",
+      ...(bounded.claude_execution_profile ? { claude_execution_profile: bounded.claude_execution_profile } : {}),
+      ...(bounded.claude_runtime ? { claude_runtime: bounded.claude_runtime } : {}),
+      execution_surface: bounded.execution_surface
+        ?? (executionProvider === "ANTHROPIC" ? "CLAUDE_CODE_CLI" : "CODEX"),
       status: "ACTIVE",
     },
   };
@@ -152,6 +166,12 @@ export function executionPayloadFor(bounded: BoundedExecutionResidue): string {
     executionCapability: bounded.execution_capability,
     outputSchema: bounded.output_schema,
     prompt: bounded.prompt,
+    ...(bounded.execution_provider === "ANTHROPIC" ? {
+      executionProvider: bounded.execution_provider,
+      executionSurface: bounded.execution_surface,
+      claudeExecutionProfile: bounded.claude_execution_profile,
+      claudeRuntime: bounded.claude_runtime,
+    } : {}),
     ...(bounded.retry_of_attempt_id ? { retryOfAttemptId: bounded.retry_of_attempt_id } : {}),
   };
   return `${CODEX_EXECUTION_PAYLOAD_PREFIX}${canonicalJson(payload)}`;
@@ -163,6 +183,29 @@ export function executionDirectiveArtifactCanonicalJson(input: {
   requestedModel: string;
   reasoningEffort: string;
 }): string {
+  if (input.bounded.execution_provider === "ANTHROPIC") {
+    return canonicalJson({
+      schemaVersion: 2,
+      jobId: input.bounded.job_id,
+      sourceDirective: input.sourceDirective,
+      prompt: input.bounded.prompt,
+      workspace: path.resolve(input.bounded.workspace),
+      executionCapability: input.bounded.execution_capability,
+      outputSchema: input.bounded.output_schema,
+      executionProvider: "ANTHROPIC",
+      executionSurface: input.bounded.execution_surface,
+      claudeExecutionProfile: input.bounded.claude_execution_profile,
+      claudeRuntime: input.bounded.claude_runtime,
+      requestedModel: input.requestedModel,
+      reasoningEffort: input.reasoningEffort,
+      executionContract: {
+        restricted: true,
+        permissionPrompts: "none",
+        automaticRetries: 0,
+        apiKeyFallback: false,
+      },
+    });
+  }
   return canonicalJson({
     schemaVersion: 2,
     jobId: input.bounded.job_id,

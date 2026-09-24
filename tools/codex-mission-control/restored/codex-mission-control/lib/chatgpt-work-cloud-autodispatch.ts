@@ -104,6 +104,8 @@ export function discoverDirectWorkCloudDispatches(input: {
     const sourceChat = sourceBySupervisor.get(receipt.supervisor_id);
     if (!sourceChat) continue;
     const bounded = receipt.bounded_execution;
+    if ((bounded.execution_provider ?? "OPENAI") !== "OPENAI"
+      || bounded.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") continue;
     const sourceDirective = {
       id: directive.directive_id,
       revision: directive.directive_revision,

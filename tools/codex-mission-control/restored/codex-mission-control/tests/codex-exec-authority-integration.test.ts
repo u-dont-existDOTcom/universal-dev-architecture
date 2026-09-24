@@ -20,11 +20,18 @@ import {
 } from "../lib/work-execution-profile";
 
 const candidateModuleUrl = new URL("../../../vps-browser-relay/src/codex-exec-candidate.mjs", import.meta.url).href;
+const providerDispatchModuleUrl = new URL("../scripts/provider-execution-dispatch.mjs", import.meta.url).href;
 let candidate: any;
+let providerDispatch: any;
 
 async function loadCandidate() {
   candidate ??= await import(candidateModuleUrl);
   return candidate;
+}
+
+async function loadProviderDispatch() {
+  providerDispatch ??= await import(providerDispatchModuleUrl);
+  return providerDispatch;
 }
 
 const profile: WorkExecutionProfile = {
@@ -65,6 +72,24 @@ test("integrated Smoke B uses actual Mission Control admission/preflight before 
   assert.equal(result.protocol.completedRestrictedBrowserToolCallCount, 1);
   assert.equal(result.protocol.commandExecutionCount, 0);
   assert.equal(result.mcpPreflight.rawCdpEndpointExposed, false);
+  assert.deepEqual(fixture.runtime.lifecycleTypes, ["codex_execution_started", "execution_receipt_recorded"]);
+});
+
+test("provider selector reaches the real existing OpenAI Mission Control dispatcher unchanged", async () => {
+  const fixture = await smokeFixture("provider-selector-openai", { type: "LOCAL_FILESYSTEM_COMMAND" });
+  const provider = await loadProviderDispatch();
+  const result = await provider.dispatchExecutionProvider({
+    directive: fixture.dispatchInput.directive,
+    dispatchArguments: fixture.dispatchInput,
+    openAiDispatcher: candidate.dispatchMissionControlExecution,
+    claudeDispatcher: async () => {
+      throw new Error("Claude dispatcher must not receive the existing OpenAI directive.");
+    },
+  });
+  assert.equal(result.route, "CODEX_LOCAL");
+  assert.equal(result.status, "COMPLETED");
+  assert.equal(fixture.runtime.actualAdmission?.mayExecute, true);
+  assert.equal(fixture.runtime.actualPreflight?.allowed, true);
   assert.deepEqual(fixture.runtime.lifecycleTypes, ["codex_execution_started", "execution_receipt_recorded"]);
 });
 

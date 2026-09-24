@@ -52,8 +52,16 @@ export function discoverMissionControlExecution(snapshot) {
     const timeline = workerState.timeline;
     const directiveEvent = [...timeline].reverse().find((event) => event?.data?.type === 'execution_directive_recorded');
     const persisted = directiveEvent?.data;
-    if (!persisted || persisted.directive_schema_version !== 3 || persisted.status !== 'ACTIVE'
-      || persisted.work_execution_profile === 'LEGACY_MODEL_PROFILE_UNSPECIFIED') continue;
+    if (!persisted || persisted.directive_schema_version !== 3 || persisted.status !== 'ACTIVE') continue;
+    const executionProvider = persisted.execution_provider ?? 'OPENAI';
+    if (executionProvider === 'OPENAI'
+      && persisted.work_execution_profile === 'LEGACY_MODEL_PROFILE_UNSPECIFIED') continue;
+    if (executionProvider === 'ANTHROPIC'
+      && (persisted.work_execution_profile !== 'LEGACY_MODEL_PROFILE_UNSPECIFIED'
+        || !isPlainObject(persisted.claude_execution_profile)
+        || !isPlainObject(persisted.claude_runtime)
+        || persisted.execution_surface !== 'CLAUDE_CODE_CLI')) continue;
+    if (!['OPENAI', 'ANTHROPIC'].includes(executionProvider)) continue;
     if (persisted.execution_surface === 'CHATGPT_WORK_CLOUD') continue;
     const completed = timeline.some((event) => event?.data?.type === 'execution_receipt_recorded'
       && event.data.directive_id === persisted.directive_id
@@ -74,7 +82,15 @@ export function discoverMissionControlExecution(snapshot) {
       throw new Error(`Durable source bytes do not match schema-v3 directive ${persisted.directive_id}.`);
     }
     const payload = parseAutomaticExecutionPayload(source.exact_visible_body);
-    const selection = selectionForProfile(persisted.work_execution_profile);
+    if ((payload.executionProvider ?? 'OPENAI') !== executionProvider) {
+      throw new Error(`Durable provider payload does not match schema-v3 directive ${persisted.directive_id}.`);
+    }
+    const selection = executionProvider === 'OPENAI'
+      ? selectionForProfile(persisted.work_execution_profile)
+      : {
+        model: persisted.claude_execution_profile.model,
+        thinking: persisted.claude_execution_profile.effort.toLowerCase(),
+      };
     const directive = {
       schemaVersion: 2,
       jobId: payload.jobId,
@@ -85,6 +101,12 @@ export function discoverMissionControlExecution(snapshot) {
         sourceMessageId: persisted.source_message_id,
         sourceBodySha256: persisted.source_body_sha256,
       },
+      ...(executionProvider === 'ANTHROPIC' ? {
+        executionProvider: 'ANTHROPIC',
+        executionSurface: persisted.execution_surface,
+        claudeExecutionProfile: structuredClone(persisted.claude_execution_profile),
+        claudeRuntime: structuredClone(persisted.claude_runtime),
+      } : {}),
       requestedModel: selection.model,
       reasoningEffort: selection.thinking,
       workExecutionProfile: persisted.work_execution_profile,
@@ -133,6 +155,10 @@ export function discoverMissionControlExecution(snapshot) {
             taskId: persisted.task_id,
             directiveArtifactSha256: artifactSha256,
           },
+          ...(executionProvider === 'ANTHROPIC' ? {
+            executionProvider: 'ANTHROPIC',
+            claudeExecutionProfile: structuredClone(persisted.claude_execution_profile),
+          } : {}),
           workExecutionProfile: persisted.work_execution_profile,
         },
         factualPacket: null,
@@ -157,6 +183,7 @@ export async function dispatchAutomaticMissionControlExecution({
   config,
   missionControl,
   legacyBrowserHandler,
+  claudeExecutionHandler = null,
   clock = () => new Date(),
   spawnImpl = spawn,
 }) {
@@ -166,20 +193,32 @@ export async function dispatchAutomaticMissionControlExecution({
   const durableState = snapshot ?? await missionControl.fetchFleet();
   const current = discoverMissionControlExecution(durableState);
   if (!current) return { status: AUTOMATIC_CODEX_DISPATCH_IDLE, codexChildStarted: false };
-  const result = await dispatchMissionControlExecution({
-    worker: current.worker,
-    admissionInput: current.admissionInput,
-    setterEvidenceId: current.setterEvidenceId,
-    directive: current.directive,
-    config,
-    missionControl,
-    legacyBrowserHandler: (directive, route) => legacyBrowserHandler(directive, {
-      ...route,
-      missionControlBinding: current.sourceBinding,
-    }),
-    clock,
-    spawnImpl,
-  });
+  const result = current.directive.executionProvider === 'ANTHROPIC'
+    ? await (async () => {
+      if (typeof claudeExecutionHandler !== 'function') {
+        throw new Error('Automatic Claude execution requires the configured Claude execution handler.');
+      }
+      return claudeExecutionHandler({
+        worker: current.worker,
+        admissionInput: current.admissionInput,
+        directive: current.directive,
+        missionControl,
+      });
+    })()
+    : await dispatchMissionControlExecution({
+      worker: current.worker,
+      admissionInput: current.admissionInput,
+      setterEvidenceId: current.setterEvidenceId,
+      directive: current.directive,
+      config,
+      missionControl,
+      legacyBrowserHandler: (directive, route) => legacyBrowserHandler(directive, {
+        ...route,
+        missionControlBinding: current.sourceBinding,
+      }),
+      clock,
+      spawnImpl,
+    });
   return {
     ...result,
     automaticDispatch: {
@@ -375,6 +414,29 @@ function assertPersistedPreflight(preflight, admission, binding) {
 }
 
 function codexDirectiveArtifact(directive) {
+  if (directive?.executionProvider === 'ANTHROPIC') {
+    return {
+      schemaVersion: 2,
+      jobId: directive?.jobId ?? null,
+      sourceDirective: directive?.sourceDirective ?? null,
+      prompt: directive?.prompt ?? null,
+      workspace: typeof directive?.workspace === 'string' ? resolve(directive.workspace) : null,
+      executionCapability: directive?.executionCapability ?? null,
+      outputSchema: directive?.outputSchema ?? null,
+      executionProvider: 'ANTHROPIC',
+      executionSurface: directive?.executionSurface ?? null,
+      claudeExecutionProfile: directive?.claudeExecutionProfile ?? null,
+      claudeRuntime: directive?.claudeRuntime ?? null,
+      requestedModel: directive?.requestedModel ?? null,
+      reasoningEffort: directive?.reasoningEffort ?? null,
+      executionContract: {
+        restricted: true,
+        permissionPrompts: 'none',
+        automaticRetries: 0,
+        apiKeyFallback: false,
+      },
+    };
+  }
   return {
     schemaVersion: 2,
     jobId: directive?.jobId ?? null,
@@ -413,10 +475,24 @@ function parseAutomaticExecutionPayload(body) {
     throw new Error('Durable Codex execution payload must use schemaVersion 1.');
   }
   const exactKeys = ['schemaVersion', 'jobId', 'deadline', 'workspace', 'executionCapability', 'outputSchema', 'prompt'];
-  const allowedKeys = new Set([...exactKeys, 'retryOfAttemptId']);
+  const executionProvider = value.executionProvider ?? 'OPENAI';
+  const providerKeys = executionProvider === 'ANTHROPIC'
+    ? ['executionProvider', 'executionSurface', 'claudeExecutionProfile', 'claudeRuntime']
+    : [];
+  const allowedKeys = new Set([...exactKeys, ...providerKeys, 'retryOfAttemptId']);
   if (!exactKeys.every((key) => Object.hasOwn(value, key))
+    || !providerKeys.every((key) => Object.hasOwn(value, key))
     || Object.keys(value).some((key) => !allowedKeys.has(key))) {
-    throw new Error('Durable Codex execution payload fields are incomplete or unexpected.');
+    throw new Error('Durable execution payload fields are incomplete or unexpected.');
+  }
+  if (!['OPENAI', 'ANTHROPIC'].includes(executionProvider)) {
+    throw new Error('Durable execution provider is unsupported.');
+  }
+  if (executionProvider === 'ANTHROPIC'
+    && (value.executionSurface !== 'CLAUDE_CODE_CLI'
+      || !isPlainObject(value.claudeExecutionProfile)
+      || !isPlainObject(value.claudeRuntime))) {
+    throw new Error('Durable Claude execution payload is incomplete or invalid.');
   }
   if (typeof value.jobId !== 'string' || !SAFE_ID.test(value.jobId)) throw new Error('Durable Codex jobId is invalid.');
   if (typeof value.deadline !== 'string' || !Number.isFinite(Date.parse(value.deadline))) throw new Error('Durable Codex deadline is invalid.');

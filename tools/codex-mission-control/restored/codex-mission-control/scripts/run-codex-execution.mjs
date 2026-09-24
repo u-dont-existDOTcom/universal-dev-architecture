@@ -15,6 +15,8 @@ import {
   dispatchAutomaticMissionControlExecution,
   dispatchMissionControlExecution,
 } from '../../../vps-browser-relay/src/codex-exec-candidate.mjs';
+import { dispatchExecutionProvider } from './provider-execution-dispatch.mjs';
+import { dispatchClaudeMissionControlExecution } from '../../../provider-compatibility/claude-mission-control-dispatch.mjs';
 
 const args = process.argv.slice(2);
 const value = (name) => {
@@ -36,6 +38,13 @@ if (!directivePath) {
     config,
     missionControl: automaticMissionControl,
     legacyBrowserHandler: runActualLegacyBrowserDispatch,
+    claudeExecutionHandler: async (input) => dispatchClaudeMissionControlExecution({
+      ...input,
+      sessionRegistryPath: process.env.MC_CLAUDE_SESSION_REGISTRY_PATH,
+      claudeBinary: process.env.MC_CLAUDE_BINARY ?? 'claude',
+      claudeSettingsPath: process.env.MC_CLAUDE_SETTINGS_PATH ?? null,
+      env: process.env,
+    }),
   });
   process.stdout.write(`${JSON.stringify(automaticResult, null, 2)}\n`);
   if (automaticResult?.status && ![CODEX_ATTEMPT_STATUSES.COMPLETED, 'MISSION_CONTROL_CODEX_DISPATCH_IDLE'].includes(automaticResult.status)) {
@@ -44,15 +53,25 @@ if (!directivePath) {
   process.exit();
 }
 const directive = JSON.parse(await readFile(resolve(directivePath), 'utf8'));
-const route = classifyCodexExecutionRoute(directive, config);
+const executionProvider = directive?.executionProvider ?? 'OPENAI';
+if (!['OPENAI', 'ANTHROPIC'].includes(executionProvider)) {
+  throw new Error('UNSUPPORTED_EXECUTION_PROVIDER');
+}
+const route = executionProvider === 'OPENAI'
+  ? classifyCodexExecutionRoute(directive, config)
+  : 'CLAUDE_CODE';
 let missionControl = null;
 let admissionInput = null;
 let worker = value('--worker');
 const setterEvidenceId = value('--setter-evidence-id');
-if (route !== CODEX_EXECUTION_ROUTES.LEGACY_BROWSER) {
+const admissionRequired = executionProvider === 'ANTHROPIC'
+  || route !== CODEX_EXECUTION_ROUTES.LEGACY_BROWSER;
+if (admissionRequired) {
   const admissionPath = value('--admission');
-  if (!admissionPath || !setterEvidenceId) {
-    throw new Error('Codex dispatch requires --admission and --setter-evidence-id for live Mission Control authorization.');
+  if (!admissionPath || (executionProvider === 'OPENAI' && !setterEvidenceId)) {
+    throw new Error(executionProvider === 'ANTHROPIC'
+      ? 'Claude dispatch requires --admission for live Mission Control authorization.'
+      : 'Codex dispatch requires --admission and --setter-evidence-id for live Mission Control authorization.');
   }
   const missionControlConfig = loadCodexExecMissionControlConfig({
     ...process.env,
@@ -69,7 +88,7 @@ if (route !== CODEX_EXECUTION_ROUTES.LEGACY_BROWSER) {
   });
 }
 
-const result = await dispatchMissionControlExecution({
+const dispatchArguments = {
   worker,
   admissionInput,
   setterEvidenceId,
@@ -77,9 +96,28 @@ const result = await dispatchMissionControlExecution({
   config,
   missionControl,
   legacyBrowserHandler: runActualLegacyBrowserDispatch,
+};
+const result = await dispatchExecutionProvider({
+  directive,
+  dispatchArguments,
+  openAiDispatcher: dispatchMissionControlExecution,
+  claudeDispatcher: async (input) => dispatchClaudeMissionControlExecution({
+    worker: input.worker,
+    admissionInput: input.admissionInput,
+    directive: input.directive,
+    missionControl: input.missionControl,
+    sessionRegistryPath: process.env.MC_CLAUDE_SESSION_REGISTRY_PATH,
+    claudeBinary: process.env.MC_CLAUDE_BINARY ?? 'claude',
+    claudeSettingsPath: process.env.MC_CLAUDE_SETTINGS_PATH ?? null,
+    env: process.env,
+  }),
 });
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-if (result?.status && result.status !== CODEX_ATTEMPT_STATUSES.COMPLETED) process.exitCode = 1;
+if (executionProvider === 'OPENAI') {
+  if (result?.status && result.status !== CODEX_ATTEMPT_STATUSES.COMPLETED) process.exitCode = 1;
+} else if (result?.receipt?.status !== 'EXECUTION_REPORTED_COMPLETE') {
+  process.exitCode = 1;
+}
 
 async function runActualLegacyBrowserDispatch(_directive, { missionControlBinding } = {}) {
   if (!missionControlBinding?.worker || !missionControlBinding?.taskId || !missionControlBinding?.decisionRequestId

@@ -59,6 +59,7 @@ test('plan preserves exact IDs, explicit effort, prompt privacy and no launch au
   assert.ok(!p.argv.includes('--bare')); assert.ok(!p.argv.includes('--fallback-model'));
   assert.ok(!p.argv.includes('--dangerously-skip-permissions'));
   assert.ok(!p.argv.includes('--max-budget-usd'));
+  assert.ok(!p.argv.includes('--max-turns'));
   assert.ok(p.requiredHostChecks.includes('SUBSCRIPTION_AUTH_AND_NO_API_OR_PROVIDER_OVERRIDES'));
   assert.ok(Object.isFrozen(p.argv));
 });
@@ -291,6 +292,15 @@ test('malformed model metadata is not echoed into a diagnostic receipt', () => {
   const s = receipt(es); assert.ok(s.reasonCodes.includes('INVALID_MODEL_FIELD'));
   assert.ok(!JSON.stringify(s).includes('PRIVATE_MODEL_FIELD_SENTINEL'));
 });
+test('reported turns above the source-bound limit fail closed when the CLI has no max-turns flag', () => {
+  const r = request();
+  const es = events(r);
+  es[2].num_turns = r.limits.maxTurns + 1;
+  const s = receipt(es, r);
+  assert.equal(s.status, 'RESULT_INVALID');
+  assert.ok(s.reasonCodes.includes('TURN_LIMIT_EXCEEDED'));
+});
+
 test('provider turn limit remains explicit when the CLI exits with an error', () => {
   const es = events(); es[2].subtype = 'error_max_turns'; es[2].is_error = true;
   delete es[2].structured_output;

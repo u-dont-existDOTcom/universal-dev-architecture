@@ -175,7 +175,7 @@ export function prepareClaudeCode(request) {
   const argv = ['--print', '--verbose', '--output-format', 'stream-json',
     '--model', r.selection.model, '--effort', r.selection.effort,
     r.session.mode === 'new' ? '--session-id' : '--resume', r.session.id,
-    '--max-turns', String(r.limits.maxTurns), '--permission-mode', 'dontAsk',
+    '--permission-mode', 'dontAsk',
     '--permission-prompts', 'none', '--restricted', '--disable-slash-commands', '--no-chrome',
     '--strict-mcp-config', '--mcp-config', JSON.stringify({ mcpServers: r.access.mcpServers }),
     '--tools', r.access.builtInTools.join(','), '--disallowedTools', deny.join(','),
@@ -287,6 +287,8 @@ export function createClaudeCollector(request) {
       if (!initialized) problems.add('INIT_MISSING');
       if (!result) problems.add('RESULT_MISSING');
       if (subagentsSeen) problems.add('UNREQUESTED_SUBAGENT_ACTIVITY');
+      if (result?.turns !== null && result?.turns !== undefined
+        && result.turns > r.limits.maxTurns) problems.add('TURN_LIMIT_EXCEEDED');
       const observedModels = [...models].sort();
       if (observedModels.some((m) => m !== r.selection.model)) problems.add('MODEL_MISMATCH');
       if (r.selection.assurance === 'client_reported_model' && observedModels.length === 0)

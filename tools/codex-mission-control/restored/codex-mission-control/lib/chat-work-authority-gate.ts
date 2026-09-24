@@ -5,6 +5,11 @@ import {
   type AuthorizedWorkExecutionProfile,
   type WorkExecutionProfile,
 } from "./work-execution-profile";
+import {
+  claudeExecutionProfileSchema,
+  claudeExecutionProfilesEqual,
+  type ClaudeExecutionProfile,
+} from "./claude-execution-profile";
 
 export type AuthorityActor =
   | "OWNER"
@@ -80,7 +85,9 @@ export interface ChatWorkAuthorityRequest {
     taskId: string;
     directiveArtifactSha256: string;
   } | null;
+  executionProvider?: "OPENAI" | "ANTHROPIC";
   workExecutionProfile?: unknown;
+  claudeExecutionProfile?: unknown;
 }
 
 export interface PersistedExecutionDirectiveProof {
@@ -91,7 +98,9 @@ export interface PersistedExecutionDirectiveProof {
   sourceMessageId: string;
   sourceBodySha256: string;
   status: "ACTIVE";
-  workExecutionProfile: WorkExecutionProfile;
+  executionProvider?: "OPENAI" | "ANTHROPIC";
+  workExecutionProfile: AuthorizedWorkExecutionProfile;
+  claudeExecutionProfile?: ClaudeExecutionProfile;
   authoritySource?:
     | { kind: "DIRECT_REASONING_MESSAGE" }
     | {
@@ -137,7 +146,9 @@ export interface AuthorityGateResult {
   decision: AuthorityGateDecision;
   reasons: string[];
   requiredNextAction: string;
+  executionProvider: "OPENAI" | "ANTHROPIC";
   authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null;
+  authorizedClaudeExecutionProfile: ClaudeExecutionProfile | null;
 }
 
 const semanticActions = new Set<ControlledAction>([
@@ -318,7 +329,9 @@ export function evaluateChatWorkAuthorityGate(
         "The execution actor has no proposal, methodology, priority, spending-design, consequential-tradeoff, or supervisory-verdict authority.",
       ],
       "Execute exactly the source-bound directive and return factual receipts to the reasoning chat automatically.",
-      profile.profile,
+      profile.workProfile,
+      profile.executionProvider,
+      profile.claudeProfile,
     );
   }
 
@@ -419,8 +432,18 @@ function allow(
   reasons: string[],
   requiredNextAction: string,
   authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null = null,
+  executionProvider: "OPENAI" | "ANTHROPIC" = "OPENAI",
+  authorizedClaudeExecutionProfile: ClaudeExecutionProfile | null = null,
 ): AuthorityGateResult {
-  return { allowed: true, decision, reasons, requiredNextAction, authorizedWorkExecutionProfile };
+  return {
+    allowed: true,
+    decision,
+    reasons,
+    requiredNextAction,
+    executionProvider,
+    authorizedWorkExecutionProfile,
+    authorizedClaudeExecutionProfile,
+  };
 }
 
 function reject(
@@ -428,23 +451,142 @@ function reject(
   reasons: string[],
   requiredNextAction: string,
 ): AuthorityGateResult {
-  return { allowed: false, decision, reasons, requiredNextAction, authorizedWorkExecutionProfile: null };
+  return {
+    allowed: false,
+    decision,
+    reasons,
+    requiredNextAction,
+    executionProvider: "OPENAI",
+    authorizedWorkExecutionProfile: null,
+    authorizedClaudeExecutionProfile: null,
+  };
 }
 
 type ExecutionProfileValidation =
-  | { profile: WorkExecutionProfile; result: null }
-  | { profile: null; result: AuthorityGateResult };
+  | {
+      executionProvider: "OPENAI";
+      workProfile: WorkExecutionProfile;
+      claudeProfile: null;
+      result: null;
+    }
+  | {
+      executionProvider: "ANTHROPIC";
+      workProfile: null;
+      claudeProfile: ClaudeExecutionProfile;
+      result: null;
+    }
+  | {
+      executionProvider: "OPENAI" | "ANTHROPIC";
+      workProfile: null;
+      claudeProfile: null;
+      result: AuthorityGateResult;
+    };
 
 function validateExecutionProfile(
   request: ChatWorkAuthorityRequest,
   persistedDirective: PersistedExecutionDirectiveProof | null,
 ): ExecutionProfileValidation {
   const version = request.directiveSchemaVersion ?? 2;
+  const executionProvider = request.executionProvider ?? "OPENAI";
+  const binding = request.executionDirectiveBinding;
+
+  if (executionProvider === "ANTHROPIC") {
+    if (version !== 3) {
+      return {
+        executionProvider,
+        workProfile: null,
+        claudeProfile: null,
+        result: reject(
+          "REJECT_INVALID_WORK_EXECUTION_PROFILE",
+          ["Anthropic execution requires a new source-bound version 3 directive."],
+          "Obtain a new source-bound version 3 Chat directive with an explicit Claude profile.",
+        ),
+      };
+    }
+    if (request.workExecutionProfile !== undefined
+      && request.workExecutionProfile !== null
+      && request.workExecutionProfile !== LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+      return {
+        executionProvider,
+        workProfile: null,
+        claudeProfile: null,
+        result: reject(
+          "REJECT_INVALID_WORK_EXECUTION_PROFILE",
+          ["Anthropic execution cannot acquire authority from a GPT Work profile."],
+          "Use the separate source-bound Claude profile; do not relabel Claude as GPT.",
+        ),
+      };
+    }
+    const parsedClaude = claudeExecutionProfileSchema.safeParse(request.claudeExecutionProfile);
+    if (!parsedClaude.success) {
+      return {
+        executionProvider,
+        workProfile: null,
+        claudeProfile: null,
+        result: reject(
+          request.claudeExecutionProfile === undefined || request.claudeExecutionProfile === null
+            ? "REJECT_MISSING_WORK_EXECUTION_PROFILE"
+            : "REJECT_INVALID_WORK_EXECUTION_PROFILE",
+          parsedClaude.error.issues.map((issue) =>
+            `${issue.path.join(".") || "claudeExecutionProfile"}: ${issue.message}`),
+          "Return the invalid source-bound Claude profile to Chat for correction; do not infer a provider/model/effort default.",
+        ),
+      };
+    }
+    if (!binding
+      || !binding.directiveId?.trim()
+      || !Number.isInteger(binding.directiveRevision) || binding.directiveRevision < 1
+      || !binding.taskId?.trim()
+      || !/^[a-f0-9]{64}$/.test(binding.directiveArtifactSha256)) {
+      return {
+        executionProvider,
+        workProfile: null,
+        claudeProfile: null,
+        result: reject(
+          "REJECT_UNVERIFIED_REASONING_SOURCE",
+          ["The Claude profile lacks a valid execution-directive artifact digest or identity."],
+          "Repair the source-bound execution directive identity before authorization.",
+        ),
+      };
+    }
+    const persistedProvider = persistedDirective?.executionProvider ?? "OPENAI";
+    if (!persistedDirective
+      || persistedProvider !== "ANTHROPIC"
+      || persistedDirective.directiveId !== binding.directiveId
+      || persistedDirective.directiveRevision !== binding.directiveRevision
+      || persistedDirective.taskId !== binding.taskId
+      || persistedDirective.directiveArtifactSha256 !== binding.directiveArtifactSha256
+      || persistedDirective.sourceMessageId !== request.sourceReceipt?.messageId
+      || persistedDirective.sourceBodySha256 !== request.sourceReceipt?.bodySha256
+      || persistedDirective.workExecutionProfile !== LEGACY_MODEL_PROFILE_UNSPECIFIED
+      || !persistedDirective.claudeExecutionProfile
+      || !claudeExecutionProfilesEqual(persistedDirective.claudeExecutionProfile, parsedClaude.data)) {
+      return {
+        executionProvider,
+        workProfile: null,
+        claudeProfile: null,
+        result: reject(
+          "REJECT_UNVERIFIED_REASONING_SOURCE",
+          ["The request does not bind the current durable execution-directive artifact, source provenance, provider, identity, revision, task, and exact Claude profile."],
+          "Use the current active execution_directive_recorded event; do not trust caller provider/profile assertions.",
+        ),
+      };
+    }
+    return {
+      executionProvider,
+      workProfile: null,
+      claudeProfile: parsedClaude.data,
+      result: null,
+    };
+  }
+
   if (version !== 3 && request.workExecutionProfile !== undefined
     && request.workExecutionProfile !== null
     && request.workExecutionProfile !== LEGACY_MODEL_PROFILE_UNSPECIFIED) {
     return {
-      profile: null,
+      executionProvider,
+      workProfile: null,
+      claudeProfile: null,
       result: reject(
         "REJECT_INVALID_WORK_EXECUTION_PROFILE",
         ["A recovered version 2 directive cannot be retrofitted with a Work profile; only a source-bound version 3 directive may authorize one."],
@@ -452,10 +594,24 @@ function validateExecutionProfile(
       ),
     };
   }
+  if (request.claudeExecutionProfile !== undefined && request.claudeExecutionProfile !== null) {
+    return {
+      executionProvider,
+      workProfile: null,
+      claudeProfile: null,
+      result: reject(
+        "REJECT_INVALID_WORK_EXECUTION_PROFILE",
+        ["OpenAI execution must not carry a Claude profile."],
+        "Keep the existing GPT profile path unchanged.",
+      ),
+    };
+  }
   if (request.workExecutionProfile === undefined || request.workExecutionProfile === null
     || request.workExecutionProfile === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
     return {
-      profile: null,
+      executionProvider,
+      workProfile: null,
+      claudeProfile: null,
       result: reject(
         "REJECT_MISSING_WORK_EXECUTION_PROFILE",
         [version === 3
@@ -468,7 +624,9 @@ function validateExecutionProfile(
   const parsed = workExecutionProfileSchema.safeParse(request.workExecutionProfile);
   if (!parsed.success) {
     return {
-      profile: null,
+      executionProvider,
+      workProfile: null,
+      claudeProfile: null,
       result: reject(
         "REJECT_INVALID_WORK_EXECUTION_PROFILE",
         parsed.error.issues.map((issue) => `${issue.path.join(".") || "workExecutionProfile"}: ${issue.message}`),
@@ -476,14 +634,15 @@ function validateExecutionProfile(
       ),
     };
   }
-  const binding = request.executionDirectiveBinding;
   if (version === 3 && (!binding
     || !binding.directiveId?.trim()
     || !Number.isInteger(binding.directiveRevision) || binding.directiveRevision < 1
     || !binding.taskId?.trim()
     || !/^[a-f0-9]{64}$/.test(binding.directiveArtifactSha256))) {
     return {
-      profile: null,
+      executionProvider,
+      workProfile: null,
+      claudeProfile: null,
       result: reject(
         "REJECT_UNVERIFIED_REASONING_SOURCE",
         ["The Work profile lacks a valid execution-directive artifact digest or identity."],
@@ -492,15 +651,19 @@ function validateExecutionProfile(
     };
   }
   if (version === 3 && (!persistedDirective
+    || (persistedDirective.executionProvider ?? "OPENAI") !== "OPENAI"
     || persistedDirective.directiveId !== binding?.directiveId
     || persistedDirective.directiveRevision !== binding.directiveRevision
     || persistedDirective.taskId !== binding.taskId
     || persistedDirective.directiveArtifactSha256 !== binding.directiveArtifactSha256
     || persistedDirective.sourceMessageId !== request.sourceReceipt?.messageId
     || persistedDirective.sourceBodySha256 !== request.sourceReceipt?.bodySha256
+    || persistedDirective.workExecutionProfile === LEGACY_MODEL_PROFILE_UNSPECIFIED
     || !workExecutionProfilesEqual(persistedDirective.workExecutionProfile, parsed.data))) {
     return {
-      profile: null,
+      executionProvider,
+      workProfile: null,
+      claudeProfile: null,
       result: reject(
         "REJECT_UNVERIFIED_REASONING_SOURCE",
         ["The request does not bind the current durable execution-directive artifact, source provenance, identity, revision, task, and exact Work profile."],
@@ -508,5 +671,10 @@ function validateExecutionProfile(
       ),
     };
   }
-  return { profile: parsed.data, result: null };
+  return {
+    executionProvider,
+    workProfile: parsed.data,
+    claudeProfile: null,
+    result: null,
+  };
 }

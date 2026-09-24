@@ -23,6 +23,7 @@ import {
   LEGACY_MODEL_PROFILE_UNSPECIFIED,
   type AuthorizedWorkExecutionProfile,
 } from "./work-execution-profile";
+import type { ClaudeExecutionProfile } from "./claude-execution-profile";
 
 export const internalSupervisorRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
@@ -70,8 +71,11 @@ export interface SupervisionAdmissionResult {
   routeDecision: AuthorityGateResult | null;
   providerDeliveryState: ProviderDeliveryState;
   routeEnvelope: AppendEnvelope | null;
+  executionProvider: "OPENAI" | "ANTHROPIC";
   authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null;
+  authorizedClaudeExecutionProfile: ClaudeExecutionProfile | null;
   profileAuthorizationId: string | null;
+  claudeProfileAuthorizationId: string | null;
   statement: string;
 }
 
@@ -133,8 +137,15 @@ export function evaluateSupervisionAdmission(
       routeDecision: null,
       providerDeliveryState: "NOT_REQUIRED",
       routeEnvelope: null,
+      executionProvider: primaryDecision.executionProvider,
       authorizedWorkExecutionProfile: primaryDecision.authorizedWorkExecutionProfile,
-      profileAuthorizationId: workProfileAuthorizationId(parsed.request.requestId),
+      authorizedClaudeExecutionProfile: primaryDecision.authorizedClaudeExecutionProfile,
+      profileAuthorizationId: primaryDecision.executionProvider === "OPENAI"
+        ? workProfileAuthorizationId(parsed.request.requestId)
+        : null,
+      claudeProfileAuthorizationId: primaryDecision.executionProvider === "ANTHROPIC"
+        ? claudeProfileAuthorizationId(parsed.request.requestId)
+        : null,
       statement: "Bounded execution is admitted by a source-bound Chat decision. Execute only the exact authorized residue.",
     };
   }
@@ -172,8 +183,11 @@ export function evaluateSupervisionAdmission(
       routeDecision,
       providerDeliveryState: "ROUTE_REJECTED",
       routeEnvelope: null,
+      executionProvider: primaryDecision.executionProvider,
       authorizedWorkExecutionProfile: null,
+      authorizedClaudeExecutionProfile: null,
       profileAuthorizationId: null,
+      claudeProfileAuthorizationId: null,
       statement: "The action is blocked and the internal route is invalid. Do not ask Joel to relay it.",
     };
   }
@@ -189,8 +203,11 @@ export function evaluateSupervisionAdmission(
     routeDecision,
     providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
     routeEnvelope,
+    executionProvider: primaryDecision.executionProvider,
     authorizedWorkExecutionProfile: null,
+    authorizedClaudeExecutionProfile: null,
     profileAuthorizationId: null,
+    claudeProfileAuthorizationId: null,
     statement: parsed.request.action === "ROUTE_INTERNAL_SUPERVISOR"
       ? "The exact factual packet is admitted to the internal supervisor queue. Provider delivery still requires the configured relay and a source receipt."
       : "The worker action is blocked. The exact factual packet is queued for the authorized Chat supervisor; no owner relay or action-time confirmation is permitted.",
@@ -296,8 +313,11 @@ function deniedWithoutRoute(
     routeDecision: null,
     providerDeliveryState,
     routeEnvelope: null,
+    executionProvider: primaryDecision.executionProvider,
     authorizedWorkExecutionProfile: null,
+    authorizedClaudeExecutionProfile: null,
     profileAuthorizationId: null,
+    claudeProfileAuthorizationId: null,
     statement: providerDeliveryState === "ROUTE_CONFIGURATION_MISSING"
       ? "The action is blocked and no exact internal supervisor route is configured. Record the control-plane blocker; do not ask Joel to relay a prompt."
       : "The action is blocked by the Chat/Work authority gate.",
@@ -344,9 +364,19 @@ export function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmis
     },
     directiveSchemaVersion,
     executionDirectiveBinding,
+    ...(request.executionProvider === undefined ? {} : {
+      executionProvider: requiredEnum(
+        request.executionProvider,
+        ["OPENAI", "ANTHROPIC"] as const,
+        "request.executionProvider",
+      ),
+    }),
     workExecutionProfile: request.workExecutionProfile === undefined && directiveSchemaVersion === 2
       ? LEGACY_MODEL_PROFILE_UNSPECIFIED
       : request.workExecutionProfile,
+    ...(request.claudeExecutionProfile === undefined ? {} : {
+      claudeExecutionProfile: request.claudeExecutionProfile,
+    }),
   };
   const factualPacket = root.factualPacket === null || root.factualPacket === undefined
     ? null
@@ -554,4 +584,8 @@ const executionScopes = [
 
 export function workProfileAuthorizationId(requestId: string): string {
   return `work-profile-authorization:${sha256(requestId).slice(0, 32)}`;
+}
+
+export function claudeProfileAuthorizationId(requestId: string): string {
+  return `claude-profile-authorization:${sha256(requestId).slice(0, 32)}`;
 }

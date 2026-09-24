@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ownerResponseContinuationBindingSchema, validateContinuationBinding } from "./owner-response-continuation-schema";
+import { claudeExecutionProfileSchema } from "./claude-execution-profile";
 import {
   LEGACY_MODEL_PROFILE_UNSPECIFIED,
   observedWorkExecutionProfileSchema,
@@ -714,6 +715,59 @@ export const reasoningSupervisionRecordedSchema = z.object({
   pro_escalation_state: z.enum(["NOT_REQUIRED", "PENDING", "ACTIVE", "COMPLETE"]),
 });
 
+const claudeDirectiveBindingSchema = z.object({
+  taskId: StableId,
+  directiveId: StableId,
+  revision: z.number().int().positive(),
+  directiveSha256: Sha256,
+}).strict();
+
+const claudeRuntimeSchema = z.object({
+  session: z.object({
+    id: z.string().uuid(),
+    mode: z.enum(["new", "resume"]),
+    previousBinding: claudeDirectiveBindingSchema.optional(),
+  }).strict().superRefine((session, context) => {
+    if (session.mode === "resume" && !session.previousBinding) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["previousBinding"],
+        message: "Claude resume requires the exact previous task/directive binding.",
+      });
+    }
+    if (session.mode === "new" && session.previousBinding !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["previousBinding"],
+        message: "A new Claude session must not carry a previous binding.",
+      });
+    }
+  }),
+  limits: z.object({
+    maxTurns: z.number().int().min(1).max(1000),
+    maxWallTimeMs: z.number().int().min(1000).max(86_400_000),
+    maxStreamBytes: z.number().int().min(1024).max(67_108_864),
+  }).strict(),
+  access: z.object({
+    builtInTools: z.array(z.enum(["Read", "Write", "Edit", "Glob", "Grep", "Bash"]))
+      .max(6)
+      .refine((values) => new Set(values).size === values.length, "Claude built-in tools must be unique."),
+    autoApprove: z.array(z.string().min(1).max(400).regex(/^[A-Za-z][^\r\n\0]{0,399}$/)).max(100),
+    mcpServers: z.record(z.string().regex(/^[a-z][a-z0-9_-]{0,29}$/), z.object({
+      type: z.literal("http"),
+      url: z.string().url().superRefine((value, context) => {
+        const url = new URL(value);
+        if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Claude MCP URLs must be credential-free HTTPS origins/paths.",
+          });
+        }
+      }),
+    }).strict()),
+  }).strict(),
+}).strict();
+
 export const boundedExecutionResidueSchema = z.object({
   schema_version: z.literal(1),
   task_id: StableId,
@@ -746,10 +800,77 @@ export const boundedExecutionResidueSchema = z.object({
   output_schema: z.record(z.string(), z.unknown()),
   prompt: NonEmpty.max(50_000),
   deadline: Timestamp,
-  work_execution_profile: workExecutionProfileSchema,
-  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD"]).optional(),
+  execution_provider: z.enum(["OPENAI", "ANTHROPIC"]).optional(),
+  work_execution_profile: z.union([
+    workExecutionProfileSchema,
+    z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
+  ]).default(LEGACY_MODEL_PROFILE_UNSPECIFIED),
+  claude_execution_profile: claudeExecutionProfileSchema.optional(),
+  claude_runtime: claudeRuntimeSchema.optional(),
+  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD", "CLAUDE_CODE_CLI"]).optional(),
   retry_of_attempt_id: CodexSafeId.optional(),
-}).strict();
+}).strict().superRefine((bounded, context) => {
+  const provider = bounded.execution_provider ?? "OPENAI";
+  if (provider === "OPENAI") {
+    if (bounded.work_execution_profile === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["work_execution_profile"],
+        message: "OpenAI bounded execution requires the existing Work execution profile.",
+      });
+    }
+    if (bounded.claude_execution_profile !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claude_execution_profile"],
+        message: "OpenAI bounded execution must not carry a Claude profile.",
+      });
+    }
+    if (bounded.claude_runtime !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claude_runtime"],
+        message: "OpenAI bounded execution must not carry Claude runtime controls.",
+      });
+    }
+    if (bounded.execution_surface === "CLAUDE_CODE_CLI") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["execution_surface"],
+        message: "OpenAI bounded execution cannot use the Claude Code surface.",
+      });
+    }
+  } else {
+    if (bounded.work_execution_profile !== LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["work_execution_profile"],
+        message: "Claude bounded execution must not carry a GPT Work profile.",
+      });
+    }
+    if (!bounded.claude_execution_profile) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claude_execution_profile"],
+        message: "Anthropic bounded execution requires a source-bound Claude profile.",
+      });
+    }
+    if (!bounded.claude_runtime) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claude_runtime"],
+        message: "Anthropic bounded execution requires source-bound session, limits, and tool/MCP controls.",
+      });
+    }
+    if (bounded.execution_surface !== "CLAUDE_CODE_CLI") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["execution_surface"],
+        message: "Anthropic bounded execution requires the CLAUDE_CODE_CLI surface.",
+      });
+    }
+  }
+});
 
 const canonicalDecisionEnvelopeFields = {
   envelope_kind: z.literal("MISSION_CONTROL_CANONICAL_DECISION"),
@@ -1092,20 +1213,75 @@ export const executionDirectiveRecordedSchema = z.object({
     bounded_execution_sha256: Sha256,
     exact_execution_payload: NonEmpty.max(50_000),
   }).strict().nullable().optional(),
+  execution_provider: z.enum(["OPENAI", "ANTHROPIC"]).optional(),
   work_execution_profile: z.union([
     workExecutionProfileSchema,
     z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
   ]).default(LEGACY_MODEL_PROFILE_UNSPECIFIED),
-  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD"]).optional(),
+  claude_execution_profile: claudeExecutionProfileSchema.optional(),
+  claude_runtime: claudeRuntimeSchema.optional(),
+  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD", "CLAUDE_CODE_CLI"]).optional(),
   status: z.enum(["ACTIVE", "SATISFIED", "SUPERSEDED", "EXPIRED"]),
 }).superRefine((directive, context) => {
-  if (directive.directive_schema_version === 3
+  const executionProvider = directive.execution_provider ?? "OPENAI";
+  if (directive.directive_schema_version === 3 && executionProvider === "OPENAI"
     && directive.work_execution_profile === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["work_execution_profile"],
-      message: "A version 3 execution directive requires an explicit Work execution profile.",
+      message: "An OpenAI version 3 execution directive requires an explicit Work execution profile.",
     });
+  }
+  if (executionProvider === "OPENAI" && directive.claude_execution_profile !== undefined) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["claude_execution_profile"],
+      message: "An OpenAI execution directive must not carry a Claude profile.",
+    });
+  }
+  if (executionProvider === "OPENAI" && directive.claude_runtime !== undefined) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["claude_runtime"],
+      message: "An OpenAI execution directive must not carry Claude runtime controls.",
+    });
+  }
+  if (executionProvider === "ANTHROPIC") {
+    if (directive.directive_schema_version !== 3) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["directive_schema_version"],
+        message: "Anthropic execution requires a source-bound version 3 directive.",
+      });
+    }
+    if (directive.work_execution_profile !== LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["work_execution_profile"],
+        message: "Anthropic execution must not be represented with a GPT Work profile.",
+      });
+    }
+    if (!directive.claude_execution_profile) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claude_execution_profile"],
+        message: "Anthropic execution requires an explicit Claude profile.",
+      });
+    }
+    if (!directive.claude_runtime) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claude_runtime"],
+        message: "Anthropic execution requires source-bound Claude runtime controls.",
+      });
+    }
+    if (directive.execution_surface !== "CLAUDE_CODE_CLI") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["execution_surface"],
+        message: "Anthropic execution requires the CLAUDE_CODE_CLI surface.",
+      });
+    }
   }
   if (directive.directive_schema_version === 3
     && (!directive.directive_artifact_sha256 || !directive.source_message_id || !directive.source_body_sha256)) {

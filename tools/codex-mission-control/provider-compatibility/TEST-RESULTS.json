@@ -1,29 +1,95 @@
 {
-  "schema_version": 1,
-  "kind": "OFFLINE_TEST_RECEIPT",
-  "task_id": "claude-compatibility-20260923",
-  "node_version": "v26.8.1",
-  "command": "node --test tools/codex-mission-control/provider-compatibility/tests/compatibility.test.mjs",
+  "schema_version": 2,
+  "kind": "ISOLATED_ITERATION_TEST_RECEIPT",
+  "task_id": "claude-compatibility-chat-20260924",
+  "source_candidate_head": "54ce97992b0ae786f2ede252a49574f8ee555811",
   "measurement_wrapper": "scripts/test_efficiency.py",
-  "tests": 42,
-  "passed": 42,
-  "failed": 0,
-  "cancelled": 0,
-  "skipped": 0,
-  "exit_code": 0,
-  "node_reported_duration_ms": 780.628861,
-  "observer_reported_test_wall_seconds": 1.46,
-  "forced_redundant_green_reruns": 0,
   "claude_inference_calls": 0,
-  "cli_version_probe": {
-    "version": "2.1.281",
-    "command": "claude --version",
-    "inference": false,
-    "authentication_verified": false
+  "paid_api_inference_calls": 0,
+  "observed_allowance_data": "UNAVAILABLE_NON_INFERENCE",
+  "host_preflight": {
+    "cli_version": "2.1.281 (Claude Code)",
+    "auth_method": "claude.ai",
+    "api_provider": "firstParty",
+    "subscription_type": "max",
+    "api_or_provider_overrides_present": false,
+    "secret_values_returned": false,
+    "inference_invoked": false,
+    "plan_cli_flags_supported": true
   },
-  "scope_limit": "Synthetic plan/parser/delegation tests only. Not real CLI inference, MCP access, actual MC dispatch integration or production verification.",
+  "results": [
+    {
+      "scope": "focused",
+      "command": "node --test provider-compatibility compatibility + host tests",
+      "result": "PASS",
+      "tests": 50
+    },
+    {
+      "scope": "focused",
+      "command": "node --test provider-execution-dispatch.test.mjs",
+      "result": "PASS",
+      "tests": 3
+    },
+    {
+      "scope": "affected",
+      "command": "tsx chat-work-authority-gate + codex-exec-authority-integration; npm run typecheck",
+      "result": "PASS",
+      "tests": 26,
+      "typecheck": "PASS"
+    },
+    {
+      "scope": "affected",
+      "command": "tsx github-decision-receipts.test.ts; npm run typecheck",
+      "result": "PASS",
+      "tests": 45,
+      "typecheck": "PASS"
+    },
+    {
+      "scope": "focused",
+      "command": "tsx named canonical Anthropic source-binding/artifact/autodiscovery regression; npm run typecheck",
+      "result": "PASS",
+      "tests": 1,
+      "typecheck": "PASS"
+    },
+    {
+      "scope": "focused",
+      "command": "node --test claude-mission-control-dispatch.test.mjs",
+      "result": "PASS",
+      "tests": 2
+    },
+    {
+      "scope": "affected",
+      "command": "tsx codex-exec-authority-integration + named legacy fallback/Anthropic discovery regressions",
+      "result": "PASS",
+      "notes": "Existing OpenAI/Codex real-dispatch smokes and legacy fallback remain green."
+    }
+  ],
+  "test_efficiency": {
+    "observed_test_seconds": 288.19,
+    "forced_redundant_green_reruns": 0,
+    "failure_discovering_runs": 1,
+    "failure_note": "One TypeScript failure was confined to new test-fixture typing and passed after fixture correction; no runtime behavior failure.",
+    "additional_fixture_issue": "A synthetic fake executable initially used literal newline escapes and was terminated/fixed; runtime code was not implicated."
+  },
   "tested_file_sha256": {
-    "compatibility.mjs": "e32e849e821a889f052aa87e595598a6b9d65865d5b33a2e4bc82cc50fc9460a",
-    "tests/compatibility.test.mjs": "e78e6a48aa9f514d63b39f05d2fd6c628018763a645cda8156047ed91274e6c7"
-  }
+    "compatibility.mjs": "08682e6aca0139daee2b19f4fbd5cd30832b6f74fa461499707a95b0fab49466",
+    "claude-host-transport.mjs": "913cbd67cbfbaa054b1052a50cd6471a0a85e05f8bc57e952a6da90d42a80b32",
+    "claude-mission-control-dispatch.mjs": "a7484ae703fa3efe26036ffed31b6837721b54d2d04eae618df69b827f49ebc5"
+  },
+  "live_checks_executed": [
+    "claude --version",
+    "claude auth status --json",
+    "privacy-safe environment/settings override-name scan",
+    "current Claude CLI flag availability",
+    "claude mcp list",
+    "AskRigor current MCP tool/protocol source inspection"
+  ],
+  "live_checks_not_executed": [
+    "Claude inference",
+    "actual Claude model/effort readback beyond client-reported stream semantics",
+    "weekly allowance consumption/readback",
+    "AskRigor Claude MCP permitted-read/denied-operation acceptance",
+    "resume/cancellation against a real Claude model session"
+  ],
+  "scope_limit": "Iteration candidate only. No shared integration, merge, deploy, provider switch, OAuth/account mutation or live model inference."
 }
