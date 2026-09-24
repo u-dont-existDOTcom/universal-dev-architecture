@@ -21,7 +21,9 @@
     "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
     "tools/codex-mission-control/restored/codex-mission-control/**/tests/**",
     "tools/codex-mission-control/vps-browser-relay/src/codex-exec-candidate.mjs",
-    "tools/codex-mission-control/vps-browser-relay/test/codex-exec-candidate.test.mjs"
+    "tools/codex-mission-control/vps-browser-relay/test/codex-exec-candidate.test.mjs",
+    "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/claude-preflight/route.ts",
+    "tools/codex-mission-control/vps-browser-relay/src/mission-control.mjs"
   ],
   "shared_runtime_write": false,
   "production_switch": false,
