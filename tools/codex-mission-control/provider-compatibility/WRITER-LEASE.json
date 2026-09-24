@@ -14,8 +14,12 @@
   "integration_owner_lock": "state/MISSION-CONTROL-INTEGRATION-OWNER.json status RELEASED at base",
   "scope": "Claude compatibility continuation: fix resume lineage so exact-ID resume is dispatchable, hermetic host-transport tests, one-command owner-host live acceptance runner, autodiscovery decision and GPT-to-Claude migration assessment. No merge, deploy, OAuth/account change or production switch.",
   "allowed_paths": [
-    "tools/codex-mission-control/provider-compatibility/**"
+    "tools/codex-mission-control/provider-compatibility/**",
+    "tools/codex-mission-control/restored/codex-mission-control/CLAUDE.md"
   ],
+  "allowed_path_rationale": {
+    "tools/codex-mission-control/restored/codex-mission-control/CLAUDE.md": "Remove the Next.js-generated one-line '@AGENTS.md' shim: under Claude Code's documented default a CLAUDE.md in the working directory suppresses every AGENTS.md, so Claude sessions started in the app dropped the root and tools governance chain. Next's generator does not recreate it while the app AGENTS.md hosts its managed block."
+  },
   "shared_runtime_write": false,
   "production_switch": false,
   "claude_inference_during_this_lane": false,
