@@ -558,6 +558,12 @@ export class RelayRuntime {
       && ['EXTRA_HIGH_DECISION', 'PRO_DECISION'].includes(current.cycleStep)) {
       state.deliveries[routeKey] = await this.#restoreUnsentDecisionBinding(routeKey, current, state, resolvedAt);
     } else if (outcome === 'retry') state.deliveries[routeKey] = { ...current, status: 'RETRY_AUTHORIZED', resolvedAt, resolution: 'OPERATOR_AUTHORIZED_RETRY', lastError: null };
+    else if (outcome === 'submitted' && v6GenerationStarted) state.deliveries[routeKey] = {
+      ...current,
+      confirmedAt: resolvedAt,
+      resolution: 'OPERATOR_ATTESTED_SUBMITTED_GENERATION_PENDING',
+      lastError: null,
+    };
     else if (outcome === 'submitted') state.deliveries[routeKey] = { ...current, status: 'SUBMITTED_CONFIRMED', confirmedAt: resolvedAt, resolution: 'OPERATOR_ATTESTED_SUBMITTED', lastError: null };
     else if (outcome === 'discard') state.deliveries[routeKey] = { ...current, status: 'DISCARDED', resolvedAt, resolution: 'OPERATOR_DISCARDED', lastError: null };
     else throw new Error('Resolution outcome must be retry, submitted, or discard.');
