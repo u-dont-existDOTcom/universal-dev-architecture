@@ -17,15 +17,21 @@ Do **not** redo the adapter, the admission design, the audit, or the assessment.
 
 ## Next action — one command on the Claude-authenticated host
 
-Use the host where `claude auth status --json` reports `"authMethod": "claude.ai"`, `"apiProvider": "firstParty"` and a `subscriptionType`. The earlier non-inference evidence came from such a host; per `state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md` that is most likely the primary Mission Control VPS. Run it from an ordinary terminal, not from inside another Claude Code session. `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` and the Bedrock/Vertex/Foundry switches must be unset.
+Use the host where `claude auth status --json` reports `"authMethod": "claude.ai"`, `"apiProvider": "firstParty"` and a `subscriptionType`. `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`: the owner confirmed on 2026-09-24 that this is the owner's laptop, which also produced the earlier non-inference evidence (Node v26.8.1). The VPS hosts are not needed for this acceptance. They would need their own Claude login only if Mission Control later launches Claude from them. Run it from an ordinary terminal, not from inside another Claude Code session. `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` and the Bedrock/Vertex/Foundry switches must be unset.
 
 ```sh
-# in an existing checkout of universal-dev-architecture, with this branch present
-git switch chat/claude-acceptance-resume-20260924-0305
-cd tools/codex-mission-control/restored/codex-mission-control
-npm ci --ignore-scripts            # only if node_modules is missing
-npx tsx ../../provider-compatibility/acceptance/live-acceptance.ts --model claude-opus-5-5 --effort low
+# From any folder. Uses a separate worktree so the main checkout is untouched.
+B=$(find ~ -maxdepth 3 -name 'claude-acceptance-resume-20260924.bundle' -print -quit 2>/dev/null) && [ -n "$B" ] && echo "bundle: $B" && \
+cd ~/universal-dev-architecture && \
+git fetch origin chat/claude-compatibility-integration-20260924-0110 && \
+git fetch "$B" chat/claude-acceptance-resume-20260924-0305:chat/claude-acceptance-resume-20260924-0305 && \
+git worktree add ~/universal-dev-architecture-worktrees/claude-acceptance-20260924 chat/claude-acceptance-resume-20260924-0305 && \
+cd ~/universal-dev-architecture-worktrees/claude-acceptance-20260924/tools/codex-mission-control/restored/codex-mission-control && \
+npm ci --ignore-scripts && \
+npx tsx ../../provider-compatibility/acceptance/live-acceptance.ts --model claude-opus-5-5 --effort low --out ~/claude-acceptance-out
 ```
+
+If the branch has been pushed, replace the bundle fetch with `git fetch origin chat/claude-acceptance-resume-20260924-0305:chat/claude-acceptance-resume-20260924-0305`.
 
 The command makes three bound runs, each exactly once, on a disposable temp workspace:
 

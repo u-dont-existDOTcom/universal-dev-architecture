@@ -115,9 +115,10 @@
   },
   "live_acceptance": {
     "status": "NOT_RUN",
-    "reason": "The only host reachable from the continuation session was a Claude cloud workspace whose CLI reports authMethod oauth_token (no subscriptionType) with ANTHROPIC_BASE_URL set; the adapter correctly refuses that route (CLAUDE_PROVIDER_OVERRIDE_PRESENT), and the workspace safety layer blocked probing its credential route. The owner laptop was reachable for files only (no shell) and has no ~/.claude directory. The Claude-authenticated owner host (likely the primary Mission Control VPS) was not reachable.",
+    "reason": "The only host where the continuation session could run commands was a Claude cloud workspace whose CLI reports authMethod oauth_token (no subscriptionType) with ANTHROPIC_BASE_URL set; the adapter correctly refuses that route (CLAUDE_PROVIDER_OVERRIDE_PRESENT), and the workspace safety layer blocked probing its credential route. The Claude-authenticated host is the owner's laptop (owner-confirmed 2026-09-24; it also produced the earlier Node v26.8.1 evidence), reachable from this session for files only, without a shell.",
     "defect_found_before_run": "Exact-ID resume could never dispatch (digest self-reference); fixed in 96e0540. The acceptance would have failed check 7 on any host.",
-    "next": "Run acceptance/live-acceptance.ts once on the Claude-authenticated host (see WORK-INSTRUCTIONS.md)."
+    "next": "Run acceptance/live-acceptance.ts once on the Claude-authenticated host (see WORK-INSTRUCTIONS.md).",
+    "correction": "An earlier note inferred the host was the primary Mission Control VPS from the topology record; the owner corrected this. A laptop home-directory listing had also shown no ~/.claude directory, which did not indicate absence of a Claude login."
   },
   "autodiscovery_decision": {
     "decision": "NOT_ADDED",

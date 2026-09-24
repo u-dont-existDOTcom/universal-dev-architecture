@@ -84,7 +84,7 @@ Not done, and why:
 - **Allowance accounting.** The adapter records only a per-session CLI cost estimate; it is neither an invoice nor a weekly-allowance percentage. The acceptance run gives the first real per-run figure. Keep execution effort at low or medium until the numbers exist.
 - **Instruction weight.** The root `AGENTS.md` is 219 lines, and the full chain is 32,756 bytes, 12 bytes under Codex's 32 KiB cap. Claude has no such cap (it skips files over 4 MiB), but its docs target under 200 lines per file for adherence. The per-turn rule "re-fetch live default-branch AGENTS.md" costs a fetch every turn in a Claude session. Test adherence directly: the first-line timestamp invariant is an easy, mechanical probe.
 - **Pushing.** Claude cloud sessions push only to repositories in their sources. Until those are added, work has to come back as bundles or patches.
-- **Where Claude execution runs.** The adapter is built for a Claude-authenticated host such as the Mission Control VPS, not a nested Claude inside a Claude cloud session. The cloud workspace's safety layer blocks probing its credentials, and the adapter refuses its route.
+- **Where Claude execution runs.** The adapter is built for a Claude-authenticated host (today the owner's laptop), not a nested Claude inside a Claude cloud session. A VPS would need its own Claude login before Mission Control could launch Claude there. The cloud workspace's safety layer blocks probing its credentials, and the adapter refuses its route.
 - **Nesting.** Run the harness from an ordinary terminal, not from inside another Claude Code session.
 
 ## 7. Recommended sequence
