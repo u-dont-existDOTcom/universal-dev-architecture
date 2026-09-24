@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "sealed_for_review",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-source-review-ingestion-current-main-20260924",
+  "integration_branch": "main",
+  "integration_base_sha": "e7384522791304626a3b9d675abf9e44dcf9dcf7",
+  "scope": "Reconcile the two already-authored non-replay AskRigor source-review ingestion repairs: delayed post-expiry app readback and provisional WEB-to-stable conversation identity transition.",
+  "reconciles": [
+    "chat/mc-post-expiry-readback-recovery-20260924",
+    "task/mc-provider-url-transition-recovery-20260924"
+  ],
+  "sealed_at": "2026-09-24T15:50:00Z"
+}

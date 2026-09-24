@@ -275,6 +275,36 @@ test("V6 app-owned final-message readback may replace only missing web completio
   } finally { f.store.close(); }
 });
 
+test("V6 admits post-expiry exact app readback only when provider generation completed before expiry", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000100, createdAt: time("31.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000100` };
+    const readback = evidence(f.store, "post-expiry-app-readback", inBandAppReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sha256(candidate.body)}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "app_thread_id_sha256:" + "9".repeat(64),
+      "semantic_authority:false", "readback_method:APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
+    ], time("31.000"), inBandAppReadbackProducerId);
+    const events = [...f.events, readback];
+    assert.equal(buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }).data.type,
+      "github_decision_receipt_ingested");
+
+    const missingPreExpiryComplete = events.filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:COMPLETE")));
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(missingPreExpiryComplete, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }),
+      /binding\/admission\/generation\/artifact timing/);
+
+    const lateComplete = structuredClone(events);
+    const complete = lateComplete.find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:COMPLETE"))!;
+    complete.occurredAt = time("30.500");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(lateComplete, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }),
+      /binding\/admission\/generation\/artifact timing/);
+  } finally { f.store.close(); }
+});
+
 test("V6 app readback admits the observed RDC read-only source reader but no arbitrary substitute", () => {
   const f = fixture();
   try {
@@ -406,6 +436,43 @@ test("V6 accepts multiple admissions only when every earlier retry is centrally 
     const unsafe = structuredClone(authority);
     unsafe.admissions[0].status = "AMBIGUOUS_AFTER_RESTART";
     assert.throws(() => build(f, events, f.candidate, unsafe), /prior retry admissions/);
+  } finally { f.store.close(); }
+});
+
+test("V6 recovery accepts one provisional WEB generation-start URL before the exact final conversation binding", () => {
+  const f = fixture();
+  try {
+    const events = structuredClone(f.events);
+    const provisional = "https://chatgpt.com/c/WEB:provisional-generation-target";
+    const start = events.find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:STARTED"))!;
+    const activeSession = events.find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1"
+      && event.data.refs.includes("lifecycle_status:ACTIVE"))!;
+    for (const event of [start, activeSession]) {
+      if (event.data.type !== "evidence_receipt_recorded") continue;
+      event.data.refs = event.data.refs.map((ref) => ref === `conversation_url:${conversation}`
+        ? `conversation_url:${provisional}` : ref);
+      if (event === activeSession) {
+        event.data.refs = event.data.refs.map((ref) => ref === "url_binding_status:PENDING_PROVIDER_ASSIGNMENT"
+          ? "url_binding_status:EXACT" : ref);
+        if (!event.data.refs.some((ref) => ref.startsWith("conversation_url:"))) {
+          event.data.refs.push(`conversation_url:${provisional}`);
+        }
+      }
+    }
+    assert.equal(build(f, events).data.type, "github_decision_receipt_ingested");
+
+    const unsafe = structuredClone(events);
+    const unsafeStart = unsafe.find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:STARTED"))!;
+    if (unsafeStart.data.type === "evidence_receipt_recorded") {
+      unsafeStart.data.refs = unsafeStart.data.refs.map((ref) => ref === `conversation_url:${provisional}`
+        ? "conversation_url:https://chatgpt.com/c/unrelated-stable-conversation" : ref);
+    }
+    assert.throws(() => build(f, unsafe), /provider stage conversation identity is outside the bound transition/);
   } finally { f.store.close(); }
 });
 
