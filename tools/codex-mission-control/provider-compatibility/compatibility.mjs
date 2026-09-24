@@ -171,11 +171,12 @@ export function validateWorkerReport(value, request) {
 export function prepareClaudeCode(request) {
   const r = validateRequest(request);
   const deny = ['Agent', 'Task', 'Skill'];
-  if (Object.keys(r.access.mcpServers).length === 0) deny.push('mcp__*');
+  const explicitMcpApproval = r.access.autoApprove.some((rule) => rule.startsWith('mcp__'));
+  if (Object.keys(r.access.mcpServers).length === 0 && !explicitMcpApproval) deny.push('mcp__*');
   const argv = ['--print', '--verbose', '--output-format', 'stream-json',
     '--model', r.selection.model, '--effort', r.selection.effort,
     r.session.mode === 'new' ? '--session-id' : '--resume', r.session.id,
-    '--max-turns', String(r.limits.maxTurns), '--permission-mode', 'dontAsk',
+    '--permission-mode', 'dontAsk',
     '--permission-prompts', 'none', '--restricted', '--disable-slash-commands', '--no-chrome',
     '--strict-mcp-config', '--mcp-config', JSON.stringify({ mcpServers: r.access.mcpServers }),
     '--tools', r.access.builtInTools.join(','), '--disallowedTools', deny.join(','),
@@ -195,6 +196,7 @@ export function prepareClaudeCode(request) {
       'MCP_OAUTH_AND_SERVER_SIDE_AUTHORIZATION',
       'SESSION_ID_RESERVATION_OR_TRUSTED_RESUME_BINDING',
       'WALL_CLOCK_CANCELLATION_AND_PROCESS_TREE_CLEANUP',
+      'TURN_LIMIT_RECEIPT_ENFORCEMENT',
     ],
   });
 }
@@ -296,10 +298,13 @@ export function createClaudeCollector(request) {
         try { report = validateWorkerReport(result.report, r); }
         catch (error) { problems.add(error instanceof CompatibilityError ? error.code : 'INVALID_REPORT'); }
       }
+      if (result?.turns !== null && result?.turns !== undefined && result.turns > r.limits.maxTurns)
+        problems.add('TURN_LIMIT');
       const permissionDenials = Math.max(denials, result?.denialCount ?? 0);
       let status;
       if (termination.timedOut) status = 'TIMED_OUT';
       else if (termination.signal !== null) status = 'INTERRUPTED';
+      else if (problems.size === 1 && problems.has('TURN_LIMIT')) status = 'LIMIT_REACHED';
       else if (problems.size) status = 'RESULT_INVALID';
       else if (['error_max_turns', 'error_max_budget_usd'].includes(result.subtype)
         && result.isError === true) status = 'LIMIT_REACHED';

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ownerResponseContinuationBindingSchema, validateContinuationBinding } from "./owner-response-continuation-schema";
+import { claudeExecutionProfileSchema, claudeExecutionProviderBindingSchema } from "./claude-execution-profile";
 import {
   LEGACY_MODEL_PROFILE_UNSPECIFIED,
   observedWorkExecutionProfileSchema,
@@ -1096,15 +1097,40 @@ export const executionDirectiveRecordedSchema = z.object({
     workExecutionProfileSchema,
     z.literal(LEGACY_MODEL_PROFILE_UNSPECIFIED),
   ]).default(LEGACY_MODEL_PROFILE_UNSPECIFIED),
-  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD"]).optional(),
+  claude_execution_profile: claudeExecutionProfileSchema.nullable().optional(),
+  execution_provider_binding: claudeExecutionProviderBindingSchema.nullable().optional(),
+  execution_surface: z.enum(["CODEX", "CHATGPT_WORK_CLOUD", "CLAUDE_CODE_CLI"]).optional(),
   status: z.enum(["ACTIVE", "SATISFIED", "SUPERSEDED", "EXPIRED"]),
 }).superRefine((directive, context) => {
-  if (directive.directive_schema_version === 3
+  const claude = directive.execution_surface === "CLAUDE_CODE_CLI";
+  if (directive.directive_schema_version === 3 && !claude
     && directive.work_execution_profile === LEGACY_MODEL_PROFILE_UNSPECIFIED) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["work_execution_profile"],
-      message: "A version 3 execution directive requires an explicit Work execution profile.",
+      message: "A non-Claude version 3 execution directive requires an explicit Work execution profile.",
+    });
+  }
+  if (directive.directive_schema_version === 3 && claude
+    && (!directive.claude_execution_profile || !directive.execution_provider_binding)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["claude_execution_profile"],
+      message: "A Claude version 3 execution directive requires an explicit provider binding and Claude execution profile.",
+    });
+  }
+  if (claude && directive.work_execution_profile !== LEGACY_MODEL_PROFILE_UNSPECIFIED) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["work_execution_profile"],
+      message: "Claude execution must not reuse the GPT/Codex Work execution profile.",
+    });
+  }
+  if (!claude && (directive.claude_execution_profile || directive.execution_provider_binding)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["execution_provider_binding"],
+      message: "Claude provider/profile fields require execution_surface CLAUDE_CODE_CLI.",
     });
   }
   if (directive.directive_schema_version === 3
@@ -1123,6 +1149,71 @@ export const executionDirectiveRecordedSchema = z.object({
     });
   }
 });
+
+export const claudeExecutionProfileAuthorizedSchema = z.object({
+  type: z.literal("claude_execution_profile_authorized"),
+  worker: WorkerId,
+  authorization_id: StableId,
+  request_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  directive_artifact_sha256: Sha256,
+  source_message_id: StableId,
+  source_body_sha256: Sha256,
+  provider_binding: claudeExecutionProviderBindingSchema,
+  authorized_profile: claudeExecutionProfileSchema,
+  authorized_at: Timestamp,
+}).strict();
+
+export const claudeCliLaunchPreflightRecordedSchema = z.object({
+  type: z.literal("claude_cli_launch_preflight_recorded"),
+  worker: WorkerId,
+  evidence_id: StableId,
+  authorization_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  provider_binding: claudeExecutionProviderBindingSchema,
+  authorized_profile: claudeExecutionProfileSchema,
+  model_setter: NonEmpty.max(120),
+  effort_setter: z.enum(["low", "medium", "high", "xhigh", "max"]),
+  cli_version: NonEmpty.max(120),
+  plan_sha256: Sha256,
+  required_flags_verified: z.literal(true),
+  auth_method: z.literal("claude.ai"),
+  api_provider: z.literal("firstParty"),
+  subscription_route_verified: z.literal(true),
+  provider_overrides_present: z.literal(false),
+  source: z.literal("TRUSTED_CLAUDE_HOST_PREFLIGHT"),
+  recorded_at: Timestamp,
+}).strict();
+
+export const claudeExecutionReceiptRecordedSchema = z.object({
+  type: z.literal("claude_execution_receipt_recorded"),
+  worker: WorkerId,
+  receipt_id: StableId,
+  authorization_id: StableId,
+  preflight_evidence_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  provider_binding: claudeExecutionProviderBindingSchema,
+  authorized_profile: claudeExecutionProfileSchema,
+  run_id: StableId,
+  session_id: NonEmpty.max(180),
+  status: z.enum([
+    "TIMED_OUT", "INTERRUPTED", "LIMIT_REACHED", "RESULT_INVALID", "TRANSPORT_FAILED",
+    "PROVIDER_FAILED", "EXECUTION_REPORTED_COMPLETE", "PERMISSION_BLOCKED",
+    "EXECUTION_REPORTED_BLOCKED", "EXECUTION_REPORTED_FAILED",
+  ]),
+  reason_codes: z.array(NonEmpty.max(160)).max(100),
+  observed_primary_models: z.array(NonEmpty.max(120)).max(8),
+  effort_evidence: z.literal("SET_REQUEST_ONLY"),
+  process_tree_stopped: z.literal(true),
+  report_present: z.boolean(),
+  recorded_at: Timestamp,
+}).strict();
 
 export const workExecutionProfileAuthorizedSchema = z.object({
   type: z.literal("work_execution_profile_authorized"),
@@ -1843,6 +1934,7 @@ export const eventSchemaV2 = z.union([
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema,
   workExecutionProfileAuthorizedSchema, workTaskCreationSelectionAppliedSchema, workExecutionPreflightRecordedSchema,
+  claudeExecutionProfileAuthorizedSchema, claudeCliLaunchPreflightRecordedSchema, claudeExecutionReceiptRecordedSchema,
   chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema,
   chatGptWorkCloudHandoffIntentRecordedSchema, chatGptWorkCloudExecutionReceiptRecordedSchema,
   codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,

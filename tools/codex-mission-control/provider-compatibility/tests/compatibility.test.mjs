@@ -59,6 +59,8 @@ test('plan preserves exact IDs, explicit effort, prompt privacy and no launch au
   assert.ok(!p.argv.includes('--bare')); assert.ok(!p.argv.includes('--fallback-model'));
   assert.ok(!p.argv.includes('--dangerously-skip-permissions'));
   assert.ok(!p.argv.includes('--max-budget-usd'));
+  assert.ok(!p.argv.includes('--max-turns'));
+  assert.ok(p.requiredHostChecks.includes('TURN_LIMIT_RECEIPT_ENFORCEMENT'));
   assert.ok(p.requiredHostChecks.includes('SUBSCRIPTION_AUTH_AND_NO_API_OR_PROVIDER_OVERRIDES'));
   assert.ok(Object.isFrozen(p.argv));
 });
@@ -119,6 +121,17 @@ test('builtin list is restricted, agents and empty-config MCP denied', () => {
   assert.equal(p.argv[p.argv.indexOf('--permission-mode') + 1], 'dontAsk');
   assert.equal(p.argv[p.argv.indexOf('--permission-prompts') + 1], 'none');
 });
+test('existing Claude.ai connectors stay denied by default but can be source-bound to an exact approved MCP tool', () => {
+  const r = request();
+  let p = prepareClaudeCode(r);
+  assert.ok(p.argv.includes('Agent,Task,Skill,mcp__*'));
+  r.access.autoApprove = ['mcp__google_drive__synthetic_read'];
+  p = prepareClaudeCode(r);
+  assert.ok(!p.argv.includes('Agent,Task,Skill,mcp__*'));
+  assert.ok(p.argv.includes('mcp__google_drive__synthetic_read'));
+  assert.deepEqual(JSON.parse(p.argv[p.argv.indexOf('--mcp-config') + 1]), { mcpServers: {} });
+});
+
 test('remote MCP config remains standard HTTP with explicit OAuth, no embedded secrets', () => {
   const r = request(); r.access.mcpServers = { research: { type: 'http', url: 'https://example.org/mcp' } };
   const p = prepareClaudeCode(r);
@@ -290,6 +303,11 @@ test('malformed model metadata is not echoed into a diagnostic receipt', () => {
   const es = events(); es[0].model = 'PRIVATE_MODEL_FIELD_SENTINEL with whitespace';
   const s = receipt(es); assert.ok(s.reasonCodes.includes('INVALID_MODEL_FIELD'));
   assert.ok(!JSON.stringify(s).includes('PRIVATE_MODEL_FIELD_SENTINEL'));
+});
+test('configured turn limit is enforced from the terminal receipt when the current CLI has no max-turns flag', () => {
+  const es = events(); es[2].num_turns = request().limits.maxTurns + 1;
+  const s = receipt(es);
+  assert.equal(s.status, 'LIMIT_REACHED'); assert.ok(s.reasonCodes.includes('TURN_LIMIT'));
 });
 test('provider turn limit remains explicit when the CLI exits with an error', () => {
   const es = events(); es[2].subtype = 'error_max_turns'; es[2].is_error = true;

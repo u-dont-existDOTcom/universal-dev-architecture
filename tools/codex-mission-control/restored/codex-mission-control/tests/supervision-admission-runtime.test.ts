@@ -16,6 +16,7 @@ import {
   type WorkExecutionProfile,
 } from "../lib/work-execution-profile";
 import type { PersistedExecutionDirectiveProof } from "../lib/chat-work-authority-gate";
+import { claudeProfileAuthorizationId } from "../lib/claude-execution-runtime";
 
 const workerProducer: AuthenticatedProducer = {
   id: "worker:askrigor-mast",
@@ -188,6 +189,41 @@ test("only a source-bound bounded zero-spend Chat directive admits execution", (
   assert.equal(result.providerDeliveryState, "NOT_REQUIRED");
   assert.deepEqual(result.authorizedWorkExecutionProfile, solMediumProfile);
   assert.equal(result.profileAuthorizationId, workProfileAuthorizationId("admission:askrigor:mast:1"));
+});
+
+test("authenticated admission runtime preserves a separate Claude provider/profile authorization", () => {
+  const providerBinding = { provider: "ANTHROPIC", surface: "CLAUDE_CODE_CLI", role: "EXECUTION" } as const;
+  const claudeProfile = {
+    model: "claude-opus-5-5", effort: "MEDIUM", billingRoute: "SUBSCRIPTION",
+    assuranceRequirement: "SET_REQUEST_SUFFICIENT", expensiveEffortApproved: false,
+    contractVersion: "CLAUDE_CODE_SUBSCRIPTION_V1",
+  } as const;
+  const proof: PersistedExecutionDirectiveProof = {
+    ...directiveProof, workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+  };
+  const result = evaluateSupervisionAdmission("askrigor-mast", workerProducer, input({
+    request: {
+      action: "EXECUTE_BOUNDED_TASK", actor: "WORK",
+      sourceReceipt: {
+        messageId: "chat-message:askrigor:zero-spend", bodySha256: sourceDigest,
+        claimedSurface: "CHATGPT_PROJECT_MANAGER", observedSurface: "CHATGPT_PROJECT_MANAGER",
+        provenanceStatus: "VERIFIED", authorActor: "PROJECT_MANAGER_CHAT",
+      },
+      boundedExecution: true, taskRequiresExecutionOutsideChat: true,
+      executionScope: "TERMINAL_OR_COMPUTER_WORK",
+      spend: { kind: "MODEL_API_INFERENCE", ceilingUsd: 0, ownerApprovedNonzeroSpendManifestId: null },
+      internalRoute: null, workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+      executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+    },
+    factualPacket: null,
+  }), undefined, undefined, proof);
+  assert.equal(result.admitted, true); assert.equal(result.mayExecute, true);
+  assert.equal(result.authorizedWorkExecutionProfile, null);
+  assert.deepEqual(result.authorizedClaudeExecutionProfile, claudeProfile);
+  assert.deepEqual(result.executionProviderBinding, providerBinding);
+  assert.equal(result.profileAuthorizationId, null);
+  assert.equal(result.claudeProfileAuthorizationId, claudeProfileAuthorizationId("admission:askrigor:mast:1"));
 });
 
 test("a registered provider-session cycle is emitted for the stable supervisor with exact nonce, evidence, owner epoch, lane, and GitHub location", () => {

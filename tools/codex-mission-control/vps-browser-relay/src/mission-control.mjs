@@ -80,6 +80,14 @@ export class MissionControlClient {
     }, { allowConflict: true });
   }
 
+  async requestClaudeExecutionPreflight(worker, input) {
+    return this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/claude-preflight`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }, { allowConflict: true });
+  }
+
   async recordWorkerEvents(worker, events) {
     const payload = await this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/events`, {
       method: 'POST',

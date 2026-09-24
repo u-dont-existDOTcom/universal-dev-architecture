@@ -14,6 +14,8 @@ import {
   currentExecutionDirectiveProof,
 } from "@/lib/work-execution-runtime";
 import { parseWorkExecutionProfile } from "@/lib/work-execution-profile";
+import { parseClaudeExecutionProfile, claudeExecutionProviderBindingSchema } from "@/lib/claude-execution-profile";
+import { buildClaudeExecutionAuthorizationEnvelope } from "@/lib/claude-execution-runtime";
 import type { AuthenticatedProducer } from "@/lib/ingestion-auth";
 
 import { deriveOwnerResponseContinuation } from "@/lib/owner-response-continuation";
@@ -100,6 +102,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       }, { status: admissionStatus(result) });
     }
     let profileAuthorizationEvent = null;
+    let claudeProfileAuthorizationEvent = null;
     if (result.mayExecute && result.authorizedWorkExecutionProfile) {
       const authorizedProfile = parseWorkExecutionProfile(result.authorizedWorkExecutionProfile);
       const binding = parsedInput.request.executionDirectiveBinding;
@@ -132,6 +135,35 @@ export async function POST(request: Request, context: { params: Promise<{ worker
         }, { status: upstream.status });
       }
       profileAuthorizationEvent = payload.event ?? null;
+    }
+    if (result.mayExecute && result.authorizedClaudeExecutionProfile && result.executionProviderBinding
+      && result.claudeProfileAuthorizationId) {
+      const authorizedProfile = parseClaudeExecutionProfile(result.authorizedClaudeExecutionProfile);
+      const providerBinding = claudeExecutionProviderBindingSchema.parse(result.executionProviderBinding);
+      const binding = parsedInput.request.executionDirectiveBinding;
+      if (!binding) throw new Error("Admitted Claude execution is missing its directive binding.");
+      const systemProducer: AuthenticatedProducer = {
+        id: "system:claude-profile-admission",
+        kind: "SYSTEM",
+        workerScopes: [worker],
+        taskScopes: [binding.taskId],
+      };
+      const upstream = await daemonFetch("/events", {
+        method: "POST",
+        headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
+        body: JSON.stringify(buildClaudeExecutionAuthorizationEnvelope({
+          worker, request: parsedInput.request, authorizedProfile, providerBinding, now,
+        })),
+      });
+      const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
+      if (!upstream.ok) {
+        return Response.json({
+          ...result, admitted: false, mayExecute: false, authorizedClaudeExecutionProfile: null,
+          claudeProfileAuthorizationId: null,
+          error: payload.error ?? "Mission Control could not persist the Claude execution profile authorization.",
+        }, { status: upstream.status });
+      }
+      claudeProfileAuthorizationEvent = payload.event ?? null;
     }
     let routeEvent = null;
     let routeAcknowledgement: RequestBoundRouteAcknowledgement | null = null;
@@ -204,6 +236,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
             routeEvent: racedRouteEvent,
             routeAcknowledgement,
             profileAuthorizationEvent,
+            claudeProfileAuthorizationEvent,
             setterEvidenceId,
             setterEvidenceEvent,
           }, { status: admissionStatus(result) });
@@ -229,6 +262,7 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       routeEvent,
       routeAcknowledgement,
       profileAuthorizationEvent,
+      claudeProfileAuthorizationEvent,
       setterEvidenceId,
       setterEvidenceEvent,
     }, { status: admissionStatus(result) });

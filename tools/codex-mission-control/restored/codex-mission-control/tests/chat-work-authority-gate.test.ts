@@ -314,3 +314,83 @@ test("Work cannot author reviews, verdicts, owner decisions, or substantive supe
     assert.equal(result.decision, "REJECT_CODEX_OR_WORK_SEMANTIC_AUTHORSHIP");
   }
 });
+
+test("Claude execution is admitted only through its separate exact provider/profile binding", () => {
+  const claudeProfile = {
+    model: "claude-opus-5-5", effort: "MEDIUM", billingRoute: "SUBSCRIPTION",
+    assuranceRequirement: "SET_REQUEST_SUFFICIENT", expensiveEffortApproved: false,
+    contractVersion: "CLAUDE_CODE_SUBSCRIPTION_V1",
+  } as const;
+  const providerBinding = { provider: "ANTHROPIC", surface: "CLAUDE_CODE_CLI", role: "EXECUTION" } as const;
+  const claudeRequest = request({
+    actor: "WORK",
+    workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding,
+    claudeExecutionProfile: claudeProfile,
+  });
+  const proof: PersistedExecutionDirectiveProof = {
+    ...directiveProof,
+    workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding,
+    claudeExecutionProfile: claudeProfile,
+  };
+  const result = evaluateGate(claudeRequest, proof);
+  assert.equal(result.allowed, true);
+  assert.equal(result.decision, "ALLOW_BOUNDED_EXECUTION");
+  assert.equal(result.authorizedWorkExecutionProfile, null);
+  assert.deepEqual(result.authorizedClaudeExecutionProfile, claudeProfile);
+  assert.deepEqual(result.executionProviderBinding, providerBinding);
+});
+
+test("Claude caller assertions cannot reuse the GPT/Codex Work profile", () => {
+  const claudeProfile = {
+    model: "claude-opus-5-5", effort: "MEDIUM", billingRoute: "SUBSCRIPTION",
+    assuranceRequirement: "SET_REQUEST_SUFFICIENT", expensiveEffortApproved: false,
+    contractVersion: "CLAUDE_CODE_SUBSCRIPTION_V1",
+  } as const;
+  const providerBinding = { provider: "ANTHROPIC", surface: "CLAUDE_CODE_CLI", role: "EXECUTION" } as const;
+  const result = evaluateGate(request({
+    actor: "WORK", executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+  }), {
+    ...directiveProof, executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.decision, "REJECT_INVALID_CLAUDE_EXECUTION_PROFILE");
+});
+
+test("Claude provider/profile mismatch against durable directive proof fails closed", () => {
+  const providerBinding = { provider: "ANTHROPIC", surface: "CLAUDE_CODE_CLI", role: "EXECUTION" } as const;
+  const claudeProfile = {
+    model: "claude-opus-5-5", effort: "MEDIUM", billingRoute: "SUBSCRIPTION",
+    assuranceRequirement: "SET_REQUEST_SUFFICIENT", expensiveEffortApproved: false,
+    contractVersion: "CLAUDE_CODE_SUBSCRIPTION_V1",
+  } as const;
+  const result = evaluateGate(request({
+    actor: "WORK", workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+  }), {
+    ...directiveProof, workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding,
+    claudeExecutionProfile: { ...claudeProfile, model: "claude-fable-5" },
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.decision, "REJECT_UNVERIFIED_REASONING_SOURCE");
+});
+
+test("Claude xhigh/max cannot be admitted without explicit source-bound expensive-effort approval", () => {
+  const providerBinding = { provider: "ANTHROPIC", surface: "CLAUDE_CODE_CLI", role: "EXECUTION" } as const;
+  const claudeProfile = {
+    model: "claude-opus-5-5", effort: "XHIGH", billingRoute: "SUBSCRIPTION",
+    assuranceRequirement: "SET_REQUEST_SUFFICIENT", expensiveEffortApproved: false,
+    contractVersion: "CLAUDE_CODE_SUBSCRIPTION_V1",
+  } as const;
+  const result = evaluateGate(request({
+    actor: "WORK", workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+  }), {
+    ...directiveProof, workExecutionProfile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+    executionProviderBinding: providerBinding, claudeExecutionProfile: claudeProfile,
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.decision, "REJECT_INVALID_CLAUDE_EXECUTION_PROFILE");
+});

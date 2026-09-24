@@ -15,6 +15,12 @@ import {
   type SpendRequest,
 } from "./chat-work-authority-gate";
 import type { AuthenticatedProducer } from "./ingestion-auth";
+import { claudeProfileAuthorizationId } from "./claude-execution-runtime";
+import {
+  claudeExecutionProviderBindingSchema,
+  type ClaudeExecutionProfile,
+  type ClaudeExecutionProviderBinding,
+} from "./claude-execution-profile";
 import type { AppendEnvelope } from "./schema";
 import { canonicalJson, sha256 } from "./canonical";
 import { validateContinuationBinding, type OwnerResponseContinuation } from "./owner-response-continuation-schema";
@@ -71,7 +77,10 @@ export interface SupervisionAdmissionResult {
   providerDeliveryState: ProviderDeliveryState;
   routeEnvelope: AppendEnvelope | null;
   authorizedWorkExecutionProfile: AuthorizedWorkExecutionProfile | null;
+  authorizedClaudeExecutionProfile: ClaudeExecutionProfile | null;
+  executionProviderBinding: ClaudeExecutionProviderBinding | null;
   profileAuthorizationId: string | null;
+  claudeProfileAuthorizationId: string | null;
   statement: string;
 }
 
@@ -134,7 +143,12 @@ export function evaluateSupervisionAdmission(
       providerDeliveryState: "NOT_REQUIRED",
       routeEnvelope: null,
       authorizedWorkExecutionProfile: primaryDecision.authorizedWorkExecutionProfile,
-      profileAuthorizationId: workProfileAuthorizationId(parsed.request.requestId),
+      authorizedClaudeExecutionProfile: primaryDecision.authorizedClaudeExecutionProfile,
+      executionProviderBinding: primaryDecision.executionProviderBinding,
+      profileAuthorizationId: primaryDecision.authorizedWorkExecutionProfile
+        ? workProfileAuthorizationId(parsed.request.requestId) : null,
+      claudeProfileAuthorizationId: primaryDecision.authorizedClaudeExecutionProfile
+        ? claudeProfileAuthorizationId(parsed.request.requestId) : null,
       statement: "Bounded execution is admitted by a source-bound Chat decision. Execute only the exact authorized residue.",
     };
   }
@@ -173,7 +187,10 @@ export function evaluateSupervisionAdmission(
       providerDeliveryState: "ROUTE_REJECTED",
       routeEnvelope: null,
       authorizedWorkExecutionProfile: null,
+      authorizedClaudeExecutionProfile: null,
+      executionProviderBinding: null,
       profileAuthorizationId: null,
+      claudeProfileAuthorizationId: null,
       statement: "The action is blocked and the internal route is invalid. Do not ask Joel to relay it.",
     };
   }
@@ -190,7 +207,10 @@ export function evaluateSupervisionAdmission(
     providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
     routeEnvelope,
     authorizedWorkExecutionProfile: null,
+    authorizedClaudeExecutionProfile: null,
+    executionProviderBinding: null,
     profileAuthorizationId: null,
+    claudeProfileAuthorizationId: null,
     statement: parsed.request.action === "ROUTE_INTERNAL_SUPERVISOR"
       ? "The exact factual packet is admitted to the internal supervisor queue. Provider delivery still requires the configured relay and a source receipt."
       : "The worker action is blocked. The exact factual packet is queued for the authorized Chat supervisor; no owner relay or action-time confirmation is permitted.",
@@ -297,7 +317,10 @@ function deniedWithoutRoute(
     providerDeliveryState,
     routeEnvelope: null,
     authorizedWorkExecutionProfile: null,
+    authorizedClaudeExecutionProfile: null,
+    executionProviderBinding: null,
     profileAuthorizationId: null,
+    claudeProfileAuthorizationId: null,
     statement: providerDeliveryState === "ROUTE_CONFIGURATION_MISSING"
       ? "The action is blocked and no exact internal supervisor route is configured. Record the control-plane blocker; do not ask Joel to relay a prompt."
       : "The action is blocked by the Chat/Work authority gate.",
@@ -347,6 +370,10 @@ export function parseSupervisionAdmissionInput(value: unknown): SupervisionAdmis
     workExecutionProfile: request.workExecutionProfile === undefined && directiveSchemaVersion === 2
       ? LEGACY_MODEL_PROFILE_UNSPECIFIED
       : request.workExecutionProfile,
+    executionProviderBinding: request.executionProviderBinding === null || request.executionProviderBinding === undefined
+      ? null
+      : parseClaudeProviderBinding(request.executionProviderBinding),
+    claudeExecutionProfile: request.claudeExecutionProfile,
   };
   const factualPacket = root.factualPacket === null || root.factualPacket === undefined
     ? null
@@ -403,6 +430,12 @@ function parseInternalRoute(value: unknown): InternalSupervisorRoute {
     ownerRelayRequested: requiredBoolean(record.ownerRelayRequested, "request.internalRoute.ownerRelayRequested"),
     actionTimeConfirmationRequested: requiredBoolean(record.actionTimeConfirmationRequested, "request.internalRoute.actionTimeConfirmationRequested"),
   };
+}
+
+function parseClaudeProviderBinding(value: unknown): ClaudeExecutionProviderBinding {
+  const parsed = claudeExecutionProviderBindingSchema.safeParse(value);
+  if (!parsed.success) throw admissionError(400, "request.executionProviderBinding is invalid.");
+  return parsed.data;
 }
 
 function parseExecutionDirectiveBinding(value: unknown): NonNullable<ChatWorkAuthorityRequest["executionDirectiveBinding"]> {

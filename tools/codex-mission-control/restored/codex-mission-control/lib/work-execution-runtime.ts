@@ -219,8 +219,12 @@ export function currentExecutionDirectiveProof(
     || directive.directive_schema_version !== 3
     || directive.directive_artifact_sha256 === null
     || directive.source_message_id === null
-    || directive.source_body_sha256 === null
-    || directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") return null;
+    || directive.source_body_sha256 === null) return null;
+  const claude = directive.execution_surface === "CLAUDE_CODE_CLI";
+  if (claude) {
+    if (directive.work_execution_profile !== "LEGACY_MODEL_PROFILE_UNSPECIFIED"
+      || !directive.claude_execution_profile || !directive.execution_provider_binding) return null;
+  } else if (directive.work_execution_profile === "LEGACY_MODEL_PROFILE_UNSPECIFIED") return null;
   const validatedDecision = directiveEvent
     ? validatedGitHubDecisionDirectiveProof(events, directiveEvent)
     : null;
@@ -234,6 +238,8 @@ export function currentExecutionDirectiveProof(
     sourceBodySha256: directive.source_body_sha256,
     status: "ACTIVE",
     workExecutionProfile: directive.work_execution_profile,
+    executionProviderBinding: claude ? directive.execution_provider_binding ?? null : null,
+    claudeExecutionProfile: claude ? directive.claude_execution_profile ?? null : null,
     authoritySource: validatedDecision ? {
       kind: "VALIDATED_GITHUB_DECISION",
       receiptEventId: validatedDecision.receipt_event_id,

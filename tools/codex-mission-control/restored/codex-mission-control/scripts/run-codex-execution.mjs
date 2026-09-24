@@ -15,6 +15,8 @@ import {
   dispatchAutomaticMissionControlExecution,
   dispatchMissionControlExecution,
 } from '../../../vps-browser-relay/src/codex-exec-candidate.mjs';
+import { dispatchAtProviderEntrypoint, EXECUTION_PROVIDER, classifyExecutionProvider } from '../../../provider-compatibility/provider-dispatch.mjs';
+import { dispatchClaudeMissionControlExecution } from '../../../provider-compatibility/host-transport.mjs';
 
 const args = process.argv.slice(2);
 const value = (name) => {
@@ -22,8 +24,8 @@ const value = (name) => {
   return index === -1 ? null : args[index + 1] ?? null;
 };
 const directivePath = value('--directive');
-const config = loadCodexExecCandidateConfig(process.env);
 if (!directivePath) {
+  const config = loadCodexExecCandidateConfig(process.env);
   const missionControlConfig = loadCodexExecMissionControlConfig(process.env);
   const automaticMissionControl = new MissionControlClient({
     url: missionControlConfig.url,
@@ -43,43 +45,73 @@ if (!directivePath) {
   }
   process.exit();
 }
+
 const directive = JSON.parse(await readFile(resolve(directivePath), 'utf8'));
-const route = classifyCodexExecutionRoute(directive, config);
-let missionControl = null;
-let admissionInput = null;
-let worker = value('--worker');
-const setterEvidenceId = value('--setter-evidence-id');
-if (route !== CODEX_EXECUTION_ROUTES.LEGACY_BROWSER) {
+const provider = classifyExecutionProvider(directive);
+if (provider === EXECUTION_PROVIDER.ANTHROPIC) {
   const admissionPath = value('--admission');
-  if (!admissionPath || !setterEvidenceId) {
-    throw new Error('Codex dispatch requires --admission and --setter-evidence-id for live Mission Control authorization.');
-  }
+  let worker = value('--worker');
+  if (!admissionPath) throw new Error('Claude dispatch requires --admission for source-bound Mission Control authorization.');
   const missionControlConfig = loadCodexExecMissionControlConfig({
     ...process.env,
     ...(worker ? { MC_CODEX_EXEC_WORKER_ID: worker } : {}),
   });
   worker = missionControlConfig.workerId;
-  admissionInput = JSON.parse(await readFile(resolve(admissionPath), 'utf8'));
-  missionControl = new MissionControlClient({
+  const admissionInput = JSON.parse(await readFile(resolve(admissionPath), 'utf8'));
+  const missionControl = new MissionControlClient({
     url: missionControlConfig.url,
     producerId: missionControlConfig.producerId,
     token: missionControlConfig.token,
     workerIds: [worker],
     requestTimeoutMs: missionControlConfig.requestTimeoutMs,
   });
+  const result = await dispatchAtProviderEntrypoint({
+    directive, existingOpenAIArguments: null, existingOpenAIHandler: dispatchMissionControlExecution,
+    claudeHandler: (request) => dispatchClaudeMissionControlExecution({
+      worker, admissionInput, request, missionControl,
+      claudeBinary: process.env.MC_CLAUDE_EXEC_BINARY ?? 'claude', environment: process.env,
+    }),
+  });
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (result?.status !== 'EXECUTION_REPORTED_COMPLETE') process.exitCode = 1;
+} else {
+  const config = loadCodexExecCandidateConfig(process.env);
+  const route = classifyCodexExecutionRoute(directive, config);
+  let missionControl = null;
+  let admissionInput = null;
+  let worker = value('--worker');
+  const setterEvidenceId = value('--setter-evidence-id');
+  if (route !== CODEX_EXECUTION_ROUTES.LEGACY_BROWSER) {
+    const admissionPath = value('--admission');
+    if (!admissionPath || !setterEvidenceId) {
+      throw new Error('Codex dispatch requires --admission and --setter-evidence-id for live Mission Control authorization.');
+    }
+    const missionControlConfig = loadCodexExecMissionControlConfig({
+      ...process.env,
+      ...(worker ? { MC_CODEX_EXEC_WORKER_ID: worker } : {}),
+    });
+    worker = missionControlConfig.workerId;
+    admissionInput = JSON.parse(await readFile(resolve(admissionPath), 'utf8'));
+    missionControl = new MissionControlClient({
+      url: missionControlConfig.url,
+      producerId: missionControlConfig.producerId,
+      token: missionControlConfig.token,
+      workerIds: [worker],
+      requestTimeoutMs: missionControlConfig.requestTimeoutMs,
+    });
+  }
+  const originalArguments = {
+    worker, admissionInput, setterEvidenceId, directive, config, missionControl,
+    legacyBrowserHandler: runActualLegacyBrowserDispatch,
+  };
+  const result = await dispatchAtProviderEntrypoint({
+    directive, existingOpenAIArguments: originalArguments,
+    existingOpenAIHandler: dispatchMissionControlExecution,
+    claudeHandler: async () => { throw new Error('Claude handler reached through OpenAI branch.'); },
+  });
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (result?.status && result.status !== CODEX_ATTEMPT_STATUSES.COMPLETED) process.exitCode = 1;
 }
-
-const result = await dispatchMissionControlExecution({
-  worker,
-  admissionInput,
-  setterEvidenceId,
-  directive,
-  config,
-  missionControl,
-  legacyBrowserHandler: runActualLegacyBrowserDispatch,
-});
-process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-if (result?.status && result.status !== CODEX_ATTEMPT_STATUSES.COMPLETED) process.exitCode = 1;
 
 async function runActualLegacyBrowserDispatch(_directive, { missionControlBinding } = {}) {
   if (!missionControlBinding?.worker || !missionControlBinding?.taskId || !missionControlBinding?.decisionRequestId
