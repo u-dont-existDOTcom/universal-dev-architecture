@@ -1,124 +1,63 @@
-# Provider compatibility — isolated iteration candidate
+# Provider compatibility — Claude Code integration candidate
 
-**Status: offline implementation, not a live launcher or a production migration.**
+**Status: isolated Iteration candidate integrated into the real admission/runner seams; not merged, deployed, or live-inference validated.**
 
-This dependency-free Node.js module supplies the first bounded interface between
-Mission Control and Claude Code. It does not change any existing routing, actor
-permissions, model policy, deployment, AskRigor server, or source archive.
+Implementation checkpoint: `1b14c87b876aeb9c0c41c0e4966575d3c7f3582c` on `chat/claude-compatibility-integration-20260924-0110`.
 
-## What works in this candidate
+## What is implemented
 
-`validateRequest` validates an exact run/directive binding, explicit session,
-model/effort, resource limits, working directory, and tool configuration.
-`prepareClaudeCode` creates a non-interactive CLI argument vector and private stdin
-payload; it does not start a process. New sessions and exact-ID resumes are
-represented separately. Resume across a different directive requires a later
-explicit integration design; it is not silently accepted here.
+The existing OpenAI/Codex path remains the default. `provider-dispatch.mjs` sends directives with no explicit provider binding to the existing dispatcher with the exact original argument object and returns its exact result. Unknown provider bindings fail closed. Only the exact `ANTHROPIC / CLAUDE_CODE_CLI / EXECUTION` binding selects Claude.
 
-`createClaudeCollector` accepts NDJSON byte chunks and produces a bounded receipt.
-It checks session/directive identity, primary-model changes, duplicate terminal
-results, malformed output, output limits, termination, and the final worker report.
-It discards assistant text, thinking, raw errors, tool inputs, and unrecognized
-provider fields. The validated final report can still contain private task content:
-**do not publish receipts without the destination's normal privacy check.**
+Claude gets a separate execution profile; it is not relabeled as GPT. The authenticated authority gate binds provider, profile, source message, task, directive revision, and directive artifact digest. The entire Claude request—prompt, session, model/effort, tools/MCP configuration, limits and workspace—is included in that digest before dispatch.
 
-`delegateExistingOpenAI` calls the injected existing dispatcher with its exact
-original argument object and returns the exact result. `describeExistingOpenAIProfile`
-is only a read-only projection of known current profile names. Neither is a new
-validator or an alternative admission path.
+`host-transport.mjs` performs a non-inference host preflight before every launch: current Claude Code version/required flags, `claude.ai` first-party subscription authentication, and absence of API/Bedrock/Vertex/base-URL overrides. Mission Control must persist the exact profile authorization and a preflight containing the exact prepared-plan hash before the subprocess can start.
 
-## Run the offline tests
+The subprocess uses a direct argv vector with `shell: false`. Stdout streams into `createClaudeCollector`; stderr content is not persisted. Wall-clock timeout, abort handling, graceful SIGTERM, bounded SIGKILL fallback and process-group cleanup are enforced. No retry, fallback model, API route or subagent is automatic. The terminal result is normalized into a privacy-bounded Mission Control receipt; assistant text, thinking, prompts, tool inputs and raw errors are not persisted there.
 
-From this directory, with Node.js 22 or newer:
+## MCP / plugin compatibility
+
+`--strict-mcp-config` does not remove authenticated `claude.ai` connectors on the tested host. With an empty explicit MCP config, existing Claude connectors remained health-visible. MCP is denied by default by this adapter. A source-bound exact `mcp__...` tool approval can expose a requested connector/tool without copying OAuth tokens or connector URLs into the directive. Custom remote servers remain explicit HTTPS-only configuration with no embedded credentials.
+
+This is not yet proof of every connector's tool catalog or read/write semantics. A real MCP tool call has not been made in this iteration. Server-side OAuth and permission enforcement remain authoritative.
+
+## Current CLI limitation
+
+Claude Code `2.1.281` does not expose the prior `--max-turns` flag. The adapter therefore does not send that unsupported option. `maxTurns` is checked retrospectively against terminal `num_turns`; exceeding it produces `LIMIT_REACHED`. The wall-clock limit remains a hard host-side termination boundary. Do not represent the turn limit as preventive enforcement on this CLI version.
+
+## Tests
+
+No model inference is required for the candidate suites.
 
 ```sh
-node --test tests/compatibility.test.mjs
+node --test tools/codex-mission-control/provider-compatibility/tests/*.test.mjs
+
+cd tools/codex-mission-control/restored/codex-mission-control
+npx tsx --test   tests/chat-work-authority-gate.test.ts   tests/supervision-admission-runtime.test.ts   tests/claude-execution-runtime.test.ts
 ```
 
-No npm installation, credentials, API calls, Claude executable, or paid inference
-are required. All model names, sessions, tasks and MCP addresses in tests are
-synthetic. They are not production configuration.
+Current focused result: 55/55 Node tests and 35/35 TypeScript tests. `git diff --check` passes. Repository typecheck still reports one inherited `WorkerDetail.tsx` TS2366 error; that file is byte-identical to current `main`, and the Claude candidate introduces no additional typecheck error.
 
-Inside UDA, use its current measurement wrapper:
+Use `scripts/test_efficiency.py` for measured reruns. The current task telemetry is recorded in `TEST-RESULTS.json`.
 
-```sh
-python3 scripts/test_efficiency.py start --task-id claude-compatibility-20260923
-python3 scripts/test_efficiency.py run --task-id claude-compatibility-20260923 \
-  --scope focused --reason "provider boundary candidate" -- \
-  node --test tools/codex-mission-control/provider-compatibility/tests/compatibility.test.mjs
-python3 scripts/test_efficiency.py summary --task-id claude-compatibility-20260923
-```
+## Real host evidence without inference
 
-Do not restart an already-started telemetry task just to rerun a failed test.
+`NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`: current Claude Code version and subscription authentication were verified without sending a prompt. Required launcher flags were present; checked provider override variables were absent. Seven existing `claude.ai` MCP integrations were connected and one required authentication. An empty strict MCP config preserved those connector health entries. No connector tool, model inference, OAuth mutation or account change occurred.
 
-## Actual contract and limits
+## What is not implemented or proven
 
-The module exports the immutable `WORKER_REPORT_SCHEMA`, capability descriptions,
-and request/report validators. Required request fields are explicit in
-`validateRequest`; the test fixture is a complete, runnable example.
+The no-`--directive` automatic Mission Control discovery path remains the existing Codex path; the integrated Claude path is available through an explicit source-bound provider directive. No real Claude task, MCP tool invocation, AskRigor production change, merge, deployment, restart or routing switch has occurred.
 
-The prepared plan always says `launchAuthorized: false`. This is intentional:
-planning cannot mint authenticated Mission Control authority. The caller must use
-the existing admission, exact source binding and trusted setter machinery, with a
-reviewed Claude extension, before starting anything. The candidate only implements
-execution; representing reasoning/review as future roles does not authorize them.
+The next live acceptance is intentionally resource-gated: one bounded low/medium subscription run should verify exact session/result, one permitted read, one denied operation, resume, cancellation and one exact MCP tool identity. Do not retry a provider failure automatically. After that evidence, decide whether automatic Claude autodiscovery is necessary before any merge.
 
-Plans use a caller-specified pinned model and effort. Extra-high/max require an
-explicit input; no model selection, retries or fallback are automatic. A supplied
-approval flag is not proof of owner permission: the authenticated controller must
-bind it to the source-authorized directive. No subagents are requested.
+## Security / authority invariants
 
-Subscription is the only billing route represented here. The module does not read
-credentials or prove the active login. The host must inspect effective authentication,
-environment and managed configuration; a requested subscription route is not proof
-that an inference will be subscription-billed. Do not add API fallback to fix a login
-failure. Do not use `--bare` with this route.
+- provider text or `expensiveEffortApproved` alone never grants authority;
+- GPT/Codex profiles and setters remain unchanged;
+- Claude xhigh/max requires an explicit source-bound approval;
+- API/provider overrides fail closed rather than becoming fallback routes;
+- the prepared plan itself never grants launch authority;
+- exact plan preflight must be durably persisted before spawn;
+- consequential external actions and server-side MCP authorization keep their existing human/control-plane gates;
+- execution receipts never claim supervisory approval or owner-outcome completion.
 
-The tool list constrains built-ins, while the explicit MCP configuration names
-remote HTTP servers using existing OAuth. It does not contain tokens. Auto-approval
-rules are not a complete authorization boundary. Managed policy, MCP server-side
-authorization, read/write semantics, and tool-catalog drift need direct acceptance
-at integration. A successful plan is not proof of working MCP access.
-
-The collector labels model identity as **client-reported**, not independently
-attested. Effort remains **requested, unobserved**. The provider's cost estimate is
-not an invoice, a per-run delta, or a percentage of a weekly subscription limit.
-Recovered permission denials remain visible without automatically invalidating an
-otherwise completed alternative. Execution reports never authorize merging or
-prove the owner's project outcome.
-
-## Existing-source mapping
-
-Inspected baseline: `eaeacee9c187d943e036cb7b299388f3094a1e64`.
-
-| Existing source under `tools/codex-mission-control/` | Retained responsibility |
-| --- | --- |
-| `restored/codex-mission-control/scripts/run-codex-execution.mjs` | Current OpenAI dispatch and exact legacy fallback binding |
-| `restored/codex-mission-control/lib/chat-work-authority-gate.ts` | Authenticated actor/source authority and spending boundaries |
-| `restored/codex-mission-control/lib/work-execution-profile.ts` | Current GPT model/effort profile validation and setter evidence |
-| `vps-browser-relay/src/codex-exec-candidate.mjs` | Existing dispatcher implementation referenced by the entrypoint; do not replace from this candidate |
-
-The current profile validator accepts GPT identifiers and the authority gate names
-ChatGPT surfaces. Do not relabel Claude as GPT to pass either. A deliberate,
-backwards-compatible extension belongs to the current integration owner.
-
-The candidate lives outside `restored/` and `source-archive/`. No packaging or
-restoration script needs to run for these files.
-
-## Evidence and reuse decision
-
-The owner supplied a detailed Claude compatibility audit. It was used as a
-requirements/discovery input, not as proof of local live capability. Implementation
-flags and result semantics were checked against current primary documentation:
-
-- https://code.claude.com/docs/en/cli-reference
-- https://code.claude.com/docs/en/headless
-
-Disposition: **adapt**, using the existing Claude CLI and current Mission Control
-admission/dispatch rather than building another scheduler or replacing the MCP SDK.
-The only new piece is the small plan/receipt translation boundary. The simpler
-baseline is direct CLI use plus the unchanged OpenAI dispatcher. No performance,
-model-quality or production-compatibility claim follows from the fixture tests.
-
-For remaining integration, read `WORK-INSTRUCTIONS.md`. `TASK-STATE.json` and
-`WRITER-LEASE.json` describe this isolated lane, not shared runtime ownership.
+For the next boundary, read `WORK-INSTRUCTIONS.md`, `TASK-STATE.json`, `TEST-RESULTS.json`, and the current writer/integration state. Do not redo the completed compatibility audit.

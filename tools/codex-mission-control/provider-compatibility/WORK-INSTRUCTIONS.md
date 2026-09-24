@@ -1,106 +1,40 @@
-# Continue the isolated Claude compatibility candidate
+# Next boundary — Claude compatibility live acceptance
 
-## Entrypoint and objective
+## Current checkpoint
 
-Read README.md, then execute this file as the bounded continuation directive in an
-existing authorized integration/Work lane. The goal is to make the supplied
-provider boundary usable with Claude without disrupting current Mission Control,
-AskRigor or GPT work. Do not repeat the broad Claude capability audit.
+The no-inference integration implementation is complete at commit `1b14c87b876aeb9c0c41c0e4966575d3c7f3582c` on branch `chat/claude-compatibility-integration-20260924-0110`.
 
-Repository: `u-dont-existDOTcom/universal-dev-architecture`.
-Candidate branch: `chat/claude-compatibility-20260923-2251`.
-Original inspected baseline: `eaeacee9c187d943e036cb7b299388f3094a1e64`.
-Candidate directory: `tools/codex-mission-control/provider-compatibility`.
+Do **not** redo provider discovery, admission design, host transport, OpenAI-preservation work, or the broad Claude capability audit. Read `README.md`, `TASK-STATE.json`, `TEST-RESULTS.json`, current UDA authority, and current integration ownership first.
 
-This packet does not itself launch a new Work task. The originating chat URL was
-not exposed to the author; none is fabricated. A controller creating a new formal
-Work task must bind the actual source conversation and the source-authorized
-provider/effort profile through the normal handoff path.
+## Proven now
 
-## Preserve the authorized boundary
+- Existing OpenAI/Codex directives still reach the existing dispatcher with the exact original argument object.
+- Claude requires an explicit provider/surface/role binding and a separate exact execution profile.
+- The exact Claude request is content-bound to the directive digest.
+- Host preflight verifies CLI flags, subscription auth and provider-override absence without inference.
+- Mission Control persists the exact plan-hash preflight before spawn.
+- Direct argv subprocess, bounded stdout collector, private stderr, timeout/abort/process-tree cleanup and sanitized final receipt are implemented.
+- Existing `claude.ai` connectors remain health-visible under strict MCP config; MCP is denied by default unless an exact tool approval is source-bound.
+- Focused suites are green; one unrelated baseline TypeScript UI error remains on unchanged `main`.
 
-Fetch the live default-branch AGENTS.md and applicable instructions. Inspect the
-current integration-owner lock and active work. Use your own branch/worktree and
-writer lease; the supplied lease belongs to the authoring lane, not automatically
-to you. Only the current integrator may reconcile shared runtime/source changes.
+## Next action — only after resource use is authorized
 
-This is Iteration. Preserve GPT's existing dispatcher, actor/source checks,
-spending restrictions, task/epoch/directive hashes and rollback path. Do not merge,
-deploy, restart services, alter OAuth registration or flip canonical routing under
-this packet. Do not grant authority merely because a request says `provider` or
-`expensiveEffortApproved`. Do not add a fake ChatGPT identity to Claude output.
+Run exactly one low/medium-effort Claude subscription acceptance case. It must be bounded and disposable. Verify:
 
-## First: inspect and run the delivered candidate
+1. exact source/task/directive/provider/profile binding;
+2. one new session and exact returned session ID;
+3. client-reported primary model without claiming independent provider attestation;
+4. one explicitly approved read operation;
+5. one operation that must be denied under `dontAsk` / no prompt;
+6. one exact existing MCP tool identity if connector use is part of the selected case;
+7. exact-ID resume under the same directive binding;
+8. cancellation/timeout with all child processes stopped;
+9. sanitized Mission Control receipt, with no prompt/assistant/tool-input/raw-error leakage.
 
-Inspect `compatibility.mjs` and its tests. Use the measured focused command from
-README.md; no paid inference is involved. Confirm changes remain confined to the
-candidate directory and no existing runtime/archive source was rewritten.
+Do not auto-retry, switch model, add API fallback, enable xhigh/max, spawn agents, alter OAuth, or loosen MCP audiences/scopes to rescue a failure.
 
-The pure functions are usable now. Do not describe them as a deployed adapter:
-there is no process launcher, live admission integration, cancellation runner,
-credential provider, or new supervisory actor in the supplied implementation.
+## After the acceptance case
 
-## Next implementation, in the integration owner's isolated lane
+Classify provider/tool/auth failures separately from model quality. If the acceptance case passes, decide whether automatic no-`--directive` Claude autodiscovery is actually needed for the owner migration workflow. Add it only if it removes a real remaining manual integration step; do not make it a new release prerequisite by inference.
 
-1. **Preserve the OpenAI path.** At the current dispatch selection point, route
-   existing directives to the existing handler with the original argument object.
-   The supplied delegation helper demonstrates this invariant. Add a regression
-   at that real dispatch entrypoint; a mock-only pass is not a live compatibility
-   result. Missing/unknown provider values must retain documented legacy behavior
-   or be rejected, not silently become Claude.
-
-2. **Extend admission deliberately.** Add explicit provider/surface/role bindings
-   at the existing authenticated authority boundary. Keep owner-source binding,
-   directive revision/hash and trusted launcher evidence distinct from caller
-   assertions. Do not replace the entire gate or bulk-rename ChatGPT terms. Keep
-   old profile validation intact while adding a separate validated Claude profile.
-   Ordinary setter-only execution must not acquire a new independent-effort-proof
-   prerequisite that the CLI cannot satisfy.
-
-3. **Add a host-controlled transport.** Consume `prepareClaudeCode` using a direct
-   argument-vector subprocess, never a shell string. Inspect CLI version and
-   non-secret authentication status first without invoking inference. Verify
-   subscription authentication and absence of API/provider overrides under the
-   effective child settings/environment; never read or echo token values. Preserve
-   managed restrictions. The current plan deliberately omits bare mode.
-
-   Authorize the exact plan through the existing trusted controller before spawn.
-   Reserve new session IDs and verify persisted task bindings before resume.
-   Stream stdout into `createClaudeCollector`; stderr stays private and bounded.
-   Enforce its wall limit, graceful cancellation and bounded process-tree cleanup.
-   No automatic retry, alternate provider, extra-high effort, parallel agents or
-   API fallback. Confirm all children stop before reporting termination.
-
-4. **Prove permissions and MCP on the real host.** Confirm effective tools and
-   managed policy, server OAuth identity, and read/write controls. CLI built-in
-   restrictions and auto-approval flags are not an MCP authorization proof.
-   Maintain human-only gates for consequential operations; never auto-consent to
-   AskRigor participation or expose desktop-control services publicly.
-
-   For AskRigor, inspect the current server/client allowlist and protocol catalog
-   rather than assume an old tool count or copied XML. Test standard MCP first.
-   Change only an actually incompatible binding, in its own reviewed change.
-   Do not rewrite the server or loosen existing OAuth audiences/scopes.
-
-5. **Use one small real acceptance case only when its resource use is authorized.**
-   Prefer an explicit low/medium-effort subscription profile. Verify one bounded
-   task, its exact session/result, one permitted read, one denied operation,
-   resume and cancellation. Stop a provider failure rather than spending the
-   allowance on retries. Make no model-quality inference from a tool/auth failure.
-
-## Evidence and finish
-
-Keep focused tests for malformed output, foreign session/directive, primary-model
-mismatch, reported-versus-observed effort, missing/duplicate results, permissions,
-cancellation and unchanged GPT dispatch. Full UDA/application release checks belong
-at an actual authorized merge/deploy boundary, not every edit.
-
-Return a compact receipt with exact code revision, changed paths, test commands
-and results, executed versus unexecuted live checks, model/effort evidence level,
-actual observed allowance data (or unavailable), blockers and the next exact action.
-A worker's `completed` report is not supervisory approval or owner-outcome proof.
-
-Stop this packet before shared integration, production switching, paid inference,
-OAuth/account changes or another missing authority boundary. Finish independent
-preparation first. No owner clipboard relay is needed when an authorized current
-internal route can deliver the resulting patch/receipt.
+Merge/deploy/restart/routing-switch work remains outside this packet until explicitly admitted at that boundary. Full repository release gates belong there, not in this Iteration checkpoint.

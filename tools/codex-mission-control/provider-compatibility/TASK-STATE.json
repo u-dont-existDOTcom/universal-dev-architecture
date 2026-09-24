@@ -10,9 +10,9 @@
   },
   "owner_outcome": "Develop isolated Claude compatibility alongside existing projects; preserve GPT behavior and provide executable instructions for remaining work.",
   "parent_outcome_status": "OPEN",
-  "candidate_status": "OFFLINE_CANDIDATE_VERIFIED_NOT_INTEGRATED",
+  "candidate_status": "INTEGRATED_ISOLATED_CANDIDATE_VERIFIED_NO_INFERENCE",
   "source_baseline": "eaeacee9c187d943e036cb7b299388f3094a1e64",
-  "writer_branch": "chat/claude-compatibility-20260923-2251",
+  "writer_branch": "chat/claude-compatibility-integration-20260924-0110",
   "active_contract": [
     {
       "rule": "parallel-chat-write-isolation",
@@ -51,26 +51,42 @@
   },
   "not_executed": [
     "Claude inference",
+    "live MCP tool invocation",
     "MCP OAuth change",
-    "live Mission Control routing",
+    "automatic no-argument Claude autodiscovery",
     "AskRigor production change",
     "merge",
     "deployment"
   ],
-  "remaining_gap": "Trusted runtime integration and resource-authorized live acceptance; full project migration remains unperformed.",
-  "next_action": "Current integrator: consume WORK-INSTRUCTIONS.md, extend real admission and connect a host transport in an isolated lane; no new capability research required.",
+  "remaining_gap": "One resource-authorized real Claude subscription acceptance case, then optional automatic durable-state Claude autodiscovery/producer wiring if needed. Full project migration remains unperformed.",
+  "next_action": "Do not redo implementation. When Claude inference/resource use is explicitly authorized, run one bounded low/medium subscription acceptance covering exact session/result, one approved read, one denied operation, resume, cancellation, and MCP tool identity. Then decide whether automatic no-argument autodiscovery is needed before merge.",
   "lesson_closeout": "Provider-specific auth and evidence semantics retained in this versioned candidate; no new universal rule promoted.",
   "authoring_start_head": "5994b90c75e0ca36372678518ee9bc8e0a184685",
   "stop_admission": {
     "parent_outcome": "OPEN",
-    "delivered_boundary": "Isolated provider contract/CLI plan/receipt code, existing OpenAI mapping, focused tests and executable integration instructions.",
-    "remaining_gap": "Live controller integration, explicit Claude admission, host transport and authorized acceptance.",
-    "reason_to_handoff": "Current owner authorized remaining work instructions; this lane must not mutate the active shared integration/runtime."
+    "delivered_boundary": "Isolated provider-aware runner path, explicit Claude admission/profile, exact plan-hash host preflight, direct subprocess transport, cancellation/process cleanup, sanitized durable receipt, unchanged OpenAI dispatch regression, and real non-inference CLI/MCP health checks.",
+    "remaining_gap": "Any real Claude inference/tool acceptance consumes subscription resources and was explicitly excluded from this iteration; automatic Claude autodiscovery and merge/deploy are also unperformed.",
+    "reason_to_stop": "Reached the packet boundary before resource-consuming inference, shared integration, merge/deploy, or OAuth/account changes."
   },
   "tests": {
-    "count": 42,
-    "passed": 42,
+    "count": 90,
+    "passed": 90,
     "failed": 0,
-    "live_inference_calls": 0
+    "live_inference_calls": 0,
+    "typecheck_candidate_errors": 0,
+    "typecheck_inherited_errors": 1
+  },
+  "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
+  "iteration_outcome_status": "SATISFIED",
+  "real_host_non_inference": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "claude_cli_version": "2.1.281 (Claude Code)",
+    "subscription_route_verified": true,
+    "provider_overrides_present": false,
+    "required_cli_flags_verified": true,
+    "claude_ai_mcp_connected_count": 7,
+    "claude_ai_mcp_needs_auth_count": 1,
+    "strict_empty_mcp_config_preserved_claude_ai_connectors": true,
+    "mcp_tool_invocation_verified": false
   }
 }

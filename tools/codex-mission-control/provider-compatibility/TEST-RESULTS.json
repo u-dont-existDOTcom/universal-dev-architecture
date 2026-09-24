@@ -1,29 +1,62 @@
 {
-  "schema_version": 1,
-  "kind": "OFFLINE_TEST_RECEIPT",
+  "schema_version": 2,
+  "kind": "ITERATION_TEST_RECEIPT",
   "task_id": "claude-compatibility-20260923",
+  "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
   "node_version": "v26.8.1",
-  "command": "node --test tools/codex-mission-control/provider-compatibility/tests/compatibility.test.mjs",
-  "measurement_wrapper": "scripts/test_efficiency.py",
-  "tests": 42,
-  "passed": 42,
-  "failed": 0,
-  "cancelled": 0,
-  "skipped": 0,
-  "exit_code": 0,
-  "node_reported_duration_ms": 780.628861,
-  "observer_reported_test_wall_seconds": 1.46,
-  "forced_redundant_green_reruns": 0,
-  "claude_inference_calls": 0,
-  "cli_version_probe": {
-    "version": "2.1.281",
-    "command": "claude --version",
-    "inference": false,
-    "authentication_verified": false
+  "commands": [
+    {
+      "command": "node --test tools/codex-mission-control/provider-compatibility/tests/*.test.mjs",
+      "tests": 55,
+      "passed": 55,
+      "failed": 0
+    },
+    {
+      "command": "npx tsx --test tests/chat-work-authority-gate.test.ts tests/supervision-admission-runtime.test.ts tests/claude-execution-runtime.test.ts",
+      "tests": 35,
+      "passed": 35,
+      "failed": 0
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "INHERITED_BASELINE_FAILURE_ONLY",
+      "candidate_caused_errors": 0,
+      "inherited_errors": [
+        "components/WorkerDetail.tsx(256,44): TS2366"
+      ],
+      "unchanged_main_blob_verified": true
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "measurement": {
+    "task_elapsed_seconds": 2946.67,
+    "observed_test_seconds": 275.19,
+    "test_share_percent": 9.34,
+    "forced_redundant_green_seconds": 0,
+    "redundant_green_runs_skipped": 0
   },
-  "scope_limit": "Synthetic plan/parser/delegation tests only. Not real CLI inference, MCP access, actual MC dispatch integration or production verification.",
-  "tested_file_sha256": {
-    "compatibility.mjs": "e32e849e821a889f052aa87e595598a6b9d65865d5b33a2e4bc82cc50fc9460a",
-    "tests/compatibility.test.mjs": "e78e6a48aa9f514d63b39f05d2fd6c628018763a645cda8156047ed91274e6c7"
-  }
+  "real_host_non_inference": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "claude_cli_version": "2.1.281 (Claude Code)",
+    "subscription_auth_verified": true,
+    "provider_overrides_present": false,
+    "required_flags_verified": true,
+    "claude_ai_mcp_connected_count": 7,
+    "claude_ai_mcp_needs_auth_count": 1,
+    "strict_empty_config_preserved_connectors": true
+  },
+  "live_inference_calls": 0,
+  "oauth_changes": 0,
+  "deployment_changes": 0,
+  "merge_changes": 0,
+  "model_evidence": "NO_INFERENCE; selection remains source-bound SET_REQUEST_ONLY until a real run returns client-reported model evidence.",
+  "effort_evidence": "NO_INFERENCE; requested effort only.",
+  "limits": [
+    "Current Claude Code 2.1.281 does not expose --max-turns; maxTurns is enforced retrospectively from terminal num_turns. Wall-clock timeout remains a hard host kill.",
+    "MCP connector health is verified without inference; exact MCP tool catalog/read-write behavior is not yet acceptance-tested.",
+    "Automatic no-argument Mission Control discovery still selects the existing Codex path only."
+  ]
 }

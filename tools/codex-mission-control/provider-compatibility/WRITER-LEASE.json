@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "complete",
   "exclusive_writer": true,
   "owned_branch": "chat/claude-compatibility-integration-20260924-0110",
   "integration_branch": "main",
@@ -29,5 +29,7 @@
   "production_switch": false,
   "paid_model_inference": false,
   "claude_inference_during_this_iteration": false,
-  "assurance_lane": "iteration"
+  "assurance_lane": "iteration",
+  "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
+  "closeout": "No-inference integration iteration complete. Branch remains isolated; no merge, deploy, OAuth/account mutation, or Claude inference occurred. Next boundary requires resource-authorized live acceptance."
 }
