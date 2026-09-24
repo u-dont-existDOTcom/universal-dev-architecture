@@ -7,10 +7,16 @@ import { join } from 'node:path';
 
 const FLAGS = ['--print', '--verbose', '--output-format', '--model', '--effort', '--permission-mode',
   '--permission-prompts', '--restricted', '--disable-slash-commands', '--no-chrome', '--strict-mcp-config',
-  '--mcp-config', '--tools', '--disallowedTools', '--json-schema'];
+  '--mcp-config', '--tools', '--disallowedTools', '--json-schema', '--settings'];
 const args = process.argv.slice(2);
 if (args[0] === '--version') { console.log('2.1.281 (Claude Code)'); process.exit(0); }
 if (args[0] === '--help') { console.log(FLAGS.join(' ')); process.exit(0); }
+if (args[0] === 'mcp' && args[1] === 'list') {
+  console.log('Checking MCP server health…\n\nclaude.ai Railway: https://mcp.example.invalid/railway - ✔ Connected\n'
+    + 'claude.ai Gmail: https://mcp.example.invalid/gmail - ✔ Connected\n'
+    + 'claude.ai Google Calendar: https://mcp.example.invalid/gcal - ! Needs authentication');
+  process.exit(0);
+}
 if (args[0] === 'auth' && args[1] === 'status') {
   console.log(JSON.stringify({ loggedIn: true, authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' }));
   process.exit(0);
@@ -27,9 +33,13 @@ const allowIndex = args.indexOf('--allowedTools');
 const allowed = allowIndex === -1 ? [] : args.slice(allowIndex + 1).filter((a) => !a.startsWith('--'));
 const disallowed = (value('--disallowedTools') ?? '').split(',');
 const stateDir = process.env.FAKE_CLAUDE_STATE_DIR;
-// Mirrors live 2.1.281 behavior: --strict-mcp-config hides the account's claude.ai connectors.
-const mcpVisible = disallowed.includes('mcp__*') || args.includes('--strict-mcp-config')
-  ? [] : ['mcp__claude_ai_Railway__whoami', 'mcp__claude_ai_Gmail__search_threads'];
+// Mirrors live 2.1.281 behavior: --strict-mcp-config hides the account's claude.ai connectors;
+// --settings deniedMcpServers keeps the named servers out of the session.
+const CONNECTOR_TOOLS = { 'claude.ai Railway': ['mcp__claude_ai_Railway__whoami', 'mcp__claude_ai_Railway__list-projects'],
+  'claude.ai Gmail': ['mcp__claude_ai_Gmail__search_threads'] };
+const deniedServers = new Set((JSON.parse(value('--settings') ?? '{}').deniedMcpServers ?? []).map((entry) => entry.serverName));
+const mcpVisible = disallowed.includes('mcp__*') || args.includes('--strict-mcp-config') ? []
+  : Object.entries(CONNECTOR_TOOLS).filter(([server]) => !deniedServers.has(server)).flatMap(([, tools]) => tools);
 const out = (event) => process.stdout.write(`${JSON.stringify({ session_id: sid, ...event })}\n`);
 
 let prompt = '';
@@ -42,7 +52,7 @@ function run() {
     process.exit(1);
   }
   out({ type: 'system', subtype: 'init', model, tools: [...tools, ...mcpVisible],
-    mcp_servers: mcpVisible.length ? [{ name: 'claude.ai Railway', status: 'connected' }] : [],
+    mcp_servers: mcpVisible.length ? Object.keys(CONNECTOR_TOOLS).filter((name) => !deniedServers.has(name)).map((name) => ({ name, status: 'connected' })) : [],
     permissionMode: value('--permission-mode') });
   const binding = JSON.parse(prompt.match(/binding (\{.*?\})\. Report/)[1]);
   const runId = JSON.parse(prompt.match(/runId ("[^"]+")/)[1]);

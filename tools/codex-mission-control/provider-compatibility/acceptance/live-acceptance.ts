@@ -272,7 +272,8 @@ async function runOnce(mc: StoreBackedMissionControl, directive: Json, objective
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const code = (message.match(/^[A-Z0-9_:,.-]+/)?.[0] ?? "UNCLASSIFIED_ERROR").slice(0, 120);
-    const stage = /^CLAUDE_(PROVIDER_OVERRIDE|SUBSCRIPTION_AUTH|CLI_|AUTH_STATUS|PREFLIGHT)/.test(code) ? "HOST_PREFLIGHT"
+    const stage = /^CLAUDE_MCP_/.test(code) ? "CONNECTOR_OR_AUTH_NOT_MODEL"
+      : /^CLAUDE_(PROVIDER_OVERRIDE|SUBSCRIPTION_AUTH|CLI_|AUTH_STATUS|PREFLIGHT)/.test(code) ? "HOST_PREFLIGHT"
       : /ADMISSION|NOT_ADMITTED|BINDING|PROFILE|PREFLIGHT_REJECTED|DIRECTIVE/.test(code) ? "AUTHORITY_BINDING"
       : /SPAWN|PROCESS_TREE/.test(code) ? "TRANSPORT" : "HARNESS";
     failure = { stage, code };
@@ -379,9 +380,12 @@ async function main() {
       const visible = a.tap.visibleMcpTools.includes(mcpTool);
       const use = a.tap.toolUses.find((t) => t.name === mcpTool);
       const other = a.tap.toolUses.filter((t) => t.name.startsWith("mcp__") && t.name !== mcpTool).map((t) => t.name);
+      // Cost control: only the approved connector's tools may enter the session.
+      const serverPrefix = mcpTool.match(/^(mcp__.+?__)/)?.[1] ?? mcpTool;
+      const foreign = a.tap.visibleMcpTools.filter((t) => !t.startsWith(serverPrefix));
       checks.mcpExactTool = {
-        status: visible && use?.ok === true && other.length === 0 ? "PASS" : "FAIL",
-        detail: `exact tool ${mcpTool}: visible=${visible} invoked=${!!use} ok=${use?.ok ?? null}; other MCP tools invoked=${JSON.stringify(other)}; visible MCP tool count=${a.tap.visibleMcpTools.length}; servers=${JSON.stringify(a.tap.mcpServers)}`,
+        status: visible && use?.ok === true && other.length === 0 && foreign.length === 0 ? "PASS" : "FAIL",
+        detail: `exact tool ${mcpTool}: visible=${visible} invoked=${!!use} ok=${use?.ok ?? null}; other MCP tools invoked=${JSON.stringify(other)}; visible MCP tool count=${a.tap.visibleMcpTools.length} (outside approved connector: ${foreign.length}); servers=${JSON.stringify(a.tap.mcpServers)}`,
         ...(!visible ? { classification: "CONNECTOR_OR_AUTH_NOT_MODEL" } : {}),
       };
       if (!visible) runs.A.visibleMcpToolNames = a.tap.visibleMcpTools;
@@ -464,7 +468,8 @@ function summarizeRun(run: { receipt: Json | null; failure: Json | null; tap: Js
     modelEvidence: r?.modelEvidence ?? null, effortEvidence: r?.effortEvidence ?? null, permissionDenials: r?.permissionDenials ?? null,
     usage: r?.usage ?? null, termination: r?.termination ?? null, cliVersion: r?.hostEvidence?.cliVersion ?? null,
     hostEvidence: r?.hostEvidence ? { evidenceId: r.hostEvidence.evidenceId, planSha256: r.hostEvidence.planSha256,
-      stderrBytes: r.hostEvidence.stderrBytes, processTreeStopped: r.hostEvidence.processTreeStopped, aborted: r.hostEvidence.aborted } : null,
+      stderrBytes: r.hostEvidence.stderrBytes, processTreeStopped: r.hostEvidence.processTreeStopped, aborted: r.hostEvidence.aborted,
+      mcpNarrowing: r.hostEvidence.mcpNarrowing ?? null } : null,
     missionControlLifecycle: r?.missionControlLifecycle ?? null,
     toolNamesUsed: run.tap.toolUses.map((t: Json) => `${t.name}:${t.ok === null ? "no-result" : t.ok ? "ok" : "error"}`),
     deniedToolNames: run.tap.deniedTools,

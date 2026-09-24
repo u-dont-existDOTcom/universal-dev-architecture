@@ -36,6 +36,9 @@ test('harness accepts a well-behaved CLI through the real admission, preflight a
   assert.equal(receipt.runs.A.providerSessionId, receipt.runs.B.providerSessionId);
   assert.equal(receipt.runs.B.directive.revision, 2);
   assert.equal(receipt.runs.C.status, 'INTERRUPTED');
+  // Only the approved connector reaches the session: Gmail and Calendar are denied at preflight.
+  assert.deepEqual(receipt.runs.A.hostEvidence.mcpNarrowing, { approvedServers: ['claude.ai Railway'], deniedServerCount: 2 });
+  assert.match(receipt.checks.mcpExactTool.detail, /visible MCP tool count=2 \(outside approved connector: 0\)/);
   for (const secret of ['PRIVATE_ASSISTANT_TEXT', 'PRIVATE_REPORT_SUMMARY', 'SECRET_TOOL_RESULT', 'SECRET_THINKING', 'nonce-', 'ACCEPTANCE_RUN']) {
     assert.ok(!receiptText.includes(secret), `receipt leaked ${secret}`);
     assert.ok(!eventsText.includes(secret), `events leaked ${secret}`);
@@ -52,10 +55,10 @@ test('harness classifies a provider-override host as a preflight failure, not a 
   assert.equal(receipt.runs.C.failure.stage, 'HOST_PREFLIGHT');
 });
 
-test('a missing exact MCP tool is classified as connector/auth, not model quality', { skip }, async () => {
+test('a missing approved connector fails closed at preflight as connector/auth, not model quality', { skip }, async () => {
   const { receipt } = await runHarness({}, ['--mcp-tool', 'mcp__claude_ai_Absent__tool']);
-  assert.equal(receipt.checks.mcpExactTool.status, 'FAIL');
-  assert.equal(receipt.checks.mcpExactTool.classification, 'CONNECTOR_OR_AUTH_NOT_MODEL');
-  assert.ok(receipt.runs.A.visibleMcpToolNames.includes('mcp__claude_ai_Railway__whoami'));
-  assert.equal(receipt.checks.approvedRead.status, 'PASS');
+  assert.equal(receipt.verdict, 'NOT_ACCEPTED');
+  assert.equal(receipt.checks.hostAndBinding.classification, 'CONNECTOR_OR_AUTH_NOT_MODEL');
+  assert.match(receipt.checks.hostAndBinding.detail, /CLAUDE_MCP_APPROVED_SERVER_UNAVAILABLE/);
+  assert.equal(receipt.runs.C.status, 'INTERRUPTED');
 });

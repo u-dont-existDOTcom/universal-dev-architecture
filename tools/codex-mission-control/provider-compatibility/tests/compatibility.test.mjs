@@ -156,6 +156,17 @@ test('existing Claude.ai connectors stay denied by default but can be source-bou
   assert.ok(!p.argv.includes('--strict-mcp-config'));
   assert.equal(p.argv[p.argv.indexOf('--permission-mode') + 1], 'dontAsk');
   assert.deepEqual(JSON.parse(p.argv[p.argv.indexOf('--mcp-config') + 1]), { mcpServers: {} });
+  assert.ok(!p.argv.includes('--settings'));
+  p = prepareClaudeCode(r, { deniedMcpServerNames: ['claude.ai Gmail', 'claude.ai Desktop Commander'] });
+  assert.deepEqual(JSON.parse(p.argv[p.argv.indexOf('--settings') + 1]),
+    { deniedMcpServers: [{ serverName: 'claude.ai Desktop Commander' }, { serverName: 'claude.ai Gmail' }] });
+  assert.equal(p.argv.at(-2), '--allowedTools');
+  const unapproved = prepareClaudeCode(request(), { deniedMcpServerNames: ['claude.ai Gmail'] });
+  assert.ok(!unapproved.argv.includes('--settings')); assert.ok(unapproved.argv.includes('--strict-mcp-config'));
+  for (const bad of [[''], [' padded '], ['a\nb'], ['dup', 'dup'], 'not-an-array']) {
+    assert.throws(() => prepareClaudeCode(r, { deniedMcpServerNames: bad }), { code: 'INVALID_MCP_DENY_LIST' });
+  }
+  assert.throws(() => prepareClaudeCode(r, { other: true }), { code: 'UNKNOWN_FIELD' });
 });
 
 test('remote MCP config remains standard HTTP with explicit OAuth, no embedded secrets', () => {

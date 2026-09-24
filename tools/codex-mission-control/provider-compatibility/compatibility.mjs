@@ -179,9 +179,32 @@ export function validateWorkerReport(value, request) {
   return freeze(structuredClone(value));
 }
 
-/** Produces argv, never a shell string. The prompt stays in stdin, not process argv. */
-export function prepareClaudeCode(request) {
+/** Tool-name prefix Claude Code gives a server's tools, e.g. "claude.ai Railway" -> "mcp__claude_ai_Railway__". */
+export function mcpServerToolPrefix(serverName) {
+  return `mcp__${String(serverName).replace(/[^A-Za-z0-9_-]/g, '_')}__`;
+}
+export function approvedMcpRules(request) {
+  return validateRequest(request).access.autoApprove.filter((rule) => rule.startsWith('mcp__'));
+}
+/** True when an approval rule targets the given server (whole-server rule or one of its tools). */
+export function mcpRuleTargetsServer(rule, serverName) {
+  const prefix = mcpServerToolPrefix(serverName);
+  return rule === prefix.slice(0, -2) || rule.startsWith(prefix);
+}
+
+/**
+ * Produces argv, never a shell string. The prompt stays in stdin, not process argv.
+ * hostContext.deniedMcpServerNames comes from the trusted host preflight: every configured MCP
+ * server except the ones an exact approval needs, so unrelated connectors never enter the session.
+ */
+export function prepareClaudeCode(request, hostContext = {}) {
   const r = validateRequest(request);
+  keys(hostContext, [], ['deniedMcpServerNames']);
+  const deniedServers = hostContext.deniedMcpServerNames ?? [];
+  check(Array.isArray(deniedServers) && deniedServers.length <= 200
+    && deniedServers.every((name) => typeof name === 'string' && name === name.trim()
+      && /^[^\r\n\0]{1,200}$/.test(name))
+    && new Set(deniedServers).size === deniedServers.length, 'INVALID_MCP_DENY_LIST');
   const deny = ['Agent', 'Task', 'Skill'];
   const explicitMcpApproval = r.access.autoApprove.some((rule) => rule.startsWith('mcp__'));
   if (Object.keys(r.access.mcpServers).length === 0 && !explicitMcpApproval) deny.push('mcp__*');
@@ -189,6 +212,12 @@ export function prepareClaudeCode(request) {
   // claude.ai connectors from the session. Keep strict isolation by default; drop it only when the
   // source-bound request approves an exact MCP tool. Under dontAsk every other tool stays denied.
   const mcpIsolation = explicitMcpApproval ? [] : ['--strict-mcp-config'];
+  // Lifting strict isolation exposed all 168 connector tools and raised a run's usage ~16x in live
+  // acceptance. deniedMcpServers (honoured from --settings, matches claude.ai connectors by display
+  // name) keeps every server except the approved one out of the session.
+  const connectorNarrowing = explicitMcpApproval && deniedServers.length
+    ? ['--settings', JSON.stringify({ deniedMcpServers: [...deniedServers].sort().map((serverName) => ({ serverName })) })]
+    : [];
   const argv = ['--print', '--verbose', '--output-format', 'stream-json',
     '--model', r.selection.model, '--effort', r.selection.effort,
     r.session.mode === 'new' ? '--session-id' : '--resume', r.session.id,
@@ -196,6 +225,7 @@ export function prepareClaudeCode(request) {
     '--permission-prompts', 'none', '--restricted', '--disable-slash-commands', '--no-chrome',
     ...mcpIsolation, '--mcp-config', JSON.stringify({ mcpServers: r.access.mcpServers }),
     '--tools', r.access.builtInTools.join(','), '--disallowedTools', deny.join(','),
+    ...connectorNarrowing,
     '--json-schema', JSON.stringify(WORKER_REPORT_SCHEMA)];
   if (r.access.autoApprove.length) argv.push('--allowedTools', ...r.access.autoApprove);
   return freeze({

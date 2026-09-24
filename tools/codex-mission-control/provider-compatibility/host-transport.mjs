@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { createClaudeCollector, prepareClaudeCode, validateRequest } from './compatibility.mjs';
+import {
+  approvedMcpRules, createClaudeCollector, mcpRuleTargetsServer, prepareClaudeCode, validateRequest,
+} from './compatibility.mjs';
 
 const verifiedPreflights = new WeakMap();
 const PROVIDER_OVERRIDE_KEYS = Object.freeze([
@@ -10,8 +12,50 @@ const PROVIDER_OVERRIDE_KEYS = Object.freeze([
 const REQUIRED_CLI_FLAGS = Object.freeze([
   '--print', '--verbose', '--output-format', '--model', '--effort', '--permission-mode',
   '--permission-prompts', '--restricted', '--disable-slash-commands', '--no-chrome',
-  '--strict-mcp-config', '--mcp-config', '--tools', '--disallowedTools', '--json-schema',
+  '--strict-mcp-config', '--mcp-config', '--tools', '--disallowedTools', '--json-schema', '--settings',
 ]);
+
+/** Parses `claude mcp list` lines such as "claude.ai Railway: https://… - ✔ Connected". Names and state only. */
+export function parseMcpServerInventory(stdout) {
+  const servers = [];
+  for (const line of String(stdout).split(/\r?\n/)) {
+    const match = line.match(/^(.+?): (\S.*) - (.+)$/);
+    if (!match) continue;
+    const name = match[1].trim();
+    const state = match[3].trim();
+    if (!name || servers.some((server) => server.name === name)) continue;
+    servers.push({ name, connected: /\bconnected\b/i.test(state) && !/needs|fail|error|disconnected/i.test(state) });
+  }
+  return servers;
+}
+
+/**
+ * For an exact MCP approval, deny every configured server except the one(s) the approval needs.
+ * Fails closed when the approved server is absent or not connected (connector/auth route, not model).
+ */
+async function connectorNarrowingFor(request, claudeBinary, environment, spawnImpl) {
+  const rules = approvedMcpRules(request);
+  if (!rules.length) return { hostContext: {}, narrowing: null };
+  const inventory = await capture(claudeBinary, ['mcp', 'list'], request.workspace, environment, 120_000, spawnImpl);
+  if (inventory.exitCode !== 0) throw new Error('CLAUDE_MCP_INVENTORY_UNAVAILABLE');
+  const servers = parseMcpServerInventory(inventory.stdout);
+  const custom = Object.keys(request.access.mcpServers);
+  const approved = new Set();
+  for (const rule of rules) {
+    const listed = servers.filter((server) => mcpRuleTargetsServer(rule, server.name));
+    const viaCustom = custom.some((name) => mcpRuleTargetsServer(rule, name));
+    if (!listed.length && !viaCustom) throw new Error('CLAUDE_MCP_APPROVED_SERVER_UNAVAILABLE');
+    for (const server of listed) {
+      if (!server.connected) throw new Error('CLAUDE_MCP_APPROVED_SERVER_NOT_CONNECTED');
+      approved.add(server.name);
+    }
+  }
+  const denied = servers.map((server) => server.name).filter((name) => !approved.has(name) && !custom.includes(name));
+  return {
+    hostContext: { deniedMcpServerNames: denied },
+    narrowing: Object.freeze({ approvedServers: [...approved].sort(), deniedServerCount: denied.length }),
+  };
+}
 
 export function claudeProfileForRequest(input) {
   const request = validateRequest(input);
@@ -39,7 +83,6 @@ export async function inspectClaudeHost({
   spawnImpl = spawn,
 }) {
   const request = validateRequest(input);
-  const plan = prepareClaudeCode(request);
   assertClaudeAdmission({ request, admissionInput, admission });
   const overrides = PROVIDER_OVERRIDE_KEYS.filter((key) => environment[key] !== undefined && environment[key] !== '');
   if (overrides.length) throw new Error(`CLAUDE_PROVIDER_OVERRIDE_PRESENT:${overrides.sort().join(',')}`);
@@ -52,9 +95,6 @@ export async function inspectClaudeHost({
   if (help.exitCode !== 0 || REQUIRED_CLI_FLAGS.some((flag) => !help.stdout.includes(flag))) {
     throw new Error('CLAUDE_CLI_FLAG_CONTRACT_UNVERIFIED');
   }
-  for (const arg of plan.argv) {
-    if (arg === '--max-turns') throw new Error('CLAUDE_UNSUPPORTED_MAX_TURNS_FLAG');
-  }
   const auth = await capture(claudeBinary, ['auth', 'status', '--json'], request.workspace, environment, 20_000, spawnImpl);
   if (auth.exitCode !== 0) throw new Error('CLAUDE_SUBSCRIPTION_AUTH_UNVERIFIED');
   let parsed;
@@ -62,6 +102,12 @@ export async function inspectClaudeHost({
   if (parsed?.loggedIn !== true || parsed?.authMethod !== 'claude.ai' || parsed?.apiProvider !== 'firstParty'
     || typeof parsed?.subscriptionType !== 'string' || !parsed.subscriptionType.trim()) {
     throw new Error('CLAUDE_SUBSCRIPTION_AUTH_UNVERIFIED');
+  }
+  // The plan (and therefore its bound hash) includes the host-derived connector deny list.
+  const { hostContext, narrowing } = await connectorNarrowingFor(request, claudeBinary, environment, spawnImpl);
+  const plan = prepareClaudeCode(request, hostContext);
+  for (const arg of plan.argv) {
+    if (arg === '--max-turns') throw new Error('CLAUDE_UNSUPPORTED_MAX_TURNS_FLAG');
   }
 
   const profile = claudeProfileForRequest(request);
@@ -86,8 +132,8 @@ export async function inspectClaudeHost({
     subscriptionRouteVerified: true, providerOverridesPresent: false,
     requiredFlagsVerified: true, modelSetter: request.selection.model, effortSetter: request.selection.effort,
   });
-  const publicPreflight = Object.freeze({ plan, evidence, authorizationId });
-  verifiedPreflights.set(publicPreflight, { request, plan, claudeBinary, environment: scrubProviderOverrides(environment), spawnImpl });
+  const publicPreflight = Object.freeze({ plan, evidence, authorizationId, mcpNarrowing: narrowing });
+  verifiedPreflights.set(publicPreflight, { request, plan, claudeBinary, environment: scrubProviderOverrides(environment), spawnImpl, narrowing });
   return publicPreflight;
 }
 
@@ -95,7 +141,7 @@ export async function runClaudeTransport(preflight, { signal = null, killGraceMs
   const internal = verifiedPreflights.get(preflight);
   if (!internal) throw new Error('TRUSTED_CLAUDE_HOST_PREFLIGHT_REQUIRED');
   verifiedPreflights.delete(preflight);
-  const { request, plan, claudeBinary, environment, spawnImpl } = internal;
+  const { request, plan, claudeBinary, environment, spawnImpl, narrowing } = internal;
   const collector = createClaudeCollector(request);
   let child;
   try {
@@ -153,7 +199,7 @@ export async function runClaudeTransport(preflight, { signal = null, killGraceMs
       providerOverridesPresent: false,
       requiredFlagsVerified: true,
       stderrBytes: Math.min(stderrBytes, Number.MAX_SAFE_INTEGER), stderrTruncated,
-      processTreeStopped: true, aborted,
+      processTreeStopped: true, aborted, mcpNarrowing: narrowing,
     }),
   });
 }

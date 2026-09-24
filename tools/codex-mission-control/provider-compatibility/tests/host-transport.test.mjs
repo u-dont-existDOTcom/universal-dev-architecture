@@ -57,7 +57,8 @@ async function fixture({ hang = false, turns = 2 } = {}) {
   const source = `#!/usr/bin/env node\n` +
 `const args=process.argv.slice(2);\n` +
 `if(args[0]==='--version'){console.log('2.1.281 (Claude Code)');process.exit(0)}\n` +
-`if(args[0]==='--help'){console.log('${['--print','--verbose','--output-format','--model','--effort','--permission-mode','--permission-prompts','--restricted','--disable-slash-commands','--no-chrome','--strict-mcp-config','--mcp-config','--tools','--disallowedTools','--json-schema'].join(' ')}');process.exit(0)}\n` +
+`if(args[0]==='--help'){console.log('${['--print','--verbose','--output-format','--model','--effort','--permission-mode','--permission-prompts','--restricted','--disable-slash-commands','--no-chrome','--strict-mcp-config','--mcp-config','--tools','--disallowedTools','--json-schema','--settings'].join(' ')}');process.exit(0)}\n` +
+`if(args[0]==='mcp'&&args[1]==='list'){console.log('Checking MCP server health…\\n\\nclaude.ai Railway: https://mcp.example.invalid/railway - ✔ Connected\\nclaude.ai Gmail: https://mcp.example.invalid/gmail - ✔ Connected\\nclaude.ai Google Calendar: https://mcp.example.invalid/gcal - ! Needs authentication');process.exit(0)}\n` +
 `if(args[0]==='auth'&&args[1]==='status'){console.log(JSON.stringify({loggedIn:true,authMethod:'claude.ai',apiProvider:'firstParty',subscriptionType:'max'}));process.exit(0)}\n` +
 `if(process.env.ANTHROPIC_API_KEY||process.env.ANTHROPIC_BASE_URL||process.env.CLAUDE_CODE_USE_BEDROCK||process.env.CLAUDE_CODE_USE_VERTEX){process.exit(72)}\n` +
 `if(process.env.FAKE_CLAUDE_HANG==='1'){setInterval(()=>{},1000)}else{let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const sid=args[args.indexOf('--session-id')+1];const model=args[args.indexOf('--model')+1];const report=JSON.parse(process.env.FAKE_CLAUDE_REPORT);console.log(JSON.stringify({type:'system',subtype:'init',session_id:sid,model}));console.log(JSON.stringify({type:'assistant',session_id:sid,message:{model,content:[]}}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,session_id:sid,structured_output:report,num_turns:Number(process.env.FAKE_CLAUDE_TURNS||2),permission_denials:[]}));})}\n`;
@@ -153,4 +154,29 @@ test('Mission Control preflight rejection stops before Claude execution', async 
   await assert.rejects(() => dispatchClaudeMissionControlExecution({ worker: 'worker-claude-test',
     admissionInput: f.admissionInput, request: f.request, missionControl,
     claudeBinary: f.binary, environment: f.env }), /CLAUDE_EXECUTION_PREFLIGHT_REJECTED/);
+});
+
+test('an exact connector approval denies every other configured server and binds the deny list into the plan', async () => {
+  const f = await fixture();
+  f.request.access.autoApprove = ['mcp__claude_ai_Railway__whoami'];
+  const { admissionInput, admission } = admissionFor(f.request);
+  const preflight = await inspectClaudeHost({ request: f.request, admissionInput, admission, claudeBinary: f.binary, environment: f.env });
+  const argv = preflight.plan.argv;
+  assert.ok(!argv.includes('--strict-mcp-config'));
+  const settings = JSON.parse(argv[argv.indexOf('--settings') + 1]);
+  assert.deepEqual(settings, { deniedMcpServers: [{ serverName: 'claude.ai Gmail' }, { serverName: 'claude.ai Google Calendar' }] });
+  assert.deepEqual(preflight.mcpNarrowing, { approvedServers: ['claude.ai Railway'], deniedServerCount: 2 });
+  const plain = await inspectClaudeHost({ request: baseRequest(f.request.workspace), ...admissionFor(baseRequest(f.request.workspace)), claudeBinary: f.binary, environment: f.env });
+  assert.notEqual(preflight.evidence.planSha256, plain.evidence.planSha256);
+  assert.ok(!plain.plan.argv.includes('--settings')); assert.ok(plain.plan.argv.includes('--strict-mcp-config'));
+});
+
+test('an approved connector that is missing or needs sign-in fails closed before launch', async () => {
+  const f = await fixture();
+  for (const [tool, code] of [['mcp__claude_ai_Absent__read', /CLAUDE_MCP_APPROVED_SERVER_UNAVAILABLE/],
+    ['mcp__claude_ai_Google_Calendar__list_events', /CLAUDE_MCP_APPROVED_SERVER_NOT_CONNECTED/]]) {
+    f.request.access.autoApprove = [tool];
+    const { admissionInput, admission } = admissionFor(f.request);
+    await assert.rejects(() => inspectClaudeHost({ request: f.request, admissionInput, admission, claudeBinary: f.binary, environment: f.env }), code);
+  }
 });
