@@ -13,8 +13,15 @@
     "tools/codex-mission-control/provider-compatibility/**",
     "tools/codex-mission-control/restored/codex-mission-control/scripts/run-codex-execution.mjs",
     "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-profile.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/**/tests/**"
+    "tools/codex-mission-control/restored/codex-mission-control/lib/claude-execution-profile.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/claude-execution-runtime.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/supervision-admission-runtime.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-runtime.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/**/tests/**",
+    "tools/codex-mission-control/vps-browser-relay/src/codex-exec-candidate.mjs",
+    "tools/codex-mission-control/vps-browser-relay/test/codex-exec-candidate.test.mjs"
   ],
   "shared_runtime_write": false,
   "production_switch": false,
