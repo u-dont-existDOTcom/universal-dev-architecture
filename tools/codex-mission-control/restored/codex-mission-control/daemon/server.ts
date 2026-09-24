@@ -28,6 +28,7 @@ import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runti
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
 import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
@@ -93,6 +94,16 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet watch reads require owner or supervisor scope." });
       return json(response, 200, { defaultCadenceMs: 3_600_000, watches: store.fleetSupervisorWatches() });
+    }
+    const fleetEnrollMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/enroll$/);
+    if (request.method === "POST" && fleetEnrollMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may enroll a fleet watch." });
+      const enrollment = parseFleetWatchEnrollment(await readJson(request));
+      if (typeof enrollment === "string") return json(response, 400, { error: enrollment });
+      const result = enrollFleetSupervisorWatch(store, decodeURIComponent(fleetEnrollMatch[1]), enrollment);
+      notifications.emit("event", { type: "fleet_supervisor_watch_configured", projectId: result.watch.projectId });
+      return json(response, result.created ? 201 : 200, result);
     }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);
     if (request.method === "POST" && fleetWatchMatch) {

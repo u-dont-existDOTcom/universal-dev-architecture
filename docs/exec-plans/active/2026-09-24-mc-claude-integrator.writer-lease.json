@@ -23,6 +23,6 @@
     "askrigor_watch": "Live /snapshot (primary daemon, 17:40Z) lists all fleet watches unfiltered: only project:human-design and project:mission-control. No AskRigor watch ever existed centrally; the earlier 'hourly watch re-enabled' checkpoint most likely referred to the external hourly fallback. The daemon mutation can only reconfigure an existing watch.",
     "askrigor_project_identity": "No project:askrigor (or any AskRigor project id) exists in central state; only task:askrigor-system-alignment. Watches are enrolled only by work_queue_published with nonterminal items, which AskRigor never published centrally.",
     "classifier_consequence": "Worker askrigor-system-alignment projects progress.outcomeAdvancement=UNKNOWN, so classifyFleetSupervisorTick returns PROJECT_INTEGRITY_FAILURE (stop + notify owner) before the WORKER_DIRECTIVE_CONTINUITY_GAP branch. An enrolled watch would therefore not route A19-A20 to mc-project-manager as the handoff expected.",
-    "status": "Owner decision needed on how AskRigor obtains its A19-A20 directive; see the Claude session report."
+    "status": "Owner confirmed project id project:askrigor (2026-09-24 18:32Z) and asked to enroll it. Owner-authorized enrollment added (daemon POST /fleet-supervisor/:projectId/enroll + owner BFF route); it binds only an existing worker/task from the ledger. Enrollment itself is a live owner action, not yet performed. A standing agent-usable owner-action tool was proposed but not built: this session's safety check requires the owner's explicit approval for it."
   }
 }
