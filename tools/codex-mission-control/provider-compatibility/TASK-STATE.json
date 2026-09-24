@@ -70,13 +70,22 @@
     "reason_to_stop": "Access boundary: no shell on any Claude-authenticated owner host; the reachable cloud workspace is correctly refused by the adapter and its credential route may not be probed."
   },
   "tests": {
-    "count": 94,
-    "passed": 94,
+    "count": 230,
+    "passed": 230,
     "failed": 0,
     "node": 59,
-    "typescript": 35,
+    "typescript": 171,
+    "typescript_suites": [
+      "claude-execution-runtime",
+      "chat-work-authority-gate",
+      "supervision-admission-runtime",
+      "mission-control",
+      "work-execution-profile",
+      "codex-exec-authority-integration",
+      "chatgpt-work-cloud-dispatch"
+    ],
     "live_inference_calls": 0,
-    "typecheck": "not rerun; no TypeScript source changed in this lane"
+    "typecheck": "INHERITED_BASELINE_FAILURE_ONLY components/WorkerDetail.tsx(256,44) TS2366"
   },
   "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
   "iteration_outcome_status": "SATISFIED_FOR_REACHABLE_SCOPE",
@@ -101,7 +110,8 @@
   "continuation_commits": {
     "resume_lineage_fix_and_hermetic_tests": "96e0540",
     "live_acceptance_harness": "7a9eaa6",
-    "app_claude_md_shadowing_fix": "b2e27dc"
+    "app_claude_md_shadowing_fix": "b2e27dc",
+    "post_review_fixes": "see git log after ee66044"
   },
   "live_acceptance": {
     "status": "NOT_RUN",
@@ -115,5 +125,17 @@
     "trigger": "Owner chooses Claude as an automatic executor surface after live acceptance passes.",
     "reference_design": "task/claude-compatibility-chat-20260924-0045 @ 3992f93 (closed parallel lane, not merged)"
   },
-  "migration_assessment": "MIGRATION-ASSESSMENT.md"
+  "migration_assessment": "MIGRATION-ASSESSMENT.md",
+  "independent_review": {
+    "reviewer": "separate agent without author context",
+    "verdict": "CONCERNS",
+    "resolved": [
+      "HIGH: lineage rule required the same directive id, but the store records each directive id once per worker, so resume could not be recorded; the rule now allows a new directive id and the harness uses the real store.",
+      "Store directive invariant ignored Claude receipts; fixed with regression test."
+    ],
+    "accepted_limits": [
+      "Resumed session id is not verified against a recorded previous run (declared host check not implemented).",
+      "Directives are not single-use; concurrent admissions of the same active directive are possible."
+    ]
+  }
 }

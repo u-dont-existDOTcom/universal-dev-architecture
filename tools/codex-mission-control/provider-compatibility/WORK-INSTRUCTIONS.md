@@ -10,6 +10,7 @@ Done here without inference:
 - **Hermetic host-transport tests** (commit `96e0540`).
 - **One-command live acceptance harness** with an offline self-test (commit `7a9eaa6`).
 - **Removal of the app `CLAUDE.md`,** which hid the root/tools `AGENTS.md` chain from Claude (commit `b2e27dc`).
+- **Post-review fixes.** The resume lineage no longer requires the same directive ID, because the store records each ID once. Store directive invariants now cover Claude receipts. The harness runs on the real `EventStore`.
 - **Autodiscovery decision** (not added) and **migration assessment:** `MIGRATION-ASSESSMENT.md`.
 
 Do **not** redo the adapter, the admission design, the audit, or the assessment.
@@ -35,7 +36,7 @@ The command makes three bound runs, each exactly once, on a disposable temp work
 - **B (resume, directive revision 2):** the same session ID, with no tools, must recall the nonce.
 - **C (cancellation):** aborted 1.5 s after session start; the process group and any process carrying the session ID must be gone.
 
-Every run passes the real Mission Control authority code:
+Before each directive the harness records a fresh reasoning review, which the store requires after any execution receipt. Every run passes the real Mission Control authority code and store:
 
 1. owner-source-bound directive;
 2. admission;

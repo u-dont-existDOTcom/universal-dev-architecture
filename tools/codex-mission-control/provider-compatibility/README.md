@@ -6,9 +6,11 @@ Implementation checkpoint: `1b14c87b876aeb9c0c41c0e4966575d3c7f3582c` on `chat/c
 
 Continuation (`chat/claude-acceptance-resume-20260924-0305`):
 
-- **Exact-ID resume is now dispatchable.** Before this fix it never was. Resume requires the same task and directive at a strictly newer revision, with the exact previous binding inside the newly authorized bytes.
+- **Exact-ID resume is now dispatchable.** Before this fix it never was. Resume requires the same task at a strictly newer revision, with the exact previous binding inside the newly authorized bytes. The directive id may change, because Mission Control records each directive id once per worker.
+- **The Mission Control store now treats a Claude execution receipt like Codex and Work receipts:** the next directive requires a later reasoning review. Before this, the Claude route skipped that invariant.
 - **The host-transport tests are hermetic.**
-- **`acceptance/live-acceptance.ts`** runs the full live acceptance with one command on the Claude-authenticated host.
+- **`acceptance/live-acceptance.ts`** runs the full live acceptance with one command on the Claude-authenticated host. It uses the real in-memory `EventStore`, so store invariants apply.
+- **Known limits, not new gates:** Mission Control does not yet verify that a resumed session ID was recorded under the previous binding (`SESSION_ID_RESERVATION_OR_TRUSTED_RESUME_BINDING` is declared but not implemented), and a directive is not single-use. The owner-source-bound directive author remains the control.
 - **The app `CLAUDE.md` is gone.** It hid the root `AGENTS.md` chain from Claude sessions started inside the app.
 
 See `WORK-INSTRUCTIONS.md` for the next action and `MIGRATION-ASSESSMENT.md` for the GPT → Claude migration path.

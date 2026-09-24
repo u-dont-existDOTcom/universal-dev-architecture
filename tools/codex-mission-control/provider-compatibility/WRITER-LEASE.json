@@ -15,10 +15,13 @@
   "scope": "Claude compatibility continuation: fix resume lineage so exact-ID resume is dispatchable, hermetic host-transport tests, one-command owner-host live acceptance runner, autodiscovery decision and GPT-to-Claude migration assessment. No merge, deploy, OAuth/account change or production switch.",
   "allowed_paths": [
     "tools/codex-mission-control/provider-compatibility/**",
-    "tools/codex-mission-control/restored/codex-mission-control/CLAUDE.md"
+    "tools/codex-mission-control/restored/codex-mission-control/CLAUDE.md",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/claude-execution-runtime.test.ts"
   ],
   "allowed_path_rationale": {
-    "tools/codex-mission-control/restored/codex-mission-control/CLAUDE.md": "Remove the Next.js-generated one-line '@AGENTS.md' shim: under Claude Code's documented default a CLAUDE.md in the working directory suppresses every AGENTS.md, so Claude sessions started in the app dropped the root and tools governance chain. Next's generator does not recreate it while the app AGENTS.md hosts its managed block."
+    "tools/codex-mission-control/restored/codex-mission-control/CLAUDE.md": "Remove the Next.js-generated one-line '@AGENTS.md' shim: under Claude Code's documented default a CLAUDE.md in the working directory suppresses every AGENTS.md, so Claude sessions started in the app dropped the root and tools governance chain. Next's generator does not recreate it while the app AGENTS.md hosts its managed block.",
+    "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts": "Apply the existing 'later reasoning review after the prior execution receipt' directive invariant to claude_execution_receipt_recorded; the candidate had introduced a Claude receipt type the invariant did not recognise."
   },
   "shared_runtime_write": false,
   "production_switch": false,

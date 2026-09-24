@@ -72,7 +72,7 @@ test('new session cannot silently resume the latest session', () => {
   const p = prepareClaudeCode(request());
   assert.ok(!p.argv.includes('--continue')); assert.ok(!p.argv.includes('--resume'));
 });
-test('resume continues the same task/directive lineage at a strictly newer revision', () => {
+test('resume continues the same task lineage at a strictly newer revision', () => {
   const resume = () => {
     const r = request(); r.session.mode = 'resume';
     r.session.previousBinding = structuredClone(r.binding);
@@ -82,11 +82,13 @@ test('resume continues the same task/directive lineage at a strictly newer revis
   const p = prepareClaudeCode(resume());
   assert.ok(p.argv.includes('--resume')); assert.ok(!p.argv.includes('--session-id'));
   assert.equal(p.argv[p.argv.indexOf('--resume') + 1], request().session.id);
+  // Mission Control records each directive id once, so a newer revision may carry a new id.
+  const renamed = resume(); renamed.binding.directiveId = 'synthetic-directive-r2';
+  assert.ok(prepareClaudeCode(renamed).argv.includes('--resume'));
   const mismatches = [
     (r) => { r.session.previousBinding = structuredClone(r.binding); },
     (r) => { r.binding.revision = 1; },
     (r) => { r.session.previousBinding.revision = 3; },
-    (r) => { r.session.previousBinding.directiveId = 'other-directive'; },
     (r) => { r.session.previousBinding.taskId = 'other-task'; },
     (r) => { r.session.previousBinding.directiveSha256 = r.binding.directiveSha256; },
   ];
@@ -94,6 +96,10 @@ test('resume continues the same task/directive lineage at a strictly newer revis
     const r = resume(); mutate(r);
     assert.throws(() => prepareClaudeCode(r), { code: 'RESUME_BINDING_MISMATCH' });
   }
+  const missing = resume(); delete missing.session.previousBinding;
+  assert.throws(() => prepareClaudeCode(missing), { code: 'OBJECT_REQUIRED' });
+  const stray = request(); stray.session.previousBinding = structuredClone(stray.binding);
+  assert.throws(() => prepareClaudeCode(stray), { code: 'UNEXPECTED_PREVIOUS_BINDING' });
 });
 test('schema rejects unknown instructions and unimplemented surfaces', () => {
   rejects((r) => { r.fallback = 'opus'; }, 'UNKNOWN_FIELD');

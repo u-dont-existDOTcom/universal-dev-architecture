@@ -30,7 +30,8 @@ import {
   evaluatePersistedClaudeExecutionPreflight,
 } from "../../restored/codex-mission-control/lib/claude-execution-runtime";
 import { currentExecutionDirectiveProof } from "../../restored/codex-mission-control/lib/work-execution-runtime";
-import { appendEnvelopeSchema } from "../../restored/codex-mission-control/lib/schema";
+import { EventStore } from "../../restored/codex-mission-control/lib/store";
+import { seedStore } from "../../restored/codex-mission-control/lib/seed";
 import {
   claudeExecutionProviderBindingSchema,
   parseClaudeExecutionProfile,
@@ -49,9 +50,12 @@ const REPO_ROOT = resolve(HERE, "../../../..");
 const DEFAULT_SOURCE = {
   messageId: "owner-handoff:claude-compatibility-continuation-20260924",
   bodySha256: "19f65503f87a002f41784d93a5440c0ef83996b7e7cb8e5f0ebb5a67ef710661",
+  // Conversation where the owner attached the handoff; the text itself is never copied into Mission Control.
+  locator: "https://claude.ai/code/session_01EyiJQyK3FUAiv2UBJ83fKG",
 };
 const DEFAULT_MCP_TOOL = "mcp__claude_ai_Railway__whoami";
-const WORKER = "claude-acceptance-worker";
+/** Worker from the repository's demo seed; the store is in-memory and discarded after the run. */
+const WORKER = "auth";
 
 // ---------------------------------------------------------------- arguments
 const argv = process.argv.slice(2);
@@ -69,27 +73,65 @@ const mcpArgs = JSON.stringify(JSON.parse(opt("--mcp-args", "{}")!));
 const claudeBinary = opt("--claude-binary", "claude")!;
 const sourceId = opt("--source-id", DEFAULT_SOURCE.messageId)!;
 const sourceSha = opt("--source-sha256", DEFAULT_SOURCE.bodySha256)!;
+const sourceLocator = opt("--source-locator", DEFAULT_SOURCE.locator)!;
 const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
 const outDir = resolve(opt("--out", join(process.cwd(), `claude-acceptance-${stamp}`))!);
 
-// ---------------------------------------------------------------- in-process Mission Control
-class InProcessMissionControl {
-  events: Json[] = [];
-  private append(envelope: Json, producerId: string, producerKind: string) {
-    const parsed = appendEnvelopeSchema.parse(envelope);
-    if (this.events.some((e) => e.eventId === parsed.event_id)) throw new Error(`DUPLICATE_EVENT:${parsed.event_id}`);
-    const sequence = this.events.length + 1;
-    const stored = {
-      id: sequence, sequence, eventId: parsed.event_id, schemaVersion: 2, missionId: parsed.mission_id,
-      worker: (parsed.data as Json).worker ?? null, type: parsed.data.type, occurredAt: parsed.occurred_at,
-      receivedAt: new Date().toISOString(), previousHash: null, eventHash: sha(JSON.stringify(parsed)),
-      producerId, producerKind, data: parsed.data,
-    };
-    this.events.push(stored);
-    return stored;
+// ---------------------------------------------------------------- store-backed Mission Control
+/**
+ * The real Mission Control EventStore (in-memory SQLite) seeded with the repository demo
+ * fixture, so every append passes the store's actual invariants: owner-outcome and
+ * source-message binding, one record per directive id, and a later reasoning review
+ * before each new directive after an execution receipt. The three methods mirror
+ * app/api/worker-channel/[worker]/{admission,claude-preflight,events} without HTTP.
+ */
+class StoreBackedMissionControl {
+  readonly store = new EventStore(":memory:");
+  readonly taskId: string;
+  private reviews = 0;
+  private readonly seedSequence: number;
+  constructor() {
+    seedStore(this.store);
+    this.seedSequence = Math.max(0, ...this.store.allEvents().map((e) => e.sequence));
+    const directive = this.store.workerEvents(WORKER).findLast((e) => e.data.type === "execution_directive_recorded")?.data as Json | undefined;
+    if (!directive) throw new Error("Demo seed has no prior execution directive for the acceptance worker.");
+    this.taskId = directive.task_id;
   }
-  recordDirective(envelope: Json) { return this.append(envelope, "system:acceptance-directive", "SYSTEM"); }
-  // Mirrors app/api/worker-channel/[worker]/admission/route.ts for the Claude branch.
+  get events(): Json[] { return this.store.workerEvents(WORKER) as Json[]; }
+  /** Events appended by this acceptance run (excludes the demo seed). */
+  get runEvents(): Json[] { return this.store.allEvents().filter((e) => e.sequence > this.seedSequence) as Json[]; }
+  private system(id: string, taskId: string) { return { id, kind: "SYSTEM" as const, workerScopes: [WORKER], taskScopes: [taskId] }; }
+  private append(envelope: Json, producer?: Json) {
+    return this.store.append(envelope, new Date().toISOString(), producer as any);
+  }
+  /** Owner source message (once), a fresh reasoning review, then the source-bound v3 Claude directive. */
+  recordReviewedDirective(directive: Json, objective: string) {
+    const b = directive.claudeExecutionRequest.binding;
+    const now = new Date().toISOString();
+    const prior = this.events;
+    const priorReasoning = prior.findLast((e) => e.data.type === "reasoning_supervision_recorded")!.data;
+    const priorDirective = prior.findLast((e) => e.data.type === "execution_directive_recorded")!.data;
+    if (!prior.some((e) => e.data.type === "reasoning_message_recorded" && e.data.message_id === sourceId)) {
+      this.append({ schema_version: 2, event_id: `source:${sha(sourceId).slice(0, 32)}`, mission_id: "mission-control-demo", occurred_at: now,
+        data: { type: "reasoning_message_recorded", worker: WORKER, stable_supervisor_id: "supervisor:auth", message_id: sourceId,
+          thread_id: "thread:owner-handoff", surface_role: "PROJECT_MANAGER", provider_surface: "UNKNOWN", model_mode: "OWNER_AUTHORED",
+          account_workspace: "OWNER_WORKSPACE", author_role: "OWNER", sent_at_source: null, received_at_mission_control: now,
+          body_sha256: sourceSha, exact_visible_body: null, immutable_provider_locator: sourceLocator, parent_message_id: null,
+          owner_direction_id: null, decision_request_id: null, acquisition_method: "OWNER_ATTESTED",
+          provenance_status: "OWNER_ATTESTED", limitations: ["Owner handoff attachment; digest-bound, not provider-read."],
+          recorded_by: "harness:claude-live-acceptance" } });
+    }
+    const decisionId = `reasoning-decision:claude-acceptance:${stamp}:${++this.reviews}`;
+    this.append({ schema_version: 2, event_id: `reasoning:${sha(decisionId).slice(0, 32)}`, mission_id: "mission-control-demo", occurred_at: now,
+      data: { ...priorReasoning, decision_id: decisionId, active_execution_directive_id: b.directiveId, last_reasoning_review_at: now } });
+    this.append({ schema_version: 2, event_id: `directive:${sha(`${b.directiveId}:${b.revision}`).slice(0, 32)}`, mission_id: "mission-control-demo", occurred_at: now,
+      data: { ...priorDirective, directive_id: b.directiveId, directive_revision: b.revision, task_id: b.taskId,
+        chat_decision_id: decisionId, execution_objective: objective, directive_schema_version: 3,
+        directive_artifact_sha256: b.directiveSha256, source_message_id: sourceId, source_body_sha256: sourceSha,
+        validated_decision_proof: null, work_execution_profile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
+        claude_execution_profile: claudeProfileForRequest(directive.claudeExecutionRequest),
+        execution_provider_binding: { ...CLAUDE_PROVIDER_BINDING }, execution_surface: "CLAUDE_CODE_CLI", status: "ACTIVE" } });
+  }
   async requestExecutionAdmission(worker: string, admissionInput: Json) {
     const producer = { id: "worker:claude-acceptance", kind: "WORKER" as const, workerScopes: [worker], taskScopes: ["*"] };
     const now = new Date().toISOString();
@@ -100,18 +142,17 @@ class InProcessMissionControl {
         worker, request: admissionInput.request,
         authorizedProfile: parseClaudeExecutionProfile(result.authorizedClaudeExecutionProfile),
         providerBinding: claudeExecutionProviderBindingSchema.parse(result.executionProviderBinding), now,
-      }), "system:claude-profile-admission", "SYSTEM");
+      }), this.system("system:claude-profile-admission", admissionInput.request.executionDirectiveBinding.taskId));
     }
     return result;
   }
-  // Mirrors app/api/worker-channel/[worker]/claude-preflight/route.ts.
   async requestClaudeExecutionPreflight(worker: string, body: Json) {
     const evaluated = evaluatePersistedClaudeExecutionPreflight({ worker, body, events: this.events as any, now: new Date().toISOString() });
-    this.append(evaluated.envelope, "system:claude-execution-preflight", "SYSTEM");
+    this.append(evaluated.envelope, this.system("system:claude-execution-preflight", body.taskId));
     return evaluated.preflight;
   }
-  async recordWorkerEvents(_worker: string, envelopes: Json[]) {
-    for (const envelope of envelopes) this.append(envelope, "worker:claude-acceptance", "WORKER");
+  async recordWorkerEvents(worker: string, envelopes: Json[]) {
+    for (const envelope of envelopes) this.append(envelope, { id: "worker:claude-acceptance", kind: "WORKER", workerScopes: [worker], taskScopes: ["*"] });
     return { accepted: envelopes.length };
   }
 }
@@ -192,41 +233,6 @@ function sealDirective(request: Json) {
   return directive;
 }
 
-function directiveEnvelope(directive: Json, objective: string) {
-  const b = directive.claudeExecutionRequest.binding;
-  const profile = claudeProfileForRequest(directive.claudeExecutionRequest);
-  const id = `${b.directiveId}:r${b.revision}`;
-  return {
-    schema_version: 2, event_id: `execution-directive:${sha(id).slice(0, 32)}`, mission_id: "mission-control-live",
-    occurred_at: new Date().toISOString(),
-    data: {
-      type: "execution_directive_recorded", worker: WORKER, directive_id: b.directiveId, directive_revision: b.revision,
-      task_id: b.taskId, owner_outcome_id: "owner-outcome:claude-migration", owner_outcome_epoch: 1,
-      owner_outcome_sha256: sourceSha, reasoning_supervisor_session_id: "owner-direct", reasoning_chat_epoch: "owner-direct",
-      chat_decision_id: sourceId, capsule_id: `capsule:${b.taskId}`, strategy_id: "strategy:live-acceptance",
-      strategy_causal_hypothesis: "The integrated adapter behaves as specified against the real Claude Code CLI.",
-      predicted_outcome_change: "Live evidence for session, permission, MCP, resume and cancellation behavior.",
-      success_threshold: "All acceptance checks pass.", failure_threshold: "Any acceptance check fails.",
-      next_decision_changing_evidence: "Acceptance receipt.", reviewed_evidence_boundary: "Disposable workspace only.",
-      execution_objective: objective, reasoning_summary: "Owner-authorized bounded live acceptance.",
-      inputs: [{ type: "fixture", ref: "disposable-workspace-input", sha256: null }],
-      allowed_actions: ["READ_FIXTURE", "ATTEMPT_DENIED_WRITE", "CALL_APPROVED_MCP_TOOL"],
-      allowed_paths: ["<disposable workspace>"], allowed_commands: ["claude --print"],
-      forbidden_actions: ["RETRY", "MODEL_FALLBACK", "API_FALLBACK", "SUBAGENTS"], forbidden_paths: [],
-      forbidden_decisions: ["OWNER_DECISIONS"], required_evidence: ["sanitized receipt"],
-      required_tests_or_checks: ["acceptance checks"], stop_and_return_triggers: ["any failure"],
-      maximum_execution_cycles: 1, maximum_execution_horizon_type: "MEANINGFUL_EXECUTION_CYCLE",
-      ambiguity_behavior: "STOP_AND_REPORT_DECISION_REQUIRED", owner_decision_authority: "NONE",
-      pro_escalation_authority: "NONE", strategy_authority: "NONE", supervisory_verdict_authority: "NONE",
-      substantive_prose_authorship_authority: "NONE", directive_schema_version: 3,
-      directive_artifact_sha256: b.directiveSha256, source_message_id: sourceId, source_body_sha256: sourceSha,
-      validated_decision_proof: null, work_execution_profile: "LEGACY_MODEL_PROFILE_UNSPECIFIED",
-      claude_execution_profile: profile, execution_provider_binding: { ...CLAUDE_PROVIDER_BINDING },
-      execution_surface: "CLAUDE_CODE_CLI", status: "ACTIVE",
-    },
-  };
-}
-
 function admissionInput(directive: Json, requestId: string) {
   const r = directive.claudeExecutionRequest;
   return { request: {
@@ -245,9 +251,9 @@ function admissionInput(directive: Json, requestId: string) {
 }
 
 // ---------------------------------------------------------------- one bound run
-async function runOnce(mc: InProcessMissionControl, directive: Json, objective: string, opts: { abortAfterInitMs?: number } = {}) {
+async function runOnce(mc: StoreBackedMissionControl, directive: Json, objective: string, opts: { abortAfterInitMs?: number } = {}) {
   const r = directive.claudeExecutionRequest;
-  mc.recordDirective(directiveEnvelope(directive, objective));
+  mc.recordReviewedDirective(directive, objective);
   const tap = createTap();
   const controller = new AbortController();
   if (opts.abortAfterInitMs !== undefined) tap.whenInit(() => setTimeout(() => controller.abort(), opts.abortAfterInitMs).unref());
@@ -275,7 +281,7 @@ async function runOnce(mc: InProcessMissionControl, directive: Json, objective: 
 }
 
 // ---------------------------------------------------------------- checks
-function bindingChain(mc: InProcessMissionControl, directive: Json, receipt: Json | null): Check {
+function bindingChain(mc: StoreBackedMissionControl, directive: Json, receipt: Json | null): Check {
   const b = directive.claudeExecutionRequest.binding;
   const data = mc.events.map((e) => e.data).filter((d) => d.directive_id === b.directiveId && d.directive_revision === b.revision);
   const dir = data.find((d) => d.type === "execution_directive_recorded");
@@ -297,12 +303,12 @@ function bindingChain(mc: InProcessMissionControl, directive: Json, receipt: Jso
       : `incomplete chain: directive=${!!dir} authorization=${!!auth} preflight=${!!pre} receipt=${!!rec}` };
 }
 
-function sanitizationCheck(mc: InProcessMissionControl, forbidden: string[]): Check {
-  const serialized = JSON.stringify(mc.events);
+function sanitizationCheck(mc: StoreBackedMissionControl, forbidden: string[]): Check {
+  const serialized = JSON.stringify(mc.store.allEvents());
   const leaks = forbidden.filter((s) => s && serialized.includes(s));
-  const types = [...new Set(mc.events.map((e) => e.type))].sort();
+  const types = [...new Set(mc.runEvents.map((e) => e.type))].sort();
   return { status: leaks.length ? "FAIL" : "PASS",
-    detail: leaks.length ? `${leaks.length} private marker(s) found in Mission Control events` : `all ${mc.events.length} events schema-valid; no nonce, prompt marker, report text or tool content; event types: ${types.join(", ")}` };
+    detail: leaks.length ? `${leaks.length} private marker(s) found in Mission Control events` : `${mc.runEvents.length} run events accepted by the real store; no nonce, prompt marker, report text or tool content; event types: ${types.join(", ")}` };
 }
 
 function processGone(pid: number | null, sessionId: string): boolean {
@@ -325,9 +331,10 @@ async function main() {
   const nonce = `nonce-${randomBytes(16).toString("hex")}`;
   await writeFile(join(workspace, "fixture.txt"), `${nonce}\n`);
   const deniedPath = join(workspace, "denied-write.txt");
-  const taskId = `task:claude-live-acceptance:${stamp}`;
-  const directiveId = `directive:claude-live-acceptance:${stamp}`;
-  const mc = new InProcessMissionControl();
+  const mc = new StoreBackedMissionControl();
+  const taskId = mc.taskId;
+  // Mission Control records each directive id once per worker, so every revision gets its own id.
+  const directiveId = (revision: number) => `execution-directive:claude-live-acceptance:${stamp}:r${revision}`;
   const checks: Record<string, Check> = {};
   const runs: Record<string, Json> = {};
   // Prompt markers, the unguessable nonce (also appears in the model's report) and offline-fixture sentinels.
@@ -340,7 +347,7 @@ async function main() {
     ? `3. Call the MCP tool ${mcpTool} exactly once with exactly these arguments: ${mcpArgs}. Do not call any other MCP tool. If that exact tool is not available, skip this step and add the blocker "MCP_TOOL_NOT_AVAILABLE".`
     : "3. Do not call any MCP tool.";
   const directiveA = sealDirective(claudeRequest({
-    runId: `claude-acceptance-a-${stamp}`, taskId, directiveId, revision: 1, sessionId: sessionA, mode: "new", workspace,
+    runId: `claude-acceptance-a-${stamp}`, taskId, directiveId: directiveId(1), revision: 1, sessionId: sessionA, mode: "new", workspace,
     instruction: [
       "ACCEPTANCE_RUN_A. Follow these steps exactly, once each, and do nothing else.",
       "1. Use the Read tool to read ./fixture.txt. Put its exact single-line content (without the newline) as the only item of artifacts.",
@@ -385,7 +392,7 @@ async function main() {
   // Run B — exact-ID resume under the same task/directive lineage (revision 2), no tools.
   if (!a.failure && a.receipt) {
     const directiveB = sealDirective(claudeRequest({
-      runId: `claude-acceptance-b-${stamp}`, taskId, directiveId, revision: 2, sessionId: sessionA, mode: "resume",
+      runId: `claude-acceptance-b-${stamp}`, taskId, directiveId: directiveId(2), revision: 2, sessionId: sessionA, mode: "resume",
       previousBinding: directiveA.claudeExecutionRequest.binding, workspace,
       instruction: "ACCEPTANCE_RUN_B. You have no tools in this turn. From this session's earlier turn, put the exact fixture content you read as the only item of artifacts. Set status to \"completed\" if you can recall it exactly, otherwise \"failed\". Keep summary to one short sentence.",
       builtInTools: [], autoApprove: [], maxWallTimeMs: 180_000,
@@ -407,7 +414,7 @@ async function main() {
   // Run C — cancellation after session start; process tree must be gone.
   const sessionC = randomUUID();
   const directiveC = sealDirective(claudeRequest({
-    runId: `claude-acceptance-c-${stamp}`, taskId, directiveId: `${directiveId}:cancel`, revision: 1, sessionId: sessionC, mode: "new", workspace,
+    runId: `claude-acceptance-c-${stamp}`, taskId, directiveId: directiveId(3), revision: 3, sessionId: sessionC, mode: "new", workspace,
     instruction: "ACCEPTANCE_RUN_C. Read ./fixture.txt, then write a detailed 2000-word explanation of how it could have been generated. This run is expected to be cancelled.",
     builtInTools: ["Read"], autoApprove: ["Read"], maxWallTimeMs: 120_000,
   }));
@@ -440,7 +447,7 @@ async function main() {
   };
   await mkdir(outDir, { recursive: true });
   await writeFile(join(outDir, "acceptance-receipt.json"), `${JSON.stringify(result, null, 2)}\n`);
-  await writeFile(join(outDir, "mission-control-events.json"), `${JSON.stringify(mc.events, null, 2)}\n`);
+  await writeFile(join(outDir, "mission-control-events.json"), `${JSON.stringify(mc.runEvents, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify({ verdict: result.verdict, checks: Object.fromEntries(Object.entries(checks).map(([k, v]) => [k, v.status])), out: outDir }, null, 2)}\n`);
   process.exitCode = failed.length === 0 ? 0 : 1;
 }

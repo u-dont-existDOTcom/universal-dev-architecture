@@ -914,7 +914,8 @@ export class EventStore {
       const priorDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded")?.data;
       const priorReceiptEvent = priorDirective?.type === "execution_directive_recorded"
         ? [...events].reverse().find((event) => (event.data.type === "execution_receipt_recorded"
-          || event.data.type === "chatgpt_work_cloud_execution_receipt_recorded")
+          || event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+          || event.data.type === "claude_execution_receipt_recorded")
           && event.data.directive_id === priorDirective.directive_id
           && event.data.directive_revision === priorDirective.directive_revision)
         : undefined;

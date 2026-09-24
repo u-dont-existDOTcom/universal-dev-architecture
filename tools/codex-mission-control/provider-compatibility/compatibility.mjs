@@ -103,11 +103,13 @@ function sameBinding(a, b) {
 /**
  * A resume request is its own authorized artifact: its digest covers the session block,
  * including the exact previous binding, so it can never equal the previous digest.
- * Lineage therefore means same task + same directive, strictly newer revision, and the
- * exact previous binding (digest included) carried inside the newly authorized bytes.
+ * Lineage therefore means same task, strictly newer revision, and the exact previous
+ * binding (digest included) carried inside the newly authorized bytes. The directive id
+ * may change: Mission Control records each directive id once per worker, so a later
+ * revision is normally a new directive record.
  */
 function resumesLineage(current, previous) {
-  return current.taskId === previous.taskId && current.directiveId === previous.directiveId
+  return current.taskId === previous.taskId
     && previous.revision < current.revision && previous.directiveSha256 !== current.directiveSha256;
 }
 

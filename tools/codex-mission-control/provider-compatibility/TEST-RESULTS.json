@@ -71,10 +71,22 @@
         "failed": 0
       },
       {
-        "command": "npx tsx --test tests/chat-work-authority-gate.test.ts tests/supervision-admission-runtime.test.ts tests/claude-execution-runtime.test.ts",
-        "tests": 35,
-        "passed": 35,
+        "command": "npx tsx --test tests/{claude-execution-runtime,chat-work-authority-gate,supervision-admission-runtime,mission-control,work-execution-profile,codex-exec-authority-integration,chatgpt-work-cloud-dispatch}.test.ts",
+        "tests": 171,
+        "passed": 171,
         "failed": 0
+      },
+      {
+        "command": "npx tsc --noEmit",
+        "result": "INHERITED_BASELINE_FAILURE_ONLY",
+        "candidate_caused_errors": 0,
+        "inherited_errors": [
+          "components/WorkerDetail.tsx(256,44): TS2366"
+        ]
+      },
+      {
+        "command": "python3 scripts/audit_codex_github.py --root . --fail-on error",
+        "result": "0 errors, 1 pre-existing warning (root AGENTS.md size)"
       },
       {
         "command": "git diff --check",
@@ -83,14 +95,16 @@
     ],
     "found_during_run": [
       "Before the fix, host-transport fixtures failed 5/7 on hosts with ANTHROPIC_BASE_URL set (ambient env inheritance); fixed by hermetic env.",
-      "Resume directive could not pass the digest seam (probe: CLAUDE_DIRECTIVE_ARTIFACT_MISMATCH / RESUME_BINDING_MISMATCH); fixed."
+      "Resume directive could not pass the digest seam (probe: CLAUDE_DIRECTIVE_ARTIFACT_MISMATCH / RESUME_BINDING_MISMATCH); fixed.",
+      "Claude receipt did not trigger the store's later-reasoning-review directive invariant; regression test fails without the fix."
     ],
     "measurement": {
-      "task_elapsed_seconds": 958.28,
-      "observed_test_seconds": 23.03,
-      "test_share_percent": 2.4,
+      "task_elapsed_seconds": 1639.79,
+      "observed_test_seconds": 108.61,
+      "test_share_percent": 6.62,
       "forced_redundant_green_seconds": 0
     },
-    "live_inference_calls": 0
+    "live_inference_calls": 0,
+    "found_by_independent_review": "Resume lineage required same directive id but the store records each directive id once per worker; fixed and harness moved onto the real EventStore."
   }
 }

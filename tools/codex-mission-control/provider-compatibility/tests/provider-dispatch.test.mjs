@@ -50,6 +50,7 @@ test('an exact-ID resume directive is dispatchable through the digest seam', asy
   const first = seal(request('new', 'first step'));
   const resumed = request('resume', 'second step');
   resumed.binding.revision = 2;
+  resumed.binding.directiveId = 'directive-a-r2'; // Mission Control records each directive id once
   resumed.session.previousBinding = structuredClone(first.claudeExecutionRequest.binding);
   const second = seal(resumed);
   const dispatched = [];
