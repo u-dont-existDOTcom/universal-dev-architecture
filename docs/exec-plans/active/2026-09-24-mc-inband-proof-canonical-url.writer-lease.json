@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "task/mc-inband-proof-canonical-url-20260924",
+  "integration_branch": "main",
+  "integration_base_sha": "e7384522791304626a3b9d675abf9e44dcf9dcf7",
+  "scope": "Fix V6 in-band proof validation for one provider session whose STARTED receipt uses a transient WEB conversation URL, COMPLETE/session readback use the canonical URL, and app-owned readback may use a separately approved read-only reader. No reviewer semantics, AskRigor source, model selection, pacing, or A19/A20 changes."
+}
