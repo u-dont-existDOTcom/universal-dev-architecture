@@ -61,13 +61,12 @@ Done on this branch:
 - **One-command live acceptance harness** with an offline self-test (commit `7a9eaa6`).
 - **Shadowing app `CLAUDE.md` removed** (commit `b2e27dc`).
 
-An independent review found the last two items. The first version of the resume fix passed my simplified in-memory harness, but the real store would have rejected it. The harness now runs on the real store.
+An independent review found the directive-id problem in the first item and led to the second. The first version of the resume fix passed a simplified in-memory harness, but the real store would have rejected it. The harness now runs on the real store.
 
 Not done, and why:
 
 - **Resumed-session provenance and single-use directives.** Mission Control does not check that a resumed session ID was recorded under the previous binding, and it can admit the same active directive more than once. The owner-source-bound directive author is the current control. Add server-side checks only if Claude becomes an automatic executor.
 - **Reasoning-message schema has no Claude or owner-direct surface.** `provider_surface` allows only ChatGPT, OpenAI API or `UNKNOWN`. That is fine while reasoning stays on ChatGPT, and it needs a value if the supervisor moves to Claude.
-
 - **Automatic no-argument Claude discovery.** Not added. The no-argument path it would extend is the Codex headless route, and that route is off unless `MC_CODEX_EXEC_PREVIEW_ENABLED=1`. The live automatic chain is the native-Work autodispatch (issue #178). Adding Claude there is a routing switch, and that switch needs the acceptance result plus an owner choice first. Build it only once Claude is chosen as an automatic executor; a reference design sits on the closed parallel lane (`task/claude-compatibility-chat-20260924-0045`, commit `3992f93`).
 - **Auth-route predicate.** The preflight accepts only `authMethod: "claude.ai"` with a `subscriptionType`. That matched the host that produced the earlier evidence. This cloud workspace reports `oauth_token` with no subscription type and a set `ANTHROPIC_BASE_URL`, so it is correctly refused. How a long-lived token (`claude setup-token`) reports itself on a headless VPS is **unverified**. Check `claude auth status --json` on the target host before widening anything.
 - **Claude row in the model/effort ladder.** The governance text hard-codes GPT-5.6 Sol/Astra (`patterns/work-model-and-effort-routing.md`, root `AGENTS.md`). A separate Claude profile already exists in code. The policy row should wait for real usage numbers and an owner choice of models.
