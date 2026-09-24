@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-native-work-deadline-fence-20260924",
+  "integration_branch": "main",
+  "integration_base_sha": "2be8c8a7fba07ef13b14b60a420badd5db8fd2e4",
+  "scope": "Fail closed before native ChatGPT Work dispatch when a source-bound bounded execution deadline has already expired; add regression coverage without changing AskRigor semantics or production."
+}
