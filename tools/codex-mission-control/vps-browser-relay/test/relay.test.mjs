@@ -987,29 +987,40 @@ test('expired historical supervisory route cannot starve a later valid route', a
   assert.equal(browser.submitCalls, 0);
 });
 
-test('V6 generation-started transport can be operator-confirmed submitted without replay', async () => {
+test('V6 operator submitted-attestation preserves generation reconciliation without replay', async () => {
   const { store, browser, runtime } = inBandRequestFixture();
-  store.state.deliveries['request:r-1'] = {
-    status: 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED',
-    requestId: 'r-1',
-    workerId: 'worker-1',
-    supervisorId: 'spec',
-    providerSessionId: 'provider-session:v6-sent',
-    decisionProviderSessionId: 'provider-session:v6-sent',
-    bindingProviderSessionId: 'provider-session:v6-sent',
-    cycleStep: 'IN_BAND_REQUEST_DECISION',
-    generationStarted: true,
-    generationStartedAt: '2026-09-02T00:00:01.000Z',
-  };
+
+  const started = await runtime.cycle();
+  assert.equal(started.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(started));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.waitCalls, 0);
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  assert.ok(providerSessionId);
+
   const resolved = await runtime.resolve('request:r-1', 'submitted');
   assert.equal(resolved.status, 'AMBIGUITY_RESOLVED');
-  assert.equal(store.state.deliveries['request:r-1'].status, 'SUBMITTED_CONFIRMED');
-  assert.equal(store.state.deliveries['request:r-1'].resolution, 'OPERATOR_ATTESTED_SUBMITTED');
-  assert.equal(browser.submitCalls, 0);
+  assert.equal(
+    store.state.deliveries['request:r-1'].status,
+    'IN_BAND_REQUEST_DECISION_GENERATION_STARTED',
+  );
+  assert.equal(
+    store.state.deliveries['request:r-1'].resolution,
+    'OPERATOR_ATTESTED_SUBMITTED_GENERATION_PENDING',
+  );
+  assert.ok(store.state.deliveries['request:r-1'].confirmedAt);
+  assert.equal(browser.submitCalls, 1);
+
   await assert.rejects(
     runtime.resolve('request:r-1', 'retry'),
-    /SUBMITTED_CONFIRMED; no ambiguity resolution is permitted/,
+    /IN_BAND_REQUEST_DECISION_GENERATION_STARTED; no ambiguity resolution is permitted/,
   );
+
+  const completed = await runtime.cycle();
+  assert.equal(completed.status, 'IN_BAND_REQUEST_DECISION_COMPLETE', JSON.stringify(completed));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.waitCalls, 1);
+  assert.equal(store.state.deliveries['request:r-1'].providerSessionId, providerSessionId);
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE');
 });
 
 test('V6 operator-authorized proven-unsent retry re-enters the same one-send control step', async () => {

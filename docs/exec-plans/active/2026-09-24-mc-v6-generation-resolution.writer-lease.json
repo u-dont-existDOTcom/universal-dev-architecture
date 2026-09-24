@@ -1,9 +1,17 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "complete",
   "exclusive_writer": true,
   "owned_branch": "task/mc-v6-generation-resolution-20260924-1322",
   "integration_branch": "main",
   "integration_base_sha": "9c58e5cdfba73a369241e632f84024835337876a",
-  "scope": "Repair V6 operator submitted-resolution so a live generation remains reconcilable through completion/stuck recovery; focused relay tests only until separately authorized integration/deploy."
+  "scope": "Repair V6 operator submitted-resolution so a live generation remains reconcilable through completion/stuck recovery; focused relay tests only until separately authorized integration/deploy.",
+  "closeout": {
+    "focused": "node --test vps-browser-relay/test/relay.test.mjs: PASS 45/45",
+    "affected": "vps-browser-relay npm test + npm run check: PASS",
+    "repository_release_gate": "python3 -m unittest discover -s tests -v + audit_codex_github.py --fail-on error: PASS",
+    "forced_redundant_green_reruns": 0,
+    "shared_runtime_changed": false,
+    "deployed": false
+  }
 }
