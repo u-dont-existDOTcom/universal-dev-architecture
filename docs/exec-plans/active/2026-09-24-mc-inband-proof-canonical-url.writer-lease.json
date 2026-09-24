@@ -1,9 +1,14 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "superseded",
   "exclusive_writer": true,
   "owned_branch": "task/mc-inband-proof-canonical-url-20260924",
   "integration_branch": "main",
   "integration_base_sha": "e7384522791304626a3b9d675abf9e44dcf9dcf7",
-  "scope": "Fix V6 in-band proof validation for one provider session whose STARTED receipt uses a transient WEB conversation URL, COMPLETE/session readback use the canonical URL, and app-owned readback may use a separately approved read-only reader. No reviewer semantics, AskRigor source, model selection, pacing, or A19/A20 changes."
+  "scope": "Fix V6 in-band proof validation for one provider session whose STARTED receipt uses a transient WEB conversation URL, COMPLETE/session readback use the canonical URL, and app-owned readback may use a separately approved read-only reader. No reviewer semantics, AskRigor source, model selection, pacing, or A19/A20 changes.",
+  "superseded_by": {
+    "integration_commit": "279d1dd7dfb9daa023e76911e5acc4a6859e47fe",
+    "reconciliation_lease": "docs/exec-plans/active/2026-09-24-mc-source-review-ingestion-reconcile.writer-lease.json"
+  },
+  "supersession_reason": "The canonical-url and delayed post-expiry readback work was explicitly reconciled and merged to main by the serialized source-review ingestion integration lane; this child lease must not resume as an independent writer."
 }
