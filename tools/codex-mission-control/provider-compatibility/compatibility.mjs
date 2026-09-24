@@ -100,6 +100,16 @@ function validateBinding(b) {
 function sameBinding(a, b) {
   return ['taskId', 'directiveId', 'revision', 'directiveSha256'].every((k) => a[k] === b[k]);
 }
+/**
+ * A resume request is its own authorized artifact: its digest covers the session block,
+ * including the exact previous binding, so it can never equal the previous digest.
+ * Lineage therefore means same task + same directive, strictly newer revision, and the
+ * exact previous binding (digest included) carried inside the newly authorized bytes.
+ */
+function resumesLineage(current, previous) {
+  return current.taskId === previous.taskId && current.directiveId === previous.directiveId
+    && previous.revision < current.revision && previous.directiveSha256 !== current.directiveSha256;
+}
 
 export function validateRequest(input) {
   keys(input, ['schemaVersion', 'runId', 'binding', 'provider', 'surface', 'role',
@@ -115,7 +125,7 @@ export function validateRequest(input) {
   check(['new', 'resume'].includes(r.session.mode), 'INVALID_SESSION_MODE');
   if (r.session.mode === 'resume') {
     validateBinding(r.session.previousBinding);
-    check(sameBinding(r.binding, r.session.previousBinding), 'RESUME_BINDING_MISMATCH');
+    check(resumesLineage(r.binding, r.session.previousBinding), 'RESUME_BINDING_MISMATCH');
   } else check(r.session.previousBinding === undefined, 'UNEXPECTED_PREVIOUS_BINDING');
   keys(r.selection, ['model', 'effort', 'assurance', 'expensiveEffortApproved']);
   check(exact(MODEL, r.selection.model), 'PINNED_MODEL_REQUIRED');

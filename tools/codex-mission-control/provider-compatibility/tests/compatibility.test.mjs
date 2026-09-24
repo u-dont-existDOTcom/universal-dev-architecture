@@ -72,12 +72,28 @@ test('new session cannot silently resume the latest session', () => {
   const p = prepareClaudeCode(request());
   assert.ok(!p.argv.includes('--continue')); assert.ok(!p.argv.includes('--resume'));
 });
-test('resume requires the same exact task/directive binding', () => {
-  const r = request(); r.session.mode = 'resume'; r.session.previousBinding = structuredClone(r.binding);
-  const p = prepareClaudeCode(r);
+test('resume continues the same task/directive lineage at a strictly newer revision', () => {
+  const resume = () => {
+    const r = request(); r.session.mode = 'resume';
+    r.session.previousBinding = structuredClone(r.binding);
+    r.binding.revision = 2; r.binding.directiveSha256 = 'b'.repeat(64);
+    return r;
+  };
+  const p = prepareClaudeCode(resume());
   assert.ok(p.argv.includes('--resume')); assert.ok(!p.argv.includes('--session-id'));
-  r.session.previousBinding.directiveSha256 = 'b'.repeat(64);
-  assert.throws(() => prepareClaudeCode(r), { code: 'RESUME_BINDING_MISMATCH' });
+  assert.equal(p.argv[p.argv.indexOf('--resume') + 1], request().session.id);
+  const mismatches = [
+    (r) => { r.session.previousBinding = structuredClone(r.binding); },
+    (r) => { r.binding.revision = 1; },
+    (r) => { r.session.previousBinding.revision = 3; },
+    (r) => { r.session.previousBinding.directiveId = 'other-directive'; },
+    (r) => { r.session.previousBinding.taskId = 'other-task'; },
+    (r) => { r.session.previousBinding.directiveSha256 = r.binding.directiveSha256; },
+  ];
+  for (const mutate of mismatches) {
+    const r = resume(); mutate(r);
+    assert.throws(() => prepareClaudeCode(r), { code: 'RESUME_BINDING_MISMATCH' });
+  }
 });
 test('schema rejects unknown instructions and unimplemented surfaces', () => {
   rejects((r) => { r.fallback = 'opus'; }, 'UNKNOWN_FIELD');

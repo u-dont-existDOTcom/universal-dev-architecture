@@ -65,7 +65,8 @@ async function fixture({ hang = false, turns = 2 } = {}) {
   const request = baseRequest(workspace);
   const report = { runId: request.runId, binding: structuredClone(request.binding), status: 'completed',
     summary: 'Synthetic execution complete.', artifacts: [], tests: [], blockers: [] };
-  const env = { ...process.env, FAKE_CLAUDE_REPORT: JSON.stringify(report), FAKE_CLAUDE_TURNS: String(turns),
+  // Hermetic: never inherit the ambient host's provider/route variables into these fixtures.
+  const env = { PATH: process.env.PATH ?? '', FAKE_CLAUDE_REPORT: JSON.stringify(report), FAKE_CLAUDE_TURNS: String(turns),
     ...(hang ? { FAKE_CLAUDE_HANG: '1' } : {}) };
   return { request, binary, env, ...admissionFor(request) };
 }

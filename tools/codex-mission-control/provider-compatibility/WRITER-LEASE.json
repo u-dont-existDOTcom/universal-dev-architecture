@@ -1,35 +1,24 @@
 {
   "schema_version": 1,
-  "status": "complete",
+  "status": "active",
   "exclusive_writer": true,
-  "owned_branch": "chat/claude-compatibility-integration-20260924-0110",
-  "integration_branch": "main",
-  "integration_base_sha": "eaeacee9c187d943e036cb7b299388f3094a1e64",
-  "parent_candidate_branch": "chat/claude-compatibility-20260923-2251",
-  "parent_candidate_sha": "54ce97992b0ae786f2ede252a49574f8ee555811",
+  "owned_branch": "chat/claude-acceptance-resume-20260924-0305",
+  "integration_branch": "chat/claude-compatibility-integration-20260924-0110",
+  "integration_base_sha": "1fc3525751bb41e4259632d0670425e01a8a268a",
   "parent_integrator": null,
-  "scope": "Isolated Claude compatibility integration: preserve existing OpenAI dispatch, add explicit Claude admission bindings and a host-controlled transport without merge, deployment, OAuth changes, or paid inference.",
+  "parent_lease": {
+    "owned_branch": "chat/claude-compatibility-integration-20260924-0110",
+    "status": "complete",
+    "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c"
+  },
+  "integration_owner_lock": "state/MISSION-CONTROL-INTEGRATION-OWNER.json status RELEASED at base",
+  "scope": "Claude compatibility continuation: fix resume lineage so exact-ID resume is dispatchable, hermetic host-transport tests, one-command owner-host live acceptance runner, autodiscovery decision and GPT-to-Claude migration assessment. No merge, deploy, OAuth/account change or production switch.",
   "allowed_paths": [
-    "tools/codex-mission-control/provider-compatibility/**",
-    "tools/codex-mission-control/restored/codex-mission-control/scripts/run-codex-execution.mjs",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/claude-execution-profile.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/claude-execution-runtime.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/supervision-admission-runtime.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-runtime.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
-    "tools/codex-mission-control/restored/codex-mission-control/**/tests/**",
-    "tools/codex-mission-control/vps-browser-relay/src/codex-exec-candidate.mjs",
-    "tools/codex-mission-control/vps-browser-relay/test/codex-exec-candidate.test.mjs",
-    "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/claude-preflight/route.ts",
-    "tools/codex-mission-control/vps-browser-relay/src/mission-control.mjs"
+    "tools/codex-mission-control/provider-compatibility/**"
   ],
   "shared_runtime_write": false,
   "production_switch": false,
-  "paid_model_inference": false,
-  "claude_inference_during_this_iteration": false,
+  "claude_inference_during_this_lane": false,
   "assurance_lane": "iteration",
-  "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
-  "closeout": "No-inference integration iteration complete. Branch remains isolated; no merge, deploy, OAuth/account mutation, or Claude inference occurred. Next boundary requires resource-authorized live acceptance."
+  "push_status": "BLOCKED_GIT_PROXY_REPOSITORY_NOT_IN_SESSION_SOURCES; delivered as git bundle"
 }
