@@ -556,6 +556,48 @@ test('generation completion persists provider WEB-to-stable canonicalization on 
   assert.ok(mc.recordedEvidence.some((item) => item.refs?.includes('conversation_url:https://chatgpt.com/c/stable-review')));
 });
 
+test('generation wait reuses the bound target when a provisional WEB URL has already canonicalized in-page', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser({
+    provisionalWebUrl: true,
+    completionConversationUrl: 'https://chatgpt.com/c/stable-review',
+  });
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  const targetId = store.state.providerSessions[providerSessionId].targetId;
+  assert.match(store.state.providerSessions[providerSessionId].conversationUrl, /^https:\/\/chatgpt\.com\/c\/WEB:/);
+  assert.equal(browser.targets.length, 1);
+
+  browser.targets[0].url = 'https://chatgpt.com/c/stable-review';
+  const completed = await runtime.cycle();
+  assert.equal(completed.status, 'MCP_BINDING_PRELOAD_COMPLETE', JSON.stringify(completed));
+  assert.equal(browser.targets.length, 1);
+  assert.equal(browser.targets[0].id, targetId);
+  assert.equal(store.state.providerSessions[providerSessionId].conversationUrl, 'https://chatgpt.com/c/stable-review');
+  assert.equal(store.state.deliveries['request:r-1'].generationCompletion.conversationUrlCanonicalized, true);
+});
+
+test('generation wait refuses to navigate a missing provisional WEB conversation URL', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
+  const browser = new FakeBrowser({ provisionalWebUrl: true });
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+
+  assert.equal((await runtime.cycle()).status, 'MCP_BINDING_PRELOAD_GENERATION_STARTED');
+  const providerSessionId = store.state.deliveries['request:r-1'].providerSessionId;
+  const provisionalUrl = store.state.providerSessions[providerSessionId].conversationUrl;
+  assert.match(provisionalUrl, /^https:\/\/chatgpt\.com\/c\/WEB:/);
+
+  browser.targets = [];
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'ERROR', JSON.stringify(result));
+  assert.match(result.error, /provisional WEB conversation URL/);
+  assert.equal(browser.targets.length, 0);
+});
+
 test('each admitted route gets a different fresh provider session and conversation', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });

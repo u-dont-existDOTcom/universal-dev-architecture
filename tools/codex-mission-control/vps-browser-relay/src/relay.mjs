@@ -737,10 +737,24 @@ export class RelayRuntime {
         throw new Error(`Provider session ${prior?.providerSessionId ?? 'UNKNOWN'} is not active for ${route.requestId}/${action.step}.`);
       }
       if (!session.conversationUrl) throw new Error(`Provider session ${session.providerSessionId} lacks its exact conversation URL after generation start.`);
-      target = await this.browser.findOrCreateChatTarget(session.conversationUrl, {
-        reusableTargetId: session.targetId,
-        hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
-      });
+      const liveTargets = await this.browser.listTargets();
+      const boundTarget = session.targetId
+        ? liveTargets.find((candidateTarget) => candidateTarget.id === session.targetId) ?? null
+        : null;
+      if (boundTarget) {
+        await this.browser.activateTarget(boundTarget.id);
+        target = boundTarget;
+      } else {
+        if (/^https:\/\/chatgpt\.com\/c\/WEB:/.test(session.conversationUrl)) {
+          throw new Error(
+            `Provider session ${session.providerSessionId} has a provisional WEB conversation URL but its bound target ${session.targetId ?? 'UNKNOWN'} is unavailable; refusing transient URL navigation.`,
+          );
+        }
+        target = await this.browser.findOrCreateChatTarget(session.conversationUrl, {
+          reusableTargetId: session.targetId,
+          hardCeiling: Math.min(this.config.runtime.maxHotTabs, MANAGED_CHATGPT_HARD_CEILING_TABS),
+        });
+      }
       expectedUrl = session.conversationUrl;
       route = { ...route, providerSessionId: session.providerSessionId, providerSession: session };
     } else if (action.type === 'SEND_CONTROL') {
