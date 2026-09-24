@@ -10,9 +10,9 @@
   },
   "owner_outcome": "Develop isolated Claude compatibility alongside existing projects; preserve GPT behavior and provide executable instructions for remaining work.",
   "parent_outcome_status": "OPEN",
-  "candidate_status": "INTEGRATED_ISOLATED_CANDIDATE_VERIFIED_NO_INFERENCE",
+  "candidate_status": "RESUME_FIXED_HARNESS_READY_LIVE_ACCEPTANCE_PENDING_OWNER_HOST",
   "source_baseline": "eaeacee9c187d943e036cb7b299388f3094a1e64",
-  "writer_branch": "chat/claude-compatibility-integration-20260924-0110",
+  "writer_branch": "chat/claude-acceptance-resume-20260924-0305",
   "active_contract": [
     {
       "rule": "parallel-chat-write-isolation",
@@ -51,33 +51,35 @@
   },
   "not_executed": [
     "Claude inference",
-    "live MCP tool invocation",
+    "live MCP tool invocation through the adapter",
     "MCP OAuth change",
     "automatic no-argument Claude autodiscovery",
     "AskRigor production change",
     "merge",
-    "deployment"
+    "deployment",
+    "push (git proxy: repository not in this session's sources)"
   ],
-  "remaining_gap": "One resource-authorized real Claude subscription acceptance case, then optional automatic durable-state Claude autodiscovery/producer wiring if needed. Full project migration remains unperformed.",
-  "next_action": "Do not redo implementation. When Claude inference/resource use is explicitly authorized, run one bounded low/medium subscription acceptance covering exact session/result, one approved read, one denied operation, resume, cancellation, and MCP tool identity. Then decide whether automatic no-argument autodiscovery is needed before merge.",
+  "remaining_gap": "One live acceptance on the Claude-authenticated host; owner settings (repository sources, AskRigor/Calendar connectors); owner choice on Claude executor role. Full project migration unperformed.",
+  "next_action": "Run the one-command live acceptance on the Claude-authenticated host (WORK-INSTRUCTIONS.md), record the receipt, then follow MIGRATION-ASSESSMENT.md section 7.",
   "lesson_closeout": "Provider-specific auth and evidence semantics retained in this versioned candidate; no new universal rule promoted.",
   "authoring_start_head": "5994b90c75e0ca36372678518ee9bc8e0a184685",
   "stop_admission": {
     "parent_outcome": "OPEN",
-    "delivered_boundary": "Isolated provider-aware runner path, explicit Claude admission/profile, exact plan-hash host preflight, direct subprocess transport, cancellation/process cleanup, sanitized durable receipt, unchanged OpenAI dispatch regression, and real non-inference CLI/MCP health checks.",
-    "remaining_gap": "Any real Claude inference/tool acceptance consumes subscription resources and was explicitly excluded from this iteration; automatic Claude autodiscovery and merge/deploy are also unperformed.",
-    "reason_to_stop": "Reached the packet boundary before resource-consuming inference, shared integration, merge/deploy, or OAuth/account changes."
+    "delivered_boundary": "Resume made dispatchable, hermetic tests, Claude AGENTS.md chain fix, owner-host acceptance harness with offline self-test, autodiscovery decision, migration assessment.",
+    "remaining_gap": "Live acceptance requires the Claude-authenticated owner host, unreachable from this session.",
+    "reason_to_stop": "Access boundary: no shell on any Claude-authenticated owner host; the reachable cloud workspace is correctly refused by the adapter and its credential route may not be probed."
   },
   "tests": {
-    "count": 90,
-    "passed": 90,
+    "count": 94,
+    "passed": 94,
     "failed": 0,
+    "node": 59,
+    "typescript": 35,
     "live_inference_calls": 0,
-    "typecheck_candidate_errors": 0,
-    "typecheck_inherited_errors": 1
+    "typecheck": "not rerun; no TypeScript source changed in this lane"
   },
   "implementation_commit": "1b14c87b876aeb9c0c41c0e4966575d3c7f3582c",
-  "iteration_outcome_status": "SATISFIED",
+  "iteration_outcome_status": "SATISFIED_FOR_REACHABLE_SCOPE",
   "real_host_non_inference": {
     "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
     "claude_cli_version": "2.1.281 (Claude Code)",
@@ -88,5 +90,30 @@
     "claude_ai_mcp_needs_auth_count": 1,
     "strict_empty_mcp_config_preserved_claude_ai_connectors": true,
     "mcp_tool_invocation_verified": false
-  }
+  },
+  "owner_source_continuation": {
+    "kind": "owner_handoff_attachment",
+    "messageId": "owner-handoff:claude-compatibility-continuation-20260924",
+    "sha256": "19f65503f87a002f41784d93a5440c0ef83996b7e7cb8e5f0ebb5a67ef710661",
+    "summary": "Continue GPT->Claude migration: run one bounded real Claude acceptance, decide autodiscovery, produce migration assessment, implement small shims in an isolated writer branch."
+  },
+  "parent_writer_branch": "chat/claude-compatibility-integration-20260924-0110",
+  "continuation_commits": {
+    "resume_lineage_fix_and_hermetic_tests": "96e0540",
+    "live_acceptance_harness": "7a9eaa6",
+    "app_claude_md_shadowing_fix": "b2e27dc"
+  },
+  "live_acceptance": {
+    "status": "NOT_RUN",
+    "reason": "The only host reachable from the continuation session was a Claude cloud workspace whose CLI reports authMethod oauth_token (no subscriptionType) with ANTHROPIC_BASE_URL set; the adapter correctly refuses that route (CLAUDE_PROVIDER_OVERRIDE_PRESENT), and the workspace safety layer blocked probing its credential route. The owner laptop was reachable for files only (no shell) and has no ~/.claude directory. The Claude-authenticated owner host (likely the primary Mission Control VPS) was not reachable.",
+    "defect_found_before_run": "Exact-ID resume could never dispatch (digest self-reference); fixed in 96e0540. The acceptance would have failed check 7 on any host.",
+    "next": "Run acceptance/live-acceptance.ts once on the Claude-authenticated host (see WORK-INSTRUCTIONS.md)."
+  },
+  "autodiscovery_decision": {
+    "decision": "NOT_ADDED",
+    "reason": "The no-argument path is the Codex headless route, off unless MC_CODEX_EXEC_PREVIEW_ENABLED=1; the live automatic chain is native-Work autodispatch (issue #178). Adding Claude there is a routing switch requiring acceptance evidence and an owner executor choice.",
+    "trigger": "Owner chooses Claude as an automatic executor surface after live acceptance passes.",
+    "reference_design": "task/claude-compatibility-chat-20260924-0045 @ 3992f93 (closed parallel lane, not merged)"
+  },
+  "migration_assessment": "MIGRATION-ASSESSMENT.md"
 }

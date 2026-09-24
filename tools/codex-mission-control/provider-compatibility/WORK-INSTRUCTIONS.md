@@ -1,40 +1,70 @@
-# Next boundary — Claude compatibility live acceptance
+# Next boundary — run the live Claude acceptance on the owner host
 
 ## Current checkpoint
 
-The no-inference integration implementation is complete at commit `1b14c87b876aeb9c0c41c0e4966575d3c7f3582c` on branch `chat/claude-compatibility-integration-20260924-0110`.
+Branch `chat/claude-acceptance-resume-20260924-0305` (child of `chat/claude-compatibility-integration-20260924-0110` at `1fc3525`).
 
-Do **not** redo provider discovery, admission design, host transport, OpenAI-preservation work, or the broad Claude capability audit. Read `README.md`, `TASK-STATE.json`, `TEST-RESULTS.json`, current UDA authority, and current integration ownership first.
+Done here without inference:
 
-## Proven now
+- **Resume lineage fix.** Before it, exact-ID resume could never dispatch (commit `96e0540`).
+- **Hermetic host-transport tests** (commit `96e0540`).
+- **One-command live acceptance harness** with an offline self-test (commit `7a9eaa6`).
+- **Removal of the app `CLAUDE.md`,** which hid the root/tools `AGENTS.md` chain from Claude (commit `b2e27dc`).
+- **Autodiscovery decision** (not added) and **migration assessment:** `MIGRATION-ASSESSMENT.md`.
 
-- Existing OpenAI/Codex directives still reach the existing dispatcher with the exact original argument object.
-- Claude requires an explicit provider/surface/role binding and a separate exact execution profile.
-- The exact Claude request is content-bound to the directive digest.
-- Host preflight verifies CLI flags, subscription auth and provider-override absence without inference.
-- Mission Control persists the exact plan-hash preflight before spawn.
-- Direct argv subprocess, bounded stdout collector, private stderr, timeout/abort/process-tree cleanup and sanitized final receipt are implemented.
-- Existing `claude.ai` connectors remain health-visible under strict MCP config; MCP is denied by default unless an exact tool approval is source-bound.
-- Focused suites are green; one unrelated baseline TypeScript UI error remains on unchanged `main`.
+Do **not** redo the adapter, the admission design, the audit, or the assessment.
 
-## Next action — only after resource use is authorized
+## Next action — one command on the Claude-authenticated host
 
-Run exactly one low/medium-effort Claude subscription acceptance case. It must be bounded and disposable. Verify:
+Use the host where `claude auth status --json` reports `"authMethod": "claude.ai"`, `"apiProvider": "firstParty"` and a `subscriptionType`. The earlier non-inference evidence came from such a host; per `state/NON-UNIVERSAL-OWNER-MISSION-CONTROL-TOPOLOGY-2026-09-10.md` that is most likely the primary Mission Control VPS. Run it from an ordinary terminal, not from inside another Claude Code session. `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` and the Bedrock/Vertex/Foundry switches must be unset.
 
-1. exact source/task/directive/provider/profile binding;
-2. one new session and exact returned session ID;
-3. client-reported primary model without claiming independent provider attestation;
-4. one explicitly approved read operation;
-5. one operation that must be denied under `dontAsk` / no prompt;
-6. one exact existing MCP tool identity if connector use is part of the selected case;
-7. exact-ID resume under the same directive binding;
-8. cancellation/timeout with all child processes stopped;
-9. sanitized Mission Control receipt, with no prompt/assistant/tool-input/raw-error leakage.
+```sh
+# in an existing checkout of universal-dev-architecture, with this branch present
+git switch chat/claude-acceptance-resume-20260924-0305
+cd tools/codex-mission-control/restored/codex-mission-control
+npm ci --ignore-scripts            # only if node_modules is missing
+npx tsx ../../provider-compatibility/acceptance/live-acceptance.ts --model claude-opus-5-5 --effort low
+```
 
-Do not auto-retry, switch model, add API fallback, enable xhigh/max, spawn agents, alter OAuth, or loosen MCP audiences/scopes to rescue a failure.
+The command makes three bound runs, each exactly once, on a disposable temp workspace:
 
-## After the acceptance case
+- **A (new session):**
+  - one approved `Read` of an unguessable nonce;
+  - one `Write` that must be denied under `dontAsk`/no prompts;
+  - one exact MCP tool, by default `mcp__claude_ai_Railway__whoami` (read-only).
+- **B (resume, directive revision 2):** the same session ID, with no tools, must recall the nonce.
+- **C (cancellation):** aborted 1.5 s after session start; the process group and any process carrying the session ID must be gone.
 
-Classify provider/tool/auth failures separately from model quality. If the acceptance case passes, decide whether automatic no-`--directive` Claude autodiscovery is actually needed for the owner migration workflow. Add it only if it removes a real remaining manual integration step; do not make it a new release prerequisite by inference.
+Every run passes the real Mission Control authority code:
 
-Merge/deploy/restart/routing-switch work remains outside this packet until explicitly admitted at that boundary. Full repository release gates belong there, not in this Iteration checkpoint.
+1. owner-source-bound directive;
+2. admission;
+3. Claude profile authorization;
+4. plan-hash preflight;
+5. schema-validated receipt.
+
+Here that code runs in memory: no live Mission Control, OAuth, account or production change.
+
+The output is `claude-acceptance-<stamp>/acceptance-receipt.json` plus `mission-control-events.json`. It holds only identifiers, statuses, reason codes, counts and tool **names**. Exit code 0 means every check passed.
+
+Options:
+
+- **`--effort medium`**, if low proves insufficient.
+- **`--mcp-tool <exact name>`** / **`--mcp-args '<json>'`**, for a different read-only connector tool. If the default name is wrong, the receipt lists the visible MCP tool names so the next run can pick exactly.
+- **`--no-mcp`**, to skip the MCP step.
+
+## Interpreting failures — do not retry automatically
+
+- `HOST_PREFLIGHT:*` means an auth-route or CLI-contract problem, not model quality. A `CLAUDE_SUBSCRIPTION_AUTH_UNVERIFIED` on a headless host set up with `claude setup-token` is the open question in `MIGRATION-ASSESSMENT.md` §4. Record what `claude auth status --json` reports (fields `loggedIn`, `authMethod`, `apiProvider`, `subscriptionType` only) before changing the predicate.
+- A `mcpExactTool` failure classified `CONNECTOR_OR_AUTH_NOT_MODEL` means a connector name or auth problem, not model quality.
+- `MODEL_MISMATCH` means the CLI reported a model ID different from the requested one; record the reported ID.
+- There is no automatic retry, model or provider fallback, API route or subagent. Don't change OAuth or account state to rescue a run.
+
+## After a pass
+
+1. Record the receipt summary in `TASK-STATE.json` and `TEST-RESULTS.json`.
+2. Follow the sequence in `MIGRATION-ASSESSMENT.md` §7.
+
+Claude autodiscovery belongs at the execution-surface routing, and only after the owner chooses Claude as an automatic executor.
+
+Merge, deploy, restart and routing switches stay outside this packet.

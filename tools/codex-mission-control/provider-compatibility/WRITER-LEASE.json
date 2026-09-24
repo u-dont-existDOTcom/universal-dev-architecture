@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "complete",
   "exclusive_writer": true,
   "owned_branch": "chat/claude-acceptance-resume-20260924-0305",
   "integration_branch": "chat/claude-compatibility-integration-20260924-0110",
@@ -24,5 +24,6 @@
   "production_switch": false,
   "claude_inference_during_this_lane": false,
   "assurance_lane": "iteration",
-  "push_status": "BLOCKED_GIT_PROXY_REPOSITORY_NOT_IN_SESSION_SOURCES; delivered as git bundle"
+  "push_status": "BLOCKED_GIT_PROXY_REPOSITORY_NOT_IN_SESSION_SOURCES; delivered as git bundle",
+  "closeout": "Continuation lane complete for the reachable scope: resume fix, hermetic tests, live acceptance harness, Claude AGENTS.md chain fix, autodiscovery decision, migration assessment. No merge, deploy, OAuth/account change, push or Claude inference. Integrator: reconcile onto chat/claude-compatibility-integration-20260924-0110."
 }

@@ -58,5 +58,39 @@
     "Current Claude Code 2.1.281 does not expose --max-turns; maxTurns is enforced retrospectively from terminal num_turns. Wall-clock timeout remains a hard host kill.",
     "MCP connector health is verified without inference; exact MCP tool catalog/read-write behavior is not yet acceptance-tested.",
     "Automatic no-argument Mission Control discovery still selects the existing Codex path only."
-  ]
+  ],
+  "continuation": {
+    "task_id": "claude-acceptance-resume-20260924",
+    "branch": "chat/claude-acceptance-resume-20260924-0305",
+    "node_version": "v22.22.2",
+    "commands": [
+      {
+        "command": "node --test tools/codex-mission-control/provider-compatibility/tests/{compatibility,host-transport,provider-dispatch,live-acceptance-harness}.test.mjs",
+        "tests": 59,
+        "passed": 59,
+        "failed": 0
+      },
+      {
+        "command": "npx tsx --test tests/chat-work-authority-gate.test.ts tests/supervision-admission-runtime.test.ts tests/claude-execution-runtime.test.ts",
+        "tests": 35,
+        "passed": 35,
+        "failed": 0
+      },
+      {
+        "command": "git diff --check",
+        "result": "PASS"
+      }
+    ],
+    "found_during_run": [
+      "Before the fix, host-transport fixtures failed 5/7 on hosts with ANTHROPIC_BASE_URL set (ambient env inheritance); fixed by hermetic env.",
+      "Resume directive could not pass the digest seam (probe: CLAUDE_DIRECTIVE_ARTIFACT_MISMATCH / RESUME_BINDING_MISMATCH); fixed."
+    ],
+    "measurement": {
+      "task_elapsed_seconds": 958.28,
+      "observed_test_seconds": 23.03,
+      "test_share_percent": 2.4,
+      "forced_redundant_green_seconds": 0
+    },
+    "live_inference_calls": 0
+  }
 }

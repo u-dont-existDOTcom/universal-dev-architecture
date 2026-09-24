@@ -4,6 +4,15 @@
 
 Implementation checkpoint: `1b14c87b876aeb9c0c41c0e4966575d3c7f3582c` on `chat/claude-compatibility-integration-20260924-0110`.
 
+Continuation (`chat/claude-acceptance-resume-20260924-0305`):
+
+- **Exact-ID resume is now dispatchable.** Before this fix it never was. Resume requires the same task and directive at a strictly newer revision, with the exact previous binding inside the newly authorized bytes.
+- **The host-transport tests are hermetic.**
+- **`acceptance/live-acceptance.ts`** runs the full live acceptance with one command on the Claude-authenticated host.
+- **The app `CLAUDE.md` is gone.** It hid the root `AGENTS.md` chain from Claude sessions started inside the app.
+
+See `WORK-INSTRUCTIONS.md` for the next action and `MIGRATION-ASSESSMENT.md` for the GPT → Claude migration path.
+
 ## What is implemented
 
 The existing OpenAI/Codex path remains the default. `provider-dispatch.mjs` sends directives with no explicit provider binding to the existing dispatcher with the exact original argument object and returns its exact result. Unknown provider bindings fail closed. Only the exact `ANTHROPIC / CLAUDE_CODE_CLI / EXECUTION` binding selects Claude.
@@ -45,7 +54,7 @@ Use `scripts/test_efficiency.py` for measured reruns. The current task telemetry
 
 ## What is not implemented or proven
 
-The no-`--directive` automatic Mission Control discovery path remains the existing Codex path; the integrated Claude path is available through an explicit source-bound provider directive. No real Claude task, MCP tool invocation, AskRigor production change, merge, deployment, restart or routing switch has occurred.
+The no-`--directive` automatic Mission Control discovery path remains the existing Codex path; the integrated Claude path is available through an explicit source-bound provider directive. Claude autodiscovery was deliberately not added. That path is the preview-gated Codex headless route, and the live automatic chain is native-Work autodispatch, so the addition would be a routing switch. It belongs at execution-surface routing once the owner chooses Claude as an automatic executor. No real Claude task, MCP tool invocation, AskRigor production change, merge, deployment, restart or routing switch has occurred.
 
 The next live acceptance is intentionally resource-gated: one bounded low/medium subscription run should verify exact session/result, one permitted read, one denied operation, resume, cancellation and one exact MCP tool identity. Do not retry a provider failure automatically. After that evidence, decide whether automatic Claude autodiscovery is necessary before any merge.
 
