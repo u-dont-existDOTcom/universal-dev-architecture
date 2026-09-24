@@ -16,6 +16,8 @@ For **every assistant turn** governed by this architecture, the **first line of 
 
 These invariants are intentionally duplicated at the root because they must survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies, must not rely on a stale prior-turn activation, and must not discharge the obligation in reasoning without carrying it into final output.
 
+**Every turn:** reusable output over ~8,000 characters (handoffs, directives, plans, reports) goes in a file, for any recipient; chat gets a short summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
+
 ## Pre-final continuation invariant
 
 Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**. An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it. A self-authored scope or completed lease cannot cancel parent implementation authority. Check the actual final output: stop only at an evidenced boundary, finish independent work, and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates.
@@ -154,7 +156,7 @@ Reuse the existing browser process, context, page, or tab across sequential step
 
 Create a fresh page/context/session only when there is a concrete need for isolation, parallelism, a clean authentication/storage state, cross-account separation, recovery from corrupted/stale page state, or behavior whose correctness depends on a fresh browsing context. Close reusable browser state only when the task is finished or keeping it alive creates a material resource, security, privacy, or state-contamination risk.
 
-For managed ChatGPT browser automation, a fresh conversation means **New chat in the current verified reusable ChatGPT tab**, not a new browser tab. Keep one managed ChatGPT tab in steady state; allow two only during a bounded transition or recovery; three is the absolute hard ceiling, and fail closed before opening a fourth. Open a replacement only after the current tab is irrecoverably unusable, then close the superseded tab immediately after the replacement is verified. Never fan out duplicate tabs for the same task. Doctor/status telemetry must report `managedChatGptTabCount`, and completed or superseded provider-session tabs must be cleaned deterministically back toward one. Do not retain bootstrap or pinned automation-owned tabs merely as history when durable capability and URL evidence already exist.
+Managed ChatGPT automation: fresh conversation = **New chat in the current verified reusable ChatGPT tab**, never a new tab. Tabs: one steady, two only in bounded transition/recovery, three hard ceiling; fail closed before opening a fourth. Open a replacement only if the current tab is irrecoverable; close the superseded tab as soon as the replacement is verified. Never fan out duplicate tabs per task. Doctor/status reports `managedChatGptTabCount`; clean finished or superseded tabs deterministically back toward one; never keep bootstrap or pinned tabs as history once capability/URL evidence is durable.
 
 Standing authority includes creating and privately registering missing MC-only supervisor conversations without repeat approval; automation ownership, private identity, pacing, fixed controls, and personal/external-chat exclusion still apply.
 
