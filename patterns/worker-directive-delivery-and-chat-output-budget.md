@@ -4,6 +4,18 @@
 **Date:** 2026-09-10  
 **Scope:** Universal across repositories and development workflows unless a current project-specific requirement explicitly overrides it.
 
+## Scope correction (owner, 2026-09-24)
+
+The owner reported that this rule was being ignored. Two takeover handoffs from Mission Control chats (about 17,000 and 12,000 characters) were pasted inline, so the owner had to copy them by hand. Both were already over this pattern's own fallback threshold. The rule did not fail on its threshold; it failed to activate:
+
+- root `AGENTS.md` routed it only from the Chat/Work routing section as "Worker handoffs follow ...";
+- the rule graph trigger was "Worker execution is selected";
+- a chat-to-chat takeover or continuation packet, a handoff to Claude, or a long status report did not look like a "worker handoff", so the rule never fired.
+
+The output-budget part of this pattern therefore applies to **every reusable long output, on every turn, on every surface, for every recipient**: Codex/Work directives, handoffs or takeover/continuation packets for another Chat, Claude, Codex or any other agent, plans, diagnoses and reports meant to be reread. Root `AGENTS.md` now states it in the per-turn invariants, next to the timestamp rule, so it does not depend on task triage to activate.
+
+Before sending a turn, check its length. If reusable content is over the threshold below, move it into a file and send only the short orientation described under "Owner-facing response shape". If the surface genuinely cannot create a file, try the available file or artifact tool first. Only then fall back to inline text, and say which tool failed.
+
 ## Problem
 
 A reasoning chat can correctly decide that Codex/Work should perform the next execution step yet still stop after explaining what the worker ought to do. That leaves the owner to ask a second time for the actual worker instructions.
@@ -108,6 +120,8 @@ This applies especially to:
 - evaluation protocols;
 - long handoff packets;
 - multi-page checklists intended for reuse or pasting elsewhere.
+- handoffs, takeover or continuation packets for any agent (another Chat, Claude, Codex, Work);
+- long diagnoses, status reports and plans the owner or another agent will reread.
 
 Use this default delivery threshold:
 

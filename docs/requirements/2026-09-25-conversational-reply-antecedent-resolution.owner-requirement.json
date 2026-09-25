@@ -1,0 +1,17 @@
+{
+  "requirement_id": "2026-09-25-conversational-reply-antecedent-resolution",
+  "source": "owner correction in Chat",
+  "problem": "When the user said a named person 'replied', retrieval surfaced multiple conversations with that person and semantic/topical similarity overrode the actual chronological reply relationship. The initial repair was too narrow because it only triggered on explicit phrases like 'X replied'; ordinary active conversation also consists of implicit replies.",
+  "required_behavior": [
+    "In an active user-assistant exchange, presume a new user turn answers or continues the immediately preceding assistant turn even without any explicit reply marker; do not require the user to say 'reply' or restate the antecedent.",
+    "For phrases such as 'X replied', 'X answered', 'they said back', or equivalent, resolve the referent first against the most recent actual outbound message/question to that named person in the available conversation/history.",
+    "Chronological conversational adjacency and explicit recipient identity outrank topical or lexical similarity.",
+    "Use semantic/topic matching only when no chronological antecedent can be recovered.",
+    "If multiple chronological antecedents remain genuinely plausible, inspect the relevant recent history before interpreting the reply; do not silently select a thematically similar older thread.",
+    "A reply's wording may overlap an unrelated topic and must not override an established response edge.",
+    "An explicit topic switch, quotation, or clearly named different referent can override immediate adjacency."
+  ],
+  "regression": "If Louka's current reply mentions that something 'worked', crying, or 'energy awakening', but the most recent message sent to Louka concerned a loving-adult/inner-child exercise, bind the reply to that message unless the reply explicitly names another antecedent. Do not redirect it to an older shaking/Qigong thread based only on topical overlap. Also, if Louka is directly chatting with the assistant, his next message is presumed to answer the assistant's immediately preceding message without needing to say that he is replying.",
+  "scope": "Universal conversational retrieval/referent resolution; does not replace explicit user corrections or exact quoted reply context.",
+  "date": "2026-09-25"
+}

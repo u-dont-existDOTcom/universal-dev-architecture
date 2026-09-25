@@ -869,7 +869,7 @@ class ExecutorHandoffLivenessTests(unittest.TestCase):
         self.assertEqual(accounting["wait"]["responseBytes"], 200)
         self.assertEqual(accounting["wait"]["callCount"], 100)
         self.assertEqual(accounting["wait"]["elapsedSeconds"], 100.0)
-        self.assertEqual(accounting["wait"]["executorOccupiedSeconds"], 1.0)
+        self.assertAlmostEqual(accounting["wait"]["executorOccupiedSeconds"], 1.0, places=9)
         self.assertEqual(finalized["state"], "WAITING_FOR_REASONING_REVIEW")
 
     def test_28_usage_after_finalization_is_rejected_without_changing_liveness(self) -> None:

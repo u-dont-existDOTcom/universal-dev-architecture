@@ -14,7 +14,9 @@ For **every assistant turn** governed by this architecture, the **first line of 
 - If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.
 - Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
 
-These invariants are intentionally duplicated at the root because they must survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies, must not rely on a stale prior-turn activation, and must not discharge the obligation in reasoning without carrying it into final output.
+These invariants are duplicated at the root so they survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: apply them without first judging a downstream pattern “task-relevant”, without relying on a stale prior-turn activation, and carry each obligation into the final output.
+
+**Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
 ## Pre-final continuation invariant
 
@@ -39,7 +41,7 @@ Project-specific current requirements win on genuine conflict.
 
 When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
 
-Do not use agentic shorthand such as `I chose wrong`, `I forgot`, `I should have`, or `I made a bad choice` as a causal explanation or substitute for repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and the smallest useful discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or internal model mechanisms. A successful intervention establishes its observed effect in the tested scope, not a unique unobserved cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary rather than merely promising different behavior next time.
+Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises.
 
 ## Owner-marked Mission Control failure capture
 
@@ -86,6 +88,8 @@ Default to the **Iteration lane** unless the owner or current project requiremen
 
 High-risk invariants can require targeted hard gates in Iteration/Decision, but one safety-sensitive surface does not import every unrelated release gate into the inner loop.
 
+Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
+
 Before launching expensive validation, require a concrete answer to: **what current decision can this result change?** If none, defer it as later assurance debt.
 
 Optional evaluator/provider outages or rate limits must not freeze unrelated development. Preserve the blocker, continue safe work, and defer optional evidence unless it is genuinely necessary for the current decision. Never bypass a hard gate or substitute an unauthorized model merely to avoid a limit.
@@ -109,7 +113,7 @@ Work selects authorized task-scoped access and the automatic reviewer; do not as
 
 Minimize owner choice as an execution invariant. Resolve routine implementation details and already-authorized subordinate actions without asking. A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval. Ask again only if those facts materially change or the platform requires a fresh human gesture. If owner interaction is genuinely required, finish independent preparation, consolidate the exact dependent actions into the fewest confirmations permitted, explain the concrete downside or risk and why the gate is mandatory, give a recommended default, and resume automatically after the answer.
 
-**Continuation is goal-directed, not method-directed.** For substantive or iterative work, apply `patterns/outcome-advancement-and-strategy-efficacy.md`. Measure owner-outcome progress rather than activity or local improvement, and re-test the strategy's causal premise. After an observed direct-outcome failure, apply its repair-candidate admission rule before broader validation. If progress is flat/regressing, predictions fail, failures recur, fixes grow ad hoc, or evidence undermines the premise, stop materially similar work; preserve useful work and switch to the best-supported materially different strategy without waiting for the owner. If persistence is genuinely unclear, run the cheapest discriminating test. Sunk cost, green tests, successful substeps, or better execution of a failing strategy do not justify continuing it. Continue automatically after a strategy switch unless a genuine owner/authority boundary blocks the next step.
+**Continuation is goal-directed, not method-directed.** For substantive or iterative work, apply `patterns/outcome-advancement-and-strategy-efficacy.md`. After an observed direct-outcome failure, apply its repair-candidate admission rule before broader validation. Flat/regressing/unclear progress triggers diagnosis: check exposure, effect model/window, and source-bound bottleneck; refine only a supported implementation/preparation/pacing/delivery gap with a predeclared signal/review, and stop/switch only for evidence-backed refusal, harm, infeasibility, mismatch, adequate contradiction/nonresponse, or a better alternative. Never invent fixed attempt counts for stochastic, skill-learning, or delayed strategies. If unclear, run the cheapest discriminating test. Sunk cost or green tests do not justify a genuinely failing strategy. Continue automatically after supported continuation, refinement, or replacement unless a genuine owner/authority boundary blocks the next step.
 
 When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so.
 
