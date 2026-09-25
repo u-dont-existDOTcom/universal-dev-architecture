@@ -166,6 +166,75 @@ class OutcomeAdvancementPatternTests(unittest.TestCase):
         self.assertIn("best", receipt["directOutcomeEvidence"])
         self.assertTrue(receipt["intervention"]["required"])
         self.assertTrue(receipt["intervention"]["sameStrategyWorkHeld"])
+        self.assertEqual(receipt["strategy"]["effectModel"], "UNKNOWN")
+        self.assertEqual(receipt["strategy"]["review"]["action"], "DIAGNOSE")
+        self.assertEqual(receipt["strategy"]["review"]["finding"], "UNRESOLVED")
+        self.assertEqual(receipt["strategy"]["refinement"]["state"], "NONE")
+        for field in (
+            "parentStrategyId",
+            "refinementId",
+            "sourceRefs",
+            "rationale",
+            "expectedObservableSignal",
+            "reviewCondition",
+            "state",
+        ):
+            self.assertIn(field, receipt["strategy"]["refinement"])
+
+    def test_diagnose_before_replacement_and_refinement_contract(self) -> None:
+        pattern = (
+            ROOT / "patterns" / "outcome-advancement-and-strategy-efficacy.md"
+        ).read_text(encoding="utf-8")
+        bootstrap = (
+            ROOT / "templates" / "CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md"
+        ).read_text(encoding="utf-8")
+
+        required = (
+            "Diagnose before replacement when progress is flat, unclear, or variable",
+            "default control action is `DIAGNOSE`",
+            "A delivered instruction is not proof of completed practice",
+            "source/effect-model-backed window",
+            "parent_strategy_id",
+            "refinement_id",
+            "expected_observable_signal",
+            "A refinement inherits the parent strategy",
+            "a fixed attempt count does not by itself establish method failure",
+            "do not invent `N attempts` as an efficacy cutoff",
+            "A configured budget may stop further resource spend without proving that the underlying method is false",
+        )
+        for phrase in required:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, pattern)
+
+        self.assertNotIn(
+            "Two flat cycles, or a configured effort/budget threshold with no advance, sets",
+            pattern,
+        )
+        self.assertNotIn(
+            "two flat cycles or the configured no-progress budget require `REPLACEMENT_REQUIRED`",
+            bootstrap,
+        )
+        self.assertIn("flat, mixed, or low-information progress defaults to `DIAGNOSE`", bootstrap)
+        self.assertIn("may `REFINE` the same parent strategy", bootstrap)
+
+        fixture = json.loads(
+            (
+                ROOT
+                / "evals"
+                / "method-premise"
+                / "diagnose-before-replace.json"
+            ).read_text(encoding="utf-8")
+        )
+        by_id = {item["case_id"]: item for item in fixture["cases"]}
+        self.assertEqual(by_id["DBR-001-flat-skill-learning-no-cutoff"]["expected_action"], "DIAGNOSE")
+        self.assertFalse(by_id["DBR-001-flat-skill-learning-no-cutoff"]["replacement_required"])
+        self.assertEqual(by_id["DBR-002-source-bound-implementation-gap"]["expected_action"], "REFINE")
+        self.assertTrue(by_id["DBR-002-source-bound-implementation-gap"]["preserve_parent_strategy"])
+        self.assertEqual(by_id["DBR-003-deterministic-contradiction"]["expected_action"], "REPLACE")
+        self.assertTrue(by_id["DBR-003-deterministic-contradiction"]["replacement_required"])
+        self.assertEqual(by_id["DBR-004-delayed-before-window"]["expected_action"], "DIAGNOSE")
+        self.assertFalse(by_id["DBR-004-delayed-before-window"]["replacement_required"])
+        self.assertEqual(by_id["DBR-005-explicit-refusal"]["expected_action"], "STOP_OR_REPLACE_AFFECTED_STEP")
 
     def test_somatic_fixture_fails_healthy_projection(self) -> None:
         fixture = json.loads(

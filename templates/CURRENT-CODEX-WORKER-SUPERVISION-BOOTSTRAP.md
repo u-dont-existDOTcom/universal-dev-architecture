@@ -359,7 +359,10 @@ WASTE_OR_NO_INFORMATION_GAIN
 Control rules:
 
 - one flat strategy cycle is at least YELLOW and requires chat review;
-- two flat cycles or the configured no-progress budget require `REPLACEMENT_REQUIRED` unless a valid delayed-effect model applies;
+- flat, mixed, or low-information progress defaults to `DIAGNOSE`: inspect actual exposure, declared effect model, observation window, prerequisites independent of outcome, and source-bound bottleneck before replacement;
+- a concrete supported implementation/preparation/pacing/delivery gap may `REFINE` the same parent strategy and must declare source refs, rationale, expected observable signal, and review condition;
+- replacement requires a decision-relevant cause such as refusal, meaningful harm, infeasibility, a specific mismatch, an adequately tested contradicted prediction/nonresponse, or a clearly better supported alternative;
+- do not invent a fixed attempt count for stochastic, skill-learning, or delayed strategies unless the source/contract validates that cutoff; a resource budget may stop spend without proving method failure;
 - a negative direct delta is `REGRESSING` and requires immediate chat strategy review;
 - repeating a failed, regressing, or exhausted strategy without a new evidence-backed causal reason is RED;
 - an overdue promised measurement produces `PROGRESS_EVIDENCE_OVERDUE`;
@@ -375,7 +378,7 @@ strategy_efficacy REPLACEMENT_REQUIRED
 => overall RED
 ```
 
-When progress is flat, regressing, or overdue, Codex stops materially similar execution and returns evidence. The chat supervisor selects the replacement method. Codex does not diagnose or replace the strategy itself.
+When progress is flat, regressing, or overdue, Codex returns exact execution/exposure evidence. The chat supervisor first diagnoses the bottleneck, then selects bounded continuation, refinement, stop, or replacement. Codex does not infer efficacy from an attempt count, author substantive method diagnosis, or replace the strategy itself.
 
 **The owner must not have to ask whether substantial work made progress.** If the owner asks, record `OWNER_FORCED_PROGRESS_REVIEW` and treat it as a supervision failure.
 

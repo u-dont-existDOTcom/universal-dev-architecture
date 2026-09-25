@@ -142,6 +142,10 @@ strategy_id
 strategy_description
 causal_hypothesis
 predicted_outcome_change
+effect_model  # deterministic | stochastic | skill_learning | delayed | unknown
+informative_opportunity
+prerequisites_independent_of_outcome
+review_condition
 repair_admission
   applicable  # false means the remaining repair-admission fields carry no obligation
   motivating_failures
@@ -178,6 +182,36 @@ This ordering is asymmetric by design: a development failure can falsify a candi
 A plan or directive that would spend held-out, blinded, or prospective evidence on a failure-motivated candidate must state both `existing_direct_evidence_check` and `development_regression_status`. Broader evidence spend is admitted only when the existing-evidence state is `NOT_FOUND` or `CONSISTENT`, and the development-regression state is `DEV_PASS_NONVALIDATING` or `NOT_APPLICABLE_NO_REPRODUCIBLE_FAILURE`. `ALREADY_FALSIFIED` always blocks broader evidence spend for that candidate.
 
 If no reproducible or retrodictable failure case exists, record `NOT_APPLICABLE_NO_REPRODUCIBLE_FAILURE` and proceed to the smallest design-independent test that can change the strategy decision. Do not manufacture a regression case or delay evidence collection merely to satisfy this section.
+
+### 5.2 Diagnose before replacement when progress is flat, unclear, or variable
+
+A flat, mixed, noisy, or disappointing observation is not by itself proof that the strategy is wrong. The default control action is `DIAGNOSE` when the evidence does not yet identify the failure cause.
+
+Before replacing a still-plausible method, determine:
+
+1. **What actually ran?** Record the actual method, dose/intensity, exposure/opportunity, representation/delivery, and whether the intended step was really attempted. A delivered instruction is not proof of completed practice.
+2. **Was the observation window informative?** Respect the declared effect model. Deterministic immediate claims can be contradicted by an adequately exposed immediate failure; stochastic, skill-learning, or delayed strategies usually require an appropriate window or source-backed cutoff. Do not invent a fixed number of attempts after seeing disappointment.
+3. **What bottleneck is source-bound?** Distinguish target/formulation mismatch, implementation/prerequisite gap, pacing/delivery problem, measurement uncertainty, state/resource constraint, refusal, harm, infeasibility, and a genuinely better supported alternative. A plausible explanation is not yet a decision finding.
+4. **Can the parent strategy be refined?** If evidence identifies a concrete preparation, pacing, delivery, or practice defect while the parent strategy remains plausible, record a refinement under the same parent strategy rather than laundering it as a new method or discarding its history.
+5. **What would the refinement change?** Predeclare the expected observable signal and the review condition before the next informative opportunity. Prerequisites must be defined independently of success; `it worked` cannot be the definition of `done correctly`.
+
+Replacement or stop is supported when at least one decision-relevant cause is established: explicit refusal, meaningful harm, infeasibility/resource impossibility, a specific target/formulation/method mismatch, an applicable pre-existing prediction contradicted under adequate exposure and its proper window, meaningful nonresponse after an appropriate source/effect-model-backed window, or a clearly better supported alternative.
+
+Absent those conditions, preserve the plausible parent method while diagnosing or applying one bounded refinement. This is not indefinite method preservation: post-hoc prerequisites, circular definitions of correct practice, endless refinements, and changing the evaluation rule after each miss are invalid.
+
+Track refinements as first-class lineage:
+
+```text
+parent_strategy_id
+refinement_id
+source_refs
+rationale
+expected_observable_signal
+review_condition
+state  # active | complete | superseded | withdrawn
+```
+
+A refinement inherits the parent strategy's evidence history and does not reset failed predictions, adverse evidence, resource spend, or owner-outcome baseline. A refinement also cannot re-enable a source-bound failed or exhausted parent by relabeling it; when the parent is already failed/exhausted, `patterns/failed-strategy-lineage-and-negative-evidence-binding.md` governs re-enable or replacement.
 
 ---
 
@@ -317,15 +351,11 @@ if a completed strategy cycle produces no direct or validated leading-indicator 
   outcome_advancement = FLAT
 ```
 
-One flat cycle is at least YELLOW and requires a bounded efficacy review before another materially similar cycle.
+One flat completed cycle is at least YELLOW and requires a bounded efficacy review before another materially similar cycle.
 
-Two flat cycles, or a configured effort/budget threshold with no advance, sets:
+Repeated flat/variable results increase the urgency of diagnosis, but **a fixed attempt count does not by itself establish method failure**. Use the declared effect model, actual exposure, source-backed prerequisites/cutoffs, observation window, and direct evidence to decide among `CONTINUE`, `DIAGNOSE`, `REFINE`, `REPLACE`, or `STOP`.
 
-```text
-strategy_efficacy = REPLACEMENT_REQUIRED
-```
-
-unless a documented delayed-effect model and upcoming measurement boundary justify continuation.
+For deterministic immediate claims, one adequately exposed contradicted prediction may be enough. For stochastic, skill-learning, or delayed strategies, do not invent `N attempts` as an efficacy cutoff unless the source/contract validates that threshold. A configured budget may stop further resource spend without proving that the underlying method is false.
 
 ### 9.3 Overdue measurement
 
@@ -340,14 +370,16 @@ Do not allow indefinite supporting work to postpone a decision-relevant measurem
 
 ### 9.4 Strategy exhaustion
 
-When a strategy reaches its predeclared cycle, call, time, or evidence limit without meeting its success condition:
+When a strategy reaches a **valid predeclared** cycle, call, time, spending, or evidence limit, stop the bounded execution governed by that limit. Do not invent such a limit after observing disappointment.
+
+If the limit was also a source/effect-model-backed efficacy cutoff and the success condition was unmet:
 
 ```text
 strategy_efficacy = EXHAUSTED
 same_strategy_continuation_allowed = false
 ```
 
-The next action is strategy replacement, bounded owner decision, or truthful terminal classification—not cosmetic iteration.
+If it was only a resource or experiment budget, stop further spend but keep efficacy `UNCERTAIN` until the available evidence supports a substantive conclusion. The next action is diagnosis, supported refinement/replacement, bounded owner decision, or truthful terminal classification—not cosmetic iteration.
 
 ### 9.5 Overall projection
 
@@ -416,14 +448,15 @@ A worker must not wait for the owner to ask whether the work helped.
 
 When progress is FLAT, REGRESSING, or overdue:
 
-1. preserve valid supporting work;
-2. stop materially similar work under the failed strategy;
-3. record the exact outcome delta and effort since last direct evidence;
-4. identify what was learned;
-5. prepare a decision-specific strategy-efficacy packet;
-6. route ordinary method review to Extra High and genuinely difficult/high-consequence method replacement to Pro;
-7. resume automatically under the replacement strategy once decided;
-8. ask the owner only for genuinely missing source, threshold, policy, or tradeoff authority.
+1. preserve valid supporting work and the full strategy/refinement history;
+2. record the exact outcome delta, actual exposure/opportunity, and effort since last direct evidence;
+3. run the diagnose-before-replacement review from §5.2 using source-bound evidence and the declared effect model;
+4. stop only the activity that current evidence actually rejects, makes unsafe, infeasible, or resource-exhausted;
+5. when a concrete implementation/preparation/pacing/delivery gap is supported and the parent strategy remains plausible, apply one bounded refinement with a predeclared expected signal and review condition;
+6. when refusal, harm, infeasibility, an adequately tested contradiction/nonresponse, a specific mismatch, or a clearly better supported alternative is established, hold materially similar work and prepare the replacement decision;
+7. route ordinary method diagnosis/refinement to Extra High and genuinely difficult/high-consequence replacement to Pro;
+8. resume automatically under the supported continuation, refinement, or replacement once decided;
+9. ask the owner only for genuinely missing source, threshold, policy, or tradeoff authority.
 
 ### 11.2 Do not freeze unrelated work
 
@@ -536,9 +569,10 @@ At the next safe checkpoint, each active nontrivial worker must:
 4. calculate or describe the outcome delta without inventing a percentage;
 5. record outcome advancement and strategy efficacy separately from alignment;
 6. trigger a strategy review when flat, regressing, overdue, or exhausted;
-7. preserve valid supporting work;
-8. stop materially similar work under a failed strategy;
-9. continue automatically under an authorized replacement method.
+7. diagnose actual exposure, effect model, observation window, and source-bound bottleneck before deciding replacement;
+8. preserve valid supporting work and parent/refinement lineage;
+9. stop materially similar work only when the evidence supports failure, refusal, harm, infeasibility, resource exhaustion, or a better route;
+10. continue automatically under the supported continuation, refinement, or replacement.
 
 Tasks with no currently measurable outcome must define the next decision-changing evidence boundary and cannot remain `NOT_YET_MEASURABLE` indefinitely.
 
@@ -551,17 +585,21 @@ At minimum test:
 1. Worker GREEN + contract MATCH + outcome REGRESSING yields overall RED under a repeated/failed strategy.
 2. Worker GREEN + contract MATCH + outcome ADVANCING may remain GREEN.
 3. One flat completed cycle yields at least YELLOW and strategy review.
-4. Two flat cycles trigger `REPLACEMENT_REQUIRED` unless a valid delayed-effect model applies.
-5. High activity with no direct evidence is not counted as progress.
-6. Preservation/safety work remains visible as supporting work.
-7. A promised measurement that is overdue produces `PROGRESS_EVIDENCE_OVERDUE`.
-8. Strategy-cycle limits are enforced.
-9. A new strategy resets strategy-specific cycle accounting but not the owner-outcome baseline/history.
-10. A qualitative outcome uses explicit evidence states rather than a fabricated percentage.
-11. A child task can advance enablement while the root outcome remains flat.
-12. The Somatic R15 numeric regression yields RED and replacement-method review before owner prompting.
-13. Pro/Extra High unavailability blocks only the affected strategy decision, not unrelated safe work.
-14. Dashboard shows direct delta, supporting work, replacement status, and owner-action state.
+4. Repeated flat or low-information observations without a source-bound defect remain `DIAGNOSE`, not automatic `REPLACEMENT_REQUIRED`.
+5. A source-bound implementation gap yields a refinement that preserves parent strategy identity/history and declares an expected signal plus review condition.
+6. A deterministic prediction contradicted under adequate exposure and its stated window may require replacement without an arbitrary attempt count.
+7. A delayed/skill-learning/stochastic strategy cannot be failed solely because an invented fixed number of attempts elapsed.
+8. Explicit refusal, meaningful harm, infeasibility, or a clearly better supported alternative can stop/replace the affected strategy immediately at the supported scope.
+9. High activity with no direct evidence is not counted as progress.
+10. Preservation/safety work remains visible as supporting work.
+11. A promised measurement that is overdue produces `PROGRESS_EVIDENCE_OVERDUE`.
+12. Valid strategy/resource limits are enforced without converting a resource budget into false efficacy evidence.
+13. A new strategy resets strategy-specific cycle accounting but not the owner-outcome baseline/history.
+14. A qualitative outcome uses explicit evidence states rather than a fabricated percentage.
+15. A child task can advance enablement while the root outcome remains flat.
+16. The Somatic R15 numeric regression yields RED and replacement-method review before owner prompting.
+17. Pro/Extra High unavailability blocks only the affected strategy decision, not unrelated safe work.
+18. Dashboard shows direct delta, supporting work, refinement/replacement status, and owner-action state.
 
 ---
 
@@ -583,5 +621,6 @@ This is a required companion to:
 - `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`
 - `patterns/supervision-assurance-planes-and-pro-meta-review.md`
 - `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md`
+- `patterns/failed-strategy-lineage-and-negative-evidence-binding.md`
 
 The owner-outcome pattern preserves the correct target. The dual-alignment pattern ensures the worker and contract point at it. This pattern closes the remaining loop by proving whether the strategy is actually moving toward it and forcing intervention when it is not.

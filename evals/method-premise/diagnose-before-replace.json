@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "purpose": "Regression fixtures for diagnose-before-replacement and bounded strategy refinement.",
+  "cases": [
+    {
+      "case_id": "DBR-001-flat-skill-learning-no-cutoff",
+      "progress": "FLAT",
+      "effect_model": "skill_learning",
+      "source_validated_attempt_cutoff": false,
+      "actual_exposure": "partial_or_uncertain",
+      "decision_relevant_failure_cause": null,
+      "expected_action": "DIAGNOSE",
+      "expected_strategy_efficacy": "UNCERTAIN",
+      "replacement_required": false
+    },
+    {
+      "case_id": "DBR-002-source-bound-implementation-gap",
+      "progress": "FLAT",
+      "effect_model": "skill_learning",
+      "actual_exposure": "partial",
+      "decision_relevant_failure_cause": "implementation_gap",
+      "expected_action": "REFINE",
+      "preserve_parent_strategy": true,
+      "requires_expected_signal": true,
+      "requires_review_condition": true
+    },
+    {
+      "case_id": "DBR-003-deterministic-contradiction",
+      "progress": "FLAT",
+      "effect_model": "deterministic",
+      "actual_exposure": "adequate",
+      "observation_window": "sufficient",
+      "decision_relevant_failure_cause": "applicable_prediction_contradicted",
+      "expected_action": "REPLACE",
+      "replacement_required": true
+    },
+    {
+      "case_id": "DBR-004-delayed-before-window",
+      "progress": "FLAT",
+      "effect_model": "delayed",
+      "actual_exposure": "adequate",
+      "observation_window": "not_yet_due",
+      "decision_relevant_failure_cause": null,
+      "expected_action": "DIAGNOSE",
+      "replacement_required": false
+    },
+    {
+      "case_id": "DBR-005-explicit-refusal",
+      "progress": "UNKNOWN",
+      "effect_model": "unknown",
+      "decision_relevant_failure_cause": "refusal",
+      "expected_action": "STOP_OR_REPLACE_AFFECTED_STEP",
+      "replacement_required": true
+    }
+  ]
+}
