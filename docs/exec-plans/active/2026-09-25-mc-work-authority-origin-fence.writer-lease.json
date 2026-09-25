@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "superseded",
   "exclusive_writer": true,
   "owned_branch": "chat/mc-work-authority-origin-fence-20260925",
   "integration_branch": "main",
