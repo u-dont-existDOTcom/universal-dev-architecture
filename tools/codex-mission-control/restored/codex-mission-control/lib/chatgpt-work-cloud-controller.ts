@@ -48,6 +48,10 @@ export interface WorkCloudProductMutationBridge {
 export interface WorkCloudAppExecutorOptions {
   resolutionAttempts?: number;
   resolutionDelayMs?: number;
+  /** Upper bound on read_thread calls in one resolution (default 12). */
+  maxResolutionReads?: number;
+  /** Threads already proven not to be this dispatch's Work thread (their first prompt is immutable). */
+  knownNonMatchingThreads?: { has(threadId: string): boolean; add(threadId: string): void };
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
@@ -58,6 +62,8 @@ export interface WorkCloudAppExecutorOptions {
 export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   private readonly attempts: number;
   private readonly resolutionDelayMs: number;
+  private readonly maxResolutionReads: number;
+  private readonly knownNonMatching: WorkCloudAppExecutorOptions["knownNonMatchingThreads"] | null;
   private readonly sleep: (milliseconds: number) => Promise<void>;
 
   constructor(
@@ -67,6 +73,8 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   ) {
     this.attempts = options.resolutionAttempts ?? 20;
     this.resolutionDelayMs = options.resolutionDelayMs ?? 1_000;
+    this.maxResolutionReads = options.maxResolutionReads ?? 12;
+    this.knownNonMatching = options.knownNonMatchingThreads ?? null;
     this.sleep = options.sleep ?? (async (milliseconds) => { await delay(milliseconds); });
   }
 
@@ -142,17 +150,37 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     requestedAt: string;
     projectId: string | null;
   }): Promise<WorkCloudExecutorOutcome> {
+    // Live finding 2026-09-25: re-reading every candidate on every attempt and every watcher cycle drove
+    // ChatGPT to "Too many requests", after which no read succeeded and the dispatch could never resolve.
+    // Each thread is now read at most once per resolution, proven non-matches are remembered, reads are
+    // capped, and a rate-limit response ends the attempt immediately (still PENDING_SETUP, never a re-create).
+    const pending = { kind: "PENDING_SETUP" as const, clientThreadId: input.clientThreadId };
+    const checked = new Set<string>();
+    let reads = 0;
     for (let attempt = 0; attempt < this.attempts; attempt += 1) {
-      const listed = await this.read("list_threads", {});
-      if (chatGptSourceUnavailable(listed)) return { kind: "PENDING_SETUP", clientThreadId: input.clientThreadId };
+      let listed: unknown;
+      try {
+        listed = await this.read("list_threads", { limit: 50 });
+      } catch (error) {
+        if (isRateLimited(error)) return pending;
+        throw error;
+      }
+      if (chatGptSourceUnavailable(listed)) return pending;
       const matchingIds: string[] = [];
       for (const candidate of chatGptCandidates(listed, input.requestedAt, input.projectId)) {
+        if (checked.has(candidate.threadId) || this.knownNonMatching?.has(candidate.threadId)) continue;
+        if (reads >= this.maxResolutionReads) return pending;
+        reads += 1;
         try {
           const read = await this.readExactThread(candidate.threadId);
           if (surfaceKind(read) !== "chatgpt" || directThreadId(read) !== candidate.threadId) continue;
           const observedPrompt = initialUserPrompt(read);
-          if (observedPrompt !== null && promptReadbackMatches(input.prompt, observedPrompt)) matchingIds.push(candidate.threadId);
-        } catch {
+          if (observedPrompt === null) continue;
+          checked.add(candidate.threadId);
+          if (promptReadbackMatches(input.prompt, observedPrompt)) matchingIds.push(candidate.threadId);
+          else this.knownNonMatching?.add(candidate.threadId);
+        } catch (error) {
+          if (isRateLimited(error)) return pending;
           // A listed provider candidate may not yet be readable. Retry the
           // source-bound resolver; never infer identity from its title.
         }
@@ -164,7 +192,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       if (exact.length === 1) return this.verifyExactThread(exact[0]);
       if (attempt + 1 < this.attempts) await this.sleep(this.resolutionDelayMs);
     }
-    return { kind: "PENDING_SETUP", clientThreadId: input.clientThreadId };
+    return pending;
   }
 
   private async readExactThread(threadId: string): Promise<unknown> {
@@ -759,6 +787,11 @@ function temporaryThreadId(value: unknown): string | null {
     if (id && isTemporaryThreadId(id)) return id;
   }
   return null;
+}
+
+function isRateLimited(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /too many requests|rate.?limit|\b429\b/i.test(message);
 }
 
 function isTemporaryThreadId(id: string): boolean {

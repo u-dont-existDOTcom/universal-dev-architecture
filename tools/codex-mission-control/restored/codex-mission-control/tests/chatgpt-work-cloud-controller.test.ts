@@ -436,3 +436,54 @@ test("HTTP sink retrieves exact dispatch state and appends through authenticated
   assert.equal(requests[1].url, "http://mission-control.test/events");
   assert.equal(new Headers(requests[1].init?.headers).get("x-mission-control-producer-kind"), "SYSTEM");
 });
+
+test("resolver stops at the first rate-limit response and stays PENDING_SETUP", async () => {
+  const reads = new FakeReadClient((name, args) => {
+    if (name === "list_threads") {
+      assert.deepEqual(args, { limit: 50 });
+      return value({ unavailableSources: [], threads: [
+        { kind: "chatgpt", id: "busy-a", updatedAt: 1_789_848_001_000 },
+        { kind: "chatgpt", id: "busy-b", updatedAt: 1_789_848_002_000 },
+      ] });
+    }
+    return { isError: true, content: [{ type: "text", text: "{\"detail\":\"Too many requests\"}" }] };
+  });
+  const outcome = await new NativeChatGptWorkCloudExecutor(reads, null, { resolutionAttempts: 5, sleep: async () => undefined })
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:rate", prompt: "exact prompt", requestedAt, projectId: null });
+  assert.deepEqual(outcome, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:rate" });
+  assert.deepEqual(reads.calls.map((call) => call.name), ["list_threads", "read_thread"]);
+});
+
+test("a proven non-matching thread is read once and remembered across resolutions", async () => {
+  const reads = new FakeReadClient((name, args) => {
+    if (name === "list_threads") return value({ unavailableSources: [], threads: [
+      { kind: "chatgpt", id: "other-chat", updatedAt: 1_789_848_001_000 },
+    ] });
+    if (name === "read_thread" && args.threadId === "other-chat") return value({
+      thread: { kind: "chatgpt", id: "other-chat", turns: [{ params: { input: [{ type: "text", text: "an unrelated owner chat" }] } }] },
+    });
+    throw new Error(`Unexpected ${name}`);
+  });
+  const remembered = new Set<string>();
+  const options = { resolutionAttempts: 3, sleep: async () => undefined, knownNonMatchingThreads: remembered };
+  const first = await new NativeChatGptWorkCloudExecutor(reads, null, options)
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:nm", prompt: "exact prompt", requestedAt, projectId: null });
+  const second = await new NativeChatGptWorkCloudExecutor(reads, null, options)
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:nm", prompt: "exact prompt", requestedAt, projectId: null });
+  assert.deepEqual(first, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:nm" });
+  assert.deepEqual(second, first);
+  assert.deepEqual([...remembered], ["other-chat"]);
+  assert.equal(reads.calls.filter((call) => call.name === "read_thread").length, 1);
+});
+
+test("reads per resolution are capped", async () => {
+  const threads = Array.from({ length: 30 }, (_, index) => ({ kind: "chatgpt", id: `t-${index}`, updatedAt: 1_789_848_001_000 + index }));
+  const reads = new FakeReadClient((name) => {
+    if (name === "list_threads") return value({ unavailableSources: [], threads });
+    throw new Error("not readable yet");
+  });
+  const outcome = await new NativeChatGptWorkCloudExecutor(reads, null, { resolutionAttempts: 20, sleep: async () => undefined, maxResolutionReads: 12 })
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:cap", prompt: "exact prompt", requestedAt, projectId: null });
+  assert.deepEqual(outcome, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:cap" });
+  assert.equal(reads.calls.filter((call) => call.name === "read_thread").length, 12);
+});

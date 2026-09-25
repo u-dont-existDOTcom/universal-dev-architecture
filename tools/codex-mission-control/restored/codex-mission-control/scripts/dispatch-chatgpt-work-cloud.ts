@@ -79,7 +79,9 @@ try {
     observedAt,
     mutationBridge !== null,
   );
-  executor = new NativeChatGptWorkCloudExecutor(appClient, mutationBridge);
+  executor = new NativeChatGptWorkCloudExecutor(appClient, mutationBridge, {
+    knownNonMatchingThreads: privateThreadIdSet(`${absoluteRequestPath}.nonmatching.json`),
+  });
 } catch (error) {
   setupError = error instanceof Error ? error.message : "Native app read/verification setup failed.";
 }
@@ -139,6 +141,26 @@ main().catch((error: unknown) => {
   process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 });
+
+// Per-dispatch memory of threads already proven not to carry this dispatch's prompt, kept beside the
+// private request file (same 0700 directory, file mode 0600) so each thread is read at most once.
+function privateThreadIdSet(file: string): { has(threadId: string): boolean; add(threadId: string): void } {
+  let ids = new Set<string>();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (Array.isArray(parsed)) ids = new Set(parsed.filter((id): id is string => typeof id === "string").slice(-1_000));
+  } catch { /* absent or unreadable: start empty */ }
+  return {
+    has: (threadId) => ids.has(threadId),
+    add: (threadId) => {
+      if (ids.has(threadId)) return;
+      ids.add(threadId);
+      const temp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(temp, JSON.stringify([...ids].slice(-1_000)), { mode: 0o600 });
+      fs.renameSync(temp, file);
+    },
+  };
+}
 
 function argument(name: string): string | null {
   const index = process.argv.indexOf(name);
