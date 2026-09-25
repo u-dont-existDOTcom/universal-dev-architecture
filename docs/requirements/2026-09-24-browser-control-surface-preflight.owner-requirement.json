@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "ACTIVE_OWNER_REQUIREMENT",
+  "date": "2026-09-24",
+  "title": "Browser-control surface discovery before owner handoff",
+  "owner_outcome": "Use the available browser-control capability directly and avoid asking the owner to perform browser steps that Chat can perform itself.",
+  "observed_failure": "A remote-shell xdg-open failure was interpreted too broadly even though other browser-control surfaces were available.",
+  "causal_mechanism": "The execution surface was misclassified: shell process control was treated as equivalent to the user's graphical browser-control surface, and no current-turn browser-surface discovery check ran before owner escalation.",
+  "normalized_rule": "Before browser or GUI work, discover the current Chat browser/computer-control surfaces. Do not infer browser unavailability from xdg-open/open/start failure in a remote or non-GUI shell. Use an authorized browser-control surface for all automatable steps and ask the owner only for an irreducible human authentication/consent gesture.",
+  "enforcement": [
+    "Root AGENTS.md browser-control efficiency section carries the rule on every governed turn.",
+    "A focused regression test requires explicit browser-surface discovery, shell/GUI distinction, launcher-failure non-equivalence, and minimal human-gate handoff."
+  ],
+  "scope": "Portable browser-control routing and owner-interruption behavior; does not bypass authentication, consent, CAPTCHA, passkey, or other genuinely human-only gates."
+}

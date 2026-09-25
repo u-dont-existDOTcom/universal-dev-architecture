@@ -1,2 +1,22 @@
 NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT
 GitHub Write Recovery Registry
+
+checkpoint_store_type=local_private_filesystem
+checkpoint_store_root=/mnt/hdd/var/tmp/github-write-recovery-checkpoints
+checkpoint_manifest_filename=checkpoint.json
+checkpoint_payload_filename=intended-bytes.bin
+issue_marker_required=true
+owner_file_handling_required=false
+
+Recovery contract:
+1. On any repository write whose success is blocked, ambiguous, timed out, or otherwise unverified, preserve the exact intended destination bytes in the checkpoint store before retrying.
+2. Store one directory per recovery item under <checkpoint_store_root>/<repository>/<timestamp>-<short-description>/.
+3. The checkpoint manifest must record repository, destination branch/ref, destination path, source-of-intent identity, byte length, SHA-256 of intended bytes, payload filename, failure/ambiguity evidence, and reconciliation status.
+4. Never place credentials, secrets, private participant content, or other sensitive bytes in a public GitHub issue. The issue is only the durable unfinished-work marker and may contain the destination and content hash when those are non-sensitive.
+5. Build the checkpoint from the original intended artifact/source, never from an incomplete or partially written destination merely because it exists locally. Verify intended byte length and SHA-256 before retrying.\n6. Before every retry, read the destination first. If the destination already matches both intended byte length and SHA-256, mark the checkpoint reconciled without rewriting it.
+6. If it does not match, retry through an already-authorized transport path. A failed transport does not consume authorization for the same destination, bytes, scope, and consequence.
+7. After a reported successful write, read the destination again and verify its SHA-256 against the checkpoint. Only then mark the checkpoint COMPLETE and close the unfinished-work issue.
+8. Preserve the checkpoint manifest after completion as a recovery receipt; payload bytes may be retained or purged according to their sensitivity/retention requirements.
+9. This owner deployment uses the private HDD path above. A fresh worker should read this registry rather than ask the owner where the checkpoint store is.
+
+Current deployment created: 2026-09-25.
