@@ -254,7 +254,7 @@
       "rule_id": "outcome-advancement-and-strategy-efficacy",
       "canonical_path": "patterns/outcome-advancement-and-strategy-efficacy.md",
       "status": "active",
-      "trigger": "Substantive or iterative work needs evidence that the current strategy is actually advancing the owner outcome, including when a repair/intervention candidate or its evaluation plan is being proposed after an observed direct-outcome failure.",
+      "trigger": "Substantive or iterative work needs evidence that the current strategy is actually advancing the owner outcome, including flat/unclear/variable progress, method refinement, or a repair/intervention candidate proposed after an observed direct-outcome failure.",
       "requires": [
         "owner-outcome-invariant-and-contract-laundering-prevention"
       ],

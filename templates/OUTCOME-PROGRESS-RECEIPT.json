@@ -34,7 +34,29 @@
     "efficacy": "UNCERTAIN",
     "sameStrategyContinuationAllowed": false,
     "supersedesStrategyId": null,
-    "supersededByStrategyId": null
+    "supersededByStrategyId": null,
+    "effectModel": "UNKNOWN",
+    "informativeOpportunity": "replace-with-what-counts-as-an-informative-exposure",
+    "prerequisitesIndependentOfOutcome": "replace-with-prerequisites-defined-without-using-success-as-proof",
+    "reviewCondition": "replace-with-next-decision-changing-review-condition",
+    "review": {
+      "action": "DIAGNOSE",
+      "actualExposure": "UNKNOWN",
+      "observationWindow": "UNKNOWN",
+      "sourceRefs": [],
+      "finding": "UNRESOLVED",
+      "findingEvidenceRefs": [],
+      "replacementCause": null
+    },
+    "refinement": {
+      "parentStrategyId": null,
+      "refinementId": null,
+      "sourceRefs": [],
+      "rationale": null,
+      "expectedObservableSignal": null,
+      "reviewCondition": null,
+      "state": "NONE"
+    }
   },
   "directOutcomeEvidence": {
     "measurementType": "NUMERIC_OR_EXPLICIT_EVIDENCE_STATE",
