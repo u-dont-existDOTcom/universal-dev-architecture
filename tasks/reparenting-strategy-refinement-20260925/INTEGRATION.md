@@ -1,6 +1,6 @@
 # Diagnose-before-replacement strategy refinement
 
-Status: OPEN iteration candidate
+Status: OWNER-APPROVED + MERGE AUTHORIZED
 Date: 2026-09-25
 
 ## Owner outcome
@@ -26,4 +26,4 @@ Remove arbitrary attempt-count method abandonment from the reusable outcome/stra
 
 ## Boundary
 
-Iteration candidate only. No merge/release is authorized by this task. Current direct-failure and safety rules are retained; this change does not make a failed strategy indefinitely refinable.
+The owner explicitly approved the rules merger on 2026-09-25. Merge to Universal `main` is authorized after the repository-declared full test/audit gate and required GitHub check pass. Current direct-failure and safety rules are retained; this change does not make a failed strategy indefinitely refinable. This authority does not extend to unrelated releases or repositories.

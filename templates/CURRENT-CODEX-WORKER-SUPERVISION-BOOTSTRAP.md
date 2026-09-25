@@ -378,7 +378,7 @@ strategy_efficacy REPLACEMENT_REQUIRED
 => overall RED
 ```
 
-When progress is flat, regressing, or overdue, Codex returns exact execution/exposure evidence. The chat supervisor first diagnoses the bottleneck, then selects bounded continuation, refinement, stop, or replacement. Codex does not infer efficacy from an attempt count, author substantive method diagnosis, or replace the strategy itself.
+When progress is flat, regressing, or overdue, Codex returns exact execution/exposure evidence. The chat supervisor first diagnoses the bottleneck, then selects bounded continuation, refinement, stop, or replacement. Codex does not diagnose or replace the strategy itself and does not infer efficacy from an attempt count.
 
 **The owner must not have to ask whether substantial work made progress.** If the owner asks, record `OWNER_FORCED_PROGRESS_REVIEW` and treat it as a supervision failure.
 
