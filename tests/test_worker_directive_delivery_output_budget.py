@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -47,6 +48,36 @@ class WorkerDirectiveDeliveryOutputBudgetTests(unittest.TestCase):
         for phrase in required:
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, agents)
+
+    def test_output_budget_is_a_per_turn_rule_for_any_recipient(self) -> None:
+        # 2026-09-24 owner correction: takeover handoffs were pasted inline because the rule
+        # only activated for Work handoffs. It must sit in the per-turn invariants.
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        per_turn = agents.split("## Per-turn bootstrap invariants", 1)[1].split("\n## ", 1)[0]
+        for phrase in (
+            "**Every turn:** reusable output over ~8,000 characters",
+            "goes in a file, for any recipient",
+            "patterns/worker-directive-delivery-and-chat-output-budget.md",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, per_turn)
+        text = PATTERN.read_text(encoding="utf-8")
+        for phrase in (
+            "every reusable long output, on every turn, on every surface, for every recipient",
+            "handoffs, takeover or continuation packets for any agent",
+            "say which tool failed",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+        graph = json.loads((ROOT / "rules" / "UDA-RULE-GRAPH.json").read_text(encoding="utf-8"))
+        nodes = {n["rule_id"]: n for n in graph["nodes"]}
+        budget = nodes["chat-output-budget"]
+        self.assertIn("handoff or continuation packet for any agent", budget["trigger"])
+        self.assertIn("final-delivery", budget["enforcement_phase"])
+        self.assertEqual(budget["requires"], [], "output budgeting must not pull in Work routing")
+        worker = nodes["worker-directive-delivery-and-chat-output-budget"]
+        self.assertIn("Worker execution is selected", worker["trigger"])
+        self.assertIn("chat-work-execution-routing-threshold", worker["requires"])
 
     def test_lesson_is_discoverable_and_has_promotion_record(self) -> None:
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
