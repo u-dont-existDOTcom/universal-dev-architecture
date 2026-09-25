@@ -601,3 +601,26 @@ Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**.
 ## Operational owner-method enforcement repair — 2026-09-24
 
 A repeated method-substitution failure exposed a coverage gap: generic policy and prose-presence tests did not compare the launched experiment with the permitted owner method. The existing requirement-accretion pattern now preserves operational dimensions and quantifiers at launch. `scripts/owner_method_admission.py` and behavioral regressions reject component-by-component substitution, invented weight fitting, missing arms, prohibited authorized refitting, and child-only root closure. This is a portable projection comparator, not a proof of semantic extraction or universal runtime enforcement. A downstream research runner is being bound to the comparator in an isolated development branch.
+
+## Relay-lock lifecycle fix ported to main — 2026-09-25
+
+The owner-authorized relay-lock lifecycle repair (requirement
+`docs/requirements/2026-09-13-mission-control-relay-lock-lifecycle.owner-requirement.json`)
+was live-verified on PRIMARY on 2026-09-13 from source commit
+`5be4d444041c8e1681d56a5b7256a01b3090f690` on the unmerged branch
+`task/mission-control-relay-lock-lifecycle-20260912`. That branch never reached
+`main`, so any later PRIMARY/SECONDARY relay deploy from `main` most likely
+reinstalled the old `wx` + `/proc/<pid>` lock and dropped the repair.
+
+The port branch `claude/funny-heisenberg-lsbn3b-relay-lock` carries the same
+code onto current `main`: `src/relay-lock.mjs` (kernel `flock` guard on the
+persistent `relay.lock.guard` inode, atomically published PID/start-ticks/boot-ID
+owner metadata, identity-checked release, fail-closed malformed/unverifiable
+metadata), `src/relay-lock-watchdog.mjs` (out-of-process finite-helper deadline),
+`state.mjs` delegation, and CLI `finally` release plus `lock-status`. Current
+`main` behavior is preserved: `health-report` still takes no exclusive lock and
+`once-exact` is a bounded one-shot owner. Once merged, `main` carries the code
+that was live-verified on 2026-09-13; the next relay release from `main` must
+still be installed and verified on the hosts before claiming it is live again.
+Never delete `relay.lock.guard`; stop old-version relay/helper processes before
+upgrading so mixed lock versions never run together.

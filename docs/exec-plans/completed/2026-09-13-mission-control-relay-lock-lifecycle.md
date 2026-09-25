@@ -6,6 +6,17 @@ Status: PRIMARY repair live-verified; historical evidence limits disclosed. Owne
 
 Final evidence: docs/evidence/2026-09-13-primary-relay-lock-repair.json and companion report. Installed source commit: 5be4d444041c8e1681d56a5b7256a01b3090f690. Four relay files changed on PRIMARY only; no web application or browser deployment. The final atomic-publication variant passes 201 full relay tests and 25 focused tests on PRIMARY Node 22; 299 repository tests and deterministic audit also passed. An actual no-send helper acquired the real installed relay lock and exited 143 on SIGTERM; process/metadata disappeared and kernel ownership released. Doctor READY, SECONDARY unchanged STANDBY_READY, queue empty/no ambiguity, 79-record ledger identical and all protected hashes unchanged. Health timer restored; rollback and verification assets retained privately. Task-time controls PASS at their direct evidence boundary. Original process descriptors/cleanup exception remain unavailable; unrelated authorized test sends overlapped diagnosis and are explicitly distinguished from the quiet repair window. No experiment execution or file modification occurred. Rerun eligibility is initial preflight only, with capability and other gates still mandatory.
 
+## Main port (2026-09-25)
+
+The repair branch was never merged, so `main` (and any later relay release built
+from it) still carried the old `wx` + `/proc/<pid>` lock. Branch
+`claude/funny-heisenberg-lsbn3b-relay-lock` ports the two code commits onto
+current `main` (2028a44) and keeps main-only behavior: `health-report` takes no
+exclusive lock and `once-exact` is a bounded one-shot owner. Once merged, `main`
+carries the code that was live-verified on PRIMARY on 2026-09-13. Whether any host
+currently runs it is unverified; a relay release from `main` must be installed and
+verified before claiming it is live again.
+
 ## Authority and scope
 
 Fresh canonical universal main: 5533aaa474d9e25c78406197ea4f57dabd995b22. Incident checkpoint: joel-articles/task/somatic-intro-progress-controller-20260831 at 6986ff4b0478092cf85d62df1ffd39d7ce9c8a06, work/SOMATIC-HUMANIZATION-MISSION-CONTROL-CHECKPOINT-132-20260912.json. Isolated branch task/mission-control-relay-lock-lifecycle-20260912. No humanization, provider send, session/profile/registration changes, failover, pacing reset, runtime redesign or dashboard redeploy.
