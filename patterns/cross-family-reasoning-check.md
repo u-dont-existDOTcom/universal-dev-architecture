@@ -75,8 +75,9 @@ Ask the reviewer for:
 If the other family is unreachable, rate-limited, or not authorized in the current surface:
 
 - Do not substitute a same-family model or a lower tier and call it cross-family.
-- Deliver with an explicit line: `Cross-family check: not run (<reason>)`.
-- Hold only the consequential action that depends on the unchecked conclusion. Resume it when the check runs or the owner waives the check. Unrelated work continues, consistent with the provider-outage rule in `AGENTS.md`.
+- When the conclusion is itself what the owner will act on (advice, a recommendation, a decision), delivering it is the consequential step. Do not present it as settled. Present it as unresolved with the line `Cross-family check: not run (<reason>)`, lead with the conservative reversible option, and name what the check would need to settle. It becomes a settled recommendation only after the check runs or the owner waives it.
+- When an action depends on the conclusion, hold that action. Resume it when the check runs or the owner waives the check.
+- Unrelated work continues, consistent with the provider-outage rule in `AGENTS.md`.
 
 ## Relation to assurance lanes
 
