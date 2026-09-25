@@ -58,6 +58,7 @@ class CrossFamilyReasoningCheckTests(unittest.TestCase):
         node = nodes["cross-family-reasoning-check"]
         self.assertEqual(node["canonical_path"], "patterns/cross-family-reasoning-check.md")
         self.assertEqual(node["status"], "active")
+        self.assertIn("independent-evaluation-separation", node["requires"])
         for dependency in node["requires"]:
             self.assertIn(dependency, nodes)
         self.assertTrue(set(node["enforcement_phase"]) <= set(graph["allowed_enforcement_phases"]))

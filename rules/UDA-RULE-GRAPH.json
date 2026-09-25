@@ -126,7 +126,8 @@
       "status": "active",
       "trigger": "A reasoning-heavy conclusion would be costly or hard to undo if wrong and cannot be settled by tests, computation, or sources.",
       "requires": [
-        "development-assurance-lanes"
+        "development-assurance-lanes",
+        "independent-evaluation-separation"
       ],
       "inherits": [],
       "supersedes": [],
@@ -135,6 +136,20 @@
         "reasoning",
         "pre-action",
         "final-delivery"
+      ]
+    },
+    {
+      "rule_id": "independent-evaluation-separation",
+      "canonical_path": "patterns/independent-evaluation-separation.md",
+      "status": "active",
+      "trigger": "An evaluator checks an artifact or conclusion it did not produce and must not be anchored by the producer's rationale, prior verdicts, or repair history.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "release"
       ]
     },
     {
