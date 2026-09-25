@@ -76,6 +76,9 @@ const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
     worktreePath: process.env.MISSION_CONTROL_LIVE_WORKTREE,
+    sourceFormat: process.env.MISSION_CONTROL_LIVE_SOURCE_FORMAT as "MISSION_CONTROL_V1" | "JOURNAL_EXECUTION_V1" | undefined,
+    workerId: process.env.MISSION_CONTROL_LIVE_WORKER_ID,
+    taskId: process.env.MISSION_CONTROL_LIVE_TASK_ID,
   }, (event) => notifications.emit("event", event))
   : null;
 const githubReconciliationTimer = startGitHubReconciliation(githubReconciliationCoordinator);

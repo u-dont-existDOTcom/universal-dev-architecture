@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { z } from "zod";
 import { sha256 } from "./canonical";
+import { journalExecutionObservation } from "./journal-execution-observation";
 import type { MissionControlEventV2 } from "./schema";
 import type { EventStore } from "./store";
 
@@ -18,6 +19,9 @@ const liveStateSchema = z.object({
 export interface LiveWorkerSourceConfig {
   sourcePath: string;
   worktreePath: string;
+  sourceFormat?: "MISSION_CONTROL_V1" | "JOURNAL_EXECUTION_V1";
+  workerId?: string;
+  taskId?: string;
 }
 
 export function observeLiveWorkerSource(
@@ -27,7 +31,13 @@ export function observeLiveWorkerSource(
   const sourcePath = path.resolve(config.sourcePath);
   const worktreePath = path.resolve(config.worktreePath);
   const bytes = fs.readFileSync(sourcePath);
-  const state = liveStateSchema.parse(JSON.parse(bytes.toString("utf8")));
+  const raw = JSON.parse(bytes.toString("utf8"));
+  const journal = config.sourceFormat === "JOURNAL_EXECUTION_V1";
+  if (journal && (!config.workerId || !config.taskId)) throw new Error("Journal observations require configured worker and task identities.");
+  if (config.sourceFormat && !["MISSION_CONTROL_V1", "JOURNAL_EXECUTION_V1"].includes(config.sourceFormat)) throw new Error("Unknown live source format.");
+  const observation = journal ? journalExecutionObservation(raw) : null;
+  const state = observation ? { worker: config.workerId!, directiveId: null, receiptId: null,
+    phase: observation.phase, summary: observation.summary } : liveStateSchema.parse(raw);
   const stat = fs.statSync(sourcePath);
   const git = (args: string[]) => execFileSync("git", ["-C", worktreePath, ...args], { encoding: "utf8" }).trim();
   return {
@@ -44,6 +54,7 @@ export function observeLiveWorkerSource(
     receipt_id: state.receiptId,
     phase: state.phase,
     summary: state.summary,
+    ...(observation ? { task_id: config.taskId, blocker_code: observation.blockerCode } : {}),
   };
 }
 
@@ -60,19 +71,24 @@ export function startLiveWorkerSourceWatcher(
     polling = true;
     try {
       const observed = observeLiveWorkerSource(config);
-      const identity = `${observed.content_sha256}:${observed.head}`;
+      const identity = `${observed.content_sha256}:${observed.file_modified_at}:${observed.head}:${config.sourceFormat ?? "MISSION_CONTROL_V1"}:${config.taskId ?? ""}`;
       if (identity === lastIdentity) return;
+      const eventId = `live-source:${observed.worker}:${sha256(identity).slice(0, 32)}`;
+      // Reopening the daemon is not a new observation of changed source bytes.
+      if (store.eventByEventId(eventId)) { lastIdentity = identity; return; }
       const event = store.append({
         schema_version: 2,
-        event_id: `live-source:${observed.worker}:${sha256(identity).slice(0, 32)}`,
-        mission_id: "mission-control-issue-47",
+        event_id: eventId,
+        mission_id: "mission-control-live",
         occurred_at: observed.observed_at,
         data: observed,
       });
       lastIdentity = identity;
       onEvent(event);
     } catch (error) {
-      console.error(`Live worker source observation failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(config.sourceFormat === "JOURNAL_EXECUTION_V1"
+        ? "JOURNAL_EXECUTION_OBSERVATION_UNAVAILABLE: source state remains unknown."
+        : `Live worker source observation failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       polling = false;
     }
