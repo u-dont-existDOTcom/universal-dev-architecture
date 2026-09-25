@@ -1,7 +1,5 @@
 import { sha256 } from "./canonical";
-import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "./configured-supervisor-chats";
-import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
-import type { AuthenticatedProducer } from "./ingestion-auth";
+import { routeFleetReasoning } from "./fleet-reasoning-route";
 import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
 import type { JevShadowObservation } from "./jev-shadow";
@@ -11,7 +9,8 @@ export const DEFAULT_FLEET_SUPERVISOR_CADENCE_MS = 3_600_000;
 export type FleetSupervisorTrigger =
   | "HEALTHY_ADVANCING" | "STALLED_OR_REGRESSING" | "REASONING_REVIEW_OVERDUE"
   | "WORKER_DIRECTIVE_CONTINUITY_GAP" | "OWNER_ACTION_REQUIRED" | "BLOCKED_EXTERNAL"
-  | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE";
+  | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE"
+  | "EXECUTION_BLOCKED" | "PROGRESS_OBSERVABILITY_GAP";
 
 export interface FleetSupervisorDecision {
   trigger: FleetSupervisorTrigger;
@@ -40,9 +39,18 @@ export class FleetSupervisorRuntime {
     for (const watch of this.store.dueFleetSupervisorWatches(now)) {
       const events = this.store.workerEvents(watch.worker);
       const chain = this.store.verifyChain();
-      const decision = classifyFleetSupervisorTick(watch, events, chain);
+      let decision = classifyFleetSupervisorTick(watch, events, chain);
       if (decision.mechanicalRecoveryEligible) await this.hooks.continueMechanical?.(watch, decision, events);
-      if (decision.reasoningRequired) await this.hooks.routeReasoning?.(watch, decision, events);
+      if (decision.reasoningRequired) {
+        try {
+          const route = await this.hooks.routeReasoning?.(watch, decision, events);
+          const status = route && typeof route === "object" && "status" in route ? String(route.status) : "DELIVERY_UNVERIFIED";
+          decision = { ...decision, result: `${decision.result} Routing: ${status}.` };
+        } catch {
+          // One unavailable route must not abort supervision of independent projects.
+          decision = { ...decision, result: "REASONING_ROUTE_UNAVAILABLE: execution remains held; no request delivery or resume is claimed." };
+        }
+      }
       const fingerprint = decision.notifyOwner ? sha256(`${decision.trigger}\n${decision.notificationReason ?? ""}`) : null;
       const duplicate = Boolean(fingerprint && fingerprint === watch.notificationFingerprint);
       const notificationDisposition = decision.notifyOwner
@@ -75,41 +83,7 @@ export class FleetSupervisorRuntime {
 
 export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSupervisorWatchRecord,
   decision: FleetSupervisorDecision, events: readonly StoredEvent[]) {
-  const directory = loadConfiguredSupervisorChats();
-  const manager = directory.entries.find((entry) => entry.scope === "PROJECT_MANAGER"
-    && entry.supervisorId === CANONICAL_PROJECT_MANAGER_ID);
-  if (!manager) throw new Error("Fleet supervision requires the configured Mission Control project-manager route.");
-  const requestId = `fleet-watch:${sha256(`${watch.projectId}\n${watch.nextTickAt}`).slice(0, 32)}`;
-  const producer: AuthenticatedProducer = {
-    id: `worker:${watch.worker}`, kind: "WORKER", workerScopes: [watch.worker], taskScopes: [watch.taskId],
-  };
-  const result = evaluateSupervisionAdmission(watch.worker, producer, {
-    request: {
-      requestId, action: "ROUTE_INTERNAL_SUPERVISOR", actor: "WORK", sourceReceipt: null,
-      boundedExecution: true, taskRequiresExecutionOutsideChat: true, executionScope: "SUPERVISORY_REASONING",
-      spend: null,
-      internalRoute: {
-        destination: "PROJECT_MANAGER_CHAT", destinationChatId: manager.supervisorId,
-        standingOwnerAuthorization: true, ownerRelayRequested: false, actionTimeConfirmationRequested: false,
-      },
-      ownerPolicy: { paidModelInferenceAllowed: false, activeZeroSpendDecisionId: null },
-    },
-    factualPacket: {
-      packetId: `packet:${requestId}`, taskId: watch.taskId,
-      exactFactualState: `${decision.trigger}: ${decision.result}`,
-      evidenceRefs: events.slice(-8).map((event) => event.eventId),
-      decisionRequested: "Review the current evidence and author any decision-changing strategy or directive. Preserve all project hard gates.",
-      supervisoryCycle: null,
-    },
-  }, watch.nextTickAt ?? new Date().toISOString());
-  if (!result.routeEnvelope) throw new Error(result.statement);
-  const envelope = structuredClone(result.routeEnvelope);
-  envelope.event_id = `fleet-route:${sha256(requestId).slice(0, 32)}`;
-  if (envelope.data.type === "worker_message_recorded") {
-    envelope.data.message_id = `message:${envelope.event_id}`;
-    envelope.data.thread_id = `thread:fleet-supervision:${watch.worker}`;
-  }
-  return store.append(envelope, undefined, producer, events);
+  return routeFleetReasoning(store, watch, decision, events, watch.nextTickAt ?? new Date().toISOString());
 }
 
 export function classifyFleetSupervisorTick(
@@ -128,14 +102,35 @@ export function classifyFleetSupervisorTick(
     && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.owner_action.kind)) {
     return decision("OWNER_ACTION_REQUIRED", "Existing owner-action obligation remains authoritative.", "ACTIVE", false, false, true, ownerAction.owner_action.exact_text);
   }
-  const blocker = events.findLast((event) => event.data.type === "structured_blocker_recorded" && event.data.status === "OPEN")?.data;
-  if (blocker?.type === "structured_blocker_recorded") {
+  const blockers = new Map<string, StoredEvent>();
+  for (const event of events) {
+    if (event.data.type === "structured_blocker_recorded" && event.worker === watch.worker
+      && event.data.task_id === watch.taskId) blockers.set(event.data.blocker_id, event);
+  }
+  const open = [...blockers.values()].filter(event => event.data.type === "structured_blocker_recorded"
+    && event.data.status === "OPEN");
+  for (const event of open) {
+    const blocker = event.data;
+    if (blocker.type !== "structured_blocker_recorded") continue;
     if (blocker.required_actor.kind === "OWNER") return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
     if (blocker.required_actor.kind === "EXTERNAL") return decision("BLOCKED_EXTERNAL", "Project remains blocked on an external actor; no unauthorized retry occurred.", "ACTIVE", false, false, false, null);
   }
+  const observed = events.findLast(event => event.worker === watch.worker
+    && event.data.type === "live_worker_evidence_observed" && event.data.task_id === watch.taskId)?.data;
+  if (observed?.type === "live_worker_evidence_observed" && observed.phase === "BLOCKED") {
+    return decision("EXECUTION_BLOCKED", "A source-bound runtime blocker requires Chat review; preserve exact-submission recovery fences.", "ACTIVE", true, false, false, null);
+  }
+  const checkpoint = events.findLast(event => event.worker === watch.worker
+    && event.data.type === "worker_checkpoint_recorded")?.data;
+  if (open.length || checkpoint?.type === "worker_checkpoint_recorded" && checkpoint.status === "blocked") {
+    return decision("EXECUTION_BLOCKED", "Execution is held for source-bound Chat review; no replay or strategy change is authorized.", "ACTIVE", true, false, false, null);
+  }
   const worker = projectWorker([...events]);
-  if (worker.contractToOwnerAlignment === "SOURCE_MISSING" || worker.progress.outcomeAdvancement === "UNKNOWN") {
+  if (worker.contractToOwnerAlignment === "SOURCE_MISSING") {
     return decision("PROJECT_INTEGRITY_FAILURE", "Project validity is indeterminate; automatic continuation stopped.", "ACTIVE", false, false, true, "Project validity or owner-outcome evidence is INDETERMINATE.");
+  }
+  if (worker.progress.outcomeAdvancement === "UNKNOWN") {
+    return decision("PROGRESS_OBSERVABILITY_GAP", "Progress evidence is missing; Chat must select a bounded evidence or recovery directive.", "ACTIVE", true, false, false, null);
   }
   const latestDelivery = events.findLast((event) => event.data.type === "outbound_delivery_lifecycle_recorded")?.data;
   if (latestDelivery?.type === "outbound_delivery_lifecycle_recorded" && latestDelivery.status === "DELIVERY_FAILED"
