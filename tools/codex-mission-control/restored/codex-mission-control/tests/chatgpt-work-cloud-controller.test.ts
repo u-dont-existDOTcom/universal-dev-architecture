@@ -10,6 +10,7 @@ import {
   capabilityEvidenceFromTools,
   createCodexAppServerMutationBridge,
   connectCodexDriverMutationBridge,
+  inMemoryDeferredThreads,
   writePrivateWorkThreadLocator,
   type AppToolResult,
   type ProductMutationResult,
@@ -486,4 +487,43 @@ test("reads per resolution are capped", async () => {
     .resolveCreatedThread({ clientThreadId: "local-chatgpt:cap", prompt: "exact prompt", requestedAt, projectId: null });
   assert.deepEqual(outcome, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:cap" });
   assert.equal(reads.calls.filter((call) => call.name === "read_thread").length, 12);
+});
+
+test("unreadable candidates rotate behind unread ones so a capped scan reaches a later match across cycles", async () => {
+  const threads = Array.from({ length: 20 }, (_, index) => ({ kind: "chatgpt", id: `t-${index}`, updatedAt: 1_789_848_001_000 + index }));
+  const target = "t-15";
+  const reads = new FakeReadClient((name, args) => {
+    if (name === "list_threads") return value({ unavailableSources: [], threads });
+    if (name === "read_thread" && args.threadId === target) return value({
+      thread: { kind: "chatgpt", id: target, turns: [{ params: { input: [{ type: "text", text: "exact prompt" }] } }] },
+    });
+    if (name === "read_thread" && Number(String(args.threadId).slice(2)) < 12) throw new Error("not readable yet");
+    if (name === "read_thread") return value({
+      thread: { kind: "chatgpt", id: args.threadId, turns: [{ params: { input: [{ type: "text", text: "an unrelated owner chat" }] } }] },
+    });
+    throw new Error(`Unexpected ${name}`);
+  });
+  const deferredThreads = inMemoryDeferredThreads();
+  const knownNonMatchingThreads = new Set<string>();
+  const options = { resolutionAttempts: 1, sleep: async () => undefined, maxResolutionReads: 12, deferredThreads, knownNonMatchingThreads };
+  const input = { clientThreadId: "local-chatgpt:rotate", prompt: "exact prompt", requestedAt, projectId: null };
+  const first = await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input);
+  assert.deepEqual(first, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:rotate" });
+  assert.equal(deferredThreads.ids().length, 12);
+  const second = await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input);
+  assert.deepEqual(second, { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: target, hostId: null });
+  const firstCycleReads = reads.calls.filter((call) => call.name === "read_thread").slice(0, 12).map((call) => call.arguments.threadId);
+  const secondCycleReads = reads.calls.filter((call) => call.name === "read_thread").slice(12).map((call) => call.arguments.threadId);
+  assert.equal(new Set(firstCycleReads).size, 12);
+  assert.deepEqual(firstCycleReads, Array.from({ length: 12 }, (_, index) => `t-${index}`));
+  assert.deepEqual(secondCycleReads.slice(0, 8), Array.from({ length: 8 }, (_, index) => `t-${index + 12}`), "second cycle reads unread candidates first");
+});
+
+test("a deferred thread that becomes readable is cleared from the deferral order", () => {
+  const queue = inMemoryDeferredThreads(["a", "b"]);
+  queue.defer("a");
+  assert.deepEqual(queue.ids(), ["b", "a"]);
+  queue.clear("b");
+  assert.deepEqual(queue.ids(), ["a"]);
+  assert.equal(queue.rank("b"), -1);
 });

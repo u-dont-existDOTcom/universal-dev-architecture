@@ -52,7 +52,39 @@ export interface WorkCloudAppExecutorOptions {
   maxResolutionReads?: number;
   /** Threads already proven not to be this dispatch's Work thread (their first prompt is immutable). */
   knownNonMatchingThreads?: { has(threadId: string): boolean; add(threadId: string): void };
+  /**
+   * Threads that were listed but not yet readable (read failed or no first prompt). They are tried after
+   * unread candidates, least recently deferred first, so a bounded scan rotates through the whole list
+   * across cycles instead of spending its cap on the same unreadable threads.
+   */
+  deferredThreads?: DeferredThreadQueue;
   sleep?: (milliseconds: number) => Promise<void>;
+}
+
+export interface DeferredThreadQueue {
+  /** Position in deferral order (lower = deferred longer ago), or -1 when not deferred. */
+  rank(threadId: string): number;
+  /** Mark unreadable now; moves the thread to the back of the order. */
+  defer(threadId: string): void;
+  /** Forget a thread once it has been read. */
+  clear(threadId: string): void;
+}
+
+export function inMemoryDeferredThreads(initial: readonly string[] = []): DeferredThreadQueue & { ids(): string[] } {
+  const order = [...new Set(initial)];
+  return {
+    rank: (threadId) => order.indexOf(threadId),
+    defer: (threadId) => {
+      const index = order.indexOf(threadId);
+      if (index !== -1) order.splice(index, 1);
+      order.push(threadId);
+    },
+    clear: (threadId) => {
+      const index = order.indexOf(threadId);
+      if (index !== -1) order.splice(index, 1);
+    },
+    ids: () => [...order],
+  };
 }
 
 /**
@@ -64,6 +96,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   private readonly resolutionDelayMs: number;
   private readonly maxResolutionReads: number;
   private readonly knownNonMatching: WorkCloudAppExecutorOptions["knownNonMatchingThreads"] | null;
+  private readonly deferred: DeferredThreadQueue;
   private readonly sleep: (milliseconds: number) => Promise<void>;
 
   constructor(
@@ -75,6 +108,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     this.resolutionDelayMs = options.resolutionDelayMs ?? 1_000;
     this.maxResolutionReads = options.maxResolutionReads ?? 12;
     this.knownNonMatching = options.knownNonMatchingThreads ?? null;
+    this.deferred = options.deferredThreads ?? inMemoryDeferredThreads();
     this.sleep = options.sleep ?? (async (milliseconds) => { await delay(milliseconds); });
   }
 
@@ -154,6 +188,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     // ChatGPT to "Too many requests", after which no read succeeded and the dispatch could never resolve.
     // Each thread is now read at most once per resolution, proven non-matches are remembered, reads are
     // capped, and a rate-limit response ends the attempt immediately (still PENDING_SETUP, never a re-create).
+    // Unreadable candidates are deferred behind unread ones so the capped scan rotates through the list.
     const pending = { kind: "PENDING_SETUP" as const, clientThreadId: input.clientThreadId };
     const checked = new Set<string>();
     let reads = 0;
@@ -167,22 +202,41 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       }
       if (chatGptSourceUnavailable(listed)) return pending;
       const matchingIds: string[] = [];
-      for (const candidate of chatGptCandidates(listed, input.requestedAt, input.projectId)) {
-        if (checked.has(candidate.threadId) || this.knownNonMatching?.has(candidate.threadId)) continue;
-        if (reads >= this.maxResolutionReads) return pending;
+      const eligible = chatGptCandidates(listed, input.requestedAt, input.projectId)
+        .filter((candidate) => !checked.has(candidate.threadId) && !this.knownNonMatching?.has(candidate.threadId));
+      const unread = eligible.filter((candidate) => this.deferred.rank(candidate.threadId) === -1);
+      const deferred = eligible
+        .filter((candidate) => this.deferred.rank(candidate.threadId) !== -1)
+        .sort((left, right) => this.deferred.rank(left.threadId) - this.deferred.rank(right.threadId));
+      let capped = false;
+      for (const candidate of [...unread, ...deferred]) {
+        if (reads >= this.maxResolutionReads) {
+          // Out of reads for this resolution. A match already found is still used, exactly as when the
+          // remaining candidates are unreadable; otherwise the dispatch stays PENDING_SETUP.
+          capped = true;
+          break;
+        }
         reads += 1;
         try {
           const read = await this.readExactThread(candidate.threadId);
-          if (surfaceKind(read) !== "chatgpt" || directThreadId(read) !== candidate.threadId) continue;
+          if (surfaceKind(read) !== "chatgpt" || directThreadId(read) !== candidate.threadId) {
+            this.deferred.defer(candidate.threadId);
+            continue;
+          }
           const observedPrompt = initialUserPrompt(read);
-          if (observedPrompt === null) continue;
+          if (observedPrompt === null) {
+            this.deferred.defer(candidate.threadId);
+            continue;
+          }
           checked.add(candidate.threadId);
+          this.deferred.clear(candidate.threadId);
           if (promptReadbackMatches(input.prompt, observedPrompt)) matchingIds.push(candidate.threadId);
           else this.knownNonMatching?.add(candidate.threadId);
         } catch (error) {
           if (isRateLimited(error)) return pending;
-          // A listed provider candidate may not yet be readable. Retry the
-          // source-bound resolver; never infer identity from its title.
+          // A listed provider candidate may not yet be readable. Defer it behind unread candidates and
+          // retry the source-bound resolver later; never infer identity from its title.
+          this.deferred.defer(candidate.threadId);
         }
       }
       const exact = [...new Set(matchingIds)];
@@ -190,6 +244,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         return { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" };
       }
       if (exact.length === 1) return this.verifyExactThread(exact[0]);
+      if (capped) return pending;
       if (attempt + 1 < this.attempts) await this.sleep(this.resolutionDelayMs);
     }
     return pending;
