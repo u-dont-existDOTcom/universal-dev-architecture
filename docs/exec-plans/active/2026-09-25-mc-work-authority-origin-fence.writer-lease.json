@@ -6,5 +6,6 @@
   "integration_branch": "main",
   "integration_base_sha": "91e4be060ca99151264f1f90ad4f9c19aaf05bcb",
   "scope": "Repair native Work deadline fencing and task-specific originating Chat identity for AskRigor issue 231.",
-  "parent_integrator": null
+  "parent_integrator": null,
+  "checkpoint": "Branch created from current main; first bounded autodispatch discovery repair committed. Additional file writes are pending tool-path recovery."
 }
