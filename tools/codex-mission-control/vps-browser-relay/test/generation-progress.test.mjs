@@ -164,3 +164,51 @@ test('a Retry heartbeat ignores the failed turn\'s existing content until a new 
   assert.equal(context.__missionControlGenerationProgress.outputBegun, true);
   assert.equal(context.__missionControlGenerationProgress.counter, 1);
 });
+
+test('a Retry that reuses the existing content surface starts the heartbeat on new content, not on clearing it', () => {
+  const root = {};
+  const streamedText = { nodeType: 3 };
+  const streamedBlock = { nodeType: 1 };
+  const reusedSurface = {
+    nodeType: 1,
+    children: new Set([streamedText]),
+    contains(node) { return this.children.has(node); },
+  };
+  const retryControl = { nodeType: 1 };
+  const failedTurn = {
+    id: '',
+    surfaces: [reusedSurface],
+    descendants: new Set([reusedSurface, retryControl, streamedText]),
+    querySelectorAll() { return this.surfaces; },
+    getAttribute(name) { return name === 'data-turn-id' ? 'failed-turn' : null; },
+    contains(node) { return this.descendants.has(node); },
+  };
+  let observer = null;
+  class FakeMutationObserver {
+    constructor(callback) { this.callback = callback; observer = this; }
+    observe() {}
+    disconnect() {}
+  }
+  const context = vm.createContext({
+    document: { body: root, documentElement: root, querySelectorAll: () => [assistantRole(failedTurn, 'failed-message')] },
+    MutationObserver: FakeMutationObserver,
+  });
+  vm.runInContext(`(${RESET_GENERATION_PROGRESS_FN})("failed-message")`, context);
+  const progress = () => context.__missionControlGenerationProgress;
+
+  // Removing the Retry control and clearing the reused surface are not output.
+  observer.callback([{ type: 'childList', target: failedTurn, addedNodes: [], removedNodes: [retryControl] }]);
+  observer.callback([{ type: 'childList', target: reusedSurface, addedNodes: [], removedNodes: [{ nodeType: 1 }] }]);
+  assert.equal(progress().outputBegun, false);
+
+  // New content streamed into the same surface is output, as child nodes or as character data.
+  observer.callback([{ type: 'childList', target: reusedSurface, addedNodes: [streamedBlock], removedNodes: [] }]);
+  assert.equal(progress().outputBegun, true);
+  assert.equal(progress().counter, 1);
+  observer.callback([{ type: 'characterData', target: streamedText, addedNodes: [], removedNodes: [] }]);
+  assert.equal(progress().counter, 2);
+
+  // A mutation outside every content surface still does not count.
+  observer.callback([{ type: 'childList', target: failedTurn, addedNodes: [retryControl], removedNodes: [] }]);
+  assert.equal(progress().counter, 2);
+});

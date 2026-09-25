@@ -652,8 +652,11 @@ export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null)
     return false;
   };
   // A Retry re-uses an assistant turn that already has a content surface; removing its Retry control is
-  // itself a mutation there. Surfaces present when the heartbeat is armed are therefore not output: only a
-  // surface that appears afterwards starts the stall clock (structure only, no text is read).
+  // itself a mutation there. Surfaces present when the heartbeat is armed are therefore not output by
+  // themselves: a surface that appears afterwards starts the stall clock, and so does new content added
+  // inside an existing surface (character data, or added child nodes). Clearing a surface (removals only)
+  // and changes outside the surfaces, such as the Retry control, are not output. Structure only; no text
+  // is read.
   const surfaceSelector = '.markdown, [class*="markdown"], [class*="prose"]';
   const contentSurfaces = (current) => {
     if (typeof current?.querySelectorAll === 'function') return [...current.querySelectorAll(surfaceSelector)];
@@ -665,14 +668,25 @@ export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null)
   );
   const hasContentSurface = (current) => contentSurfaces(current)
     .some((surface) => surface && typeof surface === 'object' && !baselineSurfaces.has(surface));
+  const addsContentInsideSurface = (mutation, current) => {
+    const surfaces = contentSurfaces(current).filter((surface) => surface && typeof surface === 'object');
+    const inside = (node) => surfaces.some((surface) => node === surface
+      || (typeof surface.contains === 'function' && surface.contains(node)));
+    if (mutation.type === 'characterData') return inside(mutation.target);
+    return (mutation.addedNodes?.length ?? 0) > 0 && inside(mutation.target);
+  };
   const observer = new MutationObserver((mutations) => {
     let current = state.target;
     if (!current) {
       current = findNewAssistantTurn();
       if (current) state.target = current;
     }
-    if (!current || !hasContentSurface(current)) return;
-    if (mutations.some((mutation) => mutationTouchesTarget(mutation, current))) markProgress();
+    if (!current) return;
+    if (hasContentSurface(current)) {
+      if (mutations.some((mutation) => mutationTouchesTarget(mutation, current))) markProgress();
+      return;
+    }
+    if (mutations.some((mutation) => addsContentInsideSurface(mutation, current))) markProgress();
   });
   const root = document.body || document.documentElement;
   if (!root) return { ok: false, reason: 'DOCUMENT_ROOT_MISSING', assistantContentObserved: false };
