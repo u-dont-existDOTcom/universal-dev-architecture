@@ -596,3 +596,8 @@ Classification: **NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT**.
   healthy. The obsolete task branch was removed.
 - Owner outcome status: SATISFIED. No further Venice-gateway implementation
   work is required unless a new caller/runtime needs its own secret injection.
+
+
+## Operational owner-method enforcement repair — 2026-09-24
+
+A repeated method-substitution failure exposed a coverage gap: generic policy and prose-presence tests did not compare the launched experiment with the permitted owner method. The existing requirement-accretion pattern now preserves operational dimensions and quantifiers at launch. `scripts/owner_method_admission.py` and behavioral regressions reject component-by-component substitution, invented weight fitting, missing arms, prohibited authorized refitting, and child-only root closure. This is a portable projection comparator, not a proof of semantic extraction or universal runtime enforcement. A downstream research runner is being bound to the comparator in an isolated development branch.
