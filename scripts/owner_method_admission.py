@@ -53,10 +53,13 @@ def violations(owner: dict[str, Any], operation: dict[str, Any]) -> list[str]:
         established = gate.get("necessity") == "ESTABLISHED" and bool(gate.get("evidence"))
         if gate.get("origin") not in {"OWNER_REQUIRED", "EXTERNAL_HARD_REQUIREMENT"} and not established:
             errors.append("UNAUTHORIZED_MANDATORY_REQUIREMENT:" + str(gate.get("id", "unknown")))
-    if operation.get("parent_outcome_status") == "SATISFIED":
+    status = operation.get("parent_outcome_status")
+    if status not in {"OPEN", "SATISFIED"}:
+        errors.append("OUTCOME_STATUS_UNRECOGNIZED")
+    if status == "SATISFIED":
         outcomes = owner.get("required_outcomes", [])
         evidence = operation.get("outcome_evidence", {})
-        if not isinstance(evidence, dict) or not outcomes or any(evidence.get(key) != "MET" for key in outcomes):
+        if not isinstance(evidence, dict) or not isinstance(outcomes, list) or not outcomes or any(evidence.get(key) != "MET" for key in outcomes):
             errors.append("CHILD_COMPLETION_CANNOT_CLOSE_PARENT")
     return errors
 

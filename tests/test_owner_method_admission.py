@@ -63,6 +63,14 @@ class OwnerMethodAdmissionTests(unittest.TestCase):
         self.operation.update(parent_outcome_status="SATISFIED", outcome_evidence={"diagnostic": "MET"})
         self.assertIn("CHILD_COMPLETION_CANNOT_CLOSE_PARENT", guard.violations(self.owner, self.operation))
 
+    def test_custom_terminal_labels_cannot_evade_closure(self):
+        self.operation["parent_outcome_status"] = "SATISFIED_DIAGNOSTIC_ONLY"
+        self.assertIn("OUTCOME_STATUS_UNRECOGNIZED", guard.violations(self.owner, self.operation))
+
+    def test_missing_parent_status_is_not_implicitly_open(self):
+        self.operation.pop("parent_outcome_status")
+        self.assertIn("OUTCOME_STATUS_UNRECOGNIZED", guard.violations(self.owner, self.operation))
+
     def test_all_owner_outcomes_required_for_close(self):
         self.operation.update(parent_outcome_status="SATISFIED", outcome_evidence={"date_recovery": "MET", "time_resolution": "MET"})
         guard.admit(self.owner, self.operation)
