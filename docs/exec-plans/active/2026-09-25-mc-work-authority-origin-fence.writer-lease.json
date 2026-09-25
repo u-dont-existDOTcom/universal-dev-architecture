@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc-work-authority-origin-fence-20260925",
+  "integration_branch": "main",
+  "integration_base_sha": "91e4be060ca99151264f1f90ad4f9c19aaf05bcb",
+  "scope": "Repair native Work deadline fencing and task-specific originating Chat identity for AskRigor issue 231.",
+  "parent_integrator": null
+}
