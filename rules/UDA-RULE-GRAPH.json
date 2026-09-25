@@ -126,8 +126,7 @@
       "status": "active",
       "trigger": "A reasoning-heavy conclusion would be costly or hard to undo if wrong and cannot be settled by tests, computation, or sources.",
       "requires": [
-        "development-assurance-lanes",
-        "work-model-and-effort-routing"
+        "development-assurance-lanes"
       ],
       "inherits": [],
       "supersedes": [],
