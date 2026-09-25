@@ -643,20 +643,11 @@ export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null)
     }
     return null;
   };
-  const mutationTouchesTarget = (mutation, current) => {
-    if (mutation.target === current || current.contains(mutation.target)) return true;
-    for (const node of mutation.addedNodes || []) {
-      if (node === current || current.contains(node)) return true;
-      if (node?.nodeType === 1 && typeof node.contains === 'function' && node.contains(current)) return true;
-    }
-    return false;
-  };
-  // A Retry re-uses an assistant turn that already has a content surface; removing its Retry control is
-  // itself a mutation there. Surfaces present when the heartbeat is armed are therefore not output by
-  // themselves: a surface that appears afterwards starts the stall clock, and so does new content added
-  // inside an existing surface (character data, or added child nodes). Clearing a surface (removals only)
-  // and changes outside the surfaces, such as the Retry control, are not output. Structure only; no text
-  // is read.
+  // Only response content counts as output. Progress is a new content surface appearing (surfaces present
+  // when the heartbeat is armed, as in a Retry of a rendered turn, are baseline), or new content inside a
+  // surface: character data, or added child nodes. Clearing a surface (removals only) and anything outside
+  // the surfaces, such as status indicators or the Retry control, is not progress, so busy UI cannot hold
+  // off stall recovery. Structure only; no text is read.
   const surfaceSelector = '.markdown, [class*="markdown"], [class*="prose"]';
   const contentSurfaces = (current) => {
     if (typeof current?.querySelectorAll === 'function') return [...current.querySelectorAll(surfaceSelector)];
@@ -666,12 +657,14 @@ export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null)
   const baselineSurfaces = new WeakSet(
     (target ? contentSurfaces(target) : []).filter((surface) => surface && typeof surface === 'object'),
   );
-  const hasContentSurface = (current) => contentSurfaces(current)
-    .some((surface) => surface && typeof surface === 'object' && !baselineSurfaces.has(surface));
-  const addsContentInsideSurface = (mutation, current) => {
+  const isResponseProgress = (mutation, current) => {
     const surfaces = contentSurfaces(current).filter((surface) => surface && typeof surface === 'object');
+    if (surfaces.length === 0) return false;
     const inside = (node) => surfaces.some((surface) => node === surface
       || (typeof surface.contains === 'function' && surface.contains(node)));
+    const addsNewSurface = (node) => surfaces.some((surface) => !baselineSurfaces.has(surface)
+      && (node === surface || (node?.nodeType === 1 && typeof node.contains === 'function' && node.contains(surface))));
+    if ((mutation.addedNodes || []).some(addsNewSurface)) return true;
     if (mutation.type === 'characterData') return inside(mutation.target);
     return (mutation.addedNodes?.length ?? 0) > 0 && inside(mutation.target);
   };
@@ -682,11 +675,7 @@ export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null)
       if (current) state.target = current;
     }
     if (!current) return;
-    if (hasContentSurface(current)) {
-      if (mutations.some((mutation) => mutationTouchesTarget(mutation, current))) markProgress();
-      return;
-    }
-    if (mutations.some((mutation) => addsContentInsideSurface(mutation, current))) markProgress();
+    if (mutations.some((mutation) => isResponseProgress(mutation, current))) markProgress();
   });
   const root = document.body || document.documentElement;
   if (!root) return { ok: false, reason: 'DOCUMENT_ROOT_MISSING', assistantContentObserved: false };

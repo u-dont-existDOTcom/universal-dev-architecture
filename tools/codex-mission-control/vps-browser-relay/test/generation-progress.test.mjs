@@ -10,11 +10,13 @@ import {
 
 function container(key) {
   const descendants = new Set();
+  const surface = { nodeType: 1, contains: (node) => descendants.has(node) };
   return {
     id: '',
     descendants,
+    surface,
     contentSurface: false,
-    querySelector() { return this.contentSurface ? {} : null; },
+    querySelector() { return this.contentSurface ? surface : null; },
     getAttribute(name) {
       if (name === 'data-turn-id') return key;
       if (name === 'data-testid') return null;
@@ -83,12 +85,18 @@ test('assistant generation heartbeat records structural progress without reading
   assert.equal(context.__missionControlGenerationProgress.counter, 0);
 
   newTurn.contentSurface = true;
-  observer.callback([{ target: streamedTextNode, addedNodes: [] }]);
+  observer.callback([{ type: 'characterData', target: streamedTextNode, addedNodes: [] }]);
   assert.equal(context.__missionControlGenerationProgress.outputBegun, true);
   assert.equal(context.__missionControlGenerationProgress.counter, 1);
   assert.equal(Number.isFinite(context.__missionControlGenerationProgress.lastMutationAtMs), true);
 
-  observer.callback([{ target: streamedTextNode, addedNodes: [] }]);
+  observer.callback([{ type: 'characterData', target: streamedTextNode, addedNodes: [] }]);
+  assert.equal(context.__missionControlGenerationProgress.counter, 2);
+
+  // Status indicators or controls elsewhere in the turn keep changing: not response progress.
+  const statusIndicator = { nodeType: 1 };
+  observer.callback([{ type: 'childList', target: newTurn, addedNodes: [statusIndicator], removedNodes: [] }]);
+  observer.callback([{ type: 'characterData', target: statusIndicator, addedNodes: [] }]);
   assert.equal(context.__missionControlGenerationProgress.counter, 2);
   assert.equal(Object.hasOwn(context.__missionControlGenerationProgress, 'text'), false);
   assert.equal(Object.hasOwn(context.__missionControlGenerationProgress, 'content'), false);
