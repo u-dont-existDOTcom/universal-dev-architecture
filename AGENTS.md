@@ -16,7 +16,7 @@ For **every assistant turn** governed by this architecture, the **first line of 
 
 These invariants are duplicated at the root so they survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: apply them without first judging a downstream pattern “task-relevant”, without relying on a stale prior-turn activation, and carry each obligation into the final output.
 
-**Every turn:** reusable output over ~8,000 characters (handoffs, directives, plans, reports) goes in a file, for any recipient; chat gets a short summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
+**Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
 ## Pre-final continuation invariant
 
