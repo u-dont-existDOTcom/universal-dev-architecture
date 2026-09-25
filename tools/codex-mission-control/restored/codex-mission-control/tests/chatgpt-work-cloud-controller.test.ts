@@ -492,12 +492,13 @@ test("reads per resolution are capped", async () => {
 test("unreadable candidates rotate behind unread ones so a capped scan reaches a later match across cycles", async () => {
   const threads = Array.from({ length: 20 }, (_, index) => ({ kind: "chatgpt", id: `t-${index}`, updatedAt: 1_789_848_001_000 + index }));
   const target = "t-15";
+  let earlyThreadsReadable = false;
   const reads = new FakeReadClient((name, args) => {
     if (name === "list_threads") return value({ unavailableSources: [], threads });
     if (name === "read_thread" && args.threadId === target) return value({
       thread: { kind: "chatgpt", id: target, turns: [{ params: { input: [{ type: "text", text: "exact prompt" }] } }] },
     });
-    if (name === "read_thread" && Number(String(args.threadId).slice(2)) < 12) throw new Error("not readable yet");
+    if (name === "read_thread" && !earlyThreadsReadable && Number(String(args.threadId).slice(2)) < 12) throw new Error("not readable yet");
     if (name === "read_thread") return value({
       thread: { kind: "chatgpt", id: args.threadId, turns: [{ params: { input: [{ type: "text", text: "an unrelated owner chat" }] } }] },
     });
@@ -521,7 +522,9 @@ test("unreadable candidates rotate behind unread ones so a capped scan reaches a
   assert.deepEqual(readIds().slice(12, 20), Array.from({ length: 8 }, (_, index) => `t-${index + 12}`));
   assert.deepEqual([...matches], [target]);
 
-  // Cycle 3 finishes the scan within the cap and binds the single match.
+  // Cycle 3: the early threads are now readable and ruled out, so the scan completes within the cap and
+  // binds the single match.
+  earlyThreadsReadable = true;
   const third = await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input);
   assert.deepEqual(third, { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: target, hostId: null });
 });
@@ -558,4 +561,39 @@ test("a deferred thread that becomes readable is cleared from the deferral order
   queue.clear("b");
   assert.deepEqual(queue.ids(), ["a"]);
   assert.equal(queue.rank("b"), -1);
+});
+
+test("a provisional match is not bound while another eligible candidate is still unreadable", async () => {
+  const threads = [
+    { kind: "chatgpt", id: "u-match", updatedAt: 1_789_848_001_000 },
+    { kind: "chatgpt", id: "u-hidden", updatedAt: 1_789_848_002_000 },
+    { kind: "chatgpt", id: "u-codex", updatedAt: 1_789_848_003_000 },
+  ];
+  let hiddenReadable = false;
+  const reads = new FakeReadClient((name, args) => {
+    if (name === "list_threads") return value({ unavailableSources: [], threads });
+    if (name === "read_thread" && args.threadId === "u-match") return value({
+      thread: { kind: "chatgpt", id: "u-match", turns: [{ params: { input: [{ type: "text", text: "exact prompt" }] } }] },
+    });
+    if (name === "read_thread" && args.threadId === "u-codex") return value({ thread: { kind: "codex", id: "u-codex", turns: [] } });
+    if (name === "read_thread" && args.threadId === "u-hidden" && !hiddenReadable) throw new Error("not readable yet");
+    if (name === "read_thread") return value({
+      thread: { kind: "chatgpt", id: args.threadId, turns: [{ params: { input: [{ type: "text", text: "an unrelated owner chat" }] } }] },
+    });
+    throw new Error(`Unexpected ${name}`);
+  });
+  const matches = new Set<string>();
+  const knownNonMatchingThreads = new Set<string>();
+  const options = {
+    resolutionAttempts: 2, sleep: async () => undefined, maxResolutionReads: 12, knownNonMatchingThreads,
+    provisionalMatches: { has: (id: string) => matches.has(id), add: (id: string) => { matches.add(id); }, ids: () => [...matches] },
+  };
+  const input = { clientThreadId: "local-chatgpt:hidden", prompt: "exact prompt", requestedAt, projectId: null };
+  assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input),
+    { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:hidden" });
+  assert.deepEqual([...matches], ["u-match"]);
+  assert.ok(knownNonMatchingThreads.has("u-codex"), "a readable thread on another surface is ruled out");
+  hiddenReadable = true;
+  assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input),
+    { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "u-match", hostId: null });
 });

@@ -229,6 +229,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         .filter((candidate) => this.deferred.rank(candidate.threadId) !== -1)
         .sort((left, right) => this.deferred.rank(left.threadId) - this.deferred.rank(right.threadId));
       let capped = false;
+      // Every eligible candidate must be ruled out (read with a first prompt) before a match is bound: an
+      // unreadable thread could carry the same prompt. Unresolved candidates stay eligible next attempt.
+      let unresolved = false;
       for (const candidate of [...unread, ...deferred]) {
         if (reads >= this.maxResolutionReads) {
           // Out of reads before every eligible candidate was inspected: a duplicate could still be unread,
@@ -239,12 +242,22 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         reads += 1;
         try {
           const read = await this.readExactThread(candidate.threadId);
-          if (surfaceKind(read) !== "chatgpt" || directThreadId(read) !== candidate.threadId) {
+          const surface = surfaceKind(read);
+          if (surface !== "chatgpt" && surface !== "unknown" && directThreadId(read) === candidate.threadId) {
+            // A readable thread on another surface can never be this dispatch's Work thread.
+            this.deferred.clear(candidate.threadId);
+            this.knownNonMatching?.add(candidate.threadId);
+            checked.add(candidate.threadId);
+            continue;
+          }
+          if (surface !== "chatgpt" || directThreadId(read) !== candidate.threadId) {
+            unresolved = true;
             this.deferred.defer(candidate.threadId);
             continue;
           }
           const observedPrompt = initialUserPrompt(read);
           if (observedPrompt === null) {
+            unresolved = true;
             this.deferred.defer(candidate.threadId);
             continue;
           }
@@ -256,6 +269,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
           if (isRateLimited(error)) return pending;
           // A listed provider candidate may not yet be readable. Defer it behind unread candidates and
           // retry the source-bound resolver later; never infer identity from its title.
+          unresolved = true;
           this.deferred.defer(candidate.threadId);
         }
       }
@@ -264,7 +278,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         return { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" };
       }
       if (capped) return pending;
-      if (exact.length === 1) return this.verifyExactThread(exact[0]);
+      if (exact.length === 1 && !unresolved) return this.verifyExactThread(exact[0]);
       if (attempt + 1 < this.attempts) await this.sleep(this.resolutionDelayMs);
     }
     return pending;
