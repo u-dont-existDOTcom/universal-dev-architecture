@@ -70,9 +70,14 @@ class WorkerDirectiveDeliveryOutputBudgetTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
         graph = json.loads((ROOT / "rules" / "UDA-RULE-GRAPH.json").read_text(encoding="utf-8"))
-        node = next(n for n in graph["nodes"] if n["rule_id"] == "worker-directive-delivery-and-chat-output-budget")
-        self.assertIn("handoff or continuation packet for any agent", node["trigger"])
-        self.assertIn("final-delivery", node["enforcement_phase"])
+        nodes = {n["rule_id"]: n for n in graph["nodes"]}
+        budget = nodes["chat-output-budget"]
+        self.assertIn("handoff or continuation packet for any agent", budget["trigger"])
+        self.assertIn("final-delivery", budget["enforcement_phase"])
+        self.assertEqual(budget["requires"], [], "output budgeting must not pull in Work routing")
+        worker = nodes["worker-directive-delivery-and-chat-output-budget"]
+        self.assertIn("Worker execution is selected", worker["trigger"])
+        self.assertIn("chat-work-execution-routing-threshold", worker["requires"])
 
     def test_lesson_is_discoverable_and_has_promotion_record(self) -> None:
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")

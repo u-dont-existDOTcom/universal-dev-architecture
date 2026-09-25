@@ -411,7 +411,7 @@
       "rule_id": "worker-directive-delivery-and-chat-output-budget",
       "canonical_path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
       "status": "active",
-      "trigger": "Any turn that delivers long reusable output (over ~8,000 characters: a worker directive, a handoff or continuation packet for any agent, a plan or report), or worker execution is selected and a runnable directive must be delivered without making the owner reconstruct it.",
+      "trigger": "Worker execution is selected and a runnable directive must be delivered to the worker without making the owner reconstruct it.",
       "requires": [
         "chat-work-execution-routing-threshold"
       ],
@@ -420,6 +420,19 @@
       "conflicts_with": [],
       "enforcement_phase": [
         "handoff",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "chat-output-budget",
+      "canonical_path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+      "status": "active",
+      "trigger": "Any turn that delivers long reusable output (over ~8,000 characters: a handoff or continuation packet for any agent, a plan or report), with or without worker execution. Output budgeting only; it does not select Work routing.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
         "delivery",
         "final-delivery"
       ]
