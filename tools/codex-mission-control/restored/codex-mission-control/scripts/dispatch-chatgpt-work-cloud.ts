@@ -12,6 +12,7 @@ import {
   connectNativeAppToolClient,
   inMemoryDeferredThreads,
   type DeferredThreadQueue,
+  type ThreadIdSet,
   type WorkCloudAppToolClient,
   type WorkCloudProductMutationBridge,
   writePrivateWorkThreadLocator,
@@ -84,6 +85,7 @@ try {
   executor = new NativeChatGptWorkCloudExecutor(appClient, mutationBridge, {
     knownNonMatchingThreads: privateThreadIdSet(`${absoluteRequestPath}.nonmatching.json`),
     deferredThreads: privateDeferredThreads(`${absoluteRequestPath}.deferred.json`),
+    provisionalMatches: privateThreadIdSet(`${absoluteRequestPath}.matches.json`),
   });
 } catch (error) {
   setupError = error instanceof Error ? error.message : "Native app read/verification setup failed.";
@@ -145,9 +147,9 @@ main().catch((error: unknown) => {
   process.exitCode = 1;
 });
 
-// Per-dispatch memory of threads already proven not to carry this dispatch's prompt, kept beside the
+// Per-dispatch set of thread ids (proven non-matches, or provisional prompt matches), kept beside the
 // private request file (same 0700 directory, file mode 0600) so each thread is read at most once.
-function privateThreadIdSet(file: string): { has(threadId: string): boolean; add(threadId: string): void } {
+function privateThreadIdSet(file: string): ThreadIdSet {
   let ids = new Set<string>();
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
@@ -155,6 +157,7 @@ function privateThreadIdSet(file: string): { has(threadId: string): boolean; add
   } catch { /* absent or unreadable: start empty */ }
   return {
     has: (threadId) => ids.has(threadId),
+    ids: () => [...ids],
     add: (threadId) => {
       if (ids.has(threadId)) return;
       ids.add(threadId);

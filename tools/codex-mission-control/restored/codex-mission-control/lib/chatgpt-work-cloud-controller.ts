@@ -58,7 +58,23 @@ export interface WorkCloudAppExecutorOptions {
    * across cycles instead of spending its cap on the same unreadable threads.
    */
   deferredThreads?: DeferredThreadQueue;
+  /**
+   * Threads whose first prompt matched this dispatch, kept until a scan of every eligible candidate
+   * completes within the read cap; only then is a single match bound (two or more are ambiguous).
+   */
+  provisionalMatches?: ThreadIdSet;
   sleep?: (milliseconds: number) => Promise<void>;
+}
+
+export interface ThreadIdSet {
+  has(threadId: string): boolean;
+  add(threadId: string): void;
+  ids(): string[];
+}
+
+function inMemoryThreadIdSet(): ThreadIdSet {
+  const ids = new Set<string>();
+  return { has: (threadId) => ids.has(threadId), add: (threadId) => { ids.add(threadId); }, ids: () => [...ids] };
 }
 
 export interface DeferredThreadQueue {
@@ -97,6 +113,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   private readonly maxResolutionReads: number;
   private readonly knownNonMatching: WorkCloudAppExecutorOptions["knownNonMatchingThreads"] | null;
   private readonly deferred: DeferredThreadQueue;
+  private readonly provisional: ThreadIdSet;
   private readonly sleep: (milliseconds: number) => Promise<void>;
 
   constructor(
@@ -109,6 +126,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     this.maxResolutionReads = options.maxResolutionReads ?? 12;
     this.knownNonMatching = options.knownNonMatchingThreads ?? null;
     this.deferred = options.deferredThreads ?? inMemoryDeferredThreads();
+    this.provisional = options.provisionalMatches ?? inMemoryThreadIdSet();
     this.sleep = options.sleep ?? (async (milliseconds) => { await delay(milliseconds); });
   }
 
@@ -188,7 +206,8 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     // ChatGPT to "Too many requests", after which no read succeeded and the dispatch could never resolve.
     // Each thread is now read at most once per resolution, proven non-matches are remembered, reads are
     // capped, and a rate-limit response ends the attempt immediately (still PENDING_SETUP, never a re-create).
-    // Unreadable candidates are deferred behind unread ones so the capped scan rotates through the list.
+    // Unreadable candidates are deferred behind unread ones so the capped scan rotates through the list,
+    // and a match is bound only after a scan of every eligible candidate completes within the cap.
     const pending = { kind: "PENDING_SETUP" as const, clientThreadId: input.clientThreadId };
     const checked = new Set<string>();
     let reads = 0;
@@ -201,9 +220,10 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         throw error;
       }
       if (chatGptSourceUnavailable(listed)) return pending;
-      const matchingIds: string[] = [];
       const eligible = chatGptCandidates(listed, input.requestedAt, input.projectId)
-        .filter((candidate) => !checked.has(candidate.threadId) && !this.knownNonMatching?.has(candidate.threadId));
+        .filter((candidate) => !checked.has(candidate.threadId)
+          && !this.knownNonMatching?.has(candidate.threadId)
+          && !this.provisional.has(candidate.threadId));
       const unread = eligible.filter((candidate) => this.deferred.rank(candidate.threadId) === -1);
       const deferred = eligible
         .filter((candidate) => this.deferred.rank(candidate.threadId) !== -1)
@@ -211,8 +231,8 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       let capped = false;
       for (const candidate of [...unread, ...deferred]) {
         if (reads >= this.maxResolutionReads) {
-          // Out of reads for this resolution. A match already found is still used, exactly as when the
-          // remaining candidates are unreadable; otherwise the dispatch stays PENDING_SETUP.
+          // Out of reads before every eligible candidate was inspected: a duplicate could still be unread,
+          // so nothing is bound this resolution. Matches found so far persist as provisional.
           capped = true;
           break;
         }
@@ -230,7 +250,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
           }
           checked.add(candidate.threadId);
           this.deferred.clear(candidate.threadId);
-          if (promptReadbackMatches(input.prompt, observedPrompt)) matchingIds.push(candidate.threadId);
+          if (promptReadbackMatches(input.prompt, observedPrompt)) this.provisional.add(candidate.threadId);
           else this.knownNonMatching?.add(candidate.threadId);
         } catch (error) {
           if (isRateLimited(error)) return pending;
@@ -239,12 +259,12 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
           this.deferred.defer(candidate.threadId);
         }
       }
-      const exact = [...new Set(matchingIds)];
+      const exact = [...new Set(this.provisional.ids())];
       if (exact.length > 1) {
         return { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" };
       }
-      if (exact.length === 1) return this.verifyExactThread(exact[0]);
       if (capped) return pending;
+      if (exact.length === 1) return this.verifyExactThread(exact[0]);
       if (attempt + 1 < this.attempts) await this.sleep(this.resolutionDelayMs);
     }
     return pending;

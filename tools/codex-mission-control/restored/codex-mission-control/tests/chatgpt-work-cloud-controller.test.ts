@@ -505,18 +505,50 @@ test("unreadable candidates rotate behind unread ones so a capped scan reaches a
   });
   const deferredThreads = inMemoryDeferredThreads();
   const knownNonMatchingThreads = new Set<string>();
-  const options = { resolutionAttempts: 1, sleep: async () => undefined, maxResolutionReads: 12, deferredThreads, knownNonMatchingThreads };
+  const matches = new Set<string>();
+  const provisionalMatches = { has: (id: string) => matches.has(id), add: (id: string) => { matches.add(id); }, ids: () => [...matches] };
+  const options = { resolutionAttempts: 1, sleep: async () => undefined, maxResolutionReads: 12, deferredThreads, knownNonMatchingThreads, provisionalMatches };
   const input = { clientThreadId: "local-chatgpt:rotate", prompt: "exact prompt", requestedAt, projectId: null };
-  const first = await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input);
-  assert.deepEqual(first, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:rotate" });
-  assert.equal(deferredThreads.ids().length, 12);
-  const second = await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input);
-  assert.deepEqual(second, { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: target, hostId: null });
-  const firstCycleReads = reads.calls.filter((call) => call.name === "read_thread").slice(0, 12).map((call) => call.arguments.threadId);
-  const secondCycleReads = reads.calls.filter((call) => call.name === "read_thread").slice(12).map((call) => call.arguments.threadId);
-  assert.equal(new Set(firstCycleReads).size, 12);
-  assert.deepEqual(firstCycleReads, Array.from({ length: 12 }, (_, index) => `t-${index}`));
-  assert.deepEqual(secondCycleReads.slice(0, 8), Array.from({ length: 8 }, (_, index) => `t-${index + 12}`), "second cycle reads unread candidates first");
+  const pending = { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:rotate" };
+  const readIds = () => reads.calls.filter((call) => call.name === "read_thread").map((call) => call.arguments.threadId);
+
+  assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input), pending);
+  assert.deepEqual(readIds(), Array.from({ length: 12 }, (_, index) => `t-${index}`));
+
+  // Cycle 2 reads the unread candidates first and finds the match, but the cap is reached before the
+  // deferred candidates are all re-checked, so the match stays provisional.
+  assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input), pending);
+  assert.deepEqual(readIds().slice(12, 20), Array.from({ length: 8 }, (_, index) => `t-${index + 12}`));
+  assert.deepEqual([...matches], [target]);
+
+  // Cycle 3 finishes the scan within the cap and binds the single match.
+  const third = await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input);
+  assert.deepEqual(third, { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: target, hostId: null });
+});
+
+test("a duplicate prompt found after the read cap is ambiguous, not silently bound to the first match", async () => {
+  const threads = Array.from({ length: 14 }, (_, index) => ({ kind: "chatgpt", id: `d-${index}`, updatedAt: 1_789_848_001_000 + index }));
+  const reads = new FakeReadClient((name, args) => {
+    if (name === "list_threads") return value({ unavailableSources: [], threads });
+    if (name === "read_thread") {
+      const id = String(args.threadId);
+      const text = id === "d-0" || id === "d-13" ? "exact prompt" : "an unrelated owner chat";
+      return value({ thread: { kind: "chatgpt", id, turns: [{ params: { input: [{ type: "text", text }] } }] } });
+    }
+    throw new Error(`Unexpected ${name}`);
+  });
+  const matches = new Set<string>();
+  const options = {
+    resolutionAttempts: 1, sleep: async () => undefined, maxResolutionReads: 12,
+    knownNonMatchingThreads: new Set<string>(),
+    provisionalMatches: { has: (id: string) => matches.has(id), add: (id: string) => { matches.add(id); }, ids: () => [...matches] },
+  };
+  const input = { clientThreadId: "local-chatgpt:dup", prompt: "exact prompt", requestedAt, projectId: null };
+  assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input),
+    { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:dup" });
+  assert.deepEqual([...matches], ["d-0"]);
+  assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input),
+    { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" });
 });
 
 test("a deferred thread that becomes readable is cleared from the deferral order", () => {
