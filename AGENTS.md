@@ -14,7 +14,7 @@ For **every assistant turn** governed by this architecture, the **first line of 
 - If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.
 - Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
 
-These invariants are intentionally duplicated at the root because they must survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: an agent must not need to decide that a downstream pattern is “task-relevant” before learning that the rule applies, must not rely on a stale prior-turn activation, and must not discharge the obligation in reasoning without carrying it into final output.
+These invariants are duplicated at the root so they survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: apply them without first judging a downstream pattern “task-relevant”, without relying on a stale prior-turn activation, and carry each obligation into the final output.
 
 **Every turn:** reusable output over ~8,000 characters (handoffs, directives, plans, reports) goes in a file, for any recipient; chat gets a short summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
@@ -41,7 +41,7 @@ Project-specific current requirements win on genuine conflict.
 
 When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
 
-Do not use agentic shorthand such as `I chose wrong`, `I forgot`, `I should have`, or `I made a bad choice` as a causal explanation or substitute for repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and the smallest useful discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or internal model mechanisms. A successful intervention establishes its observed effect in the tested scope, not a unique unobserved cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary rather than merely promising different behavior next time.
+Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises.
 
 ## Owner-marked Mission Control failure capture
 
