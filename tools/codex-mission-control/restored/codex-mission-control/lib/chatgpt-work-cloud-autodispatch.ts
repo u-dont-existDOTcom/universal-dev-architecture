@@ -7,12 +7,19 @@ import { ruleGraphPromptBlock, workHandoffRuleGraphProjection } from "./rule-gra
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
 export const WORK_CLOUD_AUTODISPATCH_PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
 
-export interface WorkCloudSourceChat {
-  supervisorId: string;
+export interface WorkCloudOrigin {
   sourceChatTitle: string;
   sourceChatUrl: string;
   sourceChatBrowserUrl: string | null;
   chatgptProjectId: string | null;
+}
+
+export interface WorkCloudSourceChat extends WorkCloudOrigin {
+  supervisorId: string;
+}
+
+export interface WorkCloudOriginChat extends WorkCloudOrigin {
+  taskId: string;
 }
 
 export interface PreparedDirectWorkCloudDispatch {
@@ -22,7 +29,8 @@ export interface PreparedDirectWorkCloudDispatch {
   workPrompt: string;
   workPromptSha256: string;
   sourceSupervisorId: string;
-  sourceChat: WorkCloudSourceChat;
+  sourceChat: WorkCloudOrigin;
+  deadline: string;
   controllerRequest: {
     dispatchId: string;
     mode: "CREATE";
@@ -43,6 +51,7 @@ export interface PreparedDirectWorkCloudDispatch {
     existingWorkThreadId: null;
     prompt: string;
     requestedAt: string;
+    deadline: string;
   };
   recoveryState: "NEW" | "REQUEST_ONLY_PROVEN_UNSENT" | "PENDING_SETUP_READ_ONLY";
   order: number;
@@ -76,14 +85,48 @@ export function parseWorkCloudSourceChats(raw: string | undefined): WorkCloudSou
   });
 }
 
+
+export function parseWorkCloudOriginChats(raw: string | undefined): WorkCloudOriginChat[] {
+  if (!raw?.trim()) return [];
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { throw new Error("Native Work origin-chat registry must be valid JSON."); }
+  if (!Array.isArray(value)) throw new Error("Native Work origin-chat registry must be an array.");
+  const seen = new Set<string>();
+  return value.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error(`Native Work origin-chat entry ${index} must be an object.`);
+    const record = item as Record<string, unknown>;
+    const taskId = requiredString(record.taskId, `originChats[${index}].taskId`);
+    if (seen.has(taskId)) throw new Error(`Native Work origin-chat task ${taskId} is registered more than once.`);
+    seen.add(taskId);
+    const sourceChatTitle = requiredString(record.sourceChatTitle ?? record.title ?? record.label, `originChats[${index}].sourceChatTitle`);
+    const browserUrl = nullableString(record.sourceChatBrowserUrl ?? record.browserUrl, `originChats[${index}].sourceChatBrowserUrl`);
+    const explicitUri = nullableString(record.sourceChatUrl, `originChats[${index}].sourceChatUrl`);
+    const sourceChatUrl = explicitUri ?? conversationUriFromBrowserUrl(browserUrl);
+    if (!sourceChatUrl || !/^chatgpt-conversation:\/\/[A-Za-z0-9-]+$/.test(sourceChatUrl)) {
+      throw new Error(`Native Work origin-chat entry ${index} requires an exact ChatGPT conversation locator.`);
+    }
+    const chatgptProjectId = nullableString(record.chatgptProjectId, `originChats[${index}].chatgptProjectId`);
+    return { taskId, sourceChatTitle, sourceChatUrl, sourceChatBrowserUrl: browserUrl, chatgptProjectId };
+  });
+}
+
+export function workCloudDeadlineIsCurrent(deadline: string, now: string): boolean {
+  const deadlineMs = Date.parse(deadline);
+  const nowMs = Date.parse(now);
+  if (!Number.isFinite(deadlineMs) || !Number.isFinite(nowMs)) throw new Error("Native Work dispatch requires valid deadline and current timestamps.");
+  return deadlineMs > nowMs;
+}
+
 export function discoverDirectWorkCloudDispatches(input: {
   events: StoredEvent[];
   sourceChats: WorkCloudSourceChat[];
+  originChats?: WorkCloudOriginChat[];
   receiptTarget: WorkCloudReceiptTarget;
   requestedAt: string;
   artifactPathFor: (dispatchId: string) => string;
 }): PreparedDirectWorkCloudDispatch[] {
   const sourceBySupervisor = new Map(input.sourceChats.map((item) => [item.supervisorId, item]));
+  const originByTask = new Map((input.originChats ?? []).map((item) => [item.taskId, item]));
   const latestDirectiveByWorker = new Map<string, StoredEvent>();
   for (const event of input.events) {
     if (event.data.type === "execution_directive_recorded") latestDirectiveByWorker.set(event.data.worker, event);
@@ -104,6 +147,8 @@ export function discoverDirectWorkCloudDispatches(input: {
     const sourceChat = sourceBySupervisor.get(receipt.supervisor_id);
     if (!sourceChat) continue;
     const bounded = receipt.bounded_execution;
+    if (!workCloudDeadlineIsCurrent(bounded.deadline, input.requestedAt)) continue;
+    const workOrigin = originByTask.get(directive.task_id) ?? sourceChat;
     const sourceDirective = {
       id: directive.directive_id,
       revision: directive.directive_revision,
@@ -126,7 +171,7 @@ export function discoverDirectWorkCloudDispatches(input: {
       directiveArtifactSha256: directive.directive_artifact_sha256,
       sourceMessageId: directive.source_message_id,
       sourceBodySha256: directive.source_body_sha256,
-      sourceChatUrl: sourceChat.sourceChatUrl,
+      sourceChatUrl: workOrigin.sourceChatUrl,
       boundedPromptSha256: sha256(bounded.prompt),
     })).slice(0, 32)}`;
     const workPrompt = buildDirectWorkPrompt({
@@ -135,7 +180,7 @@ export function discoverDirectWorkCloudDispatches(input: {
       directiveId: directive.directive_id,
       directiveRevision: directive.directive_revision,
       taskId: directive.task_id,
-      sourceChat,
+      sourceChat: workOrigin,
       receiptTarget: input.receiptTarget,
       exactDirective: bounded.prompt,
     });
@@ -162,7 +207,8 @@ export function discoverDirectWorkCloudDispatches(input: {
       workPrompt,
       workPromptSha256: sha256(workPrompt),
       sourceSupervisorId: receipt.supervisor_id,
-      sourceChat,
+      sourceChat: workOrigin,
+      deadline: bounded.deadline,
       controllerRequest: {
         dispatchId,
         mode: "CREATE",
@@ -176,13 +222,14 @@ export function discoverDirectWorkCloudDispatches(input: {
           sourceBodySha256: directive.source_body_sha256,
         },
         directiveArtifactPath: input.artifactPathFor(dispatchId),
-        sourceChatTitle: sourceChat.sourceChatTitle,
-        sourceChatUrl: sourceChat.sourceChatUrl,
-        requestedWorkTitle: `Work — ${sourceChat.sourceChatTitle}`,
-        chatgptProjectId: sourceChat.chatgptProjectId,
+        sourceChatTitle: workOrigin.sourceChatTitle,
+        sourceChatUrl: workOrigin.sourceChatUrl,
+        requestedWorkTitle: `Work — ${workOrigin.sourceChatTitle}`,
+        chatgptProjectId: workOrigin.chatgptProjectId,
         existingWorkThreadId: null,
         prompt: workPrompt,
         requestedAt: request?.type === "chatgpt_work_cloud_dispatch_requested" ? request.requested_at : input.requestedAt,
+        deadline: bounded.deadline,
       },
       recoveryState,
       order: directiveEvent.sequence,
@@ -197,7 +244,7 @@ export function buildDirectWorkPrompt(input: {
   directiveId: string;
   directiveRevision: number;
   taskId: string;
-  sourceChat: WorkCloudSourceChat;
+  sourceChat: WorkCloudOrigin;
   receiptTarget: WorkCloudReceiptTarget;
   exactDirective: string;
 }): string {
