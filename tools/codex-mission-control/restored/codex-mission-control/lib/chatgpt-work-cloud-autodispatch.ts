@@ -264,8 +264,10 @@ export function selectWorkCloudDispatchCandidate(
   nowMs: number,
   retryMs: number,
 ): PreparedDirectWorkCloudDispatch | null {
+  // Fresh (non-pending) dispatches always go first, so a due setup retry never delays a new launch.
+  const fresh = candidates.find((candidate) => candidate.recoveryState !== "PENDING_SETUP_READ_ONLY");
+  if (fresh) return fresh;
   for (const candidate of candidates) {
-    if (candidate.recoveryState !== "PENDING_SETUP_READ_ONLY") return candidate;
     const last = lastPendingAttemptMs.get(candidate.dispatchId);
     if (last === undefined || nowMs - last >= retryMs) return candidate;
   }

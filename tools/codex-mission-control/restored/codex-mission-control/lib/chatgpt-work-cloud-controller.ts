@@ -210,6 +210,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     // and a match is bound only after a scan of every eligible candidate completes within the cap.
     const pending = { kind: "PENDING_SETUP" as const, clientThreadId: input.clientThreadId };
     const checked = new Set<string>();
+    // Candidates tried and left unresolved in this resolution: not re-read until a later cycle (repeat
+    // reads within seconds are what trip ChatGPT's rate limit), and they block binding until ruled out.
+    const unresolvedThisResolution = new Set<string>();
     let reads = 0;
     for (let attempt = 0; attempt < this.attempts; attempt += 1) {
       let listed: unknown;
@@ -222,6 +225,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       if (chatGptSourceUnavailable(listed)) return pending;
       const eligible = chatGptCandidates(listed, input.requestedAt, input.projectId)
         .filter((candidate) => !checked.has(candidate.threadId)
+          && !unresolvedThisResolution.has(candidate.threadId)
           && !this.knownNonMatching?.has(candidate.threadId)
           && !this.provisional.has(candidate.threadId));
       const unread = eligible.filter((candidate) => this.deferred.rank(candidate.threadId) === -1);
@@ -230,8 +234,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         .sort((left, right) => this.deferred.rank(left.threadId) - this.deferred.rank(right.threadId));
       let capped = false;
       // Every eligible candidate must be ruled out (read with a first prompt) before a match is bound: an
-      // unreadable thread could carry the same prompt. Unresolved candidates stay eligible next attempt.
-      let unresolved = false;
+      // unreadable thread could carry the same prompt.
       for (const candidate of [...unread, ...deferred]) {
         if (reads >= this.maxResolutionReads) {
           // Out of reads before every eligible candidate was inspected: a duplicate could still be unread,
@@ -251,13 +254,13 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
             continue;
           }
           if (surface !== "chatgpt" || directThreadId(read) !== candidate.threadId) {
-            unresolved = true;
+            unresolvedThisResolution.add(candidate.threadId);
             this.deferred.defer(candidate.threadId);
             continue;
           }
           const observedPrompt = initialUserPrompt(read);
           if (observedPrompt === null) {
-            unresolved = true;
+            unresolvedThisResolution.add(candidate.threadId);
             this.deferred.defer(candidate.threadId);
             continue;
           }
@@ -269,7 +272,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
           if (isRateLimited(error)) return pending;
           // A listed provider candidate may not yet be readable. Defer it behind unread candidates and
           // retry the source-bound resolver later; never infer identity from its title.
-          unresolved = true;
+          unresolvedThisResolution.add(candidate.threadId);
           this.deferred.defer(candidate.threadId);
         }
       }
@@ -278,7 +281,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         return { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" };
       }
       if (capped) return pending;
-      if (exact.length === 1 && !unresolved) return this.verifyExactThread(exact[0]);
+      // An unresolved candidate cannot be retried before a later cycle, so this resolution cannot bind.
+      if (unresolvedThisResolution.size > 0) return pending;
+      if (exact.length === 1) return this.verifyExactThread(exact[0]);
       if (attempt + 1 < this.attempts) await this.sleep(this.resolutionDelayMs);
     }
     return pending;

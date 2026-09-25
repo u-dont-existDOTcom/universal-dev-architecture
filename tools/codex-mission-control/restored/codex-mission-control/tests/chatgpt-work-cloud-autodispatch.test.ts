@@ -139,4 +139,6 @@ test("pending-setup re-resolution is rate limited; new dispatches are never dela
   assert.equal(selectWorkCloudDispatchCandidate([pending], last, 1_000_000 + 60_000, retryMs), null);
   assert.equal(selectWorkCloudDispatchCandidate([pending, fresh], last, 1_000_000 + 60_000, retryMs), fresh);
   assert.equal(selectWorkCloudDispatchCandidate([pending], last, 1_000_000 + retryMs, retryMs), pending);
+  // A due setup retry earlier in directive order still yields to a fresh dispatch.
+  assert.equal(selectWorkCloudDispatchCandidate([pending, fresh], last, 1_000_000 + retryMs, retryMs), fresh);
 });

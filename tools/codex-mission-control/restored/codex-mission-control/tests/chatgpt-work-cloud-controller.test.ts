@@ -597,3 +597,19 @@ test("a provisional match is not bound while another eligible candidate is still
   assert.deepEqual(await new NativeChatGptWorkCloudExecutor(reads, null, options).resolveCreatedThread(input),
     { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "u-match", hostId: null });
 });
+
+test("unreadable threads are read once per resolution, not re-read on every attempt", async () => {
+  const threads = [
+    { kind: "chatgpt", id: "r-a", updatedAt: 1_789_848_001_000 },
+    { kind: "chatgpt", id: "r-b", updatedAt: 1_789_848_002_000 },
+  ];
+  const reads = new FakeReadClient((name) => {
+    if (name === "list_threads") return value({ unavailableSources: [], threads });
+    throw new Error("not readable yet");
+  });
+  const outcome = await new NativeChatGptWorkCloudExecutor(reads, null, { resolutionAttempts: 20, sleep: async () => undefined })
+    .resolveCreatedThread({ clientThreadId: "local-chatgpt:once", prompt: "exact prompt", requestedAt, projectId: null });
+  assert.deepEqual(outcome, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:once" });
+  assert.deepEqual(reads.calls.filter((call) => call.name === "read_thread").map((call) => call.arguments.threadId), ["r-a", "r-b"]);
+  assert.equal(reads.calls.filter((call) => call.name === "list_threads").length, 1);
+});
