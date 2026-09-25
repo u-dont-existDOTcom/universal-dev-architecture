@@ -67,18 +67,17 @@ test("watches and watch-enroll call the fixed daemon routes as the owner and nev
   });
 });
 
-test("source-review posts the request file to the fixed app route with the owner credential, output redacted", async () => {
+test("there is no action that forwards caller-supplied content under the owner credential", async () => {
   await withServer(async (base, seen) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-"));
     const file = path.join(dir, "request.json");
-    fs.writeFileSync(file, JSON.stringify({ task_id: "task:askrigor-system-alignment", review_attempt_id: "attempt:1" }));
+    fs.writeFileSync(file, JSON.stringify({ task_id: "task:x", decision_requested: "self-authored instruction" }));
     const result = await run(["source-review", "--worker", "askrigor-system-alignment", "--request", file], env(base));
-    assert.equal(result.code, 0, result.stderr);
-    assert.equal(seen.length, 1);
-    assert.equal(`${seen[0].method} ${seen[0].url}`, "POST /api/workers/askrigor-system-alignment/source-review");
-    assert.equal(seen[0].headers.authorization, `Bearer ${OWNER_TOKEN}`);
-    assert.deepEqual(JSON.parse(seen[0].body), { task_id: "task:askrigor-system-alignment", review_attempt_id: "attempt:1" });
-    assert.ok(!result.stdout.includes(OWNER_TOKEN));
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /Unknown action source-review/);
+    assert.equal(seen.length, 0);
+    const source = fs.readFileSync(path.join(process.cwd(), "scripts/owner-action.ts"), "utf8");
+    assert.ok(!source.includes("MISSION_CONTROL_OWNER_TOKEN") || !/fetch\(/.test(source), "owner bearer must not be attached to any outbound fetch");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

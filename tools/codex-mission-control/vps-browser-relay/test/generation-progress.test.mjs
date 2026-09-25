@@ -125,3 +125,42 @@ test('progress stall timer starts only after output begins and resets whenever p
     tracker, { generating: true, stopVisible: false }, 400_000, stallMs,
   ), false);
 });
+
+test('a Retry heartbeat ignores the failed turn\'s existing content until a new response surface appears', () => {
+  const root = {};
+  const oldSurface = { nodeType: 1 };
+  const retryControl = { nodeType: 1 };
+  const failedTurn = {
+    id: '',
+    surfaces: [oldSurface],
+    descendants: new Set([oldSurface, retryControl]),
+    querySelectorAll() { return this.surfaces; },
+    getAttribute(name) { return name === 'data-turn-id' ? 'failed-turn' : null; },
+    contains(node) { return this.descendants.has(node); },
+  };
+  let observer = null;
+  class FakeMutationObserver {
+    constructor(callback) { this.callback = callback; observer = this; }
+    observe() {}
+    disconnect() {}
+  }
+  const context = vm.createContext({
+    document: { body: root, documentElement: root, querySelectorAll: () => [assistantRole(failedTurn, 'failed-message')] },
+    MutationObserver: FakeMutationObserver,
+  });
+  const armed = vm.runInContext(`(${RESET_GENERATION_PROGRESS_FN})("failed-message")`, context);
+  assert.equal(armed.ok, true);
+  assert.equal(armed.targetBound, true);
+
+  // Clicking Retry removes the control inside the already-rendered turn: not output.
+  observer.callback([{ target: failedTurn, addedNodes: [], removedNodes: [retryControl] }]);
+  assert.equal(context.__missionControlGenerationProgress.outputBegun, false);
+
+  // The retried response renders a new content surface: output has begun.
+  const newSurface = { nodeType: 1 };
+  failedTurn.surfaces = [newSurface];
+  failedTurn.descendants.add(newSurface);
+  observer.callback([{ target: failedTurn, addedNodes: [newSurface] }]);
+  assert.equal(context.__missionControlGenerationProgress.outputBegun, true);
+  assert.equal(context.__missionControlGenerationProgress.counter, 1);
+});

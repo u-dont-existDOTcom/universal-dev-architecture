@@ -9,7 +9,6 @@
 // bounded JSON result. Callers (the owner, Chat, Claude, Work) never see, pass, or copy a credential.
 // It is deliberately not a generic authenticated HTTP client: every action has a fixed method, path
 // and validated arguments.
-import fs from "node:fs";
 import { daemonFetch, daemonMutationHeaders } from "../lib/daemon-client";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { FLEET_ENROLL_PROJECT_ID, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
@@ -20,13 +19,15 @@ const USAGE = `Usage: owner-action <action> [options]
   watch-enroll --project P --worker W --task T [--cadence-ms N]
                                                       enroll an existing worker/task under project P
   watch-set --project P [--state S] [--cadence-ms N]  change an existing watch (S: ACTIVE|PAUSED|TERMINAL|DISABLED)
-  reconcile-github                                    run one GitHub decision-receipt reconciliation pass
-  source-review --worker W --request FILE             send one source-bound supervisor request (JSON file)`;
+  reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
+
+// Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
+// request body) under the owner credential. Review of PR #254 (2026-09-25): a worker could otherwise
+// launder self-authored instructions through the owner route, and a configurable destination could
+// receive the owner bearer. Owner-authored supervision requests go through the owner's own session.
 
 const SECRET_ENV = ["MISSION_CONTROL_INTERNAL_TOKEN", "MISSION_CONTROL_OWNER_TOKEN", "MISSION_CONTROL_SESSION_SECRET",
   "MISSION_CONTROL_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN", "MISSION_CONTROL_INGEST_CREDENTIALS"];
-const WORKER_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-const MAX_REQUEST_FILE_BYTES = 64_000;
 
 export class UsageError extends Error {}
 
@@ -104,24 +105,6 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
     case "reconcile-github": {
       options(rest, []);
       return jsonResult(await daemonFetch("/github/decision-receipts/reconcile", { method: "POST", headers: daemonMutationHeaders(owner()) }));
-    }
-    case "source-review": {
-      const opts = options(rest, ["worker", "request"]);
-      const worker = required(opts, "worker");
-      if (!WORKER_ID.test(worker)) throw new UsageError("--worker is not a valid worker id.");
-      const file = required(opts, "request");
-      const stat = fs.statSync(file);
-      if (!stat.isFile() || stat.size > MAX_REQUEST_FILE_BYTES) throw new UsageError("--request must be a small JSON file.");
-      const payload = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
-      if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new UsageError("--request must hold a JSON object.");
-      const ownerToken = process.env.MISSION_CONTROL_OWNER_TOKEN;
-      if (!ownerToken) throw new UsageError("The owner credential is not configured in this runtime.");
-      const base = process.env.MISSION_CONTROL_OWNER_ACTION_APP_URL ?? `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
-      return jsonResult(await fetch(new URL(`/api/workers/${encodeURIComponent(worker)}/source-review`, base), {
-        method: "POST",
-        headers: { authorization: `Bearer ${ownerToken}`, "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify(payload),
-      }));
     }
     default:
       throw new UsageError(action ? `Unknown action ${action}.` : "No action given.");

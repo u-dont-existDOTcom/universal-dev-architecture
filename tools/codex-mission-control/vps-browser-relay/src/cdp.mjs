@@ -651,9 +651,20 @@ export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null)
     }
     return false;
   };
-  const hasContentSurface = (current) => Boolean(
-    current?.querySelector?.('.markdown, [class*="markdown"], [class*="prose"]'),
+  // A Retry re-uses an assistant turn that already has a content surface; removing its Retry control is
+  // itself a mutation there. Surfaces present when the heartbeat is armed are therefore not output: only a
+  // surface that appears afterwards starts the stall clock (structure only, no text is read).
+  const surfaceSelector = '.markdown, [class*="markdown"], [class*="prose"]';
+  const contentSurfaces = (current) => {
+    if (typeof current?.querySelectorAll === 'function') return [...current.querySelectorAll(surfaceSelector)];
+    const single = current?.querySelector?.(surfaceSelector);
+    return single ? [single] : [];
+  };
+  const baselineSurfaces = new WeakSet(
+    (target ? contentSurfaces(target) : []).filter((surface) => surface && typeof surface === 'object'),
   );
+  const hasContentSurface = (current) => contentSurfaces(current)
+    .some((surface) => surface && typeof surface === 'object' && !baselineSurfaces.has(surface));
   const observer = new MutationObserver((mutations) => {
     let current = state.target;
     if (!current) {
