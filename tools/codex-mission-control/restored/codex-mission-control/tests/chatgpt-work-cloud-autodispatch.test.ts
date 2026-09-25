@@ -126,3 +126,17 @@ test("Codex/default directives are not discovered by native Work autodispatch", 
   events[1].data.execution_surface = "CODEX";
   assert.equal(discover(events as StoredEvent[]).length, 0);
 });
+
+test("pending-setup re-resolution is rate limited; new dispatches are never delayed", async () => {
+  const { selectWorkCloudDispatchCandidate } = await import("../lib/chatgpt-work-cloud-autodispatch");
+  type Candidate = Parameters<typeof selectWorkCloudDispatchCandidate>[0][number];
+  const pending = { dispatchId: "work-cloud:pending", recoveryState: "PENDING_SETUP_READ_ONLY" } as Candidate;
+  const fresh = { dispatchId: "work-cloud:new", recoveryState: "NEW" } as Candidate;
+  const last = new Map<string, number>();
+  const retryMs = 300_000;
+  assert.equal(selectWorkCloudDispatchCandidate([pending], last, 1_000_000, retryMs), pending);
+  last.set("work-cloud:pending", 1_000_000);
+  assert.equal(selectWorkCloudDispatchCandidate([pending], last, 1_000_000 + 60_000, retryMs), null);
+  assert.equal(selectWorkCloudDispatchCandidate([pending, fresh], last, 1_000_000 + 60_000, retryMs), fresh);
+  assert.equal(selectWorkCloudDispatchCandidate([pending], last, 1_000_000 + retryMs, retryMs), pending);
+});

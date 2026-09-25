@@ -117,6 +117,12 @@ export async function dispatchAndRecordChatGptWorkCloud(
       requestedAt: requestedAtFrom(existing.request),
       projectId: input.chatgptProjectId,
     }));
+    // A still-pending resolution for the same temporary client thread changes nothing durable.
+    // Re-recording it on every watcher cycle flooded the event log (2026-09-25: ~1,000
+    // identical PENDING_SETUP results in 17 hours), so only a changed outcome is appended.
+    if (outcome.kind === "PENDING_SETUP" && outcome.clientThreadId === existing.result.data.client_thread_id) {
+      return { request: existing.request, result: existing.result };
+    }
     const result = buildWorkCloudDispatchRecordedEnvelope(input, outcome, recordedAt);
     await sink.recordWorkerEvents(input.binding.worker, [result]);
     return { request: existing.request, result };
