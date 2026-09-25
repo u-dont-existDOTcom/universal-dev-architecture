@@ -68,6 +68,7 @@ Ask the reviewer for:
 - Run **one check per conclusion, at the point of use**, before the dependent delivery or action. Do not check every intermediate step.
 - Allow at most one reconciliation round. If a substantive disagreement survives, give it to the owner with both positions and a recommendation. Do not loop, and do not add a third model to outvote either side.
 - A `FINDS_ERROR` with a concrete failing case must be fixed or explicitly rebutted with evidence before the conclusion is used.
+- An `UNCERTAIN` verdict is not assurance. Before a consequential action depends on the conclusion, obtain the settling evidence the reviewer named, get the owner's explicit adjudication or waiver, or take the conservative reversible path; otherwise handle it as an unavailable check (below).
 
 ## Reviewer unavailable
 
