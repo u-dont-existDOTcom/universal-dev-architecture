@@ -34,7 +34,9 @@
       "status": "VERIFIED",
       "evidence_refs": [
         "docs/evidence/2026-09-13-primary-relay-lock-repair.json",
-        "docs/evidence/2026-09-13-primary-relay-lock-repair.md"
+        "docs/evidence/2026-09-13-primary-relay-lock-repair.md",
+        "docs/evidence/2026-09-26-relay-lock-deployment-both-hosts.json",
+        "docs/evidence/2026-09-26-relay-lock-deployment-both-hosts.md"
       ]
     },
     {
@@ -44,7 +46,9 @@
       "status": "VERIFIED",
       "evidence_refs": [
         "docs/evidence/2026-09-13-primary-relay-lock-repair.json",
-        "docs/evidence/2026-09-13-primary-relay-lock-repair.md"
+        "docs/evidence/2026-09-13-primary-relay-lock-repair.md",
+        "docs/evidence/2026-09-26-relay-lock-deployment-both-hosts.json",
+        "docs/evidence/2026-09-26-relay-lock-deployment-both-hosts.md"
       ]
     },
     {
@@ -65,12 +69,13 @@
     "Lock-file deletion or SECONDARY takeover does not satisfy safe recovery.",
     "Rerun eligibility is not permission to run the humanization experiment in this task."
   ],
-  "next_direct_evidence": "No further in-scope relay repair is pending. The original directive may rerun only from its fresh initial preflight in a separate authorized experiment run; this repair does not establish its current capability/model/ownership gates.",
+  "next_direct_evidence": "No further relay-lock deployment is pending: the fix is live and verified on PRIMARY and SECONDARY (docs/evidence/2026-09-26-relay-lock-deployment-both-hosts.json). The secondary's ChatGPT readiness outage needs its own owner-authorized diagnosis.",
   "verification_limits": [
     "Original helper had exited before repair: no historical FD snapshot or detailed cleanup exception can be reconstructed.",
     "Repair and coordinated maintenance sent zero provider messages; a separate owner-authorized 19-send direct test overlapped read-only diagnosis. No whole-diagnosis zero-send claim.",
     "PRIMARY correction is live and stored on the repair task branch, not merged; SECONDARY runtime intentionally unchanged.",
     "2026-09-25: the unmerged repair code was ported onto current main (branch claude/funny-heisenberg-lsbn3b-relay-lock). Once merged, main carries the code live-verified on PRIMARY on 2026-09-13; later relay deploys from main before that merge likely reverted it, and current host installation state is unverified.",
-    "2026-09-26: review hardening on the port branch goes beyond the live-verified code: CLI one-shot watchdog lifetimes now derive from configured operation ceilings (capped at 6 hours, MC_RELAY_LOCK_MAX_MS still overrides) instead of a fixed 30 minutes, and the relay units declare SuccessExitStatus=143. Neither change has been installed or verified on a host."
+    "2026-09-26: review hardening on the port branch goes beyond the live-verified code: CLI one-shot watchdog lifetimes now derive from configured operation ceilings (capped at 6 hours, MC_RELAY_LOCK_MAX_MS still overrides) instead of a fixed 30 minutes, and the relay units declare SuccessExitStatus=143. Neither change has been installed or verified on a host.",
+    "2026-09-26: main f37d7ca (the ported repair plus review hardening) was installed and verified on both hosts under owner approval: no-send lock lifecycle check (exit 143, metadata removed, guard kept, lock FREE), 34/34 focused tests on host Node 22, SuccessExitStatus=143, unchanged protected state, central lease/queue and ledger digest, and the secondary relay restarted holding the lock as its persistent service. The secondary relay's pre-existing ChatGPT readiness outage (automation-window binding mismatch since 2026-09-25T06:18Z) is outside this requirement and unresolved."
   ]
 }
