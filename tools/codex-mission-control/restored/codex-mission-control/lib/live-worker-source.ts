@@ -40,6 +40,8 @@ export function observeLiveWorkerSource(
     phase: observation.phase, summary: observation.summary } : liveStateSchema.parse(raw);
   const stat = fs.statSync(sourcePath);
   const git = (args: string[]) => execFileSync("git", ["-C", worktreePath, ...args], { encoding: "utf8" }).trim();
+  const head = git(["rev-parse", "HEAD"]);
+  const branch = git(["branch", "--show-current"]) || `DETACHED:${head.slice(0, 12)}`;
   return {
     type: "live_worker_evidence_observed",
     worker: state.worker,
@@ -48,8 +50,8 @@ export function observeLiveWorkerSource(
     observed_at: observedAt,
     file_modified_at: stat.mtime.toISOString(),
     content_sha256: sha256(bytes.toString("utf8")),
-    branch: git(["branch", "--show-current"]),
-    head: git(["rev-parse", "HEAD"]),
+    branch,
+    head,
     directive_id: state.directiveId,
     receipt_id: state.receiptId,
     phase: state.phase,
