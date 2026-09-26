@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "checkpointId": "mission-control-relay-chatgpt-september-page-deploy-20260926",
-  "recordedAt": "2026-09-26T19:15:24Z",
+  "recordedAt": "2026-09-26T20:55:40Z",
   "timestampBasis": "CURRENT_CHECK_TIME",
-  "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_AWAITING_FIRST_QUEUED_REQUEST",
+  "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_LEASE_RENEWED_AWAITING_FIRST_QUEUED_REQUEST",
   "authority": {
     "repository": "this repository",
     "requirement": "docs/requirements/2026-09-26-mission-control-relay-chatgpt-september-page.owner-requirement.json",
@@ -125,21 +125,49 @@
       "consequence": "No request is eligible to send; the relay's decision function returns REQUEST_EXPIRED_NO_NEW_SEND / RECONCILE_EXISTING_REQUEST / DISCARDED for every item. The first live send waits for the next supervision request a worker queues."
     },
     "lastSubmissionAt": "2026-09-24T19:48:57.810Z (unchanged at 2026-09-26T18:25:10Z)",
-    "leaseExpiresAt": "2026-09-27T00:00:00.000Z; not yet renewed at 2026-09-26T18:25:10Z. The renewal is owner-run (see leaseRenewal). If the lease lapses, the central scheduler treats it as stale and the relay cannot send until it is renewed."
-  },
-  "leaseRenewal": {
-    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
-    "actor": "OWNER",
-    "change": "Same-identity renewal of the SECONDARY sending lease: only its expiresAt moves, from 2026-09-27T00:00:00.000Z to 2026-10-27T00:00:00.000Z. The central Mission Control service restarts briefly because the lease is read at startup (lib/submission-authority-runtime.ts), and the prepared script rolls back automatically if the restarted service is not healthy.",
-    "whyOwnerRun": "The assistant's execution environment refused to run the renewal, which rewrites the central service's root-only env file and recreates its container. The renewal therefore stays with the owner; agents do not run it or rebuild it.",
-    "ownerHandoff": "The owner holds the prepared script central-lease-renew.sh in the operations transfer folder on the owner's laptop and runs it from there as: bash central-lease-renew.sh 2026-10-27T00:00:00.000Z. It was handed over in the owner's Claude session at 2026-09-26T18:26Z, with the 00:00Z deadline.",
-    "workerRole": "Check leaseExpiresAt in the relay's central status. If it is still 2026-09-27T00:00:00.000Z, remind the owner before expiry.",
-    "verification": "After the owner runs it, the relay's central status reports ACTIVE_LEASE with leaseExpiresAt 2026-10-27T00:00:00.000Z and the same epoch."
+    "leaseExpiresAt": "2026-10-27T00:00:00.000Z (renewed; see leaseRenewalObserved)."
   },
   "notYetVerified": [
     "Moving the Power slider to Extra High, clicking the GitHub entry and seeing its Remove pill, inserting the message into the composer and pressing Send on the live page (first exercised by the next queued request; each step fails closed on a mismatch).",
     "RO-PAGE-3: a new ledger submission after 2026-09-24T19:48:57.810Z.",
-    "RO-PAGE-4: the same-identity lease renewal."
+    "Resilience of a live send against the once-a-minute central stall (see centralStall) until the 30 s client timeout is active on the SECONDARY or the central is fixed."
   ],
-  "privacy": "No window, target, lease or request identifiers, host paths, URLs, message bodies or conversation text are recorded here; the owner approval is referenced, not quoted."
+  "privacy": "No window, target, lease or request identifiers, host paths, URLs, message bodies or conversation text are recorded here; the owner approval is referenced, not quoted.",
+  "leaseRenewalObserved": {
+    "firstObservedAt": "2026-09-26T19:21:45Z",
+    "notYetPresentAt": "2026-09-26T18:55:29Z",
+    "reconfirmedAt": [
+      "2026-09-26T19:22Z",
+      "2026-09-26T20:17:13Z"
+    ],
+    "lease": {
+      "schemaVersion": 1,
+      "epoch": 6,
+      "activeHostRole": "SECONDARY",
+      "splitBrainStatus": "SINGLE_ACTIVE_CONFIRMED",
+      "takeover": null,
+      "expiresAt": "2026-10-27T00:00:00.000Z"
+    },
+    "centralState": "ACTIVE_LEASE, ready, transition CLEAR; the relay stayed IDLE with no error across the change",
+    "actor": "OWNER",
+    "note": "Same identity as before (epoch, role, alias, split-brain status); only expiresAt moved. The central container's current start time is 2026-09-26T18:36:27Z."
+  },
+  "centralStall": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "observed": [
+      "On the central host itself (no tunnel, no docker exec), the daemon's unauthenticated local /live endpoint answers in about 1 ms except once a minute, when it takes 15-17 s (20:44:12Z 15.2 s, 20:45:14Z 16.1 s, 20:46:14Z 16.9 s; 51 other samples at 2 s cadence were fast). /live does no work, so the daemon's event loop is blocked.",
+      "The daemon logs the fleet-supervisor tick's completion (jev_shadow_observation) at 20:43:12Z, 20:44:13Z, 20:45:14Z, 20:46:14Z and 20:47:14Z, which is where each stall ends.",
+      "Through the secondary's tunnel, the central scheduler status call takes 8.2-18.0 s at the same point of every minute and about 85 ms otherwise (sampled every 10 s, 20:28-20:43Z); unauthenticated requests to the Mission Control app stay fast throughout.",
+      "The secondary's once-a-minute health report fails with CENTRAL_SCHEDULER_UNREACHABLE (10 s client timeout) in 2-3 minute runs about every 15 minutes: since 18:27Z on 2026-09-26, and also on 2026-09-25 00:05-06:18Z before the browser restart. The 15-minute rhythm is the health timer drifting through the once-a-minute stall; runs whose first central call lands early in a stall time out."
+    ],
+    "cause": "daemon/server.ts starts the fleet supervisor with setInterval(MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS, default 60 s). For each due watch, FleetSupervisorRuntime.tick (lib/fleet-supervisor.ts) reloads the watched worker's entire event history (store.workerEvents: a synchronous node:sqlite query that also parses and validates every event), then classifies the tick over those events and builds the JEV shadow state from them before its non-blocking OpenRouter call. All of that runs on the daemon's event loop, and its cost grows with the worker's history. The chain check itself (store.verifyChain) is incremental after the first run, so it is not the per-minute cost. A profile of one tick would show which step dominates.",
+    "impactOnRelay": "The relay's central-scheduler client times out after 10 s (MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS default). A send makes several central calls (admission, validation, boundary, binding, outcome). A call that starts early in a stall times out. For an in-band request, a failure without a confirmed pre-boundary abort is recorded as AMBIGUOUS_AFTER_RESTART, and automatic replay is then prohibited.",
+    "mitigation": {
+      "change": "A systemd drop-in setting MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS=30000 for the relay and health units. It is a non-secret setting, and the relay env file is not touched.",
+      "primary": "Installed at about 2026-09-26T20:50Z; the relay there is inactive, so it takes effect only if the primary is ever started.",
+      "secondary": "Not applied. The assistant's attempt (drop-in plus relay restart) was refused by its execution environment, so it is owner-run with a prepared script. The owner was told the command and the tradeoff at 2026-09-26T20:52Z."
+    },
+    "rootFixProposal": "Stop re-reading and re-processing the watched worker's whole history on every fleet-supervisor tick. For example, keep the parsed events and the classification inputs incrementally from the last processed sequence, lengthen the poll, or run the tick off the request event loop (a worker thread or a separate process). This needs a Mission Control change and a central redeploy."
+  },
+  "leaseRenewalHistory": "Renewal was owner-run because the assistant's execution environment refused it; it completed before 2026-09-26T19:21:45Z (see leaseRenewalObserved)."
 }
