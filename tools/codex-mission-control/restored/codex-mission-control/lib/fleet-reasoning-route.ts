@@ -1,20 +1,14 @@
 import { canonicalJson, sha256 } from "./canonical";
 import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "./configured-supervisor-chats";
-import { parseGitHubReceiptPolicy, pendingDecisionRequests } from "./github-decision-receipts";
-import { requestRouteEventId } from "./request-bound-supervision";
+import { parseGitHubReceiptPolicy } from "./github-decision-receipts";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "./fleet-router-producer";
+import { fleetTaskEvidenceBoundary, sameFleetEvidenceBoundary, trustedFleetRoutes } from "./fleet-evidence-boundary";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import type { StoredEvent } from "./schema";
 import type { EventStore, FleetSupervisorWatchRecord } from "./store";
 import type { FleetSupervisorDecision } from "./fleet-supervisor";
 
-const BOUNDARY_FAMILIES = new Set([
-  "task_contract_recorded", "execution_directive_recorded", "execution_receipt_recorded",
-  "chatgpt_work_cloud_execution_receipt_recorded", "worker_checkpoint_recorded",
-  "live_worker_evidence_observed", "structured_blocker_recorded", "outcome_progress_recorded", "reasoning_supervision_recorded",
-  "github_decision_receipt_ingested",
-]);
 export function routeFleetReasoning(store: EventStore, watch: FleetSupervisorWatchRecord,
   decision: FleetSupervisorDecision, history: readonly StoredEvent[], now: string) {
   const events = history.filter(e => e.worker === watch.worker);
@@ -45,57 +39,43 @@ export function routeFleetReasoning(store: EventStore, watch: FleetSupervisorWat
     && review.owner_outcome_epoch === outcome.epoch
     && review.owner_outcome_sha256 === outcome.owner_outcome_sha256
     && ["PENDING", "ACTIVE"].includes(review.pro_escalation_state);
-  const unresolvedPrior = events.findLast(e => e.data.type === "github_decision_receipt_ingested"
-    && e.data.task_id === watch.taskId && e.data.request_id.startsWith("fleet-watch:")
-    && !e.data.bounded_execution)?.data;
-  const lane = pro || unresolvedPrior?.type === "github_decision_receipt_ingested"
-    ? "PRO_ESCALATED" : "EXTRA_HIGH_DIRECT";
-  const latest = new Map<string, StoredEvent>();
-  for (const event of events) {
-    if (!BOUNDARY_FAMILIES.has(event.data.type)) continue;
-    if ("task_id" in event.data && event.data.task_id !== watch.taskId) continue;
-    const suffix = event.data.type === "structured_blocker_recorded" ? event.data.blocker_id : "";
-    latest.set(`${event.data.type}:${suffix}`, event);
+
+  const boundary = fleetTaskEvidenceBoundary(events, watch.worker, watch.taskId);
+  const routes = trustedFleetRoutes(events, watch.worker, watch.taskId);
+  const currentRoutes = [...routes].reverse().filter(route => sameFleetEvidenceBoundary(route.boundary, boundary));
+  let unresolvedPrior: StoredEvent | null = null;
+  for (const route of currentRoutes) {
+    const receipt = events.find(e => e.data.type === "github_decision_receipt_ingested"
+      && e.data.request_id === route.requestId && e.data.task_id === watch.taskId);
+    if (receipt?.data.type === "github_decision_receipt_ingested") {
+      const directive = events.find(e => e.data.type === "execution_directive_recorded"
+        && e.data.task_id === watch.taskId && e.data.validated_decision_proof?.request_id === route.requestId);
+      if (directive) return { status: "BOUNDARY_REVIEWED", requestId: route.requestId, event: route.event };
+      unresolvedPrior = receipt;
+      break;
+    }
+    return { status: Date.parse(route.expiresAt) <= Date.parse(now)
+      ? "HANDOFF_BLOCKED" : "WAITING_FOR_REASONING_REVIEW", requestId: route.requestId, event: route.event };
   }
-  const boundary = [...latest.values()].map(e => ({ event_id: e.eventId, event_hash: e.eventHash }));
+
+  const stalePending = [...routes].reverse().find(route => !sameFleetEvidenceBoundary(route.boundary, boundary)
+    && !events.some(e => e.data.type === "github_decision_receipt_ingested"
+      && e.data.request_id === route.requestId && e.data.task_id === watch.taskId));
+  if (stalePending) {
+    return { status: "HANDOFF_BLOCKED_EVIDENCE_ADVANCED", requestId: stalePending.requestId, event: stalePending.event };
+  }
+
+  const lane = pro || unresolvedPrior ? "PRO_ESCALATED" : "EXTRA_HIGH_DIRECT";
   const owner = { id: outcome.owner_outcome_id, epoch: outcome.epoch, sha256: outcome.owner_outcome_sha256 };
   const factual = canonicalJson({ trigger: decision.trigger, project_id: watch.projectId,
     task_id: watch.taskId, worker: watch.worker, source_receipt_id: source.receipt_id,
-    runtime_blocker_codes: [...latest.values()].flatMap(e => e.data.type === "live_worker_evidence_observed"
-      && e.data.blocker_code ? [e.data.blocker_code] : []),
-    owner_outcome: owner, boundary, automatic_replay_allowed: false,
-    worker_semantic_authority: false, private_payloads_included: false });
+    runtime_blocker_codes: events.flatMap(e => e.data.type === "live_worker_evidence_observed"
+      && e.data.task_id === watch.taskId && e.data.blocker_code ? [e.data.blocker_code] : []).slice(-1),
+    owner_outcome: owner, boundary,
+    ...(unresolvedPrior ? { unresolved_review_receipt_event_id: unresolvedPrior.eventId } : {}),
+    automatic_replay_allowed: false, worker_semantic_authority: false, private_payloads_included: false });
   const requestId = `fleet-watch:${sha256(canonicalJson({ factual, lane, supervisorId })).slice(0, 32)}`;
-  // One unresolved logical fleet request survives ticks and daemon restarts.
-  // A timeout is not proof of non-submission and cannot authorize another send.
-  const priorRoutes = events.filter(event => event.data.type === "worker_message_recorded"
-    && event.eventId === requestRouteEventId(requestId, 6));
-  for (const event of priorRoutes) {
-    if (event.producerKind !== "SYSTEM" || event.producerId !== FLEET_SUPERVISOR_ROUTER_PRODUCER_ID) {
-      throw new Error("FLEET_EXISTING_ROUTE_PROVENANCE_INVALID");
-    }
-    const exact = pendingDecisionRequests([event]).find(route => route.requestId === requestId
-      && route.routeSchemaVersion === 6 && route.worker === watch.worker && route.taskId === watch.taskId);
-    if (!exact) throw new Error("FLEET_EXISTING_ROUTE_IDENTITY_CONFLICT");
-    const receipt = events.find(e => e.data.type === "github_decision_receipt_ingested"
-      && e.data.request_id === requestId && e.data.task_id === watch.taskId)?.data;
-    if (receipt?.type === "github_decision_receipt_ingested") {
-      const directive = events.find(e => e.data.type === "execution_directive_recorded"
-        && e.data.task_id === watch.taskId && e.data.validated_decision_proof?.request_id === requestId);
-      if (directive) return { status: "BOUNDARY_REVIEWED", requestId, event };
-      // A semantic review without a machine-actionable continuation is not completion.
-      // The receipt itself is part of the next evidence boundary, so the next request ID changes.
-      continue;
-    }
-    return { status: Date.parse(exact.expiresAt) <= Date.parse(now)
-      ? "HANDOFF_BLOCKED" : "WAITING_FOR_REASONING_REVIEW", requestId, event };
-  }
-  const pending = pendingDecisionRequests(events).find(route => route.routeSchemaVersion === 6
-    && route.worker === watch.worker && route.taskId === watch.taskId && route.requestId.startsWith("fleet-watch:")
-    && events.some(event => event.eventId === requestRouteEventId(route.requestId, 6)
-      && event.producerKind === "SYSTEM" && event.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID));
-  if (pending) return { status: Date.parse(pending.expiresAt) <= Date.parse(now)
-    ? "HANDOFF_BLOCKED" : "WAITING_FOR_REASONING_REVIEW", requestId: pending.requestId };
+
   const windowMs = Number(process.env.MISSION_CONTROL_FLEET_REVIEW_WINDOW_MS ?? 21_600_000);
   if (!Number.isInteger(windowMs) || windowMs < 60_000 || windowMs > 86_400_000) {
     throw new Error("FLEET_REVIEW_WINDOW_INVALID");
@@ -113,8 +93,8 @@ export function routeFleetReasoning(store: EventStore, watch: FleetSupervisorWat
       evidenceRefs: boundary.map(e => e.event_id),
       decisionRequested: "Review this blocked or overdue execution boundary against the current owner outcome. "
         + "Extra High is the default; request Pro for a decision that requires it. Request scoped missing evidence "
-        + "through the executor rather than inventing facts or asking the owner to relay messages. Return a bound "
-        + "a machine-actionable bounded_execution whenever any same-task local work remains. Evidence collection "
+        + "through the executor rather than inventing facts or asking the owner to relay messages. Return "
+        + "machine-actionable bounded_execution whenever any same-task local work remains. Evidence collection "
         + "must itself be encoded as bounded_execution. If a genuine owner-only gate is discovered, bounded_execution "
         + "may only record/surface that exact gate; it may not decide it. A review with no bounded_execution is not "
         + "treated as task continuation and will be routed for structured follow-up. Preserve unknown-submission "

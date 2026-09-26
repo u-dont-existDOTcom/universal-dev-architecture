@@ -23,7 +23,7 @@ export interface FleetSupervisorDecision {
 }
 
 export interface FleetSupervisorHooks {
-  routeReasoning?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[]) => unknown | Promise<unknown>;
+  routeReasoning?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[], now: string) => unknown | Promise<unknown>;
   continueMechanical?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[]) => unknown | Promise<unknown>;
   notifyOwner?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision) => unknown | Promise<unknown>;
   observeJevShadow?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision,
@@ -43,7 +43,7 @@ export class FleetSupervisorRuntime {
       if (decision.mechanicalRecoveryEligible) await this.hooks.continueMechanical?.(watch, decision, events);
       if (decision.reasoningRequired) {
         try {
-          const route = await this.hooks.routeReasoning?.(watch, decision, events);
+          const route = await this.hooks.routeReasoning?.(watch, decision, events, now);
           const status = route && typeof route === "object" && "status" in route ? String(route.status) : "DELIVERY_UNVERIFIED";
           decision = { ...decision, result: `${decision.result} Routing: ${status}.` };
         } catch {
@@ -82,8 +82,8 @@ export class FleetSupervisorRuntime {
 }
 
 export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSupervisorWatchRecord,
-  decision: FleetSupervisorDecision, events: readonly StoredEvent[]) {
-  return routeFleetReasoning(store, watch, decision, events, watch.nextTickAt ?? new Date().toISOString());
+  decision: FleetSupervisorDecision, events: readonly StoredEvent[], now = new Date().toISOString()) {
+  return routeFleetReasoning(store, watch, decision, events, now);
 }
 
 export function classifyFleetSupervisorTick(
