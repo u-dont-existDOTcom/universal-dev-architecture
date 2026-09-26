@@ -5,6 +5,6 @@
   "owned_branch": "chat/mc267-boundary-refine-20260926-phone",
   "integration_branch": "chat/mc-blocked-work-routing-integrate-20260926",
   "integration_base_sha": "4ea1f30c3cc2672cb5d5c18bb2a274808e950973",
-  "parent_integrator": "claude",
+  "parent_integrator": "chat/mc-claude-integrator-20260924",
   "scope": "Isolated refinement so fleet evidence ignores only fleet-generated review artifacts while retaining unrelated same-task directives/decision receipts; no shared-runtime mutation, merge, deployment, or replay."
 }
