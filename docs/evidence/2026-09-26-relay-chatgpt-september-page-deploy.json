@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "checkpointId": "mission-control-relay-chatgpt-september-page-deploy-20260926",
-  "recordedAt": "2026-09-26T18:59:40Z",
+  "recordedAt": "2026-09-26T19:05:40Z",
   "timestampBasis": "CURRENT_CHECK_TIME",
   "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_AWAITING_FIRST_QUEUED_REQUEST",
   "authority": {
@@ -130,7 +130,7 @@
   "leaseRenewalProcedure": {
     "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
     "purpose": "Same-identity renewal of the SECONDARY sending lease so a fresh worker or the owner can repeat it from the repository alone.",
-    "where": "The central Mission Control service on the PRIMARY host: container mission-control-issue90-live, image codex-mission-control:claude-integrator-22ef1a5, host network, data volume codex-mission-control-issue90-live-v2, started from a root-only env file under /etc/mission-control/ named for that image.",
+    "where": "The central Mission Control service on the PRIMARY host: container mission-control-issue90-live, image codex-mission-control:claude-integrator-22ef1a5, host network, data volume codex-mission-control-issue90-live-v2, started from the root-only env file kept on that host for that image (its location is in the owner-held script, not recorded here).",
     "steps": [
       "Check preconditions: the live container is healthy, its image and mounts are unchanged, and its env file still matches the running environment (compare digests only; never print values).",
       "Copy the env file. In the copy change only the expiresAt field of MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON (now 2026-09-27T00:00:00.000Z; schemaVersion 1, epoch 6, role SECONDARY, SINGLE_ACTIVE_CONFIRMED) to the new expiry. Every other line and every other lease field, including leaseId and issuedAt, stays byte-identical.",
