@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { journalExecutionObservation } from "../lib/journal-execution-observation";
 import { observeLiveWorkerSource, startLiveWorkerSourceWatcher } from "../lib/live-worker-source";
 import { EventStore } from "../lib/store";
@@ -33,6 +34,8 @@ test("real file observer -> event store -> fleet routes the exact blocked task",
     const data = observeLiveWorkerSource({ sourcePath, worktreePath: process.cwd(),
       sourceFormat: "JOURNAL_EXECUTION_V1", workerId: watch.worker, taskId: watch.taskId }, observedAt);
     assert.equal(data.phase, "BLOCKED"); assert.equal(data.blocker_code, "COMPLETION_UNKNOWN");
+    assert.equal(data.source_path, "private://journal-execution-state");
+    assert.notEqual(data.content_sha256, createHash("sha256").update(JSON.stringify(source())).digest("hex"));
     assert.equal(JSON.stringify(data).includes("PRIVATE_CASE"), false);
     store.append({ schema_version: 2, event_id: "observation:journal", mission_id: "test", occurred_at: observedAt, data },
       observedAt, { id: "collector:fixture", kind: "COLLECTOR", workerScopes: [watch.worker], taskScopes: [watch.taskId] });
@@ -59,12 +62,17 @@ test("the existing watcher deduplicates unchanged source across daemon restart",
     const sequence = store.latestSequence(); assert.equal(sequence, baseline + 1);
     const restarted = startLiveWorkerSourceWatcher(store, config, () => {}); restarted.poll(); restarted.close();
     assert.equal(store.latestSequence(), sequence);
+    fs.writeFileSync(sourcePath, JSON.stringify({ ...source(), journal_text: "CHANGED_PRIVATE_ONLY" }));
+    const privateOnly = startLiveWorkerSourceWatcher(store, config, () => {}); privateOnly.close();
+    assert.equal(store.latestSequence(), sequence);
+    const later = new Date(Date.now() + 1000); fs.utimesSync(sourcePath, later, later);
+    const touchedOnly = startLiveWorkerSourceWatcher(store, config, () => {}); touchedOnly.close();
+    assert.equal(store.latestSequence(), sequence);
     fs.writeFileSync(sourcePath, JSON.stringify(source(null)));
     const changed = startLiveWorkerSourceWatcher(store, config, () => {}); changed.close();
     assert.equal(store.latestSequence(), sequence + 1);
-    // A genuine recurrence after resolution has new file provenance even when bytes repeat.
+    // A genuine control-state recurrence remains observable even when it returns to prior values.
     fs.writeFileSync(sourcePath, JSON.stringify(source()));
-    const later = new Date(Date.now() + 1000); fs.utimesSync(sourcePath, later, later);
     const recurrence = startLiveWorkerSourceWatcher(store, config, () => {}); recurrence.close();
     assert.equal(store.latestSequence(), sequence + 2);
   } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
