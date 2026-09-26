@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20260831-EXPERIMENT-ASSURANCE-BUDGET-001",
+  "createdAt": "2026-08-31T14:43:33Z",
+  "taskId": "somatic-intro-progress-controller-20260831",
+  "workerRunId": "codex-mechanical-controller-implementation-20260831",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-PROPORTIONATE-EXPERIMENT-ASSURANCE-20260831",
+    "epoch": 1,
+    "sha256": "f57084fcec1f7493bcd6f2c99f34ea990066e17ffdc89339db4c14c49e3dccaa"
+  },
+  "ownerSourceReceipt": {
+    "source": "current owner conversation",
+    "encoding": "UTF-8",
+    "terminalNewline": false,
+    "utf8Bytes": 206,
+    "sha256": "f57084fcec1f7493bcd6f2c99f34ea990066e17ffdc89339db4c14c49e3dccaa",
+    "exactSourceBlock": "send this to the mission controller so it understands, you should never be doing 100 tests on something unless it's time for release. this was simply an experiment which should have literally taken a minute"
+  },
+  "supervisionArchitecture": {
+    "repository": "u-dont-existDOTcom/universal-dev-architecture",
+    "branchOrCommit": "architecture/codex-pro-supervision-mission-control-20260830",
+    "architectureEpoch": "supervision-architecture/2026-08-31",
+    "sha256OrCommit": "a40d413477e57ead76dc6cf9b9a2c457462a0ff5"
+  },
+  "type": "DEFECT",
+  "category": "ASSURANCE_LANE_AND_VERIFICATION_BUDGET",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Mission Control did not activate the existing development-assurance lane strongly enough at directive construction or execution. An explicitly experimental, reversible article-scoped controller pilot was treated as a pre-release boundary: Codex ran an 18-test focused suite, then a 124-test full repository suite, then began repository-wide validation before returning the implemented artifact. The owner had to interrupt and state that the experiment should have taken about a minute. The problem is not missing test-efficiency guidance; `patterns/development-assurance-lanes.md` already says Iteration work should use only the smallest decision-relevant checks. The supervision bootstrap and directive flow failed to make that lane binding and visible.",
+  "relevantRule": {
+    "path": "patterns/development-assurance-lanes.md",
+    "section": "Lane 1 — Iteration / Default assurance budget",
+    "excerpt": "Use only evidence that can plausibly change the next development decision. Typical defaults: focused/affected tests, not the full repository suite."
+  },
+  "observedOrHypotheticalFailure": "A mechanical experiment can accumulate release-grade test, audit, telemetry, and evidence ceremony because the task mentions tests, commit, push, or repository validation. The worker delays the actual experimental artifact and owner feedback even though no merge, release, deployment, publication, canonical promotion, or high-risk mutation is occurring. Existing test-efficiency telemetry may measure the waste after the fact but does not prevent the assurance-lane escalation. Repetition across experimental tasks would consume most execution time on proof that cannot change the immediate decision.",
+  "evidenceRefs": [
+    {
+      "type": "github_commit",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "branch": "task/somatic-intro-progress-controller-20260831",
+      "commit": "8ca958aede1a5cc75102270c89bbbe2a34d6a701",
+      "facts": [
+        "article-scoped experimental controller implemented",
+        "no article prose written or changed",
+        "no Pangram call",
+        "registered article authority unchanged"
+      ]
+    },
+    {
+      "type": "execution_evidence",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "facts": [
+        "18 focused controller tests passed",
+        "124 full repository tests passed",
+        "repository content validator then produced 13 canonical registration findings",
+        "owner interrupted before further audit/testing"
+      ]
+    },
+    {
+      "type": "task_contract",
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "path": "articles/somatic-therapies/experiments/SOMATIC-INTRO-PROGRESS-CONTROLLER-CODEX-WORKER-20260831.md",
+      "facts": [
+        "task explicitly described an article-scoped pilot/experiment",
+        "task also requested focused tests plus repository validation, commit, and push",
+        "the directive did not declare an assurance lane or distinguish experiment evidence from release evidence"
+      ]
+    }
+  ],
+  "proposedChange": "Make assurance lane a required field in every nontrivial Chat-to-Codex execution directive and Mission Control task projection: ITERATION, DECISION, or RELEASE. Default reversible experiments and prototypes to ITERATION even when they use a task branch, commit, or push. For ITERATION, require the directive to name the smallest current decision and allow only the minimum focused smoke/regression check that can change it; block full repository suites, broad audits, release packaging, multiple independent reviews, and PR/merge-ready evidence unless a named targeted hard-risk gate applies. Require every proposed test or validation command to state `decisionThatCanChange`; a missing answer suppresses/defer the command. Escalation to RELEASE must be tied to an actual merge, canonical promotion, install, deploy, publish, migration, security/data-integrity, or other consequential boundary. If a task contract calls an artifact experimental while also importing full release validation, contract-to-owner reconciliation must surface the inconsistency before Codex execution rather than making Codex choose silently.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Rely on the existing development-assurance pattern without changing Mission Control schemas or directives.",
+      "rejectedBecause": "That rule already existed and was read, yet the execution still escalated to a full suite and repository audit. Availability was not activation."
+    },
+    {
+      "alternative": "Ask Codex to use judgment about whether each requested test is excessive.",
+      "rejectedBecause": "Codex is the mechanical executor and should not reinterpret a chat-authored contract. The reasoning/controller layer must resolve the assurance lane before issuing commands."
+    },
+    {
+      "alternative": "Set a universal numeric maximum such as one test or one minute.",
+      "rejectedBecause": "A fixed cap would be unsafe for authentication, destructive data, migrations, privacy, or other targeted high-risk changes. The correct control is lane- and decision-bound proportionality."
+    },
+    {
+      "alternative": "Treat commit or push as automatic release-lane escalation.",
+      "rejectedBecause": "A reversible task-branch checkpoint can preserve an experiment without making it release-ready or canonical."
+    }
+  ],
+  "risks": [
+    "A weak lane declaration could be used to skip a directly relevant safety or data-integrity gate.",
+    "The boundary between a shareable prototype and release may be ambiguous unless the protected consequential action is named.",
+    "A rigid one-test default could miss coupled regressions when the experiment changes shared infrastructure.",
+    "Deferred release obligations must remain visible so rapid iteration does not become accidental release."
+  ],
+  "workerRecommendation": "Adopt a required assurance-lane and decision-changing-evidence field in the shared worker bootstrap, Chat-to-Codex directive, Mission Control dashboard/projection, and execution receipt. Add a regression where an experiment requests commit/push plus broad validation: Mission Control should keep it in ITERATION, permit one focused controller check, defer the 124-test suite and repository-wide audits, and surface the artifact to the owner/reasoning Chat immediately. Preserve targeted hard gates for actual safety-critical changed surfaces.",
+  "workerUncertainty": "The owner's phrase `literally taken a minute` should be treated as a strong proportionality correction, not encoded as a universal wall-clock SLA. The need to bind experimental work to ITERATION and defer release-grade assurance is not uncertain.",
+  "decisionThatCanChange": "Mission Control directive schema, assurance-lane projection, test-command admission, shared Codex worker bootstrap, and regression coverage for experimental tasks.",
+  "routing": {
+    "extraHighPacketPrepared": false,
+    "proMetaReviewRequired": true,
+    "reviewPriority": "IMMEDIATE",
+    "sharedProScopeKey": "supervision-architecture/2026-08-31"
+  },
+  "status": "PENDING_PRO_META_REVIEW",
+  "proMetaReview": null,
+  "ownerDecisionRef": "owner-correction-2026-08-31-experiments-do-not-get-release-grade-testing",
+  "repositoryChangeRefs": [],
+  "testRefs": []
+}

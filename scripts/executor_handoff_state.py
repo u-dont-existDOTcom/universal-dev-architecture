@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import math
 from datetime import datetime
 from typing import Any
 
@@ -818,7 +819,11 @@ def _sum_complete(records: list[dict[str, Any]], field: str) -> int | float | No
     values = [record.get(field) for record in records]
     if not records or any(value is None for value in values):
         return None
-    return sum(values)
+    if all(isinstance(value, int) for value in values):
+        return sum(values)
+    # fsum is exactly rounded; plain sum() drifts on Python < 3.12
+    # (e.g. 100 x 0.01 -> 1.0000000000000007).
+    return math.fsum(values)
 
 
 def _pair_total(values: dict[str, Any], first: str, second: str) -> int | float | None:
