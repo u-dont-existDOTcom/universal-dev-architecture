@@ -154,6 +154,8 @@ test('app selection scrolls the September 2026 list, picks one exact entry and v
   assert.throws(() => appSelectionState(end, 'GitHub', { listRewound: true }), /not in the ChatGPT app list/);
   assert.equal(scroll.listAtTop, true);
   assert.deepEqual(appSelectionState(scroll, 'GitHub', { listRewound: false }), { type: 'SCROLL_LIST' });
+  // Clearing earlier pills ignores an open list, so a list left open never aborts that step.
+  assert.deepEqual(appSelectionState(end, 'GitHub', { considerList: false }), { type: 'OPEN_TOOLS' });
 });
 
 test('send and stop use the September 2026 composer controls', () => {
@@ -206,4 +208,13 @@ test('stuck recovery reads the visible composer and Stop control on the Septembe
   const stopping = runInPage(IDLE_STATE_FN, page([hiddenForm, composerForm({ extra: [h('button', { type: 'button', 'aria-label': 'Stop' })] })], conversation), [conversation]);
   assert.equal(stopping.stopVisible, true);
   assert.equal(stopping.idleReady, false);
+});
+
+test('app selection carries the list rewind state through every wait', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
+  const flow = source.slice(source.indexOf('async selectAppsForMessage'), source.indexOf('async ensureExactConsumerControls'));
+  assert.equal(flow.match(/appSelectionState\(next, label, \{ listRewound \}\)/g)?.length, 1);
+  assert.equal(flow.match(/appSelectionState\(observation, label, \{ listRewound \}\)/g)?.length, 1);
+  assert.equal(flow.match(/\{ considerList: false \}/g)?.length, 2);
 });

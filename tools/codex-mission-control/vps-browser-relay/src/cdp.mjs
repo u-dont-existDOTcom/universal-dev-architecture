@@ -529,7 +529,7 @@ export function generationConversationUrlTransition(expectedUrl, observedUrl) {
   return { accepted: false, conversationUrl: null, canonicalized: false };
 }
 
-export function appSelectionState(observation, labelWanted, { listRewound = true } = {}) {
+export function appSelectionState(observation, labelWanted, { listRewound = true, considerList = true } = {}) {
   if (!observation?.composerFormFound) throw new Error('ChatGPT composer form is unavailable for app selection.');
   if (observation.toolsControlCount !== 1) throw new Error(`ChatGPT Tools control is ${observation.toolsControlCount > 1 ? 'ambiguous' : 'unavailable'}.`);
   if ((observation.chipMatchCount ?? 0) > 1) throw new Error(`Selected app chip ${labelWanted} is ambiguous.`);
@@ -539,7 +539,7 @@ export function appSelectionState(observation, labelWanted, { listRewound = true
   if ((observation.appMatchCount ?? 0) === 1) return { type: 'APP_OPTION', label: labelWanted };
   if ((observation.renderedAppMatchCount ?? 0) === 1) return { type: 'FOCUS_APP', label: labelWanted };
   if ((observation.listMatchCount ?? 0) === 1) return { type: 'LIST_OPTION', label: labelWanted };
-  if (labelWanted != null && observation.listOpen === true) {
+  if (considerList && labelWanted != null && observation.listOpen === true) {
     // A list left scrolled down is rewound once, so every entry is scanned from the top before the app is declared absent.
     if (!listRewound && observation.listAtTop === false && observation.listScrollRect) return { type: 'REWIND_LIST' };
     if (observation.listAtEnd === false && observation.listScrollRect) return { type: 'SCROLL_LIST' };
@@ -1009,12 +1009,12 @@ export class ChromeDevtoolsBrowser {
       const removedLabels = [];
       for (const label of knownLabels) {
         const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-        appSelectionState(observation, label);
+        appSelectionState(observation, label, { considerList: false });
         if (observation.chipMatchCount === 1) {
           await this.#clickRect(client, observation.chipRect);
           await waitFor(async () => {
             const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-            appSelectionState(next, label);
+            appSelectionState(next, label, { considerList: false });
             return next.chipMatchCount === 0 ? next : false;
           }, this.pageReadyTimeoutMs, 150, `Selected app chip ${label} did not clear before per-message reselection.`);
           removedLabels.push(label);
@@ -1055,7 +1055,7 @@ export class ChromeDevtoolsBrowser {
           }
           const selected = await waitFor(async () => {
             const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-            appSelectionState(next, label);
+            appSelectionState(next, label, { listRewound });
             if (next.chipMatchCount === 1) return next;
             if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.listOpen || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
             if (action.type === 'LIST_OPTION') return next.chipMatchCount === 1 ? next : false;
