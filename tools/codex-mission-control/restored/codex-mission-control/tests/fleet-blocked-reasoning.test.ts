@@ -304,3 +304,113 @@ test("a late bounded decision for superseded fleet evidence is non-executable", 
     assert.equal(buildExecutionDirectiveFromGitHubDecision(staleReceipt, f.store.workerEvents(f.watch.worker)), null);
   } finally { f.store.close(); restore(); }
 });
+
+test("a late directive closes the current boundary even when a follow-up escalation is already pending", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker), due);
+    const first = routes(f)[0];
+    const firstParsed = parseSupervisoryCycleRouteBody((first.data as any).body)!;
+    const receipt = {
+      id: 1200, sequence: 1200, eventId: "receipt:race:initial", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "github_decision_receipt_ingested", occurredAt: due, receivedAt: due,
+      previousHash: first.eventHash, eventHash: "7".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: firstParsed.requestId, supervisor_id: "mc-project-manager", bounded_execution: undefined }
+    } as any;
+    const follow = routeFleetSupervisorReasoning(f.store, f.watch, classify(f),
+      [...f.store.workerEvents(f.watch.worker), receipt], "2026-09-25T01:02:00.000Z");
+    assert.equal(follow.status, "QUEUED_FOR_PROVIDER_RELAY");
+    assert.equal(routes(f).length, 2);
+
+    const directive = {
+      id: 1201, sequence: 1201, eventId: "directive:race:initial", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "execution_directive_recorded", occurredAt: due, receivedAt: due,
+      previousHash: receipt.eventHash, eventHash: "8".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "execution_directive_recorded", worker: f.watch.worker, task_id: f.watch.taskId,
+        validated_decision_proof: { request_id: firstParsed.requestId } }
+    } as any;
+    const resolved = routeFleetSupervisorReasoning(f.store, f.watch, classify(f),
+      [...f.store.workerEvents(f.watch.worker), receipt, directive], "2026-09-25T01:03:00.000Z");
+    assert.equal(resolved.status, "BOUNDARY_REVIEWED");
+    assert.equal(resolved.requestId, firstParsed.requestId);
+    assert.equal(routes(f).length, 2);
+  } finally { f.store.close(); restore(); }
+});
+
+test("a late follow-up decision cannot create a second directive after this evidence boundary was already directed", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker), due);
+    const first = routes(f)[0];
+    const firstParsed = parseSupervisoryCycleRouteBody((first.data as any).body)!;
+    const initialReceipt = {
+      id: 1300, sequence: 1300, eventId: "receipt:race:answered", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "github_decision_receipt_ingested", occurredAt: due, receivedAt: due,
+      previousHash: first.eventHash, eventHash: "9".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: firstParsed.requestId, supervisor_id: "mc-project-manager", bounded_execution: undefined }
+    } as any;
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f),
+      [...f.store.workerEvents(f.watch.worker), initialReceipt], "2026-09-25T01:02:00.000Z");
+    const followRoute = routes(f)[1];
+    const followParsed = parseSupervisoryCycleRouteBody((followRoute.data as any).body)!;
+    const initialDirective = {
+      id: 1301, sequence: 1301, eventId: "directive:race:answered", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "execution_directive_recorded", occurredAt: due, receivedAt: due,
+      previousHash: initialReceipt.eventHash, eventHash: "a".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "execution_directive_recorded", worker: f.watch.worker, task_id: f.watch.taskId,
+        validated_decision_proof: { request_id: firstParsed.requestId } }
+    } as any;
+    const lateFollowReceipt = { eventId: "receipt:late-follow", occurredAt: "2026-09-25T01:04:00.000Z",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: followParsed.requestId } } as any;
+    const prior = [...f.store.workerEvents(f.watch.worker), initialReceipt, initialDirective];
+    assert.equal(buildExecutionDirectiveFromGitHubDecision(lateFollowReceipt, prior), null);
+  } finally { f.store.close(); restore(); }
+});
+
+test("an answered Pro follow-up without a directive is terminal for that boundary and does not loop", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker), due);
+    const first = routes(f)[0];
+    const firstParsed = parseSupervisoryCycleRouteBody((first.data as any).body)!;
+    const firstReceipt = {
+      id: 1400, sequence: 1400, eventId: "receipt:pro-loop:initial", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "github_decision_receipt_ingested", occurredAt: due, receivedAt: due,
+      previousHash: first.eventHash, eventHash: "b".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: firstParsed.requestId, supervisor_id: "mc-project-manager", bounded_execution: undefined }
+    } as any;
+    const escalation = routeFleetSupervisorReasoning(f.store, f.watch, classify(f),
+      [...f.store.workerEvents(f.watch.worker), firstReceipt], "2026-09-25T01:02:00.000Z");
+    assert.equal(escalation.status, "QUEUED_FOR_PROVIDER_RELAY");
+    assert.equal(routes(f).length, 2);
+    const proRoute = routes(f)[1];
+    const proParsed = parseSupervisoryCycleRouteBody((proRoute.data as any).body)!;
+    assert.equal(proParsed.reasoningLane, "PRO_ESCALATED");
+
+    const proReceipt = {
+      id: 1401, sequence: 1401, eventId: "receipt:pro-loop:followup", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "github_decision_receipt_ingested", occurredAt: due, receivedAt: due,
+      previousHash: proRoute.eventHash, eventHash: "c".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: proParsed.requestId, supervisor_id: "mc-project-manager", bounded_execution: undefined }
+    } as any;
+    const terminal = routeFleetSupervisorReasoning(f.store, f.watch, classify(f),
+      [...f.store.workerEvents(f.watch.worker), firstReceipt, proReceipt], "2026-09-25T01:04:00.000Z");
+    assert.equal(terminal.status, "HANDOFF_BLOCKED_PRO_REVIEW_NO_DIRECTIVE");
+    assert.equal(terminal.requestId, proParsed.requestId);
+    assert.equal(routes(f).length, 2);
+  } finally { f.store.close(); restore(); }
+});

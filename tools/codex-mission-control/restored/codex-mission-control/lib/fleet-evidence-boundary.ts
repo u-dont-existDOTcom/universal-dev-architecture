@@ -19,6 +19,7 @@ export interface TrustedFleetRoute {
   requestId: string;
   expiresAt: string;
   boundary: FleetEvidenceRef[];
+  reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
   event: StoredEvent;
 }
 
@@ -59,7 +60,9 @@ export function trustedFleetRoute(
       return { event_id: item.event_id, event_hash: item.event_hash };
     });
     if (typeof root.expiresAt !== "string" || !Number.isFinite(Date.parse(root.expiresAt))) return null;
-    return { requestId: root.requestId, expiresAt: root.expiresAt, boundary, event };
+    if (root.reasoningLane !== "EXTRA_HIGH_DIRECT" && root.reasoningLane !== "PRO_ESCALATED") return null;
+    return { requestId: root.requestId, expiresAt: root.expiresAt, boundary,
+      reasoningLane: root.reasoningLane, event };
   } catch {
     return null;
   }

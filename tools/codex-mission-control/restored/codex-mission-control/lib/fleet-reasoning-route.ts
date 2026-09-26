@@ -43,20 +43,34 @@ export function routeFleetReasoning(store: EventStore, watch: FleetSupervisorWat
   const boundary = fleetTaskEvidenceBoundary(events, watch.worker, watch.taskId);
   const routes = trustedFleetRoutes(events, watch.worker, watch.taskId);
   const currentRoutes = [...routes].reverse().filter(route => sameFleetEvidenceBoundary(route.boundary, boundary));
-  let unresolvedPrior: StoredEvent | null = null;
-  for (const route of currentRoutes) {
-    const receipt = events.find(e => e.data.type === "github_decision_receipt_ingested"
+  const routeReceipt = (route: (typeof currentRoutes)[number]) => events.find(e =>
+    e.data.type === "github_decision_receipt_ingested"
       && e.data.request_id === route.requestId && e.data.task_id === watch.taskId);
-    if (receipt?.data.type === "github_decision_receipt_ingested") {
-      const directive = events.find(e => e.data.type === "execution_directive_recorded"
-        && e.data.task_id === watch.taskId && e.data.validated_decision_proof?.request_id === route.requestId);
-      if (directive) return { status: "BOUNDARY_REVIEWED", requestId: route.requestId, event: route.event };
-      unresolvedPrior = receipt;
-      break;
-    }
-    return { status: Date.parse(route.expiresAt) <= Date.parse(now)
-      ? "HANDOFF_BLOCKED" : "WAITING_FOR_REASONING_REVIEW", requestId: route.requestId, event: route.event };
+  const routeDirective = (route: (typeof currentRoutes)[number]) => events.find(e =>
+    e.data.type === "execution_directive_recorded"
+      && e.data.task_id === watch.taskId && e.data.validated_decision_proof?.request_id === route.requestId);
+
+  // A validated directive closes this exact evidence boundary even if a later follow-up
+  // review was already queued between receipt ingestion and directive persistence.
+  const reviewed = currentRoutes.find(route => {
+    const receipt = routeReceipt(route);
+    return receipt?.data.type === "github_decision_receipt_ingested" && Boolean(routeDirective(route));
+  });
+  if (reviewed) return { status: "BOUNDARY_REVIEWED", requestId: reviewed.requestId, event: reviewed.event };
+
+  // Prefer the newest still-pending trusted route. This is the idempotency fence for
+  // receipt-without-directive follow-up reviews: once queued, later ticks wait on it.
+  const pending = currentRoutes.find(route => !routeReceipt(route));
+  if (pending) return { status: Date.parse(pending.expiresAt) <= Date.parse(now)
+    ? "HANDOFF_BLOCKED" : "WAITING_FOR_REASONING_REVIEW", requestId: pending.requestId, event: pending.event };
+
+  const unresolvedRoute = currentRoutes.find(route =>
+    routeReceipt(route)?.data.type === "github_decision_receipt_ingested") ?? null;
+  if (unresolvedRoute?.reasoningLane === "PRO_ESCALATED") {
+    return { status: "HANDOFF_BLOCKED_PRO_REVIEW_NO_DIRECTIVE", requestId: unresolvedRoute.requestId,
+      event: unresolvedRoute.event };
   }
+  const unresolvedPrior = unresolvedRoute ? routeReceipt(unresolvedRoute) ?? null : null;
 
   const stalePending = [...routes].reverse().find(route => !sameFleetEvidenceBoundary(route.boundary, boundary)
     && !events.some(e => e.data.type === "github_decision_receipt_ingested"
