@@ -666,8 +666,12 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
   Both run app tree `b6bb4dc2…`, pass 113/113 focused host tests on Node
   22.23.2, and keep the previous app copy for rollback.
 - Verified live on SECONDARY: the relay lock is held by the persistent service,
-  the window replacement committed (central transition CLEAR), and the read-only
-  doctor reports READY with one automation-owned ChatGPT tab (RO-PAGE-2).
+  the window replacement committed (central transition CLEAR; the commit runs
+  only after the installed readiness check finds a visible composer), and the
+  read-only doctor reports READY with one automation-owned ChatGPT tab
+  (RO-PAGE-2). A read-only probe of the live tab at 18:39Z with the installed
+  relay's own page functions found the composer, one closed model button
+  (showing "Medium") and the "Add files and more" control, idle and ready.
 - Not yet verified: a real provider send (RO-PAGE-3). All 13 requests the relay
   can see expired; the newest was queued 2026-09-24T15:50Z, so nothing is
   eligible until a worker queues a new supervision request. Model, effort and

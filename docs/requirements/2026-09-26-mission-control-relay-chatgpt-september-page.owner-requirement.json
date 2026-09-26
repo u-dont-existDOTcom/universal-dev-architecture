@@ -3,7 +3,7 @@
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "requirement_id": "REQ-MC-RELAY-CHATGPT-SEPT-2026-PAGE-20260926",
   "recorded_at": "2026-09-26T16:40:00Z",
-  "updated_at": "2026-09-26T18:40:00Z",
+  "updated_at": "2026-09-26T18:40:21Z",
   "timestamp_basis": "CURRENT_CHECK_TIME",
   "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
@@ -28,7 +28,7 @@
         "tools/codex-mission-control/vps-browser-relay/test/chatgpt-page-contract.test.mjs",
         "docs/evidence/2026-09-26-relay-chatgpt-september-page-deploy.json"
       ],
-      "live_note": "Merged as 3d4754f and installed on both hosts. Composer recognition is observed live (the relay's readiness check passes and the read-only doctor reports READY); the model menu, Power status, app list and Send are first exercised by the next queued request."
+      "live_note": "Merged as 3d4754f and installed on both hosts. Composer, model button and 'Add files and more' recognition are observed live on SECONDARY: the window-replacement commit ran only after the installed readiness check found a visible composer, and a read-only probe of the live tab at 2026-09-26T18:39:34Z with the installed relay's own page functions reported ready, composer found, one model control (closed), one tools control and idle-ready. The read-only doctor's READY is binding and scheduler state and is not composer evidence. Opening the model menu, setting Power, selecting apps and Send are first exercised by the next queued request, so this outcome stays unverified."
     },
     {
       "id": "RO-PAGE-2",
