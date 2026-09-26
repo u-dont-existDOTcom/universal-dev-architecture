@@ -33,6 +33,7 @@ At minimum, the state checkpoint should record:
 - current goal / task;
 - authoritative baseline or relevant commit/ref;
 - important active decisions and owner constraints;
+- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;
 - completed work that must not be repeated;
 - current step / last durable checkpoint;
 - remaining work;
@@ -67,6 +68,8 @@ After interruption, a new thread, a model switch, or suspected context loss:
 5. identify exactly what survived and what remains;
 6. update stale checkpoint data before continuing;
 7. resume from the latest verified durable boundary without repeating completed work.
+
+Re-activating the task's gates is part of resuming. A summary that names a rule does not make it active; reload the rule and its enforcement point (see `patterns/task-time-lesson-activation.md`).
 
 The checkpoint is a routing document, not higher authority than the repository itself. If it conflicts with exact Git state, current artifacts, tests, or newer owner instructions, the newer verified evidence wins and the checkpoint must be repaired.
 

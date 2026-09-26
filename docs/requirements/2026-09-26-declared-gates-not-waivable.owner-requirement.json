@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "status": "ACTIVE_OWNER_REQUIREMENT",
+  "date": "2026-09-26",
+  "title": "Declared gates and owner-stated checks are not waived by universal defaults",
+  "owner_outcome": "Agents run the gates a project already declares blocking, and the owner's own stated checks, before owner delivery or an external evaluator call, without the owner having to enforce them.",
+  "owner_statement": "you should fix UDA since the inherited UDA rules must have allowed you to avoid doing the actual rule gates that were obviously required. i shouldn't have had to tell you to do that.",
+  "observed_failure": "In a prose humanization lane, drafts went to an AI-text detector and to the owner without the project's declared blocking gates (preservation proof, architecture review, the full post-generation tell ledger) and without the owner's own written tells checklist being run. The owner had to point out the skipped checks.",
+  "causal_mechanism": "Trace facts: the project's AGENTS.md and skill file declare those gates blocking before detector submission; no lane record from the handoff onward shows them run; in the available transcript of the failing span the universal bootstrap was never re-fetched, and the working summary after context compaction named some of the owner's rules without carrying an obligation to run them. Supported inference: activation was lost at compaction, and nothing enforced a gate at the detector call. Universal wording that permits the skip whenever it is loaded: the accretion rule's INHERITED_PROJECT_CHOICE demotion and its list of 'an additional reviewer' and 'an external evaluator' as escalation, the Iteration lane's 'early owner/product evaluation', and the activation pattern's 'return the smallest useful candidate to the owner early' next to 'do not replace owner cognition with model-only critique loops'. Not established: that a specific universal sentence was cited to skip a gate.",
+  "normalized_rule": "A gate that the project's authority files or the owner declare blocking is a hard gate in every assurance lane, and the requirement-accretion rule never downgrades it; run it, and propose changes to the owner instead of skipping it. Before owner delivery or an external evaluator or detector call, run every owner-stated check and every declared pre-delivery gate, and persist the evidence before the call. An owner checklist enters the active lesson contract as one unit and is run in full. Early owner review comes after those checks, never instead of them. A bootstrap or gate requirement set by a task directive or handoff persists through context compaction; a summary that names a rule is not activation.",
+  "enforcement": [
+    "Root AGENTS.md carries the accretion carve-out ('inherited choice (not a declared gate)'); the root instruction chain is at the 32 KiB discovery budget, so the rest lives in the routed patterns.",
+    "patterns/task-time-lesson-activation.md carries the one-unit checklist rule, early-return ordering, the detector-call admission gate, bootstrap persistence, and compaction re-activation triggers.",
+    "patterns/owner-goal-followup-and-requirement-accretion.md carries 'Declared gates are not accretion'.",
+    "patterns/development-assurance-lanes.md makes declared gates hard gates in every lane.",
+    "patterns/context-compaction-resilience.md puts declared gates in the recovery checkpoint and re-activates them on resume.",
+    "tests/test_declared_gates_not_waivable.py requires these fragments."
+  ],
+  "transfer_rationale": "Found in one owner's article-humanization project, but the mechanism is generic: universal defaults that lower assurance cost can be read as permission to skip project-declared gates, and activation that isn't written into the recovery checkpoint doesn't survive context compaction. Any project with declared gates or a written checklist of owner corrections is exposed.",
+  "limits": "Does not make assistant-added checks mandatory; the accretion gate still governs requirements a follow-up adds. Does not stop an agent from proposing that a declared gate be removed; it only forbids skipping the gate before the owner or project authority changes it.",
+  "scope": "Portable gate-admission and lesson-activation behavior for any governed project."
+}

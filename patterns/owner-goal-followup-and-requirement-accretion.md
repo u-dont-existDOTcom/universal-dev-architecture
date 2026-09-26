@@ -80,6 +80,12 @@ For each requirement introduced by the follow-up that was not already present in
 
 `NOT_NECESSARY` blocks promotion of the requirement. Preserve useful work, remove the artificial dependency, and restore the simpler valid path.
 
+### Declared gates are not accretion
+
+This gate governs requirements that a follow-up **adds**. It never downgrades a gate that already exists in the project's current authority (its `AGENTS.md`, skill file, or a registered gate document marked blocking) or that the owner has stated. Such a gate is not an `INHERITED_PROJECT_CHOICE` with unresolved necessity. It is a current project or owner requirement, and those outrank universal defaults.
+
+Run declared gates. If one looks unnecessary or too costly, raise that with the owner as a proposal, with the evidence, and keep running it until the owner or the project authority changes it. Skipping or thinning a declared gate on the strength of this pattern is itself an owner-outcome violation, because it removes an owner requirement instead of adding one.
+
 ## 4. Assurance escalation is requirement accretion
 
 A stronger proof standard is not neutral bookkeeping. Requirements such as:
@@ -104,6 +110,8 @@ Before making one mandatory, answer:
 If those questions do not establish necessity, keep the stronger assurance optional, diagnostic, or experiment-only.
 
 Do not create an assurance ratchet where each review adds a stricter proof requirement that the owner never asked for.
+
+Running a reviewer, evaluator or check that the project's authority or the owner already requires is not escalation, and these questions don't apply to it.
 
 ## 5. Previously working capability is a mandatory revalidation trigger
 
