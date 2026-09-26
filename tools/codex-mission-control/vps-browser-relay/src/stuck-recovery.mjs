@@ -10,7 +10,7 @@ const STOP_GENERATION_FN = `function(expectedUrl) {
   };
   if (normalize(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const stop = [...document.querySelectorAll('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]')].find(visible) || null;
+  const stop = [...document.querySelectorAll('button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]')].find(visible) || null;
   if (!stop) return { urlMismatch: false, stopped: false, reason: 'STOP_CONTROL_NOT_VISIBLE' };
   stop.click();
   return { urlMismatch: false, stopped: true, stopControlObserved: true };
@@ -26,14 +26,15 @@ const IDLE_STATE_FN = `function(expectedUrl) {
   };
   if (normalize(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const stop = [...document.querySelectorAll('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]')].find(visible) || null;
+  const stop = [...document.querySelectorAll('button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]')].find(visible) || null;
   const send = [
     'button[data-testid="send-button"]',
+    'form[data-chatgpt-composer] button[aria-label="Send"]',
     'button[aria-label="Send prompt"]',
     'button[aria-label="Send message"]',
     'button[data-testid="fruitjuice-send-button"]',
   ].map((selector) => document.querySelector(selector)).find(visible) || null;
-  const composer = document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+  const composer = document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   return {

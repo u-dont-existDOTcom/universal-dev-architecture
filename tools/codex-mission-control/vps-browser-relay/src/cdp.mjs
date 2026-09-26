@@ -15,6 +15,17 @@ import {
   validateContinueRetryBinding,
 } from './continue-recovery.mjs';
 
+// ChatGPT's September 2026 page (the unified ChatGPT app shell) renders the composer as an unlabeled
+// ProseMirror textbox inside form[data-chatgpt-composer]. Its model button is the composer's intelligence
+// trigger, its tools button is labeled "Add files and more", and its send/stop controls are labeled
+// "Send"/"Stop". Every new selector is scoped to that form, so transcript message editors never match;
+// the older selectors stay as fallbacks for earlier page builds.
+const COMPOSER_QUERY = `document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]')`;
+const COMPOSER_SELECTOR_LIST = 'form[data-chatgpt-composer] [contenteditable="true"][role="textbox"], #prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]';
+const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown-button"], form[data-chatgpt-composer] button[data-codex-intelligence-trigger][aria-haspopup="menu"]';
+const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
+const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
+
 const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
@@ -23,7 +34,7 @@ const PAGE_INSPECTION_FN = `function(expectedUrl) {
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const composer = ${COMPOSER_QUERY};
   return {
     currentUrl: location.href,
     urlMismatch: expectedUrl === 'https://chatgpt.com/'
@@ -104,8 +115,8 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
     return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
   };
   const visibleLabel = (element) => ((element && (element.innerText || element.getAttribute('aria-label'))) || '').trim().replace(/\\s+/g, ' ');
-  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const tested = [...document.querySelectorAll('${MODEL_CONTROL_SELECTOR_LIST}')].filter(visible);
+  const composer = ${COMPOSER_QUERY};
   const composerForm = composer?.closest('form') || null;
   const scoped = composerForm
     ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
@@ -143,8 +154,8 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
   };
   const visibleLabel = (element) => ((element && element.innerText) || '').trim().replace(/\\s+/g, ' ');
   const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const tested = [...document.querySelectorAll('${MODEL_CONTROL_SELECTOR_LIST}')].filter(visible);
+  const composer = ${COMPOSER_QUERY};
   const composerForm = composer?.closest('form') || null;
   const scoped = composerForm
     ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
@@ -251,8 +262,8 @@ const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
   };
   const visibleLabel = (element) => ((element && element.innerText) || '').trim().replace(/\\s+/g, ' ');
   const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const tested = [...document.querySelectorAll('${MODEL_CONTROL_SELECTOR_LIST}')].filter(visible);
+  const composer = ${COMPOSER_QUERY};
   const composerForm = composer?.closest('form') || null;
   const scoped = composerForm
     ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
@@ -425,11 +436,11 @@ const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
     const value = element.getBoundingClientRect();
     return { x: value.x, y: value.y, width: value.width, height: value.height };
   };
-  const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')].filter(visible);
+  const composers = [...document.querySelectorAll('${COMPOSER_SELECTOR_LIST}')].filter(visible);
   const composer = composers.length === 1 ? composers[0] : null;
   const composerForm = composer?.closest('form') || null;
   if (!composerForm) return { composerFound: composers.length > 0, composerAmbiguous: composers.length > 1, composerFormFound: false };
-  const controls = [...composerForm.querySelectorAll('button[data-testid="composer-plus-btn"]')].filter(visible);
+  const controls = [...composerForm.querySelectorAll('${TOOLS_CONTROL_SELECTOR_LIST}')].filter(visible);
   const chipCounts = Object.fromEntries(knownLabels.map((label) => [label, [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === label + ', click to remove').length]));
   const chipMatches = labelWanted == null ? [] : [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === labelWanted + ', click to remove');
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
@@ -559,7 +570,7 @@ export function composerTextState(element, expectedBody) {
 }
 
 const COMPOSER_LOOKUP = `
-  const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')];
+  const composers = [...document.querySelectorAll('${COMPOSER_SELECTOR_LIST}')];
   const visible = composers.filter((element) => Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden');
   if (visible.length !== 1) return { ok: false, exact: false, length: null,
     reason: visible.length > 1 ? 'COMPOSER_AMBIGUOUS' : (composers.length ? 'COMPOSER_NOT_VISIBLE' : 'COMPOSER_NOT_FOUND') };
@@ -704,6 +715,7 @@ export function generationProgressIsStalled(tracker, state, observedAtMs, stallM
 const CLICK_SEND_FN = `function() {
   const selectors = [
     'button[data-testid="send-button"]',
+    'form[data-chatgpt-composer] button[aria-label="Send"]',
     'button[aria-label="Send prompt"]',
     'button[aria-label="Send message"]',
     'button[data-testid="fruitjuice-send-button"]'
@@ -725,8 +737,8 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
     } catch { return null; }
   };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const stop = document.querySelector('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]');
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const stop = document.querySelector('${STOP_CONTROL_SELECTOR_LIST}');
+  const composer = ${COMPOSER_QUERY};
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
