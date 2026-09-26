@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "checkpointId": "mission-control-relay-chatgpt-september-page-deploy-20260926",
-  "recordedAt": "2026-09-26T18:54:00Z",
+  "recordedAt": "2026-09-26T18:59:40Z",
   "timestampBasis": "CURRENT_CHECK_TIME",
   "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_AWAITING_FIRST_QUEUED_REQUEST",
   "authority": {
@@ -125,7 +125,22 @@
       "consequence": "No request is eligible to send; the relay's decision function returns REQUEST_EXPIRED_NO_NEW_SEND / RECONCILE_EXISTING_REQUEST / DISCARDED for every item. The first live send waits for the next supervision request a worker queues."
     },
     "lastSubmissionAt": "2026-09-24T19:48:57.810Z (unchanged at 2026-09-26T18:25:10Z)",
-    "leaseExpiresAt": "2026-09-27T00:00:00.000Z. The same-identity renewal to 2026-10-27T00:00:00.000Z is prepared as a command with automatic rollback. It rewrites the central service's root-only environment file and recreates its container; the assistant's execution environment refused to run it (its action-safety classifier), and the assistant does not work around that refusal, so the owner runs it. No repository or owner authority is missing. Not yet run at 2026-09-26T18:25:10Z; if it is not run before expiry the central scheduler treats the lease as stale and the relay cannot send until renewal."
+    "leaseExpiresAt": "2026-09-27T00:00:00.000Z; not yet renewed at 2026-09-26T18:25:10Z. The renewal is owner-run (see leaseRenewalProcedure). If the lease lapses, the central scheduler treats it as stale and the relay cannot send until it is renewed."
+  },
+  "leaseRenewalProcedure": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "purpose": "Same-identity renewal of the SECONDARY sending lease so a fresh worker or the owner can repeat it from the repository alone.",
+    "where": "The central Mission Control service on the PRIMARY host: container mission-control-issue90-live, image codex-mission-control:claude-integrator-22ef1a5, host network, data volume codex-mission-control-issue90-live-v2, started from a root-only env file under /etc/mission-control/ named for that image.",
+    "steps": [
+      "Check preconditions: the live container is healthy, its image and mounts are unchanged, and its env file still matches the running environment (compare digests only; never print values).",
+      "Copy the env file. In the copy change only the expiresAt field of MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON (now 2026-09-27T00:00:00.000Z; schemaVersion 1, epoch 6, role SECONDARY, SINGLE_ACTIVE_CONFIRMED) to the new expiry. Every other line and every other lease field, including leaseId and issuedAt, stays byte-identical.",
+      "Stop the live container and keep it, renamed, as the rollback copy. Start a new container from the same image with the same network, volumes and read-only mounts and the renewed env file.",
+      "Wait for the healthcheck. If it does not pass, stop the new container and restart the renamed original.",
+      "Verify that the central /health and the relay's central status report ACTIVE_LEASE with the new leaseExpiresAt and the same epoch. The lease is read at service startup (lib/submission-authority-runtime.ts), so the brief restart is required."
+    ],
+    "targetExpiry": "2026-10-27T00:00:00.000Z",
+    "ownerRunForm": "A prepared script implementing exactly these steps, with automatic rollback (central-lease-renew.sh <new-expiresAt>), was handed to the owner in the owner's Claude session at 2026-09-26T18:26Z, together with the exact command and the 00:00Z deadline.",
+    "whyOwnerRun": "The assistant's execution environment refused to run it (its action-safety classifier), because the renewal rewrites a root-only env file and recreates the container. No repository or owner authority is missing."
   },
   "notYetVerified": [
     "Moving the Power slider to Extra High, clicking the GitHub entry and seeing its Remove pill, inserting the message into the composer and pressing Send on the live page (first exercised by the next queued request; each step fails closed on a mismatch).",
