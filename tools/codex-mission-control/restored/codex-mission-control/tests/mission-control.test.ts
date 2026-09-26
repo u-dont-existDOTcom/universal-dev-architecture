@@ -915,6 +915,90 @@ test("supervisor GREEN cannot override an unmet owner outcome at a terminal boun
   assert.notEqual(comparison.overallTraffic, "GREEN");
 });
 
+test("legacy source-bound post-Work closure reconciles only the exact immutable receipt", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  replaceLatest(events, "owner_outcome_recorded", (outcome) => ({ ...outcome, epoch: 1 }));
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")!.data;
+  assert.equal(outcome.type, "owner_outcome_recorded");
+  const receiptSha = sha256("exact legacy Work receipt body");
+  pushV2(events, "work-receipt:legacy-close", {
+    type: "chatgpt_work_cloud_execution_receipt_recorded", worker: "auth",
+    dispatch_id: "work-cloud:legacy-close", directive_id: "directive:legacy-close", directive_revision: 1,
+    task_id: "task:auth", work_thread_id: "work-thread:legacy-close", status: "COMPLETED",
+    terminal_state: "CANARY_COMPLETE", check_summary: { passed: 2, failed: 0, not_run: 0 },
+    blocker_codes: [], artifact_sha256s: [sha256("legacy-artifact")], github_comment_sha256: receiptSha,
+    github_receipt: {
+      repository: "u-dont-existDOTcom/universal-dev-architecture", issue_number: 61, comment_id: 1234,
+      immutable_url: "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-1234",
+      github_created_at: "2026-08-30T21:00:00.000Z",
+    },
+    recorded_at: "2026-08-30T21:00:01.000Z", producer_id: "system:github-decision-receipts",
+    source: "CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED",
+  }, "2026-08-30T21:00:01.000Z");
+  pushV2(events, "github-decision:legacy-close", {
+    type: "github_decision_receipt_ingested", worker: "auth", task_id: "task:auth",
+    receipt_id: "github-decision:legacy-close", request_id: "post-work-review:legacy-close",
+    supervisor_id: "mc-project-manager", provider_session_id: "provider-session:legacy-close",
+    binding_provider_session_id: null, stage_provider_session_id: null, decision_provider_session_id: null,
+    binding_capsule: null, binding_capsule_sha256: null, staged_provenance: null,
+    binding_envelope: null, binding_envelope_sha256: null, decision_session_provenance: null,
+    nonce: "nonce:legacy-close", evidence_capsule: { id: "github-work-receipt:1234", sha256: receiptSha },
+    owner_outcome_id: outcome.owner_outcome_id, owner_outcome_epoch: 1,
+    owner_outcome_sha256: outcome.owner_outcome_sha256, reasoning_lane: "EXTRA_HIGH_DIRECT",
+    decision_block: {
+      decision_id: "decision:legacy-close", exact_text: "OWNER_OUTCOME_SATISFIED",
+      sha256: sha256("OWNER_OUTCOME_SATISFIED"),
+    },
+    pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+    writer_contract: { mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: false },
+    execution_provenance: "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED",
+    in_band_binding_sha256: "1".repeat(64), execution_pre_send_receipt_id: "pre-send:legacy-close",
+    execution_submission_admission_id: "admission:legacy-close", execution_provider_body_sha256: "2".repeat(64),
+    canonical_envelope_sha256: "3".repeat(64),
+    github_receipt: {
+      repository: "u-dont-existDOTcom/universal-dev-architecture", issue_number: 59, comment_id: 5678,
+      immutable_url: "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5678",
+      github_created_at: "2026-08-30T21:01:00.000Z", github_author_login: "u-dont-existDOTcom", github_delivery_id: null,
+    },
+    ingestion_method: "RECONCILIATION_POLL", ingested_at: "2026-08-30T21:01:01.000Z",
+  }, "2026-08-30T21:01:01.000Z");
+
+  const closed = compareTerminalState(events);
+  assert.equal(closed.decision, "ALLOW_ROOT_CLOSE");
+  assert.equal(closed.rootTerminalizationAllowed, true);
+  assert.equal(closed.ownerOutcomeStatus, "MET");
+  assert.equal(closed.overallTraffic, "GREEN");
+  assert.equal(closed.pendingReasoningReview, false);
+  assert.ok(closed.reasonCodes.includes("LEGACY_SOURCE_BOUND_WORK_ROOT_CLOSURE"));
+
+  const wrongReceipt = cloneEvents(events);
+  replaceLatest(wrongReceipt, "github_decision_receipt_ingested", (decision) => ({
+    ...decision, evidence_capsule: { ...decision.evidence_capsule, sha256: "f".repeat(64) },
+  }));
+  assert.equal(compareTerminalState(wrongReceipt).rootTerminalizationAllowed, false);
+
+  const modern = cloneEvents(events);
+  replaceLatest(modern, "owner_outcome_recorded", (current) => ({ ...current, epoch: 4 }));
+  replaceLatest(modern, "github_decision_receipt_ingested", (decision) => ({ ...decision, owner_outcome_epoch: 4 }));
+  assert.equal(compareTerminalState(modern).rootTerminalizationAllowed, false);
+
+  const superseded = cloneEvents(events);
+  const priorDecision = superseded.findLast((event) => event.data.type === "github_decision_receipt_ingested")!.data;
+  assert.equal(priorDecision.type, "github_decision_receipt_ingested");
+  pushV2(superseded, "github-decision:legacy-later", {
+    ...priorDecision, receipt_id: "github-decision:legacy-later", request_id: "post-work-review:legacy-later",
+    decision_block: { decision_id: "decision:legacy-later", exact_text: "CONTINUE_WORK", sha256: sha256("CONTINUE_WORK") },
+    canonical_envelope_sha256: "4".repeat(64),
+    github_receipt: {
+      ...priorDecision.github_receipt, comment_id: 5679,
+      immutable_url: "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5679",
+      github_created_at: "2026-08-30T21:02:00.000Z",
+    },
+    ingested_at: "2026-08-30T21:02:01.000Z",
+  }, "2026-08-30T21:02:01.000Z");
+  assert.equal(compareTerminalState(superseded).rootTerminalizationAllowed, false);
+});
+
 test("AskRigor keeps operational, scientific, and release planes independent", () => {
   const worker = demoWorker("askrigor");
   assert.deepEqual(worker.research && {

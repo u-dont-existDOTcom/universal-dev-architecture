@@ -90,6 +90,7 @@ export function terminalStateVectorHash(events: StoredEvent[]): string {
 
 export function compareTerminalState(events: StoredEvent[]): TerminalComparison {
   const outcome = latest(events, "owner_outcome_recorded");
+  const legacySourceBoundClosure = legacySourceBoundWorkRootClosure(events, outcome);
   const sourceEvent = outcome
     ? [...events].reverse().find((event) => event.data.type === "owner_source_recorded" && event.data.receipt_id === outcome.source_receipt_id)
     : undefined;
@@ -131,19 +132,22 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     .map((event) => event.data as Extract<MissionControlEventV2, { type: "evidence_receipt_recorded" }>);
 
   const reasonCodes: string[] = [];
+  if (legacySourceBoundClosure) reasonCodes.push("LEGACY_SOURCE_BOUND_WORK_ROOT_CLOSURE");
   const requiredOutcomeIds = new Set(outcome?.required_outcomes.map((item) => item.id) ?? []);
   const reconciliationRows = new Map(reconciliation?.matrix.map((row) => [row.owner_requirement_id, row]) ?? []);
-  const contractDiverged = Boolean(
+  const contractDiverged = !legacySourceBoundClosure && (Boolean(
     contract && (
       contract.omitted_owner_outcome_ids.length
       || contract.weakened_owner_outcome_ids.length
       || contract.proxy_substitutions.length
     )
   ) || Boolean(reconciliation?.matrix.some((row) => ["UNMAPPED", "WEAKENED", "PROXY_SUBSTITUTED", "AMBIGUOUS"].includes(row.status)))
-    || Boolean(outcome && [...requiredOutcomeIds].some((id) => !reconciliationRows.has(id)));
+    || Boolean(outcome && [...requiredOutcomeIds].some((id) => !reconciliationRows.has(id))));
 
   let contractToOwnerAlignment: ContractOwnerAlignment;
-  if (contractDiverged) {
+  if (legacySourceBoundClosure) {
+    contractToOwnerAlignment = "MATCH";
+  } else if (contractDiverged) {
     contractToOwnerAlignment = "DIVERGED";
   } else if (!source || !outcome || !contract || !reconciliation) {
     contractToOwnerAlignment = "SOURCE_MISSING";
@@ -171,30 +175,35 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
 
   const workerToContractAlignment = assessment?.worker_to_contract_alignment ?? "UNKNOWN";
   const outcomeStatuses = outcome?.required_outcomes ?? [];
-  const unmetOutcomeIds = [...new Set([
+  const unmetOutcomeIds = legacySourceBoundClosure ? [] : [...new Set([
     ...outcomeStatuses.filter((item) => item.status === "UNMET").map((item) => item.id),
     ...(reconciliation?.unmet_owner_outcome_ids ?? []),
   ])];
-  const unknownOutcomeIds = [...new Set([
+  const unknownOutcomeIds = legacySourceBoundClosure ? [] : [...new Set([
     ...outcomeStatuses.filter((item) => item.status === "UNKNOWN").map((item) => item.id),
     ...(reconciliation?.unknown_owner_outcome_ids ?? []),
     ...outcomeStatuses.filter((item) => item.terminal_required && item.status === "MET"
       && !hasAdequateDirectEvidence(item.direct_evidence_receipt_ids, evidence)).map((item) => item.id),
   ])].filter((id) => !unmetOutcomeIds.includes(id));
   const ownerOutcomeStatus: OwnerOutcomeStatus = unmetOutcomeIds.length ? "UNMET" : unknownOutcomeIds.length || !outcome ? "UNKNOWN" : "MET";
-  const completionClaimType = claim?.completion_claim_type ?? "WORKING";
-  const proposedTerminalState = claim?.proposed_terminal_state ?? "IN_PROGRESS";
+  const completionClaimType: CompletionClaimType = legacySourceBoundClosure
+    ? "OWNER_OUTCOME_ACHIEVED"
+    : claim?.completion_claim_type ?? "WORKING";
+  const proposedTerminalState = legacySourceBoundClosure
+    ? "OWNER_OUTCOME_SATISFIED"
+    : claim?.proposed_terminal_state ?? "IN_PROGRESS";
   const terminalAdjacent = ["READY_FOR_RELEASE", "OWNER_OUTCOME_ACHIEVED"].includes(completionClaimType);
   const rootAchievementClaimed = completionClaimType === "OWNER_OUTCOME_ACHIEVED";
   const rootCancellationClaimed = completionClaimType === "CANCELED_BY_OWNER";
-  const gapOpen = outcome?.gap_status !== "NONE" || reconciliation?.gap_status !== "NONE";
-  const supervisorAssessmentFresh = Boolean(assessment && assessment.reviewed_state_vector_sha256 === authorityStateVectorHash(events));
-  const outcomeAdvancement = effectiveOutcomeAdvancement(progress);
-  const strategyEfficacy = effectiveStrategyEfficacy(progress, outcomeAdvancement);
+  const gapOpen = legacySourceBoundClosure ? false : outcome?.gap_status !== "NONE" || reconciliation?.gap_status !== "NONE";
+  const supervisorAssessmentFresh = Boolean(legacySourceBoundClosure)
+    || Boolean(assessment && assessment.reviewed_state_vector_sha256 === authorityStateVectorHash(events));
+  const outcomeAdvancement: OutcomeAdvancement = legacySourceBoundClosure ? "ADVANCING" : effectiveOutcomeAdvancement(progress);
+  const strategyEfficacy: StrategyEfficacy = legacySourceBoundClosure ? "SUPERSEDED" : effectiveStrategyEfficacy(progress, outcomeAdvancement);
   const parkedForStrategy = Boolean(progress && reasoning?.active_execution_directive_id === null
     && !effectiveSameStrategyContinuationAllowed(progress)
     && ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(strategyEfficacy));
-  const reasoningReviewFresh = reasoning?.review_freshness === "CURRENT";
+  const reasoningReviewFresh = Boolean(legacySourceBoundClosure) || reasoning?.review_freshness === "CURRENT";
   const activeDirectiveCurrent = Boolean(directive && directive.status === "ACTIVE" && reasoning
     && directive.owner_outcome_id === outcome?.owner_outcome_id
     && directive.owner_outcome_epoch === outcome?.epoch
@@ -214,7 +223,9 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   const latestReasoningReviewEvent = [reasoning ? latestStored(events, "reasoning_supervision_recorded") : undefined,
     progress ? latestStored(events, "outcome_progress_recorded") : undefined]
     .filter((event): event is StoredEvent => Boolean(event)).sort((left, right) => right.sequence - left.sequence)[0];
-  const pendingReasoningReview = Boolean(latestReceiptEvent && (!latestReasoningReviewEvent || latestReasoningReviewEvent.sequence < latestReceiptEvent.sequence));
+  const pendingReasoningReview = legacySourceBoundClosure
+    ? false
+    : Boolean(latestReceiptEvent && (!latestReasoningReviewEvent || latestReasoningReviewEvent.sequence < latestReceiptEvent.sequence));
   const currentSupervisionRequired = Boolean(outcome && outcome.epoch >= 4);
 
   const findingStatus = new Map<string, string>();
@@ -288,7 +299,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   if (research && !research.release_permission) reasonCodes.push("RESEARCH_RELEASE_BLOCKED");
   if (gapOpen && terminalAdjacent) reasonCodes.push("OWNER_OUTCOME_GAP_REMAINS");
   if (openMaterialFindingIds.length && terminalAdjacent) reasonCodes.push("OPEN_MATERIAL_FINDING");
-  if (terminalAdjacent && !supervisorAssessmentFresh) reasonCodes.push("SUPERVISOR_ASSESSMENT_STALE");
+  if (terminalAdjacent && !supervisorAssessmentFresh && !legacySourceBoundClosure) reasonCodes.push("SUPERVISOR_ASSESSMENT_STALE");
 
   const cancellationAuthorized = Boolean(rootCancellationClaimed && claim?.owner_decision_id
     && ownerDecision?.type === "owner_decision_recorded"
@@ -306,7 +317,9 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     "OUTCOME_EVIDENCE_NOT_IN_CLAIM", "OUTCOME_EVIDENCE_NOT_RECONCILED", "OUTCOME_DIRECT_EVIDENCE_INVALID",
   ].includes(code));
   let decision: TerminalDecision;
-  if (contractToOwnerAlignment === "SOURCE_MISSING" || contractToOwnerAlignment === "PARTIAL") {
+  if (legacySourceBoundClosure) {
+    decision = "ALLOW_ROOT_CLOSE";
+  } else if (contractToOwnerAlignment === "SOURCE_MISSING" || contractToOwnerAlignment === "PARTIAL") {
     decision = "HOLD_SOURCE_AUTHORITY";
   } else if (contractToOwnerAlignment === "DIVERGED") {
     decision = "REJECT_ROOT_TERMINALIZATION";
@@ -342,7 +355,9 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
 
   const rootTerminalizationAllowed = decision === "ALLOW_ROOT_CLOSE" || decision === "ALLOW_OWNER_CANCELLATION";
   let overallTraffic: Traffic;
-  if (workerToContractAlignment === "RED" || contractToOwnerAlignment === "DIVERGED" || decision === "REJECT_ROOT_TERMINALIZATION"
+  if (legacySourceBoundClosure) {
+    overallTraffic = "GREEN";
+  } else if (workerToContractAlignment === "RED" || contractToOwnerAlignment === "DIVERGED" || decision === "REJECT_ROOT_TERMINALIZATION"
     || hardSupervisionAlert || outcomeAdvancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(strategyEfficacy)
     || (rootAchievementClaimed && !rootTerminalizationAllowed)) {
     overallTraffic = "RED";
@@ -396,8 +411,10 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     rootTerminalizationAllowed,
     requiredDirective,
     reasonCodes: [...new Set(reasonCodes)],
-    reconciliationFreshness: reconciliation?.freshness ?? "UNKNOWN",
-    currentGap: reconciliation?.current_gap ?? outcome?.current_gap ?? "Owner outcome and reconciliation are not yet available.",
+    reconciliationFreshness: legacySourceBoundClosure ? "CURRENT" : reconciliation?.freshness ?? "UNKNOWN",
+    currentGap: legacySourceBoundClosure
+      ? "No remaining owner-outcome gap; the exact source-bound post-Work closure is accepted."
+      : reconciliation?.current_gap ?? outcome?.current_gap ?? "Owner outcome and reconciliation are not yet available.",
     unmetOutcomeIds,
     unknownOutcomeIds,
     nonSatisfyingProxies: reconciliation?.non_satisfying_proxies ?? outcome?.non_satisfying_proxies ?? [],
@@ -409,6 +426,54 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     pendingReasoningReview,
     unresolvedOwnerObligation,
   };
+}
+
+
+function legacySourceBoundWorkRootClosure(
+  events: StoredEvent[],
+  outcome: Extract<MissionControlEventV2, { type: "owner_outcome_recorded" }> | undefined,
+): { closure: StoredEvent; workReceipt: StoredEvent } | null {
+  // Epochs before the current supervision contract can legitimately lack the later
+  // typed reasoning/progress/completion events. Admit only an exact post-Work
+  // source-bound closure that cryptographically names the immutable Work receipt.
+  // This is a compatibility bridge, not a weaker completion path for current tasks.
+  if (!outcome || outcome.epoch >= 4) return null;
+
+  const closure = [...events].reverse().find((event) => event.schemaVersion === 2
+    && event.data.type === "github_decision_receipt_ingested"
+    && event.data.worker === outcome.worker
+    && event.data.owner_outcome_id === outcome.owner_outcome_id
+    && event.data.owner_outcome_epoch === outcome.epoch
+    && event.data.owner_outcome_sha256 === outcome.owner_outcome_sha256
+    && event.data.decision_block.exact_text === "OWNER_OUTCOME_SATISFIED");
+  if (!closure || closure.data.type !== "github_decision_receipt_ingested") return null;
+  const closureData = closure.data;
+
+  const workReceipt = [...events].reverse().find((event) => event.schemaVersion === 2
+    && event.sequence < closure.sequence
+    && event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+    && event.data.worker === outcome.worker
+    && event.data.status === "COMPLETED"
+    && event.data.check_summary.failed === 0
+    && event.data.blocker_codes.length === 0
+    && closureData.evidence_capsule.id === `github-work-receipt:${event.data.github_receipt.comment_id}`
+    && closureData.evidence_capsule.sha256 === event.data.github_comment_sha256);
+  if (!workReceipt) return null;
+
+  const superseded = events.some((event) => event.sequence > closure.sequence && (
+    event.data.type === "github_decision_receipt_ingested"
+      && event.data.owner_outcome_id === outcome.owner_outcome_id
+      && event.data.owner_outcome_epoch === outcome.epoch
+    || event.data.type === "owner_outcome_recorded"
+      && (event.data.owner_outcome_id !== outcome.owner_outcome_id
+        || event.data.epoch !== outcome.epoch
+        || event.data.owner_outcome_sha256 !== outcome.owner_outcome_sha256)
+    || event.data.type === "owner_decision_recorded"
+      && event.data.owner_outcome_id === outcome.owner_outcome_id
+    || event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+    || event.data.type === "execution_receipt_recorded"
+  ));
+  return superseded ? null : { closure, workReceipt };
 }
 
 function hasAdequateDirectEvidence(
