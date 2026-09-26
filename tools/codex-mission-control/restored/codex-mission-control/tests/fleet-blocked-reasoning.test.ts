@@ -5,6 +5,7 @@ import { seedIssue47Store } from "../lib/seed";
 import { classifyFleetSupervisorTick, FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "../lib/fleet-router-producer";
 import { buildExecutionDirectiveFromGitHubDecision } from "../lib/github-execution-directive";
+import { fleetTaskEvidenceBoundary } from "../lib/fleet-evidence-boundary";
 // Exercise the actual downstream browser-relay parser, not only the packet builder.
 // @ts-expect-error The separately deployed relay is plain JavaScript without a declaration package.
 import { parseSupervisoryCycleRouteBody } from "../../../vps-browser-relay/src/core.mjs";
@@ -326,5 +327,35 @@ test("a newer non-fleet same-task directive invalidates an older pending fleet r
     assert.equal(result.status, "HANDOFF_BLOCKED_EVIDENCE_ADVANCED");
     assert.equal(routes(f).filter(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID).length, 1);
   } finally { f.store.close(); restore(); }
+});
+
+test("fleet evidence boundary excludes checkpoints from another task run", () => {
+  const f = fixture();
+  try {
+    const events = f.store.workerEvents(f.watch.worker);
+    const otherStart = {
+      id: 970, sequence: 970, eventId: "execution:start:other-boundary-task", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "codex_execution_started", occurredAt: due, receivedAt: due,
+      previousHash: events.at(-1)?.eventHash ?? null, eventHash: "4".repeat(64),
+      producerId: `worker:${f.watch.worker}`, producerKind: "WORKER",
+      data: { type: "codex_execution_started", worker: f.watch.worker, execution_start_id: "start:other-boundary-task",
+        worker_run_id: "run:other-boundary-task", task_id: "task:other-boundary", directive_id: "directive:other-boundary",
+        directive_revision: 1, started_at: due, execution_mode: "SUBSTANTIVE",
+        declared_tactical_boundary: "fixture", work_profile_authorization_id: null, work_profile_preflight_id: null }
+    } as any;
+    const otherCheckpoint = {
+      id: 971, sequence: 971, eventId: "checkpoint:other-boundary-task", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "worker_checkpoint_recorded", occurredAt: due, receivedAt: due,
+      previousHash: otherStart.eventHash, eventHash: "5".repeat(64),
+      producerId: `worker:${f.watch.worker}`, producerKind: "WORKER",
+      data: { type: "worker_checkpoint_recorded", worker: f.watch.worker, worker_run_id: "run:other-boundary-task",
+        status: "blocked", current_step: "Other task blocked", completed_steps: [], next_steps: [],
+        files_touched: [], tests: { passing: 0, failing: 0, lint: "not_run", build: "not_run" },
+        plan_changed: false, plan_change_reason: null, blocker: "other task blocker", assumptions: [],
+        diff_lines: 0, referenced_directive_ids: [] }
+    } as any;
+    const boundary = fleetTaskEvidenceBoundary([...events, otherStart, otherCheckpoint], f.watch.worker, f.watch.taskId);
+    assert.equal(boundary.some(item => item.event_id === otherCheckpoint.eventId), false);
+  } finally { f.store.close(); }
 });
 
