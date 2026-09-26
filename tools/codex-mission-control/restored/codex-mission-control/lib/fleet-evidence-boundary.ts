@@ -5,6 +5,7 @@ import type { StoredEvent } from "./schema";
 
 const TASK_EVIDENCE_FAMILIES = new Set([
   "task_contract_recorded",
+  "execution_directive_recorded",
   "execution_receipt_recorded",
   "chatgpt_work_cloud_execution_receipt_recorded",
   "worker_checkpoint_recorded",
@@ -12,7 +13,19 @@ const TASK_EVIDENCE_FAMILIES = new Set([
   "structured_blocker_recorded",
   "outcome_progress_recorded",
   "reasoning_supervision_recorded",
+  "github_decision_receipt_ingested",
 ]);
+
+function isFleetReviewArtifact(event: StoredEvent, taskId: string): boolean {
+  if (event.data.type === "github_decision_receipt_ingested") {
+    return event.data.task_id === taskId && event.data.request_id.startsWith("fleet-watch:");
+  }
+  if (event.data.type === "execution_directive_recorded") {
+    return event.data.task_id === taskId
+      && Boolean(event.data.validated_decision_proof?.request_id?.startsWith("fleet-watch:"));
+  }
+  return false;
+}
 
 export interface FleetEvidenceRef { event_id: string; event_hash: string }
 export interface TrustedFleetRoute {
@@ -27,7 +40,7 @@ export function fleetTaskEvidenceBoundary(
 ): FleetEvidenceRef[] {
   const latest = new Map<string, StoredEvent>();
   for (const event of events) {
-    if (event.worker !== worker || !TASK_EVIDENCE_FAMILIES.has(event.data.type)) continue;
+    if (event.worker !== worker || !TASK_EVIDENCE_FAMILIES.has(event.data.type)\n      || isFleetReviewArtifact(event, taskId)) continue;
     if ("task_id" in event.data && event.data.task_id !== taskId) continue;
     const suffix = event.data.type === "structured_blocker_recorded" ? event.data.blocker_id : "";
     latest.set(`${event.data.type}:${suffix}`, event);
