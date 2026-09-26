@@ -55,13 +55,23 @@ test("true owner and external gates remain fenced", () => {
     } finally { f.store.close(); }
   }
 });
-test("a blocked checkpoint without a watched-task execution start cannot block the watch", () => {
+test("a blocked checkpoint bound only to another task cannot block the watch", () => {
   const f = fixture(); try {
     const events = f.store.workerEvents(f.watch.worker);
+    const otherStart = {
+      id: 989, sequence: 989, eventId: "execution:start:other-task", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "codex_execution_started", occurredAt: due, receivedAt: due,
+      previousHash: events.at(-1)?.eventHash ?? null, eventHash: "6".repeat(64),
+      producerId: `worker:${f.watch.worker}`, producerKind: "WORKER",
+      data: { type: "codex_execution_started", worker: f.watch.worker, execution_start_id: "start:other-task",
+        worker_run_id: "run:other-task", task_id: "task:other", directive_id: "directive:other-task",
+        directive_revision: 1, started_at: due, execution_mode: "SUBSTANTIVE",
+        declared_tactical_boundary: "fixture", work_profile_authorization_id: null, work_profile_preflight_id: null }
+    } as any;
     const checkpoint = {
       id: 990, sequence: 990, eventId: "checkpoint:other-task", schemaVersion: 2, missionId: "test",
       worker: f.watch.worker, type: "worker_checkpoint_recorded", occurredAt: due, receivedAt: due,
-      previousHash: events.at(-1)?.eventHash ?? null, eventHash: "7".repeat(64),
+      previousHash: otherStart.eventHash, eventHash: "7".repeat(64),
       producerId: `worker:${f.watch.worker}`, producerKind: "WORKER",
       data: { type: "worker_checkpoint_recorded", worker: f.watch.worker, worker_run_id: "run:other-task",
         status: "blocked", current_step: "Other task is blocked", completed_steps: [], next_steps: [],
@@ -69,7 +79,9 @@ test("a blocked checkpoint without a watched-task execution start cannot block t
         plan_changed: false, plan_change_reason: null, blocker: "other task blocker", assumptions: [],
         diff_lines: 0, referenced_directive_ids: [] }
     } as any;
-    const d = classifyFleetSupervisorTick(f.watch, [...events, checkpoint], { valid: true, errors: [] });
+    const d = classifyFleetSupervisorTick(
+      f.watch, [...events, otherStart, checkpoint], { valid: true, errors: [] },
+    );
     assert.equal(d.trigger, "HEALTHY_ADVANCING");
     assert.equal(d.reasoningRequired, false);
   } finally { f.store.close(); }
