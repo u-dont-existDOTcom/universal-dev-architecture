@@ -146,8 +146,14 @@ test('app selection scrolls the September 2026 list, picks one exact entry and v
 
   const selected = runInPage(APP_SELECTION_STATE_FN, page([composerForm({ chips: ['GitHub'] })]), [['Mission Control', 'GitHub'], null]);
   assert.deepEqual(selected.chipCounts, { 'Mission Control': 0, GitHub: 1 });
+  // A list already scrolled to the end is rewound once before the app can be declared absent.
   const end = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(['Notion', 'Slack'], { scrollTop: 1380 })]), [['Mission Control', 'GitHub'], 'GitHub']);
-  assert.throws(() => appSelectionState(end, 'GitHub'), /not in the ChatGPT app list/);
+  assert.equal(end.listAtEnd, true);
+  assert.equal(end.listAtTop, false);
+  assert.deepEqual(appSelectionState(end, 'GitHub', { listRewound: false }), { type: 'REWIND_LIST' });
+  assert.throws(() => appSelectionState(end, 'GitHub', { listRewound: true }), /not in the ChatGPT app list/);
+  assert.equal(scroll.listAtTop, true);
+  assert.deepEqual(appSelectionState(scroll, 'GitHub', { listRewound: false }), { type: 'SCROLL_LIST' });
 });
 
 test('send and stop use the September 2026 composer controls', () => {

@@ -502,6 +502,7 @@ export const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
     listRect: listMatches.length === 1 ? rect(listMatches[0]) : null,
     listScrollRect: listScroll && visible(listScroll) ? rect(listScroll) : null,
     listAtEnd: listScroll ? listScroll.scrollTop + listScroll.clientHeight >= listScroll.scrollHeight - 2 : null,
+    listAtTop: listScroll ? listScroll.scrollTop <= 1 : null,
   };
 }`;
 
@@ -528,7 +529,7 @@ export function generationConversationUrlTransition(expectedUrl, observedUrl) {
   return { accepted: false, conversationUrl: null, canonicalized: false };
 }
 
-export function appSelectionState(observation, labelWanted) {
+export function appSelectionState(observation, labelWanted, { listRewound = true } = {}) {
   if (!observation?.composerFormFound) throw new Error('ChatGPT composer form is unavailable for app selection.');
   if (observation.toolsControlCount !== 1) throw new Error(`ChatGPT Tools control is ${observation.toolsControlCount > 1 ? 'ambiguous' : 'unavailable'}.`);
   if ((observation.chipMatchCount ?? 0) > 1) throw new Error(`Selected app chip ${labelWanted} is ambiguous.`);
@@ -539,6 +540,8 @@ export function appSelectionState(observation, labelWanted) {
   if ((observation.renderedAppMatchCount ?? 0) === 1) return { type: 'FOCUS_APP', label: labelWanted };
   if ((observation.listMatchCount ?? 0) === 1) return { type: 'LIST_OPTION', label: labelWanted };
   if (labelWanted != null && observation.listOpen === true) {
+    // A list left scrolled down is rewound once, so every entry is scanned from the top before the app is declared absent.
+    if (!listRewound && observation.listAtTop === false && observation.listScrollRect) return { type: 'REWIND_LIST' };
     if (observation.listAtEnd === false && observation.listScrollRect) return { type: 'SCROLL_LIST' };
     throw new Error(`Exact app label ${labelWanted} is not in the ChatGPT app list.`);
   }
@@ -1020,14 +1023,18 @@ export class ChromeDevtoolsBrowser {
 
       const selectedLabels = [];
       for (const label of requiredLabels) {
+        let listRewound = false;
         for (let attempt = 0; ; attempt += 1) {
           if (attempt >= 40) throw new Error(`ChatGPT did not expose or select exact app label ${label} within 40 steps.`);
           const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-          const action = appSelectionState(observation, label);
+          if (observation.listOpen === true && observation.listAtTop === true) listRewound = true;
+          const action = appSelectionState(observation, label, { listRewound });
           if (observation.chipMatchCount === 1) break;
-          if (action.type === 'SCROLL_LIST') {
+          if (action.type === 'SCROLL_LIST' || action.type === 'REWIND_LIST') {
             const r = observation.listScrollRect;
-            await client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: r.x + r.width / 2, y: r.y + r.height / 2, deltaX: 0, deltaY: 240 });
+            const deltaY = action.type === 'REWIND_LIST' ? -100_000 : 240;
+            await client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: r.x + r.width / 2, y: r.y + r.height / 2, deltaX: 0, deltaY });
+            if (action.type === 'REWIND_LIST') listRewound = true;
             await new Promise((resolve) => setTimeout(resolve, 250));
             continue;
           }
