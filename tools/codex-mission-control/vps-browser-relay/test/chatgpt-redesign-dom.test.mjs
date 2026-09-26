@@ -160,6 +160,11 @@ test('send and stop use the September 2026 composer controls', () => {
   assert.equal(generating.stopVisible, true);
   assert.equal(generating.generating, true);
   assert.equal(generating.idleReady, false);
+  // A hidden legacy Stop control earlier in the page must not hide the composer's visible one.
+  const hiddenLegacy = h('button', { 'data-testid': 'stop-button' }, [], { hidden: true });
+  const shadowed = runInPage(GENERATION_STATE_FN, page([hiddenLegacy, composerForm({ extra: [h('button', { type: 'button', 'aria-label': 'Stop' })] })], conversation), [conversation]);
+  assert.equal(shadowed.stopVisible, true);
+  assert.equal(shadowed.idleReady, false);
   const idle = runInPage(GENERATION_STATE_FN, page([composerForm()], conversation), [conversation]);
   assert.equal(idle.stopVisible, false);
   assert.equal(idle.idleReady, true);

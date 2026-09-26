@@ -33,7 +33,7 @@ const IDLE_STATE_FN = `function(expectedUrl) {
     'button[aria-label="Send prompt"]',
     'button[aria-label="Send message"]',
     'button[data-testid="fruitjuice-send-button"]',
-  ].map((selector) => document.querySelector(selector)).find(visible) || null;
+  ].flatMap((selector) => [...document.querySelectorAll(selector)]).find(visible) || null;
   const composer = document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));

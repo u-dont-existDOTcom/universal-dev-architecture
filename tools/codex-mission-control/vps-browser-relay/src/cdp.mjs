@@ -764,7 +764,7 @@ export const CLICK_SEND_FN = `function() {
     'button[data-testid="fruitjuice-send-button"]'
   ];
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const button = selectors.map((selector) => document.querySelector(selector)).find((element) => visible(element));
+  const button = selectors.flatMap((selector) => [...document.querySelectorAll(selector)]).find((element) => visible(element));
   if (!button) return { ok: false, reason: 'SEND_BUTTON_NOT_FOUND' };
   if (button.disabled || button.getAttribute('aria-disabled') === 'true') return { ok: false, reason: 'SEND_BUTTON_DISABLED' };
   button.click();
@@ -780,7 +780,8 @@ export const GENERATION_STATE_FN = `function(expectedUrl) {
     } catch { return null; }
   };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const stop = document.querySelector('${STOP_CONTROL_SELECTOR_LIST}');
+  // Choose the first visible Stop control: a hidden legacy control may precede the composer's visible one.
+  const stop = [...document.querySelectorAll('${STOP_CONTROL_SELECTOR_LIST}')].find(visible) || null;
   const composer = ${COMPOSER_QUERY};
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
