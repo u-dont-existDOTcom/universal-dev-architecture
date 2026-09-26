@@ -1114,8 +1114,10 @@ export function readinessExpression(expectedUrl) {
     const urlReady = isRoot
       ? location.origin === 'https://chatgpt.com' && location.pathname === '/'
       : current === expected || current === expected + '/';
-    // ChatGPT's September 2026 page renders the composer as an unlabeled textbox inside its composer form.
-    const composer = document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+    // ChatGPT's September 2026 page renders the composer as an unlabeled textbox inside its composer form. Take the first
+    // visible candidate so a hidden composer earlier in the page cannot stand in for the active one.
+    const composer = [...document.querySelectorAll('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"], #prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')]
+      .find((element) => Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden') || null;
     const loginRequired = location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]'));
     return { ready: urlReady && Boolean(composer) && !loginRequired, loginRequired, urlReady, composerFound: Boolean(composer) };
   })()`;

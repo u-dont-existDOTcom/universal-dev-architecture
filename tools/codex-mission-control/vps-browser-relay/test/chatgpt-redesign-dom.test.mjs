@@ -179,3 +179,13 @@ test('in-page functions keep their regular-expression escapes after template eva
     assert.doesNotMatch(source, /\/s\+\/|\(d\+\)|\/\^s|\.split\(\/s/, `${name} lost a regular-expression escape`);
   }
 });
+
+test('a hidden composer earlier in the page does not shadow the visible one', () => {
+  const conversation = 'https://chatgpt.com/c/abc123';
+  const hiddenLegacy = h('div', { id: 'prompt-textarea', contenteditable: 'true' }, [], { hidden: true });
+  const state = runInPage(GENERATION_STATE_FN, page([hiddenLegacy, composerForm()], conversation), [conversation]);
+  assert.equal(state.composerVisible, true);
+  assert.equal(state.idleReady, true);
+  const inspection = runInPage(PAGE_INSPECTION_FN, page([hiddenLegacy, composerForm()]), [ROOT]);
+  assert.equal(inspection.composerFound, true);
+});

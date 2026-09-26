@@ -209,7 +209,8 @@ test('browser control code does not use generic transcript-editable selectors', 
   const source = await readFile(new URL('../src/cdp.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /div\.ProseMirror\[contenteditable/);
   assert.doesNotMatch(source, /textarea\[placeholder\]/);
-  assert.match(source, /document\.querySelector\('\#prompt-textarea'\)/);
+  // The composer is the form-scoped September 2026 textbox, with #prompt-textarea kept as an exact legacy fallback.
+  assert.match(source, /COMPOSER_SELECTOR_LIST = 'form\[data-chatgpt-composer\] \[contenteditable="true"\]\[role="textbox"\], #prompt-textarea, /);
   assert.match(source, /\[role="menu"\], \[role="listbox"\], \[role="dialog"\]/);
 });
 

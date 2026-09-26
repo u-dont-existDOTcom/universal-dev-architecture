@@ -20,8 +20,9 @@ import {
 // trigger, its tools button is labeled "Add files and more", and its send/stop controls are labeled
 // "Send"/"Stop". Every new selector is scoped to that form, so transcript message editors never match;
 // the older selectors stay as fallbacks for earlier page builds.
-const COMPOSER_QUERY = `document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]')`;
 const COMPOSER_SELECTOR_LIST = 'form[data-chatgpt-composer] [contenteditable="true"][role="textbox"], #prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]';
+// The first visible composer: a hidden composer earlier in the page must not shadow the active one.
+const COMPOSER_QUERY = `([...document.querySelectorAll('${COMPOSER_SELECTOR_LIST}')].find((element) => Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden') || null)`;
 const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown-button"], form[data-chatgpt-composer] button[data-codex-intelligence-trigger][aria-haspopup="menu"]';
 const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
 const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
