@@ -685,10 +685,12 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
 - Lease (RO-PAGE-4): SECONDARY lease still expires 2026-09-27T00:00Z. The
   same-identity renewal to 2026-10-27T00:00Z changes only the lease's
   `expiresAt` and briefly recreates the central container, with automatic
-  rollback. The reproducible steps are `leaseRenewalProcedure` in the evidence
-  file above. The assistant's execution environment refused to run it, so the
-  owner holds a prepared script (handed over 18:26Z). Not run at 18:25Z; if the
-  lease lapses the relay cannot send.
+  rollback. It is owner-run: the assistant's execution environment refused it,
+  and the owner holds the prepared script (`central-lease-renew.sh`, run with
+  the new expiry from the operations transfer folder on the owner's laptop;
+  handed over 18:26Z). Agents only check `leaseExpiresAt` and remind the owner
+  (`leaseRenewal` in the evidence file). Not run at 18:25Z; if the lease lapses
+  the relay cannot send.
 - Next: owner runs the lease renewal before 2026-09-27T00:00Z; on the next
   queued request, read the relay journal, read-only doctor and central ledger
   until a new submission is recorded or the failing step is identified.
