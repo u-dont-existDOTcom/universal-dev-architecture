@@ -120,8 +120,12 @@ export function classifyFleetSupervisorTick(
   if (observed?.type === "live_worker_evidence_observed" && observed.phase === "BLOCKED") {
     return decision("EXECUTION_BLOCKED", "A source-bound runtime blocker requires Chat review; preserve exact-submission recovery fences.", "ACTIVE", true, false, false, null);
   }
+  const watchedTaskRunIds = new Set(events.flatMap(event => event.worker === watch.worker
+    && event.data.type === "codex_execution_started" && event.data.task_id === watch.taskId
+    ? [event.data.worker_run_id] : []));
   const checkpoint = events.findLast(event => event.worker === watch.worker
-    && event.data.type === "worker_checkpoint_recorded")?.data;
+    && event.data.type === "worker_checkpoint_recorded"
+    && watchedTaskRunIds.has(event.data.worker_run_id))?.data;
   if (open.length || checkpoint?.type === "worker_checkpoint_recorded" && checkpoint.status === "blocked") {
     return decision("EXECUTION_BLOCKED", "Execution is held for source-bound Chat review; no replay or strategy change is authorized.", "ACTIVE", true, false, false, null);
   }
