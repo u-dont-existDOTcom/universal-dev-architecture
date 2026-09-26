@@ -604,6 +604,8 @@ A repeated method-substitution failure exposed a coverage gap: generic policy an
 
 ## Relay-lock lifecycle fix ported to main — 2026-09-25
 
+> Historical. The host installation and verification this section calls for were completed on 2026-09-26; see "Relay-lock lifecycle fix live on both hosts — 2026-09-26" below. Its pending-deployment statements no longer apply.
+
 The owner-authorized relay-lock lifecycle repair (requirement
 `docs/requirements/2026-09-13-mission-control-relay-lock-lifecycle.owner-requirement.json`)
 was live-verified on PRIMARY on 2026-09-13 from source commit
