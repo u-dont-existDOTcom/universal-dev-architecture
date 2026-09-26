@@ -43,6 +43,9 @@ export function fleetTaskEvidenceBoundary(
     if (event.worker !== worker || !TASK_EVIDENCE_FAMILIES.has(event.data.type)
       || isFleetReviewArtifact(event, taskId)) continue;
     if ("task_id" in event.data && event.data.task_id !== taskId) continue;
+    if (event.data.type === "worker_checkpoint_recorded"
+      && !events.some(start => start.worker === worker && start.data.type === "codex_execution_started"
+        && start.data.worker_run_id === event.data.worker_run_id && start.data.task_id === taskId)) continue;
     const suffix = event.data.type === "structured_blocker_recorded" ? event.data.blocker_id : "";
     latest.set(`${event.data.type}:${suffix}`, event);
   }
