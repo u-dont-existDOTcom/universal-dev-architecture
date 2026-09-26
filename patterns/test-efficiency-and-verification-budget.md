@@ -256,3 +256,9 @@ Projects with better native tooling may replace the script, but the replacement 
 - Optimizing test count while ignoring wall time.
 - Selecting tests by intuition when the project already has validated impact-analysis tooling.
 - Skipping required final/CI gates merely because focused tests passed.
+
+## Compact rules moved from root `AGENTS.md`
+
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Test-efficiency policy** so the root keeps only always-needed rules and its instruction chain keeps headroom inside Codex's 32 KiB default discovery budget. The root keeps the load trigger, the missing-observer rule, the declared-gate checkpoint rule, and a pointer here.
+
+Focused and affected tests are the default inner loop. Full suites are checkpoint-based, not an after-every-edit reflex. Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger; ordinary green tests are not by themselves a reason to launch mutation testing.

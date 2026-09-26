@@ -72,7 +72,7 @@ For non-trivial software tasks where repeated testing could materially affect ta
 
 If the active project does not already contain an equivalent observer, do not silently skip measurement. Vendor the current canonical `scripts/test_efficiency.py` from this repository, run the current canonical observer from a checked-out copy with `--root <PROJECT>`, or use a verified project-native equivalent. A missing local observer is not a reason to mark telemetry not applicable.
 
-Focused and affected tests are the default inner loop. Full suites are checkpoint-based, not an after-every-edit reflex. Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger; ordinary green tests are not by themselves a reason to launch mutation testing.
+Before choosing which tests to run, load the inner-loop, full-suite checkpoint, redundant-rerun, and mutation-trigger rules: `patterns/test-efficiency-and-verification-budget.md` → **Compact rules moved from root `AGENTS.md`**.
 
 Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.
 
@@ -80,23 +80,9 @@ Required repository-declared completion/CI gates still run at their proper check
 
 For software/product development, load `patterns/development-assurance-lanes.md` and match assurance to the decision being made now.
 
-Default to the **Iteration lane** unless the owner or current project requirements actually establish a stronger boundary. A request such as “fix this,” “why is this worse?”, “try this architecture,” “make the app better,” or “let me test it” is not by itself a request for merge/release certification.
-
-- **Iteration:** smallest reversible candidate, focused/affected tests, a few representative product cases, and early owner/product evaluation. Do not require full repository verification, multi-model judge tournaments, mutation campaigns, publication scans, multiple independent reviews, or a merge-ready PR merely to let the owner try a safe reversible candidate.
-- **Decision:** use a bounded direct comparison only when a material architecture/product choice genuinely remains unresolved. Hold unrelated variables constant, compare the minimal alternatives directly, and stop when enough evidence exists to choose the next reversible implementation. Prefer the simpler candidate when decision-relevant evidence is effectively tied.
-- **Release:** run the full applicable repository, CI, security/privacy, independent-review, rollback, publication, installation, and release gates only when actually preparing to merge, release, publish, install, deploy, migrate, or cross another consequential production boundary.
-
-High-risk invariants can require targeted hard gates in Iteration/Decision, but one safety-sensitive surface does not import every unrelated release gate into the inner loop.
+Lane default and definitions, hard-gate, expensive-validation, outage, no-ratchet, and stale-lane rules: `patterns/development-assurance-lanes.md` → **Compact rules moved from root `AGENTS.md`**.
 
 Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
-
-Before launching expensive validation, require a concrete answer to: **what current decision can this result change?** If none, defer it as later assurance debt.
-
-Optional evaluator/provider outages or rate limits must not freeze unrelated development. Preserve the blocker, continue safe work, and defer optional evidence unless it is genuinely necessary for the current decision. Never bypass a hard gate or substitute an unauthorized model merely to avoid a limit.
-
-After a high-rigor investigation or release, ordinary development returns to Iteration. Do not create an assurance ratchet where one difficult task permanently makes every later change release-grade.
-
-If a durable task lock/checkpoint encodes a stronger stale lane and the owner explicitly returns the project to rapid experimentation, update/supersede that task state rather than continuing the obsolete campaign.
 
 ## Workflow
 
@@ -178,17 +164,7 @@ Immediately before surfacing any outbound link to the owner, open the exact dest
 
 **Delivery is part of completion.** When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.
 
-Use this priority:
-
-1. give the actual file/attachment when the active surface can materialize or attach it;
-2. otherwise give a direct clickable file/download link to the artifact itself;
-3. only if neither is technically possible, provide the usable contents inline when practical, or explain the exact tool limitation and give the nearest direct retrievable link.
-
-Branch names, repository paths, PR numbers, and commit SHAs may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery. Before saying `go to branch X`, `open path Y`, `grab the file from GitHub`, or equivalent, first attempt to retrieve/materialize/attach the artifact or create a direct link.
-
-When a handoff needs companion material, deliver the complete usable set. For example, a packet that requires a controller prompt or reader protocol is incomplete if only the data windows are handed over and the instructions are merely named by repository location. Prefer one ZIP/file set where useful; when isolation or staged disclosure requires separation, give direct files/links for every artifact needed at the current stage.
-
-Before closing an owner-facing handoff, verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**, unless a real technical, security, privacy, or experimental-isolation constraint prevents that.
+Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**.
 
 Use `patterns/human-readable-operational-references.md` for the full outbound-link and artifact-delivery rules, rationale, examples, and recovery rule.
 
@@ -196,9 +172,7 @@ Use `patterns/human-readable-operational-references.md` for the full outbound-li
 
 Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`.
 
-Preserve an independent conception snapshot before outside exposure when prior examples could constrain genuinely creative ideation. Then run a bounded existing-work scan across the underlying problem, not merely the project's chosen terminology. Check the strongest relevant academic literature, standards, mature implementations/tools, and adjacent disciplines. Record what is solved, partially solved, composable, incompatible, unresolved, or merely not found; choose `reuse`, `adapt`, `compose`, `invent`, or `experiment`; identify the novel remainder; and benchmark bespoke work against the strongest relevant established baseline.
-
-When academic literature is material, the orchestration pattern routes to `patterns/existing-work-scan-and-scholarly-discovery.md` as the specialist discovery layer. Prefer a scholarly semantic discovery system such as SciSpace when available for terminology/literature mapping before primary-source verification; ordinary web search alone is not the default when the specialized route materially improves discovery.
+Conception-snapshot, existing-work-scan, and scholarly-discovery (`patterns/existing-work-scan-and-scholarly-discovery.md`) rules: `patterns/research-before-reinvention.md` → **Compact rules moved from root `AGENTS.md`**.
 
 Cheap exploratory work may defer the scan only by recording explicit research debt and a hard trigger before architecture commitment, scaling, productionization, repeated refinement, public novelty claims, cross-project promotion, or substantial implementation. Repeated bespoke refinement is itself a trigger: do not keep polishing a homemade solution without checking whether the problem is already substantially solved.
 

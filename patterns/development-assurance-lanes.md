@@ -286,3 +286,23 @@ A repository may define strict completion rules for release, protected merge, de
 But bind those rules to the boundary they protect. Do not reinterpret them as prerequisites for every intermediate development response.
 
 If an exclusive active-task lock currently encodes release-grade completion while the owner explicitly changes the goal back to rapid experimentation, update/supersede the task lock so a fresh worker does not keep pursuing stale assurance work.
+
+## Compact rules moved from root `AGENTS.md`
+
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Development assurance lanes** so the root instruction chain stays inside Codex's 32 KiB default discovery budget. The root still routes software/product development here and keeps its cross-family reasoning pointer.
+
+Default to the **Iteration lane** unless the owner or current project requirements actually establish a stronger boundary. A request such as “fix this,” “why is this worse?”, “try this architecture,” “make the app better,” or “let me test it” is not by itself a request for merge/release certification.
+
+- **Iteration:** smallest reversible candidate, focused/affected tests, a few representative product cases, and early owner/product evaluation. Do not require full repository verification, multi-model judge tournaments, mutation campaigns, publication scans, multiple independent reviews, or a merge-ready PR merely to let the owner try a safe reversible candidate.
+- **Decision:** use a bounded direct comparison only when a material architecture/product choice genuinely remains unresolved. Hold unrelated variables constant, compare the minimal alternatives directly, and stop when enough evidence exists to choose the next reversible implementation. Prefer the simpler candidate when decision-relevant evidence is effectively tied.
+- **Release:** run the full applicable repository, CI, security/privacy, independent-review, rollback, publication, installation, and release gates only when actually preparing to merge, release, publish, install, deploy, migrate, or cross another consequential production boundary.
+
+High-risk invariants can require targeted hard gates in Iteration/Decision, but one safety-sensitive surface does not import every unrelated release gate into the inner loop.
+
+Before launching expensive validation, require a concrete answer to: **what current decision can this result change?** If none, defer it as later assurance debt.
+
+Optional evaluator/provider outages or rate limits must not freeze unrelated development. Preserve the blocker, continue safe work, and defer optional evidence unless it is genuinely necessary for the current decision. Never bypass a hard gate or substitute an unauthorized model merely to avoid a limit.
+
+After a high-rigor investigation or release, ordinary development returns to Iteration. Do not create an assurance ratchet where one difficult task permanently makes every later change release-grade.
+
+If a durable task lock/checkpoint encodes a stronger stale lane and the owner explicitly returns the project to rapid experimentation, update/supersede that task state rather than continuing the obsolete campaign.

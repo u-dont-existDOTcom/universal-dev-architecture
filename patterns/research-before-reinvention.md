@@ -245,3 +245,11 @@ Before substantial bespoke investment, ask:
 > Am I inventing or repeatedly refining something that plausibly has an established research, standards, tooling, or implementation literature? If yes, did I preserve the independent conception when needed, search the underlying problem rather than only our terminology, identify reusable and genuinely novel parts, explicitly choose reuse/adapt/compose/invent/experiment, and define the external baseline before continuing?
 
 If not, the task is not ready for substantial bespoke investment.
+
+## Compact rules moved from root `AGENTS.md`
+
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Research before reinvention** so the root instruction chain stays inside Codex's 32 KiB default discovery budget. The root keeps the activation sentence, the research-debt and repeated-refinement trigger paragraph, and a pointer here.
+
+Preserve an independent conception snapshot before outside exposure when prior examples could constrain genuinely creative ideation. Then run a bounded existing-work scan across the underlying problem, not merely the project's chosen terminology. Check the strongest relevant academic literature, standards, mature implementations/tools, and adjacent disciplines. Record what is solved, partially solved, composable, incompatible, unresolved, or merely not found; choose `reuse`, `adapt`, `compose`, `invent`, or `experiment`; identify the novel remainder; and benchmark bespoke work against the strongest relevant established baseline.
+
+When academic literature is material, the orchestration pattern routes to `patterns/existing-work-scan-and-scholarly-discovery.md` as the specialist discovery layer. Prefer a scholarly semantic discovery system such as SciSpace when available for terminology/literature mapping before primary-source verification; ordinary web search alone is not the default when the specialized route materially improves discovery.
