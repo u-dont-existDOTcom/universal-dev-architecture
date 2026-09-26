@@ -1,11 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
-import { loadConfig, publicConfig } from '../src/config.mjs';
+import { loadCodexExecCandidateConfig, loadConfig, publicConfig } from '../src/config.mjs';
+import {
+  HELPER_DEFAULT_LIFETIME_MS,
+  ONE_SHOT_LOCK_CEILING_MS,
+  ONE_SHOT_LOCK_MARGIN_MS,
+  oneShotLockLifetimeMs,
+  relayCommandLockOptions,
+} from '../src/relay-lock.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 
@@ -61,9 +71,155 @@ test('stale lock is recovered without deleting a live lock', async () => {
 test('health report CLI does not contend with the long-running relay singleton lock', async () => {
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
   assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
-  assert.match(cli, /if \(exclusiveLockRequired\) \{\n    await stateStore\.acquireLock\(\);/);
+  assert.match(cli, /if \(exclusiveLockRequired\) \{\n(?:    \/\/.*\n)*    await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{ config, codexExecutionConfig \}\)\);/);
   assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
-  assert.match(cli, /if \(exclusiveLockRequired\) await stateStore\.releaseLock\(\);/);
+  // Release runs in `finally`; it is a no-op for a store that never acquired ownership.
+  assert.match(cli, /\} finally \{\n  try \{\n    await stateStore\?\.releaseLock\(\);/);
+});
+
+test('CLI errors release ownership; lock-status diagnoses a live owner without acquiring or sending', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-cli-lock-'));
+  const paths = { stateFile: join(root, 'state.json'), statusFile: join(root, 'status.json'), lockFile: join(root, 'relay.lock') };
+  const store = new StateStore(paths);
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const env = { ...configEnv(chatsFile), MC_RELAY_STATE_DIR: root };
+    const cli = fileURLToPath(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url));
+    const failed = spawnSync(process.execPath, [cli, 'controller-init'], { env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /Usage.*controller-init/);
+    assert.equal(store.lockStatus().status, 'FREE');
+    await store.acquireLock({ taskId: 'test:cli-diagnostic' });
+    const diagnostic = spawnSync(process.execPath, [cli, 'lock-status'], { env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(diagnostic.status, 0);
+    const status = JSON.parse(diagnostic.stdout);
+    assert.equal(status.relayLock.status, 'HELD');
+    assert.equal(status.relayLock.owner.taskId, 'test:cli-diagnostic');
+  } finally {
+    await store.releaseLock();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('one-shot lock lifetime derives from the configured operation ceilings it guards', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-lock-budget-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const base = configEnv(chatsFile);
+    const defaults = await loadConfig(base);
+    const codexOff = loadCodexExecCandidateConfig({});
+    const codexOn = loadCodexExecCandidateConfig({ MC_CODEX_EXEC_PREVIEW_ENABLED: '1' });
+    // Defaults: (3 nudges + 1) x (90 s page ready + 30 s submit + 15 min generation) + 10 min margin.
+    const browserTurn = 4 * (90_000 + 30_000 + 900_000);
+    assert.equal(ONE_SHOT_LOCK_MARGIN_MS, 600_000);
+    assert.deepEqual(relayCommandLockOptions('once-exact', { config: defaults, codexExecutionConfig: codexOn, env: {} }),
+      { taskId: 'relay:once-exact', persistent: false, maxLifetimeMs: browserTurn + 600_000 });
+    assert.equal(relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOff, env: {} }).maxLifetimeMs, browserTurn + 600_000);
+    // `once` runs Codex only when that route is enabled; then its ceiling is budgeted too.
+    assert.equal(relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOn, env: {} }).maxLifetimeMs, 900_000 + browserTurn + 600_000);
+    for (const command of ['controller-once', 'provision', 'mcp-preflight', 'capabilities']) {
+      assert.equal(relayCommandLockOptions(command, { config: defaults, codexExecutionConfig: codexOn, env: {} }).maxLifetimeMs, browserTurn + 600_000);
+    }
+
+    // The review case: 60-minute Codex execution and 60-minute generation ceilings.
+    const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });
+    const longCodex = loadCodexExecCandidateConfig({ MC_CODEX_EXEC_PREVIEW_ENABLED: '1', MC_CODEX_EXEC_MAX_TIMEOUT_MS: '3600000' });
+    const longOnce = relayCommandLockOptions('once', { config: long, codexExecutionConfig: longCodex, env: {} }).maxLifetimeMs;
+    assert.equal(longOnce, 3_600_000 + 4 * (90_000 + 30_000 + 3_600_000) + 600_000);
+    assert.ok(longOnce > HELPER_DEFAULT_LIFETIME_MS);
+    assert.ok(longOnce > 3_600_000 + 3_600_000 * (long.runtime.stuckRecoveryMaxNudges + 1));
+
+    // Every timeout at its configured maximum with the default nudge cap still fits under the ceiling.
+    const maximal = await loadConfig({
+      ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000', MC_RELAY_PAGE_READY_TIMEOUT_MS: '300000', MC_RELAY_SUBMIT_TIMEOUT_MS: '120000',
+    });
+    const maximalOnce = relayCommandLockOptions('once', { config: maximal, codexExecutionConfig: longCodex, env: {} }).maxLifetimeMs;
+    assert.equal(maximalOnce, 3_600_000 + 4 * (300_000 + 120_000 + 3_600_000) + 600_000);
+    assert.ok(maximalOnce < ONE_SHOT_LOCK_CEILING_MS);
+    // A larger nudge cap clamps at the ceiling instead of becoming effectively unbounded.
+    const manyNudges = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000', MC_RELAY_STUCK_RECOVERY_MAX_NUDGES: '20' });
+    assert.equal(relayCommandLockOptions('once', { config: manyNudges, codexExecutionConfig: longCodex, env: {} }).maxLifetimeMs, ONE_SHOT_LOCK_CEILING_MS);
+    assert.equal(ONE_SHOT_LOCK_CEILING_MS, 6 * 60 * 60_000);
+
+    // MC_RELAY_LOCK_MAX_MS stays an explicit override in either direction, within 1..86400000.
+    assert.equal(oneShotLockLifetimeMs({ browser: long.browser, runtime: long.runtime, codexExecMaxTimeoutMs: 3_600_000, env: { MC_RELAY_LOCK_MAX_MS: '120000' } }), 120_000);
+    assert.equal(relayCommandLockOptions('once', { config: manyNudges, codexExecutionConfig: longCodex, env: { MC_RELAY_LOCK_MAX_MS: '43200000' } }).maxLifetimeMs, 43_200_000);
+    for (const invalid of ['0', '86400001', '1.5', 'thirty-minutes']) {
+      assert.throws(() => relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOff, env: { MC_RELAY_LOCK_MAX_MS: invalid } }), /MC_RELAY_LOCK_MAX_MS must be an integer from 1 to 86400000/);
+    }
+    // Service loops stay persistent and never depend on the one-shot override.
+    for (const command of ['run', 'controller-run']) {
+      assert.deepEqual(relayCommandLockOptions(command, { config: defaults, codexExecutionConfig: codexOn, env: { MC_RELAY_LOCK_MAX_MS: 'invalid' } }), { taskId: `relay:${command}`, persistent: true });
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('CLI once holds a derived lifetime covering 60-minute operations, honors the override, and exits 143 on SIGTERM', { timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-cli-lifetime-'));
+  const paths = { stateFile: join(root, 'state.json'), statusFile: join(root, 'status.json'), lockFile: join(root, 'relay.lock') };
+  const store = new StateStore(paths);
+  // A loopback Mission Control that never answers keeps `once` inside its guarded cycle.
+  let arrived = null;
+  const hung = [];
+  const server = createServer((request) => { hung.push(request); arrived?.(); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const cli = fileURLToPath(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const env = {
+      ...configEnv(chatsFile),
+      MC_RELAY_STATE_DIR: root,
+      MC_RELAY_MISSION_CONTROL_URL: origin,
+      MC_RELAY_HTTP_TIMEOUT_MS: '120000',
+      MC_RELAY_GENERATION_TIMEOUT_MS: '3600000',
+      MC_CODEX_EXEC_PREVIEW_ENABLED: '1',
+      MC_CODEX_EXEC_MAX_TIMEOUT_MS: '3600000',
+      MC_CODEX_EXEC_WORKER_ID: 'worker-a',
+      MC_CODEX_EXEC_WORKER_TOKEN: 'w'.repeat(32),
+      MC_CODEX_EXEC_MISSION_CONTROL_URL: origin,
+    };
+    const runOnce = async (extraEnv) => {
+      const reached = new Promise((resolve) => { arrived = resolve; });
+      const child = spawn(process.execPath, [cli, 'once'], { env: { ...env, ...extraEnv }, stdio: ['ignore', 'ignore', 'pipe'] });
+      let stderr = '';
+      child.stderr.on('data', (data) => { stderr += data; });
+      const exited = new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })));
+      await Promise.race([reached, exited.then(() => { throw new Error(`CLI exited before its guarded request: ${stderr}`); })]);
+      const status = store.lockStatus();
+      child.kill('SIGTERM');
+      return { status, exit: await exited };
+    };
+
+    const derived = await runOnce({});
+    assert.equal(derived.status.status, 'HELD');
+    assert.equal(derived.status.owner.taskId, 'relay:once');
+    assert.equal(derived.status.owner.mode, 'BOUNDED_HELPER');
+    const lifetime = Date.parse(derived.status.owner.deadlineAt) - Date.parse(derived.status.owner.acquiredAt);
+    const expected = 3_600_000 + 4 * (90_000 + 30_000 + 3_600_000) + 600_000;
+    assert.ok(Math.abs(lifetime - expected) < 1_000, `lifetime ${lifetime} != ${expected}`);
+    // The watchdog cannot fire before a 60-minute Codex run plus a 60-minute generation wait.
+    assert.ok(lifetime > 2 * 3_600_000);
+    // Graceful service stop: the lifecycle handler exits 143 (SuccessExitStatus=143) and releases ownership.
+    assert.deepEqual(derived.exit, { code: 143, signal: null });
+    assert.equal(store.lockStatus().status, 'FREE');
+
+    const overridden = await runOnce({ MC_RELAY_LOCK_MAX_MS: '120000' });
+    const overrideLifetime = Date.parse(overridden.status.owner.deadlineAt) - Date.parse(overridden.status.owner.acquiredAt);
+    assert.ok(Math.abs(overrideLifetime - 120_000) < 1_000, `override lifetime ${overrideLifetime}`);
+    assert.deepEqual(overridden.exit, { code: 143, signal: null });
+    assert.equal(store.lockStatus().status, 'FREE');
+  } finally {
+    for (const request of hung) request.socket.destroy();
+    server.close();
+    await store.releaseLock();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('Mission Control client reads only explicitly scoped worker snapshots', async () => {

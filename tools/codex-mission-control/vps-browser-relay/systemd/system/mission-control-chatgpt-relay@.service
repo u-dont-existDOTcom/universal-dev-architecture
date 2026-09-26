@@ -13,6 +13,9 @@ ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/bin/mc-chatgpt-relay
 Restart=always
 RestartSec=10
 TimeoutStopSec=20
+# On SIGTERM the relay-lock lifecycle handler releases ownership and exits 143;
+# that is a graceful stop, so `systemctl stop` must not mark the unit failed.
+SuccessExitStatus=143
 MemoryHigh=384M
 MemoryMax=512M
 MemorySwapMax=128M
