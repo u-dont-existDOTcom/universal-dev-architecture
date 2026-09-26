@@ -682,15 +682,25 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
   eligible until a worker queues a new supervision request. Moving the Power
   slider, clicking the GitHub entry, composer insertion and Send are first
   exercised by that request and fail closed on a mismatch.
-- Lease (RO-PAGE-4): SECONDARY lease still expires 2026-09-27T00:00Z. The
-  same-identity renewal to 2026-10-27T00:00Z changes only the lease's
-  `expiresAt` and briefly recreates the central container, with automatic
-  rollback. It is owner-run: the assistant's execution environment refused it,
-  and the owner holds the prepared script (`central-lease-renew.sh`, run with
-  the new expiry from the operations transfer folder on the owner's laptop;
-  handed over 18:26Z). Agents only check `leaseExpiresAt` and remind the owner
-  (`leaseRenewal` in the evidence file). Not run at 18:25Z; if the lease lapses
-  the relay cannot send.
-- Next: owner runs the lease renewal before 2026-09-27T00:00Z; on the next
-  queued request, read the relay journal, read-only doctor and central ledger
-  until a new submission is recorded or the failing step is identified.
+- Lease (RO-PAGE-4, live-verified): the owner renewed the SECONDARY lease;
+  first seen 19:21:45Z. Same identity (epoch 6, SECONDARY,
+  SINGLE_ACTIVE_CONFIRMED), expires 2026-10-27T00:00Z; central ACTIVE_LEASE
+  and ready.
+- Central stall (found 2026-09-26, `centralStall` in the evidence file): the
+  central Mission Control daemon blocks for 15–17 s once a minute. Its
+  fleet-supervisor tick (default every 60 s) verifies the whole event chain
+  synchronously for each due watch, and the cost grows with the history. Even
+  the daemon's local `/live` stalls; the scheduler status call through the
+  tunnel takes 8–18 s at that point of each minute. The secondary's health
+  reports time out (10 s) in 2–3 minute runs about every 15 minutes, and a
+  live send could fail mid-way the same way (in-band requests then go
+  ambiguous).
+- Mitigation prepared: a 30 s relay central-call timeout (systemd drop-in,
+  non-secret). It is installed on the PRIMARY (relay inactive). On the
+  SECONDARY it needs a relay restart that the assistant's execution
+  environment refused, so it is owner-run (offered 20:52Z). Root fix: stop
+  re-verifying the whole chain on every tick (Mission Control change plus
+  central redeploy).
+- Next: owner decides on the SECONDARY timeout and the central fix; on the
+  next queued request, read the relay journal, read-only doctor and central
+  ledger until a new submission is recorded or the failing step is identified.

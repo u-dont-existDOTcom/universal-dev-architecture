@@ -3,7 +3,7 @@
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "requirement_id": "REQ-MC-RELAY-CHATGPT-SEPT-2026-PAGE-20260926",
   "recorded_at": "2026-09-26T16:40:00Z",
-  "updated_at": "2026-09-26T19:15:24Z",
+  "updated_at": "2026-09-26T20:52:53Z",
   "timestamp_basis": "CURRENT_CHECK_TIME",
   "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
@@ -45,17 +45,17 @@
       "observable": "A real provider send goes through the relay after the install: the ledger gains a new submission after 2026-09-24T19:48:57Z with exact controls verified and no duplicate or ambiguous submission.",
       "status": "PENDING_LIVE_VERIFICATION",
       "evidence_refs": [],
-      "live_note": "Not yet possible: all 13 requests the relay can see expired (newest queued 2026-09-24T15:50:39Z), so nothing is eligible to send until a worker queues a new supervision request."
+      "live_note": "Not yet possible: no request has been queued since 2026-09-24T15:50:39Z. Risk: the central daemon blocks for 15-17 s once a minute (fleet-supervisor tick; see centralStall in the evidence file), and the relay's 10 s central-call timeout can fail a send mid-way. On the SECONDARY this stays open until the 30 s timeout is active there or the central is fixed."
     },
     {
       "id": "RO-PAGE-4",
       "terminal_required": true,
       "observable": "The SECONDARY lease is extended by a same-identity renewal (only expiresAt changes) before or after its 2026-09-27T00:00Z expiry, and the central scheduler reports ACTIVE_LEASE.",
-      "status": "PENDING_LIVE_VERIFICATION",
+      "status": "LIVE_VERIFIED",
       "evidence_refs": [
         "docs/evidence/2026-09-26-relay-chatgpt-september-page-deploy.json"
       ],
-      "live_note": "Owner-run renewal to 2026-10-27T00:00:00.000Z: same lease identity, only expiresAt changes, automatic rollback. The assistant's execution environment refused to run it (it rewrites the central service's root-only env file and recreates its container), so it stays with the owner. The owner holds the prepared script; see leaseRenewal in the evidence file for the handoff and for how to verify. Not yet run at 2026-09-26T18:25Z. If the lease expires first, the central scheduler treats it as stale and the relay cannot send until it is renewed."
+      "live_note": "Owner-run same-identity renewal, first observed 2026-09-26T19:21:45Z (absent at 18:55:29Z): epoch 6, SECONDARY, SINGLE_ACTIVE_CONFIRMED, takeover null, expiresAt 2026-10-27T00:00:00.000Z; the central reports ACTIVE_LEASE and ready. Reconfirmed at 20:17Z."
     }
   ],
   "non_satisfying_proxies": [
@@ -63,7 +63,7 @@
     "A committed window replacement or a ready doctor does not prove a send; only a new ledger submission does.",
     "An installed tree hash does not prove the running relay loaded it."
   ],
-  "next_direct_evidence": "Before 2026-09-27T00:00Z the owner runs the prepared lease renewal; agents only check leaseExpiresAt and remind the owner (leaseRenewal in docs/evidence/2026-09-26-relay-chatgpt-september-page-deploy.json). When a worker next queues a supervision request, read the relay journal, read-only doctor and central ledger until a new provider submission is recorded or the step that failed closed is identified.",
+  "next_direct_evidence": "Owner decides on the SECONDARY 30 s central-call timeout (prepared, owner-run) and on a Mission Control fix for the once-a-minute full-chain verification. When a worker next queues a supervision request, read the relay journal, read-only doctor and central ledger until a new provider submission is recorded or the step that failed closed is identified.",
   "verification_limits": [
     "Conversation pages did not render in the relay browser's spare tab ('Could not load this ChatGPT conversation'), so per-turn markers of the September 2026 page are unmapped; the relay's completion check uses the Stop control and composer state, and turn-marker-based stall/continue recovery stays inert until mapped.",
     "Selecting an app was not exercised during mapping (the owner approved opening menus without choosing); the Remove-pill form is taken from the page's own control strings and is first confirmed by the relay's live run, which fails closed on a mismatch."
