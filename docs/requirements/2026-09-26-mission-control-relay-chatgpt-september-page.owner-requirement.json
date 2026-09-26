@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "requirement_id": "REQ-MC-RELAY-CHATGPT-SEPT-2026-PAGE-20260926",
+  "recorded_at": "2026-09-26T16:40:00Z",
+  "timestamp_basis": "CURRENT_CHECK_TIME",
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "completion_allowed": false,
+  "owner_source": {
+    "verbatim": "yes fix it\n\n[2026-09-26T16:12Z, approving: map the model and \"Add files and more\" menus in the relay's own ChatGPT tab without choosing anything; map one Mission Control conversation in the spare blank tab; once tests and the automated review pass, merge, install on both hosts and restart the secondary relay; extend the secondary's current sending lease]\nyes to all 4",
+    "sha256": "6043f300ccca797ba47652efe2d4667af847f0d9134f9bea35b2fe29206c7538",
+    "source_ref": "Owner Claude session, 2026-09-26: 'yes fix it' sent 14:53Z in reply to the secondary relay outage report; 'yes to all 4' sent 16:12Z approving the four listed steps (platform-reported send times, minute precision)",
+    "recorded_at": "2026-09-26T16:40:00Z",
+    "source_type": "OWNER_CHAT_MESSAGE",
+    "source_time_status": "SOURCE_SENT_TIME",
+    "provider_source_timestamp": "2026-09-26T16:12Z"
+  },
+  "normalized_outcome": "Restore sending on the active SECONDARY relay, which has sent nothing since 2026-09-24T19:48:57Z because ChatGPT's September 2026 page no longer matches the relay's page contract (no #prompt-textarea, no send/stop test IDs, new model menu and app list). Update the relay's page contract, install it on both hosts under the existing fence/rollback rules, extend the SECONDARY lease without changing its authority fields, and prove recovery with a real provider send.",
+  "required_outcomes": [
+    {
+      "id": "RO-PAGE-1",
+      "terminal_required": true,
+      "observable": "The relay recognizes the September 2026 composer, model control, Power slider effort status, app list and Remove pills, and Send/Stop controls; tests exercise the recorded page structures and every earlier selector stays as a fallback.",
+      "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+      "evidence_refs": [
+        "tools/codex-mission-control/vps-browser-relay/test/chatgpt-redesign-dom.test.mjs",
+        "tools/codex-mission-control/vps-browser-relay/test/chatgpt-page-contract.test.mjs"
+      ]
+    },
+    {
+      "id": "RO-PAGE-2",
+      "terminal_required": true,
+      "observable": "On SECONDARY the open automation-window replacement commits through the central coordinator, the read-only doctor reports ready, and the relay lock stays held by the persistent service.",
+      "status": "PENDING_LIVE_VERIFICATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-PAGE-3",
+      "terminal_required": true,
+      "observable": "A real provider send goes through the relay after the install: the ledger gains a new submission after 2026-09-24T19:48:57Z with exact controls verified and no duplicate or ambiguous submission.",
+      "status": "PENDING_LIVE_VERIFICATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "RO-PAGE-4",
+      "terminal_required": true,
+      "observable": "The SECONDARY lease is extended by a same-identity renewal (only expiresAt changes) before or after its 2026-09-27T00:00Z expiry, and the central scheduler reports ACTIVE_LEASE.",
+      "status": "PENDING_LIVE_VERIFICATION",
+      "evidence_refs": []
+    }
+  ],
+  "non_satisfying_proxies": [
+    "Green unit tests against recorded page structures do not prove the live page accepts the relay's clicks and keystrokes.",
+    "A committed window replacement or a ready doctor does not prove a send; only a new ledger submission does.",
+    "An installed tree hash does not prove the running relay loaded it."
+  ],
+  "next_direct_evidence": "Install the merged relay on both hosts, restart the SECONDARY relay, then read the doctor, central transition state and ledger until a new provider submission is recorded.",
+  "verification_limits": [
+    "Conversation pages did not render in the relay browser's spare tab ('Could not load this ChatGPT conversation'), so per-turn markers of the September 2026 page are unmapped; the relay's completion check uses the Stop control and composer state, and turn-marker-based stall/continue recovery stays inert until mapped.",
+    "Selecting an app was not exercised during mapping (the owner approved opening menus without choosing); the Remove-pill form is taken from the page's own control strings and is first confirmed by the relay's live run, which fails closed on a mismatch."
+  ]
+}
