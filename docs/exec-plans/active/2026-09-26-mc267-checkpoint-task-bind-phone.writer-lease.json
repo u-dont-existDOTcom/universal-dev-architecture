@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "owned_branch": "chat/mc267-checkpoint-task-bind-20260926-phone",
+  "integration_branch": "chat/mc-blocked-work-routing-integrate-20260926",
+  "integration_base_sha": "4ea1f30c3cc2672cb5d5c18bb2a274808e950973",
+  "parent_integrator": "chat/mc-claude-integrator-20260924",
+  "scope": "Isolated repair for PR267 checkpoint/task binding P1: a blocked worker checkpoint may affect a watch only when its worker_run_id maps to codex_execution_started for that watched task. No shared-runtime mutation, merge, deployment, or replay."
+}
