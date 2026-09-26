@@ -165,7 +165,17 @@ this relay-only change does not add a new dashboard panel or deploy the web app.
 Operators must use the lock diagnostics to distinguish authorized busy work from
 an orphan; an unavailable health tick alone is not grounds to kill a helper.
 
-Library users automatically receive a 30-minute finite lifetime. Temporary tests
+Library users automatically receive a 30-minute finite lifetime. CLI one-shots
+(`once`, `once-exact`, `controller-once`, `provision`, `mcp-preflight`,
+`capabilities` and the other non-service commands) instead derive their default
+from the configured ceilings of the operations they guard, so the watchdog never
+fires inside a legitimately configured operation: `(MC_RELAY_STUCK_RECOVERY_MAX_NUDGES + 1) ×
+(MC_RELAY_PAGE_READY_TIMEOUT_MS + MC_RELAY_SUBMIT_TIMEOUT_MS + MC_RELAY_GENERATION_TIMEOUT_MS)`,
+plus `MC_CODEX_EXEC_MAX_TIMEOUT_MS` for `once` when Codex execution preview is
+enabled, plus a 10-minute margin, capped at 6 hours (78 minutes for `once-exact`
+with the shipped defaults; a 60-minute Codex run plus 60-minute generation
+ceilings give 318 minutes). Every timeout at its maximum with the default nudge
+cap fits under the cap; a larger nudge cap clamps there. Temporary tests
 should bind an explicit non-secret task ID and the shortest adequate budget:
 
 ```js
@@ -185,9 +195,13 @@ the exact owner's metadata; failed acquisition/double release cannot unlink a
 successor. CLI one-shots (including `once-exact`) release in `finally`; only
 explicit `run` and `controller-run` service modes use unbounded ownership, and
 `health-report` takes no exclusive lock so it never contends with the service. A one-shot can set
-`MC_RELAY_LOCK_MAX_MS` (1..86400000 ms) when its authorized operation requires a
-different bounded lifetime. It never shortens global pacing or clears ambiguous
-send intents; after interruption the normal doctor/ledger gates still apply.
+`MC_RELAY_LOCK_MAX_MS` (1..86400000 ms) as an explicit override, shorter or
+longer than the derived default, when its authorized operation requires a
+different bounded lifetime. The override never shortens global pacing or clears
+ambiguous send intents; after interruption the normal doctor/ledger gates still
+apply. On SIGTERM the relay exits 143 after releasing its lock, so the relay
+units declare `SuccessExitStatus=143` and a normal `systemctl stop` does not
+leave them failed.
 
 For a historical incident, first establish exact process/task ownership and
 current activity. Do not terminate an active authorized test to unblock another

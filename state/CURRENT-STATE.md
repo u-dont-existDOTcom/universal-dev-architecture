@@ -624,3 +624,13 @@ that was live-verified on 2026-09-13; the next relay release from `main` must
 still be installed and verified on the hosts before claiming it is live again.
 Never delete `relay.lock.guard`; stop old-version relay/helper processes before
 upgrading so mixed lock versions never run together.
+
+Review hardening on the same branch (2026-09-26) goes beyond the live-verified
+code, so the next host release must verify it too: CLI one-shots now derive
+their default watchdog lifetime from the configured page-ready, submit,
+generation (times the stuck-recovery nudge cap plus one) and, for `once` with
+Codex preview enabled, Codex execution ceilings plus a 10-minute margin, capped
+at 6 hours, instead of a fixed 30 minutes that could kill a configured 60-minute
+Codex run or generation wait. `MC_RELAY_LOCK_MAX_MS` remains an explicit
+override and library helpers keep the 30-minute default. The relay units declare
+`SuccessExitStatus=143` because the lock lifecycle exits 143 on SIGTERM.

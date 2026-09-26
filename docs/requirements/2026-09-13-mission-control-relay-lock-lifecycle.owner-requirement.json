@@ -70,6 +70,7 @@
     "Original helper had exited before repair: no historical FD snapshot or detailed cleanup exception can be reconstructed.",
     "Repair and coordinated maintenance sent zero provider messages; a separate owner-authorized 19-send direct test overlapped read-only diagnosis. No whole-diagnosis zero-send claim.",
     "PRIMARY correction is live and stored on the repair task branch, not merged; SECONDARY runtime intentionally unchanged.",
-    "2026-09-25: the unmerged repair code was ported onto current main (branch claude/funny-heisenberg-lsbn3b-relay-lock). Once merged, main carries the code live-verified on PRIMARY on 2026-09-13; later relay deploys from main before that merge likely reverted it, and current host installation state is unverified."
+    "2026-09-25: the unmerged repair code was ported onto current main (branch claude/funny-heisenberg-lsbn3b-relay-lock). Once merged, main carries the code live-verified on PRIMARY on 2026-09-13; later relay deploys from main before that merge likely reverted it, and current host installation state is unverified.",
+    "2026-09-26: review hardening on the port branch goes beyond the live-verified code: CLI one-shot watchdog lifetimes now derive from configured operation ceilings (capped at 6 hours, MC_RELAY_LOCK_MAX_MS still overrides) instead of a fixed 30 minutes, and the relay units declare SuccessExitStatus=143. Neither change has been installed or verified on a host."
   ]
 }

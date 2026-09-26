@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fork } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile, unlink } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -148,4 +148,22 @@ test('persistent mode is explicit; ordinary helpers remain finite by default', a
   assert.ok(Math.abs(Date.parse(owner.deadlineAt) - Date.parse(owner.acquiredAt) - HELPER_DEFAULT_LIFETIME_MS) < 1_000);
   assert.ok(store.lock.watchdog);
   await store.releaseLock();
+});
+
+test('relay units that hold the lock treat its SIGTERM exit 143 as a successful stop', async () => {
+  const units = [];
+  for (const scope of ['system', 'user']) {
+    const directory = new URL(`../systemd/${scope}/`, import.meta.url);
+    for (const name of await readdir(directory)) {
+      if (name.endsWith('.service')) units.push({ name: `${scope}/${name}`, text: await readFile(new URL(name, directory), 'utf8') });
+    }
+  }
+  const relayUnits = units.filter(({ text }) => /^ExecStart=.*mc-chatgpt-relay\.mjs (?!health-report\b)\S+/m.test(text));
+  assert.deepEqual(relayUnits.map(({ name }) => name).sort(), ['system/mission-control-chatgpt-relay@.service', 'user/mission-control-chatgpt-relay.service']);
+  for (const { text } of relayUnits) assert.match(text, /^SuccessExitStatus=143$/m);
+  // health-report takes no exclusive lock and installs no lifecycle handler.
+  for (const { name, text } of units.filter((unit) => !relayUnits.includes(unit))) assert.doesNotMatch(text, /^SuccessExitStatus=/m, name);
+  // The system installer's per-user drop-in must not reset the inherited setting.
+  const installer = await readFile(new URL('../scripts/install-system-services.sh', import.meta.url), 'utf8');
+  assert.doesNotMatch(installer, /SuccessExitStatus/);
 });
