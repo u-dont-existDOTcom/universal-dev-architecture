@@ -356,6 +356,24 @@ test("fleet evidence boundary excludes checkpoints from another task run", () =>
     } as any;
     const boundary = fleetTaskEvidenceBoundary([...events, otherStart, otherCheckpoint], f.watch.worker, f.watch.taskId);
     assert.equal(boundary.some(item => item.event_id === otherCheckpoint.eventId), false);
+
+    const watchedStart = {
+      ...otherStart, id: 972, sequence: 972, eventId: "execution:start:watched-boundary-task",
+      eventHash: "6".repeat(64),
+      data: { ...otherStart.data, execution_start_id: "start:watched-boundary-task",
+        worker_run_id: "run:watched-boundary-task", task_id: f.watch.taskId,
+        directive_id: "directive:watched-boundary" }
+    } as any;
+    const watchedCheckpoint = {
+      ...otherCheckpoint, id: 973, sequence: 973, eventId: "checkpoint:watched-boundary-task",
+      eventHash: "7".repeat(64), previousHash: watchedStart.eventHash,
+      data: { ...otherCheckpoint.data, worker_run_id: "run:watched-boundary-task",
+        current_step: "Watched task blocked", blocker: "watched task blocker" }
+    } as any;
+    const watchedBoundary = fleetTaskEvidenceBoundary(
+      [...events, watchedStart, watchedCheckpoint], f.watch.worker, f.watch.taskId,
+    );
+    assert.equal(watchedBoundary.some(item => item.event_id === watchedCheckpoint.eventId), true);
   } finally { f.store.close(); }
 });
 
