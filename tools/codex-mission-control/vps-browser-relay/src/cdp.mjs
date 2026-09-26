@@ -467,7 +467,7 @@ export const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
   const chipCounts = Object.fromEntries(knownLabels.map((label) => [label, [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => isChipFor(element, label)).length]));
   const chipMatches = labelWanted == null ? [] : [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => isChipFor(element, labelWanted));
   // September 2026: "Add files and more" opens a scrollable list of plain buttons ("<name> <description>").
-  const listScroll = document.querySelector('[data-mention-list-scroll-area]');
+  const listScroll = [...document.querySelectorAll('[data-mention-list-scroll-area]')].find(visible) || null;
   const listItems = listScroll ? [...listScroll.querySelectorAll('button[data-list-navigation-item="true"]')] : [];
   // An entry matches only on its exact name: the whole entry text, one element's whole text, or one element's own
   // text nodes (a name followed by a nested description). Never by prefix, so "GitHub" cannot match "GitHub Copilot".

@@ -13,6 +13,7 @@ import {
   modelMenuSelectionState,
 } from '../src/cdp.mjs';
 import { CURRENT_CONSUMER_CONTROLS } from '../src/core.mjs';
+import { IDLE_STATE_FN } from '../src/stuck-recovery.mjs';
 import { h, miniDocument, runInPage } from './fixtures/mini-dom.mjs';
 
 // Structures recorded from the relay's own ChatGPT tab on 2026-09-26 (September 2026 page). Labels and
@@ -188,4 +189,15 @@ test('a hidden composer earlier in the page does not shadow the visible one', ()
   assert.equal(state.idleReady, true);
   const inspection = runInPage(PAGE_INSPECTION_FN, page([hiddenLegacy, composerForm()]), [ROOT]);
   assert.equal(inspection.composerFound, true);
+});
+
+test('stuck recovery reads the visible composer and Stop control on the September 2026 page', () => {
+  const conversation = 'https://chatgpt.com/c/abc123';
+  const hiddenForm = h('form', { 'data-chatgpt-composer': '' }, [h('div', { contenteditable: 'true', role: 'textbox' })], { hidden: true });
+  const idle = runInPage(IDLE_STATE_FN, page([hiddenForm, composerForm()], conversation), [conversation]);
+  assert.equal(idle.composerVisible, true);
+  assert.equal(idle.idleReady, true);
+  const stopping = runInPage(IDLE_STATE_FN, page([hiddenForm, composerForm({ extra: [h('button', { type: 'button', 'aria-label': 'Stop' })] })], conversation), [conversation]);
+  assert.equal(stopping.stopVisible, true);
+  assert.equal(stopping.idleReady, false);
 });

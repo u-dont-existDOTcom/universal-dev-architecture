@@ -16,7 +16,7 @@ const STOP_GENERATION_FN = `function(expectedUrl) {
   return { urlMismatch: false, stopped: true, stopControlObserved: true };
 }`;
 
-const IDLE_STATE_FN = `function(expectedUrl) {
+export const IDLE_STATE_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
       const url = new URL(value);
@@ -34,7 +34,11 @@ const IDLE_STATE_FN = `function(expectedUrl) {
     'button[aria-label="Send message"]',
     'button[data-testid="fruitjuice-send-button"]',
   ].flatMap((selector) => [...document.querySelectorAll(selector)]).find(visible) || null;
-  const composer = document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]');
+  // The first visible composer, form-scoped September 2026 textbox first: a hidden one must not shadow the active one.
+  const composer = [
+    'form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]',
+    '#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], textarea[placeholder]',
+  ].flatMap((selector) => [...document.querySelectorAll(selector)]).find(visible) || null;
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   return {
