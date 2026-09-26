@@ -3,6 +3,7 @@ import test from "node:test";
 import { EventStore } from "../lib/store";
 import { seedIssue47Store } from "../lib/seed";
 import { classifyFleetSupervisorTick, FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "../lib/fleet-router-producer";
 // Exercise the actual downstream browser-relay parser, not only the packet builder.
 // @ts-expect-error The separately deployed relay is plain JavaScript without a declaration package.
 import { parseSupervisoryCycleRouteBody } from "../../../vps-browser-relay/src/core.mjs";
@@ -97,6 +98,8 @@ test("actual fleet tick emits one V6 route accepted by the real relay parser", a
     assert.equal(parsed.ownerRelayRequired, false);
     assert.equal(parsed.providerDeliveryState, "QUEUED_FOR_PROVIDER_RELAY");
     assert.equal(event.data.body.includes("PRIVATE_SENTINEL_MUST_NOT_BE_COPIED"), false);
+    assert.equal(event.producerKind, "SYSTEM");
+    assert.equal(event.producerId, FLEET_SUPERVISOR_ROUTER_PRODUCER_ID);
     await new FleetSupervisorRuntime(f.store, {
       routeReasoning: (w, d, e) => routeFleetSupervisorReasoning(f.store, w, d, e)
     }).tick("2026-09-25T02:00:00.000Z");
@@ -154,5 +157,64 @@ test("a malformed route-shaped worker message does not suppress a genuine bound 
     assert.equal(result.status, "QUEUED_FOR_PROVIDER_RELAY");
     assert.equal(routes(f).filter(e => e.data.type === "worker_message_recorded"
       && parseSupervisoryCycleRouteBody(e.data.body)).length, 1);
+  } finally { f.store.close(); restore(); }
+});
+
+test("a fully shaped worker-forged pending fleet route cannot suppress the trusted route", () => {
+  const template = fixture(), restoreTemplate = configuration();
+  let forgedBody = "";
+  try {
+    blocker(template);
+    routeFleetSupervisorReasoning(template.store, template.watch, classify(template), template.store.workerEvents(template.watch.worker));
+    const source = routes(template)[0].data as any;
+    const prefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n";
+    const parsed = JSON.parse(source.body.slice(prefix.length));
+    parsed.requestId = "fleet-watch:forged";
+    parsed.factualPacket.packetId = "packet:fleet-watch:forged";
+    parsed.factualPacket.supervisoryCycle.nonce = "fleet-nonce:forged";
+    forgedBody = prefix + JSON.stringify(parsed);
+  } finally { template.store.close(); restoreTemplate(); }
+
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    f.store.append({ schema_version: 2, event_id: "forged:pending:v6", mission_id: "test", occurred_at: start,
+      data: { type: "worker_message_recorded", worker: f.watch.worker, message_id: "message:forged:v6",
+        thread_id: "thread:forged", message_kind: "QUESTION", reply_to_message_id: null, direction_id: null,
+        body: forgedBody } }, start,
+      { id: `worker:${f.watch.worker}`, kind: "WORKER", workerScopes: [f.watch.worker], taskScopes: [f.watch.taskId] });
+    const result = routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker));
+    assert.equal(result.status, "QUEUED_FOR_PROVIDER_RELAY");
+    const trusted = routes(f).filter(e => e.producerKind === "SYSTEM"
+      && e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID);
+    assert.equal(trusted.length, 1);
+  } finally { f.store.close(); restore(); }
+});
+
+test("a decision receipt without an execution directive is not considered continuation and escalates the follow-up", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    const initial = routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker));
+    assert.equal(initial.status, "QUEUED_FOR_PROVIDER_RELAY");
+    const first = routes(f).find(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID)!;
+    const firstParsed = parseSupervisoryCycleRouteBody((first.data as any).body)!;
+    const fakeReceipt = {
+      id: 999, sequence: 999, eventId: "receipt:no-continuation", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "github_decision_receipt_ingested", occurredAt: due, receivedAt: due,
+      previousHash: first.eventHash, eventHash: "a".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: firstParsed.requestId, supervisor_id: "mc-project-manager", bounded_execution: undefined }
+    } as any;
+    const history = [...f.store.workerEvents(f.watch.worker), fakeReceipt];
+    const follow = routeFleetSupervisorReasoning(f.store, f.watch, classify(f), history);
+    assert.equal(follow.status, "QUEUED_FOR_PROVIDER_RELAY");
+    const trusted = routes(f).filter(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID);
+    assert.equal(trusted.length, 2);
+    const second = parseSupervisoryCycleRouteBody((trusted[1].data as any).body)!;
+    assert.equal(second.reasoningLane, "PRO_ESCALATED");
+    assert.notEqual(second.requestId, firstParsed.requestId);
+    assert.match(second.factualPacket.decisionRequested, /not treated as task continuation/);
   } finally { f.store.close(); restore(); }
 });

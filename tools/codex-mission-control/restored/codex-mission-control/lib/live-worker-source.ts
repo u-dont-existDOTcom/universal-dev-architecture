@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { z } from "zod";
-import { sha256 } from "./canonical";
+import { canonicalJson, sha256 } from "./canonical";
 import { journalExecutionObservation } from "./journal-execution-observation";
 import type { MissionControlEventV2 } from "./schema";
 import type { EventStore } from "./store";
@@ -42,14 +42,18 @@ export function observeLiveWorkerSource(
   const git = (args: string[]) => execFileSync("git", ["-C", worktreePath, ...args], { encoding: "utf8" }).trim();
   const head = git(["rev-parse", "HEAD"]);
   const branch = git(["branch", "--show-current"]) || `DETACHED:${head.slice(0, 12)}`;
+  const sanitizedContent = observation ? canonicalJson({
+    worker: state.worker, task_id: config.taskId, phase: state.phase, summary: state.summary,
+    blocker_code: observation.blockerCode,
+  }) : bytes.toString("utf8");
   return {
     type: "live_worker_evidence_observed",
     worker: state.worker,
     source_kind: "READ_ONLY_FILE_GIT",
-    source_path: sourcePath,
+    source_path: observation ? "private://journal-execution-state" : sourcePath,
     observed_at: observedAt,
-    file_modified_at: stat.mtime.toISOString(),
-    content_sha256: sha256(bytes.toString("utf8")),
+    file_modified_at: observation ? observedAt : stat.mtime.toISOString(),
+    content_sha256: sha256(sanitizedContent),
     branch,
     head,
     directive_id: state.directiveId,
@@ -73,10 +77,26 @@ export function startLiveWorkerSourceWatcher(
     polling = true;
     try {
       const observed = observeLiveWorkerSource(config);
-      const identity = `${observed.content_sha256}:${observed.file_modified_at}:${observed.head}:${config.sourceFormat ?? "MISSION_CONTROL_V1"}:${config.taskId ?? ""}`;
+      const journal = config.sourceFormat === "JOURNAL_EXECUTION_V1";
+      const latestJournal = journal ? [...store.workerEvents(observed.worker)].reverse().find(event =>
+        event.data.type === "live_worker_evidence_observed"
+        && event.data.task_id === config.taskId
+        && event.data.source_path === observed.source_path) : undefined;
+      if (latestJournal?.data.type === "live_worker_evidence_observed"
+        && latestJournal.data.content_sha256 === observed.content_sha256
+        && latestJournal.data.head === observed.head
+        && latestJournal.data.phase === observed.phase
+        && latestJournal.data.summary === observed.summary
+        && latestJournal.data.blocker_code === observed.blocker_code) {
+        lastIdentity = `journal:${latestJournal.eventId}`;
+        return;
+      }
+      const identity = journal
+        ? `${observed.content_sha256}:${observed.head}:${config.taskId}:${latestJournal?.eventId ?? "INITIAL"}`
+        : `${observed.content_sha256}:${observed.file_modified_at}:${observed.head}:${config.sourceFormat ?? "MISSION_CONTROL_V1"}:${config.taskId ?? ""}`;
       if (identity === lastIdentity) return;
       const eventId = `live-source:${observed.worker}:${sha256(identity).slice(0, 32)}`;
-      // Reopening the daemon is not a new observation of changed source bytes.
+      // Reopening the daemon is not a new observation of unchanged control state.
       if (store.eventByEventId(eventId)) { lastIdentity = identity; return; }
       const event = store.append({
         schema_version: 2,
