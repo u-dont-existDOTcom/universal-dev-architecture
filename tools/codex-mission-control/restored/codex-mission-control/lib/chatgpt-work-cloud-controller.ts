@@ -48,7 +48,59 @@ export interface WorkCloudProductMutationBridge {
 export interface WorkCloudAppExecutorOptions {
   resolutionAttempts?: number;
   resolutionDelayMs?: number;
+  /** Upper bound on read_thread calls in one resolution (default 12). */
+  maxResolutionReads?: number;
+  /** Threads already proven not to be this dispatch's Work thread (their first prompt is immutable). */
+  knownNonMatchingThreads?: { has(threadId: string): boolean; add(threadId: string): void };
+  /**
+   * Threads that were listed but not yet readable (read failed or no first prompt). They are tried after
+   * unread candidates, least recently deferred first, so a bounded scan rotates through the whole list
+   * across cycles instead of spending its cap on the same unreadable threads.
+   */
+  deferredThreads?: DeferredThreadQueue;
+  /**
+   * Threads whose first prompt matched this dispatch, kept until a scan of every eligible candidate
+   * completes within the read cap; only then is a single match bound (two or more are ambiguous).
+   */
+  provisionalMatches?: ThreadIdSet;
   sleep?: (milliseconds: number) => Promise<void>;
+}
+
+export interface ThreadIdSet {
+  has(threadId: string): boolean;
+  add(threadId: string): void;
+  ids(): string[];
+}
+
+function inMemoryThreadIdSet(): ThreadIdSet {
+  const ids = new Set<string>();
+  return { has: (threadId) => ids.has(threadId), add: (threadId) => { ids.add(threadId); }, ids: () => [...ids] };
+}
+
+export interface DeferredThreadQueue {
+  /** Position in deferral order (lower = deferred longer ago), or -1 when not deferred. */
+  rank(threadId: string): number;
+  /** Mark unreadable now; moves the thread to the back of the order. */
+  defer(threadId: string): void;
+  /** Forget a thread once it has been read. */
+  clear(threadId: string): void;
+}
+
+export function inMemoryDeferredThreads(initial: readonly string[] = []): DeferredThreadQueue & { ids(): string[] } {
+  const order = [...new Set(initial)];
+  return {
+    rank: (threadId) => order.indexOf(threadId),
+    defer: (threadId) => {
+      const index = order.indexOf(threadId);
+      if (index !== -1) order.splice(index, 1);
+      order.push(threadId);
+    },
+    clear: (threadId) => {
+      const index = order.indexOf(threadId);
+      if (index !== -1) order.splice(index, 1);
+    },
+    ids: () => [...order],
+  };
 }
 
 /**
@@ -58,6 +110,10 @@ export interface WorkCloudAppExecutorOptions {
 export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   private readonly attempts: number;
   private readonly resolutionDelayMs: number;
+  private readonly maxResolutionReads: number;
+  private readonly knownNonMatching: WorkCloudAppExecutorOptions["knownNonMatchingThreads"] | null;
+  private readonly deferred: DeferredThreadQueue;
+  private readonly provisional: ThreadIdSet;
   private readonly sleep: (milliseconds: number) => Promise<void>;
 
   constructor(
@@ -67,6 +123,10 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   ) {
     this.attempts = options.resolutionAttempts ?? 20;
     this.resolutionDelayMs = options.resolutionDelayMs ?? 1_000;
+    this.maxResolutionReads = options.maxResolutionReads ?? 12;
+    this.knownNonMatching = options.knownNonMatchingThreads ?? null;
+    this.deferred = options.deferredThreads ?? inMemoryDeferredThreads();
+    this.provisional = options.provisionalMatches ?? inMemoryThreadIdSet();
     this.sleep = options.sleep ?? (async (milliseconds) => { await delay(milliseconds); });
   }
 
@@ -142,29 +202,91 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     requestedAt: string;
     projectId: string | null;
   }): Promise<WorkCloudExecutorOutcome> {
+    // Live finding 2026-09-25: re-reading every candidate on every attempt and every watcher cycle drove
+    // ChatGPT to "Too many requests", after which no read succeeded and the dispatch could never resolve.
+    // Each thread is now read at most once per resolution, proven non-matches are remembered, reads are
+    // capped, and a rate-limit response ends the attempt immediately (still PENDING_SETUP, never a re-create).
+    // Unreadable candidates are deferred behind unread ones so the capped scan rotates through the list,
+    // and a match is bound only after a scan of every eligible candidate completes within the cap.
+    const pending = { kind: "PENDING_SETUP" as const, clientThreadId: input.clientThreadId };
+    const checked = new Set<string>();
+    // Candidates tried and left unresolved in this resolution: not re-read until a later cycle (repeat
+    // reads within seconds are what trip ChatGPT's rate limit), and they block binding until ruled out.
+    const unresolvedThisResolution = new Set<string>();
+    let reads = 0;
     for (let attempt = 0; attempt < this.attempts; attempt += 1) {
-      const listed = await this.read("list_threads", {});
-      if (chatGptSourceUnavailable(listed)) return { kind: "PENDING_SETUP", clientThreadId: input.clientThreadId };
-      const matchingIds: string[] = [];
-      for (const candidate of chatGptCandidates(listed, input.requestedAt, input.projectId)) {
+      let listed: unknown;
+      try {
+        listed = await this.read("list_threads", { limit: 50 });
+      } catch (error) {
+        if (isRateLimited(error)) return pending;
+        throw error;
+      }
+      if (chatGptSourceUnavailable(listed)) return pending;
+      const eligible = chatGptCandidates(listed, input.requestedAt, input.projectId)
+        .filter((candidate) => !checked.has(candidate.threadId)
+          && !unresolvedThisResolution.has(candidate.threadId)
+          && !this.knownNonMatching?.has(candidate.threadId)
+          && !this.provisional.has(candidate.threadId));
+      const unread = eligible.filter((candidate) => this.deferred.rank(candidate.threadId) === -1);
+      const deferred = eligible
+        .filter((candidate) => this.deferred.rank(candidate.threadId) !== -1)
+        .sort((left, right) => this.deferred.rank(left.threadId) - this.deferred.rank(right.threadId));
+      let capped = false;
+      // Every eligible candidate must be ruled out (read with a first prompt) before a match is bound: an
+      // unreadable thread could carry the same prompt.
+      for (const candidate of [...unread, ...deferred]) {
+        if (reads >= this.maxResolutionReads) {
+          // Out of reads before every eligible candidate was inspected: a duplicate could still be unread,
+          // so nothing is bound this resolution. Matches found so far persist as provisional.
+          capped = true;
+          break;
+        }
+        reads += 1;
         try {
           const read = await this.readExactThread(candidate.threadId);
-          if (surfaceKind(read) !== "chatgpt" || directThreadId(read) !== candidate.threadId) continue;
+          const surface = surfaceKind(read);
+          if (surface !== "chatgpt" && surface !== "unknown" && directThreadId(read) === candidate.threadId) {
+            // A readable thread on another surface can never be this dispatch's Work thread.
+            this.deferred.clear(candidate.threadId);
+            this.knownNonMatching?.add(candidate.threadId);
+            checked.add(candidate.threadId);
+            continue;
+          }
+          if (surface !== "chatgpt" || directThreadId(read) !== candidate.threadId) {
+            unresolvedThisResolution.add(candidate.threadId);
+            this.deferred.defer(candidate.threadId);
+            continue;
+          }
           const observedPrompt = initialUserPrompt(read);
-          if (observedPrompt !== null && promptReadbackMatches(input.prompt, observedPrompt)) matchingIds.push(candidate.threadId);
-        } catch {
-          // A listed provider candidate may not yet be readable. Retry the
-          // source-bound resolver; never infer identity from its title.
+          if (observedPrompt === null) {
+            unresolvedThisResolution.add(candidate.threadId);
+            this.deferred.defer(candidate.threadId);
+            continue;
+          }
+          checked.add(candidate.threadId);
+          this.deferred.clear(candidate.threadId);
+          if (promptReadbackMatches(input.prompt, observedPrompt)) this.provisional.add(candidate.threadId);
+          else this.knownNonMatching?.add(candidate.threadId);
+        } catch (error) {
+          if (isRateLimited(error)) return pending;
+          // A listed provider candidate may not yet be readable. Defer it behind unread candidates and
+          // retry the source-bound resolver later; never infer identity from its title.
+          unresolvedThisResolution.add(candidate.threadId);
+          this.deferred.defer(candidate.threadId);
         }
       }
-      const exact = [...new Set(matchingIds)];
+      const exact = [...new Set(this.provisional.ids())];
       if (exact.length > 1) {
         return { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" };
       }
+      if (capped) return pending;
+      // An unresolved candidate cannot be retried before a later cycle, so this resolution cannot bind.
+      if (unresolvedThisResolution.size > 0) return pending;
       if (exact.length === 1) return this.verifyExactThread(exact[0]);
       if (attempt + 1 < this.attempts) await this.sleep(this.resolutionDelayMs);
     }
-    return { kind: "PENDING_SETUP", clientThreadId: input.clientThreadId };
+    return pending;
   }
 
   private async readExactThread(threadId: string): Promise<unknown> {
@@ -759,6 +881,11 @@ function temporaryThreadId(value: unknown): string | null {
     if (id && isTemporaryThreadId(id)) return id;
   }
   return null;
+}
+
+function isRateLimited(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /too many requests|rate.?limit|\b429\b/i.test(message);
 }
 
 function isTemporaryThreadId(id: string): boolean {

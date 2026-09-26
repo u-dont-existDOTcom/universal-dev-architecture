@@ -36,7 +36,7 @@ test('CDP disconnect after click dispatch is reported as crossed uncertainty', a
   assert.equal(caught.relayStage, 'CLICK_DISPATCHED');
   assert.equal(caught.preBoundaryAbortConfirmed, undefined);
   assert.equal(transport.clickDispatches, 1);
-  assert.equal(transport.callFunctionCount, 4);
+  assert.equal(transport.callFunctionCount, 5);
 });
 
 function controlledClickDisconnectTransport() {
@@ -57,7 +57,7 @@ function controlledClickDisconnectTransport() {
       const message = JSON.parse(raw);
       if (message.method === 'Runtime.callFunctionOn') {
         state.callFunctionCount += 1;
-        if (state.callFunctionCount === 4) {
+        if (state.callFunctionCount === 5) {
           state.clickDispatches += 1;
           queueMicrotask(() => this.emit('close', {}));
           return;
@@ -81,6 +81,7 @@ function controlledClickDisconnectTransport() {
           { currentUrl: 'https://chatgpt.com/', urlMismatch: false, composerFound: true, loginRequired: false },
           { ok: true, alreadyExact: true },
           { exact: true, length: 'bounded synthetic request'.length },
+          { ok: true, targetBound: false, assistantContentObserved: false },
         ];
         this.emit('message', { data: JSON.stringify({
           id: message.id,

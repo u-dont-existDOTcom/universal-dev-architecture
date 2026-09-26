@@ -10,6 +10,9 @@ import {
   connectCodexAppServerMutationBridge,
   connectCodexDriverMutationBridge,
   connectNativeAppToolClient,
+  inMemoryDeferredThreads,
+  type DeferredThreadQueue,
+  type ThreadIdSet,
   type WorkCloudAppToolClient,
   type WorkCloudProductMutationBridge,
   writePrivateWorkThreadLocator,
@@ -79,7 +82,11 @@ try {
     observedAt,
     mutationBridge !== null,
   );
-  executor = new NativeChatGptWorkCloudExecutor(appClient, mutationBridge);
+  executor = new NativeChatGptWorkCloudExecutor(appClient, mutationBridge, {
+    knownNonMatchingThreads: privateThreadIdSet(`${absoluteRequestPath}.nonmatching.json`),
+    deferredThreads: privateDeferredThreads(`${absoluteRequestPath}.deferred.json`),
+    provisionalMatches: privateThreadIdSet(`${absoluteRequestPath}.matches.json`),
+  });
 } catch (error) {
   setupError = error instanceof Error ? error.message : "Native app read/verification setup failed.";
 }
@@ -139,6 +146,52 @@ main().catch((error: unknown) => {
   process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 });
+
+// Per-dispatch set of thread ids (proven non-matches, or provisional prompt matches), kept beside the
+// private request file (same 0700 directory, file mode 0600) so each thread is read at most once.
+function privateThreadIdSet(file: string): ThreadIdSet {
+  let ids = new Set<string>();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (Array.isArray(parsed)) ids = new Set(parsed.filter((id): id is string => typeof id === "string").slice(-1_000));
+  } catch { /* absent or unreadable: start empty */ }
+  return {
+    has: (threadId) => ids.has(threadId),
+    ids: () => [...ids],
+    add: (threadId) => {
+      if (ids.has(threadId)) return;
+      ids.add(threadId);
+      const temp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(temp, JSON.stringify([...ids].slice(-1_000)), { mode: 0o600 });
+      fs.renameSync(temp, file);
+    },
+  };
+}
+
+// Per-dispatch deferral order of listed-but-unreadable threads (same private directory and mode), so the
+// capped resolver scan rotates across cycles instead of re-reading the same unreadable threads.
+function privateDeferredThreads(file: string): DeferredThreadQueue {
+  let initial: string[] = [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (Array.isArray(parsed)) initial = parsed.filter((id): id is string => typeof id === "string").slice(-500);
+  } catch { /* absent or unreadable: start empty */ }
+  const queue = inMemoryDeferredThreads(initial);
+  const persist = () => {
+    const temp = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(temp, JSON.stringify(queue.ids().slice(-500)), { mode: 0o600 });
+    fs.renameSync(temp, file);
+  };
+  return {
+    rank: (threadId) => queue.rank(threadId),
+    defer: (threadId) => { queue.defer(threadId); persist(); },
+    clear: (threadId) => {
+      if (queue.rank(threadId) === -1) return;
+      queue.clear(threadId);
+      persist();
+    },
+  };
+}
 
 function argument(name: string): string | null {
   const index = process.argv.indexOf(name);

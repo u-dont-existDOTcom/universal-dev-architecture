@@ -603,6 +603,104 @@ export function hasConnectionInterruptedNudgeCue(value) {
     || normalized.includes('connexion interrompue');
 }
 
+export const RESET_GENERATION_PROGRESS_FN = `function(targetAssistantKey = null) {
+  const roleNodes = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
+  const containerFor = (roleNode) => roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode;
+  const keyFor = (roleNode, container) => roleNode.getAttribute('data-message-id')
+    || container.getAttribute('data-turn-id')
+    || container.getAttribute('data-testid')
+    || container.id
+    || null;
+  const prior = globalThis.__missionControlGenerationProgress;
+  if (prior?.observer && typeof prior.observer.disconnect === 'function') prior.observer.disconnect();
+  const baselineAssistantTurns = new WeakSet(roleNodes.map(containerFor));
+  let target = null;
+  if (targetAssistantKey !== null) {
+    for (const roleNode of roleNodes) {
+      const container = containerFor(roleNode);
+      if (keyFor(roleNode, container) === targetAssistantKey) { target = container; break; }
+    }
+    if (!target) return { ok: false, reason: 'TARGET_ASSISTANT_TURN_MISSING', assistantContentObserved: false };
+  }
+  const state = {
+    counter: 0,
+    lastMutationAtMs: null,
+    outputBegun: false,
+    target,
+    baselineAssistantTurns,
+    observer: null,
+  };
+  const markProgress = () => {
+    state.counter += 1;
+    state.lastMutationAtMs = Date.now();
+    state.outputBegun = true;
+  };
+  const findNewAssistantTurn = () => {
+    const currentRoleNodes = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
+    for (let index = currentRoleNodes.length - 1; index >= 0; index -= 1) {
+      const container = containerFor(currentRoleNodes[index]);
+      if (!baselineAssistantTurns.has(container)) return container;
+    }
+    return null;
+  };
+  // Only response content counts as output. Progress is a new content surface appearing (surfaces present
+  // when the heartbeat is armed, as in a Retry of a rendered turn, are baseline), or new content inside a
+  // surface: character data, or added child nodes. Clearing a surface (removals only) and anything outside
+  // the surfaces, such as status indicators or the Retry control, is not progress, so busy UI cannot hold
+  // off stall recovery. Structure only; no text is read.
+  const surfaceSelector = '.markdown, [class*="markdown"], [class*="prose"]';
+  const contentSurfaces = (current) => {
+    if (typeof current?.querySelectorAll === 'function') return [...current.querySelectorAll(surfaceSelector)];
+    const single = current?.querySelector?.(surfaceSelector);
+    return single ? [single] : [];
+  };
+  const baselineSurfaces = new WeakSet(
+    (target ? contentSurfaces(target) : []).filter((surface) => surface && typeof surface === 'object'),
+  );
+  const isResponseProgress = (mutation, current) => {
+    const surfaces = contentSurfaces(current).filter((surface) => surface && typeof surface === 'object');
+    if (surfaces.length === 0) return false;
+    const inside = (node) => surfaces.some((surface) => node === surface
+      || (typeof surface.contains === 'function' && surface.contains(node)));
+    const addsNewSurface = (node) => surfaces.some((surface) => !baselineSurfaces.has(surface)
+      && (node === surface || (node?.nodeType === 1 && typeof node.contains === 'function' && node.contains(surface))));
+    if ((mutation.addedNodes || []).some(addsNewSurface)) return true;
+    if (mutation.type === 'characterData') return inside(mutation.target);
+    return (mutation.addedNodes?.length ?? 0) > 0 && inside(mutation.target);
+  };
+  const observer = new MutationObserver((mutations) => {
+    let current = state.target;
+    if (!current) {
+      current = findNewAssistantTurn();
+      if (current) state.target = current;
+    }
+    if (!current) return;
+    if (mutations.some((mutation) => isResponseProgress(mutation, current))) markProgress();
+  });
+  const root = document.body || document.documentElement;
+  if (!root) return { ok: false, reason: 'DOCUMENT_ROOT_MISSING', assistantContentObserved: false };
+  observer.observe(root, { subtree: true, childList: true, characterData: true });
+  state.observer = observer;
+  globalThis.__missionControlGenerationProgress = state;
+  return { ok: true, targetBound: Boolean(target), assistantContentObserved: false };
+}`;
+
+export function advanceGenerationProgressTracker(tracker, progress, observedAtMs) {
+  if (!progress?.outputBegun || !Number.isInteger(progress.counter) || progress.counter < 1) return tracker;
+  if (tracker.outputBegun !== true || tracker.counter !== progress.counter) {
+    return { outputBegun: true, counter: progress.counter, lastAdvancedAtMs: observedAtMs };
+  }
+  return tracker;
+}
+
+export function generationProgressIsStalled(tracker, state, observedAtMs, stallMs) {
+  return tracker.outputBegun === true
+    && Number.isFinite(tracker.lastAdvancedAtMs)
+    && state?.generating === true
+    && state?.stopVisible === true
+    && observedAtMs - tracker.lastAdvancedAtMs >= stallMs;
+}
+
 const CLICK_SEND_FN = `function() {
   const selectors = [
     'button[data-testid="send-button"]',
@@ -645,6 +743,15 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
   const current = new URL(location.href);
   const creatingConversation = expectedUrl === 'https://chatgpt.com/';
   const conversationAssigned = creatingConversation && Boolean(normalizedCurrent);
+  const progress = globalThis.__missionControlGenerationProgress;
+  const generationProgress = progress && typeof progress === 'object'
+    ? {
+        outputBegun: progress.outputBegun === true,
+        counter: Number.isInteger(progress.counter) ? progress.counter : 0,
+        lastMutationAtMs: Number.isFinite(progress.lastMutationAtMs) ? progress.lastMutationAtMs : null,
+        assistantContentObserved: false,
+      }
+    : { outputBegun: false, counter: 0, lastMutationAtMs: null, assistantContentObserved: false };
   return {
     currentUrl: location.href,
     conversationUrl: normalizedCurrent,
@@ -655,6 +762,7 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
     stopVisible,
     systemsThinkingMoreThanUsual,
     connectionInterrupted,
+    generationProgress,
     composerVisible,
     composerDisabled,
     generating: conversationAssigned || stopVisible || !composerVisible || composerDisabled,
@@ -730,12 +838,13 @@ const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
 }`;
 
 export class ChromeDevtoolsBrowser {
-  constructor({ host = '127.0.0.1', port = 9222, accountEmail = null, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, generationTimeoutMs = 900_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
+  constructor({ host = '127.0.0.1', port = 9222, accountEmail = null, pageReadyTimeoutMs = 90_000, submitTimeoutMs = 30_000, generationTimeoutMs = 900_000, progressStallMs = 120_000, fetchImpl = fetch, WebSocketImpl = WebSocket }) {
     this.baseUrl = `http://${host}:${port}`;
     this.accountEmail = accountEmail;
     this.pageReadyTimeoutMs = pageReadyTimeoutMs;
     this.submitTimeoutMs = submitTimeoutMs;
     this.generationTimeoutMs = generationTimeoutMs;
+    this.progressStallMs = progressStallMs;
     this.fetchImpl = fetchImpl;
     this.WebSocketImpl = WebSocketImpl;
   }
@@ -1142,6 +1251,8 @@ export class ChromeDevtoolsBrowser {
 
         relayStage = 'READY_TO_CLICK';
         if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
+        const progressReset = await client.callFunction(RESET_GENERATION_PROGRESS_FN, [null]);
+        if (!progressReset?.ok) throw new Error(`Generation progress heartbeat could not be armed: ${progressReset?.reason ?? 'UNKNOWN'}.`);
         // Once the RPC is dispatched a lost reply cannot prove that no click occurred.
         relayStage = 'CLICK_DISPATCHED';
         const send = await client.callFunction(CLICK_SEND_FN, []);
@@ -1221,6 +1332,7 @@ export class ChromeDevtoolsBrowser {
       let consecutiveIdle = 0;
       let completionUrl = normalized;
       let conversationUrlCanonicalized = false;
+      let progressTracker = { outputBegun: false, counter: null, lastAdvancedAtMs: null };
       const completed = await waitFor(async () => {
         const state = await client.callFunction(GENERATION_STATE_FN, [completionUrl]);
         if (state?.urlMismatch) {
@@ -1236,6 +1348,11 @@ export class ChromeDevtoolsBrowser {
         if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
         if (state?.systemsThinkingMoreThanUsual) return { ...state, recoverySignal: 'SYSTEMS_THINKING_MORE_THAN_USUAL' };
         if (state?.connectionInterrupted) return { ...state, recoverySignal: 'CONNECTION_INTERRUPTED' };
+        const observedAtMs = Date.now();
+        progressTracker = advanceGenerationProgressTracker(progressTracker, state?.generationProgress, observedAtMs);
+        if (generationProgressIsStalled(progressTracker, state, observedAtMs, this.progressStallMs)) {
+          return { ...state, recoverySignal: 'PROGRESS_HEARTBEAT_STALLED' };
+        }
         consecutiveIdle = state?.idleReady ? consecutiveIdle + 1 : 0;
         return consecutiveIdle >= 3 ? state : false;
       }, this.generationTimeoutMs, 500, 'ChatGPT generation did not reach a stable complete UI state.');
@@ -1247,6 +1364,11 @@ export class ChromeDevtoolsBrowser {
       if (completed.recoverySignal === 'CONNECTION_INTERRUPTED') {
         const error = new Error('CHATGPT_CONNECTION_INTERRUPTED: visible connection-interrupted system notice detected.');
         error.code = 'CHATGPT_CONNECTION_INTERRUPTED';
+        throw error;
+      }
+      if (completed.recoverySignal === 'PROGRESS_HEARTBEAT_STALLED') {
+        const error = new Error('CHATGPT_PROGRESS_HEARTBEAT_STALLED: assistant output began but structural progress stopped while generation remained active.');
+        error.code = 'CHATGPT_PROGRESS_HEARTBEAT_STALLED';
         throw error;
       }
       return {
@@ -1303,6 +1425,8 @@ export class ChromeDevtoolsBrowser {
         if (observation?.urlMismatch) throw new Error(`Chat target changed before failed continue Retry: ${observation.currentUrl}`);
         validateContinueRetryBinding(anchor, binding, observation);
         if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
+        const progressReset = await client.callFunction(RESET_GENERATION_PROGRESS_FN, [binding.failedAssistantTurnKey]);
+        if (!progressReset?.ok) throw new Error(`Generation progress heartbeat could not be armed for Retry: ${progressReset?.reason ?? 'UNKNOWN'}.`);
         const clicked = await client.callFunction(CLICK_FAILED_CONTINUE_RETRY_FN, [normalized, binding]);
         if (!clicked?.ok) throw new Error(`CONTINUE_RETRY_CONTROL_UNAVAILABLE: ${clicked?.reason ?? 'UNKNOWN'}.`);
         relayStage = 'CLICKED';

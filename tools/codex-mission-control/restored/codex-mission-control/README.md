@@ -280,6 +280,7 @@ Dashboard-facing Next.js BFF:
 - `POST /api/workers/:worker/supervisor-chat`
 - `POST /api/workers/:worker/messages` (same-origin owner UI)
 - `POST /api/workers/:worker/source-review` (owner-authenticated pre-Work source re-review routed through the existing V6 supervisor channel)
+- `POST /api/github/decision-receipts/reconcile` (owner-authenticated, bodyless trigger for one existing GitHub decision-reconciliation pass; returns bounded non-secret result metadata only)
 - `GET /api/worker-channel/:worker/outbox` (authenticated worker)
 - `POST /api/worker-channel/:worker/events` (authenticated worker)
 - `POST /api/worker-channel/:worker/admission` (authenticated bounded-execution authorization; version 3 requests require an exact source-bound Work profile)
@@ -298,6 +299,8 @@ Daemon:
 - `GET|POST /events`
 - `GET /events/stream`
 - `POST /viewed`
+- `POST /github/decision-receipts/reconcile` (internal-token plus owner/UI producer; bodyless trigger only)
+- `POST /github/decision-receipts` (SYSTEM-only canonical receipt ingestion; unchanged trust boundary)
 - `GET /workers/:worker`
 - `POST /workers/:worker/supervisor-chat`
 - `POST /workers/:worker/messages`

@@ -258,6 +258,27 @@ test("PENDING_SETUP replay re-resolves from original request time without a seco
   assert.equal(replayed.result.data.work_thread_id, "stable-after-pending");
 });
 
+test("an unchanged PENDING_SETUP re-resolution appends nothing (no event-log flood)", async () => {
+  const pending = await dispatchChatGptWorkCloud(input(), executor({
+    kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:pending-1",
+  }, []));
+  let resolves = 0;
+  const app: WorkCloudAppExecutor = {
+    createThread: async () => { throw new Error("must not create twice"); },
+    sendMessageToThread: async () => { throw new Error("not used"); },
+    resolveCreatedThread: async () => { resolves += 1; return { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:pending-1" }; },
+  };
+  const sink = {
+    getWorkCloudDispatch: async () => pending,
+    recordWorkerEvents: async () => { throw new Error("an unchanged pending result must not be re-recorded"); },
+  };
+  for (const at of ["2026-09-19T03:25:01.000Z", "2026-09-19T03:26:01.000Z", "2026-09-19T03:27:01.000Z"]) {
+    const replayed = await dispatchAndRecordChatGptWorkCloud(input(), app, sink, at);
+    assert.deepEqual(replayed, pending);
+  }
+  assert.equal(resolves, 3);
+});
+
 test("same dispatch id with different source-bound content fails closed", async () => {
   const completed = await dispatchChatGptWorkCloud(input(), executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, []));
   const calls: unknown[] = [];
