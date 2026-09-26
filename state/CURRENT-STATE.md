@@ -688,9 +688,10 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
   and ready.
 - Central stall (found 2026-09-26, `centralStall` in the evidence file): the
   central Mission Control daemon blocks for 15–17 s once a minute. Its
-  fleet-supervisor tick (default every 60 s) verifies the whole event chain
-  synchronously for each due watch, and the cost grows with the history. Even
-  the daemon's local `/live` stalls; the scheduler status call through the
+  fleet-supervisor tick (default every 60 s) reloads, parses and reprocesses
+  the watched worker's whole event history synchronously for each due watch
+  (the chain check itself is incremental), and the cost grows with that
+  history. Even the daemon's local `/live` stalls; the scheduler status call through the
   tunnel takes 8–18 s at that point of each minute. The secondary's health
   reports time out (10 s) in 2–3 minute runs about every 15 minutes, and a
   live send could fail mid-way the same way (in-band requests then go
@@ -699,8 +700,8 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
   non-secret). It is installed on the PRIMARY (relay inactive). On the
   SECONDARY it needs a relay restart that the assistant's execution
   environment refused, so it is owner-run (offered 20:52Z). Root fix: stop
-  re-verifying the whole chain on every tick (Mission Control change plus
-  central redeploy).
+  reprocessing the worker's whole history on every tick, or run the tick off
+  the request event loop (Mission Control change plus central redeploy).
 - Next: owner decides on the SECONDARY timeout and the central fix; on the
   next queued request, read the relay journal, read-only doctor and central
   ledger until a new submission is recorded or the failing step is identified.

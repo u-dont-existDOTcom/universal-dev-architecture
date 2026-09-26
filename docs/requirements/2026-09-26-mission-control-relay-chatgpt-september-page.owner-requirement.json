@@ -3,7 +3,7 @@
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "requirement_id": "REQ-MC-RELAY-CHATGPT-SEPT-2026-PAGE-20260926",
   "recorded_at": "2026-09-26T16:40:00Z",
-  "updated_at": "2026-09-26T20:52:53Z",
+  "updated_at": "2026-09-26T20:55:40Z",
   "timestamp_basis": "CURRENT_CHECK_TIME",
   "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
   "completion_allowed": false,
@@ -63,7 +63,7 @@
     "A committed window replacement or a ready doctor does not prove a send; only a new ledger submission does.",
     "An installed tree hash does not prove the running relay loaded it."
   ],
-  "next_direct_evidence": "Owner decides on the SECONDARY 30 s central-call timeout (prepared, owner-run) and on a Mission Control fix for the once-a-minute full-chain verification. When a worker next queues a supervision request, read the relay journal, read-only doctor and central ledger until a new provider submission is recorded or the step that failed closed is identified.",
+  "next_direct_evidence": "Owner decides on the SECONDARY 30 s central-call timeout (prepared, owner-run) and on a Mission Control fix for the once-a-minute fleet-supervisor tick that reprocesses the watched worker's whole history. When a worker next queues a supervision request, read the relay journal, read-only doctor and central ledger until a new provider submission is recorded or the step that failed closed is identified.",
   "verification_limits": [
     "Conversation pages did not render in the relay browser's spare tab ('Could not load this ChatGPT conversation'), so per-turn markers of the September 2026 page are unmapped; the relay's completion check uses the Stop control and composer state, and turn-marker-based stall/continue recovery stays inert until mapped.",
     "Selecting an app was not exercised during mapping (the owner approved opening menus without choosing); the Remove-pill form is taken from the page's own control strings and is first confirmed by the relay's live run, which fails closed on a mismatch."

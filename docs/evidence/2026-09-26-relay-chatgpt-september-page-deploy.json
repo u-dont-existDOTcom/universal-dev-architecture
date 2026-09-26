@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "checkpointId": "mission-control-relay-chatgpt-september-page-deploy-20260926",
-  "recordedAt": "2026-09-26T20:52:53Z",
+  "recordedAt": "2026-09-26T20:55:40Z",
   "timestampBasis": "CURRENT_CHECK_TIME",
   "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_LEASE_RENEWED_AWAITING_FIRST_QUEUED_REQUEST",
   "authority": {
@@ -160,14 +160,14 @@
       "Through the secondary's tunnel, the central scheduler status call takes 8.2-18.0 s at the same point of every minute and about 85 ms otherwise (sampled every 10 s, 20:28-20:43Z); unauthenticated requests to the Mission Control app stay fast throughout.",
       "The secondary's once-a-minute health report fails with CENTRAL_SCHEDULER_UNREACHABLE (10 s client timeout) in 2-3 minute runs about every 15 minutes: since 18:27Z on 2026-09-26, and also on 2026-09-25 00:05-06:18Z before the browser restart. The 15-minute rhythm is the health timer drifting through the once-a-minute stall; runs whose first central call lands early in a stall time out."
     ],
-    "cause": "daemon/server.ts starts the fleet supervisor with setInterval(MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS, default 60 s). FleetSupervisorRuntime.tick (lib/fleet-supervisor.ts) reads the worker's events and calls store.verifyChain(), a verification of the whole event chain, synchronously for each due watch. Its cost grows with the event history. The chain verification is the most likely blocking step; a profile of one tick would confirm it.",
+    "cause": "daemon/server.ts starts the fleet supervisor with setInterval(MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS, default 60 s). For each due watch, FleetSupervisorRuntime.tick (lib/fleet-supervisor.ts) reloads the watched worker's entire event history (store.workerEvents: a synchronous node:sqlite query that also parses and validates every event), then classifies the tick over those events and builds the JEV shadow state from them before its non-blocking OpenRouter call. All of that runs on the daemon's event loop, and its cost grows with the worker's history. The chain check itself (store.verifyChain) is incremental after the first run, so it is not the per-minute cost. A profile of one tick would show which step dominates.",
     "impactOnRelay": "The relay's central-scheduler client times out after 10 s (MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS default). A send makes several central calls (admission, validation, boundary, binding, outcome). A call that starts early in a stall times out. For an in-band request, a failure without a confirmed pre-boundary abort is recorded as AMBIGUOUS_AFTER_RESTART, and automatic replay is then prohibited.",
     "mitigation": {
       "change": "A systemd drop-in setting MC_RELAY_SUBMISSION_AUTHORITY_TIMEOUT_MS=30000 for the relay and health units. It is a non-secret setting, and the relay env file is not touched.",
       "primary": "Installed at about 2026-09-26T20:50Z; the relay there is inactive, so it takes effect only if the primary is ever started.",
       "secondary": "Not applied. The assistant's attempt (drop-in plus relay restart) was refused by its execution environment, so it is owner-run with a prepared script. The owner was told the command and the tradeoff at 2026-09-26T20:52Z."
     },
-    "rootFixProposal": "Stop re-verifying the entire chain on every fleet-supervisor tick. For example, verify once per tick instead of once per watch, and verify incrementally from the last verified head, keeping a periodic full verification; or move verification off the request event loop. This needs a Mission Control change and a central redeploy."
+    "rootFixProposal": "Stop re-reading and re-processing the watched worker's whole history on every fleet-supervisor tick. For example, keep the parsed events and the classification inputs incrementally from the last processed sequence, lengthen the poll, or run the tick off the request event loop (a worker thread or a separate process). This needs a Mission Control change and a central redeploy."
   },
   "leaseRenewalHistory": "Renewal was owner-run because the assistant's execution environment refused it; it completed before 2026-09-26T19:21:45Z (see leaseRenewalObserved)."
 }
