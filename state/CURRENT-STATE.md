@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-20
+Updated: 2026-09-26
 
 ## Goal
 
@@ -604,6 +604,8 @@ A repeated method-substitution failure exposed a coverage gap: generic policy an
 
 ## Relay-lock lifecycle fix ported to main — 2026-09-25
 
+> Historical. The host installation and verification this section calls for were completed on 2026-09-26; see "Relay-lock lifecycle fix live on both hosts — 2026-09-26" below. Its pending-deployment statements no longer apply.
+
 The owner-authorized relay-lock lifecycle repair (requirement
 `docs/requirements/2026-09-13-mission-control-relay-lock-lifecycle.owner-requirement.json`)
 was live-verified on PRIMARY on 2026-09-13 from source commit
@@ -634,3 +636,19 @@ at 6 hours, instead of a fixed 30 minutes that could kill a configured 60-minute
 Codex run or generation wait. `MC_RELAY_LOCK_MAX_MS` remains an explicit
 override and library helpers keep the 30-minute default. The relay units declare
 `SuccessExitStatus=143` because the lock lifecycle exits 143 on SIGTERM.
+
+## Relay-lock lifecycle fix live on both hosts — 2026-09-26
+
+- **Verified:** main `f37d7ca` (the port plus the review hardening above) is installed on PRIMARY and SECONDARY. Evidence: `docs/evidence/2026-09-26-relay-lock-deployment-both-hosts.json` and `.md`. The owner approved it at 03:08Z and said "finish secondary host" at 13:32Z. Checks on each host:
+  - the no-send lock lifecycle check passed (exit 143, metadata removed, guard kept, `lock-status` `FREE`);
+  - 34/34 focused tests passed on the host's Node 22;
+  - the relay unit declares `SuccessExitStatus=143`;
+  - protected state, central lease and queue, and the ledger digest were unchanged.
+- **PRIMARY:** stays fenced; its relay was not running and was not restarted.
+- **SECONDARY:** relay restarted at 13:46:40Z and holds the lock as its persistent service; health timer active.
+- **Rollback:** each host keeps a tree-verified `app.rollback.*` copy and a root-only unit backup.
+- **Unresolved, separate from the lock fix:** the secondary relay cannot send. Since 2026-09-25T06:18Z it reports that ChatGPT did not become ready in the automation-owned window.
+  - Central shows an OPEN `WINDOW_REPLACE` transition with `ready=false`.
+  - The read-only doctor reports `AUTOMATION_WINDOW_BINDING_MISMATCH`.
+  - No provider sends since 2026-09-24T19:48:57Z. The active lease (epoch 6) expires 2026-09-27T00:00Z.
+- **Next safe action:** an owner-authorized diagnosis of that readiness outage. Don't redeploy the relay or fail over to work around it.

@@ -1,0 +1,478 @@
+{
+  "schemaVersion": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "status": "DEPLOYED_AND_VERIFIED_BOTH_HOSTS",
+  "requirementId": "REQ-MC-RELAY-LOCK-LIFECYCLE-20260913",
+  "ownerApproval": {
+    "at": "2026-09-26T03:08Z",
+    "verbatim": "approved: deploy the Mission Control relay-lock fix from UDA main f37d7ca to the primary and secondary hosts, install the cloudbrowser services, run the no-send lock check, and restart the relay only if it was running",
+    "resumedAt": "2026-09-26T13:32Z",
+    "resumeVerbatim": "finish secondary host",
+    "note": "The secondary was paused at 03:41Z when the owner interrupted with an unrelated question and resumed on his instruction."
+  },
+  "deployedCommit": "f37d7ca7f9bd7049f7108bb03a32b0ca6629e879",
+  "release": {
+    "archiveSha256": "27dd3d1642020ad05545e3e1989a9d9ac4188802b4eaf85e639611634b53ec15",
+    "sourceTreeSha256": "05da392784afaebed59455d6aad9450b39f9a9c7a3674aaf038e042b81792b37",
+    "installedTreeSha256": "9ee6e35c72adc44f7aac433f87fb51719f96fbf17bb9dd0af4d2fc51a2871e41",
+    "installedTreeNote": "install-user-service.sh removes src/submission-scheduler-service.mjs and its test from the installed copy by design.",
+    "installedFileSha256": {
+      "src/state.mjs": "c32bb8fbfedbfde045bad4a33f3bde3ea8364639b692a31fb25d05152952c0ff",
+      "src/relay-lock.mjs": "d84cb03e7d8900a2fbda9828ad7b3fb4484b54bc87d01719a1dbb5834b5d1b65",
+      "src/relay-lock-watchdog.mjs": "1cfe7a491064cbddae968cd093ff2207492dadeafdf7d7afe6c9a13d5ce52ca7",
+      "bin/mc-chatgpt-relay.mjs": "d6f9a3685b7def5e33cad2dcb481f70f9281940b65cfea9990e9e782e3e547aa"
+    },
+    "installers": [
+      "scripts/install-user-service.sh (as cloudbrowser)",
+      "scripts/install-system-services.sh (root, MC_RELAY_NODE_BIN pinned to the host's Node 22)"
+    ],
+    "nodeVersion": "v22.23.2"
+  },
+  "maintenanceControls": [
+    "MC_RELAY_SUBMIT_ENABLED=0 and MC_RELAY_CAPABILITY_TEST_ENABLED=0 were set on every maintenance command; env files were not edited.",
+    "No relay.lock or relay.lock.guard was unlinked by hand; the old secondary relay removed its own metadata on SIGTERM, and the primary's dead legacy owner was recovered by the new code's guarded stale-owner path.",
+    "Old-version processes were stopped before switching versions; no mixed lock versions ran.",
+    "The read-only doctor (runtime.doctor({readOnly:true}), the health-timer path) was used on both hosts instead of the CLI doctor, whose browser check can replace the automation window."
+  ],
+  "primary": {
+    "role": "PRIMARY (standby, fenced)",
+    "window": {
+      "baselineAt": "2026-09-26T03:29:31Z",
+      "verifiedAt": "2026-09-26T03:39:36Z"
+    },
+    "fence": {
+      "before": "HOST_BROWSER_FENCED",
+      "after": "HOST_BROWSER_FENCED"
+    },
+    "unitsBefore": {
+      "relay": {
+        "active": "inactive",
+        "unitFileState": "disabled",
+        "successExitStatus": null
+      },
+      "browser": {
+        "active": "inactive",
+        "unitFileState": "masked",
+        "successExitStatus": null
+      },
+      "health": {
+        "active": "inactive",
+        "unitFileState": "static",
+        "successExitStatus": null
+      }
+    },
+    "unitsAfter": {
+      "relay": {
+        "active": "inactive",
+        "unitFileState": "disabled",
+        "successExitStatus": "143"
+      },
+      "browser": {
+        "active": "inactive",
+        "unitFileState": "masked",
+        "successExitStatus": null
+      },
+      "health": {
+        "active": "inactive",
+        "unitFileState": "static",
+        "successExitStatus": null
+      }
+    },
+    "lockBefore": {
+      "metadataPresent": true,
+      "ownerState": "DEAD",
+      "kernelGuard": "FREE"
+    },
+    "lockAfter": {
+      "metadataPresent": false,
+      "ownerState": "NONE",
+      "kernelGuard": "FREE"
+    },
+    "relayRunningBefore": false,
+    "relayRestarted": false,
+    "readOnlyDoctorBefore": {
+      "ok": false,
+      "errorName": "TypeError",
+      "errorCode": "ECONNREFUSED",
+      "error": "fetch failed"
+    },
+    "readOnlyDoctorAfter": {
+      "ok": false,
+      "errorName": "TypeError",
+      "errorCode": "ECONNREFUSED",
+      "error": "fetch failed"
+    },
+    "readOnlyDoctorUnchanged": true,
+    "readOnlyDoctorNote": "The fenced primary has no browser, so the read-only doctor fails its browser fetch before and after; that matches the fenced standby state.",
+    "noSendLockCheck": {
+      "focusedTests": "34/34",
+      "lockStatusBefore": {
+        "status": "STALE",
+        "reason": "OWNER_DEAD",
+        "kernelGuard": "FREE",
+        "ownerTask": null,
+        "ownerMode": null,
+        "ownerPidAlive": false
+      },
+      "helperMode": "BOUNDED_HELPER",
+      "lockStatusWhileHeld": {
+        "status": "HELD",
+        "reason": "OWNER_ALIVE",
+        "kernelGuard": "HELD",
+        "ownerTask": "maintenance:no-send-lock-lifecycle-check",
+        "ownerMode": "BOUNDED_HELPER",
+        "ownerPidAlive": true
+      },
+      "watchdogRan": true,
+      "helperExitAfterSigterm": 143,
+      "helperAndWatchdogGone": true,
+      "metadataRemoved": true,
+      "guardFileKept": true,
+      "lockStatusAfter": {
+        "status": "FREE",
+        "reason": null,
+        "kernelGuard": "FREE",
+        "ownerTask": null,
+        "ownerMode": null,
+        "ownerPidAlive": null
+      },
+      "providerSends": 0
+    },
+    "protectedStateUnchanged": true,
+    "protectedSha256": {
+      "state": "7526631ea8cbde4ad5ee4744434b17910595742b5975cad49ae1a416d91b6a6d",
+      "ownership": "320dff0f01d323a751d318f40f20eb7bb5c7a81f7b939a4a4ca48a34a9ceedee",
+      "chats": "7969aa63aa04058d8a0675de98a49909f3754a37377f101a92b629560d159ee0",
+      "provisions": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "provisionResults": "881c40622338459da84a3864d95d4fde2ea7e4e939444001ff50e6a54e5978c2",
+      "env": "c349b7155d6984812c11c16d53e58525e4307379c1a10e9645acdbe0d54ef832",
+      "browserEnv": "fb380c37cea7fa55aa8b162cf6d74b2a29be32606ca91629d2bfc403dae4ed47"
+    },
+    "centralBefore": {
+      "schedulerState": "ACTIVE_LEASE",
+      "ready": false,
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "lastSubmissionAt": "2026-09-24T19:48:57.810Z",
+      "leaseEpoch": 6,
+      "leaseActiveHostRole": "SECONDARY",
+      "leaseExpiresAt": "2026-09-27T00:00:00.000Z",
+      "relayTargetTransition": {
+        "state": "OPEN",
+        "operation": "WINDOW_REPLACE",
+        "bindingRevision": 16,
+        "begunAt": "2026-09-25T06:19:09.665Z"
+      },
+      "ledgerRecordCount": 510,
+      "ledgerRecordsSha256": "efa0957a7b4ee7aa55dd2b055b7840470b4af223018d89530cc36c4d238491ac",
+      "ledgerIntegrityValid": true
+    },
+    "centralAfter": {
+      "schedulerState": "ACTIVE_LEASE",
+      "ready": false,
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "lastSubmissionAt": "2026-09-24T19:48:57.810Z",
+      "leaseEpoch": 6,
+      "leaseActiveHostRole": "SECONDARY",
+      "leaseExpiresAt": "2026-09-27T00:00:00.000Z",
+      "relayTargetTransition": {
+        "state": "OPEN",
+        "operation": "WINDOW_REPLACE",
+        "bindingRevision": 16,
+        "begunAt": "2026-09-25T06:19:09.665Z"
+      },
+      "ledgerRecordCount": 510,
+      "ledgerRecordsSha256": "efa0957a7b4ee7aa55dd2b055b7840470b4af223018d89530cc36c4d238491ac",
+      "ledgerIntegrityValid": true
+    },
+    "centralUnchanged": true,
+    "rollback": {
+      "preservedAppCopy": "app.rollback.20260926T033520Z.462695 (tree matches the pre-install tree)",
+      "systemUnitBackup": "mission-control-relay-lock-20260926T033520Z under /var/backups"
+    }
+  },
+  "secondary": {
+    "role": "SECONDARY (active lease)",
+    "window": {
+      "preBaselineWhileRunningAt": "2026-09-26T03:29:55Z",
+      "quietBaselineAt": "2026-09-26T13:44:03Z",
+      "verifiedAt": "2026-09-26T13:45:43Z",
+      "relayRestartedAt": "2026-09-26T13:46:40Z"
+    },
+    "fence": {
+      "before": "HOST_BROWSER_UNFENCED",
+      "after": "HOST_BROWSER_UNFENCED",
+      "note": "Neither engaged nor released: release is reserved for takeover, and engaging would restart the active host's browser."
+    },
+    "stop": {
+      "healthTimerStopped": "kept enabled; the in-flight health run finished first",
+      "relayStopExit": "success (exit 0); old code removed its own relay.lock"
+    },
+    "unitsQuiet": {
+      "relay": {
+        "active": "inactive",
+        "unitFileState": "disabled",
+        "successExitStatus": null
+      },
+      "browser": {
+        "active": "active",
+        "unitFileState": "disabled",
+        "successExitStatus": null
+      },
+      "health": {
+        "active": "inactive",
+        "unitFileState": "static",
+        "successExitStatus": null
+      }
+    },
+    "unitsAfterInstall": {
+      "relay": {
+        "active": "inactive",
+        "unitFileState": "disabled",
+        "successExitStatus": "143"
+      },
+      "browser": {
+        "active": "active",
+        "unitFileState": "disabled",
+        "successExitStatus": null
+      },
+      "health": {
+        "active": "inactive",
+        "unitFileState": "static",
+        "successExitStatus": null
+      }
+    },
+    "lockQuiet": {
+      "metadataPresent": false,
+      "ownerState": "NONE",
+      "kernelGuard": "NOT_CREATED"
+    },
+    "lockAfterInstall": {
+      "metadataPresent": false,
+      "ownerState": "NONE",
+      "kernelGuard": "FREE"
+    },
+    "relayRunningBefore": true,
+    "relayRestarted": true,
+    "afterRestart": {
+      "relay": "active, 0 restarts, unit file still disabled (as before)",
+      "healthTimer": "active, enabled",
+      "lockStatus": {
+        "status": "HELD",
+        "kernelGuard": "HELD",
+        "ownerMode": "PERSISTENT_SERVICE",
+        "ownerTask": "relay:run",
+        "ownerIsRelayMainPid": true
+      }
+    },
+    "readOnlyDoctorQuiet": {
+      "ok": true,
+      "status": "AUTOMATION_WINDOW_BINDING_MISMATCH",
+      "submitEnabled": false,
+      "capabilityTestEnabled": false,
+      "browser": {
+        "webSocketDebuggerUrlPresent": false,
+        "managedChatGptTabCount": 0,
+        "automationOwnedTabCount": 0,
+        "foreignChatGptTabCount": 1,
+        "automationWindowOwnershipEnforced": false,
+        "ownershipConsistent": null
+      },
+      "central": {
+        "schedulerState": "ACTIVE_LEASE",
+        "ready": false,
+        "queueDepth": 0,
+        "unresolvedAdmission": null,
+        "safetyHalt": null,
+        "transition": "OPEN",
+        "leaseEpoch": 6,
+        "leaseRole": "SECONDARY",
+        "bindingRevision": 16
+      },
+      "queue": {
+        "discovered": 13,
+        "byLocalState": {
+          "DISCARDED": 5,
+          "REQUEST_BOUND_DECISION_COMPLETE": 1,
+          "IN_BAND_REQUEST_DECISION_COMPLETE": 2,
+          "IN_BAND_REQUEST_DECISION_GENERATION_STARTED": 1,
+          "UNSEEN": 4
+        }
+      },
+      "unresolvedAmbiguities": 0,
+      "chatCapabilities": [
+        {
+          "allCurrent": false,
+          "challengeAvailable": false
+        },
+        {
+          "allCurrent": false,
+          "challengeAvailable": false
+        },
+        {
+          "allCurrent": false,
+          "challengeAvailable": false
+        }
+      ],
+      "memoryPressure": "NORMAL"
+    },
+    "readOnlyDoctorAfterInstall": {
+      "ok": true,
+      "status": "AUTOMATION_WINDOW_BINDING_MISMATCH",
+      "submitEnabled": false,
+      "capabilityTestEnabled": false,
+      "browser": {
+        "webSocketDebuggerUrlPresent": false,
+        "managedChatGptTabCount": 0,
+        "automationOwnedTabCount": 0,
+        "foreignChatGptTabCount": 1,
+        "automationWindowOwnershipEnforced": false,
+        "ownershipConsistent": null
+      },
+      "central": {
+        "schedulerState": "ACTIVE_LEASE",
+        "ready": false,
+        "queueDepth": 0,
+        "unresolvedAdmission": null,
+        "safetyHalt": null,
+        "transition": "OPEN",
+        "leaseEpoch": 6,
+        "leaseRole": "SECONDARY",
+        "bindingRevision": 16
+      },
+      "queue": {
+        "discovered": 13,
+        "byLocalState": {
+          "DISCARDED": 5,
+          "REQUEST_BOUND_DECISION_COMPLETE": 1,
+          "IN_BAND_REQUEST_DECISION_COMPLETE": 2,
+          "IN_BAND_REQUEST_DECISION_GENERATION_STARTED": 1,
+          "UNSEEN": 4
+        }
+      },
+      "unresolvedAmbiguities": 0,
+      "chatCapabilities": [
+        {
+          "allCurrent": false,
+          "challengeAvailable": false
+        },
+        {
+          "allCurrent": false,
+          "challengeAvailable": false
+        },
+        {
+          "allCurrent": false,
+          "challengeAvailable": false
+        }
+      ],
+      "memoryPressure": "NORMAL"
+    },
+    "readOnlyDoctorUnchanged": true,
+    "noSendLockCheck": {
+      "focusedTests": "34/34",
+      "lockStatusBefore": {
+        "status": "FREE",
+        "reason": null,
+        "kernelGuard": "NOT_CREATED",
+        "ownerTask": null,
+        "ownerMode": null,
+        "ownerPidAlive": null
+      },
+      "helperMode": "BOUNDED_HELPER",
+      "lockStatusWhileHeld": {
+        "status": "HELD",
+        "reason": "OWNER_ALIVE",
+        "kernelGuard": "HELD",
+        "ownerTask": "maintenance:no-send-lock-lifecycle-check",
+        "ownerMode": "BOUNDED_HELPER",
+        "ownerPidAlive": true
+      },
+      "watchdogRan": true,
+      "helperExitAfterSigterm": 143,
+      "helperAndWatchdogGone": true,
+      "metadataRemoved": true,
+      "guardFileKept": true,
+      "lockStatusAfter": {
+        "status": "FREE",
+        "reason": null,
+        "kernelGuard": "FREE",
+        "ownerTask": null,
+        "ownerMode": null,
+        "ownerPidAlive": null
+      },
+      "providerSends": 0
+    },
+    "protectedStateUnchangedQuietToPost": true,
+    "protectedSha256": {
+      "state": "06865d8300540c8167117e63eb23dd471af206256a1f575256644938e992aff0",
+      "ownership": "a1ce7b939d666fac241594c7e7a4cea8d41b933efa2e70754ffb42700adff325",
+      "chats": "cb89e189132f57343360eddb7327bef8ad6fdeaf2c7036c42b1bdb36704d4d5e",
+      "provisions": "ef7b131e0123b0e849d7555ebfff3996988dbf1d26e334fc098162a912b938c5",
+      "provisionResults": "d82686c94b328e8638daca55628b299d943d57120726f1785c708ff1be131fbf",
+      "env": "a5780984b3be6f108e7ccdce7ef00996c1d3a879ba1fd5a7c2a92305bd48b1de",
+      "browserEnv": "94dda3ba4066026e9a94f3aa24d455f06ca51c3d2e84c94d63304f5e15fbe1a9"
+    },
+    "protectedStateNote": "The pre baseline was taken while the old relay was running; its health loop updated the state and browser-ownership files before the quiet window. The unchanged comparison is quiet (relay stopped) to post-install.",
+    "centralQuiet": {
+      "schedulerState": "ACTIVE_LEASE",
+      "ready": false,
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "lastSubmissionAt": "2026-09-24T19:48:57.810Z",
+      "leaseEpoch": 6,
+      "leaseActiveHostRole": "SECONDARY",
+      "leaseExpiresAt": "2026-09-27T00:00:00.000Z",
+      "relayTargetTransition": {
+        "state": "OPEN",
+        "operation": "WINDOW_REPLACE",
+        "bindingRevision": 16,
+        "begunAt": "2026-09-25T06:19:09.665Z"
+      },
+      "ledgerRecordCount": 510,
+      "ledgerRecordsSha256": "efa0957a7b4ee7aa55dd2b055b7840470b4af223018d89530cc36c4d238491ac",
+      "ledgerIntegrityValid": true
+    },
+    "centralAfterInstall": {
+      "schedulerState": "ACTIVE_LEASE",
+      "ready": false,
+      "queueDepth": 0,
+      "unresolvedAdmission": null,
+      "safetyHalt": null,
+      "lastSubmissionAt": "2026-09-24T19:48:57.810Z",
+      "leaseEpoch": 6,
+      "leaseActiveHostRole": "SECONDARY",
+      "leaseExpiresAt": "2026-09-27T00:00:00.000Z",
+      "relayTargetTransition": {
+        "state": "OPEN",
+        "operation": "WINDOW_REPLACE",
+        "bindingRevision": 16,
+        "begunAt": "2026-09-25T06:19:09.665Z"
+      },
+      "ledgerRecordCount": 510,
+      "ledgerRecordsSha256": "efa0957a7b4ee7aa55dd2b055b7840470b4af223018d89530cc36c4d238491ac",
+      "ledgerIntegrityValid": true
+    },
+    "centralUnchanged": true,
+    "hotPatchCheck": "Before install the app recorded source 481ec51 with local changes. Every non-backup file already matched f37d7ca except src/cdp.mjs, an older response-progress detector that f37d7ca supersedes (merged via UDA #254/#256). The *.pre-* backup copies stay in the preserved app copy.",
+    "rollback": {
+      "preservedAppCopy": "app.rollback.20260926T134447Z.2216476 (tree matches the pre-install tree)",
+      "systemUnitBackup": "mission-control-relay-lock-20260926T134447Z under /var/backups"
+    }
+  },
+  "zeroProviderSends": {
+    "ledgerRecordCount": 510,
+    "ledgerRecordsSha256": "efa0957a7b4ee7aa55dd2b055b7840470b4af223018d89530cc36c4d238491ac",
+    "lastSubmissionAt": "2026-09-24T19:48:57.810Z",
+    "basis": "Ledger count and digest and lastSubmissionAt were identical at every baseline on both hosts, and every maintenance command ran with sending disabled. The secondary relay could not send during the window for an unrelated reason (below)."
+  },
+  "residualRisk": [
+    "Pre-existing outage, unchanged by this deployment: since 2026-09-25T06:18Z the secondary relay reports that ChatGPT did not become ready in the automation-owned window. Central has an OPEN WINDOW_REPLACE relay-target transition (binding revision 16) since 2026-09-25T06:19:09Z and ready=false; the read-only doctor reports AUTOMATION_WINDOW_BINDING_MISMATCH (no ChatGPT tab owned by the automation window, one foreign ChatGPT tab). No provider sends since 2026-09-24T19:48:57.810Z.",
+    "The active lease (epoch 6, SECONDARY) expires 2026-09-27T00:00:00Z.",
+    "One local relay queue item from before the outage remains in IN_BAND_REQUEST_DECISION_GENERATION_STARTED; central queue depth is 0 with no unresolved admission.",
+    "One baseline probe on the secondary saw a transient CENTRAL_SCHEDULER_UNREACHABLE at 13:41-13:43Z; a direct status call and later probes succeeded."
+  ]
+}
