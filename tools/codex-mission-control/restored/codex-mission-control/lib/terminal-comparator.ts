@@ -447,6 +447,7 @@ function legacySourceBoundWorkRootClosure(
     && event.data.owner_outcome_sha256 === outcome.owner_outcome_sha256
     && event.data.decision_block.exact_text === "OWNER_OUTCOME_SATISFIED");
   if (!closure || closure.data.type !== "github_decision_receipt_ingested") return null;
+  const closureData = closure.data;
 
   const workReceipt = [...events].reverse().find((event) => event.schemaVersion === 2
     && event.sequence < closure.sequence
@@ -455,8 +456,8 @@ function legacySourceBoundWorkRootClosure(
     && event.data.status === "COMPLETED"
     && event.data.check_summary.failed === 0
     && event.data.blocker_codes.length === 0
-    && closure.data.evidence_capsule.id === `github-work-receipt:${event.data.github_receipt.comment_id}`
-    && closure.data.evidence_capsule.sha256 === event.data.github_comment_sha256);
+    && closureData.evidence_capsule.id === `github-work-receipt:${event.data.github_receipt.comment_id}`
+    && closureData.evidence_capsule.sha256 === event.data.github_comment_sha256);
   if (!workReceipt) return null;
 
   const superseded = events.some((event) => event.sequence > closure.sequence && (
