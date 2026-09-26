@@ -77,7 +77,8 @@ export class MiniElement {
   }
 
   append(child) { child.parentElement = this; this.children.push(child); return child; }
-  get childNodes() { return this.children; }
+  // The element's own text is one leading text node, like a browser's text child.
+  get childNodes() { return this._text ? [{ nodeType: 3, nodeValue: this._text }, ...this.children] : this.children; }
   get id() { return this.getAttribute('id') ?? ''; }
   get attributes() { return [...this._attributes].map(([name, value]) => ({ name, value })); }
   get className() { return this.getAttribute('class') ?? ''; }

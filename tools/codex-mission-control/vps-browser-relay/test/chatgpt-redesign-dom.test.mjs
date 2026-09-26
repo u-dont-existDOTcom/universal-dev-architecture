@@ -55,8 +55,17 @@ function modelMenu({ position = 1, label = 'Medium', total = 5 } = {}) {
   ]);
 }
 
+// An entry is a name, optionally followed by a description in its own element ("name|description"), or one
+// combined text run when given as { combined: "..." }.
+function appEntry(entry) {
+  const attrs = { type: 'button', 'data-list-navigation-item': 'true' };
+  if (typeof entry === 'object') return h('button', attrs, [h('span', { class: 'truncate' }, [], { text: entry.combined })]);
+  const [name, description] = entry.split('|');
+  return h('button', attrs, [h('span', {}, [], { text: name }), ...(description ? [h('span', {}, [], { text: description })] : [])]);
+}
+
 function appList(names, { scrollTop = 0 } = {}) {
-  const scroll = h('div', { 'data-mention-list-scroll-area': '' }, [h('div', {}, names.map((name) => h('button', { type: 'button', 'data-list-navigation-item': 'true' }, [], { text: name })))]);
+  const scroll = h('div', { 'data-mention-list-scroll-area': '' }, [h('div', {}, names.map(appEntry))]);
   Object.assign(scroll, { scrollTop, scrollHeight: 1584, clientHeight: 204 });
   return h('div', { 'data-composer-overlay-floating-ui': 'true' }, [h('div', {}, [scroll])]);
 }
@@ -110,7 +119,7 @@ test('the Power slider fails closed on the wrong effort or a status that disagre
 });
 
 test('app selection scrolls the September 2026 list, picks one exact entry and verifies the Remove pill', () => {
-  const firstPage = ['Add photos & files', 'Web search', 'AskRigor Reviewer\nBetter research', 'Mission Control\nRead-only exact-bound Mission Control metadata', 'InnerSignal', '', '', ''];
+  const firstPage = ['Add photos & files', 'Web search', 'AskRigor Reviewer|Better research', 'Mission Control|Read-only exact-bound Mission Control metadata', 'InnerSignal', '', '', ''];
   const scroll = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(firstPage)]), [['Mission Control', 'GitHub'], 'GitHub']);
   assert.equal(scroll.listOpen, true);
   assert.equal(scroll.listMatchCount, 0);
@@ -121,11 +130,18 @@ test('app selection scrolls the September 2026 list, picks one exact entry and v
   assert.deepEqual(appSelectionState(mission, 'Mission Control'), { type: 'LIST_OPTION', label: 'Mission Control' });
   assert.ok(mission.listRect);
 
-  const later = ['Wolfram', 'Railway', 'GitHub', 'Template Creator', 'GitHub Copilot'];
+  // Exact names only: "GitHub Copilot" never matches "GitHub", nor does a longer name's prefix.
+  const later = ['Wolfram|Add computation & knowledge', 'Railway', 'GitHub Copilot', 'GitHub', 'Template Creator'];
   const github = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(later, { scrollTop: 800 })]), [['Mission Control', 'GitHub'], 'GitHub']);
-  assert.throws(() => appSelectionState(github, 'GitHub'), /ambiguous/);
-  const unique = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(later.slice(0, 4), { scrollTop: 800 })]), [['Mission Control', 'GitHub'], 'GitHub']);
-  assert.deepEqual(appSelectionState(unique, 'GitHub'), { type: 'LIST_OPTION', label: 'GitHub' });
+  assert.equal(github.listMatchCount, 1);
+  assert.deepEqual(appSelectionState(github, 'GitHub'), { type: 'LIST_OPTION', label: 'GitHub' });
+  const copilotOnly = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(['Railway', 'GitHub Copilot', ''], { scrollTop: 800 })]), [['Mission Control', 'GitHub'], 'GitHub']);
+  assert.equal(copilotOnly.listMatchCount, 0);
+  assert.deepEqual(appSelectionState(copilotOnly, 'GitHub'), { type: 'SCROLL_LIST' });
+  const twice = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(['GitHub', 'GitHub|Second copy'], { scrollTop: 800 })]), [['Mission Control', 'GitHub'], 'GitHub']);
+  assert.throws(() => appSelectionState(twice, 'GitHub'), /ambiguous/);
+  const combined = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList([{ combined: 'Mission Control Read-only exact-bound metadata' }, ''])]), [['Mission Control', 'GitHub'], 'Mission Control']);
+  assert.equal(combined.listMatchCount, 0);
 
   const selected = runInPage(APP_SELECTION_STATE_FN, page([composerForm({ chips: ['GitHub'] })]), [['Mission Control', 'GitHub'], null]);
   assert.deepEqual(selected.chipCounts, { 'Mission Control': 0, GitHub: 1 });

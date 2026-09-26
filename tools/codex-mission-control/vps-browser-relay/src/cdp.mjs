@@ -468,11 +468,13 @@ export const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
   // September 2026: "Add files and more" opens a scrollable list of plain buttons ("<name> <description>").
   const listScroll = document.querySelector('[data-mention-list-scroll-area]');
   const listItems = listScroll ? [...listScroll.querySelectorAll('button[data-list-navigation-item="true"]')] : [];
-  const itemText = (element) => String(element.innerText || element.textContent || '').trim().replace(/\\s+/g, ' ');
-  const listMatches = labelWanted == null ? [] : listItems.filter(visible).filter((element) => {
-    const text = itemText(element);
-    return text === labelWanted || text.startsWith(labelWanted + ' ');
-  });
+  // An entry matches only on its exact name: the whole entry text, one element's whole text, or one element's own
+  // text nodes (a name followed by a nested description). Never by prefix, so "GitHub" cannot match "GitHub Copilot".
+  const normalizeText = (value) => String(value || '').trim().replace(/\\s+/g, ' ');
+  const ownText = (element) => normalizeText([...element.childNodes].filter((node) => node.nodeType === 3).map((node) => node.nodeValue).join(''));
+  const namesExactly = (item, label) => [item, ...item.querySelectorAll('*')]
+    .some((element) => normalizeText(element.textContent) === label || ownText(element) === label);
+  const listMatches = labelWanted == null ? [] : listItems.filter(visible).filter((element) => namesExactly(element, labelWanted));
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
   const items = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitem"], [role="menuitemradio"], [role="option"], button')].filter(visible));
   const renderedAppMatches = labelWanted == null ? [] : [...document.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter((element) => accessibleLabel(element) === labelWanted);
