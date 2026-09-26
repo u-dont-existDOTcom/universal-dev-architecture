@@ -15,7 +15,18 @@ import {
   validateContinueRetryBinding,
 } from './continue-recovery.mjs';
 
-const PAGE_INSPECTION_FN = `function(expectedUrl) {
+// ChatGPT's September 2026 page (the unified ChatGPT app shell) renders the composer as an unlabeled
+// ProseMirror textbox inside form[data-chatgpt-composer]. Its model button is the composer's intelligence
+// trigger, its tools button is labeled "Add files and more", and its send/stop controls are labeled
+// "Send"/"Stop". Every new selector is scoped to that form, so transcript message editors never match;
+// the older selectors stay as fallbacks for earlier page builds.
+const COMPOSER_QUERY = `document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]')`;
+const COMPOSER_SELECTOR_LIST = 'form[data-chatgpt-composer] [contenteditable="true"][role="textbox"], #prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]';
+const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown-button"], form[data-chatgpt-composer] button[data-codex-intelligence-trigger][aria-haspopup="menu"]';
+const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
+const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
+
+export const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
       const url = new URL(value);
@@ -23,7 +34,7 @@ const PAGE_INSPECTION_FN = `function(expectedUrl) {
       return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
     } catch { return null; }
   };
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const composer = ${COMPOSER_QUERY};
   return {
     currentUrl: location.href,
     urlMismatch: expectedUrl === 'https://chatgpt.com/'
@@ -40,8 +51,8 @@ const EMAIL_LOGIN_RECOVERY_FN = `function(accountEmail) {
   const visible = (element) => Boolean(element && element.getClientRects().length)
     && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
   const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '')
-    .trim().replace(/\s+/g, ' ');
-  const body = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+    .trim().replace(/\\s+/g, ' ');
+  const body = (document.body?.innerText || '').replace(/\\s+/g, ' ').trim();
   const inputs = [...document.querySelectorAll('input')].filter(visible);
   const passwordInputs = inputs.filter((element) => element.type === 'password'
     || /password/i.test((element.name || '') + ' ' + (element.id || '') + ' ' + (element.autocomplete || '') + ' ' + (element.getAttribute('aria-label') || '')));
@@ -85,7 +96,7 @@ const EMAIL_LOGIN_RECOVERY_FN = `function(accountEmail) {
   return { state: 'NOT_REQUIRED' };
 }`;
 
-const CURRENT_MODEL_FN = `function(expectedUrl) {
+export const CURRENT_MODEL_FN = `function(expectedUrl) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
@@ -104,8 +115,8 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
     return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
   };
   const visibleLabel = (element) => ((element && (element.innerText || element.getAttribute('aria-label'))) || '').trim().replace(/\\s+/g, ' ');
-  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const tested = [...document.querySelectorAll('${MODEL_CONTROL_SELECTOR_LIST}')].filter(visible);
+  const composer = ${COMPOSER_QUERY};
   const composerForm = composer?.closest('form') || null;
   const scoped = composerForm
     ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
@@ -135,7 +146,7 @@ const CURRENT_MODEL_FN = `function(expectedUrl) {
 
 const OPEN_MODEL_MENU_FN = CURRENT_MODEL_FN;
 
-const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkingLabelWanted) {
+export const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkingLabelWanted) {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
@@ -143,8 +154,8 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
   };
   const visibleLabel = (element) => ((element && element.innerText) || '').trim().replace(/\\s+/g, ' ');
   const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const tested = [...document.querySelectorAll('${MODEL_CONTROL_SELECTOR_LIST}')].filter(visible);
+  const composer = ${COMPOSER_QUERY};
   const composerForm = composer?.closest('form') || null;
   const scoped = composerForm
     ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
@@ -197,11 +208,24 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
   const thinkingLabelMatches = thinkingLabelWanted == null
     ? []
     : thinkingLabelSegments.filter((label) => label === thinkingLabelWanted);
-  const supportedThinkingLabels = new Set(['Instant', 'Low', 'Medium', 'High', 'Extra High', 'Pro']);
+  const supportedThinkingLabels = new Set(['Instant', 'None', 'Minimal', 'Low', 'Light', 'Medium', 'High', 'Extra High', 'Max', 'Ultra', 'Pro']);
   const currentThinkingLabels = thinkingLabelSegments.filter((label) => supportedThinkingLabels.has(label));
   const sliders = powerControls.length === 1 ? [...powerControls[0].querySelectorAll('[role="slider"]')] : [];
   const slider = sliders.length === 1 ? sliders[0] : null;
-  const controlThinkingLabel = accessibleLabel(control);
+  // September 2026 page: the effort control is a Power menu item marked data-reasoning-slider whose
+  // aria-describedby status reads "<label>, <n> of <total>." and the open model control reads "Thinking effort".
+  const reasoningSlider = powerControls.length === 1 && powerControls[0].getAttribute('data-reasoning-slider') === 'true';
+  const statusMatches = reasoningSlider
+    ? (powerControls[0].getAttribute('aria-describedby') || '').split(/\\s+/).filter(Boolean)
+      .map((id) => document.getElementById(id)).filter(Boolean)
+      .map((element) => ((element.textContent || '').trim().replace(/\\s+/g, ' ')).match(/^(.+?), (\\d+) of (\\d+)\\.?$/))
+      .filter(Boolean)
+    : [];
+  const statusLabel = statusMatches.length === 1 ? statusMatches[0][1] : null;
+  const statusOrdinal = statusMatches.length === 1 ? statusMatches[0][2] + ' of ' + statusMatches[0][3] : null;
+  const controlThinkingLabel = [accessibleLabel(control), visibleLabel(control)].includes(thinkingControlLabel)
+    ? thinkingControlLabel
+    : accessibleLabel(control);
   return {
     menuFound: true,
     menuRole: menu.getAttribute('role'),
@@ -213,26 +237,30 @@ const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, thinkin
     topModelSelected: Boolean(topModel && semanticallySelected(topModel)),
     powerControlCount: powerControls.length,
     powerIndicatorCount: powerIndicators.length,
-    thinkingLabelMatchCount: thinkingLabelMatches.length,
+    thinkingLabelMatchCount: reasoningSlider && thinkingLabelWanted != null
+      ? (statusLabel === thinkingLabelWanted ? 1 : 0)
+      : thinkingLabelMatches.length,
     sliderCount: sliders.length,
     thinkingControlObservedLabel: controlThinkingLabel === thinkingControlLabel
       ? controlThinkingLabel
       : (powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null),
     currentPowerLabel: slider?.getAttribute('aria-valuetext')
+      || (reasoningSlider ? statusLabel : null)
       || (currentThinkingLabels.length === 1 ? currentThinkingLabels[0] : null),
+    powerStatusOrdinal: statusOrdinal,
     sliderPosition: slider ? Number(slider.getAttribute('aria-valuenow')) : null,
     sliderMinimum: slider ? Number(slider.getAttribute('aria-valuemin')) : null,
     sliderMaximum: slider ? Number(slider.getAttribute('aria-valuemax')) : null,
   };
 }`;
 
-const SELECT_TOP_MODEL_OPTION_FN = `function() {
+export const SELECT_TOP_MODEL_OPTION_FN = `function() {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
   };
-  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\s+/g, ' ');
+  const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
   const modelOptions = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter(visible));
   if (modelOptions.length < 1) return { selected: false, reason: 'TOP_MODEL_OPTION_NOT_FOUND', modelOptionCount: 0 };
@@ -251,8 +279,8 @@ const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
   };
   const visibleLabel = (element) => ((element && element.innerText) || '').trim().replace(/\\s+/g, ' ');
   const accessibleLabel = (element) => ((element && (element.getAttribute('aria-label') || element.innerText)) || '').trim().replace(/\\s+/g, ' ');
-  const tested = [...document.querySelectorAll('button[data-testid="model-switcher-dropdown-button"]')].filter(visible);
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const tested = [...document.querySelectorAll('${MODEL_CONTROL_SELECTOR_LIST}')].filter(visible);
+  const composer = ${COMPOSER_QUERY};
   const composerForm = composer?.closest('form') || null;
   const scoped = composerForm
     ? [...composerForm.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"]')]
@@ -285,7 +313,7 @@ const SELECT_MODEL_OPTION_FN = `function(labelWanted) {
   return { selected: true, selectedLabel: accessibleLabel(matches[0]) };
 }`;
 
-const FOCUS_MODEL_POWER_FN = `function(thinkingControlLabel) {
+export const FOCUS_MODEL_POWER_FN = `function(thinkingControlLabel) {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
@@ -388,6 +416,9 @@ export function consumerControlSelectionState(currentModel, observation, control
     ? `${observation.sliderPosition - observation.sliderMinimum + 1} of ${observation.sliderMaximum - observation.sliderMinimum + 1}`
     : null;
   if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
+  if (observation.powerStatusOrdinal != null && observation.powerStatusOrdinal !== ordinal) {
+    throw new Error(`Visible thinking status ${observation.powerStatusOrdinal} disagrees with the slider position ${ordinal}.`);
+  }
   return currentPolicy ? {
     status: 'CURRENT_CONSUMER_CONTROLS_VERIFIED',
     modelSelectionPolicy: controls.modelSelectionPolicy,
@@ -414,7 +445,7 @@ export function consumerControlSelectionState(currentModel, observation, control
   };
 }
 
-const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
+export const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
   const visible = (element) => {
     if (!element || !element.getClientRects().length || getComputedStyle(element).visibility === 'hidden') return false;
     const rect = element.getBoundingClientRect();
@@ -425,13 +456,23 @@ const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
     const value = element.getBoundingClientRect();
     return { x: value.x, y: value.y, width: value.width, height: value.height };
   };
-  const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')].filter(visible);
+  const composers = [...document.querySelectorAll('${COMPOSER_SELECTOR_LIST}')].filter(visible);
   const composer = composers.length === 1 ? composers[0] : null;
   const composerForm = composer?.closest('form') || null;
   if (!composerForm) return { composerFound: composers.length > 0, composerAmbiguous: composers.length > 1, composerFormFound: false };
-  const controls = [...composerForm.querySelectorAll('button[data-testid="composer-plus-btn"]')].filter(visible);
-  const chipCounts = Object.fromEntries(knownLabels.map((label) => [label, [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === label + ', click to remove').length]));
-  const chipMatches = labelWanted == null ? [] : [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => element.getAttribute('aria-label') === labelWanted + ', click to remove');
+  const controls = [...composerForm.querySelectorAll('${TOOLS_CONTROL_SELECTOR_LIST}')].filter(visible);
+  // A selected app is a removable pill: "<label>, click to remove" on earlier pages, "Remove <label>" since September 2026.
+  const isChipFor = (element, label) => element.getAttribute('aria-label') === label + ', click to remove' || element.getAttribute('aria-label') === 'Remove ' + label;
+  const chipCounts = Object.fromEntries(knownLabels.map((label) => [label, [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => isChipFor(element, label)).length]));
+  const chipMatches = labelWanted == null ? [] : [...composerForm.querySelectorAll('button')].filter(visible).filter((element) => isChipFor(element, labelWanted));
+  // September 2026: "Add files and more" opens a scrollable list of plain buttons ("<name> <description>").
+  const listScroll = document.querySelector('[data-mention-list-scroll-area]');
+  const listItems = listScroll ? [...listScroll.querySelectorAll('button[data-list-navigation-item="true"]')] : [];
+  const itemText = (element) => String(element.innerText || element.textContent || '').trim().replace(/\\s+/g, ' ');
+  const listMatches = labelWanted == null ? [] : listItems.filter(visible).filter((element) => {
+    const text = itemText(element);
+    return text === labelWanted || text.startsWith(labelWanted + ' ');
+  });
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
   const items = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitem"], [role="menuitemradio"], [role="option"], button')].filter(visible));
   const renderedAppMatches = labelWanted == null ? [] : [...document.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter((element) => accessibleLabel(element) === labelWanted);
@@ -453,6 +494,11 @@ const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
     renderedAppMatchCount: renderedAppMatches.length,
     appRect: appMatches.length === 1 ? rect(appMatches[0]) : null,
     availableAppLabels: items.filter((element) => ['menuitemradio', 'option'].includes(element.getAttribute('role'))).map(accessibleLabel).filter(Boolean),
+    listOpen: listItems.filter(visible).length > 0,
+    listMatchCount: listMatches.length,
+    listRect: listMatches.length === 1 ? rect(listMatches[0]) : null,
+    listScrollRect: listScroll && visible(listScroll) ? rect(listScroll) : null,
+    listAtEnd: listScroll ? listScroll.scrollTop + listScroll.clientHeight >= listScroll.scrollHeight - 2 : null,
   };
 }`;
 
@@ -485,8 +531,14 @@ export function appSelectionState(observation, labelWanted) {
   if ((observation.chipMatchCount ?? 0) > 1) throw new Error(`Selected app chip ${labelWanted} is ambiguous.`);
   if ((observation.appMatchCount ?? 0) > 1) throw new Error(`Exact app label ${labelWanted} is ambiguous.`);
   if ((observation.renderedAppMatchCount ?? 0) > 1) throw new Error(`Exact rendered app label ${labelWanted} is ambiguous.`);
+  if ((observation.listMatchCount ?? 0) > 1) throw new Error(`Exact app list entry ${labelWanted} is ambiguous.`);
   if ((observation.appMatchCount ?? 0) === 1) return { type: 'APP_OPTION', label: labelWanted };
   if ((observation.renderedAppMatchCount ?? 0) === 1) return { type: 'FOCUS_APP', label: labelWanted };
+  if ((observation.listMatchCount ?? 0) === 1) return { type: 'LIST_OPTION', label: labelWanted };
+  if (labelWanted != null && observation.listOpen === true) {
+    if (observation.listAtEnd === false && observation.listScrollRect) return { type: 'SCROLL_LIST' };
+    throw new Error(`Exact app label ${labelWanted} is not in the ChatGPT app list.`);
+  }
   if ((observation.moreMatchCount ?? 0) > 1) throw new Error('ChatGPT Tools More control is ambiguous.');
   if ((observation.moreMatchCount ?? 0) === 1) return { type: 'OPEN_MORE' };
   return { type: 'OPEN_TOOLS' };
@@ -559,7 +611,7 @@ export function composerTextState(element, expectedBody) {
 }
 
 const COMPOSER_LOOKUP = `
-  const composers = [...document.querySelectorAll('#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]')];
+  const composers = [...document.querySelectorAll('${COMPOSER_SELECTOR_LIST}')];
   const visible = composers.filter((element) => Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden');
   if (visible.length !== 1) return { ok: false, exact: false, length: null,
     reason: visible.length > 1 ? 'COMPOSER_AMBIGUOUS' : (composers.length ? 'COMPOSER_NOT_VISIBLE' : 'COMPOSER_NOT_FOUND') };
@@ -701,9 +753,10 @@ export function generationProgressIsStalled(tracker, state, observedAtMs, stallM
     && observedAtMs - tracker.lastAdvancedAtMs >= stallMs;
 }
 
-const CLICK_SEND_FN = `function() {
+export const CLICK_SEND_FN = `function() {
   const selectors = [
     'button[data-testid="send-button"]',
+    'form[data-chatgpt-composer] button[aria-label="Send"]',
     'button[aria-label="Send prompt"]',
     'button[aria-label="Send message"]',
     'button[data-testid="fruitjuice-send-button"]'
@@ -716,7 +769,7 @@ const CLICK_SEND_FN = `function() {
   return { ok: true };
 }`;
 
-const GENERATION_STATE_FN = `function(expectedUrl) {
+export const GENERATION_STATE_FN = `function(expectedUrl) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
@@ -725,8 +778,8 @@ const GENERATION_STATE_FN = `function(expectedUrl) {
     } catch { return null; }
   };
   const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const stop = document.querySelector('button[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]');
-  const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+  const stop = document.querySelector('${STOP_CONTROL_SELECTOR_LIST}');
+  const composer = ${COMPOSER_QUERY};
   const composerVisible = visible(composer);
   const composerDisabled = Boolean(composer && (composer.disabled || composer.getAttribute('aria-disabled') === 'true' || composer.getAttribute('contenteditable') === 'false'));
   const stopVisible = visible(stop);
@@ -963,11 +1016,20 @@ export class ChromeDevtoolsBrowser {
 
       const selectedLabels = [];
       for (const label of requiredLabels) {
-        for (;;) {
+        for (let attempt = 0; ; attempt += 1) {
+          if (attempt >= 40) throw new Error(`ChatGPT did not expose or select exact app label ${label} within 40 steps.`);
           const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
           const action = appSelectionState(observation, label);
           if (observation.chipMatchCount === 1) break;
-          if (action.type === 'OPEN_TOOLS') {
+          if (action.type === 'SCROLL_LIST') {
+            const r = observation.listScrollRect;
+            await client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: r.x + r.width / 2, y: r.y + r.height / 2, deltaX: 0, deltaY: 240 });
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            continue;
+          }
+          if (action.type === 'LIST_OPTION') {
+            await this.#clickRect(client, observation.listRect);
+          } else if (action.type === 'OPEN_TOOLS') {
             await this.#clickRect(client, observation.toolsRect);
           } else if (action.type === 'OPEN_MORE') {
             await this.#clickRect(client, observation.moreRect);
@@ -984,7 +1046,8 @@ export class ChromeDevtoolsBrowser {
             const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
             appSelectionState(next, label);
             if (next.chipMatchCount === 1) return next;
-            if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
+            if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.listOpen || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
+            if (action.type === 'LIST_OPTION') return next.chipMatchCount === 1 ? next : false;
             if (action.type === 'OPEN_MORE') return next.renderedAppMatchCount === 1 ? next : false;
             if (action.type === 'FOCUS_APP') return next.chipMatchCount === 1 ? next : false;
             return false;

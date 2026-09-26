@@ -1105,7 +1105,7 @@ function normalizeAutomationTargetUrl(value) {
   return normalizeConversationUrl(value);
 }
 
-function readinessExpression(expectedUrl) {
+export function readinessExpression(expectedUrl) {
   const encoded = JSON.stringify(expectedUrl);
   return `(() => {
     const expected = ${encoded};
@@ -1114,7 +1114,8 @@ function readinessExpression(expectedUrl) {
     const urlReady = isRoot
       ? location.origin === 'https://chatgpt.com' && location.pathname === '/'
       : current === expected || current === expected + '/';
-    const composer = document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
+    // ChatGPT's September 2026 page renders the composer as an unlabeled textbox inside its composer form.
+    const composer = document.querySelector('form[data-chatgpt-composer] [contenteditable="true"][role="textbox"]') || document.querySelector('#prompt-textarea') || document.querySelector('[data-testid="prompt-textarea"]') || document.querySelector('textarea[aria-label="Chat with ChatGPT"]');
     const loginRequired = location.pathname.startsWith('/auth/') || Boolean(document.querySelector('a[href*="/auth/login"], button[data-testid="login-button"]'));
     return { ready: urlReady && Boolean(composer) && !loginRequired, loginRequired, urlReady, composerFound: Boolean(composer) };
   })()`;

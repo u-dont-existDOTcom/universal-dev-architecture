@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-20
+Updated: 2026-09-26
 
 ## Goal
 
@@ -634,3 +634,31 @@ at 6 hours, instead of a fixed 30 minutes that could kill a configured 60-minute
 Codex run or generation wait. `MC_RELAY_LOCK_MAX_MS` remains an explicit
 override and library helpers keep the 30-minute default. The relay units declare
 `SuccessExitStatus=143` because the lock lifecycle exits 143 on SIGTERM.
+
+## Relay support for ChatGPT's September 2026 page — 2026-09-26
+
+Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-september-page.owner-requirement.json`
+(IMPLEMENTED_NOT_LIVE_VERIFIED).
+
+- Cause of the SECONDARY outage (no provider send since 2026-09-24T19:48:57Z):
+  automatic system updates on 2026-09-25 at 06:18 UTC restarted the relay's
+  browser, which closed its ChatGPT tab. The relay opened a replacement window
+  (the central WINDOW_REPLACE transition stayed OPEN). The new tab is signed in,
+  but ChatGPT's September 2026 page no longer has `#prompt-textarea`, the
+  send/stop test IDs, the old model menu or the plus-menu chips, so readiness
+  never passed.
+- Live mapping (owner-approved, read-only apart from opening and closing menus):
+  the composer is an unlabeled ProseMirror textbox in `form[data-chatgpt-composer]`;
+  the model button (`data-codex-intelligence-trigger`) opens a Radix menu with
+  model radios (top: "Latest") and a Power slider (`data-reasoning-slider`) whose
+  status line reads "<effort>, <n> of 5."; "Add files and more" opens a
+  scrollable list (`data-mention-list-scroll-area`) that includes Mission Control
+  and GitHub; the page strings name Send/Stop controls and "Remove <app>" pills.
+- The relay's page contract is updated on
+  `claude/relay-chatgpt-redesign-20260926` with DOM-level tests against the
+  recorded structures. Not yet installed on either host.
+- Conversation pages would not load in the relay browser's spare tab ("Could
+  not load this ChatGPT conversation"), so per-turn markers are unmapped.
+- Next: merge after review, install on both hosts, restart the SECONDARY relay,
+  extend its lease (expires 2026-09-27T00:00Z; same identity, later expiry),
+  and prove recovery with a new ledger submission.
