@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "domain": "MISSION_CONTROL",
+  "owned_branch": "chat/mc-blocked-work-routing-ready-20260926",
+  "integration_branch": "main",
+  "integration_base_sha": "ac897ee17be2ad08f020c4f3eb44115720f8af0c",
+  "shared_runtime_mutation_owner": true,
+  "acquired_at": "2026-09-26T21:00:25Z",
+  "scope": "Integrate, deploy and live-verify automatic source-bound Chat reasoning for internally blocked Work; onboard J10 with privacy-minimized source observation; preserve uncertain-submission, zero-spend, single-writer and rollback boundaries.",
+  "owner_authorization": "Current owner approved all remaining current Mission Control work and removed repeat live deployment/restart confirmation."
+}

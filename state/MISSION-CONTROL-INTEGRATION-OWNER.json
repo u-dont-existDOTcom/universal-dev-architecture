@@ -2,8 +2,8 @@
   "schema_version": 1,
   "status": "ACTIVE",
   "domain": "MISSION_CONTROL",
-  "integrator_branch": "chat/mc-claude-integrator-20260924",
-  "integration_base_sha": "279d1dd7dfb9daa023e76911e5acc4a6859e47fe",
+  "integrator_branch": "chat/mc-blocked-work-routing-ready-20260926",
+  "integration_base_sha": "ac897ee17be2ad08f020c4f3eb44115720f8af0c",
   "shared_runtime_owner": true,
   "child_lane_policy": "ISOLATED_CHILD_HANDOFF_ONLY",
   "direct_main_write_by_children": false,
@@ -12,12 +12,20 @@
   "native_work_autodispatch_owned_here": false,
   "round5_mast_execution_separate_repository_but_supervised_from_here": false,
   "supervisor_receipt_copier_owned_here": false,
-  "activated_at": "2026-09-24T17:38:15Z",
-  "owner_source": "Owner Mission Control continuation handoff, 2026-09-24: \"Claude is now taking ownership of Mission Control integration.\"",
-  "live_deploy_or_restart_requires_owner_confirmation": true,
+  "activated_at": "2026-09-26T21:00:25Z",
+  "owner_source": "Owner continuation, 2026-09-26: asked who was supervising, instructed continuation; 2026-09-25: removed repeat live deploy/restart confirmation and approved all remaining current Mission Control work.",
+  "live_deploy_or_restart_requires_owner_confirmation": false,
   "previous_owner": {
-    "integrator_branch": "chat/mc-unified-integrator-20260921",
+    "integrator_branch": "chat/mc-claude-integrator-20260924",
     "status": "RELEASED",
-    "released_at": "2026-09-21T20:26:44Z"
+    "released_at": "2026-09-26T21:00:25Z",
+    "release_reason": "Owner-directed continuation after the prior Claude integration session had ended; PR #254 was merged and no active Claude integrator session was carrying the open blocked-work outcome."
+  },
+  "standing_live_deploy_restart_authorization": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "status": "APPROVED",
+    "repeat_confirmation_required": false,
+    "scope": "Current Mission Control integration, deployment/restart, J10 blocked-work onboarding, and live blocked -> Chat reasoning -> authorized same-task continuation validation.",
+    "limits": "No unrelated scope, paid inference, destructive deletion, credential disclosure, or public release outside the current Mission Control outcome."
   }
 }
