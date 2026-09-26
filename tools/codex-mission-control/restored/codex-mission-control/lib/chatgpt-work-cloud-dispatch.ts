@@ -261,7 +261,7 @@ export function buildWorkCloudDispatchRecordedEnvelope(
     app_tool: input.mode === "CREATE" ? "create_thread" as const : "send_message_to_thread" as const,
     work_thread_id: null as string | null,
     client_thread_id: null as string | null,
-    approval_state: "PENDING_OWNER_ACCEPT" as WorkCloudApprovalState,
+    approval_state: "NOT_REQUIRED" as WorkCloudApprovalState,
     surface_verification: "NOT_VERIFIED" as "NOT_VERIFIED" | "VERIFIED_NATIVE_WORK" | "REJECTED_WRONG_SURFACE",
     native_surface_evidence: null as null | "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET" | "TRUSTED_APP_EXECUTOR_EXISTING_WORK_THREAD",
     host_id: null as string | null,
