@@ -48,6 +48,7 @@ Hard rules:
 3. A project need not adopt universal guidance merely because it exists. But when current project/owner authority says the task is governed by it, `NOT_ACTIVATED` or `STALE` blocks consequential method commitment, release, or owner-facing substantive delivery until the reasoning path loads current guidance and compiles the relevant active lessons.
 4. Direct current task/owner activation is valid even when the project lacks a permanent bootstrap; do not manufacture a repository-file dependency when the guidance was actually supplied another authoritative way.
 5. Do not claim a task was protected by a control whose activation route cannot be shown. Record the protection gap honestly and repair the route for subsequent work.
+6. A bootstrap or gate requirement that a task directive or handoff establishes stays in force for the whole task, including after context compaction. Write it into the task's recovery checkpoint so it survives the summary. A summary that names a rule is not activation evidence; after compaction the status is `STALE` until the current guidance is reloaded.
 
 This provenance check is deliberately small. It verifies control-path reachability; it does **not** certify that a semantic lesson was interpreted correctly. The ordinary pre-action application gate below still owns that judgment.
 
@@ -99,6 +100,8 @@ A useful active contract is usually closer to 3–12 high-leverage rules than do
 
 If two lessons overlap, prefer the more specific/current one and retain the broader lesson as provenance rather than duplicating both as active constraints.
 
+An owner's written checklist, or a gate that the project's authority files declare blocking, enters the contract as **one unit**: `run checklist X in full; evidence: its report`. Never sample it item by item. Keeping the contract small limits how many rules are compiled; it never licenses running part of a declared checklist or skipping a declared gate.
+
 ## 3. Separate hard controls from judgment controls
 
 ### Mechanical lessons
@@ -119,9 +122,13 @@ Codex or another execution worker must not become the editorial/reasoning judge 
 
 When prior progress depended on owner corrections that models repeatedly failed to self-detect, treat those corrections as first-class active constraints and return the smallest useful candidate to the owner early. Do not replace owner cognition with model-only critique loops.
 
+Early return comes **after** the candidate passes every check the owner has already stated and every gate the project declares before owner delivery. It means not stacking extra model critique on top of those. It never makes the owner the checker for rules the owner already gave, and where the project says the owner is not an intermediate QA surface, that wins. When the owner catches a violation of a rule he or she already stated, treat it as an enforcement failure at this boundary: repair the enforcement, not only the candidate.
+
 ## 4. Enforcement point before delivery
 
 Immediately before a consequential tool action, publication/release boundary, or owner-facing substantive candidate, run the Active Lesson Contract as an **admission gate**.
+
+Submitting a candidate to an external evaluator or detector is a consequential tool action. Persist the gate's evidence (for example, a checklist report and a written disposition table) before the call, so that a skipped gate shows in the record.
 
 For every active lesson produce one of:
 
@@ -130,6 +137,8 @@ For every active lesson produce one of:
 - `FAIL — <specific violation>`.
 
 A substantive `FAIL` blocks delivery/action. Repair the actual work, then rerun the gate.
+
+A lesson that looks unhelpful for this task is still applied and still gets its `PASS` or `FAIL`. Add a flag for the owner with the change you suggest (see "Inherited rules that look unhelpful" in `patterns/owner-goal-followup-and-requirement-accretion.md`). `NOT_APPLICABLE` is only for a trigger that genuinely no longer holds, never for a rule the agent disagrees with.
 
 `I read the lesson`, `I kept it in mind`, or `the prompt included it` are not evidence of application.
 
@@ -145,7 +154,9 @@ The active contract becomes stale when the task meaningfully changes. Recompile 
 - article/source authority change;
 - new controlled evidence that supersedes a lesson;
 - phase change that activates different risks;
-- repeated failure that reveals the current active contract did not encode the real generative/operational mistake.
+- repeated failure that reveals the current active contract did not encode the real generative/operational mistake;
+- context compaction, a resumed session, or work continued from a summary or handoff;
+- the start of each new unit of work inside a task, such as the next section of a document.
 
 A direct owner correction should normally be activated before the next attempt, not merely saved for later closeout.
 

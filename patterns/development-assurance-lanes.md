@@ -170,6 +170,8 @@ Examples include:
 
 Run the smallest hard gate needed to keep experimentation safe. Do not use the existence of one high-risk invariant to import every unrelated release gate into the inner loop.
 
+Gates that the project's authority files or the owner declare blocking are hard gates in every lane. Iteration's early owner or product evaluation comes after those gates, never instead of them.
+
 Example: a therapy-app experiment may need deterministic prevention of unsafe deepening while still deferring full repository publication scans, multi-model evaluation, and release verification until release time.
 
 ## Evidence proportionality rule

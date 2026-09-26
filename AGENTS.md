@@ -127,7 +127,7 @@ Before authoring, launching, or accepting a consequential follow-up task, re-bin
 
 First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`, and state the exact remaining owner gap. A useful improvement is not unfinished owner work merely because it is technically attractive.
 
-Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity. An `ASSISTANT_INFERENCE` or inherited project choice with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path.
+Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity. An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path.
 
 Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete. Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory.
 
