@@ -4,17 +4,12 @@ import { parseGitHubReceiptPolicy, pendingDecisionRequests } from "./github-deci
 import { requestRouteEventId } from "./request-bound-supervision";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "./fleet-router-producer";
+import { fleetEvidenceEvents } from "./fleet-evidence-boundary";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import type { StoredEvent } from "./schema";
 import type { EventStore, FleetSupervisorWatchRecord } from "./store";
 import type { FleetSupervisorDecision } from "./fleet-supervisor";
 
-const BOUNDARY_FAMILIES = new Set([
-  "task_contract_recorded", "execution_directive_recorded", "execution_receipt_recorded",
-  "chatgpt_work_cloud_execution_receipt_recorded", "worker_checkpoint_recorded",
-  "live_worker_evidence_observed", "structured_blocker_recorded", "outcome_progress_recorded", "reasoning_supervision_recorded",
-  "github_decision_receipt_ingested",
-]);
 export function routeFleetReasoning(store: EventStore, watch: FleetSupervisorWatchRecord,
   decision: FleetSupervisorDecision, history: readonly StoredEvent[], now: string) {
   const events = history.filter(e => e.worker === watch.worker);
@@ -50,18 +45,12 @@ export function routeFleetReasoning(store: EventStore, watch: FleetSupervisorWat
     && !e.data.bounded_execution)?.data;
   const lane = pro || unresolvedPrior?.type === "github_decision_receipt_ingested"
     ? "PRO_ESCALATED" : "EXTRA_HIGH_DIRECT";
-  const latest = new Map<string, StoredEvent>();
-  for (const event of events) {
-    if (!BOUNDARY_FAMILIES.has(event.data.type)) continue;
-    if ("task_id" in event.data && event.data.task_id !== watch.taskId) continue;
-    const suffix = event.data.type === "structured_blocker_recorded" ? event.data.blocker_id : "";
-    latest.set(`${event.data.type}:${suffix}`, event);
-  }
-  const boundary = [...latest.values()].map(e => ({ event_id: e.eventId, event_hash: e.eventHash }));
+  const boundaryEvents = fleetEvidenceEvents(events, watch.taskId);
+  const boundary = boundaryEvents.map(e => ({ event_id: e.eventId, event_hash: e.eventHash }));
   const owner = { id: outcome.owner_outcome_id, epoch: outcome.epoch, sha256: outcome.owner_outcome_sha256 };
   const factual = canonicalJson({ trigger: decision.trigger, project_id: watch.projectId,
     task_id: watch.taskId, worker: watch.worker, source_receipt_id: source.receipt_id,
-    runtime_blocker_codes: [...latest.values()].flatMap(e => e.data.type === "live_worker_evidence_observed"
+    runtime_blocker_codes: boundaryEvents.flatMap(e => e.data.type === "live_worker_evidence_observed"
       && e.data.blocker_code ? [e.data.blocker_code] : []),
     owner_outcome: owner, boundary, automatic_replay_allowed: false,
     worker_semantic_authority: false, private_payloads_included: false });
