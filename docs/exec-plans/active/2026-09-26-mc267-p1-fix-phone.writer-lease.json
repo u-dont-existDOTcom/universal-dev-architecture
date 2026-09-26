@@ -1,10 +1,13 @@
 {
   "schema_version": 1,
-  "status": "active",
+  "status": "closed",
   "exclusive_writer": true,
   "owned_branch": "chat/mc267-p1-fix-20260926-phone",
   "integration_branch": "chat/mc-blocked-work-routing-integrate-20260926",
   "integration_base_sha": "32cf5244fac23fd16665005ca6c4a9af17cb7d3c",
   "parent_integrator": "claude",
-  "scope": "Isolated repair candidate for the three current P1 findings on PR 267; no shared-runtime mutation, merge, deployment, or replay."
+  "scope": "Isolated repair candidate for the three current P1 findings on PR 267; no shared-runtime mutation, merge, deployment, or replay.",
+  "close_reason": "Parent integrator independently repaired the same three P1 findings on PR 267.",
+  "superseded_by_parent_integration_sha": "4ea1f30c3cc2672cb5d5c18bb2a274808e950973",
+  "integration_action": "NONE"
 }
