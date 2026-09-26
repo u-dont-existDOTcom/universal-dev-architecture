@@ -16,6 +16,7 @@ import { validateOwnerResponseContinuation } from "./owner-response-continuation
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "./chatgpt-work-cloud-autodispatch";
 import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
+import { fleetRequestEvidenceIsCurrent } from "./fleet-evidence-boundary";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -339,11 +340,13 @@ function ingestGitHubSupervisionCandidateFromEvents(
     const decisionData = envelope.data;
     const requestBoundDecision = decisionData.execution_provenance === "REQUEST_BOUND_MCP_GITHUB_OBSERVED";
     const inBandDecision = decisionData.execution_provenance === inBandRequestProvenance;
-    const directiveEnvelope = buildExecutionDirectiveFromGitHubDecision({
+    const fleetEvidenceCurrent = !decisionData.request_id.startsWith("fleet-watch:")
+      || fleetRequestEvidenceIsCurrent(events, decisionData.request_id, decisionData.task_id);
+    const directiveEnvelope = fleetEvidenceCurrent ? buildExecutionDirectiveFromGitHubDecision({
       eventId: envelope.event_id,
       occurredAt: envelope.occurred_at,
       data: decisionData,
-    }, events, ingestedAt);
+    }, events, ingestedAt) : null;
     const directDecision = decisionData.decision_provider_session_id !== null;
     const attestationEnvelope = evidenceEnvelope({
       worker: decisionData.worker, receiptId: `durable-stage-receipt-attestation:${candidate.commentId}`, producer: githubReceiptCollector,
@@ -365,6 +368,8 @@ function ingestGitHubSupervisionCandidateFromEvents(
           "cryptographic_provider_session_attestation:false",
         ] : []),
         `reasoning_lane:${decisionData.reasoning_lane}`,
+        ...(decisionData.request_id.startsWith("fleet-watch:")
+          ? [`fleet_evidence_boundary_current:${fleetEvidenceCurrent}`] : []),
         `github_comment:${candidate.immutableUrl}`,
         ...(decisionData.decision_session_provenance ? [`provenance:${decisionData.decision_session_provenance}`, "backend_model_identity_claimed:false"]
           : decisionData.pro_decision_block.used ? ["provenance:DURABLE_STAGE_RECEIPT_ATTESTED", "independent_pro_observation:false"] : ["provenance:EXTRA_HIGH_DIRECT"]),
