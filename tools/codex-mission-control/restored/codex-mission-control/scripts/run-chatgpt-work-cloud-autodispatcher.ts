@@ -7,6 +7,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   discoverDirectWorkCloudDispatches,
   parseWorkCloudSourceChats,
+  selectWorkCloudDispatchCandidate,
   type PreparedDirectWorkCloudDispatch,
 } from "../lib/chatgpt-work-cloud-autodispatch";
 import { parseGitHubReceiptPolicy } from "../lib/github-decision-receipts";
@@ -17,6 +18,8 @@ const chmod = promisify(fs.chmod);
 const PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
 const once = process.argv.includes("--once");
 const intervalMs = positiveInteger(process.env.MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_INTERVAL_MS, 10_000);
+const pendingSetupRetryMs = positiveInteger(process.env.MISSION_CONTROL_CHATGPT_WORK_PENDING_SETUP_RETRY_MS, 300_000);
+const lastPendingAttemptMs = new Map<string, number>();
 const baseUrl = (process.env.MISSION_CONTROL_DAEMON_URL ?? "http://127.0.0.1:4100").replace(/\/$/, "");
 const token = requiredEnvironment("MISSION_CONTROL_INTERNAL_TOKEN");
 const privateRoot = privateDirectory(requiredEnvironment("MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_DIR"));
@@ -41,7 +44,9 @@ async function cycle(): Promise<Record<string, unknown>> {
     artifactPathFor: (dispatchId) => path.join(privateRoot, `${sha256(dispatchId)}.directive.json`),
   });
   if (candidates.length === 0) return { status: "IDLE", observedAt: now };
-  const candidate = candidates[0]!;
+  const candidate = selectWorkCloudDispatchCandidate(candidates, lastPendingAttemptMs, Date.now(), pendingSetupRetryMs);
+  if (!candidate) return { status: "IDLE_PENDING_SETUP_BACKOFF", observedAt: now, pending: candidates.length };
+  if (candidate.recoveryState === "PENDING_SETUP_READ_ONLY") lastPendingAttemptMs.set(candidate.dispatchId, Date.now());
   const requestPath = await materialize(candidate);
   const controller = await runController(requestPath);
   return {

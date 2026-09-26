@@ -10,6 +10,7 @@
     "start": "node scripts/run-stack.mjs start",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "owner:action": "tsx scripts/owner-action.ts",
     "supervision:admit": "tsx scripts/check-supervision-admission.ts",
     "supervision:admit:runtime": "node scripts/require-supervision-admission.mjs",
     "worker:poll": "node scripts/run-worker-adapter.mjs",

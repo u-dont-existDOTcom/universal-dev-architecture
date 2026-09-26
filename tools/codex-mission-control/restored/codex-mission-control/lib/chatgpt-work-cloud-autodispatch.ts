@@ -254,3 +254,22 @@ function nullableString(value: unknown, field: string): string | null {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${field} must be a string or null.`);
   return value;
 }
+
+// Picks the next dispatch for one watcher cycle. A PENDING_SETUP dispatch is only a read-only
+// re-resolution; retrying it every cycle hammered the app bridge, so it is retried at most once
+// per retryMs. New and proven-unsent dispatches are never delayed.
+export function selectWorkCloudDispatchCandidate(
+  candidates: PreparedDirectWorkCloudDispatch[],
+  lastPendingAttemptMs: ReadonlyMap<string, number>,
+  nowMs: number,
+  retryMs: number,
+): PreparedDirectWorkCloudDispatch | null {
+  // Fresh (non-pending) dispatches always go first, so a due setup retry never delays a new launch.
+  const fresh = candidates.find((candidate) => candidate.recoveryState !== "PENDING_SETUP_READ_ONLY");
+  if (fresh) return fresh;
+  for (const candidate of candidates) {
+    const last = lastPendingAttemptMs.get(candidate.dispatchId);
+    if (last === undefined || nowMs - last >= retryMs) return candidate;
+  }
+  return null;
+}

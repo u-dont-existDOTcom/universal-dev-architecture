@@ -122,8 +122,10 @@ export function installStuckRecovery(browser, {
       } catch (error) {
         const systemsThinkingStall = isSystemsThinkingMoreThanUsual(error);
         const connectionInterruptedStall = isConnectionInterrupted(error);
+        const progressHeartbeatStall = isProgressHeartbeatStall(error);
         const explicitSystemStall = systemsThinkingStall || connectionInterruptedStall;
-        if ((!explicitSystemStall && (!allowGenericRecovery || !isGenerationStallTimeout(error))) || recoveries.length >= maxNudges) throw error;
+        const genericStall = isGenerationStallTimeout(error) || progressHeartbeatStall;
+        if ((!explicitSystemStall && (!allowGenericRecovery || !genericStall)) || recoveries.length >= maxNudges) throw error;
         let interruption;
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
@@ -135,7 +137,7 @@ export function installStuckRecovery(browser, {
         const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
           source: systemsThinkingStall
             ? 'SYSTEMS_THINKING_MORE_THAN_USUAL'
-            : (connectionInterruptedStall ? 'CONNECTION_INTERRUPTED' : 'ACTIVE_GENERATION_TIMEOUT'),
+            : (connectionInterruptedStall ? 'CONNECTION_INTERRUPTED' : (progressHeartbeatStall ? 'PROGRESS_HEARTBEAT_STALLED' : 'ACTIVE_GENERATION_TIMEOUT')),
           controlLabel: systemsThinkingStall
             ? 'Our systems are thinking more than usual'
             : (connectionInterruptedStall ? 'Connection interrupted' : null),
@@ -167,6 +169,13 @@ export function isConnectionInterrupted(error) {
   const message = error instanceof Error ? error.message : String(error);
   return code === 'CHATGPT_CONNECTION_INTERRUPTED'
     || message.includes('CHATGPT_CONNECTION_INTERRUPTED');
+}
+
+export function isProgressHeartbeatStall(error) {
+  const code = error && typeof error === 'object' ? error.code : null;
+  const message = error instanceof Error ? error.message : String(error);
+  return code === 'CHATGPT_PROGRESS_HEARTBEAT_STALLED'
+    || message.includes('CHATGPT_PROGRESS_HEARTBEAT_STALLED');
 }
 
 async function sendContinue(submitMessage, target, options, index, maxNudges, logger, context) {

@@ -26,7 +26,9 @@ import {
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
+import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
 import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
@@ -56,6 +58,19 @@ const githubReconciliationEventCache = githubPolicy && githubReconciliationStart
   ? GitHubReconciliationEventCache.fromEvents(store, [...githubReconciliationStartupEvents, ...githubChallengeEvents])
   : null;
 const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
+const githubReconciliationCoordinator = githubPolicy && githubReconciliationEventCache
+  ? new GitHubReconciliationCoordinator({
+    execute: () => reconcileGitHubDecisionReceipts(store, {
+      token: process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN,
+      policy: githubPolicy,
+      eventCache: githubReconciliationEventCache,
+    }),
+    latestSequence: () => store.latestSequence(),
+    onAppended: (events) => {
+      for (const event of events) notifications.emit("event", event);
+    },
+  })
+  : null;
 const submissionAuthority = new SubmissionAuthorityRuntime(store, process.env, Date.now, eventHistory);
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
@@ -63,7 +78,7 @@ const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env
     worktreePath: process.env.MISSION_CONTROL_LIVE_WORKTREE,
   }, (event) => notifications.emit("event", event))
   : null;
-const githubReconciliationTimer = startGitHubReconciliation(githubReconciliationEventCache);
+const githubReconciliationTimer = startGitHubReconciliation(githubReconciliationCoordinator);
 const fleetSupervisorTimer = startFleetSupervisor();
 
 const server = http.createServer(async (request, response) => {
@@ -79,6 +94,16 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet watch reads require owner or supervisor scope." });
       return json(response, 200, { defaultCadenceMs: 3_600_000, watches: store.fleetSupervisorWatches() });
+    }
+    const fleetEnrollMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/enroll$/);
+    if (request.method === "POST" && fleetEnrollMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may enroll a fleet watch." });
+      const enrollment = parseFleetWatchEnrollment(await readJson(request));
+      if (typeof enrollment === "string") return json(response, 400, { error: enrollment });
+      const result = enrollFleetSupervisorWatch(store, decodeURIComponent(fleetEnrollMatch[1]), enrollment);
+      notifications.emit("event", { type: "fleet_supervisor_watch_configured", projectId: result.watch.projectId });
+      return json(response, result.created ? 201 : 200, result);
     }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);
     if (request.method === "POST" && fleetWatchMatch) {
@@ -176,6 +201,23 @@ const server = http.createServer(async (request, response) => {
       notifications.emit("event", event);
       const routingCheckpoints = appendWorkRoutingCheckpoints();
       return json(response, 201, { event, routingCheckpoints });
+    }
+    if (request.method === "POST" && url.pathname === "/github/decision-receipts/reconcile") {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY" && producer.kind !== "UI") {
+        return json(response, 403, { error: "GitHub reconciliation recovery requires an authenticated owner surface." });
+      }
+      if ((await readBody(request, 1_000)).length !== 0) {
+        return json(response, 400, { error: "GitHub reconciliation recovery accepts no request body." });
+      }
+      if (!githubReconciliationCoordinator) {
+        return json(response, 503, { error: "GitHub reconciliation is not configured." });
+      }
+      try {
+        return json(response, 200, await githubReconciliationCoordinator.run("OWNER_RECOVERY"));
+      } catch {
+        return json(response, 502, { error: "GitHub reconciliation failed.", code: "GITHUB_RECONCILIATION_FAILED" });
+      }
     }
     if (request.method === "POST" && url.pathname === "/github/decision-receipts") {
       const producer = authorizeMutation(request);
@@ -406,16 +448,20 @@ function empty(response: http.ServerResponse, status: number) {
   response.end();
 }
 
-async function readJson(request: http.IncomingMessage): Promise<unknown> {
+async function readBody(request: http.IncomingMessage, maximumBytes = 1_000_000): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let length = 0;
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     length += buffer.length;
-    if (length > 1_000_000) throw new Error("Request body is too large.");
+    if (length > maximumBytes) throw new Error("Request body is too large.");
     chunks.push(buffer);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return Buffer.concat(chunks);
+}
+
+async function readJson(request: http.IncomingMessage): Promise<unknown> {
+  return JSON.parse((await readBody(request)).toString("utf8"));
 }
 
 function authorizeMutation(request: http.IncomingMessage): AuthenticatedProducer {
@@ -461,45 +507,43 @@ function appendEnvelopeFromStored(event: StoredEvent) {
   };
 }
 
-function startGitHubReconciliation(eventCache: GitHubReconciliationEventCache | null): NodeJS.Timeout | null {
-  if (!githubPolicy || !eventCache) return null;
-  const token = process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN;
+function startGitHubReconciliation(coordinator: GitHubReconciliationCoordinator | null): NodeJS.Timeout | null {
+  if (!coordinator) return null;
   const configured = Number(process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS ?? 300_000);
   if (!Number.isInteger(configured) || configured < 30_000 || configured > 3_600_000) {
     throw new Error("MISSION_CONTROL_GITHUB_RECONCILIATION_INTERVAL_MS must be 30000-3600000.");
   }
-  let running = false;
-  const reconcile = async () => {
-    if (running) return;
-    running = true;
+  const reconcile = async (trigger: "STARTUP" | "INTERVAL") => {
     const startedAt = new Date().toISOString();
     const startedAtMs = Date.now();
-    console.log(JSON.stringify({ event: "github_supervision_reconciliation_started", startedAt }));
+    console.log(JSON.stringify({ event: "github_supervision_reconciliation_started", trigger, startedAt }));
     try {
-      const events = await reconcileGitHubDecisionReceipts(store, { token, policy: githubPolicy, eventCache });
-      for (const event of events) notifications.emit("event", event);
+      const result = await coordinator.run(trigger);
       console.log(JSON.stringify({
         event: "github_supervision_reconciliation_completed",
+        trigger,
+        status: result.status,
         startedAt,
         completedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAtMs,
-        appendedEvents: events.length,
+        appendedEvents: result.appendedEvents,
+        requestIds: result.requestIds,
+        latestSequence: result.latestSequence,
       }));
     } catch (error) {
       console.error(JSON.stringify({
         event: "github_supervision_reconciliation_failed",
+        trigger,
         startedAt,
         failedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAtMs,
         error: error instanceof Error ? error.message : "Unknown reconciliation failure",
       }));
-    } finally {
-      running = false;
     }
   };
-  const timer = setInterval(() => void reconcile(), configured);
+  const timer = setInterval(() => void reconcile("INTERVAL"), configured);
   timer.unref();
-  void reconcile();
+  void reconcile("STARTUP");
   return timer;
 }
 

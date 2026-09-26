@@ -77,6 +77,7 @@ export async function loadConfig(env = process.env) {
       pageReadyTimeoutMs: integer(env.MC_RELAY_PAGE_READY_TIMEOUT_MS, 90_000, 5_000, 300_000),
       submitTimeoutMs: integer(env.MC_RELAY_SUBMIT_TIMEOUT_MS, 30_000, 5_000, 120_000),
       generationTimeoutMs: integer(env.MC_RELAY_GENERATION_TIMEOUT_MS, 900_000, 30_000, 3_600_000),
+      progressStallMs: integer(env.MC_RELAY_PROGRESS_STALL_MS, 120_000, 30_000, 900_000),
     },
     runtime: {
       chats,
@@ -178,6 +179,7 @@ export function publicConfig(config) {
     capabilityTestEnabled: config.runtime.capabilityTestEnabled,
     pollIntervalMs: config.runtime.pollIntervalMs,
     minSubmissionIntervalMs: config.runtime.minSubmissionIntervalMs,
+    progressStallMs: config.browser.progressStallMs,
     submissionHost: {
       alias: config.runtime.submissionHost.alias,
       role: config.runtime.submissionHost.role,

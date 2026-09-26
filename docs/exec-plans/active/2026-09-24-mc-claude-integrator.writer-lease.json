@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "exclusive_writer": true,
+  "domain": "MISSION_CONTROL",
+  "owned_branch": "chat/mc-claude-integrator-20260924",
+  "integration_branch": "main",
+  "integration_base_sha": "279d1dd7dfb9daa023e76911e5acc4a6859e47fe",
+  "shared_runtime_mutation_owner": true,
+  "acquired_at": "2026-09-24T17:38:15Z",
+  "scope": "Mission Control integration: integrate the progress-heartbeat (d86774d) and secretless-reconciliation (b050075) candidates, add the owner-authenticated fleet-watch capability POST /api/fleet-supervisor/:projectId, then restore the AskRigor fleet watch through the control plane and resume A19-A20. No token extraction, no second scheduler, no replay of crossed source-review requests.",
+  "integrated_candidates": [
+    {
+      "branch": "chat/mc-progress-heartbeat-20260924-1535",
+      "commit": "d86774d41a2e21b9d5f185ac34e6d69a23fc10f6"
+    },
+    {
+      "branch": "chat/mc-secretless-reconcile-20260924-1535",
+      "commit": "b050075b292e3d47656745a543d7b4e9c6159c35"
+    }
+  ],
+  "findings_2026_09_24": {
+    "askrigor_watch": "Live /snapshot (primary daemon, 17:40Z) lists all fleet watches unfiltered: only project:human-design and project:mission-control. No AskRigor watch ever existed centrally; the earlier 'hourly watch re-enabled' checkpoint most likely referred to the external hourly fallback. The daemon mutation can only reconfigure an existing watch.",
+    "askrigor_project_identity": "No project:askrigor (or any AskRigor project id) exists in central state; only task:askrigor-system-alignment. Watches are enrolled only by work_queue_published with nonterminal items, which AskRigor never published centrally.",
+    "classifier_consequence": "Worker askrigor-system-alignment projects progress.outcomeAdvancement=UNKNOWN, so classifyFleetSupervisorTick returns PROJECT_INTEGRITY_FAILURE (stop + notify owner) before the WORKER_DIRECTIVE_CONTINUITY_GAP branch. An enrolled watch would therefore not route A19-A20 to mc-project-manager as the handoff expected.",
+    "status": "Owner confirmed project id project:askrigor (2026-09-24 18:32Z) and asked to enroll it. Owner-authorized enrollment added (daemon POST /fleet-supervisor/:projectId/enroll + owner BFF route); it binds only an existing worker/task from the ledger. Enrollment itself is a live owner action, not yet performed. A standing agent-usable owner-action tool was proposed but not built: this session's safety check requires the owner's explicit approval for it."
+  },
+  "live_2026_09_24": {
+    "label": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "owner_approval": "2026-09-24T19:03Z: production access to the Mission Control servers, the owner-action tool, and pushing",
+    "primary_deploy": {
+      "image": "codex-mission-control:claude-integrator-22ef1a5",
+      "release": "release directory for commit 22ef1a54fb790f350248813e7e4608c9f976beee on the primary host (location held privately)",
+      "container": "the primary live Mission Control container (name held privately)",
+      "swapped_at": "2026-09-24T19:35Z",
+      "healthy_after_s": 75,
+      "checks": "live 200; readiness ok, chain valid, sequence 18370, ACTIVE_LEASE; unauthenticated POST /api/fleet-supervisor/* -> 401; existing watches intact",
+      "rollback": "previous live container stopped and retained (image ingestion-reconcile-7b4c460); root-only pre-deploy inspect and environment file kept privately on the primary host"
+    },
+    "askrigor_enrollment": "2026-09-24T19:40:29Z via owner-action watch-enroll: project:askrigor / askrigor-system-alignment / task:askrigor-system-alignment, ACTIVE, hourly, first tick 20:40:29Z (201 created)",
+    "askrigor_a19_a20_request": "2026-09-24T19:48:29Z via owner-action source-review (review_attempt_id a19-a20-execution-decision-20260924-claude): 202 QUEUED_FOR_PROVIDER_RELAY, event supervision-request-v6:551561c5af71f1c490029825a5a751c342bd153fdbf6a201ec1f09da9e5630d9 at sequence 18371. Reconcile beforehand appended 0 events. Do not resend.",
+    "secondary_relay": "NOT YET DEPLOYED: held until the queued AskRigor request's provider generation completes, to avoid interrupting it.",
+    "native_work_endpoint": "native-work-autodispatch:askrigor-system-alignment remains OFFLINE_CONFIGURED; an execution directive will not launch Work until it is online."
+  }
+}
