@@ -5,6 +5,7 @@ import { seedIssue47Store } from "../lib/seed";
 import { classifyFleetSupervisorTick, FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "../lib/fleet-router-producer";
 import { buildExecutionDirectiveFromGitHubDecision } from "../lib/github-execution-directive";
+import { fleetTaskEvidenceBoundary } from "../lib/fleet-evidence-boundary";
 // Exercise the actual downstream browser-relay parser, not only the packet builder.
 // @ts-expect-error The separately deployed relay is plain JavaScript without a declaration package.
 import { parseSupervisoryCycleRouteBody } from "../../../vps-browser-relay/src/core.mjs";
@@ -304,3 +305,75 @@ test("a late bounded decision for superseded fleet evidence is non-executable", 
     assert.equal(buildExecutionDirectiveFromGitHubDecision(staleReceipt, f.store.workerEvents(f.watch.worker)), null);
   } finally { f.store.close(); restore(); }
 });
+
+test("a newer non-fleet same-task directive invalidates an older pending fleet review", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker), due);
+    const first = routes(f).find(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID)!;
+    const unrelatedDirective = {
+      id: 950, sequence: 950, eventId: "directive:other-supervision", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "execution_directive_recorded", occurredAt: "2026-09-25T01:05:00.000Z",
+      receivedAt: "2026-09-25T01:05:00.000Z", previousHash: first.eventHash, eventHash: "9".repeat(64),
+      producerId: "system:github-decision-receipts", producerKind: "SYSTEM",
+      data: { type: "execution_directive_recorded", worker: f.watch.worker, task_id: f.watch.taskId,
+        validated_decision_proof: { request_id: "non-fleet-review:current" } }
+    } as any;
+    const result = routeFleetSupervisorReasoning(
+      f.store, f.watch, classify(f), [...f.store.workerEvents(f.watch.worker), unrelatedDirective],
+      "2026-09-25T01:06:00.000Z",
+    );
+    assert.equal(result.status, "HANDOFF_BLOCKED_EVIDENCE_ADVANCED");
+    assert.equal(routes(f).filter(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID).length, 1);
+  } finally { f.store.close(); restore(); }
+});
+
+test("fleet evidence boundary excludes checkpoints from another task run", () => {
+  const f = fixture();
+  try {
+    const events = f.store.workerEvents(f.watch.worker);
+    const otherStart = {
+      id: 970, sequence: 970, eventId: "execution:start:other-boundary-task", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "codex_execution_started", occurredAt: due, receivedAt: due,
+      previousHash: events.at(-1)?.eventHash ?? null, eventHash: "4".repeat(64),
+      producerId: `worker:${f.watch.worker}`, producerKind: "WORKER",
+      data: { type: "codex_execution_started", worker: f.watch.worker, execution_start_id: "start:other-boundary-task",
+        worker_run_id: "run:other-boundary-task", task_id: "task:other-boundary", directive_id: "directive:other-boundary",
+        directive_revision: 1, started_at: due, execution_mode: "SUBSTANTIVE",
+        declared_tactical_boundary: "fixture", work_profile_authorization_id: null, work_profile_preflight_id: null }
+    } as any;
+    const otherCheckpoint = {
+      id: 971, sequence: 971, eventId: "checkpoint:other-boundary-task", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "worker_checkpoint_recorded", occurredAt: due, receivedAt: due,
+      previousHash: otherStart.eventHash, eventHash: "5".repeat(64),
+      producerId: `worker:${f.watch.worker}`, producerKind: "WORKER",
+      data: { type: "worker_checkpoint_recorded", worker: f.watch.worker, worker_run_id: "run:other-boundary-task",
+        status: "blocked", current_step: "Other task blocked", completed_steps: [], next_steps: [],
+        files_touched: [], tests: { passing: 0, failing: 0, lint: "not_run", build: "not_run" },
+        plan_changed: false, plan_change_reason: null, blocker: "other task blocker", assumptions: [],
+        diff_lines: 0, referenced_directive_ids: [] }
+    } as any;
+    const boundary = fleetTaskEvidenceBoundary([...events, otherStart, otherCheckpoint], f.watch.worker, f.watch.taskId);
+    assert.equal(boundary.some(item => item.event_id === otherCheckpoint.eventId), false);
+
+    const watchedStart = {
+      ...otherStart, id: 972, sequence: 972, eventId: "execution:start:watched-boundary-task",
+      eventHash: "6".repeat(64),
+      data: { ...otherStart.data, execution_start_id: "start:watched-boundary-task",
+        worker_run_id: "run:watched-boundary-task", task_id: f.watch.taskId,
+        directive_id: "directive:watched-boundary" }
+    } as any;
+    const watchedCheckpoint = {
+      ...otherCheckpoint, id: 973, sequence: 973, eventId: "checkpoint:watched-boundary-task",
+      eventHash: "7".repeat(64), previousHash: watchedStart.eventHash,
+      data: { ...otherCheckpoint.data, worker_run_id: "run:watched-boundary-task",
+        current_step: "Watched task blocked", blocker: "watched task blocker" }
+    } as any;
+    const watchedBoundary = fleetTaskEvidenceBoundary(
+      [...events, watchedStart, watchedCheckpoint], f.watch.worker, f.watch.taskId,
+    );
+    assert.equal(watchedBoundary.some(item => item.event_id === watchedCheckpoint.eventId), true);
+  } finally { f.store.close(); }
+});
+
