@@ -475,7 +475,12 @@ export const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
   const ownText = (element) => normalizeText([...element.childNodes].filter((node) => node.nodeType === 3).map((node) => node.nodeValue).join(''));
   const namesExactly = (item, label) => [item, ...item.querySelectorAll('*')]
     .some((element) => normalizeText(element.textContent) === label || ownText(element) === label);
-  const listMatches = labelWanted == null ? [] : listItems.filter(visible).filter((element) => namesExactly(element, labelWanted));
+  // Off-screen entries stay mounted with real rectangles, so an entry is clickable only when its centre lies inside
+  // the list's own viewport; a match outside it is reached by scrolling towards it.
+  const viewport = listScroll ? listScroll.getBoundingClientRect() : null;
+  const centreY = (element) => { const box = element.getBoundingClientRect(); return box.y + box.height / 2; };
+  const allListMatches = labelWanted == null ? [] : listItems.filter(visible).filter((element) => namesExactly(element, labelWanted));
+  const listMatches = viewport ? allListMatches.filter((element) => centreY(element) > viewport.top && centreY(element) < viewport.bottom) : [];
   const roots = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(visible);
   const items = roots.flatMap((root) => [...root.querySelectorAll('[role="menuitem"], [role="menuitemradio"], [role="option"], button')].filter(visible));
   const renderedAppMatches = labelWanted == null ? [] : [...document.querySelectorAll('[role="menuitemradio"], [role="option"]')].filter((element) => accessibleLabel(element) === labelWanted);
@@ -499,6 +504,9 @@ export const APP_SELECTION_STATE_FN = `function(knownLabels, labelWanted) {
     availableAppLabels: items.filter((element) => ['menuitemradio', 'option'].includes(element.getAttribute('role'))).map(accessibleLabel).filter(Boolean),
     listOpen: listItems.filter(visible).length > 0,
     listMatchCount: listMatches.length,
+    listMatchTotal: allListMatches.length,
+    listMatchAbove: Boolean(viewport) && allListMatches.some((element) => centreY(element) <= viewport.top),
+    listMatchBelow: Boolean(viewport) && allListMatches.some((element) => centreY(element) >= viewport.bottom),
     listRect: listMatches.length === 1 ? rect(listMatches[0]) : null,
     listScrollRect: listScroll && visible(listScroll) ? rect(listScroll) : null,
     listAtEnd: listScroll ? listScroll.scrollTop + listScroll.clientHeight >= listScroll.scrollHeight - 2 : null,
@@ -535,12 +543,14 @@ export function appSelectionState(observation, labelWanted, { listRewound = true
   if ((observation.chipMatchCount ?? 0) > 1) throw new Error(`Selected app chip ${labelWanted} is ambiguous.`);
   if ((observation.appMatchCount ?? 0) > 1) throw new Error(`Exact app label ${labelWanted} is ambiguous.`);
   if ((observation.renderedAppMatchCount ?? 0) > 1) throw new Error(`Exact rendered app label ${labelWanted} is ambiguous.`);
-  if ((observation.listMatchCount ?? 0) > 1) throw new Error(`Exact app list entry ${labelWanted} is ambiguous.`);
+  if ((observation.listMatchCount ?? 0) > 1 || (observation.listMatchTotal ?? 0) > 1) throw new Error(`Exact app list entry ${labelWanted} is ambiguous.`);
   if ((observation.appMatchCount ?? 0) === 1) return { type: 'APP_OPTION', label: labelWanted };
   if ((observation.renderedAppMatchCount ?? 0) === 1) return { type: 'FOCUS_APP', label: labelWanted };
   if ((observation.listMatchCount ?? 0) === 1) return { type: 'LIST_OPTION', label: labelWanted };
   if (considerList && labelWanted != null && observation.listOpen === true) {
     // A list left scrolled down is rewound once, so every entry is scanned from the top before the app is declared absent.
+    if (observation.listMatchAbove === true && observation.listScrollRect) return { type: 'SCROLL_LIST_UP' };
+    if (observation.listMatchBelow === true && observation.listScrollRect) return { type: 'SCROLL_LIST' };
     if (!listRewound && observation.listAtTop === false && observation.listScrollRect) return { type: 'REWIND_LIST' };
     if (observation.listAtEnd === false && observation.listScrollRect) return { type: 'SCROLL_LIST' };
     throw new Error(`Exact app label ${labelWanted} is not in the ChatGPT app list.`);
@@ -1030,9 +1040,9 @@ export class ChromeDevtoolsBrowser {
           if (observation.listOpen === true && observation.listAtTop === true) listRewound = true;
           const action = appSelectionState(observation, label, { listRewound });
           if (observation.chipMatchCount === 1) break;
-          if (action.type === 'SCROLL_LIST' || action.type === 'REWIND_LIST') {
+          if (['SCROLL_LIST', 'SCROLL_LIST_UP', 'REWIND_LIST'].includes(action.type)) {
             const r = observation.listScrollRect;
-            const deltaY = action.type === 'REWIND_LIST' ? -100_000 : 240;
+            const deltaY = action.type === 'REWIND_LIST' ? -100_000 : (action.type === 'SCROLL_LIST_UP' ? -120 : 120);
             await client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: r.x + r.width / 2, y: r.y + r.height / 2, deltaX: 0, deltaY });
             if (action.type === 'REWIND_LIST') listRewound = true;
             await new Promise((resolve) => setTimeout(resolve, 250));

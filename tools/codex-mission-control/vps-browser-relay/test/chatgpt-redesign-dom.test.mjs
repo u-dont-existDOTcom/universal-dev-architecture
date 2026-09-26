@@ -57,16 +57,19 @@ function modelMenu({ position = 1, label = 'Medium', total = 5 } = {}) {
 }
 
 // An entry is a name, optionally followed by a description in its own element ("name|description"), or one
-// combined text run when given as { combined: "..." }.
-function appEntry(entry) {
+// combined text run when given as { combined: "..." }. Entries are laid out 36 px apart from the list's top; the
+// list viewport shows y 100-304, so entries 0-5 are in view and later ones are mounted below it.
+const VIEWPORT = { x: 0, y: 100, width: 500, height: 204 };
+function appEntry(entry, index, offset = 0) {
   const attrs = { type: 'button', 'data-list-navigation-item': 'true' };
-  if (typeof entry === 'object') return h('button', attrs, [h('span', { class: 'truncate' }, [], { text: entry.combined })]);
+  const rect = { x: 10, y: VIEWPORT.y + index * 36 - offset, width: 400, height: 32 };
+  if (typeof entry === 'object') return h('button', attrs, [h('span', { class: 'truncate' }, [], { text: entry.combined })], { rect });
   const [name, description] = entry.split('|');
-  return h('button', attrs, [h('span', {}, [], { text: name }), ...(description ? [h('span', {}, [], { text: description })] : [])]);
+  return h('button', attrs, [h('span', {}, [], { text: name, rect }), ...(description ? [h('span', {}, [], { text: description, rect })] : [])], { rect });
 }
 
-function appList(names, { scrollTop = 0 } = {}) {
-  const scroll = h('div', { 'data-mention-list-scroll-area': '' }, [h('div', {}, names.map(appEntry))]);
+function appList(names, { scrollTop = 0, offset = 0 } = {}) {
+  const scroll = h('div', { 'data-mention-list-scroll-area': '' }, [h('div', {}, names.map((name, index) => appEntry(name, index, offset)))], { rect: VIEWPORT });
   Object.assign(scroll, { scrollTop, scrollHeight: 1584, clientHeight: 204 });
   return h('div', { 'data-composer-overlay-floating-ui': 'true' }, [h('div', {}, [scroll])]);
 }
@@ -217,4 +220,24 @@ test('app selection carries the list rewind state through every wait', async () 
   assert.equal(flow.match(/appSelectionState\(next, label, \{ listRewound \}\)/g)?.length, 1);
   assert.equal(flow.match(/appSelectionState\(observation, label, \{ listRewound \}\)/g)?.length, 1);
   assert.equal(flow.match(/\{ considerList: false \}/g)?.length, 2);
+});
+
+test('app entries count as clickable only inside the list viewport', () => {
+  const below = ['Add photos & files', 'Web search', 'Sketch', 'Deep research', 'Wolfram', 'Railway', 'Presentations', 'PDF', 'GitHub'];
+  const seen = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(below)]), [['Mission Control', 'GitHub'], 'GitHub']);
+  assert.equal(seen.listMatchCount, 0);
+  assert.equal(seen.listMatchTotal, 1);
+  assert.equal(seen.listMatchBelow, true);
+  assert.deepEqual(appSelectionState(seen, 'GitHub', { listRewound: true }), { type: 'SCROLL_LIST' });
+
+  // In view once scrolled to it; scrolled past it (above the list viewport, still on screen), scroll back up.
+  const inView = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(below, { scrollTop: 150, offset: 150 })]), [['Mission Control', 'GitHub'], 'GitHub']);
+  assert.equal(inView.listMatchCount, 1);
+  assert.deepEqual(appSelectionState(inView, 'GitHub'), { type: 'LIST_OPTION', label: 'GitHub' });
+  const past = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(below, { scrollTop: 330, offset: 330 })]), [['Mission Control', 'GitHub'], 'GitHub']);
+  assert.equal(past.listMatchAbove, true);
+  assert.deepEqual(appSelectionState(past, 'GitHub', { listRewound: false }), { type: 'SCROLL_LIST_UP' });
+
+  const twiceOffscreen = runInPage(APP_SELECTION_STATE_FN, page([composerForm(), appList(['GitHub', 'Web search', 'Sketch', 'Deep research', 'Wolfram', 'Railway', 'PDF', 'GitHub'])]), [['Mission Control', 'GitHub'], 'GitHub']);
+  assert.throws(() => appSelectionState(twiceOffscreen, 'GitHub'), /ambiguous/);
 });
