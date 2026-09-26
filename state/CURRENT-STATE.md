@@ -654,11 +654,28 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
   status line reads "<effort>, <n> of 5."; "Add files and more" opens a
   scrollable list (`data-mention-list-scroll-area`) that includes Mission Control
   and GitHub; the page strings name Send/Stop controls and "Remove <app>" pills.
-- The relay's page contract is updated on
-  `claude/relay-chatgpt-redesign-20260926` with DOM-level tests against the
-  recorded structures. Not yet installed on either host.
+- The relay's page contract was updated with DOM-level tests against the
+  recorded structures, cleared seven automated review rounds and was merged to
+  `main` as `3d4754f` (UDA #268; 325/325 relay tests).
 - Conversation pages would not load in the relay browser's spare tab ("Could
   not load this ChatGPT conversation"), so per-turn markers are unmapped.
-- Next: merge after review, install on both hosts, restart the SECONDARY relay,
-  extend its lease (expires 2026-09-27T00:00Z; same identity, later expiry),
-  and prove recovery with a new ledger submission.
+- Installed 2026-09-26 (evidence:
+  `docs/evidence/2026-09-26-relay-chatgpt-september-page-deploy.json`):
+  SECONDARY at 18:12Z with its relay restarted at 18:14:15Z; PRIMARY at 18:23Z,
+  still fenced with relay, browser and health timer left inactive as found.
+  Both run app tree `b6bb4dc2…`, pass 113/113 focused host tests on Node
+  22.23.2, and keep the previous app copy for rollback.
+- Verified live on SECONDARY: the relay lock is held by the persistent service,
+  the window replacement committed (central transition CLEAR), and the read-only
+  doctor reports READY with one automation-owned ChatGPT tab (RO-PAGE-2).
+- Not yet verified: a real provider send (RO-PAGE-3). All 13 requests the relay
+  can see expired; the newest was queued 2026-09-24T15:50Z, so nothing is
+  eligible until a worker queues a new supervision request. Model, effort and
+  app selection and Send are first exercised by that request and fail closed on
+  a mismatch.
+- Lease (RO-PAGE-4): SECONDARY lease still expires 2026-09-27T00:00Z; the
+  same-identity renewal to 2026-10-27T00:00Z is prepared as an owner-run
+  command and had not been run at 18:25Z.
+- Next: owner runs the lease renewal before 2026-09-27T00:00Z; on the next
+  queued request, read the relay journal, read-only doctor and central ledger
+  until a new submission is recorded or the failing step is identified.
