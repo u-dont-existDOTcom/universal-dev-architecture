@@ -72,7 +72,7 @@ For non-trivial software tasks where repeated testing could materially affect ta
 
 If the active project does not already contain an equivalent observer, do not silently skip measurement. Vendor the current canonical `scripts/test_efficiency.py` from this repository, run the current canonical observer from a checked-out copy with `--root <PROJECT>`, or use a verified project-native equivalent. A missing local observer is not a reason to mark telemetry not applicable.
 
-Focused and affected tests are the default inner loop. Full suites are checkpoint-based, not an after-every-edit reflex. Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger; ordinary green tests are not by themselves a reason to launch mutation testing.
+Before choosing which tests to run, load the inner-loop, full-suite checkpoint, redundant-rerun, and mutation-trigger rules: `patterns/test-efficiency-and-verification-budget.md` → **Compact rules moved from root `AGENTS.md`**.
 
 Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.
 
@@ -164,17 +164,7 @@ Immediately before surfacing any outbound link to the owner, open the exact dest
 
 **Delivery is part of completion.** When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.
 
-Use this priority:
-
-1. give the actual file/attachment when the active surface can materialize or attach it;
-2. otherwise give a direct clickable file/download link to the artifact itself;
-3. only if neither is technically possible, provide the usable contents inline when practical, or explain the exact tool limitation and give the nearest direct retrievable link.
-
-Branch names, repository paths, PR numbers, and commit SHAs may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery. Before saying `go to branch X`, `open path Y`, `grab the file from GitHub`, or equivalent, first attempt to retrieve/materialize/attach the artifact or create a direct link.
-
-When a handoff needs companion material, deliver the complete usable set. For example, a packet that requires a controller prompt or reader protocol is incomplete if only the data windows are handed over and the instructions are merely named by repository location. Prefer one ZIP/file set where useful; when isolation or staged disclosure requires separation, give direct files/links for every artifact needed at the current stage.
-
-Before closing an owner-facing handoff, verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**, unless a real technical, security, privacy, or experimental-isolation constraint prevents that.
+Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**.
 
 Use `patterns/human-readable-operational-references.md` for the full outbound-link and artifact-delivery rules, rationale, examples, and recovery rule.
 

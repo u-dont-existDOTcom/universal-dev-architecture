@@ -133,3 +133,19 @@ After context loss or a fresh conversation, assume opaque operational identifier
 ## Transfer rationale and limits
 
 This pattern is universal because the failure modes are independent of any one repository: machine-friendly identifiers are exact but cognitively opaque, a syntactically valid link can still lead to unusable content, and repository locations are not equivalent to owner-facing delivery. The rule does not prohibit identifiers or reduce technical precision; it requires live destination verification, changes identifier presentation order, and makes artifact handoff an explicit completion responsibility so semantic meaning, retrieval precision, and usability coexist.
+
+## Compact rules moved from root `AGENTS.md`
+
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` subsection **Owner-facing artifact delivery** so the root keeps only always-needed rules and its instruction chain keeps headroom inside Codex's 32 KiB default discovery budget. The root keeps the delivery-is-completion rule, the identifier and outbound-link rules, and a pointer here. The full artifact-delivery rules are in **Owner-facing artifact delivery** above.
+
+Use this priority:
+
+1. give the actual file/attachment when the active surface can materialize or attach it;
+2. otherwise give a direct clickable file/download link to the artifact itself;
+3. only if neither is technically possible, provide the usable contents inline when practical, or explain the exact tool limitation and give the nearest direct retrievable link.
+
+Branch names, repository paths, PR numbers, and commit SHAs may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery. Before saying `go to branch X`, `open path Y`, `grab the file from GitHub`, or equivalent, first attempt to retrieve/materialize/attach the artifact or create a direct link.
+
+When a handoff needs companion material, deliver the complete usable set. For example, a packet that requires a controller prompt or reader protocol is incomplete if only the data windows are handed over and the instructions are merely named by repository location. Prefer one ZIP/file set where useful; when isolation or staged disclosure requires separation, give direct files/links for every artifact needed at the current stage.
+
+Before closing an owner-facing handoff, verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**, unless a real technical, security, privacy, or experimental-isolation constraint prevents that.

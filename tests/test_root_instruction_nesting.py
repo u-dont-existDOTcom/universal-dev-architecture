@@ -33,6 +33,26 @@ MOVES = {
             "Prefer a scholarly semantic discovery system such as SciSpace when available",
         ),
     ),
+    "patterns/test-efficiency-and-verification-budget.md": (
+        "## Test-efficiency policy",
+        (
+            "Focused and affected tests are the default inner loop.",
+            "Full suites are checkpoint-based, not an after-every-edit reflex.",
+            "Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded.",
+            "Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger;",
+        ),
+    ),
+    "patterns/human-readable-operational-references.md": (
+        "### Owner-facing artifact delivery",
+        (
+            "1. give the actual file/attachment when the active surface can materialize or attach it;",
+            "2. otherwise give a direct clickable file/download link to the artifact itself;",
+            "3. only if neither is technically possible, provide the usable contents inline when practical",
+            "may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery.",
+            "When a handoff needs companion material, deliver the complete usable set.",
+            "verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**",
+        ),
+    ),
 }
 
 
@@ -55,6 +75,13 @@ class RootInstructionNestingTests(unittest.TestCase):
             for fragment in fragments:
                 with self.subTest(pattern=pattern, fragment=fragment[:60]):
                     self.assertIn(fragment, section)
+
+    def test_moved_rules_are_absent_from_root(self) -> None:
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        for pattern, (_, fragments) in MOVES.items():
+            for fragment in fragments:
+                with self.subTest(pattern=pattern, fragment=fragment[:60]):
+                    self.assertNotIn(fragment, agents)
 
 
 if __name__ == "__main__":
