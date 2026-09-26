@@ -63,6 +63,25 @@ class DeclaredGatesNotWaivableTests(unittest.TestCase):
             "A summary that names a rule is not activation evidence",
         ))
 
+    def test_unhelpful_inherited_rules_are_flagged_not_ignored(self):
+        data = json.loads(read("docs/requirements/2026-09-26-declared-gates-not-waivable.owner-requirement.json"))
+        self.assertIn("we can't just go anarchist", data["owner_refinement"])
+        self.assertIn("never silently ignored, worked around, or obeyed against the owner's evident intent", data["normalized_rule"])
+        self.assert_fragments(read("patterns/owner-goal-followup-and-requirement-accretion.md"), (
+            "### Inherited rules that look unhelpful: flag them, don't ignore them",
+            "keep following it, and tell the owner in the same turn",
+            "I find this inherited rule unhelpful here, and I suggest we remove it",
+            "when two rules conflict, say so instead of silently picking one",
+            "pause that step and ask",
+            "record the flag next to the rule",
+            "It is not for deciding whether a rule applies to you.",
+            "A disagreement with a rule is raised, not acted on alone, and the owner decides what changes.",
+        ))
+        self.assert_fragments(read("patterns/task-time-lesson-activation.md"), (
+            "A lesson that looks unhelpful for this task is still applied",
+            "never for a rule the agent disagrees with",
+        ))
+
     def test_accretion_pattern_exempts_declared_gates(self):
         self.assert_fragments(read("patterns/owner-goal-followup-and-requirement-accretion.md"), (
             "### Declared gates are not accretion",

@@ -138,6 +138,8 @@ For every active lesson produce one of:
 
 A substantive `FAIL` blocks delivery/action. Repair the actual work, then rerun the gate.
 
+A lesson that looks unhelpful for this task is still applied and still gets its `PASS` or `FAIL`. Add a flag for the owner with the change you suggest (see "Inherited rules that look unhelpful" in `patterns/owner-goal-followup-and-requirement-accretion.md`). `NOT_APPLICABLE` is only for a trigger that genuinely no longer holds, never for a rule the agent disagrees with.
+
 `I read the lesson`, `I kept it in mind`, or `the prompt included it` are not evidence of application.
 
 For semantic lessons, evidence should identify the literal candidate behavior or absence of the prohibited pattern. For mechanical lessons, evidence should point to the exact check/result.

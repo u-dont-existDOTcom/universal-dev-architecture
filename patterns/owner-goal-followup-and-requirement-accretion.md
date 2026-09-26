@@ -86,6 +86,17 @@ This gate governs requirements that a follow-up **adds**. It never downgrades a 
 
 Run declared gates. If one looks unnecessary or too costly, raise that with the owner as a proposal, with the evidence, and keep running it until the owner or the project authority changes it. Skipping or thinning a declared gate on the strength of this pattern is itself an owner-outcome violation, because it removes an owner requirement instead of adding one.
 
+### Inherited rules that look unhelpful: flag them, don't ignore them
+
+Inherited rules (universal patterns, project files, handoffs, lessons from earlier sessions) have caused real failures that nobody saw, because an agent quietly worked around them or was quietly held back by them. The repair is not to let an agent drop the rules it dislikes. When an inherited rule looks unhelpful, stale, wrong for the task at hand, or in conflict with another rule:
+
+- keep following it, and tell the owner in the same turn which rule it is, where it lives, what it is costing here, and the change you suggest. For example: "I find this inherited rule unhelpful here, and I suggest we remove it / narrow it to … / change it to …";
+- when two rules conflict, say so instead of silently picking one. If a current owner instruction settles the conflict, follow it, and still flag the losing rule so it gets repaired where it lives;
+- if following the rule would cause harm or an irreversible outcome the owner evidently wouldn't want, pause that step and ask;
+- record the flag next to the rule, or in the task's current state, so the next session doesn't rediscover the problem.
+
+Judgment is for applying a rule well: reading it for its purpose and scaling it to the task. It is not for deciding whether a rule applies to you. Silently ignoring a rule, quietly working around it, and silently obeying it against the owner's evident intent are all failures. A disagreement with a rule is raised, not acted on alone, and the owner decides what changes.
+
 ## 4. Assurance escalation is requirement accretion
 
 A stronger proof standard is not neutral bookkeeping. Requirements such as:
