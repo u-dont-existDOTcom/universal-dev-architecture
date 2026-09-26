@@ -23,7 +23,7 @@ const autolinkAttributes = { href: publicUrl, 'data-rich-text-autolink': '', 'da
 function run(source, composers, expectedBody) {
   const context = vm.createContext({
     document: { querySelectorAll(selector) {
-      assert.equal(selector, '#prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]');
+      assert.equal(selector, 'form[data-chatgpt-composer] [contenteditable="true"][role="textbox"], #prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]');
       return composers;
     } },
     getComputedStyle: () => ({ visibility: 'visible' }),
