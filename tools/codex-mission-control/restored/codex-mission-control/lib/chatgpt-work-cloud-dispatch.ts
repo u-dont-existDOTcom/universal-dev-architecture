@@ -203,7 +203,7 @@ export function buildWorkCloudDispatchRequestedEnvelope(input: WorkCloudDispatch
       chatgpt_project_id: input.chatgptProjectId,
       existing_work_thread_id: input.existingWorkThreadId,
       prompt_sha256: sha256(input.prompt),
-      approval_state: "NOT_REQUIRED",
+      approval_state: "PENDING_OWNER_ACCEPT",
       capability_evidence: {
         observed_at: input.capabilityEvidence.observedAt,
         app_version: input.capabilityEvidence.appVersion,
