@@ -4,6 +4,7 @@ import { EventStore } from "../lib/store";
 import { seedIssue47Store } from "../lib/seed";
 import { classifyFleetSupervisorTick, FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "../lib/fleet-router-producer";
+import { fleetRequestEvidenceIsCurrent } from "../lib/fleet-evidence-boundary";
 // Exercise the actual downstream browser-relay parser, not only the packet builder.
 // @ts-expect-error The separately deployed relay is plain JavaScript without a declaration package.
 import { parseSupervisoryCycleRouteBody } from "../../../vps-browser-relay/src/core.mjs";
@@ -218,3 +219,78 @@ test("a decision receipt without an execution directive is not considered contin
     assert.match(second.factualPacket.decisionRequested, /not treated as task continuation/);
   } finally { f.store.close(); restore(); }
 });
+
+test("a bounded fleet decision closes the reviewed boundary without creating a new review identity", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    const initial = routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker));
+    assert.equal(initial.status, "QUEUED_FOR_PROVIDER_RELAY");
+    const first = routes(f).find(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID)!;
+    const firstParsed = parseSupervisoryCycleRouteBody((first.data as any).body)!;
+    const receipt = {
+      id: 1001, sequence: 1001, eventId: "receipt:bounded-continuation", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "github_decision_receipt_ingested", occurredAt: due, receivedAt: due,
+      previousHash: first.eventHash, eventHash: "b".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "github_decision_receipt_ingested", worker: f.watch.worker, task_id: f.watch.taskId,
+        request_id: firstParsed.requestId, supervisor_id: "mc-project-manager",
+        bounded_execution: { task_id: f.watch.taskId } }
+    } as any;
+    const directive = {
+      id: 1002, sequence: 1002, eventId: "directive:bounded-continuation", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "execution_directive_recorded", occurredAt: due, receivedAt: due,
+      previousHash: receipt.eventHash, eventHash: "c".repeat(64), producerId: "system:github-decision-receipts",
+      producerKind: "SYSTEM",
+      data: { type: "execution_directive_recorded", worker: f.watch.worker, task_id: f.watch.taskId,
+        validated_decision_proof: { request_id: firstParsed.requestId } }
+    } as any;
+    const history = [...f.store.workerEvents(f.watch.worker), receipt, directive];
+    const reviewed = routeFleetSupervisorReasoning(f.store, f.watch, classify(f), history);
+    assert.equal(reviewed.status, "BOUNDARY_REVIEWED");
+    assert.equal(reviewed.requestId, firstParsed.requestId);
+    assert.equal(routes(f).length, 1);
+  } finally { f.store.close(); restore(); }
+});
+
+test("a pending fleet request becomes evidence-stale when task evidence advances", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker));
+    const first = routes(f).find(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID)!;
+    const firstParsed = parseSupervisoryCycleRouteBody((first.data as any).body)!;
+    const current = f.store.workerEvents(f.watch.worker);
+    assert.equal(fleetRequestEvidenceIsCurrent(current, firstParsed.requestId, f.watch.taskId), true);
+    const advanced = [...current, {
+      id: 1003, sequence: 1003, eventId: "live-evidence:advanced", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "live_worker_evidence_observed", occurredAt: due, receivedAt: due,
+      previousHash: first.eventHash, eventHash: "d".repeat(64), producerId: "collector:fixture",
+      producerKind: "COLLECTOR",
+      data: { type: "live_worker_evidence_observed", worker: f.watch.worker, task_id: f.watch.taskId,
+        phase: "BLOCKED", blocker_code: "NEW_RUNTIME_BLOCKER" }
+    } as any];
+    assert.equal(fleetRequestEvidenceIsCurrent(advanced, firstParsed.requestId, f.watch.taskId), false);
+    const held = routeFleetSupervisorReasoning(f.store, f.watch, classify(f), advanced);
+    assert.equal(held.requestId, firstParsed.requestId);
+    assert.match(held.status, /WAITING_FOR_REASONING_REVIEW|HANDOFF_BLOCKED/);
+    assert.equal(routes(f).length, 1);
+  } finally { f.store.close(); restore(); }
+});
+
+test("overdue fleet watches use the actual runtime tick time for a fresh route window", async () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    const actualTick = "2026-09-25T10:00:00.000Z";
+    const runtime = new FleetSupervisorRuntime(f.store, {
+      routeReasoning: (w, d, e, now) => routeFleetSupervisorReasoning(f.store, w, d, e, now)
+    });
+    await runtime.tick(actualTick);
+    const event = routes(f)[0]!;
+    const parsed = parseSupervisoryCycleRouteBody((event.data as any).body)!;
+    assert.equal(parsed.queuedAt, actualTick);
+    assert.ok(Date.parse(parsed.expiresAt) > Date.parse(actualTick));
+  } finally { f.store.close(); restore(); }
+});
+
