@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
   "checkpointId": "mission-control-relay-chatgpt-september-page-deploy-20260926",
-  "recordedAt": "2026-09-26T18:40:21Z",
+  "recordedAt": "2026-09-26T18:54:00Z",
   "timestampBasis": "CURRENT_CHECK_TIME",
   "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_AWAITING_FIRST_QUEUED_REQUEST",
   "authority": {
@@ -89,6 +89,33 @@
       },
       "note": "The model button currently shows 'Medium'; routes use the EXTRA_HIGH_DIRECT lane, so the first send also exercises changing the Power setting through the model menu."
     },
+    "liveMenuDryRun": {
+      "at": [
+        "2026-09-26T18:50:53Z (model menu)",
+        "2026-09-26T18:53:08Z (app list)"
+      ],
+      "method": "With no unexpired request queued and the tab idle, open the model menu and the 'Add files and more' list in the relay's own tab, read them with the installed relay's MODEL_MENU_STATE_FN and APP_SELECTION_STATE_FN, and run its modelMenuSelectionState and appSelectionState, scrolling the open list with the same mouse-wheel steps as selectAppsForMessage; stop where the relay would move the Power slider or click an entry. Nothing chosen, typed or sent (owner-approved step-1 scope); menus closed with Escape",
+      "modelMenu": {
+        "modelOptionCount": 3,
+        "topModel": "Latest",
+        "topModelSelected": true,
+        "powerControlCount": 1,
+        "sliderCount": 1,
+        "slider": "position 1 of 0-4",
+        "currentPowerLabel": "Medium",
+        "powerStatus": "2 of 5 (agrees with the slider)",
+        "openTriggerLabel": "Thinking effort (matches the configured thinkingControlLabel)",
+        "relayNextAction": "POWER_SEARCH from Medium towards Extra High"
+      },
+      "appList": {
+        "Mission Control": "LIST_OPTION after 4 scroll steps, exactly one exact-name entry in view",
+        "GitHub": "LIST_OPTION after 8 scroll steps, exactly one exact-name entry in view",
+        "requiredForInBandRequests": [
+          "GitHub"
+        ]
+      },
+      "restoredAfter": "ready, idle, composer empty, no open menu or list, model button closed showing Medium"
+    },
     "relayCycles": "IDLE with lastError null on every cycle after the restart",
     "queue": {
       "checkedAt": "2026-09-26T18:21:15Z",
@@ -98,10 +125,10 @@
       "consequence": "No request is eligible to send; the relay's decision function returns REQUEST_EXPIRED_NO_NEW_SEND / RECONCILE_EXISTING_REQUEST / DISCARDED for every item. The first live send waits for the next supervision request a worker queues."
     },
     "lastSubmissionAt": "2026-09-24T19:48:57.810Z (unchanged at 2026-09-26T18:25:10Z)",
-    "leaseExpiresAt": "2026-09-27T00:00:00.000Z (renewal to 2026-10-27T00:00:00.000Z prepared as an owner-run command; not yet run at 2026-09-26T18:25:10Z)"
+    "leaseExpiresAt": "2026-09-27T00:00:00.000Z. The same-identity renewal to 2026-10-27T00:00:00.000Z is prepared as a command with automatic rollback. It rewrites the central service's root-only environment file and recreates its container; the assistant's execution environment refused to run it (its action-safety classifier), and the assistant does not work around that refusal, so the owner runs it. No repository or owner authority is missing. Not yet run at 2026-09-26T18:25:10Z; if it is not run before expiry the central scheduler treats the lease as stale and the relay cannot send until renewal."
   },
   "notYetVerified": [
-    "Opening the model menu and setting model and Power/effort, selecting the required apps from the list, composer insertion and Send on the live page (first exercised by the next queued request; each step fails closed on a mismatch).",
+    "Moving the Power slider to Extra High, clicking the GitHub entry and seeing its Remove pill, inserting the message into the composer and pressing Send on the live page (first exercised by the next queued request; each step fails closed on a mismatch).",
     "RO-PAGE-3: a new ledger submission after 2026-09-24T19:48:57.810Z.",
     "RO-PAGE-4: the same-identity lease renewal."
   ],

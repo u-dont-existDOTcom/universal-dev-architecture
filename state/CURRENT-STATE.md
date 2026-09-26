@@ -672,14 +672,21 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
   (RO-PAGE-2). A read-only probe of the live tab at 18:39Z with the installed
   relay's own page functions found the composer, one closed model button
   (showing "Medium") and the "Add files and more" control, idle and ready.
+  A no-choice dry run (18:50–18:53Z) opened the model menu and the app list and
+  ran the relay's own decision logic: top model "Latest" is selected, the one
+  Power slider reads Medium (status "2 of 5") so the relay would step it to
+  Extra High, and scrolling reached exactly one in-view "Mission Control" and
+  "GitHub" entry. Everything was closed again, composer empty.
 - Not yet verified: a real provider send (RO-PAGE-3). All 13 requests the relay
   can see expired; the newest was queued 2026-09-24T15:50Z, so nothing is
-  eligible until a worker queues a new supervision request. Model, effort and
-  app selection and Send are first exercised by that request and fail closed on
-  a mismatch.
-- Lease (RO-PAGE-4): SECONDARY lease still expires 2026-09-27T00:00Z; the
-  same-identity renewal to 2026-10-27T00:00Z is prepared as an owner-run
-  command and had not been run at 18:25Z.
+  eligible until a worker queues a new supervision request. Moving the Power
+  slider, clicking the GitHub entry, composer insertion and Send are first
+  exercised by that request and fail closed on a mismatch.
+- Lease (RO-PAGE-4): SECONDARY lease still expires 2026-09-27T00:00Z. The
+  same-identity renewal to 2026-10-27T00:00Z is prepared as a command; it
+  rewrites the central service's root-only environment file and recreates its
+  container, which the assistant's execution environment refused to run, so the
+  owner runs it. Not run at 18:25Z; if the lease lapses the relay cannot send.
 - Next: owner runs the lease renewal before 2026-09-27T00:00Z; on the next
   queued request, read the relay journal, read-only doctor and central ledger
   until a new submission is recorded or the failing step is identified.
