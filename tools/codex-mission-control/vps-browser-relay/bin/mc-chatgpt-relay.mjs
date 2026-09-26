@@ -12,6 +12,7 @@ import { installStuckRecovery } from '../src/stuck-recovery.mjs';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
+import { relayCommandLockOptions } from '../src/relay-lock.mjs';
 import { oneShotExitCode } from '../src/core.mjs';
 import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
@@ -101,7 +102,8 @@ try {
   const controllerWatchdog = new ControllerCycleWatchdog({ stateStore, controller });
   const exclusiveLockRequired = command !== 'health-report';
   if (exclusiveLockRequired) {
-    await stateStore.acquireLock({ taskId: `relay:${command}`, persistent: command === 'run' || command === 'controller-run' });
+    // One-shot owners outlive their longest configured guarded operation (see relayCommandLockOptions).
+    await stateStore.acquireLock(relayCommandLockOptions(command, { config, codexExecutionConfig }));
   }
 
   if (command === 'doctor') {

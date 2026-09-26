@@ -4,7 +4,17 @@ import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const DEFAULT_LIFETIME_MS = 30 * 60_000;
+// Ad-hoc library helpers (for example an authorized cadence test) keep a short default.
+export const HELPER_DEFAULT_LIFETIME_MS = 30 * 60_000;
+export const MAX_LOCK_LIFETIME_MS = 86_400_000;
+// CLI one-shots derive their default from the configured operation ceilings plus
+// this margin (HTTP round trips, pacing/rate-limit waits, recovery idle waits,
+// provider-session projection and process shutdown) ...
+export const ONE_SHOT_LOCK_MARGIN_MS = 10 * 60_000;
+// ... capped here. Six hours covers every generation, Codex, page-ready and
+// submit timeout at its configured maximum with the default nudge cap; larger
+// nudge caps clamp and need an explicit MC_RELAY_LOCK_MAX_MS.
+export const ONE_SHOT_LOCK_CEILING_MS = 6 * 60 * 60_000;
 const watchdogFile = fileURLToPath(new URL('./relay-lock-watchdog.mjs', import.meta.url));
 
 // Linux /proc start ticks plus boot ID distinguish PID reuse, without reading argv/env.
@@ -66,6 +76,43 @@ export function inspectRelayLock(lockFile) {
   }
 }
 
+// Explicit operator override, shared by library helpers and CLI one-shots.
+export function lockLifetimeOverrideMs(env = process.env) {
+  const raw = env.MC_RELAY_LOCK_MAX_MS;
+  if (raw == null || raw === '') return null;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_LOCK_LIFETIME_MS) {
+    throw new Error(`MC_RELAY_LOCK_MAX_MS must be an integer from 1 to ${MAX_LOCK_LIFETIME_MS}.`);
+  }
+  return value;
+}
+
+// The watchdog is a backstop for a hung or frozen one-shot, not an operation
+// timeout, so its default must outlast every legitimately configured operation
+// the one-shot guards. Each browser attempt (the first send and every stuck-
+// recovery nudge) may wait a full page-ready, submit and generation timeout.
+// `once` may first run a Codex execution when that route is enabled.
+export function oneShotLockLifetimeMs({ browser, runtime, codexExecMaxTimeoutMs = null, env = process.env }) {
+  const override = lockLifetimeOverrideMs(env);
+  if (override !== null) return override;
+  const attempts = runtime.stuckRecoveryMaxNudges + 1;
+  const browserTurnMs = attempts * (browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs);
+  const derived = (codexExecMaxTimeoutMs ?? 0) + browserTurnMs + ONE_SHOT_LOCK_MARGIN_MS;
+  if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite one-shot relay lock lifetime from the configuration.');
+  return Math.min(derived, ONE_SHOT_LOCK_CEILING_MS);
+}
+
+const PERSISTENT_RELAY_COMMANDS = new Set(['run', 'controller-run']);
+
+// Lock options for one mc-chatgpt-relay command. Only the explicit service loops
+// are persistent; every other command is a bounded one-shot owner.
+export function relayCommandLockOptions(command, { config, codexExecutionConfig = null, env = process.env }) {
+  const taskId = `relay:${command}`;
+  if (PERSISTENT_RELAY_COMMANDS.has(command)) return { taskId, persistent: true };
+  const codexExecMaxTimeoutMs = command === 'once' && codexExecutionConfig?.previewEnabled === true ? codexExecutionConfig.maxTimeoutMs : null;
+  return { taskId, persistent: false, maxLifetimeMs: oneShotLockLifetimeMs({ browser: config.browser, runtime: config.runtime, codexExecMaxTimeoutMs, env }) };
+}
+
 export class RelayLock {
   constructor(lockFile) {
     this.lockFile = lockFile;
@@ -77,10 +124,12 @@ export class RelayLock {
     this.handlers = [];
   }
 
-  async acquire({ taskId = process.env.MC_RELAY_LOCK_TASK_ID ?? `helper:${basename(process.argv[1] ?? 'node')}`, maxLifetimeMs = Number(process.env.MC_RELAY_LOCK_MAX_MS ?? DEFAULT_LIFETIME_MS), persistent = false } = {}) {
+  async acquire({ taskId = process.env.MC_RELAY_LOCK_TASK_ID ?? `helper:${basename(process.argv[1] ?? 'node')}`, maxLifetimeMs, persistent = false } = {}) {
     if (this.guardFd !== null) throw new Error('This relay lock is already acquired.');
+    // Resolve the default lazily so a persistent service never depends on the helper override.
+    if (!persistent && maxLifetimeMs === undefined) maxLifetimeMs = lockLifetimeOverrideMs() ?? HELPER_DEFAULT_LIFETIME_MS;
     if (!/^[a-zA-Z0-9:._-]{1,120}$/.test(taskId)) throw new Error('A bounded, non-secret lock task ID is required.');
-    if (typeof persistent !== 'boolean' || (!persistent && (!Number.isSafeInteger(maxLifetimeMs) || maxLifetimeMs < 1 || maxLifetimeMs > 86_400_000))) throw new Error('Finite lock lifetime must be 1..86400000 ms.');
+    if (typeof persistent !== 'boolean' || (!persistent && (!Number.isSafeInteger(maxLifetimeMs) || maxLifetimeMs < 1 || maxLifetimeMs > MAX_LOCK_LIFETIME_MS))) throw new Error(`Finite lock lifetime must be 1..${MAX_LOCK_LIFETIME_MS} ms.`);
     const guardFd = openSync(`${this.lockFile}.guard`, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
     let acquired = false;
     try {

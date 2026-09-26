@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StateStore } from '../src/state.mjs';
-import { processIdentity } from '../src/relay-lock.mjs';
+import { HELPER_DEFAULT_LIFETIME_MS, processIdentity } from '../src/relay-lock.mjs';
 
 const fixture = fileURLToPath(new URL('./fixtures/lock-helper.mjs', import.meta.url));
 
@@ -142,7 +142,10 @@ test('persistent mode is explicit; ordinary helpers remain finite by default', a
   assert.equal(store.lock.watchdog, null);
   await store.releaseLock();
   await store.acquireLock();
-  assert.equal(store.lockStatus().owner.mode, 'BOUNDED_HELPER');
+  const { owner } = store.lockStatus();
+  assert.equal(owner.mode, 'BOUNDED_HELPER');
+  // Ad-hoc library helpers keep the short default; CLI one-shots derive theirs from config.
+  assert.ok(Math.abs(Date.parse(owner.deadlineAt) - Date.parse(owner.acquiredAt) - HELPER_DEFAULT_LIFETIME_MS) < 1_000);
   assert.ok(store.lock.watchdog);
   await store.releaseLock();
 });
