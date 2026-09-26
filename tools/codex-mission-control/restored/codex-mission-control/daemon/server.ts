@@ -558,7 +558,7 @@ function startFleetSupervisor(): NodeJS.Timeout | null {
   }
   let running = false;
   const runtime = new FleetSupervisorRuntime(store, {
-    routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
+    routeReasoning: (watch, decision, events, now) => routeFleetSupervisorReasoning(store, watch, decision, events, now),
     observeJevShadow: (_watch, decision, events, chain) =>
       observeFleetSupervisorWithJev(decision.trigger, events, chain),
     notifyOwner: (watch, decision) => notifications.emit("event", {
