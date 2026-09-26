@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+  "checkpointId": "mission-control-relay-chatgpt-september-page-deploy-20260926",
+  "recordedAt": "2026-09-26T19:15:24Z",
+  "timestampBasis": "CURRENT_CHECK_TIME",
+  "status": "DEPLOYED_BOTH_HOSTS_SECONDARY_READY_AWAITING_FIRST_QUEUED_REQUEST",
+  "authority": {
+    "repository": "this repository",
+    "requirement": "docs/requirements/2026-09-26-mission-control-relay-chatgpt-september-page.owner-requirement.json",
+    "ownerApproval": "Owner approval of the four listed steps at 2026-09-26T16:12Z, recorded verbatim with its SHA-256 in the requirement's owner_source",
+    "pullRequest": 268,
+    "reviewedHead": "11152798bc34e34e627c605419b57cab3fb923e3",
+    "mergedCommit": "3d4754fe27e34c014d0a6bbfb083a8e86df11ff9",
+    "mergedAt": "2026-09-26T18:10:57Z",
+    "review": "Seven automated Codex review rounds; every finding fixed; final round clean",
+    "relayTestsAtMerge": "325/325 (node --test test/*.test.mjs)"
+  },
+  "release": {
+    "treeMethod": "find . -type f -not -path './node_modules/*' | LC_ALL=C sort | xargs -d '\\n' sha256sum | sha256sum",
+    "tarballSha256": "50d51ddc31a2da2b160c0637c1e17faabbdb90ae11fc3668984f3451aaefeb03",
+    "sourceTreeSha256": "082336de77aeabf0e90f735055073459e0e1cb2d8023c486c05862af34066b7f",
+    "installedAppTreeSha256": "b6bb4dc2e51b1b66e4c8e1788cd7e68b349fb1a5f314b77f27f3419493251b6a",
+    "appTreeRelation": "installed app tree = merged vps-browser-relay tree minus the central-only submission-scheduler-service source and test"
+  },
+  "hosts": {
+    "SECONDARY": {
+      "role": "active sender",
+      "quietWindow": "health timer stopped, relay stopped 2026-09-26T18:11:57Z (clean exit, no helper processes)",
+      "installedAt": "2026-09-26T18:12:27Z",
+      "installedAppTreeMatch": true,
+      "hostTests": "113/113 focused tests on the host's pinned Node 22.23.2",
+      "rollback": "previous app copy preserved and tree-verified; systemd unit and fence backup taken",
+      "relayRestartedAt": "2026-09-26T18:14:15Z",
+      "fence": "HOST_BROWSER_UNFENCED (unchanged)"
+    },
+    "PRIMARY": {
+      "role": "fenced standby",
+      "installedAt": "2026-09-26T18:23:54Z",
+      "installedAppTreeMatch": true,
+      "hostTests": "113/113 focused tests on the host's pinned Node 22.23.2",
+      "rollback": "previous app copy preserved and tree-verified; systemd unit and fence backup taken",
+      "stateAfter": "relay inactive/disabled, browser inactive/masked, health timer inactive/disabled (all as found), relay lock FREE",
+      "fence": "HOST_BROWSER_FENCED (unchanged)"
+    }
+  },
+  "liveObservations": {
+    "relayLockAfterRestart": "HELD by the persistent relay service (relay:run), kernel guard HELD, 2026-09-26T18:14:35Z",
+    "automationWindowReplacement": "The replacement opened after the 2026-09-25 browser restart committed through the central coordinator after the 2026-09-26T18:14:15Z restart: central transition CLEAR and the authenticated binding advanced to the replacement window (observed 2026-09-26T18:15:06Z). In the installed code the WINDOW_REPLACE commit runs only after waitForReady passes on the replacement tab (readinessExpression: exact ChatGPT root, a visible composer from the September 2026 selector list, no login wall); see tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs.",
+    "readOnlyDoctor": {
+      "at": "2026-09-26T18:18:45Z",
+      "status": "READY",
+      "managedChatGptTabCount": 1,
+      "automationOwnedTabCount": 1,
+      "foreignChatGptTabCount": 0,
+      "centralSchedulerState": "ACTIVE_LEASE",
+      "centralReady": true,
+      "safetyHalt": null,
+      "unresolvedAmbiguities": 0,
+      "memoryPressure": "NORMAL",
+      "note": "READY here is derived from the automation-window binding, the lease and the central scheduler; it is not evidence that the page's composer was recognized. A first read-only doctor at 2026-09-26T18:17Z returned CENTRAL_SCHEDULER_UNREACHABLE once; the retry about a minute later was READY and the relay's own cycles reported no error."
+    },
+    "livePageProbe": {
+      "at": "2026-09-26T18:39:34Z",
+      "method": "Read-only CDP Runtime.evaluate on the relay's single ChatGPT tab using the installed relay's own readinessExpression, PAGE_INSPECTION_FN, CURRENT_MODEL_FN and GENERATION_STATE_FN plus a visible-count of the 'Add files and more' control; no click, type, navigate or focus; owner-approved page inspection",
+      "chatgptPageCount": 1,
+      "atChatGptRoot": true,
+      "readiness": {
+        "ready": true,
+        "composerFound": true,
+        "loginRequired": false
+      },
+      "modelControl": {
+        "found": true,
+        "ambiguous": false,
+        "expanded": false,
+        "visibleLabel": "Medium"
+      },
+      "generation": {
+        "idleReady": true,
+        "stopVisible": false,
+        "composerVisible": true,
+        "composerDisabled": false
+      },
+      "toolsControl": {
+        "visibleCount": 1,
+        "expanded": false,
+        "openMenus": 0
+      },
+      "note": "The model button currently shows 'Medium'; routes use the EXTRA_HIGH_DIRECT lane, so the first send also exercises changing the Power setting through the model menu."
+    },
+    "liveMenuDryRun": {
+      "at": [
+        "2026-09-26T18:50:53Z (model menu)",
+        "2026-09-26T18:53:08Z (app list)"
+      ],
+      "method": "With no unexpired request queued and the tab idle, open the model menu and the 'Add files and more' list in the relay's own tab, read them with the installed relay's MODEL_MENU_STATE_FN and APP_SELECTION_STATE_FN, and run its modelMenuSelectionState and appSelectionState, scrolling the open list with the same mouse-wheel steps as selectAppsForMessage; stop where the relay would move the Power slider or click an entry. Nothing chosen, typed or sent (owner-approved step-1 scope); menus closed with Escape",
+      "modelMenu": {
+        "modelOptionCount": 3,
+        "topModel": "Latest",
+        "topModelSelected": true,
+        "powerControlCount": 1,
+        "sliderCount": 1,
+        "slider": "position 1 of 0-4",
+        "currentPowerLabel": "Medium",
+        "powerStatus": "2 of 5 (agrees with the slider)",
+        "openTriggerLabel": "Thinking effort (matches the configured thinkingControlLabel)",
+        "relayNextAction": "POWER_SEARCH from Medium towards Extra High"
+      },
+      "appList": {
+        "Mission Control": "LIST_OPTION after 4 scroll steps, exactly one exact-name entry in view",
+        "GitHub": "LIST_OPTION after 8 scroll steps, exactly one exact-name entry in view",
+        "requiredForInBandRequests": [
+          "GitHub"
+        ]
+      },
+      "restoredAfter": "ready, idle, composer empty, no open menu or list, model button closed showing Medium"
+    },
+    "relayCycles": "IDLE with lastError null on every cycle after the restart",
+    "queue": {
+      "checkedAt": "2026-09-26T18:21:15Z",
+      "discovered": 13,
+      "unexpired": 0,
+      "newestQueuedAt": "2026-09-24T15:50:39.830Z",
+      "consequence": "No request is eligible to send; the relay's decision function returns REQUEST_EXPIRED_NO_NEW_SEND / RECONCILE_EXISTING_REQUEST / DISCARDED for every item. The first live send waits for the next supervision request a worker queues."
+    },
+    "lastSubmissionAt": "2026-09-24T19:48:57.810Z (unchanged at 2026-09-26T18:25:10Z)",
+    "leaseExpiresAt": "2026-09-27T00:00:00.000Z; not yet renewed at 2026-09-26T18:25:10Z. The renewal is owner-run (see leaseRenewal). If the lease lapses, the central scheduler treats it as stale and the relay cannot send until it is renewed."
+  },
+  "leaseRenewal": {
+    "classification": "NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT",
+    "actor": "OWNER",
+    "change": "Same-identity renewal of the SECONDARY sending lease: only its expiresAt moves, from 2026-09-27T00:00:00.000Z to 2026-10-27T00:00:00.000Z. The central Mission Control service restarts briefly because the lease is read at startup (lib/submission-authority-runtime.ts), and the prepared script rolls back automatically if the restarted service is not healthy.",
+    "whyOwnerRun": "The assistant's execution environment refused to run the renewal, which rewrites the central service's root-only env file and recreates its container. The renewal therefore stays with the owner; agents do not run it or rebuild it.",
+    "ownerHandoff": "The owner holds the prepared script central-lease-renew.sh in the operations transfer folder on the owner's laptop and runs it from there as: bash central-lease-renew.sh 2026-10-27T00:00:00.000Z. It was handed over in the owner's Claude session at 2026-09-26T18:26Z, with the 00:00Z deadline.",
+    "workerRole": "Check leaseExpiresAt in the relay's central status. If it is still 2026-09-27T00:00:00.000Z, remind the owner before expiry.",
+    "verification": "After the owner runs it, the relay's central status reports ACTIVE_LEASE with leaseExpiresAt 2026-10-27T00:00:00.000Z and the same epoch."
+  },
+  "notYetVerified": [
+    "Moving the Power slider to Extra High, clicking the GitHub entry and seeing its Remove pill, inserting the message into the composer and pressing Send on the live page (first exercised by the next queued request; each step fails closed on a mismatch).",
+    "RO-PAGE-3: a new ledger submission after 2026-09-24T19:48:57.810Z.",
+    "RO-PAGE-4: the same-identity lease renewal."
+  ],
+  "privacy": "No window, target, lease or request identifiers, host paths, URLs, message bodies or conversation text are recorded here; the owner approval is referenced, not quoted."
+}
