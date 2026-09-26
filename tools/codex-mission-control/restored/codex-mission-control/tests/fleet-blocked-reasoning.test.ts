@@ -304,3 +304,27 @@ test("a late bounded decision for superseded fleet evidence is non-executable", 
     assert.equal(buildExecutionDirectiveFromGitHubDecision(staleReceipt, f.store.workerEvents(f.watch.worker)), null);
   } finally { f.store.close(); restore(); }
 });
+
+test("a newer non-fleet same-task directive invalidates an older pending fleet review", () => {
+  const f = fixture(), restore = configuration();
+  try {
+    blocker(f);
+    routeFleetSupervisorReasoning(f.store, f.watch, classify(f), f.store.workerEvents(f.watch.worker), due);
+    const first = routes(f).find(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID)!;
+    const unrelatedDirective = {
+      id: 950, sequence: 950, eventId: "directive:other-supervision", schemaVersion: 2, missionId: "test",
+      worker: f.watch.worker, type: "execution_directive_recorded", occurredAt: "2026-09-25T01:05:00.000Z",
+      receivedAt: "2026-09-25T01:05:00.000Z", previousHash: first.eventHash, eventHash: "9".repeat(64),
+      producerId: "system:github-decision-receipts", producerKind: "SYSTEM",
+      data: { type: "execution_directive_recorded", worker: f.watch.worker, task_id: f.watch.taskId,
+        validated_decision_proof: { request_id: "non-fleet-review:current" } }
+    } as any;
+    const result = routeFleetSupervisorReasoning(
+      f.store, f.watch, classify(f), [...f.store.workerEvents(f.watch.worker), unrelatedDirective],
+      "2026-09-25T01:06:00.000Z",
+    );
+    assert.equal(result.status, "HANDOFF_BLOCKED_EVIDENCE_ADVANCED");
+    assert.equal(routes(f).filter(e => e.producerId === FLEET_SUPERVISOR_ROUTER_PRODUCER_ID).length, 1);
+  } finally { f.store.close(); restore(); }
+});
+
