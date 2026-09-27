@@ -38,6 +38,18 @@ Hard rules:
 
 Before delivering a load-bearing paraphrase of a disputed or compound claim, ask: **What exact proposition did the source accept, reject, qualify, reframe, or leave unresolved?** If the sentence being written covers more than that proposition, narrow it.
 
+## Point-of-use anchoring
+
+A text already in the conversation still has to be checked at the moment a sentence about it is written. Having read it earlier is not a check.
+
+1. Every sentence that says what a text, author, or person says, writes, describes, presents, defines, or did rests on a passage the writer can point to. Words that assert scope, frequency, persistence, or consent (*everyone*, *never*, *always*, *kept*, *stopped*, *many*, *willing*, *forced*) need that passage too.
+2. When no passage supports the sentence, write it as the writer's own reading ("I read this as …") or cut it. An inference is never phrased as the source's content.
+3. Quotation marks enclose only the source's exact words. Mark translations as translations. Do not join words from separate sentences inside one set of quotation marks, and do not put a paraphrase in quotation marks.
+4. Before saying a text does not contain something ("it never says …", "they have no voice in it"), search the whole text for counterexamples. The claim covers only the text actually searched.
+5. A paraphrase checked once is checked again against its source when it moves into another artifact, and always when it moves into text the owner will publish under their own name (`patterns/editorial-authority-and-lossless-editing.md`). Paraphrase is where the drift happens.
+
+Regression: reviewing a published essay and the owner's draft reply to it, a reviewer stated that the essay presented a group of people as unwilling (the essay was silent on it), that a person "kept" doing something after the events described (the essay left the outcome open), and that "everyone" in the essay met the author in one role (several did not), and put compressed paraphrases in quotation marks. Rewriting the owner's reply later, the same reviewer sharpened a canonical text's account of an event and attributed the owner's own characterization to a commentary that did not state it. The owner caught one of these, the reviewer's own later audit one more, and an independent check the other four.
+
 ## Scope discipline
 
 A source can generate an entire project without governing every local component of that project.
@@ -111,6 +123,8 @@ The epistemic-scope principle transfers too: a reader interprets `based on my ex
 - Follow-up observation: in owner-reported controlled opening variants, removing explicit personal/source provenance weakened the detector confidence classification; removing only the possessive from `my experience` did the same in the shorter variant. The transferable lesson promoted here is epistemic-source clarity, **not** a detector rule about possessives or first-person words.
 
 The project-specific quotation, detector classifications, and Romance content remain in the originating private repository. This universal pattern promotes only provenance, epistemic-positioning, and scope-control lessons.
+
+Point-of-use anchoring was added on 2026-09-27 from `docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json`, after an owner-directed audit of a chat review (`audits/2026-09-27-claim-anchoring-review-integrity.md`). The essay, the owner's draft, and the chat transcript are not committed.
 
 ## Limits
 

@@ -102,6 +102,24 @@ Use this pattern when the expected value of a fresh perspective exceeds coordina
 
 Skip or downgrade to ordinary self-review for trivial edits, obvious mechanical changes, or low-risk work where independence would add ceremony without meaningful information gain.
 
+## Claim check before delivery
+
+Run an independent **claim check** before delivering a draft that critiques a text, reviews the owner's writing, attributes content to a source, adds facts to text the owner will publish, or claims that something was verified. Skip it for other drafts.
+
+The drafter lists every checkable claim in a claim ledger: the claim, its type (exact quote, source content, the drafter's inference, external fact, figure, or the owner's intended meaning), its anchor (an exact passage, a URL, or none), and what was checked. A checker that did not write the draft receives the sources, the draft, and the ledger, but not the drafter's reasoning. It returns pass or fail for each claim with the reason, and adds claims the ledger missed. The drafter fixes every failure before delivery. A claim about what the owner meant is not checked but asked.
+
+Give the checker a budget: fetch each source once, cap tool calls, and skip claims whose anchor is an exact span already in the packet. In the originating case the checker made 107 tool calls over about four hours, partly because it re-ran page fetches when a summarizing fetch tool gave inconsistent answers.
+
+Evidence from the originating case: the drafter audited its own four replies, logged 16 errors, and called the owner's draft ready to publish. A checker given only the sources, a transcript, and that audit found 11 more errors in the replies, three of them in the text the owner was about to publish, and more than a dozen problems in the audit itself. Same-context review had repeatedly treated a text it had read as a text it had checked.
+
+Where the check runs depends on the surface. In Claude Code, a `Stop` hook fires when Claude finishes responding, and exit code 2 keeps the session working; hook types include `prompt` and an experimental `agent` type that can use tools. Under Mission Control, route qualifying outputs to a checker before owner delivery. In chat surfaces without hooks, launch a checker agent before delivering. These surface facts were checked against the Claude Code documentation on 2026-09-27 and are version-bound.
+
+### Experimental: key-condition recoverability
+
+For verdict-style outputs (a research verdict, a finding, a summary of evidence), the checker may also be shown only the output and asked to recover the key conditions it answers: which source, which outcome measure, which population, which scope. If it cannot, or recovers different ones, the output is vague or has blended conditions and goes back for review.
+
+This adapts ProCo (Wu et al., "Large Language Models Can Self-Correct with Key Condition Verification," EMNLP 2024, https://aclanthology.org/2024.emnlp-main.714/). ProCo masks a key condition in a question, asks the model to recover it from its own answer, and treats failure as a sign the answer is wrong. The authors tested GPT-3.5-Turbo, GPT-4, and Mixtral-8x7B on problems averaging 52.3 words with numeric or entity answers, and list longer problems and other answer types as future work. The adaptation to long verdicts is untested: run it as a bounded, non-blocking experiment and record its hits and misses. Do not apply it to conversational or therapeutic replies. A natural reply is not built to restate what it answers, so a checker's failure to recover the question says nothing about the reply's quality.
+
 ## Failure modes
 
 - **Same-context theater:** instructing the drafting model to "act independent" while it retains all prior rationale.
@@ -111,6 +129,7 @@ Skip or downgrade to ordinary self-review for trivial edits, obvious mechanical 
 - **Consensus laundering:** treating agreement between two similarly primed evaluators as independent corroboration.
 - **Opaque independence claim:** reporting "independent review passed" without saying what was independent and what information the reviewer had.
 - **Universalizing the trigger:** requiring a separate reviewer for every minor task regardless of cost or risk.
+- **Read-as-checked:** treating a source already in context as verified without reopening the passage when the sentence about it is written.
 
 ## Relationship to other universal patterns
 
@@ -130,6 +149,8 @@ Originating owner-specific promotion:
 - repository: `u-dont-existDOTcom/joel-articles`
 - merged pull request: #43, "Add independent final-reader audit to article skill"
 - merge commit: `90f23c4d6530d9f1a9abda372e7a716bec6c0aef`
+
+The claim check before delivery and the experimental key-condition recoverability probe were added on 2026-09-27 from `docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json`; the evidence is summarized in `audits/2026-09-27-claim-anchoring-review-integrity.md`.
 
 ## Limits
 

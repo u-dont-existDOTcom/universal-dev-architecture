@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "status": "DEVELOPMENT_SIDE_TRANSFER_LEDGER_NOT_RUNTIME_DEPENDENCY",
+  "purpose": "Records which public projects carry which portable checks, where, and in what state. Public products never read this file at runtime; each carries its own adaptation.",
+  "packs": {
+    "claim-integrity": {
+      "version": 1,
+      "date": "2026-09-27",
+      "file": "portable/claim-integrity/CHECKS.md",
+      "sha256": "6d8cec2a474beb574922d8ddd15977c6e183c40dd3990d71787d0451c565ce6a",
+      "check_ids": ["CI-01", "CI-02", "CI-03", "CI-04", "CI-05", "CI-06", "CI-07", "CI-08", "CI-09", "CI-10", "CI-X1"],
+      "owner_requirement": "docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json"
+    }
+  },
+  "projects": [],
+  "assessed_not_applicable": [
+    {
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "reason": "Development governance, not a runtime product; it holds the canonical rules the packs adapt.",
+      "evidence": "patterns/ and this ledger"
+    }
+  ]
+}

@@ -94,6 +94,8 @@ Unless the owner explicitly limits scope, execute all applicable steps automatic
 
 For a public-facing AI product, **updating Universal Dev Architecture is not by itself evidence that public users will receive the corrected behavior**. If that product's runtime does not load the universal repository, the affected product runtime authority must be updated separately. Developer/build-time governance and public runtime behavior are distinct propagation targets.
 
+When the lesson belongs in a portable pack, record each public project's projection, coverage mapping, or exclusion in `portable/TRANSFER-LEDGER.json`, using the states below plus `PROPOSED` for a change still in an open pull request.
+
 Do not conflate these states:
 
 - `CAPTURED` — lesson persisted somewhere durable;
