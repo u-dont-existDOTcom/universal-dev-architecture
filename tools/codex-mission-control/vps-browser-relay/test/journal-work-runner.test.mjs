@@ -409,9 +409,9 @@ test('memory pressure that appears during pacing backs off before refreshed list
 });
 
 for (const [rung, pressureRead, expectedMessages] of [
-  ['CONTINUE', 3, [JOURNAL_WORK_PROMPT('opaque-1')]],
-  ['RETRY', 4, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
-  ['FRESH_CHAT', 5, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
+  ['CONTINUE', 4, [JOURNAL_WORK_PROMPT('opaque-1')]],
+  ['RETRY', 6, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
+  ['FRESH_CHAT', 8, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
 ]) {
   test(`memory pressure is refreshed before the ${rung} recovery rung`, async (t) => {
     let reads = 0;

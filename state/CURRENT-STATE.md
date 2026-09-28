@@ -9,18 +9,17 @@ Updated: 2026-09-28
 
 ## Goal
 
-- Address the Codex finding on the journal work runner pull request (PR #275),
-  reviewed at `d7ed5a9`: recheck host memory at every final provider-submission
-  boundary and enter configured memory backoff when pressure appears.
-- Parent outcome: **OPEN** pending commit and the required pull-request metadata
-  update; implementation and completion-gate evidence are complete.
+- Restore the required `VPS browser relay · tests and syntax` check on the
+  journal work runner pull request (PR #275) at baseline `ca71bee`, keep all
+  owner-required repository gates passing, and commit the repair.
+- Parent outcome: **SATISFIED**; implementation, completion-gate evidence,
+  commit, and pull-request metadata are complete.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`.
 - Requested branch: `claude/mc-journal-work-runner-20260928`; the task
-  environment exposes it locally as `work` at reviewed commit `d7ed5a9` and has
-  no configured Git remote.
+  environment exposes it locally as `work` at `ca71bee` with no Git remote.
 - Active assurance lane: **release** because the owner requires the existing
   pull request and all three completion gates to remain merge-ready.
 - Live default-branch `AGENTS.md` retrieval was attempted before task reasoning;
@@ -29,16 +28,17 @@ Updated: 2026-09-28
 
 ## Review finding disposition
 
-- **Finding accepted.** The rung-level memory samples did not cover time spent
-  inside global cooldown or scheduler replay, and the stuck-recovery callback
-  checked only expiry and allowance.
-- Both the ordinary final pre-click callback and stuck-recovery pre-send callback
-  now sample memory immediately before submission. SOFT or HARD pressure raises
-  a typed internal signal that maps to configured `MEMORY_PRESSURE` backoff
-  without counting or making the blocked provider call.
-- Added regressions for pressure appearing during a central cooldown and before
-  a within-rung stuck-recovery nudge. Both failed before the fix and pass 2/2
-  afterward, proving the requested consumer seam.
+- **Cause verified.** Commit `ca71bee` added a memory sample at every final
+  provider-submission boundary. Three older recovery-rung tests injected
+  pressure by absolute memory-read ordinal, so their ordinals now landed on the
+  new earlier submission-boundary samples. They stopped the initial or Continue
+  submission and failed before reaching the recovery rung each test names.
+- Updated only those three fixture ordinals to account for the intervening
+  boundary samples: CONTINUE 3 → 4, RETRY 4 → 6, and FRESH_CHAT 5 → 8. The
+  assertions still prove pressure is observed at the named recovery-rung check,
+  while the newer boundary-specific regressions continue to cover final-click
+  sampling.
+- Focused verification passed 3/3 after the test correction.
 
 ## Preserved architecture boundaries
 
@@ -47,29 +47,31 @@ Updated: 2026-09-28
   Mission Control's autonomous control-plane routing of supervision and
   escalation does not create a native return edge or transfer semantic
   reasoning authority.
-- Production promotion is not authorized by this review round. Preserve the
+- Production promotion is not authorized by this repair. Preserve the
   repository-wide completion gate and owner-method controls.
+- No runtime behavior changed in this repair; only stale test injection
+  ordinals and this recovery checkpoint changed.
 - Coverage-before-depth completion references remain active in
   `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
   `tests/test_coverage_before_depth_pattern.py`.
 
+## Completed
+
+- Reproduced and isolated the three stale recovery-rung fixture ordinals.
+- Corrected only those ordinals; focused verification passed 3/3.
+- Relay workflow-equivalent tests, syntax checks, and service-asset checks pass.
+- The owner-required repository suite passes 468/468.
+- The deterministic repository audit passes with no findings.
+
 ## Current checkpoint
 
-- Current step: implementation and all owner-required gates complete; commit and
-  pull-request metadata update are next.
-- Focused pre-fix regression: 2/2 failed; focused post-fix regression: 2/2
-  passed.
-- Owner-required relay suite passed 416/416.
-- Owner-required repository suite passed 468/468 after the checkpoint was
-  compacted and its exact durable topology phrases restored.
-- Deterministic audit passed with no findings after the explicit recovery
-  headings were restored.
+- Current step: complete; repair committed and pull-request metadata recorded.
+- Baseline relay suite reproduced the failure: 3 failed tests, all three named
+  recovery-rung memory-refresh cases.
+- Focused post-fix regression: 3/3 passed.
 - Test-efficiency telemetry: `.git/codex-test-efficiency/` task
-  `pr275-memory-submission-review`.
-- Prior review rounds through `d7ed5a9` were completed and verified; Git history
-  retains their implementation and `state/CURRENT-STATE.md` history retains
-  their exact checkpoints.
+  `pr275-vps-browser-relay`.
 
 ## Blockers / unresolved
 
@@ -79,16 +81,15 @@ Updated: 2026-09-28
 
 ## Remaining
 
-- Review the final diff, commit, and update pull-request metadata.
+- None for this repair.
 
 ## Evidence / artifacts
 
-- Review baseline: `d7ed5a9f19137b485c3c90b012879974b7f662fb`.
-- Relay suite: 416/416 passed. Repository suite: 468/468 passed.
-- Deterministic audit: `PASS: no findings.`
+- Failing baseline: `ca71beefe92e921d4dfef2a143a7fc8195d9399a`.
+- Focused command: `node --test --test-name-pattern="memory pressure is refreshed before" test/journal-work-runner.test.mjs` (3/3 passed).
+- Relay workflow-equivalent check passed; repository suite passed 468/468;
+  deterministic audit reported `PASS: no findings.`
 
 ## Next safe action
 
-- Review the final diff, commit, and update pull-request metadata. Responsible
-  actor: current assistant; existing authority permits these actions and no
-  blocker exists.
+- No in-scope action remains. The owner can review the updated pull request.
