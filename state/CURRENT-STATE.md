@@ -790,3 +790,14 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
 - Next: owner decides on the SECONDARY timeout and the central fix; on the
   next queued request, read the relay journal, read-only doctor and central
   ledger until a new submission is recorded or the failing step is identified.
+
+## Journal work runner Codex review round — 2026-09-28
+
+- Parent outcome: **SATISFIED for this review round**. The gap at round start was four Codex findings against reviewed commit `be3d080`; all four findings were confirmed against the scheduler admission, npm stdout, durable restart, and stuck-recovery seams.
+- Implemented: journal submissions now use an existing owner-registered `MISSION_CONTROL_ONLY` chat's exact `supervisorId`, `registrationId`, and `task:<workerId>` authorization; the private environment selects that supervisor with `MC_JOURNAL_SUPERVISOR_ID`.
+- Implemented: the command runner forces npm's log level to `silent`, and the documented dispatch command uses `npm --silent run`, preserving strict validation of every nonblank dispatch line rather than weakening the parser.
+- Implemented: state now durably reserves a monotonically increasing `nextFreshAttempt` before target creation. Legacy state derives its first new value above the persisted provider-call count, so an unanswered pre-upgrade `INITIAL:1` cannot be rebound to a new target after restart.
+- Implemented: the CLI records each journal target's registered session identity and routes stuck-generation nudges through a journal-aware recovery context; nudge scheduler-attempt keys keep those sends distinct while retaining the same registered supervisor, task authorization, and provider session.
+- Regression evidence: focused journal/scheduler tests passed 68/68 after one test-only assertion correction; the full relay `npm test` gate passed. New regressions cover registered admission fields, real npm preamble suppression, legacy restart identity migration, and journal recovery wiring/identity.
+- Bootstrap constraint: live default-branch `AGENTS.md` retrieval was attempted through raw GitHub and the browser fetch surface before task work; the available endpoints returned HTTP 403 and 401. Local root and scoped instructions were loaded instead. This is an access limitation, not a claim that live bootstrap succeeded.
+- Verified boundary: relay `npm test`, the 467-test Python suite, and the deterministic repository audit all passed on the completed implementation. The repair was committed and pull-request metadata was prepared; no owner decision or implementation action remains for this round.

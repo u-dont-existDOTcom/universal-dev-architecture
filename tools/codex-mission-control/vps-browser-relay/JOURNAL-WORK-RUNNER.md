@@ -25,7 +25,7 @@ This task adds a relay command, `journal-work`, that runs those chats on the own
 
 ## The dispatch listing (input)
 
-InnerSignal is adding a content-free command for the host that holds the exchange (its Task 1): `npm run journal:work -- dispatch --json` in its checkout. It prints one JSON object per line:
+InnerSignal is adding a content-free command for the host that holds the exchange (its Task 1): `npm --silent run journal:work -- dispatch --json` in its checkout. It prints one JSON object per line. The relay also forces npm's log level to `silent`, so the strict JSON-lines parser never receives npm's script preamble:
 
 ```json
 {"work_id":"<opaque>","role":"extractor","output_schema_id":"extraction-result","model":"GPT-5.6 Sol","effort":"Pro","tier":"standard","issued_at":"<ISO>","expires_at":"<ISO>","answered":false}

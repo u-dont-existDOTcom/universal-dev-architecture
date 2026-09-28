@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord } from '../src/journal-work-runner.mjs';
+import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand } from '../src/journal-work-runner.mjs';
 import { createContinueRecoveryAnchor } from '../src/continue-recovery.mjs';
 import { journalWorkSubmissionContext } from '../src/submission-context.mjs';
 import { sha256 } from '../src/core.mjs';
@@ -11,10 +11,12 @@ import { sha256 } from '../src/core.mjs';
 const SENTINEL = 'PRIVATE-JOURNAL-TEXT-SENTINEL';
 const now = Date.parse('2026-09-28T12:00:00Z');
 const record = (overrides = {}) => ({ work_id: 'opaque-1', role: 'extractor', output_schema_id: 'extraction-result', model: 'GPT-5.6 Sol', effort: 'Pro', tier: 'standard', issued_at: '2026-09-28T10:00:00Z', expires_at: '2026-09-28T14:00:00Z', answered: false, ...overrides });
+const journalChat = { supervisorId: 'registered-journal-supervisor', registrationId: 'registration:journal:test', workerId: 'authorized-journal-worker', ownership: 'MISSION_CONTROL_ONLY' };
+const authorizationRef = 'task:authorized-journal-worker';
 
 test('journal scheduler contexts bind recovery to its conversation and distinguish every fresh attempt', () => {
   const target = { id: 'target-1', automationWindowId: 1 };
-  const common = { item: record(), target, rung: 'FRESH_CHAT', providerSessionId: 'provider-session:journal:opaque-1:target-1', bodySha256: 'a'.repeat(64) };
+  const common = { chat: journalChat, item: record(), target, rung: 'FRESH_CHAT', providerSessionId: 'provider-session:journal:opaque-1:target-1', bodySha256: 'a'.repeat(64) };
   const first = journalWorkSubmissionContext({ ...common, freshChatAttempt: 2, expectedUrl: 'https://chatgpt.com/' });
   const second = journalWorkSubmissionContext({ ...common, target: { id: 'target-2', automationWindowId: 1 }, providerSessionId: 'provider-session:journal:opaque-1:target-2', freshChatAttempt: 3, expectedUrl: 'https://chatgpt.com/' });
   assert.notEqual(first.queueKey, second.queueKey);
@@ -23,6 +25,32 @@ test('journal scheduler contexts bind recovery to its conversation and distingui
   assert.equal(recovery.targetKind, 'BOUND_PROVIDER_SESSION');
   assert.equal(recovery.targetKey, common.providerSessionId);
   assert.equal(recovery.expectedUrlSha256, sha256('https://chatgpt.com/c/fake'));
+  assert.equal(first.authorizationRef, authorizationRef);
+  assert.equal(first.supervisorId, journalChat.supervisorId);
+  assert.equal(first.registrationId, journalChat.registrationId);
+  assert.throws(() => journalWorkSubmissionContext({ ...common, chat: { ...journalChat, workerId: '' } }), /owner-registered/);
+});
+
+test('journal stuck-recovery contexts keep the registered identity and distinguish nudges', () => {
+  const common = {
+    chat: journalChat, item: record(), target: { id: 'target-1', automationWindowId: 1 },
+    rung: 'STUCK_RECOVERY', providerSessionId: 'provider-session:journal:opaque-1:target-1',
+    expectedUrl: 'https://chatgpt.com/c/fake', bodySha256: 'a'.repeat(64),
+  };
+  const first = journalWorkSubmissionContext({ ...common, schedulerAttemptKey: 'nudge-1' });
+  const second = journalWorkSubmissionContext({ ...common, schedulerAttemptKey: 'nudge-2' });
+  assert.equal(first.registrationId, journalChat.registrationId);
+  assert.equal(first.authorizationRef, authorizationRef);
+  assert.notEqual(first.queueKey, second.queueKey);
+});
+
+test('the command runner suppresses npm preambles so dispatch stdout is strict JSON lines', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'journal-npm-test-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, 'package.json'), JSON.stringify({ scripts: { dispatch: `node -e "console.log(JSON.stringify({ok:true}))"` } }));
+  const result = await runCommand(`cd ${JSON.stringify(dir)} && npm run dispatch`);
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout.trim(), '{"ok":true}');
 });
 
 test('happy path sends only the fixed prompt, records the initial rung, imports, and stays content-free', async (t) => {
@@ -198,6 +226,19 @@ test('persisted work is reconciled and imported when its answer landed before a 
   assert.equal(fixture.importRuns(), 1);
 });
 
+test('an unanswered persisted attempt reserves a new durable identity before a restart target', async (t) => {
+  const fixture = await makeFixture(t, {
+    settings: { freshChatThreshold: 1 },
+    initialState: {
+      today: { date: '2026-09-28', answered: 0, calls: 1, expired: 0, waiting: 1 },
+      current: { workId: 'opaque-1', rung: 'INITIAL' },
+    },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'OWNER_ACTION_REQUIRED');
+  assert.deepEqual(fixture.submissions.filter((entry) => Number.isInteger(entry.freshChatAttempt)).map((entry) => entry.freshChatAttempt), [2]);
+  assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).nextFreshAttempt, 3);
+});
+
 test('each crossed provider submission is persisted and the allowance stops the active ladder', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: Infinity, settings: { dailyAllowance: 2 } });
   const result = await fixture.runner.runPass();
@@ -263,9 +304,9 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
     if (command === 'dispatch') { dispatches += 1; if (dispatchHandler) return dispatchHandler(dispatches); if (dispatchResult) return dispatchResult; return { exitCode: 0, stdout: `${JSON.stringify(record({ ...recordOverrides, answered: dispatches >= answeredAt }))}\n` }; }
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
-  const logs = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async ({ submit }) => submit(), commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value) } });
-  return { runner, browser, stateFile, statusFile, logs, importRuns: () => imports, dispatchRuns: () => dispatches };
+  const logs = []; const submissions = [];
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value) } });
+  return { runner, browser, stateFile, statusFile, logs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
 class FakeBrowser {

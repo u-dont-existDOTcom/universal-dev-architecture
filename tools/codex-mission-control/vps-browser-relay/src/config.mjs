@@ -150,6 +150,7 @@ export function loadJournalWorkConfig(env = process.env) {
     dispatchCommand: required(env.MC_JOURNAL_DISPATCH_COMMAND, 'MC_JOURNAL_DISPATCH_COMMAND'),
     importCommand: required(env.MC_JOURNAL_IMPORT_COMMAND, 'MC_JOURNAL_IMPORT_COMMAND'),
     appLabel: required(env.MC_JOURNAL_APP_LABEL, 'MC_JOURNAL_APP_LABEL'),
+    supervisorId: required(env.MC_JOURNAL_SUPERVISOR_ID, 'MC_JOURNAL_SUPERVISOR_ID'),
     stateFile: resolve(expandHome(env.MC_JOURNAL_STATE_FILE ?? `${stateDir}/journal-work-state.json`, home)),
     statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
     settings: {

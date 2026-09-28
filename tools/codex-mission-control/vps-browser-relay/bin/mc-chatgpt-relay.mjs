@@ -77,11 +77,12 @@ try {
     host: config.runtime.submissionHost,
     minIntervalMs: config.runtime.minSubmissionIntervalMs,
   });
+  const journalRecoverySessions = new Map();
   rawBrowser.setTargetTransitionCoordinator(submissionPacer);
   const browser = installStuckRecovery(rawBrowser, {
     maxNudges: config.runtime.stuckRecoveryMaxNudges,
     submitMessage: async (target, input) => submissionPacer.submit({
-      context: await recoverySubmissionContext(config, stateStore, target, input),
+      context: await recoverySubmissionContext(config, stateStore, target, input, journalRecoverySessions),
       submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => rawBrowser.submitExactMessage(target, { ...input, onBeforeSubmissionBoundary, onSubmissionBoundary }),
     }),
     beforeRecoverySend: () => submissionPacer.assertReady(),
@@ -142,6 +143,10 @@ try {
     process.exitCode = oneShotExitCode(result);
   } else if (command === 'journal-work') {
     const journalConfig = loadJournalWorkConfig();
+    const journalChat = config.runtime.chats.find((entry) => entry.supervisorId === journalConfig.supervisorId);
+    if (!journalChat || journalChat.ownership !== 'MISSION_CONTROL_ONLY') {
+      throw new Error('MC_JOURNAL_SUPERVISOR_ID must name an owner-registered Mission Control-only supervisor.');
+    }
     const journal = new JournalWorkRunner({
       config: journalConfig,
       browser,
@@ -149,10 +154,15 @@ try {
         const metrics = await readMemoryMetrics(config.browser.profileDir);
         return classifyMemoryPressure(metrics, resolveMemoryPolicy(metrics.totalMb, config.memory));
       },
-      submit: ({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl, bodySha256, submit }) => submissionPacer.submit({
-        context: journalWorkSubmissionContext({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl, bodySha256 }),
-        submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => submit({ onSubmissionBoundary, onBeforeSubmissionBoundary }),
-      }),
+      submit: async ({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl, bodySha256, submit }) => {
+        const identity = { chat: journalChat, item, providerSessionId };
+        journalRecoverySessions.set(target.id, identity);
+        const started = await submissionPacer.submit({
+          context: journalWorkSubmissionContext({ ...identity, target, rung, freshChatAttempt, expectedUrl, bodySha256 }),
+          submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => submit({ onSubmissionBoundary, onBeforeSubmissionBoundary }),
+        });
+        return started;
+      },
     });
     print(await journal.runPass());
   } else if (command === 'once-exact') {
@@ -244,7 +254,19 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function recoverySubmissionContext(config, stateStore, target, input) {
+async function recoverySubmissionContext(config, stateStore, target, input, journalRecoverySessions = new Map()) {
+  const journal = journalRecoverySessions.get(target.id);
+  if (journal) {
+    return journalWorkSubmissionContext({
+      ...journal,
+      target,
+      rung: 'STUCK_RECOVERY',
+      providerSessionId: journal.providerSessionId,
+      expectedUrl: input.expectedUrl,
+      bodySha256: input.bodySha256,
+      schedulerAttemptKey: input.schedulerAttemptKey,
+    });
+  }
   const state = await stateStore.read();
   const tab = Object.values(state.tabs ?? {}).find((entry) => entry?.targetId === target.id);
   const session = Object.values(state.providerSessions ?? {}).find((entry) => entry?.targetId === target.id && entry?.conversationUrl === input.expectedUrl);

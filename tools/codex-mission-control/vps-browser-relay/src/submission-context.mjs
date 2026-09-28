@@ -51,16 +51,20 @@ export function submissionSchedulerContext({ chat, target, expectedUrl, provider
   };
 }
 
-export function journalWorkSubmissionContext({ item, target, rung, freshChatAttempt = null, providerSessionId, expectedUrl, bodySha256 }) {
+export function journalWorkSubmissionContext({ chat, item, target, rung, freshChatAttempt = null, providerSessionId, expectedUrl, bodySha256, schedulerAttemptKey = null }) {
+  if (!chat || chat.ownership !== 'MISSION_CONTROL_ONLY' || !chat.supervisorId || !chat.registrationId || !chat.workerId) {
+    throw new Error('Journal work requires an owner-registered Mission Control-only supervisor.');
+  }
   const fresh = expectedUrl === PROVIDER_ROOT;
   if (!providerSessionId?.startsWith('provider-session:journal:')) throw new Error('Journal work requires an exact provider-session identity.');
   if (fresh && !Number.isInteger(freshChatAttempt)) throw new Error('Fresh journal work requires its attempt number.');
   return {
-    requestId: `journal:${item.work_id}:${rung}:${freshChatAttempt ?? 'bound'}`,
-    queueKey: `journal:${item.work_id}:${rung}:${freshChatAttempt ?? providerSessionId}`,
+    requestId: `journal:${item.work_id}:${rung}:${freshChatAttempt ?? schedulerAttemptKey ?? 'bound'}`,
+    authorizationRef: `task:${chat.workerId}`,
+    queueKey: `journal:${item.work_id}:${rung}:${freshChatAttempt ?? schedulerAttemptKey ?? providerSessionId}`,
     sendPath: 'JOURNAL_WORK',
-    supervisorId: 'journal-work-runner',
-    registrationId: 'journal-work-runner',
+    supervisorId: chat.supervisorId,
+    registrationId: chat.registrationId,
     targetId: target.id,
     automationWindowId: target.automationWindowId,
     targetKind: fresh ? 'FRESH_PROVIDER_SESSION' : 'BOUND_PROVIDER_SESSION',

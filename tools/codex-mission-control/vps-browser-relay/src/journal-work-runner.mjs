@@ -69,7 +69,7 @@ export class JournalWorkRunner {
   }
 
   async #attemptItem(item, state) {
-    let session = await this.#fresh(item, state, 'INITIAL', 1);
+    let session = await this.#fresh(item, state, 'INITIAL', await this.#reserveFreshAttempt(state));
     let continueAnchor = null;
     const rungs = ['INITIAL', 'CONTINUE', 'RETRY'];
     for (const rung of rungs) {
@@ -90,7 +90,7 @@ export class JournalWorkRunner {
       state.current.rung = 'FRESH_CHAT';
       state.current.freshChatCount = freshChatCount + 1;
       await this.#persist(state);
-      session = await this.#fresh(item, state, 'FRESH_CHAT', freshChatCount + 1);
+      session = await this.#fresh(item, state, 'FRESH_CHAT', await this.#reserveFreshAttempt(state));
       const listed = await this.#listing();
       if (!listed.ok) { state.current.phase = 'READBACK'; return this.#backOff(state, 'LISTING_FAILED'); }
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
@@ -157,6 +157,14 @@ export class JournalWorkRunner {
     throw error;
   }
 
+  async #reserveFreshAttempt(state) {
+    const attempt = state.nextFreshAttempt;
+    state.nextFreshAttempt += 1;
+    state.current.freshAttempt = attempt;
+    await this.#persist(state);
+    return attempt;
+  }
+
   async #handleConfirmation(target, item) {
     if (typeof this.browser.detectJournalWriteConfirmation !== 'function') return;
     const dialog = await this.browser.detectJournalWriteConfirmation(target);
@@ -212,6 +220,7 @@ export class JournalWorkRunner {
   async #readState() {
     let stored = {};
     try { stored = JSON.parse(await readFile(this.config.stateFile, 'utf8')); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    const legacyAttemptFloor = (stored.today?.calls ?? stored.today?.answered ?? 0) + 1;
     return {
       schemaVersion: 1,
       settings: { paceMs: 60_000, backoffBaseMs: 60_000, backoffMaxMs: 3_600_000, freshChatThreshold: 3, dailyAllowance: 170, models: { 'GPT-5.6 Sol': ['Pro'] }, controlObservations: {}, ...(this.config.settings ?? {}), ...(stored.settings ?? {}) },
@@ -222,7 +231,9 @@ export class JournalWorkRunner {
         expired: stored.today?.expired ?? 0,
         waiting: stored.today?.waiting ?? 0,
       },
-      current: stored.current ?? null, backoff: stored.backoff ?? { level: 0, until: null, trigger: null },
+      current: stored.current ?? null,
+      nextFreshAttempt: Number.isInteger(stored.nextFreshAttempt) && stored.nextFreshAttempt > 0 ? stored.nextFreshAttempt : legacyAttemptFloor,
+      backoff: stored.backoff ?? { level: 0, until: null, trigger: null },
       lastImport: stored.lastImport ?? null, ownerAction: stored.ownerAction ?? null, outcomes: Array.isArray(stored.outcomes) ? stored.outcomes : [],
     };
   }
@@ -260,6 +271,6 @@ function sanitizeImportResult(result) {
 function stringOrNull(value) { return typeof value === 'string' && value.length <= 100 ? value : null; }
 function integerOrZero(value) { return Number.isInteger(value) && value >= 0 ? value : 0; }
 function plainCounts(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return {}; return Object.fromEntries(Object.entries(value).filter(([key, count]) => /^[a-zA-Z0-9_-]{1,50}$/.test(key) && Number.isInteger(count) && count >= 0)); }
-async function runCommand(command) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024 }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: '' }; } }
+export async function runCommand(command) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024, env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' } }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: '' }; } }
 async function atomicJson(path, value) { await mkdir(dirname(path), { recursive: true, mode: 0o700 }); const temp = `${path}.${process.pid}.tmp`; await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 }); await rename(temp, path); }
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
