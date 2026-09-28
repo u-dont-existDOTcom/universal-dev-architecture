@@ -427,6 +427,11 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
   if (!observation?.menuFound) {
     throw new Error(`ChatGPT model menu is unavailable: ${observation?.reason ?? 'UNKNOWN'}.`);
   }
+  if (observation.directMatchCount === 0) {
+    const error = new Error(`Exact model selector option ${labelWanted} is unavailable.`);
+    error.code = 'CHATGPT_MODEL_UNAVAILABLE';
+    throw error;
+  }
   if (observation.directMatchCount !== 1) {
     throw new Error(`Exact model selector option ${labelWanted} must appear once.`);
   }
@@ -448,6 +453,11 @@ export function consumerControlSelectionState(currentModel, observation, control
   }
   if (legacyPolicy || calibratedPolicy) {
     if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
+    if (observation?.menuFound && observation.directMatchCount === 0) {
+      const error = new Error(`Exact model selector option ${controls.modelVisibleLabel} is unavailable.`);
+      error.code = 'CHATGPT_MODEL_UNAVAILABLE';
+      throw error;
+    }
     if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
   } else {
     if (controls.modelSelectionPolicy !== 'TOP_VISIBLE_SELECTABLE_MODEL') throw new Error('Top-model selection policy is required.');

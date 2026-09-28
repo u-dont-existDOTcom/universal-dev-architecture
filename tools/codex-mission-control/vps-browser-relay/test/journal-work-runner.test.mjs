@@ -299,6 +299,16 @@ test('missing app fails closed with an owner action', async (t) => {
   assert.equal(result.state.ownerAction.code, 'JOURNAL_APP_MISSING');
 });
 
+test('a requested model missing from consumer controls grows capacity backoff', async (t) => {
+  const unavailable = Object.assign(new Error('Exact model selector option GPT-5.6 Sol is unavailable.'), { code: 'CHATGPT_MODEL_UNAVAILABLE' });
+  const fixture = await makeFixture(t, { browserOptions: { consumerControlError: unavailable } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.backoff.trigger, 'MODEL_CAPACITY');
+  assert.equal(result.state.backoff.level, 1);
+  assert.equal(result.state.ownerAction, null);
+});
+
 test('approved exact confirmation uses always allow when offered', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 3, browserOptions: { confirmation: { present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'] } } });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
@@ -831,7 +841,7 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
 class FakeBrowser {
   constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshTargetOptions = []; this.confirmationExpectedUrls = []; this.continueExpectedUrls = []; this.submitExpectedUrls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
   async createFreshChatTarget(options) { this.freshTargetOptions.push(options); this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
-  async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
+  async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); if (this.consumerControlError) throw this.consumerControlError; }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
   async submitExactMessage(_target, input) { this.submitExpectedUrls.push(input.expectedUrl); const queuedError = this.submitErrors?.shift(); if (queuedError) throw queuedError; if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: this.submittedConversationUrl ?? 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete(_target, options) {

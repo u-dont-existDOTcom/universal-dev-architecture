@@ -188,6 +188,14 @@ test('duplicate exact menu options fail closed as ambiguous', () => {
   }, 'Pro'), /ambiguous inside the model menu/);
 });
 
+test('a missing exact model option emits a structured unavailability observation', () => {
+  assert.throws(() => exactModelSelectionState({ label: 'Auto' }, {
+    menuFound: true,
+    directMatchCount: 0,
+    selectedModelMatchCount: 0,
+  }, 'GPT-5.6 Sol'), (error) => error.code === 'CHATGPT_MODEL_UNAVAILABLE' && /is unavailable/.test(error.message));
+});
+
 test('missing fixed thinking label fails closed instead of accepting a nearby label', () => {
   assert.throws(() => modelMenuSelectionState(currentPowerMenu({
     currentPowerLabel: '',

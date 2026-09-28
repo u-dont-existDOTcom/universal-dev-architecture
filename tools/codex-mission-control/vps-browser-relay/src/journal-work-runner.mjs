@@ -423,6 +423,7 @@ function classifyBackoff(error) {
   const text = `${error?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
   if (error?.code === 'JOURNAL_MEMORY_PRESSURE') return 'MEMORY_PRESSURE';
   if (error?.code === 'GLOBAL_SUBMISSION_COOLDOWN') return 'GLOBAL_SUBMISSION_COOLDOWN';
+  if (error?.code === 'CHATGPT_MODEL_UNAVAILABLE') return 'MODEL_CAPACITY';
   if (text.includes('too many requests') || text.includes('rate_limit')) return 'TOO_MANY_REQUESTS';
   if (text.includes('model unavailable') || text.includes('capacity')) return 'MODEL_CAPACITY';
   return null;

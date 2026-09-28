@@ -9,17 +9,17 @@ Updated: 2026-09-28
 
 ## Goal
 
-- Restore the required `VPS browser relay · tests and syntax` check on the
-  journal work runner pull request (PR #275) at baseline `ca71bee`, keep all
-  owner-required repository gates passing, and commit the repair.
-- Parent outcome: **SATISFIED**; implementation, completion-gate evidence,
-  commit, and pull-request metadata are complete.
+- Address the Codex review finding on the journal work runner pull request
+  (PR #275), reviewed at `0bc4b01`, keep all owner-required gates passing, and
+  commit the repair.
+- Parent outcome: **OPEN** pending completion gates, commit, and pull-request
+  update.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`.
 - Requested branch: `claude/mc-journal-work-runner-20260928`; the task
-  environment exposes it locally as `work` at `ca71bee` with no Git remote.
+  environment exposes it locally as `work` at `0bc4b01` with no Git remote.
 - Active assurance lane: **release** because the owner requires the existing
   pull request and all three completion gates to remain merge-ready.
 - Live default-branch `AGENTS.md` retrieval was attempted before task reasoning;
@@ -28,17 +28,22 @@ Updated: 2026-09-28
 
 ## Review finding disposition
 
-- **Cause verified.** Commit `ca71bee` added a memory sample at every final
-  provider-submission boundary. Three older recovery-rung tests injected
-  pressure by absolute memory-read ordinal, so their ordinals now landed on the
-  new earlier submission-boundary samples. They stopped the initial or Continue
-  submission and failed before reaching the recovery rung each test names.
-- Updated only those three fixture ordinals to account for the intervening
-  boundary samples: CONTINUE 3 → 4, RETRY 4 → 6, and FRESH_CHAT 5 → 8. The
-  assertions still prove pressure is observed at the named recovery-rung check,
-  while the newer boundary-specific regressions continue to cover final-click
-  sampling.
-- Focused verification passed 3/3 after the test correction.
+- **Finding accepted.** The runner's `MODEL_CAPACITY` classifier previously
+  recognized only message text containing `model unavailable` or `capacity`,
+  while the exact-model selector emitted generic `Exact model ...` failures.
+  A temporarily absent configured model therefore fell through to persistent
+  `OWNER_ACTION_REQUIRED` rather than capacity backoff.
+- Exact-model selection and post-selection verification now emit the structured
+  `CHATGPT_MODEL_UNAVAILABLE` code when the requested option count is zero.
+  Duplicate options remain an ambiguity failure rather than being mislabeled as
+  capacity.
+- The journal runner classifies that structured code as `MODEL_CAPACITY`, so the
+  existing persisted exponential backoff path handles temporary selector
+  disappearance.
+- Regression coverage proves both boundaries: the CDP selector emits the
+  structured code, and a runner control failure with that code produces growing
+  capacity backoff with no owner action. These tests fail on the reviewed
+  baseline because the code is neither emitted nor classified there.
 
 ## Preserved architecture boundaries
 
@@ -49,8 +54,8 @@ Updated: 2026-09-28
   reasoning authority.
 - Production promotion is not authorized by this repair. Preserve the
   repository-wide completion gate and owner-method controls.
-- No runtime behavior changed in this repair; only stale test injection
-  ordinals and this recovery checkpoint changed.
+- No conversation content is inspected or persisted by this repair; only the
+  structural model-menu observation and its typed error cross the boundary.
 - Coverage-before-depth completion references remain active in
   `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
@@ -58,20 +63,20 @@ Updated: 2026-09-28
 
 ## Completed
 
-- Reproduced and isolated the three stale recovery-rung fixture ordinals.
-- Corrected only those ordinals; focused verification passed 3/3.
-- Relay workflow-equivalent tests, syntax checks, and service-asset checks pass.
-- The owner-required repository suite passes 468/468.
-- The deterministic repository audit passes with no findings.
+- Reproduced the unreachable capacity classification from the reviewed code.
+- Added structured exact-model unavailability signaling and runner
+  classification.
+- Added focused CDP and journal-runner regressions; focused verification passed
+  90/90.
+- Relay tests passed 418/418 and the repository suite passed 468/468. The
+  deterministic audit completed with no errors; its initial warning identified
+  the missing evidence section repaired below.
 
 ## Current checkpoint
 
-- Current step: complete; repair committed and pull-request metadata recorded.
-- Baseline relay suite reproduced the failure: 3 failed tests, all three named
-  recovery-rung memory-refresh cases.
-- Focused post-fix regression: 3/3 passed.
+- Current step: review the final diff, commit, and update the pull request.
 - Test-efficiency telemetry: `.git/codex-test-efficiency/` task
-  `pr275-vps-browser-relay`.
+  `pr275-model-capacity`.
 
 ## Blockers / unresolved
 
@@ -79,17 +84,18 @@ Updated: 2026-09-28
 - GitHub bootstrap/API access is unavailable from the current shell; use the
   task environment's pull-request delivery tool after commit.
 
-## Remaining
-
-- None for this repair.
-
 ## Evidence / artifacts
 
-- Failing baseline: `ca71beefe92e921d4dfef2a143a7fc8195d9399a`.
-- Focused command: `node --test --test-name-pattern="memory pressure is refreshed before" test/journal-work-runner.test.mjs` (3/3 passed).
-- Relay workflow-equivalent check passed; repository suite passed 468/468;
-  deterministic audit reported `PASS: no findings.`
+- Focused regression: 90/90 passed.
+- Relay completion gate: 418/418 passed.
+- Repository completion gate: 468/468 passed.
+- Deterministic audit: 0 errors; the checkpoint warning was repaired before
+  final audit rerun.
+
+## Remaining
+
+- Review the final diff, commit, and update the pull request.
 
 ## Next safe action
 
-- No in-scope action remains. The owner can review the updated pull request.
+- Review the complete patch before commit.
