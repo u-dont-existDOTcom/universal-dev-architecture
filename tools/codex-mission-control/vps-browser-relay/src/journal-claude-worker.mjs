@@ -381,6 +381,22 @@ export function runClaude(command, args, { cwd, timeoutMs }) {
       detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'ignore'],
     });
+    const onExit = () => terminateProcessGroup(child);
+    // The worker lock also exits on signals. Kill Claude before its exit
+    // handler releases the lock, including when another path calls process.exit().
+    process.prependListener('exit', onExit);
+    const signalHandlers = [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]
+      .map(([signal, code]) => [signal, () => process.exit(code)]);
+    for (const [signal, handler] of signalHandlers) {
+      process.prependOnceListener(signal, handler);
+    }
+    const cleanup = () => {
+      clearTimeout(timer);
+      process.removeListener('exit', onExit);
+      for (const [signal, handler] of signalHandlers) {
+        process.removeListener(signal, handler);
+      }
+    };
     let stdout = '';
     let timedOut = false;
     child.stdout.setEncoding('utf8');
@@ -390,17 +406,18 @@ export function runClaude(command, args, { cwd, timeoutMs }) {
       terminateProcessGroup(child);
     }, timeoutMs);
     child.once('error', (error) => {
-      clearTimeout(timer);
+      cleanup();
       reject(error);
     });
     child.once('close', (code, signal) => {
-      clearTimeout(timer);
+      cleanup();
       resolve({ exitCode: code, signal, stdout, timeout: timedOut });
     });
   });
 }
 
 function terminateProcessGroup(child) {
+  if (!Number.isInteger(child.pid) || child.pid <= 0) return;
   try {
     if (process.platform === 'win32') child.kill('SIGKILL');
     else process.kill(-child.pid, 'SIGKILL');

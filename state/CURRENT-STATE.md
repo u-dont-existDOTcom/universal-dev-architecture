@@ -9,23 +9,26 @@ Updated: 2026-09-28
 
 ## Goal
 
-- Repair commit `36425d8` after its checkpoint rewrite removed the bounded Chat/Work topology required by deterministic tests.
-- Parent outcome: **SATISFIED**; sandbox-incompatible process/socket coverage remains assigned to CI.
+- Address the review finding on the journal Claude worker in pull request #277,
+  reviewed at `e234294`, with a regression that fails before the repair.
+- Local outcome: **SATISFIED for runner handoff**; full relay and socket coverage
+  remain assigned to CI.
 
 ## Authority / baseline
 
-- Current owner request: fix the deterministic check, run sandbox-compatible
-  gates without weakening tests, record it here, and leave it uncommitted/unpushed.
-- Canonical live default-branch `AGENTS.md` was re-fetched successfully on
-  2026-09-28 through the available web surface; the shell sandbox remains
-  networkless. Root, scoped, state, test-efficiency, assurance, continuation,
-  and executable-frontier guidance was activated before implementation.
+- Current owner request: fix the detached-child ownership race, run the touched
+  socket-free tests and sandbox-compatible repository gates without weakening
+  tests, record this round, and leave it uncommitted/unpushed.
+- Owner-provided root instructions and local guidance were active before
+  implementation. The live default-branch `AGENTS.md` was confirmed via the
+  GitHub connector on 2026-09-28 after a cached web read; the shell remains
+  networkless.
 - Last verified durable boundary: `af245cf`, which already contains the two
-  earlier review repairs; committed failure baseline `36425d8` contains the next
-  review round and was clean at this task's start.
-- Active assurance lane: **release/handoff candidate**, because the owner
-  explicitly requires the relay suite and both repository completion gates;
-  deployment and publication remain unauthorized.
+  earlier review repairs. Current baseline: `e2342945d4d6ffd4fdf8d2309e02c4306570564f`
+  on `claude/mc-journal-claude-worker-20260928`, clean at task start.
+- Active assurance lane: **review/handoff candidate**; the exact full relay and
+  Python socket gates remain with CI due to the explicit sandbox limit.
+  Deployment and publication remain unauthorized.
 - Chat → Work requires explicit user acceptance; Work ↔ Work uses native
   Work-internal coordination; Work → the originating Chat is unavailable.
   Mission Control's autonomous control-plane routing of supervision and escalation
@@ -35,31 +38,32 @@ Updated: 2026-09-28
 
 - **Privacy (mechanical):** persist only allowlisted metadata, never packet,
   answer, Claude `result`, or `session_id`; the sentinel regression must pass.
-- **Runner composition (mechanical/semantic):** reuse its reader, timeout-aware
-  command runner, import sanitizer/status shape, and shared import-run lock.
 - **Retry/state ownership (mechanical):** persist a content-free in-flight work
   ID before Claude, reconcile it before pause/selection, and atomically promote
   it to the existing pending-import retry state before import.
-- **Time-window truth (mechanical):** rebuild UTC-day, rolling-seven-day, and
-  pause-expiry metrics from the content-free usage log when rendering status.
-- **Recovery truth (mechanical):** distinguish the committed `af245cf` boundary
-  from this round's uncommitted delta so no worker repeats completed integration.
-- **Checkpoint invariants (mechanical):** retain the bounded capability topology
-  while updating task-specific recovery state; the focused regression must pass.
+- **Detached-child lifecycle (mechanical):** kill an active Claude process group
+  before the worker lock releases on SIGTERM, SIGHUP, or another worker exit.
 - **Explicit authority boundary (mechanical):** `journal-claude` performs no
   work unless `MC_JOURNAL_CLAUDE_ENABLED=1`; no deploy, install, push, or service
   mutation is authorized.
-- **Verification (mechanical):** focused tests, one full relay checkpoint, and
-  both repository gates; leave sandbox-incompatible coverage unchanged for CI.
+- **Verification (mechanical):** show the new regression red at the reviewed
+  code and green after repair; run touched socket-free tests, static checks,
+  non-socket repository tests, and the exact audit; leave restricted tests for CI.
 - **Continuation (semantic):** final delivery must disclose the exact sandbox
   residuals and leave the working tree uncommitted, unpushed, and undeployed.
 
 ## Review finding disposition
 
-- **Deterministic-check failure — valid and causally isolated.** The standalone
-  audit passes, but the same-named CI job first runs repository unit tests. Seven
-  assertions fail because `36425d8` deleted the checkpoint's bounded Chat/Work
-  topology paragraph; restoring that invariant repairs the generating condition.
+- **Detached-child ownership finding — valid.** Before this repair, the new
+  SIGTERM regression observed a live sleeping Claude process after the worker
+  exited. The lock's signal handler calls `process.exit()`, while `runClaude()`
+  previously killed its detached child group only on timeout. A restarted pass
+  could clear the unanswered in-flight marker and launch duplicate Claude work.
+- `runClaude()` now installs an exit listener ahead of the lock's exit listener,
+  killing the child group before lock release. Temporary signal listeners cover
+  direct use without the lock; all listeners are removed after child completion.
+  The socket-free regression covers SIGTERM, SIGHUP, and an independent
+  `process.exit()` path through the actual lock and runner functions.
 - Production promotion is not authorized; this task leaves an uncommitted,
   undeployed working-tree candidate for the repository runner.
 - Preserve the active completion gate: `patterns/coverage-before-depth-in-selection.md`,
@@ -68,48 +72,49 @@ Updated: 2026-09-28
 
 ## Current checkpoint
 
-1. Reproduce the required-check failure and isolate its failing subcommand.
-   **Complete.**
-2. Restore the deleted checkpoint invariant without changing tests. **Complete.**
-3. Run focused coverage, the relay suite, and both repository gates. **Complete.**
+1. Reproduce the detached-child survival at the reviewed code. **Complete.**
+2. Kill the child group before lock release and add signal/exit regression
+   coverage. **Complete.**
+3. Run sandbox-compatible tests and audit. **Complete.**
 4. Review the final diff and preserve the uncommitted runner handoff. **Complete.**
 
 ## Completed
 
-- Verified the clean requested baseline and loaded the applicable local authority.
-- Started test-efficiency telemetry before implementation.
-- Confirmed the standalone repository audit passes at `36425d8`.
-- Reproduced seven missing-topology failures in
-  `tests/test_capability_edge_and_gate_rule.py`; the additional socket error is
-  the declared sandbox restriction and is unrelated.
-- Compared the checkpoint rewrite with its parent and restored only the deleted
-  bounded-topology invariant while recording this repair.
-- Ran the requested sandbox-compatible verification without changing tests.
-- Reviewed the final one-file diff and preserved the no-push/no-commit boundary.
+- Verified the clean baseline, loaded local authority, and started test-cost
+  telemetry before implementation. The GitHub connector confirmed the live
+  root instructions during final review; the shell remains networkless.
+- Added a regression that failed at the reviewed code: Claude remained
+  `State: S (sleeping)` after SIGTERM and worker exit.
+- Added shutdown cleanup before lock release and confirmed all three signal/exit
+  regressions pass. No existing tests or privacy boundaries were weakened.
+- Ran the socket-free checks and reviewed the final source, test, and state diff.
 
 ## Remaining
 
-- CI must rerun four sandbox-incomplete relay files and the repository socket
-  test. Tests remain unchanged for those environment restrictions.
+- CI must run the full relay `npm test` gate and the exact Python unittest gate,
+  including the sole test that binds `127.0.0.1`.
 
 ## Blockers / unresolved
 
 - No implementation or owner-decision blocker is currently observed.
-- The sandbox cannot open local sockets and four process-heavy relay files do
-  not expose their nested diagnostics here; CI owns those residual checks.
+- Two tests in the unchanged adjacent journal work runner file received empty
+  stdout from sandbox-spawned shell commands (70/72 passed). That file and its
+  imported source do not depend on the changed Claude worker. CI owns the full
+  relay suite; no test was altered for this environment failure.
 
 ## Evidence / artifacts
 
-- Pre-fix standalone audit: PASS. Pre-fix repository unittest gate: seven
-  checkpoint-topology failures plus the expected prohibited-socket error.
-- Focused checkpoint tests: 8/8 PASS. Relay suite: 20/24 files PASS; the four
-  process-heavy failures are sandbox residuals and the changed worker test passes.
-- Exact repository unittest gate: 469 tests, 468 PASS; the sole error is the
-  expected `PermissionError` creating the prohibited `127.0.0.1` socket.
-- Exact deterministic repository audit: PASS with no findings.
-- Test telemetry: `/tmp/pr277-36425d8-audit-fix.jsonl`.
+- Focused shutdown tests: 3/3 PASS; changed journal Claude worker file: PASS
+  under Node's built-in runner. `npm run check`: PASS.
+- Adjacent journal work runner file: 70/72 PASS; the two sandbox shell-stdout
+  failures are outside the changed module.
+- Repository unittest suite excluding exactly one prohibited local-socket test:
+  468/468 PASS. The exact unfiltered gate remains for CI.
+- Exact deterministic repository audit: PASS with no errors or warnings.
+- Test telemetry: `/tmp/pr277-inflight-signal.jsonl`.
 
 ## Next safe action
 
-- The repository runner may commit and push only this one-file checkpoint repair,
-  then let CI execute the sandbox-incompatible relay and socket coverage.
+- The repository runner may commit and push this worker, regression-test, and
+  state-file delta, then let CI execute the sandbox-incompatible relay and
+  socket coverage. Do not commit or push from this workspace.

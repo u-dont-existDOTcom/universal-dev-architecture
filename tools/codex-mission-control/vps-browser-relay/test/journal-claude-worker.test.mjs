@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { constants } from 'node:fs';
 import {
   access,
@@ -144,6 +146,69 @@ setInterval(() => {}, 1000);
     `grandchild remained live: ${status.match(/^State:.*$/m)?.[0]}`,
   );
 });
+
+for (const signal of ['SIGTERM', 'SIGHUP', 'SIGUSR2']) {
+  test(`worker ${signal} shutdown kills detached Claude before releasing the lock`, {
+    skip: process.platform === 'win32',
+  }, (t) => assertShutdownKillsClaude(t, signal));
+}
+
+async function assertShutdownKillsClaude(t, signal) {
+  const dir = await mkdtemp(join(tmpdir(), 'claude-shutdown-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const pidFile = join(dir, 'pid');
+  const descendantPidFile = join(dir, 'descendant-pid');
+  const claude = join(dir, 'claude.cjs');
+  await writeFile(claude, `const { spawn } = require('node:child_process');
+const { writeFileSync } = require('node:fs');
+const descendant = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+writeFileSync(${JSON.stringify(descendantPidFile)}, String(descendant.pid));
+setInterval(() => {}, 1000);
+`);
+  const runner = join(dir, 'worker.mjs');
+  await writeFile(runner, `import { runClaude } from ${JSON.stringify(new URL('../src/journal-claude-worker.mjs', import.meta.url).href)};
+import { withFileLock } from ${JSON.stringify(new URL('../src/journal-work-runner.mjs', import.meta.url).href)};
+process.once('SIGUSR2', () => process.exit(70));
+await withFileLock(${JSON.stringify(join(dir, 'worker.lock'))}, () =>
+  runClaude(process.execPath, [${JSON.stringify(claude)}], {
+    cwd: ${JSON.stringify(dir)}, timeoutMs: 60_000,
+  }));
+`);
+  const worker = spawn(process.execPath, [runner], { stdio: 'ignore' });
+  let claudePid;
+  let descendantPid;
+  t.after(() => {
+    if (worker.exitCode === null) worker.kill('SIGKILL');
+    if (claudePid) {
+      try { process.kill(-claudePid, 'SIGKILL'); } catch (error) {
+        if (error.code !== 'ESRCH') throw error;
+      }
+    }
+  });
+  for (let attempt = 0; attempt < 100 && (!claudePid || !descendantPid); attempt += 1) {
+    claudePid = Number(await readFile(pidFile, 'utf8').catch(() => '')) || null;
+    descendantPid = Number(await readFile(descendantPidFile, 'utf8').catch(() => '')) || null;
+    if (!claudePid || !descendantPid) await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.ok(claudePid && descendantPid, 'Claude process group did not start');
+  worker.kill(signal);
+  await once(worker, 'exit');
+  for (const pid of [claudePid, descendantPid]) {
+    let status;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      status = await readFile(`/proc/${pid}/status`, 'utf8').catch((error) => (
+        error.code === 'ENOENT' ? '' : Promise.reject(error)
+      ));
+      if (status === '' || /^State:\s+Z/m.test(status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    assert.ok(
+      status === '' || /^State:\s+Z/m.test(status),
+      `Claude process group member ${pid} remained live: ${status.match(/^State:.*$/m)?.[0]}`,
+    );
+  }
+}
 
 test('usage limit uses an explicit reset time and suppresses later sends', async (t) => {
   const fixture = await makeFixture(t, {
