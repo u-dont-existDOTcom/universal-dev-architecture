@@ -39,7 +39,7 @@ test('journal confirmation approval types a changed binding as a revalidation fa
   const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: approvalRevalidationTransport() });
   await assert.rejects(
     browser.approveJournalWriteConfirmation({ id: 'approval-target', webSocketDebuggerUrl: 'ws://controlled/page' }, {
-      appName: 'InnerSignal', toolName: 'submit_journal_work_result', button: 'Always allow',
+      expectedUrl: 'https://chatgpt.com/c/confirmation-policy', appName: 'InnerSignal', toolName: 'submit_journal_work_result', button: 'Always allow',
     }),
     (error) => error?.code === 'APP_CONFIRMATION_REVALIDATION_FAILED' && /BINDING_CHANGED/.test(error.message),
   );

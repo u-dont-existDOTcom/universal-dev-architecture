@@ -252,6 +252,7 @@ test('approved exact confirmation uses always allow when offered', async (t) => 
   const fixture = await makeFixture(t, { answeredAt: 3, browserOptions: { confirmation: { present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'] } } });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
   assert.equal(fixture.browser.approvals[0].button, 'Always allow');
+  assert.equal(fixture.browser.approvals[0].expectedUrl, 'https://chatgpt.com/c/fake');
 });
 
 test('a write confirmation appearing during generation is approved before completion can settle', async (t) => {
@@ -262,6 +263,7 @@ test('a write confirmation appearing during generation is approved before comple
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
   assert.equal(fixture.browser.approvals.length, 1);
   assert.equal(fixture.browser.approvals[0].button, 'Always allow');
+  assert.equal(fixture.browser.approvals[0].expectedUrl, 'https://chatgpt.com/c/fake');
 });
 
 test('a confirmation for any other tool is refused and becomes an owner action', async (t) => {

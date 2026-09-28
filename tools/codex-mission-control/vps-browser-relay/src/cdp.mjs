@@ -27,7 +27,20 @@ const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown
 const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
 const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
 
-export const JOURNAL_WRITE_CONFIRMATION_FN = `function() {
+export const JOURNAL_WRITE_CONFIRMATION_FN = `function(expectedUrl) {
+  const normalize = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  const matchesExpectedUrl = expectedUrl === 'https://chatgpt.com/'
+    ? new URL(location.href).origin === 'https://chatgpt.com' && new URL(location.href).pathname === '/'
+    : normalize(expectedUrl) !== null && normalize(location.href) === normalize(expectedUrl);
+  if (!matchesExpectedUrl) {
+    return { present: false, appName: null, toolName: null, buttons: [], urlMismatch: true };
+  }
   const visible = (element) => Boolean(element && element.getClientRects().length)
     && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
   const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
@@ -43,7 +56,18 @@ export const JOURNAL_WRITE_CONFIRMATION_FN = `function() {
   return { present: true, appName, toolName, buttons };
 }`;
 
-const APPROVE_JOURNAL_WRITE_CONFIRMATION_FN = `function(appName, toolName, buttonLabel) {
+export const APPROVE_JOURNAL_WRITE_CONFIRMATION_FN = `function(expectedUrl, appName, toolName, buttonLabel) {
+  const normalize = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  const matchesExpectedUrl = expectedUrl === 'https://chatgpt.com/'
+    ? new URL(location.href).origin === 'https://chatgpt.com' && new URL(location.href).pathname === '/'
+    : normalize(expectedUrl) !== null && normalize(location.href) === normalize(expectedUrl);
+  if (!matchesExpectedUrl) return { approved: false, reason: 'URL_MISMATCH' };
   const visible = (element) => Boolean(element && element.getClientRects().length)
     && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
   const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
@@ -1129,12 +1153,12 @@ export class ChromeDevtoolsBrowser {
     });
   }
 
-  async detectJournalWriteConfirmation(target) {
-    return this.#withPageClient(target, (client) => client.callFunction(JOURNAL_WRITE_CONFIRMATION_FN, []));
+  async detectJournalWriteConfirmation(target, { expectedUrl }) {
+    return this.#withPageClient(target, (client) => client.callFunction(JOURNAL_WRITE_CONFIRMATION_FN, [expectedUrl]));
   }
 
-  async approveJournalWriteConfirmation(target, { appName, toolName, button }) {
-    const result = await this.#withPageClient(target, (client) => client.callFunction(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, [appName, toolName, button]));
+  async approveJournalWriteConfirmation(target, { expectedUrl, appName, toolName, button }) {
+    const result = await this.#withPageClient(target, (client) => client.callFunction(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, [expectedUrl, appName, toolName, button]));
     if (!result?.approved) {
       const error = new Error(`Journal write confirmation changed before approval: ${result?.reason ?? 'UNKNOWN'}.`);
       error.code = 'APP_CONFIRMATION_REVALIDATION_FAILED';

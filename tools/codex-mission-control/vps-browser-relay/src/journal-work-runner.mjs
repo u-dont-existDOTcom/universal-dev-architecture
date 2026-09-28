@@ -162,7 +162,7 @@ export class JournalWorkRunner {
     // conversation's scheduler binding.
     const providerSessionId = `provider-session:journal:${item.work_id}:${freshChatAttempt}:${target.id}`;
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(item, state, callbacks) }) }));
-    await this.#handleConfirmation(target, item);
+    await this.#handleConfirmation(target, item, started.conversationUrl ?? ROOT_URL);
     await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, started.conversationUrl ?? ROOT_URL, started.generationStarted, item));
     return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
   }
@@ -171,7 +171,7 @@ export class JournalWorkRunner {
     this.#assertSubmissionAllowance(state);
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(item, state, callbacks) }) }));
-    await this.#handleConfirmation(session.target, item);
+    await this.#handleConfirmation(session.target, item, session.expectedUrl);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return anchor;
   }
@@ -181,7 +181,7 @@ export class JournalWorkRunner {
     if (classified.status !== 'RETRY_FAILED_CONTINUE') return false;
     this.#assertSubmissionAllowance(state);
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(item, state, callbacks) }) }));
-    await this.#handleConfirmation(session.target, item);
+    await this.#handleConfirmation(session.target, item, session.expectedUrl);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return true;
   }
@@ -229,7 +229,7 @@ export class JournalWorkRunner {
     return {
       expectedUrl,
       generationStarted,
-      onGenerationPoll: () => this.#handleConfirmation(target, item),
+      onGenerationPoll: () => this.#handleConfirmation(target, item, expectedUrl),
       beforeRecoverySend: () => {
         if (this.now() >= Date.parse(item.expires_at)) {
           const expired = new Error('Journal work item expired before a stuck-recovery submission.');
@@ -276,9 +276,12 @@ export class JournalWorkRunner {
     return attempt;
   }
 
-  async #handleConfirmation(target, item) {
+  async #handleConfirmation(target, item, expectedUrl) {
     if (typeof this.browser.detectJournalWriteConfirmation !== 'function') return;
-    const dialog = await this.browser.detectJournalWriteConfirmation(target);
+    const dialog = await this.browser.detectJournalWriteConfirmation(target, { expectedUrl });
+    if (dialog?.urlMismatch) {
+      const error = new Error('Journal write confirmation appeared outside the bound conversation.'); error.code = 'APP_CONFIRMATION_REVALIDATION_FAILED'; throw error;
+    }
     if (!dialog?.present) return;
     if (dialog.appName !== this.config.appLabel || dialog.toolName !== 'submit_journal_work_result') {
       const error = new Error('Unexpected app write confirmation.'); error.code = 'UNEXPECTED_APP_CONFIRMATION'; throw error;
@@ -286,7 +289,7 @@ export class JournalWorkRunner {
     const always = dialog.buttons.find((button) => /always allow/i.test(button));
     const choice = always ?? dialog.buttons.find((button) => /^(allow|approve|confirm)$/i.test(button));
     if (!choice) { const error = new Error('Approved app confirmation has no exact approval control.'); error.code = 'APP_CONFIRMATION_CONTROL_MISSING'; throw error; }
-    await this.browser.approveJournalWriteConfirmation(target, { appName: this.config.appLabel, toolName: 'submit_journal_work_result', button: choice, workId: item.work_id });
+    await this.browser.approveJournalWriteConfirmation(target, { expectedUrl, appName: this.config.appLabel, toolName: 'submit_journal_work_result', button: choice, workId: item.work_id });
   }
 
   async #answered(item, state, rung) {

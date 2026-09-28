@@ -7,6 +7,7 @@ import {
   CURRENT_MODEL_FN,
   GENERATION_STATE_FN,
   JOURNAL_WRITE_CONFIRMATION_FN,
+  APPROVE_JOURNAL_WRITE_CONFIRMATION_FN,
   MODEL_MENU_STATE_FN,
   PAGE_INSPECTION_FN,
   appSelectionState,
@@ -92,12 +93,29 @@ test('journal app confirmation detector returns only structured app, tool and bu
     h('button', {}, [], { text: 'Cancel' }),
     h('button', {}, [], { text: 'Always allow' }),
   ]);
-  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([dialog]), []), {
+  const conversation = 'https://chatgpt.com/c/journal-confirmation';
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([dialog], conversation), [conversation]), {
     present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'],
   });
-  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([]), []), {
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([], conversation), [conversation]), {
     present: false, appName: null, toolName: null, buttons: [],
   });
+});
+
+test('journal confirmation detection and approval fail closed after navigation away from the bound conversation', () => {
+  const approveButton = h('button', {}, [], { text: 'Always allow' });
+  const dialog = h('div', { role: 'dialog', 'data-app-name': 'InnerSignal', 'data-tool-name': 'submit_journal_work_result' }, [
+    approveButton,
+  ]);
+  const expectedUrl = 'https://chatgpt.com/c/bound-journal';
+  const navigatedPage = page([dialog], 'https://chatgpt.com/c/unrelated');
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, navigatedPage, [expectedUrl]), {
+    present: false, appName: null, toolName: null, buttons: [], urlMismatch: true,
+  });
+  assert.deepEqual(runInPage(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, navigatedPage, [expectedUrl, 'InnerSignal', 'submit_journal_work_result', 'Always allow']), {
+    approved: false, reason: 'URL_MISMATCH',
+  });
+  assert.equal(approveButton.clicks, 0);
 });
 
 test('the open model menu exposes the top model, the Power slider and its status line', () => {
