@@ -35,6 +35,7 @@ Common signals include:
 - the worker's own configuration area is itself exposed read-only;
 - the reasoning chat is about to tell the owner to edit `~/.codex/config.toml`, task profiles, rule files, or similar worker-local settings;
 - the owner asks “can’t the worker do that itself?”
+- shell `git push` or another repository transport lacks credentials while an already-authorized connected GitHub API/connector can publish the same destination/scope;
 
 ## Required behavior
 
@@ -88,6 +89,7 @@ Do not require the owner to reconstruct or repeat context after the restart; the
 A valid owner confirmation is not single-use merely because one execution surface failed. When destination, data boundary, scope, and consequence remain unchanged, carry the existing approval across retries, resumed execution, and alternate authorized transport paths.
 
 - A failed tool call, safety review, credential helper, remote transport, or equivalent execution-path failure does not by itself require asking the owner again.
+- In particular, a shell-Git credential failure must be treated as a transport-path failure, not automatically as an owner authentication task. For integration-bound repository work, apply `patterns/worker-github-publication-and-recovery.md` and use an already-authorized connector/API fallback when it preserves the same destination, scope, and consequence.
 - Before interrupting, try the safe authorized recovery path or alternate execution surface already available under the same approval.
 - Re-ask only if a material fact changes, a new consequence or destination is introduced, the prior approval was explicitly revoked or narrowed, or the platform itself requires a fresh human gesture.
 - When an owner interruption is irreducible, explain the concrete downside or risk of the available options, why the owner is required, and the recommended default. Do not send a bare “approve?” or “what do you want me to do?” prompt.
