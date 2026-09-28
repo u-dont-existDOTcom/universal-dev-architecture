@@ -45,6 +45,9 @@ Updated: 2026-09-28
 - Codex review at `4854309`: **ACCEPTED** — the checkpoint called a committed
   repair uncommitted. It now identifies the committed revision; a new
   regression failed before the fix and passed after it.
+- Codex review at `59b850b`: **ACCEPTED** — its three repairs were committed,
+  but the checkpoint and handoff still called them uncommitted. The cited
+  `d4ddee9` is unavailable here; `59b850b` is the verified local revision.
 
 ## Preserved architecture boundaries
 
@@ -82,11 +85,11 @@ Updated: 2026-09-28
 
 ## Current checkpoint
 
-- The `7703d8a` repair was committed as `4854309`, the latest durable boundary
-  entering this review round; the remote-tracking branch also points there.
-  This round's three repairs remain in the working tree for the runner to commit
-  and push. CI must run the exact full Python gate because an unrelated test
-  opens a localhost socket blocked by this sandbox.
+- `59b850b` is the latest durable boundary here. It contains the three repairs
+  from the review of `4854309`; the earlier `7703d8a` repair was committed as
+  `4854309`. This round changes only the checkpoint and regression.
+  CI must run the exact full Python gate because an existing test opens a
+  localhost socket blocked by this sandbox.
 
 ## Blockers / unresolved
 
@@ -94,19 +97,22 @@ Updated: 2026-09-28
 
 ## Evidence / artifacts
 
-- This review round: 3 regressions failed before repair (7 failures across
+- Prior review round: 3 regressions failed before repair (7 failures across
   12 tests), then **PASS** — 12 focused tests, 0 failures, 0 errors.
-- Socket-free Python discovery: **PASS** — 478 tests, 0 failures, 0 errors;
+- Prior revision's socket-free Python discovery: **PASS** — 478 tests, 0 failures, 0 errors;
   excluded only the existing localhost-server test without changing it.
+- Checkpoint regression: **EXPECTED FAIL** before repair (1 failure in 4 tests);
+  **PASS** after repair (4 tests, 0 failures, 0 errors).
 - `python3 -m unittest discover -s tests -v`: **UNVERIFIED** — counts unavailable
   for the exact command on this revision in the socket-denying sandbox; CI pending.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
 
 ## Remaining
 
-- Runner commit and push of this round, exact Python gate in CI, Codex
-  re-review, and merge.
+- Publish the checkpoint correction/regression if pending; run the exact Python
+  gate in CI, obtain Codex re-review, and merge.
 
 ## Next safe action
 
-- Hand this review round's working-tree changes to the runner for commit and push.
+- Reconcile Git state. If the checkpoint correction/regression is uncommitted,
+  the runner commits and pushes it; otherwise continue with CI and re-review.
