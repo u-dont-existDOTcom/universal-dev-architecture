@@ -1767,6 +1767,7 @@ async function waitFor(check, timeoutMs, intervalMs, timeoutMessage) {
       if (value) return value;
     } catch (error) {
       lastError = error;
+      if (error?.code === 'UNEXPECTED_APP_CONFIRMATION' || error?.code === 'APP_CONFIRMATION_CONTROL_MISSING') throw error;
       if (/unexpected URL|login is required|changed while waiting|changed during submission/.test(error.message)) throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));

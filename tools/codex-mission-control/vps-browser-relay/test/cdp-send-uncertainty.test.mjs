@@ -9,6 +9,65 @@ import {
   defaultSchedulerState,
 } from '../src/submission-scheduler-service.mjs';
 
+for (const code of ['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MISSING']) {
+  test(`generation polling propagates ${code} without waiting for the generation timeout`, async () => {
+    const transport = passiveGenerationTransport();
+    const browser = new ChromeDevtoolsBrowser({
+      WebSocketImpl: transport.WebSocketImpl,
+      generationTimeoutMs: 1_000,
+    });
+    let polls = 0;
+    await assert.rejects(
+      browser.waitForGenerationComplete({
+        id: 'confirmation-policy-target',
+        webSocketDebuggerUrl: 'ws://controlled/page',
+      }, {
+        expectedUrl: 'https://chatgpt.com/c/confirmation-policy',
+        generationStarted: true,
+        onGenerationPoll: async () => {
+          polls += 1;
+          throw Object.assign(new Error(code), { code });
+        },
+      }),
+      (error) => error?.code === code,
+    );
+    assert.equal(polls, 1);
+  });
+}
+
+function passiveGenerationTransport() {
+  class PassiveGenerationWebSocket {
+    constructor() {
+      this.listeners = new Map();
+      queueMicrotask(() => this.emit('open', {}));
+    }
+
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) ?? [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    }
+
+    send(raw) {
+      const message = JSON.parse(raw);
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({
+        id: message.id,
+        result: message.method === 'Runtime.evaluate'
+          ? { result: { objectId: 'global-object' } }
+          : { result: { value: { generating: true, idleReady: false } } },
+      }) }));
+    }
+
+    close() {}
+
+    emit(type, event) {
+      for (const listener of this.listeners.get(type) ?? []) listener(event);
+    }
+  }
+
+  return { WebSocketImpl: PassiveGenerationWebSocket };
+}
+
 test('CDP disconnect after click dispatch is reported as crossed uncertainty', async () => {
   const transport = controlledClickDisconnectTransport();
   const browser = new ChromeDevtoolsBrowser({
