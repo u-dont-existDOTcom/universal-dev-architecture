@@ -148,6 +148,43 @@ test('connection-interrupted banner also overrides V6 generic recovery ban with 
   assert.equal(result.stuckRecovery.recoveries[0].interruption.sendControlObserved, true);
 });
 
+test('explicit recovery uses the canonical conversation URL carried by the stall error', async () => {
+  const provisional = 'https://chatgpt.com/c/WEB:canonical-stall';
+  const canonical = 'https://chatgpt.com/c/canonical-stall';
+  let waits = 0;
+  const stoppedUrls = [];
+  const submittedUrls = [];
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) {
+        throw Object.assign(new Error('systems-thinking stall'), {
+          code: 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL', conversationUrl: canonical,
+        });
+      }
+      return { status: 'GENERATION_COMPLETE', conversationUrl: canonical };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: async (_target, input) => {
+      submittedUrls.push(input.expectedUrl);
+      return { generationStarted: true };
+    },
+    stopStalledGeneration: async (_target, expectedUrl) => {
+      stoppedUrls.push(expectedUrl);
+      return { stoppedGeneration: true, sendControlObserved: true };
+    },
+    inspectRecoverableControl: noRecoverableControl,
+    logger: { warn() {} },
+  });
+
+  await browser.waitForGenerationComplete({ id: 'canonical-stall-target' }, {
+    expectedUrl: provisional, generationStarted: true, allowSameChatRecovery: false,
+  });
+  assert.deepEqual(stoppedUrls, [canonical]);
+  assert.deepEqual(submittedUrls, [canonical]);
+});
+
 test('structural progress stall uses bounded same-chat Stop then continue when generic recovery is allowed', async () => {
   let waits = 0;
   const steps = [];
@@ -515,6 +552,48 @@ test('generic recovery skips Continue when generation completes during the globa
   assert.deepEqual(sleeps, [30_000]);
   assert.equal(waits, 2);
   assert.equal(stops, 0);
+  assert.equal(submissions, 0);
+  assert.equal(result.status, 'GENERATION_COMPLETE');
+  assert.equal(result.stuckRecovery, undefined);
+});
+
+test('resolved explicit stall skips Continue after a global cooldown', async () => {
+  let waits = 0;
+  let admissionChecks = 0;
+  let submissions = 0;
+  const sleeps = [];
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) {
+        throw Object.assign(new Error('connection interrupted'), {
+          code: 'CHATGPT_CONNECTION_INTERRUPTED',
+        });
+      }
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: '2026-09-28T14:00:30.000Z' };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: async () => { submissions += 1; return { generationStarted: true }; },
+    beforeRecoverySend: async () => {
+      admissionChecks += 1;
+      if (admissionChecks === 1) {
+        throw Object.assign(new Error('cooldown'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 30_000 });
+      }
+    },
+    sleep: async (ms) => { sleeps.push(ms); },
+    stopStalledGeneration: async () => ({ stoppedGeneration: false, stopReason: 'ALREADY_IDLE' }),
+    inspectRecoverableControl: noRecoverableControl,
+    logger: { warn() {} },
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'resolved-explicit-stall' }, {
+    expectedUrl: 'https://chatgpt.com/c/resolved-explicit-stall',
+    generationStarted: true,
+    allowSameChatRecovery: false,
+  });
+  assert.deepEqual(sleeps, [30_000]);
+  assert.equal(waits, 2);
   assert.equal(submissions, 0);
   assert.equal(result.status, 'GENERATION_COMPLETE');
   assert.equal(result.stuckRecovery, undefined);

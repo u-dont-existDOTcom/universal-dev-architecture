@@ -52,6 +52,25 @@ test('generation polling reports a canonicalized conversation URL before journal
   assert.deepEqual(observedUrls, [canonical, canonical, canonical, canonical]);
 });
 
+test('generation recovery signals preserve a newly canonicalized conversation URL', async () => {
+  const canonical = 'https://chatgpt.com/c/stalled-journal';
+  const transport = canonicalizingGenerationTransport(canonical, {
+    systemsThinkingMoreThanUsual: true,
+  });
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl, generationTimeoutMs: 3_000 });
+
+  await assert.rejects(
+    browser.waitForGenerationComplete({
+      id: 'canonicalizing-stalled-target', webSocketDebuggerUrl: 'ws://controlled/page',
+    }, {
+      expectedUrl: 'https://chatgpt.com/c/WEB:provisional-stalled-journal',
+      generationStarted: true,
+    }),
+    (error) => error?.code === 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL'
+      && error?.conversationUrl === canonical,
+  );
+});
+
 test('journal confirmation approval types a changed binding as a revalidation failure', async () => {
   const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: approvalRevalidationTransport() });
   await assert.rejects(
@@ -111,7 +130,7 @@ function passiveGenerationTransport() {
   return { WebSocketImpl: PassiveGenerationWebSocket };
 }
 
-function canonicalizingGenerationTransport(canonicalUrl) {
+function canonicalizingGenerationTransport(canonicalUrl, postCanonicalState = null) {
   class CanonicalizingGenerationWebSocket {
     constructor() { this.listeners = new Map(); this.polls = 0; queueMicrotask(() => this.emit('open', {})); }
     addEventListener(type, listener) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]); }
@@ -123,7 +142,7 @@ function canonicalizingGenerationTransport(canonicalUrl) {
         this.polls += 1;
         result = { result: { value: this.polls === 1
           ? { urlMismatch: true, currentUrl: canonicalUrl, conversationUrl: canonicalUrl }
-          : { urlMismatch: false, idleReady: true, generating: false, generationProgress: { outputBegun: true, counter: 1 } } } };
+          : (postCanonicalState ?? { urlMismatch: false, idleReady: true, generating: false, generationProgress: { outputBegun: true, counter: 1 } }) } };
       }
       queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: message.id, result }) }));
     }

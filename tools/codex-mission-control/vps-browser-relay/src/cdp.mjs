@@ -1517,16 +1517,19 @@ export class ChromeDevtoolsBrowser {
       if (completed.recoverySignal === 'SYSTEMS_THINKING_MORE_THAN_USUAL') {
         const error = new Error('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL: visible system thinking stall detected.');
         error.code = 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL';
+        error.conversationUrl = completionUrl;
         throw error;
       }
       if (completed.recoverySignal === 'CONNECTION_INTERRUPTED') {
         const error = new Error('CHATGPT_CONNECTION_INTERRUPTED: visible connection-interrupted system notice detected.');
         error.code = 'CHATGPT_CONNECTION_INTERRUPTED';
+        error.conversationUrl = completionUrl;
         throw error;
       }
       if (completed.recoverySignal === 'PROGRESS_HEARTBEAT_STALLED') {
         const error = new Error('CHATGPT_PROGRESS_HEARTBEAT_STALLED: assistant output began but structural progress stopped while generation remained active.');
         error.code = 'CHATGPT_PROGRESS_HEARTBEAT_STALLED';
+        error.conversationUrl = completionUrl;
         throw error;
       }
       return {

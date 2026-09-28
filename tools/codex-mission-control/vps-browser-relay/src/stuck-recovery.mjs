@@ -155,6 +155,7 @@ export function installStuckRecovery(browser, {
           },
         };
       } catch (error) {
+        if (error?.conversationUrl) options = { ...options, expectedUrl: error.conversationUrl };
         const systemsThinkingStall = isSystemsThinkingMoreThanUsual(error);
         const connectionInterruptedStall = isConnectionInterrupted(error);
         const progressHeartbeatStall = isProgressHeartbeatStall(error);
@@ -164,7 +165,20 @@ export function installStuckRecovery(browser, {
         let interruption;
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
-          await awaitRecoveryAdmission(options);
+          const cooldownWaited = await awaitRecoveryAdmission(options);
+          if (cooldownWaited && interruption?.stoppedGeneration === false) {
+            try {
+              const completed = await originalWait(target, options);
+              return completionWithRecoveries(completed, recoveries, maxNudges);
+            } catch (revalidationError) {
+              if (!isSystemsThinkingMoreThanUsual(revalidationError) && !isConnectionInterrupted(revalidationError)) {
+                throw revalidationError;
+              }
+              if (revalidationError?.conversationUrl) {
+                options = { ...options, expectedUrl: revalidationError.conversationUrl };
+              }
+            }
+          }
         } else {
           const cooldownWaited = await awaitRecoveryAdmission(options);
           if (cooldownWaited) {
