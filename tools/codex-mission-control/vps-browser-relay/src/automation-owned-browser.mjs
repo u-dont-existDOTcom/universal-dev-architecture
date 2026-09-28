@@ -322,6 +322,26 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.selectAppsForMessage(target, input);
   }
 
+  async detectJournalWriteConfirmation(target) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.detectJournalWriteConfirmation(target);
+  }
+
+  async approveJournalWriteConfirmation(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.approveJournalWriteConfirmation(target, input);
+  }
+
+  async continueJournalWork(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.continueJournalWork(target, input);
+  }
+
+  async retryJournalWork(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.retryJournalWork(target, input);
+  }
+
   async ensureExactConsumerControls(target, input) {
     await this.#assertOwned(target?.id);
     return this.rawBrowser.ensureExactConsumerControls(target, input);

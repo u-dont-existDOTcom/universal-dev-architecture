@@ -5,7 +5,28 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-26
+Updated: 2026-09-28
+
+## Journal work runner implementation checkpoint (2026-09-28)
+
+- The current `work` branch implements the specified, undeployed InnerSignal
+  journal work runner in `tools/codex-mission-control/vps-browser-relay`.
+- The runner uses only validated content-free dispatch records, the fixed
+  work-ID instruction, fresh automation-owned conversations, exact consumer
+  controls and app selection, the central submission scheduler, and the relay
+  process lock. Listing readback—not page output—is the answer authority.
+- Continue, exact failed-continue Retry, and fresh-chat recovery are implemented.
+  Exact InnerSignal `submit_journal_work_result` confirmations may be approved;
+  other app/tool confirmations fail closed with a content-free owner action.
+- Per-account runtime state holds tunable pacing/backoff/fresh-chat settings,
+  UTC allowance counts, bounded outcomes, current rung, and allowlisted import
+  summaries. Import runs serialize after answered items. No journal packet,
+  answer, page text, private path, account identifier, or conversation URL is
+  recorded.
+- Verified locally: relay `npm test` passes 342/342, repository unit tests pass
+  467/467, and the deterministic audit reports no findings. The implementation
+  is committed and its pull-request metadata is prepared. Deployment is
+  explicitly out of scope and has not occurred.
 
 ## Goal
 

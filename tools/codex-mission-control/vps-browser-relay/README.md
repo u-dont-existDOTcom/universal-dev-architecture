@@ -95,6 +95,22 @@ GitHub is the handoff between stages. Conversation history is never required for
 an external-tool operation. The relay never reads, copies, hashes, parses,
 summarizes, or transports assistant response text.
 
+## InnerSignal journal work runner
+
+`npm run journal-work` performs one content-free journal work pass. It selects
+the oldest eligible standard-tier dispatch, opens a fresh automation-owned
+ChatGPT conversation, verifies the configured model and effort, selects the
+configured InnerSignal app, and submits the fixed work-ID-only instruction.
+Completion is established only by reading the dispatch listing again; neither
+assistant output nor page text is read or persisted.
+
+The runner retains the relay process lock, automation-owned target fence, and
+central submission scheduler. Its private environment supplies the dispatch
+and import commands and app label. Runtime state contains only dispatch
+metadata, outcome/rung history, adaptive pacing and backoff settings, daily
+counts, owner-action codes, and allowlisted import summary fields. The command
+is a one-pass operation and does not deploy or modify services.
+
 The controller-mediated route is an explicit, one-cycle command path. It uses
 GitHub as the only semantic mailbox. Its owner-only restart ledger stores exact
 target/window/session identities, send boundaries, immutable comment identities,

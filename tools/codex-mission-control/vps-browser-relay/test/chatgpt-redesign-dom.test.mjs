@@ -6,6 +6,7 @@ import {
   CLICK_SEND_FN,
   CURRENT_MODEL_FN,
   GENERATION_STATE_FN,
+  JOURNAL_WRITE_CONFIRMATION_FN,
   MODEL_MENU_STATE_FN,
   PAGE_INSPECTION_FN,
   appSelectionState,
@@ -83,6 +84,20 @@ test('page inspection and the model control recognize the September 2026 compose
   assert.equal(model.controlFound, true);
   assert.equal(model.label, 'Medium');
   assert.equal(model.controlId, 'radix-_r_19_');
+});
+
+test('journal app confirmation detector returns only structured app, tool and button labels', () => {
+  const dialog = h('div', { role: 'dialog', 'data-app-name': 'InnerSignal', 'data-tool-name': 'submit_journal_work_result' }, [
+    h('div', {}, [], { text: 'PRIVATE-JOURNAL-TEXT-SENTINEL' }),
+    h('button', {}, [], { text: 'Cancel' }),
+    h('button', {}, [], { text: 'Always allow' }),
+  ]);
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([dialog]), []), {
+    present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'],
+  });
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([]), []), {
+    present: false, appName: null, toolName: null, buttons: [],
+  });
 });
 
 test('the open model menu exposes the top model, the Power slider and its status line', () => {

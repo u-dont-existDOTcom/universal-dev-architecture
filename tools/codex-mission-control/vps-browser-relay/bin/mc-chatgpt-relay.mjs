@@ -4,6 +4,7 @@ import {
   loadCodexExecCandidateConfig,
   loadCodexExecMissionControlConfig,
   loadConfig,
+  loadJournalWorkConfig,
   publicConfig,
 } from '../src/config.mjs';
 import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
@@ -13,7 +14,8 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
 import { relayCommandLockOptions } from '../src/relay-lock.mjs';
-import { oneShotExitCode } from '../src/core.mjs';
+import { classifyMemoryPressure, oneShotExitCode, resolveMemoryPolicy } from '../src/core.mjs';
+import { readMemoryMetrics } from '../src/memory.mjs';
 import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
 import { submissionSchedulerContext } from '../src/submission-context.mjs';
@@ -22,6 +24,8 @@ import { ControllerCycleWatchdog } from '../src/controller-watchdog.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 import { dispatchAutomaticMissionControlExecution } from '../src/codex-exec-candidate.mjs';
+import { JournalWorkRunner } from '../src/journal-work-runner.mjs';
+import { sha256 } from '../src/core.mjs';
 
 const command = process.argv[2] ?? 'run';
 let stateStore;
@@ -133,6 +137,34 @@ try {
     const result = await runtime.cycle();
     print(result);
     process.exitCode = oneShotExitCode(result);
+  } else if (command === 'journal-work') {
+    const journalConfig = loadJournalWorkConfig();
+    const journal = new JournalWorkRunner({
+      config: journalConfig,
+      browser,
+      memoryReader: async () => {
+        const metrics = await readMemoryMetrics(config.browser.profileDir);
+        return classifyMemoryPressure(metrics, resolveMemoryPolicy(metrics.totalMb, config.memory));
+      },
+      submit: ({ item, target, rung, bodySha256, submit }) => submissionPacer.submit({
+        context: {
+          requestId: `journal:${item.work_id}`,
+          queueKey: `journal:${item.work_id}:${rung}`,
+          sendPath: 'JOURNAL_WORK',
+          supervisorId: 'journal-work-runner',
+          registrationId: 'journal-work-runner',
+          targetId: target.id,
+          automationWindowId: target.automationWindowId,
+          targetKind: 'FRESH_PROVIDER_SESSION',
+          targetKey: `journal:${item.work_id}`,
+          expectedUrlSha256: sha256('https://chatgpt.com/'),
+          bodySha256,
+          hash: sha256,
+        },
+        submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => submit({ onSubmissionBoundary, onBeforeSubmissionBoundary }),
+      }),
+    });
+    print(await journal.runPass());
   } else if (command === 'once-exact') {
     const [worker, taskId, requestId, directiveId, directiveRevision] = process.argv.slice(3);
     if (!worker || !taskId || !requestId || !directiveId || !Number.isInteger(Number(directiveRevision))) {
@@ -200,7 +232,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|journal-work|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
   }
 } catch (error) {
   console.error(JSON.stringify({ status: 'FATAL', time: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));

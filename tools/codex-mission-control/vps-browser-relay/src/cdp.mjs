@@ -27,6 +27,46 @@ const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown
 const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
 const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
 
+export const JOURNAL_WRITE_CONFIRMATION_FN = `function() {
+  const visible = (element) => Boolean(element && element.getClientRects().length)
+    && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
+  const dialogs = [...document.querySelectorAll('[role="dialog"], dialog')].filter(visible);
+  if (dialogs.length === 0) return { present: false, appName: null, toolName: null, buttons: [] };
+  if (dialogs.length !== 1) return { present: true, appName: null, toolName: null, buttons: [] };
+  const dialog = dialogs[0];
+  const appName = dialog.getAttribute('data-app-name')
+    || label(dialog.querySelector('[data-app-name], [data-testid="app-name"]')) || null;
+  const toolName = dialog.getAttribute('data-tool-name')
+    || label(dialog.querySelector('[data-tool-name], [data-testid="tool-name"]')) || null;
+  const buttons = [...dialog.querySelectorAll('button, [role="button"]')].filter(visible).map(label).filter(Boolean);
+  return { present: true, appName, toolName, buttons };
+}`;
+
+const APPROVE_JOURNAL_WRITE_CONFIRMATION_FN = `function(appName, toolName, buttonLabel) {
+  const visible = (element) => Boolean(element && element.getClientRects().length)
+    && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
+  const dialogs = [...document.querySelectorAll('[role="dialog"], dialog')].filter(visible);
+  if (dialogs.length !== 1) return { approved: false, reason: 'DIALOG_NOT_UNIQUE' };
+  const dialog = dialogs[0];
+  const observedApp = dialog.getAttribute('data-app-name') || label(dialog.querySelector('[data-app-name], [data-testid="app-name"]')) || null;
+  const observedTool = dialog.getAttribute('data-tool-name') || label(dialog.querySelector('[data-tool-name], [data-testid="tool-name"]')) || null;
+  if (observedApp !== appName || observedTool !== toolName) return { approved: false, reason: 'BINDING_CHANGED' };
+  const matches = [...dialog.querySelectorAll('button, [role="button"]')].filter(visible).filter((element) => label(element) === buttonLabel);
+  if (matches.length !== 1) return { approved: false, reason: 'BUTTON_NOT_UNIQUE' };
+  matches[0].click();
+  return { approved: true, appName, toolName, button: buttonLabel };
+}`;
+
+const CLICK_JOURNAL_CONTINUE_FN = `function() {
+  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
+  const label = (element) => ((element.getAttribute('aria-label') || element.innerText || '')).trim().replace(/\\s+/g, ' ');
+  const matches = [...document.querySelectorAll('button, [role="button"]')].filter(visible).filter((element) => /^(Continue|Continue generating|Resume)$/.test(label(element)));
+  if (matches.length !== 1) return { clicked: false, matchCount: matches.length };
+  matches[0].click(); return { clicked: true, controlLabel: label(matches[0]) };
+}`;
+
 export const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
@@ -917,6 +957,7 @@ export class ChromeDevtoolsBrowser {
     this.progressStallMs = progressStallMs;
     this.fetchImpl = fetchImpl;
     this.WebSocketImpl = WebSocketImpl;
+    this.journalContinueAnchors = new Map();
   }
 
   async doctor() {
@@ -1093,6 +1134,35 @@ export class ChromeDevtoolsBrowser {
         inspectedAssistantOutput: false,
       };
     });
+  }
+
+  async detectJournalWriteConfirmation(target) {
+    return this.#withPageClient(target, (client) => client.callFunction(JOURNAL_WRITE_CONFIRMATION_FN, []));
+  }
+
+  async approveJournalWriteConfirmation(target, { appName, toolName, button }) {
+    const result = await this.#withPageClient(target, (client) => client.callFunction(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, [appName, toolName, button]));
+    if (!result?.approved) throw new Error(`Journal write confirmation changed before approval: ${result?.reason ?? 'UNKNOWN'}.`);
+    return result;
+  }
+
+  async continueJournalWork(target, { expectedUrl, onBeforeSubmissionBoundary = null, onSubmissionBoundary = null }) {
+    const anchor = await this.captureContinueRecoveryAnchor(target, { expectedUrl });
+    if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
+    const clicked = await this.#withPageClient(target, (client) => client.callFunction(CLICK_JOURNAL_CONTINUE_FN, []));
+    if (!clicked?.clicked) throw new Error('JOURNAL_CONTINUE_CONTROL_UNAVAILABLE.');
+    const observed = { generationStarted: true, clickedAtObserved: new Date().toISOString(), conversationUrl: expectedUrl, inspectedAssistantOutput: false };
+    if (onSubmissionBoundary) await onSubmissionBoundary(observed);
+    this.journalContinueAnchors.set(target.id, anchor);
+    return observed;
+  }
+
+  async retryJournalWork(target, input) {
+    const anchor = this.journalContinueAnchors.get(target.id);
+    if (!anchor) throw new Error('JOURNAL_CONTINUE_ANCHOR_MISSING.');
+    const classified = await this.inspectFailedContinueRetry(target, { expectedUrl: input.expectedUrl, anchor });
+    if (classified.status !== 'RETRY_FAILED_CONTINUE') throw new Error('JOURNAL_FAILED_CONTINUE_RETRY_UNAVAILABLE.');
+    return this.retryExactFailedContinue(target, { ...input, anchor, binding: classified.binding });
   }
 
   async ensureExactConsumerControls(target, { expectedUrl, controls }) {
