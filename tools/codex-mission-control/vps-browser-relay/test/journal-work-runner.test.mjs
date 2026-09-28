@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand } from '../src/journal-work-runner.mjs';
+import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
 import { createContinueRecoveryAnchor } from '../src/continue-recovery.mjs';
 import { journalWorkSubmissionContext } from '../src/submission-context.mjs';
 import { sha256 } from '../src/core.mjs';
@@ -148,6 +148,21 @@ test('an item expiring during the pacing delay is not submitted', async (t) => {
   assert.equal(fixture.importRuns(), 0);
 });
 
+test('a pacing delay crossing UTC midnight rolls the allowance before submission', async (t) => {
+  let clock = Date.parse('2026-09-28T23:59:59Z');
+  const fixture = await makeFixture(t, {
+    answeredAt: 2,
+    now: () => clock,
+    sleep: async () => { clock += 2_000; },
+    initialState: { today: { date: '2026-09-28', answered: 4, calls: 4, expired: 2, waiting: 7 } },
+    settings: { dailyAllowance: 5 },
+    recordOverrides: { expires_at: '2026-09-29T02:00:00Z' },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'ANSWERED');
+  assert.deepEqual(result.state.today, { date: '2026-09-29', answered: 1, calls: 1, expired: 0, waiting: 0 });
+});
+
 test('an answer landed by an earlier chat is accepted only through the refreshed listing', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 2 });
   fixture.browser.waitForGenerationComplete = async () => ({ pageText: 'not authoritative' });
@@ -178,12 +193,30 @@ test('a confirmation for any other tool is refused and becomes an owner action',
 for (const [name, error, trigger] of [
   ['too many requests', Object.assign(new Error('too many requests'), { code: 'RATE_LIMIT' }), 'TOO_MANY_REQUESTS'],
   ['model capacity', new Error('model unavailable due to capacity'), 'MODEL_CAPACITY'],
+  ['central cooldown', Object.assign(new Error('cooldown'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 420_000 }), 'GLOBAL_SUBMISSION_COOLDOWN'],
 ]) test(`${name} grows persistent backoff`, async (t) => {
   const fixture = await makeFixture(t, { browserOptions: { submitError: error } });
   const result = await fixture.runner.runPass();
   assert.equal(result.status, 'BACKING_OFF');
   assert.equal(result.state.backoff.trigger, trigger);
   assert.equal(result.state.backoff.level, 1);
+  if (error.code === 'GLOBAL_SUBMISSION_COOLDOWN') assert.equal(result.state.backoff.until, '2026-09-28T12:07:00.000Z');
+});
+
+test('a central cooldown between ladder rungs remains resumable timed backoff', async (t) => {
+  let attempts = 0;
+  const cooldown = Object.assign(new Error('central pacing remains active'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 300_000 });
+  const fixture = await makeFixture(t, { answeredAt: Infinity, submitHandler: async (entry) => {
+    attempts += 1;
+    if (attempts === 2) throw cooldown;
+    return entry.submit();
+  } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.ownerAction, null);
+  assert.equal(result.state.backoff.trigger, 'GLOBAL_SUBMISSION_COOLDOWN');
+  assert.equal(result.state.backoff.until, '2026-09-28T12:05:00.000Z');
+  assert.equal(result.state.current.workId, 'opaque-1');
 });
 
 test('memory pressure backs off before reading work', async (t) => {
@@ -284,6 +317,29 @@ test('each crossed provider submission is persisted and the allowance stops the 
   assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 2);
 });
 
+test('scheduler replay rechecks the daily allowance before a second provider boundary', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: Infinity, settings: { dailyAllowance: 1 }, submitHandler: async (entry) => {
+    await entry.submit();
+    return entry.submit();
+  } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'DAILY_ALLOWANCE_REACHED');
+  assert.equal(result.state.today.calls, 1);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1')]);
+  assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 1);
+});
+
+test('persisted journal settings are available before sizing the command lock', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'journal-lock-settings-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const stateFile = join(dir, 'state.json');
+  await writeFile(stateFile, JSON.stringify({ settings: { paceMs: 3_600_000, freshChatThreshold: 12 } }));
+  const effective = await withPersistedJournalWorkSettings({ stateFile, settings: { paceMs: 60_000, freshChatThreshold: 3, dailyAllowance: 170 } });
+  assert.equal(effective.settings.paceMs, 3_600_000);
+  assert.equal(effective.settings.freshChatThreshold, 12);
+  assert.equal(effective.settings.dailyAllowance, 170);
+});
+
 test('journal stuck-recovery submissions consume the persisted daily allowance', async (t) => {
   const fixture = await makeFixture(t, {
     answeredAt: Infinity,
@@ -342,7 +398,7 @@ test('dispatch validation rejects extra, missing, wrongly typed, and invalid-tim
   }
 });
 
-async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, recordOverrides = {}, settings = {} } = {}) {
+async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, submitHandler, recordOverrides = {}, settings = {} } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'journal-work-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const stateFile = join(dir, 'state.json'); const statusFile = join(dir, 'status.json');
   if (initialState) await import('node:fs/promises').then(({ writeFile }) => writeFile(stateFile, JSON.stringify(initialState)));
@@ -353,7 +409,7 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
   const logs = []; const submissions = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value) } });
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value) } });
   return { runner, browser, stateFile, statusFile, logs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
@@ -362,7 +418,7 @@ class FakeBrowser {
   async createFreshChatTarget() { this.freshCount += 1; return { id: `target-${this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
-  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
+  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete(_target, options) {
     this.waits += 1;
     if ((this.recoverySubmissions ?? 0) > 0) {
@@ -374,7 +430,7 @@ class FakeBrowser {
   }
   async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
   async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
-  async retryExactFailedContinue(_target, input) { await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
+  async retryExactFailedContinue(_target, input) { await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
   async detectJournalWriteConfirmation() { const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
   async approveJournalWriteConfirmation(_target, input) { this.approvals.push(input); }
 }

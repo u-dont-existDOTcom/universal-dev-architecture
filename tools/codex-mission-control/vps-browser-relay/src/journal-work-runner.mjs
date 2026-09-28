@@ -55,6 +55,9 @@ export class JournalWorkRunner {
     const allowanceRatio = state.today.calls / state.settings.dailyAllowance;
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
+    this.#rollDay(state);
+    state.today.waiting = eligible.length;
+    if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
     if (this.now() >= Date.parse(item.expires_at)) {
       state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
       return this.#finish(state, 'EXPIRED');
@@ -66,7 +69,7 @@ export class JournalWorkRunner {
     } catch (error) {
       if (error?.code === 'JOURNAL_DAILY_ALLOWANCE_REACHED') return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
       const trigger = classifyBackoff(error);
-      if (trigger) return this.#backOff(state, trigger);
+      if (trigger) return this.#backOff(state, trigger, error?.code === 'GLOBAL_SUBMISSION_COOLDOWN' ? error.retryAfterMs : null);
       state.ownerAction = { code: error?.code ?? 'JOURNAL_WORK_STOPPED', workId: item.work_id, at: this.#iso() };
       return this.#finish(state, 'OWNER_ACTION_REQUIRED');
     }
@@ -146,6 +149,10 @@ export class JournalWorkRunner {
   #countedCallbacks(state, callbacks) {
     return {
       ...callbacks,
+      onBeforeSubmissionBoundary: async (...args) => {
+        this.#assertSubmissionAllowance(state);
+        return callbacks.onBeforeSubmissionBoundary?.(...args);
+      },
       onSubmissionBoundary: async (...args) => {
         state.today.calls += 1;
         await this.#persist(state);
@@ -169,6 +176,7 @@ export class JournalWorkRunner {
   }
 
   #assertSubmissionAllowance(state) {
+    this.#rollDay(state);
     if (state.today.calls < state.settings.dailyAllowance) return;
     const error = new Error('Journal provider-call daily allowance reached.');
     error.code = 'JOURNAL_DAILY_ALLOWANCE_REACHED';
@@ -227,9 +235,10 @@ export class JournalWorkRunner {
     catch { return { ok: false, records: [] }; }
   }
 
-  async #backOff(state, trigger) {
+  async #backOff(state, trigger, retryAfterMs = null) {
     const level = Math.min((state.backoff.level ?? 0) + 1, 10);
-    const delayMs = Math.min(state.settings.backoffBaseMs * (2 ** (level - 1)), state.settings.backoffMaxMs);
+    const schedulerDelay = Number.isSafeInteger(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : null;
+    const delayMs = schedulerDelay ?? Math.min(state.settings.backoffBaseMs * (2 ** (level - 1)), state.settings.backoffMaxMs);
     state.backoff = { level, trigger, until: new Date(this.now() + delayMs).toISOString() };
     state.outcomes.push({ outcome: 'BACKOFF', trigger, at: this.#iso() });
     return this.#finish(state, 'BACKING_OFF');
@@ -275,9 +284,16 @@ export function parseDispatchRecord(line) {
 
 function classifyBackoff(error) {
   const text = `${error?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
+  if (error?.code === 'GLOBAL_SUBMISSION_COOLDOWN') return 'GLOBAL_SUBMISSION_COOLDOWN';
   if (text.includes('too many requests') || text.includes('rate_limit')) return 'TOO_MANY_REQUESTS';
   if (text.includes('model unavailable') || text.includes('capacity')) return 'MODEL_CAPACITY';
   return null;
+}
+
+export async function withPersistedJournalWorkSettings(config) {
+  let stored = {};
+  try { stored = JSON.parse(await readFile(config.stateFile, 'utf8')); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+  return { ...config, settings: { ...(config.settings ?? {}), ...(stored.settings ?? {}) } };
 }
 function sanitizeImportResult(result) {
   let parsed = {};

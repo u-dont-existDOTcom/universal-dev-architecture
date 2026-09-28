@@ -24,13 +24,16 @@ import { ControllerCycleWatchdog } from '../src/controller-watchdog.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 import { dispatchAutomaticMissionControlExecution } from '../src/codex-exec-candidate.mjs';
-import { JournalWorkRunner } from '../src/journal-work-runner.mjs';
+import { JournalWorkRunner, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
 
 const command = process.argv[2] ?? 'run';
 let stateStore;
 
 try {
   const config = await loadConfig();
+  const journalWorkConfig = command === 'journal-work'
+    ? await withPersistedJournalWorkSettings(loadJournalWorkConfig())
+    : null;
   stateStore = new StateStore({ stateFile: config.runtime.stateFile, statusFile: config.runtime.statusFile, lockFile: config.runtime.lockFile });
 
   if (command === 'lock-status') {
@@ -120,7 +123,7 @@ try {
     await stateStore.acquireLock(relayCommandLockOptions(command, {
       config,
       codexExecutionConfig,
-      journalWorkConfig: command === 'journal-work' ? loadJournalWorkConfig() : null,
+      journalWorkConfig: journalWorkConfig,
     }));
   }
 
@@ -152,7 +155,7 @@ try {
     print(result);
     process.exitCode = oneShotExitCode(result);
   } else if (command === 'journal-work') {
-    const journalConfig = loadJournalWorkConfig();
+    const journalConfig = journalWorkConfig;
     const journalChat = config.runtime.chats.find((entry) => entry.supervisorId === journalConfig.supervisorId);
     if (!journalChat || journalChat.ownership !== 'MISSION_CONTROL_ONLY') {
       throw new Error('MC_JOURNAL_SUPERVISOR_ID must name an owner-registered Mission Control-only supervisor.');

@@ -73,6 +73,7 @@ test('health report CLI does not contend with the long-running relay singleton l
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
   assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
   assert.match(cli, /if \(exclusiveLockRequired\) \{[\s\S]*?await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{[\s\S]*?journalWorkConfig:[\s\S]*?\}\)\);/);
+  assert.match(cli, /const journalWorkConfig = command === 'journal-work'[\s\S]*?withPersistedJournalWorkSettings\(loadJournalWorkConfig\(\)\)[\s\S]*?await stateStore\.acquireLock/);
   assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
   // Release runs in `finally`; it is a no-op for a store that never acquired ownership.
   assert.match(cli, /\} finally \{\n  try \{\n    await stateStore\?\.releaseLock\(\);/);

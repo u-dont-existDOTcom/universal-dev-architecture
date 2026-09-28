@@ -839,3 +839,13 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
 - Regression evidence covers the calibrated control verifier, two independently stalled generation waits, persisted allowance exhaustion caused by a recovery nudge, CLI callback composition, and absence of conversation locators from journal recovery logs.
 - Bootstrap constraint: live default-branch `AGENTS.md` retrieval was attempted through raw GitHub and the browser fetch surface before task work; the available endpoints returned HTTP 403 and 401. Local root and scoped instructions were loaded instead. This is an access limitation, not a claim that live bootstrap succeeded.
 - Verified boundary: relay `npm test` passed 360/360 tests, the repository Python suite passed 467/467 tests, and the deterministic audit returned `PASS: no findings.` No implementation or verification action remains for this review round.
+
+## Journal work runner Codex review at `bbd9fda` — 2026-09-28
+
+- Parent outcome: **SATISFIED**. All four findings against reviewed commit `bbd9fda` were confirmed as correct; none was rejected.
+- The runner now records `GLOBAL_SUBMISSION_COOLDOWN` as resumable timed backoff using the scheduler's `retryAfterMs`, rather than creating a permanent owner action after a fast generation/listing cycle.
+- The journal command loads persisted settings before acquiring its process lock and uses those effective `paceMs` and `freshChatThreshold` values both for watchdog sizing and the runner, preventing a persisted longer ladder from outliving an environment-sized lock.
+- The runner rolls its UTC allowance day after pacing and at every provider-boundary allowance assertion. A scheduler replay now invokes that assertion immediately before each click, so an internal rate-limit retry cannot exceed the daily allowance.
+- Verified evidence: focused journal-runner and lock/config tests passed 56/56; the full relay suite passed 368/368; the repository Python suite passed 467/467; and the deterministic audit returned `PASS: no findings.` New regressions cover cooldown between ladder rungs, exact cooldown duration, midnight-crossing pacing, persisted lock inputs, and a scheduler replay at the final allowed provider call.
+- Bootstrap constraint: live default-branch root `AGENTS.md` retrieval was attempted before task reasoning; raw GitHub returned HTTP 403. Local root and scoped instructions were loaded instead. This is an access limitation, not a claim that live bootstrap succeeded.
+- Delivery boundary: the completed repair is committed on the current review branch and pull-request metadata was updated after all required gates passed. No implementation, verification, or owner action remains for this review round.
