@@ -30,7 +30,14 @@ PROJECT_STATES = {
 }
 DISPOSITIONS = {"ADDED", "COVERED_BY_EXISTING", "NOT_APPLICABLE", "DEFERRED"}
 ANCHORED = {"ADDED", "COVERED_BY_EXISTING"}
+PRODUCT_TYPES = ("research", "writing", "companion", "design")
 HEADING = re.compile(r"^## (CI-[0-9A-Z]+) (.+)$", re.MULTILINE)
+
+
+def applicable_types(applies_to: str) -> set[str]:
+    """Product types an "Applies to" line admits; text after "Never" lists exclusions."""
+    admitted = applies_to.split("Never")[0]
+    return {kind for kind in PRODUCT_TYPES if re.search(rf"\b{kind}\b", admitted)}
 
 
 def normalize(text: str) -> str:
@@ -65,6 +72,7 @@ def validate(ledger: dict, root: Path = ROOT) -> list[str]:
     packs = ledger.get("packs", {})
     if not packs:
         errors.append("ledger declares no packs")
+    parsed_packs: dict[str, dict[str, dict[str, str]]] = {}
     for name, pack in packs.items():
         path = root / pack.get("file", "")
         if not path.is_file():
@@ -73,6 +81,7 @@ def validate(ledger: dict, root: Path = ROOT) -> list[str]:
         if pack.get("sha256") != digest(path):
             errors.append(f"pack {name}: sha256 does not match {pack['file']}")
         parsed = parse_checks(path)
+        parsed_packs[name] = parsed
         if list(parsed) != pack.get("check_ids"):
             errors.append(f"pack {name}: check_ids do not match the headings in {pack['file']}")
         for check_id, check in parsed.items():
@@ -112,6 +121,14 @@ def validate(ledger: dict, root: Path = ROOT) -> list[str]:
                 errors.append(f"{repository}: {check_id} has unknown disposition {disposition!r}")
             if disposition in ANCHORED and not (record.get("file") and record.get("anchor")):
                 errors.append(f"{repository}: {check_id} is {disposition} without a file and anchor")
+            pack_check = parsed_packs.get(pack_name, {}).get(check_id)
+            product_types = set(project.get("product_types", []))
+            if disposition in ANCHORED and pack_check and product_types:
+                if not applicable_types(pack_check["applies_to"]) & product_types:
+                    errors.append(
+                        f"{repository}: {check_id} is {disposition}, but its 'Applies to' line "
+                        f"({pack_check['applies_to']}) matches none of the product types {sorted(product_types)}"
+                    )
             if disposition in {"NOT_APPLICABLE", "DEFERRED"} and not record.get("reason"):
                 errors.append(f"{repository}: {check_id} is {disposition} without a reason")
     for item in ledger.get("assessed_not_applicable", []):

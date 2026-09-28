@@ -25,7 +25,7 @@ The essay, the owner's draft, and the transcript are not committed. They are pri
 | Concession made without checking | 1 | a contested reading conceded as the text's only reading |
 | Own action misreported | 1 | a deleted clause described as a fixed typo |
 
-In the review of the owner's draft, the assistant made 18 points: 7 held up, 1 held up but came with a wrong replacement figure, 2 were neutral, and 9 were wrong or overstated.
+In the review of the owner's draft, the assistant made 18 points: 6 held up, 1 held up but came with a wrong replacement figure, 2 were neutral, and 9 were wrong, overstated, or partly wrong.
 
 ## Who found them
 

@@ -7,7 +7,7 @@
       "version": 1,
       "date": "2026-09-27",
       "file": "portable/claim-integrity/CHECKS.md",
-      "sha256": "f045c11713a42d7078edd2cac6db181786feb0820bab7ae65c5905ae5c150746",
+      "sha256": "19bdb74988b3e1a77e5078a7cebf66f58ffce58978ef3acf831f5027a6d936da",
       "check_ids": [
         "CI-01",
         "CI-02",
@@ -36,9 +36,9 @@
       "pack": "claim-integrity",
       "pack_version": 1,
       "state": "PROPOSED",
-      "evidence": "Open PR https://github.com/u-dont-existDOTcom/AskRigor/pull/250 at c157e855d923; not merged.",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/AskRigor/pull/250 at 5b745aba373c; not merged.",
       "pr_url": "https://github.com/u-dont-existDOTcom/AskRigor/pull/250",
-      "commit": "c157e855d92321fe9a0cec9c393d4eee7685e99b",
+      "commit": "5b745aba373c0c1b97f60ec13073ef1572be7ad3",
       "runtime_surfaces": [
         "protocols/Universal_Instructions.xml (changed; general conversations, critique, drafting, editing)",
         "protocols/HRP_Full.xml (changed; health/research protocol where research verdicts are produced)",
@@ -75,7 +75,14 @@
           "disposition": "COVERED_BY_EXISTING",
           "file": "protocols/Universal_Instructions.xml",
           "anchor": "Check whether their references support the exact claims, whether citation chains have drifted",
-          "note": "Universal <sources>. HRP also covers it: CitationChainAudit ('Follow consequential claims through reviews and summaries to the source that actually generated the evidence.') and DuplicateAndDataLineageAudit (count underlying people or datasets, not documents). Pinned by the new test so coverage cannot silently disappear."
+          "note": "Universal <sources>. HRP also covers it: CitationChainAudit ('Follow consequential claims through reviews and summaries to the source that actually generated the evidence.') and DuplicateAndDataLineageAudit (count underlying people or datasets, not documents). Pinned by the new test so coverage cannot silently disappear.",
+          "also": [
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "protocols/HRP_Full.xml",
+              "anchor": "Count the underlying people or datasets rather than the number of documents"
+            }
+          ]
         },
         "CI-06": {
           "disposition": "ADDED",
@@ -110,8 +117,8 @@
         "CI-X1": {
           "disposition": "ADDED",
           "file": "protocols/HRP_Full.xml",
-          "anchor": "without the analysis around it, and name which outcome measure, population, comparison, and source it is about.",
-          "note": "OutputFormatting rule ExperimentalVerdictKeyConditionCheck (priority Medium): experimental, never blocks delivery, not applied to conversational replies, not shown in answers; notes in the ledger whether it changed the wording."
+          "anchor": "When the pre-delivery claim check runs a separate checker, give it only the verdict sentences, without the analysis around them, and have it name the outcome measure, population, comparison, scope, and source each one is about",
+          "note": "OutputFormatting rule ExperimentalVerdictKeyConditionCheck (priority Medium): uses the pre-delivery claim check's separate checker when one runs, otherwise the drafter reads each verdict sentence alone and does not call the result independent; names outcome measure, population, comparison, scope, and source; judged by meaning, not wording; never blocks delivery."
         },
         "CI-11": {
           "disposition": "ADDED",
@@ -139,9 +146,9 @@
       "pack": "claim-integrity",
       "pack_version": 1,
       "state": "PROPOSED",
-      "evidence": "Open PR https://github.com/u-dont-existDOTcom/creativeTailSampling/pull/8 at 73f9f7e22fa6; not merged.",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/creativeTailSampling/pull/8 at aeaf230a3b9a; not merged.",
       "pr_url": "https://github.com/u-dont-existDOTcom/creativeTailSampling/pull/8",
-      "commit": "73f9f7e22fa678dfc90ac3c33652d5d0098b08e9",
+      "commit": "aeaf230a3b9a0b21d73c56b76c67aa4fe8f7ea66",
       "runtime_surfaces": [
         "PROTOCOL.md",
         "docs/ARTICLE-IMPROVEMENT-TAIL-WORKFLOW.md"
@@ -220,8 +227,10 @@
       "repository": "u-dont-existDOTcom/design",
       "visibility": "public",
       "product_types": [
-        "design"
+        "design",
+        "writing"
       ],
+      "product_types_note": "The skill's build and refine operations draft copy the owner will publish, so the writing checks CI-03, CI-05, CI-07, and CI-08 apply as well as the design checks.",
       "pack": "claim-integrity",
       "pack_version": 1,
       "state": "PROPOSED",
@@ -427,6 +436,12 @@
               "disposition": "DEFERRED",
               "reason": "Frozen v1.0.0, SHA-256 pinned; runtime not implemented. Partial existing rule:",
               "existing_anchor": "Do not infer motive from outcome."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "If exact transit gates/lines and natal connections cannot be verified, do not improvise.",
+              "note": "Daily transit brief run as a ChatGPT scheduled task from a verified live-transit source."
             }
           ]
         },
@@ -581,6 +596,12 @@
               "file": "src/hdmatch/relationship/phenotype_classifier.py",
               "disposition": "DEFERRED",
               "reason": "Frozen instrument."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "State today's local date, local time, UTC timestamp, source, and the transit chart's exact validity interval.",
+              "note": "Daily transit brief run as a ChatGPT scheduled task from a verified live-transit source."
             }
           ]
         },
@@ -648,6 +669,12 @@
               "file": "src/hdmatch/relationship/phenotype_classifier.py",
               "disposition": "DEFERRED",
               "reason": "Frozen instrument."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Describe at most three relevant temporary interactions as possibilities, not predictions.",
+              "note": "Daily transit brief run as a ChatGPT scheduled task from a verified live-transit source."
             }
           ]
         },
@@ -657,7 +684,7 @@
         },
         "CI-11": {
           "disposition": "DEFERRED",
-          "reason": "The reverse matcher issues research verdicts, but its Custom GPT block has no room: 7,926 of 8,000 characters, or 8,000 with line breaks counted twice. A Custom GPT also cannot start a separate checker, so only the self-check fallback could apply there. The interviewer surfaces are companion surfaces, where CI-11 does not apply, and the relationship-study instruments are versioned and frozen."
+          "reason": "The reverse matcher issues research verdicts, but its Custom GPT block has no room: 7,926 of 8,000 characters, or 8,000 with line breaks counted twice. A Custom GPT also cannot start a separate checker, so only the self-check fallback could apply there. The interviewer surfaces are companion surfaces, where CI-11 does not apply, and the relationship-study instruments are versioned and frozen. The daily transit prompts run as ChatGPT scheduled tasks with no separate checker, and they already refuse to improvise when the transit source cannot be verified."
         }
       }
     },
@@ -670,9 +697,9 @@
       "pack": "claim-integrity",
       "pack_version": 1,
       "state": "PROPOSED",
-      "evidence": "Open PR https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/96 at c0fe939f6db3; not merged.",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/96 at eccd5f2b2961; not merged.",
       "pr_url": "https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/96",
-      "commit": "c0fe939f6db36be4c43cc0c02cf547f7ef2dd335",
+      "commit": "eccd5f2b29610c94fa3b5db39a30389c6480647c",
       "runtime_surfaces": [
         "plugins/inner-signal-therapy/skills/inner-signal-therapy/SKILL.md: instructions served by load_therapy_protocol on the hosted MCP and bundled in the Codex plugin (edited: always-read list plus one sentence)",
         "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/*.md, the files in THERAPY_PROTOCOL_FILES: served by load_therapy_protocol and bundled in the Codex plugin (new: references/CLAIM-INTEGRITY.md)",
@@ -761,11 +788,11 @@
         },
         "CI-X1": {
           "disposition": "NOT_APPLICABLE",
-          "reason": "Owner decision relayed by the supervising session: InnerSignal replies are natural, not formulaic, so a checker's failure to reconstruct the person's message from a reply says nothing about the reply's quality. The pack also limits this check to research verdicts and excludes conversational, companion, and therapeutic replies."
+          "reason": "The owner excluded InnerSignal from this check; his words, relayed by the supervising session on 2026-09-27: \"replies from innersignal are natural and not formulaic\". The pack also limits this check to research verdicts and excludes conversational, companion, and therapeutic replies."
         },
         "CI-11": {
           "disposition": "NOT_APPLICABLE",
-          "reason": "The pack excludes companion and therapeutic replies from CI-11. InnerSignal replies are natural, not formulaic, and its separate critique and adjudication roles already carry the anchoring, quotation, absence, correction, and consistency rules."
+          "reason": "Companion replies are not among the outputs CI-11 covers (critiques, reviews of someone's work, source attributions, facts added to text for publication, and claims that something was verified), and the pack excludes companion and therapeutic replies. Claims about what the person said are held at the point of use by the added anchoring and absence rules, and the separate critique and adjudication roles already review each reply."
         }
       }
     },
@@ -778,9 +805,9 @@
       "pack": "claim-integrity",
       "pack_version": 1,
       "state": "PROPOSED",
-      "evidence": "Open PR https://github.com/u-dont-existDOTcom/joel-articles/pull/112 at e88de8024431; not merged.",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/joel-articles/pull/112 at 5a25a45d2f0a; not merged.",
       "pr_url": "https://github.com/u-dont-existDOTcom/joel-articles/pull/112",
-      "commit": "e88de8024431ac8cdac83fc727fc6109ba1ad83f",
+      "commit": "5a25a45d2f0a1b3a1e7541f301aeadfae2cca52b",
       "runtime_surfaces": [
         "SKILL.md (always loaded; carries the new section)",
         "CANONICAL-REPO-MAP.md, AGENTS.md, docs/INDEX.md, state/CODEX-CURRENT-STATE.md, articles/INDEX.json (read at the start of substantial work, per SKILL.md)",
@@ -901,10 +928,12 @@
           }
         },
         "CI-06": {
-          "disposition": "COVERED_BY_EXISTING",
-          "file": "src/nansen_signal_lab/gpt_protocol.py",
-          "anchor": "Review the immutable Pass 1 decision against exactly the supplied frozen strategy records and the exact same identity-blinded snapshot.",
-          "note": "Pass 2 must also repeat the exact snapshot and Pass 1 response hashes, and the validator rejects mismatches. Remaining gap: no rule about words like 'verified' in free-text rationale."
+          "disposition": "DEFERRED",
+          "reason": "Partly covered: Pass 2 must review against exactly the supplied frozen records and snapshot and repeat their hashes, and the validator rejects mismatches. Not covered: no rule about words like 'verified' in free-text rationale. Hash-locked.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "Review the immutable Pass 1 decision against exactly the supplied frozen strategy records and the exact same identity-blinded snapshot."
+          }
         },
         "CI-07": {
           "disposition": "NOT_APPLICABLE",
@@ -949,9 +978,9 @@
       "pack": "claim-integrity",
       "pack_version": 1,
       "state": "PROPOSED",
-      "evidence": "Open PR https://github.com/u-dont-existDOTcom/pangram-humanization-lab/pull/174 at 93c075b1cff8; not merged.",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/pangram-humanization-lab/pull/174 at 2e37356215de; not merged.",
       "pr_url": "https://github.com/u-dont-existDOTcom/pangram-humanization-lab/pull/174",
-      "commit": "93c075b1cff82d4365743196b4af8a9ec4c1face",
+      "commit": "2e37356215de2d5c06a0ff4a1b47af4bcec17f32",
       "runtime_surfaces": [
         "prompts/designer.md",
         "prompts/reviewer.md",
@@ -1290,8 +1319,8 @@
             {
               "disposition": "COVERED_BY_EXISTING",
               "file": "prompts/reviewer.md",
-              "anchor": "Compare every quotation, number, date, and name in each synthetic probe with `HUMAN_ENDPOINT` word for word.",
-              "note": "The separate blind reviewer checks every designer probe against the Human endpoint before detector submission; it is the checker surface rather than another delivered draft."
+              "anchor": "Approve only probes that preserve the Human endpoint's substantive thought: claims, certainty, actor/action/object, chronology, causality, attribution, examples, scope, and relationship between ideas.",
+              "note": "The separate, blind reviewer role already approves only probes that keep the Human endpoint's claims and attributions; this branch's word-for-word comparison of quotations, numbers, dates, and names (CI-08) strengthens it."
             },
             {
               "disposition": "NOT_APPLICABLE",
