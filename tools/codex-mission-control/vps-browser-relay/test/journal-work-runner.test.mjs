@@ -354,6 +354,40 @@ test('a central cooldown waits inside the active ladder and resumes Continue wit
   assert.deepEqual(fixture.submissions.map(({ rung }) => rung), ['INITIAL', 'CONTINUE', 'CONTINUE']);
 });
 
+test('memory pressure during a central cooldown blocks the delayed provider click', async (t) => {
+  let attempts = 0; let reads = 0;
+  const cooldown = Object.assign(new Error('central pacing remains active'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 300_000 });
+  const fixture = await makeFixture(t, {
+    memoryReader: async () => ({ pressure: ++reads === 3 ? 'HARD' : 'NORMAL' }),
+    submitHandler: async (entry) => {
+      attempts += 1;
+      if (attempts === 1) throw cooldown;
+      return entry.submit();
+    },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.backoff.trigger, 'MEMORY_PRESSURE');
+  assert.equal(reads, 3);
+  assert.deepEqual(fixture.browser.messages, []);
+  assert.equal(result.state.today.calls, 0);
+});
+
+test('memory pressure before a stuck-recovery nudge blocks its provider submission', async (t) => {
+  let reads = 0;
+  const fixture = await makeFixture(t, {
+    answeredAt: Infinity,
+    memoryReader: async () => ({ pressure: ++reads === 4 ? 'SOFT' : 'NORMAL' }),
+    browserOptions: { recoverySubmissions: 1 },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.backoff.trigger, 'MEMORY_PRESSURE');
+  assert.equal(reads, 4);
+  assert.equal(result.state.today.calls, 1);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1')]);
+});
+
 test('memory pressure backs off before reading work', async (t) => {
   const fixture = await makeFixture(t, { memoryReader: async () => ({ pressure: 'SOFT' }) });
   const result = await fixture.runner.runPass();

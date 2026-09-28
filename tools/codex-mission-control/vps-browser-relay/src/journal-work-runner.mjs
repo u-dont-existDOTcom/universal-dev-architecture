@@ -228,6 +228,7 @@ export class JournalWorkRunner {
           expired.code = 'JOURNAL_ITEM_EXPIRED';
           throw expired;
         }
+        await this.#assertMemoryAvailable();
         this.#assertSubmissionAllowance(state);
         return callbacks.onBeforeSubmissionBoundary?.(...args);
       },
@@ -245,12 +246,13 @@ export class JournalWorkRunner {
       expectedUrl,
       generationStarted,
       onGenerationPoll: (observedExpectedUrl = expectedUrl) => this.#handleConfirmation(target, item, observedExpectedUrl),
-      beforeRecoverySend: () => {
+      beforeRecoverySend: async () => {
         if (this.now() >= Date.parse(item.expires_at)) {
           const expired = new Error('Journal work item expired before a stuck-recovery submission.');
           expired.code = 'JOURNAL_ITEM_EXPIRED';
           throw expired;
         }
+        await this.#assertMemoryAvailable();
         this.#assertSubmissionAllowance(state);
       },
       onRecoverySubmissionBoundary: async () => {
@@ -286,6 +288,13 @@ export class JournalWorkRunner {
   async #memoryPressureActive() {
     const memory = await this.memoryReader();
     return memory?.pressure === 'SOFT' || memory?.pressure === 'HARD';
+  }
+
+  async #assertMemoryAvailable() {
+    if (!await this.#memoryPressureActive()) return;
+    const error = new Error('Journal provider submission paused for memory pressure.');
+    error.code = 'JOURNAL_MEMORY_PRESSURE';
+    throw error;
   }
 
   async #reserveFreshAttempt(state) {
@@ -412,6 +421,7 @@ function freshRetryUrl(observedUrl, fallback) {
 
 function classifyBackoff(error) {
   const text = `${error?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
+  if (error?.code === 'JOURNAL_MEMORY_PRESSURE') return 'MEMORY_PRESSURE';
   if (error?.code === 'GLOBAL_SUBMISSION_COOLDOWN') return 'GLOBAL_SUBMISSION_COOLDOWN';
   if (text.includes('too many requests') || text.includes('rate_limit')) return 'TOO_MANY_REQUESTS';
   if (text.includes('model unavailable') || text.includes('capacity')) return 'MODEL_CAPACITY';
