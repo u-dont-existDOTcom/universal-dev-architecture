@@ -139,6 +139,7 @@ class PortableChecksTests(unittest.TestCase):
         self.assertEqual(apps["u-dont-existDOTcom/innerSignalGraph"], "PUBLIC_APP")
         self.assertEqual(apps["u-dont-existDOTcom/AskRigor"], "PUBLIC_APP")
         self.assertEqual(apps["u-dont-existDOTcom/pangram-humanization-lab"], "UNDECIDED")
+        self.assertEqual(apps["u-dont-existDOTcom/humandesign"], "PUBLIC_APP")
         rule = (ROOT / "patterns" / "durable-chat-learning.md").read_text(encoding="utf-8")
         self.assertIn("Which projects are public-facing is the owner's declaration in `portable/PUBLIC-APPS.json`, not an inference.", rule)
         self.assertIn("if any target was inferred rather than declared, confirm the list with the owner first", rule)

@@ -8,6 +8,7 @@
   "apps": [
     {"repository": "u-dont-existDOTcom/innerSignalGraph", "name": "InnerSignal", "status": "PUBLIC_APP"},
     {"repository": "u-dont-existDOTcom/AskRigor", "name": "AskRigor", "status": "PUBLIC_APP"},
-    {"repository": "u-dont-existDOTcom/pangram-humanization-lab", "name": "pangram-humanization-lab", "status": "UNDECIDED", "note": "The owner is not sure yet whether it will be a standalone app."}
+    {"repository": "u-dont-existDOTcom/pangram-humanization-lab", "name": "pangram-humanization-lab", "status": "UNDECIDED", "note": "The owner is not sure yet whether it will be a standalone app."},
+    {"repository": "u-dont-existDOTcom/humandesign", "name": "humandesign participant interviewer GPT", "status": "PUBLIC_APP", "surface": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md", "owner_statement": "humandesign interviewer GPT is an app that's true", "declared_on": "2026-09-28", "note": "Only the interviewer GPT is declared; the repository's other surfaces are not."}
   ]
 }
