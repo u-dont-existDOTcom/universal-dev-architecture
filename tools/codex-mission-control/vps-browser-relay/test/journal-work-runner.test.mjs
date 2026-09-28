@@ -357,6 +357,27 @@ test('memory pressure that appears during pacing backs off before refreshed list
   assert.equal(fixture.browser.freshCount, 0);
 });
 
+for (const [rung, pressureRead, expectedMessages] of [
+  ['CONTINUE', 3, [JOURNAL_WORK_PROMPT('opaque-1')]],
+  ['RETRY', 4, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
+  ['FRESH_CHAT', 5, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
+]) {
+  test(`memory pressure is refreshed before the ${rung} recovery rung`, async (t) => {
+    let reads = 0;
+    const fixture = await makeFixture(t, {
+      answeredAt: Infinity,
+      memoryReader: async () => ({ pressure: ++reads === pressureRead ? 'HARD' : 'NORMAL' }),
+    });
+    const result = await fixture.runner.runPass();
+    assert.equal(result.status, 'BACKING_OFF');
+    assert.equal(result.state.backoff.trigger, 'MEMORY_PRESSURE');
+    assert.equal(reads, pressureRead);
+    assert.deepEqual(fixture.browser.messages, expectedMessages);
+    assert.equal(fixture.browser.freshCount, 1);
+    assert.equal(fixture.browser.exactRetries, rung === 'FRESH_CHAT' ? 1 : 0);
+  });
+}
+
 test('daily allowance stops before listing or browser work', async (t) => {
   const fixture = await makeFixture(t, { initialState: { today: { date: '2026-09-28', answered: 170, expired: 0, waiting: 0 } } });
   assert.equal((await fixture.runner.runPass()).status, 'DAILY_ALLOWANCE_REACHED');

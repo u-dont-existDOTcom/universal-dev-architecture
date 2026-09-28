@@ -120,6 +120,7 @@ export function installStuckRecovery(browser, {
     for (;;) {
       try {
         const completed = await originalWait(target, options);
+        if (completed?.conversationUrl) options = { ...options, expectedUrl: completed.conversationUrl };
         let control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
         if (control?.recoverable) {
           if (recoveries.length >= maxNudges) {
@@ -128,6 +129,7 @@ export function installStuckRecovery(browser, {
           const cooldownWaited = await awaitRecoveryAdmission(options);
           if (cooldownWaited) {
             const revalidatedCompletion = await originalWait(target, options);
+            if (revalidatedCompletion?.conversationUrl) options = { ...options, expectedUrl: revalidatedCompletion.conversationUrl };
             const revalidatedControl = await inspectFn(target, options.expectedUrl);
             if (!revalidatedControl?.recoverable) {
               return completionWithRecoveries(revalidatedCompletion, recoveries, maxNudges);
@@ -168,6 +170,7 @@ export function installStuckRecovery(browser, {
           if (cooldownWaited) {
             try {
               const completed = await originalWait(target, options);
+              if (completed?.conversationUrl) options = { ...options, expectedUrl: completed.conversationUrl };
               const control = await inspectFn(target, options.expectedUrl);
               if (!control?.recoverable) return completionWithRecoveries(completed, recoveries, maxNudges);
             } catch (revalidationError) {

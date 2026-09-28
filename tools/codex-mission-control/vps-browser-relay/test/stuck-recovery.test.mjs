@@ -305,6 +305,44 @@ test('idle Continue controls are treated as unfinished without reading assistant
   assert.equal(result.stuckRecovery.inspectedAssistantOutput, false);
 });
 
+test('canonical conversation URLs returned by a completed wait bind recoverable-control inspection and its nudge', async () => {
+  const provisional = 'https://chatgpt.com/c/WEB:provisional';
+  const canonical = 'https://chatgpt.com/c/canonical';
+  const inspectedUrls = [];
+  const submittedUrls = [];
+  let waits = 0;
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      return { status: 'GENERATION_COMPLETE', conversationUrl: canonical, inspectedAssistantOutput: false };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: async (_target, input) => {
+      submittedUrls.push(input.expectedUrl);
+      return { generationStarted: true, startedAtObserved: '2026-09-28T12:00:00.000Z' };
+    },
+    inspectRecoverableControl: async (_target, expectedUrl) => {
+      inspectedUrls.push(expectedUrl);
+      return inspectedUrls.length === 1
+        ? { recoverable: true, controlLabel: 'Continue' }
+        : { recoverable: false, controlLabel: null };
+    },
+    logger: { warn() {} },
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'canonical-target' }, {
+    expectedUrl: provisional,
+    generationStarted: true,
+  });
+
+  assert.equal(waits, 2);
+  assert.deepEqual(inspectedUrls, [canonical, canonical]);
+  assert.deepEqual(submittedUrls, [canonical]);
+  assert.equal(result.conversationUrl, canonical);
+  assert.equal(result.stuckRecovery.nudgesSent, 1);
+});
+
 test('repeated active stalls recover up to the configured ceiling and then fail closed', async () => {
   let waits = 0;
   let submissions = 0;

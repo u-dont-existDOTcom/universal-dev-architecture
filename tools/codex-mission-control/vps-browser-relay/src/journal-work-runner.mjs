@@ -116,6 +116,7 @@ export class JournalWorkRunner {
     let continueAnchor = null;
     const rungs = ['INITIAL', 'CONTINUE', 'RETRY'];
     for (const rung of rungs) {
+      if (rung !== 'INITIAL' && await this.#memoryPressureActive()) return this.#backOff(state, 'MEMORY_PRESSURE');
       state.current.rung = rung;
       await this.#persist(state);
       if (rung === 'CONTINUE') continueAnchor = await this.#continue(item, session, state);
@@ -131,6 +132,7 @@ export class JournalWorkRunner {
       }
     }
     for (let freshChatCount = 1; freshChatCount < state.settings.freshChatThreshold; freshChatCount += 1) {
+      if (await this.#memoryPressureActive()) return this.#backOff(state, 'MEMORY_PRESSURE');
       state.current.rung = 'FRESH_CHAT';
       state.current.freshChatCount = freshChatCount + 1;
       await this.#persist(state);
@@ -269,6 +271,11 @@ export class JournalWorkRunner {
     const error = new Error('Journal provider-call daily allowance reached.');
     error.code = 'JOURNAL_DAILY_ALLOWANCE_REACHED';
     throw error;
+  }
+
+  async #memoryPressureActive() {
+    const memory = await this.memoryReader();
+    return memory?.pressure === 'SOFT' || memory?.pressure === 'HARD';
   }
 
   async #reserveFreshAttempt(state) {
