@@ -68,30 +68,25 @@ Updated: 2026-09-28
 
 ## Current checkpoint
 
-- The accepted review fixes for pull request #279 are implemented. Focused
-  regressions and the deterministic audit pass; the full suite's sole error is
-  the known local-socket sandbox restriction and remains for CI.
+- The accepted review fixes are implemented and rebased onto `daadf61`; the
+  full suite passes outside the Codex sandbox. Next: Codex re-review.
 
 ## Blockers / unresolved
 
-- No implementation or owner-decision blocker. This sandbox forbids localhost
-  sockets, so CI must verify the storage-canary HTTP test.
+- No implementation or owner-decision blocker.
 
 ## Evidence / artifacts
 
 - Reviewed-state focused regressions: **EXPECTED FAIL** — 8 tests run, 5
   failures; each new check failed on the missing receipt scope or gate record.
 - Repaired focused regressions: **PASS** — 8 tests run, 0 failures, 0 errors.
-- `python3 -m unittest discover -s tests -v`: **FAIL** — 475 tests run, 0
-  failures, 1 error: the known socket-opening storage-canary test received
-  `PermissionError: [Errno 1] Operation not permitted`; unchanged and left to CI.
+- `python3 -m unittest discover -s tests -v`: **PASS** — 475 tests run on the owner's laptop outside the Codex sandbox, 0 failures, 0 errors.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
 
 ## Remaining
 
-- Runner commit/push, CI verification of the socket-dependent test, re-review
-  and merge.
+- Codex re-review and merge.
 
 ## Next safe action
 
-- Let the runner commit and push; use CI for the sandbox-blocked socket test.
+- Wait for the Codex re-review of the pushed head.
