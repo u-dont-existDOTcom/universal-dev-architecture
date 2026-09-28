@@ -45,6 +45,13 @@ class CurrentStateConcisionTests(unittest.TestCase):
             ),
         )
 
+    def test_previous_review_repair_has_a_committed_checkpoint(self) -> None:
+        text = CURRENT_STATE.read_text(encoding="utf-8")
+        checkpoint = text.split("## Current checkpoint", 1)[1].split("## Blockers", 1)[0]
+        self.assertIn("`4854309`", checkpoint)
+        self.assertIn("latest durable boundary", checkpoint)
+        self.assertNotIn("review finding at `7703d8a` is repaired in the working tree", checkpoint)
+
 
 if __name__ == "__main__":
     unittest.main()

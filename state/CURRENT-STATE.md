@@ -36,6 +36,15 @@ Updated: 2026-09-28
   requested model and effort as effective identity without readback. The
   receipt now separates requested values from unknown effective values; a
   regression failed before the fix and passed after it.
+- Codex review at `4854309`: **ACCEPTED** — `-C` and `read-only` do not confine
+  reads. The Codex route now requires an external filesystem boundary or is
+  unavailable; a new regression failed before the fix and passed after it.
+- Codex review at `4854309`: **ACCEPTED** — no separate consultation executor
+  may exist. The unavailable path now leaves the scoped claim unresolved and
+  holds only dependent work; a new regression failed before the fix and passed.
+- Codex review at `4854309`: **ACCEPTED** — the checkpoint called a committed
+  repair uncommitted. It now identifies the committed revision; a new
+  regression failed before the fix and passed after it.
 
 ## Preserved architecture boundaries
 
@@ -73,9 +82,11 @@ Updated: 2026-09-28
 
 ## Current checkpoint
 
-- The review finding at `7703d8a` is repaired in the working tree. The runner
-  will commit and push; CI must run the exact full Python gate because one
-  unrelated test opens a localhost socket blocked by this sandbox.
+- The `7703d8a` repair was committed as `4854309`, the latest durable boundary
+  entering this review round; the remote-tracking branch also points there.
+  This round's three repairs remain in the working tree for the runner to commit
+  and push. CI must run the exact full Python gate because an unrelated test
+  opens a localhost socket blocked by this sandbox.
 
 ## Blockers / unresolved
 
@@ -83,22 +94,19 @@ Updated: 2026-09-28
 
 ## Evidence / artifacts
 
-- Reviewed-state focused regressions: **EXPECTED FAIL** — 8 tests run, 5
-  failures; each new check failed on the missing receipt scope or gate record.
-- Repaired focused regressions: **PASS** — 8 tests run, 0 failures, 0 errors.
-- Setter-only receipt regression: **EXPECTED FAIL** before repair; then
-  **PASS** — 7 focused tests, 0 failures, 0 errors.
-- Socket-free Python discovery: **PASS** — 475 tests, 0 failures, 0 errors;
+- This review round: 3 regressions failed before repair (7 failures across
+  12 tests), then **PASS** — 12 focused tests, 0 failures, 0 errors.
+- Socket-free Python discovery: **PASS** — 478 tests, 0 failures, 0 errors;
   excluded only the existing localhost-server test without changing it.
 - `python3 -m unittest discover -s tests -v`: **UNVERIFIED** — counts unavailable
-  for the exact command on this revision in the socket-denying sandbox;
-  previous revision passed 475 tests on the owner's laptop.
+  for the exact command on this revision in the socket-denying sandbox; CI pending.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
 
 ## Remaining
 
-- Runner commit and push, exact Python gate in CI, Codex re-review, and merge.
+- Runner commit and push of this round, exact Python gate in CI, Codex
+  re-review, and merge.
 
 ## Next safe action
 
-- Hand the reviewed working-tree changes to the runner for commit and push.
+- Hand this review round's working-tree changes to the runner for commit and push.

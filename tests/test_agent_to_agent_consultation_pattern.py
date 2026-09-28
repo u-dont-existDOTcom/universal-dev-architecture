@@ -48,6 +48,27 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
         self.assertIn("Never include credentials or secrets", text)
         self.assertIn("A consultation adds no authority", text)
 
+    def test_codex_workspace_reads_require_an_external_boundary(self) -> None:
+        route = PATTERN.read_text(encoding="utf-8").split("## Route", 1)[1].split("## Bounds", 1)[0]
+        self.assertIn("-C <workspace>", route)
+        self.assertIn("does not enforce a filesystem read boundary", route)
+        self.assertIn("external filesystem sandbox or container", route)
+        self.assertIn("Place `<answer-file>` in that output location", route)
+        self.assertIn("unavailable", route)
+
+    def test_missing_consultation_executor_holds_only_dependent_work(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        route = text.split("## Route", 1)[1].split("## Bounds", 1)[0]
+        for phrase in (
+            "no separate executor",
+            "scoped claim as unresolved",
+            "hold only actions that depend on the answer",
+            "continue independent work",
+            "do not ask the owner to relay",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, route)
+
     def test_capability_receipts_include_runtime_scope_and_test_evidence(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         receipt = text.split("## Receipt", 1)[1].split("## Requirement-accretion", 1)[0]

@@ -26,22 +26,24 @@ This adapts existing rules; it adds no new theory:
 
 1. **Scope every claim about another agent.** When a claim about another agent's capabilities, configuration or behavior feeds an owner decision or a workflow design, state the exact runtime it holds for. That means the invocation or surface, the configuration and sandbox, and the account or route. Never state it as a property of the agent in general.
 2. **Settle it in that runtime.** A direct test in the same runtime settles what the runtime does. Ask the agent itself for what a test cannot show: its configuration options, how to invoke it, and its reasoning. An agent's report about itself is evidence, not proof. An effective model, for example, is read back from the run, not taken from the agent's word.
-3. **Talk directly.** When an agent needs another agent's view, or two agents disagree, they exchange directly through the route below. Allow at most one reconciliation round. Then give the owner the agreed answer, or both positions with a recommendation. The owner never carries messages between agents.
-4. **A relayed message means the route was missed.** When the owner does relay another agent's message, answer its substance. Then open the direct route for the rest of the task, and record the miss in the task record.
+3. **Talk directly when the route is available.** When an agent needs another agent's view, or two agents disagree, they exchange directly through the route below. Allow at most one reconciliation round. Then give the owner the agreed answer, or both positions with a recommendation. If the route is unavailable, use the explicit unavailable path below. The owner never carries messages between agents.
+4. **A relayed message means the route was missed.** When the owner does relay another agent's message, answer its substance. Then open the direct route for the rest of the task if available, or use the unavailable path, and record the miss in the task record.
 
 ## Route
 
-Consult non-interactively, with the smallest packet that answers the question. The consulted agent cannot write, and gets no network unless the question needs it; hosted tools such as web search count as network. A read-only sandbox can still let it read files outside the workspace, so on a machine that holds private data, limit its reads to the workspace where the tool allows it. Never include credentials or secrets. Send private material only across a provider boundary already authorized for it (`patterns/cross-family-reasoning-check.md` → **Reviewer**).
+Consult non-interactively, with the smallest packet that answers the question. The consulted agent's task tools run read-only and get no network unless the question needs it; hosted tools such as web search count as network. Never include credentials or secrets in the packet. Send private material only across a provider boundary already authorized for it (`patterns/cross-family-reasoning-check.md` → **Reviewer**).
+
+For the Codex command below, `-C <workspace>` sets the working root; it does not enforce a filesystem read boundary. `-s read-only` also permits reads outside that root. On a host with private files outside the workspace, run the command only inside an external filesystem sandbox or container that exposes the workspace as its sole readable task-data mount, plus only non-private runtime files and an empty answer-output location. Place `<answer-file>` in that output location. Do not expose the host home, credential stores, or other private paths. If that boundary and the needed sign-in cannot both be provided, the Codex consultation route is unavailable; do not run the command directly on that host.
 
 Current bindings (update them when the tools change; `--help` on the installed version is the check):
 
-| Asking agent | Consulted agent | Command shape |
+| Asking agent | Consulted agent | Command shape (inside the required filesystem boundary) |
 |---|---|---|
 | Claude | Codex | `codex exec -s read-only -c web_search="disabled" --ephemeral --ignore-user-config -m <model> -c model_reasoning_effort="<effort>" -C <workspace> -o <answer-file> "<question>" < /dev/null` |
 | Codex | Claude | `claude -p --model <model> --effort <effort> --tools "" --strict-mcp-config --no-session-persistence "<question>"` |
 
 - Use the model and effort the question needs; the routing rules in `patterns/work-model-and-effort-routing.md` apply.
-- Running the consulted agent needs network access and that agent's sign-in. An asking agent without them, such as a worker in a sandbox with no network, puts its question in its result. The agent that runs it then consults, and the owner still carries nothing.
+- Running the consulted agent needs network access and that agent's sign-in. If the asking agent lacks them, a separate authorized agent may consult only if it has the required route and read boundary. If there is no separate executor, or no safe route has both access and the boundary, report the scoped claim as unresolved, hold only actions that depend on the answer, and continue independent work. State the access reason and what remains dependent; do not ask the owner to relay messages or imply that a later executor exists.
 - When a question is about the other agent's *runtime*, pair the question with a test in that runtime (Rule 2). Don't rely on the answer alone.
 - When the owner talks with an agent outside the task, that agent writes what the others need to a shared notes file named in the deployment. The owner then only has to say that notes are there.
 
@@ -54,6 +56,8 @@ Current bindings (update them when the tools change; `--help` on the installed v
 ## Receipt
 
 Record one line in the task record or final answer: the consulted agent, its requested model and effort, its effective model and effort if independently read back, the question, and the outcome. On a setter-only surface, record the requested model and effort and mark effective model and effort as unknown (`null` in telemetry). For every capability, configuration or behavior conclusion, the receipt must also state the exact runtime tuple: invocation or surface, account or route, and configuration and sandbox. Include paired-test evidence whenever Rule 2 makes a same-runtime test applicable; without it, the receipt is incomplete. Example: `Consulted Codex — requested model=gpt-5.6-sol; requested effort=xhigh; effective model=unknown; effective effort=unknown — runtime: invocation or surface=codex exec, Codex CLI 0.158.0, on the owner's laptop; account or route=the owner's ChatGPT sign-in; configuration and sandbox=--ignore-user-config, read-only sandbox — how can a caller read back the model that served a run? — it cannot: no event or output names the model, so the caller records the model it requested — paired-test evidence: a --json run in the same runtime carried no model field — agreed`.
+
+If consultation was unavailable, record that status and the reason, the scoped unresolved claim, and the dependent actions held. Do not write a consultation receipt as though an exchange occurred.
 
 ## Requirement-accretion declaration
 
