@@ -35,6 +35,7 @@ export class JournalWorkRunner {
       const persisted = listing.records.find((entry) => entry.work_id === state.current.workId);
       if (persisted?.answered) return this.#answered(persisted, state, state.current.rung);
       if (persisted && this.now() >= Date.parse(persisted.expires_at)) {
+        this.#rollDay(state);
         state.today.expired += 1;
         state.today.waiting = Math.max(0, state.today.waiting - 1);
         state.current = null;
@@ -66,12 +67,15 @@ export class JournalWorkRunner {
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
     this.#rollDay(state);
+    const pacedMemory = await this.memoryReader();
+    if (pacedMemory?.pressure === 'SOFT' || pacedMemory?.pressure === 'HARD') return this.#backOff(state, 'MEMORY_PRESSURE');
     if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
     const refreshed = await this.#listing();
     if (!refreshed.ok) return this.#finish(state, 'LISTING_FAILED');
     const pacedItem = refreshed.records.find((entry) => entry.work_id === item.work_id);
     if (pacedItem?.answered) return this.#answered(pacedItem, state, 'INITIAL');
     if (pacedItem && this.now() >= Date.parse(pacedItem.expires_at)) {
+      this.#rollDay(state);
       state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
       return this.#finish(state, 'EXPIRED');
     }
@@ -82,6 +86,7 @@ export class JournalWorkRunner {
     item = refreshedEligible[0];
     if (!item) return this.#finish(state, 'NO_WORK');
     if (this.now() >= Date.parse(item.expires_at)) {
+      this.#rollDay(state);
       state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
       return this.#finish(state, 'EXPIRED');
     }
@@ -92,6 +97,7 @@ export class JournalWorkRunner {
     } catch (error) {
       if (error?.code === 'JOURNAL_DAILY_ALLOWANCE_REACHED') return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
       if (error?.code === 'JOURNAL_ITEM_EXPIRED') {
+        this.#rollDay(state);
         state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1); state.current = null;
         return this.#finish(state, 'EXPIRED');
       }
@@ -116,6 +122,7 @@ export class JournalWorkRunner {
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, rung);
       if (this.now() >= Date.parse(item.expires_at)) {
+        this.#rollDay(state);
         state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1); state.current = null;
         return this.#finish(state, 'EXPIRED');
       }
@@ -130,6 +137,7 @@ export class JournalWorkRunner {
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, 'FRESH_CHAT');
       if (this.now() >= Date.parse(item.expires_at)) {
+        this.#rollDay(state);
         state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1); state.current = null;
         return this.#finish(state, 'EXPIRED');
       }

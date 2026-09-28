@@ -3,7 +3,7 @@ import test from 'node:test';
 import { installStuckRecovery, isConnectionInterrupted, isGenerationStallTimeout, isProgressHeartbeatStall, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
 import { sha256 } from '../src/core.mjs';
 import { defaultState } from '../src/core.mjs';
-import { GlobalSubmissionPacer, GLOBAL_SUBMISSION_COOLDOWN } from '../src/submission-pacing.mjs';
+import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const noRecoverableControl = async () => ({ recoverable: false, controlLabel: null });
 
@@ -400,6 +400,9 @@ test('non-stall failures are never converted into continue messages', async () =
 
 test('automatic continue recovery uses the persisted global cooldown', async () => {
   let submissions = 0;
+  let waits = 0;
+  let clock = Date.parse('2026-09-02T12:00:30.000Z');
+  const sleeps = [];
   const state = defaultState('2026-09-02T12:00:00.000Z');
   state.submissionPacing.lastSubmissionAt = '2026-09-02T12:00:00.000Z';
   const store = {
@@ -408,26 +411,33 @@ test('automatic continue recovery uses the persisted global cooldown', async () 
     async write(value) { this.state = structuredClone(value); return structuredClone(value); },
   };
   const browser = {
-    async waitForGenerationComplete() { throw new Error('ChatGPT generation did not reach a stable complete UI state.'); },
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+      return { completed: true };
+    },
     async submitExactMessage() { submissions += 1; return { generationStarted: true }; },
   };
   const pacer = new GlobalSubmissionPacer({
     stateStore: store,
     minIntervalMs: 60_000,
-    now: () => Date.parse('2026-09-02T12:00:30.000Z'),
+    now: () => clock,
   });
   installStuckRecovery(browser, {
     maxNudges: 3,
     logger: { warn() {} },
     submitMessage: (target, input) => pacer.submit({ submit: () => browser.submitExactMessage(target, input) }),
     beforeRecoverySend: () => pacer.assertReady(),
+    sleep: async (ms) => { sleeps.push(ms); clock += ms; },
     stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
     inspectRecoverableControl: noRecoverableControl,
   });
 
-  await assert.rejects(
-    browser.waitForGenerationComplete({ id: 'paced-target' }, { expectedUrl: 'https://chatgpt.com/c/paced', generationStarted: true }),
-    (error) => error.code === GLOBAL_SUBMISSION_COOLDOWN && error.retryAfterMs === 30_000,
+  const result = await browser.waitForGenerationComplete(
+    { id: 'paced-target' },
+    { expectedUrl: 'https://chatgpt.com/c/paced', generationStarted: true },
   );
-  assert.equal(submissions, 0);
+  assert.deepEqual(sleeps, [30_000]);
+  assert.equal(submissions, 1);
+  assert.equal(result.stuckRecovery.nudgesSent, 1);
 });

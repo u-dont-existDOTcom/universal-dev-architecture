@@ -80,6 +80,7 @@ export function installStuckRecovery(browser, {
   logger = console,
   submitMessage = null,
   beforeRecoverySend = null,
+  sleep = delay,
   stopStalledGeneration = null,
   inspectRecoverableControl = null,
 } = {}) {
@@ -95,6 +96,21 @@ export function installStuckRecovery(browser, {
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
   let logicalWaitSequence = 0;
 
+  const awaitRecoveryAdmission = async (options) => {
+    for (;;) {
+      try {
+        if (beforeRecoverySend) await beforeRecoverySend();
+        if (options?.beforeRecoverySend) await options.beforeRecoverySend();
+        return;
+      } catch (error) {
+        if (error?.code !== 'GLOBAL_SUBMISSION_COOLDOWN') throw error;
+        const retryAfterMs = Number(error.retryAfterMs);
+        if (!Number.isFinite(retryAfterMs) || retryAfterMs < 0) throw error;
+        await sleep(retryAfterMs);
+      }
+    }
+  };
+
   browser.waitForGenerationComplete = async (target, options) => {
     const logicalWait = ++logicalWaitSequence;
     const allowGenericRecovery = options?.allowSameChatRecovery !== false;
@@ -107,8 +123,7 @@ export function installStuckRecovery(browser, {
           if (recoveries.length >= maxNudges) {
             throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
           }
-          if (beforeRecoverySend) await beforeRecoverySend();
-          if (options?.beforeRecoverySend) await options.beforeRecoverySend();
+          await awaitRecoveryAdmission(options);
           const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
             source: 'RECOVERABLE_UI_CONTROL',
             controlLabel: control.controlLabel,
@@ -137,11 +152,9 @@ export function installStuckRecovery(browser, {
         let interruption;
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
-          if (beforeRecoverySend) await beforeRecoverySend();
-          if (options?.beforeRecoverySend) await options.beforeRecoverySend();
+          await awaitRecoveryAdmission(options);
         } else {
-          if (beforeRecoverySend) await beforeRecoverySend();
-          if (options?.beforeRecoverySend) await options.beforeRecoverySend();
+          await awaitRecoveryAdmission(options);
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
         }
         const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
@@ -161,6 +174,8 @@ export function installStuckRecovery(browser, {
 
   return browser;
 }
+
+function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 export function isGenerationStallTimeout(error) {
   const message = error instanceof Error ? error.message : String(error);

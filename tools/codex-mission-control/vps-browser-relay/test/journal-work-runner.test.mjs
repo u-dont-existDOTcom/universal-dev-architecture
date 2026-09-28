@@ -172,9 +172,10 @@ test('fresh conversations keep distinct provider sessions when the browser reuse
 
 test('an item expiring during recovery is recorded without an import', async (t) => {
   let clock = now;
-  const fixture = await makeFixture(t, { answeredAt: Infinity, now: () => clock, onContinue: () => { clock = Date.parse('2026-09-28T15:00:00Z'); } });
+  const fixture = await makeFixture(t, { answeredAt: Infinity, now: () => clock, onContinue: () => { clock = Date.parse('2026-09-29T00:01:00Z'); } });
   const result = await fixture.runner.runPass();
   assert.equal(result.status, 'EXPIRED');
+  assert.equal(result.state.today.date, '2026-09-29');
   assert.equal(result.state.today.expired, 1);
   assert.equal(fixture.importRuns(), 0);
 });
@@ -298,6 +299,19 @@ test('memory pressure backs off before reading work', async (t) => {
   const result = await fixture.runner.runPass();
   assert.equal(result.state.backoff.trigger, 'MEMORY_PRESSURE');
   assert.equal(fixture.dispatchRuns(), 0);
+});
+
+test('memory pressure that appears during pacing backs off before refreshed listing or browser work', async (t) => {
+  let reads = 0;
+  const fixture = await makeFixture(t, {
+    memoryReader: async () => ({ pressure: ++reads === 1 ? 'NORMAL' : 'HARD' }),
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.backoff.trigger, 'MEMORY_PRESSURE');
+  assert.equal(reads, 2);
+  assert.equal(fixture.dispatchRuns(), 1);
+  assert.equal(fixture.browser.freshCount, 0);
 });
 
 test('daily allowance stops before listing or browser work', async (t) => {
