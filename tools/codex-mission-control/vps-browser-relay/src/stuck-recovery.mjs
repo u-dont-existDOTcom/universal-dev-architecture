@@ -97,16 +97,18 @@ export function installStuckRecovery(browser, {
   let logicalWaitSequence = 0;
 
   const awaitRecoveryAdmission = async (options) => {
+    let cooldownWaited = false;
     for (;;) {
       try {
         if (beforeRecoverySend) await beforeRecoverySend();
         if (options?.beforeRecoverySend) await options.beforeRecoverySend();
-        return;
+        return cooldownWaited;
       } catch (error) {
         if (error?.code !== 'GLOBAL_SUBMISSION_COOLDOWN') throw error;
         const retryAfterMs = Number(error.retryAfterMs);
         if (!Number.isFinite(retryAfterMs) || retryAfterMs < 0) throw error;
         await sleep(retryAfterMs);
+        cooldownWaited = true;
       }
     }
   };
@@ -154,7 +156,18 @@ export function installStuckRecovery(browser, {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
           await awaitRecoveryAdmission(options);
         } else {
-          await awaitRecoveryAdmission(options);
+          const cooldownWaited = await awaitRecoveryAdmission(options);
+          if (cooldownWaited) {
+            try {
+              const completed = await originalWait(target, options);
+              const control = await inspectFn(target, options.expectedUrl);
+              if (!control?.recoverable) return completionWithRecoveries(completed, recoveries, maxNudges);
+            } catch (revalidationError) {
+              if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) {
+                throw revalidationError;
+              }
+            }
+          }
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
         }
         const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
@@ -173,6 +186,18 @@ export function installStuckRecovery(browser, {
   };
 
   return browser;
+}
+
+function completionWithRecoveries(completed, recoveries, maxNudges) {
+  return recoveries.length === 0 ? completed : {
+    ...completed,
+    stuckRecovery: {
+      nudgesSent: recoveries.length,
+      maxNudges,
+      recoveries,
+      inspectedAssistantOutput: false,
+    },
+  };
 }
 
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }

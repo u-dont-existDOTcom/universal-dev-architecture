@@ -104,6 +104,37 @@ test('CLI errors release ownership; lock-status diagnoses a live owner without a
   }
 });
 
+test('journal-work exits disabled before constructing live provider clients when submission is off', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-journal-disabled-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const cli = fileURLToPath(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url));
+    const result = spawnSync(process.execPath, [cli, 'journal-work'], {
+      env: {
+        ...configEnv(chatsFile),
+        MC_RELAY_STATE_DIR: root,
+        MC_RELAY_SUBMIT_ENABLED: '0',
+        MC_JOURNAL_DISPATCH_COMMAND: 'must-not-run',
+        MC_JOURNAL_IMPORT_COMMAND: 'must-not-run',
+        MC_JOURNAL_APP_LABEL: 'InnerSignal',
+        MC_JOURNAL_SUPERVISOR_ID: 'spec',
+      },
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), { status: 'JOURNAL_WORK_SEND_DISABLED', submitEnabled: false });
+    assert.equal(new StateStore({
+      stateFile: join(root, 'relay-state.json'),
+      statusFile: join(root, 'relay-status.json'),
+      lockFile: join(root, 'relay.lock'),
+    }).lockStatus().status, 'FREE');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('one-shot lock lifetime derives from the configured operation ceilings it guards', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-lock-budget-'));
   try {

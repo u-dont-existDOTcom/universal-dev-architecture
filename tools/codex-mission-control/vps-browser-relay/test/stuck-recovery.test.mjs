@@ -413,7 +413,7 @@ test('automatic continue recovery uses the persisted global cooldown', async () 
   const browser = {
     async waitForGenerationComplete() {
       waits += 1;
-      if (waits === 1) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+      if (waits <= 2) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
       return { completed: true };
     },
     async submitExactMessage() { submissions += 1; return { generationStarted: true }; },
@@ -440,6 +440,46 @@ test('automatic continue recovery uses the persisted global cooldown', async () 
   assert.deepEqual(sleeps, [30_000]);
   assert.equal(submissions, 1);
   assert.equal(result.stuckRecovery.nudgesSent, 1);
+});
+
+test('generic recovery skips Continue when generation completes during the global cooldown', async () => {
+  let waits = 0;
+  let admissionChecks = 0;
+  let stops = 0;
+  let submissions = 0;
+  const sleeps = [];
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: '2026-09-28T11:00:30.000Z' };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: async () => { submissions += 1; return { generationStarted: true }; },
+    beforeRecoverySend: async () => {
+      admissionChecks += 1;
+      if (admissionChecks === 1) {
+        throw Object.assign(new Error('cooldown'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 30_000 });
+      }
+    },
+    sleep: async (ms) => { sleeps.push(ms); },
+    stopStalledGeneration: async () => { stops += 1; return { stoppedGeneration: false, stopReason: 'ALREADY_IDLE' }; },
+    inspectRecoverableControl: noRecoverableControl,
+    logger: { warn() {} },
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'resolved-during-cooldown' }, {
+    expectedUrl: 'https://chatgpt.com/c/resolved-during-cooldown',
+    generationStarted: true,
+  });
+
+  assert.deepEqual(sleeps, [30_000]);
+  assert.equal(waits, 2);
+  assert.equal(stops, 0);
+  assert.equal(submissions, 0);
+  assert.equal(result.status, 'GENERATION_COMPLETE');
+  assert.equal(result.stuckRecovery, undefined);
 });
 
 test('automatic continue passes item admission into scheduler replays', async () => {

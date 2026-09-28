@@ -50,6 +50,11 @@ try {
     process.exit(0);
   }
 
+  if (command === 'journal-work' && !config.runtime.submitEnabled) {
+    print({ status: 'JOURNAL_WORK_SEND_DISABLED', submitEnabled: false });
+    process.exit(0);
+  }
+
   const missionControl = new MissionControlClient(config.missionControl);
   const codexExecutionConfig = loadCodexExecCandidateConfig(process.env);
   let codexExecutionMissionControl = missionControl;
