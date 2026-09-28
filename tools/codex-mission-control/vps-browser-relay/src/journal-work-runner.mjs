@@ -1,10 +1,8 @@
-import { exec as execCallback } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { sha256 } from './core.mjs';
 
-const exec = promisify(execCallback);
 const ROOT_URL = 'https://chatgpt.com/';
 const CONTINUE_BODY = 'Continue.';
 const MAX_OUTCOMES = 200;
@@ -401,6 +399,48 @@ function sanitizeImportResult(result) {
 function stringOrNull(value) { return typeof value === 'string' && value.length <= 100 ? value : null; }
 function integerOrZero(value) { return Number.isInteger(value) && value >= 0 ? value : 0; }
 function plainCounts(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return {}; return Object.fromEntries(Object.entries(value).filter(([key, count]) => /^[a-zA-Z0-9_-]{1,50}$/.test(key) && Number.isInteger(count) && count >= 0)); }
-export async function runCommand(command, timeoutMs) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024, timeout: timeoutMs, env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' } }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: error?.stdout ?? '' }; } }
+export function runCommand(command, timeoutMs) {
+  return new Promise((resolve) => {
+    const maxBuffer = 1024 * 1024;
+    let stdout = '';
+    let failed = false;
+    let termination = Promise.resolve();
+    const child = spawn(command, {
+      detached: process.platform !== 'win32',
+      env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' },
+      shell: true,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+      if (Buffer.byteLength(stdout) <= maxBuffer || failed) return;
+      failed = true;
+      termination = terminateCommandTreeWithEscalation(child);
+    });
+    child.on('error', () => { failed = true; });
+    child.on('close', async (code) => {
+      clearTimeout(timer);
+      await termination;
+      resolve({ exitCode: !failed && Number.isInteger(code) ? code : 1, stdout: stdout.slice(0, maxBuffer) });
+    });
+    const timer = Number.isFinite(timeoutMs) && timeoutMs >= 0 ? setTimeout(() => {
+      failed = true;
+      termination = terminateCommandTreeWithEscalation(child);
+    }, timeoutMs) : null;
+  });
+}
+function terminateCommandTreeWithEscalation(child) {
+  terminateCommandTree(child, 'SIGTERM');
+  return delay(100).then(() => terminateCommandTree(child, 'SIGKILL'));
+}
+function terminateCommandTree(child, signal) {
+  try {
+    if (process.platform === 'win32') child.kill(signal);
+    else process.kill(-child.pid, signal);
+  } catch (error) {
+    if (error?.code !== 'ESRCH') throw error;
+  }
+}
 async function atomicJson(path, value) { await mkdir(dirname(path), { recursive: true, mode: 0o700 }); const temp = `${path}.${process.pid}.tmp`; await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 }); await rename(temp, path); }
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }

@@ -92,6 +92,21 @@ test('the command runner enforces its configured command timeout', async () => {
   assert.ok(Date.now() - started < 750);
 });
 
+test('the command runner terminates the complete process group on timeout', { skip: process.platform === 'win32' }, async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'journal-command-tree-test-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const marker = join(dir, 'orphan-wrote-after-timeout');
+  const descendant = join(dir, 'descendant.mjs');
+  const parent = join(dir, 'parent.mjs');
+  await writeFile(descendant, `import { writeFile } from 'node:fs/promises';\nprocess.on('SIGTERM', () => {});\nsetTimeout(() => writeFile(${JSON.stringify(marker)}, 'orphaned'), 400);\nsetInterval(() => {}, 1000);\n`);
+  await writeFile(parent, `import { spawn } from 'node:child_process';\nspawn(process.execPath, [${JSON.stringify(descendant)}], { stdio: 'ignore' });\nsetInterval(() => {}, 1000);\n`);
+
+  const result = await runCommand(`${JSON.stringify(process.execPath)} ${JSON.stringify(parent)}`, 100);
+  assert.notEqual(result.exitCode, 0);
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  await assert.rejects(readFile(marker), { code: 'ENOENT' });
+});
+
 test('happy path sends only the fixed prompt, records the initial rung, imports, and stays content-free', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 3, pageText: SENTINEL });
   const result = await fixture.runner.runPass();

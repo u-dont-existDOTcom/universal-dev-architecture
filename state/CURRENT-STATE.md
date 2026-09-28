@@ -7,6 +7,31 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `55a0009` (2026-09-28)
+
+- Parent implementation outcome: **SATISFIED**. The process-tree timeout finding is
+  valid: Node's `exec` timeout terminated only the immediate shell, allowing an
+  import descendant to outlive `IMPORT_FAILED`, lock release, and a later retry.
+- The bounded command runner now launches each shell as a POSIX process-group
+  leader, signals the complete group on timeout, escalates from `SIGTERM` to
+  `SIGKILL`, and waits for that termination sequence before returning.
+- A direct regression starts a descendant that ignores `SIGTERM` and would
+  write a marker after the timeout. The test requires the runner to prevent the
+  delayed write, so the pre-fix shell-only timeout fails at the consumer seam.
+- Bootstrap constraint: live default-branch root `AGENTS.md` retrieval was
+  attempted before task reasoning, but raw GitHub returned HTTP 403. Local root
+  and scoped instructions were loaded instead; this is not a claim that live
+  bootstrap succeeded.
+- Active assurance lane: **release**, because the owner explicitly requires
+  the relay suite, both repository gates, a commit, and pull-request delivery.
+  Focused journal-runner coverage passed 62/62 tests, the complete relay suite
+  passed, repository unit tests passed 467/467, and the deterministic audit
+  reported `PASS: no findings.` Test-efficiency telemetry recorded one focused
+  run, two required full gates, one audit, and no redundant full-suite rerun.
+- Stop admission: implementation, regression coverage, completion gates, and
+  diff review are complete. Commit and pull-request metadata delivery remain
+  the current worker's final authorized actions.
+
 ## PR #275 Codex review follow-up at `e19fa89` (2026-09-28)
 
 - Parent implementation outcome: **SATISFIED**. Both review findings are valid
