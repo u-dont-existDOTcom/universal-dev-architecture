@@ -120,21 +120,56 @@ def validate(ledger: dict, root: Path = ROOT) -> list[str]:
     return errors
 
 
+ANCHOR_KEYS = ("anchor", "existing_anchor", "second_anchor")
+
+
+def anchor_claims(node: object):
+    """Yield every (file, anchor) pair recorded anywhere in a check record.
+
+    A record may name further locations in nested lists or objects (other
+    surfaces, related existing rules, partial coverage). Each recorded anchor
+    is a claim that the phrase is in that file, so each one is checked.
+    """
+    if isinstance(node, list):
+        for item in node:
+            yield from anchor_claims(item)
+        return
+    if not isinstance(node, dict):
+        return
+    for key in ANCHOR_KEYS:
+        if isinstance(node.get(key), str):
+            yield node.get("file"), node[key]
+    if isinstance(node.get("also_in"), str) and isinstance(node.get("anchor"), str):
+        yield node["also_in"], node["anchor"]
+    for value in node.values():
+        if isinstance(value, (list, dict)):
+            yield from anchor_claims(value)
+
+
 def verify_project(ledger: dict, repository: str, project_root: Path) -> list[str]:
     entries = [project for project in ledger.get("projects", []) if project.get("repository") == repository]
     if not entries:
         return [f"{repository}: no ledger entry"]
     problems: list[str] = []
+    texts: dict[str, str] = {}
     for project in entries:
         for check_id, record in project.get("checks", {}).items():
-            if record.get("disposition") not in ANCHORED:
-                continue
-            path = project_root / record["file"]
-            if not path.is_file():
-                problems.append(f"{repository}: {check_id} file missing: {record['file']}")
-                continue
-            if normalize(record["anchor"]) not in normalize(path.read_text(encoding="utf-8")):
-                problems.append(f"{repository}: {check_id} anchor not found in {record['file']}")
+            seen: set[tuple[object, str]] = set()
+            for file, anchor in anchor_claims(record):
+                if (file, anchor) in seen:
+                    continue
+                seen.add((file, anchor))
+                if not isinstance(file, str) or not file or "," in file:
+                    problems.append(f"{repository}: {check_id} anchor has no single file: {anchor[:60]!r}")
+                    continue
+                path = project_root / file
+                if not path.is_file():
+                    problems.append(f"{repository}: {check_id} file missing: {file}")
+                    continue
+                if file not in texts:
+                    texts[file] = normalize(path.read_text(encoding="utf-8"))
+                if normalize(anchor) not in texts[file]:
+                    problems.append(f"{repository}: {check_id} anchor not found in {file}: {anchor[:60]!r}")
     return problems
 
 

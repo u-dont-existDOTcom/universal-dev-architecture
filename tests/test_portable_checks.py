@@ -26,8 +26,9 @@ class PortableChecksTests(unittest.TestCase):
         checks = portable_checks.parse_checks(PACK)
         self.assertEqual(
             list(checks),
-            ["CI-01", "CI-02", "CI-03", "CI-04", "CI-05", "CI-06", "CI-07", "CI-08", "CI-09", "CI-10", "CI-X1"],
+            ["CI-01", "CI-02", "CI-03", "CI-04", "CI-05", "CI-06", "CI-07", "CI-08", "CI-09", "CI-10", "CI-11", "CI-X1"],
         )
+        self.assertIn("Never to companion or therapeutic replies", checks["CI-11"]["applies_to"])
         self.assertIn("research verdicts only", checks["CI-X1"]["applies_to"])
         self.assertIn("Never to conversational, companion, or therapeutic replies", checks["CI-X1"]["applies_to"])
         for check_id, check in checks.items():
@@ -72,7 +73,33 @@ class PortableChecksTests(unittest.TestCase):
                 },
             }]}
             problems = portable_checks.verify_project(ledger, "example/product", root)
-        self.assertEqual(problems, ["example/product: CI-02 anchor not found in RULES.md"])
+        self.assertEqual(problems, ["example/product: CI-02 anchor not found in RULES.md: 'exact words only'"])
+
+    def test_verify_project_checks_nested_anchors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "RULES.md").write_text("Every claim rests on a passage you can point to.", encoding="utf-8")
+            (root / "COPY.md").write_text("Every claim rests on a passage you can point to.", encoding="utf-8")
+            (root / "OLD.md").write_text("Cite only fields that exist.", encoding="utf-8")
+            ledger = {"projects": [{
+                "repository": "example/product",
+                "checks": {
+                    "CI-01": {
+                        "disposition": "ADDED",
+                        "file": "RULES.md",
+                        "anchor": "rests on a passage",
+                        "also_in": "COPY.md",
+                        "also": [{"disposition": "ADDED", "file": "OLD.md", "anchor": "a phrase that is not there"}],
+                    },
+                    "CI-05": {
+                        "disposition": "DEFERRED",
+                        "reason": "frozen",
+                        "partial_existing_coverage": {"file": "OLD.md", "anchor": "Cite only fields that exist."},
+                    },
+                },
+            }]}
+            problems = portable_checks.verify_project(ledger, "example/product", root)
+        self.assertEqual(problems, ["example/product: CI-01 anchor not found in OLD.md: 'a phrase that is not there'"])
 
     def test_cli_validate_passes(self) -> None:
         result = subprocess.run(

@@ -4,7 +4,7 @@ Pack: `claim-integrity`, version 1, 2026-09-27.
 
 This is the self-contained text that public products adapt into their own runtime instructions. A product that carries these checks carries the text itself. Nothing here requires reading this repository at runtime.
 
-Development-side owners of the rules: `patterns/source-interpretation-provenance.md` (CI-01 to CI-03), `patterns/reasoning-selection.md` (CI-04 to CI-07, CI-10), `patterns/editorial-authority-and-lossless-editing.md` (CI-08), `patterns/whole-argument-reconstruction.md` (CI-09), and `patterns/independent-evaluation-separation.md` (CI-X1). When a rule changes there, update this pack, bump its version, and record the change in `portable/TRANSFER-LEDGER.json`.
+Development-side owners of the rules: `patterns/source-interpretation-provenance.md` (CI-01 to CI-03), `patterns/reasoning-selection.md` (CI-04 to CI-07, CI-10), `patterns/editorial-authority-and-lossless-editing.md` (CI-08), `patterns/whole-argument-reconstruction.md` (CI-09), and `patterns/independent-evaluation-separation.md` (CI-11, CI-X1). When a rule changes there, update this pack, bump its version, and record the change in `portable/TRANSFER-LEDGER.json`.
 
 ## How to adapt
 
@@ -80,8 +80,18 @@ Applies to: research, writing, companion, design.
 
 Before sending, compare what you are about to say with what you already said on the same topic. If they conflict, correct one and say so. Label estimates as estimates, and report a derived number at the resolution of its inputs; a time computed from minute-level timestamps is a range.
 
+## CI-11 Independent claim check before delivery
+
+Applies to: research, writing, design. Never to companion or therapeutic replies.
+
+Run this check before delivering a draft that critiques a text, reviews a person's own work, attributes content to a source, adds facts to text a person will publish, or says that something was verified. A product may limit it to its high-stakes outputs, such as a final verdict, a review the person will act on, or text they will publish, and should name the outputs it covers.
+
+List every checkable claim in the draft in a claim ledger: the claim, its type (exact quote, source content, your own inference, external fact, figure, or the person's intended meaning), its anchor (an exact passage, a URL, or none), and what you checked. If your runtime can start a separate checker, such as a subagent, a second model call, or a fresh context, give it the sources, the draft, and the ledger, but not your reasoning. The checker returns pass or fail for each claim with the reason, and adds any checkable claim the ledger missed. Fix every failure before delivery. A claim about what the person meant is not checked; ask them. Give the checker a budget: fetch each source once, cap its tool calls, and skip claims whose anchor is an exact passage it already has.
+
+If your runtime cannot start a separate checker, check each ledger entry against its source yourself just before delivery, and do not describe the result as independently checked. A drafter reviewing its own work tends to treat a text it has read as a text it has checked. In the case this check comes from, a separate checker found errors that the drafter's own audit had missed, including some in text that was about to be published.
+
 ## CI-X1 Experimental: key-condition recoverability
 
 Applies to: research verdicts only. Never to conversational, companion, or therapeutic replies.
 
-For a verdict, finding, or evidence summary, a separate checker sees only the output and names the key conditions it answers: source, outcome measure, population, and scope. If it cannot, or names different ones, the verdict is vague or has blended conditions; revise it. This adapts ProCo (Wu et al., EMNLP 2024, https://aclanthology.org/2024.emnlp-main.714/), which was tested only on short problems (average 52.3 words) with numeric or entity answers. Its use on long verdicts is untested, so it never blocks delivery; record its hits and misses.
+For a verdict, finding, or evidence summary, a separate checker sees only the output and names the key conditions it answers: source, outcome measure, population, and scope. If it cannot, or names different ones, the verdict is vague or has blended conditions; revise it. This adapts ProCo (Wu et al., EMNLP 2024, https://aclanthology.org/2024.emnlp-main.714/), whose test problems were generally short (averaging 52.3 words), with answers that were typically numbers or entities. Its use on long verdicts is untested, so it never blocks delivery; record its hits and misses.

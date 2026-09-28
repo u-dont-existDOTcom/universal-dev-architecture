@@ -5,7 +5,7 @@ Public products do not load this repository at runtime. When a lesson here has t
 This directory holds those adaptations as packs, and the development-side record of where each pack went.
 
 - `<pack>/CHECKS.md`: the self-contained text of one pack, with an ID and an "Applies to" line for each check.
-- `TRANSFER-LEDGER.json`: which public projects carry which checks, where, and in what state. Each check is recorded as added, already covered by the project's own rule (with the exact anchor phrase), or not applicable (with the reason). Projects assessed and found to have no AI runtime are recorded too.
+- `TRANSFER-LEDGER.json`: which public projects carry which checks, where, and in what state. Each check is recorded as added, already covered by the project's own rule (with the exact anchor phrase), not applicable, or deferred (with the reason). When a project has several runtime surfaces, a check can also list each further surface with its own disposition and anchor. Projects assessed and found to have no AI runtime are recorded too.
 - `scripts/portable_checks.py`: validates the ledger against the packs, and checks a local clone of a project for every anchor phrase the ledger records.
 
 States follow `patterns/durable-chat-learning.md`, with one addition for work that is open for review:
