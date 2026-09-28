@@ -31,6 +31,7 @@ PROJECT_STATES = {
 DISPOSITIONS = {"ADDED", "COVERED_BY_EXISTING", "NOT_APPLICABLE", "DEFERRED"}
 ANCHORED = {"ADDED", "COVERED_BY_EXISTING"}
 PRODUCT_TYPES = ("research", "writing", "companion", "design")
+APP_STATUSES = {"PUBLIC_APP", "UNDECIDED"}
 HEADING = re.compile(r"^## (CI-[0-9A-Z]+) (.+)$", re.MULTILINE)
 
 
@@ -134,6 +135,28 @@ def validate(ledger: dict, root: Path = ROOT) -> list[str]:
     for item in ledger.get("assessed_not_applicable", []):
         if not (item.get("repository") and item.get("reason") and item.get("evidence")):
             errors.append(f"assessed_not_applicable entry needs repository, reason, and evidence: {item}")
+    errors.extend(validate_public_apps(ledger, root))
+    return errors
+
+
+def validate_public_apps(ledger: dict, root: Path = ROOT) -> list[str]:
+    """Every app the owner declares public-facing must carry every pack."""
+    path = root / "portable" / "PUBLIC-APPS.json"
+    if not path.is_file():
+        return ["portable/PUBLIC-APPS.json is missing: the owner's list of public-facing apps"]
+    registry = json.loads(path.read_text(encoding="utf-8"))
+    errors: list[str] = []
+    if registry.get("status") != "OWNER_DECLARED" or not registry.get("owner_statement"):
+        errors.append("portable/PUBLIC-APPS.json must be OWNER_DECLARED and quote the owner's statement")
+    covered = {(project.get("repository"), project.get("pack")) for project in ledger.get("projects", [])}
+    for app in registry.get("apps", []):
+        status = app.get("status")
+        if status not in APP_STATUSES:
+            errors.append(f"{app.get('repository')}: unknown public-app status {status!r}")
+        if status == "PUBLIC_APP":
+            for pack_name in ledger.get("packs", {}):
+                if (app.get("repository"), pack_name) not in covered:
+                    errors.append(f"{app.get('repository')}: declared public app has no ledger entry for pack {pack_name}")
     return errors
 
 

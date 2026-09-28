@@ -113,7 +113,7 @@ class PortableChecksTests(unittest.TestCase):
         pack = ledger["packs"]["claim-integrity"]
         checks = {check_id: {"disposition": "NOT_APPLICABLE", "reason": "test"} for check_id in pack["check_ids"]}
         checks["CI-04"] = {"disposition": "ADDED", "file": "RULES.md", "anchor": "field claims are factual claims"}
-        ledger["projects"] = [{
+        ledger["projects"] += [{
             "repository": "example/companion",
             "visibility": "public",
             "product_types": ["companion"],
@@ -129,6 +129,25 @@ class PortableChecksTests(unittest.TestCase):
         self.assertEqual(portable_checks.applicable_types("research, writing, design. Never to companion or therapeutic replies."),
                          {"research", "writing", "design"})
         self.assertEqual(portable_checks.applicable_types("writing; research when drafting."), {"writing", "research"})
+
+    def test_public_apps_are_owner_declared(self) -> None:
+        registry = json.loads((ROOT / "portable" / "PUBLIC-APPS.json").read_text(encoding="utf-8"))
+        self.assertEqual(registry["status"], "OWNER_DECLARED")
+        self.assertIn("standalone apps", registry["owner_statement"])
+        self.assertIn("Repository visibility does not make a project public-facing", registry["definition"])
+        apps = {app["repository"]: app["status"] for app in registry["apps"]}
+        self.assertEqual(apps["u-dont-existDOTcom/innerSignalGraph"], "PUBLIC_APP")
+        self.assertEqual(apps["u-dont-existDOTcom/AskRigor"], "PUBLIC_APP")
+        self.assertEqual(apps["u-dont-existDOTcom/pangram-humanization-lab"], "UNDECIDED")
+        rule = (ROOT / "patterns" / "durable-chat-learning.md").read_text(encoding="utf-8")
+        self.assertIn("Which projects are public-facing is the owner's declaration in `portable/PUBLIC-APPS.json`, not an inference.", rule)
+        self.assertIn("if any target was inferred rather than declared, confirm the list with the owner first", rule)
+
+    def test_validate_requires_every_declared_public_app_in_the_ledger(self) -> None:
+        ledger = json.loads(json.dumps(portable_checks.load_ledger()))
+        ledger["projects"] = [p for p in ledger["projects"] if p["repository"] != "u-dont-existDOTcom/AskRigor"]
+        errors = portable_checks.validate(ledger)
+        self.assertEqual(errors, ["u-dont-existDOTcom/AskRigor: declared public app has no ledger entry for pack claim-integrity"])
 
     def test_cli_validate_passes(self) -> None:
         result = subprocess.run(

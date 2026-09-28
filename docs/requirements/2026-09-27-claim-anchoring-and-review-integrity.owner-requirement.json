@@ -6,6 +6,9 @@
   "owner_outcome": "Reviews, critiques, attributions, and edits to the owner's publishable text contain no inference presented as a source's content, no unverified category or figure claim, no flag built on a misreading of the owner, and no concession made without checking; and every public-facing AI product carries the applicable checks in its own runtime instructions, because published products do not load this repository.",
   "owner_statement": "there are a lot of errors you've exposed here in your reasoning and i'd like to see why and how to prevent that in future with UDA, so collect all the errors",
   "owner_refinement": "yes add to UDA, and as usual make sure all public facing projects contain the checks that apply to them since they won't have UDA when published (maybe it requires a refactor)",
+  "owner_clarification": "ooh my bad, i should have told you which projects are actually public facing... meaning projects that would be apps. how can we avoid this in future? the ones that will be standalone apps are innersignal, askrgior, and possibly pangram-humanization-lab altho i'm nots ure about that yet",
+  "owner_clarification_date": "2026-09-28",
+  "owner_clarification_effect": "Public-facing means a standalone app. The declared apps are recorded in portable/PUBLIC-APPS.json: InnerSignal and AskRigor, with pangram-humanization-lab undecided. The other projects already carry checks through open pull requests; the owner said nothing needs to be undone.",
   "owner_supplied_source": {
     "reference": "Wu et al., 'Large Language Models Can Self-Correct with Key Condition Verification', EMNLP 2024, https://aclanthology.org/2024.emnlp-main.714/",
     "owner_scope": "Key-condition verification fits research verdicts (for example, a checker shown only a verdict must name its outcome measure and population). The owner excluded therapeutic companion replies: 'replies from innersignal are natural and not formulaic'.",
