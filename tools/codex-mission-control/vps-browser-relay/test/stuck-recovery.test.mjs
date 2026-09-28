@@ -441,3 +441,32 @@ test('automatic continue recovery uses the persisted global cooldown', async () 
   assert.equal(submissions, 1);
   assert.equal(result.stuckRecovery.nudgesSent, 1);
 });
+
+test('automatic continue passes item admission into scheduler replays', async () => {
+  let waits = 0;
+  let admissionChecks = 0;
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      if (waits === 1) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+      return { completed: true };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: async (_target, input) => {
+      assert.equal(typeof input.beforeRecoverySend, 'function');
+      await input.beforeRecoverySend();
+      return { generationStarted: true };
+    },
+    logger: { warn() {} },
+    stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
+    inspectRecoverableControl: noRecoverableControl,
+  });
+
+  await browser.waitForGenerationComplete({ id: 'allowance-bound-recovery' }, {
+    expectedUrl: 'https://chatgpt.com/c/allowance-bound-recovery',
+    generationStarted: true,
+    beforeRecoverySend: async () => { admissionChecks += 1; },
+  });
+  assert.equal(admissionChecks, 2);
+});

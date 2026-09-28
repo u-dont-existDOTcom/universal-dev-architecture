@@ -211,6 +211,7 @@ async function sendContinue(submitMessage, target, options, logicalWait, index, 
     body,
     bodySha256: sha256(body),
     schedulerAttemptKey: `wait:${logicalWait}:nudge:${index}`,
+    beforeRecoverySend: options.beforeRecoverySend,
     onSubmissionBoundary: options.onRecoverySubmissionBoundary,
   });
   const recovery = {

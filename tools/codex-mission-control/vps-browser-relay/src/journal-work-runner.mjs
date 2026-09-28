@@ -9,6 +9,7 @@ const ROOT_URL = 'https://chatgpt.com/';
 const CONTINUE_BODY = 'Continue.';
 const MAX_OUTCOMES = 200;
 const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier', 'issued_at', 'expires_at', 'answered'];
+const OPAQUE_WORK_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/;
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
 export class JournalWorkRunner {
@@ -223,7 +224,14 @@ export class JournalWorkRunner {
       expectedUrl,
       generationStarted,
       onGenerationPoll: () => this.#handleConfirmation(target, item),
-      beforeRecoverySend: () => this.#assertSubmissionAllowance(state),
+      beforeRecoverySend: () => {
+        if (this.now() >= Date.parse(item.expires_at)) {
+          const expired = new Error('Journal work item expired before a stuck-recovery submission.');
+          expired.code = 'JOURNAL_ITEM_EXPIRED';
+          throw expired;
+        }
+        this.#assertSubmissionAllowance(state);
+      },
       onRecoverySubmissionBoundary: async () => {
         state.today.calls += 1;
         await this.#persist(state);
@@ -350,6 +358,7 @@ export function parseDispatchRecord(line) {
   const value = JSON.parse(line);
   if (!value || Object.keys(value).some((key) => !FIELDS.includes(key)) || FIELDS.some((key) => !(key in value))) throw new Error('Invalid dispatch record shape.');
   for (const field of FIELDS.slice(0, 6)) if (typeof value[field] !== 'string' || !value[field] || value[field].length > 256) throw new Error(`Invalid dispatch ${field}.`);
+  if (!OPAQUE_WORK_ID.test(value.work_id)) throw new Error('Invalid dispatch work_id.');
   if (typeof value.answered !== 'boolean' || !Number.isFinite(Date.parse(value.issued_at)) || !Number.isFinite(Date.parse(value.expires_at))) throw new Error('Invalid dispatch times or answered flag.');
   return value;
 }

@@ -7,6 +7,31 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `1494613` (2026-09-28)
+
+- Parent implementation outcome: **SATISFIED**. All three new review findings
+  are valid and repaired with focused regression coverage; commit and
+  pull-request metadata delivery remain the current worker's final actions.
+- Stuck-recovery Continue submissions now carry the item-specific recovery
+  admission callback into the central scheduler input, so a scheduler replay
+  rechecks the journal allowance before another provider boundary.
+- Journal recovery admission now checks authoritative item expiry as well as
+  the daily allowance. An item that expires during a scheduler cooldown raises
+  `JOURNAL_ITEM_EXPIRED`, is accounted as expired, and does not consume a
+  recovery provider call.
+- Dispatch parsing now accepts only bounded opaque work IDs composed of ASCII
+  letters, digits, underscores, and hyphens, beginning with an alphanumeric
+  character. Newlines, punctuation, whitespace, and instruction-like prompt
+  suffixes therefore cannot alter the fixed provider message.
+- Focused journal-runner and stuck-recovery regressions pass 70/70. The relay
+  suite passes 243/243 tests, repository unit tests pass 467/467, and the
+  deterministic repository audit reports no findings.
+- Active assurance lane: **release**, because the owner explicitly requires
+  the existing pull request to remain merge-ready and names all three gates.
+- Stop admission: implementation and validation are complete; the safe,
+  authorized remaining actions are committing this review round and updating
+  the existing pull request before user-facing delivery.
+
 ## PR #275 Codex review follow-up at `4354850` (2026-09-28)
 
 - Parent implementation outcome: **SATISFIED**. Both findings are valid and
