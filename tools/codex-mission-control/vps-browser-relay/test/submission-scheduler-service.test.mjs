@@ -435,6 +435,7 @@ test('every concrete ChatGPT send path is wired through central admission and bo
   assert.equal(count(launcher, 'submissionPacer.submit({'), 2);
   assert.equal(count(launcher, 'rawBrowser.submitExactMessage('), 1);
   assert.match(launcher, /onSubmissionBoundary/);
+  assert.match(launcher, /await onJournalSubmissionBoundary\?\.\(\.\.\.args\)/);
   assert.match(launcher, /journalRecoverySessions\.set\(target\.id, identity\)/);
   assert.match(launcher, /recoverySubmissionContext\(config, stateStore, target, input, journalRecoverySessions\)/);
   assert.equal(count(journal, 'this.submit({'), 3);

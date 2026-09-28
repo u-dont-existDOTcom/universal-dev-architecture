@@ -417,10 +417,12 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
 export function consumerControlSelectionState(currentModel, observation, controls) {
   const currentPolicy = controls && Object.keys(CURRENT_CONSUMER_CONTROLS).every((key) => controls[key] === CURRENT_CONSUMER_CONTROLS[key]);
   const legacyPolicy = controls && Object.keys(LEGACY_FIXED_CONSUMER_CONTROLS).every((key) => controls[key] === LEGACY_FIXED_CONSUMER_CONTROLS[key]);
-  if (!currentPolicy && !legacyPolicy) {
+  const calibratedPolicy = controls && Object.keys(controls).length === 3
+    && ['modelVisibleLabel', 'thinkingControlLabel', 'thinkingVisibleLabel'].every((key) => typeof controls[key] === 'string' && controls[key].length > 0);
+  if (!currentPolicy && !legacyPolicy && !calibratedPolicy) {
     throw new Error('Consumer controls do not match either the current top-model policy or the retained historical fixed disposition.');
   }
-  if (legacyPolicy) {
+  if (legacyPolicy || calibratedPolicy) {
     if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
     if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
   } else {
@@ -448,7 +450,7 @@ export function consumerControlSelectionState(currentModel, observation, control
     && Number.isInteger(observation.sliderMaximum)
     ? `${observation.sliderPosition - observation.sliderMinimum + 1} of ${observation.sliderMaximum - observation.sliderMinimum + 1}`
     : null;
-  if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
+  if (!calibratedPolicy && ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
   if (observation.powerStatusOrdinal != null && observation.powerStatusOrdinal !== ordinal) {
     throw new Error(`Visible thinking status ${observation.powerStatusOrdinal} disagrees with the slider position ${ordinal}.`);
   }
@@ -466,11 +468,11 @@ export function consumerControlSelectionState(currentModel, observation, control
     accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,
     backendModelIdentityClaimed: false,
   } : {
-    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED',
+    status: calibratedPolicy ? 'CALIBRATED_CONSUMER_CONTROLS_VERIFIED' : 'FIXED_CONSUMER_CONTROLS_VERIFIED',
     modelVisibleLabel: currentModel.label,
     thinkingControlLabel: observation.thinkingControlObservedLabel,
     thinkingVisibleLabel: observation.currentPowerLabel,
-    thinkingOrdinal: ordinal,
+    ...(calibratedPolicy ? {} : { thinkingOrdinal: ordinal }),
     accountPlanLabel: controls.accountPlanLabel,
     accountPlanRole: controls.accountPlanRole,
     accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,

@@ -83,7 +83,17 @@ try {
     maxNudges: config.runtime.stuckRecoveryMaxNudges,
     submitMessage: async (target, input) => submissionPacer.submit({
       context: await recoverySubmissionContext(config, stateStore, target, input, journalRecoverySessions),
-      submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => rawBrowser.submitExactMessage(target, { ...input, onBeforeSubmissionBoundary, onSubmissionBoundary }),
+      submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
+        const { onSubmissionBoundary: onJournalSubmissionBoundary, ...messageInput } = input;
+        return rawBrowser.submitExactMessage(target, {
+          ...messageInput,
+          onBeforeSubmissionBoundary,
+          onSubmissionBoundary: async (...args) => {
+            await onJournalSubmissionBoundary?.(...args);
+            return onSubmissionBoundary(...args);
+          },
+        });
+      },
     }),
     beforeRecoverySend: () => submissionPacer.assertReady(),
   });

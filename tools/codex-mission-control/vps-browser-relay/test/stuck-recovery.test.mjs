@@ -224,6 +224,46 @@ test('any model turn that remains actively generating gets same-chat continue an
   assert.equal(result.stuckRecovery.inspectedAssistantOutput, false);
 });
 
+test('separate generation waits receive distinct durable nudge keys', async () => {
+  const keys = [];
+  const browser = { waitForGenerationComplete: async () => { throw new Error('ChatGPT generation did not reach a stable complete UI state.'); } };
+  installStuckRecovery(browser, {
+    maxNudges: 1,
+    submitMessage: async (_target, input) => { keys.push(input.schedulerAttemptKey); return { startedAtObserved: '2026-09-28T12:00:00Z' }; },
+    stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
+    logger: { warn() {} },
+  });
+  for (let index = 0; index < 2; index += 1) {
+    await assert.rejects(() => browser.waitForGenerationComplete({ id: 'target-1' }, { expectedUrl: 'https://chatgpt.com/c/fake' }));
+  }
+  assert.deepEqual(keys, ['wait:1:nudge:1', 'wait:2:nudge:1']);
+});
+
+test('a journal recovery logger can keep conversation URLs out of recovery events', async () => {
+  const genericLogs = [];
+  const journalLogs = [];
+  let attempts = 0;
+  const browser = { waitForGenerationComplete: async () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+    return { status: 'complete' };
+  } };
+  installStuckRecovery(browser, {
+    submitMessage: async () => ({ startedAtObserved: '2026-09-28T12:00:00Z' }),
+    stopStalledGeneration: async () => ({ stoppedGeneration: true, inspectedAssistantOutput: false }),
+    inspectRecoverableControl: noRecoverableControl,
+    logger: { warn: (value) => genericLogs.push(value) },
+  });
+  await browser.waitForGenerationComplete({ id: 'target-1' }, {
+    expectedUrl: 'https://chatgpt.com/c/private-journal',
+    recoveryLogger: { warn: (value) => journalLogs.push(value) },
+    recoveryLogConversationUrl: false,
+  });
+  assert.equal(genericLogs.length, 0);
+  assert.equal(journalLogs.length, 1);
+  assert.doesNotMatch(journalLogs[0], /conversationUrl|private-journal/);
+});
+
 test('idle Continue controls are treated as unfinished without reading assistant output', async () => {
   let waits = 0;
   let inspections = 0;

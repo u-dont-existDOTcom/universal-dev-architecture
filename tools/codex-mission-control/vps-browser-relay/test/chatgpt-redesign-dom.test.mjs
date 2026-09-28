@@ -128,6 +128,19 @@ test('Extra High, 4 of 5 on the Power slider verifies the current consumer contr
   assert.equal(verified.thinkingOrdinal, '4 of 5');
 });
 
+test('the documented three-label journal calibration verifies exact controls', () => {
+  const controls = { modelVisibleLabel: 'Calibrated model button', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' };
+  const observation = {
+    menuFound: true, directMatchCount: 1, powerControlCount: 1, sliderCount: 1,
+    thinkingControlObservedLabel: 'Power', currentPowerLabel: 'Pro',
+    sliderPosition: 4, sliderMinimum: 1, sliderMaximum: 5,
+  };
+  const verified = consumerControlSelectionState({ label: 'Calibrated model button' }, observation, controls);
+  assert.equal(verified.status, 'CALIBRATED_CONSUMER_CONTROLS_VERIFIED');
+  assert.equal(verified.modelVisibleLabel, controls.modelVisibleLabel);
+  assert.equal(verified.thinkingVisibleLabel, controls.thinkingVisibleLabel);
+});
+
 test('the Power slider fails closed on the wrong effort or a status that disagrees with the slider', () => {
   const high = runInPage(MODEL_MENU_STATE_FN, page([composerForm({ open: true }), modelMenu({ position: 2, label: 'High' })]), [null, 'Thinking effort', 'Extra High']);
   assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'Latest', modelSelectorIndex: 0 }, high, CURRENT_CONSUMER_CONTROLS), /thinking label mismatch/);

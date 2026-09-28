@@ -93,8 +93,10 @@ export function installStuckRecovery(browser, {
   const submitFn = submitMessage;
   const stopFn = stopStalledGeneration ?? ((target, expectedUrl) => interruptStalledGeneration(browser, target, expectedUrl));
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
+  let logicalWaitSequence = 0;
 
   browser.waitForGenerationComplete = async (target, options) => {
+    const logicalWait = ++logicalWaitSequence;
     const allowGenericRecovery = options?.allowSameChatRecovery !== false;
     const recoveries = [];
     for (;;) {
@@ -106,7 +108,8 @@ export function installStuckRecovery(browser, {
             throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
           }
           if (beforeRecoverySend) await beforeRecoverySend();
-          const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
+          if (options?.beforeRecoverySend) await options.beforeRecoverySend();
+          const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
             source: 'RECOVERABLE_UI_CONTROL',
             controlLabel: control.controlLabel,
             interruption: { stoppedGeneration: false, stopReason: 'ALREADY_IDLE', inspectedAssistantOutput: false },
@@ -135,11 +138,13 @@ export function installStuckRecovery(browser, {
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
           if (beforeRecoverySend) await beforeRecoverySend();
+          if (options?.beforeRecoverySend) await options.beforeRecoverySend();
         } else {
           if (beforeRecoverySend) await beforeRecoverySend();
+          if (options?.beforeRecoverySend) await options.beforeRecoverySend();
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
         }
-        const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
+        const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
           source: systemsThinkingStall
             ? 'SYSTEMS_THINKING_MORE_THAN_USUAL'
             : (connectionInterruptedStall ? 'CONNECTION_INTERRUPTED' : (progressHeartbeatStall ? 'PROGRESS_HEARTBEAT_STALLED' : 'ACTIVE_GENERATION_TIMEOUT')),
@@ -183,14 +188,15 @@ export function isProgressHeartbeatStall(error) {
     || message.includes('CHATGPT_PROGRESS_HEARTBEAT_STALLED');
 }
 
-async function sendContinue(submitMessage, target, options, index, maxNudges, logger, context) {
+async function sendContinue(submitMessage, target, options, logicalWait, index, maxNudges, logger, context) {
   const recoveredAt = new Date().toISOString();
   const body = 'continue';
   const start = await submitMessage(target, {
     expectedUrl: options.expectedUrl,
     body,
     bodySha256: sha256(body),
-    schedulerAttemptKey: `nudge:${index}`,
+    schedulerAttemptKey: `wait:${logicalWait}:nudge:${index}`,
+    onSubmissionBoundary: options.onRecoverySubmissionBoundary,
   });
   const recovery = {
     index,
@@ -210,7 +216,7 @@ async function sendContinue(submitMessage, target, options, index, maxNudges, lo
     observedControl: recovery.observedControl,
     maxNudges,
     targetId: target.id,
-    conversationUrl: normalizeConversationUrl(options.expectedUrl),
+    ...(options.recoveryLogConversationUrl === false ? {} : { conversationUrl: normalizeConversationUrl(options.expectedUrl) }),
     assistantContentObserved: false,
   }));
   return recovery;

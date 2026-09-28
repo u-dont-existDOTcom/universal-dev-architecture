@@ -116,7 +116,7 @@ export class JournalWorkRunner {
     const providerSessionId = `provider-session:journal:${item.work_id}:${target.id}`;
     const started = await this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(target, item);
-    await this.browser.waitForGenerationComplete(target, { expectedUrl: started.conversationUrl ?? ROOT_URL, generationStarted: started.generationStarted });
+    await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, started.conversationUrl ?? ROOT_URL, started.generationStarted));
     return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
   }
 
@@ -125,7 +125,7 @@ export class JournalWorkRunner {
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
     const started = await this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(session.target, item);
-    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: true });
+    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.expectedUrl, true));
     return anchor;
   }
 
@@ -135,7 +135,7 @@ export class JournalWorkRunner {
     this.#assertSubmissionAllowance(state);
     const started = await this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(session.target, item);
-    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: true });
+    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.expectedUrl, true));
     return true;
   }
 
@@ -147,6 +147,20 @@ export class JournalWorkRunner {
         await this.#persist(state);
         return callbacks.onSubmissionBoundary?.(...args);
       },
+    };
+  }
+
+  #journalWaitOptions(state, expectedUrl, generationStarted) {
+    return {
+      expectedUrl,
+      generationStarted,
+      beforeRecoverySend: () => this.#assertSubmissionAllowance(state),
+      onRecoverySubmissionBoundary: async () => {
+        state.today.calls += 1;
+        await this.#persist(state);
+      },
+      recoveryLogger: this.logger,
+      recoveryLogConversationUrl: false,
     };
   }
 

@@ -249,6 +249,19 @@ test('each crossed provider submission is persisted and the allowance stops the 
   assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 2);
 });
 
+test('journal stuck-recovery submissions consume the persisted daily allowance', async (t) => {
+  const fixture = await makeFixture(t, {
+    answeredAt: Infinity,
+    settings: { dailyAllowance: 2 },
+    browserOptions: { recoverySubmissions: 1 },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'DAILY_ALLOWANCE_REACHED');
+  assert.equal(result.state.today.calls, 2);
+  assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 2);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1')]);
+});
+
 test('a failed import remains pending and is retried before dispatching more work', async (t) => {
   let importAttempt = 0;
   const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => {
@@ -315,7 +328,15 @@ class FakeBrowser {
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
   async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
-  async waitForGenerationComplete() { this.waits += 1; return { pageText: this.pageText }; }
+  async waitForGenerationComplete(_target, options) {
+    this.waits += 1;
+    if ((this.recoverySubmissions ?? 0) > 0) {
+      this.recoverySubmissions -= 1;
+      await options.beforeRecoverySend();
+      await options.onRecoverySubmissionBoundary();
+    }
+    return { pageText: this.pageText };
+  }
   async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
   async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
   async retryExactFailedContinue(_target, input) { await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
