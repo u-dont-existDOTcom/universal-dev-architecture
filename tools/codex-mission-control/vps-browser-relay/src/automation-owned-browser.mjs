@@ -322,9 +322,9 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.selectAppsForMessage(target, input);
   }
 
-  async detectJournalWriteConfirmation(target) {
+  async detectJournalWriteConfirmation(target, input) {
     await this.#assertOwned(target?.id);
-    return this.rawBrowser.detectJournalWriteConfirmation(target);
+    return this.rawBrowser.detectJournalWriteConfirmation(target, input);
   }
 
   async approveJournalWriteConfirmation(target, input) {

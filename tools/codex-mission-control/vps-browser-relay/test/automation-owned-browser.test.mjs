@@ -438,6 +438,22 @@ test('failed-Continue Retry applies the same exact provider rate-limit recovery'
   assert.equal(protocol.rateLimitDismissals, 1);
 });
 
+test('journal confirmation detection forwards the bound expected URL', async () => {
+  const raw = new FakeRawBrowser([page('owned', chatA, 7)]);
+  const calls = [];
+  raw.detectJournalWriteConfirmation = async (...args) => {
+    calls.push(args);
+    return { present: false };
+  };
+  const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatA) }));
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol: new FakeProtocol(raw) });
+
+  const result = await browser.detectJournalWriteConfirmation(raw.byId('owned'), { expectedUrl: chatA });
+
+  assert.deepEqual(result, { present: false });
+  assert.deepEqual(calls, [[raw.byId('owned'), { expectedUrl: chatA }]]);
+});
+
 class MemoryOwnershipStore {
   constructor(value) { this.value = value ? structuredClone(value) : null; }
   async read() { return this.value ? structuredClone(this.value) : null; }
