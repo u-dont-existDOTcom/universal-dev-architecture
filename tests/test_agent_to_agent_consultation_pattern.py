@@ -41,7 +41,8 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
 
     def test_the_route_is_read_only_and_bounded(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
-        self.assertIn("codex exec -s read-only", text)
+        self.assertIn('codex exec -s read-only -c web_search="disabled"', text)
+        self.assertIn("hosted tools such as web search count as network", text)
         self.assertIn('claude -p', text)
         self.assertIn('--tools ""', text)
         self.assertIn("Never include credentials or secrets", text)

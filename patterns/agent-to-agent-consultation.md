@@ -31,13 +31,13 @@ This adapts existing rules; it adds no new theory:
 
 ## Route
 
-Consult non-interactively, with the smallest packet that answers the question. The consulted agent gets read-only access and no network unless the question needs more. Never include credentials or secrets. Send private material only across a provider boundary already authorized for it (`patterns/cross-family-reasoning-check.md` → **Reviewer**).
+Consult non-interactively, with the smallest packet that answers the question. The consulted agent cannot write, and gets no network unless the question needs it; hosted tools such as web search count as network. A read-only sandbox can still let it read files outside the workspace, so on a machine that holds private data, limit its reads to the workspace where the tool allows it. Never include credentials or secrets. Send private material only across a provider boundary already authorized for it (`patterns/cross-family-reasoning-check.md` → **Reviewer**).
 
 Current bindings (update them when the tools change; `--help` on the installed version is the check):
 
 | Asking agent | Consulted agent | Command shape |
 |---|---|---|
-| Claude | Codex | `codex exec -s read-only --ephemeral --ignore-user-config -m <model> -c model_reasoning_effort="<effort>" -C <workspace> -o <answer-file> "<question>" < /dev/null` |
+| Claude | Codex | `codex exec -s read-only -c web_search="disabled" --ephemeral --ignore-user-config -m <model> -c model_reasoning_effort="<effort>" -C <workspace> -o <answer-file> "<question>" < /dev/null` |
 | Codex | Claude | `claude -p --model <model> --effort <effort> --tools "" --strict-mcp-config --no-session-persistence "<question>"` |
 
 - Use the model and effort the question needs; the routing rules in `patterns/work-model-and-effort-routing.md` apply.
@@ -64,4 +64,4 @@ Record one line in the task record or final answer: the consulted agent, its mod
 
 ## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 
-On 2026-09-28 Claude reported that Codex Cloud tasks created from the Codex CLI cannot pin a model, and that the laptop runner's sandbox has no network. Both claims were checked, the first in the CLI's source and the second with a sandbox test. The owner asked Codex, which answered from its own runtime, and then carried the answers between the two agents twice. Under this pattern, Claude would have stated the runtime of each claim and asked Codex directly before reporting. The deployment keeps its shared notes file on the owner's machine; its location stays in the private deployment notes, not in this repository.
+On 2026-09-28 Claude reported that Codex Cloud tasks created from the Codex CLI cannot pin a model, and that the laptop runner's sandbox has no network. Both claims were checked, the first in the CLI's source and the second with a sandbox test. The owner asked Codex, which answered from its own runtime, and then carried the answers between the two agents twice. Under this pattern, Claude would have stated the runtime of each claim and asked Codex directly before reporting. Later that day the route settled a runner question without the owner: Claude asked Codex how a caller can read back the model that served a `codex exec` run, and Codex's answer matched a test in the runner (no event carries the model, so the runner records the model it requested). The same test showed that the sandbox's "no network" covers the commands Codex runs, not its hosted web search, which is why the route now turns web search off. The deployment keeps its shared notes file on the owner's machine; its location stays in the private deployment notes, not in this repository.

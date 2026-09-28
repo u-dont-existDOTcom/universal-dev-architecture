@@ -52,6 +52,11 @@ Updated: 2026-09-28
 - Routed it from root `AGENTS.md`, `LESSON-INDEX.md` (entry 58) and
   `docs/INDEX.md`.
 - Added `tests/test_agent_to_agent_consultation_pattern.py`.
+- Used the Claude → Codex route once in the owner's runner (observed): Codex's
+  answer on reading back a run's model matched a direct test. The test also
+  showed that the read-only sandbox blocks the network of Codex's commands but
+  not its hosted web search; the route now adds `-c web_search="disabled"`,
+  which a runner test confirmed removes web search.
 
 ## Current checkpoint
 
