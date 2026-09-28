@@ -137,6 +137,13 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
       journalWorkConfig: { settings: { freshChatThreshold: 3, paceMs: 3_600_000 } }, env: {},
     }).maxLifetimeMs;
     assert.equal(maximalPacingJournal, journalLifetime - 4 * 60_000 + 4 * 3_600_000);
+    const recoveryHeavyJournal = relayCommandLockOptions('journal-work', {
+      config: await loadConfig({ ...base, MC_RELAY_STUCK_RECOVERY_MAX_NUDGES: '20' }),
+      journalWorkConfig: journalSettings, env: {},
+    }).maxLifetimeMs;
+    const recoveryHeavyDerived = 4 * 60_000 + 5 * 21 * (90_000 + 30_000 + 900_000) + 600_000;
+    assert.equal(recoveryHeavyJournal, recoveryHeavyDerived);
+    assert.ok(recoveryHeavyJournal > 24 * 60 * 60_000);
 
     // The review case: 60-minute Codex execution and 60-minute generation ceilings.
     const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });
@@ -158,11 +165,11 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     assert.equal(relayCommandLockOptions('once', { config: manyNudges, codexExecutionConfig: longCodex, env: {} }).maxLifetimeMs, ONE_SHOT_LOCK_CEILING_MS);
     assert.equal(ONE_SHOT_LOCK_CEILING_MS, 6 * 60 * 60_000);
 
-    // MC_RELAY_LOCK_MAX_MS stays an explicit override in either direction, within 1..86400000.
+    // MC_RELAY_LOCK_MAX_MS stays an explicit override in either direction, within the watchdog timer limit.
     assert.equal(oneShotLockLifetimeMs({ browser: long.browser, runtime: long.runtime, codexExecMaxTimeoutMs: 3_600_000, env: { MC_RELAY_LOCK_MAX_MS: '120000' } }), 120_000);
     assert.equal(relayCommandLockOptions('once', { config: manyNudges, codexExecutionConfig: longCodex, env: { MC_RELAY_LOCK_MAX_MS: '43200000' } }).maxLifetimeMs, 43_200_000);
-    for (const invalid of ['0', '86400001', '1.5', 'thirty-minutes']) {
-      assert.throws(() => relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOff, env: { MC_RELAY_LOCK_MAX_MS: invalid } }), /MC_RELAY_LOCK_MAX_MS must be an integer from 1 to 86400000/);
+    for (const invalid of ['0', '2147483648', '1.5', 'thirty-minutes']) {
+      assert.throws(() => relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOff, env: { MC_RELAY_LOCK_MAX_MS: invalid } }), /MC_RELAY_LOCK_MAX_MS must be an integer from 1 to 2147483647/);
     }
     // Service loops stay persistent and never depend on the one-shot override.
     for (const command of ['run', 'controller-run']) {

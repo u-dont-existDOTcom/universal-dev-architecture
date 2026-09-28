@@ -286,6 +286,25 @@ test('persisted work is reconciled and imported when its answer landed before a 
   assert.equal(fixture.importRuns(), 1);
 });
 
+test('an expired persisted attempt is counted before its current-work marker is cleared', async (t) => {
+  const current = { workId: 'opaque-1', rung: 'INITIAL', phase: 'READBACK' };
+  const fixture = await makeFixture(t, {
+    recordOverrides: { expires_at: '2026-09-28T11:59:00Z' },
+    initialState: {
+      current,
+      today: { date: '2026-09-28', answered: 0, calls: 1, expired: 2, waiting: 1 },
+      backoff: { level: 1, trigger: 'LISTING_FAILED', until: '2026-09-28T11:59:00.000Z' },
+    },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'EXPIRED');
+  assert.equal(result.state.today.expired, 3);
+  assert.equal(result.state.today.waiting, 0);
+  assert.equal(result.state.current, null);
+  assert.equal(fixture.browser.freshCount, 0);
+  assert.equal(fixture.dispatchRuns(), 1);
+});
+
 test('an unanswered persisted attempt reserves a new durable identity before a restart target', async (t) => {
   const fixture = await makeFixture(t, {
     settings: { freshChatThreshold: 1 },

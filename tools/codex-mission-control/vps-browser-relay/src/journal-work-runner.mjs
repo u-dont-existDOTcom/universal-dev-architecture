@@ -33,6 +33,13 @@ export class JournalWorkRunner {
       if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
       const persisted = listing.records.find((entry) => entry.work_id === state.current.workId);
       if (persisted?.answered) return this.#answered(persisted, state, state.current.rung);
+      if (persisted && this.now() >= Date.parse(persisted.expires_at)) {
+        state.today.expired += 1;
+        state.today.waiting = Math.max(0, state.today.waiting - 1);
+        state.current = null;
+        if (state.ownerAction?.workId === persisted.work_id) state.ownerAction = null;
+        return this.#finish(state, 'EXPIRED');
+      }
       // A fresh authoritative read may resolve paused work, but unresolved
       // operator action or backoff must not start a second delivery ladder.
       if (state.ownerAction) return this.#finish(state, 'OWNER_ACTION_REQUIRED');

@@ -7,6 +7,35 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `7ff6e3c` (2026-09-28)
+
+- Parent outcome: **SATISFIED**. Both review findings are valid and repaired at
+  the existing pull request's merge-ready boundary.
+- Journal-work lock sizing no longer clamps a valid recovery-heavy ladder to
+  24 hours. The bounded watchdog limit now matches Node's maximum timer delay,
+  a derived lifetime within that limit is returned intact, and a larger derived
+  lifetime is rejected rather than silently shortened. The explicit lock
+  override uses the same mechanically enforceable bound.
+- A persisted unanswered item is now checked for authoritative expiry before
+  any backoff or owner-action return and before `state.current` can be cleared.
+  Expiry increments `today.expired`, reduces the waiting count, clears the
+  matching stale owner action, and terminates the pass as `EXPIRED` without
+  opening another chat.
+- Direct regressions prove that the supported 20-nudge journal configuration
+  retains its roughly 30-hour derived lifetime and that an item expiring during
+  persisted readback backoff is counted before its current-work marker clears.
+  Focused journal-runner and state/client tests pass 60/60.
+- Completion gates are green: the relay suite passes 372/372 tests, repository
+  unit tests pass 467/467, and the deterministic repository audit reports no
+  findings.
+- Test-efficiency telemetry covered the focused regression run and every
+  required full-gate invocation, with no forced redundant green reruns.
+- Active assurance lane: **release**, because the owner explicitly requires
+  the existing pull request to remain merge-ready and names all three gates.
+- Stop admission: the requested review-finding repair has reached its evidenced
+  completion boundary; no independent implementation or validation action
+  remains in scope.
+
 ## PR #275 Codex review follow-up at `15c101b` (2026-09-28)
 
 - Parent outcome: **SATISFIED**. All four findings are valid; this review round

@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 // Ad-hoc library helpers (for example an authorized cadence test) keep a short default.
 export const HELPER_DEFAULT_LIFETIME_MS = 30 * 60_000;
-export const MAX_LOCK_LIFETIME_MS = 86_400_000;
+// Node timers clamp larger delays to 1 ms, so every bounded watchdog lifetime
+// (including derived journal ladders longer than one day) must fit this limit.
+export const MAX_LOCK_LIFETIME_MS = 2_147_483_647;
 // CLI one-shots derive their default from the configured operation ceilings plus
 // this margin (HTTP round trips, pacing/rate-limit waits, recovery idle waits,
 // provider-session projection and process shutdown) ...
@@ -111,7 +113,8 @@ export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold
   const maximumPacingDelayMs = 4 * paceMs;
   const derived = maximumPacingDelayMs + logicalSubmissions * browserTurnMs + ONE_SHOT_LOCK_MARGIN_MS;
   if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite journal-work relay lock lifetime from the configuration.');
-  return Math.min(derived, MAX_LOCK_LIFETIME_MS);
+  if (derived > MAX_LOCK_LIFETIME_MS) throw new Error(`Derived journal-work relay lock lifetime exceeds the supported ${MAX_LOCK_LIFETIME_MS} ms watchdog limit.`);
+  return derived;
 }
 
 const PERSISTENT_RELAY_COMMANDS = new Set(['run', 'controller-run']);

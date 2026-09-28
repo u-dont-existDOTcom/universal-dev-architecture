@@ -218,7 +218,7 @@ the exact owner's metadata; failed acquisition/double release cannot unlink a
 successor. CLI one-shots (including `once-exact`) release in `finally`; only
 explicit `run` and `controller-run` service modes use unbounded ownership, and
 `health-report` takes no exclusive lock so it never contends with the service. A one-shot can set
-`MC_RELAY_LOCK_MAX_MS` (1..86400000 ms) as an explicit override, shorter or
+`MC_RELAY_LOCK_MAX_MS` (1..2147483647 ms) as an explicit override, shorter or
 longer than the derived default, when its authorized operation requires a
 different bounded lifetime. The override never shortens global pacing or clears
 ambiguous send intents; after interruption the normal doctor/ledger gates still
