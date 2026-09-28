@@ -58,6 +58,9 @@ export class JournalClaudeWorker {
       : null;
     if (pendingWorkId) return this.#importAnswered(pendingWorkId);
     let listing;
+    let resumedItem = null;
+    let firstAttempt = 1;
+    let newlyExhausted = null;
     const inFlightWorkId = typeof prior?.in_flight?.work_id === 'string'
       ? prior.in_flight.work_id
       : null;
@@ -68,10 +71,25 @@ export class JournalClaudeWorker {
         this.commandRunner,
       );
       if (!listing.ok) return { status: 'LISTING_FAILED', workId: inFlightWorkId };
-      if (listing.records.find((entry) => entry.work_id === inFlightWorkId)?.answered === true) {
+      const inFlightItem = listing.records.find((entry) => entry.work_id === inFlightWorkId);
+      if (inFlightItem?.answered === true) {
         return this.#importAnswered(inFlightWorkId);
       }
-      await this.#clearInFlight(inFlightWorkId);
+      // A legacy marker without an attempt count cannot safely restart its budget.
+      const consumed = Number.isInteger(prior.in_flight.attempt)
+        && prior.in_flight.attempt >= 1 ? prior.in_flight.attempt : 2;
+      if (inFlightItem?.tier === 'hardest'
+        && Date.parse(inFlightItem.expires_at) > this.now()) {
+        if (consumed < 2) {
+          resumedItem = inFlightItem;
+          firstAttempt = consumed + 1;
+        } else {
+          await this.#clearInFlight(inFlightWorkId, inFlightItem.expires_at);
+          newlyExhausted = { work_id: inFlightWorkId, expires_at: inFlightItem.expires_at };
+        }
+      } else {
+        await this.#clearInFlight(inFlightWorkId);
+      }
     }
     if (Date.parse(prior?.paused_until ?? '') > this.now()) {
       return { status: 'LIMITED', pausedUntil: prior.paused_until };
@@ -83,7 +101,10 @@ export class JournalClaudeWorker {
       this.commandRunner,
     );
     if (!listing.ok) return { status: 'LISTING_FAILED' };
-    const priorExhausted = Array.isArray(prior?.exhausted) ? prior.exhausted : [];
+    const priorExhausted = [
+      ...(Array.isArray(prior?.exhausted) ? prior.exhausted : []),
+      ...(newlyExhausted ? [newlyExhausted] : []),
+    ];
     const exhausted = priorExhausted.filter((entry) =>
       Date.parse(entry?.expires_at) > this.now()
       && listing.records.some((record) => record.work_id === entry.work_id));
@@ -91,7 +112,7 @@ export class JournalClaudeWorker {
       await this.#updateSummary((summary) => ({ ...summary, exhausted }));
     }
     const exhaustedIds = new Set(exhausted.map((entry) => entry.work_id));
-    const item = listing.records
+    const item = resumedItem ?? listing.records
       .filter((entry) => entry.tier === 'hardest'
         && !entry.answered
         && !exhaustedIds.has(entry.work_id)
@@ -100,7 +121,7 @@ export class JournalClaudeWorker {
     if (!item) return { status: 'NO_WORK' };
 
     await this.#writeMcpConfig();
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
+    for (let attempt = firstAttempt; attempt <= 2; attempt += 1) {
       if (this.now() >= Date.parse(item.expires_at)) {
         return { status: 'EXPIRED', workId: item.work_id };
       }
@@ -108,7 +129,7 @@ export class JournalClaudeWorker {
       let result;
       await this.#updateSummary((summary) => ({
         ...summary,
-        in_flight: { work_id: item.work_id },
+        in_flight: { work_id: item.work_id, attempt },
       }));
       try {
         result = await this.#invoke(item.work_id);
@@ -131,11 +152,8 @@ export class JournalClaudeWorker {
             : result.is_error
               ? 'error'
               : 'unanswered';
-      if (refreshed.ok && !answered) {
-        await this.#clearInFlight(
-          item.work_id,
-          attempt === 2 && !result.limited ? item.expires_at : null,
-        );
+      if (refreshed.ok && !answered && attempt === 2) {
+        await this.#clearInFlight(item.work_id, item.expires_at);
       }
       await this.#record(result, outcome);
 

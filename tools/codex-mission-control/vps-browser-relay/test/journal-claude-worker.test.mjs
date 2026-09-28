@@ -306,7 +306,7 @@ test('an answered in-flight item is reconciled after a transient listing failure
   );
   assert.deepEqual(
     JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).in_flight,
-    { work_id: 'hard-1' },
+    { work_id: 'hard-1', attempt: 1 },
   );
 
   assert.deepEqual(
@@ -319,6 +319,33 @@ test('an answered in-flight item is reconciled after a transient listing failure
   const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
   assert.equal(summary.in_flight, undefined);
   assert.equal(summary.pending_import, undefined);
+});
+
+test('listing failures cannot reset the two-invocation budget for one work ID', async (t) => {
+  const listed = { exitCode: 0, stdout: `${JSON.stringify(record())}\n` };
+  const failed = { exitCode: 1, stdout: '' };
+  const fixture = await makeFixture(t, {
+    dispatchResponses: [listed, failed, listed, failed, listed, listed],
+  });
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'LISTING_FAILED', workId: 'hard-1' });
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).in_flight,
+    { work_id: 'hard-1', attempt: 1 },
+  );
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'LISTING_FAILED', workId: 'hard-1' });
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).in_flight,
+    { work_id: 'hard-1', attempt: 2 },
+  );
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'NO_WORK' });
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'NO_WORK' });
+  assert.equal(fixture.claudeRuns(), 2);
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).exhausted,
+    [{ work_id: 'hard-1', expires_at: '2026-09-28T14:00:00Z' }],
+  );
+  await fixture.assertContentFree();
 });
 
 test('Claude-triggered import uses independently owned state that survives later runner status writes', async (t) => {
