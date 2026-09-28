@@ -9,93 +9,112 @@ Updated: 2026-09-28
 
 ## Goal
 
-- Address the Codex review finding on the journal work runner pull request
-  (PR #275), reviewed at `0bc4b01`, keep all owner-required gates passing, and
-  commit the repair.
-- Parent outcome: **OPEN** pending completion gates, commit, and pull-request
-  update.
+- Implement `tools/codex-mission-control/vps-browser-relay/JOURNAL-CLAUDE-WORKER.md`
+  on `claude/mc-journal-claude-worker-20260928`, based on the journal work
+  runner as merged on current `main`.
+- Parent outcome: **SATISFIED** for the requested uncommitted implementation;
+  sandbox-incompatible process/socket coverage remains explicitly assigned to CI.
 
 ## Authority / baseline
 
-- Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`.
-- Requested branch: `claude/mc-journal-work-runner-20260928`; the task
-  environment exposes it locally as `work` at `0bc4b01` with no Git remote.
-- Active assurance lane: **release** because the owner requires the existing
-  pull request and all three completion gates to remain merge-ready.
-- Live default-branch `AGENTS.md` retrieval was attempted before task reasoning;
-  the raw GitHub endpoint returned HTTP 403. Current owner-supplied root and
-  local scoped instructions were loaded instead.
+- Current owner request: reuse the earlier worker implementation where it fits,
+  adapt it to the final merged runner, run all sandbox-compatible touched tests
+  and the standard-library repository gates, do not weaken tests for the
+  no-network/no-local-socket sandbox, and leave changes uncommitted/unpushed.
+- Canonical live default-branch `AGENTS.md` was retrieved successfully on
+  2026-09-28 before task reasoning. Root and scoped Mission Control instructions,
+  the task specification, declared gate configuration, lesson index, and
+  task-relevant patterns were loaded.
+- Baseline: task specification `767aa97` atop final runner `7475dd3`; compare
+  `origin/claude/mc-journal-claude-worker-20260928-first-build`.
+- Active assurance lane: **release/handoff candidate**, because the owner
+  explicitly requires the relay suite and both repository completion gates;
+  deployment and publication remain unauthorized.
+- Chat → Work requires explicit user acceptance; Work ↔ Work uses native
+  Work-internal coordination; Work → the originating Chat is unavailable.
+  Mission Control's autonomous control-plane routing of supervision and escalation
+  does not create a native return edge or transfer semantic reasoning authority.
+
+## Active lesson contract
+
+- **Privacy (mechanical):** persist only allowlisted metadata, never packet,
+  answer, Claude `result`, or `session_id`; the sentinel regression must pass.
+- **Runner composition (mechanical/semantic):** reuse its reader, timeout-aware
+  command runner, import sanitizer/status shape, and shared import-run lock.
+- **Explicit authority boundary (mechanical):** `journal-claude` performs no
+  work unless `MC_JOURNAL_CLAUDE_ENABLED=1`; no deploy, install, push, or service
+  mutation is authorized.
+- **Verification (mechanical):** focused tests, one full relay checkpoint, and
+  both repository gates; leave sandbox-incompatible coverage unchanged for CI.
+- **Continuation (semantic):** final delivery must disclose the exact sandbox
+  residuals and leave the working tree uncommitted, unpushed, and undeployed.
 
 ## Review finding disposition
 
-- **Finding accepted.** The runner's `MODEL_CAPACITY` classifier previously
-  recognized only message text containing `model unavailable` or `capacity`,
-  while the exact-model selector emitted generic `Exact model ...` failures.
-  A temporarily absent configured model therefore fell through to persistent
-  `OWNER_ACTION_REQUIRED` rather than capacity backoff.
-- Exact-model selection and post-selection verification now emit the structured
-  `CHATGPT_MODEL_UNAVAILABLE` code when the requested option count is zero.
-  Duplicate options remain an ambiguity failure rather than being mislabeled as
-  capacity.
-- The journal runner classifies that structured code as `MODEL_CAPACITY`, so the
-  existing persisted exponential backoff path handles temporary selector
-  disappearance.
-- Regression coverage proves both boundaries: the CDP selector emits the
-  structured code, and a runner control failure with that code produces growing
-  capacity backoff with no owner action. These tests fail on the reviewed
-  baseline because the code is neither emitted nor classified there.
-
-## Preserved architecture boundaries
-
-- Chat → Work requires explicit user acceptance; Work ↔ Work uses native
-  Work-internal coordination; Work → the originating Chat is unavailable.
-  Mission Control's autonomous control-plane routing of supervision and
-  escalation does not create a native return edge or transfer semantic
-  reasoning authority.
-- Production promotion is not authorized by this repair. Preserve the
-  repository-wide completion gate and owner-method controls.
-- No conversation content is inspected or persisted by this repair; only the
-  structural model-menu observation and its typed error cross the boundary.
-- Coverage-before-depth completion references remain active in
+- The earlier Claude-worker implementation and all three follow-up repair
+  commits were reviewed against the final merged runner. Applicable privacy,
+  configuration, stale-lock, status, and usage fixes were retained; obsolete
+  runner code was not transplanted.
+- Production promotion is not authorized; this task leaves an uncommitted,
+  undeployed working-tree candidate for the runner to collect.
+- Preserve the repository-wide coverage-before-depth completion gate at
   `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
   `tests/test_coverage_before_depth_pattern.py`.
 
-## Completed
-
-- Reproduced the unreachable capacity classification from the reviewed code.
-- Added structured exact-model unavailability signaling and runner
-  classification.
-- Added focused CDP and journal-runner regressions; focused verification passed
-  90/90.
-- Relay tests passed 418/418 and the repository suite passed 468/468. The
-  deterministic audit completed with no errors; its initial warning identified
-  the missing evidence section repaired below.
-
 ## Current checkpoint
 
-- Current step: review the final diff, commit, and update the pull request.
-- Test-efficiency telemetry: `.git/codex-test-efficiency/` task
-  `pr275-model-capacity`.
+1. Reconcile prior build with the final runner. **Complete.**
+2. Implement worker, shared lock, meter, status surface, examples/docs. **Complete.**
+3. Add and run sandbox-compatible specified regressions. **Complete.**
+4. Run full relay and both repository gates as far as the sandbox permits.
+   **Complete.**
+5. Review diff/evidence and preserve the uncommitted runner handoff. **Complete.**
+
+## Completed
+
+- Verified the clean requested baseline; loaded live/local authority and the
+  earlier implementation's four implementation/review commits.
+- Started test-efficiency telemetry before implementation.
+- Implemented the disabled Claude lane, content-free usage meter, loopback
+  status page, user-service/tunnel examples, and shared import lock against the
+  final runner's reader, timeouts, status schema, and import sanitizer.
+- Added every task-specification regression plus current-runner coverage for
+  the status role, import timeout budget, and legacy-lock recovery.
+- Reviewed the complete modified/untracked set, executable modes, documentation,
+  placeholder configuration, and secret-pattern scan; `git diff --check` passes.
+- Inspected the installed Claude CLI help. It exposes no documented
+  non-interactive plan-usage command, so the optional plan meter is omitted.
+
+## Remaining
+
+- CI should rerun the four relay files whose child-process diagnostics are
+  suppressed in this sandbox and the repository test that opens a loopback
+  socket. No source or test change is required for those environment residuals.
 
 ## Blockers / unresolved
 
 - No implementation or owner-decision blocker.
-- GitHub bootstrap/API access is unavailable from the current shell; use the
-  task environment's pull-request delivery tool after commit.
+- The sandbox cannot open local sockets and suppresses output from some nested
+  child processes. Tests were left unchanged; CI owns those remaining checks.
 
 ## Evidence / artifacts
 
-- Focused regression: 90/90 passed.
-- Relay completion gate: 418/418 passed.
-- Repository completion gate: 468/468 passed.
-- Deterministic audit: 0 errors; the checkpoint warning was repaired before
-  final audit rerun.
-
-## Remaining
-
-- Review the final diff, commit, and update the pull request.
+- New Claude-worker test file: PASS.
+- Affected runner/lock/config selections: PASS.
+- Relay syntax check: PASS.
+- Full relay checkpoint: 20/24 files passed; four process-heavy files are
+  sandbox-incomplete. The new worker file passed. Touched assertions outside
+  suppressed child-process diagnostics passed separately.
+- Exact repository unittest gate after checkpoint repair: 468 tests executed,
+  467 passed and the sole error is the expected `PermissionError` when
+  `test_chatgpt_storage_canary` creates `127.0.0.1` socket state.
+- Exact deterministic repository audit: PASS with no findings.
+- Test-efficiency telemetry: no forced redundant green reruns; final summary is
+  recorded in `/tmp/task4b-journal-claude-worker-test-efficiency.jsonl`.
 
 ## Next safe action
 
-- Review the complete patch before commit.
+- The repository runner may collect, commit, and push this working tree, then
+  let CI execute the sandbox-incompatible relay and socket coverage. Do not
+  deploy without separate owner approval naming that step.

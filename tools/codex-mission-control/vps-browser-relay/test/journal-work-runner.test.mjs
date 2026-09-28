@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand, withJournalRuntime, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
+import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand, runJournalImport, withJournalRuntime, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
 import { createContinueRecoveryAnchor } from '../src/continue-recovery.mjs';
 import { journalWorkSubmissionContext } from '../src/submission-context.mjs';
 import { sha256 } from '../src/core.mjs';
@@ -165,6 +165,8 @@ test('freshChatThreshold limits total fresh chats before recording owner action'
   const result = await fixture.runner.runPass();
   assert.equal(result.status, 'OWNER_ACTION_REQUIRED');
   assert.equal(result.state.ownerAction.code, 'ANSWER_NOT_OBSERVED');
+  assert.equal(result.state.current.role, 'extractor');
+  assert.equal(JSON.parse(await readFile(fixture.statusFile, 'utf8')).current.role, 'extractor');
   assert.equal(fixture.browser.freshCount, 4);
 });
 
@@ -801,6 +803,20 @@ test('concurrent answered passes serialize import runs', async (t) => {
   await Promise.all([fixture.runner.runPass(), fixture.runner.runPass()]);
   assert.equal(maximum, 1);
   assert.equal(fixture.importRuns(), 1);
+});
+
+test('a stale legacy import lock cannot strand later imports', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'stale-import-lock-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const lockFile = join(dir, 'import.lock');
+  await writeFile(lockFile, '99999999\n');
+  const result = await runJournalImport({
+    command: 'import',
+    timeoutMs: 1_000,
+    lockFile,
+    commandRunner: async () => ({ exitCode: 0, stdout: '{}' }),
+  });
+  assert.equal(result.exitCode, 0);
 });
 
 test('dispatch validation rejects extra, missing, wrongly typed, and invalid-time fields', () => {

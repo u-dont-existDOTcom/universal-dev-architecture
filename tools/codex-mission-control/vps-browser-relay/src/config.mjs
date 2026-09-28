@@ -153,6 +153,7 @@ export function loadJournalWorkConfig(env = process.env) {
     supervisorId: required(env.MC_JOURNAL_SUPERVISOR_ID, 'MC_JOURNAL_SUPERVISOR_ID'),
     stateFile: resolve(expandHome(env.MC_JOURNAL_STATE_FILE ?? `${stateDir}/journal-work-state.json`, home)),
     statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
+    importLockFile: resolve(expandHome(env.MC_JOURNAL_IMPORT_LOCK_FILE ?? `${stateDir}/journal-import-run.lock`, home)),
     dispatchTimeoutMs: integer(env.MC_JOURNAL_DISPATCH_TIMEOUT_MS, 60_000, 1_000, 900_000),
     importTimeoutMs: integer(env.MC_JOURNAL_IMPORT_TIMEOUT_MS, 300_000, 1_000, 900_000),
     settings: {
@@ -163,6 +164,52 @@ export function loadJournalWorkConfig(env = process.env) {
       freshChatThreshold: integer(env.MC_JOURNAL_FRESH_CHAT_THRESHOLD, 3, 1, 20),
     },
   };
+}
+
+export function loadJournalClaudeConfig(env = process.env) {
+  const home = homedir();
+  const stateDir = resolve(expandHome(env.MC_RELAY_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay`, home));
+  const enabled = env.MC_JOURNAL_CLAUDE_ENABLED === '1';
+  const dispatchCommand = enabled
+    ? required(env.MC_JOURNAL_DISPATCH_COMMAND, 'MC_JOURNAL_DISPATCH_COMMAND')
+    : (env.MC_JOURNAL_DISPATCH_COMMAND ?? '');
+  const importCommand = enabled
+    ? required(env.MC_JOURNAL_IMPORT_COMMAND, 'MC_JOURNAL_IMPORT_COMMAND')
+    : (env.MC_JOURNAL_IMPORT_COMMAND ?? '');
+  const workMcpCommand = jsonCommand(env.MC_JOURNAL_WORK_MCP_COMMAND_JSON);
+  if (enabled && !workMcpCommand.length) {
+    throw new Error('MC_JOURNAL_WORK_MCP_COMMAND_JSON is required when the Claude lane is enabled.');
+  }
+  return {
+    enabled,
+    dispatchCommand,
+    importCommand,
+    workMcpCommand,
+    claudeBin: env.MC_CLAUDE_BIN ?? 'claude',
+    model: env.MC_CLAUDE_MODEL ?? 'opus',
+    effort: env.MC_CLAUDE_EFFORT ?? 'max',
+    dispatchTimeoutMs: integer(env.MC_JOURNAL_DISPATCH_TIMEOUT_MS, 60_000, 1_000, 900_000),
+    importTimeoutMs: integer(env.MC_JOURNAL_IMPORT_TIMEOUT_MS, 300_000, 1_000, 900_000),
+    timeoutMs: integer(env.MC_CLAUDE_TIMEOUT_MS, 1_800_000, 1, 86_400_000),
+    limitBackoffMs: integer(env.MC_CLAUDE_LIMIT_BACKOFF_MS, 3_600_000, 1, 86_400_000),
+    stateDir,
+    statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
+    importLockFile: resolve(expandHome(env.MC_JOURNAL_IMPORT_LOCK_FILE ?? `${stateDir}/journal-import-run.lock`, home)),
+    workerLockFile: join(stateDir, 'journal-claude.lock'),
+    usageFile: join(stateDir, 'claude-usage.jsonl'),
+    summaryFile: join(stateDir, 'claude-usage-summary.json'),
+    mcpConfigFile: join(stateDir, 'journal-claude-mcp.json'),
+  };
+}
+
+function jsonCommand(value) {
+  if (!value) return [];
+  let parsed;
+  try { parsed = JSON.parse(value); } catch { throw new Error('MC_JOURNAL_WORK_MCP_COMMAND_JSON must be valid JSON.'); }
+  if (!Array.isArray(parsed) || !parsed.length || parsed.some((part) => typeof part !== 'string' || !part)) {
+    throw new Error('MC_JOURNAL_WORK_MCP_COMMAND_JSON must be a non-empty string array.');
+  }
+  return parsed;
 }
 
 export function loadCodexExecMissionControlConfig(env = process.env) {
