@@ -166,11 +166,16 @@ export function loadJournalWorkConfig(env = process.env) {
 export function loadJournalClaudeConfig(env = process.env) {
   const home = homedir();
   const stateDir = resolve(expandHome(env.MC_RELAY_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay`, home));
+  const enabled = env.MC_JOURNAL_CLAUDE_ENABLED === '1';
+  const dispatchCommand = enabled ? required(env.MC_JOURNAL_DISPATCH_COMMAND, 'MC_JOURNAL_DISPATCH_COMMAND') : (env.MC_JOURNAL_DISPATCH_COMMAND ?? '');
+  const importCommand = enabled ? required(env.MC_JOURNAL_IMPORT_COMMAND, 'MC_JOURNAL_IMPORT_COMMAND') : (env.MC_JOURNAL_IMPORT_COMMAND ?? '');
+  const workMcpCommand = jsonCommand(env.MC_JOURNAL_WORK_MCP_COMMAND_JSON);
+  if (enabled && !workMcpCommand.length) throw new Error('MC_JOURNAL_WORK_MCP_COMMAND_JSON is required when the Claude lane is enabled.');
   return {
-    enabled: env.MC_JOURNAL_CLAUDE_ENABLED === '1',
-    dispatchCommand: env.MC_JOURNAL_DISPATCH_COMMAND ?? '',
-    importCommand: env.MC_JOURNAL_IMPORT_COMMAND ?? '',
-    workMcpCommand: jsonCommand(env.MC_JOURNAL_WORK_MCP_COMMAND_JSON),
+    enabled,
+    dispatchCommand,
+    importCommand,
+    workMcpCommand,
     claudeBin: env.MC_CLAUDE_BIN ?? 'claude', model: env.MC_CLAUDE_MODEL ?? 'opus', effort: env.MC_CLAUDE_EFFORT ?? 'max',
     timeoutMs: integer(env.MC_CLAUDE_TIMEOUT_MS, 1_800_000, 1, 86_400_000), limitBackoffMs: integer(env.MC_CLAUDE_LIMIT_BACKOFF_MS, 3_600_000, 1, 86_400_000),
     stateDir, statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),

@@ -7,6 +7,48 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## Journal Claude worker Codex review round at `2675324` (2026-09-28)
+
+- Owner source and outcome: the 2026-09-28 owner message requires the four
+  Codex review findings on the journal Claude worker pull request to be
+  addressed when valid, each with a regression that fails on the reviewed
+  implementation, while preserving the no-network/no-package/no-test-weakening
+  constraints and leaving the working tree uncommitted and unpushed. Passing
+  checks alone, a written diagnosis, or changes without boundary-specific
+  regressions are non-satisfying proxies. The outcome is handled at the local
+  working-tree boundary; the runner owns commit/push and CI owns the
+  environment-blocked reruns.
+- Baseline: branch `claude/mc-journal-claude-worker-20260928`, reviewed at
+  commit `2675324` for pull request #277. The required live default-branch
+  GitHub bootstrap was unavailable because this sandbox has no network; the
+  checked-out authority chain and applicable nested instructions were loaded.
+  Assurance lane: release, because this is a pull-request review-completion
+  round with owner-declared repository gates.
+- All four findings were valid. The Claude worker now creates its configured
+  state directory before acquiring the worker lock, rechecks the selected
+  item's expiry immediately before each Claude invocation, captures the
+  sanitized import result, and merges `lastImport` into the shared content-free
+  status file without replacing existing runner fields. Enabled-lane config
+  loading now requires dispatch, import, and MCP commands while the disabled
+  lane continues to permit their omission.
+- Four boundary regressions were added to
+  `test/journal-claude-worker.test.mjs`. Against the reviewed implementation
+  the focused file failed; after the fixes it passes. The new cases verify
+  persisted import status plus preservation of runner status, fail-fast
+  enabled config, bootstrapping a previously absent state directory, and no
+  second invocation at or after expiry.
+- Verification: the focused journal Claude test file passes; `npm run check`
+  passes; and the deterministic repository audit reports no findings. The full
+  relay `npm test` reached every test file and the changed journal suite passed,
+  but three unrelated subprocess-heavy files failed with the sandbox's
+  previously documented nested-child/Node behavior, including Node's internal
+  callback assertion. The Python repository suite ran 467 tests: 466 passed,
+  and only the storage-canary HTTP test was blocked by the sandbox's loopback
+  socket denial (`PermissionError: [Errno 1] Operation not permitted`). No test
+  was changed or bypassed for the sandbox; the two environment-blocked full
+  gates remain for CI. No package installation, network access, deployment,
+  commit, or push occurred.
+
 ## Journal worker Codex review round (2026-09-28)
 
 - Baseline: branch `claude/mc-journal-claude-worker-20260928`, reviewed at

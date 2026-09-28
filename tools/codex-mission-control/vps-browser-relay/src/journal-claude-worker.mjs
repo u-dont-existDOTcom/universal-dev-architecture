@@ -14,6 +14,7 @@ export class JournalClaudeWorker {
 
   async runPass() {
     if (!this.config.enabled) return { status: 'DISABLED' };
+    await mkdir(this.config.stateDir, { recursive: true, mode: 0o700 });
     return (await withFileLock(this.config.workerLockFile, () => this.#runLocked())) ?? { status: 'LOCKED' };
   }
 
@@ -27,13 +28,19 @@ export class JournalClaudeWorker {
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at))[0];
     if (!item) return { status: 'NO_WORK' };
     for (let attempt = 1; attempt <= 2; attempt += 1) {
+      if (this.now() >= Date.parse(item.expires_at)) return { status: 'EXPIRED', workId: item.work_id };
       const result = await this.#invoke(item.work_id);
       const refreshed = await readJournalListing(this.config.dispatchCommand, this.commandRunner);
       const answered = refreshed.ok && refreshed.records.find((entry) => entry.work_id === item.work_id)?.answered === true;
       const outcome = answered ? 'answered' : result.limited ? 'limited' : result.timeout ? 'timeout' : result.is_error ? 'error' : 'unanswered';
       await this.#record(result, outcome);
       if (answered) {
-        await runJournalImport({ command: this.config.importCommand, lockFile: this.config.importLockFile, commandRunner: this.commandRunner });
+        const summary = await runJournalImport({ command: this.config.importCommand, lockFile: this.config.importLockFile, commandRunner: this.commandRunner });
+        const status = await readSummary(this.config.statusFile);
+        await atomicJson(this.config.statusFile, {
+          ...(status && typeof status === 'object' && !Array.isArray(status) ? status : {}),
+          lastImport: { at: new Date(this.now()).toISOString(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residualCounts: summary.residualCounts, hardestSentToday: summary.hardestSentToday, hardestDailyLimit: summary.hardestDailyLimit },
+        });
         return { status: 'ANSWERED', workId: item.work_id };
       }
       if (result.limited) return { status: 'LIMITED', pausedUntil: result.resetAt };
