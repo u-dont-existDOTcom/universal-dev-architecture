@@ -83,9 +83,18 @@ export class JournalClaudeWorker {
       this.commandRunner,
     );
     if (!listing.ok) return { status: 'LISTING_FAILED' };
+    const priorExhausted = Array.isArray(prior?.exhausted) ? prior.exhausted : [];
+    const exhausted = priorExhausted.filter((entry) =>
+      Date.parse(entry?.expires_at) > this.now()
+      && listing.records.some((record) => record.work_id === entry.work_id));
+    if (exhausted.length !== priorExhausted.length) {
+      await this.#updateSummary((summary) => ({ ...summary, exhausted }));
+    }
+    const exhaustedIds = new Set(exhausted.map((entry) => entry.work_id));
     const item = listing.records
       .filter((entry) => entry.tier === 'hardest'
         && !entry.answered
+        && !exhaustedIds.has(entry.work_id)
         && Date.parse(entry.expires_at) > this.now())
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at))[0];
     if (!item) return { status: 'NO_WORK' };
@@ -122,7 +131,12 @@ export class JournalClaudeWorker {
             : result.is_error
               ? 'error'
               : 'unanswered';
-      if (refreshed.ok && !answered) await this.#clearInFlight(item.work_id);
+      if (refreshed.ok && !answered) {
+        await this.#clearInFlight(
+          item.work_id,
+          attempt === 2 && !result.limited ? item.expires_at : null,
+        );
+      }
       await this.#record(result, outcome);
 
       if (answered) return this.#importAnswered(item.work_id);
@@ -245,15 +259,21 @@ export class JournalClaudeWorker {
     if (isRecord(prior?.last_import)) summary.last_import = prior.last_import;
     if (isRecord(prior?.pending_import)) summary.pending_import = prior.pending_import;
     if (isRecord(prior?.in_flight)) summary.in_flight = prior.in_flight;
+    if (Array.isArray(prior?.exhausted)) summary.exhausted = prior.exhausted;
     await atomicJson(this.config.summaryFile, summary);
     this.logger.log({ status: outcome.toUpperCase(), at: event.at });
   }
 
-  async #clearInFlight(workId) {
+  async #clearInFlight(workId, exhaustedUntil = null) {
     await this.#updateSummary((summary) => {
-      if (summary.in_flight?.work_id !== workId) return summary;
       const next = { ...summary };
-      delete next.in_flight;
+      if (next.in_flight?.work_id === workId) delete next.in_flight;
+      if (exhaustedUntil) {
+        next.exhausted = [
+          ...(Array.isArray(next.exhausted) ? next.exhausted : []),
+          { work_id: workId, expires_at: exhaustedUntil },
+        ];
+      }
       return next;
     });
   }

@@ -122,6 +122,43 @@ test('Claude output never counts as done without answered listing; second run be
   await fixture.assertContentFree();
 });
 
+test('exhausted work IDs stay suppressed until they disappear or expire', async (t) => {
+  let current = NOW;
+  let records = [
+    record(),
+    { ...record(), work_id: 'hard-2', issued_at: '2026-09-28T10:01:00Z' },
+  ];
+  const fixture = await makeFixture(t, {
+    now: () => current,
+    dispatchRecords: () => records,
+  });
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'UNANSWERED', workId: 'hard-1' });
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'UNANSWERED', workId: 'hard-2' });
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'NO_WORK' });
+  assert.equal(fixture.claudeRuns(), 4);
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).exhausted,
+    [
+      { work_id: 'hard-1', expires_at: '2026-09-28T14:00:00Z' },
+      { work_id: 'hard-2', expires_at: '2026-09-28T14:00:00Z' },
+    ],
+  );
+
+  records = [record()];
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'NO_WORK' });
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).exhausted,
+    [{ work_id: 'hard-1', expires_at: '2026-09-28T14:00:00Z' }],
+  );
+
+  current = Date.parse('2026-09-28T14:00:00Z');
+  records = [record(false, '2026-09-28T16:00:00Z')];
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'UNANSWERED', workId: 'hard-1' });
+  assert.equal(fixture.claudeRuns(), 6);
+  await fixture.assertContentFree();
+});
+
 test('timeout kills the entire detached process group', { skip: process.platform === 'win32' }, async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'claude-timeout-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -532,6 +569,7 @@ test('worker does nothing unless explicitly enabled', async (t) => {
 async function makeFixture(t, {
   answeredAt = Infinity,
   dispatchResponses = null,
+  dispatchRecords = null,
   result = {},
   importResult = {},
   importResponses = null,
@@ -587,7 +625,8 @@ process.stdout.write(require('node:fs').readFileSync(${JSON.stringify(resultFile
       if (dispatchResponses) return dispatchResponses[dispatches - 1];
       return {
         exitCode: 0,
-        stdout: `${JSON.stringify(record(dispatches >= answeredAt, expiresAt))}\n`,
+        stdout: `${(dispatchRecords?.() ?? [record(dispatches >= answeredAt, expiresAt)])
+          .map((entry) => JSON.stringify(entry)).join('\n')}\n`,
       };
     }
     imports += 1;
