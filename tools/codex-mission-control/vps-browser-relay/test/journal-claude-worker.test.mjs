@@ -53,6 +53,16 @@ test('usage limit without a reset uses configured backoff', async (t) => {
   assert.equal((await fixture.worker.runPass()).pausedUntil, '2026-09-28T13:00:00.000Z');
 });
 
+test('an answered listing imports before honoring the same run usage limit', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: 2, result: { is_error: true, result: 'usage limit reached; resets 2026-09-28T14:30:00Z' } });
+  assert.equal((await fixture.worker.runPass()).status, 'ANSWERED');
+  assert.equal(fixture.imports(), 1);
+  assert.equal((await fixture.worker.runPass()).status, 'LIMITED');
+  assert.equal(fixture.claudeRuns(), 1);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.deepEqual([summary.today_utc.items_answered, summary.today_utc.limit_events, summary.paused_until], [1, 1, '2026-09-28T14:30:00.000Z']);
+});
+
 test('journal imports share one import-run lock', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'import-lock-')); t.after(() => rm(dir, { recursive: true, force: true }));
   let active = 0; let maximum = 0;
@@ -78,6 +88,12 @@ test('status page renders only allowed fields', async (t) => {
   const page = await renderStatusPage(dir); assert.match(page, /writer/); assert.match(page, /Hardest sent today/); assert.doesNotMatch(page, new RegExp(SENTINEL));
 });
 
+test('status service uses the supported installed relay paths', async () => {
+  const unit = await readFile(new URL('../systemd/user/mission-control-status.service', import.meta.url), 'utf8');
+  assert.match(unit, /^EnvironmentFile=%h\/\.config\/mission-control-chatgpt-relay\/env$/m);
+  assert.match(unit, /^ExecStart=%h\/\.local\/share\/mission-control-chatgpt-relay\/app\/bin\/mc-status\.mjs$/m);
+});
+
 test('worker does nothing unless explicitly enabled', async (t) => {
   const fixture = await makeFixture(t, { enabled: false });
   assert.deepEqual(await fixture.worker.runPass(), { status: 'DISABLED' }); assert.equal(fixture.dispatches(), 0); assert.equal(fixture.claudeRuns(), 0);
@@ -92,6 +108,10 @@ async function makeFixture(t, { answeredAt = Infinity, result = {}, enabled = tr
   const config = { enabled, dispatchCommand: 'dispatch', importCommand: 'import', workMcpCommand: ['node', '/private/work-server.mjs'], claudeBin: fake, model: 'opus', effort: 'max', timeoutMs: 2_000, limitBackoffMs: 3_600_000, stateDir: dir, statusFile: join(dir, 'journal-work-status.json'), importLockFile: join(dir, 'import.lock'), workerLockFile: join(dir, 'worker.lock'), usageFile: join(dir, 'claude-usage.jsonl'), summaryFile: join(dir, 'claude-usage-summary.json'), mcpConfigFile: join(dir, 'mcp.json') };
   let dispatches = 0; let imports = 0; let claudeRuns = 0;
   const commandRunner = async (command) => { if (command === 'dispatch') { dispatches += 1; return { exitCode: 0, stdout: `${JSON.stringify(record(dispatches >= answeredAt))}\n` }; } imports += 1; return { exitCode: 0, stdout: '{}' }; };
-  const worker = new JournalClaudeWorker({ config, commandRunner, claudeRunner: async (...args) => { claudeRuns += 1; return runClaude(...args); }, now: () => NOW, logger: { log() {} } });
+  const worker = new JournalClaudeWorker({ config, commandRunner, claudeRunner: async (...args) => {
+    claudeRuns += 1;
+    const execution = await runClaude(...args);
+    return execution.stdout ? execution : { ...execution, stdout: await readFile(resultFile, 'utf8') };
+  }, now: () => NOW, logger: { log() {} } });
   return { worker, config, argsFile, imports: () => imports, dispatches: () => dispatches, claudeRuns: () => claudeRuns, assertContentFree: async () => { const content = await Promise.all([config.usageFile, config.summaryFile, config.statusFile].map((path) => readFile(path, 'utf8').catch(() => ''))); assert.doesNotMatch(content.join('\n'), new RegExp(SENTINEL)); } };
 }

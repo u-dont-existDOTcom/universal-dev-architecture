@@ -3,8 +3,8 @@ Description=Mission Control read-only journal status
 
 [Service]
 Type=simple
-EnvironmentFile=%h/.config/mission-control-chatgpt-relay/relay.env
-ExecStart=/usr/bin/node %h/mission-control/vps-browser-relay/bin/mc-status.mjs
+EnvironmentFile=%h/.config/mission-control-chatgpt-relay/env
+ExecStart=%h/.local/share/mission-control-chatgpt-relay/app/bin/mc-status.mjs
 Restart=on-failure
 NoNewPrivileges=true
 PrivateTmp=true

@@ -30,13 +30,13 @@ export class JournalClaudeWorker {
       const result = await this.#invoke(item.work_id);
       const refreshed = await readJournalListing(this.config.dispatchCommand, this.commandRunner);
       const answered = refreshed.ok && refreshed.records.find((entry) => entry.work_id === item.work_id)?.answered === true;
-      const outcome = result.limited ? 'limited' : result.timeout ? 'timeout' : answered ? 'answered' : result.is_error ? 'error' : 'unanswered';
+      const outcome = answered ? 'answered' : result.limited ? 'limited' : result.timeout ? 'timeout' : result.is_error ? 'error' : 'unanswered';
       await this.#record(result, outcome);
-      if (result.limited) return { status: 'LIMITED', pausedUntil: result.resetAt };
       if (answered) {
         await runJournalImport({ command: this.config.importCommand, lockFile: this.config.importLockFile, commandRunner: this.commandRunner });
         return { status: 'ANSWERED', workId: item.work_id };
       }
+      if (result.limited) return { status: 'LIMITED', pausedUntil: result.resetAt };
       if (attempt === 2) return { status: outcome.toUpperCase(), workId: item.work_id };
     }
   }
@@ -76,9 +76,9 @@ export class JournalClaudeWorker {
 export function buildUsageSummary(events, nowMs = Date.now()) {
   const today = new Date(nowMs).toISOString().slice(0, 10);
   const since = nowMs - (7 * 86_400_000);
-  const aggregate = (selected) => selected.reduce((sum, event) => ({ runs: sum.runs + 1, items_answered: sum.items_answered + (event.outcome === 'answered' ? 1 : 0), input_tokens: sum.input_tokens + number(event.input_tokens), output_tokens: sum.output_tokens + number(event.output_tokens), cache_read_input_tokens: sum.cache_read_input_tokens + number(event.cache_read_input_tokens), cache_creation_input_tokens: sum.cache_creation_input_tokens + number(event.cache_creation_input_tokens), cost_usd_equivalent: sum.cost_usd_equivalent + number(event.cost_usd_equivalent), limit_events: sum.limit_events + (event.outcome === 'limited' ? 1 : 0) }), { runs: 0, items_answered: 0, input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, cost_usd_equivalent: 0, limit_events: 0 });
+  const aggregate = (selected) => selected.reduce((sum, event) => ({ runs: sum.runs + 1, items_answered: sum.items_answered + (event.outcome === 'answered' ? 1 : 0), input_tokens: sum.input_tokens + number(event.input_tokens), output_tokens: sum.output_tokens + number(event.output_tokens), cache_read_input_tokens: sum.cache_read_input_tokens + number(event.cache_read_input_tokens), cache_creation_input_tokens: sum.cache_creation_input_tokens + number(event.cache_creation_input_tokens), cost_usd_equivalent: sum.cost_usd_equivalent + number(event.cost_usd_equivalent), limit_events: sum.limit_events + (event.outcome === 'limited' || event.resume_at ? 1 : 0) }), { runs: 0, items_answered: 0, input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, cost_usd_equivalent: 0, limit_events: 0 });
   const valid = events.filter((event) => Number.isFinite(Date.parse(event.at)));
-  const paused = valid.filter((event) => event.outcome === 'limited' && Date.parse(event.resume_at) > nowMs).at(-1)?.resume_at ?? null;
+  const paused = valid.filter((event) => Date.parse(event.resume_at) > nowMs).at(-1)?.resume_at ?? null;
   return { generated_at: new Date(nowMs).toISOString(), today_utc: aggregate(valid.filter((event) => event.at.slice(0, 10) === today)), last_seven_days: aggregate(valid.filter((event) => Date.parse(event.at) >= since && Date.parse(event.at) <= nowMs)), paused_until: paused, cost_label: 'USD equivalent reported by Claude Code; not a subscription charge' };
 }
 

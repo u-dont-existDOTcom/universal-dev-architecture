@@ -7,6 +7,35 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## Journal worker Codex review round (2026-09-28)
+
+- Baseline: branch `claude/mc-journal-claude-worker-20260928`, reviewed at
+  `bf42937f5de3a7e9bd16da9d4c678c2ced117bba` for pull request #277.
+- All three review findings were valid and are addressed in the working tree:
+  journal worker/import locks now reuse the relay's kernel-backed `RelayLock`,
+  whose exact PID/start-ticks/boot identity makes dead owners recoverable; the
+  legacy plain-PID journal lock format is recognized so a stale pre-fix lock is
+  recovered under the same kernel guard. The Claude lane now imports whenever
+  the authoritative refreshed listing says `answered`, even if the same CLI
+  result also reports a usage limit; the answer and limit are both retained in
+  the usage summary so later sends remain paused. The status user unit now uses
+  `%h/.config/mission-control-chatgpt-relay/env` and the installed
+  `%h/.local/share/mission-control-chatgpt-relay/app/bin/mc-status.mjs`.
+- Regression coverage was added at each boundary: stale legacy lock recovery
+  through `runJournalImport`, answered-plus-limited import/pause/accounting,
+  and exact installed status-unit paths. The two journal test files pass.
+- Current-sandbox validation evidence: the deterministic repository audit
+  passes with no findings. The Python repository suite ran 467 tests; 466
+  passed and the storage-canary HTTP test was blocked because this sandbox
+  denies loopback socket creation (`PermissionError: [Errno 1] Operation not
+  permitted`). The exact relay `npm test` command reached all test files and
+  the journal files passed, but three unrelated subprocess-heavy files failed:
+  this sandbox suppresses stdout/stderr captured from nested child processes,
+  and its bundled Node v26 also hit an internal callback assertion. Isolated
+  probes reproduced the empty nested-child output independently of the changed
+  code. Re-run both exact suites in the runner's ordinary Linux environment;
+  no package installation or network access is required.
+
 ## Journal work runner implementation checkpoint (2026-09-28)
 
 - The current `work` branch implements the specified, undeployed InnerSignal

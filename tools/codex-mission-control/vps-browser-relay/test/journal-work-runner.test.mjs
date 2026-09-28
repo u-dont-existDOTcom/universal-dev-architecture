@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord } from '../src/journal-work-runner.mjs';
+import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runJournalImport } from '../src/journal-work-runner.mjs';
 
 const SENTINEL = 'PRIVATE-JOURNAL-TEXT-SENTINEL';
 const now = Date.parse('2026-09-28T12:00:00Z');
@@ -105,6 +105,19 @@ test('concurrent answered passes serialize import runs', async (t) => {
   assert.equal(fixture.importRuns(), 1);
 });
 
+test('a stale legacy lock file cannot strand later imports', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'stale-import-lock-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const lockFile = join(dir, 'import.lock');
+  await writeFile(lockFile, '99999999\n');
+  let rescued = false;
+  const rescue = setTimeout(() => { rescued = true; void rm(lockFile, { force: true }); }, 500);
+  try {
+    const result = await runJournalImport({ command: 'import', lockFile, commandRunner: async () => ({ exitCode: 0, stdout: '{}' }) });
+    assert.equal(result.exitCode, 0);
+    assert.equal(rescued, false);
+  } finally { clearTimeout(rescue); }
+});
+
 test('dispatch validation rejects extra, missing, wrongly typed, and invalid-time fields', () => {
   assert.deepEqual(parseDispatchRecord(JSON.stringify(record())).work_id, 'opaque-1');
   for (const value of [{ ...record(), secret: SENTINEL }, { ...record(), role: undefined }, { ...record(), answered: 'false' }, { ...record(), expires_at: 'never' }]) {
@@ -115,7 +128,7 @@ test('dispatch validation rejects extra, missing, wrongly typed, and invalid-tim
 async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, onContinue, memoryReader, initialState, dispatchResult, importHandler } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'journal-work-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const stateFile = join(dir, 'state.json'); const statusFile = join(dir, 'status.json');
-  if (initialState) await import('node:fs/promises').then(({ writeFile }) => writeFile(stateFile, JSON.stringify(initialState)));
+  if (initialState) await writeFile(stateFile, JSON.stringify(initialState));
   const browser = new FakeBrowser({ pageText, ...browserOptions, onContinue });
   let dispatches = 0; let imports = 0;
   const commandRunner = async (command) => {

@@ -34,7 +34,8 @@ function metadata(lockFile) {
     const stat = lstatSync(lockFile);
     if (!stat.isFile() || stat.size > 16_384) throw new Error('Invalid lock metadata file.');
     const raw = readFileSync(lockFile, 'utf8');
-    const owner = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const owner = Number.isSafeInteger(parsed) ? { pid: parsed } : parsed;
     if (!Number.isSafeInteger(owner.pid) || owner.pid <= 0) throw new Error('Invalid lock owner PID.');
     const identity = processIdentity(owner.pid);
     const dead = !identity || identity.state === 'Z' || identity.state === 'X';

@@ -1,8 +1,9 @@
 import { exec as execCallback } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { sha256 } from './core.mjs';
+import { RelayLock } from './relay-lock.mjs';
 
 const exec = promisify(execCallback);
 const ROOT_URL = 'https://chatgpt.com/';
@@ -184,14 +185,21 @@ export async function runJournalImport({ command, lockFile, commandRunner = runC
 
 export async function withFileLock(lockFile, operation, { wait = false } = {}) {
   if (!lockFile) return operation();
-  await mkdir(dirname(lockFile), { recursive: true, mode: 0o700 });
-  let handle;
+  let lock;
   for (;;) {
-    try { handle = await open(lockFile, 'wx', 0o600); break; }
-    catch (error) { if (error?.code !== 'EEXIST') throw error; if (!wait) return null; await delay(50); }
+    const candidate = new RelayLock(lockFile);
+    try {
+      await candidate.acquire({ taskId: 'journal:shared-operation', persistent: true });
+      lock = candidate;
+      break;
+    } catch (error) {
+      if (error?.code !== 'RELAY_LOCK_BUSY') throw error;
+      if (!wait) return null;
+      await delay(50);
+    }
   }
-  try { await handle.writeFile(`${process.pid}\n`); return await operation(); }
-  finally { await handle.close(); await rm(lockFile, { force: true }); }
+  try { return await operation(); }
+  finally { lock.release(); }
 }
 
 function sanitizeImportResult(result) {
