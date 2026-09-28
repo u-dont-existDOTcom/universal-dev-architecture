@@ -471,6 +471,33 @@ test('journal stuck-recovery submissions consume the persisted daily allowance',
   assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1')]);
 });
 
+test('journal stuck-recovery logs omit browser target identities', async (t) => {
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    browserOptions: { recoveryLogTargetId: 'private-cdp-target-id' },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.equal(fixture.warnLogs.length, 1);
+  assert.doesNotMatch(fixture.warnLogs[0], /targetId|private-cdp-target-id|conversationUrl/);
+  assert.equal(JSON.parse(fixture.warnLogs[0]).event, 'chat_generation_stuck_continue_sent');
+});
+
+test('every backoff keeps only the newest 200 outcome records', async (t) => {
+  const outcomes = Array.from({ length: 200 }, (_, index) => ({ outcome: 'OLDER', index }));
+  const fixture = await makeFixture(t, {
+    initialState: { outcomes },
+    memoryReader: async () => ({ pressure: 'SOFT' }),
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.outcomes.length, 200);
+  assert.equal(result.state.outcomes[0].index, 1);
+  assert.deepEqual(result.state.outcomes.at(-1), {
+    outcome: 'BACKOFF', trigger: 'MEMORY_PRESSURE', at: '2026-09-28T12:00:00.000Z',
+  });
+  assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).outcomes.length, 200);
+});
+
 test('a failed import remains pending and is retried before dispatching more work', async (t) => {
   let importAttempt = 0;
   const fixture = await makeFixture(t, { answeredAt: 3, importHandler: async () => {
@@ -526,9 +553,9 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
     if (command === 'dispatch') { dispatches += 1; if (dispatchHandler) return dispatchHandler(dispatches); if (dispatchResult) return dispatchResult; return { exitCode: 0, stdout: `${JSON.stringify(record({ ...recordOverrides, answered: dispatches >= answeredAt }))}\n` }; }
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
-  const logs = []; const submissions = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value) } });
-  return { runner, browser, stateFile, statusFile, logs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
+  const logs = []; const warnLogs = []; const submissions = [];
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
+  return { runner, browser, stateFile, statusFile, logs, warnLogs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
 class FakeBrowser {
@@ -550,6 +577,10 @@ class FakeBrowser {
       await options.beforeRecoverySend();
       await options.onRecoverySubmissionBoundary();
     }
+    if (this.recoveryLogTargetId) options.recoveryLogger.warn(JSON.stringify({
+      time: '2026-09-28T12:00:00.000Z', event: 'chat_generation_stuck_continue_sent', recoveryIndex: 1,
+      targetId: this.recoveryLogTargetId, conversationUrl: options.expectedUrl,
+    }));
     return { pageText: this.pageText };
   }
   async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }

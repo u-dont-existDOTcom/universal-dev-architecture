@@ -7,6 +7,7 @@ import { sha256 } from './core.mjs';
 const exec = promisify(execCallback);
 const ROOT_URL = 'https://chatgpt.com/';
 const CONTINUE_BODY = 'Continue.';
+const MAX_OUTCOMES = 200;
 const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier', 'issued_at', 'expires_at', 'answered'];
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
@@ -219,8 +220,20 @@ export class JournalWorkRunner {
         state.today.calls += 1;
         await this.#persist(state);
       },
-      recoveryLogger: this.logger,
+      recoveryLogger: this.#journalRecoveryLogger(),
       recoveryLogConversationUrl: false,
+    };
+  }
+
+  #journalRecoveryLogger() {
+    return {
+      warn: (value) => {
+        let event;
+        try { event = JSON.parse(value); } catch { return; }
+        if (!event || typeof event !== 'object' || Array.isArray(event)) return;
+        const { targetId: _targetId, conversationUrl: _conversationUrl, ...contentFreeEvent } = event;
+        this.logger.warn?.(JSON.stringify(contentFreeEvent));
+      },
     };
   }
 
@@ -266,7 +279,7 @@ export class JournalWorkRunner {
     const { workId, rung } = state.current;
     state.today.answered += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
     state.outcomes.push({ workId, outcome: 'ANSWERED', rung, at: this.#iso() });
-    state.outcomes = state.outcomes.slice(-200); state.current = null; state.backoff = { level: 0, until: null, trigger: null }; state.ownerAction = null;
+    state.outcomes = state.outcomes.slice(-MAX_OUTCOMES); state.current = null; state.backoff = { level: 0, until: null, trigger: null }; state.ownerAction = null;
     return this.#finish(state, 'ANSWERED');
   }
 
@@ -290,6 +303,7 @@ export class JournalWorkRunner {
     const delayMs = schedulerDelay ?? Math.min(state.settings.backoffBaseMs * (2 ** (level - 1)), state.settings.backoffMaxMs);
     state.backoff = { level, trigger, until: new Date(this.now() + delayMs).toISOString() };
     state.outcomes.push({ outcome: 'BACKOFF', trigger, at: this.#iso() });
+    state.outcomes = state.outcomes.slice(-MAX_OUTCOMES);
     return this.#finish(state, 'BACKING_OFF');
   }
 
