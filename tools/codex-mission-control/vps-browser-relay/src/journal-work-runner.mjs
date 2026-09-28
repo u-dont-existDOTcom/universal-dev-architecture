@@ -37,12 +37,14 @@ export class JournalWorkRunner {
       // operator action or backoff must not start a second delivery ladder.
       if (state.ownerAction) return this.#finish(state, 'OWNER_ACTION_REQUIRED');
       if (Date.parse(state.backoff.until ?? '') > this.now()) return this.#finish(state, 'BACKING_OFF');
-      state.current = null;
     }
     const memory = await this.memoryReader();
     if (memory?.pressure === 'SOFT' || memory?.pressure === 'HARD') return this.#backOff(state, 'MEMORY_PRESSURE');
     if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
     if (Date.parse(state.backoff.until ?? '') > this.now()) return this.#finish(state, 'BACKING_OFF');
+    // Keep an unresolved delivery identifiable until every pre-delivery gate has
+    // passed. A later authoritative read can still reconcile its answer.
+    state.current = null;
 
     const listing = await this.#listing();
     if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
@@ -50,14 +52,27 @@ export class JournalWorkRunner {
       && Date.parse(item.expires_at) > this.now() && state.settings.models[item.model]?.includes(item.effort))
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
     state.today.waiting = eligible.length;
-    const item = eligible[0];
+    let item = eligible[0];
     if (!item) return this.#finish(state, 'NO_WORK');
     const allowanceRatio = state.today.calls / state.settings.dailyAllowance;
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
     this.#rollDay(state);
-    state.today.waiting = eligible.length;
     if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
+    const refreshed = await this.#listing();
+    if (!refreshed.ok) return this.#finish(state, 'LISTING_FAILED');
+    const pacedItem = refreshed.records.find((entry) => entry.work_id === item.work_id);
+    if (pacedItem?.answered) return this.#answered(pacedItem, state, 'INITIAL');
+    if (pacedItem && this.now() >= Date.parse(pacedItem.expires_at)) {
+      state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
+      return this.#finish(state, 'EXPIRED');
+    }
+    const refreshedEligible = refreshed.records.filter((candidate) => !candidate.answered && candidate.tier === 'standard'
+      && Date.parse(candidate.expires_at) > this.now() && state.settings.models[candidate.model]?.includes(candidate.effort))
+      .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
+    state.today.waiting = refreshedEligible.length;
+    item = refreshedEligible[0];
+    if (!item) return this.#finish(state, 'NO_WORK');
     if (this.now() >= Date.parse(item.expires_at)) {
       state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
       return this.#finish(state, 'EXPIRED');

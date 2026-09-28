@@ -58,11 +58,12 @@ export function journalWorkSubmissionContext({ chat, item, target, rung, freshCh
   const fresh = expectedUrl === PROVIDER_ROOT;
   if (!providerSessionId?.startsWith('provider-session:journal:')) throw new Error('Journal work requires an exact provider-session identity.');
   if (fresh && !Number.isInteger(freshChatAttempt)) throw new Error('Fresh journal work requires its attempt number.');
-  const queueAttemptKey = freshChatAttempt ?? (schedulerAttemptKey ? `${providerSessionId}:${schedulerAttemptKey}` : providerSessionId);
+  const queueAttemptKey = freshChatAttempt ?? sha256(schedulerAttemptKey ? `${providerSessionId}:${schedulerAttemptKey}` : providerSessionId);
+  const durableWorkKey = sha256(item.work_id);
   return {
     requestId: `journal:${item.work_id}:${rung}:${freshChatAttempt ?? schedulerAttemptKey ?? 'bound'}`,
     authorizationRef: `task:${chat.workerId}`,
-    queueKey: `journal:${item.work_id}:${rung}:${queueAttemptKey}`,
+    queueKey: `journal:${durableWorkKey}:${rung}:${queueAttemptKey}`,
     sendPath: 'JOURNAL_WORK',
     supervisorId: chat.supervisorId,
     registrationId: chat.registrationId,

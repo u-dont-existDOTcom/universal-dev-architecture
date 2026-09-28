@@ -55,6 +55,20 @@ test('journal stuck-recovery queue keys distinguish restarted provider sessions'
   assert.notEqual(first.queueKey, restarted.queueKey);
 });
 
+test('journal queue keys remain bounded for maximum-length work IDs', () => {
+  const workId = 'w'.repeat(256);
+  const providerSessionId = `provider-session:journal:${workId}:${'target'.repeat(32)}`;
+  const common = {
+    chat: journalChat, item: record({ work_id: workId }), target: { id: 'target-1', automationWindowId: 1 },
+    providerSessionId, expectedUrl: 'https://chatgpt.com/c/fake', bodySha256: 'a'.repeat(64),
+  };
+  for (const context of [
+    journalWorkSubmissionContext({ ...common, rung: 'CONTINUE' }),
+    journalWorkSubmissionContext({ ...common, rung: 'RETRY' }),
+    journalWorkSubmissionContext({ ...common, rung: 'STUCK_RECOVERY', schedulerAttemptKey: 'wait:1:nudge:1' }),
+  ]) assert.ok(context.queueKey.length <= 500, `queue key was ${context.queueKey.length} characters`);
+});
+
 test('the command runner suppresses npm preambles so dispatch stdout is strict JSON lines', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'journal-npm-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -65,7 +79,7 @@ test('the command runner suppresses npm preambles so dispatch stdout is strict J
 });
 
 test('happy path sends only the fixed prompt, records the initial rung, imports, and stays content-free', async (t) => {
-  const fixture = await makeFixture(t, { answeredAt: 2, pageText: SENTINEL });
+  const fixture = await makeFixture(t, { answeredAt: 3, pageText: SENTINEL });
   const result = await fixture.runner.runPass();
   assert.equal(result.status, 'ANSWERED');
   assert.equal(fixture.browser.messages[0], JOURNAL_WORK_PROMPT('opaque-1'));
@@ -79,7 +93,7 @@ test('happy path sends only the fixed prompt, records the initial rung, imports,
 });
 
 test('import summary uses the last JSON object after npm headers and filters residuals to plain counts', async (t) => {
-  const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => ({
+  const fixture = await makeFixture(t, { answeredAt: 3, importHandler: async () => ({
     exitCode: 0,
     stdout: `\n> inner-signal@1.0.0 journal:import\n> node import.mjs\n${JSON.stringify({ stage: 'ignored' })}\nnot json\n${JSON.stringify({ stage: 'complete', blocker: 'none', completed_units: 2, residuals: { waiting: 3, bad: -1, secret: SENTINEL } })}\n`,
   }) });
@@ -92,12 +106,12 @@ test('import summary uses the last JSON object after npm headers and filters res
 
 test('consumer-control labels come from persisted per-account calibration rather than a hardcoded thinking label', async (t) => {
   const controls = { modelVisibleLabel: 'Calibrated model button', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' };
-  const fixture = await makeFixture(t, { answeredAt: 2, initialState: { settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: controls } } } } });
+  const fixture = await makeFixture(t, { answeredAt: 3, initialState: { settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: controls } } } } });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
   assert.deepEqual(fixture.browser.controls[0], controls);
 });
 
-for (const [name, answeredAt, expectedRung] of [['continue', 3, 'CONTINUE'], ['retry', 4, 'RETRY'], ['fresh chat', 5, 'FRESH_CHAT']]) {
+for (const [name, answeredAt, expectedRung] of [['continue', 4, 'CONTINUE'], ['retry', 5, 'RETRY'], ['fresh chat', 6, 'FRESH_CHAT']]) {
   test(`${name} ladder rung resolves an item`, async (t) => {
     const fixture = await makeFixture(t, { answeredAt });
     const result = await fixture.runner.runPass();
@@ -108,7 +122,7 @@ for (const [name, answeredAt, expectedRung] of [['continue', 3, 'CONTINUE'], ['r
 }
 
 test('continue and Retry use structural recovery bindings and skip waits when no generation starts', async (t) => {
-  const fixture = await makeFixture(t, { answeredAt: 5, browserOptions: { continueGenerationStarted: false, retryAvailable: false } });
+  const fixture = await makeFixture(t, { answeredAt: 6, browserOptions: { continueGenerationStarted: false, retryAvailable: false } });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
   assert.equal(fixture.browser.anchorCaptures, 1);
   assert.equal(fixture.browser.retryInspections, 1);
@@ -151,7 +165,7 @@ test('an item expiring during the pacing delay is not submitted', async (t) => {
 test('a pacing delay crossing UTC midnight rolls the allowance before submission', async (t) => {
   let clock = Date.parse('2026-09-28T23:59:59Z');
   const fixture = await makeFixture(t, {
-    answeredAt: 2,
+    answeredAt: 3,
     now: () => clock,
     sleep: async () => { clock += 2_000; },
     initialState: { today: { date: '2026-09-28', answered: 4, calls: 4, expired: 2, waiting: 7 } },
@@ -167,6 +181,8 @@ test('an answer landed by an earlier chat is accepted only through the refreshed
   const fixture = await makeFixture(t, { answeredAt: 2 });
   fixture.browser.waitForGenerationComplete = async () => ({ pageText: 'not authoritative' });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.equal(fixture.browser.freshCount, 0);
+  assert.equal(fixture.importRuns(), 1);
 });
 
 test('missing app fails closed with an owner action', async (t) => {
@@ -177,7 +193,7 @@ test('missing app fails closed with an owner action', async (t) => {
 });
 
 test('approved exact confirmation uses always allow when offered', async (t) => {
-  const fixture = await makeFixture(t, { answeredAt: 2, browserOptions: { confirmation: { present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'] } } });
+  const fixture = await makeFixture(t, { answeredAt: 3, browserOptions: { confirmation: { present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'] } } });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
   assert.equal(fixture.browser.approvals[0].button, 'Always allow');
 });
@@ -243,8 +259,8 @@ test('failing and malformed listing commands mean no work and do not touch the b
 test('a failed authoritative readback backs off without advancing recovery', async (t) => {
   let clock = now;
   const fixture = await makeFixture(t, { now: () => clock, dispatchHandler: async (run) => {
-    if (run === 1) return { exitCode: 0, stdout: `${JSON.stringify(record())}\n` };
-    if (run === 2) return { exitCode: 9, stdout: '' };
+    if (run <= 2) return { exitCode: 0, stdout: `${JSON.stringify(record())}\n` };
+    if (run === 3) return { exitCode: 9, stdout: '' };
     return { exitCode: 0, stdout: `${JSON.stringify(record({ answered: true }))}\n` };
   } });
   const result = await fixture.runner.runPass();
@@ -307,6 +323,31 @@ test('an unresolved persisted attempt remains identifiable throughout active rea
   assert.equal(fixture.dispatchRuns(), 1);
 });
 
+test('an unresolved persisted attempt remains identifiable when memory pressure follows expired backoff', async (t) => {
+  const current = { workId: 'opaque-1', rung: 'INITIAL', phase: 'READBACK' };
+  const fixture = await makeFixture(t, {
+    initialState: { current, backoff: { level: 1, trigger: 'LISTING_FAILED', until: '2026-09-28T11:59:00.000Z' } },
+    memoryReader: async () => ({ pressure: 'SOFT' }),
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.deepEqual(result.state.current, current);
+  assert.equal(fixture.browser.freshCount, 0);
+});
+
+test('an unresolved persisted attempt remains identifiable when daily allowance follows expired backoff', async (t) => {
+  const current = { workId: 'opaque-1', rung: 'INITIAL', phase: 'READBACK' };
+  const fixture = await makeFixture(t, { initialState: {
+    current,
+    today: { date: '2026-09-28', answered: 0, calls: 170, expired: 0, waiting: 1 },
+    backoff: { level: 1, trigger: 'LISTING_FAILED', until: '2026-09-28T11:59:00.000Z' },
+  } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'DAILY_ALLOWANCE_REACHED');
+  assert.deepEqual(result.state.current, current);
+  assert.equal(fixture.browser.freshCount, 0);
+});
+
 test('each crossed provider submission is persisted and the allowance stops the active ladder', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: Infinity, settings: { dailyAllowance: 2 } });
   const result = await fixture.runner.runPass();
@@ -355,7 +396,7 @@ test('journal stuck-recovery submissions consume the persisted daily allowance',
 
 test('a failed import remains pending and is retried before dispatching more work', async (t) => {
   let importAttempt = 0;
-  const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => {
+  const fixture = await makeFixture(t, { answeredAt: 3, importHandler: async () => {
     importAttempt += 1;
     return importAttempt === 1
       ? { exitCode: 7, stdout: JSON.stringify({ stage: 'publish', blocker: 'temporary' }) }
@@ -369,12 +410,12 @@ test('a failed import remains pending and is retried before dispatching more wor
   assert.equal(recovered.status, 'ANSWERED');
   assert.equal(recovered.state.today.answered, 1);
   assert.equal(fixture.importRuns(), 2);
-  assert.equal(fixture.dispatchRuns(), 2);
+  assert.equal(fixture.dispatchRuns(), 3);
   assert.equal(fixture.browser.freshCount, 1);
 });
 
 test('a successful item clears a stale owner action', async (t) => {
-  const fixture = await makeFixture(t, { answeredAt: 2, initialState: {
+  const fixture = await makeFixture(t, { answeredAt: 3, initialState: {
     ownerAction: { code: 'ANSWER_NOT_OBSERVED', workId: 'opaque-1', at: '2026-09-28T11:00:00.000Z' },
   } });
   const result = await fixture.runner.runPass();
@@ -385,7 +426,7 @@ test('a successful item clears a stale owner action', async (t) => {
 
 test('concurrent answered passes serialize import runs', async (t) => {
   let active = 0; let maximum = 0;
-  const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => { active += 1; maximum = Math.max(maximum, active); await new Promise((resolve) => setTimeout(resolve, 10)); active -= 1; return { exitCode: 0, stdout: '{}' }; } });
+  const fixture = await makeFixture(t, { answeredAt: 3, importHandler: async () => { active += 1; maximum = Math.max(maximum, active); await new Promise((resolve) => setTimeout(resolve, 10)); active -= 1; return { exitCode: 0, stdout: '{}' }; } });
   await Promise.all([fixture.runner.runPass(), fixture.runner.runPass()]);
   assert.equal(maximum, 1);
   assert.equal(fixture.importRuns(), 1);
