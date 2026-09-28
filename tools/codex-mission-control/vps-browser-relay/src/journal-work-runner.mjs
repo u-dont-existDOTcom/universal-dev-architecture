@@ -27,6 +27,7 @@ export class JournalWorkRunner {
   async #runPass() {
     const state = await this.#readState();
     this.#rollDay(state);
+    if (state.current?.phase === 'IMPORT') return this.#completeImport(state);
     const memory = await this.memoryReader();
     if (memory?.pressure === 'SOFT' || memory?.pressure === 'HARD') return this.#backOff(state, 'MEMORY_PRESSURE');
     if (state.today.answered >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
@@ -34,6 +35,11 @@ export class JournalWorkRunner {
 
     const listing = await this.#listing();
     if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
+    if (state.current?.phase === 'READBACK') {
+      const pending = listing.records.find((entry) => entry.work_id === state.current.workId);
+      if (pending?.answered) return this.#answered(pending, state, state.current.rung);
+      state.current = null;
+    }
     const eligible = listing.records.filter((item) => !item.answered && item.tier === 'standard'
       && Date.parse(item.expires_at) > this.now() && state.settings.models[item.model]?.includes(item.effort))
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
@@ -43,6 +49,10 @@ export class JournalWorkRunner {
     const allowanceRatio = state.today.answered / state.settings.dailyAllowance;
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
+    if (this.now() >= Date.parse(item.expires_at)) {
+      state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
+      return this.#finish(state, 'EXPIRED');
+    }
     state.current = { workId: item.work_id, rung: 'INITIAL' };
     await this.#persist(state);
     try {
@@ -65,7 +75,8 @@ export class JournalWorkRunner {
       if (rung === 'CONTINUE') continueAnchor = await this.#continue(item, session);
       if (rung === 'RETRY') await this.#retry(item, session, continueAnchor);
       const listed = await this.#listing();
-      const current = listed.ok && listed.records.find((entry) => entry.work_id === item.work_id);
+      if (!listed.ok) { state.current.phase = 'READBACK'; return this.#backOff(state, 'LISTING_FAILED'); }
+      const current = listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, rung);
       if (this.now() >= Date.parse(item.expires_at)) {
         state.today.expired += 1; state.current = null;
@@ -78,7 +89,8 @@ export class JournalWorkRunner {
       await this.#persist(state);
       session = await this.#fresh(item, state, 'FRESH_CHAT');
       const listed = await this.#listing();
-      const current = listed.ok && listed.records.find((entry) => entry.work_id === item.work_id);
+      if (!listed.ok) { state.current.phase = 'READBACK'; return this.#backOff(state, 'LISTING_FAILED'); }
+      const current = listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, 'FRESH_CHAT');
       if (this.now() >= Date.parse(item.expires_at)) {
         state.today.expired += 1; state.current = null;
@@ -134,11 +146,19 @@ export class JournalWorkRunner {
   }
 
   async #answered(item, state, rung) {
-    state.today.answered += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
-    state.outcomes.push({ workId: item.work_id, outcome: 'ANSWERED', rung, at: this.#iso() });
-    state.outcomes = state.outcomes.slice(-200); state.current = null; state.backoff = { level: 0, until: null, trigger: null };
+    state.current = { workId: item.work_id, rung, phase: 'IMPORT' };
+    await this.#persist(state);
+    return this.#completeImport(state);
+  }
+
+  async #completeImport(state) {
     const summary = await this.#runImport();
     state.lastImport = { at: this.#iso(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residuals: summary.residuals };
+    if (summary.exitCode !== 0) return this.#finish(state, 'IMPORT_FAILED');
+    const { workId, rung } = state.current;
+    state.today.answered += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
+    state.outcomes.push({ workId, outcome: 'ANSWERED', rung, at: this.#iso() });
+    state.outcomes = state.outcomes.slice(-200); state.current = null; state.backoff = { level: 0, until: null, trigger: null }; state.ownerAction = null;
     return this.#finish(state, 'ANSWERED');
   }
 

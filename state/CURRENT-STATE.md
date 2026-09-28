@@ -35,6 +35,29 @@ Updated: 2026-09-28
   pass 467/467, and the deterministic audit reports no findings. Deployment
   remains explicitly out of scope and has not occurred.
 
+### Codex review round at `ce58e1c` (2026-09-28)
+
+- All four review findings were valid. The runner now rechecks expiry after its
+  pacing delay, so an expired dispatch is recorded without opening a chat or
+  making a provider submission.
+- A failed authoritative listing read after a send now records a `READBACK`
+  phase and enters persistent backoff without advancing Continue, Retry, or
+  fresh-chat recovery. After backoff, the runner reads the listing first and
+  accepts an already-landed answer without another provider submission.
+- A nonzero import remains in a durable `IMPORT` phase and reports
+  `IMPORT_FAILED`, without incrementing the answered allowance or claiming an
+  `ANSWERED` outcome. The next pass retries that import before dispatching more
+  work; only a successful import completes the item.
+- Successful item completion now clears any stale `ownerAction` in both runner
+  and status state. Focused regression coverage was added for each finding.
+- Verification at the review-round candidate boundary is green: the focused
+  runner suite passes 24/24, relay `npm test` passes 350/350 tests, repository
+  unit tests pass 467/467, and the deterministic audit reports no findings.
+- Stop admission: the implementation and merge-ready validation portions of
+  the parent outcome are **SATISFIED** at this checkpoint. The current worker
+  still owns the authorized commit and existing-PR update before user-facing
+  delivery; neither requires an owner decision.
+
 ## Goal
 
 Complete one fresh PM-mediated controller cycle at the real consumer seam while

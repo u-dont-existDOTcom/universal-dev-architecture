@@ -80,6 +80,20 @@ test('an item expiring during recovery is recorded without an import', async (t)
   assert.equal(fixture.importRuns(), 0);
 });
 
+test('an item expiring during the pacing delay is not submitted', async (t) => {
+  let clock = now;
+  const fixture = await makeFixture(t, {
+    recordOverrides: { expires_at: '2026-09-28T12:00:01Z' },
+    now: () => clock,
+    sleep: async () => { clock += 2_000; },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'EXPIRED');
+  assert.equal(result.state.today.expired, 1);
+  assert.equal(fixture.browser.freshCount, 0);
+  assert.equal(fixture.importRuns(), 0);
+});
+
 test('an answer landed by an earlier chat is accepted only through the refreshed listing', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 2 });
   fixture.browser.waitForGenerationComplete = async () => ({ pageText: 'not authoritative' });
@@ -139,6 +153,55 @@ test('failing and malformed listing commands mean no work and do not touch the b
   }
 });
 
+test('a failed authoritative readback backs off without advancing recovery', async (t) => {
+  let clock = now;
+  const fixture = await makeFixture(t, { now: () => clock, dispatchHandler: async (run) => {
+    if (run === 1) return { exitCode: 0, stdout: `${JSON.stringify(record())}\n` };
+    if (run === 2) return { exitCode: 9, stdout: '' };
+    return { exitCode: 0, stdout: `${JSON.stringify(record({ answered: true }))}\n` };
+  } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.state.backoff.trigger, 'LISTING_FAILED');
+  assert.equal(fixture.browser.freshCount, 1);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1')]);
+  clock += 60_000;
+  const recovered = await fixture.runner.runPass();
+  assert.equal(recovered.status, 'ANSWERED');
+  assert.equal(fixture.browser.freshCount, 1);
+  assert.equal(fixture.importRuns(), 1);
+});
+
+test('a failed import remains pending and is retried before dispatching more work', async (t) => {
+  let importAttempt = 0;
+  const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => {
+    importAttempt += 1;
+    return importAttempt === 1
+      ? { exitCode: 7, stdout: JSON.stringify({ stage: 'publish', blocker: 'temporary' }) }
+      : { exitCode: 0, stdout: JSON.stringify({ stage: 'complete', completed_units: 1 }) };
+  } });
+  const failed = await fixture.runner.runPass();
+  assert.equal(failed.status, 'IMPORT_FAILED');
+  assert.equal(failed.state.today.answered, 0);
+  assert.equal(failed.state.current.phase, 'IMPORT');
+  const recovered = await fixture.runner.runPass();
+  assert.equal(recovered.status, 'ANSWERED');
+  assert.equal(recovered.state.today.answered, 1);
+  assert.equal(fixture.importRuns(), 2);
+  assert.equal(fixture.dispatchRuns(), 2);
+  assert.equal(fixture.browser.freshCount, 1);
+});
+
+test('a successful item clears a stale owner action', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: 2, initialState: {
+    ownerAction: { code: 'ANSWER_NOT_OBSERVED', workId: 'opaque-1', at: '2026-09-28T11:00:00.000Z' },
+  } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'ANSWERED');
+  assert.equal(result.state.ownerAction, null);
+  assert.equal(JSON.parse(await readFile(fixture.statusFile, 'utf8')).ownerAction, null);
+});
+
 test('concurrent answered passes serialize import runs', async (t) => {
   let active = 0; let maximum = 0;
   const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => { active += 1; maximum = Math.max(maximum, active); await new Promise((resolve) => setTimeout(resolve, 10)); active -= 1; return { exitCode: 0, stdout: '{}' }; } });
@@ -154,18 +217,18 @@ test('dispatch validation rejects extra, missing, wrongly typed, and invalid-tim
   }
 });
 
-async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, onContinue, memoryReader, initialState, dispatchResult, importHandler, settings = {} } = {}) {
+async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, recordOverrides = {}, settings = {} } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'journal-work-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const stateFile = join(dir, 'state.json'); const statusFile = join(dir, 'status.json');
   if (initialState) await import('node:fs/promises').then(({ writeFile }) => writeFile(stateFile, JSON.stringify(initialState)));
   const browser = new FakeBrowser({ pageText, ...browserOptions, onContinue });
   let dispatches = 0; let imports = 0;
   const commandRunner = async (command) => {
-    if (command === 'dispatch') { dispatches += 1; if (dispatchResult) return dispatchResult; return { exitCode: 0, stdout: `${JSON.stringify(record({ answered: dispatches >= answeredAt }))}\n` }; }
+    if (command === 'dispatch') { dispatches += 1; if (dispatchHandler) return dispatchHandler(dispatches); if (dispatchResult) return dispatchResult; return { exitCode: 0, stdout: `${JSON.stringify(record({ ...recordOverrides, answered: dispatches >= answeredAt }))}\n` }; }
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
   const logs = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async ({ submit }) => submit(), commandRunner, memoryReader, now: nowImpl, sleep: async () => {}, logger: { log: (value) => logs.push(value) } });
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async ({ submit }) => submit(), commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value) } });
   return { runner, browser, stateFile, statusFile, logs, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
