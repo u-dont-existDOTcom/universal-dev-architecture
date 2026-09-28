@@ -33,6 +33,10 @@ export class JournalWorkRunner {
       if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
       const persisted = listing.records.find((entry) => entry.work_id === state.current.workId);
       if (persisted?.answered) return this.#answered(persisted, state, state.current.rung);
+      // A fresh authoritative read may resolve paused work, but unresolved
+      // operator action or backoff must not start a second delivery ladder.
+      if (state.ownerAction) return this.#finish(state, 'OWNER_ACTION_REQUIRED');
+      if (Date.parse(state.backoff.until ?? '') > this.now()) return this.#finish(state, 'BACKING_OFF');
       state.current = null;
     }
     const memory = await this.memoryReader();

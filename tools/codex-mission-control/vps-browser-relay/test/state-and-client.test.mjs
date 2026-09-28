@@ -123,14 +123,19 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     for (const command of ['controller-once', 'provision', 'mcp-preflight', 'capabilities']) {
       assert.equal(relayCommandLockOptions(command, { config: defaults, codexExecutionConfig: codexOn, env: {} }).maxLifetimeMs, browserTurn + 600_000);
     }
-    const journalSettings = { settings: { freshChatThreshold: 3 } };
+    const journalSettings = { settings: { freshChatThreshold: 3, paceMs: 60_000 } };
     const journalLifetime = relayCommandLockOptions('journal-work', {
       config: defaults, codexExecutionConfig: codexOn, journalWorkConfig: journalSettings, env: {},
     }).maxLifetimeMs;
-    assert.equal(journalLifetime, 5 * browserTurn + 600_000);
+    assert.equal(journalLifetime, 4 * 60_000 + 5 * browserTurn + 600_000);
     assert.equal(journalLifetime, journalWorkLockLifetimeMs({
-      browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, env: {},
+      browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, paceMs: 60_000, env: {},
     }));
+    const maximalPacingJournal = relayCommandLockOptions('journal-work', {
+      config: defaults, codexExecutionConfig: codexOn,
+      journalWorkConfig: { settings: { freshChatThreshold: 3, paceMs: 3_600_000 } }, env: {},
+    }).maxLifetimeMs;
+    assert.equal(maximalPacingJournal, journalLifetime - 4 * 60_000 + 4 * 3_600_000);
 
     // The review case: 60-minute Codex execution and 60-minute generation ceilings.
     const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });

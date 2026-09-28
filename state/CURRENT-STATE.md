@@ -7,6 +7,33 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `15c101b` (2026-09-28)
+
+- Parent outcome: **SATISFIED**. All four findings are valid; this review round
+  is implemented, validated, committed on the existing pull-request branch,
+  and reflected in the pull-request update metadata.
+- Persisted journal work is still reconciled against the authoritative listing,
+  including while paused. If no answer is present, an unresolved owner action
+  returns `OWNER_ACTION_REQUIRED` and active readback backoff returns
+  `BACKING_OFF`; both retain `state.current` and start no new submission ladder.
+- Stuck-recovery queue keys now bind both the provider-session identity and the
+  process-local logical wait/nudge sequence, preventing a restarted process from
+  colliding with a durable queue key issued for a different session.
+- The derived journal-work lock lifetime now includes the maximum four-times
+  configured pacing delay before budgeting the complete submission ladder.
+- Direct regression coverage proves owner-action retention, backoff retention,
+  restarted-session recovery-key separation, and maximum pacing inclusion.
+  Focused runner tests pass 34/34 and focused state/client tests pass 17/17.
+- Completion gates are green: the relay `npm test` suite passes, repository unit
+  tests pass 467/467, and the deterministic repository audit reports no
+  findings.
+- Active assurance lane: **release**, because the owner explicitly requires the
+  existing pull request to remain merge-ready and names all three completion
+  gates.
+- Stop admission: the requested review-finding repair has reached its evidenced
+  completion boundary; no independent implementation or validation action
+  remains in scope.
+
 ## PR #275 Codex review follow-up at `504cca0` (2026-09-28)
 
 - Parent outcome: **SATISFIED**. The five review regressions are implemented,

@@ -44,6 +44,17 @@ test('journal stuck-recovery contexts keep the registered identity and distingui
   assert.notEqual(first.queueKey, second.queueKey);
 });
 
+test('journal stuck-recovery queue keys distinguish restarted provider sessions', () => {
+  const common = {
+    chat: journalChat, item: record(), target: { id: 'target-1', automationWindowId: 1 },
+    rung: 'STUCK_RECOVERY', expectedUrl: 'https://chatgpt.com/c/fake',
+    bodySha256: 'a'.repeat(64), schedulerAttemptKey: 'wait:1:nudge:1',
+  };
+  const first = journalWorkSubmissionContext({ ...common, providerSessionId: 'provider-session:journal:opaque-1:target-1' });
+  const restarted = journalWorkSubmissionContext({ ...common, target: { ...common.target, id: 'target-2' }, providerSessionId: 'provider-session:journal:opaque-1:target-2' });
+  assert.notEqual(first.queueKey, restarted.queueKey);
+});
+
 test('the command runner suppresses npm preambles so dispatch stdout is strict JSON lines', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'journal-npm-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -237,6 +248,30 @@ test('an unanswered persisted attempt reserves a new durable identity before a r
   assert.equal((await fixture.runner.runPass()).status, 'OWNER_ACTION_REQUIRED');
   assert.deepEqual(fixture.submissions.filter((entry) => Number.isInteger(entry.freshChatAttempt)).map((entry) => entry.freshChatAttempt), [2]);
   assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).nextFreshAttempt, 3);
+});
+
+test('an unresolved owner action retains its work and blocks another submission ladder', async (t) => {
+  const current = { workId: 'opaque-1', rung: 'FRESH_CHAT', freshChatCount: 3 };
+  const ownerAction = { code: 'ANSWER_NOT_OBSERVED', workId: 'opaque-1', at: '2026-09-28T11:00:00.000Z' };
+  const fixture = await makeFixture(t, { initialState: { current, ownerAction } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'OWNER_ACTION_REQUIRED');
+  assert.deepEqual(result.state.current, current);
+  assert.deepEqual(result.state.ownerAction, ownerAction);
+  assert.equal(fixture.browser.freshCount, 0);
+});
+
+test('an unresolved persisted attempt remains identifiable throughout active readback backoff', async (t) => {
+  const current = { workId: 'opaque-1', rung: 'INITIAL', phase: 'READBACK' };
+  const fixture = await makeFixture(t, { initialState: {
+    current,
+    backoff: { level: 1, trigger: 'LISTING_FAILED', until: '2026-09-28T12:01:00.000Z' },
+  } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'BACKING_OFF');
+  assert.deepEqual(result.state.current, current);
+  assert.equal(fixture.browser.freshCount, 0);
+  assert.equal(fixture.dispatchRuns(), 1);
 });
 
 test('each crossed provider submission is persisted and the allowance stops the active ladder', async (t) => {
