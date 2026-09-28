@@ -394,7 +394,11 @@ export function parseDispatchRecord(line) {
 }
 
 function isIsoTimestamp(value) {
-  return typeof value === 'string' && ISO_TIMESTAMP.test(value) && Number.isFinite(Date.parse(value));
+  if (typeof value !== 'string' || !ISO_TIMESTAMP.test(value)) return false;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return false;
+  const canonical = value.replace(/(?:\.(\d{1,3}))?Z$/, (_, fraction = '') => `.${fraction.padEnd(3, '0')}Z`);
+  return new Date(parsed).toISOString() === canonical;
 }
 
 function freshRetryUrl(observedUrl, fallback) {

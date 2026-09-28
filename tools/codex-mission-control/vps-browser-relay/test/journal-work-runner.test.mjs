@@ -765,6 +765,8 @@ test('dispatch validation rejects extra, missing, wrongly typed, and invalid-tim
     { ...record(), secret: SENTINEL }, { ...record(), role: undefined }, { ...record(), answered: 'false' },
     { ...record(), expires_at: 'never' }, { ...record(), issued_at: 0 }, { ...record(), expires_at: 0 },
     { ...record(), issued_at: 'September 28, 2026 10:00:00 UTC' },
+    { ...record(), issued_at: '2026-02-31T10:00:00Z' },
+    { ...record(), expires_at: '2026-04-31T10:00:00.12Z' },
   ]) {
     assert.throws(() => parseDispatchRecord(JSON.stringify(value)), /Invalid dispatch/);
   }
