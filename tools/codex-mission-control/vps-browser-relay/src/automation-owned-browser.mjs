@@ -372,6 +372,7 @@ export class AutomationOwnedBrowser {
         clickedAtObserved: error?.clickedAtObserved ?? null,
         startedAtObserved: error?.startedAtObserved ?? null,
       });
+      retry.conversationUrl = recovery.conversationUrl ?? null;
       if (error?.submissionBoundaryPersistenceAttempted) retry.submissionBoundaryPersistenceAttempted = true;
       throw retry;
     }
@@ -1160,10 +1161,11 @@ const RATE_LIMIT_DISMISS_EXPRESSION = `(() => {
     return text.includes('too many chat requests are coming too quick') || text.includes('too many chat requests are coming too quickly');
   });
   const buttons = matched.flatMap((dialog) => [...dialog.querySelectorAll('button')].filter(visible).filter((button) => normalize(button.innerText || button.getAttribute('aria-label')) === 'got it'));
-  if (matched.length === 0) return { present: false, dismissed: false, dialogCount: 0, gotItCount: 0 };
-  if (matched.length !== 1 || buttons.length !== 1) return { present: true, dismissed: false, reason: 'RATE_LIMIT_MODAL_OR_GOT_IT_AMBIGUOUS', dialogCount: matched.length, gotItCount: buttons.length };
+  const conversationUrl = location.href;
+  if (matched.length === 0) return { present: false, dismissed: false, dialogCount: 0, gotItCount: 0, conversationUrl };
+  if (matched.length !== 1 || buttons.length !== 1) return { present: true, dismissed: false, reason: 'RATE_LIMIT_MODAL_OR_GOT_IT_AMBIGUOUS', dialogCount: matched.length, gotItCount: buttons.length, conversationUrl };
   buttons[0].click();
-  return { present: true, dismissed: true, dialogCount: 1, gotItCount: 1 };
+  return { present: true, dismissed: true, dialogCount: 1, gotItCount: 1, conversationUrl };
 })()`;
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }

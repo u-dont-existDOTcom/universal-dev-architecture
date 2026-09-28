@@ -8,6 +8,7 @@ const CONTINUE_BODY = 'Continue.';
 const MAX_OUTCOMES = 200;
 const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier', 'issued_at', 'expires_at', 'answered'];
 const OPAQUE_WORK_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/;
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
 export function withJournalRuntime(journalConfig, runtime) {
@@ -165,7 +166,16 @@ export class JournalWorkRunner {
     // the tab so navigating that tab to a new chat cannot overwrite an older
     // conversation's scheduler binding.
     const providerSessionId = `provider-session:journal:${item.work_id}:${freshChatAttempt}:${target.id}`;
-    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(item, state, callbacks) }) }));
+    let submissionUrl = ROOT_URL;
+    const submitExact = async (callbacks = {}) => {
+      try {
+        return await this.browser.submitExactMessage(target, { expectedUrl: submissionUrl, body, bodySha256: sha256(body), ...this.#countedCallbacks(item, state, callbacks) });
+      } catch (error) {
+        if (error?.code === 'CHATGPT_RATE_LIMIT_RETRY') submissionUrl = freshRetryUrl(error.conversationUrl, submissionUrl);
+        throw error;
+      }
+    };
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: submitExact }));
     const submittedUrl = started.conversationUrl ?? ROOT_URL;
     await this.#handleConfirmation(target, item, submittedUrl);
     const completed = await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, submittedUrl, started.generationStarted, item));
@@ -379,8 +389,21 @@ export function parseDispatchRecord(line) {
   if (!value || Object.keys(value).some((key) => !FIELDS.includes(key)) || FIELDS.some((key) => !(key in value))) throw new Error('Invalid dispatch record shape.');
   for (const field of FIELDS.slice(0, 6)) if (typeof value[field] !== 'string' || !value[field] || value[field].length > 256) throw new Error(`Invalid dispatch ${field}.`);
   if (!OPAQUE_WORK_ID.test(value.work_id)) throw new Error('Invalid dispatch work_id.');
-  if (typeof value.answered !== 'boolean' || !Number.isFinite(Date.parse(value.issued_at)) || !Number.isFinite(Date.parse(value.expires_at))) throw new Error('Invalid dispatch times or answered flag.');
+  if (typeof value.answered !== 'boolean' || !isIsoTimestamp(value.issued_at) || !isIsoTimestamp(value.expires_at)) throw new Error('Invalid dispatch times or answered flag.');
   return value;
+}
+
+function isIsoTimestamp(value) {
+  return typeof value === 'string' && ISO_TIMESTAMP.test(value) && Number.isFinite(Date.parse(value));
+}
+
+function freshRetryUrl(observedUrl, fallback) {
+  if (typeof observedUrl !== 'string') return fallback;
+  try {
+    const url = new URL(observedUrl);
+    return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && /^\/c\/(?:WEB:)?[A-Za-z0-9_-]+\/?$/.test(url.pathname)
+      ? `https://chatgpt.com${url.pathname.replace(/\/$/, '')}` : fallback;
+  } catch { return fallback; }
 }
 
 function classifyBackoff(error) {

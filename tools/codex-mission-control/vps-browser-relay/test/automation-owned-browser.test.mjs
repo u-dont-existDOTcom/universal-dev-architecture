@@ -413,12 +413,12 @@ test('exact provider rate-limit dialog is dismissed and converted to one bounded
   });
   const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatA) }));
   const protocol = new FakeProtocol(raw);
-  protocol.rateLimitResult = { present: true, dismissed: true };
+  protocol.rateLimitResult = { present: true, dismissed: true, conversationUrl: chatA };
   const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
 
   await assert.rejects(
     browser.submitExactMessage(raw.byId('owned'), { expectedUrl: chatA, body: 'x', bodySha256: 'x' }),
-    (error) => error.code === CHATGPT_RATE_LIMIT_RETRY && error.retryAfterMs === 30_000 && error.relayStage === 'CLICKED',
+    (error) => error.code === CHATGPT_RATE_LIMIT_RETRY && error.retryAfterMs === 30_000 && error.relayStage === 'CLICKED' && error.conversationUrl === chatA,
   );
   assert.equal(protocol.rateLimitDismissals, 1);
 });

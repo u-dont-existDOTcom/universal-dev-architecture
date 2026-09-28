@@ -111,10 +111,11 @@ export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold
   const logicalSubmissions = freshChatThreshold + 2; // fresh conversations plus Continue and Retry
   // Every scheduler submission, including a stuck-recovery nudge, can encounter
   // the supported provider rate-limit dialog once, wait through the central
-  // cooldown, and replay once. Budget both browser attempts and that wait.
+  // cooldown, and replay once. Budget both browser attempts and the cooldown
+  // that can precede each attempt.
   const providerAttempts = 2;
   const browserAttemptMs = browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs;
-  const browserTurnMs = attemptsPerSubmission * (providerAttempts * browserAttemptMs + runtime.minSubmissionIntervalMs);
+  const browserTurnMs = attemptsPerSubmission * providerAttempts * (browserAttemptMs + runtime.minSubmissionIntervalMs);
   const maximumPacingDelayMs = 4 * paceMs;
   // A pass lists before and after pacing, may reconcile persisted current work,
   // and lists after every logical submission before running one import.

@@ -193,6 +193,23 @@ test('a canonicalized fresh conversation URL binds confirmation polling and late
   assert.equal(fixture.browser.continueExpectedUrls[0], canonical);
 });
 
+test('fresh-chat rate-limit replay rebinds the click to the observed conversation URL', async (t) => {
+  const conversationUrl = 'https://chatgpt.com/c/rate-limited-fresh-chat';
+  const retry = Object.assign(new Error('provider requested retry'), {
+    code: 'CHATGPT_RATE_LIMIT_RETRY', conversationUrl, relayStage: 'CLICKED',
+  });
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    browserOptions: { submitErrors: [retry] },
+    submitHandler: async (entry) => {
+      await assert.rejects(entry.submit(), (error) => error === retry);
+      return entry.submit();
+    },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(fixture.browser.submitExpectedUrls, ['https://chatgpt.com/', conversationUrl]);
+});
+
 test('fresh conversations keep distinct provider sessions when the browser reuses one target', async (t) => {
   const fixture = await makeFixture(t, {
     answeredAt: Infinity,
@@ -744,7 +761,11 @@ test('concurrent answered passes serialize import runs', async (t) => {
 
 test('dispatch validation rejects extra, missing, wrongly typed, and invalid-time fields', () => {
   assert.deepEqual(parseDispatchRecord(JSON.stringify(record())).work_id, 'opaque-1');
-  for (const value of [{ ...record(), secret: SENTINEL }, { ...record(), role: undefined }, { ...record(), answered: 'false' }, { ...record(), expires_at: 'never' }]) {
+  for (const value of [
+    { ...record(), secret: SENTINEL }, { ...record(), role: undefined }, { ...record(), answered: 'false' },
+    { ...record(), expires_at: 'never' }, { ...record(), issued_at: 0 }, { ...record(), expires_at: 0 },
+    { ...record(), issued_at: 'September 28, 2026 10:00:00 UTC' },
+  ]) {
     assert.throws(() => parseDispatchRecord(JSON.stringify(value)), /Invalid dispatch/);
   }
 });
@@ -772,11 +793,11 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
 }
 
 class FakeBrowser {
-  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshTargetOptions = []; this.confirmationExpectedUrls = []; this.continueExpectedUrls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
+  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshTargetOptions = []; this.confirmationExpectedUrls = []; this.continueExpectedUrls = []; this.submitExpectedUrls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
   async createFreshChatTarget(options) { this.freshTargetOptions.push(options); this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
-  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: this.submittedConversationUrl ?? 'https://chatgpt.com/c/fake' }; }
+  async submitExactMessage(_target, input) { this.submitExpectedUrls.push(input.expectedUrl); const queuedError = this.submitErrors?.shift(); if (queuedError) throw queuedError; if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: this.submittedConversationUrl ?? 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete(_target, options) {
     this.waits += 1;
     this.onWait?.(this.waits);
