@@ -59,14 +59,6 @@ const APPROVE_JOURNAL_WRITE_CONFIRMATION_FN = `function(appName, toolName, butto
   return { approved: true, appName, toolName, button: buttonLabel };
 }`;
 
-const CLICK_JOURNAL_CONTINUE_FN = `function() {
-  const visible = (element) => Boolean(element && element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden';
-  const label = (element) => ((element.getAttribute('aria-label') || element.innerText || '')).trim().replace(/\\s+/g, ' ');
-  const matches = [...document.querySelectorAll('button, [role="button"]')].filter(visible).filter((element) => /^(Continue|Continue generating|Resume)$/.test(label(element)));
-  if (matches.length !== 1) return { clicked: false, matchCount: matches.length };
-  matches[0].click(); return { clicked: true, controlLabel: label(matches[0]) };
-}`;
-
 export const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
@@ -957,7 +949,6 @@ export class ChromeDevtoolsBrowser {
     this.progressStallMs = progressStallMs;
     this.fetchImpl = fetchImpl;
     this.WebSocketImpl = WebSocketImpl;
-    this.journalContinueAnchors = new Map();
   }
 
   async doctor() {
@@ -1144,25 +1135,6 @@ export class ChromeDevtoolsBrowser {
     const result = await this.#withPageClient(target, (client) => client.callFunction(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, [appName, toolName, button]));
     if (!result?.approved) throw new Error(`Journal write confirmation changed before approval: ${result?.reason ?? 'UNKNOWN'}.`);
     return result;
-  }
-
-  async continueJournalWork(target, { expectedUrl, onBeforeSubmissionBoundary = null, onSubmissionBoundary = null }) {
-    const anchor = await this.captureContinueRecoveryAnchor(target, { expectedUrl });
-    if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
-    const clicked = await this.#withPageClient(target, (client) => client.callFunction(CLICK_JOURNAL_CONTINUE_FN, []));
-    if (!clicked?.clicked) throw new Error('JOURNAL_CONTINUE_CONTROL_UNAVAILABLE.');
-    const observed = { generationStarted: true, clickedAtObserved: new Date().toISOString(), conversationUrl: expectedUrl, inspectedAssistantOutput: false };
-    if (onSubmissionBoundary) await onSubmissionBoundary(observed);
-    this.journalContinueAnchors.set(target.id, anchor);
-    return observed;
-  }
-
-  async retryJournalWork(target, input) {
-    const anchor = this.journalContinueAnchors.get(target.id);
-    if (!anchor) throw new Error('JOURNAL_CONTINUE_ANCHOR_MISSING.');
-    const classified = await this.inspectFailedContinueRetry(target, { expectedUrl: input.expectedUrl, anchor });
-    if (classified.status !== 'RETRY_FAILED_CONTINUE') throw new Error('JOURNAL_FAILED_CONTINUE_RETRY_UNAVAILABLE.');
-    return this.retryExactFailedContinue(target, { ...input, anchor, binding: classified.binding });
   }
 
   async ensureExactConsumerControls(target, { expectedUrl, controls }) {

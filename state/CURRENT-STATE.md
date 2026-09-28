@@ -18,15 +18,22 @@ Updated: 2026-09-28
 - Continue, exact failed-continue Retry, and fresh-chat recovery are implemented.
   Exact InnerSignal `submit_journal_work_result` confirmations may be approved;
   other app/tool confirmations fail closed with a content-free owner action.
+- Owner-review alignment now uses the relay's structurally anchored Continue
+  and failed-Continue Retry flow, skips a generation wait when no recovery
+  action starts, reads account-calibrated model/effort observations from the
+  private runner state, and enforces `freshChatThreshold` as the total fresh
+  conversations allowed per item.
 - Per-account runtime state holds tunable pacing/backoff/fresh-chat settings,
   UTC allowance counts, bounded outcomes, current rung, and allowlisted import
-  summaries. Import runs serialize after answered items. No journal packet,
+  summaries. Import parsing ignores npm header output, selects the last JSON
+  object line, and retains `stage`, `blocker`, `completed_units`, and filtered
+  plain-count `residuals`. Import runs serialize after answered items. No journal packet,
   answer, page text, private path, account identifier, or conversation URL is
   recorded.
-- Verified locally: relay `npm test` passes 342/342, repository unit tests pass
-  467/467, and the deterministic audit reports no findings. The implementation
-  is committed and its pull-request metadata is prepared. Deployment is
-  explicitly out of scope and has not occurred.
+- Verified locally after owner-review alignment: focused journal-runner
+  regressions pass 20/20, relay `npm test` passes 346/346, repository unit tests
+  pass 467/467, and the deterministic audit reports no findings. Deployment
+  remains explicitly out of scope and has not occurred.
 
 ## Goal
 

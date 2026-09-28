@@ -111,6 +111,13 @@ metadata, outcome/rung history, adaptive pacing and backoff settings, daily
 counts, owner-action codes, and allowlisted import summary fields. The command
 is a one-pass operation and does not deploy or modify services.
 
+Before the pilot, calibrate `settings.controlObservations[model][effort]` in
+the journal runner's private state with the account's observed
+`modelVisibleLabel`, `thinkingControlLabel`, and `thinkingVisibleLabel`. The
+runner fails closed with `JOURNAL_CONTROLS_UNCALIBRATED` rather than assuming a
+page label. `freshChatThreshold` is the total number of fresh conversations
+allowed for one work item, including its initial conversation.
+
 The controller-mediated route is an explicit, one-cycle command path. It uses
 GitHub as the only semantic mailbox. Its owner-only restart ledger stores exact
 target/window/session identities, send boundaries, immutable comment identities,

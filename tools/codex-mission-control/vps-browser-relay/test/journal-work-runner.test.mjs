@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord } from '../src/journal-work-runner.mjs';
+import { createContinueRecoveryAnchor } from '../src/continue-recovery.mjs';
 
 const SENTINEL = 'PRIVATE-JOURNAL-TEXT-SENTINEL';
 const now = Date.parse('2026-09-28T12:00:00Z');
@@ -16,7 +17,30 @@ test('happy path sends only the fixed prompt, records the initial rung, imports,
   assert.equal(fixture.browser.messages[0], JOURNAL_WORK_PROMPT('opaque-1'));
   assert.equal(result.state.outcomes[0].rung, 'INITIAL');
   assert.equal(fixture.importRuns(), 1);
+  assert.deepEqual(result.state.lastImport, {
+    at: '2026-09-28T12:00:00.000Z', exitCode: 0, stage: 'complete', blocker: null,
+    completedUnits: 1, residuals: { waiting: 0 },
+  });
   await assertContentFree(fixture, SENTINEL);
+});
+
+test('import summary uses the last JSON object after npm headers and filters residuals to plain counts', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => ({
+    exitCode: 0,
+    stdout: `\n> inner-signal@1.0.0 journal:import\n> node import.mjs\n${JSON.stringify({ stage: 'ignored' })}\nnot json\n${JSON.stringify({ stage: 'complete', blocker: 'none', completed_units: 2, residuals: { waiting: 3, bad: -1, secret: SENTINEL } })}\n`,
+  }) });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.state.lastImport.stage, 'complete');
+  assert.equal(result.state.lastImport.completedUnits, 2);
+  assert.deepEqual(result.state.lastImport.residuals, { waiting: 3 });
+  await assertContentFree(fixture, SENTINEL);
+});
+
+test('consumer-control labels come from persisted per-account calibration rather than a hardcoded thinking label', async (t) => {
+  const controls = { modelVisibleLabel: 'Calibrated model button', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' };
+  const fixture = await makeFixture(t, { answeredAt: 2, initialState: { settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: controls } } } } });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(fixture.browser.controls[0], controls);
 });
 
 for (const [name, answeredAt, expectedRung] of [['continue', 3, 'CONTINUE'], ['retry', 4, 'RETRY'], ['fresh chat', 5, 'FRESH_CHAT']]) {
@@ -28,6 +52,24 @@ for (const [name, answeredAt, expectedRung] of [['continue', 3, 'CONTINUE'], ['r
     if (expectedRung === 'FRESH_CHAT') assert.equal(fixture.browser.freshCount, 2);
   });
 }
+
+test('continue and Retry use structural recovery bindings and skip waits when no generation starts', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: 5, browserOptions: { continueGenerationStarted: false, retryAvailable: false } });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.equal(fixture.browser.anchorCaptures, 1);
+  assert.equal(fixture.browser.retryInspections, 1);
+  assert.equal(fixture.browser.exactRetries, 0);
+  assert.equal(fixture.browser.waits, 2);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.', JOURNAL_WORK_PROMPT('opaque-1')]);
+});
+
+test('freshChatThreshold limits total fresh chats before recording owner action', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: Infinity, settings: { freshChatThreshold: 4 } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'OWNER_ACTION_REQUIRED');
+  assert.equal(result.state.ownerAction.code, 'ANSWER_NOT_OBSERVED');
+  assert.equal(fixture.browser.freshCount, 4);
+});
 
 test('an item expiring during recovery is recorded without an import', async (t) => {
   let clock = now;
@@ -112,7 +154,7 @@ test('dispatch validation rejects extra, missing, wrongly typed, and invalid-tim
   }
 });
 
-async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, onContinue, memoryReader, initialState, dispatchResult, importHandler } = {}) {
+async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, onContinue, memoryReader, initialState, dispatchResult, importHandler, settings = {} } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'journal-work-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const stateFile = join(dir, 'state.json'); const statusFile = join(dir, 'status.json');
   if (initialState) await import('node:fs/promises').then(({ writeFile }) => writeFile(stateFile, JSON.stringify(initialState)));
@@ -120,22 +162,23 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
   let dispatches = 0; let imports = 0;
   const commandRunner = async (command) => {
     if (command === 'dispatch') { dispatches += 1; if (dispatchResult) return dispatchResult; return { exitCode: 0, stdout: `${JSON.stringify(record({ answered: dispatches >= answeredAt }))}\n` }; }
-    imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residual_counts: { waiting: 0 }, ignored: SENTINEL }) };
+    imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
   const logs = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile }, browser, submit: async ({ submit }) => submit(), commandRunner, memoryReader, now: nowImpl, sleep: async () => {}, logger: { log: (value) => logs.push(value) } });
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async ({ submit }) => submit(), commandRunner, memoryReader, now: nowImpl, sleep: async () => {}, logger: { log: (value) => logs.push(value) } });
   return { runner, browser, stateFile, statusFile, logs, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
 class FakeBrowser {
-  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.freshCount = 0; }
+  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
   async createFreshChatTarget() { this.freshCount += 1; return { id: `target-${this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
-  async ensureExactConsumerControls() {}
+  async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
-  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; this.messages.push(input.body); return { generationStarted: true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
-  async waitForGenerationComplete() { return { pageText: this.pageText }; }
-  async continueJournalWork() { this.onContinue?.(); return { generationStarted: true }; }
-  async retryJournalWork() { return { generationStarted: true }; }
+  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
+  async waitForGenerationComplete() { this.waits += 1; return { pageText: this.pageText }; }
+  async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
+  async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
+  async retryExactFailedContinue() { this.exactRetries += 1; return { generationStarted: true }; }
   async detectJournalWriteConfirmation() { const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
   async approveJournalWriteConfirmation(_target, input) { this.approvals.push(input); }
 }

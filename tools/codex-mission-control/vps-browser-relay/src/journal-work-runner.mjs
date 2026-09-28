@@ -6,6 +6,7 @@ import { sha256 } from './core.mjs';
 
 const exec = promisify(execCallback);
 const ROOT_URL = 'https://chatgpt.com/';
+const CONTINUE_BODY = 'Continue.';
 const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier', 'issued_at', 'expires_at', 'answered'];
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
@@ -56,16 +57,29 @@ export class JournalWorkRunner {
 
   async #attemptItem(item, state) {
     let session = await this.#fresh(item, state, 'INITIAL');
-    const rungs = ['INITIAL', 'CONTINUE', 'RETRY', 'FRESH_CHAT'];
+    let continueAnchor = null;
+    const rungs = ['INITIAL', 'CONTINUE', 'RETRY'];
     for (const rung of rungs) {
       state.current.rung = rung;
       await this.#persist(state);
-      if (rung === 'CONTINUE') await this.#scheduledRecovery(item, session, 'CONTINUE');
-      if (rung === 'RETRY') await this.#scheduledRecovery(item, session, 'RETRY');
-      if (rung === 'FRESH_CHAT') session = await this.#fresh(item, state, rung);
+      if (rung === 'CONTINUE') continueAnchor = await this.#continue(item, session);
+      if (rung === 'RETRY') await this.#retry(item, session, continueAnchor);
       const listed = await this.#listing();
       const current = listed.ok && listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, rung);
+      if (this.now() >= Date.parse(item.expires_at)) {
+        state.today.expired += 1; state.current = null;
+        return this.#finish(state, 'EXPIRED');
+      }
+    }
+    for (let freshChatCount = 1; freshChatCount < state.settings.freshChatThreshold; freshChatCount += 1) {
+      state.current.rung = 'FRESH_CHAT';
+      state.current.freshChatCount = freshChatCount + 1;
+      await this.#persist(state);
+      session = await this.#fresh(item, state, 'FRESH_CHAT');
+      const listed = await this.#listing();
+      const current = listed.ok && listed.records.find((entry) => entry.work_id === item.work_id);
+      if (current?.answered) return this.#answered(item, state, 'FRESH_CHAT');
       if (this.now() >= Date.parse(item.expires_at)) {
         state.today.expired += 1; state.current = null;
         return this.#finish(state, 'EXPIRED');
@@ -77,7 +91,9 @@ export class JournalWorkRunner {
 
   async #fresh(item, state, rung) {
     const target = await this.browser.createFreshChatTarget({ hardCeiling: 3 });
-    await this.browser.ensureExactConsumerControls(target, { expectedUrl: ROOT_URL, controls: { modelVisibleLabel: item.model, thinkingControlLabel: 'Thinking effort', thinkingVisibleLabel: item.effort } });
+    const controls = state.settings.controlObservations?.[item.model]?.[item.effort];
+    if (!controls) { const error = new Error('No calibrated consumer controls exist for the requested model and effort.'); error.code = 'JOURNAL_CONTROLS_UNCALIBRATED'; throw error; }
+    await this.browser.ensureExactConsumerControls(target, { expectedUrl: ROOT_URL, controls });
     try { await this.browser.selectAppsForMessage(target, { knownLabels: [this.config.appLabel], requiredLabels: [this.config.appLabel] }); }
     catch (cause) { const error = new Error('Configured InnerSignal app is unavailable.', { cause }); error.code = 'JOURNAL_APP_MISSING'; throw error; }
     const body = JOURNAL_WORK_PROMPT(item.work_id);
@@ -87,12 +103,21 @@ export class JournalWorkRunner {
     return { target, expectedUrl: started.conversationUrl ?? ROOT_URL };
   }
 
-  async #scheduledRecovery(item, session, rung) {
-    const method = rung === 'CONTINUE' ? 'continueJournalWork' : 'retryJournalWork';
-    if (typeof this.browser[method] !== 'function') { const error = new Error(`${rung} recovery is unavailable.`); error.code = 'RECOVERY_UNAVAILABLE'; throw error; }
-    const started = await this.submit({ item, target: session.target, rung, bodySha256: sha256(`${rung}:${item.work_id}`), submit: (callbacks = {}) => this.browser[method](session.target, { expectedUrl: session.expectedUrl, ...callbacks }) });
+  async #continue(item, session) {
+    const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
+    const started = await this.submit({ item, target: session.target, rung: 'CONTINUE', bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...callbacks }) });
     await this.#handleConfirmation(session.target, item);
-    await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: started.generationStarted });
+    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: true });
+    return anchor;
+  }
+
+  async #retry(item, session, anchor) {
+    const classified = await this.browser.inspectFailedContinueRetry(session.target, { expectedUrl: session.expectedUrl, anchor });
+    if (classified.status !== 'RETRY_FAILED_CONTINUE') return false;
+    const started = await this.submit({ item, target: session.target, rung: 'RETRY', bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...callbacks }) });
+    await this.#handleConfirmation(session.target, item);
+    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: true });
+    return true;
   }
 
   async #handleConfirmation(target, item) {
@@ -113,7 +138,7 @@ export class JournalWorkRunner {
     state.outcomes.push({ workId: item.work_id, outcome: 'ANSWERED', rung, at: this.#iso() });
     state.outcomes = state.outcomes.slice(-200); state.current = null; state.backoff = { level: 0, until: null, trigger: null };
     const summary = await this.#runImport();
-    state.lastImport = { at: this.#iso(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residualCounts: summary.residualCounts };
+    state.lastImport = { at: this.#iso(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residuals: summary.residuals };
     return this.#finish(state, 'ANSWERED');
   }
 
@@ -144,7 +169,7 @@ export class JournalWorkRunner {
     try { stored = JSON.parse(await readFile(this.config.stateFile, 'utf8')); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
     return {
       schemaVersion: 1,
-      settings: { paceMs: 60_000, backoffBaseMs: 60_000, backoffMaxMs: 3_600_000, freshChatThreshold: 3, dailyAllowance: 170, models: { 'GPT-5.6 Sol': ['Pro'] }, ...(stored.settings ?? {}), ...(this.config.settings ?? {}) },
+      settings: { paceMs: 60_000, backoffBaseMs: 60_000, backoffMaxMs: 3_600_000, freshChatThreshold: 3, dailyAllowance: 170, models: { 'GPT-5.6 Sol': ['Pro'] }, controlObservations: {}, ...(this.config.settings ?? {}), ...(stored.settings ?? {}) },
       today: stored.today ?? { date: this.#day(), answered: 0, expired: 0, waiting: 0 },
       current: stored.current ?? null, backoff: stored.backoff ?? { level: 0, until: null, trigger: null },
       lastImport: stored.lastImport ?? null, ownerAction: stored.ownerAction ?? null, outcomes: Array.isArray(stored.outcomes) ? stored.outcomes : [],
@@ -173,8 +198,10 @@ function classifyBackoff(error) {
 }
 function sanitizeImportResult(result) {
   let parsed = {};
-  try { parsed = JSON.parse(result.stdout || '{}'); } catch { /* content is deliberately discarded */ }
-  return { exitCode: Number.isInteger(result.exitCode) ? result.exitCode : 1, stage: stringOrNull(parsed.stage), blocker: stringOrNull(parsed.blocker), completedUnits: integerOrZero(parsed.completed_units ?? parsed.completedUnits), residualCounts: plainCounts(parsed.residual_counts ?? parsed.residualCounts) };
+  for (const line of String(result.stdout ?? '').split(/\r?\n/)) {
+    try { const candidate = JSON.parse(line); if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) parsed = candidate; } catch { /* npm headers and non-JSON output are deliberately discarded */ }
+  }
+  return { exitCode: Number.isInteger(result.exitCode) ? result.exitCode : 1, stage: stringOrNull(parsed.stage), blocker: stringOrNull(parsed.blocker), completedUnits: integerOrZero(parsed.completed_units), residuals: plainCounts(parsed.residuals) };
 }
 function stringOrNull(value) { return typeof value === 'string' && value.length <= 100 ? value : null; }
 function integerOrZero(value) { return Number.isInteger(value) && value >= 0 ? value : 0; }
