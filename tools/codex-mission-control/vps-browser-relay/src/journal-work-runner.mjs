@@ -142,7 +142,11 @@ export class JournalWorkRunner {
     try { await this.browser.selectAppsForMessage(target, { knownLabels: [this.config.appLabel], requiredLabels: [this.config.appLabel] }); }
     catch (cause) { const error = new Error('Configured InnerSignal app is unavailable.', { cause }); error.code = 'JOURNAL_APP_MISSING'; throw error; }
     const body = JOURNAL_WORK_PROMPT(item.work_id);
-    const providerSessionId = `provider-session:journal:${item.work_id}:${target.id}`;
+    // A fresh-chat target may reuse the same automation-owned tab. Bind the
+    // provider session to the durably reserved conversation attempt as well as
+    // the tab so navigating that tab to a new chat cannot overwrite an older
+    // conversation's scheduler binding.
+    const providerSessionId = `provider-session:journal:${item.work_id}:${freshChatAttempt}:${target.id}`;
     const started = await this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(target, item);
     await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, started.conversationUrl ?? ROOT_URL, started.generationStarted, item));

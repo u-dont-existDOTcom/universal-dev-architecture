@@ -139,6 +139,24 @@ test('freshChatThreshold limits total fresh chats before recording owner action'
   assert.equal(fixture.browser.freshCount, 4);
 });
 
+test('fresh conversations keep distinct provider sessions when the browser reuses one target', async (t) => {
+  const fixture = await makeFixture(t, {
+    answeredAt: Infinity,
+    settings: { freshChatThreshold: 3 },
+    browserOptions: { reuseTargetId: true, retryAvailable: false },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'OWNER_ACTION_REQUIRED');
+  const fresh = fixture.submissions.filter(({ freshChatAttempt }) => Number.isInteger(freshChatAttempt));
+  assert.deepEqual(fresh.map(({ target }) => target.id), ['target-1', 'target-1', 'target-1']);
+  assert.deepEqual(fresh.map(({ freshChatAttempt }) => freshChatAttempt), [1, 2, 3]);
+  assert.equal(new Set(fresh.map(({ providerSessionId }) => providerSessionId)).size, 3);
+  assert.deepEqual(fresh.map(({ providerSessionId }) => providerSessionId), [
+    'provider-session:journal:opaque-1:1:target-1',
+    'provider-session:journal:opaque-1:2:target-1',
+    'provider-session:journal:opaque-1:3:target-1',
+  ]);
+});
+
 test('an item expiring during recovery is recorded without an import', async (t) => {
   let clock = now;
   const fixture = await makeFixture(t, { answeredAt: Infinity, now: () => clock, onContinue: () => { clock = Date.parse('2026-09-28T15:00:00Z'); } });
@@ -515,7 +533,7 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
 
 class FakeBrowser {
   constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
-  async createFreshChatTarget() { this.freshCount += 1; return { id: `target-${this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
+  async createFreshChatTarget() { this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
   async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }

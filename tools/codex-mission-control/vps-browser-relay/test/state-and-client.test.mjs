@@ -128,7 +128,8 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     const journalLifetime = relayCommandLockOptions('journal-work', {
       config: defaults, codexExecutionConfig: codexOn, journalWorkConfig: journalSettings, env: {},
     }).maxLifetimeMs;
-    assert.equal(journalLifetime, 4 * 60_000 + 5 * browserTurn + 600_000);
+    const journalBrowserTurn = 4 * (2 * (90_000 + 30_000 + 900_000) + 60_000);
+    assert.equal(journalLifetime, 4 * 60_000 + 5 * journalBrowserTurn + 600_000);
     assert.equal(journalLifetime, journalWorkLockLifetimeMs({
       browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, paceMs: 60_000, env: {},
     }));
@@ -141,9 +142,15 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
       config: await loadConfig({ ...base, MC_RELAY_STUCK_RECOVERY_MAX_NUDGES: '20' }),
       journalWorkConfig: journalSettings, env: {},
     }).maxLifetimeMs;
-    const recoveryHeavyDerived = 4 * 60_000 + 5 * 21 * (90_000 + 30_000 + 900_000) + 600_000;
+    const recoveryHeavyDerived = 4 * 60_000 + 5 * 21 * (2 * (90_000 + 30_000 + 900_000) + 60_000) + 600_000;
     assert.equal(recoveryHeavyJournal, recoveryHeavyDerived);
     assert.ok(recoveryHeavyJournal > 24 * 60 * 60_000);
+
+    const rateLimitHeavyJournal = relayCommandLockOptions('journal-work', {
+      config: await loadConfig({ ...base, MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600000' }),
+      journalWorkConfig: { settings: { freshChatThreshold: 1, paceMs: 0 } }, env: {},
+    }).maxLifetimeMs;
+    assert.equal(rateLimitHeavyJournal, 3 * 4 * (2 * (90_000 + 30_000 + 900_000) + 600_000) + 600_000);
 
     // The review case: 60-minute Codex execution and 60-minute generation ceilings.
     const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });

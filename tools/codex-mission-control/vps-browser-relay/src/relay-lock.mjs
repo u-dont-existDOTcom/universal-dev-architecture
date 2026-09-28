@@ -109,7 +109,12 @@ export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold
   if (override !== null) return override;
   const attemptsPerSubmission = runtime.stuckRecoveryMaxNudges + 1;
   const logicalSubmissions = freshChatThreshold + 2; // fresh conversations plus Continue and Retry
-  const browserTurnMs = attemptsPerSubmission * (browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs);
+  // Every scheduler submission, including a stuck-recovery nudge, can encounter
+  // the supported provider rate-limit dialog once, wait through the central
+  // cooldown, and replay once. Budget both browser attempts and that wait.
+  const providerAttempts = 2;
+  const browserAttemptMs = browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs;
+  const browserTurnMs = attemptsPerSubmission * (providerAttempts * browserAttemptMs + runtime.minSubmissionIntervalMs);
   const maximumPacingDelayMs = 4 * paceMs;
   const derived = maximumPacingDelayMs + logicalSubmissions * browserTurnMs + ONE_SHOT_LOCK_MARGIN_MS;
   if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite journal-work relay lock lifetime from the configuration.');
