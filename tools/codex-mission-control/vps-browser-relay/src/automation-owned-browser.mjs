@@ -349,8 +349,12 @@ export class AutomationOwnedBrowser {
 
   async submitExactMessage(target, input) {
     await this.#assertOwned(target?.id);
+    return this.#withRateLimitRecovery(target, () => this.rawBrowser.submitExactMessage(target, input));
+  }
+
+  async #withRateLimitRecovery(target, operation) {
     try {
-      return await this.rawBrowser.submitExactMessage(target, input);
+      return await operation();
     } catch (error) {
       const recovery = await this.protocol.dismissRateLimit(target).catch(() => ({ present: false, dismissed: false }));
       if (!recovery?.present) throw error;
@@ -390,7 +394,7 @@ export class AutomationOwnedBrowser {
 
   async retryExactFailedContinue(target, input) {
     await this.#assertOwned(target?.id);
-    return this.rawBrowser.retryExactFailedContinue(target, input);
+    return this.#withRateLimitRecovery(target, () => this.rawBrowser.retryExactFailedContinue(target, input));
   }
 
   #reusableTarget(ownership, owned, reusableTargetId, wantedUrl, purpose) {

@@ -423,6 +423,21 @@ test('exact provider rate-limit dialog is dismissed and converted to one bounded
   assert.equal(protocol.rateLimitDismissals, 1);
 });
 
+test('failed-Continue Retry applies the same exact provider rate-limit recovery', async () => {
+  const raw = new FakeRawBrowser([page('owned', chatA, 7)]);
+  raw.submitError = Object.assign(new Error('Retry generation did not start'), { relayStage: 'CLICKED' });
+  const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatA) }));
+  const protocol = new FakeProtocol(raw);
+  protocol.rateLimitResult = { present: true, dismissed: true };
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+
+  await assert.rejects(
+    browser.retryExactFailedContinue(raw.byId('owned'), { expectedUrl: chatA, anchor: {}, binding: {} }),
+    (error) => error.code === CHATGPT_RATE_LIMIT_RETRY && error.retryAfterMs === 30_000 && error.relayStage === 'CLICKED',
+  );
+  assert.equal(protocol.rateLimitDismissals, 1);
+});
+
 class MemoryOwnershipStore {
   constructor(value) { this.value = value ? structuredClone(value) : null; }
   async read() { return this.value ? structuredClone(this.value) : null; }
@@ -500,6 +515,7 @@ class FakeRawBrowser {
     return true;
   }
   async submitExactMessage() { if (this.submitError) throw this.submitError; return { generationStarted: true }; }
+  async retryExactFailedContinue() { if (this.submitError) throw this.submitError; return { generationStarted: true }; }
   byId(id) { return this.targets.find((target) => target.id === id); }
 }
 

@@ -90,6 +90,10 @@ export class JournalWorkRunner {
       return await this.#attemptItem(item, state);
     } catch (error) {
       if (error?.code === 'JOURNAL_DAILY_ALLOWANCE_REACHED') return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
+      if (error?.code === 'JOURNAL_ITEM_EXPIRED') {
+        state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1); state.current = null;
+        return this.#finish(state, 'EXPIRED');
+      }
       const trigger = classifyBackoff(error);
       if (trigger) return this.#backOff(state, trigger, error?.code === 'GLOBAL_SUBMISSION_COOLDOWN' ? error.retryAfterMs : null);
       state.ownerAction = { code: error?.code ?? 'JOURNAL_WORK_STOPPED', workId: item.work_id, at: this.#iso() };
@@ -147,7 +151,7 @@ export class JournalWorkRunner {
     // the tab so navigating that tab to a new chat cannot overwrite an older
     // conversation's scheduler binding.
     const providerSessionId = `provider-session:journal:${item.work_id}:${freshChatAttempt}:${target.id}`;
-    const started = await this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) });
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) }));
     await this.#handleConfirmation(target, item);
     await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, started.conversationUrl ?? ROOT_URL, started.generationStarted, item));
     return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
@@ -156,7 +160,7 @@ export class JournalWorkRunner {
   async #continue(item, session, state) {
     this.#assertSubmissionAllowance(state);
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
-    const started = await this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(state, callbacks) }) });
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(state, callbacks) }) }));
     await this.#handleConfirmation(session.target, item);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return anchor;
@@ -166,10 +170,28 @@ export class JournalWorkRunner {
     const classified = await this.browser.inspectFailedContinueRetry(session.target, { expectedUrl: session.expectedUrl, anchor });
     if (classified.status !== 'RETRY_FAILED_CONTINUE') return false;
     this.#assertSubmissionAllowance(state);
-    const started = await this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(state, callbacks) }) });
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(state, callbacks) }) }));
     await this.#handleConfirmation(session.target, item);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return true;
+  }
+
+  async #submitAfterCooldown(item, state, operation) {
+    for (;;) {
+      try { return await operation(); }
+      catch (error) {
+        if (error?.code !== 'GLOBAL_SUBMISSION_COOLDOWN') throw error;
+        const retryAfterMs = Number(error.retryAfterMs);
+        if (!Number.isFinite(retryAfterMs) || retryAfterMs < 0) throw error;
+        await this.sleep(retryAfterMs);
+        if (this.now() >= Date.parse(item.expires_at)) {
+          const expired = new Error('Journal work item expired during the global submission cooldown.');
+          expired.code = 'JOURNAL_ITEM_EXPIRED';
+          throw expired;
+        }
+        this.#assertSubmissionAllowance(state);
+      }
+    }
   }
 
   #countedCallbacks(state, callbacks) {

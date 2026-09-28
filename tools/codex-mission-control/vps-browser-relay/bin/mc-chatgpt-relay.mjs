@@ -90,7 +90,10 @@ try {
         const { onSubmissionBoundary: onJournalSubmissionBoundary, ...messageInput } = input;
         return rawBrowser.submitExactMessage(target, {
           ...messageInput,
-          onBeforeSubmissionBoundary,
+          onBeforeSubmissionBoundary: async (...args) => {
+            await input.beforeRecoverySend?.(...args);
+            return onBeforeSubmissionBoundary(...args);
+          },
           onSubmissionBoundary: async (...args) => {
             await onJournalSubmissionBoundary?.(...args);
             return onSubmissionBoundary(...args);

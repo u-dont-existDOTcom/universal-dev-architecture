@@ -237,30 +237,30 @@ test('a confirmation for any other tool is refused and becomes an owner action',
 for (const [name, error, trigger] of [
   ['too many requests', Object.assign(new Error('too many requests'), { code: 'RATE_LIMIT' }), 'TOO_MANY_REQUESTS'],
   ['model capacity', new Error('model unavailable due to capacity'), 'MODEL_CAPACITY'],
-  ['central cooldown', Object.assign(new Error('cooldown'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 420_000 }), 'GLOBAL_SUBMISSION_COOLDOWN'],
 ]) test(`${name} grows persistent backoff`, async (t) => {
   const fixture = await makeFixture(t, { browserOptions: { submitError: error } });
   const result = await fixture.runner.runPass();
   assert.equal(result.status, 'BACKING_OFF');
   assert.equal(result.state.backoff.trigger, trigger);
   assert.equal(result.state.backoff.level, 1);
-  if (error.code === 'GLOBAL_SUBMISSION_COOLDOWN') assert.equal(result.state.backoff.until, '2026-09-28T12:07:00.000Z');
 });
 
-test('a central cooldown between ladder rungs remains resumable timed backoff', async (t) => {
+test('a central cooldown waits inside the active ladder and resumes Continue without a new initial chat', async (t) => {
   let attempts = 0;
+  const sleeps = [];
   const cooldown = Object.assign(new Error('central pacing remains active'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 300_000 });
-  const fixture = await makeFixture(t, { answeredAt: Infinity, submitHandler: async (entry) => {
+  const fixture = await makeFixture(t, { answeredAt: 4, sleep: async (ms) => sleeps.push(ms), submitHandler: async (entry) => {
     attempts += 1;
     if (attempts === 2) throw cooldown;
     return entry.submit();
   } });
   const result = await fixture.runner.runPass();
-  assert.equal(result.status, 'BACKING_OFF');
+  assert.equal(result.status, 'ANSWERED');
   assert.equal(result.state.ownerAction, null);
-  assert.equal(result.state.backoff.trigger, 'GLOBAL_SUBMISSION_COOLDOWN');
-  assert.equal(result.state.backoff.until, '2026-09-28T12:05:00.000Z');
-  assert.equal(result.state.current.workId, 'opaque-1');
+  assert.deepEqual(sleeps, [60_000, 300_000]);
+  assert.equal(fixture.browser.freshCount, 1);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']);
+  assert.deepEqual(fixture.submissions.map(({ rung }) => rung), ['INITIAL', 'CONTINUE', 'CONTINUE']);
 });
 
 test('memory pressure backs off before reading work', async (t) => {
