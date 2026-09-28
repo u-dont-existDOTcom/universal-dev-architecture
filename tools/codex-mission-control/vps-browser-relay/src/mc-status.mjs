@@ -1,10 +1,15 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { buildUsageSummary } from './journal-claude-worker.mjs';
 
-export async function renderStatusPage(stateDir) {
+export async function renderStatusPage(stateDir, now = Date.now) {
   const journal = await readJson(join(stateDir, 'journal-work-status.json')) ?? {};
-  const claude = await readJson(join(stateDir, 'claude-usage-summary.json')) ?? {};
+  const storedClaude = await readJson(join(stateDir, 'claude-usage-summary.json')) ?? {};
+  const usageEvents = await readUsageEvents(join(stateDir, 'claude-usage.jsonl'));
+  const claude = usageEvents === null
+    ? storedClaude
+    : { ...storedClaude, ...buildUsageSummary(usageEvents, now()) };
   const current = isRecord(journal.current) ? journal.current : {};
   const today = isRecord(journal.today) ? journal.today : {};
   const backoff = isRecord(journal.backoff) ? journal.backoff : {};
@@ -122,4 +127,24 @@ function isRecord(value) {
 
 async function readJson(path) {
   try { return JSON.parse(await readFile(path, 'utf8')); } catch { return null; }
+}
+
+async function readUsageEvents(path) {
+  let content;
+  try {
+    content = await readFile(path, 'utf8');
+  } catch (error) {
+    return error?.code === 'ENOENT' ? [] : null;
+  }
+  return content
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .flatMap((line) => {
+      try {
+        const event = JSON.parse(line);
+        return isRecord(event) ? [event] : [];
+      } catch {
+        return [];
+      }
+    });
 }

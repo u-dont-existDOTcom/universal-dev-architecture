@@ -189,6 +189,36 @@ test('an answered listing imports before honoring the same-run usage limit', asy
   );
 });
 
+test('an answered in-flight item is reconciled after a transient listing failure', async (t) => {
+  const fixture = await makeFixture(t, {
+    dispatchResponses: [
+      { exitCode: 0, stdout: `${JSON.stringify(record(false))}\n` },
+      { exitCode: 1, stdout: '' },
+      { exitCode: 0, stdout: `${JSON.stringify(record(true))}\n` },
+    ],
+  });
+
+  assert.deepEqual(
+    await fixture.worker.runPass(),
+    { status: 'LISTING_FAILED', workId: 'hard-1' },
+  );
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).in_flight,
+    { work_id: 'hard-1' },
+  );
+
+  assert.deepEqual(
+    await fixture.worker.runPass(),
+    { status: 'ANSWERED', workId: 'hard-1' },
+  );
+  assert.equal(fixture.dispatches(), 3);
+  assert.equal(fixture.claudeRuns(), 1);
+  assert.equal(fixture.imports(), 1);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.in_flight, undefined);
+  assert.equal(summary.pending_import, undefined);
+});
+
 test('Claude-triggered import uses independently owned state that survives later runner status writes', async (t) => {
   const fixture = await makeFixture(t, {
     answeredAt: 2,
@@ -380,6 +410,39 @@ test('status page renders only the listed fields', async (t) => {
   assert.doesNotMatch(page, new RegExp(SENTINEL));
 });
 
+test('status page rebuilds time-windowed Claude metrics from the usage log', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'mc-status-window-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, 'claude-usage.jsonl'), [
+    JSON.stringify({
+      at: '2026-09-28T11:59:59Z',
+      outcome: 'limited',
+      resume_at: '2026-09-28T14:30:00Z',
+    }),
+    JSON.stringify({
+      at: '2026-10-04T11:00:00Z',
+      outcome: 'unanswered',
+      input_tokens: 3,
+    }),
+    '',
+  ].join('\n'));
+  await writeFile(join(dir, 'claude-usage-summary.json'), JSON.stringify({
+    today_utc: { runs: 7 },
+    last_seven_days: { runs: 8 },
+    paused_until: '2026-09-28T14:30:00.000Z',
+  }));
+
+  const page = await renderStatusPage(
+    dir,
+    () => Date.parse('2026-10-05T12:00:00Z'),
+  );
+  assert.match(page, /Runs today \(UTC\)<\/dt><dd>0/);
+  assert.match(page, /Runs, last seven days<\/dt><dd>1/);
+  assert.match(page, /Tokens, last seven days<\/dt><dd>3/);
+  assert.match(page, /Sending paused until<\/dt><dd>—/);
+  assert.doesNotMatch(page, /2026-09-28T14:30:00\.000Z/);
+});
+
 test('status service uses the supported installed relay paths', async () => {
   const unit = await readFile(
     new URL('../systemd/user/mission-control-status.service', import.meta.url),
@@ -403,6 +466,7 @@ test('worker does nothing unless explicitly enabled', async (t) => {
 
 async function makeFixture(t, {
   answeredAt = Infinity,
+  dispatchResponses = null,
   result = {},
   importResult = {},
   importResponses = null,
@@ -455,6 +519,7 @@ process.stdout.write(require('node:fs').readFileSync(${JSON.stringify(resultFile
     commandTimeouts.push([command, timeoutMs]);
     if (command === 'dispatch') {
       dispatches += 1;
+      if (dispatchResponses) return dispatchResponses[dispatches - 1];
       return {
         exitCode: 0,
         stdout: `${JSON.stringify(record(dispatches >= answeredAt, expiresAt))}\n`,

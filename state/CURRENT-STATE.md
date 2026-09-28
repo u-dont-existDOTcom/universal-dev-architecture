@@ -9,30 +9,27 @@ Updated: 2026-09-28
 
 ## Goal
 
-- Address both Codex review findings on the journal Claude worker at reviewed
-  commit `bd52bbe`: retain failed imports for retry and prevent Claude import
-  reporting from racing the standard runner's shared status writes.
+- Address all three Codex review findings at reviewed commit `af245cf`: recover
+  an answer after a transient post-Claude listing failure, render usage windows
+  against current time, and repair the stale committed recovery checkpoint.
 - Parent outcome: **SATISFIED** for the requested uncommitted review fixes;
-  sandbox-incompatible process/socket coverage remains explicitly assigned to CI.
+  sandbox-incompatible process/socket coverage remains assigned to CI.
 
 ## Authority / baseline
 
 - Current owner request: fix each valid review finding with a regression, keep
   the change small, run the sandbox-compatible touched tests and repository
   gates without weakening tests, and leave changes uncommitted/unpushed.
-- Canonical live default-branch `AGENTS.md` was retrieved successfully on
-  2026-09-28 before the original implementation. For this review round, the
-  required re-fetch was unavailable because the sandbox has no network; the
-  owner-supplied instructions and checked-out authority files were loaded instead.
-- Baseline: reviewed commit `bd52bbe` on
-  `claude/mc-journal-claude-worker-20260928`.
+- Canonical live default-branch `AGENTS.md` was re-fetched successfully on
+  2026-09-28 through the available web surface; the shell sandbox remains
+  networkless. Root, scoped, state, test-efficiency, assurance, continuation,
+  and executable-frontier guidance was activated before implementation.
+- Last verified durable boundary: `af245cf`, which already contains the two
+  earlier review repairs on `claude/mc-journal-claude-worker-20260928`. The
+  working tree was clean at this round's start.
 - Active assurance lane: **release/handoff candidate**, because the owner
   explicitly requires the relay suite and both repository completion gates;
   deployment and publication remain unauthorized.
-- Chat → Work requires explicit user acceptance; Work ↔ Work uses native
-  Work-internal coordination; Work → the originating Chat is unavailable.
-  Mission Control's autonomous control-plane routing of supervision and escalation
-  does not create a native return edge or transfer semantic reasoning authority.
 
 ## Active lesson contract
 
@@ -40,9 +37,13 @@ Updated: 2026-09-28
   answer, Claude `result`, or `session_id`; the sentinel regression must pass.
 - **Runner composition (mechanical/semantic):** reuse its reader, timeout-aware
   command runner, import sanitizer/status shape, and shared import-run lock.
-- **Retry/state ownership (mechanical):** persist a content-free pending-import
-  marker before import, retry it before listing or limit checks, and keep Claude
-  import reporting out of the standard runner's shared status file.
+- **Retry/state ownership (mechanical):** persist a content-free in-flight work
+  ID before Claude, reconcile it before pause/selection, and atomically promote
+  it to the existing pending-import retry state before import.
+- **Time-window truth (mechanical):** rebuild UTC-day, rolling-seven-day, and
+  pause-expiry metrics from the content-free usage log when rendering status.
+- **Recovery truth (mechanical):** distinguish the committed `af245cf` boundary
+  from this round's uncommitted delta so no worker repeats completed integration.
 - **Explicit authority boundary (mechanical):** `journal-claude` performs no
   work unless `MC_JOURNAL_CLAUDE_ENABLED=1`; no deploy, install, push, or service
   mutation is authorized.
@@ -53,67 +54,65 @@ Updated: 2026-09-28
 
 ## Review finding disposition
 
-- **Retain failed imports for retry — valid and fixed.** The Claude-owned usage
-  summary now keeps `pending_import.work_id`; a later pass retries it before
-  selecting work or honoring a Claude usage pause, and success alone clears it.
-- **Synchronize the shared status update — valid and fixed by independent
-  ownership.** The Claude worker no longer writes `journal-work-status.json`.
-  Its `last_import` lives in `claude-usage-summary.json`, and the read-only status
-  page chooses the newest standard-runner or Claude import summary.
+- **Persist in-flight work before Claude — valid and fixed.** A content-free
+  `in_flight.work_id` is durable before invocation. A later pass reconciles that
+  exact record before pause/selection and imports it without invoking Claude again.
+- **Update the checkpoint after committing — valid and fixed.** This checkpoint
+  names `af245cf` as the prior durable handoff and scopes the runner's next commit
+  to this round's new working-tree delta.
+- **Refresh time-windowed status metrics — valid and fixed.** Rendering rebuilds
+  the three time-sensitive projections from `claude-usage.jsonl`; a transient
+  log read error alone falls back to the stored snapshot.
 - Production promotion is not authorized; this task leaves an uncommitted,
-  undeployed working-tree candidate for the runner to collect.
+  undeployed working-tree candidate for the repository runner.
 - Preserve the active completion gate: `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
   `tests/test_coverage_before_depth_pattern.py`.
 
 ## Current checkpoint
 
-1. Reproduce both review findings with regressions. **Complete.**
-2. Persist/retry failed imports and isolate Claude import state. **Complete.**
-3. Run focused coverage, the relay checkpoint, and both repository gates as far
-   as the sandbox permits. **Complete.**
+1. Reproduce all three findings with regressions. **Complete.**
+2. Persist/reconcile in-flight work and refresh status metrics at render time.
+   **Complete.**
+3. Run sandbox-compatible affected coverage and the requested gates. **Complete.**
 4. Review the final diff and preserve the uncommitted runner handoff. **Complete.**
 
 ## Completed
 
 - Verified the clean requested baseline and loaded the applicable local authority.
 - Started test-efficiency telemetry before implementation.
-- Demonstrated that the new focused regressions fail at the reviewed commit,
-  then pass after the fixes. The retry regression also proves that the second
-  pass performs no new listing or Claude invocation.
-- Moved Claude's last-import summary into its independently owned summary file;
-  a later standard-runner status write can no longer erase it or be overwritten
-  by a stale Claude read-modify-write.
+- Demonstrated expected pre-fix failures for code and checkpoint regressions.
+- Added focused coverage proving post-failure reconciliation imports the answered
+  item with one Claude invocation and render-time metrics cross day/window/pause
+  boundaries from the usage log.
+- Reviewed the complete working-tree diff and preserved the requested no-push,
+  no-commit, and no-deploy boundary.
 
 ## Remaining
 
-- CI should rerun the four relay files whose child-process diagnostics are
-  suppressed in this sandbox and the repository test that opens a loopback
-  socket. No source or test change is required for those environment residuals.
+- CI must rerun the four sandbox-incomplete relay files and the repository test
+  that opens a loopback socket. Tests remain unchanged for those restrictions.
 
 ## Blockers / unresolved
 
-- No implementation or owner-decision blocker.
-- The sandbox cannot open local sockets and suppresses output from some nested
-  child processes. Tests were left unchanged; CI owns those remaining checks.
+- No implementation or owner-decision blocker is currently observed.
+- The sandbox cannot open local sockets and four process-heavy relay files do
+  not expose their nested diagnostics here; CI owns those residual checks.
 
 ## Evidence / artifacts
 
-- Focused Claude-worker regression file: PASS after an expected pre-fix failure.
-- Relay syntax check: PASS.
-- Full relay checkpoint: 20/24 files passed; four process-heavy files are
-  sandbox-incomplete. The changed worker file passed. Touched assertions outside
-  suppressed child-process diagnostics passed separately.
-- Exact repository unittest gate after checkpoint repair: 468 tests executed,
-  467 passed and the sole error is the expected `PermissionError` when
-  `test_chatgpt_storage_canary` creates `127.0.0.1` socket state.
+- Focused code regressions: expected pre-fix failure, then PASS after source fixes.
+- Focused recovery-state regression: expected pre-fix failure, then PASS.
+- Relay syntax and touched-file tests: PASS. Full relay checkpoint: 20/24 files
+  passed; the changed journal-worker file passed and four environment-bound files
+  remain for CI.
+- Exact repository unittest gate: 469 tests, 468 passed; the sole error is the
+  expected `PermissionError` creating the prohibited `127.0.0.1` socket.
 - Exact deterministic repository audit: PASS with no findings.
-- Test telemetry: 525.32s elapsed, 31.02s observed (5.91%); focused 3/3.66s,
-  affected 2/0.13s, full 7/27.23s, mutation 0; forced redundant 0 and skipped 0.
-  Log: `/tmp/pr277-review-round-test-efficiency.jsonl`.
+- Test telemetry: `/tmp/pr277-af245cf-review-round.jsonl`.
 
 ## Next safe action
 
-- The repository runner may collect, commit, and push this working tree, then
-  let CI execute the sandbox-incompatible relay and socket coverage. Do not
-  deploy without separate owner approval naming that step.
+- The repository runner may commit and push only this review round's working-tree
+  delta, then let CI execute sandbox-incompatible coverage. Do not deploy without
+  separate owner approval naming that step.

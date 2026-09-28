@@ -57,11 +57,27 @@ export class JournalClaudeWorker {
       ? prior.pending_import.work_id
       : null;
     if (pendingWorkId) return this.#importAnswered(pendingWorkId);
+    let listing;
+    const inFlightWorkId = typeof prior?.in_flight?.work_id === 'string'
+      ? prior.in_flight.work_id
+      : null;
+    if (inFlightWorkId) {
+      listing = await readJournalListing(
+        this.config.dispatchCommand,
+        this.config.dispatchTimeoutMs,
+        this.commandRunner,
+      );
+      if (!listing.ok) return { status: 'LISTING_FAILED', workId: inFlightWorkId };
+      if (listing.records.find((entry) => entry.work_id === inFlightWorkId)?.answered === true) {
+        return this.#importAnswered(inFlightWorkId);
+      }
+      await this.#clearInFlight(inFlightWorkId);
+    }
     if (Date.parse(prior?.paused_until ?? '') > this.now()) {
       return { status: 'LIMITED', pausedUntil: prior.paused_until };
     }
 
-    const listing = await readJournalListing(
+    listing ??= await readJournalListing(
       this.config.dispatchCommand,
       this.config.dispatchTimeoutMs,
       this.commandRunner,
@@ -81,6 +97,10 @@ export class JournalClaudeWorker {
       }
 
       let result;
+      await this.#updateSummary((summary) => ({
+        ...summary,
+        in_flight: { work_id: item.work_id },
+      }));
       try {
         result = await this.#invoke(item.work_id);
       } catch {
@@ -102,6 +122,7 @@ export class JournalClaudeWorker {
             : result.is_error
               ? 'error'
               : 'unanswered';
+      if (refreshed.ok && !answered) await this.#clearInFlight(item.work_id);
       await this.#record(result, outcome);
 
       if (answered) return this.#importAnswered(item.work_id);
@@ -163,10 +184,11 @@ export class JournalClaudeWorker {
   }
 
   async #importAnswered(workId) {
-    await this.#updateSummary((summary) => ({
-      ...summary,
-      pending_import: { work_id: workId },
-    }));
+    await this.#updateSummary((summary) => {
+      const next = { ...summary, pending_import: { work_id: workId } };
+      delete next.in_flight;
+      return next;
+    });
     const summary = await runJournalImport({
       command: this.config.importCommand,
       timeoutMs: this.config.importTimeoutMs,
@@ -222,8 +244,18 @@ export class JournalClaudeWorker {
     const summary = buildUsageSummary(events, this.now());
     if (isRecord(prior?.last_import)) summary.last_import = prior.last_import;
     if (isRecord(prior?.pending_import)) summary.pending_import = prior.pending_import;
+    if (isRecord(prior?.in_flight)) summary.in_flight = prior.in_flight;
     await atomicJson(this.config.summaryFile, summary);
     this.logger.log({ status: outcome.toUpperCase(), at: event.at });
+  }
+
+  async #clearInFlight(workId) {
+    await this.#updateSummary((summary) => {
+      if (summary.in_flight?.work_id !== workId) return summary;
+      const next = { ...summary };
+      delete next.in_flight;
+      return next;
+    });
   }
 
   async #updateSummary(update) {
