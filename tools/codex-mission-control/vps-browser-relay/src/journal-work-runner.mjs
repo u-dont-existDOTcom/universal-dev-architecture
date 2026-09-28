@@ -111,7 +111,7 @@ export class JournalWorkRunner {
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, rung);
       if (this.now() >= Date.parse(item.expires_at)) {
-        state.today.expired += 1; state.current = null;
+        state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1); state.current = null;
         return this.#finish(state, 'EXPIRED');
       }
     }
@@ -125,7 +125,7 @@ export class JournalWorkRunner {
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
       if (current?.answered) return this.#answered(item, state, 'FRESH_CHAT');
       if (this.now() >= Date.parse(item.expires_at)) {
-        state.today.expired += 1; state.current = null;
+        state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1); state.current = null;
         return this.#finish(state, 'EXPIRED');
       }
     }
@@ -145,7 +145,7 @@ export class JournalWorkRunner {
     const providerSessionId = `provider-session:journal:${item.work_id}:${target.id}`;
     const started = await this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(target, item);
-    await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, started.conversationUrl ?? ROOT_URL, started.generationStarted));
+    await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, started.conversationUrl ?? ROOT_URL, started.generationStarted, item));
     return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
   }
 
@@ -154,7 +154,7 @@ export class JournalWorkRunner {
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
     const started = await this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(session.target, item);
-    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.expectedUrl, true));
+    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return anchor;
   }
 
@@ -164,7 +164,7 @@ export class JournalWorkRunner {
     this.#assertSubmissionAllowance(state);
     const started = await this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(session.target, item);
-    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.expectedUrl, true));
+    if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return true;
   }
 
@@ -183,10 +183,11 @@ export class JournalWorkRunner {
     };
   }
 
-  #journalWaitOptions(state, expectedUrl, generationStarted) {
+  #journalWaitOptions(state, target, expectedUrl, generationStarted, item) {
     return {
       expectedUrl,
       generationStarted,
+      onGenerationPoll: () => this.#handleConfirmation(target, item),
       beforeRecoverySend: () => this.#assertSubmissionAllowance(state),
       onRecoverySubmissionBoundary: async () => {
         state.today.calls += 1;

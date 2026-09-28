@@ -1453,7 +1453,7 @@ export class ChromeDevtoolsBrowser {
     }
   }
 
-  async waitForGenerationComplete(target, { expectedUrl, generationStarted }) {
+  async waitForGenerationComplete(target, { expectedUrl, generationStarted, onGenerationPoll = null }) {
     if (generationStarted !== true) throw new Error('GENERATION_START_UNVERIFIED: completion cannot be inferred without a prior observed generation-start transition.');
     const normalized = normalizeConversationUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
@@ -1462,6 +1462,7 @@ export class ChromeDevtoolsBrowser {
       let conversationUrlCanonicalized = false;
       let progressTracker = { outputBegun: false, counter: null, lastAdvancedAtMs: null };
       const completed = await waitFor(async () => {
+        if (onGenerationPoll) await onGenerationPoll();
         const state = await client.callFunction(GENERATION_STATE_FN, [completionUrl]);
         if (state?.urlMismatch) {
           const transition = state?.conversationUrl

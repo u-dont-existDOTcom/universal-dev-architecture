@@ -198,6 +198,16 @@ test('approved exact confirmation uses always allow when offered', async (t) => 
   assert.equal(fixture.browser.approvals[0].button, 'Always allow');
 });
 
+test('a write confirmation appearing during generation is approved before completion can settle', async (t) => {
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    browserOptions: { confirmationDuringWait: { present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'] } },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.equal(fixture.browser.approvals.length, 1);
+  assert.equal(fixture.browser.approvals[0].button, 'Always allow');
+});
+
 test('a confirmation for any other tool is refused and becomes an owner action', async (t) => {
   const fixture = await makeFixture(t, { browserOptions: { confirmation: { present: true, appName: 'InnerSignal', toolName: 'delete_everything', buttons: ['Allow'] } } });
   const result = await fixture.runner.runPass();
@@ -303,6 +313,36 @@ test('an expired persisted attempt is counted before its current-work marker is 
   assert.equal(result.state.current, null);
   assert.equal(fixture.browser.freshCount, 0);
   assert.equal(fixture.dispatchRuns(), 1);
+});
+
+test('an item expiring after the initial attempt leaves no stale waiting count', async (t) => {
+  let clock = now;
+  const fixture = await makeFixture(t, {
+    now: () => clock,
+    recordOverrides: { expires_at: '2026-09-28T12:01:00Z' },
+    browserOptions: { onWait: () => { clock += 120_000; } },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'EXPIRED');
+  assert.equal(result.state.today.expired, 1);
+  assert.equal(result.state.today.waiting, 0);
+  assert.equal(result.state.current, null);
+});
+
+test('an item expiring after a fresh-chat attempt leaves no stale waiting count', async (t) => {
+  let clock = now;
+  const fixture = await makeFixture(t, {
+    now: () => clock,
+    recordOverrides: { expires_at: '2026-09-28T12:01:00Z' },
+    settings: { freshChatThreshold: 2 },
+    browserOptions: { onWait: (waits) => { if (waits === 4) clock += 120_000; } },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'EXPIRED');
+  assert.equal(result.state.today.expired, 1);
+  assert.equal(result.state.today.waiting, 0);
+  assert.equal(result.state.current, null);
+  assert.equal(fixture.browser.freshCount, 2);
 });
 
 test('an unanswered persisted attempt reserves a new durable identity before a restart target', async (t) => {
@@ -481,6 +521,12 @@ class FakeBrowser {
   async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete(_target, options) {
     this.waits += 1;
+    this.onWait?.(this.waits);
+    if (this.confirmationDuringWait) {
+      this.confirmation = this.confirmationDuringWait;
+      this.confirmationDuringWait = null;
+    }
+    await options.onGenerationPoll?.();
     if ((this.recoverySubmissions ?? 0) > 0) {
       this.recoverySubmissions -= 1;
       await options.beforeRecoverySend();

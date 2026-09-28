@@ -7,6 +7,31 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `4354850` (2026-09-28)
+
+- Parent implementation outcome: **SATISFIED**. Both findings are valid and
+  repaired at the existing pull request's merge-ready boundary; commit and
+  pull-request metadata delivery remain the current worker's final actions.
+- Journal write confirmations are now checked on every generation-completion
+  poll, in addition to the immediate post-submit check. A confirmation that
+  appears only when `submit_journal_work_result` runs can therefore be approved
+  without leaving generation blocked; the existing exact app, tool, and button
+  allowlist still fails closed for every other dialog.
+- Expiry after the initial, Continue, Retry, or fresh-chat attempt now removes
+  the item from `today.waiting` while incrementing `today.expired` and clearing
+  the active item, so persisted dashboard accounting is immediately coherent.
+- Direct regressions cover a confirmation that first appears inside the
+  generation wait and both recovery-expiration branches. The focused journal
+  runner suite passes 46/46.
+- Completion gates are green on the implementation candidate: the relay suite
+  passes 375/375 tests, repository unit tests pass 467/467, and the
+  deterministic repository audit reports no findings.
+- Active assurance lane: **release**, because the owner explicitly requires
+  the existing pull request to remain merge-ready and names all three gates.
+- Stop admission: implementation and validation are complete; the safe,
+  authorized remaining actions are committing this review round and updating
+  the existing pull request before user-facing delivery.
+
 ## PR #275 Codex review follow-up at `7ff6e3c` (2026-09-28)
 
 - Parent outcome: **SATISFIED**. Both review findings are valid and repaired at
