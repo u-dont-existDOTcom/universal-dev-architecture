@@ -328,6 +328,30 @@ test('failing and malformed listing commands mean no work and do not touch the b
   }
 });
 
+test('prototype-named models are skipped during initial and refreshed eligibility checks', async (t) => {
+  const unsupported = record({ work_id: 'unsupported', model: 'constructor', issued_at: '2026-09-28T09:00:00Z' });
+  const supported = (answered = false) => record({ work_id: 'supported', answered });
+  const initial = await makeFixture(t, {
+    dispatchHandler: async (run) => ({
+      exitCode: 0,
+      stdout: `${JSON.stringify(unsupported)}\n${JSON.stringify(supported(run >= 3))}\n`,
+    }),
+  });
+  assert.equal((await initial.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(initial.browser.messages, [JOURNAL_WORK_PROMPT('supported')]);
+
+  const refreshed = await makeFixture(t, {
+    dispatchHandler: async (run) => ({
+      exitCode: 0,
+      stdout: run === 1
+        ? `${JSON.stringify(supported())}\n`
+        : `${JSON.stringify(unsupported)}\n${JSON.stringify(supported(run >= 3))}\n`,
+    }),
+  });
+  assert.equal((await refreshed.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(refreshed.browser.messages, [JOURNAL_WORK_PROMPT('supported')]);
+});
+
 test('a failed authoritative readback backs off without advancing recovery', async (t) => {
   let clock = now;
   const fixture = await makeFixture(t, { now: () => clock, dispatchHandler: async (run) => {

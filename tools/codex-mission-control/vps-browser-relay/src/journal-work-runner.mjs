@@ -59,7 +59,7 @@ export class JournalWorkRunner {
     const listing = await this.#listing();
     if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
     const eligible = listing.records.filter((item) => !item.answered && item.tier === 'standard'
-      && Date.parse(item.expires_at) > this.now() && state.settings.models[item.model]?.includes(item.effort))
+      && Date.parse(item.expires_at) > this.now() && supportsModelEffort(state.settings.models, item.model, item.effort))
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
     state.today.waiting = eligible.length;
     let item = eligible[0];
@@ -81,7 +81,7 @@ export class JournalWorkRunner {
       return this.#finish(state, 'EXPIRED');
     }
     const refreshedEligible = refreshed.records.filter((candidate) => !candidate.answered && candidate.tier === 'standard'
-      && Date.parse(candidate.expires_at) > this.now() && state.settings.models[candidate.model]?.includes(candidate.effort))
+      && Date.parse(candidate.expires_at) > this.now() && supportsModelEffort(state.settings.models, candidate.model, candidate.effort))
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
     state.today.waiting = refreshedEligible.length;
     item = refreshedEligible[0];
@@ -376,6 +376,11 @@ function classifyBackoff(error) {
   if (text.includes('too many requests') || text.includes('rate_limit')) return 'TOO_MANY_REQUESTS';
   if (text.includes('model unavailable') || text.includes('capacity')) return 'MODEL_CAPACITY';
   return null;
+}
+
+function supportsModelEffort(models, model, effort) {
+  if (!models || typeof models !== 'object' || !Object.hasOwn(models, model)) return false;
+  return Array.isArray(models[model]) && models[model].includes(effort);
 }
 
 export async function withPersistedJournalWorkSettings(config) {
