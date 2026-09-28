@@ -9,18 +9,19 @@ Updated: 2026-09-28
 
 ## Goal
 
-- Address the two Codex findings on the journal work runner pull request (PR
-  #275), reviewed at `a7ecb07`: preserve a canonicalized fresh-conversation URL
-  through recovery-signal errors, and revalidate an already-resolved explicit
-  stall after a required cooldown before sending Continue.
-- Parent outcome: **SATISFIED**. Implementation, verification, local commit,
-  and the required pull-request metadata update are complete.
+- Address the Codex finding on the journal work runner pull request (PR #275),
+  reviewed at `fd5c90d`: check the submission kill switch before requiring
+  journal-work configuration.
+- Parent outcome: **SATISFIED**. Implementation, regression coverage,
+  verification, local commit, and the required pull-request metadata update are
+  complete.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`.
-- Requested branch: `claude/mc-journal-work-runner-20260928`, locally renamed
-  from the task environment's `work` branch at reviewed commit `a7ecb07`.
+- Requested branch: `claude/mc-journal-work-runner-20260928`; the task
+  environment exposes it locally as `work` at reviewed commit `fd5c90d` and has
+  no configured Git remote.
 - Active assurance lane: **release** because the owner explicitly requires the
   existing pull request and all three completion gates to remain merge-ready.
 - Live default-branch `AGENTS.md` retrieval was attempted before task reasoning;
@@ -29,16 +30,15 @@ Updated: 2026-09-28
 
 ## Completed
 
-- Accepted both review findings as correct after reproducing each defect with a
-  focused regression test against the reviewed implementation.
-- `waitForGenerationComplete` now attaches the current canonical conversation
-  URL to systems-thinking, connection-interrupted, and progress-heartbeat stall
-  errors. Stuck recovery adopts that URL before exact-URL Stop and Continue
-  operations.
-- Explicit-system recovery now re-runs completion after a cooldown when Stop
-  reports `stoppedGeneration: false`; a completed turn returns without sending
-  an unnecessary Continue, while a still-present explicit signal proceeds with
-  the bounded recovery.
+- Accepted the finding as correct after reproducing the defect at the CLI seam:
+  disabled submission without `MC_JOURNAL_*` settings exited fatally with
+  `MC_JOURNAL_DISPATCH_COMMAND is required` instead of reporting disabled status.
+- The `journal-work` command now returns `JOURNAL_WORK_SEND_DISABLED` before
+  loading persisted or environment journal configuration. Live journal-work
+  configuration still loads before provider clients and lock acquisition.
+- The regression test deliberately omits all required `MC_JOURNAL_*` variables
+  and checks both the disabled receipt and absence of a held relay lock. Its
+  structural assertion also fixes the required guard-before-load ordering.
 - Durable architecture boundary remains unchanged: Chat → Work requires explicit
   user acceptance; Work ↔ Work uses native Work-internal coordination; Work →
   the originating Chat is unavailable. Mission Control's autonomous
@@ -54,12 +54,20 @@ Updated: 2026-09-28
 ## Current checkpoint
 
 - Current step: complete; no review-round action remains.
-- Last verified durable boundary: focused regression tests pass 30/30, the relay
-  suite passes, and repository unit tests pass 468/468 on the candidate diff.
+- Last verified durable boundary: the new CLI regression failed before the fix,
+  both affected CLI tests pass after it, the relay suite passes 414/414, the
+  repository suite passes 468/468, and the deterministic audit reports no
+  findings.
 - Typed completion claim: `READY_FOR_RELEASE`.
 
 ## Review finding disposition
 
+- **Kill-switch ordering finding at `fd5c90d` — accepted.** The eager
+  `loadJournalWorkConfig()` call was above the disabled-submit branch, so missing
+  pre-live journal settings defeated the kill switch. Deferring that call until
+  after the branch repairs the generating order-of-operations defect; direct CLI
+  coverage proves the documented pre-live environment succeeds without journal
+  settings.
 - **Repository compliance failure — accepted.** The deterministic audit command
   itself passed, but its GitHub Actions job runs the repository unit suite first;
   three assertions failed because the prior state rewrite dropped the required
@@ -85,6 +93,13 @@ Updated: 2026-09-28
 
 ## Evidence / artifacts
 
+- Current review baseline: `fd5c90d2ab04d964f6022510055842c1df19d5c6`.
+- Current focused pre-fix regression: 1 failed with
+  `MC_JOURNAL_DISPATCH_COMMAND is required`; focused post-fix test: 2/2 passed.
+- Current owner-required relay suite: 414/414 passed. Repository unit tests:
+  468/468 passed. Deterministic repository audit: `PASS: no findings.`
+- Current test-efficiency telemetry is under `.git` for task
+  `pr275-kill-switch-review`.
 - Review baseline: `a7ecb07952b311532960f1daf7b6626723218055`.
 - Focused pre-fix test: 27 passed and the three new assertions failed for the two
   reported defects; focused post-fix test: 30/30 passed.

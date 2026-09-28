@@ -73,7 +73,7 @@ test('health report CLI does not contend with the long-running relay singleton l
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
   assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
   assert.match(cli, /if \(exclusiveLockRequired\) \{[\s\S]*?await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{[\s\S]*?journalWorkConfig:[\s\S]*?\}\)\);/);
-  assert.match(cli, /const journalWorkConfig = command === 'journal-work'[\s\S]*?withPersistedJournalWorkSettings\(loadJournalWorkConfig\(\)\)[\s\S]*?await stateStore\.acquireLock/);
+  assert.match(cli, /if \(command === 'journal-work' && !config\.runtime\.submitEnabled\)[\s\S]*?JOURNAL_WORK_SEND_DISABLED[\s\S]*?journalWorkConfig = await withPersistedJournalWorkSettings\(loadJournalWorkConfig\(\)\)[\s\S]*?await stateStore\.acquireLock/);
   assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
   // Release runs in `finally`; it is a no-op for a store that never acquired ownership.
   assert.match(cli, /\} finally \{\n  try \{\n    await stateStore\?\.releaseLock\(\);/);
@@ -104,7 +104,7 @@ test('CLI errors release ownership; lock-status diagnoses a live owner without a
   }
 });
 
-test('journal-work exits disabled before constructing live provider clients when submission is off', async () => {
+test('journal-work exits disabled before requiring journal configuration or constructing live provider clients', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-journal-disabled-'));
   try {
     const chatsFile = join(root, 'chats.json');
@@ -115,10 +115,6 @@ test('journal-work exits disabled before constructing live provider clients when
         ...configEnv(chatsFile),
         MC_RELAY_STATE_DIR: root,
         MC_RELAY_SUBMIT_ENABLED: '0',
-        MC_JOURNAL_DISPATCH_COMMAND: 'must-not-run',
-        MC_JOURNAL_IMPORT_COMMAND: 'must-not-run',
-        MC_JOURNAL_APP_LABEL: 'InnerSignal',
-        MC_JOURNAL_SUPERVISOR_ID: 'spec',
       },
       encoding: 'utf8',
       timeout: 10_000,

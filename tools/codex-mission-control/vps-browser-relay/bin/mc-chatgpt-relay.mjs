@@ -31,9 +31,7 @@ let stateStore;
 
 try {
   const config = await loadConfig();
-  const journalWorkConfig = command === 'journal-work'
-    ? await withPersistedJournalWorkSettings(loadJournalWorkConfig())
-    : null;
+  let journalWorkConfig = null;
   stateStore = new StateStore({ stateFile: config.runtime.stateFile, statusFile: config.runtime.statusFile, lockFile: config.runtime.lockFile });
 
   if (command === 'lock-status') {
@@ -53,6 +51,10 @@ try {
   if (command === 'journal-work' && !config.runtime.submitEnabled) {
     print({ status: 'JOURNAL_WORK_SEND_DISABLED', submitEnabled: false });
     process.exit(0);
+  }
+
+  if (command === 'journal-work') {
+    journalWorkConfig = await withPersistedJournalWorkSettings(loadJournalWorkConfig());
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
