@@ -107,6 +107,8 @@ Adjacent analysis, planning, preparation, or a different method does not count a
 
 Concurrent writers must follow `patterns/parallel-chat-write-isolation.md`; never share a mutable branch.
 
+For integration-bound repository workers, also apply `patterns/worker-github-publication-and-recovery.md`: a local-only scratch commit is nonterminal, worker directives must define the remote publication contract, and an authorized GitHub connector/API is the required fallback before owner interruption when shell Git cannot publish.
+
 ## Follow-up goal derivation and assistant-added requirements
 
 Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome and follow `patterns/owner-goal-followup-and-requirement-accretion.md`.

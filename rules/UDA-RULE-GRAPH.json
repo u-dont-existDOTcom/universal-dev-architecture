@@ -189,14 +189,18 @@
       "status": "active",
       "trigger": "Two or more chats, agents, or workers may mutate the same repository task concurrently.",
       "requires": [
-        "codex-github-operating-system"
+        "codex-github-operating-system",
+        "worker-github-publication-and-recovery"
       ],
       "inherits": [],
       "supersedes": [],
       "conflicts_with": [],
       "enforcement_phase": [
         "action",
-        "persistence"
+        "persistence",
+        "handoff",
+        "publication",
+        "delivery"
       ]
     },
     {
@@ -570,6 +574,60 @@
       "conflicts_with": [],
       "enforcement_phase": [
         "handoff"
+      ]
+    },
+    {
+      "rule_id": "worker-self-remediation-before-owner-interruption",
+      "canonical_path": "patterns/worker-self-remediation-before-owner-interruption.md",
+      "status": "active",
+      "trigger": "An execution worker is blocked by routine permissions, configuration, transport, credentials, setup, or recoverable execution friction and the owner might otherwise be asked to perform manual remediation.",
+      "requires": [],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "reasoning",
+        "action",
+        "handoff",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "durable-write-checkpoints",
+      "canonical_path": "patterns/durable-write-checkpoints.md",
+      "status": "active",
+      "trigger": "A repository mutation, publication, or worker output is not yet durably retrievable and verified at its required destination.",
+      "requires": [
+        "codex-github-operating-system"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "persistence",
+        "publication",
+        "delivery"
+      ]
+    },
+    {
+      "rule_id": "worker-github-publication-and-recovery",
+      "canonical_path": "patterns/worker-github-publication-and-recovery.md",
+      "status": "active",
+      "trigger": "A repository worker or child branch produces output that another coordinator/integrator must retrieve, or GitHub publication/retrieval fails.",
+      "requires": [
+        "codex-github-operating-system",
+        "durable-write-checkpoints",
+        "worker-self-remediation-before-owner-interruption"
+      ],
+      "inherits": [],
+      "supersedes": [],
+      "conflicts_with": [],
+      "enforcement_phase": [
+        "action",
+        "handoff",
+        "persistence",
+        "publication",
+        "delivery"
       ]
     }
   ],

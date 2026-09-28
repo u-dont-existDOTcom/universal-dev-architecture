@@ -102,6 +102,7 @@ For nontrivial work, include as applicable:
 - required artifacts/evidence;
 - stop/review/invalidation conditions;
 - completion deliverables;
+- for repository output that another worker/coordinator must integrate: the publication contract from `patterns/worker-github-publication-and-recovery.md` (remote branch/destination, owned paths, publication authority, fallback transport, verification, and integrator);
 - any explicit nonclaims or interpretation limits.
 
 Use existing canonical directive templates where the workflow requires them. This pattern governs owner-facing delivery, not a competing machine schema.
@@ -229,6 +230,7 @@ Before sending the final owner-facing response for a worker-bound task, ask inte
 5. If not, did I create/link an artifact instead of bloating scrollback?
 6. Did I keep the consequential decision/caveat visible in chat without duplicating the artifact?
 7. For ChatGPT Work, did the directive contain the exact originating Chat title + URL and require the final receipt to echo a clickable backlink?
+8. If repository output must be integrated elsewhere, did the directive state how it becomes remotely retrievable and what fallback is used if shell Git cannot publish?
 ```
 
 Any `NO` on 1, 2, 3 when applicable, 5, 6, or 7 when applicable is a delivery defect that should be repaired before ending the turn.
