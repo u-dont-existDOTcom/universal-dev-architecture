@@ -85,7 +85,7 @@ export function buildUsageSummary(events, nowMs = Date.now()) {
 function sanitizeClaudeResult(value, extra) {
   const result = { is_error: value.is_error === true, subtype: typeof value.subtype === 'string' ? value.subtype.slice(0, 100) : null, duration_ms: number(value.duration_ms), num_turns: number(value.num_turns), total_cost_usd: number(value.total_cost_usd), ...extra };
   for (const key of TOKEN_FIELDS) result[key] = number(value.usage?.[key]);
-  if (value.modelUsage && typeof value.modelUsage === 'object' && !Array.isArray(value.modelUsage)) result.modelUsage = Object.fromEntries(Object.entries(value.modelUsage).map(([model, usage]) => [model.slice(0, 100), Object.fromEntries(TOKEN_FIELDS.map((key) => [key, number(usage?.[key] ?? usage?.[snakeToCamel(key))])])]));
+  if (value.modelUsage && typeof value.modelUsage === 'object' && !Array.isArray(value.modelUsage)) result.modelUsage = Object.fromEntries(Object.entries(value.modelUsage).map(([model, usage]) => [model.slice(0, 100), Object.fromEntries(TOKEN_FIELDS.map((key) => [key, number(usage?.[key] ?? usage?.[snakeToCamel(key)])]))]));
   return result;
 }
 function parseResetTime(text, nowMs, backoffMs) { const match = text.match(/\b(20\d\d-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d))\b/); return match && Number.isFinite(Date.parse(match[1])) ? new Date(Date.parse(match[1])).toISOString() : new Date(nowMs + backoffMs).toISOString(); }
