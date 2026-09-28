@@ -129,6 +129,8 @@ For a server-controlled, resumable, multi-provider, or multi-stage workflow, loa
 
 For a reasoning-heavy conclusion that would be costly or hard to undo if wrong and that tests, computation, or sources cannot settle, load `../patterns/cross-family-reasoning-check.md`: one blind check by the other model family before the conclusion is used.
 
+When a claim about another agent's capabilities, configuration or behavior feeds a decision or a workflow design, or when agents disagree, load `../patterns/agent-to-agent-consultation.md`: scope the claim to its runtime, settle it there, and consult the other agent directly instead of having the owner relay messages.
+
 Templates live in `../templates/`. Execution plans live in `exec-plans/`.
 
 `../patterns/codex-github-operating-standard.md` is retained as superseded provenance and routes to the operating-system pattern. It is not a second current standard.
