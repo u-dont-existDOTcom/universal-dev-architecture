@@ -152,6 +152,7 @@ export function loadJournalWorkConfig(env = process.env) {
     appLabel: required(env.MC_JOURNAL_APP_LABEL, 'MC_JOURNAL_APP_LABEL'),
     stateFile: resolve(expandHome(env.MC_JOURNAL_STATE_FILE ?? `${stateDir}/journal-work-state.json`, home)),
     statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
+    importLockFile: resolve(expandHome(env.MC_JOURNAL_IMPORT_LOCK_FILE ?? `${stateDir}/journal-import-run.lock`, home)),
     settings: {
       dailyAllowance: integer(env.MC_JOURNAL_DAILY_ALLOWANCE, 170, 1, 10_000),
       paceMs: integer(env.MC_JOURNAL_PACE_MS, 60_000, 1_000, 3_600_000),
@@ -161,6 +162,24 @@ export function loadJournalWorkConfig(env = process.env) {
     },
   };
 }
+
+export function loadJournalClaudeConfig(env = process.env) {
+  const home = homedir();
+  const stateDir = resolve(expandHome(env.MC_RELAY_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay`, home));
+  return {
+    enabled: env.MC_JOURNAL_CLAUDE_ENABLED === '1',
+    dispatchCommand: env.MC_JOURNAL_DISPATCH_COMMAND ?? '',
+    importCommand: env.MC_JOURNAL_IMPORT_COMMAND ?? '',
+    workMcpCommand: jsonCommand(env.MC_JOURNAL_WORK_MCP_COMMAND_JSON),
+    claudeBin: env.MC_CLAUDE_BIN ?? 'claude', model: env.MC_CLAUDE_MODEL ?? 'opus', effort: env.MC_CLAUDE_EFFORT ?? 'max',
+    timeoutMs: integer(env.MC_CLAUDE_TIMEOUT_MS, 1_800_000, 1, 86_400_000), limitBackoffMs: integer(env.MC_CLAUDE_LIMIT_BACKOFF_MS, 3_600_000, 1, 86_400_000),
+    stateDir, statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
+    importLockFile: resolve(expandHome(env.MC_JOURNAL_IMPORT_LOCK_FILE ?? `${stateDir}/journal-import-run.lock`, home)), workerLockFile: join(stateDir, 'journal-claude.lock'),
+    usageFile: join(stateDir, 'claude-usage.jsonl'), summaryFile: join(stateDir, 'claude-usage-summary.json'), mcpConfigFile: join(stateDir, 'journal-claude-mcp.json'),
+  };
+}
+
+function jsonCommand(value) { if (!value) return []; let parsed; try { parsed = JSON.parse(value); } catch { throw new Error('MC_JOURNAL_WORK_MCP_COMMAND_JSON must be valid JSON.'); } if (!Array.isArray(parsed) || !parsed.length || parsed.some((part) => typeof part !== 'string' || !part)) throw new Error('MC_JOURNAL_WORK_MCP_COMMAND_JSON must be a non-empty string array.'); return parsed; }
 
 export function loadCodexExecMissionControlConfig(env = process.env) {
   const url = normalizeBaseUrl(required(

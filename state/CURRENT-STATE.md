@@ -726,3 +726,14 @@ Requirement: `docs/requirements/2026-09-26-mission-control-relay-chatgpt-septemb
 - Next: owner decides on the SECONDARY timeout and the central fix; on the
   next queued request, read the relay journal, read-only doctor and central
   ledger until a new submission is recorded or the failing step is identified.
+
+## Journal Claude hardest-item worker and usage meter — 2026-09-28
+
+Owner outcome: implement `tools/codex-mission-control/vps-browser-relay/JOURNAL-CLAUDE-WORKER.md` on the existing journal-runner branch, validate it, commit it, and open a pull request without deployment.
+
+- Implemented, not deployed: the disabled-by-default `journal-claude` command selects only oldest unexpired unanswered `hardest` dispatch records, runs Claude Code in a new empty directory with the strict journal-only MCP tool list, trusts only the refreshed dispatch listing for completion, retries once, kills the process group on timeout, and observes subscription-limit backoff.
+- Reused/refactored the journal runner's dispatch parser/reader, content-free status file, and a shared cross-process import lock. The standard runner now includes the current role and hardest-lane import counters needed by the read-only status page.
+- Added content-free per-run usage JSONL and UTC today/seven-day summary data, including per-model token counts when present and the explicit non-charge cost-equivalent label.
+- Added the loopback-only, no-external-assets status server, a user-systemd example, and an SSH tunnel helper. No service was installed, started, or deployed.
+- Added all specification regressions in `test/journal-claude-worker.test.mjs`: exact fake-Claude argv/happy path, listing-authoritative completion, second-run unanswered, whole-process-group timeout, limit reset/default backoff, shared import serialization, UTC summary windows, allowlisted status rendering, sentinel content exclusion, and disabled behavior.
+- Verified at the durable pre-commit boundary: focused journal suites pass (25/25), relay `npm test` passes, and `npm run check` passes. Repository Python gate passes (467 tests), the deterministic repository audit reports no findings, and no deployment action was taken. Committed on the task branch; pull-request metadata was created. No deployment action was taken.

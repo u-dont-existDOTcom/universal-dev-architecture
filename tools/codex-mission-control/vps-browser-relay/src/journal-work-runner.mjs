@@ -1,12 +1,13 @@
 import { exec as execCallback } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { sha256 } from './core.mjs';
 
 const exec = promisify(execCallback);
 const ROOT_URL = 'https://chatgpt.com/';
 const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier', 'issued_at', 'expires_at', 'answered'];
+const importTails = new Map();
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
 export class JournalWorkRunner {
@@ -14,7 +15,7 @@ export class JournalWorkRunner {
     if (!config?.dispatchCommand || !config?.importCommand || !config?.appLabel) throw new Error('Journal work requires dispatch/import commands and an app label.');
     if (!browser || typeof submit !== 'function') throw new Error('Journal work requires the automation-owned browser and central submission scheduler.');
     this.config = config; this.browser = browser; this.submit = submit; this.commandRunner = commandRunner;
-    this.memoryReader = memoryReader; this.now = now; this.sleep = sleep; this.logger = logger; this.importTail = Promise.resolve(); this.passTail = Promise.resolve();
+    this.memoryReader = memoryReader; this.now = now; this.sleep = sleep; this.logger = logger; this.passTail = Promise.resolve();
   }
 
   async runPass() {
@@ -42,7 +43,7 @@ export class JournalWorkRunner {
     const allowanceRatio = state.today.answered / state.settings.dailyAllowance;
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
-    state.current = { workId: item.work_id, rung: 'INITIAL' };
+    state.current = { workId: item.work_id, role: item.role, rung: 'INITIAL' };
     await this.#persist(state);
     try {
       return await this.#attemptItem(item, state);
@@ -113,22 +114,16 @@ export class JournalWorkRunner {
     state.outcomes.push({ workId: item.work_id, outcome: 'ANSWERED', rung, at: this.#iso() });
     state.outcomes = state.outcomes.slice(-200); state.current = null; state.backoff = { level: 0, until: null, trigger: null };
     const summary = await this.#runImport();
-    state.lastImport = { at: this.#iso(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residualCounts: summary.residualCounts };
+    state.lastImport = { at: this.#iso(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residualCounts: summary.residualCounts, hardestSentToday: summary.hardestSentToday, hardestDailyLimit: summary.hardestDailyLimit };
     return this.#finish(state, 'ANSWERED');
   }
 
   async #runImport() {
-    const operation = this.importTail.then(async () => sanitizeImportResult(await this.commandRunner(this.config.importCommand)));
-    this.importTail = operation.catch(() => {});
-    return operation;
+    return runJournalImport({ command: this.config.importCommand, lockFile: this.config.importLockFile, commandRunner: this.commandRunner });
   }
 
   async #listing() {
-    let result;
-    try { result = await this.commandRunner(this.config.dispatchCommand); } catch { return { ok: false, records: [] }; }
-    if (result.exitCode !== 0) return { ok: false, records: [] };
-    try { return { ok: true, records: result.stdout.split(/\r?\n/).filter(Boolean).map(parseDispatchRecord) }; }
-    catch { return { ok: false, records: [] }; }
+    return readJournalListing(this.config.dispatchCommand, this.commandRunner);
   }
 
   async #backOff(state, trigger) {
@@ -171,10 +166,38 @@ function classifyBackoff(error) {
   if (text.includes('model unavailable') || text.includes('capacity')) return 'MODEL_CAPACITY';
   return null;
 }
+export async function readJournalListing(command, commandRunner = runCommand) {
+  let result;
+  try { result = await commandRunner(command); } catch { return { ok: false, records: [] }; }
+  if (result.exitCode !== 0) return { ok: false, records: [] };
+  try { return { ok: true, records: result.stdout.split(/\r?\n/).filter(Boolean).map(parseDispatchRecord) }; }
+  catch { return { ok: false, records: [] }; }
+}
+
+export async function runJournalImport({ command, lockFile, commandRunner = runCommand }) {
+  const key = lockFile ?? command;
+  const prior = importTails.get(key) ?? Promise.resolve();
+  const operation = prior.then(async () => withFileLock(lockFile, async () => sanitizeImportResult(await commandRunner(command)), { wait: true }));
+  importTails.set(key, operation.catch(() => {}));
+  return operation;
+}
+
+export async function withFileLock(lockFile, operation, { wait = false } = {}) {
+  if (!lockFile) return operation();
+  await mkdir(dirname(lockFile), { recursive: true, mode: 0o700 });
+  let handle;
+  for (;;) {
+    try { handle = await open(lockFile, 'wx', 0o600); break; }
+    catch (error) { if (error?.code !== 'EEXIST') throw error; if (!wait) return null; await delay(50); }
+  }
+  try { await handle.writeFile(`${process.pid}\n`); return await operation(); }
+  finally { await handle.close(); await rm(lockFile, { force: true }); }
+}
+
 function sanitizeImportResult(result) {
   let parsed = {};
   try { parsed = JSON.parse(result.stdout || '{}'); } catch { /* content is deliberately discarded */ }
-  return { exitCode: Number.isInteger(result.exitCode) ? result.exitCode : 1, stage: stringOrNull(parsed.stage), blocker: stringOrNull(parsed.blocker), completedUnits: integerOrZero(parsed.completed_units ?? parsed.completedUnits), residualCounts: plainCounts(parsed.residual_counts ?? parsed.residualCounts) };
+  return { exitCode: Number.isInteger(result.exitCode) ? result.exitCode : 1, stage: stringOrNull(parsed.stage), blocker: stringOrNull(parsed.blocker), completedUnits: integerOrZero(parsed.completed_units ?? parsed.completedUnits), residualCounts: plainCounts(parsed.residual_counts ?? parsed.residualCounts), hardestSentToday: integerOrZero(parsed.hardest_sent_today ?? parsed.hardestSentToday), hardestDailyLimit: integerOrZero(parsed.hardest_daily_limit ?? parsed.hardestDailyLimit) };
 }
 function stringOrNull(value) { return typeof value === 'string' && value.length <= 100 ? value : null; }
 function integerOrZero(value) { return Number.isInteger(value) && value >= 0 ? value : 0; }
