@@ -262,6 +262,30 @@ test('usage limit uses an explicit reset time and suppresses later sends', async
   await fixture.assertContentFree();
 });
 
+test('Claude hit-limit wording pauses the queue until its local reset time', async (t) => {
+  const fixture = await makeFixture(t, {
+    dispatchRecords: () => [
+      record(),
+      { ...record(), work_id: 'hard-2', issued_at: '2026-09-28T10:01:00Z' },
+    ],
+    result: { is_error: true, result: `You've hit your limit · resets 3pm ${SENTINEL}` },
+  });
+  const reset = new Date(NOW);
+  reset.setHours(15, 0, 0, 0);
+  if (reset.getTime() <= NOW) reset.setDate(reset.getDate() + 1);
+
+  assert.deepEqual(await fixture.worker.runPass(), {
+    status: 'LIMITED', pausedUntil: reset.toISOString(),
+  });
+  assert.deepEqual(await fixture.worker.runPass(), {
+    status: 'LIMITED', pausedUntil: reset.toISOString(),
+  });
+  assert.equal(fixture.claudeRuns(), 1);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.today_utc.limit_events, 1);
+  await fixture.assertContentFree();
+});
+
 test('usage limit without a reset uses configured backoff', async (t) => {
   const fixture = await makeFixture(t, {
     result: { is_error: true, result: 'usage limit reached' },

@@ -205,7 +205,8 @@ export class JournalClaudeWorker {
       }
       const isError = value.is_error === true || execution.exitCode !== 0;
       const errorResult = isError ? String(value.result ?? '') : '';
-      const limited = isError && /usage\s+limit|limit\s+reached/i.test(errorResult);
+      const limited = isError
+        && /usage\s+limit|limit\s+reached|hit\s+your\s+limit/i.test(errorResult);
       const resetAt = limited
         ? parseResetTime(errorResult, this.now(), this.config.limitBackoffMs)
         : null;
@@ -384,9 +385,18 @@ function parseResetTime(text, nowMs, backoffMs) {
   const match = text.match(
     /\b(20\d\d-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d))\b/,
   );
-  return match && Number.isFinite(Date.parse(match[1]))
-    ? new Date(Date.parse(match[1])).toISOString()
-    : new Date(nowMs + backoffMs).toISOString();
+  if (match && Number.isFinite(Date.parse(match[1]))) {
+    return new Date(Date.parse(match[1])).toISOString();
+  }
+  const local = text.match(/\bresets?\s+(?:at\s+)?(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i);
+  if (local) {
+    const reset = new Date(nowMs);
+    reset.setHours(Number(local[1]) % 12 + (local[3].toLowerCase() === 'pm' ? 12 : 0),
+      Number(local[2] ?? 0), 0, 0);
+    if (reset.getTime() <= nowMs) reset.setDate(reset.getDate() + 1);
+    return reset.toISOString();
+  }
+  return new Date(nowMs + backoffMs).toISOString();
 }
 
 function number(value) {
