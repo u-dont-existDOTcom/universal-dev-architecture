@@ -46,6 +46,10 @@ Updated: 2026-09-28
   return edge or transfer semantic reasoning authority.
 - Production promotion is not authorized by this relay review round; preserve
   the repository-wide completion gate and owner-method controls.
+- Restored the durable coverage-before-depth completion-gate references removed
+  during the prior state consolidation: `patterns/coverage-before-depth-in-selection.md`,
+  `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
+  `tests/test_coverage_before_depth_pattern.py`.
 
 ## Current checkpoint
 
@@ -56,6 +60,11 @@ Updated: 2026-09-28
 
 ## Review finding disposition
 
+- **Repository compliance failure — accepted.** The deterministic audit command
+  itself passed, but its GitHub Actions job runs the repository unit suite first;
+  three assertions failed because the prior state rewrite dropped the required
+  coverage-before-depth artifact references. Restoring that durable pointer set
+  fixes the generating state/test-contract mismatch without changing relay code.
 - **Canonical URL finding — accepted.** Recovery-signal errors omitted the URL
   observed after a provisional-to-canonical transition, leaving stuck recovery
   bound to the provisional URL. Regression coverage checks both the CDP error
@@ -79,10 +88,10 @@ Updated: 2026-09-28
 - Review baseline: `a7ecb07952b311532960f1daf7b6626723218055`.
 - Focused pre-fix test: 27 passed and the three new assertions failed for the two
   reported defects; focused post-fix test: 30/30 passed.
-- Owner-required relay suite: passed. Repository unit tests: 468/468 passed.
-  Deterministic repository audit: `PASS: no findings.` Final diff check: clean.
-- Test-efficiency telemetry is under `.git` for task
-  `pr-275-review-a7ecb07`.
+- Owner-required relay suite: 414/414 passed. Repository unit tests: 468/468
+  passed. Deterministic repository audit: `PASS: no findings.`
+- Audit-fix test-efficiency telemetry is under `.git` for task
+  `pr275-audit-fix`.
 
 ## Next safe action
 
