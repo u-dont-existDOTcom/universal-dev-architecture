@@ -28,25 +28,27 @@ export class JournalWorkRunner {
     const state = await this.#readState();
     this.#rollDay(state);
     if (state.current?.phase === 'IMPORT') return this.#completeImport(state);
+    if (state.current) {
+      const listing = await this.#listing();
+      if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
+      const persisted = listing.records.find((entry) => entry.work_id === state.current.workId);
+      if (persisted?.answered) return this.#answered(persisted, state, state.current.rung);
+      state.current = null;
+    }
     const memory = await this.memoryReader();
     if (memory?.pressure === 'SOFT' || memory?.pressure === 'HARD') return this.#backOff(state, 'MEMORY_PRESSURE');
-    if (state.today.answered >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
+    if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
     if (Date.parse(state.backoff.until ?? '') > this.now()) return this.#finish(state, 'BACKING_OFF');
 
     const listing = await this.#listing();
     if (!listing.ok) return this.#finish(state, 'LISTING_FAILED');
-    if (state.current?.phase === 'READBACK') {
-      const pending = listing.records.find((entry) => entry.work_id === state.current.workId);
-      if (pending?.answered) return this.#answered(pending, state, state.current.rung);
-      state.current = null;
-    }
     const eligible = listing.records.filter((item) => !item.answered && item.tier === 'standard'
       && Date.parse(item.expires_at) > this.now() && state.settings.models[item.model]?.includes(item.effort))
       .sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
     state.today.waiting = eligible.length;
     const item = eligible[0];
     if (!item) return this.#finish(state, 'NO_WORK');
-    const allowanceRatio = state.today.answered / state.settings.dailyAllowance;
+    const allowanceRatio = state.today.calls / state.settings.dailyAllowance;
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
     if (this.now() >= Date.parse(item.expires_at)) {
@@ -58,6 +60,7 @@ export class JournalWorkRunner {
     try {
       return await this.#attemptItem(item, state);
     } catch (error) {
+      if (error?.code === 'JOURNAL_DAILY_ALLOWANCE_REACHED') return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
       const trigger = classifyBackoff(error);
       if (trigger) return this.#backOff(state, trigger);
       state.ownerAction = { code: error?.code ?? 'JOURNAL_WORK_STOPPED', workId: item.work_id, at: this.#iso() };
@@ -66,14 +69,14 @@ export class JournalWorkRunner {
   }
 
   async #attemptItem(item, state) {
-    let session = await this.#fresh(item, state, 'INITIAL');
+    let session = await this.#fresh(item, state, 'INITIAL', 1);
     let continueAnchor = null;
     const rungs = ['INITIAL', 'CONTINUE', 'RETRY'];
     for (const rung of rungs) {
       state.current.rung = rung;
       await this.#persist(state);
-      if (rung === 'CONTINUE') continueAnchor = await this.#continue(item, session);
-      if (rung === 'RETRY') await this.#retry(item, session, continueAnchor);
+      if (rung === 'CONTINUE') continueAnchor = await this.#continue(item, session, state);
+      if (rung === 'RETRY') await this.#retry(item, session, continueAnchor, state);
       const listed = await this.#listing();
       if (!listed.ok) { state.current.phase = 'READBACK'; return this.#backOff(state, 'LISTING_FAILED'); }
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
@@ -87,7 +90,7 @@ export class JournalWorkRunner {
       state.current.rung = 'FRESH_CHAT';
       state.current.freshChatCount = freshChatCount + 1;
       await this.#persist(state);
-      session = await this.#fresh(item, state, 'FRESH_CHAT');
+      session = await this.#fresh(item, state, 'FRESH_CHAT', freshChatCount + 1);
       const listed = await this.#listing();
       if (!listed.ok) { state.current.phase = 'READBACK'; return this.#backOff(state, 'LISTING_FAILED'); }
       const current = listed.records.find((entry) => entry.work_id === item.work_id);
@@ -101,7 +104,8 @@ export class JournalWorkRunner {
     return this.#finish(state, 'OWNER_ACTION_REQUIRED');
   }
 
-  async #fresh(item, state, rung) {
+  async #fresh(item, state, rung, freshChatAttempt) {
+    this.#assertSubmissionAllowance(state);
     const target = await this.browser.createFreshChatTarget({ hardCeiling: 3 });
     const controls = state.settings.controlObservations?.[item.model]?.[item.effort];
     if (!controls) { const error = new Error('No calibrated consumer controls exist for the requested model and effort.'); error.code = 'JOURNAL_CONTROLS_UNCALIBRATED'; throw error; }
@@ -109,27 +113,48 @@ export class JournalWorkRunner {
     try { await this.browser.selectAppsForMessage(target, { knownLabels: [this.config.appLabel], requiredLabels: [this.config.appLabel] }); }
     catch (cause) { const error = new Error('Configured InnerSignal app is unavailable.', { cause }); error.code = 'JOURNAL_APP_MISSING'; throw error; }
     const body = JOURNAL_WORK_PROMPT(item.work_id);
-    const started = await this.submit({ item, target, rung, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...callbacks }) });
+    const providerSessionId = `provider-session:journal:${item.work_id}:${target.id}`;
+    const started = await this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(target, item);
     await this.browser.waitForGenerationComplete(target, { expectedUrl: started.conversationUrl ?? ROOT_URL, generationStarted: started.generationStarted });
-    return { target, expectedUrl: started.conversationUrl ?? ROOT_URL };
+    return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
   }
 
-  async #continue(item, session) {
+  async #continue(item, session, state) {
+    this.#assertSubmissionAllowance(state);
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
-    const started = await this.submit({ item, target: session.target, rung: 'CONTINUE', bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...callbacks }) });
+    const started = await this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(session.target, item);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: true });
     return anchor;
   }
 
-  async #retry(item, session, anchor) {
+  async #retry(item, session, anchor, state) {
     const classified = await this.browser.inspectFailedContinueRetry(session.target, { expectedUrl: session.expectedUrl, anchor });
     if (classified.status !== 'RETRY_FAILED_CONTINUE') return false;
-    const started = await this.submit({ item, target: session.target, rung: 'RETRY', bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...callbacks }) });
+    this.#assertSubmissionAllowance(state);
+    const started = await this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(state, callbacks) }) });
     await this.#handleConfirmation(session.target, item);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, { expectedUrl: session.expectedUrl, generationStarted: true });
     return true;
+  }
+
+  #countedCallbacks(state, callbacks) {
+    return {
+      ...callbacks,
+      onSubmissionBoundary: async (...args) => {
+        state.today.calls += 1;
+        await this.#persist(state);
+        return callbacks.onSubmissionBoundary?.(...args);
+      },
+    };
+  }
+
+  #assertSubmissionAllowance(state) {
+    if (state.today.calls < state.settings.dailyAllowance) return;
+    const error = new Error('Journal provider-call daily allowance reached.');
+    error.code = 'JOURNAL_DAILY_ALLOWANCE_REACHED';
+    throw error;
   }
 
   async #handleConfirmation(target, item) {
@@ -190,12 +215,21 @@ export class JournalWorkRunner {
     return {
       schemaVersion: 1,
       settings: { paceMs: 60_000, backoffBaseMs: 60_000, backoffMaxMs: 3_600_000, freshChatThreshold: 3, dailyAllowance: 170, models: { 'GPT-5.6 Sol': ['Pro'] }, controlObservations: {}, ...(this.config.settings ?? {}), ...(stored.settings ?? {}) },
-      today: stored.today ?? { date: this.#day(), answered: 0, expired: 0, waiting: 0 },
+      today: {
+        date: stored.today?.date ?? this.#day(),
+        answered: stored.today?.answered ?? 0,
+        calls: stored.today?.calls ?? stored.today?.answered ?? 0,
+        expired: stored.today?.expired ?? 0,
+        waiting: stored.today?.waiting ?? 0,
+      },
       current: stored.current ?? null, backoff: stored.backoff ?? { level: 0, until: null, trigger: null },
       lastImport: stored.lastImport ?? null, ownerAction: stored.ownerAction ?? null, outcomes: Array.isArray(stored.outcomes) ? stored.outcomes : [],
     };
   }
-  #rollDay(state) { if (state.today.date !== this.#day()) state.today = { date: this.#day(), answered: 0, expired: 0, waiting: 0 }; }
+  #rollDay(state) {
+    if (state.today.date !== this.#day()) state.today = { date: this.#day(), answered: 0, calls: 0, expired: 0, waiting: 0 };
+    else if (!Number.isInteger(state.today.calls)) state.today.calls = state.today.answered;
+  }
   #day() { return new Date(this.now()).toISOString().slice(0, 10); }
   #iso() { return new Date(this.now()).toISOString(); }
   async #finish(state, status) { await this.#persist(state); this.logger.log({ status, workId: state.current?.workId ?? null }); return { status, state }; }

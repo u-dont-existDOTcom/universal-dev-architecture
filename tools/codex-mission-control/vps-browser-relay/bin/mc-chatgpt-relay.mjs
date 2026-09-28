@@ -18,14 +18,13 @@ import { classifyMemoryPressure, oneShotExitCode, resolveMemoryPolicy } from '..
 import { readMemoryMetrics } from '../src/memory.mjs';
 import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
-import { submissionSchedulerContext } from '../src/submission-context.mjs';
+import { journalWorkSubmissionContext, submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
 import { ControllerCycleWatchdog } from '../src/controller-watchdog.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 import { dispatchAutomaticMissionControlExecution } from '../src/codex-exec-candidate.mjs';
 import { JournalWorkRunner } from '../src/journal-work-runner.mjs';
-import { sha256 } from '../src/core.mjs';
 
 const command = process.argv[2] ?? 'run';
 let stateStore;
@@ -107,7 +106,11 @@ try {
   const exclusiveLockRequired = command !== 'health-report';
   if (exclusiveLockRequired) {
     // One-shot owners outlive their longest configured guarded operation (see relayCommandLockOptions).
-    await stateStore.acquireLock(relayCommandLockOptions(command, { config, codexExecutionConfig }));
+    await stateStore.acquireLock(relayCommandLockOptions(command, {
+      config,
+      codexExecutionConfig,
+      journalWorkConfig: command === 'journal-work' ? loadJournalWorkConfig() : null,
+    }));
   }
 
   if (command === 'doctor') {
@@ -146,21 +149,8 @@ try {
         const metrics = await readMemoryMetrics(config.browser.profileDir);
         return classifyMemoryPressure(metrics, resolveMemoryPolicy(metrics.totalMb, config.memory));
       },
-      submit: ({ item, target, rung, bodySha256, submit }) => submissionPacer.submit({
-        context: {
-          requestId: `journal:${item.work_id}`,
-          queueKey: `journal:${item.work_id}:${rung}`,
-          sendPath: 'JOURNAL_WORK',
-          supervisorId: 'journal-work-runner',
-          registrationId: 'journal-work-runner',
-          targetId: target.id,
-          automationWindowId: target.automationWindowId,
-          targetKind: 'FRESH_PROVIDER_SESSION',
-          targetKey: `journal:${item.work_id}`,
-          expectedUrlSha256: sha256('https://chatgpt.com/'),
-          bodySha256,
-          hash: sha256,
-        },
+      submit: ({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl, bodySha256, submit }) => submissionPacer.submit({
+        context: journalWorkSubmissionContext({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl, bodySha256 }),
         submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => submit({ onSubmissionBoundary, onBeforeSubmissionBoundary }),
       }),
     });

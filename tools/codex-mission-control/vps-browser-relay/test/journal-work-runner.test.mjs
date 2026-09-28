@@ -5,10 +5,25 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord } from '../src/journal-work-runner.mjs';
 import { createContinueRecoveryAnchor } from '../src/continue-recovery.mjs';
+import { journalWorkSubmissionContext } from '../src/submission-context.mjs';
+import { sha256 } from '../src/core.mjs';
 
 const SENTINEL = 'PRIVATE-JOURNAL-TEXT-SENTINEL';
 const now = Date.parse('2026-09-28T12:00:00Z');
 const record = (overrides = {}) => ({ work_id: 'opaque-1', role: 'extractor', output_schema_id: 'extraction-result', model: 'GPT-5.6 Sol', effort: 'Pro', tier: 'standard', issued_at: '2026-09-28T10:00:00Z', expires_at: '2026-09-28T14:00:00Z', answered: false, ...overrides });
+
+test('journal scheduler contexts bind recovery to its conversation and distinguish every fresh attempt', () => {
+  const target = { id: 'target-1', automationWindowId: 1 };
+  const common = { item: record(), target, rung: 'FRESH_CHAT', providerSessionId: 'provider-session:journal:opaque-1:target-1', bodySha256: 'a'.repeat(64) };
+  const first = journalWorkSubmissionContext({ ...common, freshChatAttempt: 2, expectedUrl: 'https://chatgpt.com/' });
+  const second = journalWorkSubmissionContext({ ...common, target: { id: 'target-2', automationWindowId: 1 }, providerSessionId: 'provider-session:journal:opaque-1:target-2', freshChatAttempt: 3, expectedUrl: 'https://chatgpt.com/' });
+  assert.notEqual(first.queueKey, second.queueKey);
+  assert.notEqual(first.targetKey, second.targetKey);
+  const recovery = journalWorkSubmissionContext({ ...common, rung: 'CONTINUE', freshChatAttempt: null, expectedUrl: 'https://chatgpt.com/c/fake' });
+  assert.equal(recovery.targetKind, 'BOUND_PROVIDER_SESSION');
+  assert.equal(recovery.targetKey, common.providerSessionId);
+  assert.equal(recovery.expectedUrlSha256, sha256('https://chatgpt.com/c/fake'));
+});
 
 test('happy path sends only the fixed prompt, records the initial rung, imports, and stays content-free', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 2, pageText: SENTINEL });
@@ -172,6 +187,27 @@ test('a failed authoritative readback backs off without advancing recovery', asy
   assert.equal(fixture.importRuns(), 1);
 });
 
+test('persisted work is reconciled and imported when its answer landed before a phase update', async (t) => {
+  const fixture = await makeFixture(t, {
+    answeredAt: 1,
+    initialState: { current: { workId: 'opaque-1', rung: 'INITIAL' } },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'ANSWERED');
+  assert.equal(fixture.browser.freshCount, 0);
+  assert.equal(fixture.importRuns(), 1);
+});
+
+test('each crossed provider submission is persisted and the allowance stops the active ladder', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: Infinity, settings: { dailyAllowance: 2 } });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'DAILY_ALLOWANCE_REACHED');
+  assert.equal(result.state.today.calls, 2);
+  assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']);
+  assert.equal(fixture.browser.exactRetries, 0);
+  assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 2);
+});
+
 test('a failed import remains pending and is retried before dispatching more work', async (t) => {
   let importAttempt = 0;
   const fixture = await makeFixture(t, { answeredAt: 2, importHandler: async () => {
@@ -237,11 +273,11 @@ class FakeBrowser {
   async createFreshChatTarget() { this.freshCount += 1; return { id: `target-${this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
-  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
+  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete() { this.waits += 1; return { pageText: this.pageText }; }
   async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
   async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
-  async retryExactFailedContinue() { this.exactRetries += 1; return { generationStarted: true }; }
+  async retryExactFailedContinue(_target, input) { await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
   async detectJournalWriteConfirmation() { const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
   async approveJournalWriteConfirmation(_target, input) { this.approvals.push(input); }
 }

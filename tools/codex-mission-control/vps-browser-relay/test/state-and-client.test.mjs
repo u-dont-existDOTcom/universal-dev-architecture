@@ -13,6 +13,7 @@ import {
   HELPER_DEFAULT_LIFETIME_MS,
   ONE_SHOT_LOCK_CEILING_MS,
   ONE_SHOT_LOCK_MARGIN_MS,
+  journalWorkLockLifetimeMs,
   oneShotLockLifetimeMs,
   relayCommandLockOptions,
 } from '../src/relay-lock.mjs';
@@ -71,7 +72,7 @@ test('stale lock is recovered without deleting a live lock', async () => {
 test('health report CLI does not contend with the long-running relay singleton lock', async () => {
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
   assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
-  assert.match(cli, /if \(exclusiveLockRequired\) \{\n(?:    \/\/.*\n)*    await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{ config, codexExecutionConfig \}\)\);/);
+  assert.match(cli, /if \(exclusiveLockRequired\) \{[\s\S]*?await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{[\s\S]*?journalWorkConfig:[\s\S]*?\}\)\);/);
   assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
   // Release runs in `finally`; it is a no-op for a store that never acquired ownership.
   assert.match(cli, /\} finally \{\n  try \{\n    await stateStore\?\.releaseLock\(\);/);
@@ -122,6 +123,14 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     for (const command of ['controller-once', 'provision', 'mcp-preflight', 'capabilities']) {
       assert.equal(relayCommandLockOptions(command, { config: defaults, codexExecutionConfig: codexOn, env: {} }).maxLifetimeMs, browserTurn + 600_000);
     }
+    const journalSettings = { settings: { freshChatThreshold: 3 } };
+    const journalLifetime = relayCommandLockOptions('journal-work', {
+      config: defaults, codexExecutionConfig: codexOn, journalWorkConfig: journalSettings, env: {},
+    }).maxLifetimeMs;
+    assert.equal(journalLifetime, 5 * browserTurn + 600_000);
+    assert.equal(journalLifetime, journalWorkLockLifetimeMs({
+      browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, env: {},
+    }));
 
     // The review case: 60-minute Codex execution and 60-minute generation ceilings.
     const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });

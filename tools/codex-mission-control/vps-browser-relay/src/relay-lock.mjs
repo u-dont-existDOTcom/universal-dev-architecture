@@ -102,13 +102,30 @@ export function oneShotLockLifetimeMs({ browser, runtime, codexExecMaxTimeoutMs 
   return Math.min(derived, ONE_SHOT_LOCK_CEILING_MS);
 }
 
+export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold, env = process.env }) {
+  const override = lockLifetimeOverrideMs(env);
+  if (override !== null) return override;
+  const attemptsPerSubmission = runtime.stuckRecoveryMaxNudges + 1;
+  const logicalSubmissions = freshChatThreshold + 2; // fresh conversations plus Continue and Retry
+  const browserTurnMs = attemptsPerSubmission * (browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs);
+  const derived = logicalSubmissions * browserTurnMs + ONE_SHOT_LOCK_MARGIN_MS;
+  if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite journal-work relay lock lifetime from the configuration.');
+  return Math.min(derived, MAX_LOCK_LIFETIME_MS);
+}
+
 const PERSISTENT_RELAY_COMMANDS = new Set(['run', 'controller-run']);
 
 // Lock options for one mc-chatgpt-relay command. Only the explicit service loops
 // are persistent; every other command is a bounded one-shot owner.
-export function relayCommandLockOptions(command, { config, codexExecutionConfig = null, env = process.env }) {
+export function relayCommandLockOptions(command, { config, codexExecutionConfig = null, journalWorkConfig = null, env = process.env }) {
   const taskId = `relay:${command}`;
   if (PERSISTENT_RELAY_COMMANDS.has(command)) return { taskId, persistent: true };
+  if (command === 'journal-work') {
+    if (!journalWorkConfig?.settings) throw new Error('Journal-work lock lifetime requires the journal recovery settings.');
+    return { taskId, persistent: false, maxLifetimeMs: journalWorkLockLifetimeMs({
+      browser: config.browser, runtime: config.runtime, freshChatThreshold: journalWorkConfig.settings.freshChatThreshold, env,
+    }) };
+  }
   const codexExecMaxTimeoutMs = command === 'once' && codexExecutionConfig?.previewEnabled === true ? codexExecutionConfig.maxTimeoutMs : null;
   return { taskId, persistent: false, maxLifetimeMs: oneShotLockLifetimeMs({ browser: config.browser, runtime: config.runtime, codexExecMaxTimeoutMs, env }) };
 }

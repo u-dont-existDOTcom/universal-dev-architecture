@@ -7,6 +7,40 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `504cca0` (2026-09-28)
+
+- Parent outcome: **SATISFIED**. The five review regressions are implemented,
+  validated, committed on the requested existing pull-request branch, and the
+  pull-request update metadata has been recorded.
+- All five findings are valid. The current candidate reconciles every persisted
+  work ID with the authoritative listing before eligibility filtering, so an
+  answer that lands across the persisted pre-readback crash window enters the
+  import phase rather than being skipped.
+- Provider-call accounting is now a separate durable daily `calls` counter,
+  migrated conservatively from the former answered-item count. Every crossed
+  journal submission boundary persists one call, pacing and admission use that
+  counter, and the active recovery ladder stops before crossing the allowance.
+- Initial and subsequent fresh chats now use distinct provider-session IDs and
+  queue keys. Continue and Retry bind to the resulting conversation URL and the
+  same provider-session ID as `BOUND_PROVIDER_SESSION` sends.
+- The `journal-work` process-lock lifetime now derives from the complete
+  configured ladder: every permitted fresh conversation plus Continue and
+  Retry, with each logical submission including all configured stuck-recovery
+  attempts. The explicit lock override remains authoritative.
+- Regression coverage directly exercises crash-window reconciliation, durable
+  per-call allowance enforcement, distinct fresh queue/session identities,
+  bound recovery contexts, and the full-ladder lock calculation. Focused tests
+  pass 44/44 after one diagnostic run exposed and repaired legacy state
+  migration plus an intentionally exact CLI-source fixture.
+- Completion gates at this candidate boundary are green: relay `npm test`
+  passes 353/353 tests, repository unit tests pass 467/467, and the
+  deterministic repository audit reports no findings.
+- Active assurance lane: **release**, because the owner requires the existing
+  pull request to remain merge-ready and explicitly requires all three gates.
+- Stop admission: the requested review-finding repair has reached its evidenced
+  completion boundary; no independent implementation or validation action
+  remains in scope.
+
 ## Journal work runner implementation checkpoint (2026-09-28)
 
 - The current `work` branch implements the specified, undeployed InnerSignal
