@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
-import { loadCodexExecCandidateConfig, loadConfig, publicConfig } from '../src/config.mjs';
+import { loadCodexExecCandidateConfig, loadConfig, loadJournalWorkConfig, publicConfig } from '../src/config.mjs';
 import {
   HELPER_DEFAULT_LIFETIME_MS,
   ONE_SHOT_LOCK_CEILING_MS,
@@ -124,33 +124,35 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     for (const command of ['controller-once', 'provision', 'mcp-preflight', 'capabilities']) {
       assert.equal(relayCommandLockOptions(command, { config: defaults, codexExecutionConfig: codexOn, env: {} }).maxLifetimeMs, browserTurn + 600_000);
     }
-    const journalSettings = { settings: { freshChatThreshold: 3, paceMs: 60_000 } };
+    const journalSettings = { dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, settings: { freshChatThreshold: 3, paceMs: 60_000 } };
     const journalLifetime = relayCommandLockOptions('journal-work', {
       config: defaults, codexExecutionConfig: codexOn, journalWorkConfig: journalSettings, env: {},
     }).maxLifetimeMs;
     const journalBrowserTurn = 4 * (2 * (90_000 + 30_000 + 900_000) + 60_000);
-    assert.equal(journalLifetime, 4 * 60_000 + 5 * journalBrowserTurn + 600_000);
+    const journalCommands = 8 * 60_000 + 300_000;
+    assert.equal(journalLifetime, 4 * 60_000 + 5 * journalBrowserTurn + journalCommands + 600_000);
     assert.equal(journalLifetime, journalWorkLockLifetimeMs({
-      browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, paceMs: 60_000, env: {},
+      browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, paceMs: 60_000,
+      dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, env: {},
     }));
     const maximalPacingJournal = relayCommandLockOptions('journal-work', {
       config: defaults, codexExecutionConfig: codexOn,
-      journalWorkConfig: { settings: { freshChatThreshold: 3, paceMs: 3_600_000 } }, env: {},
+      journalWorkConfig: { ...journalSettings, settings: { freshChatThreshold: 3, paceMs: 3_600_000 } }, env: {},
     }).maxLifetimeMs;
     assert.equal(maximalPacingJournal, journalLifetime - 4 * 60_000 + 4 * 3_600_000);
     const recoveryHeavyJournal = relayCommandLockOptions('journal-work', {
       config: await loadConfig({ ...base, MC_RELAY_STUCK_RECOVERY_MAX_NUDGES: '20' }),
       journalWorkConfig: journalSettings, env: {},
     }).maxLifetimeMs;
-    const recoveryHeavyDerived = 4 * 60_000 + 5 * 21 * (2 * (90_000 + 30_000 + 900_000) + 60_000) + 600_000;
+    const recoveryHeavyDerived = 4 * 60_000 + 5 * 21 * (2 * (90_000 + 30_000 + 900_000) + 60_000) + journalCommands + 600_000;
     assert.equal(recoveryHeavyJournal, recoveryHeavyDerived);
     assert.ok(recoveryHeavyJournal > 24 * 60 * 60_000);
 
     const rateLimitHeavyJournal = relayCommandLockOptions('journal-work', {
       config: await loadConfig({ ...base, MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600000' }),
-      journalWorkConfig: { settings: { freshChatThreshold: 1, paceMs: 0 } }, env: {},
+      journalWorkConfig: { ...journalSettings, settings: { freshChatThreshold: 1, paceMs: 0 } }, env: {},
     }).maxLifetimeMs;
-    assert.equal(rateLimitHeavyJournal, 3 * 4 * (2 * (90_000 + 30_000 + 900_000) + 600_000) + 600_000);
+    assert.equal(rateLimitHeavyJournal, 3 * 4 * (2 * (90_000 + 30_000 + 900_000) + 600_000) + 6 * 60_000 + 300_000 + 600_000);
 
     // The review case: 60-minute Codex execution and 60-minute generation ceilings.
     const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });
@@ -185,6 +187,20 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('journal command timeout ceilings are explicit and bounded', () => {
+  const required = {
+    MC_JOURNAL_DISPATCH_COMMAND: 'dispatch', MC_JOURNAL_IMPORT_COMMAND: 'import',
+    MC_JOURNAL_APP_LABEL: 'InnerSignal', MC_JOURNAL_SUPERVISOR_ID: 'journal-supervisor',
+  };
+  const defaults = loadJournalWorkConfig(required);
+  assert.equal(defaults.dispatchTimeoutMs, 60_000);
+  assert.equal(defaults.importTimeoutMs, 300_000);
+  const configured = loadJournalWorkConfig({ ...required, MC_JOURNAL_DISPATCH_TIMEOUT_MS: '120000', MC_JOURNAL_IMPORT_TIMEOUT_MS: '600000' });
+  assert.equal(configured.dispatchTimeoutMs, 120_000);
+  assert.equal(configured.importTimeoutMs, 600_000);
+  assert.throws(() => loadJournalWorkConfig({ ...required, MC_JOURNAL_IMPORT_TIMEOUT_MS: '900001' }), /integer/);
 });
 
 test('CLI once holds a derived lifetime covering 60-minute operations, honors the override, and exits 143 on SIGTERM', { timeout: 30000 }, async () => {

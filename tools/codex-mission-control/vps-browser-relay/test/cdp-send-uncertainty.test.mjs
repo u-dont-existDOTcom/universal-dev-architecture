@@ -9,7 +9,7 @@ import {
   defaultSchedulerState,
 } from '../src/submission-scheduler-service.mjs';
 
-for (const code of ['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MISSING']) {
+for (const code of ['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MISSING', 'APP_CONFIRMATION_REVALIDATION_FAILED']) {
   test(`generation polling propagates ${code} without waiting for the generation timeout`, async () => {
     const transport = passiveGenerationTransport();
     const browser = new ChromeDevtoolsBrowser({
@@ -33,6 +33,32 @@ for (const code of ['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MIS
     );
     assert.equal(polls, 1);
   });
+}
+
+test('journal confirmation approval types a changed binding as a revalidation failure', async () => {
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: approvalRevalidationTransport() });
+  await assert.rejects(
+    browser.approveJournalWriteConfirmation({ id: 'approval-target', webSocketDebuggerUrl: 'ws://controlled/page' }, {
+      appName: 'InnerSignal', toolName: 'submit_journal_work_result', button: 'Always allow',
+    }),
+    (error) => error?.code === 'APP_CONFIRMATION_REVALIDATION_FAILED' && /BINDING_CHANGED/.test(error.message),
+  );
+});
+
+function approvalRevalidationTransport() {
+  return class ApprovalRevalidationWebSocket {
+    constructor() { this.listeners = new Map(); queueMicrotask(() => this.emit('open', {})); }
+    addEventListener(type, listener) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]); }
+    send(raw) {
+      const message = JSON.parse(raw);
+      const result = message.method === 'Runtime.evaluate'
+        ? { result: { objectId: 'global-object' } }
+        : { result: { value: { approved: false, reason: 'BINDING_CHANGED' } } };
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: message.id, result }) }));
+    }
+    close() {}
+    emit(type, event) { for (const listener of this.listeners.get(type) ?? []) listener(event); }
+  };
 }
 
 function passiveGenerationTransport() {

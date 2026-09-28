@@ -153,6 +153,8 @@ export function loadJournalWorkConfig(env = process.env) {
     supervisorId: required(env.MC_JOURNAL_SUPERVISOR_ID, 'MC_JOURNAL_SUPERVISOR_ID'),
     stateFile: resolve(expandHome(env.MC_JOURNAL_STATE_FILE ?? `${stateDir}/journal-work-state.json`, home)),
     statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
+    dispatchTimeoutMs: integer(env.MC_JOURNAL_DISPATCH_TIMEOUT_MS, 60_000, 1_000, 900_000),
+    importTimeoutMs: integer(env.MC_JOURNAL_IMPORT_TIMEOUT_MS, 300_000, 1_000, 900_000),
     settings: {
       dailyAllowance: integer(env.MC_JOURNAL_DAILY_ALLOWANCE, 170, 1, 10_000),
       paceMs: integer(env.MC_JOURNAL_PACE_MS, 60_000, 1_000, 3_600_000),

@@ -85,6 +85,13 @@ test('the command runner preserves bounded stdout when an import command exits n
   assert.deepEqual(JSON.parse(result.stdout), summary);
 });
 
+test('the command runner enforces its configured command timeout', async () => {
+  const started = Date.now();
+  const result = await runCommand(`node -e 'setTimeout(() => {}, 1000)'`, 25);
+  assert.notEqual(result.exitCode, 0);
+  assert.ok(Date.now() - started < 750);
+});
+
 test('happy path sends only the fixed prompt, records the initial rung, imports, and stays content-free', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 3, pageText: SENTINEL });
   const result = await fixture.runner.runPass();
@@ -703,7 +710,7 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
   const logs = []; const warnLogs = []; const submissions = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, runtime, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, appLabel: 'InnerSignal', stateFile, statusFile, runtime, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
   return { runner, browser, stateFile, statusFile, logs, warnLogs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 

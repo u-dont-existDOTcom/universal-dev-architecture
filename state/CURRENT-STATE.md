@@ -7,6 +7,32 @@ attestations, or live topology. Portable rules remain in `patterns/` and
 
 Updated: 2026-09-28
 
+## PR #275 Codex review follow-up at `e19fa89` (2026-09-28)
+
+- Parent implementation outcome: **SATISFIED**. Both review findings are valid
+  and repaired with direct regression coverage; commit and pull-request
+  metadata delivery remain the current worker's final actions.
+- Journal confirmation approval revalidation failures now carry the stable
+  `APP_CONFIRMATION_REVALIDATION_FAILED` code, and generation polling
+  immediately propagates that approval-policy failure instead of retrying it
+  until the generation timeout.
+- Journal dispatch and import commands now have explicit, bounded execution
+  timeouts. The runner applies those bounds to `exec`, and the journal watchdog
+  lifetime includes the maximum supported dispatch count plus one import after
+  the complete browser/pacing ladder.
+- Direct regressions prove immediate polling propagation, typed binding-change
+  failures, actual child-command termination, bounded timeout configuration,
+  and inclusion of command ceilings in the derived watchdog lifetime. Focused
+  CDP, journal-runner, and state/client tests pass 86/86.
+- Completion gates are green: the relay suite passes 248/248 tests, repository
+  unit tests pass 467/467, and the deterministic repository audit reports no
+  findings. Test-efficiency telemetry covered the focused regressions and all
+  required full gates without a redundant full-suite rerun.
+- Active assurance lane: **release**, because the owner explicitly requires
+  the existing pull request to remain merge-ready and names all three gates.
+- Stop admission: implementation and validation are complete; final diff
+  review, commit, and existing pull-request metadata update remain open.
+
 ## PR #275 Codex review follow-up at `1494613` (2026-09-28)
 
 - Parent implementation outcome: **SATISFIED**. All three new review findings

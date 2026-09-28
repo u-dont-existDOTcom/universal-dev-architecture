@@ -308,14 +308,14 @@ export class JournalWorkRunner {
   }
 
   async #runImport() {
-    const operation = this.importTail.then(async () => sanitizeImportResult(await this.commandRunner(this.config.importCommand)));
+    const operation = this.importTail.then(async () => sanitizeImportResult(await this.commandRunner(this.config.importCommand, this.config.importTimeoutMs)));
     this.importTail = operation.catch(() => {});
     return operation;
   }
 
   async #listing() {
     let result;
-    try { result = await this.commandRunner(this.config.dispatchCommand); } catch { return { ok: false, records: [] }; }
+    try { result = await this.commandRunner(this.config.dispatchCommand, this.config.dispatchTimeoutMs); } catch { return { ok: false, records: [] }; }
     if (result.exitCode !== 0) return { ok: false, records: [] };
     try { return { ok: true, records: result.stdout.split(/\r?\n/).filter(Boolean).map(parseDispatchRecord) }; }
     catch { return { ok: false, records: [] }; }
@@ -398,6 +398,6 @@ function sanitizeImportResult(result) {
 function stringOrNull(value) { return typeof value === 'string' && value.length <= 100 ? value : null; }
 function integerOrZero(value) { return Number.isInteger(value) && value >= 0 ? value : 0; }
 function plainCounts(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return {}; return Object.fromEntries(Object.entries(value).filter(([key, count]) => /^[a-zA-Z0-9_-]{1,50}$/.test(key) && Number.isInteger(count) && count >= 0)); }
-export async function runCommand(command) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024, env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' } }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: error?.stdout ?? '' }; } }
+export async function runCommand(command, timeoutMs) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024, timeout: timeoutMs, env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' } }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: error?.stdout ?? '' }; } }
 async function atomicJson(path, value) { await mkdir(dirname(path), { recursive: true, mode: 0o700 }); const temp = `${path}.${process.pid}.tmp`; await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 }); await rename(temp, path); }
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }

@@ -104,7 +104,7 @@ export function oneShotLockLifetimeMs({ browser, runtime, codexExecMaxTimeoutMs 
   return Math.min(derived, ONE_SHOT_LOCK_CEILING_MS);
 }
 
-export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold, paceMs, env = process.env }) {
+export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold, paceMs, dispatchTimeoutMs, importTimeoutMs, env = process.env }) {
   const override = lockLifetimeOverrideMs(env);
   if (override !== null) return override;
   const attemptsPerSubmission = runtime.stuckRecoveryMaxNudges + 1;
@@ -116,7 +116,10 @@ export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold
   const browserAttemptMs = browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs;
   const browserTurnMs = attemptsPerSubmission * (providerAttempts * browserAttemptMs + runtime.minSubmissionIntervalMs);
   const maximumPacingDelayMs = 4 * paceMs;
-  const derived = maximumPacingDelayMs + logicalSubmissions * browserTurnMs + ONE_SHOT_LOCK_MARGIN_MS;
+  // A pass lists before and after pacing, may reconcile persisted current work,
+  // and lists after every logical submission before running one import.
+  const commandRuntimeMs = (logicalSubmissions + 3) * dispatchTimeoutMs + importTimeoutMs;
+  const derived = maximumPacingDelayMs + logicalSubmissions * browserTurnMs + commandRuntimeMs + ONE_SHOT_LOCK_MARGIN_MS;
   if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite journal-work relay lock lifetime from the configuration.');
   if (derived > MAX_LOCK_LIFETIME_MS) throw new Error(`Derived journal-work relay lock lifetime exceeds the supported ${MAX_LOCK_LIFETIME_MS} ms watchdog limit.`);
   return derived;
@@ -133,7 +136,8 @@ export function relayCommandLockOptions(command, { config, codexExecutionConfig 
     if (!journalWorkConfig?.settings) throw new Error('Journal-work lock lifetime requires the journal recovery settings.');
     return { taskId, persistent: false, maxLifetimeMs: journalWorkLockLifetimeMs({
       browser: config.browser, runtime: config.runtime, freshChatThreshold: journalWorkConfig.settings.freshChatThreshold,
-      paceMs: journalWorkConfig.settings.paceMs, env,
+      paceMs: journalWorkConfig.settings.paceMs, dispatchTimeoutMs: journalWorkConfig.dispatchTimeoutMs,
+      importTimeoutMs: journalWorkConfig.importTimeoutMs, env,
     }) };
   }
   const codexExecMaxTimeoutMs = command === 'once' && codexExecutionConfig?.previewEnabled === true ? codexExecutionConfig.maxTimeoutMs : null;

@@ -1135,7 +1135,11 @@ export class ChromeDevtoolsBrowser {
 
   async approveJournalWriteConfirmation(target, { appName, toolName, button }) {
     const result = await this.#withPageClient(target, (client) => client.callFunction(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, [appName, toolName, button]));
-    if (!result?.approved) throw new Error(`Journal write confirmation changed before approval: ${result?.reason ?? 'UNKNOWN'}.`);
+    if (!result?.approved) {
+      const error = new Error(`Journal write confirmation changed before approval: ${result?.reason ?? 'UNKNOWN'}.`);
+      error.code = 'APP_CONFIRMATION_REVALIDATION_FAILED';
+      throw error;
+    }
     return result;
   }
 
@@ -1767,7 +1771,7 @@ async function waitFor(check, timeoutMs, intervalMs, timeoutMessage) {
       if (value) return value;
     } catch (error) {
       lastError = error;
-      if (error?.code === 'UNEXPECTED_APP_CONFIRMATION' || error?.code === 'APP_CONFIRMATION_CONTROL_MISSING') throw error;
+      if (['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MISSING', 'APP_CONFIRMATION_REVALIDATION_FAILED'].includes(error?.code)) throw error;
       if (/unexpected URL|login is required|changed while waiting|changed during submission/.test(error.message)) throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
