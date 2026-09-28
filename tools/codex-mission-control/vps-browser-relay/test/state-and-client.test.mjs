@@ -8,11 +8,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { MissionControlClient } from '../src/mission-control.mjs';
 import { StateStore } from '../src/state.mjs';
-import { loadCodexExecCandidateConfig, loadConfig, publicConfig } from '../src/config.mjs';
+import { loadCodexExecCandidateConfig, loadConfig, loadJournalWorkConfig, publicConfig } from '../src/config.mjs';
 import {
   HELPER_DEFAULT_LIFETIME_MS,
   ONE_SHOT_LOCK_CEILING_MS,
   ONE_SHOT_LOCK_MARGIN_MS,
+  journalWorkLockLifetimeMs,
   oneShotLockLifetimeMs,
   relayCommandLockOptions,
 } from '../src/relay-lock.mjs';
@@ -71,7 +72,8 @@ test('stale lock is recovered without deleting a live lock', async () => {
 test('health report CLI does not contend with the long-running relay singleton lock', async () => {
   const cli = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
   assert.match(cli, /const exclusiveLockRequired = command !== 'health-report'/);
-  assert.match(cli, /if \(exclusiveLockRequired\) \{\n(?:    \/\/.*\n)*    await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{ config, codexExecutionConfig \}\)\);/);
+  assert.match(cli, /if \(exclusiveLockRequired\) \{[\s\S]*?await stateStore\.acquireLock\(relayCommandLockOptions\(command, \{[\s\S]*?journalWorkConfig:[\s\S]*?\}\)\);/);
+  assert.match(cli, /if \(command === 'journal-work' && !config\.runtime\.submitEnabled\)[\s\S]*?JOURNAL_WORK_SEND_DISABLED[\s\S]*?journalWorkConfig = await withPersistedJournalWorkSettings\(loadJournalWorkConfig\(\)\)[\s\S]*?await stateStore\.acquireLock/);
   assert.match(cli, /doctor: \(\) => runtime\.doctor\(\{ readOnly: true \}\)/);
   // Release runs in `finally`; it is a no-op for a store that never acquired ownership.
   assert.match(cli, /\} finally \{\n  try \{\n    await stateStore\?\.releaseLock\(\);/);
@@ -102,6 +104,33 @@ test('CLI errors release ownership; lock-status diagnoses a live owner without a
   }
 });
 
+test('journal-work exits disabled before requiring journal configuration or constructing live provider clients', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-relay-journal-disabled-'));
+  try {
+    const chatsFile = join(root, 'chats.json');
+    await writeFile(chatsFile, JSON.stringify([configuredChat()]));
+    const cli = fileURLToPath(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url));
+    const result = spawnSync(process.execPath, [cli, 'journal-work'], {
+      env: {
+        ...configEnv(chatsFile),
+        MC_RELAY_STATE_DIR: root,
+        MC_RELAY_SUBMIT_ENABLED: '0',
+      },
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), { status: 'JOURNAL_WORK_SEND_DISABLED', submitEnabled: false });
+    assert.equal(new StateStore({
+      stateFile: join(root, 'relay-state.json'),
+      statusFile: join(root, 'relay-status.json'),
+      lockFile: join(root, 'relay.lock'),
+    }).lockStatus().status, 'FREE');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('one-shot lock lifetime derives from the configured operation ceilings it guards', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-lock-budget-'));
   try {
@@ -122,6 +151,35 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     for (const command of ['controller-once', 'provision', 'mcp-preflight', 'capabilities']) {
       assert.equal(relayCommandLockOptions(command, { config: defaults, codexExecutionConfig: codexOn, env: {} }).maxLifetimeMs, browserTurn + 600_000);
     }
+    const journalSettings = { dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, settings: { freshChatThreshold: 3, paceMs: 60_000 } };
+    const journalLifetime = relayCommandLockOptions('journal-work', {
+      config: defaults, codexExecutionConfig: codexOn, journalWorkConfig: journalSettings, env: {},
+    }).maxLifetimeMs;
+    const journalBrowserTurn = 4 * 2 * (90_000 + 30_000 + 900_000 + 60_000);
+    const journalCommands = 8 * 60_000 + 300_000;
+    assert.equal(journalLifetime, 4 * 60_000 + 5 * journalBrowserTurn + journalCommands + 600_000);
+    assert.equal(journalLifetime, journalWorkLockLifetimeMs({
+      browser: defaults.browser, runtime: defaults.runtime, freshChatThreshold: 3, paceMs: 60_000,
+      dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, env: {},
+    }));
+    const maximalPacingJournal = relayCommandLockOptions('journal-work', {
+      config: defaults, codexExecutionConfig: codexOn,
+      journalWorkConfig: { ...journalSettings, settings: { freshChatThreshold: 3, paceMs: 3_600_000 } }, env: {},
+    }).maxLifetimeMs;
+    assert.equal(maximalPacingJournal, journalLifetime - 4 * 60_000 + 4 * 3_600_000);
+    const recoveryHeavyJournal = relayCommandLockOptions('journal-work', {
+      config: await loadConfig({ ...base, MC_RELAY_STUCK_RECOVERY_MAX_NUDGES: '20' }),
+      journalWorkConfig: journalSettings, env: {},
+    }).maxLifetimeMs;
+    const recoveryHeavyDerived = 4 * 60_000 + 5 * 21 * 2 * (90_000 + 30_000 + 900_000 + 60_000) + journalCommands + 600_000;
+    assert.equal(recoveryHeavyJournal, recoveryHeavyDerived);
+    assert.ok(recoveryHeavyJournal > 24 * 60 * 60_000);
+
+    const rateLimitHeavyJournal = relayCommandLockOptions('journal-work', {
+      config: await loadConfig({ ...base, MC_RELAY_MIN_SUBMISSION_INTERVAL_MS: '600000' }),
+      journalWorkConfig: { ...journalSettings, settings: { freshChatThreshold: 1, paceMs: 0 } }, env: {},
+    }).maxLifetimeMs;
+    assert.equal(rateLimitHeavyJournal, 3 * 4 * 2 * (90_000 + 30_000 + 900_000 + 600_000) + 6 * 60_000 + 300_000 + 600_000);
 
     // The review case: 60-minute Codex execution and 60-minute generation ceilings.
     const long = await loadConfig({ ...base, MC_RELAY_GENERATION_TIMEOUT_MS: '3600000' });
@@ -143,11 +201,11 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
     assert.equal(relayCommandLockOptions('once', { config: manyNudges, codexExecutionConfig: longCodex, env: {} }).maxLifetimeMs, ONE_SHOT_LOCK_CEILING_MS);
     assert.equal(ONE_SHOT_LOCK_CEILING_MS, 6 * 60 * 60_000);
 
-    // MC_RELAY_LOCK_MAX_MS stays an explicit override in either direction, within 1..86400000.
+    // MC_RELAY_LOCK_MAX_MS stays an explicit override in either direction, within the watchdog timer limit.
     assert.equal(oneShotLockLifetimeMs({ browser: long.browser, runtime: long.runtime, codexExecMaxTimeoutMs: 3_600_000, env: { MC_RELAY_LOCK_MAX_MS: '120000' } }), 120_000);
     assert.equal(relayCommandLockOptions('once', { config: manyNudges, codexExecutionConfig: longCodex, env: { MC_RELAY_LOCK_MAX_MS: '43200000' } }).maxLifetimeMs, 43_200_000);
-    for (const invalid of ['0', '86400001', '1.5', 'thirty-minutes']) {
-      assert.throws(() => relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOff, env: { MC_RELAY_LOCK_MAX_MS: invalid } }), /MC_RELAY_LOCK_MAX_MS must be an integer from 1 to 86400000/);
+    for (const invalid of ['0', '2147483648', '1.5', 'thirty-minutes']) {
+      assert.throws(() => relayCommandLockOptions('once', { config: defaults, codexExecutionConfig: codexOff, env: { MC_RELAY_LOCK_MAX_MS: invalid } }), /MC_RELAY_LOCK_MAX_MS must be an integer from 1 to 2147483647/);
     }
     // Service loops stay persistent and never depend on the one-shot override.
     for (const command of ['run', 'controller-run']) {
@@ -156,6 +214,20 @@ test('one-shot lock lifetime derives from the configured operation ceilings it g
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('journal command timeout ceilings are explicit and bounded', () => {
+  const required = {
+    MC_JOURNAL_DISPATCH_COMMAND: 'dispatch', MC_JOURNAL_IMPORT_COMMAND: 'import',
+    MC_JOURNAL_APP_LABEL: 'InnerSignal', MC_JOURNAL_SUPERVISOR_ID: 'journal-supervisor',
+  };
+  const defaults = loadJournalWorkConfig(required);
+  assert.equal(defaults.dispatchTimeoutMs, 60_000);
+  assert.equal(defaults.importTimeoutMs, 300_000);
+  const configured = loadJournalWorkConfig({ ...required, MC_JOURNAL_DISPATCH_TIMEOUT_MS: '120000', MC_JOURNAL_IMPORT_TIMEOUT_MS: '600000' });
+  assert.equal(configured.dispatchTimeoutMs, 120_000);
+  assert.equal(configured.importTimeoutMs, 600_000);
+  assert.throws(() => loadJournalWorkConfig({ ...required, MC_JOURNAL_IMPORT_TIMEOUT_MS: '900001' }), /integer/);
 });
 
 test('CLI once holds a derived lifetime covering 60-minute operations, honors the override, and exits 143 on SIGTERM', { timeout: 30000 }, async () => {

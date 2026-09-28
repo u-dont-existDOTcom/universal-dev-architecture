@@ -4,6 +4,7 @@ import {
   loadCodexExecCandidateConfig,
   loadCodexExecMissionControlConfig,
   loadConfig,
+  loadJournalWorkConfig,
   publicConfig,
 } from '../src/config.mjs';
 import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
@@ -13,21 +14,24 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
 import { relayCommandLockOptions } from '../src/relay-lock.mjs';
-import { oneShotExitCode } from '../src/core.mjs';
+import { classifyMemoryPressure, oneShotExitCode, resolveMemoryPolicy } from '../src/core.mjs';
+import { readMemoryMetrics } from '../src/memory.mjs';
 import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
-import { submissionSchedulerContext } from '../src/submission-context.mjs';
+import { journalWorkSubmissionContext, submissionSchedulerContext } from '../src/submission-context.mjs';
 import { ControllerMediatedPmRuntime } from '../src/controller-mediated-pm.mjs';
 import { ControllerCycleWatchdog } from '../src/controller-watchdog.mjs';
 import { provisionMcOnlyChat } from '../src/provision-mc-only-chat.mjs';
 import { buildRelayHealthReport, observeRelayHealth } from '../src/health-report.mjs';
 import { dispatchAutomaticMissionControlExecution } from '../src/codex-exec-candidate.mjs';
+import { JournalWorkRunner, withJournalRuntime, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
 
 const command = process.argv[2] ?? 'run';
 let stateStore;
 
 try {
   const config = await loadConfig();
+  let journalWorkConfig = null;
   stateStore = new StateStore({ stateFile: config.runtime.stateFile, statusFile: config.runtime.statusFile, lockFile: config.runtime.lockFile });
 
   if (command === 'lock-status') {
@@ -42,6 +46,15 @@ try {
     });
     print({ ...JSON.parse(raw), relayLock: stateStore.lockStatus() });
     process.exit(0);
+  }
+
+  if (command === 'journal-work' && !config.runtime.submitEnabled) {
+    print({ status: 'JOURNAL_WORK_SEND_DISABLED', submitEnabled: false });
+    process.exit(0);
+  }
+
+  if (command === 'journal-work') {
+    journalWorkConfig = await withPersistedJournalWorkSettings(loadJournalWorkConfig());
   }
 
   const missionControl = new MissionControlClient(config.missionControl);
@@ -74,12 +87,26 @@ try {
     host: config.runtime.submissionHost,
     minIntervalMs: config.runtime.minSubmissionIntervalMs,
   });
+  const journalRecoverySessions = new Map();
   rawBrowser.setTargetTransitionCoordinator(submissionPacer);
   const browser = installStuckRecovery(rawBrowser, {
     maxNudges: config.runtime.stuckRecoveryMaxNudges,
     submitMessage: async (target, input) => submissionPacer.submit({
-      context: await recoverySubmissionContext(config, stateStore, target, input),
-      submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => rawBrowser.submitExactMessage(target, { ...input, onBeforeSubmissionBoundary, onSubmissionBoundary }),
+      context: await recoverySubmissionContext(config, stateStore, target, input, journalRecoverySessions),
+      submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
+        const { onSubmissionBoundary: onJournalSubmissionBoundary, ...messageInput } = input;
+        return rawBrowser.submitExactMessage(target, {
+          ...messageInput,
+          onBeforeSubmissionBoundary: async (...args) => {
+            await input.beforeRecoverySend?.(...args);
+            return onBeforeSubmissionBoundary(...args);
+          },
+          onSubmissionBoundary: async (...args) => {
+            await onJournalSubmissionBoundary?.(...args);
+            return onSubmissionBoundary(...args);
+          },
+        });
+      },
     }),
     beforeRecoverySend: () => submissionPacer.assertReady(),
   });
@@ -103,7 +130,11 @@ try {
   const exclusiveLockRequired = command !== 'health-report';
   if (exclusiveLockRequired) {
     // One-shot owners outlive their longest configured guarded operation (see relayCommandLockOptions).
-    await stateStore.acquireLock(relayCommandLockOptions(command, { config, codexExecutionConfig }));
+    await stateStore.acquireLock(relayCommandLockOptions(command, {
+      config,
+      codexExecutionConfig,
+      journalWorkConfig: journalWorkConfig,
+    }));
   }
 
   if (command === 'doctor') {
@@ -133,6 +164,30 @@ try {
     const result = await runtime.cycle();
     print(result);
     process.exitCode = oneShotExitCode(result);
+  } else if (command === 'journal-work') {
+    const journalConfig = withJournalRuntime(journalWorkConfig, config.runtime);
+    const journalChat = config.runtime.chats.find((entry) => entry.supervisorId === journalConfig.supervisorId);
+    if (!journalChat || journalChat.ownership !== 'MISSION_CONTROL_ONLY') {
+      throw new Error('MC_JOURNAL_SUPERVISOR_ID must name an owner-registered Mission Control-only supervisor.');
+    }
+    const journal = new JournalWorkRunner({
+      config: journalConfig,
+      browser,
+      memoryReader: async () => {
+        const metrics = await readMemoryMetrics(config.browser.profileDir);
+        return classifyMemoryPressure(metrics, resolveMemoryPolicy(metrics.totalMb, config.memory));
+      },
+      submit: async ({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl, bodySha256, submit }) => {
+        const identity = { chat: journalChat, item, providerSessionId };
+        journalRecoverySessions.set(target.id, identity);
+        const started = await submissionPacer.submit({
+          context: journalWorkSubmissionContext({ ...identity, target, rung, freshChatAttempt, expectedUrl, bodySha256 }),
+          submit: (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => submit({ onSubmissionBoundary, onBeforeSubmissionBoundary }),
+        });
+        return started;
+      },
+    });
+    print(await journal.runPass());
   } else if (command === 'once-exact') {
     const [worker, taskId, requestId, directiveId, directiveRevision] = process.argv.slice(3);
     if (!worker || !taskId || !requestId || !directiveId || !Number.isInteger(Number(directiveRevision))) {
@@ -200,7 +255,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|journal-work|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
   }
 } catch (error) {
   console.error(JSON.stringify({ status: 'FATAL', time: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));
@@ -222,7 +277,19 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function recoverySubmissionContext(config, stateStore, target, input) {
+async function recoverySubmissionContext(config, stateStore, target, input, journalRecoverySessions = new Map()) {
+  const journal = journalRecoverySessions.get(target.id);
+  if (journal) {
+    return journalWorkSubmissionContext({
+      ...journal,
+      target,
+      rung: 'STUCK_RECOVERY',
+      providerSessionId: journal.providerSessionId,
+      expectedUrl: input.expectedUrl,
+      bodySha256: input.bodySha256,
+      schedulerAttemptKey: input.schedulerAttemptKey,
+    });
+  }
   const state = await stateStore.read();
   const tab = Object.values(state.tabs ?? {}).find((entry) => entry?.targetId === target.id);
   const session = Object.values(state.providerSessions ?? {}).find((entry) => entry?.targetId === target.id && entry?.conversationUrl === input.expectedUrl);

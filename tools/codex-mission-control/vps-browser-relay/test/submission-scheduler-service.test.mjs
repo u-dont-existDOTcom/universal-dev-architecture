@@ -423,6 +423,7 @@ test('every concrete ChatGPT send path is wired through central admission and bo
   const relay = await readFile(new URL('../src/relay.mjs', import.meta.url), 'utf8');
   const controller = await readFile(new URL('../src/controller-mediated-pm.mjs', import.meta.url), 'utf8');
   const launcher = await readFile(new URL('../bin/mc-chatgpt-relay.mjs', import.meta.url), 'utf8');
+  const journal = await readFile(new URL('../src/journal-work-runner.mjs', import.meta.url), 'utf8');
   const recovery = await readFile(new URL('../src/stuck-recovery.mjs', import.meta.url), 'utf8');
   assert.equal(count(relay, 'this.submissionPacer.submit({'), 3);
   assert.equal(count(relay, 'this.browser.submitExactMessage('), 3);
@@ -431,11 +432,18 @@ test('every concrete ChatGPT send path is wired through central admission and bo
   assert.equal(count(controller, 'this.browser.submitExactMessage('), 3);
   assert.equal(count(controller, 'this.browser.retryExactFailedContinue('), 1);
   assert.ok(count(controller, 'onSubmissionBoundary') >= 8);
-  assert.equal(count(launcher, 'submissionPacer.submit({'), 1);
+  assert.equal(count(launcher, 'submissionPacer.submit({'), 2);
   assert.equal(count(launcher, 'rawBrowser.submitExactMessage('), 1);
   assert.match(launcher, /onSubmissionBoundary/);
+  assert.match(launcher, /await onJournalSubmissionBoundary\?\.\(\.\.\.args\)/);
+  assert.match(launcher, /onBeforeSubmissionBoundary: async \(\.\.\.args\) => \{\s*await input\.beforeRecoverySend\?\.\(\.\.\.args\);\s*return onBeforeSubmissionBoundary\(\.\.\.args\);/);
+  assert.match(launcher, /journalRecoverySessions\.set\(target\.id, identity\)/);
+  assert.match(launcher, /recoverySubmissionContext\(config, stateStore, target, input, journalRecoverySessions\)/);
+  assert.equal(count(journal, 'this.submit({'), 3);
+  assert.equal(count(journal, 'this.browser.submitExactMessage('), 2);
+  assert.equal(count(journal, 'this.browser.retryExactFailedContinue('), 1);
   assert.doesNotMatch(recovery, /browser\.submitExactMessage\(/);
-  for (const source of [relay, controller, launcher, recovery]) assert.doesNotMatch(source, /clipboard|xclip|xsel/i);
+  for (const source of [relay, controller, launcher, journal, recovery]) assert.doesNotMatch(source, /clipboard|xclip|xsel/i);
 });
 
 test('browser service cannot inherit relay or scheduler credentials and send code has no clipboard path', async () => {

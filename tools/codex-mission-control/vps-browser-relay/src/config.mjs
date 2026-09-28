@@ -143,6 +143,28 @@ export function loadCodexExecCandidateConfig(env = process.env) {
   };
 }
 
+export function loadJournalWorkConfig(env = process.env) {
+  const home = homedir();
+  const stateDir = resolve(expandHome(env.MC_RELAY_STATE_DIR ?? `${home}/.local/state/mission-control-chatgpt-relay`, home));
+  return {
+    dispatchCommand: required(env.MC_JOURNAL_DISPATCH_COMMAND, 'MC_JOURNAL_DISPATCH_COMMAND'),
+    importCommand: required(env.MC_JOURNAL_IMPORT_COMMAND, 'MC_JOURNAL_IMPORT_COMMAND'),
+    appLabel: required(env.MC_JOURNAL_APP_LABEL, 'MC_JOURNAL_APP_LABEL'),
+    supervisorId: required(env.MC_JOURNAL_SUPERVISOR_ID, 'MC_JOURNAL_SUPERVISOR_ID'),
+    stateFile: resolve(expandHome(env.MC_JOURNAL_STATE_FILE ?? `${stateDir}/journal-work-state.json`, home)),
+    statusFile: resolve(expandHome(env.MC_JOURNAL_STATUS_FILE ?? `${stateDir}/journal-work-status.json`, home)),
+    dispatchTimeoutMs: integer(env.MC_JOURNAL_DISPATCH_TIMEOUT_MS, 60_000, 1_000, 900_000),
+    importTimeoutMs: integer(env.MC_JOURNAL_IMPORT_TIMEOUT_MS, 300_000, 1_000, 900_000),
+    settings: {
+      dailyAllowance: integer(env.MC_JOURNAL_DAILY_ALLOWANCE, 170, 1, 10_000),
+      paceMs: integer(env.MC_JOURNAL_PACE_MS, 60_000, 1_000, 3_600_000),
+      backoffBaseMs: integer(env.MC_JOURNAL_BACKOFF_BASE_MS, 60_000, 1_000, 3_600_000),
+      backoffMaxMs: integer(env.MC_JOURNAL_BACKOFF_MAX_MS, 3_600_000, 1_000, 86_400_000),
+      freshChatThreshold: integer(env.MC_JOURNAL_FRESH_CHAT_THRESHOLD, 3, 1, 20),
+    },
+  };
+}
+
 export function loadCodexExecMissionControlConfig(env = process.env) {
   const url = normalizeBaseUrl(required(
     env.MC_CODEX_EXEC_MISSION_CONTROL_URL ?? env.MC_RELAY_MISSION_CONTROL_URL,

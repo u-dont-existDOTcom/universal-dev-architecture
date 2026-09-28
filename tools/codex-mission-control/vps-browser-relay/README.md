@@ -95,6 +95,29 @@ GitHub is the handoff between stages. Conversation history is never required for
 an external-tool operation. The relay never reads, copies, hashes, parses,
 summarizes, or transports assistant response text.
 
+## InnerSignal journal work runner
+
+`npm run journal-work` performs one content-free journal work pass. It selects
+the oldest eligible standard-tier dispatch, opens a fresh automation-owned
+ChatGPT conversation, verifies the configured model and effort, selects the
+configured InnerSignal app, and submits the fixed work-ID-only instruction.
+Completion is established only by reading the dispatch listing again; neither
+assistant output nor page text is read or persisted.
+
+The runner retains the relay process lock, automation-owned target fence, and
+central submission scheduler. Its private environment supplies the dispatch
+and import commands and app label. Runtime state contains only dispatch
+metadata, outcome/rung history, adaptive pacing and backoff settings, daily
+counts, owner-action codes, and allowlisted import summary fields. The command
+is a one-pass operation and does not deploy or modify services.
+
+Before the pilot, calibrate `settings.controlObservations[model][effort]` in
+the journal runner's private state with the account's observed
+`modelVisibleLabel`, `thinkingControlLabel`, and `thinkingVisibleLabel`. The
+runner fails closed with `JOURNAL_CONTROLS_UNCALIBRATED` rather than assuming a
+page label. `freshChatThreshold` is the total number of fresh conversations
+allowed for one work item, including its initial conversation.
+
 The controller-mediated route is an explicit, one-cycle command path. It uses
 GitHub as the only semantic mailbox. Its owner-only restart ledger stores exact
 target/window/session identities, send boundaries, immutable comment identities,
@@ -195,7 +218,7 @@ the exact owner's metadata; failed acquisition/double release cannot unlink a
 successor. CLI one-shots (including `once-exact`) release in `finally`; only
 explicit `run` and `controller-run` service modes use unbounded ownership, and
 `health-report` takes no exclusive lock so it never contends with the service. A one-shot can set
-`MC_RELAY_LOCK_MAX_MS` (1..86400000 ms) as an explicit override, shorter or
+`MC_RELAY_LOCK_MAX_MS` (1..2147483647 ms) as an explicit override, shorter or
 longer than the derived default, when its authorized operation requires a
 different bounded lifetime. The override never shortens global pacing or clears
 ambiguous send intents; after interruption the normal doctor/ledger gates still

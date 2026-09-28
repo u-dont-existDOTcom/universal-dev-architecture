@@ -27,6 +27,62 @@ const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown
 const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
 const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
 
+export const JOURNAL_WRITE_CONFIRMATION_FN = `function(expectedUrl) {
+  const normalize = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  const matchesExpectedUrl = expectedUrl === 'https://chatgpt.com/'
+    ? new URL(location.href).origin === 'https://chatgpt.com' && new URL(location.href).pathname === '/'
+    : normalize(expectedUrl) !== null && normalize(location.href) === normalize(expectedUrl);
+  if (!matchesExpectedUrl) {
+    return { present: false, appName: null, toolName: null, buttons: [], urlMismatch: true };
+  }
+  const visible = (element) => Boolean(element && element.getClientRects().length)
+    && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
+  const dialogs = [...document.querySelectorAll('[role="dialog"], dialog')].filter(visible);
+  if (dialogs.length === 0) return { present: false, appName: null, toolName: null, buttons: [] };
+  if (dialogs.length !== 1) return { present: true, appName: null, toolName: null, buttons: [] };
+  const dialog = dialogs[0];
+  const appName = dialog.getAttribute('data-app-name')
+    || label(dialog.querySelector('[data-app-name], [data-testid="app-name"]')) || null;
+  const toolName = dialog.getAttribute('data-tool-name')
+    || label(dialog.querySelector('[data-tool-name], [data-testid="tool-name"]')) || null;
+  const buttons = [...dialog.querySelectorAll('button, [role="button"]')].filter(visible).map(label).filter(Boolean);
+  return { present: true, appName, toolName, buttons };
+}`;
+
+export const APPROVE_JOURNAL_WRITE_CONFIRMATION_FN = `function(expectedUrl, appName, toolName, buttonLabel) {
+  const normalize = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  const matchesExpectedUrl = expectedUrl === 'https://chatgpt.com/'
+    ? new URL(location.href).origin === 'https://chatgpt.com' && new URL(location.href).pathname === '/'
+    : normalize(expectedUrl) !== null && normalize(location.href) === normalize(expectedUrl);
+  if (!matchesExpectedUrl) return { approved: false, reason: 'URL_MISMATCH' };
+  const visible = (element) => Boolean(element && element.getClientRects().length)
+    && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
+  const dialogs = [...document.querySelectorAll('[role="dialog"], dialog')].filter(visible);
+  if (dialogs.length !== 1) return { approved: false, reason: 'DIALOG_NOT_UNIQUE' };
+  const dialog = dialogs[0];
+  const observedApp = dialog.getAttribute('data-app-name') || label(dialog.querySelector('[data-app-name], [data-testid="app-name"]')) || null;
+  const observedTool = dialog.getAttribute('data-tool-name') || label(dialog.querySelector('[data-tool-name], [data-testid="tool-name"]')) || null;
+  if (observedApp !== appName || observedTool !== toolName) return { approved: false, reason: 'BINDING_CHANGED' };
+  const matches = [...dialog.querySelectorAll('button, [role="button"]')].filter(visible).filter((element) => label(element) === buttonLabel);
+  if (matches.length !== 1) return { approved: false, reason: 'BUTTON_NOT_UNIQUE' };
+  matches[0].click();
+  return { approved: true, appName, toolName, button: buttonLabel };
+}`;
+
 export const PAGE_INSPECTION_FN = `function(expectedUrl) {
   const normalize = (value) => {
     try {
@@ -371,6 +427,11 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
   if (!observation?.menuFound) {
     throw new Error(`ChatGPT model menu is unavailable: ${observation?.reason ?? 'UNKNOWN'}.`);
   }
+  if (observation.directMatchCount === 0) {
+    const error = new Error(`Exact model selector option ${labelWanted} is unavailable.`);
+    error.code = 'CHATGPT_MODEL_UNAVAILABLE';
+    throw error;
+  }
   if (observation.directMatchCount !== 1) {
     throw new Error(`Exact model selector option ${labelWanted} must appear once.`);
   }
@@ -385,11 +446,18 @@ export function exactModelSelectionState(currentModel, observation, labelWanted)
 export function consumerControlSelectionState(currentModel, observation, controls) {
   const currentPolicy = controls && Object.keys(CURRENT_CONSUMER_CONTROLS).every((key) => controls[key] === CURRENT_CONSUMER_CONTROLS[key]);
   const legacyPolicy = controls && Object.keys(LEGACY_FIXED_CONSUMER_CONTROLS).every((key) => controls[key] === LEGACY_FIXED_CONSUMER_CONTROLS[key]);
-  if (!currentPolicy && !legacyPolicy) {
+  const calibratedPolicy = controls && Object.keys(controls).length === 3
+    && ['modelVisibleLabel', 'thinkingControlLabel', 'thinkingVisibleLabel'].every((key) => typeof controls[key] === 'string' && controls[key].length > 0);
+  if (!currentPolicy && !legacyPolicy && !calibratedPolicy) {
     throw new Error('Consumer controls do not match either the current top-model policy or the retained historical fixed disposition.');
   }
-  if (legacyPolicy) {
+  if (legacyPolicy || calibratedPolicy) {
     if (currentModel?.label !== controls.modelVisibleLabel) throw new Error(`Exact model selector label mismatch: expected ${controls.modelVisibleLabel}.`);
+    if (observation?.menuFound && observation.directMatchCount === 0) {
+      const error = new Error(`Exact model selector option ${controls.modelVisibleLabel} is unavailable.`);
+      error.code = 'CHATGPT_MODEL_UNAVAILABLE';
+      throw error;
+    }
     if (!observation?.menuFound || observation.directMatchCount !== 1) throw new Error(`Exact model selector option ${controls.modelVisibleLabel} must appear once.`);
   } else {
     if (controls.modelSelectionPolicy !== 'TOP_VISIBLE_SELECTABLE_MODEL') throw new Error('Top-model selection policy is required.');
@@ -416,7 +484,7 @@ export function consumerControlSelectionState(currentModel, observation, control
     && Number.isInteger(observation.sliderMaximum)
     ? `${observation.sliderPosition - observation.sliderMinimum + 1} of ${observation.sliderMaximum - observation.sliderMinimum + 1}`
     : null;
-  if (ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
+  if (!calibratedPolicy && ordinal !== controls.thinkingOrdinal) throw new Error(`Exact thinking ordinal mismatch: expected ${controls.thinkingOrdinal}.`);
   if (observation.powerStatusOrdinal != null && observation.powerStatusOrdinal !== ordinal) {
     throw new Error(`Visible thinking status ${observation.powerStatusOrdinal} disagrees with the slider position ${ordinal}.`);
   }
@@ -434,11 +502,11 @@ export function consumerControlSelectionState(currentModel, observation, control
     accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,
     backendModelIdentityClaimed: false,
   } : {
-    status: 'FIXED_CONSUMER_CONTROLS_VERIFIED',
+    status: calibratedPolicy ? 'CALIBRATED_CONSUMER_CONTROLS_VERIFIED' : 'FIXED_CONSUMER_CONTROLS_VERIFIED',
     modelVisibleLabel: currentModel.label,
     thinkingControlLabel: observation.thinkingControlObservedLabel,
     thinkingVisibleLabel: observation.currentPowerLabel,
-    thinkingOrdinal: ordinal,
+    ...(calibratedPolicy ? {} : { thinkingOrdinal: ordinal }),
     accountPlanLabel: controls.accountPlanLabel,
     accountPlanRole: controls.accountPlanRole,
     accountPlanIsReasoningMode: controls.accountPlanIsReasoningMode,
@@ -1095,6 +1163,20 @@ export class ChromeDevtoolsBrowser {
     });
   }
 
+  async detectJournalWriteConfirmation(target, { expectedUrl }) {
+    return this.#withPageClient(target, (client) => client.callFunction(JOURNAL_WRITE_CONFIRMATION_FN, [expectedUrl]));
+  }
+
+  async approveJournalWriteConfirmation(target, { expectedUrl, appName, toolName, button }) {
+    const result = await this.#withPageClient(target, (client) => client.callFunction(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, [expectedUrl, appName, toolName, button]));
+    if (!result?.approved) {
+      const error = new Error(`Journal write confirmation changed before approval: ${result?.reason ?? 'UNKNOWN'}.`);
+      error.code = 'APP_CONFIRMATION_REVALIDATION_FAILED';
+      throw error;
+    }
+    return result;
+  }
+
   async ensureExactConsumerControls(target, { expectedUrl, controls }) {
     const normalized = normalizeExpectedSurfaceUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
@@ -1409,7 +1491,7 @@ export class ChromeDevtoolsBrowser {
     }
   }
 
-  async waitForGenerationComplete(target, { expectedUrl, generationStarted }) {
+  async waitForGenerationComplete(target, { expectedUrl, generationStarted, onGenerationPoll = null }) {
     if (generationStarted !== true) throw new Error('GENERATION_START_UNVERIFIED: completion cannot be inferred without a prior observed generation-start transition.');
     const normalized = normalizeConversationUrl(expectedUrl);
     return this.#withPageClient(target, async (client) => {
@@ -1427,8 +1509,10 @@ export class ChromeDevtoolsBrowser {
           completionUrl = transition.conversationUrl;
           conversationUrlCanonicalized ||= transition.canonicalized === true;
           consecutiveIdle = 0;
+          if (onGenerationPoll) await onGenerationPoll(completionUrl);
           return false;
         }
+        if (onGenerationPoll) await onGenerationPoll(completionUrl);
         if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
         if (state?.systemsThinkingMoreThanUsual) return { ...state, recoverySignal: 'SYSTEMS_THINKING_MORE_THAN_USUAL' };
         if (state?.connectionInterrupted) return { ...state, recoverySignal: 'CONNECTION_INTERRUPTED' };
@@ -1443,16 +1527,19 @@ export class ChromeDevtoolsBrowser {
       if (completed.recoverySignal === 'SYSTEMS_THINKING_MORE_THAN_USUAL') {
         const error = new Error('CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL: visible system thinking stall detected.');
         error.code = 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL';
+        error.conversationUrl = completionUrl;
         throw error;
       }
       if (completed.recoverySignal === 'CONNECTION_INTERRUPTED') {
         const error = new Error('CHATGPT_CONNECTION_INTERRUPTED: visible connection-interrupted system notice detected.');
         error.code = 'CHATGPT_CONNECTION_INTERRUPTED';
+        error.conversationUrl = completionUrl;
         throw error;
       }
       if (completed.recoverySignal === 'PROGRESS_HEARTBEAT_STALLED') {
         const error = new Error('CHATGPT_PROGRESS_HEARTBEAT_STALLED: assistant output began but structural progress stopped while generation remained active.');
         error.code = 'CHATGPT_PROGRESS_HEARTBEAT_STALLED';
+        error.conversationUrl = completionUrl;
         throw error;
       }
       return {
@@ -1722,6 +1809,7 @@ async function waitFor(check, timeoutMs, intervalMs, timeoutMessage) {
       if (value) return value;
     } catch (error) {
       lastError = error;
+      if (['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MISSING', 'APP_CONFIRMATION_REVALIDATION_FAILED'].includes(error?.code)) throw error;
       if (/unexpected URL|login is required|changed while waiting|changed during submission/.test(error.message)) throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));

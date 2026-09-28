@@ -6,6 +6,8 @@ import {
   CLICK_SEND_FN,
   CURRENT_MODEL_FN,
   GENERATION_STATE_FN,
+  JOURNAL_WRITE_CONFIRMATION_FN,
+  APPROVE_JOURNAL_WRITE_CONFIRMATION_FN,
   MODEL_MENU_STATE_FN,
   PAGE_INSPECTION_FN,
   appSelectionState,
@@ -85,6 +87,37 @@ test('page inspection and the model control recognize the September 2026 compose
   assert.equal(model.controlId, 'radix-_r_19_');
 });
 
+test('journal app confirmation detector returns only structured app, tool and button labels', () => {
+  const dialog = h('div', { role: 'dialog', 'data-app-name': 'InnerSignal', 'data-tool-name': 'submit_journal_work_result' }, [
+    h('div', {}, [], { text: 'PRIVATE-JOURNAL-TEXT-SENTINEL' }),
+    h('button', {}, [], { text: 'Cancel' }),
+    h('button', {}, [], { text: 'Always allow' }),
+  ]);
+  const conversation = 'https://chatgpt.com/c/journal-confirmation';
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([dialog], conversation), [conversation]), {
+    present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Cancel', 'Always allow'],
+  });
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, page([], conversation), [conversation]), {
+    present: false, appName: null, toolName: null, buttons: [],
+  });
+});
+
+test('journal confirmation detection and approval fail closed after navigation away from the bound conversation', () => {
+  const approveButton = h('button', {}, [], { text: 'Always allow' });
+  const dialog = h('div', { role: 'dialog', 'data-app-name': 'InnerSignal', 'data-tool-name': 'submit_journal_work_result' }, [
+    approveButton,
+  ]);
+  const expectedUrl = 'https://chatgpt.com/c/bound-journal';
+  const navigatedPage = page([dialog], 'https://chatgpt.com/c/unrelated');
+  assert.deepEqual(runInPage(JOURNAL_WRITE_CONFIRMATION_FN, navigatedPage, [expectedUrl]), {
+    present: false, appName: null, toolName: null, buttons: [], urlMismatch: true,
+  });
+  assert.deepEqual(runInPage(APPROVE_JOURNAL_WRITE_CONFIRMATION_FN, navigatedPage, [expectedUrl, 'InnerSignal', 'submit_journal_work_result', 'Always allow']), {
+    approved: false, reason: 'URL_MISMATCH',
+  });
+  assert.equal(approveButton.clicks, 0);
+});
+
 test('the open model menu exposes the top model, the Power slider and its status line', () => {
   const observation = runInPage(MODEL_MENU_STATE_FN, page([composerForm({ open: true }), modelMenu()]), [null, 'Thinking effort', null]);
   assert.equal(observation.menuFound, true);
@@ -111,6 +144,19 @@ test('Extra High, 4 of 5 on the Power slider verifies the current consumer contr
   assert.equal(verified.modelVisibleLabel, 'Latest');
   assert.equal(verified.thinkingVisibleLabel, 'Extra High');
   assert.equal(verified.thinkingOrdinal, '4 of 5');
+});
+
+test('the documented three-label journal calibration verifies exact controls', () => {
+  const controls = { modelVisibleLabel: 'Calibrated model button', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' };
+  const observation = {
+    menuFound: true, directMatchCount: 1, powerControlCount: 1, sliderCount: 1,
+    thinkingControlObservedLabel: 'Power', currentPowerLabel: 'Pro',
+    sliderPosition: 4, sliderMinimum: 1, sliderMaximum: 5,
+  };
+  const verified = consumerControlSelectionState({ label: 'Calibrated model button' }, observation, controls);
+  assert.equal(verified.status, 'CALIBRATED_CONSUMER_CONTROLS_VERIFIED');
+  assert.equal(verified.modelVisibleLabel, controls.modelVisibleLabel);
+  assert.equal(verified.thinkingVisibleLabel, controls.thinkingVisibleLabel);
 });
 
 test('the Power slider fails closed on the wrong effort or a status that disagrees with the slider', () => {
