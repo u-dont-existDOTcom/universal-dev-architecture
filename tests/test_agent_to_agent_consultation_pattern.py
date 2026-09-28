@@ -62,6 +62,22 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
                 self.assertIn(phrase, receipt)
         self.assertIn("without it, the receipt is incomplete", receipt)
 
+    def test_setter_only_receipt_does_not_claim_effective_model_identity(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        receipt = text.split("## Receipt", 1)[1].split("## Requirement-accretion", 1)[0]
+        example = receipt.split("Example: `", 1)[1].split("`.", 1)[0]
+        self.assertIn("requested model and effort", receipt)
+        self.assertIn("effective model and effort as unknown", receipt)
+        for field in (
+            "requested model=gpt-5.6-sol",
+            "requested effort=xhigh",
+            "effective model=unknown",
+            "effective effort=unknown",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, example)
+        self.assertNotIn("Consulted Codex (gpt-5.6-sol, xhigh)", example)
+
     def test_owner_specific_example_is_labeled_and_keeps_no_host_path(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         self.assertIn("## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)", text)

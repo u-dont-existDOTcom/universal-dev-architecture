@@ -32,6 +32,10 @@ Updated: 2026-09-28
 - Codex review at `5a12bc3`: **ACCEPTED** — gate evidence pointed to a pull
   request that the checkpoint said was unopened and omitted status/counts.
   Gate evidence is now durable in this file; a focused regression covers it.
+- Codex review at `7703d8a`: **ACCEPTED** — the receipt example treated
+  requested model and effort as effective identity without readback. The
+  receipt now separates requested values from unknown effective values; a
+  regression failed before the fix and passed after it.
 
 ## Preserved architecture boundaries
 
@@ -65,11 +69,13 @@ Updated: 2026-09-28
 - Added the review regressions to
   `tests/test_agent_to_agent_consultation_pattern.py` and
   `tests/test_current_state_concision.py`.
+- Repaired the setter-only consultation receipt and added its regression test.
 
 ## Current checkpoint
 
-- The accepted review fixes are implemented and rebased onto `daadf61`; the
-  full suite passes outside the Codex sandbox. Next: Codex re-review.
+- The review finding at `7703d8a` is repaired in the working tree. The runner
+  will commit and push; CI must run the exact full Python gate because one
+  unrelated test opens a localhost socket blocked by this sandbox.
 
 ## Blockers / unresolved
 
@@ -80,13 +86,19 @@ Updated: 2026-09-28
 - Reviewed-state focused regressions: **EXPECTED FAIL** — 8 tests run, 5
   failures; each new check failed on the missing receipt scope or gate record.
 - Repaired focused regressions: **PASS** — 8 tests run, 0 failures, 0 errors.
-- `python3 -m unittest discover -s tests -v`: **PASS** — 475 tests run on the owner's laptop outside the Codex sandbox, 0 failures, 0 errors.
+- Setter-only receipt regression: **EXPECTED FAIL** before repair; then
+  **PASS** — 7 focused tests, 0 failures, 0 errors.
+- Socket-free Python discovery: **PASS** — 475 tests, 0 failures, 0 errors;
+  excluded only the existing localhost-server test without changing it.
+- `python3 -m unittest discover -s tests -v`: **UNVERIFIED** — counts unavailable
+  for the exact command on this revision in the socket-denying sandbox;
+  previous revision passed 475 tests on the owner's laptop.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
 
 ## Remaining
 
-- Codex re-review and merge.
+- Runner commit and push, exact Python gate in CI, Codex re-review, and merge.
 
 ## Next safe action
 
-- Wait for the Codex re-review of the pushed head.
+- Hand the reviewed working-tree changes to the runner for commit and push.
