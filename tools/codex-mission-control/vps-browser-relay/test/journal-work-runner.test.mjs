@@ -78,6 +78,13 @@ test('the command runner suppresses npm preambles so dispatch stdout is strict J
   assert.equal(result.stdout.trim(), '{"ok":true}');
 });
 
+test('the command runner preserves bounded stdout when an import command exits nonzero', async () => {
+  const summary = { stage: 'publish', blocker: 'temporary', completed_units: 2, residuals: { waiting: 3 } };
+  const result = await runCommand(`node -e 'console.log(JSON.stringify(${JSON.stringify(summary)})); process.exit(7)'`);
+  assert.equal(result.exitCode, 7);
+  assert.deepEqual(JSON.parse(result.stdout), summary);
+});
+
 test('happy path sends only the fixed prompt, records the initial rung, imports, and stays content-free', async (t) => {
   const fixture = await makeFixture(t, { answeredAt: 3, pageText: SENTINEL });
   const result = await fixture.runner.runPass();
@@ -139,6 +146,12 @@ test('freshChatThreshold limits total fresh chats before recording owner action'
   assert.equal(fixture.browser.freshCount, 4);
 });
 
+test('fresh chat creation respects the configured managed-tab ceiling', async (t) => {
+  const fixture = await makeFixture(t, { answeredAt: 3, runtime: { maxHotTabs: 1 } });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(fixture.browser.freshTargetOptions, [{ hardCeiling: 1 }]);
+});
+
 test('fresh conversations keep distinct provider sessions when the browser reuses one target', async (t) => {
   const fixture = await makeFixture(t, {
     answeredAt: Infinity,
@@ -193,6 +206,23 @@ test('a pacing delay crossing UTC midnight rolls the allowance before submission
   const result = await fixture.runner.runPass();
   assert.equal(result.status, 'ANSWERED');
   assert.deepEqual(result.state.today, { date: '2026-09-29', answered: 1, calls: 1, expired: 0, waiting: 0 });
+});
+
+test('an import completing after UTC midnight records the answer on the completion day', async (t) => {
+  let clock = Date.parse('2026-09-28T23:59:59Z');
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    now: () => clock,
+    initialState: { today: { date: '2026-09-28', answered: 4, calls: 4, expired: 2, waiting: 7 } },
+    recordOverrides: { expires_at: '2026-09-29T02:00:00Z' },
+    importHandler: async () => {
+      clock += 2_000;
+      return { exitCode: 0, stdout: JSON.stringify({ stage: 'complete', completed_units: 1 }) };
+    },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'ANSWERED');
+  assert.deepEqual(result.state.today, { date: '2026-09-29', answered: 1, calls: 0, expired: 0, waiting: 0 });
 });
 
 test('an answer landed by an earlier chat is accepted only through the refreshed listing', async (t) => {
@@ -543,7 +573,7 @@ test('dispatch validation rejects extra, missing, wrongly typed, and invalid-tim
   }
 });
 
-async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, submitHandler, recordOverrides = {}, settings = {} } = {}) {
+async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, submitHandler, recordOverrides = {}, settings = {}, runtime = { maxHotTabs: 3 } } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'journal-work-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const stateFile = join(dir, 'state.json'); const statusFile = join(dir, 'status.json');
   if (initialState) await import('node:fs/promises').then(({ writeFile }) => writeFile(stateFile, JSON.stringify(initialState)));
@@ -554,13 +584,13 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
   const logs = []; const warnLogs = []; const submissions = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', appLabel: 'InnerSignal', stateFile, statusFile, runtime, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
   return { runner, browser, stateFile, statusFile, logs, warnLogs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
 class FakeBrowser {
-  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
-  async createFreshChatTarget() { this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
+  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshTargetOptions = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
+  async createFreshChatTarget(options) { this.freshTargetOptions.push(options); this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
   async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }

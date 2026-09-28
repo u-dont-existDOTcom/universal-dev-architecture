@@ -140,7 +140,7 @@ export class JournalWorkRunner {
 
   async #fresh(item, state, rung, freshChatAttempt) {
     this.#assertSubmissionAllowance(state);
-    const target = await this.browser.createFreshChatTarget({ hardCeiling: 3 });
+    const target = await this.browser.createFreshChatTarget({ hardCeiling: this.config.runtime?.maxHotTabs ?? 3 });
     const controls = state.settings.controlObservations?.[item.model]?.[item.effort];
     if (!controls) { const error = new Error('No calibrated consumer controls exist for the requested model and effort.'); error.code = 'JOURNAL_CONTROLS_UNCALIBRATED'; throw error; }
     await this.browser.ensureExactConsumerControls(target, { expectedUrl: ROOT_URL, controls });
@@ -277,6 +277,7 @@ export class JournalWorkRunner {
     state.lastImport = { at: this.#iso(), exitCode: summary.exitCode, stage: summary.stage, blocker: summary.blocker, completedUnits: summary.completedUnits, residuals: summary.residuals };
     if (summary.exitCode !== 0) return this.#finish(state, 'IMPORT_FAILED');
     const { workId, rung } = state.current;
+    this.#rollDay(state);
     state.today.answered += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
     state.outcomes.push({ workId, outcome: 'ANSWERED', rung, at: this.#iso() });
     state.outcomes = state.outcomes.slice(-MAX_OUTCOMES); state.current = null; state.backoff = { level: 0, until: null, trigger: null }; state.ownerAction = null;
@@ -368,6 +369,6 @@ function sanitizeImportResult(result) {
 function stringOrNull(value) { return typeof value === 'string' && value.length <= 100 ? value : null; }
 function integerOrZero(value) { return Number.isInteger(value) && value >= 0 ? value : 0; }
 function plainCounts(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return {}; return Object.fromEntries(Object.entries(value).filter(([key, count]) => /^[a-zA-Z0-9_-]{1,50}$/.test(key) && Number.isInteger(count) && count >= 0)); }
-export async function runCommand(command) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024, env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' } }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: '' }; } }
+export async function runCommand(command) { try { const { stdout = '' } = await exec(command, { maxBuffer: 1024 * 1024, env: { ...process.env, NPM_CONFIG_LOGLEVEL: 'silent' } }); return { exitCode: 0, stdout }; } catch (error) { return { exitCode: Number.isInteger(error?.code) ? error.code : 1, stdout: error?.stdout ?? '' }; } }
 async function atomicJson(path, value) { await mkdir(dirname(path), { recursive: true, mode: 0o700 }); const temp = `${path}.${process.pid}.tmp`; await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 }); await rename(temp, path); }
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
