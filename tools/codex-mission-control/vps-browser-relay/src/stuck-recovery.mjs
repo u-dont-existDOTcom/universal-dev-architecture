@@ -120,12 +120,20 @@ export function installStuckRecovery(browser, {
     for (;;) {
       try {
         const completed = await originalWait(target, options);
-        const control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
+        let control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
         if (control?.recoverable) {
           if (recoveries.length >= maxNudges) {
             throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
           }
-          await awaitRecoveryAdmission(options);
+          const cooldownWaited = await awaitRecoveryAdmission(options);
+          if (cooldownWaited) {
+            const revalidatedCompletion = await originalWait(target, options);
+            const revalidatedControl = await inspectFn(target, options.expectedUrl);
+            if (!revalidatedControl?.recoverable) {
+              return completionWithRecoveries(revalidatedCompletion, recoveries, maxNudges);
+            }
+            control = revalidatedControl;
+          }
           const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
             source: 'RECOVERABLE_UI_CONTROL',
             controlLabel: control.controlLabel,

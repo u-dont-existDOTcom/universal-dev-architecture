@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
+import { JournalWorkRunner, JOURNAL_WORK_PROMPT, parseDispatchRecord, runCommand, withJournalRuntime, withPersistedJournalWorkSettings } from '../src/journal-work-runner.mjs';
 import { createContinueRecoveryAnchor } from '../src/continue-recovery.mjs';
 import { journalWorkSubmissionContext } from '../src/submission-context.mjs';
 import { sha256 } from '../src/core.mjs';
@@ -172,6 +172,25 @@ test('fresh chat creation respects the configured managed-tab ceiling', async (t
   const fixture = await makeFixture(t, { answeredAt: 3, runtime: { maxHotTabs: 1 } });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
   assert.deepEqual(fixture.browser.freshTargetOptions, [{ hardCeiling: 1 }]);
+});
+
+test('the CLI journal configuration merges the effective runtime managed-tab ceiling', () => {
+  assert.deepEqual(withJournalRuntime({ dispatchCommand: 'dispatch', runtime: { retained: true } }, { maxHotTabs: 2 }), {
+    dispatchCommand: 'dispatch', runtime: { retained: true, maxHotTabs: 2 },
+  });
+});
+
+test('a canonicalized fresh conversation URL binds confirmation polling and later Continue', async (t) => {
+  const provisional = 'https://chatgpt.com/c/WEB:provisional';
+  const canonical = 'https://chatgpt.com/c/canonical';
+  const fixture = await makeFixture(t, {
+    answeredAt: 4,
+    browserOptions: { submittedConversationUrl: provisional, completionConversationUrl: canonical },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(fixture.browser.confirmationExpectedUrls, [provisional, canonical, canonical, canonical]);
+  assert.equal(fixture.submissions[1].expectedUrl, canonical);
+  assert.equal(fixture.browser.continueExpectedUrls[0], canonical);
 });
 
 test('fresh conversations keep distinct provider sessions when the browser reuses one target', async (t) => {
@@ -732,11 +751,11 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
 }
 
 class FakeBrowser {
-  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshTargetOptions = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
+  constructor(options) { Object.assign(this, options); this.messages = []; this.approvals = []; this.controls = []; this.freshTargetOptions = []; this.confirmationExpectedUrls = []; this.continueExpectedUrls = []; this.freshCount = 0; this.waits = 0; this.anchorCaptures = 0; this.retryInspections = 0; this.exactRetries = 0; }
   async createFreshChatTarget(options) { this.freshTargetOptions.push(options); this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
-  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
+  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: this.submittedConversationUrl ?? 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete(_target, options) {
     this.waits += 1;
     this.onWait?.(this.waits);
@@ -744,7 +763,7 @@ class FakeBrowser {
       this.confirmation = this.confirmationDuringWait;
       this.confirmationDuringWait = null;
     }
-    await options.onGenerationPoll?.();
+    await options.onGenerationPoll?.(this.completionConversationUrl ?? options.expectedUrl);
     if ((this.recoverySubmissions ?? 0) > 0) {
       this.recoverySubmissions -= 1;
       await options.beforeRecoverySend();
@@ -755,12 +774,12 @@ class FakeBrowser {
       time: '2026-09-28T12:00:00.000Z', event: 'chat_generation_stuck_continue_sent', recoveryIndex: 1,
       targetId: this.recoveryLogTargetId, conversationUrl: options.expectedUrl,
     }));
-    return { pageText: this.pageText };
+    return { pageText: this.pageText, conversationUrl: this.completionConversationUrl ?? options.expectedUrl };
   }
-  async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
+  async captureContinueRecoveryAnchor(_target, input) { this.anchorCaptures += 1; this.continueExpectedUrls.push(input.expectedUrl); return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
   async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
   async retryExactFailedContinue(_target, input) { await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
-  async detectJournalWriteConfirmation() { const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
+  async detectJournalWriteConfirmation(_target, input) { this.confirmationExpectedUrls.push(input.expectedUrl); const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
   async approveJournalWriteConfirmation(_target, input) { this.approvals.push(input); }
 }
 

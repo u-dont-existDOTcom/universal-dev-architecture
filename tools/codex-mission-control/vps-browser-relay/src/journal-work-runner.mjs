@@ -10,6 +10,10 @@ const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier'
 const OPAQUE_WORK_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/;
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
+export function withJournalRuntime(journalConfig, runtime) {
+  return { ...journalConfig, runtime: { ...(journalConfig.runtime ?? {}), maxHotTabs: runtime.maxHotTabs } };
+}
+
 export class JournalWorkRunner {
   constructor({ config, browser, submit, commandRunner = runCommand, memoryReader = async () => ({ pressure: 'NORMAL' }), now = Date.now, sleep = delay, logger = console }) {
     if (!config?.dispatchCommand || !config?.importCommand || !config?.appLabel) throw new Error('Journal work requires dispatch/import commands and an app label.');
@@ -160,9 +164,10 @@ export class JournalWorkRunner {
     // conversation's scheduler binding.
     const providerSessionId = `provider-session:journal:${item.work_id}:${freshChatAttempt}:${target.id}`;
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(item, state, callbacks) }) }));
-    await this.#handleConfirmation(target, item, started.conversationUrl ?? ROOT_URL);
-    await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, started.conversationUrl ?? ROOT_URL, started.generationStarted, item));
-    return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
+    const submittedUrl = started.conversationUrl ?? ROOT_URL;
+    await this.#handleConfirmation(target, item, submittedUrl);
+    const completed = await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, submittedUrl, started.generationStarted, item));
+    return { target, providerSessionId, expectedUrl: completed?.conversationUrl ?? submittedUrl };
   }
 
   async #continue(item, session, state) {
@@ -227,7 +232,7 @@ export class JournalWorkRunner {
     return {
       expectedUrl,
       generationStarted,
-      onGenerationPoll: () => this.#handleConfirmation(target, item, expectedUrl),
+      onGenerationPoll: (observedExpectedUrl = expectedUrl) => this.#handleConfirmation(target, item, observedExpectedUrl),
       beforeRecoverySend: () => {
         if (this.now() >= Date.parse(item.expires_at)) {
           const expired = new Error('Journal work item expired before a stuck-recovery submission.');

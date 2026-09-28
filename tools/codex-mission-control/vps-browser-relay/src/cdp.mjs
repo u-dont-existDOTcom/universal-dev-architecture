@@ -1490,7 +1490,6 @@ export class ChromeDevtoolsBrowser {
       let conversationUrlCanonicalized = false;
       let progressTracker = { outputBegun: false, counter: null, lastAdvancedAtMs: null };
       const completed = await waitFor(async () => {
-        if (onGenerationPoll) await onGenerationPoll();
         const state = await client.callFunction(GENERATION_STATE_FN, [completionUrl]);
         if (state?.urlMismatch) {
           const transition = state?.conversationUrl
@@ -1500,8 +1499,10 @@ export class ChromeDevtoolsBrowser {
           completionUrl = transition.conversationUrl;
           conversationUrlCanonicalized ||= transition.canonicalized === true;
           consecutiveIdle = 0;
+          if (onGenerationPoll) await onGenerationPoll(completionUrl);
           return false;
         }
+        if (onGenerationPoll) await onGenerationPoll(completionUrl);
         if (state?.loginRequired) throw new Error('ChatGPT login is required in the VPS browser profile.');
         if (state?.systemsThinkingMoreThanUsual) return { ...state, recoverySignal: 'SYSTEMS_THINKING_MORE_THAN_USUAL' };
         if (state?.connectionInterrupted) return { ...state, recoverySignal: 'CONNECTION_INTERRUPTED' };

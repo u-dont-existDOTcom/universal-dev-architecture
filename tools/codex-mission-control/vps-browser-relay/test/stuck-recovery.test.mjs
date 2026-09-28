@@ -482,6 +482,43 @@ test('generic recovery skips Continue when generation completes during the globa
   assert.equal(result.stuckRecovery, undefined);
 });
 
+test('recoverable-control recovery revalidates after cooldown and skips a vanished control', async () => {
+  let waits = 0;
+  let inspections = 0;
+  let admissionChecks = 0;
+  let submissions = 0;
+  const browser = {
+    async waitForGenerationComplete() {
+      waits += 1;
+      return { status: 'GENERATION_COMPLETE', completedAtObserved: `2026-09-28T11:00:${waits === 1 ? '00' : '30'}.000Z` };
+    },
+  };
+  installStuckRecovery(browser, {
+    submitMessage: async () => { submissions += 1; return { generationStarted: true }; },
+    beforeRecoverySend: async () => {
+      admissionChecks += 1;
+      if (admissionChecks === 1) throw Object.assign(new Error('cooldown'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 30_000 });
+    },
+    sleep: async () => {},
+    inspectRecoverableControl: async () => {
+      inspections += 1;
+      return inspections === 1
+        ? { recoverable: true, controlLabel: 'Continue' }
+        : { recoverable: false, controlLabel: null };
+    },
+    logger: { warn() {} },
+  });
+
+  const result = await browser.waitForGenerationComplete({ id: 'recoverable-resolved' }, {
+    expectedUrl: 'https://chatgpt.com/c/recoverable-resolved', generationStarted: true,
+  });
+  assert.equal(result.status, 'GENERATION_COMPLETE');
+  assert.equal(waits, 2);
+  assert.equal(inspections, 2);
+  assert.equal(submissions, 0);
+  assert.equal(result.stuckRecovery, undefined);
+});
+
 test('automatic continue passes item admission into scheduler replays', async () => {
   let waits = 0;
   let admissionChecks = 0;
