@@ -161,7 +161,7 @@ export class JournalWorkRunner {
     // the tab so navigating that tab to a new chat cannot overwrite an older
     // conversation's scheduler binding.
     const providerSessionId = `provider-session:journal:${item.work_id}:${freshChatAttempt}:${target.id}`;
-    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(state, callbacks) }) }));
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: (callbacks = {}) => this.browser.submitExactMessage(target, { expectedUrl: ROOT_URL, body, bodySha256: sha256(body), ...this.#countedCallbacks(item, state, callbacks) }) }));
     await this.#handleConfirmation(target, item);
     await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, started.conversationUrl ?? ROOT_URL, started.generationStarted, item));
     return { target, providerSessionId, expectedUrl: started.conversationUrl ?? ROOT_URL };
@@ -170,7 +170,7 @@ export class JournalWorkRunner {
   async #continue(item, session, state) {
     this.#assertSubmissionAllowance(state);
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
-    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(state, callbacks) }) }));
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(item, state, callbacks) }) }));
     await this.#handleConfirmation(session.target, item);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return anchor;
@@ -180,7 +180,7 @@ export class JournalWorkRunner {
     const classified = await this.browser.inspectFailedContinueRetry(session.target, { expectedUrl: session.expectedUrl, anchor });
     if (classified.status !== 'RETRY_FAILED_CONTINUE') return false;
     this.#assertSubmissionAllowance(state);
-    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(state, callbacks) }) }));
+    const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(item, state, callbacks) }) }));
     await this.#handleConfirmation(session.target, item);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
     return true;
@@ -204,14 +204,20 @@ export class JournalWorkRunner {
     }
   }
 
-  #countedCallbacks(state, callbacks) {
+  #countedCallbacks(item, state, callbacks) {
     return {
       ...callbacks,
       onBeforeSubmissionBoundary: async (...args) => {
+        if (this.now() >= Date.parse(item.expires_at)) {
+          const expired = new Error('Journal work item expired before a provider submission.');
+          expired.code = 'JOURNAL_ITEM_EXPIRED';
+          throw expired;
+        }
         this.#assertSubmissionAllowance(state);
         return callbacks.onBeforeSubmissionBoundary?.(...args);
       },
       onSubmissionBoundary: async (...args) => {
+        this.#rollDay(state);
         state.today.calls += 1;
         await this.#persist(state);
         return callbacks.onSubmissionBoundary?.(...args);
@@ -233,6 +239,7 @@ export class JournalWorkRunner {
         this.#assertSubmissionAllowance(state);
       },
       onRecoverySubmissionBoundary: async () => {
+        this.#rollDay(state);
         state.today.calls += 1;
         await this.#persist(state);
       },

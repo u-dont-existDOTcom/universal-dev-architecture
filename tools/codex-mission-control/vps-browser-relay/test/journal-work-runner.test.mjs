@@ -491,6 +491,45 @@ test('scheduler replay rechecks the daily allowance before a second provider bou
   assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 1);
 });
 
+for (const [rung, submissionNumber, expectedMessages] of [
+  ['INITIAL', 1, []],
+  ['CONTINUE', 2, [JOURNAL_WORK_PROMPT('opaque-1')]],
+  ['RETRY', 3, [JOURNAL_WORK_PROMPT('opaque-1'), 'Continue.']],
+]) {
+  test(`an item expiring immediately before the ${rung} click is not submitted`, async (t) => {
+    let clock = Date.parse('2026-09-28T12:00:00.000Z');
+    const fixture = await makeFixture(t, {
+      answeredAt: Infinity,
+      now: () => clock,
+      recordOverrides: { expires_at: '2026-09-28T12:01:00.000Z' },
+      submitHandler: async (entry, index) => {
+        if (index === submissionNumber) clock = Date.parse('2026-09-28T12:01:00.000Z');
+        return entry.submit();
+      },
+    });
+    const result = await fixture.runner.runPass();
+    assert.equal(result.status, 'EXPIRED');
+    assert.equal(result.state.today.calls, submissionNumber - 1);
+    assert.equal(result.state.today.expired, 1);
+    assert.deepEqual(fixture.browser.messages, expectedMessages);
+    assert.equal(fixture.browser.exactRetries, 0);
+  });
+}
+
+test('an ordinary submission crossing UTC midnight is counted on the new day', async (t) => {
+  let clock = Date.parse('2026-09-28T23:59:59.000Z');
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    now: () => clock,
+    initialState: { today: { date: '2026-09-28', answered: 4, calls: 4, expired: 2, waiting: 7 } },
+    recordOverrides: { expires_at: '2026-09-29T02:00:00.000Z' },
+    browserOptions: { beforeSubmissionBoundaryRecord: () => { clock = Date.parse('2026-09-29T00:00:00.000Z'); } },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'ANSWERED');
+  assert.deepEqual(result.state.today, { date: '2026-09-29', answered: 1, calls: 1, expired: 0, waiting: 0 });
+});
+
 test('persisted journal settings are available before sizing the command lock', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'journal-lock-settings-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -513,6 +552,23 @@ test('journal stuck-recovery submissions consume the persisted daily allowance',
   assert.equal(result.state.today.calls, 2);
   assert.equal(JSON.parse(await readFile(fixture.stateFile, 'utf8')).today.calls, 2);
   assert.deepEqual(fixture.browser.messages, [JOURNAL_WORK_PROMPT('opaque-1')]);
+});
+
+test('a stuck-recovery submission crossing UTC midnight is counted on the new day', async (t) => {
+  let clock = Date.parse('2026-09-28T23:59:59.000Z');
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    now: () => clock,
+    initialState: { today: { date: '2026-09-28', answered: 4, calls: 4, expired: 2, waiting: 7 } },
+    recordOverrides: { expires_at: '2026-09-29T02:00:00.000Z' },
+    browserOptions: {
+      recoverySubmissions: 1,
+      beforeRecoverySubmissionBoundary: () => { clock = Date.parse('2026-09-29T00:00:00.000Z'); },
+    },
+  });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'ANSWERED');
+  assert.deepEqual(result.state.today, { date: '2026-09-29', answered: 1, calls: 1, expired: 0, waiting: 0 });
 });
 
 test('journal stuck-recovery admission rejects an item that expires during scheduler cooldown', async (t) => {
@@ -632,7 +688,7 @@ class FakeBrowser {
   async createFreshChatTarget(options) { this.freshTargetOptions.push(options); this.freshCount += 1; return { id: `target-${this.reuseTargetId ? 1 : this.freshCount}`, automationOwned: true, automationWindowId: 1 }; }
   async ensureExactConsumerControls(_target, { controls }) { this.controls.push(controls); }
   async selectAppsForMessage() { if (this.missingApp) throw new Error('missing'); }
-  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
+  async submitExactMessage(_target, input) { if (this.submitError) throw this.submitError; await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.messages.push(input.body); if (input.body === 'Continue.') this.onContinue?.(); return { generationStarted: input.body === 'Continue.' ? this.continueGenerationStarted !== false : true, conversationUrl: 'https://chatgpt.com/c/fake' }; }
   async waitForGenerationComplete(_target, options) {
     this.waits += 1;
     this.onWait?.(this.waits);
@@ -644,6 +700,7 @@ class FakeBrowser {
     if ((this.recoverySubmissions ?? 0) > 0) {
       this.recoverySubmissions -= 1;
       await options.beforeRecoverySend();
+      this.beforeRecoverySubmissionBoundary?.();
       await options.onRecoverySubmissionBoundary();
     }
     if (this.recoveryLogTargetId) options.recoveryLogger.warn(JSON.stringify({
@@ -654,7 +711,7 @@ class FakeBrowser {
   }
   async captureContinueRecoveryAnchor() { this.anchorCaptures += 1; return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
   async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
-  async retryExactFailedContinue(_target, input) { await input.onBeforeSubmissionBoundary?.(); await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
+  async retryExactFailedContinue(_target, input) { await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
   async detectJournalWriteConfirmation() { const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
   async approveJournalWriteConfirmation(_target, input) { this.approvals.push(input); }
 }
