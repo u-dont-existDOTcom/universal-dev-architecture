@@ -189,7 +189,7 @@ test('an answered listing imports before honoring the same-run usage limit', asy
   );
 });
 
-test('Claude-triggered import preserves runner status and uses its final summary shape', async (t) => {
+test('Claude-triggered import uses independently owned state that survives later runner status writes', async (t) => {
   const fixture = await makeFixture(t, {
     answeredAt: 2,
     importResult: {
@@ -199,15 +199,16 @@ test('Claude-triggered import preserves runner status and uses its final summary
       residuals: { hardest_sent_today: 2, hardest_daily_limit: 5 },
     },
   });
-  await writeFile(fixture.config.statusFile, JSON.stringify({
+  const runnerStatus = {
     current: { role: 'writer', rung: 'RETRY' },
     today: { answered: 3 },
-  }));
+  };
+  await writeFile(fixture.config.statusFile, JSON.stringify(runnerStatus));
   assert.equal((await fixture.worker.runPass()).status, 'ANSWERED');
   const status = JSON.parse(await readFile(fixture.config.statusFile, 'utf8'));
-  assert.deepEqual(status.current, { role: 'writer', rung: 'RETRY' });
-  assert.equal(status.today.answered, 3);
-  assert.deepEqual(status.lastImport, {
+  assert.deepEqual(status, runnerStatus);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.deepEqual(summary.last_import, {
     at: '2026-09-28T12:00:00.000Z',
     exitCode: 0,
     stage: 'resumed',
@@ -215,6 +216,46 @@ test('Claude-triggered import preserves runner status and uses its final summary
     completedUnits: 4,
     residuals: { hardest_sent_today: 2, hardest_daily_limit: 5 },
   });
+
+  await writeFile(fixture.config.statusFile, JSON.stringify({
+    current: { role: 'reviewer', rung: 'CONTINUE' },
+    today: { answered: 4 },
+  }));
+  const page = await renderStatusPage(fixture.config.stateDir);
+  assert.match(page, /resumed/);
+  assert.match(page, /Hardest sent today<\/dt><dd>2/);
+});
+
+test('failed Claude imports remain pending and retry before listing new work', async (t) => {
+  const fixture = await makeFixture(t, {
+    answeredAt: 2,
+    result: {
+      is_error: true,
+      result: 'usage limit reached; resets 2026-09-28T14:30:00Z',
+    },
+    importResponses: [
+      { exitCode: 1, stdout: JSON.stringify({ stage: 'blocked', blocker: 'temporary' }) },
+      { exitCode: 0, stdout: JSON.stringify({ stage: 'complete', completed_units: 1 }) },
+    ],
+  });
+
+  assert.equal((await fixture.worker.runPass()).status, 'IMPORT_FAILED');
+  assert.deepEqual(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).pending_import,
+    { work_id: 'hard-1' },
+  );
+  assert.equal(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).paused_until,
+    '2026-09-28T14:30:00.000Z',
+  );
+  assert.equal((await fixture.worker.runPass()).status, 'ANSWERED');
+  assert.equal(fixture.imports(), 2);
+  assert.equal(fixture.dispatches(), 2);
+  assert.equal(fixture.claudeRuns(), 1);
+  assert.equal(
+    JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).pending_import,
+    undefined,
+  );
 });
 
 test('enabled Claude lane requires dispatch, import, and MCP commands at config load', () => {
@@ -364,6 +405,7 @@ async function makeFixture(t, {
   answeredAt = Infinity,
   result = {},
   importResult = {},
+  importResponses = null,
   enabled = true,
   stateDirReady = true,
   expiresAt = '2026-09-28T14:00:00Z',
@@ -419,6 +461,7 @@ process.stdout.write(require('node:fs').readFileSync(${JSON.stringify(resultFile
       };
     }
     imports += 1;
+    if (importResponses) return importResponses[imports - 1];
     return { exitCode: 0, stdout: JSON.stringify(importResult) };
   };
   const logs = [];

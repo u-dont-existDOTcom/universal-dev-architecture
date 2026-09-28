@@ -8,7 +8,7 @@ export async function renderStatusPage(stateDir) {
   const current = isRecord(journal.current) ? journal.current : {};
   const today = isRecord(journal.today) ? journal.today : {};
   const backoff = isRecord(journal.backoff) ? journal.backoff : {};
-  const imported = isRecord(journal.lastImport) ? journal.lastImport : {};
+  const imported = latestImport(journal.lastImport, claude.last_import);
   const residuals = plainCounts(imported.residuals);
   return [
     '<!doctype html><html lang="en"><head><meta charset="utf-8">',
@@ -103,6 +103,17 @@ function plainCounts(value) {
   return Object.fromEntries(Object.entries(value).filter(([key, count]) => (
     /^[a-zA-Z0-9_-]{1,50}$/.test(key) && Number.isInteger(count) && count >= 0
   )));
+}
+
+function latestImport(...values) {
+  return values
+    .filter(isRecord)
+    .sort((left, right) => importTime(right) - importTime(left))[0] ?? {};
+}
+
+function importTime(value) {
+  const parsed = Date.parse(value.at);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function isRecord(value) {

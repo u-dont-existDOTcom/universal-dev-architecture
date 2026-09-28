@@ -53,6 +53,10 @@ export class JournalClaudeWorker {
 
   async #runLocked() {
     const prior = await readJson(this.config.summaryFile);
+    const pendingWorkId = typeof prior?.pending_import?.work_id === 'string'
+      ? prior.pending_import.work_id
+      : null;
+    if (pendingWorkId) return this.#importAnswered(pendingWorkId);
     if (Date.parse(prior?.paused_until ?? '') > this.now()) {
       return { status: 'LIMITED', pausedUntil: prior.paused_until };
     }
@@ -159,23 +163,30 @@ export class JournalClaudeWorker {
   }
 
   async #importAnswered(workId) {
+    await this.#updateSummary((summary) => ({
+      ...summary,
+      pending_import: { work_id: workId },
+    }));
     const summary = await runJournalImport({
       command: this.config.importCommand,
       timeoutMs: this.config.importTimeoutMs,
       lockFile: this.config.importLockFile,
       commandRunner: this.commandRunner,
     });
-    const status = await readJson(this.config.statusFile);
-    await atomicJson(this.config.statusFile, {
-      ...(isRecord(status) ? status : {}),
-      lastImport: {
-        at: new Date(this.now()).toISOString(),
-        exitCode: summary.exitCode,
-        stage: summary.stage,
-        blocker: summary.blocker,
-        completedUnits: summary.completedUnits,
-        residuals: summary.residuals,
-      },
+    await this.#updateSummary((stored) => {
+      const next = {
+        ...stored,
+        last_import: {
+          at: new Date(this.now()).toISOString(),
+          exitCode: summary.exitCode,
+          stage: summary.stage,
+          blocker: summary.blocker,
+          completedUnits: summary.completedUnits,
+          residuals: summary.residuals,
+        },
+      };
+      if (summary.exitCode === 0) delete next.pending_import;
+      return next;
     });
     return {
       status: summary.exitCode === 0 ? 'ANSWERED' : 'IMPORT_FAILED',
@@ -207,8 +218,20 @@ export class JournalClaudeWorker {
       .flatMap((line) => {
         try { return [JSON.parse(line)]; } catch { return []; }
       });
-    await atomicJson(this.config.summaryFile, buildUsageSummary(events, this.now()));
+    const prior = await readJson(this.config.summaryFile);
+    const summary = buildUsageSummary(events, this.now());
+    if (isRecord(prior?.last_import)) summary.last_import = prior.last_import;
+    if (isRecord(prior?.pending_import)) summary.pending_import = prior.pending_import;
+    await atomicJson(this.config.summaryFile, summary);
     this.logger.log({ status: outcome.toUpperCase(), at: event.at });
+  }
+
+  async #updateSummary(update) {
+    const stored = await readJson(this.config.summaryFile);
+    await atomicJson(
+      this.config.summaryFile,
+      update(isRecord(stored) ? stored : buildUsageSummary([], this.now())),
+    );
   }
 
   async #writeMcpConfig() {
