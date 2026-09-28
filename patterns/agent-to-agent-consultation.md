@@ -53,7 +53,7 @@ Current bindings (update them when the tools change; `--help` on the installed v
 
 ## Receipt
 
-Record one line in the task record or final answer: the consulted agent, its model and effort, the question, and the outcome. Example: `Consulted Codex (gpt-5.6-sol, xhigh, read-only) — can cloud tasks pin a model? — no model field in the create-task request; runs use the account default — agreed`.
+Record one line in the task record or final answer: the consulted agent, its model and effort, the question, and the outcome. For every capability, configuration or behavior conclusion, the receipt must also state the exact runtime tuple: invocation or surface, account or route, and configuration and sandbox. Include paired-test evidence whenever Rule 2 makes a same-runtime test applicable; without it, the receipt is incomplete. Example: `Consulted Codex (gpt-5.6-sol, xhigh) — runtime: invocation or surface=Codex CLI cloud-task creation; account or route=authorized account A / cloud route; configuration and sandbox=read-only, no-network sandbox, account-default model selection — can cloud tasks pin a model? — no model field in the create-task request — paired-test evidence: request-schema inspection plus created-run model readback — agreed`.
 
 ## Requirement-accretion declaration
 

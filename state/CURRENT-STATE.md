@@ -26,7 +26,12 @@ Updated: 2026-09-28
 
 ## Review finding disposition
 
-- No review findings yet. Codex review of the pull request is pending.
+- Codex review at `5a12bc3`: **ACCEPTED** — capability/configuration receipts
+  omitted Rule 1's exact runtime tuple and applicable paired-test evidence.
+  The receipt rule and example now require both; a focused regression covers it.
+- Codex review at `5a12bc3`: **ACCEPTED** — gate evidence pointed to a pull
+  request that the checkpoint said was unopened and omitted status/counts.
+  Gate evidence is now durable in this file; a focused regression covers it.
 
 ## Preserved architecture boundaries
 
@@ -57,25 +62,36 @@ Updated: 2026-09-28
   showed that the read-only sandbox blocks the network of Codex's commands but
   not its hosted web search; the route now adds `-c web_search="disabled"`,
   which a runner test confirmed removes web search.
+- Added the review regressions to
+  `tests/test_agent_to_agent_consultation_pattern.py` and
+  `tests/test_current_state_concision.py`.
 
 ## Current checkpoint
 
-- Current step: open the pull request and hand it to review.
+- The accepted review fixes for pull request #279 are implemented. Focused
+  regressions and the deterministic audit pass; the full suite's sole error is
+  the known local-socket sandbox restriction and remains for CI.
 
 ## Blockers / unresolved
 
-- No implementation or owner-decision blocker.
+- No implementation or owner-decision blocker. This sandbox forbids localhost
+  sockets, so CI must verify the storage-canary HTTP test.
 
 ## Evidence / artifacts
 
-- Repository gates on this branch: see the pull request description for the
-  counts from `python3 -m unittest discover -s tests -v` and
-  `python3 scripts/audit_codex_github.py --root . --fail-on error`.
+- Reviewed-state focused regressions: **EXPECTED FAIL** — 8 tests run, 5
+  failures; each new check failed on the missing receipt scope or gate record.
+- Repaired focused regressions: **PASS** — 8 tests run, 0 failures, 0 errors.
+- `python3 -m unittest discover -s tests -v`: **FAIL** — 475 tests run, 0
+  failures, 1 error: the known socket-opening storage-canary test received
+  `PermissionError: [Errno 1] Operation not permitted`; unchanged and left to CI.
+- `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
 
 ## Remaining
 
-- Codex review, any fixes, merge.
+- Runner commit/push, CI verification of the socket-dependent test, re-review
+  and merge.
 
 ## Next safe action
 
-- Push the branch, open the pull request, request Codex review.
+- Let the runner commit and push; use CI for the sandbox-blocked socket test.

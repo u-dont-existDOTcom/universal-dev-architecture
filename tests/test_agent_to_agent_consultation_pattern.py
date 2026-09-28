@@ -48,6 +48,20 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
         self.assertIn("Never include credentials or secrets", text)
         self.assertIn("A consultation adds no authority", text)
 
+    def test_capability_receipts_include_runtime_scope_and_test_evidence(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        receipt = text.split("## Receipt", 1)[1].split("## Requirement-accretion", 1)[0]
+        self.assertIn("receipt must also state the exact runtime tuple", receipt)
+        for phrase in (
+            "invocation or surface",
+            "account or route",
+            "configuration and sandbox",
+            "paired-test evidence",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, receipt)
+        self.assertIn("without it, the receipt is incomplete", receipt)
+
     def test_owner_specific_example_is_labeled_and_keeps_no_host_path(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         self.assertIn("## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)", text)
