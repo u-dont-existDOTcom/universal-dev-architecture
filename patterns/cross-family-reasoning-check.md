@@ -40,7 +40,7 @@ Use the **other model family's current top reasoning setting**. The role is cano
 | Producer family | Reviewer (current binding) |
 |---|---|
 | GPT (any GPT model, including GPT-5.6 and GPT-6) | Claude Opus 5.5 at effort `max` (Claude Code `--effort max`) |
-| Claude (any Claude model) | GPT-6 Sol at Extra High (XHigh), the difficult-task baseline in `patterns/work-model-and-effort-routing.md` |
+| Claude (any Claude model) | GPT-6.1 Sol at Extra High (XHigh), or GPT-6 Sol at Extra High where 6.1 is not offered, per `patterns/work-model-and-effort-routing.md` |
 
 - Route the check through an already-authorized subscription route for the reviewer family. Examples are the Claude Code provider route for Opus and the owner's ChatGPT/Codex route for Sol. This adds no API-key fallback, no new account, and no spending authority.
 - A usable route is not permission to disclose the packet. Send evidence to the other provider only when that exact provider/data boundary is already authorized for this material, and minimize or redact first: never credentials or secrets, and no private health data, personal data, incident evidence, or confidential source beyond what that boundary allows. If the needed evidence cannot cross the boundary, treat the reviewer as unavailable (below).

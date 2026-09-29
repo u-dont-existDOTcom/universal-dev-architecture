@@ -22,7 +22,7 @@ class CrossFamilyReasoningCheckTests(unittest.TestCase):
         for phrase in (
             "Origin: **OWNER** instruction, 2026-09-24",
             "Claude Opus 5.5 at effort `max`",
-            "GPT-6 Sol at Extra High (XHigh)",
+            "GPT-6.1 Sol at Extra High (XHigh), or GPT-6 Sol at Extra High where 6.1 is not offered",
             "GPT (any GPT model",
             "Never present one as a cross-family check.",
             "`Cross-family check: not run (<reason>)`",

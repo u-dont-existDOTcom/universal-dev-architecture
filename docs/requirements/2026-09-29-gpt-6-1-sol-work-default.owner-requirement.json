@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-GPT-6-1-SOL-WORK-DEFAULT-20260929",
+  "recorded_at": "2026-09-29T20:12:15Z",
+  "status": "ACTIVE_TRIAL_AMENDMENT",
+  "amends": "docs/requirements/2026-09-28-gpt-6-sol-work-default.owner-requirement.json",
+  "owner_source": {
+    "confirmation": {
+      "at": "2026-09-29T18:36:00Z",
+      "verbatim": "ok we should switch from GPT 6 sol to GPT 6.1 sol which just came out",
+      "sha256": "e572bb4bbb10864590ef28389370bf5dd79d0db7e9ffa7840504882398e55390"
+    }
+  },
+  "normalized_outcome": "Use GPT-6.1 Sol at the existing Low, Medium, optional High, and Extra High Work rungs wherever the execution surface offers it. Where GPT-6.1 Sol is unavailable, use GPT-6 Sol at the same effort and record the model that actually ran. From 2026-09-29, GPT-6.1 Sol Extra High is the genuinely difficult trial baseline, with GPT-6 Sol Extra High as its availability fallback. GPT-6 Astra Extra High remains a matched challenger after a qualified Sol failure. Preserve exact historical model labels and never pool different Sol versions in a comparison. The scheduled 2026-10-08 review and 10 genuinely difficult baseline-task trigger continue for the active baseline and fallback. This amendment changes policy and live trial defaults, not runtime code, configuration, or historical evidence.",
+  "trial": {
+    "baseline_effective_on": "2026-09-29",
+    "scheduled_review_on": "2026-10-08",
+    "also_review_after_genuinely_difficult_baseline_count": 10,
+    "baseline_for_genuinely_difficult_work": {
+      "model": "GPT_6_1_SOL",
+      "effort": "XHIGH"
+    },
+    "availability_fallback": {
+      "model": "GPT_6_SOL",
+      "effort": "SAME_AS_SELECTED_RUNG"
+    },
+    "failure_challenger": {
+      "model": "GPT_6_ASTRA",
+      "effort": "XHIGH"
+    }
+  },
+  "context_sources": [
+    {
+      "kind": "CLAUDE_VERIFIED_EXTERNAL_SOURCE",
+      "verified_on": "2026-09-29",
+      "url": "https://openai.com/index/introducing-gpt-6-1-sol/",
+      "reported_finding": "Claude reported OpenAI's announcement: GPT-6.1 Sol is available from 2026-09-29 to Plus, Pro, Business, Enterprise, and Edu users in ChatGPT Work and Codex, and in the API as gpt-6.1-sol at $2 per million input tokens, $0.10 per million cached input tokens, and $10 per million output tokens. OpenAI reported DeepSWE performance matching GPT-6 Astra at about one-fifth of the cost, and a low-effort factual-error response share of 7.7% versus 11.4% for GPT-6 Sol. These are source claims, not the owner's words or local Work-task results."
+    },
+    {
+      "kind": "CLAUDE_VERIFIED_RUNTIME_CONTEXT",
+      "verified_on": "2026-09-29",
+      "reported_finding": "Claude reported that the owner's Codex CLI 0.158.0, signed in with a ChatGPT account, answered: \"The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account.\" The laptop runner asks for gpt-6.1-sol, falls back to gpt-6-sol until that sign-in offers it, and records the model that actually ran. This is surface-specific runtime context, not verification of every Work or Mission Control runtime."
+    }
+  ]
+}

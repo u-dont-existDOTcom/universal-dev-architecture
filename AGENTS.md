@@ -133,7 +133,7 @@ thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-
 Before Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded
 SSH/VPS/deployment action, keep it in Chat.
 When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the
-canonical GPT-6 Sol / GPT-6 Astra model-and-effort ladder and telemetry contract.
+canonical GPT-6.1 Sol (GPT-6 Sol fallback) / GPT-6 Astra model-and-effort ladder and telemetry contract.
 For controlled supervisory routes also apply
 `patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.
 Worker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:

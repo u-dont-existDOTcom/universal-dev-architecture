@@ -2,13 +2,14 @@
 
 Status: REQUIRED OWNER POLICY
 Date: 2026-09-14
-Updated: 2026-09-29
+Updated: 2026-09-29 (GPT-6.1 Sol owner amendment)
 Owner trial requirement: `docs/requirements/2026-09-17-work-model-routing-calibration.owner-requirement.json`
 Owner baseline amendment: `docs/requirements/2026-09-28-gpt-6-sol-work-default.owner-requirement.json`
+Owner current baseline amendment: `docs/requirements/2026-09-29-gpt-6-1-sol-work-default.owner-requirement.json`
 
 ## Purpose and authority
 
-Choose between GPT-6 Sol and GPT-6 Astra by observed useful completion per Work/Codex allowance, not by model prestige, benchmark generalization, or an assumption that Astra is automatically better for difficult execution.
+Choose between the available GPT-6.1 Sol (GPT-6 Sol fallback) and GPT-6 Astra by observed useful completion per Work/Codex allowance, not by model prestige, benchmark generalization, or an assumption that Astra is automatically better for difficult execution.
 
 This pattern composes with [`chat-work-execution-routing-threshold.md`](chat-work-execution-routing-threshold.md). Chat owns semantic, architectural, strategy, acceptance, permission-boundary, and owner-intent reasoning. Work receives only the bounded execution residue.
 
@@ -22,9 +23,9 @@ probability of correct direct-endpoint execution × useful completion speed
 
 Consumer-seam correctness is the acceptance boundary. Scope discipline, stop-condition compliance, and consequential-action boundaries are part of correctness. A run that produces useful implementation but exceeds its authorized scope is not a clean success.
 
-The active owner-authorized calibration from 2026-09-17 changes the prior hard-task hypothesis. **GPT-6 Astra Low is no longer the default first-line model for genuinely difficult Work.** The owner's 2026-09-28 amendment makes **GPT-6 Sol Extra High (XHigh)** the difficult-task baseline. **GPT-6 Astra Extra High (XHigh)** remains a matched challenger only after a qualified Sol XHigh failure, unless the owner explicitly requests another model or later evidence establishes a narrower exception.
+The active owner-authorized calibration from 2026-09-17 changes the prior hard-task hypothesis. **GPT-6 Astra Low is no longer the default first-line model for genuinely difficult Work.** The owner's 2026-09-29 amendment makes **GPT-6.1 Sol Extra High (XHigh)** the difficult-task baseline where available, with **GPT-6 Sol XHigh** as the availability fallback. **GPT-6 Astra Extra High (XHigh)** remains a matched challenger only after a qualified Sol XHigh failure, unless the owner explicitly requests another model or later evidence establishes a narrower exception.
 
-From 2026-09-28, the trial's difficult-task baseline is GPT-6 Sol XHigh. Earlier records used GPT-5.6 Sol; keep their exact model labels and never pool GPT-5.6 Sol and GPT-6 Sol records in one comparison. The 2026-10-08 review date and the 10 genuinely difficult Sol-baseline task trigger count GPT-6 Sol baseline tasks.
+From 2026-09-29, the trial's difficult-task baseline is GPT-6.1 Sol XHigh (GPT-6 Sol XHigh where 6.1 is not offered). Earlier records used GPT-5.6 Sol and GPT-6 Sol; keep every result's exact model label and never pool different Sol versions in one comparison. The 2026-10-08 review date and the 10 genuinely difficult Sol-baseline task trigger count active-baseline tasks, including GPT-6 Sol availability-fallback tasks, with model versions reported separately.
 
 ## Admission and availability
 
@@ -33,6 +34,8 @@ From 2026-09-28, the trial's difficult-task baseline is GPT-6 Sol XHigh. Earlier
 Keep the existing Chat/Work admission gate. If Chat can perform the action, do not invoke Work. Resolve semantic or architectural uncertainty in Chat before selecting a Work model.
 
 Select only a model and effort actually exposed on the execution surface. If a configured surface cannot select or verify them, record that limitation rather than fabricating a setting. A missing model, allowance readout, or control is an availability fact, not authority to change accounts, subscriptions, or paid credits.
+
+At every Sol rung, request GPT-6.1 Sol at the selected effort where the surface offers it. Otherwise request GPT-6 Sol at the same effort. Record the model that actually ran, separately from the requested model or setter evidence; do not label an unverified effective model as observed. The owner's 2026-09-29 laptop check found that Codex CLI 0.158.0 with ChatGPT sign-in did not support `gpt-6.1-sol`; that check governs the fallback on that surface until availability changes, not every execution surface.
 
 ## Selection assurance
 
@@ -49,7 +52,7 @@ Any exact setter mismatch or independently observed contradiction fails closed. 
 
 ## Canonical model-and-effort ladder during the active trial
 
-### Tier 1 — GPT-6 Sol Low
+### Tier 1 — GPT-6.1 Sol Low
 
 Use Sol Low for deterministic or near-deterministic execution whose success is mostly faithful application of an already resolved plan:
 
@@ -63,15 +66,15 @@ Use Sol Low for deterministic or near-deterministic execution whose success is m
 
 A large repository or difficult original owner request does not justify a high Work tier when little execution-side branching remains.
 
-### Tier 2 — GPT-6 Sol Medium
+### Tier 2 — GPT-6.1 Sol Medium
 
 Sol Medium is the default bounded implementation tier after Chat has reduced the task. Use it for ordinary bounded features, routine multi-file edits with frozen semantics, known reproductions with a small hypothesis space, direct consumer-seam regressions, architecture-decided refactors, localized test failures, and comparable work with tactical implementation choices but little strategic interpretation.
 
-### Optional intermediate — GPT-6 Sol High
+### Optional intermediate — GPT-6.1 Sol High
 
 Sol High remains available when the residual task is materially above Sol Medium but does not meet the `GENUINELY_DIFFICULT` threshold below, or when a concrete task-specific reason makes High the lowest expected-sufficient tier. It is not mandatory to step through Sol High before Sol XHigh.
 
-### Tier 3 — GPT-6 Sol Extra High: difficult-task baseline
+### Tier 3 — GPT-6.1 Sol Extra High: difficult-task baseline
 
 During the active calibration, use **Sol XHigh first** for genuinely difficult residual execution. This is the owner-authorized difficult-task baseline for the trial, not a claim that XHigh is always the globally cheapest sufficient setting.
 
@@ -156,7 +159,7 @@ Fast mode defaults to a `DO_NOT_ENABLE_FAST` request. Enable it only when low la
 
 Before a long run or any difficult-task run, inspect current Work/Codex usage when the surface exposes it. Do not invent reserve thresholds. This policy authorizes no purchased credits or spend.
 
-Pricing evidence checked for the 2026-09-17 policy revision showed Astra flexible-credit token rates at 2.5 times the then-current GPT-5.6 Sol rates. That historical ratio is not a current comparison with GPT-6 Sol. Astra must earn a first-line role through observed task-category results rather than benchmark prestige alone. Pricing, model availability, effort labels, and allowance behavior are volatile; recheck current official sources before any later material cost conclusion or policy revision.
+Pricing evidence checked for the 2026-09-17 policy revision showed Astra flexible-credit token rates at 2.5 times the then-current GPT-5.6 Sol rates. That historical ratio is not a current comparison with GPT-6.1 Sol or GPT-6 Sol. Astra must earn a first-line role through observed task-category results rather than benchmark prestige alone. Pricing, model availability, effort labels, and allowance behavior are volatile; recheck current official sources before any later material cost conclusion or policy revision.
 
 Do not assume models use separate allowance pools without current product evidence. If allowance telemetry is unavailable for a run, record it as unavailable rather than estimating a numeric delta.
 
@@ -184,7 +187,7 @@ Do not record prompts, private source content, credentials, private locators, or
 
 Matched Sol/Astra attempts use the same `comparisonGroupId`. Hold the starting base or equivalent isolated state, directive, direct consumer-seam endpoint, and permissions constant as closely as practical. Do not deliberately duplicate otherwise unnecessary tasks merely to fill the calibration dataset.
 
-The active trial began 2026-09-17. Review the GPT-6 Sol baseline evidence around **2026-10-08**, and also consider an earlier review if 10 genuinely difficult GPT-6 Sol-baseline tasks accumulate first. A review may recommend a later policy change; telemetry never mutates policy automatically.
+The active trial began 2026-09-17. Review the GPT-6.1 Sol baseline and GPT-6 Sol availability-fallback evidence around **2026-10-08**, and also consider an earlier review if 10 genuinely difficult active Sol-baseline tasks accumulate first. Report counts by exact Sol version; never pool different Sol versions in a comparison. A review may recommend a later policy change; telemetry never mutates policy automatically.
 
 At review, answer at least:
 
