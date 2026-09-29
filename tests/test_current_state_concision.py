@@ -4,6 +4,8 @@ import re
 import unittest
 from pathlib import Path
 
+from scripts.task_checkpoint_path import checkpoint_path
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CURRENT_STATE = ROOT / "state" / "CURRENT-STATE.md"
@@ -28,6 +30,22 @@ class CurrentStateConcisionTests(unittest.TestCase):
         self.assertIn("state/tasks/", text)
         self.assertIn("Each task has one file", text)
         self.assertIn("scripts/task_checkpoint_path.py", text)
+
+    def test_task_checkpoints_have_one_derived_file_per_identity(self) -> None:
+        identities: set[tuple[str, str]] = set()
+        for path in sorted(TASK_STATES.glob("*.md")):
+            with self.subTest(path=path.relative_to(ROOT)):
+                text = path.read_text(encoding="utf-8")
+                branch = re.search(r"(?m)^- Branch: `([^`]+)`\.$", text)
+                task_id = re.search(r"(?m)^- Task ID: `([^`]+)`\.$", text)
+                self.assertIsNotNone(branch)
+                self.assertIsNotNone(task_id)
+                if branch is None or task_id is None:
+                    continue
+                identity = (branch.group(1), task_id.group(1))
+                self.assertNotIn(identity, identities)
+                identities.add(identity)
+                self.assertEqual(checkpoint_path(*identity), str(path.relative_to(ROOT)))
 
     def test_gate_evidence_is_durable_and_records_status_and_counts(self) -> None:
         task_states = sorted(TASK_STATES.glob("*.md"))

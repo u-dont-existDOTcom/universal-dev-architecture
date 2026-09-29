@@ -589,6 +589,7 @@ def _audit_task_states(
         )
         return
 
+    expected: Path | None = None
     if task_id and not task_branch:
         findings.append(
             finding(
@@ -635,13 +636,25 @@ def _audit_task_states(
         except (OSError, UnicodeError) as exc:
             findings.append(
                 finding(
-                    "warning",
+                    "error" if path == expected else "warning",
                     "continuity.task-state.unreadable",
                     f"The task checkpoint is not readable UTF-8: {exc}",
                     str(path.relative_to(root)),
                 )
             )
             continue
+        if path == expected and (
+            re.findall(r"(?m)^- Branch: `([^`]+)`\.$", text) != [task_branch]
+            or re.findall(r"(?m)^- Task ID: `([^`]+)`\.$", text) != [task_id]
+        ):
+            findings.append(
+                finding(
+                    "error",
+                    "continuity.task-state.identity-mismatch",
+                    "The active task checkpoint must declare its exact branch and task ID.",
+                    str(path.relative_to(root)),
+                )
+            )
         missing = [
             heading
             for heading in CURRENT_STATE_HEADINGS

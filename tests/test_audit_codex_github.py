@@ -289,6 +289,19 @@ class RepositoryAuditTests(unittest.TestCase):
             if item["code"] == "continuity.task-state.current-missing"
         })
 
+    def test_active_checkpoint_must_declare_its_derived_identity(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        expected = checkpoint_path("team/work", "pr-281")
+        for branch, task_id in (("team/old", "pr-281"), ("team/work", "pr-280")):
+            with self.subTest(branch=branch, task_id=task_id):
+                self.write(expected, f"- Branch: `{branch}`.\n- Task ID: `{task_id}`.\n")
+                findings = audit_repository(self.root, task_branch="team/work", task_id="pr-281")
+                self.assertEqual(
+                    {"error"},
+                    self.severities(findings, "continuity.task-state.identity-mismatch"),
+                )
+
     def test_pr_audit_command_fails_for_missing_active_checkpoint(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(task_state_dir="state/tasks")
