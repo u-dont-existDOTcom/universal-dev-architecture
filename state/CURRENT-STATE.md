@@ -5,114 +5,87 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Goal
 
-- Owner instruction (2026-09-28): agents consult each other directly instead of
-  assuming things about each other or making the owner carry messages between
-  them. Record the rule in this architecture.
-- Parent outcome: **OPEN** until the pull request passes review and merges.
-  The owner has approved merges when review is clean and no tradeoff needs his
-  decision.
+- Owner decision on 2026-09-28: switch UDA's Work Sol ladder to GPT-6 Sol.
+- Parent outcome: **SATISFIED in this working tree** for the policy change.
+  The socket-opening test and exact full Python gate remain for CI after the
+  runner commits and pushes. Runtime activation is a separate follow-up after
+  availability checks.
 
 ## Authority / baseline
 
 - Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`.
-- Branch: `claude/agent-to-agent-consultation-20260928`, from `main` at
-  `7475dd3`.
-- Active assurance lane: **release**, because the change adds a root route and
-  goes to a merge.
+- Branch: `claude/gpt-6-sol-work-default-20260929`.
+- Active assurance lane: **release checkpoint** for the owner-declared Python
+  test and audit gates; the runner commits and pushes the resulting tree.
+- The 2026-09-17 calibration requirement remains historical authority for the
+  original GPT-5.6 Sol baseline. The 2026-09-28 owner decision amends its live
+  baseline without rewriting that earlier record.
 
 ## Review finding disposition
 
-- Codex review at `5a12bc3`: **ACCEPTED** — capability/configuration receipts
-  omitted Rule 1's exact runtime tuple and applicable paired-test evidence.
-  The receipt rule and example now require both; a focused regression covers it.
-- Codex review at `5a12bc3`: **ACCEPTED** — gate evidence pointed to a pull
-  request that the checkpoint said was unopened and omitted status/counts.
-  Gate evidence is now durable in this file; a focused regression covers it.
-- Codex review at `7703d8a`: **ACCEPTED** — the receipt example treated
-  requested model and effort as effective identity without readback. The
-  receipt now separates requested values from unknown effective values; a
-  regression failed before the fix and passed after it.
-- Codex review at `4854309`: **ACCEPTED** — `-C` and `read-only` do not confine
-  reads. The Codex route now requires an external filesystem boundary or is
-  unavailable; a new regression failed before the fix and passed after it.
-- Codex review at `4854309`: **ACCEPTED** — no separate consultation executor
-  may exist. The unavailable path now leaves the scoped claim unresolved and
-  holds only dependent work; a new regression failed before the fix and passed.
-- Codex review at `4854309`: **ACCEPTED** — the checkpoint called a committed
-  repair uncommitted. It now identifies the committed revision; a new
-  regression failed before the fix and passed after it.
-- Codex review at `59b850b`: **ACCEPTED** — its three repairs were committed,
-  but the checkpoint and handoff still called them uncommitted. The cited
-  `d4ddee9` is unavailable here; `59b850b` is the verified local revision.
+- No external review finding is open for this change. Local diff review found
+  only the intended policy, trial, example, test, and generated-lock changes.
 
 ## Preserved architecture boundaries
 
-- Chat → Work requires explicit user acceptance; Work ↔ Work uses native
-  Work-internal coordination; Work → the originating Chat is unavailable.
-  Mission Control's autonomous control-plane routing of supervision and
-  escalation does not create a native return edge or transfer semantic
-  reasoning authority.
-- Production promotion is not authorized by this change. A consultation adds
-  no authority; merge, deployment, spending and access gates stay where they
-  are.
-- Coverage-before-depth completion references remain active in
-  `patterns/coverage-before-depth-in-selection.md`,
-  `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
-  `tests/test_coverage_before_depth_pattern.py`.
+- GPT-6 Astra XHigh remains a matched challenger only after a qualified Sol
+  XHigh failure. Earlier GPT-5.6 Sol results retain their exact labels and are
+  excluded from comparisons of GPT-6 Sol baseline tasks.
+- Runtime code and configuration remain untouched until each target route's
+  model and effort availability is verified. Historical evidence and prior
+  execution receipts remain unchanged.
 
 ## Completed
 
-- Added `patterns/agent-to-agent-consultation.md`: scope every claim about
-  another agent to its runtime, settle it in that runtime, consult the other
-  agent directly with at most one reconciliation round, and treat a relayed
-  message as a missed route.
-- Routed it from root `AGENTS.md`, `LESSON-INDEX.md` (entry 58) and
-  `docs/INDEX.md`.
-- Added `tests/test_agent_to_agent_consultation_pattern.py`.
-- Used the Claude → Codex route once in the owner's runner (observed): Codex's
-  answer on reading back a run's model matched a direct test. The test also
-  showed that the read-only sandbox blocks the network of Codex's commands but
-  not its hosted web search; the route now adds `-c web_search="disabled"`,
-  which a runner test confirmed removes web search.
-- Added the review regressions to
-  `tests/test_agent_to_agent_consultation_pattern.py` and
-  `tests/test_current_state_concision.py`.
-- Repaired the setter-only consultation receipt and added its regression test.
+- Recorded the owner's exact 2026-09-28 wording with digests and separate
+  Claude-verified source context in a new requirement amendment.
+- Changed the Work ladder, trial baseline, cross-family reviewer, entry-point
+  wording, telemetry template, and execution-receipt example to GPT-6 Sol.
+- Updated policy tests and replaced state tests that pinned prior round prose.
+- Regenerated the rule graph source lock with the repository's generator.
 
 ## Current checkpoint
 
-- `59b850b` is the latest durable boundary here. It contains the three repairs
-  from the review of `4854309`; the earlier `7703d8a` repair was committed as
-  `4854309`. This round changes only the checkpoint and regression.
-  CI must run the exact full Python gate because an existing test opens a
-  localhost socket blocked by this sandbox.
+- The GPT-6 Sol policy candidate is verified in the working tree. The runner
+  commits and pushes it; this task leaves the tree uncommitted.
+- Next action: runner commit and push, then CI completes the exact Python gate.
 
 ## Blockers / unresolved
 
-- No implementation or owner-decision blocker.
+- The sandbox denies even localhost sockets. The existing socket-opening test
+  must run in CI; its source is unchanged.
 
 ## Evidence / artifacts
 
-- Prior review round: 3 regressions failed before repair (7 failures across
-  12 tests), then **PASS** — 12 focused tests, 0 failures, 0 errors.
-- Prior revision's socket-free Python discovery: **PASS** — 478 tests, 0 failures, 0 errors;
-  excluded only the existing localhost-server test without changing it.
-- Checkpoint regression: **EXPECTED FAIL** before repair (1 failure in 4 tests);
-  **PASS** after repair (4 tests, 0 failures, 0 errors).
+- Focused policy, graph, and state tests: **PASS** — 26 tests, 0 failures, 0 errors.
+- Focused canonical-boundary tests: **PASS** — 17 tests, 0 failures, 0 errors.
+- Socket-free repository discovery: **PASS** — 479 tests, 0 failures, 0 errors;
+  1 existing localhost-server test deferred to CI without changing its source.
 - `python3 -m unittest discover -s tests -v`: **UNVERIFIED** — counts unavailable
-  for the exact command on this revision in the socket-denying sandbox; CI pending.
+  for the exact command in this socket-denying sandbox; CI pending.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
+- `python3 scripts/uda_rule_graph.py validate`: **PASS** — 37 graph nodes,
+  9 task-time rules, 0 errors.
+- Root `AGENTS.md`: 23,321 bytes, below the 32 KiB discovery budget.
+- Test-cost observer at checkpoint: 530.06s elapsed; 9.06s observed test time
+  (1.71%); 3 affected, 5 focused, and 2 other runs; 4 failure-discovering
+  runs; 0 full-suite or mutation runs; 0 forced redundant green reruns or skips.
 
 ## Remaining
 
-- Publish the checkpoint correction/regression if pending; run the exact Python
-  gate in CI, obtain Codex re-review, and merge.
+- In CI, run the socket-opening test and complete the full Python gate.
+- Before switching runtime labels or model mappings, verify GPT-6 Sol at the
+  needed efforts in each ChatGPT account's model picker, Codex exec, and the
+  Venice catalog. Then separately update `tools/codex-mission-control/**`
+  (chat labels, journal runner settings, Work-profile enum, Codex exec mapping),
+  `scripts/uda_model_gateway.py`, and `tools/venice-model-gateway/**` as
+  supported. These are follow-ups, not prerequisites for the policy edit.
 
 ## Next safe action
 
-- Reconcile Git state. If the checkpoint correction/regression is uncommitted,
-  the runner commits and pushes it; otherwise continue with CI and re-review.
+- Runner commits and pushes this working tree; CI runs the exact full Python
+  gate, including the deferred localhost-server test.
