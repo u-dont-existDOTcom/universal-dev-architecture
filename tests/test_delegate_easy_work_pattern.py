@@ -38,6 +38,20 @@ class DelegateEasyWorkPatternTests(unittest.TestCase):
         consultation = next(i for i, line in enumerate(docs_lines) if "../patterns/agent-to-agent-consultation.md" in line)
         self.assertIn("../" + ROUTE, docs_lines[consultation + 2])
 
+    def test_claude_code_startup_imports_the_canonical_rule(self) -> None:
+        startup = self.read("CLAUDE.md")
+        self.assertIn("@AGENTS.md", startup.splitlines())
+        self.assertIn("@" + ROUTE, startup.splitlines())
+
+    def test_hard_codex_delegation_keeps_the_sol_xhigh_baseline(self) -> None:
+        rule = PATTERN.read_text(encoding="utf-8")
+        rule = rule.split("4. **Pick the cheapest sufficient delegate.**", 1)[1]
+        rule = rule.split("5. **Own the result.**", 1)[0]
+        self.assertIn("GENUINELY_DIFFICULT", rule)
+        self.assertIn("Sol XHigh first", rule)
+        self.assertIn("Sol High only", rule)
+        self.assertIn("patterns/work-model-and-effort-routing.md", rule)
+
     def test_rule_preserves_the_owner_decision_and_accountability(self) -> None:
         text = PATTERN.read_text(encoding="utf-8").lower()
         for phrase in (
