@@ -131,6 +131,8 @@ For a reasoning-heavy conclusion that would be costly or hard to undo if wrong a
 
 When a claim about another agent's capabilities, configuration or behavior feeds a decision or a workflow design, or when agents disagree, load `../patterns/agent-to-agent-consultation.md`: scope the claim to its runtime, settle it there, and consult the other agent directly instead of having the owner relay messages.
 
+For substantial work on a high-tier model, load `../patterns/delegate-easy-work-to-cheaper-models.md`: delegate easy, well-specified pieces when the allowance saving pays for briefing and checking, and keep work when continuing is cheaper.
+
 Templates live in `../templates/`. Execution plans live in `exec-plans/`.
 
 `../patterns/codex-github-operating-standard.md` is retained as superseded provenance and routes to the operating-system pattern. It is not a second current standard.

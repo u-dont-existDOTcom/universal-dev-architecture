@@ -85,6 +85,7 @@ Lane default and definitions, hard-gate, expensive-validation, outage, no-ratche
 Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
 
 Claims about another agent, and agents that disagree: consult it directly, never through the owner: `patterns/agent-to-agent-consultation.md`.
+High-tier models hand easy, well-specified work to cheaper models when it saves real allowance, and keep it when continuing is cheaper: `patterns/delegate-easy-work-to-cheaper-models.md`.
 
 ## Workflow
 

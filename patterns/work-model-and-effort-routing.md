@@ -13,6 +13,8 @@ Choose between the available GPT-6.1 Sol (GPT-6 Sol fallback) and GPT-6 Astra by
 
 This pattern composes with [`chat-work-execution-routing-threshold.md`](chat-work-execution-routing-threshold.md). Chat owns semantic, architectural, strategy, acceptance, permission-boundary, and owner-intent reasoning. Work receives only the bounded execution residue.
 
+For the general, cross-provider form of this lowest-sufficient-tier rule, apply [`delegate-easy-work-to-cheaper-models.md`](delegate-easy-work-to-cheaper-models.md).
+
 Optimize:
 
 ```text

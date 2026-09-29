@@ -39,7 +39,7 @@ This extends existing rules; it adds no new theory:
    - Inside a Claude session: a Sonnet subagent for moderate, well-scoped work that is easier to continue in Claude (same tools, skills and files), and a Haiku subagent for trivial sweeps and extraction.
    - Repository code and tests: Codex at the current Sol model, at low or medium effort for mechanical work and high or extra high when the execution itself is hard. Don't delegate to GPT-6 Astra; it is expensive, and the Work ladder keeps it as the challenger after a qualified failure.
    - ChatGPT Chat to Work: the ladder in `patterns/work-model-and-effort-routing.md`.
-   - Prefer the provider whose allowance is less constrained at the moment. For example, when Claude usage is low, send execution to Codex.
+   - Prefer the provider whose allowance is known to be less constrained. A non-ephemeral Codex run records plan usage in its session `rate_limits` (percent used, window and reset time); Claude Code 2.1.285 has no plan-usage command, so use an owner report or a usage-limit error (reset time).
 5. **Own the result.** The delegating agent checks the result with the check named in the brief: tests, a diff review, or a sample. It fixes small misses or delegates them again, and takes back only the part that needs judgment. It redoes delegated work only when the check fails.
 6. **Delegation adds no authority.** Merge, deployment, spending, access, publication and private-data boundaries stay where they are. A delegate gets only the access its piece needs.
 7. **Record it.** Write one line per delegation in the task record: the delegate, its model and effort, the piece, the check, and the outcome. The routing is tuned from these lines.
