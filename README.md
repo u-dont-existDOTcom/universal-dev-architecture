@@ -27,7 +27,7 @@ For Codex + GitHub work, the canonical current pattern is:
 The repository recovery entry point and task checkpoints are:
 
 - `state/CURRENT-STATE.md`
-- `state/tasks/<branch>.md` — one retained checkpoint per task, with `/` in the branch name replaced by `-`.
+- One retained checkpoint per task in `state/tasks/`; find its path with `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)"`.
 
 Reusable files are indexed in:
 

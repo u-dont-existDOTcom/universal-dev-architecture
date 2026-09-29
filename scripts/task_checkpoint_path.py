@@ -4,11 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from urllib.parse import quote
 
 
 def checkpoint_path(branch: str) -> str:
-    return f"state/tasks/{quote(branch, safe='')}.md"
+    encoded = quote(branch, safe="")
+    if len(encoded) + len(".md") > 255:
+        # Git branch names cannot contain "~", so this cannot alias an encoded name.
+        encoded = "~" + hashlib.sha256(branch.encode("utf-8")).hexdigest()
+    return f"state/tasks/{encoded}.md"
 
 
 if __name__ == "__main__":

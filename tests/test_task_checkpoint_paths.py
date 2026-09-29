@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from urllib.parse import unquote
@@ -30,6 +31,30 @@ class TaskCheckpointPathTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual("state/tasks/team%2Ffoo.md", result.stdout.strip())
+
+    def test_readme_directs_readers_to_the_checkpoint_path_helper(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        checkpoint_entry = next(
+            line for line in readme.splitlines() if "retained checkpoint per task" in line
+        )
+        self.assertIn("python3 scripts/task_checkpoint_path.py", checkpoint_entry)
+
+    def test_long_valid_branch_names_have_creatable_distinct_paths(self) -> None:
+        branches = ("x/" * 138 + "x", "x/" * 138 + "y")
+        for branch in branches:
+            subprocess.run(
+                ["git", "check-ref-format", "--branch", branch],
+                check=True,
+                capture_output=True,
+            )
+        paths = [Path(checkpoint_path(branch)) for branch in branches]
+        self.assertNotEqual(paths[0], paths[1])
+        with tempfile.TemporaryDirectory() as directory:
+            for path in paths:
+                self.assertLessEqual(len(path.name.encode("utf-8")), 255)
+                destination = Path(directory) / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("# Current State\n", encoding="utf-8")
 
     def test_gpt6_sol_checkpoint_is_at_its_declared_branch_path(self) -> None:
         branch = "claude/gpt-6-sol-work-default-20260929"

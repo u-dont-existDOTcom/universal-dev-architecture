@@ -30,9 +30,8 @@ Updated: 2026-09-29
 
 ## Task checkpoints
 
-- Each task has one file in `state/tasks/`. Percent encode the exact branch
-  name, including `/` and `%`, to derive its filename. Start from
-  `templates/CURRENT-STATE.md`.
+- Each task has one file in `state/tasks/`. The path helper percent encodes
+  short branch names and hashes long ones. Start from `templates/CURRENT-STATE.md`.
 - Read the path printed by
   `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)"`.
 - A task edits only its own checkpoint. Edit this entry point only when
