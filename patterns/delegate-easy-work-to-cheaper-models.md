@@ -29,6 +29,7 @@ This extends existing rules; it adds no new theory:
    - a cheaper model can do the piece from a short brief with a clear acceptance check;
    - the piece needs little judgment, or the judgment is already made and written into the brief;
    - the piece would use much more top-tier allowance than writing the brief and checking the result.
+   Before Chat delegates any piece to Work/Codex, apply the current-turn direct-capability preflight in `patterns/chat-work-execution-routing-threshold.md` for that bounded action. If Chat can reliably execute it with its authorized tools, keep it in Chat even when delegation would save allowance.
 3. **Keep it when continuing is cheaper.** Keep a piece when:
    - the context is already loaded and the change is small;
    - judgment and execution are interleaved, as in hard debugging or design exploration;
@@ -48,6 +49,7 @@ This extends existing rules; it adds no new theory:
 
 - Don't split work so finely that briefing costs more than doing.
 - Delegation doesn't replace thinking. The high-tier agent still owns the plan, the acceptance criteria and the final verification.
+- During a controlled matched Sol/Astra trial attempt (`patterns/work-model-and-effort-routing.md`), use the assigned model for the whole bounded task: no cross-model delegation, including mechanical portions. If another model contributes execution, record the run as mixed-model and exclude it from matched Sol-versus-Astra results.
 - A delegate that fails the check twice on the same piece returns it to the delegating agent. Don't cycle through models.
 
 ## Requirement-accretion declaration
@@ -55,7 +57,7 @@ This extends existing rules; it adds no new theory:
 - Origin: `OWNER` (2026-09-29).
 - Decision it changes: which model does each piece of a task, and whether top-tier allowance is spent on execution residue.
 - Why the simpler standard is insufficient: the existing routing covers ChatGPT Chat and Work only. Claude workers, and Codex at a top tier, had no rule, so the owner repeated the instruction to each worker.
-- Why it is scoped: it applies only when a piece is well-specified and the saving is large. It adds no gate and blocks nothing.
+- Why it is scoped: it applies only when a piece is well-specified and the saving is large. It preserves the existing Chat/Work admission gate and controlled-trial comparison boundary.
 
 ## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 

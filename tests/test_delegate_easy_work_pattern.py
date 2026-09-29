@@ -55,6 +55,20 @@ class DelegateEasyWorkPatternTests(unittest.TestCase):
         text = PATTERN.read_text(encoding="utf-8")
         self.assertIn("Don't delegate to GPT-6 Astra", text)
 
+    def test_chat_to_codex_delegation_requires_direct_capability_admission(self) -> None:
+        rule = PATTERN.read_text(encoding="utf-8").split("## Rule", 1)[1].split("## Bounds", 1)[0]
+        self.assertIn("Before Chat delegates any piece to Work/Codex", rule)
+        self.assertIn("current-turn direct-capability preflight", rule)
+        self.assertIn("patterns/chat-work-execution-routing-threshold.md", rule)
+        self.assertIn("keep it in Chat even when delegation would save allowance", rule)
+
+    def test_matched_sol_astra_attempts_cannot_use_cross_model_delegation(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        self.assertIn("controlled matched Sol/Astra trial attempt", text)
+        self.assertIn("no cross-model delegation", text)
+        self.assertIn("mixed-model", text)
+        self.assertIn("exclude it from matched Sol-versus-Astra results", text)
+
     def test_allowance_guidance_matches_each_runtime(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         for phrase in (
