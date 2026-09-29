@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "status": "ACTIVE_SOL_XHIGH_BASELINE_TRIAL",
   "policyRef": "patterns/work-model-and-effort-routing.md",
-  "requirementRef": "docs/requirements/2026-09-28-gpt-6-sol-work-default.owner-requirement.json",
+  "requirementRef": "docs/requirements/2026-09-29-gpt-6-1-sol-work-default.owner-requirement.json",
   "resultsPath": "state/WORK-MODEL-ROUTING-RESULTS.json",
   "contractVersion": "TRUSTED_SETTER_V1",
   "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb",
@@ -32,7 +32,8 @@
     "residualExecutionClass": "replace-with-class-after-chat-reasoning",
     "difficultyClass": "ROUTINE | ORDINARY | GENUINELY_DIFFICULT",
     "attemptRole": "PRIMARY | CHALLENGER",
-    "chosenModel": "GPT_6_SOL | GPT_6_ASTRA | GPT_5_6_SOL (historical records only)",
+    "chosenModel": "GPT_6_1_SOL | GPT_6_SOL (availability fallback) | GPT_6_ASTRA | GPT_5_6_SOL (historical records only)",
+    "actualModel": null,
     "chosenEffort": "LOW | MEDIUM | HIGH | XHIGH | MAX",
     "routingTier": "SOL_LOW | SOL_MEDIUM | SOL_HIGH | SOL_XHIGH_DIFFICULT_BASELINE | ASTRA_XHIGH_CHALLENGER | OTHER_EXPLICIT_OWNER_SELECTION",
     "routingTriggers": [],
@@ -61,8 +62,10 @@
   "routingExperiment": {
     "routineAndOrdinary": "Use the lowest sufficient Sol tier after Chat reduces the task.",
     "genuinelyDifficultPrimary": {
-      "model": "GPT_6_SOL",
-      "effort": "XHIGH"
+      "model": "GPT_6_1_SOL",
+      "effort": "XHIGH",
+      "availabilityFallbackModel": "GPT_6_SOL",
+      "availabilityFallbackEffort": "SAME_AS_SELECTED_RUNG"
     },
     "challengerAfterQualifiedFailure": {
       "model": "GPT_6_ASTRA",
