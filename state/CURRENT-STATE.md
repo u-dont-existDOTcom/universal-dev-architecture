@@ -30,10 +30,11 @@ Updated: 2026-09-29
 
 ## Task checkpoints
 
-- Each task has one file in `state/tasks/<branch>.md`, with every `/` in the
-  branch name replaced by `-`. Start from `templates/CURRENT-STATE.md`.
-- Find your branch with `git branch --show-current`, replace `/` with `-`, and
-  read its matching file in `state/tasks/`.
+- Each task has one file in `state/tasks/`. Percent encode the exact branch
+  name, including `/` and `%`, to derive its filename. Start from
+  `templates/CURRENT-STATE.md`.
+- Read the path printed by
+  `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)"`.
 - A task edits only its own checkpoint. Edit this entry point only when
   repository-level state changes; keep completed task files after merge.
 
@@ -60,7 +61,7 @@ Updated: 2026-09-29
 
 ## Evidence / artifacts
 
-- Task-specific evidence and gate results live in `state/tasks/<branch>.md`.
+- Task-specific evidence and gate results live in the derived task checkpoint.
 - Exact implementation state is established by Git, tests, and task artifacts.
 
 ## Next safe action

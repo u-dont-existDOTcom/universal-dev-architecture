@@ -1,7 +1,7 @@
 # State and Recovery Agent Instructions
 
 - Treat state files as concise routing documents, not chat transcripts or substitutes for exact repository evidence.
-- Use `state/CURRENT-STATE.md` as the repository recovery entry point. Give each task one `state/tasks/<branch>.md` checkpoint, replacing every `/` in the branch name with `-`; start from `templates/CURRENT-STATE.md`, edit only that task's file, and retain it after merge. Edit the entry point only for repository-level state.
+- Use `state/CURRENT-STATE.md` as the repository recovery entry point. Give each task one checkpoint at the path from `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)"`; start from `templates/CURRENT-STATE.md`, edit only that task's file, and retain it after merge. Edit the entry point only for repository-level state.
 - Before trusting or editing a checkpoint, inspect actual Git state, relevant commits/artifacts, and newer owner instructions; repair stale entries immediately.
 - Record goal, baseline, active constraints, completed work not to repeat, current step, last verified durable boundary, remaining work, blockers, evidence/tests/commits, and next safe action.
 - Update state at meaningful durable boundaries, after consequential decisions or falsified approaches, before handoff, and before claiming multi-step work complete.

@@ -27,7 +27,7 @@ class CurrentStateConcisionTests(unittest.TestCase):
         text = CURRENT_STATE.read_text(encoding="utf-8")
         self.assertIn("state/tasks/", text)
         self.assertIn("Each task has one file", text)
-        self.assertIn("every `/`", text)
+        self.assertIn("scripts/task_checkpoint_path.py", text)
 
     def test_gate_evidence_is_durable_and_records_status_and_counts(self) -> None:
         task_states = sorted(TASK_STATES.glob("*.md"))
