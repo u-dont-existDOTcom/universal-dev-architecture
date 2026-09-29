@@ -10,7 +10,7 @@ A high-tier setting spends the scarcest allowance. Examples are Claude Opus at h
 
 Causal mechanism, in this architecture's terms (`AGENTS.md` → **Causal failure diagnosis**):
 
-- **Missing route.** `patterns/chat-work-execution-routing-threshold.md` and `patterns/work-model-and-effort-routing.md` send bounded execution to the lowest sufficient ChatGPT Work tier. Nothing routed a high-tier agent to hand off its own execution work, across providers, or covered Claude models at all.
+- **Missing route.** `patterns/chat-work-execution-routing-threshold.md` and `patterns/work-model-and-effort-routing.md` send bounded execution to the lowest sufficient ChatGPT Work tier. Nothing told a high-tier reasoning supervisor when to hand off easy execution across providers, or covered Claude models at all.
 - **Instruction carried by hand.** With no route, the owner repeated the instruction to each worker.
 
 ## Existing-work basis
@@ -24,7 +24,9 @@ This extends existing rules; it adds no new theory:
 
 ## Rule
 
-1. **Split before doing.** At the start of substantial work, and at each new phase, a high-tier agent separates the judgment from the execution residue. Judgment is what to build, how, and what counts as done. The residue is searching, bulk reading, mechanical edits, test runs, data collection, formatting and boilerplate.
+The authorized reasoning supervisor makes delegation decisions. A Codex/Work worker may identify an easy candidate subtask inside its directive and return it to Chat, but may not launch a delegate or decide admission. Chat decides whether to delegate and issues any new Chat-authored Work directive through the existing admission route.
+
+1. **Split before doing.** At the start of substantial work, and at each new phase, a high-tier reasoning supervisor separates the judgment from the execution residue. Judgment is what to build, how, and what counts as done. The residue is searching, bulk reading, mechanical edits, test runs, data collection, formatting and boilerplate.
 2. **Delegate a piece when it pays.** Delegate when all three hold:
    - a cheaper model can do the piece from a short brief with a clear acceptance check;
    - the piece needs little judgment, or the judgment is already made and written into the brief;
@@ -41,22 +43,22 @@ This extends existing rules; it adds no new theory:
    - Repository code and tests: Codex at the current Sol model, following `patterns/work-model-and-effort-routing.md`: Low or Medium for simple or ordinary work, Sol High only for the ladder's intermediate tier below `GENUINELY_DIFFICULT`, and Sol XHigh first for `GENUINELY_DIFFICULT` work during the active calibration. Don't delegate to GPT-6 Astra; it is expensive, and the Work ladder keeps it as the challenger after a qualified failure.
    - ChatGPT Chat to Work: the ladder in `patterns/work-model-and-effort-routing.md`.
    - Prefer the provider whose allowance is known to be less constrained. A non-ephemeral Codex run records plan usage in its session `rate_limits` (percent used, window and reset time); Claude Code 2.1.285 has no plan-usage command, so use an owner report or a usage-limit error (reset time).
-5. **Own the result.** The delegating agent checks the result with the check named in the brief: tests, a diff review, or a sample. It fixes small misses or delegates them again, and takes back only the part that needs judgment. It redoes delegated work only when the check fails.
+5. **Own the result.** The delegating reasoning supervisor checks the result with the check named in the brief: tests, a diff review, or a sample. It fixes small misses or delegates them again, and takes back only the part that needs judgment. It redoes delegated work only when the check fails.
 6. **Delegation adds no authority.** Merge, deployment, spending, access, publication and private-data boundaries stay where they are. A delegate gets only the access its piece needs.
 7. **Record it.** Write one line per delegation in the task record: the delegate, its model and effort, the piece, the check, and the outcome. The routing is tuned from these lines.
 
 ## Bounds
 
 - Don't split work so finely that briefing costs more than doing.
-- Delegation doesn't replace thinking. The high-tier agent still owns the plan, the acceptance criteria and the final verification.
+- Delegation doesn't replace thinking. The reasoning supervisor owns the plan, acceptance criteria, delegation decision and final verification; a Codex/Work worker returns a candidate subtask for Chat-authored admission.
 - During a controlled matched Sol/Astra trial attempt (`patterns/work-model-and-effort-routing.md`), use the assigned model for the whole bounded task: no cross-model delegation, including mechanical portions. If another model contributes execution, record the run as mixed-model and exclude it from matched Sol-versus-Astra results.
-- A delegate that fails the check twice on the same piece returns it to the delegating agent. Don't cycle through models.
+- After a delegate fails a check, diagnose the cause (transient tool error, correctable brief, or execution shortfall) and re-evaluate whether another bounded cheap attempt still saves allowance. Do not use a fixed failure count or cycle through models without evidence.
 
 ## Requirement-accretion declaration
 
 - Origin: `OWNER` (2026-09-29).
 - Decision it changes: which model does each piece of a task, and whether top-tier allowance is spent on execution residue.
-- Why the simpler standard is insufficient: the existing routing covers ChatGPT Chat and Work only. Claude workers, and Codex at a top tier, had no rule, so the owner repeated the instruction to each worker.
+- Why the simpler standard is insufficient: the existing routing covers ChatGPT Chat and Work only. Claude reasoning supervisors lacked a cross-provider rule, and top-tier Codex workers lacked an explicit route for candidate subtasks, so the owner repeated the instruction to each worker.
 - Why it is scoped: it applies only when a piece is well-specified and the saving is large. It preserves the existing Chat/Work admission gate and controlled-trial comparison boundary.
 
 ## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)

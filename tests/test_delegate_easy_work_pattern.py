@@ -76,6 +76,23 @@ class DelegateEasyWorkPatternTests(unittest.TestCase):
         self.assertIn("patterns/chat-work-execution-routing-threshold.md", rule)
         self.assertIn("keep it in Chat even when delegation would save allowance", rule)
 
+    def test_codex_worker_returns_candidates_for_chat_authored_admission(self) -> None:
+        rule = PATTERN.read_text(encoding="utf-8")
+        self.assertIn("The authorized reasoning supervisor makes delegation decisions.", rule)
+        self.assertIn("reasoning supervisor owns the plan, acceptance criteria", rule)
+        self.assertIn("Codex/Work worker", rule)
+        self.assertIn("candidate subtask", rule)
+        self.assertIn("Chat-authored", rule)
+        self.assertIn("may not launch", rule)
+
+    def test_failed_delegate_is_reassessed_without_a_fixed_cutoff(self) -> None:
+        bounds = PATTERN.read_text(encoding="utf-8").split("## Bounds", 1)[1]
+        self.assertIn("diagnose", bounds)
+        self.assertIn("transient", bounds)
+        self.assertIn("re-evaluate whether another bounded cheap attempt", bounds)
+        self.assertIn("Do not use a fixed failure count", bounds)
+        self.assertNotIn("fails the check twice", bounds)
+
     def test_matched_sol_astra_attempts_cannot_use_cross_model_delegation(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         self.assertIn("controlled matched Sol/Astra trial attempt", text)
