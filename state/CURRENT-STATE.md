@@ -41,6 +41,16 @@ Updated: 2026-09-29
 - Runtime code and configuration remain untouched until each target route's
   model and effort availability is verified. Historical evidence and prior
   execution receipts remain unchanged.
+- Chat → Work requires explicit user acceptance; Work ↔ Work uses native
+  Work-internal coordination; Work → the originating Chat is unavailable.
+  Mission Control's autonomous control-plane routing of supervision and
+  escalation does not create a native return edge or transfer semantic
+  reasoning authority.
+- Production promotion is not authorized by this change.
+- Coverage-before-depth completion references remain active in
+  `patterns/coverage-before-depth-in-selection.md`,
+  `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
+  `tests/test_coverage_before_depth_pattern.py`.
 
 ## Completed
 
@@ -54,16 +64,19 @@ Updated: 2026-09-29
 
 ## Current checkpoint
 
-- Latest durable boundary: commit `01c7209eca8e711f28c8c6fa67155ec7cc0c3e81`
-  on `claude/gpt-6-sol-work-default-20260929`; the tree was clean at review.
-  Its next action was CI and review, which exposed the two findings above.
-- Current round: receipt, regression test, and checkpoint corrections are in
-  the working tree for the runner to commit and push; CI/review follows.
+- The review repair is committed at `1b78d3c`. `main` at `8eae0dc` (the
+  journal Claude worker, #277) is merged into the branch. Conflicts were only
+  in this file and `tests/test_current_state_concision.py`, which keeps main's
+  general checks plus this branch's placeholder check.
+- The merge also restores two checks this branch had dropped: the recovery
+  state keeps the Work topology boundaries, the production-promotion boundary
+  and the coverage-before-depth completion references. They are durable
+  requirements carried by every checkpoint, not one round's wording.
+- Next: Codex review of the merge head, then merge.
 
 ## Blockers / unresolved
 
-- The sandbox denies even localhost sockets. The existing socket-opening test
-  must run in CI; its source is unchanged.
+- No implementation or owner-decision blocker.
 
 ## Evidence / artifacts
 
@@ -71,8 +84,7 @@ Updated: 2026-09-29
 - Focused canonical-boundary tests: **PASS** — 17 tests, 0 failures, 0 errors.
 - Socket-free repository discovery: **PASS** — 479 tests, 0 failures, 0 errors;
   1 existing localhost-server test deferred to CI without changing its source.
-- `python3 -m unittest discover -s tests -v`: **UNVERIFIED** — counts unavailable
-  for the exact command in this socket-denying sandbox; CI pending.
+- `python3 -m unittest discover -s tests -v`: **PASS** — 481 tests run on the merge head outside any sandbox, 0 failures, 0 errors.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
 - `python3 scripts/uda_rule_graph.py validate`: **PASS** — 37 graph nodes,
   9 task-time rules, 0 errors.
@@ -90,7 +102,7 @@ Updated: 2026-09-29
 
 ## Remaining
 
-- In CI, run the socket-opening test and complete the full Python gate.
+- Codex review of the merge head, then merge.
 - Before switching runtime labels or model mappings, verify GPT-6 Sol at the
   needed efforts in each ChatGPT account's model picker, Codex exec, and the
   Venice catalog. Then separately update `tools/codex-mission-control/**`
@@ -100,6 +112,4 @@ Updated: 2026-09-29
 
 ## Next safe action
 
-- Runner commits and pushes this review repair. CI then runs the exact full
-  Python gate, including the deferred localhost-server test, and review checks
-  the corrected template pair and checkpoint.
+- Wait for the Codex review of the merge head; the shepherd merges it when the review allows.

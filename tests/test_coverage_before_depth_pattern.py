@@ -255,7 +255,16 @@ class CoverageBeforeDepthPatternTests(unittest.TestCase):
         self.assertNotIn("remains explicitly provisional", index)
         self.assertNotIn("remaining provenance blocker", plan)
 
-    def test_plan_preserves_the_active_completion_gate(self) -> None:
+    def test_recovery_state_and_plan_preserve_the_active_completion_gate(self) -> None:
+        state = self.read("state/CURRENT-STATE.md")
+        for artifact in (
+            "patterns/coverage-before-depth-in-selection.md",
+            "audits/2026-08-21-askrigor-coverage-before-depth-promotion.md",
+            "tests/test_coverage_before_depth_pattern.py",
+        ):
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, state)
+
         plan_candidates = (
             ROOT / "docs" / "exec-plans" / "active" / "2026-08-21-coverage-before-depth.md",
             ROOT / "docs" / "exec-plans" / "completed" / "2026-08-21-coverage-before-depth.md",

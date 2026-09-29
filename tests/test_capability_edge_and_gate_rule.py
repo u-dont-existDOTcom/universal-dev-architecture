@@ -52,10 +52,11 @@ class CapabilityEdgeAndGateRuleTests(unittest.TestCase):
                 self.assertIn(required_consequence, text)
                 self.assertIn("not claims about other interfaces or future versions", text)
 
-    def test_architecture_preserves_bounded_topology(self) -> None:
+    def test_architecture_and_current_state_preserve_bounded_topology(self) -> None:
         documents = (
             "patterns/codex-pro-supervision-mission-control.md",
             "docs/architecture/2026-09-01-direct-project-manager-supervision-control-plane.md",
+            "state/CURRENT-STATE.md",
         )
         required = (
             "Chat → Work",
@@ -133,7 +134,9 @@ class CapabilityEdgeAndGateRuleTests(unittest.TestCase):
         self.assertEqual(outcomes["RO-CAP-004"]["status"], "UNMET")
         self.assertEqual(outcomes["RO-CAP-004"]["evidence_refs"], [])
 
+        state = self.read("state/CURRENT-STATE.md")
         architecture = self.read("patterns/codex-pro-supervision-mission-control.md")
+        self.assertIn("Production promotion is not authorized", state)
         self.assertIn("does not transfer semantic reasoning authority", architecture)
         self.assertIn("does not authorize production", architecture)
 

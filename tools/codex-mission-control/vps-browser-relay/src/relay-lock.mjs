@@ -36,7 +36,8 @@ function metadata(lockFile) {
     const stat = lstatSync(lockFile);
     if (!stat.isFile() || stat.size > 16_384) throw new Error('Invalid lock metadata file.');
     const raw = readFileSync(lockFile, 'utf8');
-    const owner = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const owner = Number.isSafeInteger(parsed) ? { pid: parsed } : parsed;
     if (!Number.isSafeInteger(owner.pid) || owner.pid <= 0) throw new Error('Invalid lock owner PID.');
     const identity = processIdentity(owner.pid);
     const dead = !identity || identity.state === 'Z' || identity.state === 'X';
@@ -118,8 +119,9 @@ export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold
   const browserTurnMs = attemptsPerSubmission * providerAttempts * (browserAttemptMs + runtime.minSubmissionIntervalMs);
   const maximumPacingDelayMs = 4 * paceMs;
   // A pass lists before and after pacing, may reconcile persisted current work,
-  // and lists after every logical submission before running one import.
-  const commandRuntimeMs = (logicalSubmissions + 3) * dispatchTimeoutMs + importTimeoutMs;
+  // and lists after every logical submission. Its import can wait behind one
+  // Claude-lane import at the same configured ceiling before running its own.
+  const commandRuntimeMs = (logicalSubmissions + 3) * dispatchTimeoutMs + (2 * importTimeoutMs);
   const derived = maximumPacingDelayMs + logicalSubmissions * browserTurnMs + commandRuntimeMs + ONE_SHOT_LOCK_MARGIN_MS;
   if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite journal-work relay lock lifetime from the configuration.');
   if (derived > MAX_LOCK_LIFETIME_MS) throw new Error(`Derived journal-work relay lock lifetime exceeds the supported ${MAX_LOCK_LIFETIME_MS} ms watchdog limit.`);

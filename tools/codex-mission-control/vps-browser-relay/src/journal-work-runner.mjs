@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { sha256 } from './core.mjs';
+import { RelayLock } from './relay-lock.mjs';
 
 const ROOT_URL = 'https://chatgpt.com/';
 const CONTINUE_BODY = 'Continue.';
@@ -9,6 +10,7 @@ const MAX_OUTCOMES = 200;
 const FIELDS = ['work_id', 'role', 'output_schema_id', 'model', 'effort', 'tier', 'issued_at', 'expires_at', 'answered'];
 const OPAQUE_WORK_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const importTails = new Map();
 export const JOURNAL_WORK_PROMPT = (workId) => `Private InnerSignal journal work item ${workId}. Call get_journal_work_packet with this work_id, follow its instruction using only its packet, then submit your JSON answer with submit_journal_work_result. If it lists schema problems, fix them and submit again. Reply only: done.`;
 
 export function withJournalRuntime(journalConfig, runtime) {
@@ -20,7 +22,7 @@ export class JournalWorkRunner {
     if (!config?.dispatchCommand || !config?.importCommand || !config?.appLabel) throw new Error('Journal work requires dispatch/import commands and an app label.');
     if (!browser || typeof submit !== 'function') throw new Error('Journal work requires the automation-owned browser and central submission scheduler.');
     this.config = config; this.browser = browser; this.submit = submit; this.commandRunner = commandRunner;
-    this.memoryReader = memoryReader; this.now = now; this.sleep = sleep; this.logger = logger; this.importTail = Promise.resolve(); this.passTail = Promise.resolve();
+    this.memoryReader = memoryReader; this.now = now; this.sleep = sleep; this.logger = logger; this.passTail = Promise.resolve();
   }
 
   async runPass() {
@@ -94,7 +96,7 @@ export class JournalWorkRunner {
       state.today.expired += 1; state.today.waiting = Math.max(0, state.today.waiting - 1);
       return this.#finish(state, 'EXPIRED');
     }
-    state.current = { workId: item.work_id, rung: 'INITIAL' };
+    state.current = { workId: item.work_id, role: item.role, rung: 'INITIAL' };
     await this.#persist(state);
     try {
       return await this.#attemptItem(item, state);
@@ -322,7 +324,7 @@ export class JournalWorkRunner {
   }
 
   async #answered(item, state, rung) {
-    state.current = { workId: item.work_id, rung, phase: 'IMPORT' };
+    state.current = { workId: item.work_id, role: item.role, rung, phase: 'IMPORT' };
     await this.#persist(state);
     return this.#completeImport(state);
   }
@@ -340,17 +342,16 @@ export class JournalWorkRunner {
   }
 
   async #runImport() {
-    const operation = this.importTail.then(async () => sanitizeImportResult(await this.commandRunner(this.config.importCommand, this.config.importTimeoutMs)));
-    this.importTail = operation.catch(() => {});
-    return operation;
+    return runJournalImport({
+      command: this.config.importCommand,
+      timeoutMs: this.config.importTimeoutMs,
+      lockFile: this.config.importLockFile,
+      commandRunner: this.commandRunner,
+    });
   }
 
   async #listing() {
-    let result;
-    try { result = await this.commandRunner(this.config.dispatchCommand, this.config.dispatchTimeoutMs); } catch { return { ok: false, records: [] }; }
-    if (result.exitCode !== 0) return { ok: false, records: [] };
-    try { return { ok: true, records: result.stdout.split(/\r?\n/).filter(Boolean).map(parseDispatchRecord) }; }
-    catch { return { ok: false, records: [] }; }
+    return readJournalListing(this.config.dispatchCommand, this.config.dispatchTimeoutMs, this.commandRunner);
   }
 
   async #backOff(state, trigger, retryAfterMs = null) {
@@ -400,6 +401,43 @@ export function parseDispatchRecord(line) {
   if (!OPAQUE_WORK_ID.test(value.work_id)) throw new Error('Invalid dispatch work_id.');
   if (typeof value.answered !== 'boolean' || !isIsoTimestamp(value.issued_at) || !isIsoTimestamp(value.expires_at)) throw new Error('Invalid dispatch times or answered flag.');
   return value;
+}
+
+export async function readJournalListing(command, timeoutMs, commandRunner = runCommand) {
+  let result;
+  try { result = await commandRunner(command, timeoutMs); } catch { return { ok: false, records: [] }; }
+  if (result.exitCode !== 0) return { ok: false, records: [] };
+  try { return { ok: true, records: result.stdout.split(/\r?\n/).filter(Boolean).map(parseDispatchRecord) }; }
+  catch { return { ok: false, records: [] }; }
+}
+
+export async function runJournalImport({ command, timeoutMs, lockFile, commandRunner = runCommand }) {
+  const key = lockFile ?? command;
+  const prior = importTails.get(key) ?? Promise.resolve();
+  const operation = prior.then(() => withFileLock(lockFile, async () => (
+    sanitizeImportResult(await commandRunner(command, timeoutMs))
+  ), { wait: true }));
+  importTails.set(key, operation.catch(() => {}));
+  return operation;
+}
+
+export async function withFileLock(lockFile, operation, { wait = false } = {}) {
+  if (!lockFile) return operation();
+  let lock;
+  for (;;) {
+    const candidate = new RelayLock(lockFile);
+    try {
+      await candidate.acquire({ taskId: 'journal:shared-operation', persistent: true });
+      lock = candidate;
+      break;
+    } catch (error) {
+      if (error?.code !== 'RELAY_LOCK_BUSY') throw error;
+      if (!wait) return null;
+      await delay(50);
+    }
+  }
+  try { return await operation(); }
+  finally { lock.release(); }
 }
 
 function isIsoTimestamp(value) {
