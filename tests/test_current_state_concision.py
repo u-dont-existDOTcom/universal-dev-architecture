@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -22,13 +23,27 @@ class CurrentStateConcisionTests(unittest.TestCase):
         self.assertEqual(1, text.count("## Review finding disposition"))
         self.assertNotIn("## Journal work runner Codex review at `", text)
 
-    def test_current_state_records_the_reviewed_commit_as_the_durable_boundary(self) -> None:
+    def test_gate_evidence_is_durable_and_records_status_and_counts(self) -> None:
         text = CURRENT_STATE.read_text(encoding="utf-8")
+        evidence = text.split("## Evidence / artifacts", 1)[1].split("## Remaining", 1)[0]
 
-        self.assertIn("Last verified durable boundary: `af245cf`", text)
-        self.assertRegex(text, r"already contains the two\s+earlier review repairs")
-        self.assertNotIn("Baseline: reviewed commit `bd52bbe`", text)
-        self.assertNotIn("may collect, commit, and push this working tree", text)
+        self.assertNotIn("see the pull request description", evidence)
+        self.assertRegex(
+            evidence,
+            re.compile(
+                r"python3 -m unittest discover -s tests -v`: (?:"
+                r"\*\*(?:PASS|FAIL)\*\*[^\n]*\d+ tests?|"
+                r"\*\*UNVERIFIED\*\*[^\n]*counts unavailable)",
+            ),
+        )
+        self.assertRegex(
+            evidence,
+            re.compile(
+                r"python3 scripts/audit_codex_github.py --root \. --fail-on error`: "
+                r"(?:\*\*(?:PASS|FAIL)\*\*[^\n]*\d+ errors?[^\n]*\d+ warnings?|"
+                r"\*\*UNVERIFIED\*\*[^\n]*counts unavailable)",
+            ),
+        )
 
 
 if __name__ == "__main__":

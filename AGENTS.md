@@ -84,6 +84,8 @@ Lane default and definitions, hard-gate, expensive-validation, outage, no-ratche
 
 Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
 
+Claims about another agent, and agents that disagree: consult it directly, never through the owner: `patterns/agent-to-agent-consultation.md`.
+
 ## Workflow
 
 Use a task branch or worktree for substantive changes when isolation/recovery is useful. Open a pull request when the current task is actually approaching a review/merge boundary or the owner/project requires one; a reversible experimental candidate does not need to become merge-ready before the owner can try it.

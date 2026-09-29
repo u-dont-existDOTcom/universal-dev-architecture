@@ -5,29 +5,23 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Goal
 
-- Address the hit-limit Codex finding on the journal Claude worker in
-  pull request #277, reviewed at `393db73`, with a regression that fails before
-  repair. Leave the result uncommitted and unpushed for the repository runner.
-- Local outcome: **SATISFIED for runner handoff**. CI owns the sandbox-incompatible
-  full relay and local-socket tests.
+- Merge pull request #277 (the journal Claude worker and usage meter). Its
+  review rounds are complete: eight fix rounds, with one minor finding deferred
+  in a pull-request comment. The branch conflicted with `main` after the
+  agent-to-agent consultation rule (#279) merged; this checkpoint records the
+  merge of `main` into the branch.
+- Parent outcome: **OPEN** until the pull request merges.
 
 ## Authority / baseline
 
-- Current owner request: fix the finding, run touched socket-free tests and
-  sandbox-compatible repository gates, change no test to bypass the sandbox,
-  record this round, and leave the working tree uncommitted/unpushed.
-- The live default-branch `AGENTS.md` was fetched through the web surface
-  this turn; the shell remains networkless.
-- Previous-round record: Last verified durable boundary: `af245cf`, which
-  already contains the two earlier review repairs.
-- Current baseline: clean task branch
-  `claude/mc-journal-claude-worker-20260928` at `393db73`.
-- Active assurance lane: **review/handoff candidate**. No deploy, install, push,
-  or service mutation is authorized from this workspace.
+- Branch `claude/mc-journal-claude-worker-20260928`, head `8b7c9fb` before
+  the merge of `main` (`e1ba407`).
+- Active assurance lane: **release**: the owner approved merging when review
+  allows. Deployment stays owner-gated.
 - Chat → Work requires explicit user acceptance; Work ↔ Work uses native
   Work-internal coordination; Work → the originating Chat is unavailable.
   Mission Control's autonomous control-plane routing of supervision and
@@ -66,41 +60,33 @@ Updated: 2026-09-28
 
 ## Current checkpoint
 
-1. Reproduce the hit-limit finding at the reviewed code. **Complete.**
-2. Recognize the CLI wording and parse its local reset; add regression. **Complete.**
-3. Run sandbox-compatible checks and review the diff. **Complete.**
-4. Preserve the uncommitted runner handoff. **Complete.**
+- `main` at `e1ba407` is merged into the branch head `8b7c9fb`. Conflicts were
+  only in this file and `tests/test_current_state_concision.py`. That test file
+  keeps its general checks (concision, gate evidence with status and counts)
+  and drops three tests that pinned one task's checkpoint wording and commit
+  IDs; every later task rewrites this file, so those tests could never hold.
+- Next: Codex review of the merge head, then merge.
 
 ## Completed
 
-- Added a regression that was red before repair and green afterward. The worker
-  test file passes 24/24 using Node's built-in runner with
-  `--test-isolation=none` in this sandbox. `npm run check` passes.
-- Repository unittests excluding exactly one test that binds `127.0.0.1` pass
-  468/468. The exact deterministic repository audit passes without findings.
-- Reviewed the source, test, and state diff; no tests were changed to bypass
-  the sandbox.
+- Hit-limit repair and the earlier attempt-budget repair, with regressions
+  that were red before repair and green after (see the disposition above).
+- Merged `main` and resolved the two conflicts described in the checkpoint.
 
 ## Remaining
 
-- CI must run the full relay `npm test` gate and the exact unfiltered Python
-  unittest gate, including the local-socket case.
+- Codex review of the merge head, then merge.
 
 ## Blockers / unresolved
 
-- No implementation or owner-decision blocker remains. The sandbox prohibits
-  local sockets; full socket coverage is a CI-only residual.
+- No implementation or owner-decision blocker.
 
 ## Evidence / artifacts
 
-- Red regression: the reported hit-limit response returned `ERROR`; green
-  regression: it returned `LIMITED` and suppressed the next queued item.
-- Node worker tests: 24/24 PASS. Relay static check: PASS. Non-socket Python
-  tests: 468/468 PASS. Deterministic audit: PASS.
-- Test-cost telemetry: `/tmp/pr277-hit-limit-review.jsonl`.
+- `python3 -m unittest discover -s tests -v`: **PASS** — 478 tests run on the merge head outside any sandbox, 0 failures, 0 errors.
+- `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
+- Relay `npm test` in `tools/codex-mission-control/vps-browser-relay`: **PASS** — 443 tests, 0 failures.
 
 ## Next safe action
 
-- The repository runner may commit and push this source, test, and state delta,
-  then let CI execute the sandbox-incompatible gates. Do not commit or push
-  from this workspace.
+- Wait for the Codex review of the merge head; the shepherd merges it when the review allows.
