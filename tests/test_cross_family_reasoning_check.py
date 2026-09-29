@@ -23,13 +23,21 @@ class CrossFamilyReasoningCheckTests(unittest.TestCase):
             "Origin: **OWNER** instruction, 2026-09-24",
             "Claude Opus 5.5 at effort `max`",
             "GPT-6 Sol at Extra High (XHigh)",
-            "GPT (any GPT-6 Sol or GPT-6 Astra tier)",
+            "GPT (any GPT model",
             "Never present one as a cross-family check.",
             "`Cross-family check: not run (<reason>)`",
             "no API-key fallback",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
+
+    def test_active_gpt_5_6_producer_has_a_claude_reviewer(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        rows = [line.split("|") for line in text.splitlines() if line.startswith("| GPT (")]
+        self.assertEqual(len(rows), 1)
+        producer, reviewer = rows[0][1:3]
+        self.assertIn("GPT-5.6", producer)
+        self.assertIn("Claude Opus 5.5 at effort `max`", reviewer)
 
     def test_trigger_is_scoped_and_bounded_for_cost(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")

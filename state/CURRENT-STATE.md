@@ -10,10 +10,10 @@ Updated: 2026-09-29
 ## Goal
 
 - Owner decision on 2026-09-28: switch UDA's Work Sol ladder to GPT-6 Sol.
-- Parent policy outcome: **SATISFIED at the committed checkpoint**. This round
-  repairs two review findings in the working tree. The socket-opening test and
-  exact full Python gate remain for CI after the runner commits and pushes.
-  Runtime activation is a separate follow-up after availability checks.
+- The GPT-6 Sol policy switch is implemented at the reviewed merge commit.
+  This review-repair round remains **OPEN** until its working-tree changes are
+  committed, pushed, and checked by CI. Runtime activation is a separate
+  follow-up after availability checks.
 
 ## Authority / baseline
 
@@ -32,6 +32,12 @@ Updated: 2026-09-29
   GPT-6 Sol receipt example contradicted its GPT-5.6 Sol directive and current
   runtime contract. This round corrects both; a regression test checks the
   template pair, while checkpoint wording is deliberately not pinned by a test.
+- Review of `53219c2` found a valid GPT-5.6 producer mapping gap; the row now
+  covers every GPT model, and a regression test fails on the reviewed version.
+  The checkpoint's pending-review action was stale and is corrected below.
+  The finding's ancestry claim refers to `f03da30`, absent from this checkout;
+  actual reviewed commit `53219c2` has parents `1b78d3c` and `8eae0dc`.
+  Per owner instruction, no test pins this checkpoint's wording or commit IDs.
 
 ## Preserved architecture boundaries
 
@@ -64,15 +70,16 @@ Updated: 2026-09-29
 
 ## Current checkpoint
 
-- The review repair is committed at `1b78d3c`. `main` at `8eae0dc` (the
-  journal Claude worker, #277) is merged into the branch. Conflicts were only
-  in this file and `tests/test_current_state_concision.py`, which keeps main's
-  general checks plus this branch's placeholder check.
+- Last verified durable boundary: reviewed merge commit
+  `53219c261b8975cd73ddd22b8fcf75815e540362`, with parents `1b78d3c`
+  (prior review repair) and `8eae0dc` (then-main). This round's fixes are in
+  the working tree; no new commit has been created here.
 - The merge also restores two checks this branch had dropped: the recovery
   state keeps the Work topology boundaries, the production-promotion boundary
   and the coverage-before-depth completion references. They are durable
   requirements carried by every checkpoint, not one round's wording.
-- Next: Codex review of the merge head, then merge.
+- Next: runner commits and pushes this round, CI runs the socket-dependent test
+  and exact full Python gate, then the shepherd reviews and merges.
 
 ## Blockers / unresolved
 
@@ -80,29 +87,24 @@ Updated: 2026-09-29
 
 ## Evidence / artifacts
 
-- Focused policy, graph, and state tests: **PASS** — 26 tests, 0 failures, 0 errors.
-- Focused canonical-boundary tests: **PASS** — 17 tests, 0 failures, 0 errors.
-- Socket-free repository discovery: **PASS** — 479 tests, 0 failures, 0 errors;
-  1 existing localhost-server test deferred to CI without changing its source.
-- `python3 -m unittest discover -s tests -v`: **PASS** — 481 tests run on the merge head outside any sandbox, 0 failures, 0 errors.
-- `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
+- `python3 -m unittest discover -s tests -v`: **UNVERIFIED** counts unavailable
+  for this working tree in the socket-free sandbox; CI must run the one
+  localhost-server test. The reviewed merge commit passed 481 tests before
+  this round.
+- `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings on this round's working tree.
 - `python3 scripts/uda_rule_graph.py validate`: **PASS** — 37 graph nodes,
   9 task-time rules, 0 errors.
 - Root `AGENTS.md`: 23,321 bytes, below the 32 KiB discovery budget.
-- Test-cost observer at checkpoint: 530.06s elapsed; 9.06s observed test time
-  (1.71%); 3 affected, 5 focused, and 2 other runs; 4 failure-discovering
-  runs; 0 full-suite or mutation runs; 0 forced redundant green reruns or skips.
-- This round: the new template-pair regression failed before the receipt fix
-  and passed after it; 114 affected Python tests and 30 relay core tests pass.
-  The exact repository audit passes with no findings. Relay candidate execution
-  tests that spawn a child failed in this sandbox; no test source was changed.
-- Test-cost snapshot: 267.44s elapsed, 2.62s tests (0.98%); affected 6 runs /
-  2.47s / 2 failure-discovering, focused 3 runs / 0.15s / 1 failure-discovering;
-  no full or mutation runs, forced green reruns, or redundant skips (0s avoided).
+- This round: GPT-5.6 reviewer regression failed before the fix and passed
+  afterward (6 focused tests); 3 focused checkpoint tests pass. Full discovery
+  attempted 482 tests before the checkpoint receipt correction: one socket
+  error and one now-fixed receipt failure. No sandbox-driven test-source change.
+- Test-cost telemetry uses `/tmp` because `.git` is read-only: 4.22s observed
+  test time; no redundant green reruns.
 
 ## Remaining
 
-- Codex review of the merge head, then merge.
+- Commit/push this review repair, run CI, review the result, then merge.
 - Before switching runtime labels or model mappings, verify GPT-6 Sol at the
   needed efforts in each ChatGPT account's model picker, Codex exec, and the
   Venice catalog. Then separately update `tools/codex-mission-control/**`
@@ -112,4 +114,4 @@ Updated: 2026-09-29
 
 ## Next safe action
 
-- Wait for the Codex review of the merge head; the shepherd merges it when the review allows.
+- Runner commits and pushes the working tree; CI verifies the full Python gate.

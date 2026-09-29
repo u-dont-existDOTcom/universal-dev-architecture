@@ -39,7 +39,7 @@ Use the **other model family's current top reasoning setting**. The role is cano
 
 | Producer family | Reviewer (current binding) |
 |---|---|
-| GPT (any GPT-6 Sol or GPT-6 Astra tier) | Claude Opus 5.5 at effort `max` (Claude Code `--effort max`) |
+| GPT (any GPT model, including GPT-5.6 and GPT-6) | Claude Opus 5.5 at effort `max` (Claude Code `--effort max`) |
 | Claude (any Claude model) | GPT-6 Sol at Extra High (XHigh), the difficult-task baseline in `patterns/work-model-and-effort-routing.md` |
 
 - Route the check through an already-authorized subscription route for the reviewer family. Examples are the Claude Code provider route for Opus and the owner's ChatGPT/Codex route for Sol. This adds no API-key fallback, no new account, and no spending authority.
