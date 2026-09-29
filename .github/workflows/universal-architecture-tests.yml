@@ -27,6 +27,8 @@ jobs:
         run: python3 -m unittest discover -s tests -v
 
       - name: Audit repository baseline
+        env:
+          UDA_TASK_ID: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || '' }}
         run: python3 scripts/audit_codex_github.py --root . --fail-on error
 
   mission-control-application:

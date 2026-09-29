@@ -175,9 +175,7 @@ setInterval(() => {}, 1000);
   assert.equal(result.timeout, true);
   const pid = Number(await readFile(pidFile, 'utf8'));
   await new Promise((resolve) => setTimeout(resolve, 50));
-  const status = await readFile(`/proc/${pid}/status`, 'utf8').catch((error) => (
-    error.code === 'ENOENT' ? '' : Promise.reject(error)
-  ));
+  const status = await processStatusOrGone(pid);
   assert.ok(
     status === '' || /^State:\s+Z/m.test(status),
     `grandchild remained live: ${status.match(/^State:.*$/m)?.[0]}`,
@@ -234,9 +232,7 @@ await withFileLock(${JSON.stringify(join(dir, 'worker.lock'))}, () =>
   for (const pid of [claudePid, descendantPid]) {
     let status;
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      status = await readFile(`/proc/${pid}/status`, 'utf8').catch((error) => (
-        error.code === 'ENOENT' ? '' : Promise.reject(error)
-      ));
+      status = await processStatusOrGone(pid);
       if (status === '' || /^State:\s+Z/m.test(status)) break;
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
@@ -244,6 +240,16 @@ await withFileLock(${JSON.stringify(join(dir, 'worker.lock'))}, () =>
       status === '' || /^State:\s+Z/m.test(status),
       `Claude process group member ${pid} remained live: ${status.match(/^State:.*$/m)?.[0]}`,
     );
+  }
+}
+
+async function processStatusOrGone(pid) {
+  try {
+    return await readFile(`/proc/${pid}/status`, 'utf8');
+  } catch (error) {
+    // procfs can return ESRCH when a process exits after open but before read.
+    if (error.code === 'ENOENT' || error.code === 'ESRCH') return '';
+    throw error;
   }
 }
 

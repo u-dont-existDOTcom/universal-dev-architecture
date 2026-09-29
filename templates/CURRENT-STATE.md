@@ -1,6 +1,6 @@
 # Current State
 
-Use this file as the concise recovery entry point for long-running or multi-session work. Keep it current enough that a fresh worker with repository access but no old chat transcript can resume correctly.
+Use this file as the starting point for one task's concise recovery checkpoint. In UDA, assign a stable unique task ID (`pr-<number>` for a pull request) and write the file to the path from `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)" "<task-id>"`; remove inapplicable fields and keep the task file within 120 lines. Record the exact branch and task ID in the checkpoint. The helper hashes both values into a case-fold-safe filename. Edit only this task's file and retain it after merge. `state/CURRENT-STATE.md` remains the repository recovery entry point and changes only for repository-level state. Keep checkpoints current enough that a fresh worker with repository access but no old chat transcript can resume correctly.
 
 ## Owner-source and owner-outcome invariant
 
