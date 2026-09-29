@@ -10,10 +10,9 @@ Updated: 2026-09-29
 ## Goal
 
 - Owner decision on 2026-09-28: switch UDA's Work Sol ladder to GPT-6 Sol.
-- The GPT-6 Sol policy switch is implemented at the reviewed merge commit.
-  This review-repair round remains **OPEN** until its working-tree changes are
-  committed, pushed, and checked by CI. Runtime activation is a separate
-  follow-up after availability checks.
+- The GPT-6 Sol policy switch and prior review repairs are committed at
+  `a3d3290`. This review remains **OPEN** pending CI, review, and merge.
+  Runtime activation is a separate follow-up after availability checks.
 
 ## Authority / baseline
 
@@ -38,6 +37,9 @@ Updated: 2026-09-29
   The finding's ancestry claim refers to `f03da30`, absent from this checkout;
   actual reviewed commit `53219c2` has parents `1b78d3c` and `8eae0dc`.
   Per owner instruction, no test pins this checkpoint's wording or commit IDs.
+- Review of `a3d3290` correctly found that the checkpoint lagged committed
+  work. The cited `ec9672b` is absent from this checkout; `a3d3290` is the
+  verified committed boundary, with `53219c2` as its parent.
 
 ## Preserved architecture boundaries
 
@@ -70,16 +72,15 @@ Updated: 2026-09-29
 
 ## Current checkpoint
 
-- Last verified durable boundary: reviewed merge commit
-  `53219c261b8975cd73ddd22b8fcf75815e540362`, with parents `1b78d3c`
-  (prior review repair) and `8eae0dc` (then-main). This round's fixes are in
-  the working tree; no new commit has been created here.
+- Last verified durable boundary: reviewed commit
+  `a3d3290bb08c611e302b0cc860e8243c3e6da099`, whose parent is the
+  `53219c2` merge. Only this checkpoint correction is in the working tree.
 - The merge also restores two checks this branch had dropped: the recovery
   state keeps the Work topology boundaries, the production-promotion boundary
   and the coverage-before-depth completion references. They are durable
   requirements carried by every checkpoint, not one round's wording.
-- Next: runner commits and pushes this round, CI runs the socket-dependent test
-  and exact full Python gate, then the shepherd reviews and merges.
+- Next: runner commits and pushes this checkpoint correction; CI runs the
+  socket-dependent test and exact full Python gate, then review and merge.
 
 ## Blockers / unresolved
 
@@ -88,23 +89,22 @@ Updated: 2026-09-29
 ## Evidence / artifacts
 
 - `python3 -m unittest discover -s tests -v`: **UNVERIFIED** counts unavailable
-  for this working tree in the socket-free sandbox; CI must run the one
-  localhost-server test. The reviewed merge commit passed 481 tests before
-  this round.
+  for the exact gate in this socket-free sandbox. Filtered discovery passed
+  481 non-socket tests; CI must run the localhost HTTP-server test.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings on this round's working tree.
 - `python3 scripts/uda_rule_graph.py validate`: **PASS** — 37 graph nodes,
   9 task-time rules, 0 errors.
 - Root `AGENTS.md`: 23,321 bytes, below the 32 KiB discovery budget.
-- This round: GPT-5.6 reviewer regression failed before the fix and passed
+- Prior round: GPT-5.6 reviewer regression failed before the fix and passed
   afterward (6 focused tests); 3 focused checkpoint tests pass. Full discovery
   attempted 482 tests before the checkpoint receipt correction: one socket
   error and one now-fixed receipt failure. No sandbox-driven test-source change.
-- Test-cost telemetry uses `/tmp` because `.git` is read-only: 4.22s observed
-  test time; no redundant green reruns.
+- Test-cost telemetry uses `/tmp`: about 5.5s observed test time; no redundant
+  green reruns.
 
 ## Remaining
 
-- Commit/push this review repair, run CI, review the result, then merge.
+- Commit/push this checkpoint correction, run CI, review the result, then merge.
 - Before switching runtime labels or model mappings, verify GPT-6 Sol at the
   needed efforts in each ChatGPT account's model picker, Codex exec, and the
   Venice catalog. Then separately update `tools/codex-mission-control/**`
@@ -114,4 +114,4 @@ Updated: 2026-09-29
 
 ## Next safe action
 
-- Runner commits and pushes the working tree; CI verifies the full Python gate.
+- Runner commits and pushes this checkpoint correction; CI and review follow.
