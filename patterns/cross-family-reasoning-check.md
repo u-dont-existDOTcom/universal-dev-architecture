@@ -2,7 +2,7 @@
 
 ## Status
 
-Current universal pattern. Origin: **OWNER** instruction, 2026-09-24 ("anything which requires very complex reasoning and could benefit from a separate model check should be checked with either Opus 5.5 max thinking if it was from GPT, or with GPT Sol XHigh if it was from Opus"). The owner invited a better design; the scoping below is that refinement, not a weakening of the instruction.
+Current universal pattern. Origin: **OWNER** instruction, 2026-09-24 ("anything which requires very complex reasoning and could benefit from a separate model check should be checked with either Opus 5.5 max thinking if it was from GPT, or with GPT Sol XHigh if it was from Opus"). Owner correction, 2026-09-29: long-running Opus reviews can legitimately take substantial time; before stopping or marking one unavailable, ask/check the reviewer runtime whether it is still working. The owner invited a better design; the scoping below is that refinement, not a weakening of either instruction.
 
 ## Problem
 
@@ -70,9 +70,25 @@ Ask the reviewer for:
 - A `FINDS_ERROR` with a concrete failing case must be fixed or explicitly rebutted with evidence before the conclusion is used.
 - An `UNCERTAIN` verdict is not assurance. Before a consequential action depends on the conclusion, obtain the settling evidence the reviewer named, get the owner's explicit adjudication or waiver, or take the conservative reversible path; otherwise handle it as an unavailable check (below).
 
+## Long-running reviewer liveness
+
+A slow frontier reviewer is not an unavailable reviewer. **Elapsed wall time, a caller/tool timeout, or a long thinking phase is never by itself evidence that the review stalled or failed.**
+
+When the reviewer runtime can persist independently of one tool call:
+
+1. Prefer a persistent/background review session for work that may exceed the caller's normal timeout. Record its session/job ID.
+2. Before declaring the reviewer stalled, unavailable, or safe to terminate, query the reviewer runtime itself for liveness: session state plus recent logs/progress where available. If the runtime exposes an agent-status command, ask it whether the review is still `busy/working`; do not infer status from silence in the parent tool.
+3. Treat `busy/working` plus continuing reasoning/tool/log activity as an active review regardless of elapsed duration. Continue waiting and monitor at sensible intervals; do not kill it merely because a previous review usually finished faster.
+4. Distinguish `blocked/waiting for input` from `working`. Satisfy routine, already-authorized prompts directly when safe; interrupt the owner only for a genuine owner-only decision, permission, credential, or other human gesture.
+5. Treat a wrapper timeout as scoped to the wrapper. If the underlying reviewer session/process still exists, reattach, resume, or continue monitoring it rather than classifying the review as failed.
+6. Call a review stalled only from positive evidence: the runtime says failed/stopped/lost, the process/session disappeared unexpectedly, or repeated liveness checks show no forward activity and no waiting-for-input state. Do not use a fixed minute cutoff as the stall criterion.
+7. If the runtime has no liveness/status surface, preserve the session/process and use the strongest available same-runtime evidence (process state, output growth, tool activity, token/progress counters) before applying the unavailable path.
+
+For current Claude Code versions that support background sessions, a version-sensitive example is: start the long review with `claude --bg ...`, then use `claude agents --json` and `claude logs <session-id>` to distinguish `busy/working`, blocked, completed, and failed states. Re-check `claude --help` before relying on these flags because CLI behavior is version-sensitive.
+
 ## Reviewer unavailable
 
-If the other family is unreachable, rate-limited, or not authorized in the current surface:
+Use this path only after the liveness rule above establishes that the other family is genuinely unreachable, failed/lost, rate-limited, unauthorized, or otherwise unavailable in the current surface:
 
 - Do not substitute a same-family model or a lower tier and call it cross-family.
 - When the conclusion is itself what the owner will act on (advice, a recommendation, a decision), delivering it is the consequential step. Do not present it as settled. Present it as unresolved with the line `Cross-family check: not run (<reason>)`, lead with the conservative reversible option, and name what the check would need to settle. It becomes a settled recommendation only after the check runs or the owner waives it.
@@ -85,11 +101,11 @@ This is a targeted check for one conclusion. It is allowed in any lane when the 
 
 ## Receipt
 
-Record one short line in the task record or final answer. The line gives the reviewer model and effort, the route, what was checked, the verdict, and how any disagreement was resolved. Example: `Cross-family check: Opus 5.5 max via Claude Code — root-cause diagnosis — FINDS_ERROR (race in step 3) — fixed`.
+Record one short line in the task record or final answer. The line gives the reviewer model and effort, the route, what was checked, the verdict, and how any disagreement was resolved. If liveness or reviewer availability affected the disposition, also record the reviewer session/job ID or equivalent scoped runtime identity and the status/log evidence used; elapsed time alone is not an availability receipt. Example: `Cross-family check: Opus 5.5 max via Claude Code — root-cause diagnosis — FINDS_ERROR (race in step 3) — fixed`.
 
 ## Requirement-accretion declaration
 
-- Origin: `OWNER` (2026-09-24).
-- Decision it changes: whether a reasoning-heavy, costly-if-wrong conclusion may be used unexamined outside its producing model family.
-- Why the simpler standard is insufficient: same-family self-review shares the producer's blind spots (see the existing-work basis above).
-- Why it is scoped: the trigger limits the check to conclusions where a second frontier-model pass can change a costly outcome. Unscoped checking would contradict the owner's cost instruction and the assurance-lane rules.
+- Origin: `OWNER` (2026-09-24), with reviewer-liveness correction `OWNER` (2026-09-29).
+- Decision it changes: whether a reasoning-heavy, costly-if-wrong conclusion may be used unexamined outside its producing model family, and when a slow reviewer may be treated as unavailable.
+- Why the simpler standard is insufficient: same-family self-review shares the producer's blind spots; separately, elapsed-time heuristics can kill a still-working frontier reviewer and falsely downgrade a required check to "unavailable".
+- Why it is scoped: the trigger limits the check to conclusions where a second frontier-model pass can change a costly outcome. Liveness monitoring applies only after such a review is admitted. Unscoped checking would contradict the owner's cost instruction and the assurance-lane rules.
