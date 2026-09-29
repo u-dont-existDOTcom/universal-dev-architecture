@@ -44,6 +44,16 @@ class CurrentStateConcisionTests(unittest.TestCase):
                 r"\*\*UNVERIFIED\*\*[^\n]*counts unavailable)",
             ),
         )
+    def test_checkpoint_has_a_recovery_action_without_stale_placeholders(self) -> None:
+        text = CURRENT_STATE.read_text(encoding="utf-8")
+        checkpoint = text.split("## Current checkpoint", 1)[1].split("## Blockers", 1)[0]
+        remaining = text.split("## Remaining", 1)[1].split("## Next safe action", 1)[0]
+        next_action = text.split("## Next safe action", 1)[1]
+        self.assertTrue(checkpoint.strip())
+        self.assertTrue(remaining.strip())
+        self.assertTrue(next_action.strip())
+        self.assertNotIn("replace-with", text)
+
 
 
 if __name__ == "__main__":
